@@ -155,6 +155,14 @@ class ExecutorTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             self.e.observe_motion(sample_steady=.3, received_steady=.3, linear=10**1000, angular=0)
 
+    def test_rejected_renewal_preserves_sequence_and_deadline(self):
+        self.task = replace(self.task, lease_duration=1e308)
+        self.admit()
+        before = self.e.lease_sequence, self.e.lease_until
+        with self.assertRaises(ContractError):
+            self.e.renew(uid(3), uid(2), 1, 5, now=9e307)
+        self.assertEqual((self.e.lease_sequence, self.e.lease_until), before)
+
     def test_regressed_clock_latches(self):
         self.send()
         with self.assertRaises(ContractError):

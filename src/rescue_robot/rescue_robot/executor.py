@@ -334,8 +334,8 @@ class Executor:
                 or authority_epoch != self.authority_epoch or generation_value != self.active.generation
                 or now >= self.lease_until or self.state == 'STOPPING' or sequence <= self.lease_sequence):
             return False
-        self.lease_sequence = sequence
-        self.lease_until = future_deadline(now, self.active.lease_duration)
+        lease_until = future_deadline(now, self.active.lease_duration)
+        self.lease_sequence, self.lease_until = sequence, lease_until
         return True
 
     def request_stop(self, cause, *, now, outcome='CANCELED'):
