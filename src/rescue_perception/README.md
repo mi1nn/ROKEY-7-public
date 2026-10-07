@@ -1,7 +1,20 @@
 # rescue_perception
 
-카메라 입력·사람 탐지·거리 추정·관측 생성. 탐지와 ROS 입출력은 아직 없다.
+기록된 탐지 결과와 RGB/Depth 메타데이터·Depth 배열을 검증하는 순수 Python 코어다. 표준 라이브러리만 사용한다. 모델 추론, ROS 노드, 카메라 구독, 실제 영상 디코딩, TF, 주행 명령은 구현하지 않았다.
 
-이 패키지는 제안된 기능 경계를 표시하는 초기 구조다. `rescue_bringup`의 정적 프로파일 검사 외에 실행 노드·launch·ROS 인터페이스·로봇 명령 경로는 제공하지 않는다. 가져올 원본 코드는 아직 복사하지 않았다.
+- `locate_detection`: 같은 시간 기준·시각 의미·해상도·보정/정렬 근거를 확인하고, bbox ROI의 유효 깊이 중앙값을 rectified RGB optical frame의 XYZ(m)로 역투영한다. `16UC1/mm`, `32FC1/m`만 지원한다. 깊이 부족/불연속/정합 불명은 이유와 함께 위치 없는 결과다.
+- `make_observation`: source/boot/원 stamp·모델 ID/SHA/class·탐지·위치 결과·증거 참조·최초 만료를 불변 객체로 만든다. 탐지 성공과 위치 성공을 분리한다. 모델 가중치와 원본 증거 파일의 해시는 caller가 계산·검증해야 한다.
+- `validate_freshness`, `ObservationRegistry.ingest`: clock 오차·센서 stamp 지연 상한을 포함해 최신성을 검사한다. 중복·같은 frame의 추가 사람·역순 관측은 공백 타이머를 갱신하지 않는다. 같은 observation ID의 payload 변경은 거절한다.
+- `ConservativeEventRegistry.register`: 유효 수신의 admission으로 잠정 사건을 등록한다. 다른 로봇의 같은 track ID, 같은 class/높은 confidence를 같은 사람으로 병합하지 않는다. 모호한 연결은 별도 사건의 후보 관계로만 남긴다.
 
-패키지 버전 `0.0.0`은 초기 구조를 뜻한다. 프로젝트 라이선스와 maintainer는 미결정이다. `LicenseRef-Unspecified`는 사용 허가를 뜻하지 않으며 `maintainer@example.invalid`는 실제 연락처가 아니다. 배포 전에 프로젝트가 결정한 메타데이터로 교체한다.
+정합·최신성·깊이 품질의 모든 임계값은 caller가 명시한다. 시험의 숫자는 하드웨어 기본값이 아니다. 위치 결과는 공분산·지도 변환·SLAM revision·대상 동일성·안전 접근이 검증됐다는 뜻이 아니다. 시간 불명 관측은 기록할 수 있지만 자동 임무의 유효 입력으로 admission하지 않는다.
+
+저장소 루트에서:
+
+```sh
+PYTHONPATH=src/rescue_perception python3 -m unittest discover -s tests -p test_perception.py -v
+```
+
+API·제한·원본 근거는 [구현 문서](../../docs/implementation-perception.md)를 따른다. 이 상대 링크는 저장소 checkout 기준이며 설치된 share 디렉터리는 저장소 문서를 포함하지 않는다.
+
+원본 코드를 복사하지 않고 선별한 원리를 새 계약에 맞춰 구현했다. 버전 `0.0.0`, `LicenseRef-Unspecified`, 임시 maintainer는 기존 초기 구조의 미결정 메타데이터다. 이는 사용 허가나 실제 담당자를 뜻하지 않으며 배포 전에 확정해야 한다.

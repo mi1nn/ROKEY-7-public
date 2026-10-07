@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='카메라 입력·사람 탐지·거리 추정·관측 생성. 탐지와 ROS 입출력은 아직 없다.',
+    description='기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. 모델 추론·ROS 입출력은 미구현.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": []},
 )
