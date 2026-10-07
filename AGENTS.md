@@ -22,15 +22,14 @@
   왜: 폴더 하나를 둘이 쓰면 한쪽의 `git switch` 가 다른 쪽 발밑을 바꾼다. 원본 프로젝트에서 실행용 폴더가 개발 브랜치를 가리켜 회차를 재현할 수 없었다(원본 DEC-018, 2026-10-03).
 - **만질 파일을 먼저 PR 본문에 선언한다.** 레인은 [docs/acceptance-plan.md](docs/acceptance-plan.md) A-07(세션 소유권)과 [docs/repository-layout.md](docs/repository-layout.md)(패키지 책임)를 따른다.
 
-| 레인 | 경로 | 비고 |
+| 레인 (A-07 의 이름) | 경로 | 비고 |
 | --- | --- | --- |
-| 공통 계약 | `src/rescue_interfaces/`, `docs/contracts.md`·`state-machines.md`·`acceptance-plan.md`, `scripts/`, `.github/`, 루트 문서 | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·시험의 영향을 같은 PR 에 적는다 |
-| 로봇 기반 | `src/rescue_robot/`, `src/rescue_mapping/`, `src/rescue_bringup/`, `config/` | Nav2 goal·cancel·dock/undock 을 발행하는 유일한 곳은 `rescue_robot` |
+| 통합/계약 | `src/rescue_interfaces/`, 루트 문서, `docs/`(scope·architecture·algorithm-decisions·repository-layout·contracts·state-machines·acceptance-plan), `scripts/`, `.github/` | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·문서·시험의 영향을 같은 PR 에 적는다 |
+| 기반 | `src/rescue_robot/`, `src/rescue_mapping/`, `src/rescue_bringup/`, `config/` | Nav2 goal·cancel·dock/undock 을 발행하는 유일한 곳은 `rescue_robot` |
 | 인식 | `src/rescue_perception/`, `tools/`, `assets/manifest/` | 주행 명령을 보내지 않는다 |
 | 협업·관제 | `src/rescue_coordination/`, `src/rescue_operations/` | `cmd_vel`·Nav2 액션을 직접 부르지 않는다 |
-| 설계 문서 | `docs/scope.md`·`architecture.md`·`algorithm-decisions.md`·`repository-layout.md` | 바꾸면 소비 문서(계약·시험)도 같은 PR 에서 맞춘다 |
 
-- 사람 담당은 팀이 정해 A-07 표를 갱신한다 [미정, 2026-10-08]. 담당 이름이 비어 있으면 그 레인의 변경은 PR 본문에 「담당 없음」을 적고 리뷰를 한 명 더 받는다.
+- 위 표는 경로 요약이다. 담당은 A-07 표가 기준이고 사람 이름은 팀이 정해 그 표를 갱신한다 [미정, 2026-10-08]. 둘이 어긋나면 A-07 이 이긴다.
 - 남의 레인 파일이 필요하면 직접 고치지 않는다. → **대신** 자기 PR 본문 「미결정·후속」에 **어느 파일 몇 번째 줄을 왜** 바꿔야 하는지 적고, 담당이 바꾼다.
   왜: 같은 파일을 두 세션이 고치면 부딪친다. 원본 프로젝트에서 공통 타입 하나가 수정 커밋 하나로 바뀌어 다른 세션의 작업이 틀어졌다(2026-10-06).
 - **남이 연 PR 브랜치에 push 하지 않는다.** → **대신** 그 PR 에 코멘트로 남긴다. 그 위에 쌓은 브랜치는 rebase 하지 않고 merge 로 따라간다.
@@ -38,7 +37,7 @@
 
 ## 3. 브랜치와 PR
 
-- `main` 에는 직접 push 하지 않는다. 문서만 바꿔도 브랜치 + PR 이다(문서 검사 CI 가 PR 에서 돈다). `main` 보호 규칙은 저장소 관리자가 켠다 [설정 예정, 2026-10-08 현재 없음].
+- `main` 에는 직접 push 하지 않는다. 문서만 바꿔도 브랜치 + PR 이다(문서 검사 CI 가 PR 에서 돈다). `main` 보호 규칙은 저장소 관리자가 켠다 [미설정, 2026-10-08 — 소유자 토큰의 보호 API 조회가 404; 다른 토큰은 403 이라 재확인 불가].
 - 브랜치 이름은 `<type>/<설명>` (`feat` `fix` `docs` `test` `refactor` `chore` `ci`). PR 하나에 변경 목적 하나.
 - PR 은 `main` 기준으로 연다. 상위 PR 위에 쌓는 Draft 는 [docs/review-workflow.md](docs/review-workflow.md) 의 조건(상위가 `main` 에 들어간 뒤 base 를 `main` 으로 바꾸고 merge commit)에서만 쓴다.
 - 머지 방식은 **merge commit 하나**다. squash·rebase 를 쓰지 않는다.
@@ -75,14 +74,15 @@
 원본 프로젝트의 로봇 3번에서 실제로 난 사고에서 온 규칙이다. 파이널의 로봇 번호·설정은 [docs/scope.md](docs/scope.md) `Q-01` 이 열려 있다.
 
 - **로봇은 한 번에 한 사람·한 세션만 움직인다.** 언도크, 도킹, 이동, 카메라 재시작 전후에 팀에 알린다.
-  왜: 2026-10-06 다른 PC 의 SLAM 노드가 같은 로봇의 `/map` 에 함께 발행해 시험이 중단됐다([레슨런 LL-03](docs/lessons-learned.md)).
-- 작업 전에 로봇 번호를 확인한다(`hostname -I`, `echo $ROS_DOMAIN_ID`, 토픽 네임스페이스). 호스트 이름은 모든 로봇이 `turtlebot4` 다. 다른 팀 로봇은 쓰지 않는다.
+  왜: 2026-10-06 다른 PC 의 SLAM 노드가 같은 로봇의 `/robot3/map` 에 함께 발행해 시험이 중단됐다([레슨런 LL-03](docs/lessons-learned.md), [원본 기록 L33](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L33)).
+- 작업 전에 로봇 번호를 확인한다(`hostname -I`, `echo $ROS_DOMAIN_ID`, 토픽 네임스페이스). 원본에서는 호스트 이름이 모든 로봇에서 `turtlebot4` 였다 [설정, 2026-10-06]. 파이널 로봇의 번호·호스트·도메인은 `Q-01` 이 정한다. 다른 팀 로봇은 쓰지 않는다.
 - 읽기 전용 명령부터 쓴다. **사람이 지켜보지 않을 때 로봇을 움직이지 않는다.**
-- 로봇을 움직이지 않는 세션의 ROS 시험은 로봇 도메인과 겹치지 않게 `ROS_DOMAIN_ID` 10 이상과 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` 로 한다.
-- 로봇 설정 변경(등급 `E4` 에 해당하는 안전·설정 변경): 백업 → 바꾸기 전 해시가 백업과 같은지 확인 → 바꿈 → 바꾼 뒤 해시 확인 → 재시작 → 동작 확인 → 되돌리는 방법 기록. 사용자의 승인을 날짜와 함께 적고 `config/robots/` 도 같이 고친다.
-  왜: 2026-10-06 카메라 설정이 누가 바꿨는지 모르게 바뀌어 있었다([레슨런 LL-04](docs/lessons-learned.md)).
+- 로봇을 움직이지 않는 세션의 ROS 시험은 로봇 도메인과 겹치지 않는 `ROS_DOMAIN_ID` 와 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` 로 한다. 「10 이상」은 원본 로봇 3번(도메인 3) 때의 값이다 [설정, 2026-10-06]; 파이널 값은 `Q-01` 뒤에 정한다.
+- 로봇 설정 변경(사람·로봇에 닿는 안전·설정 변경 — **사용자의 명시적 승인**이 필요하다. 검증 층위 `E1 ~ E4` 는 A-02 의 뜻으로만 쓰고 여기에 붙이지 않는다): 백업 → 바꾸기 전 해시가 백업과 같은지 확인 → 바꿈 → 바꾼 뒤 해시 확인 → 재시작 → 동작 확인 → 되돌리는 방법 기록. 사용자의 승인을 날짜와 함께 적고 `config/robots/` 도 같이 고친다.
+  왜: 2026-10-06 21:02 로봇 카메라가 704×704·10 fps 로 바뀌어 있었고 누가 바꿨는지 몰랐다([원본 기록 L39](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L39)).
 - 로봇에 패키지를 설치하거나 업그레이드하지 않는다. 하루를 마칠 때 도킹하고 끈다.
-- 기본 설정(`power_saver: True`)에서는 도킹 중 카메라·LiDAR 가 발행되지 않는다. 준비 절차는 언도크 뒤에 한다([docs/contracts.md](docs/contracts.md) C-06).
+- 도킹 장치가 있는 로봇의 `UNDOCK`·`DOCK` 은 협업 임무와 분리된 기동·운영 절차이고 `rescue_robot` 만 발행한다. UNDOCK 의 선행 조건은 fresh 도킹/driver 상태·실제 정지·장치 액션 가용·준비 제어권이지 **Nav2·카메라 READY 가 아니다**(센서가 도킹 중 꺼지는 장비에서는 교착이 된다). 협업 이동은 그 뒤에 fresh `is_docked=false` 와 센서/TF/SLAM/Nav2 준비를 확인하고 허용한다. `power_saver: False` 로 도킹 중 센서가 나와도 이 guard 는 생략하지 않는다([docs/contracts.md](docs/contracts.md) C-06).
+  왜: 원본 로봇 3번은 기본 `power_saver: True` 에서 도킹 중 카메라·LiDAR 가 없었다([측정, 2026-10-01](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L48-L51)). 당시 기록이지 모든 AMR 의 기본값이 아니다([docs/architecture.md](docs/architecture.md) 「명령·정지 경계」).
 - 프로세스는 이름을 정확히 지정해서 끈다. `pkill -f` 처럼 넓게 잡는 명령은 쓰지 않는다. → **대신** `pkill -x <이름>` 이나 PID.
 
 ## 7. 실패 처리
@@ -98,14 +98,14 @@
 
 - 조용한 대체 동작(fallback)을 두지 않는다. 실패는 로그와 관제에 드러나야 한다.
 - 측정·조회 실패를 정상 범위 숫자로 채우지 않는다. → **대신** `None` 이나 범위 밖 센티넬을 돌려주고, 값에는 언제 잰 것인지를 같이 싣는다(낡으면 쓰지 않는다).
-  왜: 원본 프로젝트에서 읽기 실패값이 정상 바닥값과 같은 상수여서 모든 임계를 통과한 일이 있었다([레슨런 LL-06](docs/lessons-learned.md)).
+  왜: 원본보다 앞선 프로젝트에서 읽기 실패값(`-127.0`, 빈 배열)이 정상 바닥값과 같은 상수여서 모든 임계를 통과한 일이 있었다(선행 프로젝트 기록; 이 저장소의 레슨런 번호는 없다).
 
 ## 8. 코드
 
 - 이 순서로 판단하고, 위에서 해결되면 아래로 내려가지 않는다: ① 지금 필요한가 ② 저장소의 기존 코드로 되는가 ③ 표준 라이브러리 ④ ROS·Nav2·OS 기본 기능 ⑤ 이미 설치된 의존성 ⑥ 한 줄 또는 국소 변경 ⑦ 최소 구현. (Ponytail 의사결정 사다리를 줄여 옮김, MIT License, Dietrich Gebert.) 기존 Nav2 플러그인·패키지를 먼저 평가한다([docs/algorithm-decisions.md](docs/algorithm-decisions.md) D-05 의 `explore_lite` 판단이 예다).
 - **고치는 PR 에는 고치기 전 코드에서 실패하는 시험을 먼저 커밋**하고 수정 커밋을 뒤에 둔다. 시험이 0개인데 통과로 보이게 하지 않는다.
   왜: PR 4 의 `ValueError` 수정은 수정 전 코드가 이력에 없어 로그로만 증명됐다(2026-10-07, CLA-16).
-- 판단 로직(`<package>/domain/`)은 ROS 없이 import 되고 시험된다. ROS·DB·HTTP 입출력은 `adapters/` 에만 둔다([docs/repository-layout.md](docs/repository-layout.md)).
+- 판단 로직은 ROS 없이 import 되고 시험된다. ROS·DB·HTTP 입출력은 경계 모듈에 모은다. 폴더 이름 `<package>/domain/`·`adapters/` 는 [docs/architecture.md](docs/architecture.md) 의 **[제안]** 이다 — 작은 패키지에 빈 계층을 강제하지 않고, `rescue_interfaces` 는 ROS 인터페이스 패키지라 이 구조에서 제외한다.
 - 수량·임계값·정책을 코드 리터럴로 흩뿌리지 않는다. → **대신** 모듈 상단 상수나 프로파일 한 곳에 두고 docstring 에 「누가 언제 정했나」를 적는다(PR 4 `ROBOT_COUNT`·`HOST_TIERS` 가 예다).
 - 노드는 기동할 때 git SHA, 모델 해시, 실제 적용된 설정을 로그에 남긴다. 실패 경로에도 로그를 남긴다. 파라미터는 타입을 명시한다(`ParameterDescriptor`). 저장소 밖에 두는 파일(모델, 지도, 보정값)은 `assets/manifest/` 에 출처·해시·취득 절차를 적는다.
 - 로봇 ID·네임스페이스·frame·호스트·경로를 코드 상수로 고정하지 않는다. 배치 프로파일(`config/`)이 가진다.
@@ -116,6 +116,6 @@
 
 - 숫자는 한 곳에 두고 다른 문서는 링크한다: 시험 수치는 [docs/acceptance-plan.md](docs/acceptance-plan.md) `T-xx`, 계약 값은 [docs/contracts.md](docs/contracts.md).
 - 결정은 문서에 먼저 쓴다. 채팅에서만 정하지 않는다. 요구·범위는 [docs/scope.md](docs/scope.md) `RQ`·`Q`, 알고리즘은 [docs/algorithm-decisions.md](docs/algorithm-decisions.md) `D-xx`, 운영 위임은 [docs/review-workflow.md](docs/review-workflow.md). 사용자 지시는 **원문·날짜·적용 범위**를 같이 적는다.
-- 파일과 폴더 이름은 ASCII 로 쓴다(내용은 한국어). 개인 절대 경로, PC·세션·호스트 이름, IP, 토큰은 저장소와 PR 본문에 쓰지 않는다. → **대신** 저장소 기준 상대 경로와 자리 이름.
+- 파일과 폴더 이름은 ASCII 로 쓴다(내용은 한국어). 개인 절대 경로, PC·호스트 이름, 로컬 세션 이름, IP, 토큰은 저장소와 PR 본문에 쓰지 않는다. → **대신** 저장소 기준 상대 경로와 자리 이름. 도구가 붙이는 작성 출처 줄(`Co-Authored-By`, 세션 링크)은 PR 본문·커밋 끝에 둘 수 있다.
   왜: PR 1 본문에 개인 경로가 올라와 지적을 받았다(2026-10-07, CLA-05).
 - 새 문서를 만들면 [README](README.md) 문서 표에 한 줄 넣는다.
