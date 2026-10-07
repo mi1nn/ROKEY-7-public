@@ -1,0 +1,17 @@
+{
+  "python": "3.12.14",
+  "source_files": {
+    "src/rescue_bringup/rescue_bringup/profile.py": "2c83c35d58dff052b0452b8b42c9ca8e8f7d6dd5fa9adc11a48545f3f3b95213",
+    "src/rescue_bringup/rescue_bringup/cli.py": "c96b473f685de94510166a26d9f9b733e124255403f19fc5487d1b1f2b3daa33",
+    "tests/test_profile.py": "050239633c1b3fcbea3aba8740c7e17862577f72958cce2b3bb2f7f522fcd60f"
+  },
+  "wheels": {
+    "rescue_bringup-0.0.0-py3-none-any.whl": "56e464e901f5c0f13c7c0019351dfeeabae82523e9f1d3a2752f06066b977402",
+    "rescue_coordination-0.0.0-py3-none-any.whl": "a4e52842128d729fd00d23e4737e902753ad6e8941dfa5841f7547ab8a64fceb",
+    "rescue_mapping-0.0.0-py3-none-any.whl": "808805f669f633c61006f0d779ccb06ef613b1563d39f8d770187e45ff6e3767",
+    "rescue_operations-0.0.0-py3-none-any.whl": "e3cfc62480c8472f00356d4376cc1c3b994a543dc21829c2489f18b2e2ea0ed0",
+    "rescue_perception-0.0.0-py3-none-any.whl": "80ffe8ba92311f61b4313c8210fc2fe090ac7c7d1fa16b144a0aa1426df0cc27",
+    "rescue_robot-0.0.0-py3-none-any.whl": "8430db87c48ba2f2a061caebc087677a4ea2e74f386d76349d95173680c9bf2c"
+  },
+  "scope": "draft-only, post-ValueError-fix; no ROS/colcon/hardware execution"
+}

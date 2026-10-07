@@ -1,0 +1,47 @@
+$ bundled Python 3.12: pip wheel --no-deps --no-build-isolation --no-index --no-cache-dir --wheel-dir .artifacts/python312/wheels src/rescue_robot src/rescue_perception src/rescue_coordination src/rescue_mapping src/rescue_operations src/rescue_bringup
+Processing ./src/rescue_robot
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing ./src/rescue_perception
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing ./src/rescue_coordination
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing ./src/rescue_mapping
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing ./src/rescue_operations
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing ./src/rescue_bringup
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: rescue_robot, rescue_perception, rescue_coordination, rescue_mapping, rescue_operations, rescue_bringup
+  Building wheel for rescue_robot (pyproject.toml): started
+  Building wheel for rescue_robot (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=3361 sha256=fcb1a0f08103ce74260928d153755212d312145cbcf02d75a2aa313490860b09
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/e1/2e/b7/4192aa8b95079576254a55686ad57d49cde8093d496abd96f6
+  Building wheel for rescue_perception (pyproject.toml): started
+  Building wheel for rescue_perception (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=3524 sha256=32f978bb8a46a8b124af4ea225ab01100bcdca92b6df7fa8df2561b1ebec2d61
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/a4/91/34/30e35d8343a4fb7fb66e6b2323471fc3d06d790577c4cecec2
+  Building wheel for rescue_coordination (pyproject.toml): started
+  Building wheel for rescue_coordination (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=3623 sha256=95028793d72c80819b11bf3495f331f0520b8e8ed499df5dab3ad6941c1fe563
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/ad/e7/38/a616f5073d49afbff7caf96d1947a2c7caca5b3b7c3fad1c5a
+  Building wheel for rescue_mapping (pyproject.toml): started
+  Building wheel for rescue_mapping (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=3429 sha256=b53d1a976626ae8fe2b7af4d2cfe5f99bf82b6c28cea9889df344a436c520ae0
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/56/cc/5e/59ceb0270d19e75a2899715e2d89de1285c0f3ae87638a1d10
+  Building wheel for rescue_operations (pyproject.toml): started
+  Building wheel for rescue_operations (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=3436 sha256=1282bdb648e88759f3bd20a5a73994ae77e9bd2a7aa6dbe2c850452d68290abb
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/4c/a2/15/b845ad895b6bfaf43ca437503c88694060ced8109b6e2f4d33
+  Building wheel for rescue_bringup (pyproject.toml): started
+  Building wheel for rescue_bringup (pyproject.toml): finished with status 'done'
+  Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=7301 sha256=0ce93a2d68f2c67392467378f6452738c60540966682f6012fdf751154dd1d29
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-e8944d0h/wheels/ec/9f/08/55511b32cccba6baeee6e3700894e2341ce78b8d30376edba5
+Successfully built rescue_robot rescue_perception rescue_coordination rescue_mapping rescue_operations rescue_bringup
+
+exit=0
