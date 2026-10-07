@@ -155,3 +155,7 @@ Claude는 전체 논리·계획을 검토하고, Codex는 반영 후 최종 검�
 ## 원본 근거
 
 시험 항목은 [AMR의 freshness 재발행](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L145-L159), [평면 보정 도구가 재투영·leave-one-out 오차를 계산하는 코드](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/calibrate_webcam_v2.py#L113-L165), [AMR의 추론 속도 집계 범위](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/yolo_report_utils.py#L191-L201), [P4 늦은 action 수락 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/test/test_goal_timer.py#L161-L176) 등 선별 근거와 새 요구를 연결한 것이다. 기존 시험의 존재·결과를 이 프로젝트의 실행 결과로 승계하지 않는다.
+
+## 2026-10-08 Python 코어 구현 증거의 범위
+
+계획 PR 5~10에서 [통합 리허설](implementation-integration.md)을 추가했다. CT-01~12 중 입력/불변식 일부에 E2 자동시험 증거가 생겼지만, 위 CT 전체와 AC의 최종 상태를 PASS로 변경하지 않는다. 각 구현 문서와 [실기 연결 관문](field-runbook.md)이 미구현 어댑터와 E3/E4를 구분한다. 특히 실제 backend 지도 보정·TF·path/action·장비 정지·모델 성능·2대 AMR·4대 PC 실행은 NOT_RUN이다. 합성 정상/실패 시나리오는 물리 구조 성공의 증거가 아니다.
