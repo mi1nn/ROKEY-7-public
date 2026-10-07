@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-08",
+  "baseline_commit": "5be3d9ead835e1a698b24e75161159d6c838c67f",
+  "scope": "review-fix working copy; not a pushed head; pure Python only",
+  "python_versions": {
+    "python311": "Python 3.11.8",
+    "python312": "Python 3.12.14"
+  },
+  "source_files": {
+    "src/rescue_bringup/rescue_bringup/profile.py": "ac2430aea8e27388a5034b223316133f25e1f7e94af084dec2770b3a8c826efa",
+    "src/rescue_bringup/rescue_bringup/cli.py": "affe1c1c6d2e2b08005ba1f9ff47d93795decc71d0e92033323d310c9736222c",
+    "tests/test_profile.py": "a40c1716c5015f07335176ebaf8430b9c8bd2b280ce5a565df536a5120bc442c"
+  },
+  "wheels": {
+    "rescue_bringup-0.0.0-py3-none-any.whl": "0ad4cae1b3b593c014fbb4516355568ca014e940c05e6495b1a0c5a007b977e4",
+    "rescue_coordination-0.0.0-py3-none-any.whl": "587ffd78547457b66af7cecc174645e9c05c7e89b726d5109b309c949b873b99",
+    "rescue_mapping-0.0.0-py3-none-any.whl": "73a31567c3e1e72e400d27c14d4987cf2d03cb226985dd2d33c97ec94107bf29",
+    "rescue_operations-0.0.0-py3-none-any.whl": "344ddb53d52727e940c0690108f44f87727ddf18ae7bce5a13cfed4a4499ca32",
+    "rescue_perception-0.0.0-py3-none-any.whl": "3fc38e2d11dbceee6c3efb9dc93fc6253c626319f226f48824ce0d9bd52eae3b",
+    "rescue_robot-0.0.0-py3-none-any.whl": "6502110751018f51d701f61fb4ca982ffb6e6a4e1cfda6af9a5ded8b76f7b464"
+  }
+}

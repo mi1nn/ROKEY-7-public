@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "robot_id": "robot_a",
+  "namespace": "/robot_a",
+  "runtime_enabled": false,
+  "use_sim_time": false
+}

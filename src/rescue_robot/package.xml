@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>rescue_robot</name>
+  <version>0.0.0</version>
+  <description>로봇별 임무 실행·명령 중재·취소·정지의 경계. ROS 실행 코드는 아직 없다.</description>
+  <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
+  <license>LicenseRef-Unspecified</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>python3</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

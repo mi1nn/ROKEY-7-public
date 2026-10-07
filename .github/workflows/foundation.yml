@@ -1,0 +1,29 @@
+name: foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pure-python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Test deployment boundaries without ROS
+        env:
+          PYTHONPATH: src/rescue_bringup
+        run: python -m unittest discover -s tests -v
+      - name: Validate the inert example
+        env:
+          PYTHONPATH: src/rescue_bringup
+        run: python -m rescue_bringup config/deployment.example.json

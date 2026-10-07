@@ -1,0 +1,30 @@
+$ isolated installed Python 3.12: -I -m unittest discover -s <draft>/tests -v
+test_cli_distinguishes_static_validation_from_runtime (test_profile.DeploymentProfileTests.test_cli_distinguishes_static_validation_from_runtime) ... ok
+test_clock_mode_does_not_accept_truthy_strings (test_profile.DeploymentProfileTests.test_clock_mode_does_not_accept_truthy_strings) ... ok
+test_duplicate_host_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_host_is_rejected) ... ok
+test_duplicate_json_keys_and_nonfinite_numbers_are_rejected (test_profile.DeploymentProfileTests.test_duplicate_json_keys_and_nonfinite_numbers_are_rejected) ... ok
+test_duplicate_robot_namespace_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_robot_namespace_is_rejected) ... ok
+test_example_loads_and_retains_robot_ownership (test_profile.DeploymentProfileTests.test_example_loads_and_retains_robot_ownership) ... ok
+test_fourth_host_cannot_be_listed_but_unused (test_profile.DeploymentProfileTests.test_fourth_host_cannot_be_listed_but_unused) ... ok
+test_hardware_roles_are_not_frozen_to_example_placement (test_profile.DeploymentProfileTests.test_hardware_roles_are_not_frozen_to_example_placement) ... ok
+test_invalid_cli_has_nonzero_exit_and_no_success_output (test_profile.DeploymentProfileTests.test_invalid_cli_has_nonzero_exit_and_no_success_output) ... ok
+test_missing_file_and_oversized_parameter_file_are_rejected (test_profile.DeploymentProfileTests.test_missing_file_and_oversized_parameter_file_are_rejected) ... ok
+test_mixed_clock_modes_are_rejected (test_profile.DeploymentProfileTests.test_mixed_clock_modes_are_rejected) ... ok
+test_namespace_must_be_explicit_single_robot_prefix (test_profile.DeploymentProfileTests.test_namespace_must_be_explicit_single_robot_prefix) ... ok
+test_nonregular_profile_is_rejected_before_read (test_profile.DeploymentProfileTests.test_nonregular_profile_is_rejected_before_read) ... ok
+test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly (test_profile.DeploymentProfileTests.test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly) ... ok
+test_parameter_path_cannot_escape_by_parent_absolute_or_symlink (test_profile.DeploymentProfileTests.test_parameter_path_cannot_escape_by_parent_absolute_or_symlink) ... ok
+test_robot_identity_collision_is_rejected (test_profile.DeploymentProfileTests.test_robot_identity_collision_is_rejected) ... ok
+test_runtime_activation_is_rejected (test_profile.DeploymentProfileTests.test_runtime_activation_is_rejected) ... ok
+test_schema_version_is_not_boolean_or_unrecognized_version (test_profile.DeploymentProfileTests.test_schema_version_is_not_boolean_or_unrecognized_version) ... ok
+test_swapped_robot_parameter_files_are_rejected (test_profile.DeploymentProfileTests.test_swapped_robot_parameter_files_are_rejected) ... ok
+test_unknown_command_host_is_rejected (test_profile.DeploymentProfileTests.test_unknown_command_host_is_rejected) ... ok
+test_unknown_configuration_cannot_silently_enable_actions (test_profile.DeploymentProfileTests.test_unknown_configuration_cannot_silently_enable_actions) ... ok
+test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentProfileTests.test_wrong_robot_host_counts_and_tier_mix_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.039s
+
+OK
+
+exit=0

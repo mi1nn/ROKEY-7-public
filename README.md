@@ -6,7 +6,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 
 ## 현재 단계
 
-범위·원본 선별과 구조 설계에 이어 **인터페이스·상태 전이·시험·작업 분담**을 Draft PR로 작성했다. 기반 구현은 이 계약 초안을 입력으로 병렬 진행한다. 원본의 실행 코드·가중치·지도·설정은 아직 이식하지 않았다. 문서의 재사용 분류는 검토안이며, 기능 동작이나 실기 검증 완료를 뜻하지 않는다.
+범위·구조·계약 설계에 이어 **두 로봇·네 호스트의 로컬 배포 프로파일 검사**를 구현했다. 실제 동작은 ROS 없는 검사 CLI이며 다섯 패키지는 예약 구조다. SLAM·Nav2·인식·공통 ROS 메시지·노드는 아직 구현하지 않았다. 원본의 실행 코드·가중치·지도·설정은 아직 이식하지 않았다. 문서의 재사용 분류는 검토안이며, 기능 동작이나 실기 검증 완료를 뜻하지 않는다.
 
 | 문서 | 확인할 내용 |
 | --- | --- |
@@ -21,6 +21,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [인터페이스 계약](docs/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
 | [상태 전이](docs/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
+| [개발과 로컬 검사](docs/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 
 ## 문서 판단 기준
 
@@ -31,6 +32,15 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 - 두 원본의 과제·미니 프로젝트를 통째로 옮기지 않는다. 필요한 코드와 그 동작을 검증하는 시험을 함께 선별한다.
 
 원본은 [jaebeom/ROKEY_P4](https://github.com/jaebeom/ROKEY_P4)와 [mi1nn/amr-mini-project](https://github.com/mi1nn/amr-mini-project)다. 이후 이식에서도 원본 커밋과 출처를 남긴다.
+
+## 로컬 프로파일 검사
+
+```bash
+PYTHONPATH=src/rescue_bringup python3 -m unittest discover -s tests -v
+PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.example.json
+```
+
+`STATIC CONFIG VALID`는 정적 파일 검사 성공이다. 로봇·ROS 그래프·실제 시계·주행 준비를 검증한 결과가 아니다. 실행 환경·wheel 설치 검증과 미실행 항목은 [개발 안내](docs/development.md)를 따른다.
 
 ## 문서 검사
 
