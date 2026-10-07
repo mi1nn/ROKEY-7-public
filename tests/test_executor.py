@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import replace
 from uuid import UUID
-from rescue_robot.executor import Executor, Task, Policy, Readiness, ContractError
+from rescue_robot.executor import Executor, Task, Policy, Readiness, ContractError, future_deadline
 
 
 def uid(n):
@@ -147,6 +147,21 @@ class ExecutorTests(unittest.TestCase):
         self.e.goal_terminal(uid(3), succeeded=True, now=.5)
         self.assertEqual(self.e.fenced_since, .3)
         self.assertEqual(self.e.stop_start, .4)
+
+    def test_local_deadlines_cannot_overflow_or_round_to_present(self):
+        for now, duration in ((1e308, 1e308), (1e308, 1)):
+            with self.assertRaises(ContractError):
+                future_deadline(now, duration)
+        with self.assertRaises(ContractError):
+            self.e.observe_motion(sample_steady=.3, received_steady=.3, linear=10**1000, angular=0)
+
+    def test_rejected_renewal_preserves_sequence_and_deadline(self):
+        self.task = replace(self.task, lease_duration=1e308)
+        self.admit()
+        before = self.e.lease_sequence, self.e.lease_until
+        with self.assertRaises(ContractError):
+            self.e.renew(uid(3), uid(2), 1, 5, now=9e307)
+        self.assertEqual((self.e.lease_sequence, self.e.lease_until), before)
 
     def test_regressed_clock_latches(self):
         self.send()

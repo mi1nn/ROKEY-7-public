@@ -24,6 +24,13 @@ def number(value, name, *, positive=False):
     return float(value)
 
 
+def future_deadline(now, duration):
+    deadline = number(now + duration, 'local deadline', positive=True)
+    if deadline <= now:
+        raise ContractError('duration below clock resolution')
+    return deadline
+
+
 def identifier(value):
     if not isinstance(value, str):
         raise ContractError('UUID required')
@@ -178,8 +185,9 @@ class Executor:
         now = self._time(received_steady)
         stamp = number(sample_steady, 'sample time')
         for value in (linear, angular):
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            if type(value) not in (int, float):
                 raise ContractError('velocity')
+            number(abs(value), 'velocity')
         if stamp > now or now - stamp > self.policy.evidence_max_age:
             self.stop_start = None
             self.motion = 'STOP_UNCONFIRMED'
@@ -245,12 +253,12 @@ class Executor:
         elif not task.issued_at <= wall < task.deadline:
             reason = 'INVALID_TIME'
         if reason is None:
-            number(now + task.lease_duration, 'lease deadline', positive=True)
+            future_deadline(now, task.lease_duration)
         receipt = Admission(reason is None, reason or 'ACCEPTED')
         self.seen[task.command_id] = (task, receipt)
         if not receipt.accepted:
             return receipt
-        lease_until = number(now + task.lease_duration, 'lease deadline', positive=True)
+        lease_until = future_deadline(now, task.lease_duration)
         self.active = task
         self.highest_generation = task.generation
         self.lease_until = lease_until
@@ -269,10 +277,11 @@ class Executor:
         if self.active.kind == 'HOLD':
             self.request_stop('HOLD', now=now_steady, outcome='COMPLETED')
             return True
+        accept_by = future_deadline(now_steady, self.policy.acceptance_timeout)
         self.pending, self.fenced = True, False
         self.stop_start = None
         self.motion, self.state = 'MOVING', 'AWAITING_ACCEPTANCE'
-        self.accept_by = number(now_steady + self.policy.acceptance_timeout, 'acceptance deadline', positive=True)
+        self.accept_by = accept_by
         self.intents.append(('SEND', self.active.command_id))
         return True
 
@@ -325,8 +334,8 @@ class Executor:
                 or authority_epoch != self.authority_epoch or generation_value != self.active.generation
                 or now >= self.lease_until or self.state == 'STOPPING' or sequence <= self.lease_sequence):
             return False
-        self.lease_sequence = sequence
-        self.lease_until = number(now + self.active.lease_duration, 'lease deadline', positive=True)
+        lease_until = future_deadline(now, self.active.lease_duration)
+        self.lease_sequence, self.lease_until = sequence, lease_until
         return True
 
     def request_stop(self, cause, *, now, outcome='CANCELED'):
@@ -335,10 +344,11 @@ class Executor:
             raise ContractError('outcome')
         if self.active is None or self.state == 'STOPPING':
             return
+        stop_deadline = future_deadline(now, self.policy.stop_timeout)
         self.state, self.motion, self.latch = 'STOPPING', 'STOP_REQUESTED', 'STOP_LATCHED'
         self.stop_cause, self.stop_outcome = cause, outcome
         self.stop_start = None
-        self.stop_deadline = number(now + self.policy.stop_timeout, 'stop deadline', positive=True)
+        self.stop_deadline = stop_deadline
         if not self.fenced:
             self.intents.append(('CANCEL', self.active.command_id))
 
