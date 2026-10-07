@@ -163,6 +163,16 @@ class ExecutorTests(unittest.TestCase):
             self.e.renew(uid(3), uid(2), 1, 5, now=9e307)
         self.assertEqual((self.e.lease_sequence, self.e.lease_until), before)
 
+    def test_invalid_stop_timer_still_cancels_and_latches_failure(self):
+        self.e.policy = replace(self.policy, stop_timeout=5e-324)
+        self.send()
+        self.e.request_stop('TARGET_STALE', now=.3)
+        self.assertIn(('CANCEL', uid(3)), self.e.drain_intents())
+        self.assertEqual(self.e.latch, 'FAULT_LATCHED')
+        result = self.e.results[uid(3)]
+        self.assertEqual((result.reason, result.original_cause, result.stop_confirmed),
+                         ('STOP_UNCONFIRMED', 'TARGET_STALE', False))
+
     def test_regressed_clock_latches(self):
         self.send()
         with self.assertRaises(ContractError):
