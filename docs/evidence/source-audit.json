@@ -1,0 +1,75 @@
+{
+  "audit_date": "2026-10-07",
+  "timezone": "Asia/Seoul",
+  "evidence": "static inventory; no ROS, model, test or robot execution",
+  "method": "git ls-files -z in clean clones pinned to the listed commits; path-based counts, not test execution counts",
+  "sources": {
+    "ROKEY_P4": {
+      "commit": "1a2d0a9811f59a501c7597edf54c72fec8a80e26",
+      "tracked_files": 335,
+      "root_groups": {
+        "(root files)": 4,
+        ".github": 3,
+        "config": 13,
+        "docs": 37,
+        "evidence": 2,
+        "homework": 99,
+        "mini": 45,
+        "scripts": 5,
+        "src": 126,
+        "tools": 1
+      },
+      "packages": [
+        "homework/day1/rokey_bipbop/package.xml",
+        "homework/day1/rokey_pubsub/package.xml",
+        "homework/day2/rokey_vision/package.xml",
+        "mini/rokey_mini/package.xml",
+        "src/rokey_amr/package.xml",
+        "src/rokey_interfaces/package.xml",
+        "src/rokey_sysmon/package.xml"
+      ],
+      "test_files": 75,
+      "python_files": 184,
+      "license_paths": [],
+      "generated_roots": []
+    },
+    "amr-mini-project": {
+      "commit": "ee355d0b5896ea58bccac73ce1a7857f62e96024",
+      "tracked_files": 477,
+      "root_groups": {
+        "(root files)": 16,
+        "bags": 2,
+        "docs": 3,
+        "maps": 4,
+        "runs": 375,
+        "src": 77
+      },
+      "packages": [
+        "src/day3/package.xml",
+        "src/pub_sub/package.xml",
+        "src/rokey_pjt/package.xml",
+        "src/test_nv2/package.xml",
+        "src/turtlebot4_beep/package.xml"
+      ],
+      "test_files": 15,
+      "python_files": 65,
+      "license_paths": [
+        "LICENSE"
+      ],
+      "generated_roots": []
+    }
+  },
+  "destination_baseline": {
+    "commit": "4f5453da4425cb80410d6b838c7df2a19d62509f",
+    "tracked_files": 1,
+    "root_groups": {
+      "(root files)": 1
+    },
+    "packages": [],
+    "test_files": 0,
+    "python_files": 0,
+    "license_paths": [],
+    "generated_roots": []
+  },
+  "search_scope_note": "tracked main snapshots only; other branches, issues, external datasets and live hardware are outside this inventory"
+}
