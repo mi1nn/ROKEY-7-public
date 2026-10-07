@@ -82,7 +82,7 @@
   왜: 2026-10-06 21:02 로봇 카메라가 704×704·10 fps 로 바뀌어 있었고 누가 바꿨는지 몰랐다([원본 기록 L39](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L39)).
 - 로봇에 패키지를 설치하거나 업그레이드하지 않는다. 하루를 마칠 때 도킹하고 끈다.
 - 도킹 장치가 있는 로봇의 `UNDOCK`·`DOCK` 은 협업 임무와 분리된 기동·운영 절차이고 `rescue_robot` 만 발행한다. UNDOCK 의 선행 조건은 fresh 도킹/driver 상태·실제 정지·장치 액션 가용·준비 제어권이지 **Nav2·카메라 READY 가 아니다**(센서가 도킹 중 꺼지는 장비에서는 교착이 된다). 협업 이동은 그 뒤에 fresh `is_docked=false` 와 센서/TF/SLAM/Nav2 준비를 확인하고 허용한다. `power_saver: False` 로 도킹 중 센서가 나와도 이 guard 는 생략하지 않는다([docs/contracts.md](docs/contracts.md) C-06).
-  왜: 원본 로봇 3번은 기본 `power_saver: True` 에서 도킹 중 카메라·LiDAR 가 없었다([측정, 2026-10-01](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L48-L51)). 당시 기록이지 모든 AMR 의 기본값이 아니다([docs/architecture.md](docs/architecture.md) 「명령·정지 경계」).
+  왜: 원본 로봇 3번은 기본 `power_saver: True` 에서 도킹 중 카메라·LiDAR 가 없었다([측정, 2026-10-01](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L51)). 당시 기록이지 모든 AMR 의 기본값이 아니다([docs/architecture.md](docs/architecture.md) 「명령·정지 경계」).
 - 프로세스는 이름을 정확히 지정해서 끈다. `pkill -f` 처럼 넓게 잡는 명령은 쓰지 않는다. → **대신** `pkill -x <이름>` 이나 PID.
 
 ## 7. 실패 처리
@@ -98,7 +98,7 @@
 
 - 조용한 대체 동작(fallback)을 두지 않는다. 실패는 로그와 관제에 드러나야 한다.
 - 측정·조회 실패를 정상 범위 숫자로 채우지 않는다. → **대신** `None` 이나 범위 밖 센티넬을 돌려주고, 값에는 언제 잰 것인지를 같이 싣는다(낡으면 쓰지 않는다).
-  왜: 원본보다 앞선 프로젝트에서 읽기 실패값(`-127.0`, 빈 배열)이 정상 바닥값과 같은 상수여서 모든 임계를 통과한 일이 있었다(선행 프로젝트 기록; 이 저장소의 레슨런 번호는 없다).
+  왜: 원본보다 앞선 프로젝트에서 읽기 실패값(`-127.0`, 힘 `(0,0,0)`)이 정상 바닥값과 같은 상수여서 모든 임계를 통과한 일이 있었다(선행 프로젝트 기록; 이 저장소의 레슨런 번호는 없다).
 
 ## 8. 코드
 
