@@ -186,14 +186,49 @@ class PerceptionTests(unittest.TestCase):
         self.ingest(registry, self.observation(4, frame=replace(self.rgb, observed_at=100.2)), 13)
         self.assertEqual(registry.last_new_receive("robot_a", "front", uid(100)), 13)
 
-    def test_boot_identity_and_receiver_time_regression(self):
+    def test_source_boots_keep_separate_receive_history(self):
         registry = ObservationRegistry()
         self.ingest(registry, self.observation())
-        self.assertCode("INVALID_INPUT", lambda: self.ingest(registry, self.observation(2), 9))
-        self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(registry, self.observation(2), 11, 100.4))
         self.ingest(registry, self.observation(3, source_boot_id=uid(101)), 11)
         self.assertEqual(registry.last_new_receive("robot_a", "front", uid(100)), 10)
         self.assertEqual(registry.last_new_receive("robot_a", "front", uid(101)), 11)
+
+    def test_receiver_time_regression_latches_until_new_receiver_session(self):
+        for steady, wall in ((9, 100.6), (11, 100.4)):
+            with self.subTest(steady=steady, wall=wall):
+                registry = ObservationRegistry()
+                self.ingest(registry, self.observation())
+                self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(
+                    registry, self.observation(2), steady, wall))
+                # Neither a later timestamp nor a source process restart proves
+                # that this receiver's wall/monotonic clock basis recovered.
+                for boot in (uid(100), uid(101)):
+                    fresh = self.observation(3, frame=replace(self.rgb, observed_at=100.6),
+                                             source_boot_id=boot)
+                    self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(registry, fresh, 12, 100.7))
+                self.assertEqual(registry.last_new_receive("robot_a", "front", uid(100)), 10)
+                self.assertIsNone(registry.last_new_receive("robot_a", "front", uid(101)))
+                # A caller must recover/revalidate clocks before creating this
+                # new session; construction itself is not clock verification.
+                recovered = ObservationRegistry()
+                self.assertEqual("ACCEPTED", self.ingest(recovered, fresh, 12, 100.7).status)
+
+    def test_stale_input_still_records_receiver_clock_and_detects_rollback(self):
+        registry = ObservationRegistry()
+        self.ingest(registry, self.observation())
+        self.assertCode("STALE_OBSERVATION", lambda: self.ingest(registry, self.observation(), 11, 200))
+        self.assertEqual(registry.last_new_receive("robot_a", "front", uid(100)), 10)
+        self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(registry, self.observation(), 12, 100.6))
+        fresh = self.observation(2, frame=replace(self.rgb, observed_at=200.5), valid_until=202)
+        self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(registry, fresh, 13, 201))
+
+    def test_rejected_collision_still_records_receiver_clock(self):
+        registry = ObservationRegistry()
+        self.ingest(registry, self.observation())
+        collision = self.observation(evidence_sha256="c" * 64)
+        self.assertCode("ID_CONTENT_CONFLICT", lambda: self.ingest(registry, collision, 11, 101))
+        fresh = self.observation(2, frame=replace(self.rgb, observed_at=100.7))
+        self.assertCode("CLOCK_UNCERTAIN", lambda: self.ingest(registry, fresh, 12, 100.8))
 
     def test_two_robots_same_track_id_remain_separate_candidates(self):
         registry, events = ObservationRegistry(), ConservativeEventRegistry()

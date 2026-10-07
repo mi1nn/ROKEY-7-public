@@ -399,21 +399,27 @@ class ObservationRegistry:
         self._stream_latest = {}
         self._clock = None
         self._wall = None
+        self._clock_fault_latched = False
 
     def ingest(self, observation, *, now, received_steady, receiver_clock_domain,
                receiver_clock_error_bound, policy):
         _require(isinstance(observation, Observation), "INVALID_INPUT", "observation")
         _number(received_steady, "received_steady", minimum=0)
-        _require(self._clock is None or received_steady >= self._clock, "INVALID_INPUT", "monotonic receive regression")
         _number(now, "now", positive=True)
-        _require(self._wall is None or now >= self._wall, "CLOCK_UNCERTAIN", "wall time regressed; reset session")
+        if ((self._clock is not None and received_steady < self._clock) or
+                (self._wall is not None and now < self._wall)):
+            self._clock_fault_latched = True
+        _require(not self._clock_fault_latched, "CLOCK_UNCERTAIN",
+                 "receiver time regressed; recover clocks and create a new receiver session")
+        # Receiver clock readings are independent of payload admission. Even a
+        # rejected stale/colliding message must not hide a later clock rollback.
+        self._clock = received_steady
+        self._wall = now
         previous = self._observations.get(observation.observation_id)
         if previous is not None:
             _require(previous.payload_hash == observation.payload_hash, "ID_CONTENT_CONFLICT", "immutable observation")
         validate_freshness(observation, now=now, receiver_clock_domain=receiver_clock_domain,
                            receiver_clock_error_bound=receiver_clock_error_bound, policy=policy)
-        self._clock = received_steady
-        self._wall = now
         if previous is not None:
             return Admission("DUPLICATE", previous)
         key = (observation.source_robot, observation.source_camera, observation.source_boot_id)
