@@ -12,7 +12,7 @@ updated: 2026-10-08
 
 ## D-01 지속 SLAM과 주행
 
-**채택 제안:** 각 로봇의 표준 SLAM + Nav2를 먼저 독립 실행하고, 프로젝트 코드는 준비 판정·임무·좌표 계약을 연결한다. P4의 TurtleBot4·OAK-D·LiDAR 기록과 PC에서 SLAM/Nav2를 돌리는 DEC-011을 바탕으로 `slam_toolbox`/TB4 SLAM 구성을 우선 평가한다. 2026-10-06 robot3에서 `slam.launch.py namespace:=/robot3`에 이어 Nav2+`explore_lite`를 실행하고 지도를 저장한 `[원본 기록: 측정]`이 있다. 이 경험을 파이널 두 대의 출발점으로 삼고 실제 장비·버전의 차이를 확인한다. 센서/장비가 다른 경우 backend를 바꿀 수 있도록 mapping adapter 경계를 둔다. [SLAM·탐색 실행 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L22-L34), [지도 저장 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L74-L80)
+**채택 제안:** 각 로봇의 표준 SLAM + Nav2를 먼저 독립 실행하고, 프로젝트 코드는 준비 판정·임무·좌표 계약을 연결한다. P4의 TurtleBot4·OAK-D·LiDAR 기록과 PC에서 SLAM/Nav2를 돌리는 DEC-011을 바탕으로 `slam_toolbox`/TB4 SLAM 구성을 우선 평가한다. 2026-10-06 robot3에서 `slam.launch.py namespace:=/robot3`에 이어 Nav2+`explore_lite`를 실행하고 지도를 저장한 `[원본 기록: 측정]`이 있다. 이 경험을 파이널 두 대의 출발점으로 삼고 실제 장비·버전의 차이를 확인한다. 센서/장비가 다른 경우 backend를 바꿀 수 있도록 mapping adapter 경계를 둔다. [SLAM·탐색 실행 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L28), [지도 저장 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L74-L80)
 
 Nav2 공식 SLAM 예제는 SLAM이 지도와 `map → odom`을 제공하고 AMCL/map_server를 제외한 navigation을 실행한다. 따라서 P4의 AMCL 초기 자세·공분산 준비 조건을 토픽 이름만 바꿔 재사용하지 않는다. [Nav2: Navigating while Mapping](https://docs.nav2.org/jazzy/tutorials/general_tutorials/navigation2_with_slam/navigation2_with_slam/)
 
