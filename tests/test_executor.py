@@ -140,6 +140,14 @@ class ExecutorTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             self.e.renew(uid(3), uid(2), True, 1, now=.3)
 
+    def test_duplicate_terminal_does_not_reset_stop_window(self):
+        self.send()
+        self.e.goal_terminal(uid(3), succeeded=True, now=.3)
+        self.e.observe_motion(sample_steady=.4, received_steady=.4, linear=0, angular=0)
+        self.e.goal_terminal(uid(3), succeeded=True, now=.5)
+        self.assertEqual(self.e.fenced_since, .3)
+        self.assertEqual(self.e.stop_start, .4)
+
     def test_regressed_clock_latches(self):
         self.send()
         with self.assertRaises(ContractError):

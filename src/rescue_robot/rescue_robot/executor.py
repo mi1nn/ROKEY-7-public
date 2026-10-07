@@ -281,7 +281,7 @@ class Executor:
                 self.intents.append(('CANCEL', command_id))
             if self.active and command_id == self.active.command_id:
                 self.pending = False
-                if not accepted:
+                if not accepted and not self.fenced:
                     self.fenced = True
                     self.fenced_since, self.stop_start = now, None
             return
@@ -301,8 +301,10 @@ class Executor:
                 or self.state not in ('AWAITING_ACCEPTANCE', 'NAVIGATING', 'STOPPING')):
             return False
         # A result implies acceptance, even if its callback arrived first.
-        self.pending, self.fenced = False, True
-        self.fenced_since, self.stop_start = now, None
+        self.pending = False
+        if not self.fenced:
+            self.fenced_since, self.stop_start = now, None
+        self.fenced = True
         if self.state != 'STOPPING':
             self.request_stop('NAVIGATION_SUCCEEDED' if succeeded else 'NAVIGATION_FAILED',
                               now=now, outcome='COMPLETED' if succeeded else 'FAILED')
