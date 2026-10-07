@@ -344,13 +344,17 @@ class Executor:
             raise ContractError('outcome')
         if self.active is None or self.state == 'STOPPING':
             return
-        stop_deadline = future_deadline(now, self.policy.stop_timeout)
         self.state, self.motion, self.latch = 'STOPPING', 'STOP_REQUESTED', 'STOP_LATCHED'
         self.stop_cause, self.stop_outcome = cause, outcome
         self.stop_start = None
-        self.stop_deadline = stop_deadline
         if not self.fenced:
             self.intents.append(('CANCEL', self.active.command_id))
+        try:
+            self.stop_deadline = future_deadline(now, self.policy.stop_timeout)
+        except ContractError:
+            # A broken timer cannot suppress cancellation or leave movement armed.
+            self.motion, self.latch = 'STOP_UNCONFIRMED', 'FAULT_LATCHED'
+            self._finish('FAILED', 'STOP_UNCONFIRMED', False)
 
     def tick(self, *, now_wall, now_steady, readiness, guards_valid):
         now = self._time(now_steady)
