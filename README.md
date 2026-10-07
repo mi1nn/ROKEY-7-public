@@ -14,6 +14,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [원본 자산 선별](docs/source-selection.md) | 고정한 원본 커밋, 이식 후보, 바꿔야 할 전제, 제외 근거 |
 | [레슨런](docs/lessons-learned.md) | 원본 코드·기록의 교훈과 새 프로젝트에서 확인할 시험 |
 | [원본 목록 집계](docs/evidence/source-audit.json) | 고정 커밋의 추적 파일·패키지·시험 파일 집계 |
+| [PR 진행과 검토 지침](docs/review-workflow.md) | 병렬 작성, Codex 최종 검토, Claude 로직 검토, Cursor 검증·수정·머지와 원본 URL |
 
 ## 문서 판단 기준
 
