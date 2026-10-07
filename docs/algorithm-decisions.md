@@ -1,0 +1,115 @@
+---
+title: SLAM·좌표·탐색·접근 알고리즘 결정 초안
+status: draft
+updated: 2026-10-08
+---
+
+# SLAM·좌표·탐색·접근 알고리즘 결정 초안
+
+현재 목표 제안은 [범위](scope.md)의 발견→안전 접근→보고와 두 로봇의 지속 수색이다. AMR 2대는 필수이고 최종 인수 범위·PC 사용 조건은 scope의 미결정 사항을 따른다. 아래는 **통합 구현을 위한 결정 제안**이다. 기존 환경의 실행 경험은 출발 근거로 사용하고 새 파이널 계약의 통과 증거와 구분한다. 원본 구현·시험의 사실은 [선별표](source-selection.md)에, 패키지 책임과 배포·기존 환경 근거는 [구조 문서](architecture.md)에 둔다.
+
+**채택 제안**은 우선 구현할 방향, **조건부**는 전제와 실험을 통과할 때 선택할 옵션, **미확정**은 장비·데이터·측정 뒤 정할 값이다. 어느 항목도 파이널 실기 통과를 뜻하지 않는다. 기존 공식 자료는 2026-10-07, 추가한 explore_lite 코드·Nav2 planner action 자료는 2026-10-08 확인했다. P4에서 Jazzy·Ubuntu 24.04는 기존 PC 측정과 과정 제약으로 기록되어 있어 호환 검토의 기준점으로 사용한다. 실제 배치할 두 로봇·네 PC의 설치 버전과 파이널 적용 여부는 재확인한다. 상류 `ros2` 브랜치의 기능이 설치된 release에 있다는 가정도 하지 않는다.
+
+## D-01 지속 SLAM과 주행
+
+**채택 제안:** 각 로봇의 표준 SLAM + Nav2를 먼저 독립 실행하고, 프로젝트 코드는 준비 판정·임무·좌표 계약을 연결한다. P4의 TurtleBot4·OAK-D·LiDAR 기록과 PC에서 SLAM/Nav2를 돌리는 DEC-011을 바탕으로 `slam_toolbox`/TB4 SLAM 구성을 우선 평가한다. 2026-10-06 robot3에서 `slam.launch.py namespace:=/robot3`에 이어 Nav2+`explore_lite`를 실행하고 지도를 저장한 `[원본 기록: 측정]`이 있다. 이 경험을 파이널 두 대의 출발점으로 삼고 실제 장비·버전의 차이를 확인한다. 센서/장비가 다른 경우 backend를 바꿀 수 있도록 mapping adapter 경계를 둔다. [SLAM·탐색 실행 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L28), [지도 저장 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L74-L80)
+
+Nav2 공식 SLAM 예제는 SLAM이 지도와 `map → odom`을 제공하고 AMCL/map_server를 제외한 navigation을 실행한다. 따라서 P4의 AMCL 초기 자세·공분산 준비 조건을 토픽 이름만 바꿔 재사용하지 않는다. [Nav2: Navigating while Mapping](https://docs.nav2.org/jazzy/tutorials/general_tutorials/navigation2_with_slam/navigation2_with_slam/)
+
+지속 SLAM은 임무 중 지도 생성·위치 추정을 이어가는 요구로 해석한다. 움직인 모든 물체를 SLAM 지도에서 즉시 제거하거나 영구 환경 변화까지 자동 해결한다는 약속은 아니다. `slam_toolbox`의 posegraph 최적화·직렬화 기능과 실험적 lifelong 기능을 구분하며, sync/async mode와 그래프 관리 옵션은 부하와 정확도 측정 후 고른다. [slam_toolbox 공식 저장소](https://github.com/SteveMacenski/slam_toolbox)
+
+**재확인/미확정:** 기존 Jazzy·Ubuntu 기록과 파이널 설치 버전의 일치, SLAM/plugin 버전, 실제 두 로봇의 TF·펌웨어, 네 PC 사양·배치, 위치 품질의 수치. **실험:** 두 로봇 동시 주행에서 지도/TF/센서 분리, localization 저하 시 접근 제한, 로봇별 Discovery Server CPU·participant/구독자 수·제어/영상 지연, 장애물 추가/제거를 측정한다. P4 단일 로봇 실행은 부분 근거이며 두 로봇 협업 통과를 대신하지 않는다. 연결: A0·A1, 계획 PR 5.
+
+## D-02 공통 좌표는 검증하고, 지도 병합은 별도 선택한다
+
+| 대안 | 필요한 전제 | 장점 / 한계 | 분류 |
+| --- | --- | --- | --- |
+| 독립 SLAM + 측정한 공통 기준점 | 시작 자세·방향 또는 식별 가능한 고정 기준점, 정렬 오차 관측 | 로봇별 주행 분리, 지도 자동 병합 없이 위치 교환 가능 / 이후 drift·loop closure 재검증 필요 | **첫 검증 후보** |
+| 공유 posegraph/다중 로봇 SLAM | 설치 버전 지원, 알려진 시작 관계 등 backend 전제, 센서·통신 조건 | 관측을 지도 생성에 함께 사용 가능 / 통신과 한 backend의 장애·정렬 정책에 의존 | **조건부** |
+| 한 로봇의 갱신 지도에 다른 로봇 위치 추정 | 지도 업데이트를 받는 localization의 지원·안정성 | 하나의 지도 기준을 유지할 수 있음 / 두 번째 로봇의 관측이 지도에 반영되는지 별도 설계 | **조건부 대안** |
+| 독립 지도의 자동 정합/병합 | 충분한 중첩·특징·오정합 검출과 복구 | 알려지지 않은 시작 관계를 줄일 가능성 / 유사 복도·반복 구조·동적 장애물에서 오정합 위험 | **초기 기본값에서 제외** |
+
+현재 상류 `slam_toolbox`에는 decentralized multi-robot 문서가 존재한다. 이 경로도 **알려진 시작 위치와 global odometry 기준**을 전제로 하므로 임의의 시작 위치에서 자동으로 지도를 정렬하는 해법으로 소개하지 않는다. 실제 배포판의 제공 여부·API·정확도·대역폭을 확인한 뒤 대안 실험으로 선택한다. [공식 다중 로봇 문서](https://github.com/SteveMacenski/slam_toolbox/blob/ros2/docs/decentralized_multi_robot_slam.md)
+
+**채택 제안:** 먼저 A/B가 같은 물리 기준점을 관측·보고하고 독립적인 측정 기준과 비교한다. 기준점은 실제로 고정되어 있어야 한다. 위치 하나만으로 heading까지 결정되었다고 보지 않으며, 여러 점 또는 방향이 있는 기준과 오차 잔차를 사용한다. 로봇들이 서로의 결과에 동의하는 것만으로 절대 정확성이 입증되지 않는다.
+
+로컬 지도↔`mission` 변환은 유효 기간·불확실성·revision이 있는 결과다. 한 번의 rigid 정렬로 비강체 posegraph 변형 전체를 교정할 수 있다고 가정하지 않는다. 관제의 지도 겹치기와 주행용 occupancy grid 병합도 구분한다. 정렬이 무효이면 교차 로봇 접근을 멈추고 사건을 위치 미확인으로 유지한다. **실험:** 시작 위치 오차, 공통 영역 왕복, loop closure 전후, 기준점 이동, TF 단절, 재기동을 포함한다. 연결: A2, 계획 PR 6.
+
+## D-03 지도 보정 이후 관측·목표의 수명
+
+**채택 제안:** 원본 관측을 보존하고, 지도 위치와 목표는 version이 있는 파생값으로 취급한다. `map_session_id`는 재기동/리셋, `map_revision`은 저장 관측의 의미를 바꾸는 보정, `transform_revision`은 공통 좌표 정렬 변경을 구분한다. 일반적인 TF publish마다 과거 사건 전체를 무효화하지 않는다.
+
+관측 시각의 TF는 당시 변환의 근거다. 나중의 최적화가 tf2 과거 이력과 저장된 사람 좌표를 자동 수정한다는 가정을 금지한다. 선택 backend가 posegraph node와 관측의 연결을 제공하면 최적화된 node 자세로 재투영하는 adapter를 검증할 수 있다. 그 근거가 없으면 영향을 받는 관측은 재관측한다. `map → odom`의 현재 보정값만 모든 과거 대상에 더하는 방식은 기본값으로 채택하지 않는다.
+
+SLAM 보정 이벤트·graph API의 제공 여부는 설치 버전에서 확인한다. 믿을 수 있는 보정 감지가 없으면 그 구성을 자동 교차 로봇 접근에 사용하지 않거나, 보정 가능 상황마다 위치 확인을 요구하는 제한된 모드로 운용한다. raw TF 차이 threshold 하나를 완전한 loop closure 검출기로 취급하지 않는다.
+
+변경은 새 접근 배정 중지 → 영향받는 goal 취소 → 별도 정지 관측 → 재투영/재관측·정렬 확인 → 새 task generation 순으로 반영한다. 변경 직전의 경로 평가도 폐기한다. **실험:** 관측 보존 뒤 loop closure, 액션 수락 지연 중 revision 변경, 재시작·역순 메시지, 재투영 불가를 주입한다. 연결: A2·A3, 계획 PR 3·6·8.
+
+## D-04 변화하는 장애물과 정지
+
+**채택 제안:** SLAM 지도 갱신, Nav2 비용지도의 장애물 처리, 최종 속도 감시를 세 책임으로 분리한다. LiDAR/Depth의 marking·clearing과 관측 수명 설정은 센서 가시 범위와 함께 검증한다. Nav2 obstacle layer는 센서 raytrace로 clearing을 수행할 수 있지만, 이것만으로 다른 지도 계층의 과거 벽이 제거되었다고 볼 수 없다. [Nav2 obstacle layer](https://docs.nav2.org/jazzy/configuration_and_development/configuration_guide/core_servers/costmap_2d/costmap_plugins/obstacle/)
+
+추가 장애물은 새 경로 또는 대기/접근 불가로 처리한다. 제거는 센서로 빈 공간을 다시 관측한 뒤 검토한다. 비용지도 전체 지우기를 통로 안전 확인의 대체로 쓰지 않는다. 재계획·복구 횟수는 제한하고 사람 근처에서 무조건적인 spin/backup 복구를 기본 적용하지 않는다. 어떤 복구를 허용할지는 장비·감지 범위·시연 구역을 확인한 뒤 정한다.
+
+**채택 제안:** 지원되는 Nav2 Collision Monitor를 최종 일반 속도 경로에 연결하고 source timeout을 설정한다. 공식 문서는 source timeout 시 정지 동작을 설명하며 0은 해당 timeout 비활성화다. 예제의 수치를 그대로 가져오지 않고 센서/연산 지연과 실제 정지 거리로 결정한다. 이것은 CPU 기반 소프트웨어 감시이며 장치 측 watchdog과 실제 정지 시험을 대체하지 않는다. [Collision Monitor 설정](https://docs.nav2.org/jazzy/configuration_and_development/configuration_guide/core_servers/collision_monitor/configuring_collision_monitor_node/)
+
+**실험:** 이동 중 장애물 추가, 제거 후 재관측, 센서 정지, Wi-Fi 단절, PC 프로세스 종료, 취소 지연, 수동 명령을 포함해 최종 구동 입력과 odometry를 기록한다. Nav2 성공·취소 응답, 0 속도 명령, 실제 정지는 서로 다른 증거다. 연결: A1·A4, 계획 PR 5·8·10.
+
+## D-05 수색 목표와 두 로봇 배정
+
+**채택 제안:** 기존 `explore_lite`를 수색 후보 생성 기능의 우선 재사용 대상으로 평가한다. P4 워크스페이스에 `m-explore-ros2`가 있고, 2026-10-06 `326cf8a` 소스 빌드로 robot3의 자동 탐색·지도 저장을 수행한 기록이 있다. 당시 controller·dispatcher는 실행하지 않았으므로 두 로봇 협업 제어와의 동시 통합 증거는 아니다. [워크스페이스 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L80-L95), [패키지 평가·실기·독점 제어 조건](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-06-ros2-packages-adoption.md#L64-L71). 기존 Nav2 플러그인을 활용하되 존재·설치·설정·계약 충족을 구분하라는 P4 지침도 같은 재사용 판단의 근거다. [플러그인 지침](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-06-nav2-plugins-adoption.md#L9-L13)
+
+frontier는 자유 공간과 미지 공간의 경계를 탐색 대상으로 삼는 원리다. [Yamauchi, 1997 원 논문](https://www.cs.cmu.edu/~motionplanning/papers/sbp_papers/integrated1/yamauchi_frontiers.pdf). 확인한 upstream은 frontier를 군집·채점하는 `FrontierSearch`와 `NavigateToPose`를 직접 보내는 `Explore` 실행 경로를 가진다. 이 전체 노드를 협업 실행기와 함께 켜면 주행 권한이 겹친다. [후보 탐색 코드](https://github.com/robo-friends/m-explore-ros2/blob/326cf8a/explore/src/frontier_search.cpp), [직접 goal 전송 코드](https://github.com/robo-friends/m-explore-ros2/blob/326cf8a/explore/src/explore.cpp)
+
+| 경로 | 사용 범위와 계약 | 판정 |
+| --- | --- | --- |
+| B: frontier 후보 생성 부분 재사용 | 탐색/군집/점수 결과를 adapter로 내보내고, 협업 정책이 선택한 goal은 `rescue_robot`만 발행. upstream `Explore`의 자동 기동·goal·복귀 경로를 포함하지 않음 | **협업 통합의 우선 제안**. 후보 전용 adapter·출력 계약·선택 버전의 빌드가 필요하며 설정 하나로 이미 제공되는 모드라고 가정하지 않음 |
+| A: upstream 노드가 goal 직접 전송 | 성능 비교·지도 작성의 독립 실험만. controller/coordination/관제 이동 명령과 격리, 시작 전 이전 goal 종료·정지, 종료 후 잔여 goal·자동 재개·복귀 차단 확인 | **조건부 격리 실험**. 협업 기본 경로로 사용하지 않음 |
+
+B안의 후보를 받은 뒤 **프로젝트가 추가 검증할 단계**는 연결된 알려진 자유 공간의 관측 지점 선택 → footprint·여유·금지 구역 검사 → Nav2 경로 평가다. 이 검증을 `explore_lite`의 기존 기능 전체와 동일하다고 쓰지 않는다. 군집의 중심이 미지/장애물 셀이면 그 점을 그대로 goal로 보내지 않는다. 실패한 군집은 제한된 시간 또는 관련 지도 변경까지 보류하고 영구적으로 삭제하지 않는다. frontier가 없다는 사실은 모든 사람을 찾았다는 뜻이 아니다. B안 연동 중 첫 발견 인계는 검증된 구역/waypoint로 시험할 수 있고, 후보 생성 재사용이 계약을 만족하지 못하는 부분만 새로 구현한다.
+
+배정은 우선 신선한 상태·유효 좌표·에너지/장치 조건·경로 존재로 적격 후보를 고른다. 그다음 이미 담당 중인 구역과 충돌하지 않게 배정하고 경로 비용과 일관된 tie-break를 사용한다. 임무 유지 조건을 두어 작은 비용 차이로 계속 취소/재배정하지 않는다. 복잡한 가중치 최적화는 필요성과 데이터가 생긴 뒤 추가한다. 정보 이득·중복 탐색률·경로 길이는 함께 측정하되 첫 구현부터 학습 기반 배정을 요구하지 않는다.
+
+로봇별 frontier를 공통 좌표로 비교하려면 D-02·03을 먼저 통과해야 한다. 그 전에는 합의한 구역 분할로 중복을 제한한다. P4의 DOCKED 전용 후보·도크 직선거리·고정 zone의 단일 대기칸은 사용하지 않는다. 발견 사건은 queue/registry에 각각 보존한다. A 탐지→B 접근은 인수 시나리오이고 영구 역할 고정 규칙이 아니다.
+
+**실험:** 선택한 upstream 버전의 빌드·후보 출처/좌표·시각을 기록하고, B안에서 frontier 생성기가 주행 goal을 보내지 않음을 확인한다. 두 로봇 동시 탐색, 같은/다른 사건 동시 발견, 경로 없는 frontier, 통로 폐쇄, 재할당 중 오래된 결과, 접근 중인 B와 수색 중인 A의 지속 진행을 시험한다. PR 3은 후보/임무 권한·취소 계약을 구체화하고 계획 PR 8은 A4와 함께 검증한다.
+
+## D-06 사람 관측·깊이·사건 연결
+
+**채택 제안:** P4의 입력 헤더·depth decode·유효 중앙값·역투영·관측 시각 TF 처리 중 필요한 함수를 추출하고, AMR의 평가 도구를 새 대상 데이터에 맞춘다. RGB/Depth 정렬·CameraInfo·외부 파라미터·시간 관계가 검증되기 전에는 3D 위치를 접근 목표로 쓰지 않는다. 해상도 비율 변환만으로 다른 시야각의 센서가 정렬된 것으로 보지 않는다.
+
+class·confidence·지역 track ID·관측 ID를 구분한다. tracking 의존성 누락으로 일반 탐지로 바뀌면 상태를 명시한다. tracking이 필수가 아닌 계약이면 관측 ID로 결과를 보존할 수 있지만, 빈 track ID를 정수로 바꿔 조용히 버리는 원본 결합은 제거한다. 서로 다른 로봇의 같은 track 번호는 같은 사람이 아니다.
+
+사건 연결은 관측 source/boot·시각·유효한 공통 좌표·불확실성·재확인 결과를 사용한다. 모호한 경우 별도 잠정 사건으로 유지하고 B의 재관측으로 확인한다. 같은 class의 연속 검출만으로 동일 인물이나 위험/부상 상태를 확정하지 않는다. 깊이를 얻지 못해도 발견 사실과 실패 이유는 남기되 위치 확인·접근 허가는 분리한다.
+
+**미확정:** 모델·정밀도/재현율 목표, 실제 사람/시연 인형, 포즈·가림·조명 데이터, GPU 처리량. 바닥 평면 homography는 고정 외부 카메라를 추가할 때만 조건부이며 움직이는 로봇 카메라의 기본 위치 추정으로 사용하지 않는다. **실험:** 촬영 세션을 분리한 평가, 깊이 결측/배경 혼입, 지연·역순·0/미래 시각, 반복 발행, 두 사람 교차, 같은 사람의 양쪽 로봇 관측을 포함한다. 연결: A3, 계획 PR 7.
+
+## D-07 도달 가능한 접근점과 완료 판정
+
+**채택 제안:** 대상의 점 자체를 Nav2 goal로 보내지 않는다. 대상 위치와 불확실성이 유효하면 합의한 정지 거리 범위에 여러 접근 후보를 만들고 다음 순서로 평가한다.
+
+1. 알려진 자유 공간·footprint 여유·금지 구역·대상과의 거리를 만족하는 후보만 남긴다. 대상이 점유한 장애물 셀을 지워 goal을 만들지 않는다.
+2. `rescue_robot`의 경로 평가 adapter가 각 후보의 현재 Nav2 계획 결과를 확인한다. 경로가 없거나 입력 revision이 바뀌면 후보를 거절한다.
+3. 유효 경로 비용, 마지막 자세에서 관측 가능한 방향, 필요한 회전/여유를 비교해 하나를 선택한다. 직선거리만으로 최선의 접근점을 고르지 않는다.
+4. 이동 중 대상·TF·임무 lease를 검사한다. **짧은 탐지 공백**은 마지막 유효 관측의 원래 `observed_at`/`valid_until`과 PR 3의 short-loss 예산 안이고 TF·위치·필수 센서·lease가 정상일 때 기존 goal만 유지한다. 새 goal을 만들거나 관측 수명을 연장하지 않는다. **원 관측 만료·예산 소진·TF/revision/lease/필수 센서 실패**는 활성 goal 취소→실제 정지 관측→재관측 또는 접근 불가 순으로 처리하고 정지 확인 전 재출발하지 않는다.
+5. 도착 뒤 현재 관측으로 대상을 재확인하고, 정지 거리·측정된 정지 상태·확인 결과가 계약을 만족해야 접근 완료다. 이어 보고 저장 확인을 별도 수행한다.
+
+`rescue_robot`의 외부 경로 평가 adapter는 planner server의 **`compute_path_to_pose` action (`nav2_msgs/action/ComputePathToPose`)**을 호출해 후보 경로와 오류를 받는다. 이 호출은 경로 조회이며 `NavigateToPose` goal을 보내거나 로봇 주행을 시작하는 호출이 아니다. [공식 action API](https://api.nav2.org/actions/jazzy/computepathtopose.html), [Jazzy action 정의](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/ComputePathToPose.action), [planner server](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_planner/src/planner_server.cpp). BT의 [ComputePathToPose 노드](https://docs.nav2.org/jazzy/configuration_and_development/configuration_guide/core_servers/bt_plugins/actions/ComputePathToPose/)는 내비게이션 트리가 내부에서 이 action을 사용하는 참고다. 경로 조회 응답을 이후 이동 성공의 보증으로 사용하지 않고, 실행 중 Nav2 재계획과 외부 후보 조회의 자원 경쟁도 연동 시험에서 확인한다.
+
+짧은 소실과 만료를 나눈 근거로 P4 미니의 `NAVIGATE`는 웹캠 공백에도 goal을 유지하며 nav 실패/시한 초과에서 취소하고, 해당 시험이 공백 중 유지를 명시한다. 별도 직접 속도 추종기도 `predict_s` 구간을 가진다. [mission](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/mission.py#L123-L139), [관측 공백 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/test/test_webcam_trigger.py#L65-L75), [predict 설명](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/car_follower.py#L10-L14). 이는 기존 정책·시험의 정적 근거이며, 원본의 직접 속도·탐색 회전·시간 상수를 파이널 접근에 그대로 가져오지 않는다. 새 정책은 기존 goal 유지에도 명시적 최신성·공백 예산·정지 관문을 둔다. 대상 접근과 무관한 `SEARCH_AREA`는 그 대상의 만료만으로 중지하지 않고 자신의 센서·좌표·lease 조건을 적용한다.
+
+**미확정:** 접근 거리·허용 오차·깊이 품질·원 관측 수명·short-loss 시간/횟수 예산·정지 지속시간. **실험:** 한 프레임 공백, 제한 안의 소실·재탐지, 공백 반복과 만료 경계, 만료 후 늦은 재전송, 공백 중 TF/lease 실패, 벽 뒤 대상, 좁은 공간, 부분 가림, 경로 중 차단, 접근 후보가 전부 불가능한 경우. 접근 실패해도 발견·증거를 보고하며 물리적 구조 완료라고 표시하지 않는다. 연결: A3·A4, 계획 PR 8.
+
+## D-08 두 로봇 통행과 제한된 복구
+
+**채택 제안:** 다른 로봇도 센서상 장애물로 관측하고 로봇별 주행·최종 속도 감시를 유지한다. 로컬 장애물 회피만으로 좁은 통로의 교착이나 서로의 사각지대 문제가 해결되었다고 가정하지 않는다.
+
+**조건부:** 시연장에 양방향 통과가 어려운 구간이 있으면, 측정한 공통 좌표의 통로를 배타적 자원으로 정의한다. 진입 전 안전 대기점에서 예약하고, 진입한 로봇의 예약을 비용 차이로 빼앗지 않는다. 신선한 출구 통과 확인으로 해제한다. **통로 안에서 lease가 만료되거나 위치가 끊긴 경우 다른 로봇에게 즉시 양도하지 않고 점유 불명으로 차단한다.** 재확인·명시적 복구 뒤 해제한다.
+
+두 대와 제한된 시연 구역에서는 명시적 우선순위·대기·제한된 재시도로 시작하고, 대규모 fleet framework는 초기 필수 의존성으로 두지 않는다. 자동 후진/회전 복구는 D-04의 허용 조건을 따른다. **실험:** 반대 방향 동시 진입, 내부 정지/통신 단절, 예약 취소 지연, 다른 로봇이 퇴로를 막은 경우를 검증한다. 연결: A4, 계획 PR 8·10.
+
+## 결정과 실험 기록 방식
+
+위 제안을 실제로 채택할 때는 해당 결정 ID에 장비/소프트웨어 버전, 사용한 설정·데이터, 사전에 정한 합격 기준, 측정 결과, 선택/보류 이유를 연결한다. PR 3은 이 문서의 수치와 계약을 구체화하고 계획 PR 5~10은 실행 증거를 추가한다. 기준 미충족이면 제한 모드·재관측·접근 불가로 드러내며 정지·좌표 검사를 생략해 시연을 통과시키지 않는다.
+
+이 수정에서 원본 ROS·모델·시험을 실행하지 않았다. 공식 문서의 기능 설명, 원본 코드/시험의 정적 분석, 원본의 과거 실기 기록, 제안 알고리즘, 파이널 실기 결과는 서로 다른 근거로 유지한다. 문서 재검토 인계는 runtime 실행 승인과 별개다.
