@@ -1,7 +1,7 @@
 # rescue_robot
 
-로봇별 임무 실행·명령 중재·취소·정지의 경계. ROS 실행 코드는 아직 없다.
+명령 수락·단일 활성 임무·임대·취소·정지 확인의 순수 Python 코어다. `executor.py`는 `SEND`/`CANCEL` 의도를 반환한다. ROS 발행, Nav2 연결, SLAM 실행, 언도킹은 하지 않는다.
 
-이 패키지는 제안된 기능 경계를 표시하는 초기 구조다. `rescue_bringup`의 정적 프로파일 검사 외에 실행 노드·launch·ROS 인터페이스·로봇 명령 경로는 제공하지 않는다. 가져올 원본 코드는 아직 복사하지 않았다.
+공개 API는 `Policy`, `Readiness`, `Task`, `Executor`다. 인수와 시간 진행 예시는 [`tests/test_executor.py`](../../tests/test_executor.py)를 참고한다. 모든 운용 임계값은 호출자가 명시해야 한다. 시험값은 실기 기본값이 아니다.
 
-패키지 버전 `0.0.0`은 초기 구조를 뜻한다. 프로젝트 라이선스와 maintainer는 미결정이다. `LicenseRef-Unspecified`는 사용 허가를 뜻하지 않으며 `maintainer@example.invalid`는 실제 연락처가 아니다. 배포 전에 프로젝트가 결정한 메타데이터로 교체한다.
+자세한 구현 경계·출처·남은 검증은 [구현 기록](../../docs/implementation-robot.md)에 있다. 이 코어를 단독으로 로봇에 연결하지 않는다. 인증된 단일 어댑터, 시각/센서 증거, 장비측 watchdog이 필요한 상태다.

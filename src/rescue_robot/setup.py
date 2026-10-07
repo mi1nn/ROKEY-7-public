@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='로봇별 임무 실행·명령 중재·취소·정지의 경계. ROS 실행 코드는 아직 없다.',
+    description='로봇별 명령·취소·정지 판정 Python 코어. ROS 어댑터는 미구현.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": []},
 )
