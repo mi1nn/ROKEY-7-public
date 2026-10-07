@@ -1,7 +1,7 @@
 ---
 title: 파이널 디렉터리 구조와 코드 이식 경계
 status: proposed
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 파이널 디렉터리 구조와 코드 이식 경계
@@ -34,7 +34,7 @@ ROKEY-7/
     rescue_operations/          관제 API·영속 기록·보고
     rescue_bringup/             실행 구성·프로파일 검사·launch
   config/
-    profiles/                   두 로봇·네 호스트의 배치 구성
+    profiles/                   두 로봇·현재 네 호스트 기준 배치 구성
     robots/                     로봇별 센서·frame·주행 설정
     perception/                 모델·클래스·추론 설정
   tests/
@@ -56,14 +56,18 @@ ROKEY-7/
 | `rescue_interfaces` | 관측·대상 사건·임무·상태·보고 계약의 ROS 표현 | PR 3 계약 문서 | 알고리즘·하드웨어 실행 |
 | `rescue_mapping` | 로봇별 SLAM frame과 공통 기준의 변환·revision 유효성 | frame·clock·변환 상태 | 로봇 임무 배정, 검증 없는 자동 지도 병합 |
 | `rescue_perception` | 입력 헤더를 보존한 탐지·거리·관측 생성 | observation·class·quality | 로봇 주행 명령, 재발행으로 관측 수명 연장 |
-| `rescue_robot` | 한 로봇의 임무 수락·실행·취소·결과, Nav2 연결 | task·robot state·map validity | 전 로봇의 배정, 별도 임의 속도 우회 경로 |
+| `rescue_robot` | 한 로봇의 임무 수락·실행·취소·결과, Nav2 주행 요청·외부 경로 조회 adapter | task·robot state·map validity | 전 로봇의 배정, 별도 임의 속도 우회 경로 |
 | `rescue_coordination` | 관측을 사건으로 관리, 수색·확인·접근 배정 | event·task·status·report | Nav2/속도 직접 명령, SLAM TF 재발행 |
 | `rescue_operations` | UI/API·명령 요청·보고 저장·증거 검색 | 사건·명령 결과·보고 | 독자적 로봇 제어, 공유 SQLite 파일로 여러 PC 쓰기 |
-| `rescue_bringup` | 호스트/로봇별 설정 검증과 실행 묶음 | profile·package/contract versions | 센서 사실·시험 PASS의 생성 |
+| `rescue_bringup` | 호스트/로봇별 설정 검증·실행 묶음·운용 dock/undock 요청 전달 | profile·package/contract versions·운용 요청 | 직접 로봇 액션 발행, 센서 사실·시험 PASS의 생성 |
 
 도메인 모듈은 ROS 메시지 객체 대신 명시된 값/타입을 입력받고 결과·명령 의도를 반환한다. ROS 어댑터가 메시지·액션·시각·QoS를 연결한다. 판단 함수를 시험하기 위해 ROS 전체를 실행하지 않아도 되게 하고, 그 시험을 ROS·실기 시험과 구별한다.
 
 의존 방향은 공통 계약→각 기능→실행 구성이다. 기능끼리 다른 노드의 내부 변수·DB 테이블을 직접 공유하지 않는다. 공통 라이브러리는 실제 중복 책임이 확인된 경우에만 추출하며 `utils` 패키지로 모든 코드를 모으지 않는다. ROS `.msg`와 도메인 타입이 함께 존재하면 변환 어댑터와 계약 시험으로 필드·단위·만료 의미를 맞춘다.
+
+논리 책임 분리와 물리 PC 배치는 다르다. AMR 2대는 사용자 필수 조건이고 PC 4대(고사양 2·중간 사양 2)는 예정 자원이다. 현재 제안은 네 호스트를 사용하는 배치지만 모든 PC의 사용을 확정 인수 의무로 확대하지 않는다. coordination의 임무 상태와 operations의 보고 DB는 같은 PC에 놓아도 별도 책임·API 경계·DB 단일 쓰기를 유지한다. 이 동일 호스트 배치는 나머지 호스트에도 역할이 있으면 현재 4호스트 프로파일에서 허용된다. 호스트 수를 줄이는 대안을 선택할 때 프로파일의 수량 조건과 부하·장애 시험을 함께 바꾼다.
+
+`explore_lite`는 [알고리즘 D-05](algorithm-decisions.md)의 B안에 따라 frontier 후보 생성 부분을 우선 재사용하고 주행 goal은 `rescue_robot`으로 보낸다. upstream 노드의 자동 goal/복귀 경로는 협업 배포에 포함하지 않는다. 후보 adapter의 실제 언어·빌드 의존성은 선택한 upstream 버전과 함께 구현 PR에서 정한다. Python 초기 패키지 구조가 외부 C++ 기능을 그대로 import할 수 있다는 뜻은 아니다.
 
 ## 원본 코드의 목적지
 
@@ -83,7 +87,7 @@ ROKEY-7/
 ## 설정과 자산
 
 - 로봇 ID·namespace·frame·호스트·토픽·모델/보정 경로를 코드 상수로 고정하지 않는다. 사람이 수정하는 배치 프로파일과 로봇별 설정의 책임을 나누고 중복 키의 우선순위를 명시한다.
-- 프로파일은 정확히 두 로봇과 네 호스트의 역할을 검증한다. 실제 CPU/GPU/OS·네트워크가 확인되지 않은 프로파일은 예시이며 배포 완료가 아니다.
+- 현재 정적 프로파일 제안은 정확히 두 로봇과 네 호스트(고사양 2·중간 사양 2)의 ID·역할 참조를 검사한다. 네 PC 전원의 물리 사용 의무를 확정하거나 실제 장비가 그 수만큼 작동한다고 보증하는 검사는 아니다. 배치와 무관하게 로봇별 유일한 명령 담당과 임무/보고 책임 분리를 유지한다. 실제 CPU/GPU/OS·네트워크와 다른 배치의 지원 여부는 별도로 확인한다.
 - 모델/지도/보정 파일은 실행 코드와 별도 자산으로 관리한다. manifest에는 출처, 해시, 클래스/단위, 센서/지도 기준, 검증 환경을 기록한다. 실제 형식과 필수 키는 해당 구현 PR에서 정한다.
 - 생성물 `build/`, `install/`, `log/`, 녹화·DB·가중치·대용량 학습 결과를 기본 추적 대상으로 만들지 않는다. 시험에 필요한 작은 fixture만 출처·목적을 명시해 둔다.
 - 라이선스 선언이 불명확한 원본 코드·자산은 출처/고지 처리를 확인한 뒤 이식한다. 새 패키지 metadata에 원본의 TODO 선언이나 작성자 정보를 무심코 복사하지 않는다.

@@ -1,7 +1,7 @@
 ---
 title: 원본에서 선별한 레슨런과 파이널 검증
 status: draft
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 원본에서 선별한 레슨런과 파이널 검증
@@ -28,7 +28,7 @@ updated: 2026-10-07
 
 ## LL-03 명령뿐 아니라 지도와 TF의 발행 책임도 정한다
 
-**근거:** `[원본 기록]` [2026-10-06 현장 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L63-L71)은 다른 PC의 SLAM 노드로 `/robot3/map` 발행자가 두 개가 되어 시험을 중단했다고 보고한다. [P4 명령 주체 원칙](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-03-lessons-p1-p3.md#L34-L40)도 재사용할 만하다.
+**근거:** `[원본 기록]` [2026-10-06 현장 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L33-L34)은 다른 PC의 SLAM 노드로 `/robot3/map` 발행자가 두 개가 되어 시험을 중단했다고 보고한다. [P4 명령 주체 원칙](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-03-lessons-p1-p3.md#L34-L40)도 재사용할 만하다.
 
 **적용:** 로봇별 임무 실행기, Nav2, 속도 중재, teleop의 권한을 구분한다. 각 지도와 TF 연결의 발행자를 명시한다. 웹·탐지·협업 노드가 별도로 같은 로봇에 직접 주행 명령을 내지 않게 한다.
 

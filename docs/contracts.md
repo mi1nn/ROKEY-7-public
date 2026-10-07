@@ -1,19 +1,21 @@
 ---
 title: 구조 수색 시스템의 인터페이스 계약 초안
 status: draft-proposal
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 인터페이스 계약 초안
 
 이 문서는 계획 PR 3의 제안이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
 
+두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
+
 ## C-01. 책임과 명령 권한
 
 | 책임 | 유일한 소유자 제안 | 허용/금지 경계 |
 | --- | --- | --- |
 | 센서 드라이버·최종 명령 감시 | 각 로봇의 드라이버/로컬 watchdog | 최종 속도 제한·명령 만료·정지 latch를 로봇에서 적용. 정확한 설치 방법은 장비 확인 필요 |
-| 로봇별 Nav2/SLAM 실행·임무 실행 | `rescue_robot` + `rescue_bringup`의 로봇별 인스턴스 | Nav2 goal/cancel·필요한 도킹 action은 로봇 실행기만 발행. 도킹 기능은 파이널 필수가 아님 |
+| 로봇별 Nav2/SLAM 실행·임무 실행 | `rescue_robot` + `rescue_bringup`의 로봇별 인스턴스 | Nav2 goal/cancel·도킹 장치의 준비/운영 action은 로봇 실행기만 발행. 협업 임무와 준비용 UNDOCK/DOCK 권한을 분리(C-06) |
 | 지도 세션·공통 좌표 변환 | `rescue_mapping` | frame/session/revision의 권한자. perception/coordinator가 변환을 임의 보정하지 않음 |
 | 관측 생성 | `rescue_perception` | 탐지·거리·위치·관측 품질 발행. 임무·Nav2 goal·속도 발행 금지 |
 | 수색 분담·대상 사건·임무 배정 | `rescue_coordination` | 로봇 실행기에 임무 요청. 직접 `cmd_vel`·Nav2 action·lifecycle 변경 금지 |
@@ -22,7 +24,7 @@ updated: 2026-10-07
 
 고사양 PC 두 대에 로봇별 SLAM/Nav2/실행·추론을 배치하고, 중간 사양 PC 두 대에 coordination과 operations를 나누는 것은 부하 측정 전 가설이다. 순수 판단 로직은 ROS 입출력 어댑터와 분리한다. 파일 경계는 PR 2와 함께 확정한다.
 
-Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 최종 watchdog 경로를 통과해야 한다. perception이 별도 회전 명령을 보내는 경로는 두지 않는다. 원격 연결이 끊겨도 로봇에서 명령 만료를 처리할 수 있다는 근거를 얻기 전에는 원격 자율주행 준비 완료로 판정하지 않는다.
+Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 최종 watchdog 경로를 통과해야 한다. `explore_lite`는 통합 시 후보 생성 방식(B)을 평가하며 실행기가 후보를 검증해 Nav2 goal을 발행한다. `explore_lite`가 직접 goal을 보내는 방식(A)은 coordinator/controller가 같은 로봇을 제어하지 않는 격리 실험으로 한정한다. perception이 별도 회전 명령을 보내는 경로는 두지 않는다. 원격 연결이 끊겨도 로봇에서 명령 만료를 처리할 수 있다는 근거를 얻기 전에는 원격 자율주행 준비 완료로 판정하지 않는다.
 
 ## C-02. ID·버전·공통 envelope
 
@@ -49,6 +51,10 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 
 원 관측의 최대 나이는 `수신측 현재 wall time - observed_at + 송수신 clock_error_bound 합 + 검증된 센서 stamp 지연 상한`으로 보수적으로 평가한다. 오차 상한을 알 수 없거나 `UNKNOWN` stamp이면 자동 접근의 유효 관측으로 쓰지 않는다. 표시·오프라인 기록에는 `시간 불확실`로 남길 수 있다. 유효성은 **원 관측 나이, 로컬 수신 단절 시간, 필요한 TF/센서 상태**를 모두 통과해야 한다. 어느 하나의 PASS가 다른 조건을 대신하지 않는다.
 
+**짧은 탐지 공백과 만료는 다르다.** 대상에 의존하는 진행 중 임무는 마지막 유효 관측·기존 goal의 좌표/시간/lease·필수 센서가 계속 유효하고, 원 observed_at가 전진하는 마지막 새 유효 관측의 로컬 monotonic 수신 이후 공백이 T-01의 `SHORT_LOSS_MAX` 안일 때만 기존 goal을 유지할 수 있다. 허용 시간은 원 관측의 남은 유효시간과 SHORT_LOSS_MAX 중 먼저 끝나는 시점까지다. 새 탐지가 없다는 이유로 새 goal을 발급하거나 observed_at/valid_until을 갱신하지 않는다. hold/중복 재발행은 공백 타이머를 초기화하지 않으며, 이동 대상의 미래 위치를 임의로 외삽하지 않는다. 관측 만료·공백 상한 초과·좌표/시간/lease/필수 센서 유효성 상실 중 하나라도 발생하면 즉시 취소→정지 관측으로 전환한다. 이 조건은 watchdog을 늦추거나 만료된 관측으로 접근을 시작할 권한을 주지 않는다.
+
+`SEARCH_AREA`는 수색 자체에 불필요한 특정 대상의 관측 만료만으로 중지하지 않는다. 해당 수색의 필수 scan/pose/인지 준비나 명령 권한이 상실되면 별도 readiness/정지 관문을 적용한다. 대상 의존 `APPROACH_TARGET`과 `REOBSERVE_TARGET`에는 위 공백/만료 계약을 적용하며, 오래된 위치 주변을 새로 수색하는 재관측은 S-03의 별도 구역 정책과 새 generation이 필요하다.
+
 0·허용 오차보다 미래인 stamp·너무 오래된 stamp·다른 clock domain은 자동 임무 입력에서 거절한다. 시계 step/restart를 감지하면 활성 접근을 보류/정지하고 시간 기준을 다시 확인한다. 시간 임계값은 T-01~T-06을 실기 전에 고정한다.
 
 ## C-04. 좌표계·지도 revision 계약
@@ -56,11 +62,13 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 | 좌표/식별자 | 의미 |
 | --- | --- |
 | `mission` | 협업에 사용할 공통 기준 frame 제안. 물리 기준점과 정렬 방법은 PR 2의 실험으로 결정 |
-| `robot_a/map`, `robot_a/odom`, `robot_a/base_link` | 로봇 A의 frame ID 예시. B와 구분. ROS 토픽 namespace만 붙이면 TF frame ID도 자동 분리된다고 가정하지 않음 |
+| `robot_a/map`, `robot_a/odom`, `robot_a/base_link` | 로봇 A/B를 구분하기 위한 논리 이름 예시. 장비의 실제 frame 문자열과 대응은 프로파일로 관리하며 접두사 없는 map/odom/base_link일 수도 있음. 토픽 namespace만으로 TF frame ID가 자동 분리되지 않음 |
 | `map_session_id` | SLAM 시작·리셋·기준 지도 교체 등 새 좌표 세션의 ID |
 | `map_revision` | loop closure 등 저장 관측의 지도 좌표 해석을 바꾸는 보정 세대. 매 센서/TF 업데이트 번호와 구분 |
 | `map_update_sequence` | 점유 지도 내용 업데이트 순서. 이것만으로 공통 좌표 정렬 품질을 판정하지 않음 |
 | `transform_revision` | mission↔로봇 map 정렬의 세대. authority와 유효 조건을 함께 기록 |
+
+접두사 없는 native frame을 사용할 때는 로봇별 ROS domain 또는 context·토픽 remap·전용 TF buffer로 수신을 격리하고 `source_robot + native_frame`으로 해석한다. 단일 그래프에서 두 TF tree를 합치는 경우에는 충돌 없는 실제 frame ID/변환 어댑터를 검증해야 한다. 공유 TF buffer에 같은 `map/odom/base_link`를 그대로 합치지 않는다.
 
 각 로봇의 SLAM은 자신의 `map→odom`, odometry는 `odom→base_link`, 고정 센서 TF는 각 장비의 정해진 발행자가 소유한다. `rescue_mapping`은 필요한 `mission→robot_i/map` 정렬의 단일 authority를 관리한다. TF 다중 부모·동일 edge의 중복 발행자를 허용하지 않는다. 구체적인 publisher 배치는 PR 2에서 확정한다.
 
@@ -80,23 +88,27 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | --- | --- | --- |
 | `TargetObservation` | 공통 envelope, observation_id, source_robot/camera, observed_at·stamp_semantics·clock 정보, class·confidence, model_id/hash, sensor frame·bbox, 위치 유효성·sensor 위치/공분산, depth 유효성, map/transform 참조(변환한 경우), evidence_ref | 탐지와 위치 성공을 분리. 위치가 없으면 발견 기록은 가능하지만 자동 접근점 입력으로 사용 불가. class confidence를 위치 정확도나 부상 확률로 해석하지 않음 |
 | `TargetEstimate` | target_id, 관련 observation_id 목록, estimate_revision, 원 최근 관측 시각/유효시한, mission 위치·공분산, **관측별** source robot·map_session_id/map_revision·transform_revision·보정 참조 목록, 확인 단계·접근 상태·보고 상태 | A/B 관측을 합쳐도 원본별 provenance를 공통 revision 하나로 덮어쓰지 않음. 두 카메라의 track ID만 같다고 병합하지 않으며 동일성 불확실하면 별개 사건/후보 관계로 보존 |
-| `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
+| `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 도킹 상태/관측 시각·준비 action 상태(해당 플랫폼), 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
 | `RescueReport` | report_id, target_id, 관측·확인·접근 결과, 수행 로봇/task/generation, 위치/frame/revision, observed_at·confirmed_at·reported_at, 접근 불가 등 사유, evidence_ref, 스키마·모델·배포 버전 | 사람 이송/부상/생존을 확정하지 않음. 오래된 사진을 새 재확인 사진으로 대체하지 않음 |
 | `ReportReceipt` | receipt_id, 참조 report_id, 수신 상태, 영속 저장 시각·저장 revision 또는 실패 코드 | `RECEIVED`와 `PERSISTED`를 구분. 보고 완료는 현재 정책에 필요한 payload와 증거가 영속 저장되고 해당 receipt가 돌아온 상태 |
 
-`evidence_ref`는 소유 API의 불변 ID·해시·매체 유형·관측 ID·획득 시각이다. 다른 PC의 임의 로컬 파일 경로를 공유 가능한 URL처럼 사용하지 않는다. 사진 원본의 전송/저장은 operations API에서 처리하며 DDS에 대형 사진을 반복 포함하지 않는 안을 제안한다. 사진을 필수로 할지와 보관 범위는 PR 3의 Q-07 결정 항목이다. 필수 증거 업로드가 실패하면 보고를 `PENDING_EVIDENCE`로 남기며 완료로 표시하지 않는다.
+`evidence_ref`는 소유 API의 불변 ID·해시·매체 유형·관측 ID·획득 시각이다. 다른 PC의 임의 로컬 파일 경로를 공유 가능한 URL처럼 사용하지 않는다. 사진 원본의 전송/저장은 operations API에서 처리하며 DDS에 대형 사진을 반복 포함하지 않는 안을 제안한다. 사진을 필수로 할지와 보관 범위는 [scope.md의 Q-07](scope.md)에 두며 결정 시점은 계획 PR 7·9다. 이 계약은 `PENDING_EVIDENCE` 상태를 정의하고 사진 필수 여부를 결정하지 않는다. 필수 증거 업로드가 실패하면 보고를 `PENDING_EVIDENCE`로 남기며 완료로 표시하지 않는다.
 
 ## C-06. 임무 action·lease·정지
 
-`ExecuteTask` action endpoint 제안: `/rescue/robots/{robot_id}/execute_task`.
+`ExecuteTask` action endpoint 제안: `/rescue/robots/{robot_id}/execute_task`. 이 주소는 C-08의 그래프 A 가설에서 직접 연결하며, 그래프 B에서는 도메인별 어댑터/API가 동일 의미를 전달한다.
 
 | 구분 | 내용 |
 | --- | --- |
 | Goal | command_id, task_id, generation, robot_id, coordinator_id/authority_epoch, kind, issued_at/deadline, command lease 참조, target_id/estimate_revision 또는 search_area_ref, 필요한 frame/session/revision, 정책/설정 버전 |
-| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`. 자동 귀환·도킹·물품 전달은 기본 범위에 추가하지 않음 |
-| 수락 조건 | ID/버전/시각/권한·generation 일치, 필요한 센서·시간·TF·Nav2 준비, stop latch 없음, lease 유효, 필수 설정 확정, 현재 지도 revision 호환 |
+| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`. 협업의 자동 귀환·도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
+| 수락 조건 | ID/버전/시각/권한·generation 일치, 필요한 센서·시간·TF·Nav2 준비, stop latch 없음, lease 유효, 필수 설정 확정, 현재 지도 revision 호환. 도킹 장치가 있는 플랫폼의 수색/접근/재관측 이동은 fresh dock_status의 is_docked=false 필요 |
 | Feedback | task/generation, 실행 상태, 현재 목표/경로 상태, 마지막 관측 나이, 장애/보류 사유, 실제 pose의 시각/품질. action feedback 수신 자체를 성공으로 보지 않음 |
 | Result | 수락한 action의 outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACHABLE`, `FAILED` 중 하나. terminal_reason, stop_confirmed, motion_state, 사용한 관측/좌표 revision, stop 증거, 보고 참조를 포함. 결과가 없으면 UNKNOWN/PENDING 유지 |
+
+도킹 장치가 있는 플랫폼의 준비/운영 `UNDOCK`·`DOCK`는 협업 `ExecuteTask.kind`와 분리한 기동 절차 또는 운영자 요청으로만 실행한다. `rescue_bringup`/operations는 실행기에 요청하고 실제 장치 action 발행은 `rescue_robot` 한 곳이 소유한다. 이 경로도 command ID·권한·deadline·배타적 명령 소유·로컬 정지 경로를 요구한다. 센서가 도킹 중 꺼지는 장비의 준비 교착을 피하도록 UNDOCK는 완전한 Nav2/카메라 READY를 선행 조건으로 삼지 않고, fresh 도킹/driver 상태·실제 정지·장치 action 가용성·유효한 준비 제어권·fault/stop 해제 조건을 따로 검사한다. 이 준비 제어권은 협업 ARMED를 뜻하지 않으며 Nav2와 동시에 움직일 수 없다.
+
+도킹 action의 접수/성공 응답만으로 물리 상태를 확정하지 않는다. UNDOCK 뒤 fresh `is_docked=false`·정지와 필요한 센서/TF/위치 추정 준비를 확인한 뒤 협업 이동을 허용한다. DOCK 뒤에도 fresh 도킹 상태·정지를 확인한다. 접수 뒤 무동작·상태 불명·timeout은 실패/NOT_READY와 S-04 정지 관문으로 처리한다. `power_saver: False`로 도킹 중 센서가 나오더라도 수색/접근/재관측 이동의 `is_docked=false` guard는 생략하지 않는다. 도킹 장치가 없는 플랫폼의 적용 제외는 장비 프로파일과 근거로 명시한다.
 
 action 수락 전 거절은 goal 응답의 `accepted=false`와 별도의 `TaskAdmission`/상태 기록에 command_id·거절 이유를 남긴다. 도메인 로그의 `REJECTED`는 action Result enum이 아니다. 정지 확인이 실패한 수락 임무는 `outcome=FAILED`, `terminal_reason=STOP_UNCONFIRMED`, `stop_confirmed=false`, `motion_state=STOP_UNCONFIRMED`로 보고하고 최초 취소/만료/실패 원인도 별도 기록한다. 결과 전송 후에도 정지 latch와 감시를 유지하며 새 이동을 허용하지 않는다.
 
@@ -122,6 +134,10 @@ command lease는 로봇별 현재 authority/generation에 묶고 유효기간·�
 
 ## C-08. 토픽·QoS·API 제안
 
+**그래프 A 가설:** 아래 전역 토픽/action을 직접 연결하는 안은 두 로봇·네 PC가 단일 ROS 그래프를 공유한다는 전제다. PR 2의 A0/A1 실험에서 domain·Discovery Server 목록/고유 ID·참여자 수·호스트별 수신·명령 분리가 확인되기 전에는 배포 확정이 아니다. 원본 P4의 DEC-010도 A는 제안이고 B는 도메인 분리 대안이었다. 원본 프로젝트의 B 기본값 결정을 새 프로젝트의 사용자 확정 결정으로 승계하지 않는다.
+
+**그래프 B 대체 경로:** 로봇별 domain 안에 독립 수신/실행 프로세스를 두고, coordination/operations는 도메인별 어댑터와 API로 관측·상태·임무 요청·정지·보고를 중계한다. Nav2/도킹 action은 해당 로봇 domain의 실행기가 호출한다. 범용 domain bridge가 action까지 투명하게 중계한다고 가정하지 않는다. API여도 원 source/관측 시각·ID·generation·좌표/session/revision·권한·deadline·정지 증거·영속 receipt 의미를 보존하고, 중계 단절도 lease/watchdog 대상이다. 한 프로세스의 다중 ROS context는 기본 구현으로 확정하지 않는다. 두 안 중 선택과 실제 endpoint/라우팅은 프로파일로 고정한다.
+
 아래 depth 값은 큐 설정 제안이며 지연·누락·재시작 시험으로 고정한다. DDS reliability/durability를 DB 저장·명령 완료 보장으로 해석하지 않는다.
 
 | 데이터 | 토픽/endpoint 제안 | QoS/전달 방식 제안 |
@@ -134,6 +150,8 @@ command lease는 로봇별 현재 authority/generation에 묶고 유효기간·�
 | 임무·정지 | ExecuteTask action, RequestStop service | RELIABLE, VOLATILE 제안. 재접속 후 오래된 명령을 retained 값으로 재실행하지 않음. timeout/retry/idempotency는 응용 계약 |
 | 보고 | `/rescue/reports`, `/rescue/report_receipts` 또는 동등 API | RELIABLE, VOLATILE + 송신측 보류 저장/동일 ID 재전송 + 수신측 중복 제거/영속 receipt. endpoint 최종 선택은 PR 2의 operations API와 일치시킴 |
 | 지도/영상 관제 | operations API의 snapshot/stream | frame/session/revision·생성/관측 시각·유효 상태 포함. 지도·메타데이터를 같은 snapshot ID로 전달. PC간 DB 파일 공유 대신 API 책임 분리 |
+
+Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프로세스 및 DDS participant 수·서버 CPU를 기록한다. 목록 조회용 설정과 일반 runtime의 필수 조건을 혼동하지 않으며, 토픽 목록만 보이는 것을 통신 PASS로 쓰지 않는다. 실제 메시지 수신 시각·양방향 요청/응답과 장애 복구를 시험한다.
 
 관측은 누락될 수 있는 센서 흐름이다. 첫 발견·확인된 사건·보고의 보존은 별도 reliable/영속 경로에서 처리한다. 전송 보장과 탐지 성공률을 혼동하지 않는다. HTTP를 선택하는 경우에도 동일 command/report ID와 상태 단계를 유지하며 UI는 요청 중·수락·실행·저장·실패를 구분한다.
 
@@ -149,6 +167,8 @@ command lease는 로봇별 현재 authority/generation에 묶고 유효기간·�
 - 대상 자체 goal·만료 후 기존 goal 유지: [go_near](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L388-L446), [approach](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528).
 - AMCL 준비·직접 lifecycle 복구: [기동](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L109-L123), [복구](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L263-L288).
 - 원 관측 시각 TF의 재사용 후보: [P4 target_locator](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/target_locator.py#L74-L107). stamp의 유효성/지도 보정 처리까지 검증 완료됐다는 뜻은 아니다.
+- 도메인 A/B는 [P4 DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)의 당시 후보/기록이며 새 배포 선택이 아니다. native frame의 접두사 없는 예시는 [adapters.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/adapters.py#L20), [follow_nav.launch.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L49-L60)에서 확인된다.
+- 도킹·센서의 조건부 관계는 [로봇 3번 baseline](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L40-L63), 운영자 전용 준비 action은 [Task.msg](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_interfaces/msg/Task.msg#L15-L17)에 있다. 접수 뒤 무동작은 [실습 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L26-L27)의 관찰이며 [원인은 미확인으로 기록됐다](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L66).
 - 늦은 action 수락·취소 관리 후보: [P4 goal_timer](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173).
 
 원본 링크는 근거일 뿐 이 초안 계약의 기존 구현이 아니다. 원본 접근이 안 되면 확인하지 못한 근거를 명시하고, 출처 검토가 끝났다고 처리하지 않는다.
