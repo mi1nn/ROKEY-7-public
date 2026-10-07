@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='관제·보고·기록의 경계. 웹·DB·ROS 입출력은 아직 없다.',
+    description='Durable local report ledger, evidence storage and sender outbox; no ROS adapter.',
     license="LicenseRef-Unspecified",
-    entry_points={"console_scripts": []},
+    entry_points={"console_scripts": ["rescue-report-export = rescue_operations.__main__:main"]},
 )

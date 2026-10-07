@@ -1,0 +1,23 @@
+{
+  "base_commit": "4a1ff4583eaa0816215d980fdbacdec86bf1bbd5",
+  "scope": "isolated draft; not a pushed PR head",
+  "python_versions": {
+    "3.11": "Python 3.11.8",
+    "3.12": "Python 3.12.14"
+  },
+  "source_sha256": {
+    "src/rescue_operations/README.md": "cac0530ab1540a90097d9f206c45d70198af6d412e34859cae4e7350f0e3caea",
+    "src/rescue_operations/package.xml": "8b0cd5bb8a3f156ae50346d32429ae06d542cffc8a4df280a4809c87447aceaf",
+    "src/rescue_operations/rescue_operations/__init__.py": "f42fd37a4c70c01d12df45148b65b1453125a2c2ad222d3d4043754e727ae910",
+    "src/rescue_operations/rescue_operations/__main__.py": "1f0b1de18c92805b1584bf3846b992b6a0d09d01462eefe1c3207976dadfbb4b",
+    "src/rescue_operations/rescue_operations/ledger.py": "892b1d453d569f95f9e7c8cacf6a6ae977cef858f16312228ebd1c02adbe8892",
+    "src/rescue_operations/rescue_operations/schema.py": "cb64f5ce43d3dbc7d2cde46e7954afa7610cd88ba15e8699c852626a47faeac6",
+    "src/rescue_operations/resource/rescue_operations": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/rescue_operations/setup.cfg": "2f73ad53344d824ddb24e21c039feb01507eeda3e73314b9dd253d2d487c460f",
+    "src/rescue_operations/setup.py": "67655224a165d3de51258b26aaa9c85ddd11448cdbcc4db19afa14af4ce4a523",
+    "tests/test_operations.py": "2aa48f8c9117b03fec23c2b9ac4b81505c4b4e8bf04ec7c2c365ade226ce4310"
+  },
+  "wheel_sha256": {
+    "rescue_operations-0.0.0-py3-none-any.whl": "543a259a13ac2545999f4f7d61fd059b0d748669dbfa78c520ad9346fdaf3f30"
+  }
+}
