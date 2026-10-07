@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='두 로봇 수색·임무 배정·대상 인계·통행 조정. 배정 알고리즘과 ROS 입출력은 아직 없다.',
+    description='두 로봇의 경로 후보·임무 배정·접근 확인·통로 점유 Python 코어. ROS 어댑터는 미구현.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": []},
 )
