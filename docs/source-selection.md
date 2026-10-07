@@ -1,7 +1,7 @@
 ---
 title: 두 원본의 코드·알고리즘·시험 선별
 status: draft
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # 두 원본의 코드·알고리즘·시험 선별
@@ -90,7 +90,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 ### F-02 관측 시각 TF와 데이터 최신성은 별개다
 
-`[원본 코드]` P4-07은 **관측 시각의 TF**를 조회한다. 최신 TF로 대체한다고 해석하면 잘못이다. 그러나 [대상 어댑터](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/adapters.py#L109-L125)는 대상의 `rx`를 수신 시각으로 기록한다. 상대 저장소의 웹캠은 유지 중인 과거 좌표를 새 헤더 시각으로 재발행하며, [수신기](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304)는 수신 시각으로 freshness를 기록한다.
+`[원본 코드]` P4-07은 **관측 시각의 TF**를 조회한다. 최신 TF로 대체한다고 해석하면 잘못이다. 그러나 [수신 콜백](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/node.py#L163-L187)은 `time.monotonic()` 값을 얻고 [controller](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/controller.py#L161)가 어댑터에 전달하여 `rx`로 보존한다. `rx`는 헤더 `stamp`와 다른 시계이므로 둘을 빼서 관측 나이를 계산할 수 없다. 상대 저장소의 웹캠은 유지 중인 과거 좌표를 새 헤더 시각으로 재발행하며, [수신기](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304)는 수신 시각으로 freshness를 기록한다.
 
 `[제안]` 관측·수신·처리 시각과 공통 시계 조건을 정의한다. P4 변환기는 전달받은 헤더를 조회에 사용하므로 헤더 시각 자체의 유효성 검사도 필요하다. 0·미래·과도하게 오래된 헤더, 지연·역순·TF 유실·시계 오차를 시험하고 재발행이 관측의 수명을 연장하지 않게 한다. 지도 보정 뒤 저장 좌표의 처리도 별도 계약으로 정한다. 연결: AC-02·06, PR 3·6~9.
 
@@ -98,11 +98,15 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 `[원본 코드]` 상대 저장소의 [approach](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528)는 대상이 없거나 오래되면 반환한다. 그 경로에서 기존 Nav2 goal을 취소하지 않으며, `go_near` 안의 거리 취소 검사에도 도달하지 않는다. AMR-02의 `go_near`는 대상 좌표 자체를 목표로 보내고 feedback/거리에서 취소를 시도한다. P4-11의 직선 정지점 수학 역시 비용지도상 도달 가능성을 판정하는 함수는 아니다.
 
-`[제안]` 대상 만료 시 활성 goal 처리, 취소 완료·실제 정지 관측, 도달 가능한 접근점, 제한된 재시도를 한 제어 흐름으로 설계한다. 위 코드는 정적 위험 근거이며 실기 충돌을 재현했다는 주장은 아니다. 연결: AC-05~07, PR 3·5·8.
+`[원본 코드]` P4 [mission의 NAVIGATE](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/mission.py#L123-L139)는 웹캠 좌표 소실만으로 goal을 취소하지 않고 nav 실패·임무 시간 초과에서 취소한다. [소실 시 유지 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/test/test_webcam_trigger.py#L68-L75)이 이 동작을 고정한다. 이는 위 AMR의 만료 반환과 구별한다. 원본 mission의 임무 timeout을 파이널의 관측 최신성 timeout과 동일시하지 않는다.
+
+`[제안]` 짧은 소실에는 최신성·정지 조건이 유효한 제한 시간 동안 기존 goal만 유지하고 새 goal은 내지 않는다. 관측 만료 시에는 취소·정지 확인을 요구한다. 대상 만료 시 활성 goal 처리, 취소 완료·실제 정지 관측, 도달 가능한 접근점, 제한된 재시도를 한 제어 흐름으로 설계한다. 위 코드는 정적 위험 근거이며 실기 충돌을 재현했다는 주장은 아니다. 연결: AC-05~07, PR 3·5·8.
 
 ### F-04 직접 속도 명령과 충돌 설정을 승계하지 않는다
 
 `[원본 코드]` P4 미니의 [추종 launch](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L53-L61)는 별도 추종 서버에 `controller.use_collision_detection: False`를 지정한다. 상대 저장소의 [직접 회전](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L355-L361)은 기본 `cmd_vel`로 나가며, [설정의 collision monitor](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/nav2.yaml#L259-L265)는 `cmd_vel_smoothed`를 입력, `cmd_vel`을 출력으로 둔다. 이 기본 배선에서는 직접 회전이 해당 입력을 거치지 않는다. 실제 설치 remap과 실행 배선은 확인하지 않았다.
+
+`[원본 코드]` 별도 [car_follower](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/car_follower.py#L1-L14)는 기본 `cmd_vel` 직접 발행과 `predict_s` 동안의 소실 예측을 사용한다. `[원본 기록]` [실기 명령](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L45-L59)은 `follow.launch.py`였으며, [미니 안내](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/README.md#L3-L5)는 웹 정지가 이 노드를 멈추지 못한다고 명시한다. `follow_nav` 쪽은 [주석과 기본 인자](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L1-L34)에 collision monitor 사용 시 `cmd_vel_smoothed`로 지정하라는 안내가 이미 있다. 실제 실행 노드와 배선을 따로 확인해야 한다. P4-11의 통째 이식 제외 판단은 유지한다.
 
 `[제안]` 로봇별 명령·정지 경로와 발행 책임을 정의한다. UI·탐지·협업이 별도로 같은 로봇을 움직이지 않게 하며, 모든 활성 경로에서 정지가 적용되는지 실제 그래프로 검증한다. 연결: AC-01·06, PR 2~5·8.
 
@@ -122,6 +126,8 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 다음은 검토한 핵심 경로에서 새 요구를 만족하는 완성 구현을 확인하지 못한 기능이다. P4의 `src/`, vision, mini, config/scripts에 대한 SLAM·frontier·map merge·reservation·traffic·loop closure·pose graph 검색과 관련 코드 읽기, AMR의 위 핵심 경로를 근거로 한다. 저장소 밖의 구현 부재를 단정하지 않는다.
 
+`[원본 기록]` 이미 [2026-10-06 SLAM·Nav2·explore_lite 운용](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L18-L28)이 있었다. [DEC-011](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L153-L160)은 SLAM·Nav2의 PC 실행을 확정하고 Wi-Fi 단절 시 속도 명령 단절과 두 로봇 합산 대역폭 미측정을 남겼다. [Nav2 플러그인 검토](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-06-nav2-plugins-adoption.md)는 PR 2의 기존 패키지 우선 평가 입력이다. `explore_lite`를 수색 비교 후보에 포함하되 두 로봇 협업 구현 완료로 해석하지 않는다. 이 기록은 Q-02·Q-03 및 AC-06의 입력이다.
+
 | 신규 설계 | PR 2·3에서 비교·정할 내용 | 후속 검증 |
 | --- | --- | --- |
 | 지속 SLAM·Nav2 결합 | 실제 장비/버전에 맞는 표준 구성요소, 위치 준비 조건, 장애물 변화와 SLAM 지도 갱신의 역할 구분 | 두 대 동시 기동, 장애물 추가·제거, 위치 추정 실패 (PR 5) |
@@ -137,7 +143,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 - `homework/`, `mini/`, AMR의 `day3/pub_sub/test_nv2/turtlebot4_beep` 패키지를 통째로 가져오지 않는다. 위 후보가 필요로 하는 함수·시험·설정만 이식 PR에서 출처와 함께 추출한다.
 - 기존 `car/box/dummy` 가중치·학습 zip·`runs/`, 고정 도크 좌표·로봇 번호·개인 홈 경로, 기존 `maps/`·`webcam_H.npy`·보정점·거리 계수는 새 실행 기본값에서 제외한다. 새 평가나 fixture에 필요하면 별도 목적·버전·조건을 검토한다.
 - AMR [package.xml](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/package.xml#L8-L14)과 [setup.py](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/setup.py#L9-L19)는 실제 코드의 모든 실행 의존성·설정을 규정하지 않는다. 해당 추적 스냅샷에서 launch·CI·requirements/lock/pyproject는 확인하지 못했다. 원본 장비에서 실행 불가능하다는 뜻은 아니며, 새 설치는 PR 4에서 의존성과 자산 경로를 명시해야 한다.
-- P4 루트의 LICENSE/NOTICE 계열 파일은 추적 목록에서 확인하지 못했고 일부 패키지 라이선스는 TODO다. AMR 루트는 [Apache-2.0](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/LICENSE#L1-L3), 위 패키지 선언은 TODO다. 선언 차이를 기록하고 실제 코드 이식 시 원본 출처·고지 처리를 확인한다. 이 PR은 코드·미디어·모델을 복사하지 않는다.
+- P4 루트의 LICENSE/NOTICE 계열 파일은 추적 목록에서 확인하지 못했다. `package.xml` 7개 중 Apache-2.0은 `mini/rokey_mini` 1개이며, 나머지 6개(`rokey_amr`, `rokey_interfaces`, `rokey_sysmon`, `rokey_vision`, `rokey_bipbop`, `rokey_pubsub`)는 TODO다. AMR 루트는 [Apache-2.0](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/LICENSE#L1-L3), `package.xml` 5개(`rokey_pjt`, `day3`, `pub_sub`, `test_nv2`, `turtlebot4_beep`)는 모두 `TODO: License declaration`이다. 선언 차이를 기록하고 실제 코드 이식 시 원본 출처·고지 처리를 확인한다. 이 PR은 코드·미디어·모델을 복사하지 않는다.
 
 ## 이 PR의 검증 한계와 검토 질문
 
