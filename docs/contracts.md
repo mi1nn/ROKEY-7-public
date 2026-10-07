@@ -70,7 +70,7 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 
 접두사 없는 native frame을 사용할 때는 로봇별 ROS domain 또는 context·토픽 remap·전용 TF buffer로 수신을 격리하고 `source_robot + native_frame`으로 해석한다. 단일 그래프에서 두 TF tree를 합치는 경우에는 충돌 없는 실제 frame ID/변환 어댑터를 검증해야 한다. 공유 TF buffer에 같은 `map/odom/base_link`를 그대로 합치지 않는다.
 
-각 로봇의 SLAM은 자신의 `map→odom`, odometry는 `odom→base_link`, 고정 센서 TF는 각 장비의 정해진 발행자가 소유한다. `rescue_mapping`은 필요한 `mission→robot_i/map` 정렬의 단일 authority를 관리한다. TF 다중 부모·동일 edge의 중복 발행자를 허용하지 않는다. 구체적인 publisher 배치는 PR 2에서 확정한다.
+각 로봇의 SLAM은 자신의 `map→odom`, odometry는 `odom→base_link`, 고정 센서 TF는 각 장비의 정해진 발행자가 소유한다. `rescue_mapping`은 필요한 `mission→robot_i/map` 정렬의 단일 authority를 관리한다. TF 다중 부모·동일 edge의 중복 발행자를 허용하지 않는다. 구체적인 publisher 배치는 PR 2에서 제안하고 실제 그래프 검증 후 확정한다.
 
 revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph/세션 연계와 연결되어야 한다. 일반적인 map→odom TF 변화만 보고 loop closure가 발생했다고 추정하지 않는다. 현재 설치 버전에서 보정 발생을 감지하고 영향 관측을 판별할 수 있는지 확인하지 못하면 alignment의 자동 협업 접근 자격은 INVALID로 둔다. 독립된 기준으로 좌표를 재검증/재관측하여 유효성을 확보하기 전에는 A의 과거 좌표로 B를 자동 접근시키지 않는다. 실험실에서 조작한 revision 번호만 통과한 시험은 backend 연동 시험을 대신하지 않는다.
 
