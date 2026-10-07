@@ -1,7 +1,5 @@
 # rescue_coordination
 
-두 로봇 수색·임무 배정·대상 인계·통행 조정. 배정 알고리즘과 ROS 입출력은 아직 없다.
+경로 증거 기반 후보 선택, 중복 임무 배정 방지, 대상 최신성/접근 확인, 통로 점유 상태의 Python 코어다. 현재 코드는 로봇을 움직이거나 실제 경로를 계산하지 않는다.
 
-이 패키지는 제안된 기능 경계를 표시하는 초기 구조다. `rescue_bringup`의 정적 프로파일 검사 외에 실행 노드·launch·ROS 인터페이스·로봇 명령 경로는 제공하지 않는다. 가져올 원본 코드는 아직 복사하지 않았다.
-
-패키지 버전 `0.0.0`은 초기 구조를 뜻한다. 프로젝트 라이선스와 maintainer는 미결정이다. `LicenseRef-Unspecified`는 사용 허가를 뜻하지 않으며 `maintainer@example.invalid`는 실제 연락처가 아니다. 배포 전에 프로젝트가 결정한 메타데이터로 교체한다.
+API와 시험용 fixture는 [`tests/test_coordination.py`](../../tests/test_coordination.py), 출처·계약·미구현은 [구현 기록](../../docs/implementation-coordination.md)을 참고한다. 외부 증거를 생성하는 어댑터와 지도 자동 접근 허가가 연결되기 전에는 물리 로봇 실행 계층으로 사용하지 않는다.
