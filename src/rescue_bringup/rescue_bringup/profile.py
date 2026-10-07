@@ -2,6 +2,11 @@
 
 This format describes host ownership and configuration identity only. It is not
 the rescue message contract and does not establish operational safety limits.
+
+ROBOT_COUNT preserves the two-AMR requirement. HOST_TIERS and
+REQUIRE_ALL_HOSTS_USED encode the current proposed deployment baseline while
+CLA-01 (four required hosts versus four available hosts) remains unresolved.
+These policy values do not confirm a hardware allocation or a runtime topology.
 """
 
 from collections import Counter
@@ -11,6 +16,10 @@ from pathlib import Path
 import re
 from typing import Any
 
+
+ROBOT_COUNT = 2
+HOST_TIERS = {"high": 2, "mid": 2}
+REQUIRE_ALL_HOSTS_USED = True
 
 MAX_CONFIG_BYTES = 65_536
 IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}\Z")
@@ -146,10 +155,12 @@ def _parameters(path: Path, robot_id: str, namespace: str) -> RobotParameters:
 
 
 def load_deployment(path: str | Path) -> Deployment:
-    """Read a bounded local profile and require two AMRs plus four used hosts.
+    """Read a bounded profile against the module's current proposed baseline.
 
     All parameters are data. No launch, import-by-name, shell command, network
     connection, or environment substitution is accepted by this schema.
+    A profile symlink is resolved first: relative parameter files are confined
+    to the resolved profile's directory, not the symlink's directory.
     """
     try:
         profile_path = Path(path).resolve(strict=True)
@@ -161,15 +172,15 @@ def load_deployment(path: str | Path) -> Deployment:
     _version(data["schema_version"], "deployment")
     deployment_id = _identifier(data["deployment_id"], "deployment_id")
     hosts: list[Host] = []
-    for entry in _list(data["hosts"], 4, "hosts"):
+    for entry in _list(data["hosts"], sum(HOST_TIERS.values()), "hosts"):
         host = _fields(entry, {"id", "tier"}, "host")
         host_id = _identifier(host["id"], "host.id")
-        if not isinstance(host["tier"], str) or host["tier"] not in {"high", "mid"}:
-            raise ProfileError("host.tier must be 'high' or 'mid'")
+        if not isinstance(host["tier"], str) or host["tier"] not in HOST_TIERS:
+            raise ProfileError(f"host.tier must be one of {sorted(HOST_TIERS)}")
         hosts.append(Host(host_id, host["tier"]))
     _unique([host.id for host in hosts], "host id")
-    if Counter(host.tier for host in hosts) != {"high": 2, "mid": 2}:
-        raise ProfileError("hosts must contain exactly two high and two mid tiers")
+    if Counter(host.tier for host in hosts) != HOST_TIERS:
+        raise ProfileError(f"hosts must have tier counts {HOST_TIERS}")
     known_hosts = {host.id for host in hosts}
     used_hosts: set[str] = set()
 
@@ -184,7 +195,7 @@ def load_deployment(path: str | Path) -> Deployment:
     coordination_host = host_reference(services["coordination_host"], "coordination_host")
     operations_host = host_reference(services["operations_host"], "operations_host")
     robots: list[Robot] = []
-    for entry in _list(data["robots"], 2, "robots"):
+    for entry in _list(data["robots"], ROBOT_COUNT, "robots"):
         robot = _fields(entry, {
             "id", "namespace", "command_host", "slam_host", "perception_host", "parameters_file"
         }, "robot")
@@ -199,8 +210,8 @@ def load_deployment(path: str | Path) -> Deployment:
                             perception_host, robot["parameters_file"], parameters))
     _unique([robot.id for robot in robots], "robot id")
     _unique([robot.namespace for robot in robots], "robot namespace")
-    if known_hosts != used_hosts:
+    if REQUIRE_ALL_HOSTS_USED and known_hosts != used_hosts:
         raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     if len({robot.parameters.use_sim_time for robot in robots}) != 1:
-        raise ProfileError("both robots must use the same use_sim_time setting")
+        raise ProfileError("all robots must use the same use_sim_time setting")
     return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host)

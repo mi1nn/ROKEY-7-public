@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from rescue_bringup.cli import main
 from rescue_bringup.profile import MAX_CONFIG_BYTES, ProfileError, load_deployment
@@ -51,6 +52,42 @@ class DeploymentProfileTests(unittest.TestCase):
         self.save()
         deployment = load_deployment(self.profile)
         self.assertEqual(deployment.robots[0].slam_host, "coordination")
+
+    def test_two_robot_command_owners_can_share_a_host(self):
+        self.data["robots"][1]["command_host"] = "compute_a"
+        self.save()
+        deployment = load_deployment(self.profile)
+        self.assertEqual({robot.command_host for robot in deployment.robots}, {"compute_a"})
+        self.assertEqual(deployment.robots[1].slam_host, "compute_b")
+
+    def test_coordination_and_operations_can_share_if_all_hosts_have_roles(self):
+        self.data["services"]["operations_host"] = "coordination"
+        self.data["robots"][1]["perception_host"] = "operations"
+        self.save()
+        deployment = load_deployment(self.profile)
+        self.assertEqual(deployment.coordination_host, deployment.operations_host)
+        self.assertEqual(deployment.robots[1].perception_host, "operations")
+
+    def test_policy_baseline_change_updates_counts_and_cli_without_literal_edits(self):
+        self.data["hosts"] = [host for host in self.data["hosts"] if host["id"] != "compute_b"]
+        for field in ["command_host", "slam_host", "perception_host"]:
+            self.data["robots"][1][field] = "compute_a"
+        self.save()
+        stdout = io.StringIO()
+        with patch("rescue_bringup.profile.HOST_TIERS", {"high": 1, "mid": 2}):
+            with redirect_stdout(stdout):
+                result = main([str(self.profile)])
+        self.assertEqual(result, 0)
+        self.assertIn("2 robots; 3 hosts (1 high, 2 mid)", stdout.getvalue())
+
+    def test_profile_symlink_uses_target_directory_for_parameter_paths(self):
+        link_dir = self.root / "profile_links"
+        link_dir.mkdir()
+        link = link_dir / "deployment.json"
+        link.symlink_to(self.profile)
+        deployment = load_deployment(link)
+        self.assertEqual(deployment.robots[0].parameters.robot_id, "robot_a")
+        self.assertFalse((link_dir / "robots").exists())
 
     def test_wrong_robot_host_counts_and_tier_mix_are_rejected(self):
         variants = []
