@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='SLAM 연동·좌표 변환·지도 보정 후 관측 유효성. SLAM과 TF 코드는 아직 없다.',
+    description='순수 Python 3D 좌표·원관측·지도 revision 검증. ROS/SLAM/TF 실행 연동은 없다.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": []},
 )

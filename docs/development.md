@@ -9,7 +9,7 @@ PR 4에서 동작하던 기능은 `rescue_bringup`의 **로컬 JSON 프로파일
 | `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 명령·취소·정지 판정 Python 코어, ROS 어댑터 없음 |
 | `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 없음 |
 | `rescue_coordination` | 수색 분담·임무 배정·인계·통행 조정 | 없음 |
-| `rescue_mapping` | SLAM 연동·공통 좌표·지도 보정 | 없음 |
+| `rescue_mapping` | SLAM 연동·공통 좌표·지도 보정 | 3D 좌표/원 관측/버전 무효화 코어. 실제 SLAM 보정 감지 미구현 |
 | `rescue_operations` | 관제·보고·기록 | 없음 |
 | `rescue_bringup` | 구성·기동·실행 전 점검 | 프로파일의 정적 구조·참조 검사만 구현 |
 
