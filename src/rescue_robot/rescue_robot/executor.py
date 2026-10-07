@@ -13,7 +13,11 @@ class ContractError(ValueError):
 
 
 def number(value, name, *, positive=False):
-    if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
+    try:
+        valid = type(value) in (float, int) and math.isfinite(value)
+    except OverflowError:
+        valid = False
+    if not valid:
         raise ContractError(name)
     if value < 0 or (positive and value == 0):
         raise ContractError(name)
@@ -24,7 +28,7 @@ def identifier(value):
     if not isinstance(value, str):
         raise ContractError('UUID required')
     try:
-        if str(UUID(value)) != value:
+        if str(UUID(value)) != value or UUID(value).int == 0:
             raise ValueError()
     except ValueError as exc:
         raise ContractError('canonical UUID required') from exc
@@ -240,13 +244,16 @@ class Executor:
             reason = 'NOT_READY'
         elif not task.issued_at <= wall < task.deadline:
             reason = 'INVALID_TIME'
+        if reason is None:
+            number(now + task.lease_duration, 'lease deadline', positive=True)
         receipt = Admission(reason is None, reason or 'ACCEPTED')
         self.seen[task.command_id] = (task, receipt)
         if not receipt.accepted:
             return receipt
+        lease_until = number(now + task.lease_duration, 'lease deadline', positive=True)
         self.active = task
         self.highest_generation = task.generation
-        self.lease_until = now + task.lease_duration
+        self.lease_until = lease_until
         self.lease_sequence = -1
         self.state = 'PLANNING'
         return receipt
@@ -265,7 +272,7 @@ class Executor:
         self.pending, self.fenced = True, False
         self.stop_start = None
         self.motion, self.state = 'MOVING', 'AWAITING_ACCEPTANCE'
-        self.accept_by = now_steady + self.policy.acceptance_timeout
+        self.accept_by = number(now_steady + self.policy.acceptance_timeout, 'acceptance deadline', positive=True)
         self.intents.append(('SEND', self.active.command_id))
         return True
 
@@ -319,7 +326,7 @@ class Executor:
                 or now >= self.lease_until or self.state == 'STOPPING' or sequence <= self.lease_sequence):
             return False
         self.lease_sequence = sequence
-        self.lease_until = now + self.active.lease_duration
+        self.lease_until = number(now + self.active.lease_duration, 'lease deadline', positive=True)
         return True
 
     def request_stop(self, cause, *, now, outcome='CANCELED'):
@@ -331,7 +338,7 @@ class Executor:
         self.state, self.motion, self.latch = 'STOPPING', 'STOP_REQUESTED', 'STOP_LATCHED'
         self.stop_cause, self.stop_outcome = cause, outcome
         self.stop_start = None
-        self.stop_deadline = now + self.policy.stop_timeout
+        self.stop_deadline = number(now + self.policy.stop_timeout, 'stop deadline', positive=True)
         if not self.fenced:
             self.intents.append(('CANCEL', self.active.command_id))
 

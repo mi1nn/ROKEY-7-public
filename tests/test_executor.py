@@ -116,7 +116,7 @@ class ExecutorTests(unittest.TestCase):
 
     def test_input_rejection(self):
         for change in (dict(generation=True), dict(command_id='x'), dict(issued_at=float('nan')),
-                       dict(lease_duration=0), dict(kind='UNDOCK')):
+                       dict(lease_duration=0), dict(kind='UNDOCK'), dict(command_id=uid(0)), dict(lease_duration=10**1000)):
             with self.assertRaises(ContractError):
                 replace(self.task, **change)
 
