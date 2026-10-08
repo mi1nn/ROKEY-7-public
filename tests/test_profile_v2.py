@@ -56,6 +56,10 @@ class MissionProfileTests(unittest.TestCase):
             for name in (params.nav_action, params.odom_topic, params.dock_status_topic):
                 self.assertTrue(name.startswith(robot.namespace + "/"), name)
 
+    def test_profile_vocabularies_match_shared_contracts(self):
+        from rescue_contracts import ROBOT_ROLES as CONTRACT_ROLES
+        self.assertEqual(set(ROBOT_ROLES), set(CONTRACT_ROLES))
+
     def test_v1_example_still_loads_without_mission(self):
         deployment = load_deployment(self.config / "deployment.example.json")
         self.assertEqual(1, deployment.schema_version)
@@ -93,11 +97,33 @@ class MissionProfileTests(unittest.TestCase):
         self.save()
         self.assertRejected("hold_positions must include the SUPPORT robot")
 
+    def test_hold_pose_accepts_robot_scoped_tf_frames(self):
+        support = next(iter(self.data["mission"]["hold_positions"]))
+        for frame in ("mission", f"{support}/map", "map"):
+            with self.subTest(frame=frame):
+                data = deepcopy(self.data)
+                data["mission"]["hold_positions"][support]["frame_id"] = frame
+                self.save(data)
+                self.assertEqual(frame, load_deployment(self.profile).mission.hold_of(support).frame_id)
+
+    def test_huge_json_integer_is_a_profile_error_not_overflow(self):
+        data = deepcopy(self.data)
+        data["mission"]["search_areas"][0]["mission_xy"][0] = 10 ** 400
+        self.profile.write_text(json.dumps(data))
+        self.assertRejected("finite number")
+        import io
+        from contextlib import redirect_stderr
+        err = io.StringIO()
+        with redirect_stderr(err):
+            self.assertEqual(2, main([str(self.profile)]))
+        self.assertIn("INVALID:", err.getvalue())
+
     def test_hold_pose_rejects_unknown_robot_nonfinite_and_boolean_revision(self):
         hold = next(iter(self.data["mission"]["hold_positions"].values()))
         support = next(iter(self.data["mission"]["hold_positions"]))
         for key, bad in (("x", "1.0"), ("yaw", True), ("map_revision", True), ("map_revision", -1),
-                         ("map_session_id", uid(0)), ("frame_id", "/mission")):
+                         ("map_session_id", uid(0)), ("frame_id", "/mission"), ("frame_id", "robot_b/"),
+                         ("frame_id", "")):
             with self.subTest(key=key):
                 data = deepcopy(self.data)
                 data["mission"]["hold_positions"][support][key] = bad

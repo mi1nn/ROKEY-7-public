@@ -269,21 +269,30 @@ class SiteEvent:
     def __post_init__(self):
         uuid_string(self.event_id)
         camera_id(self.camera_id)
-        _require(self.kind in SITE_EVENT_KINDS, 'site event kind')
+        _require(isinstance(self.kind, str) and self.kind in SITE_EVENT_KINDS, 'site event kind')
         timestamp_ns(self.observed_at_ns)
         uuid_string(self.evidence_id)
         _require(isinstance(self.evidence_sha256, str) and re.fullmatch(r'[0-9a-f]{64}', self.evidence_sha256),
                  'evidence_sha256 must be 64 lowercase hex digits')
         _require(type(self.confidence) is float and 0.0 <= self.confidence <= 1.0, 'confidence in [0, 1]')
         _require(isinstance(self.clock_domain_id, str) and self.clock_domain_id, 'clock_domain_id')
-        _require(self.stamp_semantics in STAMP_SEMANTICS, 'stamp_semantics')
-        _require(self.clock_state in CLOCK_STATES, 'clock_state')
+        _require(isinstance(self.stamp_semantics, str) and self.stamp_semantics in STAMP_SEMANTICS, 'stamp_semantics')
+        _require(isinstance(self.clock_state, str) and self.clock_state in CLOCK_STATES, 'clock_state')
         if self.clock_error_bound_ns is not None:
             duration_ns(self.clock_error_bound_ns)
         _require(isinstance(self.detail, str), 'detail')
 
     @property
-    def time_basis_usable(self):
-        """True only when the stamp can order decisions against robot observations."""
+    def time_basis_declared(self):
+        """Precondition only: the event *declares* a usable time basis.
+
+        True means stamp_semantics != UNKNOWN, clock_state == SYNCED and an error
+        bound is present. It does NOT compare this event with anything: ordering
+        or freshness against a robot observation still requires the consumer to
+        check the same clock_domain_id on both sides, the summed error bounds
+        against its policy, and the age/future limits (C-03; see
+        rescue_perception.validate_freshness). False means the event may be
+        recorded but must never enter such a decision.
+        """
         return (self.stamp_semantics != 'UNKNOWN' and self.clock_state == 'SYNCED'
                 and self.clock_error_bound_ns is not None)

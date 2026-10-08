@@ -34,6 +34,8 @@ MAX_CONFIG_BYTES = 65_536
 IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}\Z")
 NAMESPACE = re.compile(r"/[A-Za-z][A-Za-z0-9_]{0,63}\Z")
 ROS_NAME = re.compile(r"/[A-Za-z][A-Za-z0-9_]*(/[A-Za-z][A-Za-z0-9_]*)*\Z")
+# TF frame IDs (C-04): no leading slash; robot-scoped frames like robot_b/map are valid.
+FRAME_ID = re.compile(r"[A-Za-z][A-Za-z0-9_]*(/[A-Za-z][A-Za-z0-9_]*)*\Z")
 
 
 class ProfileError(ValueError):
@@ -197,9 +199,19 @@ def _parameter_path(root: Path, value: Any) -> Path:
 
 
 def _finite(value: Any, label: str) -> float:
-    if type(value) not in (int, float) or not math.isfinite(value):
-        raise ProfileError(f"{label} must be a finite number")
-    return float(value)
+    # A JSON integer can exceed float range; isfinite()/float() then raise OverflowError.
+    try:
+        if type(value) not in (int, float) or not math.isfinite(value):
+            raise ProfileError(f"{label} must be a finite number")
+        return float(value)
+    except OverflowError as exc:
+        raise ProfileError(f"{label} must be a finite number") from exc
+
+
+def _frame_id(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not FRAME_ID.fullmatch(value):
+        raise ProfileError(f"invalid {label}: expected a TF frame id such as mission or robot_b/map")
+    return value
 
 
 def _uint64(value: Any, label: str) -> int:
@@ -247,7 +259,7 @@ def _parameters(path: Path, robot_id: str, namespace: str, schema_version: int) 
 
 def _hold_pose(value: Any, label: str) -> HoldPose:
     pose = _fields(value, {"frame_id", "x", "y", "yaw", "map_session_id", "map_revision"}, label)
-    return HoldPose(_identifier(pose["frame_id"], label + ".frame_id"),
+    return HoldPose(_frame_id(pose["frame_id"], label + ".frame_id"),
                     _finite(pose["x"], label + ".x"), _finite(pose["y"], label + ".y"),
                     _finite(pose["yaw"], label + ".yaw"),
                     _uuid(pose["map_session_id"], label + ".map_session_id"),

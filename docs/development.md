@@ -68,7 +68,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 | `mission.hold_positions` | `{robot_id: {frame_id, x, y, yaw, map_session_id, map_revision}}`. SUPPORT 로봇의 대기 위치는 필수, 키는 배포 로봇만 |
 | 로봇 파라미터 v2 `nav_action`·`odom_topic`·`dock_status_topic` | `/<namespace>/…` 아래의 ROS 이름, 서로 다름. 두 로봇의 명령·관측 경로가 섞이지 않게 네임스페이스 밖 이름을 거절한다 |
 
-`python -m rescue_bringup <v2 프로파일>` 은 역할과 구역 수를 함께 출력한다. v2 역시 정적 검사이며 ROS 를 켜거나 로봇을 움직이지 않는다. `runtime_enabled` 는 여전히 `false` 여야 한다.
+`profile.py` 의 `ROBOT_ROLES`·`AREA_BASIS_KINDS` 는 `rescue_contracts` 의 값을 복제한다(프로파일 CLI 는 `rescue_bringup` 만으로 돌아야 해 contracts 를 import 하지 않음). 두 값의 일치는 `tests/test_profile_v2.py` 가 검사한다. `python -m rescue_bringup <v2 프로파일>` 은 역할과 구역 수를 함께 출력한다. v2 역시 정적 검사이며 ROS 를 켜거나 로봇을 움직이지 않는다. `runtime_enabled` 는 여전히 `false` 여야 한다.
 
 ### v2 입력 후보와 실행 전 점검 — 미구현
 
