@@ -24,7 +24,7 @@
 - `Readiness` 는 여섯 상태(`driver`, `sensors`, `slam`, `nav2`, `undocked`, `watchdog`)가 모두 들어와야 하고 가장 오래된 수신 시각을 쓴다. 하나라도 없으면 준비 안 됨이다.
 - `guards(task) -> bool` 은 호출자가 주입하고 SEND 직전과 매 `step` 에 다시 본다(지도 revision 등; mapping 연결은 후속).
 - **goal frame**: 어댑터는 `task.goal_pose` 를 그대로 보낸다. Nav2 는 로봇 자신의 map frame 목표만 이해하므로, mission 기준 좌표(프로파일 v2 의 구역·대기 위치)를 로봇 map 으로 바꾸는 일은 mapping 의 책임이고 이 어댑터에는 아직 없다(후속).
-- **odom 시각 [미확인]**: `sample_steady = received_steady − (wall_now − header_ns)/1e9`. 로봇과 PC 시계가 `clock_error_bound` 안에서 맞는다고 전제한다(C-03, 측정 전). |차이| 가 상한을 넘거나 stamp 가 무효이면 표본으로 쓰지 않고 정지 창을 초기화한다 → 증거 부족은 `STOP_EVIDENCE_STALE`·`STOP_UNCONFIRMED` 로 드러난다.
+- **odom 시각 [미확인]**: `sample_steady = received_steady − (wall_now − header_ns)/1e9`. 로봇과 PC 시계가 `clock_error_bound_s`(로컬 float 초; C-03 의 int `clock_error_bound_ns` 와 다름) 안에서 맞는다고 전제한다(측정 전). |차이| 가 상한을 넘거나 stamp 가 무효이면 표본으로 쓰지 않고 `Executor.invalidate_stop_evidence` 로 정지 창을 초기화한다 → 증거 부족은 `STOP_EVIDENCE_STALE`·`STOP_UNCONFIRMED` 로 드러난다.
 - 두 로봇은 같은 어댑터를 쓰고 task kind 만 다르다(SCOUT: `SEARCH_AREA`·`REOBSERVE_TARGET`, SUPPORT: `HOLD`·`APPROACH_TARGET`). 역할은 설정에서 오고 코드에 두지 않는다. `HOLD` 는 goal 없이 정지 확인 뒤 `COMPLETED` 다.
 
 ## ROS 노드 (`command_adapter`)
@@ -35,7 +35,7 @@
 | --- | --- |
 | `allowed_robot_ids`(문자열 배열), `robot_id`, `namespace` | 프로파일의 두 로봇 ID 와 해당 로봇 namespace. 노드 namespace 와 다르면 기동 거부 |
 | `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(작전 PR)가 들어오면 그 값을 쓴다 |
-| `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound` | 운용 정책. 실기 값 미정(T-01) |
+| `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 실기 값 미정(T-01) |
 
 이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력(`ExecuteTask`, `rescue_interfaces` 미구현)이 없고, 지도 revision guard 가 연결되기 전까지 guard 가 모든 dispatch 를 거절한다. `driver`·`sensors`·`slam`·`watchdog` 준비 provider 도 아직 없다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
 

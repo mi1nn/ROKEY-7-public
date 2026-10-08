@@ -50,7 +50,7 @@ def main():
                             allowed_robot_ids=[r for r, _ in ROBOTS])
         node = Node('rescue_command_adapter', namespace=namespace)
         adapter = CommandAdapter(executor, FakePort(), guards=lambda task: False,
-                                 clock_error_bound=.5)  # probe-only bound
+                                 clock_error_bound_s=.5)  # probe-only bound
         bind_odometry(node, adapter, 'odom')
         sim = Node('fake_odom', namespace=namespace)
         pubs[robot_id] = sim.create_publisher(Odometry, 'odom', qos_profile_sensor_data)

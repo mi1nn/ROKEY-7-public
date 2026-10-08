@@ -128,7 +128,7 @@ def main(args=None):
     names = {'allowed_robot_ids': ParameterType.PARAMETER_STRING_ARRAY,
              'robot_id': string, 'namespace': string, 'authority_epoch': string,
              'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
-             'policy_version': string, 'step_period': double, 'clock_error_bound': double}
+             'policy_version': string, 'step_period': double, 'clock_error_bound_s': double}
     names.update({'policy.' + field: double for field in POLICY_FIELDS})
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, descriptor=ParameterDescriptor(type=kind, dynamic_typing=False))
@@ -150,7 +150,7 @@ def main(args=None):
     def guards(task):
         log.warn(f'guard rejects {task.command_id}: mapping revision guard not connected')
         return False
-    adapter = CommandAdapter(executor, port, guards=guards, clock_error_bound=value['clock_error_bound'])
+    adapter = CommandAdapter(executor, port, guards=guards, clock_error_bound_s=value['clock_error_bound_s'])
     port.bind(adapter)
     bind_odometry(node, adapter, value['odom_topic'])
     bind_dock_status(node, adapter, value['dock_status_topic'])

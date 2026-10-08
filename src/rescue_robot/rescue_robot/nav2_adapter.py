@@ -31,18 +31,19 @@ READINESS_FLAGS = ('driver', 'sensors', 'slam', 'nav2', 'undocked', 'watchdog')
 
 
 class CommandAdapter:
-    def __init__(self, executor, port, *, guards, clock_error_bound,
+    def __init__(self, executor, port, *, guards, clock_error_bound_s,
                  clock=time.monotonic, wall_clock_ns=time.time_ns):
         """`guards(task) -> bool` is re-checked before SEND and on every step
-        (map revision etc.; caller-injected). `clock_error_bound` (seconds) is
-        the largest accepted |host wall - odom header| offset; no default."""
+        (map revision etc.; caller-injected). `clock_error_bound_s` is the
+        largest accepted |host wall - odom header| offset in local float
+        seconds (not C-03's int clock_error_bound_ns); no default."""
         if not isinstance(executor, Executor):
             raise ContractError('executor type')
         if not callable(guards):
             raise ContractError('guards callable required')
-        if type(clock_error_bound) not in (int, float) or not 0 < clock_error_bound < math.inf:
-            raise ContractError('clock_error_bound')
-        self.clock_error_bound = float(clock_error_bound)
+        if type(clock_error_bound_s) not in (int, float) or not 0 < clock_error_bound_s < math.inf:
+            raise ContractError('clock_error_bound_s')
+        self.clock_error_bound_s = float(clock_error_bound_s)
         self.executor = executor
         self.port = port
         self.guards = guards
@@ -88,10 +89,11 @@ class CommandAdapter:
         [미확인] The header is robot system time; its offset from this host's
         wall clock is moved onto the local monotonic axis:
             sample_steady = received_steady - (wall_now - header_ns) / 1e9
-        This assumes robot and PC clocks agree within clock_error_bound (C-03;
+        This assumes robot and PC clocks agree within clock_error_bound_s (C-03;
         not measured yet, Q-14/Q-15). An offset beyond that bound, or an
-        invalid stamp, is not used as a sample: it invalidates the stop window
-        so missing evidence surfaces as STOP_EVIDENCE_STALE / STOP_UNCONFIRMED.
+        invalid stamp, is not used as a sample: Executor.invalidate_stop_evidence
+        restarts the stop window, so missing evidence surfaces as
+        STOP_EVIDENCE_STALE / STOP_UNCONFIRMED.
         """
         with self.lock:
             received = self.clock()
@@ -100,13 +102,14 @@ class CommandAdapter:
             turn = math.hypot(*angular)
             try:
                 offset = (wall - ros_time_to_ns(stamp_sec, stamp_nanosec)) / 1e9
-                sample = received - offset if abs(offset) <= self.clock_error_bound else None
+                sample = received - offset if abs(offset) <= self.clock_error_bound_s else None
             except RescueError:
                 sample = None
-            if sample is None or sample < 0:
-                sample = received + 1.0  # future sample: executor resets the window
-                self.events.append(('ODOM_UNUSABLE', None))
             try:
+                if sample is None or sample < 0:
+                    self.events.append(('ODOM_UNUSABLE', None))
+                    self.executor.invalidate_stop_evidence(now=received)
+                    return False
                 return self.executor.observe_motion(sample_steady=sample, received_steady=received,
                                                     linear=speed, angular=turn)
             finally:

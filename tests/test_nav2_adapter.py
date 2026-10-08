@@ -56,7 +56,7 @@ class AdapterTests(unittest.TestCase):
         executor = Executor(robot_id, uid(boot), uid(boot + 1), POLICY, allowed_robot_ids=self.ids)
         nav = FakeNav2()
         adapter = CommandAdapter(executor, nav, guards=lambda task: self.guard_ok,
-                                 clock_error_bound=CLOCK_ERROR_BOUND,
+                                 clock_error_bound_s=CLOCK_ERROR_BOUND,
                                  clock=self.clock, wall_clock_ns=self.clock.wall)
         return adapter, nav
 
@@ -327,7 +327,7 @@ class AdapterTests(unittest.TestCase):
             self.assertIsNone(self.a.result(uid(3)))
         self.assertEqual(sum(e[0] == 'ODOM_UNUSABLE' for e in self.a.events), 8)
         with self.assertRaises(ContractError):
-            CommandAdapter(self.a.executor, self.nav_a, guards=lambda task: True, clock_error_bound=0)
+            CommandAdapter(self.a.executor, self.nav_a, guards=lambda task: True, clock_error_bound_s=0)
 
     def test_stale_stop_evidence_blocks_dispatch(self):
         self.arm(self.a, 1)
