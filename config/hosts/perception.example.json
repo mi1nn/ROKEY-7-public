@@ -1,0 +1,34 @@
+{
+  "_note": "예시다. 실제 장비 값이 아니다. 작전의 프로파일 v2.1 network 블록이 들어오면 그 값으로 대체하고 이 파일은 지운다. <...> 주소와 server_id null 은 자리표시자이고 scripts/field/preflight.py 는 비교하지 않고 NOT_RUN 으로 둔다. 서버 ID 는 로봇 Pi 의 Onboard Server ID(로봇마다 고유, Q-01 배정 뒤)다. 규칙은 docs/network-discovery.md.",
+  "host_example_version": 0,
+  "role": "perception",
+  "deployment_host": null,
+  "purpose": "인식·고정 카메라. deployment.v2 의 호스트 id(compute_*/coordination/operations)와 이 역할의 대응은 미정이다(v2 는 인식을 compute_a/b 에 둔다). 다른 PC 와 발견하려면 적어도 한 서버의 클라이언트여야 해서 둘 다 둔다 [제안]",
+  "ros": {
+    "distro": "jazzy",
+    "rmw_implementation": "rmw_fastrtps_cpp",
+    "domain_id": null,
+    "super_client_runtime": false
+  },
+  "discovery_servers": [
+    {
+      "server_id": null,
+      "host": "<robot_a-pi>",
+      "port": 11811,
+      "robot_namespace": "/robot_a"
+    },
+    {
+      "server_id": null,
+      "host": "<robot_b-pi>",
+      "port": 11811,
+      "robot_namespace": "/robot_b"
+    }
+  ],
+  "watch_namespaces": [
+    "/robot_a",
+    "/robot_b"
+  ],
+  "required_packages": [
+    "rmw_fastrtps_cpp"
+  ]
+}
