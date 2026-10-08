@@ -87,6 +87,17 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 시험은 `tests/test_perception_adapter.py`(14개)다. 2026-10-08 기준 녹화 bag이 없어 **모든 입력이 합성**이다. 실제 epoch `1700000000123456789` ns가 헤더 → `FrameMeta` → `Observation`까지 리터럴로 같은지, 정렬·시각·깊이 실패 7종이 위치 없이 관측으로 남는지, 중복·역순 입력이 `last_new_receive`와 `valid_until_ns`를 바꾸지 않는지를 확인한다. **실시간 성능은 미검증(NOT_RUN)이다:** Depth 바이트 전수 디코딩과 `DepthFrame` 전수 검사가 모두 Python 루프다.
 
+## 녹화(rosbag2) 재생 도구
+
+`tools/perception_bag_replay.py`는 rosbag2 녹화를 위 입력 어댑터에 그대로 넣는다. 로봇·ROS 그래프·모델 없이 돈다. bag을 읽으려면 ROS 2 Python 패키지(`rosbag2_py`, `rclpy`, `rosidl_runtime_py`, `vision_msgs`)가 필요하다.
+
+- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다.
+- `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
+- `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
+- 짝짓기·설정 로직은 ROS 없이 `tests/test_perception_bag_replay.py`(4개)로 시험한다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+
+실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
+
 ## 실제 카메라 연결 조건
 
 아래는 원본 P4 로봇 3번의 당시 기록이다. 파이널 로봇(`Q-01`)에서 다시 재야 하며, 재기 전에는 `SourceBinding`의 stamp 의미를 `UNKNOWN`으로 둔다.
