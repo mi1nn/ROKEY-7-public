@@ -53,7 +53,7 @@ updated: 2026-10-08
 
 | 규격 | 지금 있는 것(`main`) | 빠진 것 → 작전이 계약 PR 로 |
 | --- | --- | --- |
-| 관측 | `Observation`(원 시각 `observed_at_ns`, `source_robot`/`source_boot_id`, frame, 위치·품질 `LocalizationResult`, `Detection.tracking_mode`) — C-01·C-03 | 고정 카메라 A·B 의 관측·사건 식별: `source_robot` 은 로봇 전용이고 `robot_ids` 는 정확히 2개라 카메라를 로봇으로 넣을 수 없다 → `SiteEvent(camera_id, kind=QUAKE_SIGN|EXIT_PASS, observed_at_ns, evidence)` 류 계약 신설(C-01 개정) |
+| 관측 | `Observation`(원 시각 `observed_at_ns`, `source_robot`/`source_boot_id`, frame, 위치·품질 `LocalizationResult`, `Detection.tracking_mode`) — C-01·C-03 | 고정 카메라 A·B 의 관측·사건 식별: `source_robot` 은 로봇 전용이고 `robot_ids` 는 정확히 2개라 카메라를 로봇으로 넣을 수 없다 → `SiteEvent(camera_id, kind=DISASTER_SIGN(이전 이름 DISASTER_SIGN, Part I 반영으로 #17 에서 변경)|EXIT_PASS, observed_at_ns, evidence)` 류 계약 신설(C-01 개정) |
 | 지도 | `MappingRegistry`(session/revision, `VALID`/`STALE_DERIVATION`/`NEEDS_REOBSERVATION`/`EXPIRED`, `auto_approach_eligible`) — C-04 | 사전 기준 지도(OI-01)와 변화 레이어의 표현. mission frame = 기준 지도 frame 으로 가정 |
 | 임무 | `Task(command/task/robot/boot/authority/generation, kind=SEARCH_AREA|REOBSERVE_TARGET|APPROACH_TARGET|HOLD)`, `TaskAdmission`, `Result` — C-06 | 프로파일의 로봇 **역할**(SCOUT/SUPPORT) 필드와 대기 위치·구역 후보 입력(`rescue_bringup` 스키마) |
 | 보고 | `RescueReport`(사건·관측·증거 ID, `approach_result`, `confirmation_result`) + receipt — C-05·C-08 | 사건 상태 `RESCUE_CONFIRMED`/`RECHECK_NEEDED`, 출구 카운트 기록, 재난 모드 이벤트 기록(S-05·C-05 개정) |
