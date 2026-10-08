@@ -73,7 +73,18 @@ DETAIL_CATEGORIES = {
     },
     'rescue_operations': {'STORAGE_ERROR': 'REPORT_NOT_PERSISTED',
                           'EVIDENCE_HASH_MISMATCH': 'ID_CONTENT_CONFLICT'},
-    'rescue_coordination': {}, 'rescue_robot': {
+    'rescue_coordination': {
+        'INVALID_NUMBER': 'INVALID_INPUT',
+        'INVALID_UUID': 'INVALID_INPUT',
+        'INVALID_REVISION': 'INVALID_INPUT',
+        'INVALID_POINT': 'INVALID_INPUT',
+        'INVALID_POLICY': 'INVALID_INPUT',
+        'INVALID_CANDIDATE': 'INVALID_INPUT',
+        'INVALID_RESERVATION': 'INVALID_INPUT',
+        'INVALID_ADMISSION': 'INVALID_INPUT',
+        'INVALID_HOLDER': 'INVALID_INPUT',
+        'LEASE_BELOW_RESOLUTION': 'INVALID_INPUT',
+    }, 'rescue_robot': {
         'TARGET_STALE': 'STALE_OBSERVATION', 'CANCEL_USER': 'ACTION_CANCELED',
     }, 'rescue_contracts': {},
 }
