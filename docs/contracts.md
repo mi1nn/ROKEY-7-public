@@ -96,11 +96,13 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 
 | 객체 | 필수 내용 | 의미/거절 조건 |
 | --- | --- | --- |
-| `TargetObservation` | 공통 envelope, observation_id, source_robot/camera, observed_at·stamp_semantics·clock 정보, class·confidence, model_id/hash, sensor frame·bbox, 위치 유효성·sensor 위치/공분산, depth 유효성, map/transform 참조(변환한 경우), evidence_ref | 탐지와 위치 성공을 분리. 위치가 없으면 발견 기록은 가능하지만 자동 접근점 입력으로 사용 불가. class confidence를 위치 정확도나 부상 확률로 해석하지 않음 |
+| `TargetObservation` | 공통 envelope, observation_id, source_robot/camera, observed_at·stamp_semantics·clock 정보, class·confidence·tracking_mode·track_id, model_id/hash, sensor frame·bbox, 위치 유효성·sensor 위치/공분산, depth 유효성, map/transform 참조(변환한 경우), evidence_ref | 탐지와 위치 성공을 분리. 위치가 없으면 발견 기록은 가능하지만 자동 접근점 입력으로 사용 불가. class confidence를 위치 정확도나 부상 확률로 해석하지 않음 |
 | `TargetEstimate` | target_id, 관련 observation_id 목록, estimate_revision, 원 최근 관측 시각/유효시한, mission 위치·공분산, **관측별** source robot·map_session_id/map_revision·transform_revision·보정 참조 목록, 확인 단계·접근 상태·보고 상태 | A/B 관측을 합쳐도 원본별 provenance를 공통 revision 하나로 덮어쓰지 않음. 두 카메라의 track ID만 같다고 병합하지 않으며 동일성 불확실하면 별개 사건/후보 관계로 보존 |
 | `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 도킹 상태/관측 시각·준비 action 상태(해당 플랫폼), 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
 | `RescueReport` | report_id, target_id, 관측·확인·접근 결과, 수행 로봇/task/generation, 위치/frame/revision, observed_at·confirmed_at·reported_at, 접근 불가 등 사유, evidence_ref, 스키마·모델·배포 버전 | 사람 이송/부상/생존을 확정하지 않음. 오래된 사진을 새 재확인 사진으로 대체하지 않음 |
 | `ReportReceipt` | receipt_id, 참조 report_id, 수신 상태, 영속 저장 시각·저장 revision 또는 실패 코드 | `RECEIVED`와 `PERSISTED`를 구분. 보고 완료는 현재 정책에 필요한 payload와 증거가 영속 저장되고 해당 receipt가 돌아온 상태 |
+
+`tracking_mode={DETECTION_ONLY,TRACKING,TRACKING_FALLBACK}`는 필수이며 관측 payload hash에 포함한다. TRACKING은 비어 있지 않은 track ID가 필요하고 다른 두 모드는 track_id=None이다. tracking fallback을 정상 tracking이나 단순 ID 누락과 구별한다.
 
 `evidence_ref`는 소유 API의 불변 ID·해시·매체 유형·관측 ID·획득 시각이다. 다른 PC의 임의 로컬 파일 경로를 공유 가능한 URL처럼 사용하지 않는다. 사진 원본의 전송/저장은 operations API에서 처리하며 DDS에 대형 사진을 반복 포함하지 않는 안을 제안한다. 사진을 필수로 할지와 보관 범위는 [scope.md의 Q-07](scope.md)에 두며 결정 시점은 계획 PR 7·9다. 이 계약은 `PENDING_EVIDENCE` 상태를 정의하고 사진 필수 여부를 결정하지 않는다. 필수 증거 업로드가 실패하면 보고를 `PENDING_EVIDENCE`로 남기며 완료로 표시하지 않는다.
 

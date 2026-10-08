@@ -2,10 +2,11 @@
 <package format="3">
   <name>rescue_perception</name>
   <version>0.0.0</version>
-  <description>카메라 입력·사람 탐지·거리 추정·관측 생성. 탐지와 ROS 입출력은 아직 없다.</description>
+  <description>기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. 모델 추론·ROS 입출력은 미구현.</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
+  <exec_depend>rescue_contracts</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
