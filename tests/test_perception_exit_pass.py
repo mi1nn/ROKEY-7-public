@@ -158,6 +158,22 @@ class ExitPassTests(unittest.TestCase):
         second = self.feed(sequence, ExitPassDetector(self.binding, self.policy))
         self.assertEqual(first, second)
 
+    def test_bad_detection_later_in_frame_does_not_lose_earlier_pass(self):
+        # CDX-30-01: a rejected frame must leave no trace, so the retry still counts.
+        self.update(0, [person(15, track="1")])
+        self.assertCode("INVALID_INPUT", lambda: self.update(1, [person(25, track="1"),
+                                                                  person(25, x=50, track="bad")]))
+        retry = self.update(1, [person(25, track="1")])
+        self.assertEqual(retry.status, "PROCESSED")
+        self.assertEqual(len(retry.events), 1)
+        self.assertEqual(retry.events[0].detail, "method=TRACK track_id=1")
+
+    def test_rejected_frame_then_clean_retry_of_untracked_subject(self):
+        self.update(0, [person(15)])
+        self.assertCode("INVALID_INPUT", lambda: self.update(1, [person(25), person(45, x=30)]))
+        self.assertEqual(len(self.update(1, [person(25)]).events), 1)
+        self.assertEqual(self.update(2, [person(26)]).events, ())
+
     def test_invalid_inputs_are_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: ExitPassDetector(replace(self.binding, source_robot="robot_a"),
                                                                   self.policy))
