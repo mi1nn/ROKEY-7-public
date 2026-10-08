@@ -1,8 +1,8 @@
-$ /Users/jaebeomlim/.pyenv/versions/3.11.8/bin/python3 --version
+$ <PYTHON311>/bin/python3 --version
 Python 3.11.8
 exit_code=0
 
-$ /Users/jaebeomlim/.pyenv/versions/3.11.8/bin/python3 -m unittest discover -s tests -p test_operations.py -v
+$ <PYTHON311>/bin/python3 -m unittest discover -s tests -p test_operations.py -v
 test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
 test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
 test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
@@ -33,11 +33,11 @@ Ran 23 tests in 0.201s
 OK
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 --version
+$ <PYTHON312>/bin/python3 --version
 Python 3.12.14
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m unittest discover -s tests -p test_operations.py -v
+$ <PYTHON312>/bin/python3 -m unittest discover -s tests -p test_operations.py -v
 test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
 test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
 test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
@@ -68,7 +68,7 @@ Ran 23 tests in 0.124s
 OK
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m pip wheel --no-index --no-deps --no-build-isolation --no-cache-dir --wheel-dir /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/wheels /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/src/rescue_operations
+$ <PYTHON312>/bin/python3 -m pip wheel --no-index --no-deps --no-build-isolation --no-cache-dir --wheel-dir <REPO>/.artifacts/wheels <REPO>/src/rescue_operations
 Processing ./src/rescue_operations
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
@@ -76,25 +76,25 @@ Building wheels for collected packages: rescue_operations
   Building wheel for rescue_operations (pyproject.toml): started
   Building wheel for rescue_operations (pyproject.toml): finished with status 'done'
   Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=12187 sha256=543a259a13ac2545999f4f7d61fd059b0d748669dbfa78c520ad9346fdaf3f30
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-zqigndeh/wheels/53/6d/8d/d0cb7886c3c97979622c042e395c48a69e884bceee663d9661
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-zqigndeh/wheels/53/6d/8d/d0cb7886c3c97979622c042e395c48a69e884bceee663d9661
 Successfully built rescue_operations
 exit_code=0
 
-$ /Users/jaebeomlim/.pyenv/versions/3.11.8/bin/python3 -m venv --without-pip /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11
+$ <PYTHON311>/bin/python3 -m venv --without-pip <REPO>/.artifacts/venv-3.11
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m pip --python /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11/bin/python install --no-index --no-deps /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
+$ <PYTHON312>/bin/python3 -m pip --python <REPO>/.artifacts/venv-3.11/bin/python install --no-index --no-deps <REPO>/.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
 Processing ./.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
 Installing collected packages: rescue-operations
 Successfully installed rescue-operations-0.0.0
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+WARNING: The directory '<USER_CACHE>/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11/bin/python -I -c import rescue_operations.ledger as m; import sys; print(m.__file__); assert 'rclpy' not in sys.modules
-/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11/lib/python3.11/site-packages/rescue_operations/ledger.py
+$ <REPO>/.artifacts/venv-3.11/bin/python -I -c import rescue_operations.ledger as m; import sys; print(m.__file__); assert 'rclpy' not in sys.modules
+<REPO>/.artifacts/venv-3.11/lib/python3.11/site-packages/rescue_operations/ledger.py
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11/bin/python -I -m unittest discover -s /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/tests -p test_operations.py -v
+$ <REPO>/.artifacts/venv-3.11/bin/python -I -m unittest discover -s <REPO>/tests -p test_operations.py -v
 test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
 test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
 test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
@@ -125,7 +125,7 @@ Ran 23 tests in 0.221s
 OK
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.11/bin/rescue-report-export --help
+$ <REPO>/.artifacts/venv-3.11/bin/rescue-report-export --help
 usage: rescue-report-export [-h] [--report-id REPORT_ID] [--limit LIMIT]
                             database
 
@@ -141,21 +141,21 @@ options:
   --limit LIMIT
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m venv --without-pip /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12
+$ <PYTHON312>/bin/python3 -m venv --without-pip <REPO>/.artifacts/venv-3.12
 exit_code=0
 
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m pip --python /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12/bin/python install --no-index --no-deps /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
+$ <PYTHON312>/bin/python3 -m pip --python <REPO>/.artifacts/venv-3.12/bin/python install --no-index --no-deps <REPO>/.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
 Processing ./.artifacts/wheels/rescue_operations-0.0.0-py3-none-any.whl
 Installing collected packages: rescue-operations
 Successfully installed rescue-operations-0.0.0
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+WARNING: The directory '<USER_CACHE>/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12/bin/python -I -c import rescue_operations.ledger as m; import sys; print(m.__file__); assert 'rclpy' not in sys.modules
-/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12/lib/python3.12/site-packages/rescue_operations/ledger.py
+$ <REPO>/.artifacts/venv-3.12/bin/python -I -c import rescue_operations.ledger as m; import sys; print(m.__file__); assert 'rclpy' not in sys.modules
+<REPO>/.artifacts/venv-3.12/lib/python3.12/site-packages/rescue_operations/ledger.py
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12/bin/python -I -m unittest discover -s /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/tests -p test_operations.py -v
+$ <REPO>/.artifacts/venv-3.12/bin/python -I -m unittest discover -s <REPO>/tests -p test_operations.py -v
 test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
 test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
 test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
@@ -186,7 +186,7 @@ Ran 23 tests in 0.119s
 OK
 exit_code=0
 
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/batch2/pr09/.artifacts/venv-3.12/bin/rescue-report-export --help
+$ <REPO>/.artifacts/venv-3.12/bin/rescue-report-export --help
 usage: rescue-report-export [-h] [--report-id REPORT_ID] [--limit LIMIT]
                             database
 
