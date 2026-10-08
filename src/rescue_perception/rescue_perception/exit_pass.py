@@ -137,8 +137,8 @@ class ExitPassDetector:
 
         ``detection_header`` must carry this frame's exact stamp and frame_id. The
         time basis (clock domain, stamp semantics, clock state/bound) is copied from
-        the binding as-is; UNKNOWN is recorded, and consumers filter on
-        ``SiteEvent.time_basis_usable``.
+        the binding as-is; UNKNOWN is recorded, not rejected. ``time_basis_declared``
+        is only the precondition; ordering and freshness are decided by consumers.
         """
         frame, evidence_sha256 = rgb_frame(rgb, self.binding)
         _require(stamp_ns(detection_header, "detection") == frame.observed_at_ns and

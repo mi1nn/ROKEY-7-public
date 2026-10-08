@@ -77,7 +77,7 @@ class ExitPassTests(unittest.TestCase):
         self.assertEqual(event.detail, "method=TRACK track_id=7")
         self.assertEqual((event.clock_domain_id, event.stamp_semantics, event.clock_state,
                           event.clock_error_bound_ns), ("site-clock", "CAPTURE", "SYNCED", 5000000))
-        self.assertTrue(event.time_basis_usable)
+        self.assertTrue(event.time_basis_declared)
 
     def test_unknown_time_basis_is_recorded_not_rejected(self):
         unknown = replace(self.binding, rgb_stamp_semantics="UNKNOWN", clock_state="UNKNOWN",
@@ -86,7 +86,7 @@ class ExitPassTests(unittest.TestCase):
                            ExitPassDetector(unknown, self.policy))
         self.assertEqual(len(events), 1)
         self.assertEqual((events[0].stamp_semantics, events[0].clock_state), ("UNKNOWN", "UNKNOWN"))
-        self.assertFalse(events[0].time_basis_usable)
+        self.assertFalse(events[0].time_basis_declared)
 
     def test_detection_from_another_frame_is_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: self.detector.update(rgb(5), [], header(6)))
