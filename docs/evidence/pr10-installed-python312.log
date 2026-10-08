@@ -45,7 +45,7 @@ Building wheels for collected packages: rescue_bringup, rescue_coordination, res
 Successfully built rescue_bringup rescue_coordination rescue_mapping rescue_operations rescue_perception rescue_robot
 + <PYTHON312> -m venv <TMP>/venv
 + <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+WARNING: The directory '<USER_CACHE>/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
 Processing <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl
 Processing <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl
 Processing <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl
@@ -55,7 +55,7 @@ Processing <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
 Installing collected packages: rescue-robot, rescue-perception, rescue-operations, rescue-mapping, rescue-coordination, rescue-bringup
 Successfully installed rescue-bringup-0.0.0 rescue-coordination-0.0.0 rescue-mapping-0.0.0 rescue-operations-0.0.0 rescue-perception-0.0.0 rescue-robot-0.0.0
 + <TMP>/venv/bin/python -m pip check
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+WARNING: The directory '<USER_CACHE>/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
 No broken requirements found.
 + <TMP>/venv/bin/python -I -c import importlib,sys
 for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordination','rescue_operations','rescue_bringup'):
