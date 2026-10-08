@@ -10,7 +10,7 @@ test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.Exe
 FAIL: test_conflicting_goal_response_cannot_invent_execution_fence (test_executor_review.ExecutorReviewTests.test_conflicting_goal_response_cannot_invent_execution_fence)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 86, in test_conflicting_goal_response_cannot_invent_execution_fence
+  File "tests/test_executor_review.py", line 86, in test_conflicting_goal_response_cannot_invent_execution_fence
     with self.assertRaises(ValueError):
 AssertionError: ValueError not raised
 

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from .geometry import (MappingError, RigidTransform, finite, integer, name, robot_identifier,
-                       uint64, uuid_string, vector)
+                       timestamp, uint64, uuid_string, vector)
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,8 @@ class SourceObservation:
             name(getattr(self, field), field)
         for field in ("observation_id", "source_boot_id", "map_session_id"):
             uuid_string(getattr(self, field), field)
-        integer(self.observed_at_ns, "observed_at_ns", 1)
+        timestamp(self.observed_at_ns, "observed_at_ns")
+        timestamp(self.valid_until_ns, "valid_until_ns")
         integer(self.valid_until_ns, "valid_until_ns", self.observed_at_ns + 1)
         uint64(self.map_revision, "map_revision")
         object.__setattr__(self, "point_xyz", vector(self.point_xyz, 3, "point_xyz"))
@@ -60,12 +61,12 @@ class TimedTransform:
             name(getattr(self, field), field)
         uuid_string(self.map_session_id, "map_session_id")
         uint64(self.map_revision, "map_revision")
-        integer(self.query_time_ns, "query_time_ns", 1)
+        timestamp(self.query_time_ns, "query_time_ns")
         if not isinstance(self.transform, RigidTransform):
             raise MappingError("INVALID_INPUT", "transform")
         if not isinstance(self.sample_times_ns, (tuple, list)):
             raise MappingError("INVALID_INPUT", "sample_times_ns")
-        samples = tuple(integer(v, "sample time", 1) for v in self.sample_times_ns)
+        samples = tuple(timestamp(v, "sample time") for v in self.sample_times_ns)
         if self.mode == "EXACT":
             valid = samples == (self.query_time_ns,)
         elif self.mode == "INTERPOLATED_VALIDATED":
@@ -103,7 +104,8 @@ class FrameAlignment:
         uuid_string(self.map_session_id, "map_session_id")
         for field in ("map_revision", "transform_revision"):
             uint64(getattr(self, field), field)
-        integer(self.valid_from_ns, "valid_from_ns", 1)
+        timestamp(self.valid_from_ns, "valid_from_ns")
+        timestamp(self.valid_until_ns, "valid_until_ns")
         integer(self.valid_until_ns, "valid_until_ns", self.valid_from_ns + 1)
         for field in ("position_error_m", "rotation_error_rad"):
             object.__setattr__(self, field, finite(getattr(self, field), field, 0))

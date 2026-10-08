@@ -4,9 +4,9 @@ import hashlib
 import json
 import math
 import re
-import uuid
 from collections.abc import Mapping
-from rescue_contracts import RescueError, canonical_code, robot_id, robot_ids
+from rescue_contracts import (RescueError, canonical_code, robot_id, robot_ids,
+                              timestamp_ns, uuid_string)
 
 MAX_JSON_BYTES = 65536
 MAX_EVIDENCE_BYTES = 4 * 1024 * 1024
@@ -66,13 +66,17 @@ def uint(value, label, positive=False):
 
 
 def uid(value, label):
-    text(value, label, 36)
     try:
-        valid = str(uuid.UUID(value)) == value
-    except (ValueError, AttributeError):
-        valid = False
-    require(valid, f"{label} must be a canonical lowercase UUID")
-    return value
+        return uuid_string(value)
+    except RescueError as exc:
+        raise OperationsError("INVALID_INPUT", label + ": " + exc.detail) from exc
+
+
+def timestamp(value, label):
+    try:
+        return timestamp_ns(value)
+    except RescueError as exc:
+        raise OperationsError("INVALID_INPUT", label + ": " + exc.detail) from exc
 
 
 def sha(value, label):
@@ -110,7 +114,7 @@ def evidence_ref(value):
     uid(ref["observation_id"], "evidence observation_id")
     sha(ref["sha256"], "evidence sha256")
     require(ref["media_type"] in ("image/png", "image/jpeg"), "unsupported evidence media_type")
-    uint(ref["acquired_at_ns"], "acquired_at_ns", positive=True)
+    timestamp(ref["acquired_at_ns"], "acquired_at_ns")
     canonical(ref)
     return ref
 
@@ -121,7 +125,7 @@ def envelope(value):
     text(item["publisher_id"], "publisher_id")
     uid(item["publisher_boot_id"], "publisher_boot_id")
     uint(item["sequence"], "sequence")
-    uint(item["published_at_ns"], "published_at_ns", positive=True)
+    timestamp(item["published_at_ns"], "published_at_ns")
     canonical(item)
     return item
 
@@ -140,14 +144,14 @@ def report(value):
     sha(item["model_sha256"], "model_sha256")
     uint(item["generation"], "generation")
     for key in ("observed_at_ns", "reported_at_ns"):
-        uint(item[key], key, positive=True)
+        timestamp(item[key], key)
     require(item["observed_at_ns"] <= item["reported_at_ns"], "report predates observation")
     require(item["observation_result"] == "DETECTED", "only DETECTED observation_result is supported")
     require(item["confirmation_result"] in ("CONFIRMED", "UNCONFIRMED"), "invalid confirmation_result")
     if item["confirmation_result"] == "CONFIRMED":
         uid(item["confirmation_observation_id"], "confirmation_observation_id")
         require(item["confirmation_observation_id"] != item["observation_id"], "confirmation requires a separate observation")
-        uint(item["confirmed_at_ns"], "confirmed_at_ns", positive=True)
+        timestamp(item["confirmed_at_ns"], "confirmed_at_ns")
         require(item["observed_at_ns"] <= item["confirmed_at_ns"] <= item["reported_at_ns"],
                 "confirmation timestamp is out of order")
     else:
