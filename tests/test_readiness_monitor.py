@@ -83,6 +83,14 @@ class ReadinessPolicyBuilderTests(unittest.TestCase):
         self.assertEqual(full.flag_sources['sensors'], ('scan', 'camera:camera/image'))
         self.assertNotIn('watchdog', full.flag_sources)
 
+    def test_camera_message_type_follows_the_topic_suffix(self):
+        # TB4 OAK-D publishes .../image_raw/compressed by default (P4 DEC-004);
+        # subscribing it as Image would never arrive and keep sensors False.
+        from rescue_robot.ros_node import camera_message_type
+        self.assertEqual('CompressedImage', camera_message_type('oakd/rgb/preview/image_raw/compressed'))
+        self.assertEqual('Image', camera_message_type('oakd/rgb/preview/image_raw'))
+        self.assertEqual('Image', camera_message_type('camera/compressed_view'))
+
 
 if __name__ == '__main__':
     unittest.main()
