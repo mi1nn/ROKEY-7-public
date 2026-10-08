@@ -16,7 +16,7 @@ updated: 2026-10-08
 
 | 현재 | 이벤트/관문 | 다음 |
 | --- | --- | --- |
-| `NORMAL` | 고정 카메라 A 의 `SiteEvent(kind=QUAKE_SIGN)` 가 정책의 판정 조건(지표·임계값·AND/OR, Q-11)을 충족 | `DISASTER`. coordination 이 SCOUT 로봇에 수색 임무(SEARCH_AREA)를 발급하고 관리자 화면에 알림(FR-03·04). 카메라 어댑터 자체는 모드를 바꾸지 못한다 |
+| `NORMAL` | 고정 카메라 A 의 `SiteEvent(kind=DISASTER_SIGN)` 가 정책의 판정 조건(Part I 3.1.2 시연 시나리오 기준, Q-11)을 충족 | `DISASTER`. coordination 이 SCOUT 로봇에 수색 임무(SEARCH_AREA)를 발급하고 관리자 화면에 알림(FR-03·04). 카메라 어댑터 자체는 모드를 바꾸지 못한다 |
 | `DISASTER` | 오탐 해제 조건 충족(Q-11) 또는 운영자 해제 | `CLEARING`: 진행 중 임무를 S-04 정지 관문으로 종료하고 SCOUT 복귀. 정지 확인 뒤 `NORMAL`(E-01) |
 | `DISASTER` | SUPPORT 출동 조건: 발견 사건 + 저장 확인(receipt `PERSISTED`) + (자동 또는 관리자 승인, Q-12) | 모드는 유지, 접근 임무 예약(S-03·S-06) |
 | 어느 모드든 | 모드 전이 이벤트는 시각·근거(SiteEvent ID)·판정 정책 version 과 함께 보고 저장 | — |

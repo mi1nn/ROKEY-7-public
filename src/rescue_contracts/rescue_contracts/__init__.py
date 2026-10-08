@@ -225,7 +225,7 @@ ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
 # C-06 task kinds — the single vocabulary for rescue_robot.Task and coordination reservations.
 TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'})
 TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET'})
-SITE_EVENT_KINDS = frozenset({'QUAKE_SIGN', 'EXIT_PASS'})
+SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS'})
 STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN'})
 CLOCK_STATES = frozenset({'SYNCED', 'UNKNOWN'})
 SYSTEM_MODES = frozenset({'NORMAL', 'DISASTER', 'CLEARING'})
@@ -248,7 +248,7 @@ def camera_id(value):
 class SiteEvent:
     """An observation made by a fixed site camera, not by a robot.
 
-    QUAKE_SIGN: image shake/occlusion sign from camera A. EXIT_PASS: a person
+    DISASTER_SIGN: disaster sign from camera A (the judging rule is a policy value, not the event name; Part I scenario = fire). EXIT_PASS: a person
     passing the exit seen by camera B. It carries evidence, never a command.
     """
     event_id: str
