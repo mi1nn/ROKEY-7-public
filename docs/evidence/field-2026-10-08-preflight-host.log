@@ -1,0 +1,108 @@
+# 실기·배포 2026-10-08. 실행 위치: 이 PC 의 호스트 셸(컨테이너 아님). ROS 미설치.
+$ python3 -I scripts/field/preflight.py --host-config config/hosts/central.example.json
+--- stderr
+FAILED   env.ros_distro                     ROS_DISTRO 없음: ROS 환경을 source 하지 않았거나 미설치
+FAILED   env.rmw                            기대 rmw_fastrtps_cpp, 실제 rmw_cyclonedds_cpp — Discovery Server 는 Fast DDS 전용
+NOT_RUN  env.discovery_server               호스트 설정이 예시 값(<...> 또는 server_id null)이라 비교하지 않음
+NOT_RUN  env.domain_id                      기대값 없음. 실제 63 — Discovery Server 는 도메인을 보지 않음
+NOT_RUN  pkg.irobot_create_msgs             AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음
+NOT_RUN  pkg.nav2_msgs                      AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음
+NOT_RUN  pkg.rmw_fastrtps_cpp               AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음
+NOT_RUN  tool.fastdds                       PATH 에 없음, ROS 환경도 source 하지 않음
+NOT_RUN  server.reach                       ROS_DISCOVERY_SERVER 없음
+NOT_RUN  graph./robot_a                     ros2 CLI 없음
+NOT_RUN  graph./robot_b                     ros2 CLI 없음
+preflight exit=2 (FAILED)
+exit=2
+--- stdout (JSON)
+{
+  "tool": "scripts/field/preflight.py",
+  "started": "2026-10-08T19:44:14+09:00",
+  "host_config": "config/hosts/central.example.json",
+  "role": "central",
+  "host_facts": {
+    "os": "Ubuntu 26.04.1 LTS",
+    "python": "3.14.4",
+    "ros_installs": []
+  },
+  "environment": {
+    "ROS_DISTRO": null,
+    "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp",
+    "ROS_DISCOVERY_SERVER": null,
+    "ROS_SUPER_CLIENT": null,
+    "ROS_DOMAIN_ID": "63",
+    "ROS_AUTOMATIC_DISCOVERY_RANGE": null
+  },
+  "super_client_runtime_note": "launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/network-discovery.md)",
+  "checks": [
+    {
+      "id": "env.ros_distro",
+      "status": "FAILED",
+      "detail": "ROS_DISTRO 없음: ROS 환경을 source 하지 않았거나 미설치",
+      "measured": {}
+    },
+    {
+      "id": "env.rmw",
+      "status": "FAILED",
+      "detail": "기대 rmw_fastrtps_cpp, 실제 rmw_cyclonedds_cpp — Discovery Server 는 Fast DDS 전용",
+      "measured": {}
+    },
+    {
+      "id": "env.discovery_server",
+      "status": "NOT_RUN",
+      "detail": "호스트 설정이 예시 값(<...> 또는 server_id null)이라 비교하지 않음",
+      "measured": {
+        "actual": []
+      }
+    },
+    {
+      "id": "env.domain_id",
+      "status": "NOT_RUN",
+      "detail": "기대값 없음. 실제 63 — Discovery Server 는 도메인을 보지 않음",
+      "measured": {}
+    },
+    {
+      "id": "pkg.irobot_create_msgs",
+      "status": "NOT_RUN",
+      "detail": "AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음",
+      "measured": {}
+    },
+    {
+      "id": "pkg.nav2_msgs",
+      "status": "NOT_RUN",
+      "detail": "AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음",
+      "measured": {}
+    },
+    {
+      "id": "pkg.rmw_fastrtps_cpp",
+      "status": "NOT_RUN",
+      "detail": "AMENT_PREFIX_PATH 없음: ROS 환경을 source 하지 않음",
+      "measured": {}
+    },
+    {
+      "id": "tool.fastdds",
+      "status": "NOT_RUN",
+      "detail": "PATH 에 없음, ROS 환경도 source 하지 않음",
+      "measured": {}
+    },
+    {
+      "id": "server.reach",
+      "status": "NOT_RUN",
+      "detail": "ROS_DISCOVERY_SERVER 없음",
+      "measured": {}
+    },
+    {
+      "id": "graph./robot_a",
+      "status": "NOT_RUN",
+      "detail": "ros2 CLI 없음",
+      "measured": {}
+    },
+    {
+      "id": "graph./robot_b",
+      "status": "NOT_RUN",
+      "detail": "ros2 CLI 없음",
+      "measured": {}
+    }
+  ],
+  "exit_code": 2
+}

@@ -63,3 +63,21 @@ CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](implementation-int
 `CONFIRMATION` 사진 정책은 재확인하지 못한 보고를 PENDING_EVIDENCE에 남긴다는 현재 구현 한계가 있다. 실패 보고의 완료까지 요구하는 운영에서는 정책을 그대로 채택하지 않고 사전에 보고 종류별 요구와 구현을 맞춘다. 사진 정책·운영 scheduler·원격 인증·증거 보존/용량은 E2 데모가 결정하지 않는다.
 
 각 단계는 NOT_RUN/BLOCKED/FAILED/PASSED와 원문 증거를 남긴다. 실제 두 로봇 사용을 한 로봇 재생으로 대체하지 않으며, 네 PC 기준안 시험을 단일 프로세스의 네 host 이름으로 대체하지 않는다. 필수 관문이 미실행이면 해당 실기 완료 주장은 남겨 둔다.
+
+## 5. 실기 날 아침 점검 목록 (10-12·10-13, 실기·배포 2026-10-08)
+
+로봇에 닿기 전 PC 쪽 준비를 확인하는 순서다. 로봇을 움직이는 일(언도크·이동·도킹)은 이 목록에 없고 로봇·지도 담당 한 사람·한 세션만 한다([팀 작업 규칙](../AGENTS.md) 6절). 각 줄의 결과는 그날 실행 기록에 남기고, preflight JSON 은 `docs/evidence/field-<날짜>-preflight-<role>.json` 처럼 역할 이름으로 저장한다(호스트 이름·IP·개인 경로는 지운다).
+
+| # | 누가 | 할 일 | 통과 조건 |
+| --- | --- | --- | --- |
+| 1 | 사용자 | 오늘 쓸 로봇 두 대의 번호·네임스페이스·서버 ID([scope Q-01](scope.md))와 로봇을 움직일 사람·세션을 팀에 알린다 | 값이 정해져 있다. 정해지지 않았으면 이후 단계는 `BLOCKED` |
+| 2 | 각 PC 담당 | 저장소 `git rev-parse HEAD` 와 `git status --short` 를 적는다 | 모든 PC 가 같은 SHA, 작업 폴더가 깨끗하다 |
+| 3 | 각 PC 담당 | 새 터미널에서 ROS 를 source 하고 [Discovery 설정 파일](design/network-discovery.md)(8절)을 source 한다. 오프라인 시험 터미널과 섞지 않는다 | `.bashrc` 해시가 어제와 같다 |
+| 4 | 각 PC 담당 | 로봇을 켜기 전에 `python3 -I scripts/field/preflight.py --host-config config/hosts/<role>.example.json --json <파일>` | `env.*`·`pkg.*`·`tool.fastdds` 가 전부 `PASSED`. 서버·그래프 항목은 로봇이 꺼져 있어 `NOT_RUN` 이어도 된다 |
+| 5 | 로봇·지도 담당 | 로봇 전원을 켜고(도킹 상태 그대로) 부팅을 기다린 뒤 각 PC 에서 `ros2 daemon stop; ros2 daemon start` | — |
+| 6 | 각 PC 담당 | 4번 명령을 다시 실행한다 | `graph./robot_*` 가 `NOT_RUN` 이 아니고, `cmd_vel`·`map` 발행자가 각각 1 이하다. `server.*.reach` 가 `FAILED` 면 멈춘다 |
+| 7 | 관제 PC 담당 | `ROS_SUPER_CLIENT=True ros2 node list --no-daemon` 로 각 로봇 서버에 붙은 노드를 보고, 서버 목록을 적기로 한 PC 말고 다른 PC 의 SLAM·Nav2 가 붙어 있지 않은지 본다 | 예상하지 않은 PC 의 노드가 없다(2026-10-06 P4 `/robot3/map` 중복 발행 사고) |
+| 8 | 로봇·지도 담당 | 여기서부터 로봇·지도의 E3/E4 순서(이 문서 2절)로 넘긴다 | 1 ~ 7 이 통과했다는 기록이 있다 |
+| 9 | 각 PC 담당 | 끝날 때 현장 터미널을 닫는다. 로봇은 로봇·지도 담당이 도킹하고 끈다 | 다음 날 3번에서 `.bashrc` 해시가 같다 |
+
+로봇을 재부팅하거나 네트워크를 바꾼 뒤에는 5 ~ 7 을 다시 한다. preflight 가 `FAILED` 를 내면 원인을 고치기 전에는 로봇·지도에 넘기지 않는다. `NOT_RUN` 을 통과로 적지 않는다.
