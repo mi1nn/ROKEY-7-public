@@ -151,18 +151,21 @@ class ExitPassDetector:
         stamp = frame.observed_at_ns
         if self._last_ns is not None and stamp <= self._last_ns:
             return FrameOutcome("DUPLICATE" if stamp == self._last_ns else "REORDERED", ())
+        # Validate the whole frame before touching any state (CDX-30-01): a rejected
+        # frame leaves no trace, so a corrected retry of the same stamp still counts.
+        counted = [d for d in detections
+                   if d.class_label in self.policy.count_labels and d.confidence >= self.policy.min_confidence]
+        for detection in counted:
+            _require(detection.bbox[2] <= frame.width and detection.bbox[3] <= frame.height,
+                     "INVALID_INPUT", "bbox outside image")
         self._last_ns = stamp
         # Anonymous subjects past the gap can never be matched again; drop them.
         self._anonymous = {k: v for k, v in self._anonymous.items()
                            if stamp - v.last_ns <= self.policy.max_gap_ns}
         evidence_id = str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/frame"))
         events, claimed = [], set()
-        for detection in detections:
-            if detection.class_label not in self.policy.count_labels or \
-                    detection.confidence < self.policy.min_confidence:
-                continue
+        for detection in counted:
             x0, _, x1, y1 = detection.bbox
-            _require(x1 <= frame.width and y1 <= frame.height, "INVALID_INPUT", "bbox outside image")
             anchor = ((x0 + x1) / 2, y1)  # bottom centre: where the person stands
             if detection.tracking_mode == "TRACKING":
                 key = ("track", detection.track_id)

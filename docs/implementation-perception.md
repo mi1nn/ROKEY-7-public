@@ -115,12 +115,12 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 | 판정점 | bbox 아래 가운데(사람이 서 있는 곳). 선까지 거리가 `band_px` 안이면 어느 쪽도 아니다(깜빡임 방지) |
 | 사건 | 대상마다 평생 하나다. 안쪽에서 분명히 보인 뒤 출구 쪽에서 분명히 보여야 한다. 왕복·선 위 정지·깜빡임은 사건을 더하지 않고, 처음부터 출구 쪽에서 보인 대상은 사건이 없다 |
 | 대상 구분 | `TRACKING`이면 track ID(`detail = "method=TRACK track_id=…"`). `DETECTION_ONLY`·`TRACKING_FALLBACK`이면 반경·간격 히스테리시스로 익명 대상을 잇는다(`method=HYSTERESIS mode=… subject=… match_radius_px=… max_gap_ns=…`). 같은 프레임의 두 탐지는 한 대상을 공유하지 않는다 |
-| 시각·순서 | 마지막으로 처리한 stamp 이하인 프레임은 `DUPLICATE`/`REORDERED`로 무시하고 상태를 바꾸지 않는다. `observed_at_ns`는 프레임 stamp 그대로다. 시간 기준 네 값은 `SourceBinding`에서 그대로 싣고, `UNKNOWN`도 거절하지 않고 기록한다(`time_basis_declared=False`) |
+| 시각·순서 | 마지막으로 처리한 stamp 이하인 프레임은 `DUPLICATE`/`REORDERED`로 무시하고 상태를 바꾸지 않는다. 프레임 안의 탐지 하나라도 거절되면 그 프레임은 상태를 전혀 바꾸지 않으므로, 고친 입력으로 같은 stamp를 다시 넣을 수 있다(CDX-30-01). `observed_at_ns`는 프레임 stamp 그대로다. 시간 기준 네 값은 `SourceBinding`에서 그대로 싣고, `UNKNOWN`도 거절하지 않고 기록한다(`time_basis_declared=False`) |
 | ID | `event_id = uuid5(ns, "cam/stamp/대상")`, `evidence_id = uuid5(ns, "cam/stamp/frame")`로 생산자가 발급한다. 같은 기록을 재생하면 같은 ID다. `evidence_sha256`은 RGB 바이트의 실제 해시다 |
 
 **알려진 한계 (Q-13 전):** track ID가 끊기거나 다시 붙으면 새 대상이 된다. 추적 없는 대상이 `max_gap_ns`보다 오래 안 보였거나 한 프레임에 `match_radius_px`보다 많이 움직여도 새 대상이다. 새 대상이 안쪽에서 시작해 다시 나가면 사건이 하나 더 생긴다. 이것을 중복 방지 완료로 보지 않는다. 추적 ID 상태는 프로세스 수명 동안 버리지 않는다(메모리 상한 없음).
 
-시험은 `tests/test_perception_exit_pass.py`(15개, 모두 합성 입력)다. 실시간 처리·실제 웹캠·실제 추적기는 NOT_RUN이다.
+시험은 `tests/test_perception_exit_pass.py`(17개, 모두 합성 입력)다. 실시간 처리·실제 웹캠·실제 추적기는 NOT_RUN이다.
 
 ## 원리 참고와 남는 관문
 
