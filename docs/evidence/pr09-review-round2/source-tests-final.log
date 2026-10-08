@@ -169,6 +169,6 @@ test_stale_derivation_escalates_to_reobservation_after_map_correction (test_revi
 test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mapping.MappingReviewTests.test_version_mismatch_uses_same_projection_status_vocabulary) ... ok
 
 ----------------------------------------------------------------------
-Ran 168 tests in 0.153s
+Ran 168 tests in 0.157s
 
 OK
