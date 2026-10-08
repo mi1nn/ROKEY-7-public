@@ -13,7 +13,7 @@ def uid(n):
 
 class SiteContractTests(unittest.TestCase):
     def event(self, **changes):
-        args = dict(event_id=uid(1), camera_id="cam_a", kind="QUAKE_SIGN", observed_at_ns=1700000000123456789,
+        args = dict(event_id=uid(1), camera_id="cam_a", kind="DISASTER_SIGN", observed_at_ns=1700000000123456789,
                     evidence_id=uid(2), evidence_sha256="a" * 64, confidence=0.9,
                     clock_domain_id="site-clock", stamp_semantics="CAPTURE", clock_state="SYNCED",
                     clock_error_bound_ns=5_000_000, detail="edge shake")
@@ -22,7 +22,7 @@ class SiteContractTests(unittest.TestCase):
 
     def test_vocabularies_are_closed_and_disjoint_from_error_codes(self):
         self.assertEqual({"SCOUT", "SUPPORT"}, set(ROBOT_ROLES))
-        self.assertEqual({"QUAKE_SIGN", "EXIT_PASS"}, set(SITE_EVENT_KINDS))
+        self.assertEqual({"DISASTER_SIGN", "EXIT_PASS"}, set(SITE_EVENT_KINDS))
         self.assertEqual({"NORMAL", "DISASTER", "CLEARING"}, set(SYSTEM_MODES))
         self.assertEqual({"NOT_CHECKED", "RECHECK_NEEDED", "RESCUE_CONFIRMED"}, set(RESCUE_STATES))
         self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD"}, set(TASK_KINDS))
@@ -47,7 +47,7 @@ class SiteContractTests(unittest.TestCase):
     def test_site_event_round_trip_and_rejections(self):
         event = self.event()
         self.assertEqual(1700000000123456789, event.observed_at_ns)
-        self.assertEqual("QUAKE_SIGN", event.kind)
+        self.assertEqual("DISASTER_SIGN", event.kind)
         for changes in (dict(kind="PERSON"), dict(camera_id="robot_a"), dict(observed_at_ns=1.0),
                         dict(observed_at_ns=0), dict(event_id=uid(0)), dict(evidence_sha256="A" * 64),
                         dict(confidence=1), dict(confidence=1.5), dict(confidence=True), dict(detail=None),
