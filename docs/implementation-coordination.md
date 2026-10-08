@@ -51,6 +51,28 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 후속(작전 검토 2026-10-08): 공통 규격 PR #17이 `main`에 들어가면 `planning.TASK_KINDS`·`TARGET_TASK_KINDS` 복제를 `rescue_contracts` import로 바꾼다(OPS-01). 프로파일 v2 `mission.search_areas`를 `MissionSite`로 옮기는 로더 함수를 둔다.
 
+## 구출 완료 판정 (FR-20~24, KPI-06, S-05 구출 축, 2026-10-08)
+
+`rescue_coordination/rescue.py`는 발견 사건 하나마다 `rescue_contracts.RESCUE_STATES`(`NOT_CHECKED`·`RECHECK_NEEDED`·`RESCUE_CONFIRMED`)를 판정한다. 판정만 하고, 재관측(`REOBSERVE_TARGET`) 배정은 인계 PR에서 한다. 화면의 "구출 완료" 표시는 판정 보고가 `PERSISTED`된 뒤 operations가 맡는다(E-04).
+
+`RESCUE_CONFIRMED`는 세 가지 양성 증거가 모두 있을 때만 준다.
+
+| 증거 | 입력(임시 DTO. 작전 계약 PR이 `rescue_contracts`로 옮기고 import 한 줄로 바꾼다) | 확정에 필요한 값 |
+| --- | --- | --- |
+| 대상 지점을 실제로 관측함 | `RecheckEvidence`: SCOUT의 `REOBSERVE_TARGET` 결과 `COMPLETED`·정지 확인, `target_in_view`, `depth_valid_at_target` | 모두 `True` |
+| 그 관측에서 사람·장애물 없음 | `RecheckEvidence.person_detected_at_target`, `LidarCheck.target_in_scan_range`·`obstacle_at_target`, `RescuePolicy.lidar_detects_target_measured`(TR-12 실측) | 사람 `False`, 스캔 범위 `True`, 장애물 `False`, 실측 `True` |
+| 출구 통과가 그 사건과 연결됨 | `ExitLink(SiteEvent(EXIT_PASS), target_id, link_basis)` | 허용된 `link_basis`, 신뢰도 하한 이상, 시각 기준 사용 가능 |
+
+- `None`(모름)은 증거가 아니다. 하나라도 `None`이면 `RECHECK_NEEDED`다(E-05, FR-24). "탐지 없음"은 관측 범위 증거와 짝일 때만 센다. 부재 증거만으로는 확정하지 않는다(KPI-06).
+- `RECHECK_NEEDED` 사유는 닫힌 집합 `RESCUE_HOLD_REASONS` 12개다: `TASK_NOT_COMPLETED`, `RECHECK_ROBOT_NOT_SCOUT`, `TARGET_NOT_OBSERVED`, `PERSON_PRESENT_OR_UNKNOWN`, `OBSTACLE_PRESENT_OR_UNKNOWN`, `EVIDENCE_STALE`, `MAP_BASIS_CHANGED`, `EXIT_NOT_LINKED`, `EXIT_TIME_BASIS_UNUSABLE`, `TIME_BASIS_INCOMPARABLE`, `ORDER_VIOLATION`, `EXIT_COUNT_EXCEEDED`.
+- 순서: 재관측과 LiDAR 스캔은 접근 완료 뒤, 재관측은 출구 통과 뒤여야 한다. 구조 전 관측을 완료 근거로 쓰지 않는다. 출구 시각과의 비교는 세 조건을 모두 만족할 때만 한다: 출구 사건의 `time_basis_declared`(사전 조건일 뿐), 비교 상대(재관측 시각, SINGLE이면 접근 완료 시각)와 같은 `clock_domain_id`, 양측 오차 한계의 합이 `RescuePolicy.max_clock_error_sum_ns` 이하. 하나라도 아니면 비교하지 않고 `EXIT_TIME_BASIS_UNUSABLE`로 보류한다(C-03: 시간 기준을 쓸 수 없는 사건은 기록만 하고 판정 순서에 쓰지 않음). 비교할 때도 "뒤"로 인정하려면 시각 차가 양측 오차 합보다 커야 한다. 출구와 무관한 비교(재관측·LiDAR 스캔 vs 접근 완료, 재관측 vs 스캔)에도 같은 게이트를 건다. SCOUT·SUPPORT와 그 센서가 같은 시계 domain이라고 가정하지 않는다. 비교할 수 없으면 `TIME_BASIS_INCOMPARABLE`이다. 이는 순서가 틀린 `ORDER_VIOLATION`과 다른 사실이다.
+- 시각: 재관측 나이와 카메라·LiDAR 시각 차는 호출자가 준 `now_ns` 기준이며 내부 시계를 쓰지 않는다. 미래 시각 증거나 판정 시각 역행은 `CLOCK_UNCERTAIN`이다.
+- 출구 통과 하나는 사건 하나에만 연결된다(FR-19). 같은 내용 재연결은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`다.
+- 집계 상한(BRD Part I 3.5.5 [제안]): 구출 완료 수는 출구 누적 카운트를 넘지 않는다. 카운트는 operations 장부의 `EXIT_PASS` SiteEvent 누적 건수이며 `TargetBasis.exit_pass_count`로 받는다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(#21 TS-04). 다른 확정 사건 수 + 1이 카운트를 넘으면 `EXIT_COUNT_EXCEEDED`로 보류한다. 이미 확정된 사건을 다시 판정할 때는 자기 자신을 세지 않는다. 카운트가 줄어든 입력은 `INVALID_INPUT`이다.
+- `SINGLE_TARGET_SCENARIO`(Q-13 전 시연용) 연결은 세 조건을 모두 만족할 때만 쓴다: 정책의 `accepted_link_bases`에 명시돼 있음(기본 집합에 없음), 열린 사건이 정확히 1개, 출구 통과가 접근 완료 뒤. 판정 기록에 `link_basis`를 남겨 Q-13 결정 뒤 다시 평가할 수 있게 한다.
+- 이력: 판정은 `RescueVerdict`로 쌓이고 덮어쓰지 않는다(S-05). 확정 뒤에는 **새로 기록된 증거**가 있을 때만 다시 판정한다. 시간 경과나 지도 revision 변경만으로는 확정을 내리지 않는다. 구출 완료는 과거 사실의 결론이지 공간 투영이 아니기 때문이다. 그래서 `TargetBasis.projection_valid`는 확정 전 판정에만 쓴다. 반대 증거로 내려간 판정에는 `demoted_from_confirmed=True`와 이전 판정 ID·시각을 남기고, KPI-06 오판 1건으로 센다. 그 보고는 새 report revision 또는 새 `report_id`로 잇는다.
+- 상태는 메모리에만 있다. 재시작 복구·영속 기록은 후속(ledger 확장은 작전 승인)이다. 실제 인식·LiDAR 입력, 출구 카메라, 두 AMR은 미실행이다.
+
 ## 출처와 변경 이유
 
 - P4 [배정기](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/dispatcher.py#L253-L276)는 배정 책임을 한 곳에 둔 원리만 참고한다. 도킹한 로봇만 선택하거나 도크와 구역의 직선거리로 비용을 계산하는 정책은 사용하지 않는다.
@@ -60,4 +82,4 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 ## 검증
 
-`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다.
+`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. `tests/test_coordination_rescue.py`는 구출 완료 판정의 세 양성 증거, `None` 거부, 사유 닫힌 집합, 시각 비교 게이트, 출구 1:1 연결, 출구 카운트 상한, 확정 뒤 강등 이력을 확인한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다.
