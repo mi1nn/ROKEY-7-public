@@ -139,6 +139,12 @@ def select_candidate(candidates, *, now_ns, policy, available_robots):
     return min(accepted, key=lambda c: (c.path_length, c.robot_id, c.goal_xy)) if accepted else None
 
 
+# Same kinds as rescue_robot.executor.Task (C-06); kept here to avoid a
+# coordination -> robot import.
+TASK_KINDS = ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD')
+TARGET_TASK_KINDS = ('REOBSERVE_TARGET', 'APPROACH_TARGET')
+
+
 @dataclass(frozen=True)
 class Reservation:
     task_id: str
@@ -147,9 +153,10 @@ class Reservation:
     robot_id: str
     generation: int
     authority_epoch: str
-    candidate: PathCandidate
+    candidate: PathCandidate | None
     command_id: str
     robot_boot_id: str
+    task_kind: str = 'APPROACH_TARGET'
 
     def __post_init__(self):
         for value in (self.task_id, self.target_id, self.authority_epoch, self.command_id, self.robot_boot_id):
@@ -157,7 +164,14 @@ class Reservation:
         for value in (self.target_revision, self.generation):
             revision(value)
         robot(self.robot_id)
-        if not isinstance(self.candidate, PathCandidate) or self.candidate.robot_id != self.robot_id:
+        if self.task_kind not in TASK_KINDS:
+            raise CoordinationError('INVALID_RESERVATION', 'task kind')
+        # Target tasks need planner path evidence (select_candidate result).
+        # SEARCH_AREA/HOLD carry none, so None is allowed only for them.
+        if self.candidate is None and self.task_kind in TARGET_TASK_KINDS:
+            raise CoordinationError('INVALID_RESERVATION', 'target task needs a path candidate')
+        if self.candidate is not None and (not isinstance(self.candidate, PathCandidate)
+                                           or self.candidate.robot_id != self.robot_id):
             raise CoordinationError('INVALID_RESERVATION', 'candidate owner')
 
 
