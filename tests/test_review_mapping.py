@@ -57,4 +57,3 @@ class MappingReviewTests(unittest.TestCase):
         self.assertEqual('STALE_OBSERVATION', error.code)
         self.assertEqual('rescue_mapping.OBSERVATION_EXPIRED', error.detail_code)
         self.assertEqual('rescue_mapping', error.component)
-
