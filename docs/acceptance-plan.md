@@ -133,7 +133,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 | 담당 | 소유 범위 제안 | 검증 책임 |
 | --- | --- | --- |
-| 통합/계약 담당(Codex) | `rescue_interfaces`, 공통 schema/profile 계약·루트 문서/검증 설정 | 계약 호환, 임계값 상태, ID/시간/frame/권한 불변식, 세션 간 통합·최종 검토 |
+| 통합/계약 담당(Codex) | `rescue_contracts`(Python), `rescue_interfaces`(ROS IDL, 미구현), 공통 schema/profile 계약·루트 문서/검증 설정 | 계약 호환, 임계값 상태, ID/시간/frame/권한 불변식, 세션 간 통합·최종 검토 |
 | 기반 세션 | `rescue_robot`, `rescue_mapping`, `rescue_bringup`의 로봇별 실행/설정 | SLAM/Nav2·TF·native sensor·goal/cancel·최종 watchdog·좌표 revision/실측 |
 | 인식 세션 | `rescue_perception`, 해당 모델/데이터 평가 도구·manifest | 동기화/거리/관측·다중 대상·시간/위치 품질·독립 평가·부하 |
 | 협업·관제 세션 | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장 | task/target 상태·통로·인계·재시작·명령 경합·UI/DB 일치. UI 범위는 최소 관제/보고로 제한 |
