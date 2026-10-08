@@ -248,7 +248,7 @@ def camera_id(value):
 class SiteEvent:
     """An observation made by a fixed site camera, not by a robot.
 
-    DISASTER_SIGN: disaster sign from camera A (the judging rule is a policy value, not the event name; Part I scenario = fire). EXIT_PASS: a person
+    DISASTER_SIGN: disaster sign from camera A (the judging rule, e.g. image shake/occlusion for an earthquake, is a policy value, not the event name). EXIT_PASS: a person
     passing the exit seen by camera B. It carries evidence, never a command.
     """
     event_id: str
