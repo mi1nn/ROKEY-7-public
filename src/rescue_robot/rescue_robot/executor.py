@@ -105,6 +105,32 @@ class Readiness:
 
 
 @dataclass(frozen=True)
+class GoalPose:
+    """Planar navigation goal carried by a Task (C-06 Goal: frame/session/revision).
+
+    Only shape is checked here: finite numbers, canonical UUID session and uint64
+    revision. Whether the pose is reachable or still valid for the current map
+    is decided by mapping/coordination, not by this DTO.
+    """
+    frame_id: str
+    x: float
+    y: float
+    yaw: float
+    map_session_id: str
+    map_revision: int
+
+    def __post_init__(self):
+        if not isinstance(self.frame_id, str) or not self.frame_id:
+            raise ContractError('goal frame_id')
+        for name in ('x', 'y', 'yaw'):
+            value = getattr(self, name)
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ContractError('goal ' + name)
+        identifier(self.map_session_id)
+        generation(self.map_revision)
+
+
+@dataclass(frozen=True)
 class Task:
     command_id: str
     task_id: str
@@ -119,6 +145,8 @@ class Task:
     policy_version: str
     target_id: str | None = None
     target_revision: int | None = None
+    search_area_ref: str | None = None
+    goal_pose: GoalPose | None = None
 
     def __post_init__(self):
         for name in ('command_id', 'task_id', 'robot_boot_id', 'authority_epoch'):
@@ -140,6 +168,15 @@ class Task:
             generation(self.target_revision)
         elif self.target_id is not None or self.target_revision is not None:
             raise ContractError('search/hold has no target')
+        if self.kind == 'SEARCH_AREA':
+            identifier(self.search_area_ref)
+        elif self.search_area_ref is not None:
+            raise ContractError('only SEARCH_AREA has search_area_ref')
+        if self.kind == 'HOLD':
+            if self.goal_pose is not None:
+                raise ContractError('HOLD has no goal_pose')
+        elif not isinstance(self.goal_pose, GoalPose):
+            raise ContractError('moving task needs goal_pose')
 
 
 @dataclass(frozen=True)
