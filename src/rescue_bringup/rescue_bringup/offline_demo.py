@@ -21,7 +21,7 @@ from rescue_perception import (AlignmentEvidence, CameraIntrinsics, Conservative
 from rescue_mapping import (FrameAlignment, MappingError, MappingRegistry, RigidTransform, SourceObservation, TimedTransform)
 from rescue_coordination.planning import (ApproachPolicy, PathCandidate, Reservation, Allocator,
     Corridor, select_candidate)
-from rescue_robot.executor import Policy, Readiness, Task, Executor
+from rescue_robot.executor import GoalPose, Policy, Readiness, Task, Executor
 from rescue_operations.ledger import ReportLedger, ReportOutbox, LedgerTransport, read_reports
 
 
@@ -75,7 +75,9 @@ def _start_search(robot, allocator, allowed_robot_ids):
         raise RuntimeError('fixture failed to arm')
     task = Task(uid(robot+'/command'), uid(robot+'/search'), robot, uid(robot+'/boot'),
                 uid('authority'), allocator.issue_generation(robot), 'SEARCH_AREA',
-                fixture_time("0.2"), fixture_time(20), 10., policy.version)
+                fixture_time("0.2"), fixture_time(20), 10., policy.version,
+                search_area_ref=uid(robot+'/search-area'),
+                goal_pose=GoalPose('map', 0., 0., 0., uid(robot+'/map-session'), 0))
     receipt = executor.admit(task, now_wall_ns=fixture_time("0.2"), now_steady=.2, readiness=ready)
     if not receipt.accepted:
         raise RuntimeError('fixture search rejected')
@@ -114,7 +116,9 @@ def _handoff_rehearsal(search, observer, target_id, candidate, validation, alloc
     active_before_admission = reservation.task_id in allocator.active
     task = Task(reservation.command_id, reservation.task_id, robot, reservation.robot_boot_id,
         reservation.authority_epoch, new_generation, 'APPROACH_TARGET', fixture_time(1),
-        fixture_time(20), 10., executor.policy.version, target_id, 0)
+        fixture_time(20), 10., executor.policy.version, target_id, 0,
+        goal_pose=GoalPose('mission', candidate.goal_xy[0], candidate.goal_xy[1], 0.,
+                           candidate.map_session_id, candidate.map_revision))
     receipt = executor.admit(task, now_wall_ns=fixture_time(1), now_steady=1., readiness=ready)
     recorded = allocator.record_admission(receipt)
     if not receipt.accepted or not recorded:

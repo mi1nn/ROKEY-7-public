@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import replace
 from uuid import UUID
-from rescue_robot.executor import Executor, Task, Policy, Readiness, ContractError, future_deadline
+from rescue_robot.executor import Executor, GoalPose, Task, Policy, Readiness, ContractError, future_deadline
 
 
 def uid(n):
@@ -17,7 +17,8 @@ class ExecutorTests(unittest.TestCase):
             self.e.observe_motion(sample_steady=t, received_steady=t, linear=0, angular=0)
         self.assertTrue(self.e.arm(uid(2), now=.2, readiness=self.ready))
         self.task = Task(uid(3), uid(4), 'robot_a', uid(1), uid(2), 1,
-                         'SEARCH_AREA', 100, 200, 2, 'test-only')
+                         'SEARCH_AREA', 100, 200, 2, 'test-only', search_area_ref=uid(5),
+                         goal_pose=GoalPose('map', 1., 2., 0., uid(6), 0))
 
     def admit(self):
         return self.e.admit(self.task, now_wall_ns=100, now_steady=.2, readiness=self.ready)
