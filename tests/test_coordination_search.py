@@ -233,8 +233,9 @@ class SearchCoordinatorTests(unittest.TestCase):
             self.assertIn(d.reason, DECISION_REASONS)
             if d.action == 'WAIT':
                 self.assertIn(d.reason, SEARCH_REJECT_REASONS)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(CoordinationError) as caught:  # C-09 error, not a bare ValueError
             type(decisions[0])('WAIT', 'some free text')
+        self.assertEqual('INVALID_INPUT', caught.exception.code)
 
 
 class ExecutorHandoffTests(unittest.TestCase):
