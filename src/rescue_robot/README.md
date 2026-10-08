@@ -60,7 +60,7 @@
 | `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(#17)가 들어오면 그 값을 쓴다 |
 | `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 실기 값 미정(T-01) |
 | `scan_topic`, `tf_topic`, `map_frame`, `odom_frame` | 준비 신호 출처(필수) |
-| `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음 |
+| `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음. `/compressed` 로 끝나는 카메라 토픽은 `CompressedImage`, 그 밖은 `Image` 로 구독(TB4 OAK-D 기본 발행이 compressed, P4 DEC-004) |
 | `watchdog_heartbeat_topic` | 지금은 **반드시 빈 값**(값이 있으면 기동 거부). 로봇 측 watchdog 노드가 생기면 연다 |
 | `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf}`(초) | 준비 신호 정책. 값 미정 [미확인] |
 

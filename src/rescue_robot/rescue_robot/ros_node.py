@@ -119,12 +119,18 @@ def bind_dock_status(node, adapter, topic):
                                     qos_profile_sensor_data)
 
 
+def camera_message_type(topic):
+    """sensor_msgs type name for a camera topic: image_transport's .../compressed is
+    CompressedImage (TB4 OAK-D default, P4 DEC-004), anything else Image."""
+    return 'CompressedImage' if topic.rstrip('/').endswith('/compressed') else 'Image'
+
+
 def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_status_topic,
                    tf_topic, map_frame, odom_frame):
     """Arrival-only subscriptions feeding ReadinessMonitor (no message content judged,
     except that only the map->odom edge counts for slam freshness)."""
     from rclpy.qos import qos_profile_sensor_data
-    from sensor_msgs.msg import Image, LaserScan
+    from sensor_msgs.msg import CompressedImage, Image, LaserScan
     from tf2_msgs.msg import TFMessage
 
     def arrival(source):
@@ -132,7 +138,8 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
 
     subs = [node.create_subscription(LaserScan, scan_topic, arrival('scan'), qos_profile_sensor_data)]
     for topic in camera_topics:
-        subs.append(node.create_subscription(Image, topic, arrival('camera:' + topic), qos_profile_sensor_data))
+        kind = CompressedImage if camera_message_type(topic) == 'CompressedImage' else Image
+        subs.append(node.create_subscription(kind, topic, arrival('camera:' + topic), qos_profile_sensor_data))
     if wheel_status_topic:
         from irobot_create_msgs.msg import WheelStatus
         subs.append(node.create_subscription(WheelStatus, wheel_status_topic, arrival('wheel_status'),
