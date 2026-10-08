@@ -6,6 +6,7 @@ import math
 import re
 import uuid
 from collections.abc import Mapping
+from rescue_contracts import RescueError, canonical_code, robot_id, robot_ids
 
 MAX_JSON_BYTES = 65536
 MAX_EVIDENCE_BYTES = 4 * 1024 * 1024
@@ -25,12 +26,26 @@ ENVELOPE_KEYS = {"schema_version", "publisher_id", "publisher_boot_id", "sequenc
 POSITION_KEYS = {"x", "y", "z", "frame_id", "map_session_id", "map_revision", "transform_revision", "authority_id"}
 
 
-class OperationsError(ValueError):
+class OperationsError(RescueError):
     """A bounded input, identity, policy or storage failure with a stable code."""
 
-    def __init__(self, code, message):
-        self.code = code
-        super().__init__(f"{code}: {message}")
+    def __init__(self, code, message=""):
+        super().__init__(canonical_code("rescue_operations", code), message,
+                         component="rescue_operations", detail_code=code)
+
+
+def report_robot_id(value):
+    try:
+        return robot_id(value)
+    except RescueError as exc:
+        raise OperationsError("INVALID_INPUT", str(exc)) from exc
+
+
+def allowed_robots(values):
+    try:
+        return robot_ids(values)
+    except RescueError as exc:
+        raise OperationsError("INVALID_INPUT", str(exc)) from exc
 
 
 def require(condition, message, code="INVALID_INPUT"):
@@ -119,7 +134,7 @@ def report(value):
     for key in ("report_id", "target_id", "observation_id", "source_boot_id", "task_id"):
         uid(item[key], key)
     for key in ("source_robot", "robot_id"):
-        require(item[key] in ("robot_a", "robot_b"), f"{key} must be robot_a or robot_b")
+        report_robot_id(item[key])
     for key in ("source_camera", "clock_domain_id", "model_id", "deployment_version"):
         text(item[key], key)
     sha(item["model_sha256"], "model_sha256")
