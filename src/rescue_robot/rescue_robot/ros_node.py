@@ -14,6 +14,7 @@ from uuid import uuid4
 from rescue_contracts import RescueError
 from rescue_robot.executor import Executor, Policy
 from rescue_robot.nav2_adapter import CommandAdapter
+from rescue_robot.readiness import ReadinessMonitor, ReadinessPolicy
 
 POLICY_FIELDS = ('acceptance_timeout', 'stop_timeout', 'stop_window', 'max_sample_gap',
                  'evidence_max_age', 'linear_stop_max', 'angular_stop_max')
@@ -94,12 +95,14 @@ class Nav2Port:
             self.node.get_logger().error(f'{callback.__name__}{args}: {exc}')
 
 
-def bind_odometry(node, adapter, topic):
+def bind_odometry(node, adapter, topic, monitor=None):
     from nav_msgs.msg import Odometry
     from rclpy.qos import qos_profile_sensor_data
 
     def on_odom(msg):
         twist = msg.twist.twist
+        if monitor is not None:
+            monitor.arrived('odom', adapter.clock())
         try:
             adapter.on_odom(stamp_sec=msg.header.stamp.sec, stamp_nanosec=msg.header.stamp.nanosec,
                             linear=(twist.linear.x, twist.linear.y, twist.linear.z),
@@ -116,6 +119,46 @@ def bind_dock_status(node, adapter, topic):
                                     qos_profile_sensor_data)
 
 
+def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_status_topic,
+                   tf_topic, map_frame, odom_frame):
+    """Arrival-only subscriptions feeding ReadinessMonitor (no message content judged,
+    except that only the map->odom edge counts for slam freshness)."""
+    from rclpy.qos import qos_profile_sensor_data
+    from sensor_msgs.msg import Image, LaserScan
+    from tf2_msgs.msg import TFMessage
+
+    def arrival(source):
+        return lambda _msg: monitor.arrived(source, adapter.clock())
+
+    subs = [node.create_subscription(LaserScan, scan_topic, arrival('scan'), qos_profile_sensor_data)]
+    for topic in camera_topics:
+        subs.append(node.create_subscription(Image, topic, arrival('camera:' + topic), qos_profile_sensor_data))
+    if wheel_status_topic:
+        from irobot_create_msgs.msg import WheelStatus
+        subs.append(node.create_subscription(WheelStatus, wheel_status_topic, arrival('wheel_status'),
+                                             qos_profile_sensor_data))
+
+    def on_tf(msg):
+        if any(t.header.frame_id == map_frame and t.child_frame_id == odom_frame for t in msg.transforms):
+            monitor.arrived('map_to_odom_tf', adapter.clock())
+    subs.append(node.create_subscription(TFMessage, tf_topic, on_tf, 100))
+    return subs
+
+
+def readiness_policy(version, ages, camera_topics, wheel_status_topic):
+    """driver=odom(+wheel_status), sensors=scan(+cameras), slam=map->odom TF; no watchdog source."""
+    max_age = {'odom': ages['odom'], 'scan': ages['scan'], 'map_to_odom_tf': ages['map_to_odom_tf']}
+    driver, sensors = ('odom',), ('scan',)
+    if wheel_status_topic:
+        max_age['wheel_status'] = ages['wheel_status']
+        driver += ('wheel_status',)
+    for topic in camera_topics:
+        max_age['camera:' + topic] = ages['camera']
+        sensors += ('camera:' + topic,)
+    return ReadinessPolicy(version, max_age, {'driver': driver, 'sensors': sensors,
+                                              'slam': ('map_to_odom_tf',)})
+
+
 def main(args=None):
     import rclpy
     from rclpy.node import Node
@@ -128,14 +171,27 @@ def main(args=None):
     names = {'allowed_robot_ids': ParameterType.PARAMETER_STRING_ARRAY,
              'robot_id': string, 'namespace': string, 'authority_epoch': string,
              'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
-             'policy_version': string, 'step_period': double, 'clock_error_bound_s': double}
+             'policy_version': string, 'step_period': double, 'clock_error_bound_s': double,
+             'scan_topic': string, 'tf_topic': string, 'map_frame': string, 'odom_frame': string,
+             'readiness.version': string}
     names.update({'policy.' + field: double for field in POLICY_FIELDS})
+    names.update({'readiness.max_age_s.' + source: double
+                  for source in ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf')})
+    # May be empty on purpose: no camera / no wheel_status / no watchdog source yet.
+    optional = {'camera_topics': ParameterType.PARAMETER_STRING_ARRAY,
+                'wheel_status_topic': string, 'watchdog_heartbeat_topic': string}
+    names.update(optional)
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, descriptor=ParameterDescriptor(type=kind, dynamic_typing=False))
     value = {name: node.get_parameter(name).value for name in names}
-    missing = sorted(name for name, item in value.items() if item is None or item == '' or item == [])
+    missing = sorted(name for name, item in value.items()
+                     if item is None or (name not in optional and item in ('', [])))
     if missing:
         log.fatal(f'missing parameters: {missing}')
+        raise SystemExit(2)
+    if value['watchdog_heartbeat_topic']:
+        # Robot-side command watchdog + heartbeat does not exist yet (C-01, TR-11).
+        log.fatal('watchdog_heartbeat_topic must be empty until the robot-side watchdog exists')
         raise SystemExit(2)
     # Profile values (config/deployment.*.json) arrive as parameters from bringup;
     # this package does not import rescue_bringup (dependency points the other way).
@@ -148,14 +204,28 @@ def main(args=None):
     port = Nav2Port(node, value['nav_action'])
 
     def guards(task):
-        log.warn(f'guard rejects {task.command_id}: mapping revision guard not connected')
+        # MissionGoalBinder needs an alignment source in this process (mapping ROS
+        # adapter, not built yet); until then every dispatch is refused.
+        log.warn(f'guard rejects {task.command_id}: mapping alignment input not connected')
         return False
     adapter = CommandAdapter(executor, port, guards=guards, clock_error_bound_s=value['clock_error_bound_s'])
     port.bind(adapter)
-    bind_odometry(node, adapter, value['odom_topic'])
+    cameras = tuple(value['camera_topics'])
+    ages = {source: value['readiness.max_age_s.' + source]
+            for source in ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf')}
+    monitor = ReadinessMonitor(readiness_policy(value['readiness.version'], ages, cameras,
+                                                value['wheel_status_topic']))
+    bind_odometry(node, adapter, value['odom_topic'], monitor)
     bind_dock_status(node, adapter, value['dock_status_topic'])
-    node.create_timer(value['step_period'], lambda: (adapter.observe_status(nav2=port.server_ready()),
-                                                     adapter.step()))
+    bind_readiness(node, monitor, adapter, scan_topic=value['scan_topic'], camera_topics=cameras,
+                   wheel_status_topic=value['wheel_status_topic'], tf_topic=value['tf_topic'],
+                   map_frame=value['map_frame'], odom_frame=value['odom_frame'])
+
+    def step():
+        adapter.observe_status(nav2=port.server_ready())
+        monitor.publish(adapter)
+        adapter.step()
+    node.create_timer(value['step_period'], step)
     log.info(f'git_sha={git_sha()} boot={executor.robot_boot_id} parameters={value}')
     try:
         rclpy.spin(node)

@@ -31,12 +31,16 @@ READINESS_FLAGS = ('driver', 'sensors', 'slam', 'nav2', 'undocked', 'watchdog')
 
 
 class CommandAdapter:
-    def __init__(self, executor, port, *, guards, clock_error_bound_s,
+    def __init__(self, executor, port, *, guards, clock_error_bound_s, bind_goal=None,
                  clock=time.monotonic, wall_clock_ns=time.time_ns):
         """`guards(task) -> bool` is re-checked before SEND and on every step
         (map revision etc.; caller-injected). `clock_error_bound_s` is the
         largest accepted |host wall - odom header| offset in local float
-        seconds (not C-03's int clock_error_bound_ns); no default."""
+        seconds (not C-03's int clock_error_bound_ns); no default.
+        `bind_goal(task) -> GoalPose` runs right before dispatch and gives the
+        pose actually sent (e.g. MissionGoalBinder.bind: mission -> robot map);
+        if it raises, nothing is sent and the guard fails. Without it the
+        task's own goal_pose is sent unchanged. The Task is never modified."""
         if not isinstance(executor, Executor):
             raise ContractError('executor type')
         if not callable(guards):
@@ -47,6 +51,7 @@ class CommandAdapter:
         self.executor = executor
         self.port = port
         self.guards = guards
+        self.bind_goal = bind_goal if bind_goal is not None else (lambda task: task.goal_pose)
         self.clock = clock
         self.wall_clock_ns = wall_clock_ns
         self.lock = threading.RLock()
@@ -122,8 +127,6 @@ class CommandAdapter:
             now = self.clock()
             receipt = self.executor.admit(task, now_wall_ns=self.wall_clock_ns(), now_steady=now,
                                           readiness=self.readiness(now))
-            if receipt.accepted:
-                self.goals.setdefault(task.command_id, task.goal_pose)
             self.events.append(('ADMISSION', task.command_id, receipt.reason))
             return receipt
 
@@ -137,6 +140,12 @@ class CommandAdapter:
             guards_valid = True if active is None else self.guards(active) is True
             try:
                 if active is not None and self.executor.state == 'PLANNING':
+                    if guards_valid and active.kind != 'HOLD':
+                        try:
+                            self.goals[active.command_id] = self.bind_goal(active)
+                        except RescueError as exc:
+                            self.events.append(('BIND_FAILED', active.command_id, exc.code))
+                            guards_valid = False
                     self.executor.dispatch(now_wall_ns=wall, now_steady=now, readiness=ready,
                                            guards_valid=guards_valid)
                 else:
