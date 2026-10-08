@@ -23,6 +23,8 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [시험과 작업 분담](docs/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
 | [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
 | [개발과 로컬 검사](docs/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
+| [BRD v0.1 (팀 초안 원문)](docs/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
+| [작업 묶음](docs/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
 | [작업 규칙](AGENTS.md) | 사람·AI 세션 공통 규칙: 레인, 브랜치·PR, 머리말, 증거, 로봇, 실패 처리 |
 
 ## 통합 리허설과 남은 실기 연결
