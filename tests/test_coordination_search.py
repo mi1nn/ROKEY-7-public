@@ -8,7 +8,7 @@ from rescue_contracts import TaskAdmission
 from rescue_coordination.planning import (Allocator, CoordinationError, PathCandidate, Reservation)
 from rescue_coordination.search import (DECISION_REASONS, EXCLUSION_REASONS, SEARCH_REJECT_REASONS,
     MissionSite, SearchCoordinator, SearchPolicy)
-from rescue_robot.executor import Executor, Policy, Readiness, Task
+from rescue_robot.executor import Executor, GoalPose, Policy, Readiness, Task
 
 NOW = 1_800_000_000_000_000_000
 BOOT = {'unit_1': str(UUID(int=901)), 'unit_2': str(UUID(int=902))}
@@ -35,6 +35,12 @@ def policy(roles=(('unit_1', 'SCOUT'), ('unit_2', 'SUPPORT')), areas=None, **cha
 
 def candidate(robot='unit_2'):
     return PathCandidate(robot, (1., 0.), (0., 0.), 4., .4, .1, NOW + 10**9, MAP, 3, 1, True, True, True)
+
+
+def task_of(fields):
+    """What the robot lane does with task_fields: goal_pose arrives as a plain dict."""
+    pose = fields.get('goal_pose')
+    return Task(**(fields | {'goal_pose': GoalPose(**pose) if pose is not None else None}))
 
 
 def receipt(item, accepted=True):
@@ -67,9 +73,27 @@ class SearchCoordinatorTests(unittest.TestCase):
         self.assertEqual(('RESERVED', 'HOLD'), (support.action, support.reservation.task_kind))
         self.assertIsNone(scout.reservation.candidate)
         for decision in (scout, support):
-            task = Task(**decision.task_fields)  # the robot lane's real DTO accepts the fields
+            task = task_of(decision.task_fields)  # the robot lane's real DTO accepts the fields
             self.assertEqual(decision.reservation.generation, task.generation)
             self.assertIsNone(task.target_id)
+
+    def test_all_three_kinds_build_real_executor_tasks_with_goal_fields(self):
+        c = self.make()
+        search, hold = self.plan(c, 'unit_1'), self.plan(c, 'unit_2')
+        c.finish(hold.reservation, outcome='CANCELED', stop_confirmed=True)
+        approach = self.approach(c, uid(500))
+        tasks = {d.reservation.task_kind: (d, task_of(d.task_fields)) for d in (search, hold, approach)}
+        self.assertEqual({'SEARCH_AREA', 'HOLD', 'APPROACH_TARGET'}, set(tasks))
+        decision, task = tasks['SEARCH_AREA']
+        self.assertEqual(area(1).site_id, task.search_area_ref)
+        self.assertEqual(GoalPose('mission', 1., 0., 0., MAP, 3), task.goal_pose)
+        self.assertEqual((None, None), tuple(getattr(tasks['HOLD'][1], k) for k in ('search_area_ref', 'goal_pose')))
+        decision, task = tasks['APPROACH_TARGET']
+        self.assertIsNone(task.search_area_ref)
+        self.assertEqual(GoalPose('mission', 1., 0., 0., MAP, 3), task.goal_pose)  # candidate goal_xy, not target
+        self.assertEqual(uid(500), task.target_id)
+        # Plain data only: coordination does not import rescue_robot types.
+        self.assertIs(dict, type(search.task_fields['goal_pose']))
 
     def test_reservation_is_pending_until_executor_admission(self):
         c = self.make()
@@ -185,7 +209,7 @@ class SearchCoordinatorTests(unittest.TestCase):
         reserved = self.approach(c, event_a)
         self.assertEqual(('RESERVED', 'APPROACH_TARGET', event_a),
                          (reserved.action, reserved.reservation.task_kind, reserved.reservation.target_id))
-        self.assertEqual(event_a, Task(**reserved.task_fields).target_id)
+        self.assertEqual(event_a, task_of(reserved.task_fields).target_id)
         self.assertEqual('EVENT_ALREADY_HAS_APPROACH', self.approach(c, event_a).reason)
         self.assertEqual('SUPPORT_BUSY', self.approach(c, event_b).reason)
         self.assertEqual(1, len(c.approach_tasks))
@@ -253,7 +277,7 @@ class ExecutorHandoffTests(unittest.TestCase):
         self.assertTrue(executor.arm(EPOCH, now=.2, readiness=ready))
 
         first = c.plan('unit_1', robot_boot_id=BOOT['unit_1'], ready=True, now_ns=NOW)
-        admission = executor.admit(Task(**first.task_fields), now_wall_ns=NOW, now_steady=.2, readiness=ready)
+        admission = executor.admit(task_of(first.task_fields), now_wall_ns=NOW, now_steady=.2, readiness=ready)
         self.assertTrue(c.record_admission(admission))
         self.assertTrue(executor.dispatch(now_wall_ns=NOW, now_steady=.2, readiness=ready, guards_valid=True))
         executor.goal_response(first.reservation.command_id, accepted=True, now=.3)
@@ -272,9 +296,9 @@ class ExecutorHandoffTests(unittest.TestCase):
         self.assertTrue(executor.arm(EPOCH, now=1., readiness=ready))
         second = c.plan('unit_1', robot_boot_id=BOOT['unit_1'], ready=True, now_ns=NOW + 10**9)
         self.assertEqual(area(2).site_id, second.reservation.target_id)
-        stale = executor.admit(Task(**first.task_fields), now_wall_ns=NOW + 10**9, now_steady=1., readiness=ready)
+        stale = executor.admit(task_of(first.task_fields), now_wall_ns=NOW + 10**9, now_steady=1., readiness=ready)
         self.assertFalse(c.record_admission(stale))  # replayed old receipt
-        admission = executor.admit(Task(**second.task_fields), now_wall_ns=NOW + 10**9, now_steady=1., readiness=ready)
+        admission = executor.admit(task_of(second.task_fields), now_wall_ns=NOW + 10**9, now_steady=1., readiness=ready)
         self.assertTrue(admission.accepted)
         self.assertTrue(c.record_admission(admission))
         self.assertGreater(second.reservation.generation, first.reservation.generation)
