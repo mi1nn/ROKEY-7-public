@@ -10,14 +10,14 @@ import sys
 import tempfile
 import unittest
 
-from rescue_bringup.offline_demo import run_scenario, uid
+from rescue_bringup.offline_demo import OBSERVED_AT_NS, run_scenario, uid
 from rescue_bringup.profile import ProfileError
 from rescue_operations.ledger import ReportOutbox, read_reports
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ('rescue_bringup', 'rescue_robot', 'rescue_mapping', 'rescue_perception',
-            'rescue_coordination', 'rescue_operations')
+            'rescue_coordination', 'rescue_operations', 'rescue_contracts')
 
 
 class OfflineDemoTests(unittest.TestCase):
@@ -34,7 +34,10 @@ class OfflineDemoTests(unittest.TestCase):
 
     def cli(self, profile=None, output=None):
         env = dict(os.environ)
-        env['PYTHONPATH'] = os.pathsep.join(str(ROOT / 'src' / name) for name in PACKAGES)
+        sources = [ROOT / 'src' / name for name in PACKAGES if (ROOT / 'src' / name).is_dir()]
+        env.pop('PYTHONPATH', None)
+        if sources:
+            env['PYTHONPATH'] = os.pathsep.join(str(path) for path in sources)
         env['PYTHONDONTWRITEBYTECODE'] = '1'
         return subprocess.run(
             [sys.executable, '-m', 'rescue_bringup.offline_demo', str(profile or self.profile),
@@ -82,11 +85,52 @@ class OfflineDemoTests(unittest.TestCase):
         self.assertEqual({'robot_a', 'robot_b'}, {s['robot_id'] for s in result['synthetic_search']})
         for search in result['synthetic_search']:
             self.assertEqual('SEARCH_AREA', search['task_kind'])
-            self.assertEqual([('SEND', uid(search['robot_id'] + '/command'))], search['synthetic_intents'])
-            self.assertEqual('COMPLETED', search['result']['outcome'])
+            self.assertEqual([('SEND', uid(search['robot_id'] + '/command')),
+                              ('CANCEL', uid(search['robot_id'] + '/command'))], search['synthetic_intents'])
+            self.assertEqual('CANCELED', search['result']['outcome'])
+            self.assertEqual('CANCELED', search['result']['action_status'])
+            self.assertTrue(search['terminal_received'])
+            self.assertFalse(search['search_result_before_stop_samples'])
             self.assertTrue(search['result']['stop_confirmed'])
             self.assertFalse(search['real_command_sent'])
             self.assertEqual('SYNTHETIC_ACTION_AND_ODOMETRY', search['evidence_source'])
+
+    def test_exact_epoch_reaches_actual_mapping_and_one_ns_shift_is_rejected(self):
+        result = self.run_demo()
+        # Assert the literal expected stamp, not only agreement among wrong fields.
+        self.assertEqual(1700000000123456789, OBSERVED_AT_NS)
+        self.assertEqual(2, len(result['timestamp_checks']))
+        for check in result['timestamp_checks']:
+            for field in ('perception_observed_at_ns', 'source_observed_at_ns',
+                          'tf_query_time_ns', 'projected_observed_at_ns'):
+                self.assertIs(type(check[field]), int)
+                self.assertEqual(1700000000123456789, check[field])
+            self.assertEqual(1700000000123456790, check['shifted_tf_query_time_ns'])
+            self.assertEqual({'code': 'STALE_TRANSFORM',
+                              'detail_code': 'rescue_mapping.TF_TIME_MISMATCH'}, check['shifted_tf_error'])
+
+    def test_stop_then_new_generation_and_real_receipt_promote_reservation_only(self):
+        result = self.run_demo()
+        for handoff in result['synthetic_search']:
+            self.assertEqual(['SEARCH_SEND', 'CANCEL_REQUEST', 'TERMINAL_CANCELED', 'STOP_CONFIRMED',
+                              'NEW_GENERATION', 'APPROACH_ADMISSION', 'ALLOCATOR_RECORD_ADMISSION',
+                              'APPROACH_SEND_BLOCKED'], handoff['sequence'])
+            search, approach = handoff['search_admission'], handoff['approach_admission']
+            self.assertTrue(search['accepted'])
+            self.assertTrue(approach['accepted'])
+            for key in ('robot_id', 'robot_boot_id', 'authority_epoch'):
+                self.assertEqual(search[key], approach[key])
+            self.assertGreater(approach['generation'], search['generation'])
+            self.assertEqual(handoff['new_generation'], approach['generation'])
+            self.assertNotEqual(search['command_id'], approach['command_id'])
+            self.assertNotEqual(search['task_id'], approach['task_id'])
+            self.assertFalse(handoff['allocator_active_before_admission'])
+            self.assertTrue(handoff['allocator_recorded_admission'])
+            self.assertTrue(handoff['allocator_active_after_admission'])
+            self.assertFalse(handoff['approach_dispatched'])
+            self.assertEqual([], handoff['approach_intents'])
+            self.assertEqual('STOPPING', handoff['approach_executor_state'])
+            self.assertEqual('GUARD_INVALID', handoff['approach_stop_cause'])
 
     def test_evidence_bytes_and_two_reports_survive_receipt_loss_and_reopen(self):
         result = self.run_demo()
@@ -95,7 +139,7 @@ class OfflineDemoTests(unittest.TestCase):
         self.assertTrue(result['checks']['declared_evidence_waits_for_actual_bytes'])
         reports = read_reports(self.output / 'operations.sqlite3')['reports']
         self.assertEqual(2, len(reports))
-        with ReportOutbox(self.output / 'outbox.sqlite3') as outbox:
+        with ReportOutbox(self.output / 'outbox.sqlite3', allowed_robot_ids=('robot_a', 'robot_b')) as outbox:
             self.assertEqual([], outbox.pending())
             for item in reports:
                 payload, receipt = item['payload'], item['receipt']
@@ -103,7 +147,7 @@ class OfflineDemoTests(unittest.TestCase):
                 self.assertEqual('UNCONFIRMED', payload['confirmation_result'])
                 self.assertEqual('NOT_ATTEMPTED', payload['approach_result'])
                 self.assertIsNone(payload['position'])
-                self.assertEqual(100_000_000_000, payload['observed_at_ns'])
+                self.assertEqual(OBSERVED_AT_NS, payload['observed_at_ns'])
                 self.assertEqual(outbox.get(payload['report_id'])['receipt'], receipt)
         db_path = (self.output / 'operations.sqlite3').resolve().as_uri() + '?mode=ro'
         with sqlite3.connect(db_path, uri=True) as db:
