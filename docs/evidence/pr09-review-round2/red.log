@@ -259,7 +259,7 @@ ERROR: test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordina
 Traceback (most recent call last):
   File "tests/test_coordination_review.py", line 177, in test_nanosecond_fields_reject_float_bool_zero_and_overflow
     replace(self.policy(), confirmation_max_age_ns=value)
-  File "/Users/jaebeomlim/.pyenv/versions/3.11.8/lib/python3.11/dataclasses.py", line 1501, in replace
+  File "<PYTHON311>/lib/python3.11/dataclasses.py", line 1501, in replace
     return obj.__class__(**changes)
            ^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: ApproachPolicy.__init__() got an unexpected keyword argument 'confirmation_max_age_ns'
