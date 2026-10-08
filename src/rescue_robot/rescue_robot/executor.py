@@ -273,6 +273,17 @@ class Executor:
         self.motion = 'STOP_UNCONFIRMED'
         return False
 
+    def invalidate_stop_evidence(self, *, now):
+        """An odometry message arrived but cannot be used (bad stamp, clock offset).
+
+        No sample is recorded: the stop window restarts and motion is unknown,
+        exactly as for a stale sample. Missing evidence then surfaces as
+        STOP_EVIDENCE_STALE / STOP_UNCONFIRMED instead of a made-up sample time.
+        """
+        self._time(now)
+        self.stop_start = None
+        self.motion = 'STOP_UNCONFIRMED'
+
     def arm(self, authority_epoch, *, now, readiness):
         now = self._time(now)
         fresh_stop = self.last_sample is not None and 0 <= now - self.last_sample <= self.policy.evidence_max_age
