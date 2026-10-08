@@ -13,7 +13,7 @@ import uuid
 
 from .schema import (EVIDENCE_POLICIES, MAX_EVIDENCE_BYTES, OperationsError,
                      allowed_robots, canonical, envelope, evidence_ref, identity, report,
-                     require, uid, uint)
+                     require, timestamp, uid, uint)
 
 
 @dataclass(frozen=True)
@@ -157,7 +157,7 @@ class ReportLedger(_Database):
                 return _receipt(row)
             db.execute("INSERT INTO reports VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        (report_id, digest, canonical(payload), canonical(transport_envelope),
-                        "RECEIVED", 1, str(uuid.uuid4()), time.time_ns(), None, None))
+                        "RECEIVED", 1, str(uuid.uuid4()), timestamp(time.time_ns(), "received_at_ns"), None, None))
             result = _receipt(db.execute("SELECT * FROM reports WHERE report_id = ?", (report_id,)).fetchone())
         # Receipt is returned only after commit; RECEIVED is still not report completion.
         return result
@@ -175,7 +175,7 @@ class ReportLedger(_Database):
                 require(existing["ref_json"] == ref_json, "evidence_id has different metadata", "ID_CONTENT_CONFLICT")
             else:
                 db.execute("INSERT INTO evidence VALUES (?, ?, ?, ?)",
-                           (ref["evidence_id"], ref_json, content, time.time_ns()))
+                           (ref["evidence_id"], ref_json, content, timestamp(time.time_ns(), "stored_at_ns")))
         return {"evidence_id": ref["evidence_id"], "sha256": ref["sha256"], "bytes_stored": len(content)}
 
     def persist(self, report_id):
@@ -202,7 +202,7 @@ class ReportLedger(_Database):
             if row["state"] != state:
                 db.execute("""UPDATE reports SET state = ?, revision = revision + 1,
                     receipt_id = ?, persisted_at_ns = ?, error_code = ? WHERE report_id = ?""",
-                           (state, str(uuid.uuid4()), None if missing else time.time_ns(),
+                           (state, str(uuid.uuid4()), None if missing else timestamp(time.time_ns(), "persisted_at_ns"),
                             "PENDING_EVIDENCE" if missing else None, report_id))
             result = _receipt(db.execute("SELECT * FROM reports WHERE report_id = ?", (report_id,)).fetchone())
         return result
@@ -321,7 +321,7 @@ def _validate_receipt(receipt, report_id, digest):
     uint(receipt.revision, "receipt revision", positive=True)
     require(receipt.status in ("RECEIVED", "PENDING_EVIDENCE", "PERSISTED"), "invalid receipt state")
     if receipt.status == "PERSISTED":
-        uint(receipt.persisted_at_ns, "persisted_at_ns", positive=True)
+        timestamp(receipt.persisted_at_ns, "persisted_at_ns")
         require(receipt.error_code is None, "persisted receipt cannot contain an error")
     else:
         require(receipt.persisted_at_ns is None, "non-persisted receipt cannot have persisted_at_ns")

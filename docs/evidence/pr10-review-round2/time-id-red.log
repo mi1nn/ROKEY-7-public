@@ -1,0 +1,324 @@
+Collected 203 tests
+test_component_dictionary_has_only_canonical_targets (test_contracts.SharedContractTests.test_component_dictionary_has_only_canonical_targets) ... ok
+test_decimal_policy_conversion_is_exact (test_contracts.SharedContractTests.test_decimal_policy_conversion_is_exact) ... ok
+test_no_float_or_boolean_timestamp (test_contracts.SharedContractTests.test_no_float_or_boolean_timestamp) ... ok
+test_real_epoch_exact_round_trip (test_contracts.SharedContractTests.test_real_epoch_exact_round_trip) ... ok
+test_ros_header_bounds (test_contracts.SharedContractTests.test_ros_header_bounds) ... ok
+test_two_configured_ids_no_defaults (test_contracts.SharedContractTests.test_two_configured_ids_no_defaults) ... ok
+test_ambient_decimal_precision_cannot_erase_epoch_nanosecond (test_contracts_precision.DecimalPrecisionRegressionTests.test_ambient_decimal_precision_cannot_erase_epoch_nanosecond) ... ok
+test_subnanosecond_fraction_cannot_round_to_integer (test_contracts_precision.DecimalPrecisionRegressionTests.test_subnanosecond_fraction_cannot_round_to_integer) ... ok
+test_trailing_zero_and_huge_exponents (test_contracts_precision.DecimalPrecisionRegressionTests.test_trailing_zero_and_huge_exponents) ... ok
+test_allocator_single_event_single_robot_idempotency (test_coordination.CoordinationTests.test_allocator_single_event_single_robot_idempotency) ... ok
+test_candidate_uses_path_and_protects_person (test_coordination.CoordinationTests.test_candidate_uses_path_and_protects_person) ... ok
+test_corridor_duplicate_renewal_cannot_extend (test_coordination.CoordinationTests.test_corridor_duplicate_renewal_cannot_extend) ... ok
+test_corridor_expiry_and_stale_pose_stay_unknown (test_coordination.CoordinationTests.test_corridor_expiry_and_stale_pose_stay_unknown) ... ok
+test_duplicate_does_not_refresh_gap (test_coordination.CoordinationTests.test_duplicate_does_not_refresh_gap) ... ok
+test_invalid_input_and_clock (test_coordination.CoordinationTests.test_invalid_input_and_clock) ... ok
+test_method_inputs_cannot_use_boolean_revisions (test_coordination.CoordinationTests.test_method_inputs_cannot_use_boolean_revisions) ... ok
+test_new_observation_cannot_erase_gap_or_original_expiry (test_coordination.CoordinationTests.test_new_observation_cannot_erase_gap_or_original_expiry) ... ok
+test_no_target_no_permission (test_coordination.CoordinationTests.test_no_target_no_permission) ... ok
+test_observation_at_arrival_is_not_postarrival_confirmation (test_coordination.CoordinationTests.test_observation_at_arrival_is_not_postarrival_confirmation) ... ok
+test_original_expiry_and_guard_loss_cancel_irrevocably (test_coordination.CoordinationTests.test_original_expiry_and_guard_loss_cancel_irrevocably) ... ok
+test_overflowing_corridor_lease_rejected_before_mutation (test_coordination.CoordinationTests.test_overflowing_corridor_lease_rejected_before_mutation) ... ok
+test_success_requires_fresh_reobservation_stop_and_distance (test_coordination.CoordinationTests.test_success_requires_fresh_reobservation_stop_and_distance) ... ok
+test_unavailable_observer_is_not_reassigned (test_coordination.CoordinationTests.test_unavailable_observer_is_not_reassigned) ... ok
+test_accepted_receipt_replay_after_release_does_not_reactivate (test_coordination_review.CoordinationReviewTests.test_accepted_receipt_replay_after_release_does_not_reactivate) ... ok
+test_command_or_generation_cannot_be_reused_for_another_task (test_coordination_review.CoordinationReviewTests.test_command_or_generation_cannot_be_reused_for_another_task) ... ok
+test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.CoordinationReviewTests.test_corridor_requires_exact_holder_even_after_expiry) ... ok
+test_deployment_ids_and_generation_overflow_are_explicit (test_coordination_review.CoordinationReviewTests.test_deployment_ids_and_generation_overflow_are_explicit) ... ok
+test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants) ... ok
+test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract) ... ok
+test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch) ... ok
+test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow) ... ok
+test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop) ... ok
+test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordination_review.CoordinationReviewTests.test_receipt_identity_mismatch_cannot_activate_or_raise_counter) ... ok
+test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance) ... ok
+test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission) ... ok
+test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved) ... ok
+test_wall_rollback_latches_cancellation (test_coordination_review.CoordinationReviewTests.test_wall_rollback_latches_cancellation) ... ok
+test_acceptance_timeout_cancels_late_accept (test_executor.ExecutorTests.test_acceptance_timeout_cancels_late_accept) ... ok
+test_cancel_timeout_failure_latches_and_keeps_original_cause (test_executor.ExecutorTests.test_cancel_timeout_failure_latches_and_keeps_original_cause) ... ok
+test_delayed_prefence_samples_cannot_confirm_stop (test_executor.ExecutorTests.test_delayed_prefence_samples_cannot_confirm_stop) ... ok
+test_dispatch_requires_current_stopped_motion (test_executor.ExecutorTests.test_dispatch_requires_current_stopped_motion) ... ok
+test_dispatch_revalidates_guards (test_executor.ExecutorTests.test_dispatch_revalidates_guards) ... ok
+test_duplicate_is_idempotent_conflict_rejected (test_executor.ExecutorTests.test_duplicate_is_idempotent_conflict_rejected) ... ok
+test_duplicate_terminal_does_not_reset_stop_window (test_executor.ExecutorTests.test_duplicate_terminal_does_not_reset_stop_window) ... ok
+test_input_rejection (test_executor.ExecutorTests.test_input_rejection) ... ok
+test_invalid_stop_timer_still_cancels_and_latches_failure (test_executor.ExecutorTests.test_invalid_stop_timer_still_cancels_and_latches_failure) ... ok
+test_late_old_result_cannot_touch_current_task (test_executor.ExecutorTests.test_late_old_result_cannot_touch_current_task) ... ok
+test_lease_generation_rejects_boolean (test_executor.ExecutorTests.test_lease_generation_rejects_boolean) ... ok
+test_lease_sequence_no_revival (test_executor.ExecutorTests.test_lease_sequence_no_revival) ... ok
+test_local_deadlines_cannot_overflow_or_round_to_present (test_executor.ExecutorTests.test_local_deadlines_cannot_overflow_or_round_to_present) ... ok
+test_motion_duplicate_gap_moving_and_stale (test_executor.ExecutorTests.test_motion_duplicate_gap_moving_and_stale) ... ok
+test_readiness_requires_undock_and_watchdog (test_executor.ExecutorTests.test_readiness_requires_undock_and_watchdog) ... ok
+test_regressed_clock_latches (test_executor.ExecutorTests.test_regressed_clock_latches) ... ok
+test_rejected_renewal_preserves_sequence_and_deadline (test_executor.ExecutorTests.test_rejected_renewal_preserves_sequence_and_deadline) ... ok
+test_stop_requires_terminal_and_continuous_fresh_motion (test_executor.ExecutorTests.test_stop_requires_terminal_and_continuous_fresh_motion) ... ok
+test_wrong_robot_boot_authority_generation (test_executor.ExecutorTests.test_wrong_robot_boot_authority_generation) ... ok
+test_admission_reasons_are_canonical (test_executor_review.ExecutorReviewTests.test_admission_reasons_are_canonical) ... ok
+test_bounded_velocity_before_fence_is_not_stop_requested (test_executor_review.ExecutorReviewTests.test_bounded_velocity_before_fence_is_not_stop_requested) ... ok
+test_conflicting_goal_response_cannot_invent_execution_fence (test_executor_review.ExecutorReviewTests.test_conflicting_goal_response_cannot_invent_execution_fence) ... ok
+test_external_cancel_and_abort_preserve_action_status (test_executor_review.ExecutorReviewTests.test_external_cancel_and_abort_preserve_action_status) ... ok
+test_float_epoch_and_conflicting_terminal_rejected (test_executor_review.ExecutorReviewTests.test_float_epoch_and_conflicting_terminal_rejected) ... ok
+test_profile_ids_and_receipt_identity (test_executor_review.ExecutorReviewTests.test_profile_ids_and_receipt_identity) ... ok
+test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.ExecutorReviewTests.test_stop_cause_not_overwritten_by_action_cancellation) ... ok
+test_unknown_stop_reason_has_common_error_and_is_atomic (test_executor_review.ExecutorReviewTests.test_unknown_stop_reason_has_common_error_and_is_atomic) ... ok
+test_a_map_correction_invalidates_mixed_goal_but_preserves_b_observation (test_mapping.MappingTests.test_a_map_correction_invalidates_mixed_goal_but_preserves_b_observation) ... ok
+test_alignment_authority_frame_and_clock_are_explicit (test_mapping.MappingTests.test_alignment_authority_frame_and_clock_are_explicit) ... ok
+test_alignment_degraded_invalid_uncertain_and_time_window_are_rejected (test_mapping.MappingTests.test_alignment_degraded_invalid_uncertain_and_time_window_are_rejected) ... ok
+test_alignment_only_change_can_reproject_same_sensor_time_transform (test_mapping.MappingTests.test_alignment_only_change_can_reproject_same_sensor_time_transform) ... ok
+test_corrected_map_needs_new_observation_not_current_tf_added_to_old_point (test_mapping.MappingTests.test_corrected_map_needs_new_observation_not_current_tf_added_to_old_point) ... ok
+test_defensive_copy_and_frozen_observation_preserve_original (test_mapping.MappingTests.test_defensive_copy_and_frozen_observation_preserve_original) ... ok
+test_destination_restart_invalidates_goal_from_other_robot (test_mapping.MappingTests.test_destination_restart_invalidates_goal_from_other_robot) ... ok
+test_duplicate_observation_id_must_keep_every_semantic_field (test_mapping.MappingTests.test_duplicate_observation_id_must_keep_every_semantic_field) ... ok
+test_expiry_uses_original_deadline_and_alignment_deadline (test_mapping.MappingTests.test_expiry_uses_original_deadline_and_alignment_deadline) ... ok
+test_explicit_alignment_failure_invalidates_affected_goals (test_mapping.MappingTests.test_explicit_alignment_failure_invalidates_affected_goals) ... ok
+test_extreme_finite_quaternion_scales_preserve_lengths_and_inverse (test_mapping.MappingTests.test_extreme_finite_quaternion_scales_preserve_lengths_and_inverse) ... ok
+test_general_rotation_inverse_roundtrip_and_scaled_quaternion (test_mapping.MappingTests.test_general_rotation_inverse_roundtrip_and_scaled_quaternion) ... ok
+test_geometry_valid_never_means_backend_or_automatic_approach_valid (test_mapping.MappingTests.test_geometry_valid_never_means_backend_or_automatic_approach_valid) ... ok
+test_goal_recheck_closes_revision_change_after_acceptance_in_pure_model (test_mapping.MappingTests.test_goal_recheck_closes_revision_change_after_acceptance_in_pure_model) ... ok
+test_goal_snapshot_cannot_be_modified_or_used_in_another_registry (test_mapping.MappingTests.test_goal_snapshot_cannot_be_modified_or_used_in_another_registry) ... ok
+test_invalid_numeric_values_and_unknown_robot_are_not_coordinates (test_mapping.MappingTests.test_invalid_numeric_values_and_unknown_robot_are_not_coordinates) ... ok
+test_latest_tf_is_rejected_even_if_very_close_to_observation_time (test_mapping.MappingTests.test_latest_tf_is_rejected_even_if_very_close_to_observation_time) ... ok
+test_map_content_update_does_not_fabricate_coordinate_revision (test_mapping.MappingTests.test_map_content_update_does_not_fabricate_coordinate_revision) ... ok
+test_missing_tf_retains_original_but_produces_no_location (test_mapping.MappingTests.test_missing_tf_retains_original_but_produces_no_location) ... ok
+test_native_map_and_camera_names_are_isolated_by_robot_identity (test_mapping.MappingTests.test_native_map_and_camera_names_are_isolated_by_robot_identity) ... ok
+test_nonplanar_map_alignment_preserves_vertical_component (test_mapping.MappingTests.test_nonplanar_map_alignment_preserves_vertical_component) ... ok
+test_optical_depth_point_uses_full_3d_rotation_then_translation (test_mapping.MappingTests.test_optical_depth_point_uses_full_3d_rotation_then_translation) ... ok
+test_planar_alignment_and_destination_inverse_share_a_physical_point (test_mapping.MappingTests.test_planar_alignment_and_destination_inverse_share_a_physical_point) ... ok
+test_revisions_cannot_go_backwards_or_change_content_under_same_number (test_mapping.MappingTests.test_revisions_cannot_go_backwards_or_change_content_under_same_number) ... ok
+test_same_observation_cannot_silently_replace_its_bound_tf (test_mapping.MappingTests.test_same_observation_cannot_silently_replace_its_bound_tf) ... ok
+test_uint64_revision_bounds_apply_to_inputs_and_registry_updates (test_mapping.MappingTests.test_uint64_revision_bounds_apply_to_inputs_and_registry_updates) ... ok
+test_uuid_fields_require_canonical_nonzero_uuid (test_mapping.MappingTests.test_uuid_fields_require_canonical_nonzero_uuid) ... ok
+test_validated_interpolation_requires_bracketing_original_stamp (test_mapping.MappingTests.test_validated_interpolation_requires_bracketing_original_stamp) ... ok
+test_wrong_sensor_map_clock_or_map_version_cannot_be_substituted (test_mapping.MappingTests.test_wrong_sensor_map_clock_or_map_version_cannot_be_substituted) ... ok
+test_zero_future_expired_observation_and_clock_regression_fail_closed (test_mapping.MappingTests.test_zero_future_expired_observation_and_clock_regression_fail_closed) ... ok
+test_alignment_timestamps_are_int64_while_revisions_remain_uint64 (test_mapping_time_contract.MappingTimeContractTests.test_alignment_timestamps_are_int64_while_revisions_remain_uint64) ... ok
+test_invalid_now_does_not_poison_registry_clock_or_existing_goal (test_mapping_time_contract.MappingTimeContractTests.test_invalid_now_does_not_poison_registry_clock_or_existing_goal) ... ok
+test_observation_timestamps_are_positive_int64_not_unbounded_ints (test_mapping_time_contract.MappingTimeContractTests.test_observation_timestamps_are_positive_int64_not_unbounded_ints) ... ok
+test_tf_query_and_sample_timestamps_share_common_range (test_mapping_time_contract.MappingTimeContractTests.test_tf_query_and_sample_timestamps_share_common_range) ... ok
+test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
+test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
+test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
+test_evidence_id_metadata_collision_rejected (test_operations.OperationsTests.test_evidence_id_metadata_collision_rejected) ... ok
+test_invalid_paths_and_closed_db_normalize_errors (test_operations.OperationsTests.test_invalid_paths_and_closed_db_normalize_errors) ... ok
+test_invalid_schema_numeric_ids_and_medical_claims_rejected (test_operations.OperationsTests.test_invalid_schema_numeric_ids_and_medical_claims_rejected) ... ok
+test_missing_ref_and_original_photo_do_not_satisfy_confirmation_policy (test_operations.OperationsTests.test_missing_ref_and_original_photo_do_not_satisfy_confirmation_policy) ... ok
+test_optional_policy_does_not_persist_dangling_declared_evidence (test_operations.OperationsTests.test_optional_policy_does_not_persist_dangling_declared_evidence) ... ok
+test_outbox_receipt_write_failure_replays_committed_remote_report (test_operations.OperationsTests.test_outbox_receipt_write_failure_replays_committed_remote_report) ... ok
+test_payload_bounds_and_immutable_input_snapshot (test_operations.OperationsTests.test_payload_bounds_and_immutable_input_snapshot) ... ok
+test_persist_write_failure_never_returns_persisted_receipt (test_operations.OperationsTests.test_persist_write_failure_never_returns_persisted_receipt) ... ok
+test_policy_and_role_cannot_change_on_reopen (test_operations.OperationsTests.test_policy_and_role_cannot_change_on_reopen) ... ok
+test_readonly_cli_exports_and_does_not_create_missing_database (test_operations.OperationsTests.test_readonly_cli_exports_and_does_not_create_missing_database) ... ok
+test_receipt_loss_after_commit_retries_without_duplicate (test_operations.OperationsTests.test_receipt_loss_after_commit_retries_without_duplicate) ... ok
+test_received_and_pending_receipts_remain_retryable (test_operations.OperationsTests.test_received_and_pending_receipts_remain_retryable) ... ok
+test_received_is_not_persisted_and_restart_retains_receipt (test_operations.OperationsTests.test_received_is_not_persisted_and_restart_retains_receipt) ... ok
+test_report_id_collision_does_not_mutate_original (test_operations.OperationsTests.test_report_id_collision_does_not_mutate_original) ... ok
+test_report_transaction_failure_rolls_back_and_retry_succeeds (test_operations.OperationsTests.test_report_transaction_failure_rolls_back_and_retry_succeeds) ... ok
+test_required_evidence_waits_for_actual_bytes_then_survives_reopen (test_operations.OperationsTests.test_required_evidence_waits_for_actual_bytes_then_survives_reopen) ... ok
+test_stale_receipt_revision_does_not_regress_outbox (test_operations.OperationsTests.test_stale_receipt_revision_does_not_regress_outbox) ... ok
+test_unreachable_report_is_recorded_without_claiming_approach_complete (test_operations.OperationsTests.test_unreachable_report_is_recorded_without_claiming_approach_complete) ... ok
+test_upload_transaction_failure_does_not_claim_stored (test_operations.OperationsTests.test_upload_transaction_failure_does_not_claim_stored) ... ok
+test_wrong_report_receipt_cannot_finish_outbox (test_operations.OperationsTests.test_wrong_report_receipt_cannot_finish_outbox) ... ok
+test_envelope_and_evidence_times_are_positive_int64 (test_operations_time_contract.OperationsTimeContractTests.test_envelope_and_evidence_times_are_positive_int64) ... FAIL
+test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) ... 
+  test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None)) ... FAIL
+  test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='00000000-0000-0000-0000-000000000000', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775807, error_code=None)) ... FAIL
+test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) ... 
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='report_id') ... FAIL
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='target_id') ... FAIL
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='observation_id') ... FAIL
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='source_boot_id') ... FAIL
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='task_id') ... FAIL
+  test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='confirmation_observation_id') ... FAIL
+test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) ... FAIL
+test_report_times_are_int64_while_generation_and_revisions_remain_uint64 (test_operations_time_contract.OperationsTimeContractTests.test_report_times_are_int64_while_generation_and_revisions_remain_uint64) ... FAIL
+test_detection_without_explicit_tracking_mode_must_not_hide_fallback (test_perception.BoundaryContractRegressionTests.test_detection_without_explicit_tracking_mode_must_not_hide_fallback) ... ok
+test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost (test_perception.BoundaryContractRegressionTests.test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost) ... ok
+test_background_discontinuity_rejects_median_position (test_perception.PerceptionTests.test_background_discontinuity_rejects_median_position) ... ok
+test_bbox_no_silent_clip_or_scale (test_perception.PerceptionTests.test_bbox_no_silent_clip_or_scale) ... ok
+test_collision_cannot_extend_lifetime_or_replace_evidence (test_perception.PerceptionTests.test_collision_cannot_extend_lifetime_or_replace_evidence) ... ok
+test_common_error_and_localization_detail_keep_distinct_meanings (test_perception.PerceptionTests.test_common_error_and_localization_detail_keep_distinct_meanings) ... ok
+test_depth_encoding_units_and_shape (test_perception.PerceptionTests.test_depth_encoding_units_and_shape) ... ok
+test_depth_failure_keeps_discovery_without_position (test_perception.PerceptionTests.test_depth_failure_keeps_discovery_without_position) ... ok
+test_depth_pair_one_ns_boundary_at_real_epoch (test_perception.PerceptionTests.test_depth_pair_one_ns_boundary_at_real_epoch) ... ok
+test_events_dedup_conflicts_and_no_reordered_identity (test_perception.PerceptionTests.test_events_dedup_conflicts_and_no_reordered_identity) ... ok
+test_float_metres_invalid_samples_and_median (test_perception.PerceptionTests.test_float_metres_invalid_samples_and_median) ... ok
+test_future_and_original_expiry_consider_uncertainty (test_perception.PerceptionTests.test_future_and_original_expiry_consider_uncertainty) ... ok
+test_intrinsics_alignment_and_resolution_are_not_inferred (test_perception.PerceptionTests.test_intrinsics_alignment_and_resolution_are_not_inferred) ... ok
+test_model_manifest_and_class_mapping (test_perception.PerceptionTests.test_model_manifest_and_class_mapping) ... ok
+test_no_implicit_thresholds_and_invalid_scalar_validation (test_perception.PerceptionTests.test_no_implicit_thresholds_and_invalid_scalar_validation) ... ok
+test_observation_ids_hashes_validity_and_freezing (test_perception.PerceptionTests.test_observation_ids_hashes_validity_and_freezing) ... ok
+test_publication_schema_and_sequence_validation (test_perception.PerceptionTests.test_publication_schema_and_sequence_validation) ... ok
+test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input (test_perception.PerceptionTests.test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input) ... ok
+test_receiver_time_regression_latches_until_new_receiver_session (test_perception.PerceptionTests.test_receiver_time_regression_latches_until_new_receiver_session) ... ok
+test_registered_millimetres_deproject_to_optical_metres (test_perception.PerceptionTests.test_registered_millimetres_deproject_to_optical_metres) ... ok
+test_rejected_collision_still_records_receiver_clock (test_perception.PerceptionTests.test_rejected_collision_still_records_receiver_clock) ... ok
+test_reordered_and_same_frame_do_not_refresh_gap_timer (test_perception.PerceptionTests.test_reordered_and_same_frame_do_not_refresh_gap_timer) ... ok
+test_reordered_discovery_survives_in_immutable_history_without_event_admission (test_perception.PerceptionTests.test_reordered_discovery_survives_in_immutable_history_without_event_admission) ... ok
+test_republication_changes_only_envelope_not_source_hash_or_timer (test_perception.PerceptionTests.test_republication_changes_only_envelope_not_source_hash_or_timer) ... ok
+test_robot_identity_uses_shared_profile_format (test_perception.PerceptionTests.test_robot_identity_uses_shared_profile_format) ... ok
+test_same_frame_people_both_get_events_without_identity_claim (test_perception.PerceptionTests.test_same_frame_people_both_get_events_without_identity_claim) ... ok
+test_source_boots_keep_separate_receive_history (test_perception.PerceptionTests.test_source_boots_keep_separate_receive_history) ... ok
+test_stale_input_still_records_receiver_clock_and_detects_rollback (test_perception.PerceptionTests.test_stale_input_still_records_receiver_clock_and_detects_rollback) ... ok
+test_sync_semantics_and_clock_domain_rejected (test_perception.PerceptionTests.test_sync_semantics_and_clock_domain_rejected) ... ok
+test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow (test_perception.PerceptionTests.test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow) ... ok
+test_tracking_mode_is_part_of_immutable_source_payload_hash (test_perception.PerceptionTests.test_tracking_mode_is_part_of_immutable_source_payload_hash) ... ok
+test_tracking_mode_required_and_consistent_with_track_id (test_perception.PerceptionTests.test_tracking_mode_required_and_consistent_with_track_id) ... ok
+test_two_robots_same_track_id_remain_separate_candidates (test_perception.PerceptionTests.test_two_robots_same_track_id_remain_separate_candidates) ... ok
+test_unknown_clock_and_stamp_can_be_recorded_but_not_used (test_perception.PerceptionTests.test_unknown_clock_and_stamp_can_be_recorded_but_not_used) ... ok
+test_cli_distinguishes_static_validation_from_runtime (test_profile.DeploymentProfileTests.test_cli_distinguishes_static_validation_from_runtime) ... ok
+test_cli_rejects_nul_input_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_input_path_without_traceback) ... ok
+test_cli_rejects_nul_parameter_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_parameter_path_without_traceback) ... ok
+test_cli_rejects_overlong_json_integer_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_overlong_json_integer_without_traceback) ... ok
+test_clock_mode_does_not_accept_truthy_strings (test_profile.DeploymentProfileTests.test_clock_mode_does_not_accept_truthy_strings) ... ok
+test_coordination_and_operations_can_share_if_all_hosts_have_roles (test_profile.DeploymentProfileTests.test_coordination_and_operations_can_share_if_all_hosts_have_roles) ... ok
+test_duplicate_host_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_host_is_rejected) ... ok
+test_duplicate_json_keys_and_nonfinite_numbers_are_rejected (test_profile.DeploymentProfileTests.test_duplicate_json_keys_and_nonfinite_numbers_are_rejected) ... ok
+test_duplicate_robot_namespace_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_robot_namespace_is_rejected) ... ok
+test_example_loads_and_retains_robot_ownership (test_profile.DeploymentProfileTests.test_example_loads_and_retains_robot_ownership) ... ok
+test_fourth_host_cannot_be_listed_but_unused (test_profile.DeploymentProfileTests.test_fourth_host_cannot_be_listed_but_unused) ... ok
+test_hardware_roles_are_not_frozen_to_example_placement (test_profile.DeploymentProfileTests.test_hardware_roles_are_not_frozen_to_example_placement) ... ok
+test_invalid_cli_has_nonzero_exit_and_no_success_output (test_profile.DeploymentProfileTests.test_invalid_cli_has_nonzero_exit_and_no_success_output) ... ok
+test_missing_file_and_oversized_parameter_file_are_rejected (test_profile.DeploymentProfileTests.test_missing_file_and_oversized_parameter_file_are_rejected) ... ok
+test_mixed_clock_modes_are_rejected (test_profile.DeploymentProfileTests.test_mixed_clock_modes_are_rejected) ... ok
+test_namespace_must_be_explicit_single_robot_prefix (test_profile.DeploymentProfileTests.test_namespace_must_be_explicit_single_robot_prefix) ... ok
+test_nonregular_profile_is_rejected_before_read (test_profile.DeploymentProfileTests.test_nonregular_profile_is_rejected_before_read) ... ok
+test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly (test_profile.DeploymentProfileTests.test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly) ... ok
+test_parameter_path_cannot_escape_by_parent_absolute_or_symlink (test_profile.DeploymentProfileTests.test_parameter_path_cannot_escape_by_parent_absolute_or_symlink) ... ok
+test_policy_baseline_change_updates_counts_and_cli_without_literal_edits (test_profile.DeploymentProfileTests.test_policy_baseline_change_updates_counts_and_cli_without_literal_edits) ... ok
+test_profile_symlink_uses_target_directory_for_parameter_paths (test_profile.DeploymentProfileTests.test_profile_symlink_uses_target_directory_for_parameter_paths) ... ok
+test_robot_identity_collision_is_rejected (test_profile.DeploymentProfileTests.test_robot_identity_collision_is_rejected) ... ok
+test_runtime_activation_is_rejected (test_profile.DeploymentProfileTests.test_runtime_activation_is_rejected) ... ok
+test_schema_version_is_not_boolean_or_unrecognized_version (test_profile.DeploymentProfileTests.test_schema_version_is_not_boolean_or_unrecognized_version) ... ok
+test_swapped_robot_parameter_files_are_rejected (test_profile.DeploymentProfileTests.test_swapped_robot_parameter_files_are_rejected) ... ok
+test_two_robot_command_owners_can_share_a_host (test_profile.DeploymentProfileTests.test_two_robot_command_owners_can_share_a_host) ... ok
+test_unknown_command_host_is_rejected (test_profile.DeploymentProfileTests.test_unknown_command_host_is_rejected) ... ok
+test_unknown_configuration_cannot_silently_enable_actions (test_profile.DeploymentProfileTests.test_unknown_configuration_cannot_silently_enable_actions) ... ok
+test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentProfileTests.test_wrong_robot_host_counts_and_tier_mix_are_rejected) ... ok
+test_alignment_only_is_stale_and_can_reproject_original (test_review_mapping.MappingReviewTests.test_alignment_only_is_stale_and_can_reproject_original) ... ok
+test_invalid_alignment_requires_reobservation (test_review_mapping.MappingReviewTests.test_invalid_alignment_requires_reobservation) ... ok
+test_public_mapping_error_has_canonical_and_namespaced_detail (test_review_mapping.MappingReviewTests.test_public_mapping_error_has_canonical_and_namespaced_detail) ... ok
+test_stale_derivation_escalates_after_alignment_invalidation (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_after_alignment_invalidation) ... ok
+test_stale_derivation_escalates_after_new_session (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_after_new_session) ... ok
+test_stale_derivation_escalates_to_reobservation_after_map_correction (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_to_reobservation_after_map_correction) ... ok
+test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mapping.MappingReviewTests.test_version_mismatch_uses_same_projection_status_vocabulary) ... ok
+test_allowed_id_policy_is_required_and_bounded (test_review_operations.OperationsReviewTests.test_allowed_id_policy_is_required_and_bounded) ... ok
+test_allowed_ids_are_immutable_and_pinned_on_reopen (test_review_operations.OperationsReviewTests.test_allowed_ids_are_immutable_and_pinned_on_reopen) ... ok
+test_missing_robot_policy_is_not_silently_adopted_on_reopen (test_review_operations.OperationsReviewTests.test_missing_robot_policy_is_not_silently_adopted_on_reopen) ... ok
+test_operations_error_uses_common_envelope_without_losing_detail (test_review_operations.OperationsReviewTests.test_operations_error_uses_common_envelope_without_losing_detail) ... ok
+test_profile_ids_reach_persisted_report_and_outbox (test_review_operations.OperationsReviewTests.test_profile_ids_reach_persisted_report_and_outbox) ... ok
+test_schema_accepts_valid_identifier_without_fixed_membership (test_review_operations.OperationsReviewTests.test_schema_accepts_valid_identifier_without_fixed_membership) ... ok
+test_schema_robot_identifiers_follow_profile_syntax (test_review_operations.OperationsReviewTests.test_schema_robot_identifiers_follow_profile_syntax) ... ok
+test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage) ... ok
+
+======================================================================
+FAIL: test_envelope_and_evidence_times_are_positive_int64 (test_operations_time_contract.OperationsTimeContractTests.test_envelope_and_evidence_times_are_positive_int64)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 34, in test_envelope_and_evidence_times_are_positive_int64
+    self.assertInvalid(lambda: envelope(env))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
+    self.assertIsNone(outbox.deliver(payload['report_id'], sample_envelope(),
+AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None) is not None
+
+======================================================================
+FAIL: test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='00000000-0000-0000-0000-000000000000', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775807, error_code=None))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
+    self.assertIsNone(outbox.deliver(payload['report_id'], sample_envelope(),
+AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None) is not None
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='report_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='target_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='observation_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='source_boot_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='task_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='confirmation_observation_id')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 48, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+    self.assertInvalid(lambda: report(payload))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+======================================================================
+FAIL: test_report_times_are_int64_while_generation_and_revisions_remain_uint64 (test_operations_time_contract.OperationsTimeContractTests.test_report_times_are_int64_while_generation_and_revisions_remain_uint64)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 25, in test_report_times_are_int64_while_generation_and_revisions_remain_uint64
+    self.assertInvalid(lambda: report(payload))
+  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+    with self.assertRaises(OperationsError) as caught:
+AssertionError: OperationsError not raised
+
+----------------------------------------------------------------------
+Ran 203 tests in 0.439s
+
+FAILED (failures=11)
