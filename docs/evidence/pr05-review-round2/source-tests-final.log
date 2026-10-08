@@ -66,6 +66,6 @@ test_unknown_configuration_cannot_silently_enable_actions (test_profile.Deployme
 test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentProfileTests.test_wrong_robot_host_counts_and_tier_mix_are_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 65 tests in 0.133s
+Ran 65 tests in 0.139s
 
 OK
