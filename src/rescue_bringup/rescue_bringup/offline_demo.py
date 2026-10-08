@@ -28,6 +28,21 @@ def uid(label):
     return str(uuid5(NAMESPACE_URL, 'rokey7/offline-fixture/' + label))
 
 
+def to_ns(seconds):
+    """Copy one fixture instant into integer nanoseconds.
+
+    The float seconds and the nanosecond fields are not two handwritten copies.
+    This is not a ROS sec/nanosec adapter and does not recover precision that a
+    float already lost.
+    """
+    if type(seconds) is not float:
+        raise ValueError('fixture seconds must be a float instant')
+    scaled = seconds * 1_000_000_000
+    if scaled != int(scaled):
+        raise ValueError('fixture seconds are not an exact nanosecond')
+    return int(scaled)
+
+
 def _synthetic_evidence(robot):
     """A generated 4x4 solid-colour PNG, never a camera/person photograph."""
     pixel = b'\xff\x00\x00' if robot == 'robot_a' else b'\x00\x00\xff'
@@ -95,19 +110,21 @@ def run_scenario(profile_path, output_directory):
         mapping.start_session(robot, 'map', uid(robot+'/map-session'))
         mapping.set_alignment(FrameAlignment(robot, 'map', 'mission', uid(robot+'/map-session'),
             0, 1, 'fixture-mapping', clock, RigidTransform.planar(offset, 0., 0.),
-            99_000_000_000, 103_000_000_000, .1, .05))
+            to_ns(99.), to_ns(103.), .1, .05))
         obs = _observation(robot)
         admission = perception.ingest(obs, now=100.5, received_steady=10.,
             receiver_clock_domain=clock, receiver_clock_error_bound=.01, policy=TimePolicy(2., .02, .04, .01))
         event = events.register(admission, event_id=uid(robot+'/event'))
+        observed_at_ns = to_ns(obs.observed_at)
+        valid_until_ns = to_ns(obs.valid_until)
         source = SourceObservation(obs.observation_id, robot, obs.source_camera, obs.source_boot_id,
-            100_000_000_000, obs.frame.frame_id, obs.localization.point_optical,
-            102_000_000_000, clock, uid(robot+'/map-session'), 0)
+            observed_at_ns, obs.frame.frame_id, obs.localization.point_optical,
+            valid_until_ns, clock, uid(robot+'/map-session'), 0)
         transform = TimedTransform(robot, obs.frame.frame_id, 'map', uid(robot+'/map-session'), 0,
             clock, source.observed_at_ns, RigidTransform((0., 0., 0.), (-.5, .5, -.5, .5)),
             'EXACT', (source.observed_at_ns,), 'fixture-observation-time-tf')
         observations[robot] = obs
-        projections[robot] = mapping.project(source, transform, now_ns=100_500_000_000)
+        projections[robot] = mapping.project(source, transform, now_ns=to_ns(100.5))
         event_ids[robot] = event.event_id
 
     allocator = Allocator(uid('authority'))
@@ -121,8 +138,8 @@ def run_scenario(profile_path, output_directory):
         if choice is None:
             raise RuntimeError('fixture proposal rejected')
         snapshot = mapping.capture_goal_snapshot((observations[observer].observation_id,), responder,
-            (choice.goal_xy[0], choice.goal_xy[1], target[2]), now_ns=100_500_000_000)
-        validation = mapping.validate_goal_snapshot(snapshot, now_ns=100_500_000_000)
+            (choice.goal_xy[0], choice.goal_xy[1], target[2]), now_ns=to_ns(100.5))
+        validation = mapping.validate_goal_snapshot(snapshot, now_ns=to_ns(100.5))
         item = Reservation(uid(observer+'/handoff'), event_ids[observer], 0, responder, 2,
                            uid('authority'), choice)
         if not allocator.reserve(item):
@@ -149,14 +166,14 @@ def run_scenario(profile_path, output_directory):
             raise
         stale_rejected = True
     invalidation = mapping.advance_map_revision('robot_a', uid('robot_a/map-session'), 1)
-    a_status = mapping.projection(observations['robot_a'].observation_id, now_ns=101_000_000_000).status
-    b_status = mapping.projection(observations['robot_b'].observation_id, now_ns=101_000_000_000).status
+    a_status = mapping.projection(observations['robot_a'].observation_id, now_ns=to_ns(101.)).status
+    b_status = mapping.projection(observations['robot_b'].observation_id, now_ns=to_ns(101.)).status
     corridor = Corridor()
     corridor.confirm_vacant(expected_revision=0, verified_exit=True, observation_fresh=True, now=0.)
     corridor.acquire(item, now=0., duration=1.)
     occupancy = corridor.check(now=1., holder_pose_fresh=True)
 
-    post_revision_validations = [mapping.validate_goal_snapshot(s, now_ns=101_000_000_000)
+    post_revision_validations = [mapping.validate_goal_snapshot(s, now_ns=to_ns(101.))
                                  for s in snapshots]
     searches = [_search_rehearsal(r) for r in ('robot_a', 'robot_b')]
     report_ids = []
@@ -174,16 +191,16 @@ def run_scenario(profile_path, output_directory):
                     'observation_result': 'DETECTED', 'confirmation_result': 'UNCONFIRMED',
                     'confirmation_observation_id': None, 'approach_result': 'NOT_ATTEMPTED',
                     # No current location is claimed after invalidation; discovery is retained.
-                    'position': None, 'observed_at_ns': 100_000_000_000,
-                    'confirmed_at_ns': None, 'reported_at_ns': 101_000_000_000,
+                    'position': None, 'observed_at_ns': to_ns(obs.observed_at),
+                    'confirmed_at_ns': None, 'reported_at_ns': to_ns(101.),
                     'reason': 'SYNTHETIC fixture; generated colour tile, not a camera photo: '+p['reason'],
                     'evidence_refs': [{'evidence_id': obs.evidence_id, 'sha256': obs.evidence_sha256,
                         'media_type': 'image/png', 'observation_id': obs.observation_id,
-                        'acquired_at_ns': 100_000_000_000}],
+                        'acquired_at_ns': to_ns(obs.observed_at)}],
                     'model_id': obs.model.model_id, 'model_sha256': obs.model.sha256,
                     'deployment_version': 'offline-fixture-not-a-field-run'}
                 envelope = {'schema_version': '1.0', 'publisher_id': 'offline-demo',
-                    'publisher_boot_id': uid('publisher'), 'sequence': index, 'published_at_ns': 101_000_000_000}
+                    'publisher_boot_id': uid('publisher'), 'sequence': index, 'published_at_ns': to_ns(101.)}
                 outbox.enqueue(payload)
                 ledger.receive(payload, envelope)
                 pending_evidence_states.append(ledger.persist(payload['report_id']).status)

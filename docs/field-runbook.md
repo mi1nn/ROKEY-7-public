@@ -36,7 +36,7 @@ python3 -m rescue_bringup.offline_demo config/deployment.example.json --output w
 | 단독 명령 소유 | 주행·도킹 요청은 rescue_robot 실행기 하나가 발행. 탐색기는 후보만 제공 | competing goal/속도 발행자 없음. 수락 지연·늦은 terminal·cancel·lease/authority/boot fencing과 독립적인 최종 명령 억제 경로 |
 | 시각/센서 | 원 sec/nanosec·clock domain·stamp 의미·오차/드라이버 지연 상한 측정. RGB/Depth/CameraInfo·정렬·encoding/단위 확인 | 0/미래/역순/UNKNOWN clock 거절, 올바른 원 시각 TF 조회, 수신 지연이 원 관측 수명을 연장하지 않는 기록 |
 
-P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 제안이었다([DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)). 다른 PC의 지도 발행자 중복과 Discovery Server CPU 92%도 기록됐다([실습 L24–34](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L24-L34)). 이 값은 이번 네 PC의 재현 결과가 아니므로 새 구성에서 다시 측정한다.
+P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 제안이었다([DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)). 다른 PC의 `/robot3/map` 발행자 2개는 [실습 L33](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L33), Discovery Server CPU 92%는 [실습 L34](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L34)다. L24–L32의 가짜 controller, 시계 점검, 언도크, 탐색 성공 행은 이 두 사고의 근거가 아니다. 이 값은 이번 네 PC의 재현 결과가 아니므로 새 구성에서 다시 측정한다.
 
 ## 3. 현장 수치·좌표·탐지 관문
 

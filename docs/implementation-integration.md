@@ -49,11 +49,17 @@ PNG는 코드가 만든 4×4 단색 타일이며 카메라 촬영·사람 사진
 
 보고는 UNCONFIRMED·NOT_ATTEMPTED이며 위치는 null이다. 지도 보정/미검증 backend 때문에 접근하지 못한 발견 기록을 보존한 결과다. `PERSISTED`를 `APPROACH_COMPLETE`나 물리적 구조 완료로 올리지 않는다.
 
-시간은 fixture용 정수 초/정수 ns다. 실서비스에서 float 초로 바꾼 뒤 나노초 정밀도를 복원했다고 주장하지 않으며, ROS adapter가 원 sec/nanosec과 시각 의미를 보존해야 한다. 내부 fixture 정책 `SYNTHETIC_NOT_LOCKED_FOR_RUN`의 거리·속도·시간 숫자를 장비 기본값으로 가져가지 않는다. fixtures는 반복 가능한 UUID를 사용하므로 여러 실행 결과를 같은 실제 임무 이력으로 합치지 않는다.
+관측의 ns 시각은 `to_ns`가 그 관측의 float 초에서 만든다. 같은 시각을 초와 ns로 두 번 적지 않는다. 이 변환은 이 fixture 안에서만 하고, PR 5·7의 float 초와 PR 6의 int ns를 저장소 공통 형식으로 통일하지 않는다. 실서비스에서 float 초로 바꾼 뒤 나노초 정밀도를 복원했다고 주장하지 않으며, ROS adapter가 원 sec/nanosec과 시각 의미를 보존해야 한다. 내부 fixture 정책 `SYNTHETIC_NOT_LOCKED_FOR_RUN`의 거리·속도·시간 숫자를 장비 기본값으로 가져가지 않는다. `uid()`는 uuid5라 같은 라벨이면 반복된다. `GoalSnapshot.snapshot_id`는 실행마다 새로 나오는 uuid4라 summary.json의 그 필드는 실행마다 다르다.
 
 ## 검증 범위와 후속
 
 `tests/test_offline_demo.py`의 8개 시험은 두 역할·자동 허가 차단, A 관측만의 무효화와 모든 의존 목표 차단, 합성 수색 결과, 실제 evidence bytes/receipt 유실/reopen, 기존 출력 보존, 잘못된 프로파일, 다른 로봇 ID, 모듈 CLI를 확인한다. 구성 요소별 E2 시험은 각 PR의 테스트와 별도로 실행한다. 하나의 시나리오 PASS가 모든 계약·경로를 검증했다는 뜻은 아니다.
+
+이 리허설이 다루지 않는 경로:
+- CT-06·CT-07의 발견 → 수색 취소 → 정지 확인 → 새 generation → 접근 후보 사슬. `_search_rehearsal`의 generation 1 `Executor`와 `Allocator`의 generation 2 배정은 서로 연결되지 않는다. 둘 다 순수 코어라 ROS 없이 E2로 이을 수 있고, field-runbook 4절의 E4만이 그 시험은 아니다.
+- CT-08의 UNDOCK·준비 제어권.
+- CT-09의 장애물·최소 거리 후보 거절.
+- CT-03의 센서 정합. 여기의 alignment 근거는 `fixture-only`다.
 
 실제 readiness/clock/TF/SLAM backend·ROS adapters·실시간 탐지·모델/센서 평가·최종 명령 감시·2 AMR 및 예정 4-PC 부하는 [현장 실행 관문](field-runbook.md)에 남긴다. 해당 관문 전에는 `runtime_enabled=false`인 정적 프로파일을 실제 주행 launch라고 취급하지 않는다.
 
