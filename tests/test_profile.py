@@ -167,12 +167,17 @@ class DeploymentProfileTests(unittest.TestCase):
                     load_deployment(self.profile)
 
     def test_schema_version_is_not_boolean_or_unrecognized_version(self):
-        for version in [True, 2, "1", 1.0]:
+        for version in [True, 3, "1", 1.0]:
             with self.subTest(version=version):
                 self.data["schema_version"] = version
                 self.save()
                 with self.assertRaisesRegex(ProfileError, "schema_version"):
                     load_deployment(self.profile)
+        # v2 is supported but a v1-shaped file cannot just bump the number: mission is required.
+        self.data["schema_version"] = 2
+        self.save()
+        with self.assertRaisesRegex(ProfileError, "missing=\\['mission'\\]"):
+            load_deployment(self.profile)
 
     def test_runtime_activation_is_rejected(self):
         for enabled in [True, 1, "false", None]:

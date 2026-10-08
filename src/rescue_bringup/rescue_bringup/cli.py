@@ -22,6 +22,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"STATIC CONFIG VALID: {profile.id}; {len(profile.robots)} robots; "
           f"{len(profile.hosts)} hosts ({tier_summary})")
     for robot in profile.robots:
-        print(f"{robot.id}: namespace={robot.namespace}, command_host={robot.command_host}")
+        role = f", role={profile.mission.role_of(robot.id)}" if profile.mission else ""
+        print(f"{robot.id}: namespace={robot.namespace}, command_host={robot.command_host}{role}")
+    if profile.mission:
+        print(f"mission: schema v{profile.schema_version}; {len(profile.mission.search_areas)} search areas; "
+              f"hold positions for {', '.join(r for r, _ in profile.mission.hold_positions)}")
     print("Runtime is disabled. No hardware, ROS graph, timing or safety validation was performed.")
     return 0

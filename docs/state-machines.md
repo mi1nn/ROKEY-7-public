@@ -10,6 +10,19 @@ updated: 2026-10-08
 
 두 AMR은 확정 요구이며, 발견→안전 접근→보고와 네 PC 전체 배치는 현재 검증할 설계 기준안이다. 후자의 최종 인수 확정을 이 문서가 대신하지 않는다.
 
+## S-00. 시스템 모드 (BRD v0.1, 2026-10-08)
+
+전체 시스템의 모드는 로봇·사건 상태와 별도 축이다. 실행 가능한 어휘는 `rescue_contracts.SYSTEM_MODES`.
+
+| 현재 | 이벤트/관문 | 다음 |
+| --- | --- | --- |
+| `NORMAL` | 고정 카메라 A 의 `SiteEvent(kind=DISASTER_SIGN)` 가 정책의 판정 조건(Part I 3.1.2 시연 시나리오 기준, Q-11)을 충족 | `DISASTER`. coordination 이 SCOUT 로봇에 수색 임무(SEARCH_AREA)를 발급하고 관리자 화면에 알림(FR-03·04). 카메라 어댑터 자체는 모드를 바꾸지 못한다 |
+| `DISASTER` | 오탐 해제 조건 충족(Q-11) 또는 운영자 해제 | `CLEARING`: 진행 중 임무를 S-04 정지 관문으로 종료하고 SCOUT 복귀. 정지 확인 뒤 `NORMAL`(E-01) |
+| `DISASTER` | SUPPORT 출동 조건: 발견 사건 + 저장 확인(receipt `PERSISTED`) + (자동 또는 관리자 승인, Q-12) | 모드는 유지, 접근 임무 예약(S-03·S-06) |
+| 어느 모드든 | 모드 전이 이벤트는 시각·근거(SiteEvent ID)·판정 정책 version 과 함께 보고 저장 | — |
+
+모드가 `NORMAL` 이면 자동 수색·접근 임무를 발급하지 않는다. 모드 전이는 운영 기록이며 로봇 측 정지 latch 를 대신하지 않는다.
+
 ## S-01. 동시에 유지할 상태와 우선순위
 
 로봇마다 다음 상태를 별도로 가진다.
@@ -90,27 +103,30 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 | 확인 | `CANDIDATE` → 서로 일관된 유효 관측과 동일성 기준 충족 시 `CONFIRMED`; 관측/지도 기준이 만료·불확실하면 `NEEDS_REOBSERVATION`; 운영자/정책의 근거 있는 판정으로 `DISMISSED` |
 | 접근 | `UNASSIGNED` → `ASSIGNED` → `IN_PROGRESS` → 정지·재확인·이격 조건을 통과하면 `APPROACH_COMPLETE`; 그 외 `BLOCKED`, `UNREACHABLE`, `CANCELED`, `FAILED` |
 | 보고 | `NOT_QUEUED` → `QUEUED` → `RECEIVED` → 필수 내용/증거가 저장되고 receipt 확인 시 `PERSISTED`; 실패 시 `RETRY_PENDING`/`PENDING_EVIDENCE` 유지 |
+| 구출(BRD v0.1 UC-07) | `NOT_CHECKED` → SCOUT 의 재관측 임무(REOBSERVE_TARGET) 뒤 **세 입력**이 모두 있으면 `RESCUE_CONFIRMED`: 대상 지점을 실제 관측했고(관측 ID), 사람·LiDAR 장애물 판정이 없고, 출구 `SiteEvent(EXIT_PASS)` 가 그 사건과 연결됨(Q-10·Q-13). 하나라도 없거나 불확실하면 `RECHECK_NEEDED` 유지(FR-24). **부재 증거만으로 확정하지 않는다**(KPI-06). 어휘는 `rescue_contracts.RESCUE_STATES` |
 
 처음 발견했을 때 사건을 기록하고 접근 불가여도 위치·근거·실패 사유를 보고한다. `APPROACH_COMPLETE`와 `PERSISTED`가 모두 확인된 정상 접근·보고 시나리오를 완료로 집계한다. 접근 불가 시험은 접근 성공률의 성공 분자에 넣지 않고, 별도 “실패 처리·보고 성공” 지표로 집계한다.
 
 새 관측으로 대상 위치가 바뀌어도 기존 report를 덮어쓰지 않고 report revision 또는 새 report_id로 연결한다. 같은 사람으로 병합한 근거·별개로 유지한 이유·운영자 정정 이력도 보존한다. 인물 탐지 confidence로 건강/생존 상태를 생성하지 않는다.
 
-## S-06. 두 로봇 협업 전이
+## S-06. 두 로봇 협업 전이 (2026-10-08 개정: 프로파일 역할 SCOUT / SUPPORT)
 
-| 단계 | coordinator의 판단·관문 | A/B 동작 |
+역할은 배포 프로파일 v2 `mission.roles` 의 데이터다(C-02). 아래 SCOUT/SUPPORT 는 그 값이며 코드 상수가 아니다. 이전의 대칭 A/B 안은 [scope](scope.md) 「첫 통합 시나리오」의 「이전」 열에 보존한다.
+
+| 단계 | coordinator의 판단·관문 | SCOUT / SUPPORT 동작 |
 | --- | --- | --- |
-| 분담 수색 | 두 로봇 READY/ARMED, 겹침/통행 정책·구역 정의 | A/B 각각 자신의 SearchArea 실행 |
-| A 발견 | 관측의 시간·좌표·class·위치 품질 확인, 사건 생성/중복 검토 | A는 유효 관측을 전달; 미확인 사건을 즉시 접근 완료로 표시하지 않음 |
-| B 선정 | 현재 위치·상태·경로/자원·배터리 정책 확인 | B의 수색 임무를 취소·정지 확인한 뒤 새 generation 배정 |
-| B 접근 | 공통 좌표·대상 유효성·통로/명령 lease 유지 | B는 후보 목표에 접근. A의 관측 지원 필요 여부는 인계 정책대로 수행 |
-| B 재확인 | B 관측이 같은 대상인지 확인, 이격·정지·좌표 관문 | B는 멈춰 결과 보고. A는 별도 구역 수색 유지/재개 |
-| 결과 저장 | 보고 receipt·필수 근거 확인 | 접근 결과와 보고 결과를 구분한 사건 종료/후속 수색 결정 |
+| 수색 | SCOUT READY/ARMED, 설정 구역의 실행 근거(basis·map session/revision) 확인 | SCOUT 가 설정 구역을 순서대로 `SEARCH_AREA` 실행. SUPPORT 는 `HOLD`(제자리 정지 유지; 프로파일 `hold_positions` 로 이동시키는 명령이 아님) |
+| SCOUT 발견 | 관측의 시간·좌표·class·위치 품질 확인, 사건 생성/중복 검토 | SCOUT 는 유효 관측을 전달; 미확인 사건을 접근 완료로 표시하지 않음 |
+| SUPPORT 선정 | 저장 확인(receipt `PERSISTED`) 뒤 출동 조건(자동 또는 승인, Q-12), `select_candidate` 의 경로 증거, 원 관측의 projection `VALID` | SUPPORT 의 HOLD 를 정지 확인으로 풀고(release) 새 generation 으로 `APPROACH_TARGET` 예약(PENDING) → 실행기 `TaskAdmission` 뒤에만 ACTIVE |
+| SUPPORT 접근 | 공통 좌표·대상 유효성·통로/명령 lease 유지 | SUPPORT 는 후보 목표에 접근. SCOUT 는 정책(`scout_continues_during_approach`)대로 수색을 잇거나 현 구역 뒤 대기 |
+| SCOUT 재확인 | 구조·출구 통과 뒤 같은 지점의 `REOBSERVE_TARGET`; 구출 판정은 S-05 구출 축(세 입력 모두) | SCOUT 가 재관측·LiDAR 증거를 제공. SUPPORT 는 접근 종료·정지 확인 뒤 다시 HOLD |
+| 결과 저장 | 보고 receipt·필수 근거 확인 | 접근 결과·보고 결과·구출 판정을 구분한 사건 종료/후속 수색 결정 |
 
-두 로봇은 영구적으로 발견 전용/접근 전용 역할로 고정하지 않는다. A 발견→B 접근은 현재 협업 설계 기준안을 검증할 시험 시나리오이며 역할을 바꾼 회차도 시험 목록에 둔다.
+역할은 **회차마다** 프로파일로 바꿀 수 있고(역할을 뒤집은 회차도 시험 목록에 둔다), 코드는 어느 로봇이 SCOUT 인지 추정하지 않는다. **한 회차 안의 자동 역할 교대**는 F-01 후속으로 보류한다([scope](scope.md) F-01).
 
-A가 수색을 계속하느라 대상이 관측에서 사라진 경우에는 마지막 좌표를 새 관측처럼 갱신하지 않는다. B의 로컬 재관측이 확보되기 전까지 A의 지원을 유지할지, 제한된 재관측 임무를 쓸지는 **시험 전에** 결정한다. 어떤 정책이든 유효기간 초과를 숨기고 접근을 계속하는 경로는 허용하지 않는다.
+SCOUT 가 수색을 계속하느라 대상이 관측에서 사라진 경우에는 마지막 좌표를 새 관측처럼 갱신하지 않는다. SUPPORT 의 로컬 재관측이 확보되기 전까지 SCOUT 의 지원을 유지할지, 제한된 재관측 임무를 쓸지는 **시험 전에** 결정한다. 어떤 정책이든 유효기간 초과를 숨기고 접근을 계속하는 경로는 허용하지 않는다.
 
-coordinator가 B의 정지/위치를 확인하지 못하면 접근 성공이나 통로 이탈을 추정하지 않는다. 다른 로봇으로 재배정할 때도 이전 로봇의 점유/이동 상태를 확인하거나 해당 영역을 차단한 대체 계획을 써야 한다. 단순 lease 만료로 두 로봇이 같은 좁은 통로에 진입하지 않게 한다.
+coordinator가 SUPPORT 의 정지/위치를 확인하지 못하면 접근 성공이나 통로 이탈을 추정하지 않는다. 다른 로봇으로 재배정할 때도 이전 로봇의 점유/이동 상태를 확인하거나 해당 영역을 차단한 대체 계획을 써야 한다. 단순 lease 만료로 두 로봇이 같은 좁은 통로에 진입하지 않게 한다.
 
 ## S-07. 주요 실패 전이
 

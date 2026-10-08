@@ -218,3 +218,81 @@ class TaskAdmission:
         _require(self.reason == 'ACCEPTED' if self.accepted else self.reason in CANONICAL_CODES,
                  'admission outcome/code mismatch')
         _require(isinstance(self.detail_code, str), 'detail_code')
+
+
+# ---- Bundle 1 (2026-10-08, BRD v0.1): roles, site events, system modes, rescue states.
+ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
+# C-06 task kinds — the single vocabulary for rescue_robot.Task and coordination reservations.
+TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'})
+TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET'})
+SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS'})
+STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN'})
+CLOCK_STATES = frozenset({'SYNCED', 'UNKNOWN'})
+SYSTEM_MODES = frozenset({'NORMAL', 'DISASTER', 'CLEARING'})
+RESCUE_STATES = frozenset({'NOT_CHECKED', 'RECHECK_NEEDED', 'RESCUE_CONFIRMED'})
+
+
+def robot_role(value):
+    _require(isinstance(value, str) and value in ROBOT_ROLES, 'robot role must be SCOUT or SUPPORT')
+    return value
+
+
+def camera_id(value):
+    """Fixed-camera identity (site camera A/B). Same syntax as robot_id; never a robot."""
+    _require(isinstance(value, str) and re.fullmatch(r'cam_[A-Za-z0-9_]{1,60}', value),
+             'camera ID must match cam_<identifier>')
+    return value
+
+
+@dataclass(frozen=True)
+class SiteEvent:
+    """An observation made by a fixed site camera, not by a robot.
+
+    DISASTER_SIGN: disaster sign from camera A (the judging rule, e.g. image shake/occlusion for an earthquake, is a policy value, not the event name). EXIT_PASS: a person
+    passing the exit seen by camera B. It carries evidence, never a command.
+    """
+    event_id: str
+    camera_id: str
+    kind: str
+    observed_at_ns: int
+    evidence_id: str
+    evidence_sha256: str
+    confidence: float
+    # C-03 time basis of the camera host (same vocabulary as Observation). An event
+    # with UNKNOWN semantics/clock may be recorded but must not order decisions.
+    clock_domain_id: str
+    stamp_semantics: str
+    clock_state: str
+    clock_error_bound_ns: int | None
+    detail: str = ''
+
+    def __post_init__(self):
+        uuid_string(self.event_id)
+        camera_id(self.camera_id)
+        _require(isinstance(self.kind, str) and self.kind in SITE_EVENT_KINDS, 'site event kind')
+        timestamp_ns(self.observed_at_ns)
+        uuid_string(self.evidence_id)
+        _require(isinstance(self.evidence_sha256, str) and re.fullmatch(r'[0-9a-f]{64}', self.evidence_sha256),
+                 'evidence_sha256 must be 64 lowercase hex digits')
+        _require(type(self.confidence) is float and 0.0 <= self.confidence <= 1.0, 'confidence in [0, 1]')
+        _require(isinstance(self.clock_domain_id, str) and self.clock_domain_id, 'clock_domain_id')
+        _require(isinstance(self.stamp_semantics, str) and self.stamp_semantics in STAMP_SEMANTICS, 'stamp_semantics')
+        _require(isinstance(self.clock_state, str) and self.clock_state in CLOCK_STATES, 'clock_state')
+        if self.clock_error_bound_ns is not None:
+            duration_ns(self.clock_error_bound_ns)
+        _require(isinstance(self.detail, str), 'detail')
+
+    @property
+    def time_basis_declared(self):
+        """Precondition only: the event *declares* a usable time basis.
+
+        True means stamp_semantics != UNKNOWN, clock_state == SYNCED and an error
+        bound is present. It does NOT compare this event with anything: ordering
+        or freshness against a robot observation still requires the consumer to
+        check the same clock_domain_id on both sides, the summed error bounds
+        against its policy, and the age/future limits (C-03; see
+        rescue_perception.validate_freshness). False means the event may be
+        recorded but must never enter such a decision.
+        """
+        return (self.stamp_semantics != 'UNKNOWN' and self.clock_state == 'SYNCED'
+                and self.clock_error_bound_ns is not None)
