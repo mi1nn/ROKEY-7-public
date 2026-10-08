@@ -69,10 +69,10 @@ test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentP
 ERROR: test_trailing_zero_and_huge_exponents (test_contracts_precision.DecimalPrecisionRegressionTests.test_trailing_zero_and_huge_exponents)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_contracts_precision.py", line 20, in test_trailing_zero_and_huge_exponents
+  File "tests/test_contracts_precision.py", line 20, in test_trailing_zero_and_huge_exponents
     with self.assertRaises(RescueError): seconds_to_ns(value)
                                          ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_contracts/rescue_contracts/__init__.py", line 168, in seconds_to_ns
+  File "src/rescue_contracts/rescue_contracts/__init__.py", line 168, in seconds_to_ns
     scaled = Decimal(str(value)) * 10**9
              ~~~~~~~~~~~~~~~~~~~~^~~~~~~
 decimal.Overflow: [<class 'decimal.Overflow'>]
@@ -81,7 +81,7 @@ decimal.Overflow: [<class 'decimal.Overflow'>]
 FAIL: test_ambient_decimal_precision_cannot_erase_epoch_nanosecond (test_contracts_precision.DecimalPrecisionRegressionTests.test_ambient_decimal_precision_cannot_erase_epoch_nanosecond)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_contracts_precision.py", line 14, in test_ambient_decimal_precision_cannot_erase_epoch_nanosecond
+  File "tests/test_contracts_precision.py", line 14, in test_ambient_decimal_precision_cannot_erase_epoch_nanosecond
     self.assertEqual(seconds_to_ns('1700000000.000000001'), 1700000000000000001)
 AssertionError: 1700000000000000000 != 1700000000000000001
 
@@ -89,7 +89,7 @@ AssertionError: 1700000000000000000 != 1700000000000000001
 FAIL: test_subnanosecond_fraction_cannot_round_to_integer (test_contracts_precision.DecimalPrecisionRegressionTests.test_subnanosecond_fraction_cannot_round_to_integer)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_contracts_precision.py", line 8, in test_subnanosecond_fraction_cannot_round_to_integer
+  File "tests/test_contracts_precision.py", line 8, in test_subnanosecond_fraction_cannot_round_to_integer
     with self.assertRaises(RescueError):
 AssertionError: RescueError not raised
 
