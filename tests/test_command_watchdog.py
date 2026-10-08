@@ -90,7 +90,7 @@ class CommandWatchdogTests(unittest.TestCase):
         dog = armed()
         dog.command(*GO, .1)
         dog.heartbeat(.3)
-        self.assertEqual([], dog.step(.4))
+        self.assertEqual([], dog.step(.39))   # .4 - .1 is just over .3 in float
         self.assertEqual([ZERO], dog.step(.41))
         self.assertEqual([], dog.step(.45))
         self.assertEqual('ARMED', dog.state)
