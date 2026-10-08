@@ -2,10 +2,17 @@
 <package format="3">
   <name>rescue_bringup</name>
   <version>0.0.0</version>
-  <description>실행 프로파일 검사. 현재는 ROS를 import하지 않는 정적 JSON 검사 CLI만 동작한다.</description>
+  <description>정적 배포 검사와 합성 두 로봇 통합 리허설. ROS 실행은 미구현.</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
+  <exec_depend>rescue_robot</exec_depend>
+  <exec_depend>rescue_mapping</exec_depend>
+  <exec_depend>rescue_perception</exec_depend>
+  <exec_depend>rescue_coordination</exec_depend>
+  <exec_depend>rescue_operations</exec_depend>
+
+  <exec_depend>rescue_contracts</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

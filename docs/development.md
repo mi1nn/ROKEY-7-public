@@ -6,12 +6,13 @@ PR 4에서 동작하던 기능은 `rescue_bringup`의 **로컬 JSON 프로파일
 
 | 패키지 | 예정 책임 | 현재 동작 |
 | --- | --- | --- |
+| `rescue_contracts` | Python 공통 값·오류·ID·시간·수락 계약 | canonical 오류+세부 원인, 정확한 int64 ns, 프로파일 ID 2개, TaskAdmission. ROS IDL 없음 |
 | `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 명령·취소·정지 판정 Python 코어, ROS 어댑터 없음 |
 | `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 입력된 탐지의 RGB-D 위치·시간 검증/사건 코어. 모델 추론 미구현 |
 | `rescue_coordination` | 수색 분담·임무 배정·인계·통행 조정 | 경로 후보·중복 배정·접근 확인·통로 코어. 실제 planner/탐색/ROS 전송 미구현 |
 | `rescue_mapping` | SLAM 연동·공통 좌표·지도 보정 | 3D 좌표/원 관측/버전 무효화 코어. 실제 SLAM 보정 감지 미구현 |
 | `rescue_operations` | 관제·보고·기록 | SQLite 보고·증거 ledger/outbox·읽기 CLI. 원격 API/관제 UI 미구현 |
-| `rescue_bringup` | 구성·기동·실행 전 점검 | 프로파일의 정적 구조·참조 검사만 구현 |
+| `rescue_bringup` | 구성·기동·실행 전 점검 | 정적 프로파일 검사 + 단일 프로세스 합성 통합 리허설. 실제 ROS launch 없음 |
 
 `rescue_interfaces`나 ROS 메시지·액션은 만들지 않았다. PR 3 계약과 실제 ROS 배포판·센서·Nav2 버전을 확인한 후 추가한다. 패키지 구조는 `ament_python` 형식이지만 이 PR의 Python 시험 통과를 `colcon build` 또는 ROS 기동 통과로 보고하지 않는다.
 
@@ -81,3 +82,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 프로젝트 라이선스와 maintainer 연락처는 아직 결정되지 않았다. `LicenseRef-Unspecified`는 미정 상태를 표시하며 사용 허가를 부여하지 않는다. `Maintainer not yet assigned` / `maintainer@example.invalid`는 패키지 형식을 위한 명시적 미정 표기다. 특정 사용자나 원본 작성자의 소유권·책임을 추정하지 않았다. 프로젝트가 결정한 값으로 교체하기 전에는 이 초기 패키지를 배포용 릴리스로 취급하지 않는다.
 
 원본 P4/amr-mini-project의 코드·가중치·지도·파라미터를 복사하지 않았다. 이후 이식 시 출처·라이선스 고지·계약 변경·관련 시험을 별도 PR에서 확인한다.
+
+## 계획 PR 5~10의 구현 근거
+
+패키지별 [로봇](implementation-robot.md)·[좌표](implementation-mapping.md)·[관측](implementation-perception.md)·[조정](implementation-coordination.md)·[보고](implementation-operations.md)·[통합](implementation-integration.md) 기록에 공개 API, 원본 출처, 자동시험과 미구현을 정리했다. 기존 위의 프로파일 v1 검사는 유지된다. 통합 리허설은 `runtime_enabled=false`를 바꾸지 않으며 물리 실행 권한이 없다.

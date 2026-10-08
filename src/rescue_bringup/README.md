@@ -1,7 +1,7 @@
 # rescue_bringup
 
-실행 프로파일 검사. 현재는 ROS를 import하지 않는 정적 JSON 검사 CLI만 동작한다.
+정적 JSON 배포 검사와 단일 프로세스의 합성 두 로봇 통합 리허설을 제공한다. 두 명령 모두 ROS 연결·로봇 이동은 수행하지 않는다.
 
-이 패키지는 제안된 기능 경계를 표시하는 초기 구조다. `rescue_bringup`의 정적 프로파일 검사 외에 실행 노드·launch·ROS 인터페이스·로봇 명령 경로는 제공하지 않는다. 가져올 원본 코드는 아직 복사하지 않았다.
+프로파일 CLI는 이 패키지만 필요하다. `python -m rescue_bringup.offline_demo`는 공통 계약을 포함한 일곱 rescue 패키지 설치가 필요하다. Python metadata의 `offline` extra와 ROS package manifest에 의존성을 기록했다. 실행 명령·산출물·E3/E4 미실행 관문은 [통합 기록](../../docs/implementation-integration.md)과 [실기 안내](../../docs/field-runbook.md)를 따른다.
 
-패키지 버전 `0.0.0`은 초기 구조를 뜻한다. 프로젝트 라이선스와 maintainer는 미결정이다. `LicenseRef-Unspecified`는 사용 허가를 뜻하지 않으며 `maintainer@example.invalid`는 실제 연락처가 아니다. 배포 전에 프로젝트가 결정한 메타데이터로 교체한다.
+라이선스와 maintainer는 미결정이며 현재 패키지는 배포 릴리스가 아니다. runtime_enabled는 false를 유지한다.

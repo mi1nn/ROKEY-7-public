@@ -25,3 +25,15 @@ jobs:
         env:
           PYTHONPATH: src/rescue_bringup
         run: python -m rescue_bringup config/deployment.example.json
+
+  installed-wheels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned build tools
+        run: python -m pip install setuptools==84.0.0 wheel==0.48.0
+      - name: Build offline and test isolated installed packages
+        run: python -I scripts/check_wheels.py
