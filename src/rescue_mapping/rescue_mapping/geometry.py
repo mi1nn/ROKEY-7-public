@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 import math
-from uuid import UUID
-from rescue_contracts import RescueError, canonical_code, robot_id
+from rescue_contracts import (RescueError, canonical_code, robot_id,
+                              timestamp_ns, uuid_string as common_uuid_string)
 
 
 class MappingError(RescueError):
@@ -41,15 +41,17 @@ def uint64(value, label):
 
 
 def uuid_string(value, label):
-    if not isinstance(value, str):
-        raise MappingError("INVALID_INPUT", label + " must be a canonical nonzero UUID")
     try:
-        parsed = UUID(value)
-    except (ValueError, AttributeError) as exc:
-        raise MappingError("INVALID_INPUT", label + " must be a canonical nonzero UUID") from exc
-    if not parsed.int or str(parsed) != value:
-        raise MappingError("INVALID_INPUT", label + " must be a canonical nonzero UUID")
-    return value
+        return common_uuid_string(value)
+    except RescueError as exc:
+        raise MappingError("INVALID_INPUT", label + ": " + exc.detail) from exc
+
+
+def timestamp(value, label):
+    try:
+        return timestamp_ns(value)
+    except RescueError as exc:
+        raise MappingError("INVALID_INPUT", label + ": " + exc.detail) from exc
 
 
 def finite(value, label, minimum=None):

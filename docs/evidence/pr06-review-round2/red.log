@@ -103,7 +103,7 @@ test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mappin
 FAIL: test_alignment_only_is_stale_and_can_reproject_original (test_review_mapping.MappingReviewTests.test_alignment_only_is_stale_and_can_reproject_original)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_mapping.py", line 21, in test_alignment_only_is_stale_and_can_reproject_original
+  File "tests/test_review_mapping.py", line 21, in test_alignment_only_is_stale_and_can_reproject_original
     self.assertEqual('STALE_DERIVATION', stale.status)
 AssertionError: 'STALE_DERIVATION' != 'NEEDS_REOBSERVATION'
 - STALE_DERIVATION
@@ -114,7 +114,7 @@ AssertionError: 'STALE_DERIVATION' != 'NEEDS_REOBSERVATION'
 FAIL: test_public_mapping_error_has_canonical_and_namespaced_detail (test_review_mapping.MappingReviewTests.test_public_mapping_error_has_canonical_and_namespaced_detail)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_mapping.py", line 57, in test_public_mapping_error_has_canonical_and_namespaced_detail
+  File "tests/test_review_mapping.py", line 57, in test_public_mapping_error_has_canonical_and_namespaced_detail
     self.assertEqual('STALE_OBSERVATION', error.code)
 AssertionError: 'STALE_OBSERVATION' != 'OBSERVATION_EXPIRED'
 - STALE_OBSERVATION
@@ -125,7 +125,7 @@ AssertionError: 'STALE_OBSERVATION' != 'OBSERVATION_EXPIRED'
 FAIL: test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mapping.MappingReviewTests.test_version_mismatch_uses_same_projection_status_vocabulary)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_mapping.py", line 51, in test_version_mismatch_uses_same_projection_status_vocabulary
+  File "tests/test_review_mapping.py", line 51, in test_version_mismatch_uses_same_projection_status_vocabulary
     self.assertEqual('STALE_DERIVATION', self.registry.projection(self.original.observation_id, now_ns=101).status)
 AssertionError: 'STALE_DERIVATION' != 'NEEDS_REOBSERVATION'
 - STALE_DERIVATION

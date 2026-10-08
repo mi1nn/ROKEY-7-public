@@ -4,7 +4,7 @@ from dataclasses import replace
 from threading import RLock
 from uuid import uuid4
 
-from .geometry import MappingError, finite, integer, name, robot_identifier, uint64, uuid_string, vector
+from .geometry import MappingError, finite, name, robot_identifier, timestamp, uint64, uuid_string, vector
 from .models import (CoordinateVersion, FrameAlignment, GoalSnapshot, GoalValidation,
                      Invalidation, MapState, ObservationReference, Projection,
                      SourceObservation, TimedTransform)
@@ -41,7 +41,7 @@ class MappingRegistry:
         self._clock_fault = False
 
     def _time(self, now_ns):
-        integer(now_ns, "now_ns", 1)
+        timestamp(now_ns, "now_ns")
         if self._last_time is not None and now_ns < self._last_time:
             self._clock_fault = True
         if self._clock_fault:

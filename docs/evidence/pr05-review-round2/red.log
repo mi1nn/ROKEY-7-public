@@ -9,9 +9,9 @@ test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.Exe
 ERROR: test_admission_reasons_are_canonical (test_executor_review.ExecutorReviewTests.test_admission_reasons_are_canonical)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 40, in test_admission_reasons_are_canonical
+  File "tests/test_executor_review.py", line 40, in test_admission_reasons_are_canonical
     self.setup_session()
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -20,10 +20,10 @@ TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot
 ERROR: test_bounded_velocity_before_fence_is_not_stop_requested (test_executor_review.ExecutorReviewTests.test_bounded_velocity_before_fence_is_not_stop_requested)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 35, in test_bounded_velocity_before_fence_is_not_stop_requested
+  File "tests/test_executor_review.py", line 35, in test_bounded_velocity_before_fence_is_not_stop_requested
     self.setup_session(); self.send()
     ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -32,10 +32,10 @@ TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot
 ERROR: test_external_cancel_and_abort_preserve_action_status (test_executor_review.ExecutorReviewTests.test_external_cancel_and_abort_preserve_action_status)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 54, in test_external_cancel_and_abort_preserve_action_status
+  File "tests/test_executor_review.py", line 54, in test_external_cancel_and_abort_preserve_action_status
     self.setup_session(); self.send()
     ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -44,9 +44,9 @@ TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot
 ERROR: test_float_epoch_and_conflicting_terminal_rejected (test_executor_review.ExecutorReviewTests.test_float_epoch_and_conflicting_terminal_rejected)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 72, in test_float_epoch_and_conflicting_terminal_rejected
+  File "tests/test_executor_review.py", line 72, in test_float_epoch_and_conflicting_terminal_rejected
     self.setup_session()
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -55,10 +55,10 @@ TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot
 ERROR: test_profile_ids_and_receipt_identity (test_executor_review.ExecutorReviewTests.test_profile_ids_and_receipt_identity)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 32, in test_profile_ids_and_receipt_identity
+  File "tests/test_executor_review.py", line 32, in test_profile_ids_and_receipt_identity
     self.setup_session(); self.send()
     ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -67,10 +67,10 @@ TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot
 ERROR: test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.ExecutorReviewTests.test_stop_cause_not_overwritten_by_action_cancellation)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 62, in test_stop_cause_not_overwritten_by_action_cancellation
+  File "tests/test_executor_review.py", line 62, in test_stop_cause_not_overwritten_by_action_cancellation
     self.setup_session(); self.send()
     ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/review-round2/robot/tests/test_executor_review.py", line 14, in setup_session
+  File "tests/test_executor_review.py", line 14, in setup_session
     self.e = Executor('alpha', uid(1), uid(2), policy, allowed_robot_ids=('alpha', 'bravo'))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Executor.__init__() got an unexpected keyword argument 'allowed_robot_ids'
