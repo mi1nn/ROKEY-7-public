@@ -110,9 +110,9 @@ test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mappin
 FAIL: test_alignment_timestamps_are_int64_while_revisions_remain_uint64 (test_mapping_time_contract.MappingTimeContractTests.test_alignment_timestamps_are_int64_while_revisions_remain_uint64)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 30, in test_alignment_timestamps_are_int64_while_revisions_remain_uint64
+  File "tests/test_mapping_time_contract.py", line 30, in test_alignment_timestamps_are_int64_while_revisions_remain_uint64
     self.assertInvalid(lambda: alignment(valid_from_ns=MAX_TIMESTAMP_NS + 1,
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 10, in assertInvalid
+  File "tests/test_mapping_time_contract.py", line 10, in assertInvalid
     with self.assertRaises(MappingError) as caught:
 AssertionError: MappingError not raised
 
@@ -120,7 +120,7 @@ AssertionError: MappingError not raised
 FAIL: test_invalid_now_does_not_poison_registry_clock_or_existing_goal (test_mapping_time_contract.MappingTimeContractTests.test_invalid_now_does_not_poison_registry_clock_or_existing_goal)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 46, in test_invalid_now_does_not_poison_registry_clock_or_existing_goal
+  File "tests/test_mapping_time_contract.py", line 46, in test_invalid_now_does_not_poison_registry_clock_or_existing_goal
     self.assertIn('INVALID_INPUT', rejected.reasons)
 AssertionError: 'INVALID_INPUT' not found in ('GOAL_SNAPSHOT_EXPIRED', 'BACKEND_NOT_INTEGRATED')
 
@@ -128,9 +128,9 @@ AssertionError: 'INVALID_INPUT' not found in ('GOAL_SNAPSHOT_EXPIRED', 'BACKEND_
 FAIL: test_observation_timestamps_are_positive_int64_not_unbounded_ints (test_mapping_time_contract.MappingTimeContractTests.test_observation_timestamps_are_positive_int64_not_unbounded_ints)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 16, in test_observation_timestamps_are_positive_int64_not_unbounded_ints
+  File "tests/test_mapping_time_contract.py", line 16, in test_observation_timestamps_are_positive_int64_not_unbounded_ints
     self.assertInvalid(lambda: observation(observed_at_ns=MAX_TIMESTAMP_NS + 1,
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 10, in assertInvalid
+  File "tests/test_mapping_time_contract.py", line 10, in assertInvalid
     with self.assertRaises(MappingError) as caught:
 AssertionError: MappingError not raised
 
@@ -138,9 +138,9 @@ AssertionError: MappingError not raised
 FAIL: test_tf_query_and_sample_timestamps_share_common_range (test_mapping_time_contract.MappingTimeContractTests.test_tf_query_and_sample_timestamps_share_common_range)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 22, in test_tf_query_and_sample_timestamps_share_common_range
+  File "tests/test_mapping_time_contract.py", line 22, in test_tf_query_and_sample_timestamps_share_common_range
     self.assertInvalid(lambda: transform(query_time_ns=MAX_TIMESTAMP_NS + 1,
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_mapping_time_contract.py", line 10, in assertInvalid
+  File "tests/test_mapping_time_contract.py", line 10, in assertInvalid
     with self.assertRaises(MappingError) as caught:
 AssertionError: MappingError not raised
 
