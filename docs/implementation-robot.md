@@ -51,5 +51,5 @@ CT-06/07/08의 일부 코어 불변식만 E2 증거를 얻는다. 상위 계약 
 ## Task 의 goal 필드 (2026-10-08)
 
 - C-06 Goal 의 `search_area_ref` 와 이동 목표를 `Task` 에 싣는다. `SEARCH_AREA` 는 `search_area_ref`(UUID) 필수, 다른 kind 는 `None`. `SEARCH_AREA`·`REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `goal_pose` 필수, `HOLD` 는 `None`.
-- `GoalPose(frame_id, x, y, yaw, map_session_id, map_revision)` 는 모양만 검사한다(유한값, canonical UUID, uint64). 그 좌표가 현재 지도에서 유효한지·도달 가능한지는 mapping/coordination 이 판정한다. `SEARCH_AREA` 의 `goal_pose` 는 당분간 구역 대표점이고 frontier 선택은 후속이다.
+- `GoalPose(frame_id, x, y, yaw, map_session_id, map_revision, transform_revision)` 는 모양만 검사한다(유한값, canonical UUID, uint64; `transform_revision` 도 필수). 그 좌표가 현재 지도에서 유효한지·도달 가능한지는 mapping/coordination 이 판정한다. `SEARCH_AREA` 의 `goal_pose` 는 당분간 구역 대표점이고 frontier 선택은 후속이다.
 - 두 필드는 `Task` 동등성에 포함되므로 같은 `command_id` 에 다른 구역·좌표가 오면 `ID_CONTENT_CONFLICT` 다(`tests/test_task_goal_fields.py`).
