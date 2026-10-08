@@ -108,8 +108,9 @@ class Readiness:
 class GoalPose:
     """Planar navigation goal carried by a Task (C-06 Goal: frame/session/revision).
 
-    Only shape is checked here: finite numbers, canonical UUID session and uint64
-    revision. Whether the pose is reachable or still valid for the current map
+    map_session_id/map_revision/transform_revision are the moving robot's
+    CoordinateVersion under which the goal was validated. Only shape is checked
+    here: finite numbers, canonical UUID session and uint64 revisions. Whether the pose is reachable or still valid for the current map
     is decided by mapping/coordination, not by this DTO.
     """
     frame_id: str
@@ -118,6 +119,7 @@ class GoalPose:
     yaw: float
     map_session_id: str
     map_revision: int
+    transform_revision: int
 
     def __post_init__(self):
         if not isinstance(self.frame_id, str) or not self.frame_id:
@@ -128,6 +130,7 @@ class GoalPose:
                 raise ContractError('goal ' + name)
         identifier(self.map_session_id)
         generation(self.map_revision)
+        generation(self.transform_revision)
 
 
 @dataclass(frozen=True)

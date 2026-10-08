@@ -88,12 +88,12 @@ class SearchCoordinatorTests(unittest.TestCase):
         self.assertEqual({'SEARCH_AREA', 'HOLD', 'APPROACH_TARGET'}, set(tasks))
         decision, task = tasks['SEARCH_AREA']
         self.assertEqual(area(1).site_id, task.search_area_ref)
-        self.assertEqual(GoalPose('mission', 1., 0., 0., MAP, 3), task.goal_pose)
+        self.assertEqual(GoalPose('mission', 1., 0., 0., MAP, 3, 1), task.goal_pose)
         self.assertEqual((None, None), tuple(getattr(tasks['HOLD'][1], k) for k in ('search_area_ref', 'goal_pose')))
         decision, task = tasks['APPROACH_TARGET']
         self.assertIsNone(task.search_area_ref)
         # Candidate goal_xy (not the target), facing the target at (0, 0).
-        self.assertEqual(GoalPose('mission', 1., 0., math.pi, MAP, 3), task.goal_pose)
+        self.assertEqual(GoalPose('mission', 1., 0., math.pi, MAP, 3, 1), task.goal_pose)
         self.assertEqual(uid(500), task.target_id)
         # Plain data only: coordination does not import rescue_robot types.
         self.assertIs(dict, type(search.task_fields['goal_pose']))
@@ -107,6 +107,16 @@ class SearchCoordinatorTests(unittest.TestCase):
                 decision = c.request_approach(uid(500), 0, projection_status='VALID', candidate=cand,
                                               robot_boot_id=BOOT['unit_2'], now_ns=NOW)
                 self.assertAlmostEqual(expected, task_of(decision.task_fields).goal_pose.yaw)
+
+    def test_goal_carries_the_transform_revision_it_was_planned_under(self):
+        # The robot guard rejects a goal whose alignment version is missing or stale.
+        c = self.make(areas=(area(1, transform_revision=7),))
+        self.assertEqual(7, self.plan(c, 'unit_1').task_fields['goal_pose']['transform_revision'])
+        c = self.make()
+        decision = c.request_approach(uid(500), 0, projection_status='VALID',
+                                      candidate=replace(candidate(), transform_revision=9),
+                                      robot_boot_id=BOOT['unit_2'], now_ns=NOW)
+        self.assertEqual(9, decision.task_fields['goal_pose']['transform_revision'])
 
     def test_search_area_yaw_is_the_configured_entry_yaw(self):
         for yaw in (0.7, -2.1):

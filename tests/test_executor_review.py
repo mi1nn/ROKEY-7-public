@@ -18,7 +18,7 @@ class ExecutorReviewTests(unittest.TestCase):
         self.assertTrue(self.e.arm(uid(2), now=.2, readiness=self.ready))
         self.task = Task(uid(3), uid(4), 'alpha', uid(1), uid(2), 0, 'SEARCH_AREA',
                          1700000000123456789, 1700000002123456789, 2, 'test-only',
-                         search_area_ref=uid(5), goal_pose=GoalPose('map', 1., 2., 0., uid(6), 0))
+                         search_area_ref=uid(5), goal_pose=GoalPose('map', 1., 2., 0., uid(6), 0, 0))
 
     def send(self):
         receipt = self.e.admit(self.task, now_wall_ns=self.task.issued_at_ns,

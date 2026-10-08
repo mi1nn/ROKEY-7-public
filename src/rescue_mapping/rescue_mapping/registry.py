@@ -177,6 +177,16 @@ class MappingRegistry:
             raise MappingError("ALIGNMENT_UNCERTAIN")
         return alignment
 
+    def current_alignment(self, source_robot, *, now_ns):
+        """Read-only: the usable map->mission alignment now, or MappingError.
+
+        Same checks as projection (VALID, inside validity window, error limits).
+        It grants nothing: auto approach eligibility stays false.
+        """
+        with self._lock:
+            self._time(now_ns)
+            return self._alignment(source_robot, now_ns)
+
     @staticmethod
     def _version(alignment):
         return CoordinateVersion(alignment.source_robot, alignment.map_frame,

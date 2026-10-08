@@ -137,7 +137,7 @@ class Decision:
     ``task_fields`` are keyword arguments for ``rescue_robot.executor.Task``;
     the robot lane builds and admits the Task and returns the TaskAdmission.
     ``goal_pose`` is a plain dict with GoalPose's fields (frame_id, x, y, yaw,
-    map_session_id, map_revision) or None for HOLD. The robot lane converts it
+    map_session_id, map_revision, transform_revision) or None for HOLD. The robot lane converts it
     with ``GoalPose(**d)``; coordination does not import rescue_robot, keeping
     the contracts -> features dependency direction (작전 2026-10-08).
     """
@@ -315,13 +315,13 @@ class SearchCoordinator:
         if kind == 'HOLD':
             return None
         if kind == 'SEARCH_AREA':
-            xy, session, map_revision = area.mission_xy, area.map_session_id, area.map_revision
-            yaw = area.entry_yaw
+            source, xy, yaw = area, area.mission_xy, area.entry_yaw
         else:
-            xy, session, map_revision = candidate.goal_xy, candidate.map_session_id, candidate.map_revision
+            source, xy = candidate, candidate.goal_xy
             yaw = math.atan2(candidate.target_xy[1] - xy[1], candidate.target_xy[0] - xy[0])
         return dict(frame_id=self.policy.mission_frame_id, x=float(xy[0]), y=float(xy[1]), yaw=float(yaw),
-                    map_session_id=session, map_revision=map_revision)
+                    map_session_id=source.map_session_id, map_revision=source.map_revision,
+                    transform_revision=source.transform_revision)
 
     def _reserve(self, robot_id, robot_boot_id, kind, target_id, target_revision, candidate, now_ns,
                  *, area=None):

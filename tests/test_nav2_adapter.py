@@ -50,7 +50,7 @@ class AdapterTests(unittest.TestCase):
         self.guard_ok = True
         self.a, self.nav_a = self.make(self.deployment.robots[0].id, boot=1)
         self.b, self.nav_b = self.make(self.deployment.robots[1].id, boot=11)
-        self.pose = GoalPose('map', 1.0, 2.0, 0.0, uid(900), 0)
+        self.pose = GoalPose('map', 1.0, 2.0, 0.0, uid(900), 0, 0)
 
     def make(self, robot_id, boot):
         executor = Executor(robot_id, uid(boot), uid(boot + 1), POLICY, allowed_robot_ids=self.ids)
@@ -310,7 +310,7 @@ class AdapterTests(unittest.TestCase):
         self.ready(self.a)
         task = self.task(self.a, 1, 3)
         self.assertTrue(self.a.submit(task).accepted)
-        other = self.task(self.a, 1, 3, goal_pose=GoalPose('map', 9.0, 9.0, 0.0, uid(900), 0))
+        other = self.task(self.a, 1, 3, goal_pose=GoalPose('map', 9.0, 9.0, 0.0, uid(900), 0, 0))
         self.assertEqual(self.a.submit(other).reason, 'ID_CONTENT_CONFLICT')
         self.a.step()
         self.assertEqual(self.nav_a.goals, [(uid(3), self.pose)])

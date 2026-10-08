@@ -2,7 +2,7 @@
 
 명령 수락·단일 활성 임무·임대·취소·정지 확인의 순수 Python 코어(`executor.py`)와, 그 코어를 Nav2 `NavigateToPose` 에 잇는 명령 어댑터(`nav2_adapter.py`, ROS 경계 `ros_node.py`)다. SLAM 실행·언도킹은 하지 않는다.
 
-공개 API는 `Policy`, `Readiness`, `Task`, `GoalPose`, `Executor`, `CommandAdapter`다. 인수와 시간 진행 예시는 [`tests/test_executor.py`](../../tests/test_executor.py)와 [`tests/test_nav2_adapter.py`](../../tests/test_nav2_adapter.py)를 참고한다. 모든 운용 임계값은 호출자가 명시해야 한다. 시험값은 실기 기본값이 아니다.
+공개 API는 `Policy`, `Readiness`, `Task`, `GoalPose`, `Executor`, `CommandAdapter`, `MissionGoalBinder`, `ReadinessPolicy`, `ReadinessMonitor`다. 인수와 시간 진행 예시는 [`tests/test_executor.py`](../../tests/test_executor.py)와 [`tests/test_nav2_adapter.py`](../../tests/test_nav2_adapter.py)를 참고한다. 모든 운용 임계값은 호출자가 명시해야 한다. 시험값은 실기 기본값이 아니다.
 
 자세한 구현 경계·출처·남은 검증은 [구현 기록](../../docs/implementation-robot.md)에 있다. 이 코어를 단독으로 로봇에 연결하지 않는다. 인증된 단일 어댑터, 시각/센서 증거, 장비측 watchdog이 필요한 상태다.
 
@@ -23,9 +23,32 @@
 - 이 어댑터가 보내지 않은 `command_id` 의 콜백(`FOREIGN_*`)은 실행기에 넘기지 않는다. 로봇마다 어댑터·포트·네임스페이스가 따로라서 한 로봇의 콜백이 다른 로봇의 취소를 만들지 않는다.
 - `Readiness` 는 여섯 상태(`driver`, `sensors`, `slam`, `nav2`, `undocked`, `watchdog`)가 모두 들어와야 하고 가장 오래된 수신 시각을 쓴다. 하나라도 없으면 준비 안 됨이다.
 - `guards(task) -> bool` 은 호출자가 주입하고 SEND 직전과 매 `step` 에 다시 본다(지도 revision 등; mapping 연결은 후속).
-- **goal frame**: 어댑터는 `task.goal_pose` 를 그대로 보낸다. Nav2 는 로봇 자신의 map frame 목표만 이해하므로, mission 기준 좌표(프로파일 v2 의 구역·대기 위치)를 로봇 map 으로 바꾸는 일은 mapping 의 책임이고 이 어댑터에는 아직 없다(후속).
+- **goal frame**: `bind_goal` 을 주지 않으면 `task.goal_pose` 를 그대로 보낸다. 지도 guard(아래)를 쓰면 mission 좌표를 로봇 map 좌표로 바꿔 보낸다. 어느 경우든 `Task` 자체는 바꾸지 않는다.
 - **odom 시각 [미확인]**: `sample_steady = received_steady − (wall_now − header_ns)/1e9`. 로봇과 PC 시계가 `clock_error_bound_s`(로컬 float 초; C-03 의 int `clock_error_bound_ns` 와 다름) 안에서 맞는다고 전제한다(측정 전). |차이| 가 상한을 넘거나 stamp 가 무효이면 표본으로 쓰지 않고 `Executor.invalidate_stop_evidence` 로 정지 창을 초기화한다 → 증거 부족은 `STOP_EVIDENCE_STALE`·`STOP_UNCONFIRMED` 로 드러난다.
 - 두 로봇은 같은 어댑터를 쓰고 task kind 만 다르다(SCOUT: `SEARCH_AREA`·`REOBSERVE_TARGET`, SUPPORT: `HOLD`·`APPROACH_TARGET`). 역할은 설정에서 오고 코드에 두지 않는다. `HOLD` 는 goal 없이 정지 확인 뒤 `COMPLETED` 다.
+
+## 지도 guard (`goal_binding.MissionGoalBinder`)
+
+`goal_pose` 의 `map_session_id`·`map_revision`·`transform_revision` 은 이동하는 로봇 지도에서 그 goal 이 검증된 버전이다. binder 는 `MappingRegistry`(import 하지 않고 받음)의 `map_state`·`current_alignment`(읽기 전용)로 다음을 본다.
+
+- `bind(task)`(dispatch 직전): 버전이 현재와 같으면 정렬의 역변환으로 mission → 로봇 map 좌표·방향을 만들어 SEND 에만 쓴다. 실패하면 아무것도 보내지 않고 guard 실패(`GUARD_INVALID`)다.
+- `check(task)`(매 `step`): goal 의 frame 이 mission 이 아님, 버전 불일치(지도 보정·세션 교체·정렬 변경), 정렬 없음·만료·오차 초과 중 하나면 False → 취소 → 정지 관문. 주행 중 정렬이 바뀐 경우도 여기서 잡힌다(C-04).
+- `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 호출자가 GoalSnapshot 검증(`coordinates_valid`)과 `auto_approach_eligible`(지금은 항상 False)을 묶어 넣는다. 그래서 backend 보정 검증 전에는 대상 지점 SEND 가 나가지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
+
+## 준비 신호 (`readiness.ReadinessMonitor`)
+
+출처별 마지막 **로컬 수신 시각**과 `ReadinessPolicy` 의 최대 나이로 `driver`·`sensors`·`slam`·`watchdog` flag 를 만든다. 수신 여부만 보고 센서 header 나이(인식 몫)나 SLAM 보정은 판단하지 않는다. 출처가 없는 flag 는 만들지 않으므로 그 flag 는 계속 준비 안 됨이다.
+
+| flag | 출처 | 비고 |
+| --- | --- | --- |
+| `driver` | odom (+ `wheel_status`, 있으면) | |
+| `sensors` | scan (+ 카메라 토픽들) | |
+| `slam` | 네임스페이스 `tf` 의 `map_frame → odom_frame` 수신 | freshness 만 |
+| `nav2` | action server ready | 기존 |
+| `undocked` | dock status | 기존 |
+| `watchdog` | 로봇 측 명령 watchdog 의 heartbeat | **출처 없음**(그 노드가 아직 없음) → 움직이지 않음. Create 3 의 cmd_vel timeout 은 검증된 증거가 아님 |
+
+최대 나이 값은 정해지지 않았다 [미확인]. 시험값만 있다.
 
 ## ROS 노드 (`command_adapter`)
 
@@ -34,10 +57,14 @@
 | 파라미터 | 출처 |
 | --- | --- |
 | `allowed_robot_ids`(문자열 배열), `robot_id`, `namespace` | 프로파일의 두 로봇 ID 와 해당 로봇 namespace. 노드 namespace 와 다르면 기동 거부 |
-| `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(작전 PR)가 들어오면 그 값을 쓴다 |
+| `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(#17)가 들어오면 그 값을 쓴다 |
 | `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 실기 값 미정(T-01) |
+| `scan_topic`, `tf_topic`, `map_frame`, `odom_frame` | 준비 신호 출처(필수) |
+| `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음. `/compressed` 로 끝나는 카메라 토픽은 `CompressedImage`, 그 밖은 `Image` 로 구독(TB4 OAK-D 기본 발행이 compressed, P4 DEC-004) |
+| `watchdog_heartbeat_topic` | 지금은 **반드시 빈 값**(값이 있으면 기동 거부). 로봇 측 watchdog 노드가 생기면 연다 |
+| `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf}`(초) | 준비 신호 정책. 값 미정 [미확인] |
 
-이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력(`ExecuteTask`, `rescue_interfaces` 미구현)이 없고, 지도 revision guard 가 연결되기 전까지 guard 가 모든 dispatch 를 거절한다. `driver`·`sensors`·`slam`·`watchdog` 준비 provider 도 아직 없다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
+이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력(`ExecuteTask`, `rescue_interfaces` 미구현)이 없고, 이 프로세스에 정렬 입력(mapping ROS 어댑터)이 없어 guard 가 모든 dispatch 를 거절하며, watchdog 출처가 없다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
 
 ## 검사
 
@@ -47,6 +74,8 @@ python3 -I scripts/run_tests.py                     # E2, ROS 없이 (tests/test
 ROS_DOMAIN_ID=42 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
   PYTHONPATH=$PWD/src/rescue_contracts:$PWD/src/rescue_robot:$PYTHONPATH \
   python3 tests/ros/e3_odom_probe.py
+# 같은 환경에서
+python3 tests/ros/e3_readiness_probe.py
 ```
 
-E3 탐침은 실제 `nav_msgs/Odometry` 토픽 두 개(`/robot_a/odom`, `/robot_b/odom`)가 각 실행기에만 들어가는지 본다. `NavigateToPose` action 은 다루지 않는다.
+E3 탐침은 실제 토픽이 네임스페이스별로 섞이지 않는지 본다: odom 탐침은 `/robot_a/odom`·`/robot_b/odom` 정지 증거, 준비 신호 탐침은 odom·LaserScan·`map → odom` TF. `NavigateToPose` action 은 다루지 않는다.

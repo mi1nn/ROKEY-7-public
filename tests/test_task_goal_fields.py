@@ -10,7 +10,7 @@ def uid(n):
     return str(UUID(int=n))
 
 
-POSE = GoalPose('map', 1., 2., 0., uid(6), 0)
+POSE = GoalPose('map', 1., 2., 0., uid(6), 0, 0)
 
 
 def task(kind='SEARCH_AREA', **changes):
