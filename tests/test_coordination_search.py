@@ -29,7 +29,8 @@ def policy(roles=(('unit_1', 'SCOUT'), ('unit_2', 'SUPPORT')), areas=None, **cha
     values = dict(version='test-only', roles=roles,
                   areas=areas if areas is not None else (area(1), area(2), area(3)),
                   executable_bases=frozenset({'MAP_REVISION_BOUND'}), task_duration_ns=60_000_000_000,
-                  lease_duration=10., executor_policy_version='exec-test')
+                  lease_duration=10., executor_policy_version='exec-test',
+                  mission_frame_id='mission')
     return SearchPolicy(**(values | changes))
 
 
@@ -246,6 +247,8 @@ class SearchCoordinatorTests(unittest.TestCase):
                 policy(roles=roles)
         with self.assertRaises(CoordinationError):
             policy(areas=(area(1), area(1)))
+        with self.assertRaises(CoordinationError):
+            policy(mission_frame_id='')
         with self.assertRaises(CoordinationError):
             SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=('unit_1', 'unit_3')), policy())
 

@@ -47,9 +47,9 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 재배정은 (1) 현재 구역 결과 수신·정지 확인 (2) `withdraw_area`로 구역 근거 철회(`RELEASE_REQUIRED`) (3) 로봇 부적격 뒤 실행기 정지 결과에서만 일어난다. SUPPORT가 접근 중일 때 SCOUT는 기본적으로 다음 구역 수색을 계속하고(`scout_continues_during_approach=True`), False면 새 구역 제안만 멈춘다. 반환 사유는 `DECISION_REASONS` 닫힌 집합이다.
 
-`Reservation.task_kind`가 추가됐다. `APPROACH_TARGET`·`REOBSERVE_TARGET`은 `PathCandidate`가 필수이고(기본값이 `APPROACH_TARGET`이라 기존 호출도 후보가 필요), `SEARCH_AREA`·`HOLD`만 `candidate=None`을 허용한다. 예약은 PENDING이며 후보는 접근 전용 경로 증거다. `HOLD`는 실행기 의미대로 제자리 정지 유지이며, 대기 위치로의 이동은 기반 레인 후속이다. `executor.Task`에 `search_area_ref`가 들어오기 전까지 task와 구역의 대응은 예약의 `target_id`(구역 ID)에만 있다. 실제 지도 좌표 근거·frontier·전송·두 AMR·4 PC는 미실행이다.
+`Reservation.task_kind`가 추가됐다. `APPROACH_TARGET`·`REOBSERVE_TARGET`은 `PathCandidate`가 필수이고(기본값이 `APPROACH_TARGET`이라 기존 호출도 후보가 필요), `SEARCH_AREA`·`HOLD`만 `candidate=None`을 허용한다. 예약은 PENDING이며 후보는 접근 전용 경로 증거다. `HOLD`는 실행기 의미대로 제자리 정지 유지이며, 대기 위치로의 이동은 기반 레인 후속이다. `task_fields`는 #14의 `search_area_ref`(SEARCH_AREA는 구역 ID, 그 외 None)와 `goal_pose`(SEARCH_AREA는 구역 mission 좌표와 근거 map session/revision, APPROACH는 후보 `goal_xy`와 후보 map session/revision, HOLD는 None)를 채운다. frame은 정책의 `mission_frame_id`이고 yaw는 0.0이다(방향은 coordination이 정하지 않음). `goal_pose`는 일반 dict로 주고 로봇 레인이 `GoalPose(**d)`로 바꾼다. coordination이 `rescue_robot`을 import하지 않게 하기 위해서다. 실제 지도 좌표 근거·frontier·전송·두 AMR·4 PC는 미실행이다.
 
-후속(작전 검토 2026-10-08): 공통 규격 PR #17이 `main`에 들어가면 `planning.TASK_KINDS`·`TARGET_TASK_KINDS` 복제를 `rescue_contracts` import로 바꾼다(OPS-01). 프로파일 v2 `mission.search_areas`를 `MissionSite`로 옮기는 로더 함수를 둔다. PR #14가 들어가면 `task_fields`에 `search_area_ref`(SEARCH_AREA는 구역 ID)와 `goal_pose`(SEARCH_AREA는 구역 mission 좌표와 근거 session/revision, APPROACH는 후보 goal_xy와 후보 map session/revision, HOLD는 None)를 채운다.
+후속(작전 검토 2026-10-08): 공통 규격 PR #17이 `main`에 들어가면 `planning.TASK_KINDS`·`TARGET_TASK_KINDS` 복제를 `rescue_contracts` import로 바꾼다(OPS-01). 프로파일 v2 `mission.search_areas`를 `MissionSite`로 옮기는 로더 함수를 둔다.
 
 ## 출처와 변경 이유
 

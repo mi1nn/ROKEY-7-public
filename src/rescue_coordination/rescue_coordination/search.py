@@ -76,6 +76,8 @@ class SearchPolicy:
     - ``scout_continues_during_approach``: True keeps the SCOUT searching new
       areas while an approach is reserved/active; False stops proposing new
       areas (the current area is not cancelled by this flag).
+    - ``mission_frame_id``: frame of area/candidate coordinates in goal poses;
+      from the deployment profile, never a code constant (AGENTS 8).
     """
     version: str
     roles: tuple
@@ -84,6 +86,7 @@ class SearchPolicy:
     task_duration_ns: int
     lease_duration: float
     executor_policy_version: str
+    mission_frame_id: str
     scout_continues_during_approach: bool = True
 
     def __post_init__(self):
@@ -91,6 +94,8 @@ class SearchPolicy:
             raise CoordinationError('INVALID_POLICY', 'policy version')
         if not isinstance(self.executor_policy_version, str) or not self.executor_policy_version:
             raise CoordinationError('INVALID_POLICY', 'executor policy version')
+        if not isinstance(self.mission_frame_id, str) or not self.mission_frame_id:
+            raise CoordinationError('INVALID_POLICY', 'mission frame')
         if not isinstance(self.roles, tuple) or not all(isinstance(r, tuple) and len(r) == 2 for r in self.roles):
             raise CoordinationError('INVALID_POLICY', 'roles must be ((robot_id, role), ...)')
         ids = [robot(r) for r, _ in self.roles]
@@ -126,6 +131,10 @@ class Decision:
 
     ``task_fields`` are keyword arguments for ``rescue_robot.executor.Task``;
     the robot lane builds and admits the Task and returns the TaskAdmission.
+    ``goal_pose`` is a plain dict with GoalPose's fields (frame_id, x, y, yaw,
+    map_session_id, map_revision) or None for HOLD. The robot lane converts it
+    with ``GoalPose(**d)``; coordination does not import rescue_robot, keeping
+    the contracts -> features dependency direction (작전 2026-10-08).
     """
     action: str
     reason: str
@@ -219,7 +228,7 @@ class SearchCoordinator:
             if (self.policy.executable(area) and area.site_id not in self.completed_areas
                     and area.site_id not in self.withdrawn_areas and area.site_id not in taken):
                 return self._reserve(robot_id, robot_boot_id, 'SEARCH_AREA', area.site_id,
-                                     area.map_revision, None, now_ns)
+                                     area.map_revision, None, now_ns, area=area)
         return Decision('WAIT', 'NO_EXECUTABLE_AREA')
 
     def request_approach(self, event_id, target_revision, *, projection_status, candidate,
@@ -290,7 +299,20 @@ class SearchCoordinator:
             self.held.pop(item.robot_id, None)
         return True
 
-    def _reserve(self, robot_id, robot_boot_id, kind, target_id, target_revision, candidate, now_ns):
+    def _goal_pose(self, kind, area, candidate):
+        """Goal for the robot lane. Yaw is 0.0: coordination does not choose a
+        heading; the executor/planner may refine it. HOLD stays in place."""
+        if kind == 'HOLD':
+            return None
+        if kind == 'SEARCH_AREA':
+            xy, session, map_revision = area.mission_xy, area.map_session_id, area.map_revision
+        else:
+            xy, session, map_revision = candidate.goal_xy, candidate.map_session_id, candidate.map_revision
+        return dict(frame_id=self.policy.mission_frame_id, x=float(xy[0]), y=float(xy[1]), yaw=0.0,
+                    map_session_id=session, map_revision=map_revision)
+
+    def _reserve(self, robot_id, robot_boot_id, kind, target_id, target_revision, candidate, now_ns,
+                 *, area=None):
         deadline = now_ns + self.policy.task_duration_ns
         contract_value(timestamp_ns, deadline)
         generation = self.allocator.issue_generation(robot_id)
@@ -307,5 +329,7 @@ class SearchCoordinator:
                       lease_duration=float(self.policy.lease_duration),
                       policy_version=self.policy.executor_policy_version,
                       target_id=target_id if is_target else None,
-                      target_revision=target_revision if is_target else None)
+                      target_revision=target_revision if is_target else None,
+                      search_area_ref=area.site_id if kind == 'SEARCH_AREA' else None,
+                      goal_pose=self._goal_pose(kind, area, candidate))
         return Decision('RESERVED', 'PENDING_EXECUTOR_ADMISSION', item, fields)
