@@ -6,6 +6,7 @@ PR 4에서 동작하던 기능은 `rescue_bringup`의 **로컬 JSON 프로파일
 
 | 패키지 | 예정 책임 | 현재 동작 |
 | --- | --- | --- |
+| `rescue_contracts` | Python 공통 값·오류·ID·시간·수락 계약 | canonical 오류+세부 원인, 정확한 int64 ns, 프로파일 ID 2개, TaskAdmission. ROS IDL 없음 |
 | `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 명령·취소·정지 판정 Python 코어, ROS 어댑터 없음 |
 | `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 입력된 탐지의 RGB-D 위치·시간 검증/사건 코어. 모델 추론 미구현 |
 | `rescue_coordination` | 수색 분담·임무 배정·인계·통행 조정 | 경로 후보·중복 배정·접근 확인·통로 코어. 실제 planner/탐색/ROS 전송 미구현 |

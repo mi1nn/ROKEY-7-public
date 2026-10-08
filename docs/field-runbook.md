@@ -19,7 +19,7 @@ updated: 2026-10-08
 먼저 아래 **로컬 E2 명령**을 저장소 루트에서 실행할 수 있다. 새 output 경로를 사용한다.
 
 ```sh
-export PYTHONPATH=src/rescue_bringup:src/rescue_robot:src/rescue_mapping:src/rescue_perception:src/rescue_coordination:src/rescue_operations
+export PYTHONPATH=src/rescue_bringup:src/rescue_robot:src/rescue_mapping:src/rescue_perception:src/rescue_coordination:src/rescue_operations:src/rescue_contracts
 python3 -m rescue_bringup config/deployment.example.json
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 -m rescue_bringup.offline_demo config/deployment.example.json --output work/offline-run-001
@@ -49,6 +49,8 @@ P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 �
 사람/시연 인형·촬영 세션을 분리한 평가 데이터로 모델 class·confidence·track 의미, Depth 결측·배경 혼입, 위치 오차/공분산, 가림·조명을 검증한다. 객체의 점 자체를 goal로 보내지 않고 자유 공간·footprint·불확실성·제동/보호 영역과 실제 경로를 평가한다. 전송 FPS·합성 타일·기존 car/dummy 점수는 이 평가를 대신하지 않는다.
 
 ## 4. 제한된 공간의 E4 실행 순서
+
+CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](implementation-integration.md)에서 수색 SEND 의도→취소 요청→terminal CANCELED→합성 정지 증거→새 generation→접근 admission→실제 TaskAdmission으로 배정 승격까지 연결했다. 자동 접근 SEND는 여전히 차단된다. 이 결과는 ROS action 취소/terminal 전달, 실제 odometry의 정지 판정, 접근 주행·재관측을 검증하지 않는다. 아래 E3/E4 관문은 별도로 구현하고 실행해야 한다.
 
 현장 실행 담당은 합의한 속도·영역·정지 수단으로 먼저 한 로봇의 최종 명령 차단·fresh stop 관측을 검증하고, 두 로봇의 분리된 수색과 공통 좌표 관문을 이어간다. 이후 [AC-01~07](acceptance-plan.md)에 따라 현재 배포 기준안의 실제 네 PC 부하에서 역할을 교환한다.
 

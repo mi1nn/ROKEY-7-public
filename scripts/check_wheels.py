@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline-build all six packages; test installed wheels in a fresh venv.
+"""Offline-build all seven packages; test installed wheels in a fresh venv.
 
 Build interpreter must already have setuptools and wheel. No network/package
 resolver is used. Temporary build copies prevent dirtying the source checkout.
@@ -14,10 +14,14 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_PACKAGES = ('rescue_bringup', 'rescue_contracts', 'rescue_coordination',
+                     'rescue_mapping', 'rescue_operations', 'rescue_perception', 'rescue_robot')
 PACKAGES = sorted((ROOT / 'src').glob('rescue_*'))
 
 
 def main():
+    if tuple(p.name for p in PACKAGES) != EXPECTED_PACKAGES:
+        raise RuntimeError('source package set does not match the seven reviewed packages')
     env = dict(os.environ)
     env.pop('PYTHONPATH', None)
     env.pop('PYTHONHOME', None)
@@ -37,12 +41,12 @@ def main():
         run([sys.executable, '-m', 'venv', venv])
         python = venv/('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
         built = sorted(wheels.glob('*.whl'))
-        if len(built) != 6:
-            raise RuntimeError('expected exactly six wheels')
+        if tuple(p.name.split('-')[0] for p in built) != EXPECTED_PACKAGES:
+            raise RuntimeError('expected exactly one wheel per reviewed package, including rescue_contracts')
         run([python, '-m', 'pip', 'install', '--no-index', '--no-deps', *built])
         run([python, '-m', 'pip', 'check'])
         code = '''import importlib,sys
-for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordination','rescue_operations','rescue_bringup'):
+for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordination','rescue_operations','rescue_bringup','rescue_contracts'):
  module=importlib.import_module(name)
  assert module.__file__.startswith(sys.prefix), (name,module.__file__,sys.prefix)
  print('INSTALLED IMPORT',name)
@@ -53,6 +57,9 @@ for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordin
         for name in ('tests', 'config'):
             shutil.copytree(ROOT/name, check/name, ignore=shutil.ignore_patterns('__pycache__'))
         test_code = '''import sys,unittest
+from pathlib import Path
+assert not (Path.cwd()/'src').exists(), 'installed test checkout must not contain source'
+print('SOURCELESS_CHECKOUT', flush=True)
 suite=unittest.defaultTestLoader.discover(sys.argv[1])
 assert suite.countTestCases()>0, 'empty installed test suite'
 print('Installed suite:',suite.countTestCases(),flush=True)
@@ -61,7 +68,7 @@ raise SystemExit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccess
         run([python, '-I', '-B', '-c', test_code, check/'tests'], cwd=check)
         hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in built}
         print('WHEEL_SHA256', json.dumps(hashes, sort_keys=True), flush=True)
-    print('PASS six installed wheels, dependency check, isolated imports and nonempty tests')
+    print('PASS seven installed wheels, dependency check, isolated imports and nonempty tests')
     return 0
 
 

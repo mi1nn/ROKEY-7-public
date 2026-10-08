@@ -1,0 +1,443 @@
+{
+  "schema_version": 1,
+  "evidence_level": "E2_SYNTHETIC_IN_PROCESS",
+  "physical_robots_used": 0,
+  "master_processes_used": 1,
+  "model_inference_run": false,
+  "ros_run": false,
+  "field_acceptance": "NOT_RUN",
+  "slam_backend_integration": "BLOCKED",
+  "deployment_profile": "deployment.example.json",
+  "profile_sha256": "e139faa702805b8af0d92e9284ee33a2a8021191cbf9d8955708dabc02837b87",
+  "configured_deployment": {
+    "id": "review_example",
+    "hosts": [
+      {
+        "id": "compute_a",
+        "tier": "high"
+      },
+      {
+        "id": "compute_b",
+        "tier": "high"
+      },
+      {
+        "id": "coordination",
+        "tier": "mid"
+      },
+      {
+        "id": "operations",
+        "tier": "mid"
+      }
+    ],
+    "robots": [
+      {
+        "id": "robot_a",
+        "namespace": "/robot_a",
+        "command_host": "compute_a",
+        "slam_host": "compute_a",
+        "perception_host": "compute_a",
+        "parameters_file": "robots/robot_a.json",
+        "parameters": {
+          "robot_id": "robot_a",
+          "namespace": "/robot_a",
+          "use_sim_time": false
+        }
+      },
+      {
+        "id": "robot_b",
+        "namespace": "/robot_b",
+        "command_host": "compute_b",
+        "slam_host": "compute_b",
+        "perception_host": "compute_b",
+        "parameters_file": "robots/robot_b.json",
+        "parameters": {
+          "robot_id": "robot_b",
+          "namespace": "/robot_b",
+          "use_sim_time": false
+        }
+      }
+    ],
+    "coordination_host": "coordination",
+    "operations_host": "operations"
+  },
+  "configured_hosts_used_as_processes": false,
+  "synthetic_evidence": "Generated solid-colour PNG bytes; no camera or person photograph",
+  "revision_check": {
+    "changed_robot": "robot_a",
+    "a_status": "NEEDS_REOBSERVATION",
+    "b_status": "VALID",
+    "invalidated_observation_ids": [
+      "d296429d-df08-5cba-9d93-b5946173323d"
+    ],
+    "goal_valid_after_revision": [
+      false,
+      false
+    ]
+  },
+  "outbox_recovery": {
+    "states": [
+      "PERSISTED",
+      "PERSISTED"
+    ],
+    "attempts": [
+      2,
+      1
+    ],
+    "state_after_lost_receipt": "RETRY_PENDING"
+  },
+  "proposals": [
+    {
+      "observer": "robot_a",
+      "responder": "robot_b",
+      "task_id": "73449ae8-f3a7-5416-a5be-2a733d281235",
+      "generation": 1,
+      "coordinates_valid": true,
+      "auto_approach_eligible": false,
+      "approach_command_sent": false,
+      "reason": "SLAM_BACKEND_CORRECTION_UNVERIFIED",
+      "goal_snapshot": "401ed0f6-137f-42d6-865d-b649c7c9091c",
+      "source_observation": "d296429d-df08-5cba-9d93-b5946173323d",
+      "target_mission_xyz": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "candidate_mission_xyz": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "candidate_destination_xyz": [
+        2.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "observer": "robot_b",
+      "responder": "robot_a",
+      "task_id": "36213383-d26d-5503-a9d8-9287a226b33d",
+      "generation": 1,
+      "coordinates_valid": true,
+      "auto_approach_eligible": false,
+      "approach_command_sent": false,
+      "reason": "SLAM_BACKEND_CORRECTION_UNVERIFIED",
+      "goal_snapshot": "c4ca7540-f3b4-4563-986e-1843c09a97df",
+      "source_observation": "a7d206c0-f6d0-58b6-a28d-c6904404ce2a",
+      "target_mission_xyz": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "candidate_mission_xyz": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "candidate_destination_xyz": [
+        4.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "synthetic_search": [
+    {
+      "robot_id": "robot_b",
+      "task_kind": "SEARCH_AREA",
+      "sequence": [
+        "SEARCH_SEND",
+        "CANCEL_REQUEST",
+        "TERMINAL_CANCELED",
+        "STOP_CONFIRMED",
+        "NEW_GENERATION",
+        "APPROACH_ADMISSION",
+        "ALLOCATOR_RECORD_ADMISSION",
+        "APPROACH_SEND_BLOCKED"
+      ],
+      "search_admission": {
+        "command_id": "5aa8467e-9101-54eb-8041-55601b0eef0a",
+        "task_id": "39a60619-ae93-5b57-b715-903d59fbb085",
+        "robot_id": "robot_b",
+        "robot_boot_id": "f96c1635-b965-5c92-b49a-a8c7b013e8ed",
+        "authority_epoch": "e5a5a75d-00de-57eb-90d7-48c61b86c8af",
+        "generation": 0,
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "detail_code": "rescue_robot.ACCEPTED"
+      },
+      "synthetic_intents": [
+        [
+          "SEND",
+          "5aa8467e-9101-54eb-8041-55601b0eef0a"
+        ],
+        [
+          "CANCEL",
+          "5aa8467e-9101-54eb-8041-55601b0eef0a"
+        ]
+      ],
+      "terminal_received": true,
+      "search_result_before_stop_samples": false,
+      "synthetic_stop_sample_times": [
+        0.7,
+        0.8,
+        0.9,
+        1.0
+      ],
+      "result": {
+        "command_id": "5aa8467e-9101-54eb-8041-55601b0eef0a",
+        "outcome": "CANCELED",
+        "reason": "ACTION_CANCELED",
+        "original_cause": "ACTION_CANCELED",
+        "stop_confirmed": true,
+        "action_status": "CANCELED",
+        "detail_code": "rescue_robot.ACTION_CANCELED"
+      },
+      "approach_admission": {
+        "command_id": "1f1282e8-9533-5189-b303-67b8a6b4dbde",
+        "task_id": "73449ae8-f3a7-5416-a5be-2a733d281235",
+        "robot_id": "robot_b",
+        "robot_boot_id": "f96c1635-b965-5c92-b49a-a8c7b013e8ed",
+        "authority_epoch": "e5a5a75d-00de-57eb-90d7-48c61b86c8af",
+        "generation": 1,
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "detail_code": "rescue_robot.ACCEPTED"
+      },
+      "new_generation": 1,
+      "allocator_active_before_admission": false,
+      "allocator_recorded_admission": true,
+      "allocator_active_after_admission": true,
+      "approach_dispatched": false,
+      "approach_intents": [],
+      "approach_executor_state": "STOPPING",
+      "approach_stop_cause": "GUARD_INVALID",
+      "real_command_sent": false,
+      "evidence_source": "SYNTHETIC_ACTION_AND_ODOMETRY"
+    },
+    {
+      "robot_id": "robot_a",
+      "task_kind": "SEARCH_AREA",
+      "sequence": [
+        "SEARCH_SEND",
+        "CANCEL_REQUEST",
+        "TERMINAL_CANCELED",
+        "STOP_CONFIRMED",
+        "NEW_GENERATION",
+        "APPROACH_ADMISSION",
+        "ALLOCATOR_RECORD_ADMISSION",
+        "APPROACH_SEND_BLOCKED"
+      ],
+      "search_admission": {
+        "command_id": "2cbe7b6d-ca6f-5533-9de1-55d664478a05",
+        "task_id": "0db4a251-9320-53bb-bb58-1dbc92a19871",
+        "robot_id": "robot_a",
+        "robot_boot_id": "56932536-391a-5e75-bd03-bbdfa65d8877",
+        "authority_epoch": "e5a5a75d-00de-57eb-90d7-48c61b86c8af",
+        "generation": 0,
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "detail_code": "rescue_robot.ACCEPTED"
+      },
+      "synthetic_intents": [
+        [
+          "SEND",
+          "2cbe7b6d-ca6f-5533-9de1-55d664478a05"
+        ],
+        [
+          "CANCEL",
+          "2cbe7b6d-ca6f-5533-9de1-55d664478a05"
+        ]
+      ],
+      "terminal_received": true,
+      "search_result_before_stop_samples": false,
+      "synthetic_stop_sample_times": [
+        0.7,
+        0.8,
+        0.9,
+        1.0
+      ],
+      "result": {
+        "command_id": "2cbe7b6d-ca6f-5533-9de1-55d664478a05",
+        "outcome": "CANCELED",
+        "reason": "ACTION_CANCELED",
+        "original_cause": "ACTION_CANCELED",
+        "stop_confirmed": true,
+        "action_status": "CANCELED",
+        "detail_code": "rescue_robot.ACTION_CANCELED"
+      },
+      "approach_admission": {
+        "command_id": "04bf86a1-f9d4-5480-9b6c-e51d757ef9cc",
+        "task_id": "36213383-d26d-5503-a9d8-9287a226b33d",
+        "robot_id": "robot_a",
+        "robot_boot_id": "56932536-391a-5e75-bd03-bbdfa65d8877",
+        "authority_epoch": "e5a5a75d-00de-57eb-90d7-48c61b86c8af",
+        "generation": 1,
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "detail_code": "rescue_robot.ACCEPTED"
+      },
+      "new_generation": 1,
+      "allocator_active_before_admission": false,
+      "allocator_recorded_admission": true,
+      "allocator_active_after_admission": true,
+      "approach_dispatched": false,
+      "approach_intents": [],
+      "approach_executor_state": "STOPPING",
+      "approach_stop_cause": "GUARD_INVALID",
+      "real_command_sent": false,
+      "evidence_source": "SYNTHETIC_ACTION_AND_ODOMETRY"
+    }
+  ],
+  "timestamp_checks": [
+    {
+      "robot_id": "robot_a",
+      "perception_observed_at_ns": 1700000000123456789,
+      "source_observed_at_ns": 1700000000123456789,
+      "tf_query_time_ns": 1700000000123456789,
+      "projected_observed_at_ns": 1700000000123456789,
+      "shifted_tf_query_time_ns": 1700000000123456790,
+      "shifted_tf_error": {
+        "code": "STALE_TRANSFORM",
+        "detail_code": "rescue_mapping.TF_TIME_MISMATCH"
+      }
+    },
+    {
+      "robot_id": "robot_b",
+      "perception_observed_at_ns": 1700000000123456789,
+      "source_observed_at_ns": 1700000000123456789,
+      "tf_query_time_ns": 1700000000123456789,
+      "projected_observed_at_ns": 1700000000123456789,
+      "shifted_tf_query_time_ns": 1700000000123456790,
+      "shifted_tf_error": {
+        "code": "STALE_TRANSFORM",
+        "detail_code": "rescue_mapping.TF_TIME_MISMATCH"
+      }
+    }
+  ],
+  "checks": {
+    "two_distinct_candidate_events": true,
+    "both_roles_proposed": true,
+    "unverified_backend_blocks_approach": true,
+    "stale_republication_rejected": true,
+    "a_revision_invalidates_only_a_observations": true,
+    "affected_goals_blocked_after_a_revision": true,
+    "synthetic_search_cancel_stop_handoff": true,
+    "actual_admission_connects_allocator_without_approach_send": true,
+    "epoch_nanoseconds_preserved_through_actual_mapping": true,
+    "one_nanosecond_shifted_tf_rejected": true,
+    "declared_evidence_waits_for_actual_bytes": true,
+    "receipt_loss_retries_original_report": true,
+    "expired_corridor_unknown": true,
+    "reports_unique_after_receipt_loss_and_reopen": true
+  },
+  "passed": true,
+  "reports": [
+    {
+      "payload": {
+        "approach_result": "NOT_ATTEMPTED",
+        "clock_domain_id": "offline-fixture",
+        "confirmation_observation_id": null,
+        "confirmation_result": "UNCONFIRMED",
+        "confirmed_at_ns": null,
+        "deployment_version": "offline-fixture-not-a-field-run",
+        "evidence_refs": [
+          {
+            "acquired_at_ns": 1700000000123456789,
+            "evidence_id": "f3ba88ec-2c4d-5006-8881-d72f3cf52ac8",
+            "media_type": "image/png",
+            "observation_id": "d296429d-df08-5cba-9d93-b5946173323d",
+            "sha256": "3fd6e6be528c182d768563a63b65ac5a70d022149a01eeeaaa30396d75f426e0"
+          }
+        ],
+        "generation": 1,
+        "model_id": "synthetic-no-inference",
+        "model_sha256": "3a3436765885cdf2edc179512c22dd4c4259410f0d18f391cbc8d83a837c678e",
+        "observation_id": "d296429d-df08-5cba-9d93-b5946173323d",
+        "observation_result": "DETECTED",
+        "observed_at_ns": 1700000000123456789,
+        "position": null,
+        "reason": "SYNTHETIC fixture; generated colour tile, not a camera photo: SLAM_BACKEND_CORRECTION_UNVERIFIED",
+        "report_id": "f728121b-7e49-5ae3-a33b-1379961265c7",
+        "reported_at_ns": 1700000001373456789,
+        "robot_id": "robot_b",
+        "schema_version": "1.0",
+        "source_boot_id": "56932536-391a-5e75-bd03-bbdfa65d8877",
+        "source_camera": "front",
+        "source_robot": "robot_a",
+        "target_id": "d62ed6f2-f721-5df4-bf3e-b35882601e36",
+        "task_id": "73449ae8-f3a7-5416-a5be-2a733d281235"
+      },
+      "receipt": {
+        "receipt_id": "f728e652-c19e-402a-a4e9-d16b5719f04a",
+        "report_id": "f728121b-7e49-5ae3-a33b-1379961265c7",
+        "payload_sha256": "8839fecfbc251dffb3717cdd75593c95a53914f3fd502f1ddddddeeb9a5da15a",
+        "status": "PERSISTED",
+        "revision": 3,
+        "persisted_at_ns": 1791424127279965000,
+        "error_code": null
+      },
+      "first_envelope": {
+        "published_at_ns": 1700000001373456789,
+        "publisher_boot_id": "1446805a-62f5-58cf-99fd-c17c443c3214",
+        "publisher_id": "offline-demo",
+        "schema_version": "1.0",
+        "sequence": 0
+      },
+      "received_at_ns": 1791424127279546000
+    },
+    {
+      "payload": {
+        "approach_result": "NOT_ATTEMPTED",
+        "clock_domain_id": "offline-fixture",
+        "confirmation_observation_id": null,
+        "confirmation_result": "UNCONFIRMED",
+        "confirmed_at_ns": null,
+        "deployment_version": "offline-fixture-not-a-field-run",
+        "evidence_refs": [
+          {
+            "acquired_at_ns": 1700000000123456789,
+            "evidence_id": "5f528ae3-87b1-53e7-85dc-9b345ab570fc",
+            "media_type": "image/png",
+            "observation_id": "a7d206c0-f6d0-58b6-a28d-c6904404ce2a",
+            "sha256": "70ca7dc822c13a30fd9d30e414061a870261161d9cabc771a9308179a33afc26"
+          }
+        ],
+        "generation": 1,
+        "model_id": "synthetic-no-inference",
+        "model_sha256": "3a3436765885cdf2edc179512c22dd4c4259410f0d18f391cbc8d83a837c678e",
+        "observation_id": "a7d206c0-f6d0-58b6-a28d-c6904404ce2a",
+        "observation_result": "DETECTED",
+        "observed_at_ns": 1700000000123456789,
+        "position": null,
+        "reason": "SYNTHETIC fixture; generated colour tile, not a camera photo: SLAM_BACKEND_CORRECTION_UNVERIFIED",
+        "report_id": "aab373fd-2013-5507-815c-10fe25fc9ff3",
+        "reported_at_ns": 1700000001373456789,
+        "robot_id": "robot_a",
+        "schema_version": "1.0",
+        "source_boot_id": "f96c1635-b965-5c92-b49a-a8c7b013e8ed",
+        "source_camera": "front",
+        "source_robot": "robot_b",
+        "target_id": "108b8599-a8c6-541a-bb02-67232d912edd",
+        "task_id": "36213383-d26d-5503-a9d8-9287a226b33d"
+      },
+      "receipt": {
+        "receipt_id": "737430f9-00b1-4fd0-b63e-f338fd42224d",
+        "report_id": "aab373fd-2013-5507-815c-10fe25fc9ff3",
+        "payload_sha256": "ca9a3fc941d336125a1d5bbc47433914e66a6b0d27d9dded20cab0ef8e0f51d6",
+        "status": "PERSISTED",
+        "revision": 3,
+        "persisted_at_ns": 1791424127280879000,
+        "error_code": null
+      },
+      "first_envelope": {
+        "published_at_ns": 1700000001373456789,
+        "publisher_boot_id": "1446805a-62f5-58cf-99fd-c17c443c3214",
+        "publisher_id": "offline-demo",
+        "schema_version": "1.0",
+        "sequence": 1
+      },
+      "received_at_ns": 1791424127280535000
+    }
+  ]
+}

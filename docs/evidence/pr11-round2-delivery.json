@@ -1,0 +1,40 @@
+{
+  "status": "ready_for_root_integration",
+  "owned_files": [
+    "src/rescue_bringup/rescue_bringup/offline_demo.py",
+    "scripts/check_wheels.py",
+    "tests/test_offline_demo.py",
+    "docs/implementation-integration.md",
+    "docs/field-runbook.md",
+    "src/rescue_robot/setup.py"
+  ],
+  "root_already_updated_metadata": [
+    "src/rescue_bringup/setup.py",
+    "src/rescue_bringup/package.xml"
+  ],
+  "new_evidence_files": [
+    "docs/evidence/pr11-round2-installed-py3.12.log",
+    "docs/evidence/pr11-round2-source-hashes.json",
+    "docs/evidence/pr11-round2-source-py3.11.log",
+    "docs/evidence/pr11-round2-source-py3.12.log",
+    "docs/evidence/pr11-round2-synthetic-summary.json",
+    "docs/evidence/pr11-round2-validation.md",
+    "docs/evidence/pr11-round2-delivery.json"
+  ],
+  "source_tests": {
+    "python3.11.8": 213,
+    "python3.12.14": 213
+  },
+  "installed_tests": {
+    "python3.12.14": 213
+  },
+  "offline_tests": 10,
+  "scenario_checks": 14,
+  "core_files_modified_by_this_agent": false,
+  "notes": [
+    "Only bringup fixture and assigned documentation/test/build runner changed; rescue_robot/setup.py common dependency is the root-requested metadata exception.",
+    "Root core/contract/tests were synchronized by their owners. Copy only the owned files plus new evidence; do not replace later core work.",
+    "No root repository, Git branch, remote or PR was modified.",
+    "No ROS/model/hardware/network runtime; CT06/07 E2 partial only."
+  ]
+}

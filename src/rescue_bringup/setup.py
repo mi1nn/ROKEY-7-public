@@ -11,7 +11,7 @@ setup(
         ("share/" + package_name, ["package.xml", "README.md"]),
     ],
     install_requires=[],
-    extras_require={"offline": ["rescue_robot==0.0.0", "rescue_mapping==0.0.0",
+    extras_require={"offline": ["rescue_contracts==0.0.0", "rescue_robot==0.0.0", "rescue_mapping==0.0.0",
                                 "rescue_perception==0.0.0", "rescue_coordination==0.0.0",
                                 "rescue_operations==0.0.0"]},
     zip_safe=True,

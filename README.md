@@ -21,11 +21,12 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [인터페이스 계약](docs/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
 | [상태 전이](docs/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
+| [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
 | [개발과 로컬 검사](docs/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 
 ## 통합 리허설과 남은 실기 연결
 
-[통합 구현 기록](docs/implementation-integration.md)의 명령으로 `summary.json`과 SQLite 보고/재전송 DB를 새 출력 폴더에 생성한다. 합성 A→B/B→A 제안, 자동 접근 차단, 관측 만료, 지도 보정, 통로 점유, 보고 복구를 검증한다. [실기 연결 관문](docs/field-runbook.md)에 ROS·backend·2 AMR·4 PC 준비 및 E3/E4 미실행 항목을 모았다.
+[통합 구현 기록](docs/implementation-integration.md)의 명령으로 `summary.json`과 SQLite 보고/재전송 DB를 새 출력 폴더에 생성한다. 합성 A→B/B→A 제안, 수색 취소·정지→새 generation→실행기 수락 receipt, 자동 접근 차단, 원 관측의 나노초 시각 보존, 지도 보정, 통로 점유, 보고 복구를 검증한다. 수색 구역 분담·frontier·자동 역할 교대는 [F-01 후속](docs/scope.md)에 남아 있다. [실기 연결 관문](docs/field-runbook.md)에 ROS·backend·2 AMR·4 PC 준비 및 E3/E4 미실행 항목을 모았다.
 
 ## 문서 판단 기준
 
