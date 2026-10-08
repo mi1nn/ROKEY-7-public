@@ -1,7 +1,10 @@
 {
   "pr": 9,
   "evidence": "E2 synthetic Python; E3/E4 NOT_RUN",
-  "implementation_commit": "e6795adba2148ccf4106a57bac18ee256df23082",
+  "implementation_commit": "cb8460eb3e3790fb3be7d69b7568b898a83a5afc",
+  "selection": "git ls-files -z; tracked src/tests/config/scripts/.github only; no build or egg-info artifacts",
+  "review_base": "10f0f23afee6645b2b5de65f8a51a12c6f0cdc6b",
+  "review_head_before_evidence_commit": "cb8460eb3e3790fb3be7d69b7568b898a83a5afc",
   "python": "Python 3.11.8",
   "commands": [
     {
@@ -13,11 +16,11 @@
       "exit_code": 0
     },
     {
-      "command": "git diff --check",
+      "command": "git diff --check 10f0f23afee6645b2b5de65f8a51a12c6f0cdc6b..cb8460eb3e3790fb3be7d69b7568b898a83a5afc",
       "exit_code": 0
     }
   ],
-  "log_normalization": "Traceback paths normalized to repository-relative paths; raw captures kept in local review workspace.",
+  "log_normalization": "Traceback paths normalized to repository-relative paths; trailing whitespace removed; raw captures kept in local review workspace.",
   "files": {
     ".github/pull_request_template.md": "417175d1939d3e16486a2287ea87b54ad9ea3621f0e30e6c598877bcb71c1d5e",
     ".github/workflows/docs.yml": "79bc706e0ab975ebf2cf1acedf1156dbef29f859d691641f63856447feb8fcba",
@@ -37,16 +40,15 @@
     "src/rescue_bringup/setup.cfg": "86ef3e5c52d808baa9fdbb350853e88d7749352999f6730ab976445a96ad5db2",
     "src/rescue_bringup/setup.py": "251a633365a9a163efd3b8d36c9a08030baabca7b02115e8a589c36aa4e17f6d",
     "src/rescue_contracts/README.md": "506d98ce5e668b66120f5ade6adcf55ecabcd7e7676acbceec286205414f4b56",
-    "src/rescue_contracts/build/lib/rescue_contracts/__init__.py": "afed074bdd6a76b2eb3e901f3e32ebf9d8aaf6bd843913b92bc977fc2a993388",
     "src/rescue_contracts/package.xml": "25c5ab12818665204a6ce29d2606d936e9038add8329ad1a8a74b691651d19d1",
-    "src/rescue_contracts/rescue_contracts/__init__.py": "98c1dba23ae2d292a79558003bc25fe996d1326b2c996166e34eb7fd8b3c285e",
+    "src/rescue_contracts/rescue_contracts/__init__.py": "1547e87cca63afc5da042869662f504bf5350ccff98121d3497c20ead086448f",
     "src/rescue_contracts/resource/rescue_contracts": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "src/rescue_contracts/setup.cfg": "ff9bb4c0315ed33e4f116faa3753c6c3f0213a04ae65bf544f96807cf804339b",
     "src/rescue_contracts/setup.py": "39137130312b38c295d433110e7fe7664e95acea645966ad169854ae9aaad42b",
     "src/rescue_coordination/README.md": "3e6488f1b907c316abbe798f2384c1e2b987ae65d1d3562102cab120bddbf1af",
     "src/rescue_coordination/package.xml": "d3651babf348025de40b3e5e2d0ceea2d757c4cc4f941017b7b28a97b75eeb93",
     "src/rescue_coordination/rescue_coordination/__init__.py": "aab2fdb4b0989c4d079afcbfd8ca3944cefbf3ceab8fbe9ace4ab69beaabc622",
-    "src/rescue_coordination/rescue_coordination/planning.py": "74671427b5f2aba09d0ceb53f744c33b5043375737e4069ebde69ceac8643ee8",
+    "src/rescue_coordination/rescue_coordination/planning.py": "a46a873f863b7340fae833037dbd3f3c4a2d1ad3e46fa04c08b4dd0fd44fc218",
     "src/rescue_coordination/resource/rescue_coordination": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "src/rescue_coordination/setup.cfg": "7089c92458b980e641f38c18329db3dcab135e8e1045af1552f7abfc00643a50",
     "src/rescue_coordination/setup.py": "0617e8737331443364e117054ad9b1f1d8aea9707b82c0aa1ea623ee989ae018",
@@ -82,13 +84,13 @@
     "tests/test_contracts.py": "348b685f7fa1fb30df41a043863b4c5362f6fca56ea207f1ba7484c256d4eade",
     "tests/test_contracts_precision.py": "12bb0daa38a959fd7aa4e032f79daed79c6988d443deb5eafd888475176d2b65",
     "tests/test_coordination.py": "44bfc526d9675b758b6ab1d6470806601bb684ea65907d7920eccfccf103e925",
-    "tests/test_coordination_review.py": "515b42dab618255c3cf23a6787e029b09f337b27b12447c93f85a59117afb959",
+    "tests/test_coordination_review.py": "9e5ffac02ae9e69796059e62bacf79a2da049ee01a8056e25fdf4711e0fe1ebe",
     "tests/test_executor.py": "b8a72e47a18bc80c35d6f1fb88e0cfd156c0ae9850464bd7076ce00f5e541a48",
     "tests/test_executor_review.py": "f488cd890c9163b52a72268219e8fecbc40e339006e23a6a5b1841b684b3bbd7",
     "tests/test_mapping.py": "f3b1e8cb2c4877381b50f9c8af9de12a3f506f24ee0605081e4db18029338171",
     "tests/test_mapping_time_contract.py": "6e122bd0ff536631d55cc9136e4b4dc4da823124f94653b181e7735b8385a3e5",
     "tests/test_perception.py": "ace2d39c9bc4638d826cbc15147c68a18efcf7752901b2f9b7554e6fa7454a2c",
     "tests/test_profile.py": "a40c1716c5015f07335176ebaf8430b9c8bd2b280ce5a565df536a5120bc442c",
-    "tests/test_review_mapping.py": "4dfe2ff769e46d3cfb4adae91cdc68e3925a0ebc764f8a64fee1d51d0af4a678"
+    "tests/test_review_mapping.py": "a9f9952783a2ff2ebdd4c280fc53709ab7d3602b29777214f1a56a358625541f"
   }
 }
