@@ -23,7 +23,7 @@ def uid(n):
 
 def area(n, basis='MAP_REVISION_BOUND', bound=True, **extra):
     refs = dict(map_session_id=MAP, map_revision=3, transform_revision=1) if bound else {}
-    return MissionSite(uid(100+n), (float(n), 0.), basis, **(refs | extra))
+    return MissionSite(uid(100+n), (float(n), 0.), basis, **(refs | {'entry_yaw': 0.} | extra))
 
 
 def policy(roles=(('unit_1', 'SCOUT'), ('unit_2', 'SUPPORT')), areas=None, **changes):
@@ -223,7 +223,8 @@ class SearchCoordinatorTests(unittest.TestCase):
         for status, cand, reason in (('NEEDS_REOBSERVATION', 'default', 'PROJECTION_NOT_VALID'),
                                      ('VALID', None, 'NO_SUPPORT_CANDIDATE'),
                                      ('VALID', candidate('unit_1'), 'NO_SUPPORT_CANDIDATE'),
-                                     ('VALID', replace(candidate(), valid_until_ns=NOW), 'CANDIDATE_EXPIRED')):
+                                     ('VALID', replace(candidate(), valid_until_ns=NOW), 'CANDIDATE_EXPIRED'),
+                                     ('VALID', replace(candidate(), goal_xy=(0., 0.)), 'NO_SUPPORT_CANDIDATE')):
             self.assertEqual(reason, self.approach(c, event_a, status=status, cand=cand).reason)
         reserved = self.approach(c, event_a)
         self.assertEqual(('RESERVED', 'APPROACH_TARGET', event_a),
@@ -267,6 +268,10 @@ class SearchCoordinatorTests(unittest.TestCase):
             policy(areas=(area(1), area(1)))
         with self.assertRaises(CoordinationError):
             policy(mission_frame_id='')
+        with self.assertRaises(CoordinationError):
+            area(1, entry_yaw=math.nan)
+        with self.assertRaises(TypeError):  # required: no silent default heading
+            MissionSite(uid(150), (0., 0.), 'MAP_REVISION_BOUND', MAP, 3, 1)
         with self.assertRaises(CoordinationError):
             SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=('unit_1', 'unit_3')), policy())
 
