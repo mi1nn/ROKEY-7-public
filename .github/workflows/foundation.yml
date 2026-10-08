@@ -20,8 +20,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Test Python contracts without ROS
-        env:
-          PYTHONPATH: src/rescue_bringup
         run: python -I scripts/run_tests.py
       - name: Validate the inert example
         env:

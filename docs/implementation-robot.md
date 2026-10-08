@@ -37,3 +37,13 @@ AMR [대상 만료 처리](https://github.com/mi1nn/amr-mini-project/blob/ee355d
 5. `seen`/결과 이력은 프로세스 메모리이며 크기 제한·영속 세션/세대 저장은 후속 실기 어댑터의 필수 과제다. 장시간 공개 서비스로 사용하지 않는다.
 
 CT-06/07/08의 일부 코어 불변식만 E2 증거를 얻는다. 상위 계약 전체와 계획 PR 5의 완료는 선언하지 않는다.
+
+## CLA-18/19/20 최종 수정
+
+- `rescue_contracts`의 canonical error + qualified diagnostic, 정확한 int64 ns wall time과 TaskAdmission을 사용한다. 로컬 monotonic timer는 float 초이며 overflow/정밀도 소실 거절과 clock fault latch를 보존했다.
+- `Executor(..., allowed_robot_ids=...)`는 프로파일에서 정확히 2개 ID를 명시적으로 받는다. Task DTO는 ID 형식만 검사하고 실행기가 대상·boot·authority·generation·policy를 확인한다.
+- bounded odometry만 있고 action fence가 없는 실행 중 상태는 `MOVING`이다. 실제 정지를 요청한 STOPPING에서만 `STOP_REQUESTED`를 사용한다.
+- `goal_terminal(..., terminal_status=...)`는 SUCCEEDED/CANCELED/ABORTED를 구별하고 Result.action_status와 original_cause를 보존한다. 중복 terminal은 정지 창을 초기화하지 않고 상충하는 terminal은 거절한다.
+- CI의 `python -I scripts/run_tests.py`에 무효였던 PYTHONPATH 설정을 제거했다. 프로파일 CLI 단계의 환경은 유지한다.
+
+`tests/test_executor_review.py`는 새 API와 위 문제의 회귀시험이다. 실물 driver/Nav2/odometry 및 준비용 undock는 연결하지 않았고, 모든 motion/정지 증거는 합성 E2 입력이다.
