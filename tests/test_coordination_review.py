@@ -199,6 +199,46 @@ class CoordinationReviewTests(unittest.TestCase):
         self.assertEqual('CANCEL', t.guard(now_wall_ns=wall+3, now_steady=1.2,
                                          local_guards_valid=True))
 
+    def test_unregistered_coordination_diagnostic_is_not_silently_normalized(self):
+        for reason in ('CLOCK_UNCERTIAN', 'policy version', 'UNREGISTERED_DIAGNOSTIC'):
+            with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, 'unregistered'):
+                CoordinationError(reason, 'caller explanation')
+
+    def test_internal_error_sites_use_registered_uppercase_diagnostics(self):
+        import ast
+        import inspect
+        from rescue_coordination import planning
+        from rescue_contracts import canonical_code
+        calls = [node for node in ast.walk(ast.parse(inspect.getsource(planning)))
+                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                 and node.func.id == 'CoordinationError']
+        self.assertTrue(calls)
+        for call in calls:
+            with self.subTest(line=call.lineno):
+                self.assertIsInstance(call.args[0], ast.Constant)
+                reason = call.args[0].value
+                self.assertIsInstance(reason, str)
+                self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+                canonical_code('rescue_coordination', reason)
+
+    def test_validation_explanations_are_separate_from_diagnostic_codes(self):
+        from rescue_coordination.planning import finite, point, revision
+        cases = ((lambda: replace(self.policy(), version=''), 'INVALID_POLICY', 'policy version'),
+                 (lambda: select_candidate([object()], now_ns=1, policy=self.policy(),
+                     available_robots=('unit_2',)), 'INVALID_CANDIDATE', 'candidate type'),
+                 (lambda: self.allocator().reserve(object()), 'INVALID_RESERVATION', 'reservation type'),
+                 (lambda: self.allocator().record_admission(object()), 'INVALID_ADMISSION', 'admission receipt type'),
+                 (lambda: Corridor().acquire(object(), now=0., duration=1.), 'INVALID_HOLDER', 'holder'),
+                 (lambda: revision(True), 'INVALID_REVISION', 'revision'),
+                 (lambda: point([0., 0.]), 'INVALID_POINT', 'immutable XY point'),
+                 (lambda: finite(float('nan'), 'sensor sample'), 'INVALID_NUMBER', 'sensor sample'))
+        for operation, reason, explanation in cases:
+            with self.subTest(reason=reason), self.assertRaises(CoordinationError) as caught:
+                operation()
+            self.assertEqual('INVALID_INPUT', caught.exception.code)
+            self.assertEqual('rescue_coordination.' + reason, caught.exception.detail_code)
+            self.assertEqual(explanation, caught.exception.detail)
+
     def test_error_is_common_machine_readable_contract(self):
         from rescue_contracts import RescueError
         with self.assertRaises(RescueError) as caught:
