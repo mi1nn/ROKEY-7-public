@@ -196,7 +196,7 @@ test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_op
 ERROR: test_allowed_ids_are_immutable_and_pinned_on_reopen (test_review_operations.OperationsReviewTests.test_allowed_ids_are_immutable_and_pinned_on_reopen)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 47, in test_allowed_ids_are_immutable_and_pinned_on_reopen
+  File "tests/test_review_operations.py", line 47, in test_allowed_ids_are_immutable_and_pinned_on_reopen
     with ReportLedger(self.root/'ledger.db', evidence_policy='OPTIONAL', allowed_robot_ids=allowed) as ledger:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -205,7 +205,7 @@ TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_r
 ERROR: test_missing_robot_policy_is_not_silently_adopted_on_reopen (test_review_operations.OperationsReviewTests.test_missing_robot_policy_is_not_silently_adopted_on_reopen)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 85, in test_missing_robot_policy_is_not_silently_adopted_on_reopen
+  File "tests/test_review_operations.py", line 85, in test_missing_robot_policy_is_not_silently_adopted_on_reopen
     ReportLedger(path, evidence_policy='OPTIONAL', allowed_robot_ids=self.allowed)
 TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_robot_ids'
 
@@ -213,7 +213,7 @@ TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_r
 ERROR: test_profile_ids_reach_persisted_report_and_outbox (test_review_operations.OperationsReviewTests.test_profile_ids_reach_persisted_report_and_outbox)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 24, in test_profile_ids_reach_persisted_report_and_outbox
+  File "tests/test_review_operations.py", line 24, in test_profile_ids_reach_persisted_report_and_outbox
     with ReportLedger(self.root/'ledger.db', evidence_policy='OPTIONAL', allowed_robot_ids=self.allowed) as ledger:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -222,12 +222,12 @@ TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_r
 ERROR: test_schema_accepts_valid_identifier_without_fixed_membership (test_review_operations.OperationsReviewTests.test_schema_accepts_valid_identifier_without_fixed_membership)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 21, in test_schema_accepts_valid_identifier_without_fixed_membership
+  File "tests/test_review_operations.py", line 21, in test_schema_accepts_valid_identifier_without_fixed_membership
     self.assertEqual('robot3', report(self.payload)['source_robot'])
                                ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_operations/rescue_operations/schema.py", line 122, in report
+  File "src/rescue_operations/rescue_operations/schema.py", line 122, in report
     require(item[key] in ("robot_a", "robot_b"), f"{key} must be robot_a or robot_b")
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_operations/rescue_operations/schema.py", line 38, in require
+  File "src/rescue_operations/rescue_operations/schema.py", line 38, in require
     raise OperationsError(code, message)
 rescue_operations.schema.OperationsError: INVALID_INPUT: source_robot must be robot_a or robot_b
 
@@ -235,7 +235,7 @@ rescue_operations.schema.OperationsError: INVALID_INPUT: source_robot must be ro
 ERROR: test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 34, in test_unknown_source_or_executor_robot_is_rejected_before_storage
+  File "tests/test_review_operations.py", line 34, in test_unknown_source_or_executor_robot_is_rejected_before_storage
     with ReportLedger(self.root/'ledger.db', evidence_policy='OPTIONAL', allowed_robot_ids=self.allowed) as ledger:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -244,7 +244,7 @@ TypeError: ReportLedger.__init__() got an unexpected keyword argument 'allowed_r
 FAIL: test_allowed_id_policy_is_required_and_bounded (test_review_operations.OperationsReviewTests.test_allowed_id_policy_is_required_and_bounded)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 64, in test_allowed_id_policy_is_required_and_bounded
+  File "tests/test_review_operations.py", line 64, in test_allowed_id_policy_is_required_and_bounded
     with self.assertRaises(TypeError):
 AssertionError: TypeError not raised
 
@@ -252,7 +252,7 @@ AssertionError: TypeError not raised
 FAIL: test_operations_error_uses_common_envelope_without_losing_detail (test_review_operations.OperationsReviewTests.test_operations_error_uses_common_envelope_without_losing_detail)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_review_operations.py", line 74, in test_operations_error_uses_common_envelope_without_losing_detail
+  File "tests/test_review_operations.py", line 74, in test_operations_error_uses_common_envelope_without_losing_detail
     self.assertEqual('REPORT_NOT_PERSISTED', error.code)
 AssertionError: 'REPORT_NOT_PERSISTED' != 'STORAGE_ERROR'
 - REPORT_NOT_PERSISTED

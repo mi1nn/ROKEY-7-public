@@ -216,9 +216,9 @@ test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_op
 FAIL: test_envelope_and_evidence_times_are_positive_int64 (test_operations_time_contract.OperationsTimeContractTests.test_envelope_and_evidence_times_are_positive_int64)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 34, in test_envelope_and_evidence_times_are_positive_int64
+  File "tests/test_operations_time_contract.py", line 34, in test_envelope_and_evidence_times_are_positive_int64
     self.assertInvalid(lambda: envelope(env))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -226,7 +226,7 @@ AssertionError: OperationsError not raised
 FAIL: test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None))
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
+  File "tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
     self.assertIsNone(outbox.deliver(payload['report_id'], sample_envelope(),
 AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None) is not None
 
@@ -234,7 +234,7 @@ AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', repor
 FAIL: test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) (receipt=Receipt(receipt_id='00000000-0000-0000-0000-000000000000', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775807, error_code=None))
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
+  File "tests/test_operations_time_contract.py", line 65, in test_invalid_persisted_receipt_is_not_accepted_by_outbox
     self.assertIsNone(outbox.deliver(payload['report_id'], sample_envelope(),
 AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', report_id='e795cd90-65f6-4dcc-80c0-ecf60fbbc786', payload_sha256='1b8f28f1ea0e1b6222f2c0a8de510a89d428e14e39ff117bf88adff4abf1000e', status='PERSISTED', revision=1, persisted_at_ns=9223372036854775808, error_code=None) is not None
 
@@ -242,9 +242,9 @@ AssertionError: Receipt(receipt_id='9154d5c4-0787-4ea7-bccc-71611445a672', repor
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='report_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -252,9 +252,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='target_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -262,9 +262,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='observation_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -272,9 +272,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='source_boot_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -282,9 +282,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='task_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -292,9 +292,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) (field='confirmation_observation_id')
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 45, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(dict(sample_report(), **{key: NIL})))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -302,9 +302,9 @@ AssertionError: OperationsError not raised
 FAIL: test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 48, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
+  File "tests/test_operations_time_contract.py", line 48, in test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries
     self.assertInvalid(lambda: report(payload))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
@@ -312,9 +312,9 @@ AssertionError: OperationsError not raised
 FAIL: test_report_times_are_int64_while_generation_and_revisions_remain_uint64 (test_operations_time_contract.OperationsTimeContractTests.test_report_times_are_int64_while_generation_and_revisions_remain_uint64)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 25, in test_report_times_are_int64_while_generation_and_revisions_remain_uint64
+  File "tests/test_operations_time_contract.py", line 25, in test_report_times_are_int64_while_generation_and_revisions_remain_uint64
     self.assertInvalid(lambda: report(payload))
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_operations_time_contract.py", line 16, in assertInvalid
+  File "tests/test_operations_time_contract.py", line 16, in assertInvalid
     with self.assertRaises(OperationsError) as caught:
 AssertionError: OperationsError not raised
 
