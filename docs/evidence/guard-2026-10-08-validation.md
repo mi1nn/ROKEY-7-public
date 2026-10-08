@@ -14,3 +14,12 @@
 | E3 odom | `ROS_DOMAIN_ID=42 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST python3 tests/ros/e3_odom_probe.py` | 0 | [e3-odom-probe](guard-2026-10-08-e3-odom-probe.log) |
 | E3 준비 신호 | `ROS_DOMAIN_ID=42 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST python3 tests/ros/e3_readiness_probe.py` | 0 | [e3-readiness-probe](guard-2026-10-08-e3-readiness-probe.log) |
 | E3 NavigateToPose·dock | — | NOT_RUN: `nav2_msgs`·`irobot_create_msgs` 미설치(sudo 필요) | — |
+
+## 커밋 더함: 카메라 compressed 구독 (작전 OPS-07 권고)
+
+| 검사 | 대상 | 종료 코드 | 로그 |
+| --- | --- | --- | --- |
+| 수정 전 실패 | `882c034` run_tests | 1 (errors=1, `ImportError: cannot import name 'camera_message_type'`) | [camera-run-tests-before-fix](guard-2026-10-08-camera-run-tests-before-fix.log) |
+| E2 전체 | `8a03824` run_tests | 0 | [camera-run-tests](guard-2026-10-08-camera-run-tests.log) |
+| E3 준비 신호(robot_a 에 `CompressedImage` 카메라) | `8a03824` | 0 | [camera-e3-readiness-probe](guard-2026-10-08-camera-e3-readiness-probe.log) |
+| 문서·wheel·공백·E3 odom | `8a03824` | 0, 0, 0, 0 | — |
