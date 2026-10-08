@@ -15,7 +15,12 @@ import tempfile
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('field_preflight', REPO / 'scripts/field/preflight.py')
+SCRIPT = REPO / 'scripts/field/preflight.py'
+if not SCRIPT.is_file():
+    # scripts/check_wheels.py copies only tests/ and config/ to test installed wheels;
+    # preflight is a repo script, not a wheel. scripts/run_tests.py runs these tests.
+    raise unittest.SkipTest('scripts/field/preflight.py absent (installed-wheel checkout)')
+spec = importlib.util.spec_from_file_location('field_preflight', SCRIPT)
 pf = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pf)
 
