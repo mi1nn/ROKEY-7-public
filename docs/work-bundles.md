@@ -53,7 +53,7 @@ updated: 2026-10-08
 
 | 규격 | 지금 있는 것(`main`) | 빠진 것 → 작전이 계약 PR 로 |
 | --- | --- | --- |
-| 관측 | `Observation`(원 시각 `observed_at_ns`, `source_robot`/`source_boot_id`, frame, 위치·품질 `LocalizationResult`, `Detection.tracking_mode`) — C-01·C-03 | 고정 카메라 A·B 의 관측·사건 식별: `source_robot` 은 로봇 전용이고 `robot_ids` 는 정확히 2개라 카메라를 로봇으로 넣을 수 없다 → `SiteEvent(camera_id, kind=DISASTER_SIGN(재난 중립 이름, Part I 반영으로 #17 에서 변경)|EXIT_PASS, observed_at_ns, evidence)` 류 계약 신설(C-01 개정) |
+| 관측 | `Observation`(원 시각 `observed_at_ns`, `source_robot`/`source_boot_id`, frame, 위치·품질 `LocalizationResult`, `Detection.tracking_mode`) — C-01·C-03 | 고정 카메라 A·B 의 관측·사건 식별: `source_robot` 은 로봇 전용이고 `robot_ids` 는 정확히 2개라 카메라를 로봇으로 넣을 수 없다 → `SiteEvent(camera_id, kind=DISASTER_SIGN(재난 중립 이름, #17 에서 변경)|EXIT_PASS, observed_at_ns, evidence)` 류 계약 신설(C-01 개정) |
 | 지도 | `MappingRegistry`(session/revision, `VALID`/`STALE_DERIVATION`/`NEEDS_REOBSERVATION`/`EXPIRED`, `auto_approach_eligible`) — C-04 | 사전 기준 지도(OI-01)와 변화 레이어의 표현. mission frame = 기준 지도 frame 으로 가정 |
 | 임무 | `Task(command/task/robot/boot/authority/generation, kind=SEARCH_AREA|REOBSERVE_TARGET|APPROACH_TARGET|HOLD)`, `TaskAdmission`, `Result` — C-06 | 프로파일의 로봇 **역할**(SCOUT/SUPPORT) 필드와 대기 위치·구역 후보 입력(`rescue_bringup` 스키마) |
 | 보고 | `RescueReport`(사건·관측·증거 ID, `approach_result`, `confirmation_result`) + receipt — C-05·C-08 | 사건 상태 `RESCUE_CONFIRMED`/`RECHECK_NEEDED`, 출구 카운트 기록, 재난 모드 이벤트 기록(S-05·C-05 개정) |
@@ -74,10 +74,10 @@ BRD 13장 OI 와 이 저장소의 Q 를 합쳤다. 답이 오기 전에는 「�
 | Q-14 (OI-10) | TB2 대기 위치·상태(도킹 중 센서 off, 언도킹·준비 시간) | 실측해 출동 지연에 포함 | NFR-02 |
 | Q-15 (OI-12, Q-01·Q-02) | 로봇 번호·모델·센서, PC 사양, ROS 배포판, 고정 카메라 A·B 하드웨어와 호스트 | 장비 확인 뒤 갱신 | E3 전체 |
 | Q-16 (OI-02) | "사람과 같이 출발" 의 뜻 | (a) 구급상자를 싣고 접근 | 범위 |
-| Q-17 (OI-07·08·11) | 옵션(온도) 시점·범위, 재난 유형 명칭, 발표일·평가 기준 | 핵심 뒤, "재난"+지진 트리거, 확인 뒤 KPI 반영 | 일정 |
+| Q-17 (OI-07·08·11) | 옵션(온도) 시점·범위, 재난 유형 명칭, 발표일·평가 기준 | 핵심 뒤. 재난 유형은 지진으로 결정, 발표일 10-16(scope Q-17) | 일정 |
 | Q-18 | 사람(인형) 탐지 모델: 사람 class 가중치의 출처·라이선스와 추론 런타임(cv2.dnn ONNX / ultralytics / 기타; 인식 PC 메모리 7.6 GB, GPU 없음 [설정, 2026-10-08]). 현재 있는 가중치는 car/dummy 용이라 사람 탐지에 쓰지 않음(LL-09) | 결정 전에는 인식 (b) 카메라 B 출구 통과를 합성 탐지로 E2 진행 | 인식 (a) 실제 모델 추론 연결 |
 | — | BRD v0.1 자체가 팀 합의본인지(팀원 초안) | 합의 전까지 `[제안]` 로 취급 | — |
-| Q-19 ~ Q-24 | [BRD Part I](brd-part1-v0.1.md)(화재 시나리오, 2026-10-08) 반영 항목: 출동 우선순위, 구조 상태 4단계, 병합·도착·재확인 반경, 관제 제어 명령·복귀·배터리, 수락 수치 초안, 탐색 방식 | [범위 문서 미결정 표](scope.md#미결정-사항)에만 둔다 | Part I 부록 A·B |
+| Q-19 ~ Q-24 | [BRD Part I](brd-part1-v0.1.md)(지진, 2026-10-08) 반영 항목: 출동 우선순위, 구조 상태 4단계, 병합·도착·재확인 반경, 관제 제어 명령·복귀·배터리, 수락 수치 초안, 탐색 방식 | [범위 문서 미결정 표](scope.md#미결정-사항)에만 둔다 | Part I 부록 A·B |
 
 ## 6. 통합 순서
 
