@@ -147,10 +147,11 @@ class DisasterSignDetector:
         stamp = frame.observed_at_ns
         if self._last_ns is not None and stamp <= self._last_ns:
             return SignFrame("DUPLICATE" if stamp == self._last_ns else "REORDERED", None, None, False, None)
+        # Decode before touching any state: a rejected frame leaves no trace.
+        edges, cells = _edges(_gray_grid(rgb, self.policy.sample_stride), self.policy.edge_gradient_min)
         if self._last_ns is not None and stamp - self._last_ns > self.policy.max_gap_ns:
             self._previous_edges, self._true_since, self._false_since = None, None, None
         self._last_ns = stamp
-        edges, cells = _edges(_gray_grid(rgb, self.policy.sample_stride), self.policy.edge_gradient_min)
         density = len(edges) / cells
         shake = None
         if self._previous_edges is not None:

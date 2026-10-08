@@ -57,11 +57,11 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 지표 | TR-06의 「영상 엣지 기반」 후보 두 개. `sample_stride` 간격으로 뽑은 회색조 격자에서 전진 차분 `|gx|+|gy| ≥ edge_gradient_min`인 칸을 엣지로 본다. **흔들림** = 연속 프레임 엣지 집합의 변화율(대칭차/합집합). **가려짐** = 엣지 밀도(엣지 칸/전체 칸) |
 | 정책 | `DisasterSignPolicy`. 지표 선택(`use_shake`·`use_occlusion`), 임계값(`shake_change_min`·`occlusion_density_max`), 조합(`ANY`=OR, `ALL`=AND), 유지(`hold_ns`), 해제(`release_ns`), 프레임 간격 상한(`max_gap_ns`). **기본값이 없다.** 값은 Q-11 예비 시험으로 정한다 |
 | 사건 | 조건이 `hold_ns` 동안 끊김 없이 참이면 사건 하나를 낸다. 같은 구간에서는 더 내지 않고, 조건이 `release_ns` 동안 거짓이어야 다시 낼 수 있다. 간격이 `max_gap_ns`를 넘으면 두 구간과 직전 엣지를 모두 버린다(빠진 프레임은 어느 쪽 증거도 아님) |
-| 시각·ID | 마지막으로 처리한 stamp 이하 프레임은 무시한다. 사건의 `observed_at_ns`는 유지 조건을 채운 프레임 stamp이고, 시작 시각은 `detail`의 `onset_ns`에 적는다. ID는 uuid5로 생산자가 발급하고, 시간 기준 네 값은 `SourceBinding`에서 그대로 싣는다 |
+| 시각·ID | 마지막으로 처리한 stamp 이하 프레임은 무시한다. 디코딩에서 거절된 프레임은 상태를 바꾸지 않는다. 사건의 `observed_at_ns`는 유지 조건을 채운 프레임 stamp이고, 시작 시각은 `detail`의 `onset_ns`에 적는다. ID는 uuid5로 생산자가 발급하고, 시간 기준 네 값은 `SourceBinding`에서 그대로 싣는다 |
 | `confidence` | 규칙 기반이라 확률이 아니다. `1.0`은 "정책 조건 충족"이라는 뜻이다. 지표 값은 `detail`에 적는다 |
 | 입력 | `mono8`·`rgb8`·`bgr8`만 받는다(BT.601 회색조). 다른 형식은 거절한다 |
 
-**한계:** 흔들림 지표는 화면 안의 큰 움직임(사람이 가까이 지나감)과 카메라 흔들림을 구별하지 못한다. 가려짐 지표는 어둡거나 무늬 없는 장면도 가려짐으로 본다. 두 오탐 경로는 Q-11 예비 시험에서 재야 한다. 순수 Python 루프라 실시간 성능은 NOT_RUN이다. 시험은 `tests/test_perception_disaster_sign.py`(12개, 합성 16×16 영상)다.
+**한계:** 흔들림 지표는 화면 안의 큰 움직임(사람이 가까이 지나감)과 카메라 흔들림을 구별하지 못한다. 가려짐 지표는 어둡거나 무늬 없는 장면도 가려짐으로 본다. 두 오탐 경로는 Q-11 예비 시험에서 재야 한다. 순수 Python 루프라 실시간 성능은 NOT_RUN이다. 시험은 `tests/test_perception_disaster_sign.py`(14개, 합성 16×16 영상)다.
 
 ## 공개 API와 E2 실행
 
