@@ -33,7 +33,7 @@ updated: 2026-10-08
 
 모든 `now_ns`는 하나의 clock domain에서 비교한다. 원 관측의 0/future/expiry와 정렬 기간을 검사하며, registry가 관측한 현재 시각이 뒤로 가면 `CLOCK_RESET_REQUIRED`를 latch한다. 시계 복구 후 새 registry와 세션/정렬 확인이 필요하다. 이 처리는 로봇 정지 실행을 대체하지 않는다.
 
-지도 보정 뒤 과거 관측을 최신 `map→odom` 차이로 고치지 않는다. 해당 원 관측의 map 참조가 달라졌으면 `NEEDS_REOBSERVATION`이다. 이 단계에는 graph node와 관측을 연결하는 재투영 backend가 없다. 단순 map→mission 정렬만 변경되고 원 map revision은 같으면 최초 sensor-time TF를 보존한 채 새 파생 위치를 계산할 수 있다. 파생 위치 기록의 이전 값도 남긴다.
+지도 보정 뒤 과거 관측을 최신 `map→odom` 차이로 고치지 않는다. 해당 원 관측의 map 참조가 달라졌으면 `NEEDS_REOBSERVATION`이다. 이 단계에는 graph node와 관측을 연결하는 재투영 backend가 없다. 유효한 map→mission 정렬만 변경되고 원 map revision은 같으면 기존 파생 위치는 `STALE_DERIVATION`으로 구분한다. 지도 세션/보정 변경 또는 정렬 무효화는 `NEEDS_REOBSERVATION`이다. `STALE_DERIVATION` 뒤 보정/무효화가 발생하면 재관측 상태로 승격하며 기존 goal은 계속 무효다. 정렬만 바뀐 경우에는 최초 sensor-time TF를 보존한 채 새 파생 위치를 계산할 수 있다. 파생 위치 기록의 이전 값도 남긴다.
 
 ## API와 후속 연동
 
@@ -62,3 +62,7 @@ updated: 2026-10-08
 Python 3.12.14에서 wheel을 만들고 별도 venv에 네트워크 없이 설치한 뒤, 소스 PYTHONPATH를 사용하지 않는 격리 import 및 30개 unittest가 통과했다. 이는 Python 패키징과 합성 E2 로직 검증이며 ROS/`colcon`·SLAM backend·실기 검증은 아니다.
 
 미구현: 실제 TF 조회·시각 동기화, SLAM 보정 이벤트/posegraph node 연계, 기준점으로 정렬 추정/오차 실측, 센서 depth 품질/공분산 전파, ROS transport/메시지, persistent DB·bounded retention, 실제 목표/취소/정지/재개, 두 AMR·실제 PC 배치 검증. registry는 메모리 수명이므로 재기동 시 snapshot이 복원되지 않으며 원 관측/기록의 영속화는 별도다. 무제한 장기 runtime에 배치하지 않는다.
+
+## 검토 수정: 상태와 공통 오류
+
+`tests/test_review_mapping.py`는 정렬만 바뀐 파생 위치, 그 뒤 map/session/정렬 무효화, 방어적인 VERSION_MISMATCH 분기와 C-09 오류 envelope를 검사한다. `MappingError.code`는 `rescue_contracts` 공통 분류이며 `detail_code`는 `rescue_mapping.<원 세부 코드>`다. 예를 들어 관측 만료는 `STALE_OBSERVATION`/`rescue_mapping.OBSERVATION_EXPIRED`, TF 시각 불일치는 `STALE_TRANSFORM`/`rescue_mapping.TF_TIME_MISMATCH`다. 원인 분류표는 패키지마다 복제하지 않는다. 이는 기존 기록의 시험 수나 source hash를 바꾼다는 뜻이 아니다.

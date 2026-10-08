@@ -3,14 +3,22 @@
 from dataclasses import dataclass
 import math
 from uuid import UUID
+from rescue_contracts import RescueError, canonical_code, robot_id
 
 
-class MappingError(ValueError):
+class MappingError(RescueError):
     """A value cannot be used under the coordinate contract."""
 
     def __init__(self, code: str, detail: str = ""):
-        self.code = code
-        super().__init__(code + (": " + detail if detail else ""))
+        super().__init__(canonical_code("rescue_mapping", code), detail,
+                         component="rescue_mapping", detail_code=code)
+
+
+def robot_identifier(value):
+    try:
+        return robot_id(value)
+    except RescueError as exc:
+        raise MappingError("INVALID_INPUT", str(exc)) from exc
 
 
 def name(value, label):
