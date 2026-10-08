@@ -148,6 +148,26 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(self.events(self.run_frames(self.detector(), frames)),
                          self.events(self.run_frames(self.detector(), frames)))
 
+    def test_rejected_frame_leaves_no_state(self):
+        # Same class as CDX-30-01: a frame rejected while decoding must not advance
+        # the stamp or reset the runs, so a corrected retry is processed normally.
+        d = self.detector()
+        self.run_frames(d, [(0, COVERED), (100, COVERED)])
+        bad = image(300, COVERED)
+        bad.encoding = "16UC1"  # gap 200 > max_gap 150 would reset the hold if applied
+        self.assertCode("INVALID_INPUT", lambda: d.update(bad))
+        retry = d.update(image(200, COVERED))
+        self.assertEqual(retry.status, "PROCESSED")
+        self.assertIsNotNone(retry.event)
+
+    def test_rejected_frame_then_retry_of_same_stamp(self):
+        d = self.detector()
+        self.run_frames(d, [(0, COVERED)])
+        bad = image(100, COVERED)
+        bad.encoding = "yuv422"
+        self.assertCode("INVALID_INPUT", lambda: d.update(bad))
+        self.assertEqual(d.update(image(100, COVERED)).status, "PROCESSED")
+
     def test_invalid_inputs_are_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: DisasterSignDetector(replace(self.binding, source_robot="robot_a"),
                                                                       self.policy))
