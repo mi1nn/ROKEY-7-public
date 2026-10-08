@@ -10,7 +10,8 @@ come from ``Allocator.issue_generation``, PENDING from ``Allocator.reserve`` and
 ACTIVE only from ``Allocator.record_admission`` with the executor receipt. It
 returns proposals and executor ``Task`` field values; it sends no ROS command.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import math
 from uuid import uuid4
 
 from rescue_contracts import timestamp_ns, duration_ns
@@ -39,6 +40,8 @@ class MissionSite:
     ``basis`` names where the coordinates came from. Only bases listed in
     ``SearchPolicy.executable_bases`` and bound to a map session/revision may be
     executed; anything else is reported as excluded, never guessed into a goal.
+    ``entry_yaw`` (rad, mission frame) is the configured heading on arrival;
+    required, keyword-only (profile v2.1 ``search_areas[].entry_yaw``, 작전).
     """
     site_id: str
     mission_xy: tuple
@@ -46,10 +49,12 @@ class MissionSite:
     map_session_id: str | None = None
     map_revision: int | None = None
     transform_revision: int | None = None
+    entry_yaw: float = field(kw_only=True)
 
     def __post_init__(self):
         uid(self.site_id)
         point(self.mission_xy)
+        finite(self.entry_yaw, 'entry_yaw', minimum=-math.inf)
         if not isinstance(self.basis, str) or not self.basis:
             raise CoordinationError('INVALID_INPUT', 'site basis tag')
         if self.map_session_id is not None:
@@ -248,7 +253,8 @@ class SearchCoordinator:
             return Decision('KEEP', 'EVENT_ALREADY_HAS_APPROACH')
         if projection_status != APPROACH_PROJECTION_STATUS:
             return Decision('WAIT', 'PROJECTION_NOT_VALID')
-        if not isinstance(candidate, PathCandidate) or candidate.robot_id != support:
+        if (not isinstance(candidate, PathCandidate) or candidate.robot_id != support
+                or candidate.goal_xy == candidate.target_xy):  # no heading toward the target
             return Decision('WAIT', 'NO_SUPPORT_CANDIDATE')
         if candidate.valid_until_ns <= now_ns:
             return Decision('WAIT', 'CANDIDATE_EXPIRED')
@@ -300,15 +306,21 @@ class SearchCoordinator:
         return True
 
     def _goal_pose(self, kind, area, candidate):
-        """Goal for the robot lane. Yaw is 0.0: coordination does not choose a
-        heading; the executor/planner may refine it. HOLD stays in place."""
+        """Goal for the robot lane; no heading literal (CUR-14).
+
+        SEARCH_AREA uses the area's configured ``entry_yaw``. APPROACH_TARGET faces
+        the target from the candidate point, so the camera can re-observe it.
+        HOLD stays in place and has no goal.
+        """
         if kind == 'HOLD':
             return None
         if kind == 'SEARCH_AREA':
             xy, session, map_revision = area.mission_xy, area.map_session_id, area.map_revision
+            yaw = area.entry_yaw
         else:
             xy, session, map_revision = candidate.goal_xy, candidate.map_session_id, candidate.map_revision
-        return dict(frame_id=self.policy.mission_frame_id, x=float(xy[0]), y=float(xy[1]), yaw=0.0,
+            yaw = math.atan2(candidate.target_xy[1] - xy[1], candidate.target_xy[0] - xy[0])
+        return dict(frame_id=self.policy.mission_frame_id, x=float(xy[0]), y=float(xy[1]), yaw=float(yaw),
                     map_session_id=session, map_revision=map_revision)
 
     def _reserve(self, robot_id, robot_boot_id, kind, target_id, target_revision, candidate, now_ns,

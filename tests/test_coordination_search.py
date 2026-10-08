@@ -1,6 +1,7 @@
 """Role-driven SEARCH_AREA/HOLD/APPROACH proposals over the existing Allocator (E2)."""
 from dataclasses import replace
 import itertools
+import math
 import unittest
 from uuid import UUID
 
@@ -20,9 +21,9 @@ def uid(n):
     return str(UUID(int=n))
 
 
-def area(n, basis='MAP_REVISION_BOUND', bound=True):
+def area(n, basis='MAP_REVISION_BOUND', bound=True, **extra):
     refs = dict(map_session_id=MAP, map_revision=3, transform_revision=1) if bound else {}
-    return MissionSite(uid(100+n), (float(n), 0.), basis, **refs)
+    return MissionSite(uid(100+n), (float(n), 0.), basis, **(refs | {'entry_yaw': 0.} | extra))
 
 
 def policy(roles=(('unit_1', 'SCOUT'), ('unit_2', 'SUPPORT')), areas=None, **changes):
@@ -91,10 +92,27 @@ class SearchCoordinatorTests(unittest.TestCase):
         self.assertEqual((None, None), tuple(getattr(tasks['HOLD'][1], k) for k in ('search_area_ref', 'goal_pose')))
         decision, task = tasks['APPROACH_TARGET']
         self.assertIsNone(task.search_area_ref)
-        self.assertEqual(GoalPose('mission', 1., 0., 0., MAP, 3), task.goal_pose)  # candidate goal_xy, not target
+        # Candidate goal_xy (not the target), facing the target at (0, 0).
+        self.assertEqual(GoalPose('mission', 1., 0., math.pi, MAP, 3), task.goal_pose)
         self.assertEqual(uid(500), task.target_id)
         # Plain data only: coordination does not import rescue_robot types.
         self.assertIs(dict, type(search.task_fields['goal_pose']))
+
+    def test_approach_yaw_faces_the_target_from_the_candidate(self):
+        for goal, target, expected in (((1., 0.), (0., 0.), math.pi), ((-1., 0.), (0., 0.), 0.),
+                                       ((0., -2.), (0., 0.), math.pi / 2), ((0., 2.), (0., 0.), -math.pi / 2)):
+            with self.subTest(goal=goal):
+                c = self.make()
+                cand = replace(candidate(), goal_xy=goal, target_xy=target)
+                decision = c.request_approach(uid(500), 0, projection_status='VALID', candidate=cand,
+                                              robot_boot_id=BOOT['unit_2'], now_ns=NOW)
+                self.assertAlmostEqual(expected, task_of(decision.task_fields).goal_pose.yaw)
+
+    def test_search_area_yaw_is_the_configured_entry_yaw(self):
+        for yaw in (0.7, -2.1):
+            with self.subTest(yaw=yaw):
+                c = self.make(areas=(area(1, entry_yaw=yaw),))
+                self.assertEqual(yaw, task_of(self.plan(c, 'unit_1').task_fields).goal_pose.yaw)
 
     def test_reservation_is_pending_until_executor_admission(self):
         c = self.make()
@@ -205,7 +223,8 @@ class SearchCoordinatorTests(unittest.TestCase):
         for status, cand, reason in (('NEEDS_REOBSERVATION', 'default', 'PROJECTION_NOT_VALID'),
                                      ('VALID', None, 'NO_SUPPORT_CANDIDATE'),
                                      ('VALID', candidate('unit_1'), 'NO_SUPPORT_CANDIDATE'),
-                                     ('VALID', replace(candidate(), valid_until_ns=NOW), 'CANDIDATE_EXPIRED')):
+                                     ('VALID', replace(candidate(), valid_until_ns=NOW), 'CANDIDATE_EXPIRED'),
+                                     ('VALID', replace(candidate(), goal_xy=(0., 0.)), 'NO_SUPPORT_CANDIDATE')):
             self.assertEqual(reason, self.approach(c, event_a, status=status, cand=cand).reason)
         reserved = self.approach(c, event_a)
         self.assertEqual(('RESERVED', 'APPROACH_TARGET', event_a),
@@ -249,6 +268,10 @@ class SearchCoordinatorTests(unittest.TestCase):
             policy(areas=(area(1), area(1)))
         with self.assertRaises(CoordinationError):
             policy(mission_frame_id='')
+        with self.assertRaises(CoordinationError):
+            area(1, entry_yaw=math.nan)
+        with self.assertRaises(TypeError):  # required: no silent default heading
+            MissionSite(uid(150), (0., 0.), 'MAP_REVISION_BOUND', MAP, 3, 1)
         with self.assertRaises(CoordinationError):
             SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=('unit_1', 'unit_3')), policy())
 
