@@ -1,6 +1,6 @@
 PASS inventory jaebeom/ROKEY_P4 1a2d0a9: files=335, packages=7, test_files=75
 PASS inventory mi1nn/amr-mini-project ee355d0: files=477, packages=5, test_files=15
 PASS inventory jaebeom/ROKEY-7 baseline 4f5453d: files=1, packages=0, test_files=0
-PASS markdown: files=20, local_links=73, pinned_source_links=183, line_ranges=179
+PASS markdown: files=20, local_links=74, pinned_source_links=183, line_ranges=179
 NOT CHECKED: prose meaning, local heading anchors, external web availability
 NOT RUN: source tests, colcon, ROS, model inference, bag replay, robot/4-PC acceptance

@@ -204,6 +204,6 @@ test_schema_robot_identifiers_follow_profile_syntax (test_review_operations.Oper
 test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage) ... ok
 
 ----------------------------------------------------------------------
-Ran 203 tests in 0.431s
+Ran 203 tests in 0.434s
 
 OK
