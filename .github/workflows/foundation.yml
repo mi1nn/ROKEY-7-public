@@ -19,10 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Test deployment boundaries without ROS
-        env:
-          PYTHONPATH: src/rescue_bringup
-        run: python -m unittest discover -s tests -v
+      - name: Test Python contracts without ROS
+        run: python -I scripts/run_tests.py
       - name: Validate the inert example
         env:
           PYTHONPATH: src/rescue_bringup

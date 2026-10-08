@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 인터페이스 계약 초안
 
-이 문서는 계획 PR 3의 제안이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
+이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 아직 미구현이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
 
 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
 
@@ -36,7 +36,14 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 - 변경 가능한 상태는 ID만으로 중복 판정하지 않는다. TargetEstimate는 `(target_id, estimate_revision)`, 로봇 상태는 `(robot_id, robot_boot_id, state_sequence)`, 좌표 snapshot은 authority/session/revision으로 버전을 구분한다. 더 높은 정상 revision은 업데이트이며 같은 키의 다른 의미 payload만 충돌이다. ReportReceipt는 자체 receipt_id와 참조 report_id를 가지므로 RECEIVED→PERSISTED 전이를 보고 payload 변경과 혼동하지 않는다.
 - boot 변경 시 이전 boot의 sequence를 새 sequence와 비교하지 않는다. 이전 boot의 임무·lease·frame 세션을 명시적으로 폐기하고 준비 절차를 다시 밟는다. retained 상태 한 개를 받았다는 이유로 새 boot가 READY가 되지 않는다.
 
+`robot_id` 값은 예시 `robot_a`/`robot_b`로 고정하지 않는다. DTO는 `[A-Za-z][A-Za-z0-9_]{0,63}` 형식을 검사하고 실행기·배정기·보고 저장소 경계는 검증된 배포 프로파일에서 주입한 정확히 2개의 distinct ID를 허용한다. 기본 allowlist는 없으며 수신 데이터가 설정 집합을 변경하지 못한다.
+
 ## C-03. 시각·최신성 계약
+
+Python 패키지 사이의 절대 시각은 양의 **int64 나노초** (`*_at_ns`, `valid_until_ns`, `deadline_ns`, `now_wall_ns` 등)로 고정한다. bool/float/0/음수/범위 초과는 거절한다. ROS header는 `ros_time_to_ns(int sec, int nanosec)`로 합성하고 `ns_to_ros_time`의 정수 divmod로 복원한다. 원 stamp를 float 초로 변환했다가 되돌리지 않는다. 실제 epoch `1700000000123456789` ns를 왕복해 하위 ns까지 보존하는 회귀시험을 유지한다. 문서의 suffix 없는 논리 필드도 이 표현을 따른다.
+
+수신 프로세스 **내부** monotonic deadline/lease/stop-window는 유한 float 초를 사용할 수 있다. 이 값은 직렬화하거나 다른 PC의 monotonic 시각과 비교하지 않는다. 절대 시각에 적용하는 기간/오차 허용치는 정수 ns다. `seconds_to_ns`는 십진 정책값·합성 fixture 변환 전용이며 이미 float로 손상된 sensor stamp 복구 수단이 아니다.
+
 
 | 값 | 의미와 사용 |
 | --- | --- |
@@ -44,7 +51,7 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 | `stamp_semantics` | `CAPTURE`, `DRIVER_RECEIVE`, `UNKNOWN`. 실제 드라이버가 어느 시점을 찍는지 확인. 수신 stamp를 캡처 stamp로 부르지 않음 |
 | `published_at` / `issued_at` | 메시지 발행/명령 최초 발급 시각. 원 관측 시각과 별개 |
 | `valid_until` / `deadline` | 원 관측 또는 임무 정책에서 정한 절대 유효 시한. 중계가 연장하지 않음 |
-| `received_steady_ns` | 각 수신 프로세스 내부의 monotonic 시각. 통신 watchdog·처리 지연에 사용하며 다른 PC의 monotonic 값과 비교하지 않음 |
+| `received_steady` (로컬 초) | 각 수신 프로세스 내부의 monotonic 시각. 통신 watchdog·처리 지연에 사용하며 다른 PC의 monotonic 값과 비교하지 않음 |
 | `clock_domain_id`, `clock_state`, `clock_error_bound` | 동일 시간 기준인지, 동기화 상태·최대 오차 추정이 사용 가능한지 표시. 단순한 header-수신 시각 차이만으로 동기화를 주장하지 않음 |
 
 실기에서는 system time을 공통 기준으로 사용하고 `use_sim_time=false`를 제안한다. bag/시뮬레이션은 별도 profile·`clock_domain_id`를 사용하며 실제 로봇 명령으로 연결하지 않는다. replay 중 시간 되감김은 새 세션으로 처리하고 이전 lease/목표를 재사용하지 않는다.
@@ -110,7 +117,9 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 
 도킹 action의 접수/성공 응답만으로 물리 상태를 확정하지 않는다. UNDOCK 뒤 fresh `is_docked=false`·정지와 필요한 센서/TF/위치 추정 준비를 확인한 뒤 협업 이동을 허용한다. DOCK 뒤에도 fresh 도킹 상태·정지를 확인한다. 접수 뒤 무동작·상태 불명·timeout은 실패/NOT_READY와 S-04 정지 관문으로 처리한다. `power_saver: False`로 도킹 중 센서가 나오더라도 수색/접근/재관측 이동의 `is_docked=false` guard는 생략하지 않는다. 도킹 장치가 없는 플랫폼의 적용 제외는 장비 프로파일과 근거로 명시한다.
 
-action 수락 전 거절은 goal 응답의 `accepted=false`와 별도의 `TaskAdmission`/상태 기록에 command_id·거절 이유를 남긴다. 도메인 로그의 `REJECTED`는 action Result enum이 아니다. 정지 확인이 실패한 수락 임무는 `outcome=FAILED`, `terminal_reason=STOP_UNCONFIRMED`, `stop_confirmed=false`, `motion_state=STOP_UNCONFIRMED`로 보고하고 최초 취소/만료/실패 원인도 별도 기록한다. 결과 전송 후에도 정지 latch와 감시를 유지하며 새 이동을 허용하지 않는다.
+Nav2 terminal status `SUCCEEDED`/`CANCELED`/`ABORTED`는 별도 `action_status`로 보존한다. 외부 취소/실패와 실행기가 먼저 요청한 정지 원인을 섞지 않으며 `original_cause`와 canonical `terminal_reason`/qualified `detail_code`를 남긴다. action 성공 뒤에도 정지 증거가 필요하다.
+
+action 수락 전 거절은 goal 응답의 `accepted=false`와 별도의 `TaskAdmission`/상태 기록에 command_id/task_id/robot_id/robot_boot_id/authority_epoch/generation 및 canonical 거절 이유를 남긴다. coordinator의 발급 세대와 실행기의 최고 수락 세대를 구분하며 예약 생성만으로 수락 완료를 기록하지 않는다. 도메인 로그의 `REJECTED`는 action Result enum이 아니다. 정지 확인이 실패한 수락 임무는 `outcome=FAILED`, `terminal_reason=STOP_UNCONFIRMED`, `stop_confirmed=false`, `motion_state=STOP_UNCONFIRMED`로 보고하고 최초 취소/만료/실패 원인도 별도 기록한다. 결과 전송 후에도 정지 latch와 감시를 유지하며 새 이동을 허용하지 않는다.
 
 실행기는 로봇별 활성 이동 task를 하나만 소유한다. 새 임무는 기존 임무 종료·정지 관문을 거친 뒤 시작한다. 동일 command_id의 재전송은 이전 수락/결과를 돌려주며 새 goal을 만들지 않는다. 낮은 generation·이전 boot/authority의 메시지·완료한 goal의 늦은 feedback/result는 현재 상태를 덮어쓰지 않는다.
 
@@ -157,7 +166,11 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 
 ## C-09. 오류 코드와 복구 원칙
 
-공통 오류 제안: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `WRONG_ROBOT`, `STALE_OBSERVATION`, `CLOCK_UNCERTAIN`, `STALE_TRANSFORM`, `FRAME_REVISION_MISMATCH`, `LOCALIZATION_UNCERTAIN`, `SENSOR_UNAVAILABLE`, `NAV_NOT_READY`, `NOT_AUTHORIZED`, `STALE_GENERATION`, `LEASE_EXPIRED`, `STOP_LATCHED`, `UNREACHABLE`, `RETRY_EXHAUSTED`, `REPORT_NOT_PERSISTED`, `STOP_UNCONFIRMED`.
+공통 Python 오류의 단일 사전은 [rescue_contracts](../src/rescue_contracts/rescue_contracts/__init__.py)의 `CANONICAL_CODES`와 `DETAIL_CATEGORIES`다. 모든 도메인 예외는 `RescueError`를 상속하고 `.code`에는 공통 코드, `.component`에는 발생 패키지, `.detail_code`에는 `rescue_mapping.TF_TIME_MISMATCH` 같은 qualified 세부 원인, `.detail`에는 설명을 둔다. 소비자는 세부 문자열 대신 `.code`로 복구 분기한다. 예외를 발생시키지 않는 실패 결과도 같은 canonical code/detail_code 의미를 노출한다. 성공/상태 enum (`ACCEPTED`, `NAVIGATION_SUCCEEDED`, `HOLD`, `VALID`, `NEEDS_REOBSERVATION` 등)을 오류 코드와 혼합하지 않는다.
+
+공통 코드: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `WRONG_ROBOT`, `STALE_OBSERVATION`, `CLOCK_UNCERTAIN`, `STALE_TRANSFORM`, `FRAME_REVISION_MISMATCH`, `LOCALIZATION_UNCERTAIN`, `SENSOR_UNAVAILABLE`, `NAV_NOT_READY`, `NOT_AUTHORIZED`, `STALE_GENERATION`, `LEASE_EXPIRED`, `STOP_LATCHED`, `UNREACHABLE`, `RETRY_EXHAUSTED`, `REPORT_NOT_PERSISTED`, `STOP_UNCONFIRMED`, `ID_CONTENT_CONFLICT`, `TASK_BUSY`, `DEADLINE_EXPIRED`, `ACCEPT_TIMEOUT`, `GUARD_INVALID`, `STOP_EVIDENCE_STALE`, `SESSION_FAULT`, `GOAL_REJECTED`, `ACTION_CANCELED`, `ACTION_ABORTED`, `ROBOT_DOCKED`, `DRIVER_UNAVAILABLE`, `COMMAND_WATCHDOG_UNAVAILABLE`, `POLICY_MISMATCH`, `NOT_FOUND`, `PENDING_EVIDENCE`.
+
+`NEEDS_REOBSERVATION`가 예외의 세부 원인일 때 `.code=FRAME_REVISION_MISMATCH`이며 상태 표기의 이름은 그대로 유지한다. 알려지지 않은 진단 코드를 사전에 등록하지 않고 성공으로 처리하지 않는다. E2 코어는 객체·시각·task 정보가 담긴 호출 입력/반환값을 제공하며, 전체 런타임 로그 envelope와 재시도 정책은 ROS/API 어댑터에서 결합해야 한다.
 
 모든 오류에는 원인 컴포넌트·객체 ID·발생 시각·활성 task/generation·재시도 가능 여부를 기록한다. 원인을 모르면 UNKNOWN을 유지하고 성공으로 추정하지 않는다. sensor/time/frame 실패와 임무 정책 실패를 같은 무한 재시도로 숨기지 않는다. 재시도 budget·전체 deadline·정지 사유는 상태 전이와 함께 시험한다.
 

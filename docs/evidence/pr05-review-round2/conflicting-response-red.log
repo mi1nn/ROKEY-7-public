@@ -1,0 +1,20 @@
+test_admission_reasons_are_canonical (test_executor_review.ExecutorReviewTests.test_admission_reasons_are_canonical) ... ok
+test_bounded_velocity_before_fence_is_not_stop_requested (test_executor_review.ExecutorReviewTests.test_bounded_velocity_before_fence_is_not_stop_requested) ... ok
+test_conflicting_goal_response_cannot_invent_execution_fence (test_executor_review.ExecutorReviewTests.test_conflicting_goal_response_cannot_invent_execution_fence) ... FAIL
+test_external_cancel_and_abort_preserve_action_status (test_executor_review.ExecutorReviewTests.test_external_cancel_and_abort_preserve_action_status) ... ok
+test_float_epoch_and_conflicting_terminal_rejected (test_executor_review.ExecutorReviewTests.test_float_epoch_and_conflicting_terminal_rejected) ... ok
+test_profile_ids_and_receipt_identity (test_executor_review.ExecutorReviewTests.test_profile_ids_and_receipt_identity) ... ok
+test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.ExecutorReviewTests.test_stop_cause_not_overwritten_by_action_cancellation) ... ok
+
+======================================================================
+FAIL: test_conflicting_goal_response_cannot_invent_execution_fence (test_executor_review.ExecutorReviewTests.test_conflicting_goal_response_cannot_invent_execution_fence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_executor_review.py", line 86, in test_conflicting_goal_response_cannot_invent_execution_fence
+    with self.assertRaises(ValueError):
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.001s
+
+FAILED (failures=1)

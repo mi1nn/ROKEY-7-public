@@ -1,12 +1,12 @@
 # 개발 기반과 정적 배포 프로파일
 
-이 단계에서 동작하는 기능은 `rescue_bringup`의 **로컬 JSON 프로파일 검사**다. ROS를 import하지 않으며 네트워크·ROS 그래프·로봇에 연결하지 않는다. 나머지 다섯 패키지는 책임을 구분하는 metadata와 README만 갖춘다. 실행되는 것처럼 보이는 dummy 노드나 성공을 반환하는 미구현 노드는 없다.
+PR 4에서 동작하던 기능은 `rescue_bringup`의 **로컬 JSON 프로파일 검사**다. ROS를 import하지 않으며 네트워크·ROS 그래프·로봇에 연결하지 않는다. 후속 PR의 현재 구현 범위는 아래 표와 패키지별 README에서 추적한다. 실행되는 것처럼 보이는 dummy 노드나 성공을 반환하는 미구현 노드는 없다.
 
 ## 패키지와 현재 구현
 
 | 패키지 | 예정 책임 | 현재 동작 |
 | --- | --- | --- |
-| `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 없음 |
+| `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 명령·취소·정지 판정 Python 코어, ROS 어댑터 없음 |
 | `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 없음 |
 | `rescue_coordination` | 수색 분담·임무 배정·인계·통행 조정 | 없음 |
 | `rescue_mapping` | SLAM 연동·공통 좌표·지도 보정 | 없음 |
@@ -20,7 +20,7 @@
 저장소 루트에서 Python 3.10 이상으로 실행한다. 순수 로직의 필수 의존성은 Python 표준 라이브러리뿐이다.
 
 ```bash
-PYTHONPATH=src/rescue_bringup python3 -m unittest discover -s tests -v
+python3 -I scripts/run_tests.py
 PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.example.json
 ```
 
