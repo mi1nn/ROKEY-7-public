@@ -10,7 +10,7 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml", "README.md"]),
     ],
-    install_requires=[],
+    install_requires=['rescue_contracts==0.0.0'],
     zip_safe=True,
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",

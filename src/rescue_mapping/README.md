@@ -20,16 +20,18 @@ Python 표준 라이브러리로 3D 좌표 변환, 원 관측 보존, 로봇별 
 
 기본 순서는 `start_session` → `set_alignment` → `project` → `capture_goal_snapshot` → `validate_goal_snapshot`이다. `project(observation, sensor_to_map, now_ns=...)`는 TF가 없어도 유효한 원 관측을 먼저 보존하고 파생 위치 생성을 거절한다. 같은 관측 ID의 의미가 달라지면 `MappingError.code == 'ID_CONTENT_CONFLICT'`다. 새 map revision을 기존 관측에 덮어써 재관측을 가장하지 않는다.
 
-`advance_map_revision`과 `start_session`은 해당 로봇 관측의 파생 위치 및 의존하는 source/destination 목표를 무효화한다. `set_alignment` 변경만 있으면 같은 원 관측·sensor-time 변환으로 다시 계산할 수 있다. map session/revision이 바뀌면 이 구현에는 posegraph 연계 재투영이 없어 새 관측이 필요하다. `record_map_update`는 점유 지도 갱신 순서만 바꾸며 보정 revision을 만들어내지 않는다.
+`advance_map_revision`과 `start_session`은 해당 로봇 관측의 파생 위치 및 의존하는 source/destination 목표를 무효화한다. `set_alignment`의 유효한 정렬만 변경되면 파생 위치는 `STALE_DERIVATION`이며 같은 원 관측·sensor-time 변환으로 다시 계산할 수 있다. 지도 세션·보정 변경이나 정렬 무효화는 `NEEDS_REOBSERVATION`이다. 두 상태 모두 기존 목표를 무효화한다. map session/revision이 바뀌면 이 구현에는 posegraph 연계 재투영이 없어 새 관측이 필요하다. `record_map_update`는 점유 지도 갱신 순서만 바꾸며 보정 revision을 만들어내지 않는다.
 
 `Invalidation.observation_ids`와 `goal_snapshot_ids`는 영향 목록이다. 이것을 반환했다는 사실은 실제 goal 취소·정지가 아니다. 미래 실행기가 이를 소비하고 수락/발행 직전 snapshot을 다시 검사해야 한다. 이 프로세스의 lock은 다른 PC의 검증·발행을 원자적으로 만들지 못한다.
 
 저장소 루트의 순수 로직 시험:
 
 ```bash
-PYTHONPATH=src/rescue_mapping python3 -m unittest discover -s tests -p test_mapping.py -v
+PYTHONPATH=src/rescue_contracts:src/rescue_mapping python3 -m unittest discover -s tests -p test_mapping.py -v
 ```
 
 테스트의 시간·오차·좌표는 합성 fixture이고 운용 기준이 아니다. Python wheel 설치는 가능하지만 ROS adapter·실제 backend 연동·`colcon`/실기 통과는 이 시험의 범위가 아니다. 저장소의 `docs/implementation-mapping.md`에 계약과 미구현 범위를 기록한다.
 
 원본 코드는 복사하지 않았다. 프로젝트 라이선스·maintainer는 미결정이며 기존 `LicenseRef-Unspecified`·`maintainer@example.invalid`를 유지한다. 배포용 릴리스 metadata가 아니다.
+
+`MappingError`는 공통 `RescueError`를 상속한다. `.code`는 C-09 공통 분류이고 `.detail_code`는 `rescue_mapping.OBSERVATION_EXPIRED` 같은 원 세부 코드다. 대응 사전은 `rescue_contracts` 한 곳에서 관리한다.

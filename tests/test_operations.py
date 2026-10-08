@@ -64,11 +64,11 @@ class OperationsTests(unittest.TestCase):
         self.payload = sample_report()
 
     def test_received_is_not_persisted_and_restart_retains_receipt(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             received = ledger.receive(self.payload, sample_envelope())
             self.assertEqual("RECEIVED", received.status)
             self.assertIsNone(received.persisted_at_ns)
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             self.assertEqual(received.to_dict(), ledger.get(self.payload["report_id"])["receipt"])
             persisted = ledger.persist(self.payload["report_id"])
             self.assertEqual("PERSISTED", persisted.status)
@@ -77,7 +77,7 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(persisted.to_dict(), read_reports(self.db)["reports"][0]["receipt"])
 
     def test_envelope_changes_are_retries_not_collisions(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             initial = ledger.receive(self.payload, sample_envelope())
             self.assertEqual(initial, ledger.receive(self.payload, sample_envelope(200)))
             final = ledger.persist(self.payload["report_id"])
@@ -85,21 +85,21 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual(1, len(ledger.list_reports()))
 
     def test_report_id_collision_does_not_mutate_original(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             original = ledger.receive(self.payload, sample_envelope())
             changed = copy.deepcopy(self.payload)
             changed["reason"] = "changed meaning"
             with self.assertRaisesRegex(OperationsError, "ID_CONTENT_CONFLICT"):
                 ledger.receive(changed, sample_envelope(1))
             self.assertEqual(original.to_dict(), ledger.get(self.payload["report_id"])["receipt"])
-        with ReportOutbox(self.sender) as outbox:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox:
             outbox.enqueue(self.payload)
             with self.assertRaisesRegex(OperationsError, "ID_CONTENT_CONFLICT"):
                 outbox.enqueue(changed)
 
     def test_required_evidence_waits_for_actual_bytes_then_survives_reopen(self):
         ref, content = add_evidence(self.payload)
-        with ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             ledger.receive(self.payload, sample_envelope())
             waiting = ledger.persist(self.payload["report_id"])
             self.assertEqual("PENDING_EVIDENCE", waiting.status)
@@ -108,7 +108,7 @@ class OperationsTests(unittest.TestCase):
                 ledger.store_evidence(ref, b"damaged upload")
             self.assertEqual(waiting, ledger.persist(self.payload["report_id"]))
             ledger.store_evidence(ref, content)
-        with ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             final = ledger.persist(self.payload["report_id"])
             self.assertEqual("PERSISTED", final.status)
             self.assertEqual(3, final.revision)
@@ -117,7 +117,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual(content, db.execute("SELECT content FROM evidence").fetchone()[0])
 
     def test_missing_ref_and_original_photo_do_not_satisfy_confirmation_policy(self):
-        with ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             ledger.receive(self.payload, sample_envelope())
             self.assertEqual("PENDING_EVIDENCE", ledger.persist(self.payload["report_id"]).status)
             other = sample_report()
@@ -128,13 +128,13 @@ class OperationsTests(unittest.TestCase):
 
     def test_optional_policy_does_not_persist_dangling_declared_evidence(self):
         add_evidence(self.payload)
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             ledger.receive(self.payload, sample_envelope())
             self.assertEqual("PENDING_EVIDENCE", ledger.persist(self.payload["report_id"]).status)
 
     def test_evidence_id_metadata_collision_rejected(self):
         ref, content = add_evidence(self.payload)
-        with ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             ledger.store_evidence(ref, content)
             ledger.store_evidence(ref, content)
             conflicting = dict(ref, acquired_at_ns=999)
@@ -147,7 +147,7 @@ class OperationsTests(unittest.TestCase):
 
     def test_upload_transaction_failure_does_not_claim_stored(self):
         ref, content = add_evidence(self.payload)
-        with ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             ledger.receive(self.payload, sample_envelope())
             with sqlite3.connect(self.db) as db:
                 db.execute("CREATE TRIGGER fail_upload BEFORE INSERT ON evidence BEGIN SELECT RAISE(ABORT, 'fixture failure'); END")
@@ -161,7 +161,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual("PERSISTED", ledger.persist(self.payload["report_id"]).status)
 
     def test_report_transaction_failure_rolls_back_and_retry_succeeds(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             with sqlite3.connect(self.db) as db:
                 db.execute("CREATE TRIGGER fail_report BEFORE INSERT ON reports BEGIN SELECT RAISE(ABORT, 'fixture failure'); END")
             with self.assertRaisesRegex(OperationsError, "STORAGE_ERROR"):
@@ -172,7 +172,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual("RECEIVED", ledger.receive(self.payload, sample_envelope()).status)
 
     def test_persist_write_failure_never_returns_persisted_receipt(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             original = ledger.receive(self.payload, sample_envelope())
             with sqlite3.connect(self.db) as db:
                 db.execute("CREATE TRIGGER fail_persist BEFORE UPDATE ON reports BEGIN SELECT RAISE(ABORT, 'fixture failure'); END")
@@ -184,7 +184,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual("PERSISTED", ledger.persist(self.payload["report_id"]).status)
 
     def test_outbox_receipt_write_failure_replays_committed_remote_report(self):
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             outbox.enqueue(self.payload)
             with sqlite3.connect(self.sender) as db:
                 db.execute("CREATE TRIGGER fail_ack BEFORE UPDATE OF receipt_json ON outbox BEGIN SELECT RAISE(ABORT, 'fixture failure'); END")
@@ -198,7 +198,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual(1, len(ledger.list_reports()))
 
     def test_receipt_loss_after_commit_retries_without_duplicate(self):
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             outbox.enqueue(self.payload)
             transport = LedgerTransport(ledger)
             def lose_receipt(payload, env):
@@ -207,7 +207,7 @@ class OperationsTests(unittest.TestCase):
             self.assertIsNone(outbox.deliver(self.payload["report_id"], sample_envelope(), lose_receipt))
             self.assertEqual("RETRY_PENDING", outbox.get(self.payload["report_id"])["state"])
             self.assertEqual("PERSISTED", ledger.get(self.payload["report_id"])["receipt"]["status"])
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             final = outbox.deliver(self.payload["report_id"], sample_envelope(1), LedgerTransport(ledger))
             self.assertEqual("PERSISTED", final.status)
             self.assertEqual([], outbox.pending())
@@ -217,7 +217,7 @@ class OperationsTests(unittest.TestCase):
 
     def test_received_and_pending_receipts_remain_retryable(self):
         ref, content = add_evidence(self.payload)
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             outbox.enqueue(self.payload)
             got = outbox.deliver(self.payload["report_id"], sample_envelope(), ledger.receive)
             self.assertEqual("RECEIVED", got.status)
@@ -228,7 +228,7 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual("PERSISTED", outbox.deliver(self.payload["report_id"], sample_envelope(2), LedgerTransport(ledger)).status)
 
     def test_wrong_report_receipt_cannot_finish_outbox(self):
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             outbox.enqueue(self.payload)
             wrong = LedgerTransport(ledger)(sample_report(), sample_envelope())
             self.assertIsNone(outbox.deliver(self.payload["report_id"], sample_envelope(), lambda *_: wrong))
@@ -237,7 +237,7 @@ class OperationsTests(unittest.TestCase):
 
     def test_stale_receipt_revision_does_not_regress_outbox(self):
         ref, _ = add_evidence(self.payload)
-        with ReportOutbox(self.sender) as outbox, ReportLedger(self.db, evidence_policy="CONFIRMATION") as ledger:
+        with ReportOutbox(self.sender, allowed_robot_ids=("robot_a", "robot_b")) as outbox, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="CONFIRMATION") as ledger:
             outbox.enqueue(self.payload)
             early = ledger.receive(self.payload, sample_envelope())
             pending = ledger.persist(self.payload["report_id"])
@@ -246,25 +246,25 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual("PENDING_EVIDENCE", outbox.get(self.payload["report_id"])["state"])
 
     def test_concurrent_ledger_instances_deduplicate(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as first, ReportLedger(self.db, evidence_policy="OPTIONAL") as second:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as first, ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as second:
             with ThreadPoolExecutor(max_workers=4) as pool:
                 receipts = list(pool.map(lambda i: (first if i % 2 else second).receive(self.payload, sample_envelope(i)), range(20)))
             self.assertTrue(all(value == receipts[0] for value in receipts))
             self.assertEqual(1, len(first.list_reports()))
 
     def test_policy_and_role_cannot_change_on_reopen(self):
-        with ReportLedger(self.db, evidence_policy="OBSERVATION"):
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OBSERVATION"):
             pass
         with self.assertRaisesRegex(OperationsError, "POLICY_MISMATCH"):
-            ReportLedger(self.db, evidence_policy="OPTIONAL")
+            ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL")
         with self.assertRaisesRegex(OperationsError, "POLICY_MISMATCH"):
-            ReportOutbox(self.db)
+            ReportOutbox(self.db, allowed_robot_ids=("robot_a", "robot_b"))
 
     def test_invalid_schema_numeric_ids_and_medical_claims_rejected(self):
         changes = [("schema_version", "2.0"), ("schema_version", "1.1"), ("report_id", "not-uuid"),
                    ("generation", True), ("observed_at_ns", 0), ("confirmed_at_ns", 50),
                    ("reported_at_ns", 199), ("approach_result", "ALIVE"), ("reason", "x" * 1025)]
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             for key, value in changes:
                 with self.subTest(key=key, value=value):
                     bad = copy.deepcopy(self.payload)
@@ -288,7 +288,7 @@ class OperationsTests(unittest.TestCase):
             report(self.payload)
 
     def test_payload_bounds_and_immutable_input_snapshot(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             ledger.receive(self.payload, sample_envelope())
             self.payload["position"]["x"] = 999.0
             self.assertEqual(1.0, ledger.get(self.payload["report_id"])["payload"]["position"]["x"])
@@ -302,13 +302,13 @@ class OperationsTests(unittest.TestCase):
         self.payload.update(approach_result="UNREACHABLE", confirmation_result="UNCONFIRMED",
                             confirmation_observation_id=None, confirmed_at_ns=None, position=None,
                             reason="Synthetic route blocked")
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             final = LedgerTransport(ledger)(self.payload, sample_envelope())
             self.assertEqual("PERSISTED", final.status)
             self.assertEqual("UNREACHABLE", ledger.get(self.payload["report_id"])["payload"]["approach_result"])
 
     def test_readonly_cli_exports_and_does_not_create_missing_database(self):
-        with ReportLedger(self.db, evidence_policy="OPTIONAL") as ledger:
+        with ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL") as ledger:
             LedgerTransport(ledger)(self.payload, sample_envelope())
         result = subprocess.run([sys.executable, "-m", "rescue_operations", str(self.db)],
                                 text=True, capture_output=True, check=False)
@@ -324,8 +324,8 @@ class OperationsTests(unittest.TestCase):
     def test_invalid_paths_and_closed_db_normalize_errors(self):
         for path in (":memory:", "\x00", self.root):
             with self.subTest(path=str(path)), self.assertRaises(OperationsError):
-                ReportLedger(path, evidence_policy="OPTIONAL")
-        ledger = ReportLedger(self.db, evidence_policy="OPTIONAL")
+                ReportLedger(path, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL")
+        ledger = ReportLedger(self.db, allowed_robot_ids=("robot_a", "robot_b"), evidence_policy="OPTIONAL")
         ledger.close()
         ledger.close()
         with self.assertRaisesRegex(OperationsError, "STORAGE_ERROR"):

@@ -32,7 +32,7 @@ updated: 2026-10-08
 | 필드 | 형식과 의미 |
 | --- | --- |
 | `schema_version`, `report_id`, `target_id` | `1.0`, 불변 보고 ID, 사건 ID |
-| `observation_id`, `source_robot`, `source_camera`, `source_boot_id` | 원 발견 관측 ID, `robot_a`/`robot_b`, 원 카메라 이름, 원 센서/관측 생성 프로세스 UUID. 중계 publisher로 덮어쓰지 않음 |
+| `observation_id`, `source_robot`, `source_camera`, `source_boot_id` | 원 발견 관측 ID, 프로파일 식별자 형식의 로봇 ID, 원 카메라 이름, 원 센서/관측 생성 프로세스 UUID. 중계 publisher로 덮어쓰지 않음 |
 | `clock_domain_id` | 보존하는 관측의 시간 기준 이름. 이 이름 자체로 동기화·최신성을 승인하지 않음 |
 | `robot_id`, `task_id`, `generation` | 수행 로봇, 임무 ID와 세대. 원 발견 로봇과 다를 수 있음 |
 | `observation_result` | `DETECTED`만 지원 |
@@ -73,12 +73,12 @@ updated: 2026-10-08
 
 | 호출 | 의미 |
 | --- | --- |
-| `ReportLedger(path, evidence_policy=...)` | operations 호스트의 로컬 파일. :memory:·디렉터리·NUL 경로 거절. 부모 디렉터리는 먼저 준비 |
+| `ReportLedger(path, evidence_policy=..., allowed_robot_ids=...)` | operations 호스트의 로컬 파일. :memory:·디렉터리·NUL 경로 거절. 부모 디렉터리는 먼저 준비 |
 | `receive(payload, envelope) -> Receipt` | 검증된 불변 보고 저장 후 RECEIVED. 재전송이면 이미 저장된 가장 최근 receipt. 같은 ID의 다른 의미는 ID_CONTENT_CONFLICT |
 | `store_evidence(ref, bytes) -> dict` | hash 검증 후 실제 증거 저장. 보고 상태를 암묵적으로 전진시키지 않음 |
 | `persist(report_id) -> Receipt` | 필수 payload·증거 확인 후 PERSISTED, 부족하면 PENDING_EVIDENCE. 저장 실패는 예외이며 PERSISTED receipt 없음 |
 | `get(report_id)`, `list_reports(limit=100)` | payload·receipt·첫 envelope·수신 시각. 목록 상한 1~1000 |
-| `ReportOutbox(path).enqueue(payload)` | 송신 PC의 별도 로컬 DB에 QUEUED 보존. 동일 ID 의미 충돌 거절 |
+| `ReportOutbox(path, allowed_robot_ids=...).enqueue(payload)` | 송신 PC의 별도 로컬 DB에 QUEUED 보존. 동일 ID 의미 충돌 거절 |
 | `deliver(report_id, envelope, transport)` | 시도 횟수를 먼저 저장하고 callable 1회 호출. 유효한 PERSISTED receipt만 완료. 전송 실패/잘못된 receipt는 RETRY_PENDING·오류 기록·None 반환 |
 | `pending(limit=100)`, `get(report_id)` | 재시작 뒤 재전송 목록과 상태/시도 횟수/receipt 조회 |
 | `LedgerTransport(ledger)` | 프로세스 내부 receive→persist API 어댑터. 네트워크 통신을 한 것으로 주장하지 않음 |
@@ -115,8 +115,9 @@ envelope = {
     "schema_version": "1.0", "publisher_id": "coordinator", "publisher_boot_id": uid(),
     "sequence": 0, "published_at_ns": 400,
 }
-with ReportLedger("operations.sqlite3", evidence_policy="OPTIONAL") as ledger:
-    with ReportOutbox("sender.sqlite3") as outbox:
+allowed_robot_ids = ("robot_a", "robot_b")  # 예시. 실제 값은 검증된 deployment.robots에서 주입
+with ReportLedger("operations.sqlite3", evidence_policy="OPTIONAL", allowed_robot_ids=allowed_robot_ids) as ledger:
+    with ReportOutbox("sender.sqlite3", allowed_robot_ids=allowed_robot_ids) as outbox:
         outbox.enqueue(payload)
         receipt = outbox.deliver(payload["report_id"], envelope, LedgerTransport(ledger))
         assert receipt.status == "PERSISTED"
@@ -134,8 +135,8 @@ operations만 operations DB를 쓴다. 네 PC가 파일을 NFS/SMB 등으로 공
 ## 검증과 한계
 
 ```bash
-PYTHONPATH=src/rescue_operations python3 -m unittest discover -s tests -p test_operations.py -v
-PYTHONPATH=src/rescue_operations python3 -m rescue_operations operations.sqlite3 --limit 100
+PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m unittest discover -s tests -p test_operations.py -v
+PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m rescue_operations operations.sqlite3 --limit 100
 ```
 
 실제 실행 증거는 [PR9 로컬 검증 기록](evidence/pr09-local-validation.md)에 별도로 남긴다. 주요 시험은 DB close/reopen, 두 연결 동시 중복 수신, 보고/증거/receipt 쓰기 실패 rollback, commit 뒤 응답 유실, 송신 receipt DB 쓰기 실패, 필수 증거 누락·hash 불일치, 늦은 receipt, ID 충돌, 잘못된 schema·UUID·NaN·시각, 읽기 전용 CLI다. 외부 네트워크를 열지 않았고 장비·ROS·실기 시험을 실행하지 않았다.
@@ -143,3 +144,11 @@ PYTHONPATH=src/rescue_operations python3 -m rescue_operations operations.sqlite3
 ## 원리 참고
 
 고정 원본의 [P4 evidence 관측 시각 매칭](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_sysmon/rokey_sysmon/evidence.py#L24-L104), [P4 가짜 두 로봇 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_sysmon/test/test_integration_fake_robots.py#L1-L52), [AMR 재발행 관측 시각 문제](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L109-L159)를 선별 근거로 삼았다. SQLite·outbox 코드를 해당 파일에서 이식한 것이 아니다. 과거 가짜 로봇 시험 결과는 이번 2 AMR 실기 증거가 아니다. 기존 저작권·라이선스가 새 구현에 자동 승계되었다고 추정하지 않는다.
+
+## 프로파일 ID와 오류 계약
+
+`source_robot`와 `robot_id`의 형식은 공통 `rescue_contracts.robot_id`로 검사한다. 저장소·outbox 생성자는 검증된 프로파일에서 정확히 두 개의 서로 다른 ID를 `allowed_robot_ids`로 받아야 하며 기본값은 없다. `robot3`/`robot7` 같은 ID도 가능하고, 두 필드 중 하나라도 허용 집합 밖이면 `WRONG_ROBOT`으로 쓰기 전에 거절한다. 허용 집합은 정렬한 불변 tuple로 보존하고 읽기 전용 속성으로 제공한다.
+
+DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순서만 다른 같은 집합으로는 재오픈할 수 있고, 집합 변경이나 허용 ID metadata가 없는 이전 DB는 `POLICY_MISMATCH`다. 기존 DB에 현재 설정을 조용히 덮어쓰거나 과거 보고를 바꾸지 않는다. 필요한 데이터 이전은 원본 보존 후 별도 명시적 migration으로 다뤄야 한다. 읽기 전용 export도 저장된 `allowed_robot_ids`를 함께 표시한다.
+
+`OperationsError`는 공통 `RescueError`이며 `.code`는 C-09, `.detail_code`는 `rescue_operations.<원 세부 코드>`다. 예를 들어 저장 실패는 `REPORT_NOT_PERSISTED`/`rescue_operations.STORAGE_ERROR`로 표현한다. `tests/test_review_operations.py`는 사용자 지정 ID, 알 수 없는 원본/수행 로봇, 정책 불변·재오픈 불일치·기존 metadata 부재를 실제 임시 SQLite로 검사한다. 기존 실행 증거·source hash는 수정하지 않는다.

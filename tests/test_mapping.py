@@ -57,7 +57,7 @@ class MappingTests(unittest.TestCase):
     def assertCode(self, code, operation):
         with self.assertRaises(MappingError) as caught:
             operation()
-        self.assertEqual(code, caught.exception.code)
+        self.assertEqual("rescue_mapping." + code, caught.exception.detail_code)
 
     def test_optical_depth_point_uses_full_3d_rotation_then_translation(self):
         result = self.project()

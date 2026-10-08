@@ -4,7 +4,7 @@ from dataclasses import replace
 from threading import RLock
 from uuid import uuid4
 
-from .geometry import MappingError, finite, integer, name, uint64, uuid_string, vector
+from .geometry import MappingError, finite, integer, name, robot_identifier, uint64, uuid_string, vector
 from .models import (CoordinateVersion, FrameAlignment, GoalSnapshot, GoalValidation,
                      Invalidation, MapState, ObservationReference, Projection,
                      SourceObservation, TimedTransform)
@@ -49,7 +49,7 @@ class MappingRegistry:
         self._last_time = now_ns
 
     def _map(self, robot):
-        name(robot, "source_robot")
+        robot_identifier(robot)
         if robot not in self._maps:
             raise MappingError("UNKNOWN_ROBOT", robot)
         return self._maps[robot]
@@ -58,11 +58,12 @@ class MappingRegistry:
         with self._lock:
             return self._map(robot)
 
-    def _invalidate(self, robot, reason):
+    def _invalidate(self, robot, reason, status="NEEDS_REOBSERVATION"):
         affected = []
         for oid, projection in tuple(self._projections.items()):
-            if projection.original.source_robot == robot and projection.status == "VALID":
-                invalid = replace(projection, status="NEEDS_REOBSERVATION", reason=reason)
+            if (projection.original.source_robot == robot
+                    and projection.status in ("VALID", "STALE_DERIVATION")):
+                invalid = replace(projection, status=status, reason=reason)
                 self._projections[oid] = invalid
                 self._history[oid].append(invalid)
                 affected.append(oid)
@@ -78,8 +79,8 @@ class MappingRegistry:
     def start_session(self, source_robot, map_frame, map_session_id):
         """Start at revision zero; previously retired session IDs cannot return."""
         with self._lock:
-            for value, label in ((source_robot, "source_robot"), (map_frame, "map_frame")):
-                name(value, label)
+            robot_identifier(source_robot)
+            name(map_frame, "map_frame")
             uuid_string(map_session_id, "map_session_id")
             current = self._maps.get(source_robot)
             if current and current.map_session_id == map_session_id:
@@ -146,7 +147,11 @@ class MappingRegistry:
                     raise MappingError("ALIGNMENT_REVISION_CONFLICT")
                 if alignment.transform_revision < previous.transform_revision:
                     raise MappingError("STALE_ALIGNMENT_REVISION")
-            event = self._invalidate(alignment.source_robot, "ALIGNMENT_CHANGED")
+            usable = (alignment.status == "VALID"
+                      and alignment.position_error_m <= self.max_position_error_m
+                      and alignment.rotation_error_rad <= self.max_rotation_error_rad)
+            status = "STALE_DERIVATION" if usable else "NEEDS_REOBSERVATION"
+            event = self._invalidate(alignment.source_robot, "ALIGNMENT_CHANGED", status)
             self._alignments[alignment.source_robot] = alignment
             self._last_alignment[alignment.source_robot] = alignment
             return event
@@ -246,16 +251,23 @@ class MappingRegistry:
             result = self._projections.get(observation_id)
             if result is None:
                 raise MappingError("PROJECTION_UNAVAILABLE")
-            if result.status != "VALID":
+            if result.status not in ("VALID", "STALE_DERIVATION"):
                 return result
             if now_ns >= result.valid_until_ns:
                 return replace(result, status="EXPIRED", reason="PROJECTION_EXPIRED")
             try:
                 alignment = self._alignment(result.original.source_robot, now_ns)
             except MappingError as exc:
-                return replace(result, status="NEEDS_REOBSERVATION", reason=exc.code)
+                return replace(result, status="NEEDS_REOBSERVATION",
+                               reason=exc.detail_code.removeprefix("rescue_mapping."))
             if result.version != self._version(alignment):
-                return replace(result, status="NEEDS_REOBSERVATION", reason="VERSION_MISMATCH")
+                same_map = (result.version.source_robot == alignment.source_robot
+                            and result.version.map_frame == alignment.map_frame
+                            and result.version.map_session_id == alignment.map_session_id
+                            and result.version.map_revision == alignment.map_revision)
+                return replace(result, status="STALE_DERIVATION" if same_map else "NEEDS_REOBSERVATION",
+                               reason=result.reason if same_map and result.status == "STALE_DERIVATION"
+                               else "VERSION_MISMATCH")
             return result
 
     def projection_history(self, observation_id):
@@ -315,5 +327,6 @@ class MappingRegistry:
                     if result.status != "VALID" or result.version != reference.version:
                         raise MappingError("SOURCE_VERSION_MISMATCH")
             except MappingError as exc:
-                return GoalValidation(False, (exc.code, "BACKEND_NOT_INTEGRATED"))
+                return GoalValidation(False, (exc.detail_code.removeprefix("rescue_mapping."),
+                                              "BACKEND_NOT_INTEGRATED"))
             return GoalValidation(True, ("BACKEND_NOT_INTEGRATED",))

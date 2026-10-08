@@ -12,7 +12,7 @@ from typing import Protocol
 import uuid
 
 from .schema import (EVIDENCE_POLICIES, MAX_EVIDENCE_BYTES, OperationsError,
-                     canonical, envelope, evidence_ref, identity, report,
+                     allowed_robots, canonical, envelope, evidence_ref, identity, report,
                      require, uid, uint)
 
 
@@ -59,6 +59,10 @@ def _limit(limit):
 
 
 class _Database:
+    @property
+    def allowed_robot_ids(self):
+        return self._allowed_robot_ids
+
     def __init__(self, db_path, role, metadata=None):
         self.path = _path(db_path)
         self._lock = threading.RLock()
@@ -121,11 +125,13 @@ class _Database:
 class ReportLedger(_Database):
     """Operations-owned SQLite writer; never share this DB file between PCs."""
 
-    def __init__(self, db_path, *, evidence_policy):
+    def __init__(self, db_path, *, evidence_policy, allowed_robot_ids):
         require(isinstance(evidence_policy, str) and evidence_policy in EVIDENCE_POLICIES,
                 "choose OPTIONAL, OBSERVATION or CONFIRMATION evidence policy")
         self.evidence_policy = evidence_policy
-        super().__init__(db_path, "operations-ledger", {"evidence_policy": evidence_policy})
+        self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
+        super().__init__(db_path, "operations-ledger", {"evidence_policy": evidence_policy,
+                         "allowed_robot_ids": canonical(self.allowed_robot_ids)})
         try:
             with self._transaction() as db:
                 db.execute("""CREATE TABLE IF NOT EXISTS reports (
@@ -142,6 +148,7 @@ class ReportLedger(_Database):
 
     def receive(self, payload, transport_envelope):
         payload, transport_envelope = report(payload), envelope(transport_envelope)
+        _report_membership(payload, self.allowed_robot_ids)
         digest, report_id = identity(payload), payload["report_id"]
         with self._transaction() as db:
             row = db.execute("SELECT * FROM reports WHERE report_id = ?", (report_id,)).fetchone()
@@ -225,8 +232,10 @@ class LedgerTransport:
 class ReportOutbox(_Database):
     """Sender-owned DB. Each delivery is one bounded attempt, never an implicit loop."""
 
-    def __init__(self, db_path):
-        super().__init__(db_path, "report-outbox")
+    def __init__(self, db_path, *, allowed_robot_ids):
+        self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
+        super().__init__(db_path, "report-outbox", {
+            "allowed_robot_ids": canonical(self.allowed_robot_ids)})
         try:
             with self._transaction() as db:
                 db.execute("""CREATE TABLE IF NOT EXISTS outbox (
@@ -239,6 +248,7 @@ class ReportOutbox(_Database):
 
     def enqueue(self, payload):
         payload = report(payload)
+        _report_membership(payload, self.allowed_robot_ids)
         digest, report_id = identity(payload), payload["report_id"]
         with self._transaction() as db:
             row = db.execute("SELECT payload_sha256 FROM outbox WHERE report_id = ?", (report_id,)).fetchone()
@@ -298,6 +308,11 @@ class ReportOutbox(_Database):
         return received
 
 
+def _report_membership(payload, allowed_robot_ids):
+    for key in ("source_robot", "robot_id"):
+        require(payload[key] in allowed_robot_ids, key + " is outside the configured deployment", "WRONG_ROBOT")
+
+
 def _validate_receipt(receipt, report_id, digest):
     require(isinstance(receipt, Receipt), "transport must return Receipt")
     uid(receipt.receipt_id, "receipt_id")
@@ -333,12 +348,17 @@ def read_reports(db_path, *, limit=100, report_id=None):
         metadata = dict(db.execute("SELECT key, value FROM metadata"))
         require(metadata.get("role") == "operations-ledger" and metadata.get("schema") == "1.0",
                 "not an operations schema 1.0 database", "POLICY_MISMATCH")
+        try:
+            configured_robots = allowed_robots(json.loads(metadata["allowed_robot_ids"]))
+        except (KeyError, ValueError, TypeError) as exc:
+            raise OperationsError("POLICY_MISMATCH", "DB has no valid immutable robot policy") from exc
         if report_id is None:
             rows = db.execute("SELECT * FROM reports ORDER BY received_at_ns, report_id LIMIT ?", (limit,)).fetchall()
         else:
             rows = db.execute("SELECT * FROM reports WHERE report_id = ?", (report_id,)).fetchall()
             require(bool(rows), "unknown report_id", "NOT_FOUND")
         return {"schema_version": "1.0", "evidence_policy": metadata["evidence_policy"],
+                "allowed_robot_ids": list(configured_robots),
                 "reports": [_public_report(row) for row in rows]}
     except sqlite3.Error as exc:
         raise OperationsError("STORAGE_ERROR", "cannot read report database") from exc
