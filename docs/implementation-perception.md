@@ -70,6 +70,40 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 저장소 루트에서 `PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discover -s tests -p test_perception.py -v`로 실행한다. 34개 unittest는 등록 깊이의 수학·단위, 잘못된 정합/해상도/시각, 깊이 결측·불연속, 모델 class, UUID·NaN/Inf/bool, 관측 불변·중복/충돌/역순/만료, receiver 시계 역행 latch·거절 입력 뒤 역행 감지, 복수 대상과 로봇별 사건 분리, 실제 epoch ns 경계·공통 오류·tracking_mode·역순 이력을 다룬다. 이는 CT의 E2 일부이며 ROS/센서/모델 성능·실제 표적 위치/접근 검증은 NOT_RUN이다. TF 누락/SLAM revision은 이 코어의 PASS로 대신하지 않는다.
 
+## 입력 어댑터 (기록 입력, E2)
+
+`rescue_perception.adapter`는 `sensor_msgs/Image`(RGB·Depth)·`CameraInfo`·`vision_msgs/Detection2D`와 **필드 이름이 같은 객체**를 받아 위 코어로 넘긴다. ROS를 import하지 않으므로 rclpy 메시지, bag에서 역직렬화한 메시지, 시험용 객체를 똑같이 받는다.
+
+| 단계 | 함수 | 하는 일 · 거절 |
+| --- | --- | --- |
+| 시각 | `stamp_ns(header)` | `ros_time_to_ns(sec, nanosec)` 하나로만 정수 ns를 만든다. float `sec`는 `INVALID_INPUT` |
+| RGB | `rgb_frame(image, binding)` | `FrameMeta` 와 픽셀 바이트의 실제 SHA-256(관측 증거). `data` 길이 ≠ `step × height` 면 거절 |
+| Depth | `depth_frame(image, binding)` | `16UC1`(mm)·`32FC1`(m)만. `is_bigendian`·행 패딩(`step`)을 지켜 표준 라이브러리 `struct`로 푼다. 다른 encoding(`mono16`, 압축)은 변환하지 않고 `UNSUPPORTED_DEPTH` |
+| 보정 | `camera_intrinsics(info, binding, rectified=)` | `rectified`는 caller가 넣는 근거다(구독한 영상이 rectified 스트림인지). `d`에서 추정하지 않는다. rectified면 ROS 관례대로 `p`, 아니면 `k`를 쓰고 코어가 `ALIGNMENT_UNVERIFIED`로 위치를 거절한다. `p` 이동 성분 ≠ 0(보조 스테레오 카메라)·binning·부분 ROI는 거절 |
+| 탐지 | `detection_from_vision_msgs(det, model, tracking_mode=)` | 가설이 정확히 하나여야 한다(최고 점수를 몰래 고르지 않음). `tracking_mode`는 caller가 반드시 넣는다. `TRACKING`이 아닌데 `det.id`가 있으면 거절한다 |
+| 묶음 | `observe(rgb, depth, info, detection, detection_header, …)` | 탐지 헤더의 stamp·frame_id가 RGB와 1 ns라도 다르면 거절(다른 프레임의 상자를 붙이지 않음, LL-06). `valid_until_ns = observed_at_ns + ObservationPolicy.validity_ns`이고 수신 시각과 무관하다 |
+
+**소스 정보는 밖에서 넣는다.** `SourceBinding`은 `source_robot`·`source_camera`·`source_boot_id`·clock domain·**스트림별** stamp 의미·`calibration_id`·clock 상태·오차 상한을 가진다. 어댑터는 토픽 이름이나 메시지 내용으로 이것을 추정하지 않는다. `source_robot=None`(로봇이 아닌 소스, 예: 고정 카메라)이면 `LocalizationResult`까지만 만들고 `observation=None`, `observation_blocked="SOURCE_IDENTITY_UNDEFINED"`를 돌려준다. 지금 `Observation` 계약에는 로봇 식별만 있으므로, 고정 카메라의 식별은 공통 계약이 정할 때까지 임시 값으로 채우지 않는다. 그때도 `FrameMeta`·`LocalizationResult`를 그대로 입력으로 쓸 수 있게 두 단계를 나눴다.
+
+시험은 `tests/test_perception_adapter.py`(14개)다. 2026-10-08 기준 녹화 bag이 없어 **모든 입력이 합성**이다. 실제 epoch `1700000000123456789` ns가 헤더 → `FrameMeta` → `Observation`까지 리터럴로 같은지, 정렬·시각·깊이 실패 7종이 위치 없이 관측으로 남는지, 중복·역순 입력이 `last_new_receive`와 `valid_until_ns`를 바꾸지 않는지를 확인한다. **실시간 성능은 미검증(NOT_RUN)이다:** Depth 바이트 전수 디코딩과 `DepthFrame` 전수 검사가 모두 Python 루프다.
+
+## 실제 카메라 연결 조건
+
+아래는 원본 P4 로봇 3번의 당시 기록이다. 파이널 로봇(`Q-01`)에서 다시 재야 하며, 재기 전에는 `SourceBinding`의 stamp 의미를 `UNKNOWN`으로 둔다.
+
+| 항목 | 이 어댑터가 요구하는 것 | 원본 기록 |
+| --- | --- | --- |
+| Depth 형식 | 비압축 `sensor_msgs/Image` `16UC1` 또는 `32FC1` | 원본은 대역폭 때문에 `compressedDepth`(16비트 PNG + 12바이트 헤더)를 받았다 [[원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-02-day2-ai-vision.md#L36-L36)]. 압축 해제 어댑터는 이 PR에 없다 [미확인: 파이널에서 쓸 전송 형식] |
+| 정렬 | Depth가 RGB rectified 격자에 등록되고, 해상도·`frame_id`·`calibration_id`가 같다 | 후보 D 설정에서 두 `camera_info` 크기 같음, `K` 차이 0, Depth `frame_id` = RGB 광학 프레임 [측정, 2026-10-06; [원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L103-L104)]. 다음 날 stereo 640×360으로 바뀌었다. `camera_info` 일치는 설정 일관성일 뿐 정렬 증거가 아니다 [[원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-03-pr-review.md#L58-L58)]. 겹쳐 보기와 줄자 비교가 있어야 `AlignmentEvidence.verified=True`로 넣는다 [미확인] |
+| 해상도·주기 | 제한 없음. RGB·Depth·CameraInfo 크기가 같아야 위치를 낸다 | RGB 1280×720 15 fps, 수신 지연(수신 − 헤더) 82 ms, Depth `compressedDepth` 6.3 Hz [측정, 2026-10-06; [원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L90-L90)]. 이 82 ms는 시계 오차를 포함한 차이라 stamp 의미를 정하는 근거가 아니다 |
+| stamp 의미 | 스트림마다 `CAPTURE`/`DRIVER_RECEIVE`를 실측해 넣는다 | [미확인] — 원본에서 재지 않았다 |
+| RGB–Depth stamp 차 | `DepthPolicy.max_stamp_skew_ns` 이하 | [미확인] — 값은 실측 뒤 정책으로 정한다 |
+| 탐지 입력 | 탐지 헤더 = 그 RGB 프레임의 헤더, 가설 1개, 추적 모드 명시 | 모델 추론 연결은 후속 PR이다 |
+| QoS | 어댑터는 QoS를 모른다. 구독 노드(후속)가 정한다 | 원본 RGB preview 250×250은 RELIABLE이었다 [측정, 2026-10-01; [원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L50-L50)]. Depth·CameraInfo QoS는 [미확인] |
+| 센서 가용 | — | 원본 로봇은 도킹 중 카메라를 끄는 설정이었다 [측정, 2026-10-01; [원본 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L51-L51)] |
+
+후속: 로봇·지도가 로봇 배정 뒤 녹화한 bag으로 같은 시험을 다시 돌린다(bag과 해시는 `assets/manifest/`). 압축 영상 해제, ROI/array 실시간 어댑터, ROS 구독 노드는 그 뒤다.
+
 ## 원리 참고와 남는 관문
 
 새 구현은 원본 함수를 복사하지 않았다. 다음 고정 원본을 읽고 실패 조건과 필요한 수학 원리를 새 데이터 계약으로 작성했다.
