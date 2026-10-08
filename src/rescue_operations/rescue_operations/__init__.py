@@ -1,1 +1,1 @@
-"""관제·보고·기록의 경계. 웹·DB·ROS 입출력은 아직 없다."""
+"""Local report ledger, evidence byte storage and durable sender outbox; no ROS."""
