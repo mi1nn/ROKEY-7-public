@@ -12,10 +12,7 @@ from rescue_contracts import (RescueError, canonical_code, robot_id, robot_ids,
 
 class CoordinationError(RescueError):
     def __init__(self, reason, detail=''):
-        try:
-            code = canonical_code('rescue_coordination', reason)
-        except ValueError:
-            code = 'INVALID_INPUT'
+        code = canonical_code('rescue_coordination', reason)
         super().__init__(code, detail or reason, component='rescue_coordination', detail_code=reason)
 
 
@@ -32,24 +29,24 @@ def finite(value, name, *, minimum=0):
     except OverflowError:
         valid = False
     if not valid:
-        raise CoordinationError(name)
+        raise CoordinationError('INVALID_NUMBER', name)
     return value
 
 
 def uid(value):
     if not isinstance(value, str):
-        raise CoordinationError('UUID')
+        raise CoordinationError('INVALID_UUID', 'UUID')
     try:
         if str(UUID(value)) != value or UUID(value).int == 0:
             raise ValueError()
     except ValueError as exc:
-        raise CoordinationError('canonical UUID') from exc
+        raise CoordinationError('INVALID_UUID', 'canonical UUID') from exc
     return value
 
 
 def revision(value):
     if type(value) is not int or not 0 <= value < 2 ** 64:
-        raise CoordinationError('revision')
+        raise CoordinationError('INVALID_REVISION', 'revision')
     return value
 
 
@@ -59,7 +56,7 @@ def robot(value):
 
 def point(value):
     if not isinstance(value, tuple) or len(value) != 2:
-        raise CoordinationError('immutable XY point')
+        raise CoordinationError('INVALID_POINT', 'immutable XY point')
     for v in value:
         finite(v, 'coordinate', minimum=-math.inf)
     return value
@@ -77,13 +74,13 @@ class ApproachPolicy:
 
     def __post_init__(self):
         if not isinstance(self.version, str) or not self.version:
-            raise CoordinationError('policy version')
+            raise CoordinationError('INVALID_POLICY', 'policy version')
         for key in ('min_distance', 'max_distance', 'clearance', 'max_uncertainty',
                     'short_loss_max'):
             finite(getattr(self, key), key)
         contract_value(duration_ns, self.confirmation_max_age_ns)
         if self.min_distance <= 0 or self.max_distance <= self.min_distance:
-            raise CoordinationError('distance interval')
+            raise CoordinationError('INVALID_POLICY', 'distance interval')
 
 
 @dataclass(frozen=True)
@@ -114,7 +111,7 @@ class PathCandidate:
             finite(getattr(self, key), key)
         for key in ('footprint_free', 'reachable', 'path_collision_free'):
             if type(getattr(self, key)) is not bool:
-                raise CoordinationError('boolean evidence required')
+                raise CoordinationError('INVALID_CANDIDATE', 'boolean evidence required')
 
 
 def select_candidate(candidates, *, now_ns, policy, available_robots):
@@ -125,12 +122,12 @@ def select_candidate(candidates, *, now_ns, policy, available_robots):
     """
     contract_value(timestamp_ns, now_ns)
     if not isinstance(policy, ApproachPolicy):
-        raise CoordinationError('policy')
+        raise CoordinationError('INVALID_POLICY', 'policy')
     available = {robot(r) for r in available_robots}
     accepted = []
     for candidate in candidates:
         if not isinstance(candidate, PathCandidate):
-            raise CoordinationError('candidate type')
+            raise CoordinationError('INVALID_CANDIDATE', 'candidate type')
         c = candidate
         distance = math.dist(c.goal_xy, c.target_xy)
         if (c.robot_id in available and c.valid_until_ns > now_ns and c.footprint_free
@@ -161,7 +158,7 @@ class Reservation:
             revision(value)
         robot(self.robot_id)
         if not isinstance(self.candidate, PathCandidate) or self.candidate.robot_id != self.robot_id:
-            raise CoordinationError('candidate owner')
+            raise CoordinationError('INVALID_RESERVATION', 'candidate owner')
 
 
 def admission_identity(value):
@@ -197,7 +194,7 @@ class Allocator:
 
     def reserve(self, item):
         if not isinstance(item, Reservation):
-            raise CoordinationError('reservation type')
+            raise CoordinationError('INVALID_RESERVATION', 'reservation type')
         if item.task_id in self.seen:
             if self.seen[item.task_id] != item:
                 raise CoordinationError('ID_CONTENT_CONFLICT')
@@ -222,7 +219,7 @@ class Allocator:
 
     def record_admission(self, receipt):
         if not isinstance(receipt, TaskAdmission):
-            raise CoordinationError('admission receipt type')
+            raise CoordinationError('INVALID_ADMISSION', 'admission receipt type')
         item = self.seen.get(receipt.task_id)
         if item is None or admission_identity(receipt) != admission_identity(item):
             return False
@@ -266,7 +263,7 @@ class ApproachTracker:
         self.target_id = uid(target_id)
         self.target_revision = revision(target_revision)
         if not isinstance(policy, ApproachPolicy):
-            raise CoordinationError('policy')
+            raise CoordinationError('INVALID_POLICY', 'policy')
         self.policy = policy
         self.last_observed_ns = None
         self.last_received = None
@@ -373,12 +370,12 @@ class Corridor:
         self._time(now)
         finite(duration, 'lease duration')
         if not isinstance(holder, Reservation):
-            raise CoordinationError('holder')
+            raise CoordinationError('INVALID_HOLDER', 'holder')
         if duration <= 0 or self.state != 'FREE':
             return False
         until = finite(now + duration, 'lease deadline')
         if until <= now:
-            raise CoordinationError('lease duration below clock resolution')
+            raise CoordinationError('LEASE_BELOW_RESOLUTION', 'lease duration below clock resolution')
         self.state, self.holder, self.until = 'HELD', holder, until
         self.revision += 1
         self.renewal = -1
@@ -399,6 +396,6 @@ class Corridor:
             return False
         until = finite(now + duration, 'lease deadline')
         if until <= now:
-            raise CoordinationError('lease duration below clock resolution')
+            raise CoordinationError('LEASE_BELOW_RESOLUTION', 'lease duration below clock resolution')
         self.until, self.renewal = until, sequence
         return True

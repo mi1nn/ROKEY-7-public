@@ -1,0 +1,223 @@
+test_accepted_receipt_replay_after_release_does_not_reactivate (test_coordination_review.CoordinationReviewTests.test_accepted_receipt_replay_after_release_does_not_reactivate) ... ok
+test_command_or_generation_cannot_be_reused_for_another_task (test_coordination_review.CoordinationReviewTests.test_command_or_generation_cannot_be_reused_for_another_task) ... ok
+test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.CoordinationReviewTests.test_corridor_requires_exact_holder_even_after_expiry) ... ok
+test_deployment_ids_and_generation_overflow_are_explicit (test_coordination_review.CoordinationReviewTests.test_deployment_ids_and_generation_overflow_are_explicit) ... ok
+test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants) ... ok
+test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract) ... ok
+test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) ...
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=35) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=41) ... ERROR
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=52) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=62) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=128) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=46) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=80) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=86) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=133) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=164) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=200) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=225) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=269) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=376) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=381) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=402) ... FAIL
+  test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=117) ... FAIL
+test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch) ... ok
+test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow) ... ok
+test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop) ... ok
+test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordination_review.CoordinationReviewTests.test_receipt_identity_mismatch_cannot_activate_or_raise_counter) ... ok
+test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance) ... ok
+test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission) ... ok
+test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved) ... ok
+test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) ...
+  test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='CLOCK_UNCERTIAN') ... FAIL
+  test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='policy version') ... FAIL
+  test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='UNREGISTERED_DIAGNOSTIC') ... FAIL
+test_validation_explanations_are_separate_from_diagnostic_codes (test_coordination_review.CoordinationReviewTests.test_validation_explanations_are_separate_from_diagnostic_codes) ... FAIL
+test_wall_rollback_latches_cancellation (test_coordination_review.CoordinationReviewTests.test_wall_rollback_latches_cancellation) ... ok
+
+======================================================================
+ERROR: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=41)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "src/rescue_contracts/rescue_contracts/__init__.py", line 109, in canonical_code
+    return DETAIL_CATEGORIES[component][reason]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+KeyError: 'UUID'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 222, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    canonical_code('rescue_coordination', reason)
+  File "src/rescue_contracts/rescue_contracts/__init__.py", line 111, in canonical_code
+    raise ValueError(f'unregistered {component} diagnostic: {reason}') from exc
+ValueError: unregistered rescue_coordination diagnostic: UUID
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=35)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 218, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertIsInstance(call.args[0], ast.Constant)
+AssertionError: <ast.Name object at 0x105aff9a0> is not an instance of <class 'ast.Constant'>
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=52)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'revision'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=62)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'immutable XY point'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=128)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'policy'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=46)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'canonical UUID'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=80)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'policy version'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=86)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'distance interval'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=133)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'candidate type'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=164)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'candidate owner'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=200)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'reservation type'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=225)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'admission receipt type'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=269)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'policy'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=376)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'holder'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=381)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'lease duration below clock resolution'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=402)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'lease duration below clock resolution'
+
+======================================================================
+FAIL: test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) (line=117)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 221, in test_internal_error_sites_use_registered_uppercase_diagnostics
+    self.assertRegex(reason, r'^[A-Z][A-Z0-9_]*$')
+AssertionError: Regex didn't match: '^[A-Z][A-Z0-9_]*$' not found in 'boolean evidence required'
+
+======================================================================
+FAIL: test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='CLOCK_UNCERTIAN')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 204, in test_unregistered_coordination_diagnostic_is_not_silently_normalized
+    with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, 'unregistered'):
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='policy version')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 204, in test_unregistered_coordination_diagnostic_is_not_silently_normalized
+    with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, 'unregistered'):
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) (reason='UNREGISTERED_DIAGNOSTIC')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 204, in test_unregistered_coordination_diagnostic_is_not_silently_normalized
+    with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, 'unregistered'):
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_validation_explanations_are_separate_from_diagnostic_codes (test_coordination_review.CoordinationReviewTests.test_validation_explanations_are_separate_from_diagnostic_codes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/test_coordination_review.py", line 239, in test_validation_explanations_are_separate_from_diagnostic_codes
+    self.assertEqual('rescue_coordination.' + reason, caught.exception.detail_code)
+AssertionError: 'rescue_coordination.INVALID_POLICY' != 'rescue_coordination.policy version'
+- rescue_coordination.INVALID_POLICY
++ rescue_coordination.policy version
+
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.006s
+
+FAILED (failures=20, errors=1)
