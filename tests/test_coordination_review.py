@@ -176,6 +176,29 @@ class CoordinationReviewTests(unittest.TestCase):
             with self.assertRaises(CoordinationError):
                 replace(self.policy(), confirmation_max_age_ns=value)
 
+    def test_deployment_ids_and_generation_overflow_are_explicit(self):
+        for ids in (None, ('unit_1',), ('unit_1', 'unit_1'), ('unit_1', 'unit_2', 'unit_3')):
+            with self.assertRaises(CoordinationError):
+                Allocator(uid(4), allowed_robot_ids=ids)
+        allocator = self.allocator()
+        allocator.issued_generations['unit_2'] = 2**64-1
+        with self.assertRaises(CoordinationError):
+            allocator.issue_generation('unit_2')
+        self.assertEqual(2**64-1, allocator.issued_generations['unit_2'])
+        self.assertEqual(-1, allocator.accepted_generations['unit_2'])
+
+    def test_wall_rollback_latches_cancellation(self):
+        t = ApproachTracker(uid(3), 0, self.policy())
+        wall = self.candidate().valid_until_ns-10
+        t.observe(uid(4), observed_at_ns=wall, valid_until_ns=wall+10,
+            now_wall_ns=wall+2, received_steady=1., target_id=uid(3), target_revision=0,
+            same_identity=True, freshness_verified=True)
+        with self.assertRaises(CoordinationError) as caught:
+            t.guard(now_wall_ns=wall+1, now_steady=1.1, local_guards_valid=True)
+        self.assertEqual('CLOCK_UNCERTAIN', caught.exception.code)
+        self.assertEqual('CANCEL', t.guard(now_wall_ns=wall+3, now_steady=1.2,
+                                         local_guards_valid=True))
+
     def test_error_is_common_machine_readable_contract(self):
         from rescue_contracts import RescueError
         with self.assertRaises(RescueError) as caught:

@@ -1,0 +1,4 @@
+No executor receipt supplied: active= True generation= 1
+Required: active=False; accepted generation unchanged until executor acceptance
+No holder identity supplied: confirm_vacant= True state= FREE
+Required: held corridor cannot clear without exact holder identity

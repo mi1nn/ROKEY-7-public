@@ -128,6 +128,8 @@ action 수락 전 거절은 goal 응답의 `accepted=false`와 별도의 `TaskAd
 
 실행기는 로봇별 활성 이동 task를 하나만 소유한다. 새 임무는 기존 임무 종료·정지 관문을 거친 뒤 시작한다. 동일 command_id의 재전송은 이전 수락/결과를 돌려주며 새 goal을 만들지 않는다. 낮은 generation·이전 boot/authority의 메시지·완료한 goal의 늦은 feedback/result는 현재 상태를 덮어쓰지 않는다.
 
+generation은 coordinator가 로봇별 발급하며 발급 장부와 수락 장부를 분리한다. 예약은 PENDING이고, command_id/task_id/robot_id/robot_boot_id/authority_epoch/generation이 정확히 일치하는 실행기 TaskAdmission의 accepted=true가 유일한 수락 근거다. 실행기는 최고 수락 세대를 검증하고 coordinator는 해당 응답을 받은 뒤에만 ACTIVE와 accepted generation을 갱신한다. 거절/해제된 명령의 지연·충돌·재전송으로 재활성화하지 않는다. 재시작 뒤 발급 이력·실행기 이력·authority를 조정하기 전에는 자율 임무를 재개하지 않는다.
+
 coordinator는 단일 인스턴스를 전제로 하고 자동 leader election/failover는 이번 기본 범위에 넣지 않는다. 재기동하면 새 `authority_epoch`가 되며 이전 lease/배정을 복구된 것으로 자동 인정하지 않는다. 로봇 실행기는 정지·기존 권한 폐기 확인 후 명시적인 재등록으로 새 authority를 허용한다. UUID 문자열 크기 비교로 권한의 신구를 판단하지 않는다.
 
 command lease는 로봇별 현재 authority/generation에 묶고 유효기간·최대 갱신 간격·로컬 monotonic 만료를 가진다. 중복 또는 늦은 갱신으로 만료 lease를 부활시키지 않는다. coordinator lease, executor heartbeat, 최종 속도 입력이 각각 만료될 때의 중단 책임을 구분한다. 새 연결이나 heartbeat만으로 정지 latch가 해제되지 않는다.
@@ -143,6 +145,8 @@ command lease는 로봇별 현재 authority/generation에 묶고 유효기간·�
 대상의 위치와 Nav2 접근 목표를 별도 값으로 저장한다. 목표는 대상 보호 영역·위치 불확실성·로봇 footprint·제동/제어 오차를 고려해 자유 공간의 후보에서 선택하고 경로 가능성을 확인한다. 대상 좌표 자체나 로봇-대상 직선 위 한 점만으로 접근 성공을 정하지 않는다. Nav2 `SUCCEEDED` 이후에도 재확인·거리/정지·좌표 유효성 관문을 통과해야 `APPROACH_COMPLETE`다.
 
 `D_MIN`, `D_MAX`, 보호 영역 정의, 위치 오차 상한, 재확인 최대 나이, 후보 검색 범위·재계획/retry budget은 시험 전에 고정한다. 사람/인형 형상·가림 등으로 이 조건을 평가할 수 없으면 `LOCATION_UNCERTAIN`/`NEEDS_REOBSERVATION`으로 정지·보고한다. 가까워지기 위한 후진/회전도 공통 명령·장애물 경로를 통과한다.
+
+HELD 또는 holder를 보존한 OCCUPANCY_UNKNOWN에서 `confirm_vacant(holder=...)`는 저장된 robot/task/generation/authority와 정확히 일치해야 한다. 제3자나 이전 세대는 점유를 해제할 수 없다. holder가 없는 초기 UNKNOWN에서만 holder=None과 fresh verified vacancy를 함께 받을 수 있다.
 
 좁은 통로를 공유 자원으로 채택하면 `resource_id`, holder robot/task/generation, revision, lease, 진입·이탈 확인을 계약화한다. lease 만료는 점유 로봇이 물리적으로 빠져나갔다는 증거가 아니다. holder 위치·이탈이 불확실하면 `OCCUPANCY_UNKNOWN`으로 새 진입을 보류한다. 다른 로봇의 stale pose만으로 통로가 비었다고 판단하지 않는다. 구체적인 자원 모델/경로 교착 정책은 PR 2 선택과 PR 8 구현에서 검증한다.
 
