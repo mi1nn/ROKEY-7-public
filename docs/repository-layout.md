@@ -26,6 +26,7 @@ ROKEY-7/
     acceptance-plan.md          PR 3 시험 조건·증거·담당
     evidence/                   작은 검증 manifest와 로그
   src/
+    rescue_contracts/           공통 Python 오류·ID·정수 시각·수락 receipt (ROS 없음)
     rescue_interfaces/          공통 메시지·서비스·액션 정의
     rescue_mapping/             공통 좌표·변환 유효성·지도 revision
     rescue_perception/          탐지·거리·관측 생성
@@ -53,6 +54,7 @@ ROKEY-7/
 
 | 패키지 | 책임 | 참조하는 계약 | 직접 하지 않을 일 |
 | --- | --- | --- | --- |
+| `rescue_contracts` | Python 코어 공통 오류·ID·시각·TaskAdmission | C-02/C-03/C-06/C-09 | ROS 메시지·하드웨어 실행 |
 | `rescue_interfaces` | 관측·대상 사건·임무·상태·보고 계약의 ROS 표현 | PR 3 계약 문서 | 알고리즘·하드웨어 실행 |
 | `rescue_mapping` | 로봇별 SLAM frame과 공통 기준의 변환·revision 유효성 | frame·clock·변환 상태 | 로봇 임무 배정, 검증 없는 자동 지도 병합 |
 | `rescue_perception` | 입력 헤더를 보존한 탐지·거리·관측 생성 | observation·class·quality | 로봇 주행 명령, 재발행으로 관측 수명 연장 |
