@@ -71,5 +71,6 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 \
 ## 하지 않는 것 / 후속
 
 - 하지 않음: DB 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍, 로그인(Q 결정 전).
-- 후속: site-state DB 경로 인자와 PR #34 읽기 함수 연결, 지도 스냅샷 표시(로봇·지도 제공 뒤), 카메라 A·B 영상 두 창(인식 MJPEG 합의 뒤), KPI-04 자동 측정, 오류 이력 표(3.7.4, `read_errors`), 명령 연결(Q-22 뒤). 오류 코드를 `rescue_contracts.DETAIL_CATEGORIES` 에 `rescue_console` 로 등록할지는 작전 결정이다(지금 `ConsoleError` 는 계약 오류가 아니다).
+- 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
+- 후속: site-state DB 경로 인자와 PR #34 읽기 함수 연결, 지도 스냅샷 표시(로봇·지도 제공 뒤), 카메라 A·B 영상 두 창(인식 MJPEG 합의 뒤), KPI-04 자동 측정, 오류 이력 표(3.7.4, `read_errors`), 명령 연결(Q-22 뒤).
 - 강사 day5 예제는 [docs/source-selection.md](../../docs/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 예제 코드는 열어 보지 않았고 옮긴 줄이 없다.

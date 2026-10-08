@@ -45,8 +45,8 @@ EVENT_ROWS = 50
 class ConsoleError(ValueError):
     """Console input or setup failure with a stable code.
 
-    Not a RescueError: registering a `rescue_console` component in
-    rescue_contracts.DETAIL_CATEGORIES is a contract change (README 「후속」).
+    Local to the console, not a RescueError: contract codes are reserved for the
+    robot, verdict and report paths (작전 decision 2026-10-08, README 「하지 않는 것」).
     """
 
     def __init__(self, code, message=''):
