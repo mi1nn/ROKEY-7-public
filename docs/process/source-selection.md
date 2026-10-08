@@ -23,7 +23,7 @@ updated: 2026-10-08
 | [to_students](https://github.com/kimandreas/to_students/tree/ad411c4ee4dd99fa4c9e2c62d487103099918b6e) (강사 예제, 2026-10-08 추가) | `ad411c4ee4dd99fa4c9e2c62d487103099918b6e` | 79 | 44 | 0 | 0 |
 | [ROKEY-7 기준 main](https://github.com/jaebeom/ROKEY-7/tree/4f5453da4425cb80410d6b838c7df2a19d62509f) | `4f5453da4425cb80410d6b838c7df2a19d62509f` | 1 | 0 | 0 | 0 |
 
-집계는 `git ls-files -z` 기준이다. 패키지 수는 `package.xml`, 시험 파일 수는 파일 이름 기준이며 **시험 건수·통과 건수가 아니다.** 전체 파일 목록과 아래 관련 코드를 조사했으며, 모든 바이너리·그림·학습 결과를 내용까지 검증한 전수 감사는 아니다. 구조화된 집계는 [source-audit.json](evidence/source-audit.json)에 둔다. to_students 행은 `git ls-files` 로 센 수작업 값이며 audit JSON과 검사기에는 넣지 않았다.
+집계는 `git ls-files -z` 기준이다. 패키지 수는 `package.xml`, 시험 파일 수는 파일 이름 기준이며 **시험 건수·통과 건수가 아니다.** 전체 파일 목록과 아래 관련 코드를 조사했으며, 모든 바이너리·그림·학습 결과를 내용까지 검증한 전수 감사는 아니다. 구조화된 집계는 [source-audit.json](../evidence/source-audit.json)에 둔다. to_students 행은 `git ls-files` 로 센 수작업 값이며 audit JSON과 검사기에는 넣지 않았다.
 
 조사에 포함한 것은 위 main 스냅샷의 추적 경로, 핵심 실행 경로, 관련 시험·설정·설계·현장 기록이다. 다른 브랜치, 모든 이슈·PR, 외부 데이터셋, 실제 설치 환경·로봇은 포함하지 않았다. P4는 비공개 저장소이므로 링크 검증자에게 원본 접근 권한이 필요하다.
 
@@ -96,7 +96,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 | TS-05 배터리 임계값 순찰·도킹 루프 | **원리 참고** · [3_1_f_patrol_loop.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L32-L34), [같은 파일 L118-L145](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L118-L145) | 대기 중 도킹·충전 뒤 다시 나가는 흐름만. 0.95/0.2/0.1 은 예시값이며 Q-14 로 정한다. 도킹 중 센서가 꺼질 수 있으므로(OI-10) 출동 가능 판정은 수신 시각으로 하고, 언도킹 시간을 출동 지연 측정에 넣는다 | UC-05·NFR-02·OI-10 / 협업·관제, 로봇·지도 |
 | TS-06 TurtleBot4Navigator 호출 순서 | **원리 참고** · [3_1_a_nav_to_pose.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_a_nav_to_pose.py#L35-L51) | `undock → setInitialPose → waitUntilNav2Active → startToPose` 라는 강사 표준 순서. `start*`·`dock`·`undock` 은 완료까지 호출자를 멈추는 도우미이므로([turtlebot4_navigator.py](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L266-L275)) 실행기는 액션 클라이언트를 비동기로 쓰고 취소·정지를 분리한다(LL-11). 고정 초기 자세 `[0, 0] NORTH` 는 승계하지 않는다 | 로봇·지도 Nav2 어댑터 |
 | TS-07 경유점 순회 | **원리 참고** · [3_1_d_create_path.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_d_create_path.py#L53), [3_1_c_follow_waypoints.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_c_follow_waypoints.py#L57) | 구역 후보를 차례로 도는 가장 단순한 기준선. `SearchCoordinator` 의 비교 기준으로만 쓴다 | F-01 수색 분담 / 협업·관제 |
-| TS-08 RGB·Depth 시각 동기화 | **원리 참고** · [3_3_d_depth_to_nav_goal_ts.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_3_d_depth_to_nav_goal_ts.py#L74-L78) | `ApproximateTimeSynchronizer` 로 두 입력의 시각을 맞추는 방식. `slop=0.1` 은 측정 뒤 [인수 계획](acceptance-plan.md)의 수치로 정하고, 시각 의미는 [계약](contracts.md)의 시각 규칙을 따른다. 허용치를 넘으면 위치 없음으로 처리한다 | 인식 입력 어댑터 |
+| TS-08 RGB·Depth 시각 동기화 | **원리 참고** · [3_3_d_depth_to_nav_goal_ts.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_3_d_depth_to_nav_goal_ts.py#L74-L78) | `ApproximateTimeSynchronizer` 로 두 입력의 시각을 맞추는 방식. `slop=0.1` 은 측정 뒤 [인수 계획](acceptance-plan.md)의 수치로 정하고, 시각 의미는 [계약](../design/contracts.md)의 시각 규칙을 따른다. 허용치를 넘으면 위치 없음으로 처리한다 | 인식 입력 어댑터 |
 | TS-09 namespace 기반 토픽 이름 | **원리 참고** · [3_3_c_depth_to_nav_goal.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_3_c_depth_to_nav_goal.py#L30-L33) | 노드 namespace 로 토픽 이름을 만드는 방식. 두 로봇의 namespace 는 프로파일 값과 일치해야 하며, 토픽 존재를 통신 PASS 로 보지 않는다 | 로봇·지도, 인식 |
 | TS-10 시뮬레이션 변형 | **조건부 후보** · [3_2_c_sim_depth_to_nav_goal.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_2_c_sim_depth_to_nav_goal.py) | 실제 로봇 배정(Q-15) 전 깊이→지도→목표 흐름의 E2 확인용. 실기 증거를 대신하지 않는다 | E2→E3 / 로봇·지도, 인식 |
 | TS-11 다른 팀의 BRD·SRD·SDD 견본 | **원리 참고** · [day1/Student_Docs](https://github.com/kimandreas/to_students/tree/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day1/Student_Docs) (다중 AMR BRD, SDD 3건, SRD 5쪽 예시) | BRD v0.1 → SRD/SDD 로 갈 때 양식만 참고한다. 다른 팀 산출물이므로 본문·그림을 이 저장소에 복사하지 않는다 | 평가 산출물 / 작전 |
@@ -183,5 +183,5 @@ Claude는 전체 로직·계획, Cursor는 원본 대조·검증·수정·머지
 1. 선별 결론이 링크한 실제 코드와 일치하며 원본 성능을 새 성능으로 확대하지 않았는가.
 2. P4-01~11, AMR-01~06, TS-01~11에 더 적합한 원본 구현이나 빠진 핵심 의존성·시험이 있는가.
 3. F-01~06의 수정 조건이 충분한가. 관측 시각 TF, 수신 최신성, 액션 취소와 실제 정지를 혼동하지 않았는가.
-4. [범위의 AC-01~07](scope.md)과 [레슨런 LL-01~10](lessons-learned.md)이 새로 구현할 기능과 연결되는가.
+4. [범위의 AC-01~07](../requirements/scope.md)과 [레슨런 LL-01~10](lessons-learned.md)이 새로 구현할 기능과 연결되는가.
 5. PR 2에서 결정할 디렉터리·배포·알고리즘을 PR 1에서 확정한 것처럼 쓰거나, 불필요한 기존 과제 기능을 필수로 만든 부분이 있는가.

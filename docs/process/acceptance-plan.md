@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 시험·작업 분담 초안
 
-계획 PR 3의 검증 설계다. 아직 실행한 시험·정한 장비 성능을 보고하는 문서가 아니다. [범위의 AC-01~07](scope.md), [인터페이스 계약](contracts.md), [상태 전이](state-machines.md)를 시험 가능한 관문으로 연결한다. 소프트웨어는 ROS 어댑터와 분리한 순수 로직부터 검증하고, 실제 두 로봇·예정된 네 PC 배포의 증거를 별도로 확보한다. 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 쓰는 구성과 발견→안전 접근→보고는 현재 설계 기준안이다. 아래 AC는 그 기준안의 검증 제안이며 네 PC 전체 사용이 최종 인수 조건으로 확정됐다는 뜻은 아니다. 현재 CT-01~12와 AC-01~07은 모두 `NOT_RUN`이다.
+계획 PR 3의 검증 설계다. 아직 실행한 시험·정한 장비 성능을 보고하는 문서가 아니다. [범위의 AC-01~07](../requirements/scope.md), [인터페이스 계약](../design/contracts.md), [상태 전이](../design/state-machines.md)를 시험 가능한 관문으로 연결한다. 소프트웨어는 ROS 어댑터와 분리한 순수 로직부터 검증하고, 실제 두 로봇·예정된 네 PC 배포의 증거를 별도로 확보한다. 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 쓰는 구성과 발견→안전 접근→보고는 현재 설계 기준안이다. 아래 AC는 그 기준안의 검증 제안이며 네 PC 전체 사용이 최종 인수 조건으로 확정됐다는 뜻은 아니다. 현재 CT-01~12와 AC-01~07은 모두 `NOT_RUN`이다.
 
 ## A-01. 시험 전에 고정할 수치와 조건
 
@@ -134,7 +134,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 | 담당 | 소유 범위 제안 | 검증 책임 |
 | --- | --- | --- |
-| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 미구현), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
+| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 미구현), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/process/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
 | 로봇·지도(Claude) | `rescue_robot`, `rescue_mapping`, `rescue_bringup` 의 로봇별 실행/launch, `config/` 값 | SLAM/Nav2·TF·native sensor·goal/cancel·최종 watchdog·좌표 revision/실측. 로봇을 움직이는 유일한 자리 |
 | 인식(Claude) | `rescue_perception`, 해당 모델/데이터 평가 도구·`assets/manifest/`, 고정 카메라 어댑터(`SiteEvent` 생산) | 동기화/거리/관측·다중 대상·시간/위치 품질·독립 평가·부하. 주행 명령 없음 |
 | 협업·관제(Claude) | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장(DB 스키마·운영 장부 소유) | task/target 상태·통로·인계·재시작·명령 경합·구출 완료 판정·UI 가 읽을 API 의 일치. `cmd_vel`·Nav2 직접 호출 없음 |
@@ -164,4 +164,4 @@ Claude는 전체 논리·계획을 검토하고, Codex는 반영 후 최종 검�
 
 ## 2026-10-08 Python 코어 구현 증거의 범위
 
-계획 PR 5~10에서 [통합 리허설](implementation-integration.md)을 추가했다. CT-01~12 중 입력/불변식 일부에 E2 자동시험 증거가 생겼지만, 위 CT 전체와 AC의 최종 상태를 PASS로 변경하지 않는다. 각 구현 문서와 [실기 연결 관문](field-runbook.md)이 미구현 어댑터와 E3/E4를 구분한다. 특히 실제 backend 지도 보정·TF·path/action·장비 정지·모델 성능·2대 AMR·4대 PC 실행은 NOT_RUN이다. 합성 정상/실패 시나리오는 물리 구조 성공의 증거가 아니다.
+계획 PR 5~10에서 [통합 리허설](../implementation/implementation-integration.md)을 추가했다. CT-01~12 중 입력/불변식 일부에 E2 자동시험 증거가 생겼지만, 위 CT 전체와 AC의 최종 상태를 PASS로 변경하지 않는다. 각 구현 문서와 [실기 연결 관문](field-runbook.md)이 미구현 어댑터와 E3/E4를 구분한다. 특히 실제 backend 지도 보정·TF·path/action·장비 정지·모델 성능·2대 AMR·4대 PC 실행은 NOT_RUN이다. 합성 정상/실패 시나리오는 물리 구조 성공의 증거가 아니다.

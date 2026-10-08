@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 좌표·관측·revision 순수 로직 구현
 
-`rescue_mapping`에 카메라 광학 frame의 3D 점→로봇 native map→공통 mission 변환과 관측·지도 버전 검사를 추가했다. 이는 [계약 C-04·05](contracts.md) 및 [CT-04·05](acceptance-plan.md)의 **E2 합성 입력 검증**이다. PR 5의 두 로봇 SLAM·Nav2나 실제 TF/backend가 없으므로 PR 6의 실제 인수 전체를 완료한 것은 아니다.
+`rescue_mapping`에 카메라 광학 frame의 3D 점→로봇 native map→공통 mission 변환과 관측·지도 버전 검사를 추가했다. 이는 [계약 C-04·05](../design/contracts.md) 및 [CT-04·05](../process/acceptance-plan.md)의 **E2 합성 입력 검증**이다. PR 5의 두 로봇 SLAM·Nav2나 실제 TF/backend가 없으므로 PR 6의 실제 인수 전체를 완료한 것은 아니다.
 
 ## 구현된 범위
 

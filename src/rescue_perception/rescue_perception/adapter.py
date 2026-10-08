@@ -77,7 +77,7 @@ class SourceBinding:
 class ObservationPolicy:
     """How long a source observation stays valid after its own sensor stamp.
 
-    Deployment value, not chosen here (T-01 family, docs/acceptance-plan.md).
+    Deployment value, not chosen here (T-01 family, docs/process/acceptance-plan.md).
     """
     validity_ns: int
 

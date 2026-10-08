@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 오프라인 통합 리허설
 
-PR 10은 PR 5~9의 순수 코어를 **하나의 Python 프로세스**에서 연결한다. 구성 파일은 예정된 고사양 PC 2대·중간 사양 PC 2대를 검증하지만, 해당 PC에 프로세스를 배포하거나 ROS를 실행하지 않는다. 사용한 실제 로봇은 0대이며 실제 모델 추론·SLAM·Nav2·주행·4-PC 통신과 AC 실기는 NOT_RUN이다. AMR 2대 필수 요구와 PC 4대 예정 자원/현재 배포 기준안의 구분은 [범위](scope.md)를 따른다.
+PR 10은 PR 5~9의 순수 코어를 **하나의 Python 프로세스**에서 연결한다. 구성 파일은 예정된 고사양 PC 2대·중간 사양 PC 2대를 검증하지만, 해당 PC에 프로세스를 배포하거나 ROS를 실행하지 않는다. 사용한 실제 로봇은 0대이며 실제 모델 추론·SLAM·Nav2·주행·4-PC 통신과 AC 실기는 NOT_RUN이다. AMR 2대 필수 요구와 PC 4대 예정 자원/현재 배포 기준안의 구분은 [범위](../requirements/scope.md)를 따른다.
 
 `src/rescue_bringup/rescue_bringup/offline_demo.py`의 `run_scenario(profile_path, output_directory)`는 summary dict를 반환한다. 모듈 CLI는 성공 0, 잘못된 프로파일/출력 경로 또는 리허설 실패 2를 반환한다. `load_deployment`로 프로파일을 먼저 검증하며, 이 합성 fixture는 논리 ID `robot_a`, `robot_b`만 지원한다. 다른 유효 ID를 입력해도 A/B 실행으로 조용히 대체하지 않는다. 프로파일의 네 호스트는 배치 데이터이며 실제 연결 대상이 아니다.
 
@@ -62,7 +62,7 @@ CT-06·CT-07은 **E2 부분 구현/검증**이다. 발견을 받은 수색 execu
 - CT-09의 장애물·최소 거리 후보 거절.
 - CT-03의 센서 정합. 여기의 alignment 근거는 `fixture-only`다.
 
-실제 readiness/clock/TF/SLAM backend·ROS adapters·실시간 탐지·모델/센서 평가·최종 명령 감시·2 AMR 및 예정 4-PC 부하는 [현장 실행 관문](field-runbook.md)에 남긴다. 해당 관문 전에는 `runtime_enabled=false`인 정적 프로파일을 실제 주행 launch라고 취급하지 않는다.
+실제 readiness/clock/TF/SLAM backend·ROS adapters·실시간 탐지·모델/센서 평가·최종 명령 감시·2 AMR 및 예정 4-PC 부하는 [현장 실행 관문](../process/field-runbook.md)에 남긴다. 해당 관문 전에는 `runtime_enabled=false`인 정적 프로파일을 실제 주행 launch라고 취급하지 않는다.
 
 ## 고정 원본 근거
 
@@ -76,4 +76,4 @@ CT-06·CT-07은 **E2 부분 구현/검증**이다. 발견을 받은 수색 execu
 
 공통 표준 Python 계약 `rescue_contracts`를 포함한 7개 패키지를 설치한다. 이는 ROSIDL 메시지 패키지가 아니다. 각 코어는 공유 오류·int64 ns·로봇 ID/admission 계약에 의존하며, bringup의 `offline` extra는 오프라인 통합 의존성을 선언한다. 오프라인 빌드는 setuptools·wheel이 이미 있는 Python으로 `python3 -I scripts/check_wheels.py`를 실행한다. 이 도구는 소스 복사본의 이름 집합이 일치하는 wheel 7개를 새 venv에 설치하고 `pip check`, source 경로 없는 격리 import, 소스 디렉터리가 존재하지 않는 tests/config 전용 checkout에서 비어 있지 않은 설치본 전체 시험을 실행한다. 모든 7개 모듈의 import 위치가 새 venv 안인지 확인한다.
 
-[초기 로컬 증거](evidence/pr10-local-validation.md)의 147개·6 wheels 기록은 당시 소스의 historical 증거로 보존한다. 최신 API를 연결한 시험 수·명령·소스/wheel 해시는 [round 2 통합 증거](evidence/pr11-round2-validation.md)에 별도로 기록한다. CI에는 기존 3개 Python source matrix 외에 Python 3.12 설치본 검사를 추가했다. Actions 실행 전에는 새 job을 PASS로 표시하지 않는다.
+[초기 로컬 증거](../evidence/pr10-local-validation.md)의 147개·6 wheels 기록은 당시 소스의 historical 증거로 보존한다. 최신 API를 연결한 시험 수·명령·소스/wheel 해시는 [round 2 통합 증거](../evidence/pr11-round2-validation.md)에 별도로 기록한다. CI에는 기존 3개 Python source matrix 외에 Python 3.12 설치본 검사를 추가했다. Actions 실행 전에는 새 job을 PASS로 표시하지 않는다.

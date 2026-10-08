@@ -6,9 +6,9 @@ updated: 2026-10-08
 
 # 현장 실행 전 관문
 
-현재 실행 가능한 통합 산출물은 [오프라인 E2 데모](implementation-integration.md)다. 현장 ROS launch, 실제 드라이버/SLAM/Nav2 adapters, 모델 추론과 센서 검증, 물리적 정지 확인은 아직 완성/실행하지 않았다. 아래는 현장에서 구현·측정할 순서이며 이번 PR에서 성공한 실기 절차가 아니다. 실행할 수 없는 ROS 명령을 예시로 만들어 넣지 않는다.
+현재 실행 가능한 통합 산출물은 [오프라인 E2 데모](../implementation/implementation-integration.md)다. 현장 ROS launch, 실제 드라이버/SLAM/Nav2 adapters, 모델 추론과 센서 검증, 물리적 정지 확인은 아직 완성/실행하지 않았다. 아래는 현장에서 구현·측정할 순서이며 이번 PR에서 성공한 실기 절차가 아니다. 실행할 수 없는 ROS 명령을 예시로 만들어 넣지 않는다.
 
-실제 AMR 2대 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이고 네 대를 모두 쓰는 것은 현재 배포 기준안의 검증 조건이다. 발견→접근→보고와 4-PC 전체 사용의 최종 인수 의무는 [scope Q-08](scope.md)에 남긴다. 조건이 바뀌면 배치·프로파일·AC를 함께 수정한다.
+실제 AMR 2대 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이고 네 대를 모두 쓰는 것은 현재 배포 기준안의 검증 조건이다. 발견→접근→보고와 4-PC 전체 사용의 최종 인수 의무는 [scope Q-08](../requirements/scope.md)에 남긴다. 조건이 바뀌면 배치·프로파일·AC를 함께 수정한다.
 
 ## 1. 실행 기록과 장비 확인
 
@@ -50,7 +50,7 @@ P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 �
 
 ## 4. 제한된 공간의 E4 실행 순서
 
-CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](implementation-integration.md)에서 수색 SEND 의도→취소 요청→terminal CANCELED→합성 정지 증거→새 generation→접근 admission→실제 TaskAdmission으로 배정 승격까지 연결했다. 자동 접근 SEND는 여전히 차단된다. 이 결과는 ROS action 취소/terminal 전달, 실제 odometry의 정지 판정, 접근 주행·재관측을 검증하지 않는다. 아래 E3/E4 관문은 별도로 구현하고 실행해야 한다.
+CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](../implementation/implementation-integration.md)에서 수색 SEND 의도→취소 요청→terminal CANCELED→합성 정지 증거→새 generation→접근 admission→실제 TaskAdmission으로 배정 승격까지 연결했다. 자동 접근 SEND는 여전히 차단된다. 이 결과는 ROS action 취소/terminal 전달, 실제 odometry의 정지 판정, 접근 주행·재관측을 검증하지 않는다. 아래 E3/E4 관문은 별도로 구현하고 실행해야 한다.
 
 현장 실행 담당은 합의한 속도·영역·정지 수단으로 먼저 한 로봇의 최종 명령 차단·fresh stop 관측을 검증하고, 두 로봇의 분리된 수색과 공통 좌표 관문을 이어간다. 이후 [AC-01~07](acceptance-plan.md)에 따라 현재 배포 기준안의 실제 네 PC 부하에서 역할을 교환한다.
 
