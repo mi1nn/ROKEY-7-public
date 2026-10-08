@@ -21,27 +21,27 @@ Building wheels for collected packages: rescue_bringup, rescue_coordination, res
   Building wheel for rescue_bringup (pyproject.toml): started
   Building wheel for rescue_bringup (pyproject.toml): finished with status 'done'
   Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=13490 sha256=355be890bce8f587f910609380e5e404ae40abdadf503ee803d4eaa7f2930bb6
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/bc/3a/5e/f3e7d51327894ad4cb4e3cc97dff0799d42d9d4482c3e98094
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/bc/3a/5e/f3e7d51327894ad4cb4e3cc97dff0799d42d9d4482c3e98094
   Building wheel for rescue_coordination (pyproject.toml): started
   Building wheel for rescue_coordination (pyproject.toml): finished with status 'done'
   Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=6723 sha256=44443813da9082881566939e5b625c98f87556d31d708b8e55fb1c9b73e89834
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/c3/a6/12/bb3042f1e992952410f105fce7055f871347644f7ff19622ff
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/c3/a6/12/bb3042f1e992952410f105fce7055f871347644f7ff19622ff
   Building wheel for rescue_mapping (pyproject.toml): started
   Building wheel for rescue_mapping (pyproject.toml): finished with status 'done'
   Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=12671 sha256=4f7efa971734f4159566900df450140393a8d9c4c906b5ea65347fcbb8f83d9d
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/20/d1/f3/05c86fdaed18b96ef0cd9463f7653602f920b522f4a36c0e6a
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/20/d1/f3/05c86fdaed18b96ef0cd9463f7653602f920b522f4a36c0e6a
   Building wheel for rescue_operations (pyproject.toml): started
   Building wheel for rescue_operations (pyproject.toml): finished with status 'done'
   Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=12170 sha256=ebf9d04230e43c3f6349411a51921e72a3c887185d589b74129a346ae7b37789
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/e9/56/85/1edd263b66cb2ac0bc19043fa84f0c2e59621eb186decd6b9e
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/e9/56/85/1edd263b66cb2ac0bc19043fa84f0c2e59621eb186decd6b9e
   Building wheel for rescue_perception (pyproject.toml): started
   Building wheel for rescue_perception (pyproject.toml): finished with status 'done'
   Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=10419 sha256=fcbc3a8ec5bd7e84e9a0614a53935840fe003baf919dde95f34120f46d752c48
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/83/23/a8/5196a86d58f2b8cb5cb63e6ada19e690fe7e72eb5f6604696a
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/83/23/a8/5196a86d58f2b8cb5cb63e6ada19e690fe7e72eb5f6604696a
   Building wheel for rescue_robot (pyproject.toml): started
   Building wheel for rescue_robot (pyproject.toml): finished with status 'done'
   Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=7632 sha256=12caa355218ad8bfa246fb144e606416e6526ece02a28af9927b77f85ea1c24e
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6j_nw81y/wheels/8b/d5/fb/172fb5ef542be9108071e2aa6184f603a2dde42496d491b3db
+  Stored in directory: <TMP>/pip-ephem-wheel-cache-6j_nw81y/wheels/8b/d5/fb/172fb5ef542be9108071e2aa6184f603a2dde42496d491b3db
 Successfully built rescue_bringup rescue_coordination rescue_mapping rescue_operations rescue_perception rescue_robot
 + <PYTHON312> -m venv <TMP>/venv
 + <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
