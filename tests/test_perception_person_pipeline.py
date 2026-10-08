@@ -140,6 +140,24 @@ class PersonPipelineTests(unittest.TestCase):
         self.assertEqual(statuses, ["ACCEPTED", "ACCEPTED"])
         self.assertEqual(registry.last_new_receive("robot_a", "front", uid(100)), 2.0)
 
+    def test_rejected_frame_leaves_no_state(self):
+        # Same class as #30 CDX-30-01: a later bad output must not consume the frame
+        # stamp or mark an earlier track as already reported.
+        bad = DetectorOutput("person", 0.9, (0, 0, 5, 4), "2")  # x1 beyond the 4-px image
+        p = self.pipeline({T0: [out(track="1"), bad]})
+        self.assertCode("INVALID_INPUT", lambda: self.frame(p, 0))
+        p.detector = RecordedDetections(MODEL, "TRACKING", {T0: [out(track="1")]})
+        retry = self.frame(p, 0)
+        self.assertEqual(retry.status, "PROCESSED")
+        self.assertTrue(retry.candidates[0].new_candidate)
+
+    def test_rejected_label_then_clean_retry(self):
+        p = self.pipeline({T0: [out(track="1"), out(track="3", label="doll")]},
+                          confirmation_policy=ConfirmationPolicy(("person", "doll"), 0.5))
+        self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(p, 0))
+        p.detector = RecordedDetections(MODEL, "TRACKING", {T0: [out(track="1")]})
+        self.assertEqual([c.new_candidate for c in self.frame(p, 0).candidates], [True])
+
     def test_invalid_inputs_are_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: self.pipeline({}, binding=replace(self.binding, source_robot=None)))
         bad_mode = self.pipeline({T0: [out(track="9")]}, mode="DETECTION_ONLY")
