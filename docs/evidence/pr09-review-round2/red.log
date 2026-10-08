@@ -163,10 +163,10 @@ test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mappin
 ERROR: test_accepted_receipt_replay_after_release_does_not_reactivate (test_coordination_review.CoordinationReviewTests.test_accepted_receipt_replay_after_release_does_not_reactivate)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 112, in test_accepted_receipt_replay_after_release_does_not_reactivate
+  File "tests/test_coordination_review.py", line 112, in test_accepted_receipt_replay_after_release_does_not_reactivate
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -175,10 +175,10 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_command_or_generation_cannot_be_reused_for_another_task (test_coordination_review.CoordinationReviewTests.test_command_or_generation_cannot_be_reused_for_another_task)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 125, in test_command_or_generation_cannot_be_reused_for_another_task
+  File "tests/test_coordination_review.py", line 125, in test_command_or_generation_cannot_be_reused_for_another_task
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -187,19 +187,19 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.CoordinationReviewTests.test_corridor_requires_exact_holder_even_after_expiry)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 134, in test_corridor_requires_exact_holder_even_after_expiry
+  File "tests/test_coordination_review.py", line 134, in test_corridor_requires_exact_holder_even_after_expiry
     item = self.item()
            ^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 28, in item
+  File "tests/test_coordination_review.py", line 28, in item
     self.candidate(robot), command_id=uid(40+n), robot_boot_id=uid(50))
     ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 19, in candidate
+  File "tests/test_coordination_review.py", line 19, in candidate
     return PathCandidate(robot, (1., 0.), (0., 0.), 4., .4, .1,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<string>", line 16, in __init__
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
     robot(self.robot_id)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
     raise CoordinationError('robot')
 rescue_coordination.planning.CoordinationError: robot
 
@@ -207,16 +207,16 @@ rescue_coordination.planning.CoordinationError: robot
 ERROR: test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 37, in test_dto_accepts_profile_robot_names_not_a_b_constants
+  File "tests/test_coordination_review.py", line 37, in test_dto_accepts_profile_robot_names_not_a_b_constants
     self.assertEqual('unit_2', self.candidate().robot_id)
                                ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 19, in candidate
+  File "tests/test_coordination_review.py", line 19, in candidate
     return PathCandidate(robot, (1., 0.), (0., 0.), 4., .4, .1,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<string>", line 16, in __init__
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
     robot(self.robot_id)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
     raise CoordinationError('robot')
 rescue_coordination.planning.CoordinationError: robot
 
@@ -224,15 +224,15 @@ rescue_coordination.planning.CoordinationError: robot
 ERROR: test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 182, in test_error_is_common_machine_readable_contract
+  File "tests/test_coordination_review.py", line 182, in test_error_is_common_machine_readable_contract
     self.candidate('bad/name')
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 19, in candidate
+  File "tests/test_coordination_review.py", line 19, in candidate
     return PathCandidate(robot, (1., 0.), (0., 0.), 4., .4, .1,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<string>", line 16, in __init__
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
     robot(self.robot_id)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
     raise CoordinationError('robot')
 rescue_coordination.planning.CoordinationError: robot
 
@@ -240,16 +240,16 @@ rescue_coordination.planning.CoordinationError: robot
 ERROR: test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 154, in test_nanosecond_expiry_and_confirmation_at_large_epoch
+  File "tests/test_coordination_review.py", line 154, in test_nanosecond_expiry_and_confirmation_at_large_epoch
     c = self.candidate()
         ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 19, in candidate
+  File "tests/test_coordination_review.py", line 19, in candidate
     return PathCandidate(robot, (1., 0.), (0., 0.), 4., .4, .1,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<string>", line 16, in __init__
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 92, in __post_init__
     robot(self.robot_id)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
+  File "src/rescue_coordination/rescue_coordination/planning.py", line 43, in robot
     raise CoordinationError('robot')
 rescue_coordination.planning.CoordinationError: robot
 
@@ -257,7 +257,7 @@ rescue_coordination.planning.CoordinationError: robot
 ERROR: test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 177, in test_nanosecond_fields_reject_float_bool_zero_and_overflow
+  File "tests/test_coordination_review.py", line 177, in test_nanosecond_fields_reject_float_bool_zero_and_overflow
     replace(self.policy(), confirmation_max_age_ns=value)
   File "/Users/jaebeomlim/.pyenv/versions/3.11.8/lib/python3.11/dataclasses.py", line 1501, in replace
     return obj.__class__(**changes)
@@ -268,10 +268,10 @@ TypeError: ApproachPolicy.__init__() got an unexpected keyword argument 'confirm
 ERROR: test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 96, in test_pending_holds_robot_target_until_rejection_or_verified_stop
+  File "tests/test_coordination_review.py", line 96, in test_pending_holds_robot_target_until_rejection_or_verified_stop
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -280,10 +280,10 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordination_review.CoordinationReviewTests.test_receipt_identity_mismatch_cannot_activate_or_raise_counter)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 67, in test_receipt_identity_mismatch_cannot_activate_or_raise_counter
+  File "tests/test_coordination_review.py", line 67, in test_receipt_identity_mismatch_cannot_activate_or_raise_counter
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -292,10 +292,10 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 78, in test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance
+  File "tests/test_coordination_review.py", line 78, in test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -304,10 +304,10 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 43, in test_reserve_is_pending_until_matching_executor_admission
+  File "tests/test_coordination_review.py", line 43, in test_reserve_is_pending_until_matching_executor_admission
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'
@@ -316,10 +316,10 @@ TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robo
 ERROR: test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 56, in test_unissued_generation_or_robot_cannot_be_reserved
+  File "tests/test_coordination_review.py", line 56, in test_unissued_generation_or_robot_cannot_be_reserved
     allocator = self.allocator()
                 ^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_coordination_review.py", line 23, in allocator
+  File "tests/test_coordination_review.py", line 23, in allocator
     return Allocator(uid(4), allowed_robot_ids=('unit_1', 'unit_2'))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Allocator.__init__() got an unexpected keyword argument 'allowed_robot_ids'

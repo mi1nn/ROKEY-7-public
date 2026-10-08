@@ -137,7 +137,7 @@ test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mappin
 ERROR: test_background_discontinuity_rejects_median_position (test_perception.PerceptionTests.test_background_discontinuity_rejects_median_position)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -146,7 +146,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_bbox_no_silent_clip_or_scale (test_perception.PerceptionTests.test_bbox_no_silent_clip_or_scale)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -155,7 +155,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_collision_cannot_extend_lifetime_or_replace_evidence (test_perception.PerceptionTests.test_collision_cannot_extend_lifetime_or_replace_evidence)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -164,7 +164,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_common_error_and_localization_detail_keep_distinct_meanings (test_perception.PerceptionTests.test_common_error_and_localization_detail_keep_distinct_meanings)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -173,7 +173,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_depth_encoding_units_and_shape (test_perception.PerceptionTests.test_depth_encoding_units_and_shape)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -182,7 +182,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_depth_failure_keeps_discovery_without_position (test_perception.PerceptionTests.test_depth_failure_keeps_discovery_without_position)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -191,7 +191,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_depth_pair_one_ns_boundary_at_real_epoch (test_perception.PerceptionTests.test_depth_pair_one_ns_boundary_at_real_epoch)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -200,7 +200,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_events_dedup_conflicts_and_no_reordered_identity (test_perception.PerceptionTests.test_events_dedup_conflicts_and_no_reordered_identity)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -209,7 +209,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_float_metres_invalid_samples_and_median (test_perception.PerceptionTests.test_float_metres_invalid_samples_and_median)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -218,7 +218,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_future_and_original_expiry_consider_uncertainty (test_perception.PerceptionTests.test_future_and_original_expiry_consider_uncertainty)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -227,7 +227,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_intrinsics_alignment_and_resolution_are_not_inferred (test_perception.PerceptionTests.test_intrinsics_alignment_and_resolution_are_not_inferred)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -236,7 +236,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_model_manifest_and_class_mapping (test_perception.PerceptionTests.test_model_manifest_and_class_mapping)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -245,7 +245,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_no_implicit_thresholds_and_invalid_scalar_validation (test_perception.PerceptionTests.test_no_implicit_thresholds_and_invalid_scalar_validation)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -254,7 +254,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_observation_ids_hashes_validity_and_freezing (test_perception.PerceptionTests.test_observation_ids_hashes_validity_and_freezing)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -263,7 +263,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_publication_schema_and_sequence_validation (test_perception.PerceptionTests.test_publication_schema_and_sequence_validation)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -272,7 +272,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input (test_perception.PerceptionTests.test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -281,7 +281,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_receiver_time_regression_latches_until_new_receiver_session (test_perception.PerceptionTests.test_receiver_time_regression_latches_until_new_receiver_session)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -290,7 +290,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_registered_millimetres_deproject_to_optical_metres (test_perception.PerceptionTests.test_registered_millimetres_deproject_to_optical_metres)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -299,7 +299,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_rejected_collision_still_records_receiver_clock (test_perception.PerceptionTests.test_rejected_collision_still_records_receiver_clock)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -308,7 +308,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_reordered_and_same_frame_do_not_refresh_gap_timer (test_perception.PerceptionTests.test_reordered_and_same_frame_do_not_refresh_gap_timer)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -317,7 +317,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_reordered_discovery_survives_in_immutable_history_without_event_admission (test_perception.PerceptionTests.test_reordered_discovery_survives_in_immutable_history_without_event_admission)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -326,7 +326,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_republication_changes_only_envelope_not_source_hash_or_timer (test_perception.PerceptionTests.test_republication_changes_only_envelope_not_source_hash_or_timer)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -335,7 +335,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_robot_identity_uses_shared_profile_format (test_perception.PerceptionTests.test_robot_identity_uses_shared_profile_format)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -344,7 +344,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_same_frame_people_both_get_events_without_identity_claim (test_perception.PerceptionTests.test_same_frame_people_both_get_events_without_identity_claim)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -353,7 +353,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_source_boots_keep_separate_receive_history (test_perception.PerceptionTests.test_source_boots_keep_separate_receive_history)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -362,7 +362,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_stale_input_still_records_receiver_clock_and_detects_rollback (test_perception.PerceptionTests.test_stale_input_still_records_receiver_clock_and_detects_rollback)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -371,7 +371,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_sync_semantics_and_clock_domain_rejected (test_perception.PerceptionTests.test_sync_semantics_and_clock_domain_rejected)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -380,7 +380,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow (test_perception.PerceptionTests.test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -389,7 +389,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_tracking_mode_is_part_of_immutable_source_payload_hash (test_perception.PerceptionTests.test_tracking_mode_is_part_of_immutable_source_payload_hash)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -398,7 +398,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_tracking_mode_required_and_consistent_with_track_id (test_perception.PerceptionTests.test_tracking_mode_required_and_consistent_with_track_id)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -407,7 +407,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_two_robots_same_track_id_remain_separate_candidates (test_perception.PerceptionTests.test_two_robots_same_track_id_remain_separate_candidates)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -416,7 +416,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 ERROR: test_unknown_clock_and_stamp_can_be_recorded_but_not_used (test_perception.PerceptionTests.test_unknown_clock_and_stamp_can_be_recorded_but_not_used)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 38, in setUp
+  File "tests/test_perception.py", line 38, in setUp
     self.detection = Detection(0, "person", 0.9, (0, 0, 4, 4), "7", "TRACKING")
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
@@ -425,7 +425,7 @@ TypeError: Detection.__init__() takes 6 positional arguments but 7 were given
 FAIL: test_detection_without_explicit_tracking_mode_must_not_hide_fallback (test_perception.BoundaryContractRegressionTests.test_detection_without_explicit_tracking_mode_must_not_hide_fallback)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 26, in test_detection_without_explicit_tracking_mode_must_not_hide_fallback
+  File "tests/test_perception.py", line 26, in test_detection_without_explicit_tracking_mode_must_not_hide_fallback
     with self.assertRaises(TypeError):
 AssertionError: TypeError not raised
 
@@ -433,7 +433,7 @@ AssertionError: TypeError not raised
 FAIL: test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost (test_perception.BoundaryContractRegressionTests.test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/ROKEY-7/tests/test_perception.py", line 22, in test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost
+  File "tests/test_perception.py", line 22, in test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost
     with self.assertRaises(RescueError):
 AssertionError: RescueError not raised
 
