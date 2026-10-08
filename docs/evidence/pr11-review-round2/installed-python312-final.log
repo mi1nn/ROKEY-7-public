@@ -1,67 +1,69 @@
 + <PYTHON312> -m pip wheel --no-index --no-deps --no-build-isolation --no-cache-dir --wheel-dir <TMP>/wheels <TMP>/source/rescue_bringup <TMP>/source/rescue_contracts <TMP>/source/rescue_coordination <TMP>/source/rescue_mapping <TMP>/source/rescue_operations <TMP>/source/rescue_perception <TMP>/source/rescue_robot
-Processing <TMP>
+Processing <TMP>/source/rescue_bringup
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_contracts
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_coordination
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_mapping
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_operations
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_perception
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
-Processing <TMP>
+Processing <TMP>/source/rescue_robot
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
 Building wheels for collected packages: rescue_bringup, rescue_contracts, rescue_coordination, rescue_mapping, rescue_operations, rescue_perception, rescue_robot
   Building wheel for rescue_bringup (pyproject.toml): started
   Building wheel for rescue_bringup (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=15007 sha256=b76fc10f7af78252e38a1d3c4c550490580fdee486cddc96655994162b907987
-  Stored in directory: <TMP>
+  Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=15007 sha256=96c0148aab6422708a131275ee7dd765ccf0175930fc51657e52ec07ccb4a8d5
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/64/c4/81/130fe443dcd23a57c896b4388af247848b1fe800246211e010
   Building wheel for rescue_contracts (pyproject.toml): started
   Building wheel for rescue_contracts (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=6607 sha256=502a82e1ae9ca7fa2b9cfc6c5dbab00e2f32be72ed8928e15d02b151f4ae50ef
-  Stored in directory: <TMP>
+  Created wheel for rescue_contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=6684 sha256=954bb33ddc5b994f8547b22ddcceebccb9a257c1f45e257fca1395e64e2f8517
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/79/14/84/f7a11cc6ad4034a6d032e2661c73a1d364804e062eafdc6392
   Building wheel for rescue_coordination (pyproject.toml): started
   Building wheel for rescue_coordination (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=8152 sha256=765f76f32feb453b267bbe90923672e9d0a4c1685081522409e860e2012de6b4
-  Stored in directory: <TMP>
+  Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=8254 sha256=9a16b0b99860624aca157f08697c56f1cecd83163f4e468f1e5cd007b1bbb367
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/b4/1e/12/545884a40555632408a6ebe388d4aebb49ff3d28f732ef9e4a
   Building wheel for rescue_mapping (pyproject.toml): started
   Building wheel for rescue_mapping (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13169 sha256=668c06947691052b39cc955e5b18f238724e46c0e1e402bbc6dfa1081cd26849
-  Stored in directory: <TMP>
+  Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13169 sha256=c18d212785b19d2aa85ac7438e25629dd25ea1c0dbeebbd834108bd9303c1a4a
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/6c/b1/3b/04eb1315e36d930b817a0dac9018b3d32a0e387e4e65fcdef2
   Building wheel for rescue_operations (pyproject.toml): started
   Building wheel for rescue_operations (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=13316 sha256=fdedf67dcd40fd14327e556b4a0d777b5ac6622779b39df2a3d5cc639f9cff79
-  Stored in directory: <TMP>
+  Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=13316 sha256=a7265f8f325aa0f7ff796dd4235a65fdce5659540897ffb241909ce16d5aef79
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/ee/3d/51/18d78eab19fa2d5fbc082dabd2cdd5df900f1507fa40de7c42
   Building wheel for rescue_perception (pyproject.toml): started
   Building wheel for rescue_perception (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=11685 sha256=dea2aeb4700b450e0160fda99347419e53e88aeb6e72bb7160c8fdb18830c171
-  Stored in directory: <TMP>
+  Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=11685 sha256=a997f42d1f10f50affeeb90e6cc5b44a71885525874075996a6c6b566b4676ca
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/fb/46/28/055920109968b29e7b77869df2b0c07f20bdeb1b13d441710e
   Building wheel for rescue_robot (pyproject.toml): started
   Building wheel for rescue_robot (pyproject.toml): finished with status 'done'
-  Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=8308 sha256=a7a6b6c740960181745e11fc8b3769cdf67ba91652b94c45e3fdedb5f184d441
-  Stored in directory: <TMP>
+  Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=8308 sha256=2c2539b12cead80657dadd52052889cc626bef3f9164235e1965d609d7795d1c
+  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-6nn_mhwg/wheels/46/1a/ff/054ac5b4bca293b63102bde91be416624662ad7db5fdbd0e95
 Successfully built rescue_bringup rescue_contracts rescue_coordination rescue_mapping rescue_operations rescue_perception rescue_robot
 + <PYTHON312> -m venv <TMP>/venv
 + <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
-Processing <TMP>
-Processing <TMP>
-Processing <TMP>
-Processing <TMP>
-Processing <TMP>
-Processing <TMP>
-Processing <TMP>
+WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+Processing <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
 Installing collected packages: rescue-robot, rescue-perception, rescue-operations, rescue-mapping, rescue-coordination, rescue-contracts, rescue-bringup
 Successfully installed rescue-bringup-0.0.0 rescue-contracts-0.0.0 rescue-coordination-0.0.0 rescue-mapping-0.0.0 rescue-operations-0.0.0 rescue-perception-0.0.0 rescue-robot-0.0.0
 + <TMP>/venv/bin/python -m pip check
+WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
 No broken requirements found.
 + <TMP>/venv/bin/python -I -c import importlib,sys
 for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordination','rescue_operations','rescue_bringup','rescue_contracts'):
@@ -86,11 +88,7 @@ print('Installed suite:',suite.countTestCases(),flush=True)
 raise SystemExit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
  <TMP>/check/tests
 SOURCELESS_CHECKOUT
-Installed suite: 213
-WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "b76fc10f7af78252e38a1d3c4c550490580fdee486cddc96655994162b907987", "rescue_contracts-0.0.0-py3-none-any.whl": "502a82e1ae9ca7fa2b9cfc6c5dbab00e2f32be72ed8928e15d02b151f4ae50ef", "rescue_coordination-0.0.0-py3-none-any.whl": "765f76f32feb453b267bbe90923672e9d0a4c1685081522409e860e2012de6b4", "rescue_mapping-0.0.0-py3-none-any.whl": "668c06947691052b39cc955e5b18f238724e46c0e1e402bbc6dfa1081cd26849", "rescue_operations-0.0.0-py3-none-any.whl": "fdedf67dcd40fd14327e556b4a0d777b5ac6622779b39df2a3d5cc639f9cff79", "rescue_perception-0.0.0-py3-none-any.whl": "dea2aeb4700b450e0160fda99347419e53e88aeb6e72bb7160c8fdb18830c171", "rescue_robot-0.0.0-py3-none-any.whl": "a7a6b6c740960181745e11fc8b3769cdf67ba91652b94c45e3fdedb5f184d441"}
-PASS seven installed wheels, dependency check, isolated imports and nonempty tests
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
-WARNING: The directory '/Users/jaebeomlim/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+Installed suite: 216
 test_component_dictionary_has_only_canonical_targets (test_contracts.SharedContractTests.test_component_dictionary_has_only_canonical_targets) ... ok
 test_decimal_policy_conversion_is_exact (test_contracts.SharedContractTests.test_decimal_policy_conversion_is_exact) ... ok
 test_no_float_or_boolean_timestamp (test_contracts.SharedContractTests.test_no_float_or_boolean_timestamp) ... ok
@@ -120,6 +118,7 @@ test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.
 test_deployment_ids_and_generation_overflow_are_explicit (test_coordination_review.CoordinationReviewTests.test_deployment_ids_and_generation_overflow_are_explicit) ... ok
 test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants) ... ok
 test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract) ... ok
+test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) ... ok
 test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch) ... ok
 test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow) ... ok
 test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop) ... ok
@@ -127,6 +126,8 @@ test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordinati
 test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance) ... ok
 test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission) ... ok
 test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved) ... ok
+test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) ... ok
+test_validation_explanations_are_separate_from_diagnostic_codes (test_coordination_review.CoordinationReviewTests.test_validation_explanations_are_separate_from_diagnostic_codes) ... ok
 test_wall_rollback_latches_cancellation (test_coordination_review.CoordinationReviewTests.test_wall_rollback_latches_cancellation) ... ok
 test_acceptance_timeout_cancels_late_accept (test_executor.ExecutorTests.test_acceptance_timeout_cancels_late_accept) ... ok
 test_cancel_timeout_failure_latches_and_keeps_original_cause (test_executor.ExecutorTests.test_cancel_timeout_failure_latches_and_keeps_original_cause) ... ok
@@ -306,6 +307,8 @@ test_schema_robot_identifiers_follow_profile_syntax (test_review_operations.Oper
 test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage) ... ok
 
 ----------------------------------------------------------------------
-Ran 213 tests in 0.473s
+Ran 216 tests in 0.479s
 
 OK
+WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "96c0148aab6422708a131275ee7dd765ccf0175930fc51657e52ec07ccb4a8d5", "rescue_contracts-0.0.0-py3-none-any.whl": "954bb33ddc5b994f8547b22ddcceebccb9a257c1f45e257fca1395e64e2f8517", "rescue_coordination-0.0.0-py3-none-any.whl": "9a16b0b99860624aca157f08697c56f1cecd83163f4e468f1e5cd007b1bbb367", "rescue_mapping-0.0.0-py3-none-any.whl": "c18d212785b19d2aa85ac7438e25629dd25ea1c0dbeebbd834108bd9303c1a4a", "rescue_operations-0.0.0-py3-none-any.whl": "a7265f8f325aa0f7ff796dd4235a65fdce5659540897ffb241909ce16d5aef79", "rescue_perception-0.0.0-py3-none-any.whl": "a997f42d1f10f50affeeb90e6cc5b44a71885525874075996a6c6b566b4676ca", "rescue_robot-0.0.0-py3-none-any.whl": "2c2539b12cead80657dadd52052889cc626bef3f9164235e1965d609d7795d1c"}
+PASS seven installed wheels, dependency check, isolated imports and nonempty tests
