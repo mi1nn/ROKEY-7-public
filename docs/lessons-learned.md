@@ -90,6 +90,14 @@ updated: 2026-10-08
 
 **확인:** 실제 실행한 명령·원문 결과·미실행 항목을 분리한다. 문서 검사 통과를 알고리즘·ROS·로봇 검증 통과로 바꾸어 쓰지 않는다. 원본 시험 수나 과거 PASS를 현재 커밋의 PASS로 쓰지 않는다. 연결: RQ-07, 모든 계획 PR.
 
+## LL-11 완료까지 멈추는 도우미 호출을 실행기에 두지 않는다
+
+**근거:** `[원본 코드]` 강사 예제 [3_1_a_nav_to_pose.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_a_nav_to_pose.py#L35-L51)는 `undock()`·`startToPose()` 를 차례로 부르고, 이 도우미들은 완료까지 호출자를 멈춘다([turtlebot4_navigator.py undock](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L176-L181), [startToPose](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L266-L275)). 한 로봇의 목표를 기다리는 동안 같은 프로세스는 다른 로봇의 취소·정지·관측을 처리하지 못한다. P4 의 [goal_timer.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173)가 수락·결과·취소를 나눈 이유가 여기 있다(P4-02).
+
+**적용:** 실행기는 액션 클라이언트를 비동기로 쓰고, 취소와 정지 확인을 별도 경로로 둔다([계약](contracts.md)의 정지·취소 의미, [상태 기계](state-machines.md)). 교육용 도우미는 실기 튜토리얼과 수동 점검에만 쓴다.
+
+**확인:** 한 로봇의 목표가 수락된 채 결과가 없는 동안 다른 로봇의 취소·정지 요청과 heartbeat 처리가 지연 없이 이루어지는지, 같은 로봇의 정지 요청이 진행 중 목표를 취소하고 정지 증거를 남기는지 시험한다. 연결: TS-06, P4-02, [인수 계획](acceptance-plan.md) CT-08, 로봇·지도 Nav2 어댑터 PR.
+
 ## 이번 선별의 결과
 
-유지할 원리는 근거를 남기는 기록, 명령·지도 발행 책임, 관측 시각 보존, 반복 가능한 배포, 동시 부하 측정, 실제 결과에 따른 판정이다. 당시 로봇 번호·PC 경로·일정·임계값·RC카 모델 선택은 승계하지 않는다. 위 검증은 후속 구현의 완료 조건이며 이번 PR에서 실행한 시험 목록이 아니다.
+유지할 원리는 근거를 남기는 기록, 명령·지도 발행 책임, 관측 시각 보존, 반복 가능한 배포, 동시 부하 측정, 실제 결과에 따른 판정이다. 당시 로봇 번호·PC 경로·일정·임계값·RC카 모델 선택은 승계하지 않는다. 위 검증은 후속 구현의 완료 조건이며 이번 PR에서 실행한 시험 목록이 아니다. LL-11 은 2026-10-08 강사 예제 검토([선별표](source-selection.md) TS-06)에서 더했다.
