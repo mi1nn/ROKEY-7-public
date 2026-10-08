@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from .geometry import (MappingError, RigidTransform, finite, integer, name,
+from .geometry import (MappingError, RigidTransform, finite, integer, name, robot_identifier,
                        uint64, uuid_string, vector)
 
 
@@ -21,6 +21,7 @@ class SourceObservation:
     map_revision: int
 
     def __post_init__(self):
+        robot_identifier(self.source_robot)
         for field in ("source_robot", "source_camera", "source_frame", "clock_domain_id"):
             name(getattr(self, field), field)
         for field in ("observation_id", "source_boot_id", "map_session_id"):
@@ -53,6 +54,7 @@ class TimedTransform:
     evidence_id: str
 
     def __post_init__(self):
+        robot_identifier(self.source_robot)
         for field in ("source_robot", "source_frame", "target_frame",
                       "clock_domain_id", "evidence_id"):
             name(getattr(self, field), field)
@@ -94,6 +96,7 @@ class FrameAlignment:
     status: str = "VALID"
 
     def __post_init__(self):
+        robot_identifier(self.source_robot)
         for field in ("source_robot", "map_frame", "mission_frame",
                       "authority_id", "clock_domain_id"):
             name(getattr(self, field), field)

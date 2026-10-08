@@ -6,10 +6,30 @@ must be provided by a future authenticated, single-owner robot adapter.
 from dataclasses import dataclass
 import math
 from uuid import UUID
+from rescue_contracts import (RescueError, TaskAdmission, CANONICAL_CODES, canonical_code,
+                              robot_id as validate_robot_id, robot_ids, timestamp_ns)
 
 
-class ContractError(ValueError):
-    pass
+class ContractError(RescueError):
+    def __init__(self, detail, code='INVALID_INPUT'):
+        super().__init__(code, detail, component='rescue_robot', detail_code=code)
+
+
+def wall_time(value):
+    try:
+        return timestamp_ns(value)
+    except RescueError as exc:
+        raise ContractError(exc.detail, exc.code) from exc
+
+
+def result_reason(cause):
+    if cause in ('HOLD', 'NAVIGATION_SUCCEEDED'):
+        return cause  # lifecycle success values are not errors
+    try:
+        return canonical_code('rescue_robot', cause)
+    except (ValueError, TypeError) as exc:
+        raise ContractError('unregistered stop reason') from exc
+
 
 
 def number(value, name, *, positive=False):
@@ -93,8 +113,8 @@ class Task:
     authority_epoch: str
     generation: int
     kind: str
-    issued_at: float
-    deadline: float
+    issued_at_ns: int
+    deadline_ns: int
     lease_duration: float
     policy_version: str
     target_id: str | None = None
@@ -104,13 +124,16 @@ class Task:
         for name in ('command_id', 'task_id', 'robot_boot_id', 'authority_epoch'):
             identifier(getattr(self, name))
         generation(self.generation)
-        if self.robot_id not in ('robot_a', 'robot_b'):
-            raise ContractError('robot identity')
+        try:
+            validate_robot_id(self.robot_id)
+        except RescueError as exc:
+            raise ContractError(exc.detail, exc.code) from exc
         if self.kind not in ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'):
             raise ContractError('task kind')
-        for name in ('issued_at', 'deadline', 'lease_duration'):
-            number(getattr(self, name), name, positive=True)
-        if self.deadline <= self.issued_at or not isinstance(self.policy_version, str) or not self.policy_version:
+        wall_time(self.issued_at_ns)
+        wall_time(self.deadline_ns)
+        number(self.lease_duration, 'lease_duration', positive=True)
+        if self.deadline_ns <= self.issued_at_ns or not isinstance(self.policy_version, str) or not self.policy_version:
             raise ContractError('deadline or policy')
         if self.kind in ('REOBSERVE_TARGET', 'APPROACH_TARGET'):
             identifier(self.target_id)
@@ -120,18 +143,14 @@ class Task:
 
 
 @dataclass(frozen=True)
-class Admission:
-    accepted: bool
-    reason: str
-
-
-@dataclass(frozen=True)
 class Result:
     command_id: str
     outcome: str
     reason: str
     original_cause: str
     stop_confirmed: bool
+    action_status: str | None
+    detail_code: str
 
 
 class Executor:
@@ -141,8 +160,12 @@ class Executor:
     `goal_terminal` is the action execution fence; odometry independently proves
     bounded motion. A cancel request/ack alone is never enough.
     """
-    def __init__(self, robot_id, robot_boot_id, authority_epoch, policy):
-        if robot_id not in ('robot_a', 'robot_b') or not isinstance(policy, Policy):
+    def __init__(self, robot_id, robot_boot_id, authority_epoch, policy, *, allowed_robot_ids):
+        try:
+            self.allowed_robot_ids = robot_ids(allowed_robot_ids)
+        except RescueError as exc:
+            raise ContractError(exc.detail, exc.code) from exc
+        if robot_id not in self.allowed_robot_ids or not isinstance(policy, Policy):
             raise ContractError('executor configuration')
         self.robot_id = robot_id
         self.robot_boot_id = identifier(robot_boot_id)
@@ -168,6 +191,8 @@ class Executor:
         self.stop_deadline = None
         self.stop_cause = ''
         self.stop_outcome = ''
+        self.action_status = None
+        self.action_accepted = None
 
     def _time(self, now):
         now = number(now, 'local monotonic time')
@@ -177,7 +202,7 @@ class Executor:
             self.session_fault = True
             if self.active:
                 self.intents.append(('CANCEL', self.active.command_id))
-            raise ContractError('monotonic clock regressed; recreate session')
+            raise ContractError('monotonic clock regressed; recreate session', 'CLOCK_UNCERTAIN')
         self.clock = now
         return now
 
@@ -199,7 +224,7 @@ class Executor:
         bounded = abs(linear) <= self.policy.linear_stop_max and abs(angular) <= self.policy.angular_stop_max
         if not bounded or not self.fenced or stamp < self.fenced_since:
             self.stop_start = None
-            self.motion = 'MOVING' if not bounded else 'STOP_REQUESTED'
+            self.motion = 'STOP_REQUESTED' if self.state == 'STOPPING' else 'MOVING'
             return False
         if gap or self.stop_start is None:
             self.stop_start = stamp
@@ -229,32 +254,38 @@ class Executor:
         self.latch = 'DISARMED'
         return True
 
-    def admit(self, task, *, now_wall, now_steady, readiness):
+    def admit(self, task, *, now_wall_ns, now_steady, readiness):
         now = self._time(now_steady)
-        wall = number(now_wall, 'wall time', positive=True)
+        wall = wall_time(now_wall_ns)
         if not isinstance(task, Task):
             raise ContractError('task type')
         if task.command_id in self.seen:
             previous, receipt = self.seen[task.command_id]
-            return receipt if previous == task else Admission(False, 'ID_CONTENT_CONFLICT')
+            return receipt if previous == task else self._receipt(task, 'ID_CONTENT_CONFLICT')
         reason = None
-        if (task.robot_id != self.robot_id or task.robot_boot_id != self.robot_boot_id
-                or task.authority_epoch != self.authority_epoch):
-            reason = 'AUTHORITY_OR_SESSION'
+        if task.robot_id != self.robot_id:
+            reason = 'WRONG_ROBOT'
+        elif task.robot_boot_id != self.robot_boot_id or task.authority_epoch != self.authority_epoch:
+            reason = 'NOT_AUTHORIZED'
         elif task.policy_version != self.policy.version:
-            reason = 'POLICY_VERSION'
+            reason = 'POLICY_MISMATCH'
         elif task.generation <= self.highest_generation:
-            reason = 'OLD_GENERATION'
-        elif self.active is not None or self.latch != 'ARMED' or self.motion != 'STOPPED':
-            reason = 'BUSY_OR_LATCHED'
-        elif (not readiness.valid(now, self.policy) or self.last_sample is None
-              or not 0 <= now - self.last_sample <= self.policy.evidence_max_age):
-            reason = 'NOT_READY'
-        elif not task.issued_at <= wall < task.deadline:
-            reason = 'INVALID_TIME'
+            reason = 'STALE_GENERATION'
+        elif self.active is not None:
+            reason = 'TASK_BUSY'
+        elif self.latch != 'ARMED' or self.motion != 'STOPPED':
+            reason = 'STOP_LATCHED'
+        elif not readiness.valid(now, self.policy):
+            reason = 'NAV_NOT_READY'
+        elif self.last_sample is None or not 0 <= now - self.last_sample <= self.policy.evidence_max_age:
+            reason = 'STOP_EVIDENCE_STALE'
+        elif wall < task.issued_at_ns:
+            reason = 'CLOCK_UNCERTAIN'
+        elif wall >= task.deadline_ns:
+            reason = 'DEADLINE_EXPIRED'
         if reason is None:
             future_deadline(now, task.lease_duration)
-        receipt = Admission(reason is None, reason or 'ACCEPTED')
+        receipt = self._receipt(task, reason)
         self.seen[task.command_id] = (task, receipt)
         if not receipt.accepted:
             return receipt
@@ -264,10 +295,18 @@ class Executor:
         self.lease_until = lease_until
         self.lease_sequence = -1
         self.state = 'PLANNING'
+        self.action_status = None
+        self.action_accepted = None
         return receipt
 
-    def dispatch(self, *, now_wall, now_steady, readiness, guards_valid):
-        self.tick(now_wall=now_wall, now_steady=now_steady, readiness=readiness, guards_valid=guards_valid)
+    @staticmethod
+    def _receipt(task, reason):
+        return TaskAdmission(task.command_id, task.task_id, task.robot_id, task.robot_boot_id,
+                             task.authority_epoch, task.generation, reason is None,
+                             reason or 'ACCEPTED', 'rescue_robot.' + (reason or 'ACCEPTED'))
+
+    def dispatch(self, *, now_wall_ns, now_steady, readiness, guards_valid):
+        self.tick(now_wall_ns=now_wall_ns, now_steady=now_steady, readiness=readiness, guards_valid=guards_valid)
         if self.state != 'PLANNING':
             return False
         if (self.motion != 'STOPPED' or self.last_sample is None
@@ -290,6 +329,10 @@ class Executor:
         identifier(command_id)
         if type(accepted) is not bool:
             raise ContractError('accepted flag')
+        if self.active and command_id == self.active.command_id:
+            if self.action_accepted is not None and self.action_accepted != accepted:
+                raise ContractError('conflicting goal response', 'ID_CONTENT_CONFLICT')
+            self.action_accepted = accepted
         if self.active and command_id == self.active.command_id and self.state == 'NAVIGATING' and accepted:
             return  # repeated acceptance cannot cancel the active execution
         if self.active is None or command_id != self.active.command_id or self.state != 'AWAITING_ACCEPTANCE':
@@ -309,21 +352,29 @@ class Executor:
             self.fenced_since, self.stop_start = now, None
             self.request_stop('GOAL_REJECTED', now=self.clock, outcome='FAILED')
 
-    def goal_terminal(self, command_id, *, succeeded, now):
+    def goal_terminal(self, command_id, *, terminal_status, now):
         self._time(now)
-        if type(succeeded) is not bool:
-            raise ContractError('success flag')
+        if terminal_status not in ('SUCCEEDED', 'CANCELED', 'ABORTED'):
+            raise ContractError('terminal action status')
         if (not self.active or self.active.command_id != command_id
                 or self.state not in ('AWAITING_ACCEPTANCE', 'NAVIGATING', 'STOPPING')):
             return False
+        if self.action_status is not None and self.action_status != terminal_status:
+            raise ContractError('conflicting terminal action status', 'ID_CONTENT_CONFLICT')
+        if self.action_accepted is False:
+            raise ContractError('terminal for rejected goal', 'ID_CONTENT_CONFLICT')
+        self.action_accepted = True
+        self.action_status = terminal_status
         # A result implies acceptance, even if its callback arrived first.
         self.pending = False
         if not self.fenced:
             self.fenced_since, self.stop_start = now, None
         self.fenced = True
         if self.state != 'STOPPING':
-            self.request_stop('NAVIGATION_SUCCEEDED' if succeeded else 'NAVIGATION_FAILED',
-                              now=now, outcome='COMPLETED' if succeeded else 'FAILED')
+            reason, outcome = {'SUCCEEDED': ('NAVIGATION_SUCCEEDED', 'COMPLETED'),
+                               'CANCELED': ('ACTION_CANCELED', 'CANCELED'),
+                               'ABORTED': ('ACTION_ABORTED', 'FAILED')}[terminal_status]
+            self.request_stop(reason, now=now, outcome=outcome)
         return True
 
     def renew(self, command_id, authority_epoch, generation_value, sequence, *, now):
@@ -344,6 +395,7 @@ class Executor:
             raise ContractError('outcome')
         if self.active is None or self.state == 'STOPPING':
             return
+        result_reason(cause)  # reject unknown reasons before changing state
         self.state, self.motion, self.latch = 'STOPPING', 'STOP_REQUESTED', 'STOP_LATCHED'
         self.stop_cause, self.stop_outcome = cause, outcome
         self.stop_start = None
@@ -356,9 +408,9 @@ class Executor:
             self.motion, self.latch = 'STOP_UNCONFIRMED', 'FAULT_LATCHED'
             self._finish('FAILED', 'STOP_UNCONFIRMED', False)
 
-    def tick(self, *, now_wall, now_steady, readiness, guards_valid):
+    def tick(self, *, now_wall_ns, now_steady, readiness, guards_valid):
         now = self._time(now_steady)
-        wall = number(now_wall, 'wall time', positive=True)
+        wall = wall_time(now_wall_ns)
         if self.active is None:
             return
         if self.state == 'STOPPING':
@@ -370,16 +422,18 @@ class Executor:
             self.request_stop('SESSION_FAULT', now=now, outcome='FAILED')
         elif type(guards_valid) is not bool or not guards_valid or not readiness.valid(now, self.policy):
             self.request_stop('GUARD_INVALID', now=now, outcome='FAILED')
-        elif wall < self.active.issued_at:
-            self.request_stop('CLOCK_INVALID', now=now, outcome='FAILED')
-        elif wall >= self.active.deadline or now >= self.lease_until:
-            self.request_stop('DEADLINE_OR_LEASE', now=now, outcome='EXPIRED')
+        elif wall < self.active.issued_at_ns:
+            self.request_stop('CLOCK_UNCERTAIN', now=now, outcome='FAILED')
+        elif wall >= self.active.deadline_ns or now >= self.lease_until:
+            self.request_stop('DEADLINE_EXPIRED' if wall >= self.active.deadline_ns else 'LEASE_EXPIRED',
+                              now=now, outcome='EXPIRED')
         elif self.state == 'AWAITING_ACCEPTANCE' and now >= self.accept_by:
             self.request_stop('ACCEPT_TIMEOUT', now=now, outcome='FAILED')
 
     def _finish(self, outcome, reason, confirmed):
         command_id = self.active.command_id
-        self.results[command_id] = Result(command_id, outcome, reason, self.stop_cause, confirmed)
+        self.results[command_id] = Result(command_id, outcome, result_reason(reason), self.stop_cause, confirmed,
+                                          self.action_status, 'rescue_robot.' + reason)
         # Approach verification is separate: COMPLETED means action+stop only.
         self.state = 'FINISHED'
         self.active = None
