@@ -1,7 +1,7 @@
 {
   "pr": 11,
   "evidence": "E2 synthetic Python; E3/E4 NOT_RUN",
-  "implementation_commit": "761eefbf77f9e344651365cf1c85c044d7452f21",
+  "implementation_commit": "0c12b2f4365b25f2039f22ed56d27932482a5c61",
   "python": "Python 3.11.8",
   "commands": [
     {
@@ -19,6 +19,7 @@
   ],
   "log_normalization": "Traceback paths normalized to repository-relative paths; raw captures kept in local review workspace.",
   "files": {
+    ".github/pull_request_template.md": "417175d1939d3e16486a2287ea87b54ad9ea3621f0e30e6c598877bcb71c1d5e",
     ".github/workflows/docs.yml": "79bc706e0ab975ebf2cf1acedf1156dbef29f859d691641f63856447feb8fcba",
     ".github/workflows/foundation.yml": "34fcf348fc239cdcd3d5245caaf44fcef4643ddc23666f05e0cd3425ca7f4b21",
     "config/deployment.example.json": "e139faa702805b8af0d92e9284ee33a2a8021191cbf9d8955708dabc02837b87",
