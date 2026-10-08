@@ -1,4 +1,4 @@
-Collected 213 tests
+Collected 216 tests
 test_component_dictionary_has_only_canonical_targets (test_contracts.SharedContractTests.test_component_dictionary_has_only_canonical_targets) ... ok
 test_decimal_policy_conversion_is_exact (test_contracts.SharedContractTests.test_decimal_policy_conversion_is_exact) ... ok
 test_no_float_or_boolean_timestamp (test_contracts.SharedContractTests.test_no_float_or_boolean_timestamp) ... ok
@@ -28,6 +28,7 @@ test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.
 test_deployment_ids_and_generation_overflow_are_explicit (test_coordination_review.CoordinationReviewTests.test_deployment_ids_and_generation_overflow_are_explicit) ... ok
 test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants) ... ok
 test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract) ... ok
+test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) ... ok
 test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch) ... ok
 test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow) ... ok
 test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop) ... ok
@@ -35,6 +36,8 @@ test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordinati
 test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance) ... ok
 test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission) ... ok
 test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved) ... ok
+test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) ... ok
+test_validation_explanations_are_separate_from_diagnostic_codes (test_coordination_review.CoordinationReviewTests.test_validation_explanations_are_separate_from_diagnostic_codes) ... ok
 test_wall_rollback_latches_cancellation (test_coordination_review.CoordinationReviewTests.test_wall_rollback_latches_cancellation) ... ok
 test_acceptance_timeout_cancels_late_accept (test_executor.ExecutorTests.test_acceptance_timeout_cancels_late_accept) ... ok
 test_cancel_timeout_failure_latches_and_keeps_original_cause (test_executor.ExecutorTests.test_cancel_timeout_failure_latches_and_keeps_original_cause) ... ok
@@ -214,6 +217,6 @@ test_schema_robot_identifiers_follow_profile_syntax (test_review_operations.Oper
 test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage) ... ok
 
 ----------------------------------------------------------------------
-Ran 213 tests in 0.730s
+Ran 216 tests in 0.750s
 
 OK
