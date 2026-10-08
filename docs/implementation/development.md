@@ -70,6 +70,19 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 
 `profile.py` 의 `ROBOT_ROLES`·`AREA_BASIS_KINDS` 는 `rescue_contracts` 의 값을 복제한다(프로파일 CLI 는 `rescue_bringup` 만으로 돌아야 해 contracts 를 import 하지 않음). 두 값의 일치는 `tests/test_profile_v2.py` 가 검사한다. `python -m rescue_bringup <v2 프로파일>` 은 역할과 구역 수를 함께 출력한다. v2 역시 정적 검사이며 ROS 를 켜거나 로봇을 움직이지 않는다. `runtime_enabled` 는 여전히 `false` 여야 한다.
 
+### v2.1 — 추가 블록 (2026-10-08, 선택·엄격)
+
+`schema_version` 은 그대로 `2` 이고 아래 블록은 **없어도 되지만 있으면 엄격히 검사**한다(기본값 없음). 예시 파일에 전부 들어 있다. 값은 예시이며 실측값이 아니다(`max_age_s` 는 [미확인], 주소는 RFC 5737 문서용).
+
+| 블록 | 위치 | 규칙 |
+| --- | --- | --- |
+| `readiness` | 로봇 파라미터 v2 | `version`, `max_age_s{odom,scan,camera,wheel_status,map_to_odom_tf}`(양의 유한수, 다섯 키 정확히), `scan_topic`·`tf_topic`·`camera_topics[]`·`wheel_status_topic`(`""` 허용)은 `/<namespace>/…` 아래 서로 다른 이름, `map_frame`·`odom_frame` 은 TF frame 규칙, `watchdog_heartbeat_topic` 은 로봇 측 watchdog 이 생기기 전까지 **반드시 `""`**. 이름은 `rescue_robot.ros_node` 의 파라미터와 같다(#22) |
+| `hosts[].network` | 배포 파일 | `domain_id` 0..232, `discovery_servers[]` 1..8 개의 `{server_id 0..255, address, port 1..65535}`(ID·주소:포트 고유, ID = `ROS_DISCOVERY_SERVER` 의 자리), `super_client` 는 **false 만**(조회 도구용 설정은 운영 노드 값이 아님). 적용하지 않고 실행 전 점검이 실제 환경과 비교한다([네트워크 조사](network-discovery.md)) |
+| `site_cameras[]` | 배포 파일 | 0..8 개의 `{id: cam_<id>, host(배포 호스트), role: DISASTER_SIGN|EXIT_PASS, source(문자열)}`, id 고유. 카메라 어댑터(인식)와 관제 화면이 식별자로 쓴다 |
+| `mission.search_areas[].entry_yaw` | 배포 파일 | 유한수(rad). 협업·관제 `mission_sites(areas, entry_yaws=)` 의 입력. 없으면 `None` 이며 coordination 이 거절한다(기본값 없음) |
+
+`python -m rescue_bringup <v2 프로파일>` 은 "v2.1 blocks: N site cameras; M hosts with network; readiness for …" 한 줄을 더 찍는다. 역시 정적 검사다.
+
 ### v2 입력 후보와 실행 전 점검 — 미구현
 
 아래는 CLA-16 및 다중 ROS 그래프 설계 검토에 연결할 **미구현 후보**다. v1 JSON에 추가하면 알 수 없는 필드로 거절한다. v2 스키마·자료형·실제 장비값과 Discovery Server/도메인 배치는 PR 2·3 및 실기 연결 전에 정한다.

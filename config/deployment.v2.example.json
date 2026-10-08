@@ -2,37 +2,157 @@
   "schema_version": 2,
   "deployment_id": "review_example_v2",
   "hosts": [
-    {"id": "compute_a", "tier": "high"},
-    {"id": "compute_b", "tier": "high"},
-    {"id": "coordination", "tier": "mid"},
-    {"id": "operations", "tier": "mid"}
+    {
+      "id": "compute_a",
+      "tier": "high",
+      "network": {
+        "domain_id": 7,
+        "discovery_servers": [
+          {
+            "server_id": 3,
+            "address": "192.0.2.13",
+            "port": 11811
+          }
+        ],
+        "super_client": false
+      }
+    },
+    {
+      "id": "compute_b",
+      "tier": "high",
+      "network": {
+        "domain_id": 7,
+        "discovery_servers": [
+          {
+            "server_id": 6,
+            "address": "192.0.2.16",
+            "port": 11811
+          }
+        ],
+        "super_client": false
+      }
+    },
+    {
+      "id": "coordination",
+      "tier": "mid",
+      "network": {
+        "domain_id": 7,
+        "discovery_servers": [
+          {
+            "server_id": 3,
+            "address": "192.0.2.13",
+            "port": 11811
+          },
+          {
+            "server_id": 6,
+            "address": "192.0.2.16",
+            "port": 11811
+          }
+        ],
+        "super_client": false
+      }
+    },
+    {
+      "id": "operations",
+      "tier": "mid",
+      "network": {
+        "domain_id": 7,
+        "discovery_servers": [
+          {
+            "server_id": 3,
+            "address": "192.0.2.13",
+            "port": 11811
+          },
+          {
+            "server_id": 6,
+            "address": "192.0.2.16",
+            "port": 11811
+          }
+        ],
+        "super_client": false
+      }
+    }
   ],
   "robots": [
     {
-      "id": "robot_a", "namespace": "/robot_a", "command_host": "compute_a",
-      "slam_host": "compute_a", "perception_host": "compute_a",
+      "id": "robot_a",
+      "namespace": "/robot_a",
+      "command_host": "compute_a",
+      "slam_host": "compute_a",
+      "perception_host": "compute_a",
       "parameters_file": "robots/robot_a.v2.json"
     },
     {
-      "id": "robot_b", "namespace": "/robot_b", "command_host": "compute_b",
-      "slam_host": "compute_b", "perception_host": "compute_b",
+      "id": "robot_b",
+      "namespace": "/robot_b",
+      "command_host": "compute_b",
+      "slam_host": "compute_b",
+      "perception_host": "compute_b",
       "parameters_file": "robots/robot_b.v2.json"
     }
   ],
-  "services": {"coordination_host": "coordination", "operations_host": "operations"},
+  "services": {
+    "coordination_host": "coordination",
+    "operations_host": "operations"
+  },
   "mission": {
-    "roles": {"robot_a": "SCOUT", "robot_b": "SUPPORT"},
+    "roles": {
+      "robot_a": "SCOUT",
+      "robot_b": "SUPPORT"
+    },
     "search_areas": [
-      {"id": "11111111-1111-4111-8111-111111111111", "mission_xy": [2.0, 0.0],
-       "basis": {"kind": "PRIOR_MAP", "map_session_id": "22222222-2222-4222-8222-222222222222",
-                 "map_revision": 0, "transform_revision": 1}},
-      {"id": "11111111-1111-4111-8111-111111111112", "mission_xy": [4.0, 1.0],
-       "basis": {"kind": "PRIOR_MAP", "map_session_id": "22222222-2222-4222-8222-222222222222",
-                 "map_revision": 0, "transform_revision": 1}}
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "mission_xy": [
+          2.0,
+          0.0
+        ],
+        "basis": {
+          "kind": "PRIOR_MAP",
+          "map_session_id": "22222222-2222-4222-8222-222222222222",
+          "map_revision": 0,
+          "transform_revision": 1
+        },
+        "entry_yaw": 0.0
+      },
+      {
+        "id": "11111111-1111-4111-8111-111111111112",
+        "mission_xy": [
+          4.0,
+          1.0
+        ],
+        "basis": {
+          "kind": "PRIOR_MAP",
+          "map_session_id": "22222222-2222-4222-8222-222222222222",
+          "map_revision": 0,
+          "transform_revision": 1
+        },
+        "entry_yaw": 1.5708
+      }
     ],
     "hold_positions": {
-      "robot_b": {"frame_id": "mission", "x": 0.0, "y": -1.0, "yaw": 0.0,
-                  "map_session_id": "22222222-2222-4222-8222-222222222222", "map_revision": 0}
+      "robot_b": {
+        "frame_id": "mission",
+        "x": 0.0,
+        "y": -1.0,
+        "yaw": 0.0,
+        "map_session_id": "22222222-2222-4222-8222-222222222222",
+        "map_revision": 0
+      }
     }
-  }
+  },
+  "site_cameras": [
+    {
+      "id": "cam_a",
+      "host": "operations",
+      "role": "DISASTER_SIGN",
+      "source": "/dev/video0"
+    },
+    {
+      "id": "cam_b",
+      "host": "operations",
+      "role": "EXIT_PASS",
+      "source": "/dev/video2"
+    }
+  ]
 }

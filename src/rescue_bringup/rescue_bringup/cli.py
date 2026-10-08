@@ -27,5 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     if profile.mission:
         print(f"mission: schema v{profile.schema_version}; {len(profile.mission.search_areas)} search areas; "
               f"hold positions for {', '.join(r for r, _ in profile.mission.hold_positions)}")
+    if profile.schema_version >= 2:
+        with_network = sum(1 for host in profile.hosts if host.network is not None)
+        print(f"v2.1 blocks: {len(profile.site_cameras)} site cameras; {with_network} hosts with network; "
+              f"readiness for {', '.join(r.id for r in profile.robots if r.parameters.readiness) or 'none'}")
     print("Runtime is disabled. No hardware, ROS graph, timing or safety validation was performed.")
     return 0
