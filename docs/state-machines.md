@@ -10,6 +10,19 @@ updated: 2026-10-08
 
 두 AMR은 확정 요구이며, 발견→안전 접근→보고와 네 PC 전체 배치는 현재 검증할 설계 기준안이다. 후자의 최종 인수 확정을 이 문서가 대신하지 않는다.
 
+## S-00. 시스템 모드 (BRD v0.1, 2026-10-08)
+
+전체 시스템의 모드는 로봇·사건 상태와 별도 축이다. 실행 가능한 어휘는 `rescue_contracts.SYSTEM_MODES`.
+
+| 현재 | 이벤트/관문 | 다음 |
+| --- | --- | --- |
+| `NORMAL` | 고정 카메라 A 의 `SiteEvent(kind=QUAKE_SIGN)` 가 정책의 판정 조건(지표·임계값·AND/OR, Q-11)을 충족 | `DISASTER`. coordination 이 SCOUT 로봇에 수색 임무(SEARCH_AREA)를 발급하고 관리자 화면에 알림(FR-03·04). 카메라 어댑터 자체는 모드를 바꾸지 못한다 |
+| `DISASTER` | 오탐 해제 조건 충족(Q-11) 또는 운영자 해제 | `CLEARING`: 진행 중 임무를 S-04 정지 관문으로 종료하고 SCOUT 복귀. 정지 확인 뒤 `NORMAL`(E-01) |
+| `DISASTER` | SUPPORT 출동 조건: 발견 사건 + 저장 확인(receipt `PERSISTED`) + (자동 또는 관리자 승인, Q-12) | 모드는 유지, 접근 임무 예약(S-03·S-06) |
+| 어느 모드든 | 모드 전이 이벤트는 시각·근거(SiteEvent ID)·판정 정책 version 과 함께 보고 저장 | — |
+
+모드가 `NORMAL` 이면 자동 수색·접근 임무를 발급하지 않는다. 모드 전이는 운영 기록이며 로봇 측 정지 latch 를 대신하지 않는다.
+
 ## S-01. 동시에 유지할 상태와 우선순위
 
 로봇마다 다음 상태를 별도로 가진다.
@@ -90,6 +103,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 | 확인 | `CANDIDATE` → 서로 일관된 유효 관측과 동일성 기준 충족 시 `CONFIRMED`; 관측/지도 기준이 만료·불확실하면 `NEEDS_REOBSERVATION`; 운영자/정책의 근거 있는 판정으로 `DISMISSED` |
 | 접근 | `UNASSIGNED` → `ASSIGNED` → `IN_PROGRESS` → 정지·재확인·이격 조건을 통과하면 `APPROACH_COMPLETE`; 그 외 `BLOCKED`, `UNREACHABLE`, `CANCELED`, `FAILED` |
 | 보고 | `NOT_QUEUED` → `QUEUED` → `RECEIVED` → 필수 내용/증거가 저장되고 receipt 확인 시 `PERSISTED`; 실패 시 `RETRY_PENDING`/`PENDING_EVIDENCE` 유지 |
+| 구출(BRD v0.1 UC-07) | `NOT_CHECKED` → SCOUT 의 재관측 임무(REOBSERVE_TARGET) 뒤 **세 입력**이 모두 있으면 `RESCUE_CONFIRMED`: 대상 지점을 실제 관측했고(관측 ID), 사람·LiDAR 장애물 판정이 없고, 출구 `SiteEvent(EXIT_PASS)` 가 그 사건과 연결됨(Q-10·Q-13). 하나라도 없거나 불확실하면 `RECHECK_NEEDED` 유지(FR-24). **부재 증거만으로 확정하지 않는다**(KPI-06). 어휘는 `rescue_contracts.RESCUE_STATES` |
 
 처음 발견했을 때 사건을 기록하고 접근 불가여도 위치·근거·실패 사유를 보고한다. `APPROACH_COMPLETE`와 `PERSISTED`가 모두 확인된 정상 접근·보고 시나리오를 완료로 집계한다. 접근 불가 시험은 접근 성공률의 성공 분자에 넣지 않고, 별도 “실패 처리·보고 성공” 지표로 집계한다.
 

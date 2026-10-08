@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "deployment_id": "review_example_v2",
+  "hosts": [
+    {"id": "compute_a", "tier": "high"},
+    {"id": "compute_b", "tier": "high"},
+    {"id": "coordination", "tier": "mid"},
+    {"id": "operations", "tier": "mid"}
+  ],
+  "robots": [
+    {
+      "id": "robot_a", "namespace": "/robot_a", "command_host": "compute_a",
+      "slam_host": "compute_a", "perception_host": "compute_a",
+      "parameters_file": "robots/robot_a.v2.json"
+    },
+    {
+      "id": "robot_b", "namespace": "/robot_b", "command_host": "compute_b",
+      "slam_host": "compute_b", "perception_host": "compute_b",
+      "parameters_file": "robots/robot_b.v2.json"
+    }
+  ],
+  "services": {"coordination_host": "coordination", "operations_host": "operations"},
+  "mission": {
+    "roles": {"robot_a": "SCOUT", "robot_b": "SUPPORT"},
+    "search_areas": [
+      {"id": "11111111-1111-4111-8111-111111111111", "mission_xy": [2.0, 0.0],
+       "basis": {"kind": "PRIOR_MAP", "map_session_id": "22222222-2222-4222-8222-222222222222",
+                 "map_revision": 0, "transform_revision": 1}},
+      {"id": "11111111-1111-4111-8111-111111111112", "mission_xy": [4.0, 1.0],
+       "basis": {"kind": "PRIOR_MAP", "map_session_id": "22222222-2222-4222-8222-222222222222",
+                 "map_revision": 0, "transform_revision": 1}}
+    ],
+    "hold_positions": {
+      "robot_b": {"frame_id": "mission", "x": 0.0, "y": -1.0, "yaw": 0.0,
+                  "map_session_id": "22222222-2222-4222-8222-222222222222", "map_revision": 0}
+    }
+  }
+}

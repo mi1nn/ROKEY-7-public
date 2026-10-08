@@ -218,3 +218,53 @@ class TaskAdmission:
         _require(self.reason == 'ACCEPTED' if self.accepted else self.reason in CANONICAL_CODES,
                  'admission outcome/code mismatch')
         _require(isinstance(self.detail_code, str), 'detail_code')
+
+
+# ---- Bundle 1 (2026-10-08, BRD v0.1): roles, site events, system modes, rescue states.
+ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
+# C-06 task kinds — the single vocabulary for rescue_robot.Task and coordination reservations.
+TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'})
+TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET'})
+SITE_EVENT_KINDS = frozenset({'QUAKE_SIGN', 'EXIT_PASS'})
+SYSTEM_MODES = frozenset({'NORMAL', 'DISASTER', 'CLEARING'})
+RESCUE_STATES = frozenset({'NOT_CHECKED', 'RECHECK_NEEDED', 'RESCUE_CONFIRMED'})
+
+
+def robot_role(value):
+    _require(isinstance(value, str) and value in ROBOT_ROLES, 'robot role must be SCOUT or SUPPORT')
+    return value
+
+
+def camera_id(value):
+    """Fixed-camera identity (site camera A/B). Same syntax as robot_id; never a robot."""
+    _require(isinstance(value, str) and re.fullmatch(r'cam_[A-Za-z0-9_]{1,60}', value),
+             'camera ID must match cam_<identifier>')
+    return value
+
+
+@dataclass(frozen=True)
+class SiteEvent:
+    """An observation made by a fixed site camera, not by a robot.
+
+    QUAKE_SIGN: image shake/occlusion sign from camera A. EXIT_PASS: a person
+    passing the exit seen by camera B. It carries evidence, never a command.
+    """
+    event_id: str
+    camera_id: str
+    kind: str
+    observed_at_ns: int
+    evidence_id: str
+    evidence_sha256: str
+    confidence: float
+    detail: str = ''
+
+    def __post_init__(self):
+        uuid_string(self.event_id)
+        camera_id(self.camera_id)
+        _require(self.kind in SITE_EVENT_KINDS, 'site event kind')
+        timestamp_ns(self.observed_at_ns)
+        uuid_string(self.evidence_id)
+        _require(isinstance(self.evidence_sha256, str) and re.fullmatch(r'[0-9a-f]{64}', self.evidence_sha256),
+                 'evidence_sha256 must be 64 lowercase hex digits')
+        _require(type(self.confidence) is float and 0.0 <= self.confidence <= 1.0, 'confidence in [0, 1]')
+        _require(isinstance(self.detail, str), 'detail')

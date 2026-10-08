@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "robot_id": "robot_a",
+  "namespace": "/robot_a",
+  "runtime_enabled": false,
+  "use_sim_time": false,
+  "nav_action": "/robot_a/navigate_to_pose",
+  "odom_topic": "/robot_a/odom",
+  "dock_status_topic": "/robot_a/dock_status"
+}

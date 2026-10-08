@@ -12,18 +12,28 @@ These policy values do not confirm a hardware allocation or a runtime topology.
 from collections import Counter
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 import re
 from typing import Any
+from uuid import UUID
 
 
 ROBOT_COUNT = 2
 HOST_TIERS = {"high": 2, "mid": 2}
 REQUIRE_ALL_HOSTS_USED = True
 
+# Schema v2 (2026-10-08, BRD v0.1 / work bundle 1): mission inputs. Roles are
+# profile data, never code constants; exactly one SCOUT and one SUPPORT robot.
+SUPPORTED_SCHEMA_VERSIONS = (1, 2)
+ROBOT_ROLES = ("SCOUT", "SUPPORT")
+AREA_BASIS_KINDS = ("PRIOR_MAP", "MAP_REVISION_BOUND")
+MAX_SEARCH_AREAS = 64
+
 MAX_CONFIG_BYTES = 65_536
 IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}\Z")
 NAMESPACE = re.compile(r"/[A-Za-z][A-Za-z0-9_]{0,63}\Z")
+ROS_NAME = re.compile(r"/[A-Za-z][A-Za-z0-9_]*(/[A-Za-z][A-Za-z0-9_]*)*\Z")
 
 
 class ProfileError(ValueError):
@@ -41,6 +51,49 @@ class RobotParameters:
     robot_id: str
     namespace: str
     use_sim_time: bool
+    # v2 only (None under v1): ROS names the command adapter must use. They are
+    # required to live under the robot namespace so two robots cannot share a path.
+    nav_action: str | None = None
+    odom_topic: str | None = None
+    dock_status_topic: str | None = None
+
+
+@dataclass(frozen=True)
+class AreaBasis:
+    kind: str
+    map_session_id: str
+    map_revision: int
+    transform_revision: int
+
+
+@dataclass(frozen=True)
+class SearchArea:
+    id: str
+    mission_xy: tuple[float, float]
+    basis: AreaBasis
+
+
+@dataclass(frozen=True)
+class HoldPose:
+    frame_id: str
+    x: float
+    y: float
+    yaw: float
+    map_session_id: str
+    map_revision: int
+
+
+@dataclass(frozen=True)
+class Mission:
+    roles: tuple[tuple[str, str], ...]          # (robot_id, role) sorted by robot_id
+    search_areas: tuple[SearchArea, ...]
+    hold_positions: tuple[tuple[str, HoldPose], ...]
+
+    def role_of(self, robot_id: str) -> str:
+        return dict(self.roles)[robot_id]
+
+    def hold_of(self, robot_id: str) -> HoldPose | None:
+        return dict(self.hold_positions).get(robot_id)
 
 
 @dataclass(frozen=True)
@@ -61,6 +114,8 @@ class Deployment:
     robots: tuple[Robot, ...]
     coordination_host: str
     operations_host: str
+    schema_version: int = 1
+    mission: Mission | None = None
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -102,9 +157,10 @@ def _fields(value: Any, expected: set[str], label: str) -> dict[str, Any]:
     return value
 
 
-def _version(value: Any, label: str) -> None:
-    if type(value) is not int or value != 1:
-        raise ProfileError(f"{label}.schema_version must be integer 1")
+def _version(value: Any, label: str) -> int:
+    if type(value) is not int or value not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ProfileError(f"{label}.schema_version must be one of {list(SUPPORTED_SCHEMA_VERSIONS)}")
+    return value
 
 
 def _identifier(value: Any, label: str, namespace: bool = False) -> str:
@@ -140,18 +196,103 @@ def _parameter_path(root: Path, value: Any) -> Path:
     return resolved
 
 
-def _parameters(path: Path, robot_id: str, namespace: str) -> RobotParameters:
-    value = _fields(_read_json(path), {
-        "schema_version", "robot_id", "namespace", "runtime_enabled", "use_sim_time"
-    }, "robot parameters")
-    _version(value["schema_version"], "robot parameters")
+def _finite(value: Any, label: str) -> float:
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ProfileError(f"{label} must be a finite number")
+    return float(value)
+
+
+def _uint64(value: Any, label: str) -> int:
+    if type(value) is not int or not 0 <= value < 2**64:
+        raise ProfileError(f"{label} must be an unsigned 64-bit integer")
+    return value
+
+
+def _uuid(value: Any, label: str) -> str:
+    try:
+        parsed = UUID(value) if isinstance(value, str) else None
+    except ValueError:
+        parsed = None
+    if parsed is None or str(parsed) != value or parsed.int == 0:
+        raise ProfileError(f"{label} must be a canonical nonzero UUID")
+    return value
+
+
+def _ros_name(value: Any, label: str, namespace: str) -> str:
+    if not isinstance(value, str) or not ROS_NAME.fullmatch(value) or not value.startswith(namespace + "/"):
+        raise ProfileError(f"{label} must be a ROS name under {namespace}/")
+    return value
+
+
+def _parameters(path: Path, robot_id: str, namespace: str, schema_version: int) -> RobotParameters:
+    base = {"schema_version", "robot_id", "namespace", "runtime_enabled", "use_sim_time"}
+    names = {"nav_action", "odom_topic", "dock_status_topic"}
+    value = _fields(_read_json(path), base | (names if schema_version == 2 else set()), "robot parameters")
+    if _version(value["schema_version"], "robot parameters") != schema_version:
+        raise ProfileError("robot parameters schema_version must match the deployment schema_version")
     if value["robot_id"] != robot_id or value["namespace"] != namespace:
         raise ProfileError(f"robot parameters do not belong to {robot_id} ({namespace})")
     if value["runtime_enabled"] is not False:
         raise ProfileError("runtime_enabled must be false: ROS runtime is not implemented")
     if type(value["use_sim_time"]) is not bool:
         raise ProfileError("use_sim_time must be boolean")
-    return RobotParameters(robot_id, namespace, value["use_sim_time"])
+    if schema_version == 1:
+        return RobotParameters(robot_id, namespace, value["use_sim_time"])
+    resolved = {name: _ros_name(value[name], name, namespace) for name in sorted(names)}
+    if len(set(resolved.values())) != len(resolved):
+        raise ProfileError("nav_action, odom_topic and dock_status_topic must be distinct")
+    return RobotParameters(robot_id, namespace, value["use_sim_time"],
+                           resolved["nav_action"], resolved["odom_topic"], resolved["dock_status_topic"])
+
+
+def _hold_pose(value: Any, label: str) -> HoldPose:
+    pose = _fields(value, {"frame_id", "x", "y", "yaw", "map_session_id", "map_revision"}, label)
+    return HoldPose(_identifier(pose["frame_id"], label + ".frame_id"),
+                    _finite(pose["x"], label + ".x"), _finite(pose["y"], label + ".y"),
+                    _finite(pose["yaw"], label + ".yaw"),
+                    _uuid(pose["map_session_id"], label + ".map_session_id"),
+                    _uint64(pose["map_revision"], label + ".map_revision"))
+
+
+def _mission(value: Any, robot_ids: list[str]) -> Mission:
+    data = _fields(value, {"roles", "search_areas", "hold_positions"}, "mission")
+    roles = data["roles"]
+    if not isinstance(roles, dict) or set(roles) != set(robot_ids):
+        raise ProfileError("mission.roles must name exactly the deployment's robots")
+    for robot_id, role in roles.items():
+        if not isinstance(role, str) or role not in ROBOT_ROLES:
+            raise ProfileError(f"mission.roles[{robot_id}] must be one of {list(ROBOT_ROLES)}")
+    if Counter(roles.values()) != Counter(ROBOT_ROLES):
+        raise ProfileError("mission.roles must assign exactly one SCOUT and one SUPPORT")
+    areas_raw = data["search_areas"]
+    if not isinstance(areas_raw, list) or not 1 <= len(areas_raw) <= MAX_SEARCH_AREAS:
+        raise ProfileError(f"mission.search_areas must contain 1..{MAX_SEARCH_AREAS} areas")
+    areas: list[SearchArea] = []
+    for index, entry in enumerate(areas_raw):
+        label = f"search_areas[{index}]"
+        area = _fields(entry, {"id", "mission_xy", "basis"}, label)
+        xy = area["mission_xy"]
+        if not isinstance(xy, list) or len(xy) != 2:
+            raise ProfileError(f"{label}.mission_xy must be [x, y]")
+        basis = _fields(area["basis"], {"kind", "map_session_id", "map_revision", "transform_revision"},
+                        label + ".basis")
+        if not isinstance(basis["kind"], str) or basis["kind"] not in AREA_BASIS_KINDS:
+            raise ProfileError(f"{label}.basis.kind must be one of {list(AREA_BASIS_KINDS)}")
+        areas.append(SearchArea(
+            _uuid(area["id"], label + ".id"),
+            (_finite(xy[0], label + ".mission_xy[0]"), _finite(xy[1], label + ".mission_xy[1]")),
+            AreaBasis(basis["kind"], _uuid(basis["map_session_id"], label + ".basis.map_session_id"),
+                      _uint64(basis["map_revision"], label + ".basis.map_revision"),
+                      _uint64(basis["transform_revision"], label + ".basis.transform_revision"))))
+    _unique([area.id for area in areas], "search_areas id")
+    holds_raw = data["hold_positions"]
+    if not isinstance(holds_raw, dict) or not set(holds_raw) <= set(robot_ids):
+        raise ProfileError("mission.hold_positions keys must be deployment robots")
+    holds = {robot_id: _hold_pose(pose, f"hold_positions[{robot_id}]") for robot_id, pose in holds_raw.items()}
+    support = [robot_id for robot_id, role in roles.items() if role == "SUPPORT"]
+    if any(robot_id not in holds for robot_id in support):
+        raise ProfileError("mission.hold_positions must include the SUPPORT robot")
+    return Mission(tuple(sorted(roles.items())), tuple(areas), tuple(sorted(holds.items())))
 
 
 def load_deployment(path: str | Path) -> Deployment:
@@ -166,10 +307,12 @@ def load_deployment(path: str | Path) -> Deployment:
         profile_path = Path(path).resolve(strict=True)
     except (OSError, RuntimeError, ValueError) as exc:
         raise ProfileError(f"profile cannot be resolved: {path!r}") from exc
-    data = _fields(_read_json(profile_path), {
+    raw = _read_json(profile_path)
+    schema_version = _version(raw["schema_version"] if isinstance(raw, dict) and "schema_version" in raw else None,
+                              "deployment")
+    data = _fields(raw, {
         "schema_version", "deployment_id", "hosts", "robots", "services"
-    }, "deployment")
-    _version(data["schema_version"], "deployment")
+    } | ({"mission"} if schema_version == 2 else set()), "deployment")
     deployment_id = _identifier(data["deployment_id"], "deployment_id")
     hosts: list[Host] = []
     for entry in _list(data["hosts"], sum(HOST_TIERS.values()), "hosts"):
@@ -205,7 +348,7 @@ def load_deployment(path: str | Path) -> Deployment:
         slam_host = host_reference(robot["slam_host"], "slam_host")
         perception_host = host_reference(robot["perception_host"], "perception_host")
         parameters_path = _parameter_path(profile_path.parent, robot["parameters_file"])
-        parameters = _parameters(parameters_path, robot_id, namespace)
+        parameters = _parameters(parameters_path, robot_id, namespace, schema_version)
         robots.append(Robot(robot_id, namespace, command_host, slam_host,
                             perception_host, robot["parameters_file"], parameters))
     _unique([robot.id for robot in robots], "robot id")
@@ -214,4 +357,6 @@ def load_deployment(path: str | Path) -> Deployment:
         raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     if len({robot.parameters.use_sim_time for robot in robots}) != 1:
         raise ProfileError("all robots must use the same use_sim_time setting")
-    return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host)
+    mission = _mission(data["mission"], [robot.id for robot in robots]) if schema_version == 2 else None
+    return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host,
+                      schema_version, mission)

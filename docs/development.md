@@ -8,7 +8,7 @@ PR 4에서 동작하던 기능은 `rescue_bringup`의 **로컬 JSON 프로파일
 | --- | --- | --- |
 | `rescue_contracts` | Python 공통 값·오류·ID·시간·수락 계약 | canonical 오류+세부 원인, 정확한 int64 ns, 프로파일 ID 2개, TaskAdmission. ROS IDL 없음 |
 | `rescue_robot` | 로봇별 임무 실행·명령 중재·취소·정지 | 명령·취소·정지 판정 Python 코어, ROS 어댑터 없음 |
-| `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 입력된 탐지의 RGB-D 위치·시간 검증/사건 코어. 모델 추론 미구현 |
+| `rescue_perception` | 영상·사람 탐지·거리·관측 생성 | 입력된 탐지의 RGB-D 위치·시간 검증/사건 코어. 모델 추론 미구현 + ROS 모양(Image·CameraInfo·Detection2D) 입력 어댑터 `adapter.py`(E2, 기록·합성 입력; ROS 구독·실시간 처리 미구현, PR #16) |
 | `rescue_coordination` | 수색 분담·임무 배정·인계·통행 조정 | 경로 후보·중복 배정·접근 확인·통로 코어. 실제 planner/탐색/ROS 전송 미구현 |
 | `rescue_mapping` | SLAM 연동·공통 좌표·지도 보정 | 3D 좌표/원 관측/버전 무효화 코어. 실제 SLAM 보정 감지 미구현 |
 | `rescue_operations` | 관제·보고·기록 | SQLite 보고·증거 ledger/outbox·읽기 CLI. 원격 API/관제 UI 미구현 |
@@ -56,6 +56,19 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 각 파일은 UTF-8 JSON이며 최대 65,536바이트다. 알 수 없는 필드, 중복 JSON 키, `NaN`/`Infinity`, 잘못된 JSON은 오류로 처리한다. JSON 정수 변환 제한을 넘는 입력과 NUL 문자를 포함한 프로파일/설정 경로도 traceback 대신 `INVALID`와 종료 코드 `2`로 처리한다. 65,536바이트는 입력 자원 제한이며 로봇 운용 임계값이 아니다. JSON 안의 명령·모듈·환경 변수·임의 launch는 해석하거나 실행하지 않는다.
 
 이 프로파일은 **ROS 파라미터 YAML도, PR 3의 임무·관측 계약도 아니다.** 값 검증과 경로 참조를 검토하기 위한 별도 초기 형식이다. 속도·정지 거리·배터리·최신성·정지 시한 등 미확정 운용 수치를 예시 기본값으로 넣지 않았다.
+
+## 프로파일 v2 — 임무 입력 (2026-10-08, 작업 묶음 1)
+
+`schema_version: 2` 는 v1 의 모든 규칙에 `mission` 객체와 로봇별 ROS 이름을 더한다. v1 파일은 그대로 읽히고(`Deployment.mission is None`), v2 배포 파일은 v2 로봇 파라미터 파일만 받는다. 예시: [`config/deployment.v2.example.json`](../config/deployment.v2.example.json), [`config/robots/robot_a.v2.json`](../config/robots/robot_a.v2.json).
+
+| 필드 | 규칙 |
+| --- | --- |
+| `mission.roles` | `{robot_id: "SCOUT"\|"SUPPORT"}` — 배포의 로봇 ID 와 정확히 같은 키, SCOUT 하나·SUPPORT 하나. 역할은 데이터이며 코드가 `robot_a`=SCOUT 처럼 고정하지 않는다(BRD TB1/TB2) |
+| `mission.search_areas[]` | 1 ~ 64 개, `id` 는 canonical nonzero UUID(고유), `mission_xy=[x, y]` 유한수, `basis.kind` 는 `PRIOR_MAP`(사전 기준 지도 좌표, Q-09) 또는 `MAP_REVISION_BOUND`, `basis.map_session_id`(UUID)·`map_revision`·`transform_revision`(uint64). 좌표가 실제 지도에서 유효한지는 coordination·mapping 이 실행 시점에 다시 검사한다 |
+| `mission.hold_positions` | `{robot_id: {frame_id, x, y, yaw, map_session_id, map_revision}}`. SUPPORT 로봇의 대기 위치는 필수, 키는 배포 로봇만 |
+| 로봇 파라미터 v2 `nav_action`·`odom_topic`·`dock_status_topic` | `/<namespace>/…` 아래의 ROS 이름, 서로 다름. 두 로봇의 명령·관측 경로가 섞이지 않게 네임스페이스 밖 이름을 거절한다 |
+
+`python -m rescue_bringup <v2 프로파일>` 은 역할과 구역 수를 함께 출력한다. v2 역시 정적 검사이며 ROS 를 켜거나 로봇을 움직이지 않는다. `runtime_enabled` 는 여전히 `false` 여야 한다.
 
 ### v2 입력 후보와 실행 전 점검 — 미구현
 

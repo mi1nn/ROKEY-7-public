@@ -21,6 +21,7 @@ updated: 2026-10-08
 | 수색 분담·대상 사건·임무 배정 | `rescue_coordination` | 로봇 실행기에 임무 요청. 직접 `cmd_vel`·Nav2 action·lifecycle 변경 금지 |
 | 운영자 요청·보고 수신·영속 기록 | `rescue_operations` | API 요청을 coordination/robot 계약으로 전달. 직접 Nav2/속도 발행 금지 |
 | ROS 메시지와 버전 | `rescue_interfaces` 담당 1명 | 관련 소비자·시험의 변경 영향과 함께 수정. 각 구현 세션이 독자 계약을 추가하지 않음 |
+| 고정 카메라 A·B 의 현장 사건(`SiteEvent`) | `rescue_perception` 의 고정 카메라 어댑터가 생성, `rescue_coordination` 이 소비 | 지진 징후(`QUAKE_SIGN`)·출구 통과(`EXIT_PASS`)는 **증거**이지 명령이 아니다. 재난 모드 전환·출동 지시는 coordination 의 정책이 하고, 카메라 어댑터는 주행·모드 변경을 발행하지 않음(BRD v0.1 UC-01·06, 2026-10-08) |
 
 고사양 PC 두 대에 로봇별 SLAM/Nav2/실행·추론을 배치하고, 중간 사양 PC 두 대에 coordination과 operations를 나누는 것은 부하 측정 전 가설이다. 순수 판단 로직은 ROS 입출력 어댑터와 분리한다. 파일 경계는 PR 2와 함께 확정한다.
 
@@ -36,7 +37,7 @@ Nav2·탐색 회전·수동 명령은 모두 같은 로봇별 명령 중재와 �
 - 변경 가능한 상태는 ID만으로 중복 판정하지 않는다. TargetEstimate는 `(target_id, estimate_revision)`, 로봇 상태는 `(robot_id, robot_boot_id, state_sequence)`, 좌표 snapshot은 authority/session/revision으로 버전을 구분한다. 더 높은 정상 revision은 업데이트이며 같은 키의 다른 의미 payload만 충돌이다. ReportReceipt는 자체 receipt_id와 참조 report_id를 가지므로 RECEIVED→PERSISTED 전이를 보고 payload 변경과 혼동하지 않는다.
 - boot 변경 시 이전 boot의 sequence를 새 sequence와 비교하지 않는다. 이전 boot의 임무·lease·frame 세션을 명시적으로 폐기하고 준비 절차를 다시 밟는다. retained 상태 한 개를 받았다는 이유로 새 boot가 READY가 되지 않는다.
 
-`robot_id` 값은 예시 `robot_a`/`robot_b`로 고정하지 않는다. DTO는 `[A-Za-z][A-Za-z0-9_]{0,63}` 형식을 검사하고 실행기·배정기·보고 저장소 경계는 검증된 배포 프로파일에서 주입한 정확히 2개의 distinct ID를 허용한다. 기본 allowlist는 없으며 수신 데이터가 설정 집합을 변경하지 못한다.
+로봇의 **역할**(`SCOUT` 정찰 / `SUPPORT` 구조 지원, BRD v0.1 TB1/TB2)은 배포 프로파일 v2 `mission.roles` 의 데이터이며 정확히 하나씩이다. 코드는 역할을 상수로 두지 않고 프로파일에서 받는다(역할을 바꿔 넣으면 두 로봇이 뒤집혀 동작해야 한다). 고정 카메라는 `cam_<id>` 형식의 `camera_id` 로 식별하며 `robot_id` 집합에 들어가지 않는다. `robot_id` 값은 예시 `robot_a`/`robot_b`로 고정하지 않는다. DTO는 `[A-Za-z][A-Za-z0-9_]{0,63}` 형식을 검사하고 실행기·배정기·보고 저장소 경계는 검증된 배포 프로파일에서 주입한 정확히 2개의 distinct ID를 허용한다. 기본 allowlist는 없으며 수신 데이터가 설정 집합을 변경하지 못한다.
 
 ## C-03. 시각·최신성 계약
 
@@ -101,6 +102,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 도킹 상태/관측 시각·준비 action 상태(해당 플랫폼), 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
 | `RescueReport` | report_id, target_id, 관측·확인·접근 결과, 수행 로봇/task/generation, 위치/frame/revision, observed_at·confirmed_at·reported_at, 접근 불가 등 사유, evidence_ref, 스키마·모델·배포 버전 | 사람 이송/부상/생존을 확정하지 않음. 오래된 사진을 새 재확인 사진으로 대체하지 않음 |
 | `ReportReceipt` | receipt_id, 참조 report_id, 수신 상태, 영속 저장 시각·저장 revision 또는 실패 코드 | `RECEIVED`와 `PERSISTED`를 구분. 보고 완료는 현재 정책에 필요한 payload와 증거가 영속 저장되고 해당 receipt가 돌아온 상태 |
+| `SiteEvent` | event_id, camera_id(`cam_<id>`), kind(`QUAKE_SIGN`/`EXIT_PASS`), observed_at_ns, evidence_id/sha256, confidence, detail | 고정 카메라의 증거 사건. 로봇 관측(`TargetObservation`)과 별개이며 `source_robot` 에 카메라를 넣지 않는다. `EXIT_PASS` 의 사람 식별·중복 집계 금지는 Q-13 결정 뒤 필드 추가. 실행 가능한 Python 정의는 `rescue_contracts.SiteEvent` |
 
 `tracking_mode={DETECTION_ONLY,TRACKING,TRACKING_FALLBACK}`는 필수이며 관측 payload hash에 포함한다. TRACKING은 비어 있지 않은 track ID가 필요하고 다른 두 모드는 track_id=None이다. tracking fallback을 정상 tracking이나 단순 ID 누락과 구별한다.
 
