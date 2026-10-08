@@ -165,10 +165,21 @@ def seconds_to_ns(value):
     """
     _require(type(value) in (int, float, str, Decimal), 'decimal seconds required')
     try:
-        scaled = Decimal(str(value)) * 10**9
-        _require(scaled.is_finite() and scaled >= 0 and scaled == scaled.to_integral_value(),
-                 'seconds must denote exact nonnegative nanoseconds')
-        return duration_ns(int(scaled))
+        decimal = Decimal(str(value))
+        _require(decimal.is_finite() and decimal >= 0, 'nonnegative finite seconds required')
+        if decimal.is_zero():
+            return 0
+        # Decimal arithmetic obeys caller context precision; integer digit math
+        # avoids silently rounding fractional ns or epoch nanoseconds.
+        _require(-9 <= decimal.adjusted() <= 9, 'seconds outside nanosecond range')
+        parts = decimal.as_tuple()
+        digits = ''.join(str(digit) for digit in parts.digits)
+        shift = parts.exponent + 9
+        if shift < 0:
+            _require(-shift < len(digits) and not any(c != '0' for c in digits[shift:]),
+                     'seconds must denote exact nanoseconds')
+            digits = digits[:shift]
+        return duration_ns(int(digits) * 10**max(shift, 0))
     except (InvalidOperation, ValueError, OverflowError) as exc:
         if isinstance(exc, RescueError):
             raise
