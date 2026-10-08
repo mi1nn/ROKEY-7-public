@@ -13,7 +13,7 @@ with ReportLedger("operations.sqlite3", evidence_policy="OPTIONAL", allowed_robo
         # RECEIVED/PENDING_EVIDENCE는 보고 완료가 아니다.
 ```
 
-`payload`와 `envelope`의 고정 필드, 예시, 실패 의미는 [구현 문서](../../docs/implementation-operations.md)에 있다. `OPTIONAL`은 예시 선택이며 운영 사진 정책의 결정이 아니다. 필요한 증거가 선언됐으면 OPTIONAL에서도 실제 bytes 저장을 기다린다.
+`payload`와 `envelope`의 고정 필드, 예시, 실패 의미는 [구현 문서](../../docs/implementation/implementation-operations.md)에 있다. `OPTIONAL`은 예시 선택이며 운영 사진 정책의 결정이 아니다. 필요한 증거가 선언됐으면 OPTIONAL에서도 실제 bytes 저장을 기다린다.
 
 ```bash
 PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m rescue_operations operations.sqlite3 --limit 100

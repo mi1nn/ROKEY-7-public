@@ -20,7 +20,7 @@
 -
 
 ## 증거와 검증
-<!-- 층위 E1 문서 / E2 로봇 없이 실행 / E3 ROS 통합 / E4 실기 (docs/acceptance-plan.md A-02). 실행하지 않은 검사는 NOT_RUN 으로 적는다 -->
+<!-- 층위 E1 문서 / E2 로봇 없이 실행 / E3 ROS 통합 / E4 실기 (docs/process/acceptance-plan.md A-02). 실행하지 않은 검사는 NOT_RUN 으로 적는다 -->
 - 층위:
 - 실행한 명령과 원문 결과:
   ```text

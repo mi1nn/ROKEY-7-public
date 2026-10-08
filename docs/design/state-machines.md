@@ -111,7 +111,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 
 ## S-06. 두 로봇 협업 전이 (2026-10-08 개정: 프로파일 역할 SCOUT / SUPPORT)
 
-역할은 배포 프로파일 v2 `mission.roles` 의 데이터다(C-02). 아래 SCOUT/SUPPORT 는 그 값이며 코드 상수가 아니다. 이전의 대칭 A/B 안은 [scope](scope.md) 「첫 통합 시나리오」의 「이전」 열에 보존한다.
+역할은 배포 프로파일 v2 `mission.roles` 의 데이터다(C-02). 아래 SCOUT/SUPPORT 는 그 값이며 코드 상수가 아니다. 이전의 대칭 A/B 안은 [scope](../requirements/scope.md) 「첫 통합 시나리오」의 「이전」 열에 보존한다.
 
 | 단계 | coordinator의 판단·관문 | SCOUT / SUPPORT 동작 |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 | SCOUT 재확인 | 구조·출구 통과 뒤 같은 지점의 `REOBSERVE_TARGET`; 구출 판정은 S-05 구출 축(세 입력 모두) | SCOUT 가 재관측·LiDAR 증거를 제공. SUPPORT 는 접근 종료·정지 확인 뒤 다시 HOLD |
 | 결과 저장 | 보고 receipt·필수 근거 확인 | 접근 결과·보고 결과·구출 판정을 구분한 사건 종료/후속 수색 결정 |
 
-역할은 **회차마다** 프로파일로 바꿀 수 있고(역할을 뒤집은 회차도 시험 목록에 둔다), 코드는 어느 로봇이 SCOUT 인지 추정하지 않는다. **한 회차 안의 자동 역할 교대**는 F-01 후속으로 보류한다([scope](scope.md) F-01).
+역할은 **회차마다** 프로파일로 바꿀 수 있고(역할을 뒤집은 회차도 시험 목록에 둔다), 코드는 어느 로봇이 SCOUT 인지 추정하지 않는다. **한 회차 안의 자동 역할 교대**는 F-01 후속으로 보류한다([scope](../requirements/scope.md) F-01).
 
 SCOUT 가 수색을 계속하느라 대상이 관측에서 사라진 경우에는 마지막 좌표를 새 관측처럼 갱신하지 않는다. SUPPORT 의 로컬 재관측이 확보되기 전까지 SCOUT 의 지원을 유지할지, 제한된 재관측 임무를 쓸지는 **시험 전에** 결정한다. 어떤 정책이든 유효기간 초과를 숨기고 접근을 계속하는 경로는 허용하지 않는다.
 

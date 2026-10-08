@@ -8,7 +8,7 @@ updated: 2026-10-08
 
 원본의 실패·제약을 새 파이널에서 확인할 시험으로 바꾼다. 아래 예방 규칙은 제안이다. 과거 로봇의 속도·거리·배터리·카메라 설정값은 새 임계값으로 승계하지 않는다.
 
-`[원본 기록]`은 링크한 날짜·장비의 과거 기록이며 이번 재측정이 아니다. P1~P3 사례는 P4 회고가 재인용한 내용이다. 그 사고 원문은 이번 조사에서 확인하지 않았으므로 P4 회고의 주장으로만 인용한다. 원본 커밋과 조사 범위는 [선별표](source-selection.md)에 고정했다. 아래 PR 번호는 [계획 순서](scope.md)의 번호다.
+`[원본 기록]`은 링크한 날짜·장비의 과거 기록이며 이번 재측정이 아니다. P1~P3 사례는 P4 회고가 재인용한 내용이다. 그 사고 원문은 이번 조사에서 확인하지 않았으므로 P4 회고의 주장으로만 인용한다. 원본 커밋과 조사 범위는 [선별표](source-selection.md)에 고정했다. 아래 PR 번호는 [계획 순서](../requirements/scope.md)의 번호다.
 
 ## LL-01 문서의 구현 현황을 코드와 대조한다
 
@@ -94,7 +94,7 @@ updated: 2026-10-08
 
 **근거:** `[원본 코드]` 강사 예제 [3_1_a_nav_to_pose.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_a_nav_to_pose.py#L35-L51)는 `undock()`·`startToPose()` 를 차례로 부르고, 이 도우미들은 완료까지 호출자를 멈춘다([turtlebot4_navigator.py undock](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L176-L181), [startToPose](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L266-L275)). 한 로봇의 목표를 기다리는 동안 같은 프로세스는 다른 로봇의 취소·정지·관측을 처리하지 못한다. P4 의 [goal_timer.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173)가 수락·결과·취소를 나눈 이유가 여기 있다(P4-02).
 
-**적용:** 실행기는 액션 클라이언트를 비동기로 쓰고, 취소와 정지 확인을 별도 경로로 둔다([계약](contracts.md)의 정지·취소 의미, [상태 기계](state-machines.md)). 교육용 도우미는 실기 튜토리얼과 수동 점검에만 쓴다.
+**적용:** 실행기는 액션 클라이언트를 비동기로 쓰고, 취소와 정지 확인을 별도 경로로 둔다([계약](../design/contracts.md)의 정지·취소 의미, [상태 기계](../design/state-machines.md)). 교육용 도우미는 실기 튜토리얼과 수동 점검에만 쓴다.
 
 **확인:** 한 로봇의 목표가 수락된 채 결과가 없는 동안 다른 로봇의 취소·정지 요청과 heartbeat 처리가 지연 없이 이루어지는지, 같은 로봇의 정지 요청이 진행 중 목표를 취소하고 정지 증거를 남기는지 시험한다. 연결: TS-06, P4-02, [인수 계획](acceptance-plan.md) CT-08, 로봇·지도 Nav2 어댑터 PR.
 

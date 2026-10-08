@@ -8,7 +8,7 @@ updated: 2026-10-08
 
 ## 목적과 완료 범위
 
-보고를 받았다는 사실을 영속 보고 완료와 구분한다. 동일 report_id 재전송, ops 재시작, 업로드 실패, DB 쓰기 실패, 저장 뒤 receipt 유실을 처리하는 새 Python 표준 라이브러리 구현이다. [계약 C-02·C-05·C-08](contracts.md)과 [시험 CT-12](acceptance-plan.md)를 로컬 SQLite로 연결한다. 원본 실행 코드·사진·모델을 복사하지 않았다.
+보고를 받았다는 사실을 영속 보고 완료와 구분한다. 동일 report_id 재전송, ops 재시작, 업로드 실패, DB 쓰기 실패, 저장 뒤 receipt 유실을 처리하는 새 Python 표준 라이브러리 구현이다. [계약 C-02·C-05·C-08](../design/contracts.md)과 [시험 CT-12](../process/acceptance-plan.md)를 로컬 SQLite로 연결한다. 원본 실행 코드·사진·모델을 복사하지 않았다.
 
 이번 구현의 `PERSISTED`는 **operations DB의 보고와 선택한 증거 정책이 로컬 transaction으로 저장됨**이다. 송신 측은 해당 ID와 payload 해시의 PERSISTED receipt를 받아 자기 outbox에도 기록한 뒤 재전송 대상에서 제외한다. ROS/DDS 전달, 실제 센서 관측, 로봇 정지, 4-PC 배포, 사진의 진위·영상 디코딩, 시스템 전원 손실 내구성은 이 로컬 시험으로 입증하지 않는다.
 
@@ -139,7 +139,7 @@ PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m unittest discov
 PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m rescue_operations operations.sqlite3 --limit 100
 ```
 
-실제 실행 증거는 [PR9 로컬 검증 기록](evidence/pr09-local-validation.md)에 별도로 남긴다. 주요 시험은 DB close/reopen, 두 연결 동시 중복 수신, 보고/증거/receipt 쓰기 실패 rollback, commit 뒤 응답 유실, 송신 receipt DB 쓰기 실패, 필수 증거 누락·hash 불일치, 늦은 receipt, ID 충돌, 잘못된 schema·UUID·NaN·시각, 읽기 전용 CLI다. 외부 네트워크를 열지 않았고 장비·ROS·실기 시험을 실행하지 않았다.
+실제 실행 증거는 [PR9 로컬 검증 기록](../evidence/pr09-local-validation.md)에 별도로 남긴다. 주요 시험은 DB close/reopen, 두 연결 동시 중복 수신, 보고/증거/receipt 쓰기 실패 rollback, commit 뒤 응답 유실, 송신 receipt DB 쓰기 실패, 필수 증거 누락·hash 불일치, 늦은 receipt, ID 충돌, 잘못된 schema·UUID·NaN·시각, 읽기 전용 CLI다. 외부 네트워크를 열지 않았고 장비·ROS·실기 시험을 실행하지 않았다.
 
 ## 원리 참고
 

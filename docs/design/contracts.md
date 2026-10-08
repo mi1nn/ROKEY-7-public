@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 인터페이스 계약 초안
 
-이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 아직 미구현이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
+이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 아직 미구현이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](../process/acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
 
 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
 
@@ -106,7 +106,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 
 `tracking_mode={DETECTION_ONLY,TRACKING,TRACKING_FALLBACK}`는 필수이며 관측 payload hash에 포함한다. TRACKING은 비어 있지 않은 track ID가 필요하고 다른 두 모드는 track_id=None이다. tracking fallback을 정상 tracking이나 단순 ID 누락과 구별한다.
 
-`evidence_ref`는 소유 API의 불변 ID·해시·매체 유형·관측 ID·획득 시각이다. 다른 PC의 임의 로컬 파일 경로를 공유 가능한 URL처럼 사용하지 않는다. 사진 원본의 전송/저장은 operations API에서 처리하며 DDS에 대형 사진을 반복 포함하지 않는 안을 제안한다. 사진을 필수로 할지와 보관 범위는 [scope.md의 Q-07](scope.md)에 두며 결정 시점은 계획 PR 7·9다. 이 계약은 `PENDING_EVIDENCE` 상태를 정의하고 사진 필수 여부를 결정하지 않는다. 필수 증거 업로드가 실패하면 보고를 `PENDING_EVIDENCE`로 남기며 완료로 표시하지 않는다.
+`evidence_ref`는 소유 API의 불변 ID·해시·매체 유형·관측 ID·획득 시각이다. 다른 PC의 임의 로컬 파일 경로를 공유 가능한 URL처럼 사용하지 않는다. 사진 원본의 전송/저장은 operations API에서 처리하며 DDS에 대형 사진을 반복 포함하지 않는 안을 제안한다. 사진을 필수로 할지와 보관 범위는 [scope.md의 Q-07](../requirements/scope.md)에 두며 결정 시점은 계획 PR 7·9다. 이 계약은 `PENDING_EVIDENCE` 상태를 정의하고 사진 필수 여부를 결정하지 않는다. 필수 증거 업로드가 실패하면 보고를 `PENDING_EVIDENCE`로 남기며 완료로 표시하지 않는다.
 
 ## C-06. 임무 action·lease·정지
 
@@ -177,7 +177,7 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 
 ## C-09. 오류 코드와 복구 원칙
 
-공통 Python 오류의 단일 사전은 [rescue_contracts](../src/rescue_contracts/rescue_contracts/__init__.py)의 `CANONICAL_CODES`와 `DETAIL_CATEGORIES`다. 모든 도메인 예외는 `RescueError`를 상속하고 `.code`에는 공통 코드, `.component`에는 발생 패키지, `.detail_code`에는 `rescue_mapping.TF_TIME_MISMATCH` 같은 qualified 세부 원인, `.detail`에는 설명을 둔다. 소비자는 세부 문자열 대신 `.code`로 복구 분기한다. 예외를 발생시키지 않는 실패 결과도 같은 canonical code/detail_code 의미를 노출한다. 성공/상태 enum (`ACCEPTED`, `NAVIGATION_SUCCEEDED`, `HOLD`, `VALID`, `NEEDS_REOBSERVATION` 등)을 오류 코드와 혼합하지 않는다.
+공통 Python 오류의 단일 사전은 [rescue_contracts](../../src/rescue_contracts/rescue_contracts/__init__.py)의 `CANONICAL_CODES`와 `DETAIL_CATEGORIES`다. 모든 도메인 예외는 `RescueError`를 상속하고 `.code`에는 공통 코드, `.component`에는 발생 패키지, `.detail_code`에는 `rescue_mapping.TF_TIME_MISMATCH` 같은 qualified 세부 원인, `.detail`에는 설명을 둔다. 소비자는 세부 문자열 대신 `.code`로 복구 분기한다. 예외를 발생시키지 않는 실패 결과도 같은 canonical code/detail_code 의미를 노출한다. 성공/상태 enum (`ACCEPTED`, `NAVIGATION_SUCCEEDED`, `HOLD`, `VALID`, `NEEDS_REOBSERVATION` 등)을 오류 코드와 혼합하지 않는다.
 
 공통 코드: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `WRONG_ROBOT`, `STALE_OBSERVATION`, `CLOCK_UNCERTAIN`, `STALE_TRANSFORM`, `FRAME_REVISION_MISMATCH`, `LOCALIZATION_UNCERTAIN`, `SENSOR_UNAVAILABLE`, `NAV_NOT_READY`, `NOT_AUTHORIZED`, `STALE_GENERATION`, `LEASE_EXPIRED`, `STOP_LATCHED`, `UNREACHABLE`, `RETRY_EXHAUSTED`, `REPORT_NOT_PERSISTED`, `STOP_UNCONFIRMED`, `ID_CONTENT_CONFLICT`, `TASK_BUSY`, `DEADLINE_EXPIRED`, `ACCEPT_TIMEOUT`, `GUARD_INVALID`, `STOP_EVIDENCE_STALE`, `SESSION_FAULT`, `GOAL_REJECTED`, `ACTION_CANCELED`, `ACTION_ABORTED`, `ROBOT_DOCKED`, `DRIVER_UNAVAILABLE`, `COMMAND_WATCHDOG_UNAVAILABLE`, `POLICY_MISMATCH`, `NOT_FOUND`, `PENDING_EVIDENCE`.
 

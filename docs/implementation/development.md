@@ -31,7 +31,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 
 ## 프로파일 v1의 범위
 
-[`config/deployment.example.json`](../config/deployment.example.json)은 검토용 배치 예시다. 물리 장비의 주소·번호나 최종 배치를 확정한 파일이 아니다. 두 로봇을 각각 고사양 호스트에 놓는 예시는 바꿀 수 있으며 검사기가 해당 배치를 강제하지 않는다.
+[`config/deployment.example.json`](../../config/deployment.example.json)은 검토용 배치 예시다. 물리 장비의 주소·번호나 최종 배치를 확정한 파일이 아니다. 두 로봇을 각각 고사양 호스트에 놓는 예시는 바꿀 수 있으며 검사기가 해당 배치를 강제하지 않는다.
 
 수량 정책은 `profile.py`의 `ROBOT_COUNT = 2`, `HOST_TIERS = {"high": 2, "mid": 2}`, `REQUIRE_ALL_HOSTS_USED = True` 한 곳에 모았다. 로봇 2대는 사용자 요구를 유지한다. **호스트 구성과 모든 호스트 사용 조건은 현재 검토 중인 배포 기준안**이며, CLA-01의 “PC 4대가 필수 실행 구성인지 가용 자원인지” 해석은 아직 미결정이다. 상수화는 그 결정을 미리 내리거나 실행 시 임의 수량을 허용하는 기능이 아니다. 예시 파일·인수 조건은 결정된 정책과 함께 갱신한다.
 
@@ -59,7 +59,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 
 ## 프로파일 v2 — 임무 입력 (2026-10-08, 작업 묶음 1)
 
-`schema_version: 2` 는 v1 의 모든 규칙에 `mission` 객체와 로봇별 ROS 이름을 더한다. v1 파일은 그대로 읽히고(`Deployment.mission is None`), v2 배포 파일은 v2 로봇 파라미터 파일만 받는다. 예시: [`config/deployment.v2.example.json`](../config/deployment.v2.example.json), [`config/robots/robot_a.v2.json`](../config/robots/robot_a.v2.json).
+`schema_version: 2` 는 v1 의 모든 규칙에 `mission` 객체와 로봇별 ROS 이름을 더한다. v1 파일은 그대로 읽히고(`Deployment.mission is None`), v2 배포 파일은 v2 로봇 파라미터 파일만 받는다. 예시: [`config/deployment.v2.example.json`](../../config/deployment.v2.example.json), [`config/robots/robot_a.v2.json`](../../config/robots/robot_a.v2.json).
 
 | 필드 | 규칙 |
 | --- | --- |
@@ -86,7 +86,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 
 ## CI와 검증 한계
 
-[`foundation.yml`](../.github/workflows/foundation.yml)은 Python 3.10·3.11·3.12에서 표준 라이브러리 시험과 예시 검사를 수행하도록 작성했다. push는 `main`만 대상으로 하며 PR은 `pull_request` 이벤트로 검사해 같은 PR head의 push/PR 중복 실행을 줄인다. 각 matrix 실행 결과는 GitHub Actions가 실행된 뒤 확인한다. CI에는 ROS 설치·`colcon`·실기 시연이 포함되지 않는다.
+[`foundation.yml`](../../.github/workflows/foundation.yml)은 Python 3.10·3.11·3.12에서 표준 라이브러리 시험과 예시 검사를 수행하도록 작성했다. push는 `main`만 대상으로 하며 PR은 `pull_request` 이벤트로 검사해 같은 PR head의 push/PR 중복 실행을 줄인다. 각 matrix 실행 결과는 GitHub Actions가 실행된 뒤 확인한다. CI에는 ROS 설치·`colcon`·실기 시연이 포함되지 않는다.
 
 시험은 로봇/호스트 수·성능 구분, 중복 ID·namespace, 미등록/미사용 호스트, 같은 PC의 로봇별 명령 소유·관리 역할 동거, 정책 상수 변경 시 CLI의 실제 tier 집계, 다른 로봇의 설정 교환, 잘못된 경로·프로파일 symlink 기준·NUL, 중복 JSON 키·큰 파일·5,000자리 정수·깨진 UTF-8, runtime 활성화·시계 모드 혼합, CLI의 성공/실패 구분을 확인한다. 하드웨어의 실제 성능, 주소 충돌, 물리 로봇 중복 등록, 실제 발행자 수, 소유권 failover, 장비측 정지 watchdog, 센서·TF·주행·인식·보고는 확인하지 않는다.
 

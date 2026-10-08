@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 작업 묶음 1 — Python 코어를 실행 환경에 연결하고 BRD v0.1 시나리오를 반영한다
 
-작전·총괄이 관리하는 문서다. 세션별 첫 PR 의 범위·입출력·완료 조건, 먼저 확정할 공통 규격, 사용자 확인 항목, 통합 순서를 적는다. 지시는 세션 간 메시지로 전달하지만 **기록은 이 문서와 PR 본문**이다. 기준: `main` `e3849a1`(계획 PR 1 ~ 10 + 팀 규칙 PR #8 머지), 팀 [BRD v0.1](brd-v0.1.md)(2026-10-08), 사용자 지시 2026-10-08("시나리오가 추가적으로 나와서 이 부분도 반영"). 세션 구성은 아스트라 안(작전·총괄 1 + 구현 3: 로봇·지도 / 인식 / 협업·관제, Codex 최종 검토, Cursor 검증·머지).
+작전·총괄이 관리하는 문서다. 세션별 첫 PR 의 범위·입출력·완료 조건, 먼저 확정할 공통 규격, 사용자 확인 항목, 통합 순서를 적는다. 지시는 세션 간 메시지로 전달하지만 **기록은 이 문서와 PR 본문**이다. 기준: `main` `e3849a1`(계획 PR 1 ~ 10 + 팀 규칙 PR #8 머지), 팀 [BRD v0.1](../requirements/brd-v0.1.md)(2026-10-08), 사용자 지시 2026-10-08("시나리오가 추가적으로 나와서 이 부분도 반영"). 세션 구성은 아스트라 안(작전·총괄 1 + 구현 3: 로봇·지도 / 인식 / 협업·관제, Codex 최종 검토, Cursor 검증·머지).
 
 ## 1. 구현 / 미구현 요약 (BRD 사용 사례 기준)
 
@@ -40,7 +40,7 @@ updated: 2026-10-08
 | | 로봇·지도 | 인식 | 협업·관제 |
 | --- | --- | --- | --- |
 | 목적 | `rescue_robot` 실행기 ↔ Nav2 명령 어댑터 | RGB/Depth/CameraInfo·검출 결과 → `rescue_perception` 입력 어댑터 | 역할 고정 배정 정책: TB1 설정 구역 `SEARCH_AREA` 순차, TB2 `HOLD`, 발견 시 TB2 `APPROACH_TARGET` 예약 |
-| 파일 | `src/rescue_robot/`(경계 모듈), `tests/`, `docs/implementation-robot.md` 보충 | `src/rescue_perception/`(어댑터), `tests/`, `assets/manifest/`, `docs/implementation-perception.md` 보충 | `src/rescue_coordination/`(정책), `tests/`, `docs/implementation-coordination.md` 보충 |
+| 파일 | `src/rescue_robot/`(경계 모듈), `tests/`, `docs/implementation/implementation-robot.md` 보충 | `src/rescue_perception/`(어댑터), `tests/`, `assets/manifest/`, `docs/implementation/implementation-perception.md` 보충 | `src/rescue_coordination/`(정책), `tests/`, `docs/implementation/implementation-coordination.md` 보충 |
 | 입력 | 프로파일 두 ID·namespace·action/topic, odom, dock/driver/watchdog/TF/Nav2 준비, Nav2 콜백 | Image(RGB·Depth)·CameraInfo·검출 결과(기록 또는 합성), 정렬·보정 근거 | 설정 구역 후보(id·mission 좌표·근거 태그), 두 로봇 적격 상태, 발견 사건(사건 ID·Observation ID·projection 상태), 역할 입력 |
 | 출력 | `TaskAdmission`, `('SEND'|'CANCEL', command_id)` → NavigateToPose, `Result(outcome, action_status, stop_confirmed)` | `Observation`(int64 ns stamp, payload hash), `LocalizationResult.reason` | 로봇별 `Task` 후보·`Reservation`, ACTIVE 는 `record_admission` 뒤에만 |
 | 완료 조건 | Nav2 수락 ≠ allocator 예약 / 취소 요청·응답·action 종료·물리 정지 분리 / 두 로봇 콜백 분리 / deadline·lease·boot·authority 우회 없음 / E2·E3 범위 분리 | 잘못된 정렬·시각·깊이는 위치 없음 / 탐지만 된 경우 명시 / 지연·역순·중복이 수명·최신 상태를 늘리지 않음 / 전수 픽셀 검사의 실시간 검증 여부 구분 / 합성 입력 사실 명시 | 중복 배정 통제 / 예약 ≠ 실행 / 전환 시 취소·정지·새 세대 / 역할 영구 고정 아님 / 접근 중 다른 로봇 정책 명시 / 오래된 수락·결과가 배정을 되살리지 않음 |
@@ -77,7 +77,7 @@ BRD 13장 OI 와 이 저장소의 Q 를 합쳤다. 답이 오기 전에는 「�
 | Q-17 (OI-07·08·11) | 옵션(온도) 시점·범위, 재난 유형 명칭, 발표일·평가 기준 | 핵심 뒤. 재난 유형은 지진으로 결정, 발표일 10-16(scope Q-17) | 일정 |
 | Q-18 | 사람(인형) 탐지 모델: 사람 class 가중치의 출처·라이선스와 추론 런타임(cv2.dnn ONNX / ultralytics / 기타; 인식 PC 메모리 7.6 GB, GPU 없음 [설정, 2026-10-08]). 현재 있는 가중치는 car/dummy 용이라 사람 탐지에 쓰지 않음(LL-09) | 결정 전에는 인식 (b) 카메라 B 출구 통과를 합성 탐지로 E2 진행 | 인식 (a) 실제 모델 추론 연결 |
 | — | BRD v0.1 자체가 팀 합의본인지(팀원 초안) | 합의 전까지 `[제안]` 로 취급 | — |
-| Q-19 ~ Q-24 | [BRD Part I](brd-part1-v0.1.md)(지진, 2026-10-08) 반영 항목: 출동 우선순위, 구조 상태 4단계, 병합·도착·재확인 반경, 관제 제어 명령·복귀·배터리, 수락 수치 초안, 탐색 방식 | [범위 문서 미결정 표](scope.md#미결정-사항)에만 둔다 | Part I 부록 A·B |
+| Q-19 ~ Q-24 | [BRD Part I](../requirements/brd-part1-v0.1.md)(지진, 2026-10-08) 반영 항목: 출동 우선순위, 구조 상태 4단계, 병합·도착·재확인 반경, 관제 제어 명령·복귀·배터리, 수락 수치 초안, 탐색 방식 | [범위 문서 미결정 표](../requirements/scope.md#미결정-사항)에만 둔다 | Part I 부록 A·B |
 
 ## 6. 통합 순서
 
