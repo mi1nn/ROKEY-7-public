@@ -10,16 +10,33 @@ from dataclasses import dataclass
 import hashlib
 import struct
 
-from rescue_contracts import RescueError, ros_time_to_ns
+from rescue_contracts import RescueError, duration_ns, robot_id, ros_time_to_ns, uuid_string
 
 from .core import (AlignmentEvidence, CameraIntrinsics, DepthFrame, DepthPolicy, Detection,
                    FrameMeta, LocalizationResult, ModelManifest, Observation, PerceptionError,
-                   _duration, _require, _robot, _text, _uuid, locate_detection, make_observation)
+                   locate_detection, make_observation)
 
 # encoding -> (core unit, struct code, bytes per sample). Only the two encodings the
 # core accepts; anything else (mono16, compressedDepth, 8-bit) is rejected, not converted.
 DEPTH_ENCODINGS = {"16UC1": ("mm", "H", 2), "32FC1": ("m", "f", 4)}
 TRACKING_MODES = ("DETECTION_ONLY", "TRACKING", "TRACKING_FALLBACK")
+
+
+def _require(condition, code, detail):
+    if not condition:
+        raise PerceptionError(code, detail)
+
+
+def _text(value, name):
+    _require(isinstance(value, str) and bool(value.strip()), "INVALID_INPUT", name)
+
+
+def _contract(check, value, label):
+    """Apply a shared rescue_contracts validator; report it as a perception input error."""
+    try:
+        return check(value)
+    except RescueError as exc:
+        raise PerceptionError("INVALID_INPUT", f"{label}: {exc.detail}") from exc
 
 
 @dataclass(frozen=True)
@@ -44,16 +61,16 @@ class SourceBinding:
 
     def __post_init__(self):
         if self.source_robot is not None:
-            _robot(self.source_robot)
+            _contract(robot_id, self.source_robot, "source_robot")
         for name in ("source_camera", "clock_domain_id", "calibration_id"):
             _text(getattr(self, name), name)
-        _uuid(self.source_boot_id, "source_boot_id")
+        _contract(uuid_string, self.source_boot_id, "source_boot_id")
         for name in ("rgb_stamp_semantics", "depth_stamp_semantics"):
             _require(getattr(self, name) in ("CAPTURE", "DRIVER_RECEIVE", "UNKNOWN"),
                      "INVALID_INPUT", name)
         _require(self.clock_state in ("SYNCED", "UNKNOWN"), "INVALID_INPUT", "clock_state")
         if self.clock_error_bound_ns is not None:
-            _duration(self.clock_error_bound_ns, "clock_error_bound_ns")
+            _contract(duration_ns, self.clock_error_bound_ns, "clock_error_bound_ns")
 
 
 @dataclass(frozen=True)
@@ -65,7 +82,7 @@ class ObservationPolicy:
     validity_ns: int
 
     def __post_init__(self):
-        _duration(self.validity_ns, "validity_ns")
+        _contract(duration_ns, self.validity_ns, "validity_ns")
         _require(self.validity_ns > 0, "INVALID_INPUT", "validity_ns must be positive")
 
 

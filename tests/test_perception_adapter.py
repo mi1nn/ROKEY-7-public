@@ -200,6 +200,14 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(result.observation)
         self.assertEqual(result.observation_blocked, "SOURCE_IDENTITY_UNDEFINED")
 
+    def test_binding_and_policy_use_shared_contract_validators(self):
+        self.assertCode("INVALID_INPUT", lambda: replace(self.binding, source_robot="1robot"))
+        self.assertCode("INVALID_INPUT", lambda: replace(self.binding, source_boot_id=uid(0)))
+        self.assertCode("INVALID_INPUT", lambda: replace(self.binding, source_boot_id=uid(0xabc).upper()))
+        self.assertCode("INVALID_INPUT", lambda: replace(self.binding, clock_error_bound_ns=1.0))
+        self.assertCode("INVALID_INPUT", lambda: ObservationPolicy(0))
+        self.assertCode("INVALID_INPUT", lambda: ObservationPolicy(2.0))
+
     # Evidence --------------------------------------------------------------------
     def test_evidence_hash_is_the_exact_rgb_payload(self):
         result = self.run_adapter(rgb=rgb_image(pixel=7))
