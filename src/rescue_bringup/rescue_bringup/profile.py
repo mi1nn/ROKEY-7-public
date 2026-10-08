@@ -36,6 +36,7 @@ MAX_SITE_CAMERAS = 8
 MAX_DISCOVERY_SERVERS = 8
 DOMAIN_ID_MAX = 232
 SERVER_ID_MAX = 255
+_ABSENT = object()   # optional block not present (JSON null is NOT absent: it is rejected)
 
 MAX_CONFIG_BYTES = 65_536
 IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}\Z")
@@ -360,7 +361,7 @@ def _parameters(path: Path, robot_id: str, namespace: str, schema_version: int) 
     base = {"schema_version", "robot_id", "namespace", "runtime_enabled", "use_sim_time"}
     names = {"nav_action", "odom_topic", "dock_status_topic"}
     raw = _read_json(path)
-    readiness_raw = raw.pop("readiness", None) if isinstance(raw, dict) and schema_version == 2 else None
+    readiness_raw = raw.pop("readiness", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
     value = _fields(raw, base | (names if schema_version == 2 else set()), "robot parameters")
     if _version(value["schema_version"], "robot parameters") != schema_version:
         raise ProfileError("robot parameters schema_version must match the deployment schema_version")
@@ -376,7 +377,7 @@ def _parameters(path: Path, robot_id: str, namespace: str, schema_version: int) 
     if len(set(resolved.values())) != len(resolved):
         raise ProfileError("nav_action, odom_topic and dock_status_topic must be distinct")
     readiness = (_readiness(readiness_raw, namespace, set(resolved.values()))
-                 if readiness_raw is not None else None)
+                 if readiness_raw is not _ABSENT else None)
     return RobotParameters(robot_id, namespace, value["use_sim_time"],
                            resolved["nav_action"], resolved["odom_topic"], resolved["dock_status_topic"],
                            readiness)
@@ -407,9 +408,9 @@ def _mission(value: Any, robot_ids: list[str]) -> Mission:
     areas: list[SearchArea] = []
     for index, entry in enumerate(areas_raw):
         label = f"search_areas[{index}]"
-        entry_yaw_raw = entry.pop("entry_yaw", None) if isinstance(entry, dict) else None
+        entry_yaw_raw = entry.pop("entry_yaw", _ABSENT) if isinstance(entry, dict) else _ABSENT
         area = _fields(entry, {"id", "mission_xy", "basis"}, label)
-        entry_yaw = _finite(entry_yaw_raw, label + ".entry_yaw") if entry_yaw_raw is not None else None
+        entry_yaw = _finite(entry_yaw_raw, label + ".entry_yaw") if entry_yaw_raw is not _ABSENT else None
         xy = area["mission_xy"]
         if not isinstance(xy, list) or len(xy) != 2:
             raise ProfileError(f"{label}.mission_xy must be [x, y]")
@@ -450,21 +451,28 @@ def load_deployment(path: str | Path) -> Deployment:
     raw = _read_json(profile_path)
     schema_version = _version(raw["schema_version"] if isinstance(raw, dict) and "schema_version" in raw else None,
                               "deployment")
-    cameras_raw = raw.pop("site_cameras", None) if isinstance(raw, dict) and schema_version == 2 else None
+    cameras_raw = raw.pop("site_cameras", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
     data = _fields(raw, {
         "schema_version", "deployment_id", "hosts", "robots", "services"
     } | ({"mission"} if schema_version == 2 else set()), "deployment")
     deployment_id = _identifier(data["deployment_id"], "deployment_id")
     hosts: list[Host] = []
     for entry in _list(data["hosts"], sum(HOST_TIERS.values()), "hosts"):
-        network_raw = entry.pop("network", None) if isinstance(entry, dict) and schema_version == 2 else None
+        network_raw = entry.pop("network", _ABSENT) if isinstance(entry, dict) and schema_version == 2 else _ABSENT
         host = _fields(entry, {"id", "tier"}, "host")
         host_id = _identifier(host["id"], "host.id")
         if not isinstance(host["tier"], str) or host["tier"] not in HOST_TIERS:
             raise ProfileError(f"host.tier must be one of {sorted(HOST_TIERS)}")
-        network = _network(network_raw, f"hosts[{host_id}].network") if network_raw is not None else None
+        network = _network(network_raw, f"hosts[{host_id}].network") if network_raw is not _ABSENT else None
         hosts.append(Host(host_id, host["tier"], network))
     _unique([host.id for host in hosts], "host id")
+    seen_servers: dict[tuple[str, int], int] = {}
+    for host in hosts:
+        for server in (host.network.discovery_servers if host.network else ()):
+            key = (server.address, server.port)
+            if seen_servers.setdefault(key, server.server_id) != server.server_id:
+                raise ProfileError(f"discovery server {server.address}:{server.port} has different server_id across hosts "
+                                   f"(position in ROS_DISCOVERY_SERVER is the id; it must be the same everywhere)")
     if Counter(host.tier for host in hosts) != HOST_TIERS:
         raise ProfileError(f"hosts must have tier counts {HOST_TIERS}")
     known_hosts = {host.id for host in hosts}
@@ -502,7 +510,7 @@ def load_deployment(path: str | Path) -> Deployment:
         raise ProfileError("all robots must use the same use_sim_time setting")
     mission = _mission(data["mission"], [robot.id for robot in robots]) if schema_version == 2 else None
     cameras: list[SiteCamera] = []
-    if cameras_raw is not None:
+    if cameras_raw is not _ABSENT:
         if not isinstance(cameras_raw, list) or len(cameras_raw) > MAX_SITE_CAMERAS:
             raise ProfileError(f"site_cameras must be a list of at most {MAX_SITE_CAMERAS}")
         for index, entry in enumerate(cameras_raw):

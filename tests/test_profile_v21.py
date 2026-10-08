@@ -52,7 +52,7 @@ class V21ProfileTests(unittest.TestCase):
         self.assertEqual(("/robot_a/oakd/rgb/preview/image_raw/compressed",), a.camera_topics)
         central = next(h for h in profile.hosts if h.id == "operations")
         self.assertEqual(2, len(central.network.discovery_servers))
-        self.assertEqual((3, 6), tuple(s.server_id for s in central.network.discovery_servers))
+        self.assertEqual((0, 1), tuple(s.server_id for s in central.network.discovery_servers))
         self.assertFalse(central.network.super_client)
         self.assertEqual({"DISASTER_SIGN", "EXIT_PASS"}, {c.role for c in profile.site_cameras})
         self.assertTrue(all(c.id.startswith("cam_") for c in profile.site_cameras))
@@ -125,6 +125,14 @@ class V21ProfileTests(unittest.TestCase):
         self.setUp(); self.data["site_cameras"][0]["source"] = ""
         self.save(); self.assertRejected("source")
         self.assertEqual(("DISASTER_SIGN", "EXIT_PASS"), SITE_CAMERA_ROLES)
+
+    def test_null_is_not_absent_and_server_id_is_global(self):
+        self.data["hosts"][0]["network"] = None
+        self.save(); self.assertRejected("network")
+        self.setUp(); self.data["site_cameras"] = None
+        self.save(); self.assertRejected("site_cameras")
+        self.setUp(); self.data["hosts"][1]["network"]["discovery_servers"][0]["server_id"] = 5
+        self.save(); self.assertRejected("different server_id across hosts")
 
     def test_entry_yaw_must_be_finite_number(self):
         self.data["mission"]["search_areas"][0]["entry_yaw"] = "north"

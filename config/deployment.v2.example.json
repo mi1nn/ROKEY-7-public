@@ -9,7 +9,7 @@
         "domain_id": 7,
         "discovery_servers": [
           {
-            "server_id": 3,
+            "server_id": 0,
             "address": "192.0.2.13",
             "port": 11811
           }
@@ -24,7 +24,7 @@
         "domain_id": 7,
         "discovery_servers": [
           {
-            "server_id": 6,
+            "server_id": 1,
             "address": "192.0.2.16",
             "port": 11811
           }
@@ -39,12 +39,12 @@
         "domain_id": 7,
         "discovery_servers": [
           {
-            "server_id": 3,
+            "server_id": 0,
             "address": "192.0.2.13",
             "port": 11811
           },
           {
-            "server_id": 6,
+            "server_id": 1,
             "address": "192.0.2.16",
             "port": 11811
           }
@@ -59,12 +59,12 @@
         "domain_id": 7,
         "discovery_servers": [
           {
-            "server_id": 3,
+            "server_id": 0,
             "address": "192.0.2.13",
             "port": 11811
           },
           {
-            "server_id": 6,
+            "server_id": 1,
             "address": "192.0.2.16",
             "port": 11811
           }
