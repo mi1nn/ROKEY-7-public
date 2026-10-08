@@ -16,6 +16,8 @@ from uuid import uuid4
 
 from rescue_contracts import timestamp_ns, duration_ns
 
+# APPROACH_PROJECTION_STATUS: mapping projection status that may feed an approach (defined in dispatch).
+from .dispatch import APPROACH_PROJECTION_STATUS, select_dispatch_target
 from .planning import (Allocator, CoordinationError, PathCandidate, Reservation,
                        contract_value, finite, point, revision, robot, uid)
 
@@ -29,8 +31,6 @@ SEARCH_REJECT_REASONS = frozenset({
     'EVENT_ALREADY_HAS_APPROACH'})
 DECISION_REASONS = SEARCH_REJECT_REASONS | {'PENDING', 'ACTIVE', 'PENDING_EXECUTOR_ADMISSION'}
 EXCLUSION_REASONS = frozenset({'BASIS_NOT_EXECUTABLE', 'NO_MAP_REVISION', 'WITHDRAWN'})
-# mapping.MappingRegistry.projection(...).status that may feed an approach.
-APPROACH_PROJECTION_STATUS = 'VALID'
 
 
 @dataclass(frozen=True)
@@ -269,6 +269,16 @@ class SearchCoordinator:
         if decision.action == 'RESERVED':
             self.approach_tasks[event_id] = decision.reservation.task_id
         return decision
+
+    def select_approach_target(self, targets, *, policy, origin, now_ns):
+        """Rank confirmed targets for the SUPPORT robot (``dispatch.select_dispatch_target``).
+
+        Events that already have an approach reservation here are skipped, so one
+        target never gets a second dispatch. The result is only a choice; pass it
+        to ``request_approach`` to reserve.
+        """
+        return select_dispatch_target(targets, policy=policy, support_robot_id=self.policy.role_of('SUPPORT'),
+                                      assigned_events=frozenset(self.approach_tasks), origin=origin, now_ns=now_ns)
 
     def withdraw_area(self, area_id):
         """Stop proposing an area (e.g. its map basis became invalid)."""
