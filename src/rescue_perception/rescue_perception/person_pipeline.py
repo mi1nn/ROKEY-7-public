@@ -124,8 +124,9 @@ class PersonPipeline:
         if inference is None:
             return FrameResult("NOT_INFERRED", ())
         _require(isinstance(inference, Inference), "INVALID_INPUT", "detector must return Inference or None")
-        self._last_ns = stamp
-        candidates = []
+        # Build every observation first; only a fully valid frame changes state
+        # (same rule as #30 CDX-30-01: a rejected frame leaves no trace).
+        built = []
         for index, output in enumerate(inference.outputs):
             if output.class_label not in self.confirmation.person_labels:
                 continue
@@ -146,9 +147,10 @@ class PersonPipeline:
                 reasons.append("LOW_CONFIDENCE")
             if result.localization.reason != "LOCATED":
                 reasons.append(result.localization.reason)
-            status = "UNCONFIRMED" if reasons else "CONFIRMED"
-            candidates.append(PersonCandidate(result.observation, status, tuple(reasons),
-                                              self._is_new(track, status)))
+            built.append((track, result.observation, "UNCONFIRMED" if reasons else "CONFIRMED", tuple(reasons)))
+        self._last_ns = stamp
+        candidates = [PersonCandidate(observation, status, reasons, self._is_new(track, status))
+                      for track, observation, status, reasons in built]
         return FrameResult("PROCESSED", tuple(candidates))
 
     def _is_new(self, track, status):
