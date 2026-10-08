@@ -130,6 +130,12 @@ class SearchPolicy:
         return site.basis in self.executable_bases and site.bound_to_map()
 
 
+# Re-observation (Part I 3.5.3) reasons; disjoint from the search/approach set.
+RECHECK_REASONS = frozenset({
+    'NO_NEW_EXIT_PASS', 'APPROACH_NOT_COMPLETED', 'EVENT_ALREADY_HAS_RECHECK', 'NO_SCOUT_CANDIDATE',
+    'SCOUT_SEARCHING', 'SCOUT_BUSY'})
+
+
 @dataclass(frozen=True)
 class Decision:
     """``RESERVED`` means PENDING in the Allocator, never ACTIVE or moving.
@@ -147,7 +153,7 @@ class Decision:
     task_fields: dict | None = None
 
     def __post_init__(self):
-        if self.action not in ACTIONS or self.reason not in DECISION_REASONS:
+        if self.action not in ACTIONS or self.reason not in DECISION_REASONS | RECHECK_REASONS:
             raise CoordinationError('INVALID_INPUT', 'decision action/reason outside the closed set')
 
 
@@ -166,6 +172,10 @@ class SearchCoordinator:
         self.withdrawn_areas = set()
         self.approach_tasks = {}  # event_id -> task_id; one approach per event (E-06)
         self.held = {}  # robot_id -> robot_boot_id whose HOLD finished with stop confirmed
+        self.approached = set()  # event_ids whose APPROACH_TARGET finished COMPLETED
+        self.recheck_tasks = {}  # event_id -> (task_id, exit count it was issued for)
+        self.rechecked_at_count = {}  # event_id -> exit count of the last COMPLETED recheck
+        self.exit_pass_count = 0  # highest cumulative exit count seen; never goes back
 
     # -- reading Allocator state (single source) --------------------------
     def assignment(self, robot_id):
@@ -277,6 +287,51 @@ class SearchCoordinator:
             raise CoordinationError('INVALID_INPUT', 'unknown area')
         self.withdrawn_areas.add(area_id)
 
+    def request_recheck(self, event_id, target_revision, *, exit_pass_count, projection_status, candidate,
+                        robot_boot_id, now_ns):
+        """Reserve a SCOUT re-observation of one event after the exit count rose (Part I 3.5.3).
+
+        ``exit_pass_count`` is the operations ledger's cumulative EXIT_PASS count
+        (``read_site_events``); it never decreases. The event's SUPPORT approach
+        must have finished COMPLETED here. Each COMPLETED recheck consumes the
+        count it was issued for; the next one needs a higher count. A recheck
+        that ends otherwise may be issued again without a new exit. The result
+        is only observation input for the rescue verdict, never a confirmation.
+        """
+        uid(event_id)
+        revision(target_revision)
+        uid(robot_boot_id)
+        contract_value(timestamp_ns, now_ns)
+        if type(exit_pass_count) is not int or exit_pass_count < self.exit_pass_count:
+            raise CoordinationError('INVALID_INPUT', 'exit count must be a non-decreasing int')
+        self.exit_pass_count = exit_pass_count
+        scout = self.policy.role_of('SCOUT')
+        if event_id in self.recheck_tasks:
+            return Decision('KEEP', 'EVENT_ALREADY_HAS_RECHECK')
+        if event_id not in self.approached:
+            return Decision('WAIT', 'APPROACH_NOT_COMPLETED')
+        if exit_pass_count <= self.rechecked_at_count.get(event_id, 0):
+            return Decision('WAIT', 'NO_NEW_EXIT_PASS')
+        if projection_status != APPROACH_PROJECTION_STATUS:
+            return Decision('WAIT', 'PROJECTION_NOT_VALID')
+        if (not isinstance(candidate, PathCandidate) or candidate.robot_id != scout
+                or candidate.goal_xy == candidate.target_xy):  # the camera must face the target
+            return Decision('WAIT', 'NO_SCOUT_CANDIDATE')
+        if candidate.valid_until_ns <= now_ns:
+            return Decision('WAIT', 'CANDIDATE_EXPIRED')
+        current = self.assignment(scout)
+        if current is not None:
+            state, item = current
+            if self.kind_of(item) == 'SEARCH_AREA':
+                # Recheck first [제안]: cancel, confirm stop, finish(), then ask again.
+                return Decision('RELEASE_REQUIRED', 'SCOUT_SEARCHING', item)
+            return Decision('WAIT', 'SCOUT_BUSY', item)
+        decision = self._reserve(scout, robot_boot_id, 'REOBSERVE_TARGET', event_id, target_revision,
+                                 candidate, now_ns)
+        if decision.action == 'RESERVED':
+            self.recheck_tasks[event_id] = (decision.reservation.task_id, exit_pass_count)
+        return decision
+
     # -- executor feedback -------------------------------------------------
     def record_admission(self, receipt):
         """The only path to ACTIVE; delegates unchanged to the Allocator."""
@@ -303,6 +358,12 @@ class SearchCoordinator:
             self.held[item.robot_id] = item.robot_boot_id
         elif kind == 'APPROACH_TARGET':
             self.held.pop(item.robot_id, None)
+            if outcome == 'COMPLETED':
+                self.approached.add(item.target_id)
+        elif kind == 'REOBSERVE_TARGET':
+            task_id, count = self.recheck_tasks.pop(item.target_id, (None, None))
+            if task_id == item.task_id and outcome == 'COMPLETED':
+                self.rechecked_at_count[item.target_id] = count
         return True
 
     def _goal_pose(self, kind, area, candidate):
