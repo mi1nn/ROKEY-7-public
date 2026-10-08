@@ -77,7 +77,7 @@ def _start_search(robot, allocator, allowed_robot_ids):
                 uid('authority'), allocator.issue_generation(robot), 'SEARCH_AREA',
                 fixture_time("0.2"), fixture_time(20), 10., policy.version,
                 search_area_ref=uid(robot+'/search-area'),
-                goal_pose=GoalPose('map', 0., 0., 0., uid(robot+'/map-session'), 0))
+                goal_pose=GoalPose('mission', 0., 0., 0., uid(robot+'/map-session'), 0))
     receipt = executor.admit(task, now_wall_ns=fixture_time("0.2"), now_steady=.2, readiness=ready)
     if not receipt.accepted:
         raise RuntimeError('fixture search rejected')

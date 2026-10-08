@@ -2,11 +2,17 @@
 <package format="3">
   <name>rescue_robot</name>
   <version>0.0.0</version>
-  <description>로봇별 명령·취소·정지 판정 Python 코어. ROS 어댑터는 미구현.</description>
+  <description>로봇별 명령·취소·정지 판정 Python 코어와 Nav2 명령 어댑터(ROS 경계는 ros_node).</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
   <exec_depend>rescue_contracts</exec_depend>
+  <!-- ros_node.py only; the core and nav2_adapter.py import no ROS package -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>irobot_create_msgs</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
