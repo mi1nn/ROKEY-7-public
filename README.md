@@ -28,6 +28,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, 오프라인 시험 규칙 |
 | [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
 | [일정과 담당](docs/process/schedule.md) · [일정표 CSV](docs/process/schedule-timeline.csv) | 10-08 ~ 10-16 작업일·관문·사람별 담당(임시안), 구글 시트로 가져올 칸 일정 |
+| [페이즈와 릴리즈 계획](docs/process/release-plan.md) | P0 ~ P5 페이즈, v0.1 ~ v1.0 릴리즈에 들어가는 것·빠지는 것·합격 조건, P1 후보 PR 대응, 대비책 |
 | [작업 규칙](AGENTS.md) | 사람·AI 세션 공통 규칙: 레인, 브랜치·PR, 머리말, 증거, 로봇, 실패 처리 |
 
 ## 통합 리허설과 남은 실기 연결
