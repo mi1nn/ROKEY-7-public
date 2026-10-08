@@ -35,3 +35,9 @@ Python 3.11.8 및 Python 3.12.14 실행기를 사용했다. macOS에서 실행�
 CT-06/CT-07의 위 사슬은 E2 부분 검증이다. ROS cancel/result 연결, 실제 stop 관측·접근 주행·현장 재확인, 실시간 센서/모델/SLAM backend, 2 AMR와 예정 4-PC의 통신·부하·현장 인수는 NOT_RUN이다. `summary`의 실제 로봇 0대·프로세스 1개 표시를 유지한다. 생성 PNG는 단색 타일이며 사람 사진이 아니다. 두 보고의 `PERSISTED`는 로컬 저장 완료이고 `UNCONFIRMED`·`NOT_ATTEMPTED` 결과를 구조 완료로 바꾸지 않는다.
 
 summary는 임시 출력 디렉터리에서 생성한 원문을 복사했다. 두 SQLite DB는 같은 실행과 시험 안에서 close/reopen 및 증거 bytes/해시·receipt 재시도를 검사한 뒤 임시 디렉터리와 함께 정리했다. DB 파일 자체는 이 기록에 보존하지 않았다.
+
+## 실제 PR 브랜치에서 재확인
+
+격리 snapshot을 PR 브랜치에 합친 뒤 Python 3.11 source 213개, Python 3.12 source 213개 및 새 venv 설치본 213개를 다시 실행해 통과했다. [최종 소스 검사](pr11-review-round2/source-tests-final.log), [3.12 소스 검사](pr11-review-round2/source-python312-final.log), [최종 설치본 검사·wheel SHA](pr11-review-round2/installed-python312-final.log), [최종 검사 대상 해시](pr11-review-round2/manifest.json)에 기록한다. GitHub Actions 상태는 이 로컬 기록과 별도로 최종 PR 댓글에서 확인한다.
+
+snapshot의 `src/rescue_bringup/README.md`는 설치 수를 여섯→일곱으로 정정했으므로 이전 snapshot manifest와 해당 문서 hash가 다르다. 실행 소스·시험의 213개 내용은 같다. README도 wheel data에 포함되므로 최종 branch에서 wheel을 다시 만들어 검사했다. 로그의 실행기·임시 경로·traceback 경로는 개인 경로 대신 `<PYTHON312>`/`<TMP>`/저장소 상대 경로로 정규화했다. 검사 0개나 미실행을 성공으로 바꾸지 않았다.
