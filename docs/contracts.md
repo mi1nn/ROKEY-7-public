@@ -87,6 +87,9 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 
 좌표 해석에 영향을 주는 revision 변경 시: 새 접근 배정 중단 → 영향받은 goal 취소/정지 처리 → 원 관측을 새 기준으로 재계산할 수 있는지 판정 → 가능하면 새 파생 위치, 불가능하면 `NEEDS_REOBSERVATION` → 새 generation으로 재배정한다. loop closure가 항상 단일 강체 변환으로 수정 가능하다고 가정하지 않는다. 변환 갱신과 새 목표 수락 사이의 경합은 executor가 수락 시점과 실제 goal 발행 직전에 revision을 다시 확인해 거절한다.
 
+`Projection.status`의 공통 어휘는 `VALID`, `STALE_DERIVATION`, `NEEDS_REOBSERVATION`, `EXPIRED`다. 유효한 map→mission 정렬만 변경되어 같은 원 관측·sensor-time TF로 재계산할 수 있는 파생 위치는 `STALE_DERIVATION`이다. map session/map revision 변경 또는 정렬 무효화로 원 관측의 새 위치를 증명할 수 없으면 `NEEDS_REOBSERVATION`이다. 상태 확인에서 VERSION_MISMATCH를 감지한 경우에도 같은 기준을 적용한다. STALE_DERIVATION 뒤 지도 보정·세션 교체·무효화가 발생하면 NEEDS_REOBSERVATION으로 승격한다. 원 관측/파생 위치 유효기한이 끝나면 EXPIRED이며 중계가 기한을 연장하지 않는다. VALID 이외의 상태는 기존 goal의 유효 근거가 아니며, 새 파생 위치 또는 새 관측 확인 후 별도 generation으로 재배정한다. VALID만으로 실제 backend 검증/자동 접근 자격을 승인하지 않는다.
+
+
 ## C-05. 관측·사건·보고의 논리 스키마
 
 실제 ROS 정의 파일 이름·배열 상한·직렬화 형식은 아래 의미를 보존하며 구현 PR에서 고정한다.

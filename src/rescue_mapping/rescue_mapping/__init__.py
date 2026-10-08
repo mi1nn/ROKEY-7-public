@@ -1,1 +1,11 @@
-"""SLAM 연동·좌표 변환·지도 보정 후 관측 유효성. SLAM과 TF 코드는 아직 없다."""
+"""Pure coordinate/provenance checks; no ROS or operational readiness provider."""
+
+from .geometry import MappingError, RigidTransform
+from .models import (CoordinateVersion, FrameAlignment, GoalSnapshot, GoalValidation,
+                     Invalidation, MapState, ObservationReference, Projection,
+                     SourceObservation, TimedTransform)
+from .registry import MappingRegistry
+
+__all__ = ["MappingError", "RigidTransform", "SourceObservation", "TimedTransform",
+           "FrameAlignment", "CoordinateVersion", "Projection", "ObservationReference",
+           "GoalSnapshot", "GoalValidation", "Invalidation", "MapState", "MappingRegistry"]

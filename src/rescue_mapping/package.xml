@@ -2,10 +2,11 @@
 <package format="3">
   <name>rescue_mapping</name>
   <version>0.0.0</version>
-  <description>SLAM 연동·좌표 변환·지도 보정 후 관측 유효성. SLAM과 TF 코드는 아직 없다.</description>
+  <description>순수 Python 3D 좌표·원관측·지도 revision 검증. ROS/SLAM/TF 실행 연동은 없다.</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
+  <exec_depend>rescue_contracts</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
