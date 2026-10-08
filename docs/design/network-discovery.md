@@ -141,7 +141,7 @@ export ROS_DOMAIN_ID=<Q-01>                     # 서버는 도메인을 보지 
 ros2 daemon stop; ros2 daemon start             # 낡은 목록을 버린다 (4절)
 ```
 
-역할별 서버 목록은 [`config/hosts/`](../../config/hosts) 예시를 따른다: 로봇 담당 PC 두 대는 자기 로봇 서버 하나, 관제(central)와 인식(perception) PC 는 두 서버 모두 [제안]. 예시의 주소와 ID 는 자리표시자이고, 작전의 프로파일 v2.1 `network` 블록이 들어오면 그 값으로 바꾼다.
+역할별 서버 목록은 [`config/hosts/`](../../config/hosts) 예시를 따른다: 로봇 담당 PC 두 대는 자기 로봇 서버 하나, 관제(`central` = deployment 의 `coordination`)와 `operations`(관제 화면·고정 카메라 A·B) PC 는 두 서버 모두 [제안]. 로봇 카메라 인식은 별도 역할이 아니라 로봇 담당 PC(`robots[].perception_host`)다(작전 결정 2026-10-08). 예시의 주소와 ID 는 자리표시자이고, 작전의 프로파일 v2.1 `hosts[].network` 블록(#39, 서버 항목은 `server_id`·`address`·`port`)이 들어오면 그 값으로 바꾼다.
 
 **되돌리기.** 이 방식은 `.bashrc` 를 바꾸지 않으므로 그 터미널을 닫으면 끝난다. 열린 터미널에서 되돌릴 때는 `unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT` 뒤 1단계에서 적은 `RMW_IMPLEMENTATION`·`CYCLONEDDS_URI`·`ROS_DOMAIN_ID` 를 다시 `export` 하고 `ros2 daemon stop`. TB4 의 `configure_discovery.sh` 를 이미 썼다면 `.bashrc` 를 2단계 백업으로 되돌리고(해시 확인) `/etc/turtlebot4_discovery/setup.bash` 를 지운다 — 이것은 sudo 라 사람이 한다.
 

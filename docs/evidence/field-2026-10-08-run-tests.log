@@ -334,6 +334,6 @@ test_goal_pose_shape (test_task_goal_fields.TaskGoalFieldTests.test_goal_pose_sh
 test_kind_field_rules (test_task_goal_fields.TaskGoalFieldTests.test_kind_field_rules) ... ok
 
 ----------------------------------------------------------------------
-Ran 333 tests in 0.907s
+Ran 333 tests in 0.967s
 
 OK

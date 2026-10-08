@@ -24,38 +24,38 @@ Building wheels for collected packages: rescue_bringup, rescue_contracts, rescue
   DEPRECATION: Building 'rescue_bringup' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_bringup'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_bringup (setup.py): started
   Building wheel for rescue_bringup (setup.py): finished with status 'done'
-  Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=17140 sha256=632d44c8354294341a38009ba01a8dbb797a976588b12ba572450e3bff8008f3
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/2f/39/1a/bb441894d2052275cfdc7ac7a453b73fe139f4c9f05a6f4c76
+  Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=17140 sha256=e0b8bfabeafe7e3b649c7840edbd2829b537388e69ffdde648fb6d5d2219159f
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/46/6c/ac/4ea55153d189f7a62b3eadc4ea618d2b4be127654c01556bc9
   DEPRECATION: Building 'rescue_contracts' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_contracts'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_contracts (setup.py): started
   Building wheel for rescue_contracts (setup.py): finished with status 'done'
-  Created wheel for rescue_contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=7956 sha256=3cc749be104f72eca8f089bd37e90bffd1af5d954904656f55b008f0ff418a36
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/ca/24/1a/d64b2f2931a9de081cd2de9926b8e1e8c872bca2b94fe5a8f9
+  Created wheel for rescue_contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=7956 sha256=1cf3572d4a9d64c5a3e9f8809ea262fe50d35d5884a882f0afa909cfb86af7d8
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/38/5a/07/0f96ec006de0ee32bc4dc8cb9e96ec8f34ae9643c2b02ee5b0
   DEPRECATION: Building 'rescue_coordination' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_coordination'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_coordination (setup.py): started
   Building wheel for rescue_coordination (setup.py): finished with status 'done'
-  Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=14078 sha256=3577df611f88c8faf43aba92105e80470eade7e0812de771761ea3b19293bd91
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/1a/06/6f/0dfce1f90b4d96030d25c77b504e99b834d479b34fd1d7d7d2
+  Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=14078 sha256=61a837e7ffa7a9459cf177b34e53ff649fdfdc7b980a8cebaf34da6fa3e0923e
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/b1/09/d2/63d33d6a0cdbd592153c47bc70ac22f11395096ca657ab2c29
   DEPRECATION: Building 'rescue_mapping' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_mapping'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_mapping (setup.py): started
   Building wheel for rescue_mapping (setup.py): finished with status 'done'
-  Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13279 sha256=d4b4eb0a946df089c44ae7c5f54d7783159f51d549cb23cf7bccde993f4197c3
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/74/66/15/92e9bbd21c9e67f59f69c522e3721370c2fb1469089044ebb2
+  Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13279 sha256=e615c42a9fe9fd0af729b538814eaf7a6af40b0553e3c2d9ca67d0a48aeacb27
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/37/02/3e/16d5bb48ed8165516a7225b7b8c02352c96ad9fbb4349eef10
   DEPRECATION: Building 'rescue_operations' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_operations'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_operations (setup.py): started
   Building wheel for rescue_operations (setup.py): finished with status 'done'
-  Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=13315 sha256=d06b6ea9742aa2254a3f27aeddf880a8f6471c97efe305dc9801fdcc3eba6c9c
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/da/fe/78/e8eb540c028cf4a268bba452a6c8388091999851890e975001
+  Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=13315 sha256=3b047bc9fb88fea235807ff043a5185b2e339310cc0c862e39f10b90523642b5
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/23/20/e8/01d47b40acc8bc66c577304fd85863769fb458da18ab4eabfa
   DEPRECATION: Building 'rescue_perception' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_perception'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_perception (setup.py): started
   Building wheel for rescue_perception (setup.py): finished with status 'done'
-  Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=16252 sha256=954e31482497b6104bad0c2abb104b4a69a48d0ecdbc13474ec496cb7b1a9066
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/32/96/45/fa85887da6164c3321556badeacac992176ef6c453acebc3c7
+  Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=16252 sha256=d9a890420b64c3a5276ebdcf733cf0fea0948136609efceba96f2ce827b7f337
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/a5/60/fb/4f5c8efc46cd5831dfe0d3d296f0a9c982107e80ea15a19a0e
   DEPRECATION: Building 'rescue_robot' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'rescue_robot'. Discussion can be found at https://github.com/pypa/pip/issues/6334
   Building wheel for rescue_robot (setup.py): started
   Building wheel for rescue_robot (setup.py): finished with status 'done'
-  Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=23458 sha256=4f77d09572f539412ca3f0f653c1e8007fd39260e36ddb3be8fd147e892777ea
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lkggkx4i/wheels/56/5e/31/37f2150dd8a094a432c6494342d9b19ec82805d5ee4d3051b8
+  Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=23458 sha256=b9fe2097020029457fb312851640b183fd5f247daf36fe5e4812f1297a6de5af
+  Stored in directory: /tmp/pip-ephem-wheel-cache-8c9b3c9k/wheels/ca/e4/a1/40d24462a4e5a9c5daf59b3e885cfa28b06f0c27b071d535f6
 Successfully built rescue_bringup rescue_contracts rescue_coordination rescue_mapping rescue_operations rescue_perception rescue_robot
 + /usr/bin/python3 -m venv <TMP>/venv
 + <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
@@ -409,8 +409,8 @@ test_goal_pose_shape (test_task_goal_fields.TaskGoalFieldTests.test_goal_pose_sh
 test_kind_field_rules (test_task_goal_fields.TaskGoalFieldTests.test_kind_field_rules) ... ok
 
 ----------------------------------------------------------------------
-Ran 312 tests in 0.570s
+Ran 312 tests in 0.633s
 
 OK (skipped=1)
-WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "632d44c8354294341a38009ba01a8dbb797a976588b12ba572450e3bff8008f3", "rescue_contracts-0.0.0-py3-none-any.whl": "3cc749be104f72eca8f089bd37e90bffd1af5d954904656f55b008f0ff418a36", "rescue_coordination-0.0.0-py3-none-any.whl": "3577df611f88c8faf43aba92105e80470eade7e0812de771761ea3b19293bd91", "rescue_mapping-0.0.0-py3-none-any.whl": "d4b4eb0a946df089c44ae7c5f54d7783159f51d549cb23cf7bccde993f4197c3", "rescue_operations-0.0.0-py3-none-any.whl": "d06b6ea9742aa2254a3f27aeddf880a8f6471c97efe305dc9801fdcc3eba6c9c", "rescue_perception-0.0.0-py3-none-any.whl": "954e31482497b6104bad0c2abb104b4a69a48d0ecdbc13474ec496cb7b1a9066", "rescue_robot-0.0.0-py3-none-any.whl": "4f77d09572f539412ca3f0f653c1e8007fd39260e36ddb3be8fd147e892777ea"}
+WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "e0b8bfabeafe7e3b649c7840edbd2829b537388e69ffdde648fb6d5d2219159f", "rescue_contracts-0.0.0-py3-none-any.whl": "1cf3572d4a9d64c5a3e9f8809ea262fe50d35d5884a882f0afa909cfb86af7d8", "rescue_coordination-0.0.0-py3-none-any.whl": "61a837e7ffa7a9459cf177b34e53ff649fdfdc7b980a8cebaf34da6fa3e0923e", "rescue_mapping-0.0.0-py3-none-any.whl": "e615c42a9fe9fd0af729b538814eaf7a6af40b0553e3c2d9ca67d0a48aeacb27", "rescue_operations-0.0.0-py3-none-any.whl": "3b047bc9fb88fea235807ff043a5185b2e339310cc0c862e39f10b90523642b5", "rescue_perception-0.0.0-py3-none-any.whl": "d9a890420b64c3a5276ebdcf733cf0fea0948136609efceba96f2ce827b7f337", "rescue_robot-0.0.0-py3-none-any.whl": "b9fe2097020029457fb312851640b183fd5f247daf36fe5e4812f1297a6de5af"}
 PASS seven installed wheels, dependency check, isolated imports and nonempty tests

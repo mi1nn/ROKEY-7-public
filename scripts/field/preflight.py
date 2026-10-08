@@ -16,7 +16,7 @@ NOT_RUN, never PASSED.
     python3 -I scripts/field/preflight.py --host-config config/hosts/central.example.json
     python3 -I scripts/field/preflight.py --namespace /robot_a --json <TMP>/preflight.json
 
-Who decided: discovery rules from docs/network-discovery.md (field seat,
+Who decided: discovery rules from docs/design/network-discovery.md (field seat,
 2026-10-08); duplicate publisher rule from P4 practice L33 (2026-10-06).
 """
 import argparse
@@ -63,7 +63,7 @@ def discovery_host(value):
 
 
 def discovery_servers(value):
-    """[{server_id, host, port}] from ROS_DISCOVERY_SERVER; the slot index is the id.
+    """[{server_id, address, port}] from ROS_DISCOVERY_SERVER (#39 field names); the slot index is the id.
 
     Same host rule as discovery_host(); a missing port means DEFAULT_SERVER_PORT.
     """
@@ -82,7 +82,7 @@ def discovery_servers(value):
             port = int(port)
         except ValueError:
             port = None                               # reported as is, never guessed
-        servers.append({'server_id': server_id, 'host': host, 'port': port})
+        servers.append({'server_id': server_id, 'address': host, 'port': port})
     return servers
 
 
@@ -133,12 +133,12 @@ def check_environment(env, config):
     actual = discovery_servers(servers_env)
     if expected is None:
         checks.append(check('env.discovery_server', NOT_RUN, '기대값 없음 (호스트 설정 없음)', actual=actual))
-    elif any(is_placeholder(s.get('host')) or s.get('server_id') is None for s in expected):
+    elif any(is_placeholder(s.get('address')) or s.get('server_id') is None for s in expected):
         checks.append(check('env.discovery_server', NOT_RUN,
                             '호스트 설정이 예시 값(<...> 또는 server_id null)이라 비교하지 않음', actual=actual))
     else:
-        want = sorted((s['server_id'], s['host'], s.get('port', DEFAULT_SERVER_PORT)) for s in expected)
-        got = sorted((s['server_id'], s['host'], s['port']) for s in actual)
+        want = sorted((s['server_id'], s['address'], s.get('port', DEFAULT_SERVER_PORT)) for s in expected)
+        got = sorted((s['server_id'], s['address'], s['port']) for s in actual)
         status = PASSED if want == got else FAILED
         checks.append(check('env.discovery_server', status, f'기대 {want}, 실제 {got}', actual=actual))
 
@@ -229,9 +229,9 @@ def check_servers(env, timeout, probe=udp_probe):
         return [check('server.reach', NOT_RUN, 'ROS_DISCOVERY_SERVER 없음')]
     checks = []
     for s in servers:
-        result = probe(s['host'], s['port'], timeout) if s['port'] is not None else 'error: 포트를 읽지 못함'
+        result = probe(s['address'], s['port'], timeout) if s['port'] is not None else 'error: 포트를 읽지 못함'
         cid = f'server.{s["server_id"]}.reach'
-        where = f'{s["host"]}:{s["port"]}'
+        where = f'{s["address"]}:{s["port"]}'
         if result in ('refused', 'unreachable'):
             checks.append(check(cid, FAILED, f'{where} {result} (서버가 안 떴거나 경로 없음)', result=result))
         elif result == 'reply':
@@ -326,7 +326,7 @@ def run(env, config, namespaces, port_timeout=2.0, spin_time=5.0,
 
 
 def main(argv=None, env=None):
-    ap = argparse.ArgumentParser(description='실행 전 점검 (보고만, 아무것도 바꾸지 않음). docs/network-discovery.md')
+    ap = argparse.ArgumentParser(description='실행 전 점검 (보고만, 아무것도 바꾸지 않음). docs/design/network-discovery.md')
     ap.add_argument('--host-config', type=Path, help='config/hosts/<role>.example.json 형식의 기대값')
     ap.add_argument('--namespace', action='append', default=[], help='발행자 수를 볼 로봇 네임스페이스 (여러 번)')
     ap.add_argument('--port-timeout', type=float, default=2.0, help='서버 포트 UDP 응답 대기 (s)')
@@ -346,7 +346,7 @@ def main(argv=None, env=None):
         'role': (config or {}).get('role'),
         'host_facts': host_facts(),
         'environment': {k: env.get(k) for k in ENV_KEYS},
-        'super_client_runtime_note': 'launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/network-discovery.md)',
+        'super_client_runtime_note': 'launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/design/network-discovery.md)',
         'checks': checks,
         'exit_code': code,
     }

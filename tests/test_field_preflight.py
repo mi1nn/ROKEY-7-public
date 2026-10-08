@@ -26,8 +26,8 @@ spec.loader.exec_module(pf)
 
 CONFIG = {
     'ros': {'distro': 'jazzy', 'rmw_implementation': 'rmw_fastrtps_cpp', 'domain_id': None},
-    'discovery_servers': [{'server_id': 3, 'host': 'r3', 'port': 11811},
-                          {'server_id': 6, 'host': 'r6', 'port': 11811}],
+    'discovery_servers': [{'server_id': 3, 'address': 'r3', 'port': 11811},
+                          {'server_id': 6, 'address': 'r6', 'port': 11811}],
 }
 ENV_OK = {'ROS_DISTRO': 'jazzy', 'ROS_DISCOVERY_SERVER': ';;;r3:11811;;;r6:11811'}
 
@@ -48,16 +48,16 @@ def by_id(checks):
 class DiscoveryParse(unittest.TestCase):
     def test_slot_index_is_server_id(self):
         self.assertEqual(pf.discovery_servers(';;;r3:11811;;;r6:11811'),
-                         [{'server_id': 3, 'host': 'r3', 'port': 11811},
-                          {'server_id': 6, 'host': 'r6', 'port': 11811}])
+                         [{'server_id': 3, 'address': 'r3', 'port': 11811},
+                          {'server_id': 6, 'address': 'r6', 'port': 11811}])
 
     def test_default_port_trailing_semicolon_and_ipv6(self):
         self.assertEqual(pf.discovery_servers('h1;[::1]:11899;'),
-                         [{'server_id': 0, 'host': 'h1', 'port': 11811},
-                          {'server_id': 1, 'host': '::1', 'port': 11899}])
+                         [{'server_id': 0, 'address': 'h1', 'port': 11811},
+                          {'server_id': 1, 'address': '::1', 'port': 11899}])
 
     def test_bad_port_is_none_not_default(self):
-        self.assertEqual(pf.discovery_servers('h:abc'), [{'server_id': 0, 'host': 'h', 'port': None}])
+        self.assertEqual(pf.discovery_servers('h:abc'), [{'server_id': 0, 'address': 'h', 'port': None}])
         c = pf.check_servers({'ROS_DISCOVERY_SERVER': 'h:abc'}, 0.1, probe=lambda *a: 'reply')
         self.assertEqual(c[0]['status'], pf.NOT_RUN)
 
@@ -184,14 +184,14 @@ class HostExamples(unittest.TestCase):
     def test_examples_parse_and_hold_no_real_address(self):
         files = sorted((REPO / 'config/hosts').glob('*.example.json'))
         self.assertEqual({f.name.split('.')[0] for f in files},
-                         {'robot_control_1', 'robot_control_2', 'central', 'perception'})
+                         {'robot_control_1', 'robot_control_2', 'central', 'operations'})
         for f in files:
             d = json.loads(f.read_text())
             self.assertEqual(d['role'], f.name.split('.')[0])
             self.assertEqual(d['ros']['rmw_implementation'], 'rmw_fastrtps_cpp')
             self.assertFalse(d['ros']['super_client_runtime'])
             for s in d['discovery_servers']:
-                self.assertTrue(pf.is_placeholder(s['host']), f'{f.name}: real host in example')
+                self.assertTrue(pf.is_placeholder(s['address']), f'{f.name}: real host in example')
 
 
 class MainJson(unittest.TestCase):

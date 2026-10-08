@@ -17,7 +17,7 @@ exit=2
 --- stdout (JSON)
 {
   "tool": "scripts/field/preflight.py",
-  "started": "2026-10-08T19:44:14+09:00",
+  "started": "2026-10-08T19:48:32+09:00",
   "host_config": "config/hosts/central.example.json",
   "role": "central",
   "host_facts": {
@@ -33,7 +33,7 @@ exit=2
     "ROS_DOMAIN_ID": "63",
     "ROS_AUTOMATIC_DISCOVERY_RANGE": null
   },
-  "super_client_runtime_note": "launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/network-discovery.md)",
+  "super_client_runtime_note": "launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/design/network-discovery.md)",
   "checks": [
     {
       "id": "env.ros_distro",

@@ -7,7 +7,7 @@ and must start in a shell WITHOUT a robot server in the environment:
     ROS_DOMAIN_ID=42 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST python3 tests/ros/hosts_discovery_probe.py
 
 Every child process is started by this script in its own session and stopped by its
-process group id; nothing outside is touched. Cases (docs/network-discovery.md 3절):
+process group id; nothing outside is touched. Cases (docs/design/network-discovery.md 3절):
 
   A  server up, plain client lists the graph        -> probe topic NOT listed
   B  server up, super client lists the graph        -> listed
