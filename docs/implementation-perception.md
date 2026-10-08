@@ -94,7 +94,7 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 - `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다.
 - `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
 - `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
-- 짝짓기·설정 로직은 ROS 없이 `tests/test_perception_bag_replay.py`(4개)로 시험한다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`(4개)로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
 
 실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
 

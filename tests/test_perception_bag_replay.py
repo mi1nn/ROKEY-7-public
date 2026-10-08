@@ -1,22 +1,64 @@
-"""E2 tests for tools/perception_bag_replay.py pairing and config logic without ROS.
+"""E2 tests for rescue_perception.bag_replay (pairing and config) without ROS.
 
 Messages are SYNTHETIC plain objects with ROS field names. Reading a real rosbag2
-file needs ROS 2 and is run locally (PR evidence), not here.
+file (tools/perception_bag_replay.py) needs ROS 2 and is run locally (PR
+evidence), not here. The config mirrors tools/perception_bag_replay.synthetic.json.
 """
-import importlib.util
 import json
-from pathlib import Path
 import struct
 import tempfile
 from types import SimpleNamespace as NS
 import unittest
 
-ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("perception_bag_replay", ROOT / "tools" / "perception_bag_replay.py")
-tool = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(tool)
+from rescue_perception import bag_replay as tool
 
-CONFIG = ROOT / "tools" / "perception_bag_replay.synthetic.json"
+RAW_CONFIG = {
+    "topics": {
+        "rgb": "/synthetic/rgb",
+        "depth": "/synthetic/depth",
+        "camera_info": "/synthetic/camera_info",
+        "detections": "/synthetic/detections"
+    },
+    "binding": {
+        "source_robot": "robot_a",
+        "source_camera": "front",
+        "source_boot_id": "00000000-0000-0000-0000-000000000064",
+        "clock_domain_id": "synthetic-bag",
+        "rgb_stamp_semantics": "CAPTURE",
+        "depth_stamp_semantics": "CAPTURE",
+        "calibration_id": "synthetic-cal",
+        "clock_state": "SYNCED",
+        "clock_error_bound_ns": 10000000
+    },
+    "alignment": {
+        "evidence_id": "synthetic-alignment",
+        "calibration_id": "synthetic-cal",
+        "rgb_frame_id": "synthetic/rgb_optical",
+        "depth_frame_id": "synthetic/rgb_optical",
+        "verified": True
+    },
+    "rectified": True,
+    "model": {
+        "model_id": "synthetic-recorded-detections",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "class_labels": [
+            "person"
+        ]
+    },
+    "tracking_mode": "DETECTION_ONLY",
+    "depth_policy": {
+        "max_stamp_skew_ns": 20000000,
+        "min_depth_m": 0.5,
+        "max_depth_m": 5.0,
+        "min_valid_pixels": 2,
+        "min_valid_fraction": 0.5,
+        "max_depth_spread_m": 0.5
+    },
+    "observation_policy": {
+        "validity_ns": 2000000000
+    },
+    "observation_namespace": "6f1a7c1e-2a5b-4f0e-9a51-2d8f7f3c9b10"
+}
 SEC = 1700000000
 FRAME = "synthetic/rgb_optical"
 
@@ -46,8 +88,14 @@ def detections(nanosec, label="person"):
 
 
 class BagReplayTests(unittest.TestCase):
+    def load(self, raw):
+        with tempfile.NamedTemporaryFile("w", suffix=".json") as handle:
+            json.dump(raw, handle)
+            handle.flush()
+            return tool.load_config(handle.name)
+
     def setUp(self):
-        self.cfg = tool.load_config(CONFIG)
+        self.cfg = self.load(RAW_CONFIG)
 
     def run_records(self, records):
         return list(tool.replay_records(records, self.cfg))
@@ -78,14 +126,11 @@ class BagReplayTests(unittest.TestCase):
                          ("REJECTED", "rescue_perception.MODEL_CLASS_MISMATCH"))
 
     def test_config_is_strict(self):
-        raw = json.loads(CONFIG.read_text(encoding="utf-8"))
+        raw = RAW_CONFIG
         for broken in ({**raw, "extra": 1}, {k: v for k, v in raw.items() if k != "depth_policy"},
                        {**raw, "topics": {**raw["topics"], "imu": "/imu"}}):
-            with tempfile.NamedTemporaryFile("w", suffix=".json") as handle:
-                json.dump(broken, handle)
-                handle.flush()
-                with self.assertRaises(ValueError):
-                    tool.load_config(handle.name)
+            with self.assertRaises(ValueError):
+                self.load(broken)
 
 
 if __name__ == "__main__":
