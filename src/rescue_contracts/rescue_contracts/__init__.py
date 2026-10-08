@@ -226,6 +226,8 @@ ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
 TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'})
 TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET'})
 SITE_EVENT_KINDS = frozenset({'QUAKE_SIGN', 'EXIT_PASS'})
+STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN'})
+CLOCK_STATES = frozenset({'SYNCED', 'UNKNOWN'})
 SYSTEM_MODES = frozenset({'NORMAL', 'DISASTER', 'CLEARING'})
 RESCUE_STATES = frozenset({'NOT_CHECKED', 'RECHECK_NEEDED', 'RESCUE_CONFIRMED'})
 
@@ -256,6 +258,12 @@ class SiteEvent:
     evidence_id: str
     evidence_sha256: str
     confidence: float
+    # C-03 time basis of the camera host (same vocabulary as Observation). An event
+    # with UNKNOWN semantics/clock may be recorded but must not order decisions.
+    clock_domain_id: str
+    stamp_semantics: str
+    clock_state: str
+    clock_error_bound_ns: int | None
     detail: str = ''
 
     def __post_init__(self):
@@ -267,4 +275,15 @@ class SiteEvent:
         _require(isinstance(self.evidence_sha256, str) and re.fullmatch(r'[0-9a-f]{64}', self.evidence_sha256),
                  'evidence_sha256 must be 64 lowercase hex digits')
         _require(type(self.confidence) is float and 0.0 <= self.confidence <= 1.0, 'confidence in [0, 1]')
+        _require(isinstance(self.clock_domain_id, str) and self.clock_domain_id, 'clock_domain_id')
+        _require(self.stamp_semantics in STAMP_SEMANTICS, 'stamp_semantics')
+        _require(self.clock_state in CLOCK_STATES, 'clock_state')
+        if self.clock_error_bound_ns is not None:
+            duration_ns(self.clock_error_bound_ns)
         _require(isinstance(self.detail, str), 'detail')
+
+    @property
+    def time_basis_usable(self):
+        """True only when the stamp can order decisions against robot observations."""
+        return (self.stamp_semantics != 'UNKNOWN' and self.clock_state == 'SYNCED'
+                and self.clock_error_bound_ns is not None)
