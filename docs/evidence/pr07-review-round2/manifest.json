@@ -1,7 +1,10 @@
 {
   "pr": 7,
   "evidence": "E2 synthetic Python; E3/E4 NOT_RUN",
-  "implementation_commit": "71949918e349b98633a8eb23d671b1890fd152c9",
+  "implementation_commit": "842e885a4c3241bba98a628c0ea33a3cd4e5c853",
+  "selection": "git ls-files -z; tracked src/tests/config/scripts/.github only; no build or egg-info artifacts",
+  "review_base": "fc21a1d1b27b635a0ba218abde5dc97011d4fde0",
+  "review_head_before_evidence_commit": "842e885a4c3241bba98a628c0ea33a3cd4e5c853",
   "python": "Python 3.11.8",
   "commands": [
     {
@@ -13,11 +16,11 @@
       "exit_code": 0
     },
     {
-      "command": "git diff --check",
+      "command": "git diff --check fc21a1d1b27b635a0ba218abde5dc97011d4fde0..842e885a4c3241bba98a628c0ea33a3cd4e5c853",
       "exit_code": 0
     }
   ],
-  "log_normalization": "Traceback paths normalized to repository-relative paths; raw captures kept in local review workspace.",
+  "log_normalization": "Traceback paths normalized to repository-relative paths; trailing whitespace removed; raw captures kept in local review workspace.",
   "files": {
     ".github/pull_request_template.md": "417175d1939d3e16486a2287ea87b54ad9ea3621f0e30e6c598877bcb71c1d5e",
     ".github/workflows/docs.yml": "79bc706e0ab975ebf2cf1acedf1156dbef29f859d691641f63856447feb8fcba",
@@ -37,9 +40,8 @@
     "src/rescue_bringup/setup.cfg": "86ef3e5c52d808baa9fdbb350853e88d7749352999f6730ab976445a96ad5db2",
     "src/rescue_bringup/setup.py": "251a633365a9a163efd3b8d36c9a08030baabca7b02115e8a589c36aa4e17f6d",
     "src/rescue_contracts/README.md": "506d98ce5e668b66120f5ade6adcf55ecabcd7e7676acbceec286205414f4b56",
-    "src/rescue_contracts/build/lib/rescue_contracts/__init__.py": "afed074bdd6a76b2eb3e901f3e32ebf9d8aaf6bd843913b92bc977fc2a993388",
     "src/rescue_contracts/package.xml": "25c5ab12818665204a6ce29d2606d936e9038add8329ad1a8a74b691651d19d1",
-    "src/rescue_contracts/rescue_contracts/__init__.py": "98c1dba23ae2d292a79558003bc25fe996d1326b2c996166e34eb7fd8b3c285e",
+    "src/rescue_contracts/rescue_contracts/__init__.py": "1547e87cca63afc5da042869662f504bf5350ccff98121d3497c20ead086448f",
     "src/rescue_contracts/resource/rescue_contracts": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "src/rescue_contracts/setup.cfg": "ff9bb4c0315ed33e4f116faa3753c6c3f0213a04ae65bf544f96807cf804339b",
     "src/rescue_contracts/setup.py": "39137130312b38c295d433110e7fe7664e95acea645966ad169854ae9aaad42b",
@@ -86,6 +88,6 @@
     "tests/test_mapping_time_contract.py": "6e122bd0ff536631d55cc9136e4b4dc4da823124f94653b181e7735b8385a3e5",
     "tests/test_perception.py": "ace2d39c9bc4638d826cbc15147c68a18efcf7752901b2f9b7554e6fa7454a2c",
     "tests/test_profile.py": "a40c1716c5015f07335176ebaf8430b9c8bd2b280ce5a565df536a5120bc442c",
-    "tests/test_review_mapping.py": "4dfe2ff769e46d3cfb4adae91cdc68e3925a0ebc764f8a64fee1d51d0af4a678"
+    "tests/test_review_mapping.py": "a9f9952783a2ff2ebdd4c280fc53709ab7d3602b29777214f1a56a358625541f"
   }
 }
