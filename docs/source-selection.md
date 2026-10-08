@@ -12,15 +12,18 @@ updated: 2026-10-08
 
 위 내용은 `[제안]`이다. 이 PR은 원본 코드를 이식하거나 실행하지 않는다. 아래 `[원본 코드]` 근거는 정적 읽기이며, 위험은 해당 구현을 새 요구에 적용할 때의 추론이다. 실제 사고를 재현했거나 전체 저장소에 다른 구현이 없다는 주장이 아니다. 최종 채택과 상세 알고리즘은 계획 PR 2·3, 동작 검증은 각 이식 PR에서 수행한다.
 
+2026-10-08에 강사 예제 저장소 to_students를 세 번째 원본으로 더했다(TS-01~11). 강사 예제는 실기 실패 기록이 없는 교육용 코드라 [레슨런](lessons-learned.md)이 아니라 선별 후보로 다루며, 시험으로 바뀌는 한 가지만 LL-11로 옮겼다. `scripts/check_docs.py`의 고정 SHA·줄 범위 검사는 위 두 원본만 대상으로 하므로 to_students 링크는 작성자가 손으로 확인했다.
+
 ## 조사 기준과 범위
 
 | 저장소 | 고정한 커밋 | 추적 파일 | Python 파일 | ROS 패키지 | `test_*.py` 파일 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | [ROKEY_P4](https://github.com/jaebeom/ROKEY_P4/tree/1a2d0a9811f59a501c7597edf54c72fec8a80e26) | `1a2d0a9811f59a501c7597edf54c72fec8a80e26` | 335 | 184 | 7 | 75 |
 | [amr-mini-project](https://github.com/mi1nn/amr-mini-project/tree/ee355d0b5896ea58bccac73ce1a7857f62e96024) | `ee355d0b5896ea58bccac73ce1a7857f62e96024` | 477 | 65 | 5 | 15 |
+| [to_students](https://github.com/kimandreas/to_students/tree/ad411c4ee4dd99fa4c9e2c62d487103099918b6e) (강사 예제, 2026-10-08 추가) | `ad411c4ee4dd99fa4c9e2c62d487103099918b6e` | 79 | 44 | 0 | 0 |
 | [ROKEY-7 기준 main](https://github.com/jaebeom/ROKEY-7/tree/4f5453da4425cb80410d6b838c7df2a19d62509f) | `4f5453da4425cb80410d6b838c7df2a19d62509f` | 1 | 0 | 0 | 0 |
 
-집계는 `git ls-files -z` 기준이다. 패키지 수는 `package.xml`, 시험 파일 수는 파일 이름 기준이며 **시험 건수·통과 건수가 아니다.** 전체 파일 목록과 아래 관련 코드를 조사했으며, 모든 바이너리·그림·학습 결과를 내용까지 검증한 전수 감사는 아니다. 구조화된 집계는 [source-audit.json](evidence/source-audit.json)에 둔다.
+집계는 `git ls-files -z` 기준이다. 패키지 수는 `package.xml`, 시험 파일 수는 파일 이름 기준이며 **시험 건수·통과 건수가 아니다.** 전체 파일 목록과 아래 관련 코드를 조사했으며, 모든 바이너리·그림·학습 결과를 내용까지 검증한 전수 감사는 아니다. 구조화된 집계는 [source-audit.json](evidence/source-audit.json)에 둔다. to_students 행은 `git ls-files` 로 센 수작업 값이며 audit JSON과 검사기에는 넣지 않았다.
 
 조사에 포함한 것은 위 main 스냅샷의 추적 경로, 핵심 실행 경로, 관련 시험·설정·설계·현장 기록이다. 다른 브랜치, 모든 이슈·PR, 외부 데이터셋, 실제 설치 환경·로봇은 포함하지 않았다. P4는 비공개 저장소이므로 링크 검증자에게 원본 접근 권한이 필요하다.
 
@@ -79,6 +82,32 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 | AMR-06 Nav2 설정·복구 경험 | **원리 참고** · [nav2.yaml](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/nav2.yaml#L81-L181), [nav_recovery_fetch.sh](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/nav_recovery_fetch.sh#L59-L94) | obstacle marking/clearing·상태 진단 항목. lifecycle 관리 책임과 새 장비/버전/임계값을 정한 뒤 검증. 복구 스크립트를 자동 실행 경로로 이식하지 않음 | 2·5 |
 
 `src/*/test/`의 15개 시험 파일은 copyright·flake8·pep257 계열이며 copyright 검사는 skip 선언이다. [rokey_pjt 시험](https://github.com/mi1nn/amr-mini-project/tree/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/test)이 대표적이다. 이 범위와 핵심 코드의 `pytest|unittest|assert |def test_|launch_testing` 검색에서 추종·취소·좌표 공유의 행동 시험은 확인하지 못했다. 원본 밖의 시험·현장 경험은 미확인이다. 후보 도구도 기능 시험을 새로 갖춰야 한다.
+
+## to_students(강사 예제)에서 가져올 후보
+
+강사 저장소 `kimandreas/to_students` 의 `ad411c4` 에 고정했다(2026-10-08). Day1~5 슬라이드와 `day1`·`day2`·`day3`·`day5` 예제이며, 저장소 루트에 LICENSE 파일이 없다. 코드를 통째로 옮기지 않고 원리와 호출 순서만 가져오며, 아래 "반드시 바꿀 부분" 은 ROKEY-7 계약(관측 시각, 취소·정지 분리, 프로파일 값, 조용한 대체 금지)에 맞추기 위한 조건이다. ROKEY-7 에는 이미 P4 를 거쳐 Day2~3 의 깊이 역투영·지도 변환·YOLO 입출력이 들어와 있으므로(P4-05~07), 여기서는 [작업 묶음](work-bundles.md)의 미구현 칸을 채우는 것 위주로 골랐다.
+
+| ID / 기능 | 분류와 원본 근거 | 가져올 부분 / 반드시 바꿀 부분 | 관련 요구 / 레인 |
+| --- | --- | --- | --- |
+| TS-01 고정 카메라 2대 Flask 스트리밍 | **조건부 후보** · [2_two_camera.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/2_two_camera.py#L6-L32), [3_two_camera_box.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/3_two_camera_box.py#L27-L31) | 웹캠 2대를 각각 MJPEG 로 내보내는 구조와 프레임 위 표시. 카메라 식별은 프로파일(`site_cameras`, 작전 v2.1)에서 받고 프레임마다 관측 시각을 붙인다. `VideoCapture` 실패를 예외로 끝내지 않고 상태로 드러낸다. 디버그 서버 기본값은 운영 설정이 아니다 | UC-01(카메라 A)·UC-06(카메라 B)·FR-25 / 협업·관제, 인식 |
+| TS-02 DB 표의 웹 표시 | **원리 참고** · [9_TBL_on_Web.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/9_TBL_on_Web.py#L78-L116) | 조회→템플릿 표의 최소 구조만. 테이블은 강사 예제(`detection_table`, `violation_detected`)가 아니라 `rescue_operations` ledger 스키마를 따르고, 요청마다 DB 를 여닫는 대신 operations API 뒤에 둔다. [7_create_DB_TBL.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/7_create_DB_TBL.py#L4) 의 개인 홈 절대 경로는 가져오지 않는다 | FR-25~27 / 협업·관제 |
+| TS-03 SocketIO 프레임 push | **조건부 후보** · [socketio_two_cam.html](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/templates/socketio_two_cam.html#L14-L22) | 서버가 프레임을 밀어 주는 클라이언트. 짝이 되는 서버 코드는 저장소에 없다(`day5/*.py` 에 socketio 없음, 2026-10-08 확인). 폴링·MJPEG 로 KPI-04 를 만족하면 쓰지 않는다 | KPI-04 / 협업·관제 |
+| TS-04 YOLO 추적 ID | **원리 참고** · [Day4 슬라이드](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/Day4_new_v2.pdf) p.54 "YOLO Obj. Det. vs. YOLO Tracking" | 같은 사람을 한 번만 세는 데 track ID 를 쓴다. 중복 집계 방지(FR-19)의 책임은 인식의 카메라 B 어댑터가 지고, 통과 한 건당 `SiteEvent` 하나를 내며 track ID 는 `detail` 에 기록한다 `[제안, 작전 2026-10-08]` — 계약 필드는 늘리지 않는다. ID 끊김·재부여를 중복 방지 완료로 보지 않는다. 사람 탐지 모델 부재(Q-18)는 그대로다 | UC-06·FR-19 / 인식 |
+| TS-05 배터리 임계값 순찰·도킹 루프 | **원리 참고** · [3_1_f_patrol_loop.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L32-L34), [같은 파일 L118-L145](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L118-L145) | 대기 중 도킹·충전 뒤 다시 나가는 흐름만. 0.95/0.2/0.1 은 예시값이며 Q-14 로 정한다. 도킹 중 센서가 꺼질 수 있으므로(OI-10) 출동 가능 판정은 수신 시각으로 하고, 언도킹 시간을 출동 지연 측정에 넣는다 | UC-05·NFR-02·OI-10 / 협업·관제, 로봇·지도 |
+| TS-06 TurtleBot4Navigator 호출 순서 | **원리 참고** · [3_1_a_nav_to_pose.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_a_nav_to_pose.py#L35-L51) | `undock → setInitialPose → waitUntilNav2Active → startToPose` 라는 강사 표준 순서. `start*`·`dock`·`undock` 은 완료까지 호출자를 멈추는 도우미이므로([turtlebot4_navigator.py](https://github.com/turtlebot/turtlebot4/blob/7fd29fb420e906f3aca4a904adb54b69b11c7c00/turtlebot4_navigation/turtlebot4_navigation/turtlebot4_navigator.py#L266-L275)) 실행기는 액션 클라이언트를 비동기로 쓰고 취소·정지를 분리한다(LL-11). 고정 초기 자세 `[0, 0] NORTH` 는 승계하지 않는다 | 로봇·지도 Nav2 어댑터 |
+| TS-07 경유점 순회 | **원리 참고** · [3_1_d_create_path.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_d_create_path.py#L53), [3_1_c_follow_waypoints.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_c_follow_waypoints.py#L57) | 구역 후보를 차례로 도는 가장 단순한 기준선. `SearchCoordinator` 의 비교 기준으로만 쓴다 | F-01 수색 분담 / 협업·관제 |
+| TS-08 RGB·Depth 시각 동기화 | **원리 참고** · [3_3_d_depth_to_nav_goal_ts.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_3_d_depth_to_nav_goal_ts.py#L74-L78) | `ApproximateTimeSynchronizer` 로 두 입력의 시각을 맞추는 방식. `slop=0.1` 은 측정 뒤 [인수 계획](acceptance-plan.md)의 수치로 정하고, 시각 의미는 [계약](contracts.md)의 시각 규칙을 따른다. 허용치를 넘으면 위치 없음으로 처리한다 | 인식 입력 어댑터 |
+| TS-09 namespace 기반 토픽 이름 | **원리 참고** · [3_3_c_depth_to_nav_goal.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_3_c_depth_to_nav_goal.py#L30-L33) | 노드 namespace 로 토픽 이름을 만드는 방식. 두 로봇의 namespace 는 프로파일 값과 일치해야 하며, 토픽 존재를 통신 PASS 로 보지 않는다 | 로봇·지도, 인식 |
+| TS-10 시뮬레이션 변형 | **조건부 후보** · [3_2_c_sim_depth_to_nav_goal.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_2_c_sim_depth_to_nav_goal.py) | 실제 로봇 배정(Q-15) 전 깊이→지도→목표 흐름의 E2 확인용. 실기 증거를 대신하지 않는다 | E2→E3 / 로봇·지도, 인식 |
+| TS-11 다른 팀의 BRD·SRD·SDD 견본 | **원리 참고** · [day1/Student_Docs](https://github.com/kimandreas/to_students/tree/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day1/Student_Docs) (다중 AMR BRD, SDD 3건, SRD 5쪽 예시) | BRD v0.1 → SRD/SDD 로 갈 때 양식만 참고한다. 다른 팀 산출물이므로 본문·그림을 이 저장소에 복사하지 않는다 | 평가 산출물 / 작전 |
+
+제외한 것과 그 이유:
+
+- 로그인(`day5/4_login.py`, `5_`, `6_`): BRD 범위 밖이라 제외한다. 다만 강사의 시험·통합 계획 예시(Day5 슬라이드 p.80)는 "로그인 기능" 단위 시험으로 시작하므로, 평가 대응으로 넣을지는 사용자 결정으로 남긴다 `[미확인]`.
+- Day4 슬라이드 p.26-27 의 NVIDIA DGX·MQTT: 시스템 요구사항 예문의 문장이다. ROKEY-7 은 ROS 2 통신을 전제로 하므로 새 전송 방식을 더하지 않는다.
+- Day2 데이터 수집·이동 스크립트: P4 에서 이미 썼다(P4-05). 사람(인형) 데이터셋을 새로 만들 때만 다시 본다.
+- 고정 좌표(`[-1.55, 0.066]` 등), 개인 홈 경로, `time.sleep` 대기, 디버그 서버 기본값은 어느 후보에서도 가져오지 않는다.
+- 멀티 로봇 네트워크 설정은 Day5 슬라이드 p.54 의 Notion 캡처("Multi Robot Standard Setup", "Multi Robot Custom Discovery Setup")뿐이며 본문이 저장소에 없다. 작전의 Discovery Server 조사와 함께 별도 문서로 다룬다 `[미확인]`.
 
 ## 통째로 이식하면 안 되는 구체적 이유
 
@@ -152,7 +181,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 Claude는 전체 로직·계획, Cursor는 원본 대조·검증·수정·머지를 맡는다. 같은 base/head에서 다음을 각 역할에 맞게 확인하고, 수정 이후 재검토·머지는 [검토 지침](review-workflow.md)에 따른다.
 
 1. 선별 결론이 링크한 실제 코드와 일치하며 원본 성능을 새 성능으로 확대하지 않았는가.
-2. P4-01~11, AMR-01~06에 더 적합한 원본 구현이나 빠진 핵심 의존성·시험이 있는가.
+2. P4-01~11, AMR-01~06, TS-01~11에 더 적합한 원본 구현이나 빠진 핵심 의존성·시험이 있는가.
 3. F-01~06의 수정 조건이 충분한가. 관측 시각 TF, 수신 최신성, 액션 취소와 실제 정지를 혼동하지 않았는가.
 4. [범위의 AC-01~07](scope.md)과 [레슨런 LL-01~10](lessons-learned.md)이 새로 구현할 기능과 연결되는가.
 5. PR 2에서 결정할 디렉터리·배포·알고리즘을 PR 1에서 확정한 것처럼 쓰거나, 불필요한 기존 과제 기능을 필수로 만든 부분이 있는가.
