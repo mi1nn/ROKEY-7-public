@@ -49,6 +49,8 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 `Reservation.task_kind`가 추가됐다. `APPROACH_TARGET`·`REOBSERVE_TARGET`은 `PathCandidate`가 필수이고(기본값이 `APPROACH_TARGET`이라 기존 호출도 후보가 필요), `SEARCH_AREA`·`HOLD`만 `candidate=None`을 허용한다. 예약은 PENDING이며 후보는 접근 전용 경로 증거다. `HOLD`는 실행기 의미대로 제자리 정지 유지이며, 대기 위치로의 이동은 기반 레인 후속이다. `executor.Task`에 `search_area_ref`가 들어오기 전까지 task와 구역의 대응은 예약의 `target_id`(구역 ID)에만 있다. 실제 지도 좌표 근거·frontier·전송·두 AMR·4 PC는 미실행이다.
 
+후속(작전 검토 2026-10-08): 공통 규격 PR #17이 `main`에 들어가면 `planning.TASK_KINDS`·`TARGET_TASK_KINDS` 복제를 `rescue_contracts` import로 바꾼다(OPS-01). 프로파일 v2 `mission.search_areas`를 `MissionSite`로 옮기는 로더 함수를 둔다. PR #14가 들어가면 `task_fields`에 `search_area_ref`(SEARCH_AREA는 구역 ID)와 `goal_pose`(SEARCH_AREA는 구역 mission 좌표와 근거 session/revision, APPROACH는 후보 goal_xy와 후보 map session/revision, HOLD는 None)를 채운다.
+
 ## 출처와 변경 이유
 
 - P4 [배정기](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/dispatcher.py#L253-L276)는 배정 책임을 한 곳에 둔 원리만 참고한다. 도킹한 로봇만 선택하거나 도크와 구역의 직선거리로 비용을 계산하는 정책은 사용하지 않는다.

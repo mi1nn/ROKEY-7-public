@@ -134,7 +134,7 @@ class Decision:
 
     def __post_init__(self):
         if self.action not in ACTIONS or self.reason not in DECISION_REASONS:
-            raise ValueError('decision action/reason outside the closed set')
+            raise CoordinationError('INVALID_INPUT', 'decision action/reason outside the closed set')
 
 
 class SearchCoordinator:
