@@ -19,6 +19,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
+| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 기존 팀 BRD·실행 계약과의 차이를 명시 |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
 | [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
