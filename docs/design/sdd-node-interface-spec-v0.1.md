@@ -8,27 +8,30 @@ updated: 2026-10-09
 
 상태: **[제안, 2026-10-09] 논리 계약 초안**. 실제 `.msg/.srv/.action` 생성·컴파일 또는 ROS 연결 검증 결과가 아니다.
 
-이 문서는 채팅에서 정의한 **웹캠 1대·관리자 구간 승인 시나리오의 검토안**이다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
+이 문서는 PM 측 Codex 세션에서 정의한 **웹캠 1대·관리자 구간 승인 시나리오의 검토안**이다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
 
 ## 기존 팀 설계와의 적용 경계
 
-**이 문서 등록은 기존 팀 BRD·실행 계약의 채택 결정을 바꾸지 않는다.** 현재 팀 기준은 [범위 RQ-08·RQ-09와 Q](../requirements/scope.md), [BRD Part I](../requirements/brd-part1-v0.1.md), [계약 C-01~C-09](contracts.md), [상태 전이](state-machines.md), [네트워크 채택안](network-discovery.md)이다. 아래 차이는 단일 웹캠 시연을 검토하기 위한 별도 제안이며, 기존 Python 계약에 바로 넣을 수 있는 호환 타입이라고 주장하지 않는다.
+**이 문서 등록은 기존 팀 BRD·실행 계약의 채택 결정을 바꾸지 않는다.** 이 PR의 base `d03b6c8`에 머지된 팀 문서 기준은 [범위 RQ-08·RQ-09와 Q](../requirements/scope.md), [BRD Part I](../requirements/brd-part1-v0.1.md), [계약 C-01~C-09](contracts.md), [상태 전이](state-machines.md), [네트워크 채택안](network-discovery.md)이다. 아래 차이는 단일 웹캠 시연을 검토하기 위한 별도 제안이며, 기존 Python 계약에 바로 넣을 수 있는 호환 타입이라고 주장하지 않는다.
 
-| 항목 | 현재 저장소 기준 | 이 v0.1의 검토안 | 채택 전 필요한 작업 |
+| 항목 | 기존 문서·Phase 1 배치안 | 이 v0.1의 검토안 | 채택 전 필요한 작업 |
 | --- | --- | --- | --- |
-| 고정 카메라·구출 조건 | 카메라 A 재난 징후 + B 출구 카운트 + AMR1 재관측, 부재만으로 완료 금지(Q-10·Q-15) | 구조 지점을 계속 촬영하는 웹캠 하나의 소실 후보 + fresh AMR1 관측. 사람 이송을 증명하지 않는 **시연 판정** | scope·SiteEvent·완료 상태/정책·인수 시험 동시 개정. 기존 출구 카운트 계약은 그대로 유지 |
+| 고정 카메라·구출 조건 | 카메라 A 재난 징후 + B 출구 카운트 + AMR1 재관측, 부재만으로 완료 금지(Q-10·Q-15) | 구조 지점을 계속 촬영하는 웹캠 하나의 소실 후보 + fresh AMR1 관측. 사람 이송을 증명하지 않는 **시연 판정** | 카메라 1대 결정에 맞춘 scope·SiteEvent·완료 상태/정책·인수 시험 개정은 소유자의 SoT PR과 연결. 이 PR은 기존 실행 코드를 직접 바꾸지 않음 |
 | AMR2 출동·이동 | 자동 출동을 기본 후보로 두고 승인 버튼은 선택(Q-12), 기존 task kind 집합(C-06) | 관리자 출동 승인 + `MOVE_SEGMENT`마다 “계속” 승인, `RETURN_HOME` 추가 | 명령/승인·TaskResult·상태 전이·프로파일 및 실행기/관제 소비자 개정 |
 | 중앙 배치 | 로봇 담당 PC 둘 + coordination/operations 분리 후보 | PC3 웹캠, PC4 coordination·operations·웹·DB 동거 | 4-PC 부하·장애 검증과 프로파일 개정. PC1~4는 도면의 논리 배치이며 실제 호스트 이름이 아님 |
 | Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 온보드/오프보드 연결·서버 목록·고유 ID를 별도 결정. 이 도면으로 네트워크 채택안을 덮어쓰지 않음. domain ID만으로 격리된다고 가정하지 않음 |
+| watchdog 위치 | 로봇 담당 PC에서 실행하는 Phase 1 방향([#35 OPS-17 결정](https://github.com/jaebeom/ROKEY-7/pull/35#issuecomment-6058147235)) | 도면의 AMR1·AMR2 온보드 watchdog(`PROPOSED_NOT_INSTALLED`) | 온보드 배치는 채택·설치 검증이 필요한 별도 제안. PC↔로봇 링크 단절을 처리하는 Create 3 timeout은 실측 전이며 TR-11·T-05에서 확인. 도면으로 Phase 1 배치 결정을 변경하지 않음 |
 | ROS 타입·HTTP | C-08의 토픽/API 제안과 현재 Python DTO 의미 | 필드·서비스·액션·HTTP 경로의 상세 초안 | IDL 생성/컴파일, Python DTO 변환과 인증·배선·QoS 검증. 경로 이름을 곧바로 실제 서버의 주소로 사용하지 않음 |
 
-사용자 지시 기록(2026-10-09): “해당 인터페이스 명세에 대한 내용이 https://github.com/jaebeom/ROKEY-7/tree/main 여기에 없다면 PR 넣어줘.” 적용 범위는 명세의 저장소 등록·PR 검토이며, Q-10·Q-12·Q-15·Q-22의 채택이나 실기 실행 승인이 아니다. 앞선 시나리오 대화의 직접 확인 원문은 “인형이 보이는 구조 지점을 계속 촬영”이고, PC별 배치 요청 원문은 “PC1에 AMR1에 대한 내용이 있고, PC2에 AMR2가 있고, PC3에 CAM, PC4에 웹”이다(이 세션의 기록일 2026-10-09).
+[검토 기록, 2026-10-09] [OPS-20 ② 갱신](https://github.com/jaebeom/ROKEY-7/pull/44#issuecomment-6078811090)은 카메라 1대 사용이 저장소 소유자 확인으로 결정됐고, 카메라 B·`EXIT_PASS`·출구 카운트 상한을 제외해 소실 후보를 재확인 트리거로 사용한다고 기록한다. 그 결정의 팀 범위 SoT는 저장소 소유자의 별도 PR에서 관리한다. 위 표의 카메라 A+B는 이 PR base 문서의 비교 기준이며 카메라 대수를 다시 결정 대기에 둔다는 뜻이 아니다. 이 PR의 [Q-25](../requirements/scope.md)는 승인 관문 3곳과 통로 판정 범위로 한정한다.
+
+PM 측 Codex 세션의 문서 등록 요청(2026-10-09): “해당 인터페이스 명세에 대한 내용이 https://github.com/jaebeom/ROKEY-7/tree/main 여기에 없다면 PR 넣어줘.” 적용 범위는 명세의 저장소 등록·PR 검토이며, Q-10·Q-12·Q-15·Q-22의 채택이나 실기 실행 승인이 아니다. 앞선 PM 측 세션의 시나리오 확인 원문은 “인형이 보이는 구조 지점을 계속 촬영”이고, PC별 배치 요청 원문은 “PC1에 AMR1에 대한 내용이 있고, PC2에 AMR2가 있고, PC3에 CAM, PC4에 웹”이다(이 세션의 기록일 2026-10-09).
 
 ## 적용 시나리오와 현재 증거
 
-- [사용자 요구, 2026-10-09] PC1=AMR1 정찰·재확인, PC2=AMR2 구급상자·구간 이동, PC3=웹캠 1대, PC4=웹·API·DB·임무 조정·Discovery. 실제 호스트 이름/IP/로봇 ID는 profile로 대응한다.
-- [사용자 확인, 2026-10-09] 고정 웹캠은 인형이 보이는 구조 지점을 계속 촬영한다. 인형 소실은 완료 후보이며 가림·stream failure는 UNKNOWN.
-- [사용자 요구] AMR2는 운영자 출동 승인 후 정지점 한 구간씩 저속 이동하고, 매번 “계속”으로 다음 구간을 승인한다. 사람 다리 추종은 이번 계약에 넣지 않는다.
+- [PM 요구, 2026-10-09] PC1=AMR1 정찰·재확인, PC2=AMR2 구급상자·구간 이동, PC3=웹캠 1대, PC4=웹·API·DB·임무 조정·Discovery. 실제 호스트 이름/IP/로봇 ID는 profile로 대응한다.
+- [PM 요구, 2026-10-09] 고정 웹캠은 인형이 보이는 구조 지점을 계속 촬영한다. 인형 소실은 완료 후보이며 가림·stream failure는 UNKNOWN.
+- [PM 요구, 2026-10-09] AMR2는 운영자 출동 승인 후 정지점 한 구간씩 저속 이동하고, 매번 “계속”으로 다음 구간을 승인한다. 사람 다리 추종은 이번 계약에 넣지 않는다.
 - [문서 확인, 2026-10-09] 확인 기준은 `origin/main` SHA `d03b6c8d70db49e098818b4d8463b22c258d9065`. `git ls-tree -r --name-only origin/main docs`와 `git grep -n -E 'SubmitOperatorCommand|SetCameraWatch|EvaluatePassage|MOVE_SEGMENT|ABSENT_CANDIDATE|PrepareMapping|ExecuteTask|sdd-node|rokey7-sdd' origin/main -- docs README.md`로 검사했다. 기존 ExecuteTask/RequestStop 의미는 contracts에 있으나, 이 상세 명세·JSON·CSV·draw.io는 해당 main의 docs에 없었다. 이 검색은 런타임 구현 유무나 열린 PR의 구현 완료를 판정하지 않는다.
 - [기존 계약] 명령 소유·원 관측 시각·좌표 revision·실제 정지·영속 receipt 원칙은 유지한다. 새 타입과 완료/승인 시나리오의 차이는 위 적용 경계 및 아래 확장 목록을 따른다. 저장소 실행 코드·실물 설정은 변경하지 않는다.
 
