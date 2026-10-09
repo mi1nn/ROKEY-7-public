@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-09",
+  "level": "E1",
+  "status": "PASSED",
+  "base_sha": "d03b6c8d70db49e098818b4d8463b22c258d9065",
+  "logical_nodes": 44,
+  "interface_groups": 86,
+  "directed_relationships": 255,
+  "kinds": {
+    "TOPIC": 52,
+    "SERVICE": 8,
+    "ACTION": 15,
+    "LOCAL_CALL": 5,
+    "HTTP": 5,
+    "DISCOVERY": 1
+  },
+  "message_structures": 29,
+  "custom_services": 5,
+  "custom_actions": 5,
+  "pages": [
+    "01 하드웨어·노드 전체도",
+    "02 PC1 센서·지도",
+    "03 PC1 명령·주행",
+    "04 PC2 센서·지도",
+    "05 PC2 명령·주행",
+    "06 PC3 CAM·지진·소실",
+    "07 PC4 좌표·상태·수신확인",
+    "08 PC4 웹·DB·HTTP",
+    "09 DDS 발견·데이터 경계"
+  ],
+  "checks": [
+    "unique_ids_and_node_references",
+    "single_service_action_server",
+    "json_csv_all_fields_and_relationships_equal",
+    "markdown_interface_rows_equal_json",
+    "drawio_xml_cell_references_valid",
+    "drawio_relationships_equal_json_csv",
+    "nav2_project_goal_caller_executor_only",
+    "db_writer_operations_only",
+    "drawio_bytes_equal_previously_gui_checked_artifact",
+    "no_personal_absolute_paths"
+  ],
+  "sha256": {
+    "README.md": "332009c84db17516d28abf8b0c25090355b220083dec95eab4609c32bbca096e",
+    "docs/requirements/scope.md": "72184885fc74f5e4b20a4409faf32f2c21e751ecd79a16ffdfd3820d1e11f964",
+    "docs/design/sdd-node-interface-spec-v0.1.md": "4fa14f058c92fc405f874ede4e60be829d242d35d3e3f4ab42a71b7df8858e53",
+    "docs/design/sdd-node-contracts-v0.1.json": "1536f77b0de8c5f998cac7543592648d2fbe2870f45dc05307cfe9b4ce4e731a",
+    "docs/design/sdd-node-connections-v0.1.csv": "e2bcdd4c1cba0c1c72ca240ea78e32a8a04da55c468415b9bdb18a056b38eb1e",
+    "docs/design/rokey7-sdd.drawio": "23ca418f1cfb2b3f82e64ad2f57c07c3160cefde3c739a5e4fe85b3a8ad7fc84"
+  },
+  "prior_drawio_gui_check": {
+    "date": "2026-10-09",
+    "same_diagram_sha256": "23ca418f1cfb2b3f82e64ad2f57c07c3160cefde3c739a5e4fe85b3a8ad7fc84",
+    "scope": "Prior task GUI check of all pages; no GUI rerun in this documentation PR."
+  },
+  "NOT_RUN": [
+    "ROS_IDL_BUILD",
+    "ROS_GRAPH_QOS",
+    "RGBD_TF_CALIBRATION",
+    "ROBOT_STOP_MOTION",
+    "TWO_AMR_FOUR_PC_PHYSICAL_TEST"
+  ]
+}
