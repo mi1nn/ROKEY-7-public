@@ -25,7 +25,11 @@ class SiteContractTests(unittest.TestCase):
         self.assertEqual({"DISASTER_SIGN", "EXIT_PASS"}, set(SITE_EVENT_KINDS))
         self.assertEqual({"NORMAL", "DISASTER", "CLEARING"}, set(SYSTEM_MODES))
         self.assertEqual({"NOT_CHECKED", "RECHECK_NEEDED", "RESCUE_CONFIRMED"}, set(RESCUE_STATES))
-        self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD"}, set(TASK_KINDS))
+        self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD", "MOVE_SEGMENT", "RETURN_HOME"},
+                         set(TASK_KINDS))
+        # MOVE_SEGMENT moves AMR2 one approved segment toward a target: it needs path evidence like
+        # APPROACH_TARGET. RETURN_HOME goes to the profile home pose and carries no target.
+        self.assertEqual({"REOBSERVE_TARGET", "APPROACH_TARGET", "MOVE_SEGMENT"}, set(TARGET_TASK_KINDS))
         self.assertTrue(TARGET_TASK_KINDS < TASK_KINDS)
         from rescue_contracts import CANONICAL_CODES
         for vocabulary in (ROBOT_ROLES, SITE_EVENT_KINDS, SYSTEM_MODES, RESCUE_STATES, TASK_KINDS):
