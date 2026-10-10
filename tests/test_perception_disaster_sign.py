@@ -197,6 +197,18 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual({r.reason for r in results[5:]}, {"PARTIAL_MOTION"})
         self.assertEqual(self.events(results), [])
 
+    def test_hand_over_most_of_the_view_in_every_quadrant_is_not_shaking(self):
+        # 손이 화면의 10/16 칸을 덮고(네 사분면 모두에 걸침) 왔다 갔다 함(2026-10-10 녹화 재생에서
+        # 지진 사건 1). 보이는 원래 장면은 멈춰 있으므로 흔들림이 아니다.
+        # 손 무늬로는 장면과 무관한 먼 곳의 무늬(scene(ox=200))를 쓴다.
+        mask = lambda x, y: 13 <= x < 35 or (x < 13 and y < 24)
+        frames = still(0, 3) + [(300 + k * 100, [[scene(ox=200 + 2 * (k % 2), oy=200)[y][x] if mask(x, y)
+                                                  else scene()[y][x] for x in range(48)] for y in range(48)])
+                                for k in range(10)]
+        results = self.run_frames(self.detector(), frames)
+        self.assertEqual(max(r.reversals for r in results), 0)
+        self.assertEqual(self.events(results), [])
+
     def test_hand_pausing_briefly_does_not_become_the_scene(self):
         # 손이 렌즈 앞에서 잠깐 멈췄다가 다시 움직임: 잠깐 멈춘 손 화면을 기준 장면으로
         # 삼으면 그다음 손 움직임을 흔들림으로 센다(합성 영상 재생에서 발견, 2026-10-10).
