@@ -105,7 +105,8 @@ class DisasterSignTests(unittest.TestCase):
         # 창을 오른쪽 2칸, 위로 1칸 옮기면 (dx, dy) = (2, -1): 카메라가 움직인 방향
         results = self.run_frames(self.detector(), [(0, scene()), (100, scene(ox=10, oy=7))])
         self.assertEqual(results[1].shift, (2, -1))
-        self.assertEqual((results[1].textured_ratio, results[1].matched_ratio), (1.0, 1.0))
+        self.assertEqual((results[1].textured_ratio, results[1].matched_ratio, results[1].visible_ratio),
+                         (1.0, 1.0, 1.0))
 
     def test_whole_view_shake_emits_one_event_with_exact_stamp(self):
         results = self.run_frames(self.detector(), shake(0, 8))

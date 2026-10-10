@@ -351,20 +351,22 @@ class DisasterSignDetector:
             self._still_since = None  # 멈춤이 끊겼다
         if shift is None:
             return self._judge(frame, evidence_sha256, "PARTIAL_MOTION", None, textured_ratio, matched_ratio,
-                               force_false=True)
+                               visible_ratio, force_false=True)
         if math.hypot(*shift) < self.policy.shift_min:
             self._still_since = stamp if self._still_since is None else self._still_since
             if not self._reversal_ns and stamp - self._still_since >= self.policy.window_ns:
                 # 흔들림 없이 시간 창 이상 멈춰 있을 때만 기준 장면을 새로 고친다(조명·배치 변화 반영).
                 # 잠깐 멈춘 손을 기준 장면으로 삼지 않기 위해서다.
                 self._ref_grid = grid
-            return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio)
+            return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio,
+                               visible_ratio)
         if self._last_dir is not None and shift[0] * self._last_dir[0] + shift[1] * self._last_dir[1] < 0:
             self._reversal_ns.append(stamp)  # 직전 방향과 반대: 방향 전환 1회
         self._last_dir = shift
-        return self._judge(frame, evidence_sha256, None, shift, textured_ratio, matched_ratio)
+        return self._judge(frame, evidence_sha256, None, shift, textured_ratio, matched_ratio, visible_ratio)
 
-    def _judge(self, frame, evidence_sha256, reason, shift, textured_ratio, matched_ratio, force_false=False):
+    def _judge(self, frame, evidence_sha256, reason, shift, textured_ratio, matched_ratio, visible_ratio=None,
+               force_false=False):
         """조건을 정하고 hold/release 로 사건을 낼지 정한다(#33 과 같은 규칙)."""
         stamp, p = frame.observed_at_ns, self.policy
         reversals = len(self._reversal_ns)
@@ -381,7 +383,8 @@ class DisasterSignDetector:
             self._false_since = stamp if self._false_since is None else self._false_since
             if not self._armed and stamp - self._false_since >= p.release_ns:
                 self._armed = True
-        return SignFrame("PROCESSED", reason, shift, reversals, condition, event, textured_ratio, matched_ratio)
+        return SignFrame("PROCESSED", reason, shift, reversals, condition, event, textured_ratio, matched_ratio,
+                         visible_ratio)
 
     def _event(self, frame, evidence_sha256, shift, reversals):
         p, stamp = self.policy, frame.observed_at_ns
