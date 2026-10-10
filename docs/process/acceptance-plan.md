@@ -140,6 +140,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 | 협업·관제(Claude) | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장(DB 스키마·운영 장부 소유) | task/target 상태·통로·인계·재시작·명령 경합·구출 완료 판정·UI 가 읽을 API 의 일치. `cmd_vel`·Nav2 직접 호출 없음 |
 | 관제·화면(Claude) | `rescue_console`(관제 화면: 지도·로봇·사람 좌표·구조 상태·출구 카운트 표시, 운영자 명령 전달) | 표시 값과 장부의 1:1, 표시 지연(KPI-04), 명령 버튼이 API 밖으로 아무것도 보내지 않음. DB 쓰기·ROS 직접 구독 없음 |
 | 실기·배포(Claude) | `rescue_bringup/launch/`, `config/hosts/`, `scripts/field/`, `tests/ros/hosts_*`, `field-runbook.md`, `network-discovery.md` | PC 환경·디스커버리·설치 점검(preflight), launch 파라미터, 4-PC 기동 탐침(AC-01), 현장 점검 목록. 로봇을 움직이지 않음 |
+| 웹마스터(Claude) | 운영 PC(PC4 역할) 로컬 환경 운영: Discovery Server·관제 웹·DB 파일의 서비스 등록과 운영 절차, `docs/process/ops-host-record.md`. 코드 소유 없음 | 운영 PC 현황의 측정·기록(E1), 서비스 등록 전후 해시·되돌리기 기록(등급 4 절차). 로봇 설정은 읽기만 |
 | 검증·수정·머지(Cursor) | — | head 독립 검증(`CUR-nn`), 작은 수정, merge commit |
 | 딥검증(아스트라) | — | 사용자가 부를 때만. 계약 PR 의 두 번째 독립 검토 |
 | 작성·최종검토(Codex) | — | 계획 PR 1 ~ 10 작성·최종 검토를 마침(2026-10-08). 이후 묶음에서는 호출하지 않음 |

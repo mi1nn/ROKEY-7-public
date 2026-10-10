@@ -30,6 +30,7 @@
 | 협업·관제 | `src/rescue_coordination/`, `src/rescue_operations/` | `cmd_vel`·Nav2 액션을 직접 부르지 않는다. DB 스키마·운영 장부·operations API 의 소유자 |
 | 관제·화면 | `src/rescue_console/`, `tests/test_console_*.py` | 장부·API 를 읽어 보여 주고 명령은 API 로 전달만 한다. DB 쓰기·ROS 직접 구독·로봇 명령 없음. 현장 정지 수단을 웹 연결에만 의존시키지 않는다(2026-10-08 추가) |
 | 실기·배포 | `src/rescue_bringup/launch/`, `config/hosts/`, `scripts/field/`, `tests/ros/hosts_*.py`, `docs/process/field-runbook.md`, `docs/design/network-discovery.md` | PC 쪽 실기 준비(디스커버리·설치 점검·launch·런북). 로봇을 움직이지 않고 로봇 Pi 를 바꾸지 않는다. 로봇·PC 설정 변경은 등급 4 절차(2026-10-08 추가) |
+| 웹마스터 | `docs/process/ops-host-record.md`(운영 PC 현황 기록). 운영 PC(PC4 역할) 의 로컬 환경: 서비스 등록·DB 파일 위치·서버 운영 절차 | 2026-10-10 추가. 코드·설정 레인은 없다(코드는 관제·화면/협업·관제 PR 로). 로봇·PC 설정 변경은 등급 4(백업·해시·되돌리기·사용자 승인) |
 
 - 위 표는 경로 요약이다. 담당은 A-07 표가 기준이고 사람 이름은 팀이 정해 그 표를 갱신한다 [미정, 2026-10-08]. 둘이 어긋나면 A-07 이 이긴다. 2026-10-08 부터 네 레인을 Claude 세션 네 개(작전·총괄 = 통합/계약, 로봇·지도 = 기반, 인식, 협업·관제)가 맡고, 공통 schema/profile 계약(`src/rescue_bringup/profile.py`·`config/` 스키마)은 기반 경로에 있어도 작전이 바꾼다. `docs/implementation-<패키지>.md` 는 그 패키지 레인의 문서다. 검토 흐름은 [docs/process/review-workflow.md](docs/process/review-workflow.md) 「2026-10-08 이후」 절.
 - 남의 레인 파일이 필요하면 직접 고치지 않는다. → **대신** 자기 PR 본문 「미결정·후속」에 **어느 파일 몇 번째 줄을 왜** 바꿔야 하는지 적고, 담당이 바꾼다.
