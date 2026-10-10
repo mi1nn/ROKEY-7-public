@@ -1,4 +1,5 @@
-"""Run the console: python -m rescue_console LEDGER --accounts ACCOUNTS [--status FIXTURE] [--port N].
+"""Run the console: python -m rescue_console LEDGER --accounts ACCOUNTS
+[--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--port N].
 
 The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
 accounts file is created once with `python -m rescue_console.accounts init`.
@@ -8,7 +9,7 @@ import argparse
 import os
 import sys
 
-from .app import create_app
+from .app import create_app, parse_camera
 from .view import ConsoleError
 
 
@@ -16,7 +17,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('ledger', help='operations ledger SQLite file (opened read-only)')
     parser.add_argument('--accounts', required=True, help='console accounts SQLite file (rescue_console.accounts init)')
-    parser.add_argument('--status', help='status fixture JSON in the operations read API shapes')
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument('--site-state', help='operations site-state SQLite file (opened read-only)')
+    source.add_argument('--status', help='status fixture JSON in the operations read API shapes (E2 without operations)')
+    parser.add_argument('--camera', action='append', default=[], metavar='ID=URL',
+                        help='camera MJPEG stream shown on the page, e.g. cam_a=http://<camera host>:<port>/stream')
     parser.add_argument('--secret-env', default='RESCUE_CONSOLE_SECRET',
                         help='environment variable holding the session secret (>= 16 chars)')
     parser.add_argument('--host', default='127.0.0.1',
@@ -27,7 +32,9 @@ def main(argv=None):
         secret = os.environ.get(args.secret_env)
         if not secret:
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
-        app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret)
+        cameras = [parse_camera(text) for text in args.camera]
+        app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
+                         site_state_path=args.site_state, cameras=cameras)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2

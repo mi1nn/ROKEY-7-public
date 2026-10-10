@@ -11,15 +11,27 @@ import time
 
 from .accounts import AccountStore
 from .render import render_accounts, render_fragment, render_login, render_page
-from .sources import load_ledger, load_status
+from .sources import load_ledger, load_site_state, load_status
 from .view import ConsoleError, build_view
 
 
-def current_view(ledger_path, status_path, clock=time.time_ns):
-    return build_view(load_ledger(ledger_path), load_status(status_path), built_at_ns=clock())
+def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None):
+    """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
+    if site_state_path is not None and status_path is not None:
+        raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
+    status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
+    return build_view(load_ledger(ledger_path), status, built_at_ns=clock())
 
 
-def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
+def parse_camera(text):
+    """'cam_a=http://host:port/path' -> ('cam_a', url). Only http(s); nothing is guessed."""
+    camera_id, sep, url = text.partition('=')
+    if not sep or not camera_id or not url.startswith(('http://', 'https://')):
+        raise ConsoleError('INVALID_INPUT', f'camera must be ID=http(s)://... : {text!r}')
+    return camera_id, url
+
+
+def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=()):
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -27,13 +39,16 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
                            'Flask is required for the web console: python3 -m pip install flask') from exc
     if not isinstance(secret_key, str) or len(secret_key) < 16:
         raise ConsoleError('CONFIG_MISSING', 'secret_key (>= 16 chars) is required to sign login sessions')
+    if site_state_path is not None and status_path is not None:
+        raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
+    cameras = tuple(cameras)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     app = Flask(__name__)
     app.secret_key = secret_key
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
 
     def view():
-        return current_view(ledger_path, status_path)
+        return current_view(ledger_path, status_path, site_state_path=site_state_path)
 
     def user():
         """The account behind this session, or None.
@@ -117,7 +132,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
     @app.get('/')
     @login_required
     def page(account):
-        return Response(render_page(view(), account, csrf=csrf_token()), mimetype='text/html')
+        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras), mimetype='text/html')
 
     @app.get('/fragment')
     @login_required

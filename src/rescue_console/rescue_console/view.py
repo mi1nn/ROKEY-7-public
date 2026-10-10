@@ -41,6 +41,15 @@ COMMAND_DISABLED_REASON = 'Q-22 안전 관문 결정 전 — 명령 전송 미�
 # Row cap for the event table; older rows stay in the ledger ([제안] 관제·화면, 2026-10-08).
 EVENT_ROWS = 50
 
+# A robot row whose last status reached operations longer ago than this is marked stale
+# ([제안] 관제·화면, 2026-10-10). Display only, not readiness (C-05); replace with the profile's
+# readiness max_age_s once profile v2.1 (#39) is on main.
+STATUS_STALE_S = 5.0
+
+# Mission mode shown in the badge. Until site_state 1.1 adds `mission_state`
+# (console-and-db-plan 3절), the mode is inferred from the site events alone.
+MODES = {'NORMAL': '평시', 'DISASTER': '재난'}
+
 
 class ConsoleError(ValueError):
     """Console input or setup failure with a stable code.
@@ -167,10 +176,11 @@ def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
             rows.append({'robot_id': rid, 'has_status': False, 'role': None, 'pose': None,
                          'motion_state': None, 'readiness': None, 'battery_percent': None,
                          'battery_age_s': None, 'active_task_id': None, 'stamp_ns': None, 'age_s': None,
-                         'received_age_s': None})
+                         'received_age_s': None, 'stale': True})
             continue
         stamp, battery_stamp = status.get('stamp_ns'), status.get('battery_stamp_ns')
         received = status.get('received_at_ns')
+        received_age = None if received is None else (built_at_ns - received) / 1e9
         rows.append({
             'robot_id': rid,
             'has_status': True,
@@ -185,7 +195,8 @@ def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
             'stamp_ns': stamp,
             'age_s': None if stamp is None else (built_at_ns - stamp) / 1e9,
             # Ledger-clock age: still meaningful when a rebooted robot's clock went backwards.
-            'received_age_s': None if received is None else (built_at_ns - received) / 1e9,
+            'received_age_s': received_age,
+            'stale': received_age is None or received_age > STATUS_STALE_S,
         })
     return rows
 
@@ -229,6 +240,19 @@ def _events(ledger, site_events):
     return rows[:EVENT_ROWS], len(rows)
 
 
+def _mission(site_events):
+    """Badge input inferred from DISASTER_SIGN events; None means site events are not available."""
+    if site_events is None:
+        return {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None,
+                'trigger_ns': None, 'sign_count': 0}
+    signs = sorted((e for e in site_events if e.kind == 'DISASTER_SIGN'),
+                   key=lambda e: (e.observed_at_ns, e.event_id))
+    mode = 'DISASTER' if signs else 'NORMAL'
+    return {'mode': mode, 'label': MODES[mode], 'source': 'site_events',
+            'trigger_event_id': signs[0].event_id if signs else None,
+            'trigger_ns': signs[0].observed_at_ns if signs else None, 'sign_count': len(signs)}
+
+
 def build_view(ledger, status, *, built_at_ns):
     """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states'},
     each the matching operations read API result (or None when not available yet)."""
@@ -248,19 +272,19 @@ def build_view(ledger, status, *, built_at_ns):
         target_states[state['target_id']] = state
     targets = _targets(ledger, target_states)
     site_events = [] if site_section is None else _site_events(site_section['site_events'])
-    # The count comes from the read API (same number the rescue verdict uses); never recounted here.
+    # Kept in the API model, not drawn: with one fixed camera there is no EXIT_PASS producer and the
+    # count stays 0 (2026-10-09 decision; console-and-db-plan 3절, db-schema 2절). The 3.5.5
+    # "rescued <= exit count" warning went with it; the rescue trigger is the camera's candidate event.
     exit_count = None if site_section is None else site_section['exit_pass_count']
     _require(exit_count is None or (type(exit_count) is int and exit_count >= 0), 'exit_pass_count')
     stage_counts = {stage: 0 for stage in STAGES}
     for row in targets:
         stage_counts[row['stage']] += 1
-    # Part I 3.5.5: rescued targets must never exceed the cumulative exit count. Shown, not enforced.
-    if exit_count is not None and stage_counts['RESCUED'] > exit_count:
-        warnings.append(f"구출 완료 {stage_counts['RESCUED']} 건이 출구 누적 {exit_count} 명보다 많음 (3.5.5 위반)")
     events, event_total = _events(ledger, site_events)
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': ledger['evidence_policy'],
+        'mission': _mission(None if site_section is None else site_events),
         'robots': _robots(allowed, [] if robot_section is None else robot_section['robots'],
                           built_at_ns, warnings),
         'targets': targets,
