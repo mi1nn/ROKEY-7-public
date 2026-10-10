@@ -121,6 +121,12 @@ tr.missing td{color:#999}
 .stage.unconfirmed{background:#eee}.stage.not_rescued{background:#fdd}
 .stage.supporting{background:#ffd}.stage.rescued{background:#dfd}
 #warnings{color:#a00}#commands button{margin-right:6px}
+header.user{display:flex;justify-content:space-between;align-items:center;gap:12px}
+header.user nav a{margin-left:12px}
+.card{max-width:420px;margin:48px auto;padding:24px;background:#fff;border:1px solid #ccc;border-radius:8px}
+.card label{display:block;margin:10px 0 4px}.card input{width:100%;padding:6px;box-sizing:border-box}
+.flash{padding:8px 12px;margin:8px 0;border-radius:4px}.flash.danger{background:#fdd}.flash.success{background:#dfd}.flash.info{background:#eef}
+form.inline{display:inline}form.inline input{width:9em}form.inline select{margin-right:4px}
 '''
 
 # Stamps each event row with the browser time it first appeared (KPI-04). Only GET requests.
@@ -157,11 +163,77 @@ setInterval(poll, POLL_MS);
 '''
 
 
-def render_page(view):
-    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
+def _head(title):
     return ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>구조 관제</title><style>{_STYLE}</style></head><body>'
-            '<h1>구조 관제 <small>(읽기 전용)</small></h1><div id="poll-error" style="color:#a00"></div>'
+            f'<title>{escape(title)}</title><style>{_STYLE}</style></head><body>')
+
+
+def _flashes(messages):
+    return ''.join(f'<div class="flash {escape(category)}">{escape(text)}</div>' for category, text in messages)
+
+
+def _header(user):
+    """Who is logged in and where they may go. Links only (GET); no forms on the dashboard."""
+    if user is None:
+        return '<h1>구조 관제 <small>(읽기 전용)</small></h1>'
+    admin = ' <a href="/admin/accounts">계정 관리</a>' if user['role'] == 'ADMIN' else ''
+    return (f'<header class="user"><h1>구조 관제 <small>(읽기 전용)</small></h1>'
+            f'<nav><span>{escape(user["display_name"])} ({escape(user["role"])})</span>{admin}'
+            '<a href="/logout">로그아웃</a></nav></header>')
+
+
+def render_page(view, user=None):
+    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
+    return (_head('구조 관제') + _header(user) + '<div id="poll-error" style="color:#a00"></div>'
             + _commands(view) + f'<div id="live">{render_fragment(view)}</div>'
             f'<script>{script}</script></body></html>')
+
+
+def render_login(csrf, messages=()):
+    """Login page (tutor day5 requirement: login page backed by login data in SQLite)."""
+    return (_head('구조 관제 로그인') + '<div class="card"><h1>구조 관제 로그인</h1>' + _flashes(messages)
+            + '<form method="post" action="/login">'
+            f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
+            '<label for="username">아이디</label><input id="username" name="username" autocomplete="username" required>'
+            '<label for="password">비밀번호</label>'
+            '<input id="password" name="password" type="password" autocomplete="current-password" required>'
+            '<p><button type="submit">로그인</button></p></form></div></body></html>')
+
+
+def render_accounts(accounts, user, csrf, messages=()):
+    """ADMIN only: list accounts, create a customer, update or delete one."""
+    hidden = f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
+    rows = []
+    for account in accounts:
+        u = escape(account['username'])
+        self_row = account['username'] == user['username']
+        role_options = ''.join(f'<option value="{r}"{" selected" if account["role"] == r else ""}>{r}</option>'
+                               for r in ('ADMIN', 'CUSTOMER'))
+        status_options = ''.join(f'<option value="{st}"{" selected" if account["status"] == st else ""}>{st}</option>'
+                                 for st in ('ACTIVE', 'INACTIVE'))
+        rows.append(
+            f'<tr><td>{u}</td><td>'
+            f'<form class="inline" method="post" action="/admin/accounts/{u}">{hidden}'
+            '<input type="hidden" name="_action" value="update">'
+            f'<input name="display_name" value="{escape(account["display_name"])}" placeholder="표시 이름">'
+            f'<input name="email" value="{escape(account["email"])}" placeholder="이메일">'
+            f'<select name="role">{role_options}</select><select name="status">{status_options}</select>'
+            '<input name="password" type="password" placeholder="새 비밀번호(선택)" autocomplete="new-password">'
+            '<button type="submit">저장</button></form></td><td>'
+            + ('<em>본인</em>' if self_row else
+               f'<form class="inline" method="post" action="/admin/accounts/{u}">{hidden}'
+               '<input type="hidden" name="_action" value="delete">'
+               '<button type="submit" onclick="return confirm(\'삭제할까요?\')">삭제</button></form>')
+            + f'</td><td>{_time(account["updated_at_ns"])}</td></tr>')
+    return (_head('계정 관리') + _header(user) + _flashes(messages)
+            + '<h2>계정 추가</h2><form class="inline" method="post" action="/admin/accounts">' + hidden
+            + '<input name="username" placeholder="아이디(소문자)" required>'
+              '<input name="display_name" placeholder="표시 이름">'
+              '<input name="email" placeholder="이메일">'
+              '<select name="role"><option value="CUSTOMER" selected>CUSTOMER</option><option value="ADMIN">ADMIN</option></select>'
+              '<input name="password" type="password" placeholder="비밀번호(8자 이상)" autocomplete="new-password" required>'
+              '<button type="submit">추가</button></form>'
+            + '<table id="accounts"><caption>계정</caption><thead><tr><th>아이디</th><th>정보 · 역할 · 상태 · 비밀번호</th>'
+              '<th>삭제</th><th>갱신</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table>'
+            + '<p><a href="/">관제 화면으로</a></p></body></html>')
