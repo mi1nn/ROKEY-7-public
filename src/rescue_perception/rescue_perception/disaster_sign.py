@@ -76,9 +76,9 @@ class DisasterSignPolicy:
       기준 장면에서 ±``search_cells`` 칸 안의 가장 잘 맞는 위치로 비교한다. 흔들림 없이 ``window_ns`` 이상
       멈춰 있을 때 새로 고친다.
     - ``visible_min``: 기준 장면이 보이는 블록이 이 비율 미만이면(화면 대부분이 가려짐)
-      UNKNOWN(SCENE_CHANGED). 한 사분면에 보이는 블록이 하나도 없어도 사분면 확인을 할 수
-      없으므로 UNKNOWN(QUADRANT_COVERED). 그보다 덜 가려지면(조금 떨어져 지나가는 사람)
-      판정을 계속한다(2026-10-10 사용자 확인).
+      UNKNOWN(SCENE_CHANGED). 보이는 블록이 ``valid_ratio_min`` 미만이면서 한 사분면에 하나도
+      없으면 사분면 확인을 할 수 없으므로 UNKNOWN(QUADRANT_COVERED). 그보다 덜 가려지면
+      (조금 떨어져 지나가는 사람) 판정을 계속한다(2026-10-10 사용자 확인).
     - ``rebase_ns``: 기준 장면과 다른 화면이 이만큼 안정적으로(잡음 수준 이동) 이어지면
       카메라가 옮겨진 것으로 보고 새 기준 장면으로 삼는다. 그보다 오래 멈춘 손은 장면이
       된다(한계).
@@ -136,7 +136,7 @@ class SignFrame:
     - ``status``: PROCESSED(판정함), UNKNOWN(판정 안 함), DUPLICATE, REORDERED.
     - ``reason``: 방향을 기록하지 않은 이유. FIRST_FRAME, OCCLUDED(무늬 부족),
       MATCH_FAILED(매칭 부족), SCENE_CHANGED(기준 장면이 거의 안 보임, 렌즈 앞 물체),
-      QUADRANT_COVERED(한 사분면에 기준 장면이 하나도 안 보임),
+      QUADRANT_COVERED(절반도 안 보이면서 한 사분면에 기준 장면이 하나도 안 보임),
       PARTIAL_MOTION(일부만 움직임), BELOW_NOISE(잡음 수준).
       방향을 기록했으면 None.
     - ``shift``: 화면 전체 이동 (dx, dy) 칸. 재지 못했으면 None.
@@ -342,9 +342,11 @@ class DisasterSignDetector:
         shift = _whole_view(scene_blocks, self.policy) if matched_ratio >= vmin and scene_blocks else None
         frame_shift = _whole_view(matched, self.policy) if matched_ratio >= vmin and matched else None
         visible_quadrants = {(bx * 2 // self.policy.blocks_x, by * 2 // self.policy.blocks_y) for bx, by in visible}
-        if visible_ratio < self.policy.visible_min or len(visible_quadrants) < 4:
-            # 원래 장면이 거의 안 보이거나(손 등 가까운 물체, 카메라가 다른 곳을 봄), 한 구역이 통째로
-            # 가려져 네 사분면 확인을 할 수 없다: 판단하지 않는다.
+        quadrant_hidden = len(visible_quadrants) < 4 and visible_ratio < vmin
+        if visible_ratio < self.policy.visible_min or quadrant_hidden:
+            # 원래 장면이 거의 안 보이거나(손 등 가까운 물체, 카메라가 다른 곳을 봄), 절반도 안 보이면서
+            # 한 구역이 통째로 가려져 네 사분면 확인을 할 수 없다: 판단하지 않는다. 화면 대부분이 보이면
+            # 한 구역이 가려져도(위쪽으로 지나가는 사람, 그림자) 판정을 계속한다(2026-10-10 실측).
             reason = "SCENE_CHANGED" if visible_ratio < self.policy.visible_min else "QUADRANT_COVERED"
             self._still_since = None
             if frame_shift is not None and math.hypot(*frame_shift) < self.policy.shift_min:
