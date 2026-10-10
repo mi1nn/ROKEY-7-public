@@ -59,21 +59,27 @@ class SiteContractTests(unittest.TestCase):
 
     def test_disappearance_candidate_links_target_and_watch(self):
         """Single fixed camera (2026-10-09): a candidate must say which target and which watch it came from."""
-        candidate = self.event(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7", watch_id=uid(9))
-        self.assertEqual(("target-7", uid(9)), (candidate.target_id, candidate.watch_id))
+        # Both IDs are coordinator-issued canonical UUIDs (same check as rescue_coordination uid()).
+        candidate = self.event(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=uid(7), watch_id=uid(9))
+        self.assertEqual((uid(7), uid(9)), (candidate.target_id, candidate.watch_id))
         self.assertIsNone(self.event().target_id)
         self.assertIsNone(self.event().watch_id)
         for changes in (dict(kind="TARGET_DISAPPEARED_CANDIDATE"),                         # no link at all
-                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7"),    # no watch
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=uid(7)),        # no watch
                         dict(kind="TARGET_DISAPPEARED_CANDIDATE", watch_id=uid(9)),         # no target
                         dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="", watch_id=uid(9)),
-                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7", watch_id="watch-9"),
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=uid(7), watch_id="watch-9"),
                         dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=7, watch_id=uid(9)),
-                        dict(kind="DISASTER_SIGN", target_id="target-7", watch_id=uid(9)),    # link only on candidates
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7", watch_id=uid(9)),  # label, not UUID
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=uid(0), watch_id=uid(9)),      # nil UUID
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=uid(0xabc).upper(), watch_id=uid(9)),
+                        dict(kind="DISASTER_SIGN", target_id=uid(7), watch_id=uid(9)),      # link only on candidates
                         dict(kind="EXIT_PASS", watch_id=uid(9))):
-            with self.subTest(changes=changes), self.assertRaises(RescueError) as caught:
-                self.event(**changes)
-            self.assertEqual("INVALID_INPUT", caught.exception.code)
+            # assertEqual stays inside the subTest so one failing case does not hide the others.
+            with self.subTest(changes=changes):
+                with self.assertRaises(RescueError) as caught:
+                    self.event(**changes)
+                self.assertEqual("INVALID_INPUT", caught.exception.code)
 
     def test_unknown_time_basis_is_recorded_but_not_declared_usable(self):
         self.assertTrue(self.event().time_basis_declared)
