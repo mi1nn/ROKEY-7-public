@@ -27,10 +27,13 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ReportReceipt.msg"
   "msg/RecheckObservation.msg"
   "msg/PassageAssessment.msg"
+  "msg/TargetPresence.msg"
+  "msg/CameraStatus.msg"
   "srv/RequestStop.srv"
   "srv/RegisterAuthority.srv"
   "srv/ResetStop.srv"
   "srv/SubmitOperatorCommand.srv"
+  "srv/SetCameraWatch.srv"
   "action/ExecuteTask.action"
   "action/ObserveTarget.action"
   DEPENDENCIES geometry_msgs nav_msgs
