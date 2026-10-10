@@ -200,12 +200,25 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(max(r.reversals for r in results), 0)
         self.assertEqual(self.events(results), [])
 
-    def test_one_quadrant_fully_covered_is_unknown(self):
-        # 손이 화면 한쪽 구역(왼쪽 위 사분면)을 통째로 덮음(2026-10-10 실측: 가렸는데 정상).
-        # 그 구역에 원래 장면이 하나도 안 보이면 네 사분면 확인을 할 수 없으므로 판단 보류.
-        covered = [[hand()[y][x] if x < 24 and y < 24 else scene()[y][x] for x in range(48)] for y in range(48)]
+    def test_hand_over_one_side_is_unknown(self):
+        # 손이 화면 한쪽(왼쪽 절반과 한 칸 더, 9/16 칸)을 덮음(2026-10-10 실측: 가렸는데 정상).
+        # 원래 장면이 절반도 안 보이고 한 사분면에는 하나도 안 보이면 네 사분면 확인을 할 수
+        # 없으므로 판단 보류. 16:06 녹화의 손 가림은 보임 31~50% 였다 [측정].
+        covered = [[hand()[y][x] if x < 24 or (x < 35 and y < 13) else scene()[y][x] for x in range(48)]
+                   for y in range(48)]
         results = self.run_frames(self.detector(), still(0, 3) + [(300 + k * 100, covered) for k in range(5)])
         self.assertEqual({(r.status, r.reason) for r in results[3:]}, {("UNKNOWN", "QUADRANT_COVERED")})
+
+    def test_person_at_the_top_edge_covering_one_quadrant_is_not_unknown(self):
+        # 사람이 화면 위쪽으로 지나가며 한 사분면을 통째로 가렸지만 화면 대부분(10/16)은 보임
+        # (2026-10-10 17:51 실측: 한쪽으로 지나가도 판단 보류). 판단 보류는 한 사분면이 가려지고
+        # 원래 장면이 절반도 안 보일 때만이다.
+        mask = lambda x, y: y < 13 or (x < 24 and y < 24)
+        frames = still(0, 3) + [(300 + k * 100, [[hand(ox=2 * (k % 2))[y][x] if mask(x, y) else scene()[y][x]
+                                                  for x in range(48)] for y in range(48)]) for k in range(6)]
+        results = self.run_frames(self.detector(), frames)
+        self.assertNotIn("UNKNOWN", {r.status for r in results[4:]})
+        self.assertEqual(self.events(results), [])
 
     def test_hand_over_most_of_the_view_in_every_quadrant_is_not_shaking(self):
         # 손이 화면의 10/16 칸을 덮고(네 사분면 모두에 걸침) 왔다 갔다 함(2026-10-10 녹화 재생에서
