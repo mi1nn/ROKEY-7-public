@@ -22,7 +22,7 @@ class SiteContractTests(unittest.TestCase):
 
     def test_vocabularies_are_closed_and_disjoint_from_error_codes(self):
         self.assertEqual({"SCOUT", "SUPPORT"}, set(ROBOT_ROLES))
-        self.assertEqual({"DISASTER_SIGN", "EXIT_PASS"}, set(SITE_EVENT_KINDS))
+        self.assertEqual({"DISASTER_SIGN", "EXIT_PASS", "TARGET_DISAPPEARED_CANDIDATE"}, set(SITE_EVENT_KINDS))
         self.assertEqual({"NORMAL", "DISASTER", "CLEARING"}, set(SYSTEM_MODES))
         self.assertEqual({"NOT_CHECKED", "RECHECK_NEEDED", "RESCUE_CONFIRMED"}, set(RESCUE_STATES))
         self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD"}, set(TASK_KINDS))
@@ -56,6 +56,24 @@ class SiteContractTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
                 self.event(**changes)
         self.assertEqual("EXIT_PASS", self.event(kind="EXIT_PASS", camera_id="cam_b").kind)
+
+    def test_disappearance_candidate_links_target_and_watch(self):
+        """Single fixed camera (2026-10-09): a candidate must say which target and which watch it came from."""
+        candidate = self.event(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7", watch_id=uid(9))
+        self.assertEqual(("target-7", uid(9)), (candidate.target_id, candidate.watch_id))
+        self.assertIsNone(self.event().target_id)
+        self.assertIsNone(self.event().watch_id)
+        for changes in (dict(kind="TARGET_DISAPPEARED_CANDIDATE"),                         # no link at all
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7"),    # no watch
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", watch_id=uid(9)),         # no target
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="", watch_id=uid(9)),
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id="target-7", watch_id="watch-9"),
+                        dict(kind="TARGET_DISAPPEARED_CANDIDATE", target_id=7, watch_id=uid(9)),
+                        dict(kind="DISASTER_SIGN", target_id="target-7", watch_id=uid(9)),    # link only on candidates
+                        dict(kind="EXIT_PASS", watch_id=uid(9))):
+            with self.subTest(changes=changes), self.assertRaises(RescueError) as caught:
+                self.event(**changes)
+            self.assertEqual("INVALID_INPUT", caught.exception.code)
 
     def test_unknown_time_basis_is_recorded_but_not_declared_usable(self):
         self.assertTrue(self.event().time_basis_declared)
