@@ -24,7 +24,7 @@
 
 | 레인 (A-07 의 이름) | 경로 | 비고 |
 | --- | --- | --- |
-| 통합/계약 | `src/rescue_contracts/`(공통 Python 값·오류·시각·수락 계약), `src/rescue_interfaces/`(ROS IDL, 미구현), 루트 문서, `docs/`(scope·architecture·algorithm-decisions·repository-layout·contracts·state-machines·acceptance-plan), `scripts/`, `.github/` | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·문서·시험의 영향을 같은 PR 에 적는다 |
+| 통합/계약 | `src/rescue_contracts/`(공통 Python 값·오류·시각·수락 계약), `src/rescue_interfaces/`(ROS IDL, 1차 — contracts C-10), 루트 문서, `docs/`(scope·architecture·algorithm-decisions·repository-layout·contracts·state-machines·acceptance-plan), `scripts/`, `.github/` | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·문서·시험의 영향을 같은 PR 에 적는다 |
 | 기반 | `src/rescue_robot/`, `src/rescue_mapping/`, `src/rescue_bringup/`, `config/` | Nav2 goal·cancel·dock/undock 을 발행하는 유일한 곳은 `rescue_robot` |
 | 인식 | `src/rescue_perception/`, `tools/`, `assets/manifest/` | 주행 명령을 보내지 않는다 |
 | 협업·관제 | `src/rescue_coordination/`, `src/rescue_operations/` | `cmd_vel`·Nav2 액션을 직접 부르지 않는다. DB 스키마·운영 장부·operations API 의 소유자 |
