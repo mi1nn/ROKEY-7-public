@@ -1,7 +1,7 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-08
+updated: 2026-10-10
 ---
 
 # 기록 입력 기반 인식 코어
@@ -47,6 +47,25 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 `ConservativeEventRegistry.register(admission, event_id=..., candidate_event_ids=...)`는 수신한 관측별로 별도 CANDIDATE를 만든다. 같은 관측을 재등록하면 같은 사건을 반환하며 event ID/연결 목록 또는 원 payload가 달라지면 충돌이다. REORDERED 관측은 새 사건 입력으로 수락하지 않는다. 같은 frame의 다른 사람, 다른 로봇의 같은 track ID, track 없는 관측은 각각 별도 사건이다.
 
 `candidate_event_ids`는 이미 존재하는 사건과의 **미확인 연결 후보**다. 사건을 합치거나 CONFIRMED로 올리지 않는다. 공통 좌표·시간·불확실성·다중 관측/재확인 근거로 동일성을 판정하는 후속 coordination 정책이 필요하다. 현재는 같은 실제 사람의 연속 프레임도 별도 후보가 될 수 있으며, 이 보수적 과분리를 사람 수/구조 성공 통계로 집계하면 안 된다.
+
+## 고정 웹캠 지진 징후 (E2, 실측 전)
+
+`rescue_perception.disaster_sign`은 고정 웹캠 영상만으로(모델 없이) `rescue_contracts.SiteEvent(kind="DISASTER_SIGN")`를 만든다. 사건은 증거이고 재난 모드 전환은 협업·관제의 정책이 한다([계약](../design/contracts.md) C-01, [S-00](../design/state-machines.md)). 판정 방식은 PR #33 설계 v3 합의(2026-10-09)다. 화면 **전체**가 앞뒤로 여러 번 흔들리면 지진 징후로 본다.
+
+| 단계 | 규칙 |
+| --- | --- |
+| 이동량 | 회색조 격자를 `blocks_x`×`blocks_y` 블록으로 나누고, 블록마다 직전 프레임에서 ±`search_cells` 칸 안을 ZNCC 로 찾는다. 평균을 빼고 정규화하므로 조명이 전체로 밝아지거나 어두워져도 이동으로 보지 않는다 |
+| 영상 정상 | 무늬 있는 블록(표준편차 ≥ `texture_min`)이나 매칭된 블록(ZNCC ≥ `match_min`)이 `valid_ratio_min` 미만이면 UNKNOWN(가림·어두움·매칭 실패). UNKNOWN 은 흔들림 횟수를 더하지도 지우지도 않는다 |
+| 화면 전체 | 블록 이동의 중앙값을 화면 이동으로 보고, 네 사분면 모두에 그와 `agree_tol` 안으로 맞는 블록이 있어야 한다. 아니면 부분 움직임(사람 통과)이라 조건 거짓 |
+| 횟수 | 이동 크기 ≥ `shift_min` 이면 방향을 기록하고, 직전 방향과 반대(내적 < 0)면 전환 1회. `window_ns` 안의 전환이 `shakes_min` 이상이면 조건 참 |
+| 사건 | #33 규칙 그대로. 조건이 `hold_ns`(≤ `window_ns`) 이어지면 사건 1개, `release_ns` 동안 거짓이어야 다시 낸다. 간격 > `max_gap_ns` 면 횟수·구간·직전 프레임을 버린다. 중복·역순·디코딩 거절 프레임은 상태를 바꾸지 않는다 |
+| 시각·ID·confidence | #33 그대로. `observed_at_ns`는 hold 를 채운 프레임, 시작은 `detail`의 `onset_ns`. uuid5 ID, 시간 기준은 `SourceBinding`에서. `confidence=1.0`은 "규칙 충족(이진)" |
+
+정책 값은 모두 Q-11 로 정하고 **기본값이 없다**. 진도 7 은 시나리오 근거일 뿐 웹캠으로 재지 않는다. 시험은 `tests/test_perception_disaster_sign.py`(21개, 합성 48×48 영상)다. 조명 오탐 회귀 시험은 엣지 방식 코드에서 실패함을 커밋으로 남겼다.
+
+**실측 도구:** `tools/webcam_quake_probe.py`가 OpenCV 로 웹캠 프레임을 읽어 위 판정에 넣고, 프레임별 상태를 화면과 CSV 로 남긴다. 숫자 키로 상황(가만히·흔들기·조명·지나가기·가리기)을 표시하면 종료 때 상황별 잡음 바닥값·최대 전환 횟수·사건 수·처리 시간을 요약한다. 도구의 인자 기본값은 측정 시작값이지 Q-11 값이 아니다.
+
+**한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실제 웹캠 측정·오탐률·처리 속도는 NOT_RUN 이다.
 
 ## 공개 API와 E2 실행
 
