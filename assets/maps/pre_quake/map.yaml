@@ -1,4 +1,4 @@
-image: pre_quake_map.pgm
+image: map.pgm
 mode: trinary
 resolution: 0.050
 origin: [-5.345, -1.077, 0]
