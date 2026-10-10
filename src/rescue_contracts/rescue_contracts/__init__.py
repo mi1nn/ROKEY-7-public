@@ -271,7 +271,8 @@ class SiteEvent:
     clock_error_bound_ns: int | None
     detail: str = ''
     # Only for TARGET_DISAPPEARED_CANDIDATE: which target the camera was watching and
-    # which watch (SetCameraWatch) produced it. Other kinds must leave both None.
+    # which watch (SetCameraWatch, IF-078, 2차 IDL) produced it. Both are canonical UUIDs
+    # issued by the coordinator, never by the camera. Other kinds must leave both None.
     target_id: str | None = None
     watch_id: str | None = None
 
@@ -280,9 +281,7 @@ class SiteEvent:
         camera_id(self.camera_id)
         _require(isinstance(self.kind, str) and self.kind in SITE_EVENT_KINDS, 'site event kind')
         if self.kind == 'TARGET_DISAPPEARED_CANDIDATE':
-            _require(isinstance(self.target_id, str) and 0 < len(self.target_id) <= 128,
-                     'TARGET_DISAPPEARED_CANDIDATE needs a non-empty target_id')
-            _require(isinstance(self.watch_id, str), 'TARGET_DISAPPEARED_CANDIDATE needs a watch_id')
+            uuid_string(self.target_id)
             uuid_string(self.watch_id)
         else:
             _require(self.target_id is None and self.watch_id is None,
