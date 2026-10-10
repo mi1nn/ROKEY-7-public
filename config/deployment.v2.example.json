@@ -143,16 +143,13 @@
   },
   "site_cameras": [
     {
-      "id": "cam_a",
+      "id": "cam_fixed",
       "host": "operations",
-      "role": "DISASTER_SIGN",
+      "roles": [
+        "DISASTER_SIGN",
+        "TARGET_WATCH"
+      ],
       "source": "/dev/video0"
-    },
-    {
-      "id": "cam_b",
-      "host": "operations",
-      "role": "EXIT_PASS",
-      "source": "/dev/video2"
     }
   ]
 }

@@ -31,7 +31,8 @@ AREA_BASIS_KINDS = ("PRIOR_MAP", "MAP_REVISION_BOUND")
 MAX_SEARCH_AREAS = 64
 # v2.1 additive blocks (2026-10-08): optional, validated strictly when present.
 READINESS_SOURCES = ("odom", "scan", "camera", "wheel_status", "map_to_odom_tf")
-SITE_CAMERA_ROLES = ("DISASTER_SIGN", "EXIT_PASS")  # = rescue_contracts.SITE_EVENT_KINDS
+SITE_CAMERA_ROLES = ("DISASTER_SIGN", "TARGET_WATCH", "EXIT_PASS")  # what a fixed camera adapter may produce;
+# TARGET_WATCH -> SiteEvent TARGET_DISAPPEARED_CANDIDATE. One camera may hold several roles (2026-10-09: one fixed camera).
 MAX_SITE_CAMERAS = 8
 MAX_DISCOVERY_SERVERS = 8
 DOMAIN_ID_MAX = 232
@@ -157,8 +158,8 @@ class Robot:
 class SiteCamera:
     id: str        # cam_<id> (rescue_contracts.camera_id)
     host: str
-    role: str      # SITE_CAMERA_ROLES
-    source: str    # device/URL string for the adapter; not interpreted here
+    roles: tuple[str, ...]   # non-empty, unique, each in SITE_CAMERA_ROLES
+    source: str              # device/URL string for the adapter; not interpreted here
 
 
 @dataclass(frozen=True)
@@ -515,15 +516,18 @@ def load_deployment(path: str | Path) -> Deployment:
             raise ProfileError(f"site_cameras must be a list of at most {MAX_SITE_CAMERAS}")
         for index, entry in enumerate(cameras_raw):
             label = f"site_cameras[{index}]"
-            cam = _fields(entry, {"id", "host", "role", "source"}, label)
+            cam = _fields(entry, {"id", "host", "roles", "source"}, label)
             if not isinstance(cam["id"], str) or not CAMERA_ID.match(cam["id"]):
                 raise ProfileError(f"{label}.id must match cam_<identifier>")
-            if not isinstance(cam["role"], str) or cam["role"] not in SITE_CAMERA_ROLES:
-                raise ProfileError(f"{label}.role must be one of {list(SITE_CAMERA_ROLES)}")
+            roles_raw = cam["roles"]
+            if (not isinstance(roles_raw, list) or not roles_raw
+                    or any(not isinstance(r, str) or r not in SITE_CAMERA_ROLES for r in roles_raw)
+                    or len(set(roles_raw)) != len(roles_raw)):
+                raise ProfileError(f"{label}.roles must be a non-empty list of distinct values from {list(SITE_CAMERA_ROLES)}")
             host_id = _identifier(cam["host"], label + ".host")
             if host_id not in known_hosts:
                 raise ProfileError(f"{label}.host references unknown host: {host_id}")
-            cameras.append(SiteCamera(cam["id"], host_id, cam["role"], _nonempty(cam["source"], label + ".source")))
+            cameras.append(SiteCamera(cam["id"], host_id, tuple(roles_raw), _nonempty(cam["source"], label + ".source")))
         _unique([cam.id for cam in cameras], "site_cameras id")
     return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host,
                       schema_version, mission, tuple(cameras))

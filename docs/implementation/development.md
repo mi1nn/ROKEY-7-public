@@ -78,7 +78,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 | --- | --- | --- |
 | `readiness` | 로봇 파라미터 v2 | `version`, `max_age_s{odom,scan,camera,wheel_status,map_to_odom_tf}`(양의 유한수, 다섯 키 정확히), `scan_topic`·`tf_topic`·`camera_topics[]`·`wheel_status_topic`(`""` 허용)은 `/<namespace>/…` 아래 서로 다른 이름, `map_frame`·`odom_frame` 은 TF frame 규칙, `watchdog_heartbeat_topic` 은 로봇 측 watchdog 이 생기기 전까지 **반드시 `""`**. 이름은 `rescue_robot.ros_node` 의 파라미터와 같다(#22) |
 | `hosts[].network` | 배포 파일 | `domain_id` 0..232, `discovery_servers[]` 1..8 개의 `{server_id 0..255, address, port 1..65535}`(ID·주소:포트 고유, ID = `ROS_DISCOVERY_SERVER` 의 자리), `super_client` 는 **false 만**(조회 도구용 설정은 운영 노드 값이 아님). 적용하지 않고 실행 전 점검이 실제 환경과 비교한다(네트워크 조사 문서(`docs/design/network-discovery.md`, PR #31)) |
-| `site_cameras[]` | 배포 파일 | 0..8 개의 `{id: cam_<id>, host(배포 호스트), role: DISASTER_SIGN 또는 EXIT_PASS, source(문자열)}`, id 고유. 카메라 어댑터(인식)와 관제 화면이 식별자로 쓴다 |
+| `site_cameras[]` | 배포 파일 | 0..8 개의 `{id: cam_<id>, host(배포 호스트), roles: [DISASTER_SIGN · TARGET_WATCH · EXIT_PASS 중 1개 이상, 중복 없음], source(문자열)}`, id 고유. 2026-10-09 결정대로 고정 카메라 1대가 두 역할(징후 감지 + 대상 감시)을 겸한다. 카메라 어댑터(인식)와 관제 화면이 식별자로 쓴다 |
 | `mission.search_areas[].entry_yaw` | 배포 파일 | 유한수(rad). 협업·관제 `mission_sites(areas, entry_yaws=)` 의 입력. 없으면 `None` 이며 coordination 이 거절한다(기본값 없음) |
 
 `python -m rescue_bringup <v2 프로파일>` 은 "v2.1 blocks: N site cameras; M hosts with network; readiness for …" 한 줄을 더 찍는다. 역시 정적 검사다.
