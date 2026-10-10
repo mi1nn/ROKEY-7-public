@@ -11,8 +11,10 @@
 | --- | --- | --- |
 | `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 명령 자리 | 표준 라이브러리, `rescue_contracts` |
 | `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 셋으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
-| `render.py` | 화면 모델 → HTML 한 장. Flask 없이 시험 | 표준 라이브러리 |
-| `app.py` | Flask 경계. `GET /`, `GET /fragment`, `GET /api/view` 만 | Flask (선택) |
+| `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
+| `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
+| `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 만(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 무동작 시험은 Flask 없이 돈다.
 
@@ -27,7 +29,8 @@ RESCUE_CONSOLE_ADMIN_PASSWORD='<8자 이상>' python3 -m rescue_console.accounts
 # 세션 서명 비밀은 환경 변수(16자 이상). 코드·저장소에 두지 않는다
 export RESCUE_CONSOLE_SECRET="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
 python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts.sqlite3 \
-    --status src/rescue_console/examples/status.example.json --port 8080
+    --status src/rescue_console/examples/status.example.json \
+    --map assets/maps/pre_quake/map.yaml --port 8080       # --map 은 선택
 # 브라우저: http://127.0.0.1:8080/  → 로그인 페이지
 ```
 
@@ -35,7 +38,7 @@ operations 가 현장 상태 DB 를 쓰고 있으면 픽스처 대신 그 파일
 
 ```bash
 python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <현장 상태 DB> \
-    --camera cam_a=http://<카메라 PC>:<포트>/<경로> --port 8080
+    --camera cam_a=http://<카메라 PC>:<포트>/<경로> --map assets/maps/pre_quake/map.yaml --port 8080
 ```
 
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
@@ -74,16 +77,55 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 - `read_site_events` 는 오래된 순으로 `limit` 개를 준다. 콘솔은 최대(1000)를 요청하므로 현장 사건이 1000건을 넘으면 최신 사건이 빠진다(후속: 협업·관제에 최신순 또는 커서 요청).
 - 출구 누적(`exit_pass_count`)은 화면에 그리지 않는다. 고정 카메라 1대 결정(2026-10-09)으로 `EXIT_PASS` 생산자가 없어 항상 0 이다([DB 스키마](../../docs/design/db-schema.md) 2절, [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 3절). `/api/view` 에는 값이 그대로 남는다. 「구출 완료 ≤ 출구 누적」(Part I 3.5.5) 경고도 같이 뺐다 — 구출 판정의 트리거는 카메라의 대상 소실 후보다(#48).
 
+## 화면 배치 (1920×1080 한 화면)
+
+[관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 5절의 자리 배치를 따른다. 가로 1400px·세로 820px 이상이면 스크롤 없이 한 화면에 들어가고, 그보다 작으면 한 줄로 쌓여 스크롤된다.
+
+```text
+┌ 재난 띠: 모드 · 트리거 · 경과 · 진동 감지 수 ───────────────┬ 갱신 상태 · 사용자 ┐
+├ (경고가 있을 때만) 확인할 것 ────────────────────────────────┼ 웹캠              │
+├ 지도: 기준 지도 + 1m 격자 + 로봇·요구조자 ─┬ 로봇 AMR1·AMR2 ───┤                   │
+│                                          │ 요구조자 목록       ├ 명령              │
+├ 사건 기록 (KPI-04 열 포함) ────────────────┴───────────────────┤ (승인 · 임무 · 정지)│
+└───────────────────────────────────────────────────────────────┴──────────────────┘
+```
+
+- **오프라인:** 현장 네트워크에 인터넷이 없을 수 있어 외부 CDN·웹 글꼴·외부 CSS·JS 를 쓰지 않는다(시험 `test_page_loads_nothing_from_outside`). 글꼴은 운영 PC 에 깔린 Noto Sans CJK KR 을 먼저 찾고, 없으면 OS 기본 한글 글꼴로 넘어간다. 숫자는 고정폭(`tabular-nums`)이라 1초마다 바뀌어도 흔들리지 않는다.
+- **색은 의미에만 쓴다(국제 안전표지 ISO 7010 계열):**
+
+  | 색 | 뜻 |
+  | --- | --- |
+  | 신호 빨강 | 재난·정지 |
+  | 구조 주황 | 미구조 요구조자 |
+  | 안내 파랑 | 지원 중·AMR2 |
+  | 안전 초록 | 구출 완료 |
+  | 회색 점선 | 미확정 |
+  | 경고 노랑 | 낡음·끊김·확인할 것 |
+
+  바탕은 차가운 회색이고 프로젝터에서 읽히도록 밝게 둔다.
+- **요구조자 표식:** 지진 구조대(INSARAG)가 현장에 칠하는 「V」 모양이다. V 의 꼭짓점이 보고 좌표다. 구출 완료는 V 에 가로줄을 긋는다. 지도·목록·범례가 같은 모양을 쓴다.
+- **코드 → 낱말:** 로봇 상태·구조 상태·접근 결과·보고 상태·사건 종류는 `labels.py` 의 한국어로 보이고, 원래 코드는 시험·API(`/api/view`)에 그대로 남는다. 표에 없는 새 코드는 숨기지 않고 코드 그대로 보인다.
+- **새 사건:** 페이지를 연 뒤 들어온 사건 행은 3초 동안 노랗게 칠한다(움직임 없음).
+- **갱신 상태:** 오른쪽 위 「실시간 갱신 HH:MM:SS」. 폴링이 실패하면 빨갛게 「갱신 끊김: 이유, n초 전 값을 보는 중」으로 바뀐다.
+
 ## 화면 위쪽: 모드 배지와 웹캠
 
-- **모드 배지:** 현장 사건에 `DISASTER_SIGN` 이 하나라도 있으면 「재난」(빨강), 없으면 「평시」, 현장 사건 입력이 없으면 「모름」. 트리거 시각은 가장 이른 `DISASTER_SIGN` 의 `observed_at_ns` 다. 현장 상태 1.1 의 `mission_state` 표가 생기면 그 값으로 바꾼다 — 지금은 현장 사건에서 **추정**한 것이고 화면에도 그렇게 적는다.
-- **웹캠:** `--camera` 로 받은 MJPEG 주소를 `<img src>` 로 넣는다(IF-082). 콘솔은 영상을 중계하지 않는다. 영상은 1초마다 바뀌는 조각(`#live`) **밖**에 있어 폴링이 스트림을 끊지 않는다. 영상이 끊기면 캡션에 「영상 끊김」을 띄운다. 카메라 주소는 프로파일 v2.1 `site_cameras`(#39)가 들어오면 거기서 받는다.
+- **모드 배지:** 현장 사건에 `DISASTER_SIGN` 이 하나라도 있으면 「재난」(빨강 띠), 없으면 「평시」, 현장 사건 입력이 없으면 「모름」. 트리거 시각은 가장 이른 `DISASTER_SIGN` 의 `observed_at_ns` 이고, 경과는 서버 집계 시각 − 트리거다. 현장 상태 1.1 의 `mission_state` 표가 생기면 그 값으로 바꾼다 — 지금은 현장 사건에서 **추정**한 것이고 화면에도 그렇게 적는다.
+- **웹캠:** `--camera` 로 받은 MJPEG 주소를 `<img src>` 로 넣는다(IF-082). 콘솔은 영상을 중계하지 않는다. 영상은 1초마다 바뀌는 조각(`#live`) **밖**에 있어 폴링이 스트림을 끊지 않는다. 영상이 끊기면 화면 안에 「영상이 들어오지 않습니다 …」와 캡션 「영상 끊김」을 띄운다. 주소가 없으면 `--camera` 를 넣으라는 안내가 자리에 남는다. 카메라 주소는 프로파일 v2.1 `site_cameras`(#39)가 들어오면 거기서 받는다.
 
 ## 시각과 나이 표시
 
 - 시각은 `HH:MM:SS.mmm`(서버·브라우저 같은 형식, 24시간). 서버 집계 날짜와 다른 날의 시각은 날짜를 붙인다. 원래 ns 값은 마우스를 올리면(title) 보인다.
 - 나이는 `0.4s` · `3분 05초` · `2시간 10분` · `41일` 로 줄여 쓴다. 음수는 상대 시계가 이 PC 보다 앞선 것이다.
 - 로봇 행은 operations 수신 뒤 `STATUS_STALE_S = 5` 초가 지나면 「낡음」으로 표시한다([제안] 관제·화면 2026-10-10, 표시 전용 — 준비 판정 아님 C-05). 프로파일 v2.1(#39)의 readiness `max_age_s` 가 들어오면 그 값으로 바꾼다.
+
+## 지도 (`--map`)
+
+- **원본:** map_server 형식 지도(YAML + 이진 PGM `P5`). 지금 쓸 수 있는 것은 재난 전 기준 지도 `assets/maps/pre_quake/map.yaml` 이다(출처·해시는 [assets/manifest/pre_quake_map.json](../../assets/manifest/pre_quake_map.json)). 경로는 인자로만 받고 코드에 두지 않는다.
+- **읽기:** 기동할 때 한 번 읽어 PNG 로 바꿔 메모리에 둔다. YAML 은 map_server 키 7개(`image` `mode` `resolution` `origin` `negate` `occupied_thresh` `free_thresh`)의 평평한 `키: 값` 만 받고, 모르는 키·중첩·`origin` 회전(yaw ≠ 0)·크기가 안 맞는 PGM 은 `INVALID_INPUT`, 파일이 없으면 `STORAGE_ERROR` 로 **기동이 실패**한다. 지도를 지어내거나 빈 지도로 대신 뜨지 않는다. PyYAML·Pillow 없이 표준 라이브러리만 쓴다.
+- **그리기:** `GET /map.png`(로그인 필요, GET 만, URL 에 PGM 해시 `?v=` 를 붙여 캐시) 위에 SVG 를 겹친다. SVG 좌표는 지도 픽셀이고, `origin` 은 왼쪽 아래 칸의 왼쪽 아래 모서리다(열 = (x − origin_x) / resolution, 행 = 높이 − (y − origin_y) / resolution). 지도 PNG 는 그 SVG 의 `<image>` 라서 표식과 같이 늘고 준다. 로봇은 진행 방향(yaw)을 가리키는 화살촉 + 「AMR1」·「AMR2」(yaw 가 없으면 원), 요구조자는 위 「V」 표식, 1m 격자·축 숫자·축척 막대가 같이 그려진다. SVG 는 조각(`fragment`)에 들어 있어 1초 폴링마다 바뀌고 PNG 는 다시 받지 않는다.
+- **frame 규칙:** `frame_id == "map"` 인 좌표만 그린다. 다른 frame 은 투영하지 않고 「지도에 안 그림」 경고와 지도 아래 목록으로 보인다. 지도 밖 좌표는 가장자리로 끌어오지 않고 「지도 밖 좌표」로 보인다. 위치가 없는 로봇·대상은 그리지 않는다(표에 「—」).
+- **확인하지 않는 것:** 좌표의 `map_session_id`·`map_revision` 이 이 기준 지도와 같은 지도에서 나왔는지는 모른다(Q-09, 지도 아래 문구로 표시). 재난 뒤 SLAM 지도 실시간 표시, IF-084 `PUT /api/maps/{id}`, `map_snapshots` 표(site_state 1.1) 연결은 후속이다.
 
 ## 구조 상태 4단계 (Q-20: 표시층 합성)
 
@@ -109,11 +151,19 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 
 ## 운영자 명령 (자리만)
 
-일시정지·재개·작업 취소·복귀(Part I 3.7.6) 버튼은 `disabled` 로만 있다. 누를 수 없고, 명령을 받는 경로(POST 라우트)도 없고, `view.request_command` 는 항상 `NOT_CONNECTED` 로 거절한다. 명령 의미와 안전 관문은 Q-22 결정 뒤 협업·관제가 정한 API 로 연결한다.
+버튼은 [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 4절 `POST /api/operator-commands` 의 종류를 그대로 쓴다(`view.COMMANDS`). 결과가 큰 순서로 묶는다.
+
+| 묶음 | 버튼 |
+| --- | --- |
+| 승인 (크게, 파랑) | AMR2 출동 승인(`DISPATCH_SUPPORT`), 다음 구간 계속(`CONTINUE_SEGMENT`) |
+| 임무 | 재확인 지시, 복귀, 일시정지, 재개, 작업 취소, 수동 탐색 시작 |
+| 정지 (따로, 빨강) | 정지(`STOP_ROBOT`) |
+
+모두 `disabled` 다. 누를 수 없고, 명령을 받는 경로(POST 라우트)도 없고, `view.request_command` 는 항상 `NOT_CONNECTED` 로 거절한다. 명령은 operations 의 명령 API 와 Q-22 안전 관문이 생긴 뒤 연결한다(버튼 활성은 서버 관문의 거울일 뿐 관문이 아니다). 패널 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요」를 늘 둔다. 버튼은 1초 폴링 조각 밖에 있어 누르려는 순간 다시 그려지지 않는다.
 
 ## 하지 않는 것 / 후속
 
 - 하지 않음: 운영 장부 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
-- 후속: 지도와 마커(별도 PR), 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), KPI-04 자동 측정, 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
+- 후속: 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), KPI-04 자동 측정, 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
 - 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.

@@ -28,15 +28,28 @@ STAGE_RULES = (
     ('R5', 'otherwise (CONFIRMED, not rescued, no active support)', 'NOT_RESCUED'),
 )
 
-# Part I 3.7.6 operator commands. Placeholders only: no transport exists until Q-22
-# fixes their safety gates. Enabling one is a separate PR with its own tests.
+# Operator commands: the kinds of `POST /api/operator-commands` in console-and-db-plan 4절
+# (Part I 3.7.6 plus the two approval gates of 1절). Placeholders only: no transport exists until
+# that operations API and the Q-22 safety gates do. Enabling one is a separate PR with its own tests.
 COMMANDS = (
+    ('DISPATCH_SUPPORT', 'AMR2 출동 승인'),
+    ('CONTINUE_SEGMENT', '다음 구간 계속'),
+    ('REQUEST_RECHECK', '재확인 지시'),
+    ('RETURN_HOME', '복귀'),
     ('PAUSE', '일시정지'),
     ('RESUME', '재개'),
-    ('CANCEL_TASK', '작업 취소'),
-    ('RETURN_HOME', '복귀'),
+    ('CANCEL', '작업 취소'),
+    ('START_SEARCH', '수동 탐색 시작'),
+    ('STOP_ROBOT', '정지'),
 )
-COMMAND_DISABLED_REASON = 'Q-22 안전 관문 결정 전 — 명령 전송 미연결'
+# Panel grouping: the two approval gates first, the stop apart from everything else.
+COMMAND_GROUPS = {
+    'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
+    'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
+    'CANCEL': 'mission', 'START_SEARCH': 'mission',
+    'STOP_ROBOT': 'stop',
+}
+COMMAND_DISABLED_REASON = '운영 명령 API 연결 전 — Q-22 안전 관문이 정해진 뒤 켜짐'
 
 # Row cap for the event table; older rows stay in the ledger ([제안] 관제·화면, 2026-10-08).
 EVENT_ROWS = 50
@@ -222,6 +235,11 @@ def _events(ledger, site_events):
             'source': payload['source_robot'],
             'subject': payload['target_id'],
             'detail': f"{payload['confirmation_result']} / {payload['approach_result']} / {item['receipt']['status']}",
+            'confirmation': payload['confirmation_result'],
+            'approach': payload['approach_result'],
+            'receipt': item['receipt']['status'],
+            'confidence': None,
+            'note': None,
             'clock_domain_id': payload['clock_domain_id'],
             'ref_id': payload['report_id'],
         })
@@ -233,6 +251,11 @@ def _events(ledger, site_events):
             'source': event.camera_id,
             'subject': None,
             'detail': f'confidence {event.confidence:.2f}' + (f' / {event.detail}' if event.detail else ''),
+            'confirmation': None,
+            'approach': None,
+            'receipt': None,
+            'confidence': event.confidence,
+            'note': event.detail or None,
             'clock_domain_id': event.clock_domain_id,
             'ref_id': event.event_id,
         })
@@ -293,8 +316,8 @@ def build_view(ledger, status, *, built_at_ns):
         'events': events,
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
-        'commands': [{'name': name, 'label': label, 'enabled': False, 'reason': COMMAND_DISABLED_REASON}
-                     for name, label in COMMANDS],
+        'commands': [{'name': name, 'label': label, 'group': COMMAND_GROUPS[name], 'enabled': False,
+                      'reason': COMMAND_DISABLED_REASON} for name, label in COMMANDS],
         'warnings': warnings,
     }
 
