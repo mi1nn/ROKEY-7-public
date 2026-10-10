@@ -1,18 +1,25 @@
-"""Fixed camera A: edge-based shake/occlusion sign -> SiteEvent(DISASTER_SIGN) (E2 only).
+"""고정 웹캠: 화면 전체 흔들림 횟수 -> SiteEvent(DISASTER_SIGN) (E2 전용).
 
-No model, ROS, storage or mode change. Two candidate indicators from TR-06
-("영상 엣지 기반 지표"), both computed on a strided grayscale grid:
+모델·ROS·저장소·모드 전환 없음. 판정 로직은 numpy/OpenCV 없이 순수 Python 으로
+쓴다(추가 설치 없이 import·시험되도록). OpenCV 는 프레임을 넣어 주는 카메라
+노드·측정 도구 쪽에서만 쓴다. PR #33 설계 v3 합의(2026-10-09):
 
-- shake: fraction of edge cells that changed between consecutive frames
-  (|E_t xor E_t-1| / |E_t or E_t-1|), high when the whole view moves;
-- occlusion: edge density (edge cells / cells), low when the lens is covered.
+1. 회색조 격자로 줄인다(``_gray_grid``).
+2. 블록마다 직전 프레임과 ZNCC(평균을 빼고 정규화한 상관)로 이동량을 찾는다.
+   밝기·대비가 화면 전체로 바뀌어도 점수가 그대로라 조명 변화가 이동으로 보이지 않는다.
+3. 영상 정상 확인: 무늬 있는 블록(가림·어두움)이나 매칭된 블록이 너무 적으면
+   UNKNOWN. UNKNOWN 프레임은 흔들림 횟수를 더하지도 지우지도 않는다.
+4. 화면 전체 확인: 블록 이동량의 중앙값을 화면 이동으로 보고, 네 사분면 모두에
+   그와 같은 방향의 블록이 있어야 한다. 아니면 부분 움직임(사람 통과)이라 거짓.
+5. 이동이 ``shift_min`` 이상이면 방향을 기록하고, 직전 방향과 반대면(내적 < 0)
+   방향 전환 1회. ``window_ns`` 안에서 ``shakes_min`` 회 이상이면 조건 참.
 
-Every threshold, the AND/OR rule, the hold time and the release condition come
-from DisasterSignPolicy (Q-11, no defaults). The event is evidence; coordination
-decides the mode (contracts C-01).
+모든 값은 DisasterSignPolicy 로 받는다(Q-11, 기본값 없음). 진도 7 은 시나리오
+근거일 뿐 웹캠으로 재지 않는다. 사건은 증거이고 모드 전환은 협업·관제가 한다(계약 C-01).
 """
 from dataclasses import dataclass
 import math
+from statistics import median
 from uuid import NAMESPACE_URL, uuid5
 
 from rescue_contracts import RescueError, SiteEvent, camera_id, duration_ns
@@ -21,10 +28,9 @@ from .adapter import SourceBinding, rgb_frame
 from .core import PerceptionError
 
 EVENT_NAMESPACE = uuid5(NAMESPACE_URL, "rescue_perception/disaster_sign/v1")
-# Luma weights (ITU-R BT.601) for 8-bit colour images; channel order per encoding.
+# 8비트 컬러의 회색조 가중치(ITU-R BT.601). 채널 순서는 encoding 에 따른다.
 _LUMA = {"rgb8": (0.299, 0.587, 0.114), "bgr8": (0.114, 0.587, 0.299)}
 _CHANNELS = {"rgb8": 3, "bgr8": 3, "mono8": 1}
-RULES = ("ANY", "ALL")
 
 
 def _require(condition, code, detail):
@@ -44,52 +50,88 @@ def _finite(value, name, low, high):
              "INVALID_INPUT", name)
 
 
+def _count(value, name, low):
+    _require(type(value) is int and value >= low, "INVALID_INPUT", name)
+
+
 @dataclass(frozen=True)
 class DisasterSignPolicy:
-    """Q-11 values, supplied by the deployment; nothing here is a default.
+    """Q-11 값. 배포 프로파일이 넣는다. 기본값은 하나도 없다.
 
-    ``use_shake``/``use_occlusion`` choose indicators; ``rule`` combines the chosen
-    ones (ANY = OR, ALL = AND). The combined condition must hold continuously for
-    ``hold_ns`` to emit one event, and be false continuously for ``release_ns``
-    before another event is possible. A gap over ``max_gap_ns`` between frames
-    breaks both runs (missing frames are not evidence either way).
+    거리 단위는 격자 칸(1칸 = ``sample_stride`` 픽셀).
+    - ``blocks_x``/``blocks_y``: 격자를 나눌 블록 수. 사분면이 있어야 하므로 짝수.
+    - ``search_cells``: 프레임당 찾아볼 최대 이동(칸).
+    - ``texture_min``: 블록 밝기 표준편차가 이 이상이면 "무늬 있음".
+    - ``match_min``: 최고 ZNCC 점수가 이 이상이면 "매칭됨".
+    - ``valid_ratio_min``: 무늬 있는 블록·매칭된 블록이 각각 이 비율 이상이어야 정상 영상.
+    - ``agree_tol``: 블록이 중앙값 이동과 "같은 방향"으로 인정되는 축별 허용 오차(칸).
+    - ``shift_min``: 방향을 기록하는 최소 이동(칸). 정지 상태 잡음 바닥값으로 정한다.
+    - ``shakes_min``/``window_ns``: 이 시간 창 안에 방향 전환이 이 횟수 이상이면 조건 참.
+    - ``hold_ns``: 조건이 이만큼 이어져야 사건 1개. ``window_ns`` 이하(PR #33, 2026-10-09).
+    - ``release_ns``: 사건 뒤 조건이 이만큼 거짓이어야 다시 낼 수 있다.
+    - ``max_gap_ns``: 프레임 간격이 이보다 길면 횟수·구간·직전 프레임을 모두 버린다.
     """
     sample_stride: int
-    edge_gradient_min: float
-    use_shake: bool
-    shake_change_min: float
-    use_occlusion: bool
-    occlusion_density_max: float
-    rule: str
+    blocks_x: int
+    blocks_y: int
+    search_cells: int
+    texture_min: float
+    match_min: float
+    valid_ratio_min: float
+    agree_tol: float
+    shift_min: float
+    shakes_min: int
+    window_ns: int
     hold_ns: int
     release_ns: int
     max_gap_ns: int
 
     def __post_init__(self):
-        _require(type(self.sample_stride) is int and self.sample_stride >= 1, "INVALID_INPUT", "sample_stride")
-        _finite(self.edge_gradient_min, "edge_gradient_min", 0, 510)
-        _require(self.edge_gradient_min > 0, "INVALID_INPUT", "edge_gradient_min must be positive")
-        _require(type(self.use_shake) is bool and type(self.use_occlusion) is bool, "INVALID_INPUT", "indicator flags")
-        _require(self.use_shake or self.use_occlusion, "INVALID_INPUT", "no indicator selected")
-        _finite(self.shake_change_min, "shake_change_min", 0, 1)
-        _finite(self.occlusion_density_max, "occlusion_density_max", 0, 1)
-        _require(self.rule in RULES, "INVALID_INPUT", "rule")
-        for name in ("hold_ns", "release_ns", "max_gap_ns"):
+        _count(self.sample_stride, "sample_stride", 1)
+        for name in ("blocks_x", "blocks_y"):
+            _count(getattr(self, name), name, 2)
+            _require(getattr(self, name) % 2 == 0, "INVALID_INPUT", f"{name} must be even (four quadrants)")
+        _count(self.search_cells, "search_cells", 1)
+        _finite(self.texture_min, "texture_min", 0, 255)
+        _require(self.texture_min > 0, "INVALID_INPUT", "texture_min must be positive")
+        _finite(self.match_min, "match_min", -1, 1)
+        _finite(self.valid_ratio_min, "valid_ratio_min", 0, 1)
+        _require(self.valid_ratio_min > 0, "INVALID_INPUT", "valid_ratio_min must be positive")
+        _finite(self.agree_tol, "agree_tol", 0, 2 * self.search_cells)
+        _finite(self.shift_min, "shift_min", 0, 2 * self.search_cells)
+        _require(self.shift_min > 0, "INVALID_INPUT", "shift_min must be positive")
+        _count(self.shakes_min, "shakes_min", 1)
+        for name in ("window_ns", "hold_ns", "release_ns", "max_gap_ns"):
             _contract(duration_ns, getattr(self, name), name)
-        _require(self.max_gap_ns > 0, "INVALID_INPUT", "max_gap_ns must be positive")
+        _require(self.window_ns > 0 and self.max_gap_ns > 0, "INVALID_INPUT",
+                 "window_ns/max_gap_ns must be positive")
+        _require(self.hold_ns <= self.window_ns, "INVALID_INPUT", "hold_ns must not exceed window_ns")
 
 
 @dataclass(frozen=True)
 class SignFrame:
-    """Per-frame indicator values. ``shake`` is None for the first frame of a run."""
+    """프레임 하나의 판정 결과.
+
+    - ``status``: PROCESSED(판정함), UNKNOWN(판정 안 함), DUPLICATE, REORDERED.
+    - ``reason``: 방향을 기록하지 않은 이유. FIRST_FRAME, OCCLUDED(무늬 부족),
+      MATCH_FAILED(매칭 부족), PARTIAL_MOTION(일부만 움직임), BELOW_NOISE(잡음 수준).
+      방향을 기록했으면 None.
+    - ``shift``: 화면 전체 이동 (dx, dy) 칸. 재지 못했으면 None.
+    - ``reversals``: 이 프레임 뒤 시간 창 안의 방향 전환 횟수.
+    - ``textured_ratio``/``matched_ratio``: 무늬 있는/매칭된 블록 비율(측정 도구용).
+    """
     status: str
-    shake: float | None
-    edge_density: float | None
+    reason: str | None
+    shift: tuple | None
+    reversals: int
     condition: bool
     event: SiteEvent | None
+    textured_ratio: float | None = None
+    matched_ratio: float | None = None
 
 
 def _gray_grid(image, stride):
+    """``stride`` 픽셀 간격으로 뽑은 회색조 격자(2차원 리스트). #33 그대로."""
     _require(image.encoding in _CHANNELS, "INVALID_INPUT", f"unsupported encoding {image.encoding!r}")
     channels = _CHANNELS[image.encoding]
     data = image.data.tobytes() if hasattr(image.data, "tobytes") else bytes(image.data)
@@ -106,20 +148,79 @@ def _gray_grid(image, stride):
     return grid
 
 
-def _edges(grid, gradient_min):
-    """Forward-difference |gx| + |gy| on the sampled grid; last row/column excluded."""
-    rows, cols = len(grid) - 1, len(grid[0]) - 1
-    _require(rows >= 1 and cols >= 1, "INVALID_INPUT", "image too small for sample_stride")
-    return frozenset((y, x) for y in range(rows) for x in range(cols)
-                     if abs(grid[y][x + 1] - grid[y][x]) + abs(grid[y + 1][x] - grid[y][x]) >= gradient_min), \
-        rows * cols
+def _block_size(grid, policy):
+    """블록 한 칸의 (높이, 너비). 가장자리에 ``search_cells`` 만큼 여백을 남긴다.
+
+    여백이 있어야 어느 방향으로 찾아도 직전 프레임 밖으로 나가지 않는다.
+    """
+    s = policy.search_cells
+    rows, cols = len(grid) - 2 * s, len(grid[0]) - 2 * s
+    bh = rows // policy.blocks_y if rows > 0 else 0
+    bw = cols // policy.blocks_x if cols > 0 else 0
+    _require(bh >= 2 and bw >= 2, "INVALID_INPUT", "image too small for sample_stride/blocks/search_cells")
+    return bh, bw
+
+
+def _offsets(search):
+    """찾아볼 이동 후보. 작은 이동부터 정렬해 점수가 같으면 덜 움직인 쪽을 고른다."""
+    span = range(-search, search + 1)
+    return sorted(((dx, dy) for dy in span for dx in span),
+                  key=lambda d: (d[0] ** 2 + d[1] ** 2, d[1], d[0]))
+
+
+def _block_shifts(prev, cur, policy):
+    """블록마다 (bx, by, 무늬있음, dx, dy, 점수) 를 돌려준다.
+
+    현재 블록을 직전 프레임에서 (dx, dy) 만큼 옮긴 자리와 비교한다. 즉 dx, dy 는
+    카메라가 움직인 방향이다. 무늬가 없는 블록은 dx, dy, 점수가 None.
+    """
+    s = policy.search_cells
+    bh, bw = _block_size(cur, policy)
+    n, offsets, out = bh * bw, _offsets(s), []
+    for by in range(policy.blocks_y):
+        for bx in range(policy.blocks_x):
+            y0, x0 = s + by * bh, s + bx * bw
+            # 현재 블록에서 평균을 뺀 값과 그 크기(표준편차 * sqrt(n))
+            a = [cur[y][x] for y in range(y0, y0 + bh) for x in range(x0, x0 + bw)]
+            mean = sum(a) / n
+            a = [v - mean for v in a]
+            norm_a = math.sqrt(sum(v * v for v in a))
+            if norm_a / math.sqrt(n) < policy.texture_min:
+                out.append((bx, by, False, None, None, None))
+                continue
+            best = (None, None, -2.0)  # ZNCC 는 -1 ~ 1 이라 -2 는 "아직 없음"
+            for dx, dy in offsets:
+                b = [prev[y][x] for y in range(y0 + dy, y0 + dy + bh) for x in range(x0 + dx, x0 + dx + bw)]
+                sb = sum(b)
+                var_b = sum(v * v for v in b) - sb * sb / n
+                if var_b <= 1e-9:  # 직전 자리가 완전히 평평하면 비교할 수 없다
+                    continue
+                # a 는 이미 평균 0 이라 b 의 평균을 빼지 않아도 분자가 같다
+                score = sum(p * q for p, q in zip(a, b)) / (norm_a * math.sqrt(var_b))
+                if score > best[2]:
+                    best = (dx, dy, score)
+            out.append((bx, by, True) + best)
+    return out
+
+
+def _whole_view(matched, policy):
+    """매칭된 블록들로 화면 전체 이동 (dx, dy) 을 구한다. 부분 움직임이면 None.
+
+    중앙값을 화면 이동으로 보고, 네 사분면마다 그 이동과 ``agree_tol`` 안으로
+    맞는 블록이 하나 이상 있어야 한다. 사람이 화면 대부분을 가려도 멈춰 있는
+    사분면이 남으므로 걸러진다.
+    """
+    mx, my = median(b[3] for b in matched), median(b[4] for b in matched)
+    agreeing = {(b[0] * 2 // policy.blocks_x, b[1] * 2 // policy.blocks_y) for b in matched
+                if abs(b[3] - mx) <= policy.agree_tol and abs(b[4] - my) <= policy.agree_tol}
+    return (mx, my) if len(agreeing) == 4 else None
 
 
 class DisasterSignDetector:
-    """One fixed camera, one process; state only moves forward in sensor time.
+    """고정 카메라 1대, 프로세스 1개. 상태는 센서 시각 순서로만 나아간다.
 
-    Emits at most one DISASTER_SIGN per episode (hold satisfied), re-armed only
-    after the release condition. Duplicate/older frames change nothing.
+    한 번의 흔들림 구간에 사건은 최대 1개(hold 충족 시). release 조건을 채워야
+    다시 낼 수 있다. 같은 시각·더 이른 시각 프레임은 아무것도 바꾸지 않는다.
     """
 
     def __init__(self, binding, policy):
@@ -128,58 +229,82 @@ class DisasterSignDetector:
         _require(isinstance(policy, DisasterSignPolicy), "INVALID_INPUT", "policy")
         self.camera_id = _contract(camera_id, binding.source_camera, "camera_id")
         self.binding, self.policy = binding, policy
-        self._last_ns = None
-        self._previous_edges = None
-        self._true_since = None
-        self._false_since = None
-        self._armed = True
+        self._last_ns = None        # 마지막으로 처리한 프레임 시각
+        self._prev_grid = None      # 직전 프레임 격자(비교 기준)
+        self._last_dir = None       # 마지막으로 기록한 이동 방향 (dx, dy)
+        self._reversal_ns = []      # 시간 창 안의 방향 전환 시각들
+        self._true_since = None     # 조건이 참이 된 시각(hold 계산)
+        self._false_since = None    # 조건이 거짓이 된 시각(release 계산)
+        self._armed = True          # 사건을 낼 수 있는 상태인가
 
-    def _condition(self, shake, density):
-        p, checks = self.policy, []
-        if p.use_shake:
-            checks.append(shake is not None and shake >= p.shake_change_min)
-        if p.use_occlusion:
-            checks.append(density <= p.occlusion_density_max)
-        return any(checks) if p.rule == "ANY" else all(checks)
+    def _reset_motion(self):
+        self._prev_grid, self._last_dir, self._reversal_ns = None, None, []
+        self._true_since, self._false_since = None, None
 
     def update(self, rgb):
         frame, evidence_sha256 = rgb_frame(rgb, self.binding)
         stamp = frame.observed_at_ns
         if self._last_ns is not None and stamp <= self._last_ns:
-            return SignFrame("DUPLICATE" if stamp == self._last_ns else "REORDERED", None, None, False, None)
-        # Decode before touching any state: a rejected frame leaves no trace.
-        edges, cells = _edges(_gray_grid(rgb, self.policy.sample_stride), self.policy.edge_gradient_min)
+            return SignFrame("DUPLICATE" if stamp == self._last_ns else "REORDERED", None, None,
+                             len(self._reversal_ns), False, None)
+        # 상태를 바꾸기 전에 디코딩·크기 검사를 끝낸다: 거절된 프레임은 흔적을 남기지 않는다.
+        grid = _gray_grid(rgb, self.policy.sample_stride)
+        _block_size(grid, self.policy)
         if self._last_ns is not None and stamp - self._last_ns > self.policy.max_gap_ns:
-            self._previous_edges, self._true_since, self._false_since = None, None, None
+            self._reset_motion()  # 빠진 프레임은 어느 쪽 증거도 아니다
         self._last_ns = stamp
-        density = len(edges) / cells
-        shake = None
-        if self._previous_edges is not None:
-            union = edges | self._previous_edges
-            shake = len(edges ^ self._previous_edges) / len(union) if union else 0.0
-        self._previous_edges = edges
-        condition = self._condition(shake, density)
+        prev, self._prev_grid = self._prev_grid, grid  # UNKNOWN 이어도 다음 비교 기준은 이 프레임
+        self._reversal_ns = [t for t in self._reversal_ns if t > stamp - self.policy.window_ns]
+        if prev is None:
+            return self._judge(frame, evidence_sha256, "FIRST_FRAME", None, None, None)
+
+        blocks = _block_shifts(prev, grid, self.policy)
+        textured = [b for b in blocks if b[2]]
+        matched = [b for b in textured if b[5] >= self.policy.match_min]
+        textured_ratio, matched_ratio = len(textured) / len(blocks), len(matched) / len(blocks)
+        if textured_ratio < self.policy.valid_ratio_min or matched_ratio < self.policy.valid_ratio_min:
+            # 판정하지 않는다: 횟수·hold·release 구간을 건드리지 않는다.
+            reason = "OCCLUDED" if textured_ratio < self.policy.valid_ratio_min else "MATCH_FAILED"
+            return SignFrame("UNKNOWN", reason, None, len(self._reversal_ns), False, None,
+                             textured_ratio, matched_ratio)
+
+        shift = _whole_view(matched, self.policy)
+        if shift is None:
+            return self._judge(frame, evidence_sha256, "PARTIAL_MOTION", None, textured_ratio, matched_ratio,
+                               force_false=True)
+        if math.hypot(*shift) < self.policy.shift_min:
+            return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio)
+        if self._last_dir is not None and shift[0] * self._last_dir[0] + shift[1] * self._last_dir[1] < 0:
+            self._reversal_ns.append(stamp)  # 직전 방향과 반대: 방향 전환 1회
+        self._last_dir = shift
+        return self._judge(frame, evidence_sha256, None, shift, textured_ratio, matched_ratio)
+
+    def _judge(self, frame, evidence_sha256, reason, shift, textured_ratio, matched_ratio, force_false=False):
+        """조건을 정하고 hold/release 로 사건을 낼지 정한다(#33 과 같은 규칙)."""
+        stamp, p = frame.observed_at_ns, self.policy
+        reversals = len(self._reversal_ns)
+        condition = not force_false and reversals >= p.shakes_min
         event = None
         if condition:
             self._false_since = None
             self._true_since = stamp if self._true_since is None else self._true_since
-            if self._armed and stamp - self._true_since >= self.policy.hold_ns:
+            if self._armed and stamp - self._true_since >= p.hold_ns:
                 self._armed = False
-                event = self._event(frame, evidence_sha256, shake, density)
+                event = self._event(frame, evidence_sha256, shift, reversals)
         else:
             self._true_since = None
             self._false_since = stamp if self._false_since is None else self._false_since
-            if not self._armed and stamp - self._false_since >= self.policy.release_ns:
+            if not self._armed and stamp - self._false_since >= p.release_ns:
                 self._armed = True
-        return SignFrame("PROCESSED", shake, density, condition, event)
+        return SignFrame("PROCESSED", reason, shift, reversals, condition, event, textured_ratio, matched_ratio)
 
-    def _event(self, frame, evidence_sha256, shake, density):
+    def _event(self, frame, evidence_sha256, shift, reversals):
         p, stamp = self.policy, frame.observed_at_ns
-        detail = (f"rule={p.rule} shake={'n/a' if shake is None else f'{shake:.4f}'}"
-                  f"{f'>={p.shake_change_min}' if p.use_shake else '(unused)'} "
-                  f"edge_density={density:.4f}{f'<={p.occlusion_density_max}' if p.use_occlusion else '(unused)'} "
-                  f"onset_ns={self._true_since} hold_ns={p.hold_ns} stride={p.sample_stride}")
-        # Rule-based sign, not a calibrated probability: 1.0 means "policy satisfied".
+        detail = (f"reversals={reversals}>={p.shakes_min} window_ns={p.window_ns} "
+                  f"shift={'n/a' if shift is None else f'({shift[0]},{shift[1]})'} "
+                  f"onset_ns={self._true_since} hold_ns={p.hold_ns} stride={p.sample_stride} "
+                  f"blocks={p.blocks_x}x{p.blocks_y} search={p.search_cells}")
+        # 규칙 기반 사건이라 확률이 아니다: 1.0 은 "정책 조건 충족" (#33 작전 결정, C-05).
         return SiteEvent(str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/disaster")), self.camera_id,
                          "DISASTER_SIGN", stamp, str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/frame")),
                          evidence_sha256, 1.0, frame.clock_domain_id, frame.stamp_semantics,
