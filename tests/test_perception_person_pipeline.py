@@ -117,9 +117,21 @@ class PersonPipelineTests(unittest.TestCase):
 
     def test_non_person_labels_skipped_and_unknown_labels_rejected(self):
         self.assertEqual(self.frame(self.pipeline({T0: [out(label="dummy")]}, mode="DETECTION_ONLY"), 0).candidates, ())
-        p = self.pipeline({T0: [out()]}, mode="DETECTION_ONLY", confirmation_policy=ConfirmationPolicy(("person", "doll"), 0.5))
-        self.assertEqual(len(self.frame(p, 0).candidates), 1)
-        p = self.pipeline({T0: [out(label="doll")]}, mode="DETECTION_ONLY", confirmation_policy=ConfirmationPolicy(("doll",), 0.5))
+        p = self.pipeline({T0: [out(label="doll")]}, mode="DETECTION_ONLY",
+                          confirmation_policy=ConfirmationPolicy(("person",), 0.5))
+        self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(p, 0))
+
+    def test_person_label_missing_from_manifest_is_not_an_empty_frame(self):
+        # A policy label the model cannot output would turn every frame into
+        # "ran, no person" and leak into recheck ABSENT evidence.
+        p = self.pipeline({T0: [out(label="dummy")]}, mode="DETECTION_ONLY",
+                          confirmation_policy=ConfirmationPolicy(("human",), 0.5))
+        self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(p, 0))
+        empty = self.pipeline({T0: []}, confirmation_policy=ConfirmationPolicy(("person", "doll"), 0.5))
+        self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(empty, 0))
+
+    def test_output_label_outside_manifest_is_rejected_even_if_not_a_person(self):
+        p = self.pipeline({T0: [out(label="cat")]}, mode="DETECTION_ONLY")
         self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(p, 0))
 
     def test_duplicate_and_reordered_frames_are_ignored(self):
@@ -152,8 +164,7 @@ class PersonPipelineTests(unittest.TestCase):
         self.assertTrue(retry.candidates[0].new_candidate)
 
     def test_rejected_label_then_clean_retry(self):
-        p = self.pipeline({T0: [out(track="1"), out(track="3", label="doll")]},
-                          confirmation_policy=ConfirmationPolicy(("person", "doll"), 0.5))
+        p = self.pipeline({T0: [out(track="1"), out(track="3", label="cat")]})
         self.assertCode("MODEL_CLASS_MISMATCH", lambda: self.frame(p, 0))
         p.detector = RecordedDetections(MODEL, "TRACKING", {T0: [out(track="1")]})
         self.assertEqual([c.new_candidate for c in self.frame(p, 0).candidates], [True])
