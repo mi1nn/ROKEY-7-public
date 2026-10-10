@@ -147,9 +147,17 @@ function stamp() {
     row.querySelector('.latency').textContent = ((shown - eventMs) / 1000).toFixed(2) + 's';
   }
 }
+let timer = null;
 async function poll() {
   try {
     const response = await fetch('fragment', {cache: 'no-store'});
+    if (response.status === 401 || response.redirected) {
+      // Session ended (logout elsewhere, account changed): stop polling and go to the login page
+      // instead of pasting whatever came back into the console (AST-50-02).
+      clearInterval(timer);
+      location.href = response.status === 401 ? '/login' : response.url;
+      return;
+    }
     if (!response.ok) throw new Error('HTTP ' + response.status);
     document.getElementById('live').innerHTML = await response.text();
     document.getElementById('poll-error').textContent = '';
@@ -159,7 +167,7 @@ async function poll() {
   }
 }
 stamp();
-setInterval(poll, POLL_MS);
+timer = setInterval(poll, POLL_MS);
 '''
 
 
@@ -173,19 +181,20 @@ def _flashes(messages):
     return ''.join(f'<div class="flash {escape(category)}">{escape(text)}</div>' for category, text in messages)
 
 
-def _header(user):
-    """Who is logged in and where they may go. Links only (GET); no forms on the dashboard."""
+def _header(user, csrf):
+    """Who is logged in and where they may go. The only form on the dashboard is logout (POST + CSRF)."""
     if user is None:
         return '<h1>구조 관제 <small>(읽기 전용)</small></h1>'
     admin = ' <a href="/admin/accounts">계정 관리</a>' if user['role'] == 'ADMIN' else ''
     return (f'<header class="user"><h1>구조 관제 <small>(읽기 전용)</small></h1>'
             f'<nav><span>{escape(user["display_name"])} ({escape(user["role"])})</span>{admin}'
-            '<a href="/logout">로그아웃</a></nav></header>')
+            f' <form class="inline" method="post" action="/logout"><input type="hidden" name="csrf" value="{escape(csrf or "")}">'
+            '<button type="submit">로그아웃</button></form></nav></header>')
 
 
-def render_page(view, user=None):
+def render_page(view, user=None, csrf=None):
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
-    return (_head('구조 관제') + _header(user) + '<div id="poll-error" style="color:#a00"></div>'
+    return (_head('구조 관제') + _header(user, csrf) + '<div id="poll-error" style="color:#a00"></div>'
             + _commands(view) + f'<div id="live">{render_fragment(view)}</div>'
             f'<script>{script}</script></body></html>')
 
@@ -226,7 +235,7 @@ def render_accounts(accounts, user, csrf, messages=()):
                '<input type="hidden" name="_action" value="delete">'
                '<button type="submit" onclick="return confirm(\'삭제할까요?\')">삭제</button></form>')
             + f'</td><td>{_time(account["updated_at_ns"])}</td></tr>')
-    return (_head('계정 관리') + _header(user) + _flashes(messages)
+    return (_head('계정 관리') + _header(user, csrf) + _flashes(messages)
             + '<h2>계정 추가</h2><form class="inline" method="post" action="/admin/accounts">' + hidden
             + '<input name="username" placeholder="아이디(소문자)" required>'
               '<input name="display_name" placeholder="표시 이름">'

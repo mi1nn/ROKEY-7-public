@@ -36,12 +36,18 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
         return current_view(ledger_path, status_path)
 
     def user():
-        username = session.get('username')
-        if not username:
+        """The account behind this session, or None.
+
+        The cookie carries (account_id, auth_version). A deleted-and-recreated name has a new
+        id; a password / role / status change bumps the version. Either way every cookie
+        issued earlier stops matching here, on the server, whatever the client kept (AST-50-01).
+        """
+        account_id, version = session.get('account_id'), session.get('auth_version')
+        if not account_id:
             return None
-        account = accounts.get(username)
-        if account is None or account['status'] != 'ACTIVE':
-            session.clear()            # deleted or deactivated while logged in
+        account = accounts.get_by_id(account_id)
+        if account is None or account['status'] != 'ACTIVE' or account['auth_version'] != version:
+            session.clear()
             return None
         return account
 
@@ -59,7 +65,9 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
         def wrapped(*args, **kwargs):
             account = user()
             if account is None:
-                if request.path.startswith('/api/'):
+                # Data routes answer 401 so the poller never swallows a login document (AST-50-02);
+                # only whole pages redirect.
+                if request.path.startswith('/api/') or request.path == '/fragment':
                     return jsonify({'error': 'login required'}), 401
                 return redirect('/login')
             return handler(account, *args, **kwargs)
@@ -94,12 +102,14 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
             flash('아이디 또는 비밀번호가 틀립니다.', 'danger')
             return redirect('/login')
         session.clear()
-        session['username'] = account['username']
+        session['account_id'] = account['account_id']
+        session['auth_version'] = account['auth_version']
         csrf_token()
         return redirect('/')
 
-    @app.get('/logout')
+    @app.post('/logout')
     def logout():
+        check_csrf()               # a link or an image tag cannot log the operator out (AST-50-03)
         session.clear()
         return redirect('/login')
 
@@ -107,7 +117,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key):
     @app.get('/')
     @login_required
     def page(account):
-        return Response(render_page(view(), account), mimetype='text/html')
+        return Response(render_page(view(), account, csrf=csrf_token()), mimetype='text/html')
 
     @app.get('/fragment')
     @login_required

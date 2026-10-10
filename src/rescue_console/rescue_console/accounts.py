@@ -20,6 +20,7 @@ import secrets
 import sqlite3
 import sys
 import time
+import uuid
 from pathlib import Path
 
 from .view import ConsoleError
@@ -32,7 +33,8 @@ MIN_PASSWORD = 8
 _ROLE_KEY, _ROLE = 'role', 'console-accounts'
 _SCHEMA = '1.0'
 _ITERATIONS = 200_000
-_PUBLIC = ('username', 'display_name', 'email', 'role', 'status', 'created_at_ns', 'updated_at_ns')
+_PUBLIC = ('account_id', 'username', 'display_name', 'email', 'role', 'status', 'auth_version',
+           'created_at_ns', 'updated_at_ns')
 _KEEP = object()
 
 
@@ -103,14 +105,20 @@ class AccountStore:
             db = sqlite3.connect(path)
             with db:
                 db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+                # account_id: survives nothing — a deleted name that is created again gets a new id.
+                # auth_version: bumped whenever password / role / status change, so every session
+                # issued before the change stops matching (sessions carry both values).
                 db.execute('''CREATE TABLE accounts (
-                    username TEXT PRIMARY KEY, display_name TEXT NOT NULL, email TEXT NOT NULL,
+                    username TEXT PRIMARY KEY, account_id TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL, email TEXT NOT NULL,
                     role TEXT NOT NULL, status TEXT NOT NULL, password_hash TEXT NOT NULL,
+                    auth_version INTEGER NOT NULL,
                     created_at_ns INTEGER NOT NULL, updated_at_ns INTEGER NOT NULL)''')
                 db.executemany('INSERT INTO metadata VALUES (?, ?)', [(_ROLE_KEY, _ROLE), ('schema_version', _SCHEMA)])
                 now = time.time_ns()
-                db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                           (admin_username, admin_username, '', 'ADMIN', 'ACTIVE', password_hash, now, now))
+                db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                           (admin_username, str(uuid.uuid4()), admin_username, '', 'ADMIN', 'ACTIVE', password_hash,
+                            1, now, now))
             db.close()
         except sqlite3.Error as exc:
             raise ConsoleError('STORAGE_ERROR', f'cannot create accounts database: {exc}') from exc
@@ -147,6 +155,12 @@ class AccountStore:
             row = db.execute('SELECT * FROM accounts WHERE username = ?', (username,)).fetchone()
         return _public(row) if row else None
 
+    def get_by_id(self, account_id):
+        """The row behind a session. A reused username has a different id, so it never matches."""
+        with self._connect() as db:
+            row = db.execute('SELECT * FROM accounts WHERE account_id = ?', (account_id,)).fetchone()
+        return _public(row) if row else None
+
     def authenticate(self, username, password):
         """The account's public row for a correct password on an ACTIVE account, else None.
 
@@ -164,14 +178,14 @@ class AccountStore:
     # ---- writes (ADMIN only; the web layer enforces who calls these) ------------------
     def add(self, username, password, *, role, display_name='', email='', status='ACTIVE'):
         username = _username(username)
-        record = (username, _text(display_name, 'display_name') or username, _email(email),
+        record = (username, str(uuid.uuid4()), _text(display_name, 'display_name') or username, _email(email),
                   _choice(role, ACCOUNT_ROLES, 'role'), _choice(status, ACCOUNT_STATUSES, 'status'),
-                  hash_password(password))
+                  hash_password(password), 1)
         with self._connect() as db:
             _require(db.execute('SELECT 1 FROM accounts WHERE username = ?', (username,)).fetchone() is None,
                      f'account {username} already exists', 'ALREADY_EXISTS')
             now = time.time_ns()
-            db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?)', record + (now, now))
+            db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', record + (now, now))
         return self.get(username)
 
     def update(self, username, *, display_name=_KEEP, email=_KEEP, role=_KEEP, status=_KEEP, password=None):
@@ -196,6 +210,9 @@ class AccountStore:
                 self._guard_last_admin(db, username)
             if 'display_name' in changes and changes['display_name'] == '':
                 changes['display_name'] = username
+            credential_changed = ('password_hash' in changes or after_role != row['role'] or after_status != row['status'])
+            if credential_changed:
+                changes['auth_version'] = row['auth_version'] + 1   # every earlier session stops matching
             changes['updated_at_ns'] = time.time_ns()
             assignments = ', '.join(f'{key} = ?' for key in changes)
             db.execute(f'UPDATE accounts SET {assignments} WHERE username = ?', (*changes.values(), username))

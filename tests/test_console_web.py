@@ -81,7 +81,7 @@ class CommandPlaceholderTests(LedgerFixture):
         customer_html = render_page(view, {'username': 'jane', 'display_name': '<b>', 'role': 'CUSTOMER'})
         self.assertNotIn('href="/admin/accounts"', customer_html)
         self.assertIn('&lt;b&gt; (CUSTOMER)', customer_html)
-        self.assertNotIn('<form', customer_html)
+        self.assertNotIn('action="/admin', customer_html)
 
     def test_login_and_accounts_pages_carry_csrf_and_escape_values(self):
         login = render_login('tok&en', [('danger', '<x>')])
