@@ -176,6 +176,15 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(self.events(results), [])
         self.assertEqual(max(r.reversals for r in results), 0)
 
+    def test_hand_pausing_briefly_does_not_become_the_scene(self):
+        # 손이 렌즈 앞에서 잠깐 멈췄다가 다시 움직임: 잠깐 멈춘 손 화면을 기준 장면으로
+        # 삼으면 그다음 손 움직임을 흔들림으로 센다(합성 영상 재생에서 발견, 2026-10-10).
+        frames = (still(0, 3) + [(300, hand()), (400, hand()), (500, hand())]
+                  + [(600 + k * 100, hand(ox=2 * ((k + 1) % 2))) for k in range(8)])
+        results = self.run_frames(self.detector(), frames)
+        self.assertEqual(self.events(results), [])
+        self.assertEqual(max(r.reversals for r in results), 0)
+
     def test_jitter_below_noise_floor_is_not_counted(self):
         frames = [(k * 100, scene(ox=8 + k % 2)) for k in range(8)]  # 1칸 왕복 < shift_min 1.5
         results = self.run_frames(self.detector(), frames)
