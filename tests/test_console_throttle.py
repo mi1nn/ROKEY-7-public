@@ -1,6 +1,10 @@
 """Login throttle: repeated wrong passwords for one name from one client are refused for a while."""
+import sys
+import threading
 import unittest
+from unittest import mock
 
+from rescue_console import throttle as throttle_module
 from rescue_console.throttle import (LOGIN_LOCK_S, LOGIN_MAX_FAILURES, LOGIN_MAX_KEYS, LOGIN_WINDOW_S,
                                      LoginThrottle)
 
@@ -54,6 +58,47 @@ class LoginThrottleTests(unittest.TestCase):
         for i in range(LOGIN_MAX_KEYS + 50):
             self.throttle.failed(f'user{i}', '10.0.0.5')
         self.assertLessEqual(len(self.throttle), LOGIN_MAX_KEYS)
+
+
+
+class LoginThrottleThreadTests(unittest.TestCase):
+    """The dev server is threaded (Flask app.run default): requests call the throttle concurrently (OPS-51-01)."""
+
+    def setUp(self):
+        interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-6)          # switch threads as often as possible to expose races
+        self.addCleanup(sys.setswitchinterval, interval)
+
+    @staticmethod
+    def together(count, work):
+        start, errors = threading.Barrier(count), []
+
+        def run(index):
+            start.wait()
+            try:
+                work(index)
+            except Exception as exc:          # collected, so a race fails the test instead of a thread
+                errors.append(exc)
+        threads = [threading.Thread(target=run, args=(i,)) for i in range(count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        return errors
+
+    def test_concurrent_failures_of_one_pair_still_lock_it(self):
+        for _ in range(200):
+            throttle = LoginThrottle(clock=lambda: 1000.0)
+            errors = self.together(LOGIN_MAX_FAILURES, lambda i: throttle.failed('admin', '10.0.0.5'))
+            self.assertEqual(errors, [])
+            self.assertEqual(throttle.locked_for('admin', '10.0.0.5'), LOGIN_LOCK_S)
+
+    def test_concurrent_flood_evicts_without_errors(self):
+        throttle = LoginThrottle(clock=lambda: 1000.0)
+        with mock.patch.object(throttle_module, 'LOGIN_MAX_KEYS', 50):
+            errors = self.together(8, lambda k: [throttle.failed(f'user{k}-{i}', 'c') for i in range(2000)])
+            self.assertEqual(errors, [])
+            self.assertLessEqual(len(throttle), 50)
 
 
 if __name__ == '__main__':
