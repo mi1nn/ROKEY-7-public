@@ -264,6 +264,8 @@ def main():
         if writer:
             handle.close()
         summarize(rows)
+        if args.csv:
+            print(f"프레임별 기록 저장: {args.csv.resolve()}")
 
 
 if __name__ == "__main__":
