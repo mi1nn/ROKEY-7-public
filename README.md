@@ -27,6 +27,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 | [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서 |
 | [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
+| [BRD v0.2 (제안)](docs/requirements/brd-v0.2.md) · [SRD v0.2 (제안)](docs/requirements/srd-v0.2.md) | 웹캠 1대·운영자 구간 승인·머리 위 기둥 통로·이중 확인 완료 판정 시나리오를 교육 양식 목차로 쓴 BRD·SRD. 채택 전 `[제안]`, 기준 문서는 Part I v0.1 |
 | [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, 오프라인 시험 규칙 |
 | [운영 PC 현황 기록](docs/process/ops-host-record.md) | 운영 PC 에 실제로 떠 있는 Discovery Server(서버 ID 0, 손으로 띄움, DHCP 주소)·관제 웹의 측정값, network-discovery 권고안 A 와의 차이, 로봇 Discovery 설정을 건드리지 않는 규칙 |
 | [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
