@@ -37,6 +37,15 @@ class TaskGoalFieldTests(unittest.TestCase):
             with self.assertRaises(ContractError, msg=(kind, changes)):
                 task(kind, **changes)
 
+    def test_segment_and_return_home_kinds(self):
+        # AMR2 one-segment move and return: goal_pose only, no target or search area.
+        for kind in ('MOVE_SEGMENT', 'RETURN_HOME'):
+            self.assertEqual(task(kind).kind, kind)
+            for changes in (dict(goal_pose=None), dict(search_area_ref=uid(5)),
+                            dict(target_id=uid(7), target_revision=0)):
+                with self.assertRaises(ContractError, msg=(kind, changes)):
+                    task(kind, **changes)
+
     def test_goal_pose_shape(self):
         for changes in (dict(frame_id=''), dict(x=float('nan')), dict(yaw=float('inf')), dict(y=True),
                         dict(map_session_id='session'), dict(map_session_id=uid(0)),
