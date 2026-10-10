@@ -7,10 +7,11 @@ from rescue_contracts import SiteEvent
 from rescue_coordination.planning import Allocator, CoordinationError
 from rescue_coordination.search import SearchCoordinator
 from rescue_coordination import mission
-from test_coordination_search import BOOT, EPOCH, NOW, policy, receipt, uid
+from test_coordination_search import BOOT, EPOCH, MAP, NOW, policy, receipt, uid
 
 SCOUT, SUPPORT = 'unit_1', 'unit_2'
 TARGET, OTHER = uid(500), uid(501)
+T0 = dict(target_id=TARGET, target_revision=0)  # the dispatched target at its first revision
 
 
 def sign(n=1, **changes):
@@ -21,12 +22,20 @@ def sign(n=1, **changes):
     return SiteEvent(**(values | changes))
 
 
+def home(robot, **changes):
+    values = dict(robot_id=robot, mission_xy=(0., -1.), yaw=0., map_session_id=MAP, map_revision=3,
+                  transform_revision=1)
+    return mission.HomePosition(**(values | changes))
+
+
 class MissionTestCase(unittest.TestCase):
     def setUp(self):
         self.ids = itertools.count(1000)
         self.search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
                                         new_id=lambda: uid(next(self.ids)))
-        self.m = mission.MissionCoordinator(self.search)
+        self.m = mission.MissionCoordinator(self.search, home_positions=(home(SCOUT), home(SUPPORT)))
+        for robot in (SCOUT, SUPPORT):
+            self.m.record_map_basis(robot, map_session_id=MAP, map_revision=3, transform_revision=1)
 
     def command(self, kind, **fields):
         return mission.OperatorCommand(command_id=uid(next(self.ids)), kind=kind, operator_id='admin',
@@ -52,10 +61,16 @@ class MissionTestCase(unittest.TestCase):
         self.found(segments=segments, route=route)
         self.assertEqual('ACCEPTED', self.reason('DISPATCH_SUPPORT', target_id=TARGET, target_revision=0))
 
+    def started(self, index, route=7, rev=0):
+        return self.m.segment_started(TARGET, target_revision=rev, route_revision=route, segment_index=index)
+
+    def finished(self, index, completed=True, stop=True, route=7):
+        return self.m.segment_finished(TARGET, target_revision=0, route_revision=route, segment_index=index,
+                                       completed=completed, stop_confirmed=stop)
+
     def segment(self, index, route=7, completed=True):
-        self.assertTrue(self.m.segment_started(TARGET, route_revision=route, segment_index=index))
-        self.assertTrue(self.m.segment_finished(TARGET, route_revision=route, segment_index=index,
-                                                completed=completed, stop_confirmed=True))
+        self.assertTrue(self.started(index, route))
+        self.assertTrue(self.finished(index, completed, route=route))
 
     def arrived(self):
         self.dispatched(segments=2)
@@ -63,7 +78,7 @@ class MissionTestCase(unittest.TestCase):
 
     def reach_end(self):
         self.segment(0)
-        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', target_id=TARGET, route_revision=7,
+        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', **T0, route_revision=7,
                                                  segment_index=1))
         self.segment(1)
 
@@ -78,7 +93,8 @@ class ModeGateTests(MissionTestCase):
     def test_valid_disaster_sign_enters_disaster_and_releases_the_scout(self):
         event = sign()
         result = self.m.record_site_event(event)
-        self.assertEqual((event.event_id, 'ENTERED_DISASTER', 'DISASTER'), (result.event_id, result.reason, result.mode))
+        self.assertEqual((event.event_id, 'ENTERED_DISASTER', 'DISASTER'),
+                         (result.event_id, result.reason, result.mode))
         self.assertEqual((event.event_id, event.observed_at_ns),
                          (self.m.trigger_event_id, self.m.trigger_observed_at_ns))
         gate = self.m.plan(SCOUT, robot_boot_id=BOOT[SCOUT], ready=True, now_ns=NOW)
@@ -126,7 +142,7 @@ class OperatorCommandTests(MissionTestCase):
     def test_every_command_needs_disaster_mode(self):
         self.found()
         for kind, fields in (('DISPATCH_SUPPORT', dict(target_id=TARGET, target_revision=0)),
-                             ('CONTINUE_SEGMENT', dict(target_id=TARGET, route_revision=7, segment_index=1)),
+                             ('CONTINUE_SEGMENT', dict(T0, route_revision=7, segment_index=1)),
                              ('REQUEST_RECHECK', dict(target_id=TARGET)), ('RETURN_HOME', {})):
             with self.subTest(kind=kind):
                 self.assertEqual('MODE_NOT_DISASTER', self.reason(kind, **fields))
@@ -153,12 +169,11 @@ class OperatorCommandTests(MissionTestCase):
 
     def test_continue_only_when_awaiting_approval_and_never_automatic(self):
         self.dispatched()
-        cont = dict(target_id=TARGET, route_revision=7, segment_index=1)
+        cont = T0 | dict(route_revision=7, segment_index=1)
         self.assertEqual('NOT_AWAITING_APPROVAL', self.reason('CONTINUE_SEGMENT', **cont))  # APPROVED
-        self.assertTrue(self.m.segment_started(TARGET, route_revision=7, segment_index=0))
+        self.assertTrue(self.started(0))
         self.assertEqual('NOT_AWAITING_APPROVAL', self.reason('CONTINUE_SEGMENT', **cont))  # MOVING
-        self.assertTrue(self.m.segment_finished(TARGET, route_revision=7, segment_index=0, completed=True,
-                                                stop_confirmed=True))
+        self.assertTrue(self.finished(0, completed=True, stop=True))
         self.assertEqual(('AWAITING_APPROVAL', 1), (self.m.segment_phase, self.m.segment_index))
         self.assertEqual('SEGMENT_INDEX_MISMATCH', self.reason('CONTINUE_SEGMENT', **(cont | dict(segment_index=2))))
         self.assertEqual('ROUTE_REVISION_STALE', self.reason('CONTINUE_SEGMENT', **(cont | dict(route_revision=6))))
@@ -169,36 +184,33 @@ class OperatorCommandTests(MissionTestCase):
 
     def test_segment_end_needs_a_confirmed_stop_and_failure_waits_for_approval(self):
         self.dispatched()
-        self.assertFalse(self.m.segment_started(TARGET, route_revision=7, segment_index=1))  # not the approved one
-        self.assertTrue(self.m.segment_started(TARGET, route_revision=7, segment_index=0))
-        self.assertFalse(self.m.segment_finished(TARGET, route_revision=7, segment_index=0, completed=True,
-                                                 stop_confirmed=False))
+        self.assertFalse(self.started(1))  # not the approved one
+        self.assertTrue(self.started(0))
+        self.assertFalse(self.finished(0, completed=True, stop=False))
         self.assertEqual('MOVING', self.m.segment_phase)
-        self.assertTrue(self.m.segment_finished(TARGET, route_revision=7, segment_index=0, completed=False,
-                                                stop_confirmed=True))
+        self.assertTrue(self.finished(0, completed=False, stop=True))
         self.assertEqual(('AWAITING_APPROVAL', 0), (self.m.segment_phase, self.m.segment_index))
-        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', target_id=TARGET, route_revision=7,
+        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', **T0, route_revision=7,
                                                  segment_index=0))
 
     def test_last_segment_arrives(self):
         self.arrived()
         self.assertEqual(('ARRIVED', 2), (self.m.segment_phase, self.m.segment_index))
-        self.assertEqual('NOT_AWAITING_APPROVAL', self.reason('CONTINUE_SEGMENT', target_id=TARGET,
+        self.assertEqual('NOT_AWAITING_APPROVAL', self.reason('CONTINUE_SEGMENT', **T0,
                                                               route_revision=7, segment_index=2))
 
     def test_route_replacement_only_while_stopped_and_restarts_the_count(self):
         self.dispatched()
-        self.assertTrue(self.m.segment_started(TARGET, route_revision=7, segment_index=0))
+        self.assertTrue(self.started(0))
         with self.assertRaises(CoordinationError):
             self.m.record_route(TARGET, route_revision=8, segment_count=2)
-        self.assertTrue(self.m.segment_finished(TARGET, route_revision=7, segment_index=0, completed=True,
-                                                stop_confirmed=True))
+        self.assertTrue(self.finished(0, completed=True, stop=True))
         self.assertTrue(self.m.record_route(TARGET, route_revision=8, segment_count=2))
         self.assertEqual((8, 0, 2, 'AWAITING_APPROVAL'),
                          (self.m.route_revision, self.m.segment_index, self.m.segment_count, self.m.segment_phase))
-        self.assertEqual('ROUTE_REVISION_STALE', self.reason('CONTINUE_SEGMENT', target_id=TARGET,
+        self.assertEqual('ROUTE_REVISION_STALE', self.reason('CONTINUE_SEGMENT', **T0,
                                                              route_revision=7, segment_index=0))
-        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', target_id=TARGET, route_revision=8,
+        self.assertEqual('ACCEPTED', self.reason('CONTINUE_SEGMENT', **T0, route_revision=8,
                                                  segment_index=0))
 
     def test_route_and_target_revisions_do_not_go_back(self):
@@ -248,7 +260,7 @@ class OperatorCommandTests(MissionTestCase):
 
     def test_command_id_replay_is_idempotent_and_conflict_is_rejected(self):
         self.dispatched()
-        command = self.command('CONTINUE_SEGMENT', target_id=TARGET, route_revision=7, segment_index=1)
+        command = self.command('CONTINUE_SEGMENT', **T0, route_revision=7, segment_index=1)
         first = self.m.handle_command(command)
         self.assertEqual('NOT_AWAITING_APPROVAL', first.reason)
         self.segment(0)
@@ -261,7 +273,7 @@ class OperatorCommandTests(MissionTestCase):
     def test_malformed_commands_are_invalid_input(self):
         for kind, fields in (('PAUSE', {}), ('DISPATCH_SUPPORT', dict(target_id=TARGET)),
                              ('RETURN_HOME', dict(target_id=TARGET)),
-                             ('CONTINUE_SEGMENT', dict(target_id=TARGET, route_revision=7, segment_index=-1)),
+                             ('CONTINUE_SEGMENT', dict(T0, route_revision=7, segment_index=-1)),
                              ('REQUEST_RECHECK', dict(target_id='not-a-uuid'))):
             with self.subTest(kind=kind, fields=fields), self.assertRaises(CoordinationError) as caught:
                 self.command(kind, **fields)
@@ -289,11 +301,11 @@ class MissionPhaseTests(MissionTestCase):
         seen.append(self.m.phase())
         self.reason('DISPATCH_SUPPORT', target_id=TARGET, target_revision=0)
         seen.append(self.m.phase())
-        self.m.segment_started(TARGET, route_revision=7, segment_index=0)
+        self.started(0)
         seen.append(self.m.phase())
-        self.m.segment_finished(TARGET, route_revision=7, segment_index=0, completed=True, stop_confirmed=True)
+        self.finished(0, completed=True, stop=True)
         seen.append(self.m.phase())
-        self.reason('CONTINUE_SEGMENT', target_id=TARGET, route_revision=7, segment_index=1)
+        self.reason('CONTINUE_SEGMENT', **T0, route_revision=7, segment_index=1)
         seen.append(self.m.phase())
         self.segment(1)
         seen.append(self.m.phase())
@@ -341,6 +353,65 @@ class MissionPhaseTests(MissionTestCase):
         self.assertEqual(('DISASTER', 'DISPATCH_APPROVED', sign().event_id, TARGET, 7, 0, 3, 'APPROVED'),
                          (view.mode, view.phase, view.trigger_event_id, view.target_id, view.route_revision,
                           view.segment_index, view.segment_count, view.segment_phase))
+
+
+
+class HomeAndApprovalKeyTests(MissionTestCase):
+    """작전 2026-10-10: RETURN_HOME needs every home on the current map; approvals carry the MOVE_SEGMENT keys."""
+
+    def judged(self):
+        self.arrived()
+        self.reason('REQUEST_RECHECK', target_id=TARGET)
+        self.m.record_rescue_verdict(TARGET, 'RESCUE_CONFIRMED')
+
+    def test_return_home_without_a_home_position_is_refused(self):
+        self.m = mission.MissionCoordinator(self.search, home_positions=(home(SUPPORT),))
+        for robot in (SCOUT, SUPPORT):
+            self.m.record_map_basis(robot, map_session_id=MAP, map_revision=3, transform_revision=1)
+        self.judged()
+        self.assertEqual('NO_HOME_POSITION', self.reason('RETURN_HOME'))
+        self.assertEqual('RESCUE_CONFIRMED', self.m.phase())  # nothing issued, no silent fallback
+
+    def test_return_home_on_another_map_basis_is_refused(self):
+        self.judged()
+        for changes in (dict(map_revision=4), dict(transform_revision=2), dict(map_session_id=uid(6))):
+            with self.subTest(changes=changes):
+                basis = dict(map_session_id=MAP, map_revision=3, transform_revision=1) | changes
+                self.m.record_map_basis(SCOUT, **basis)
+                self.assertEqual('HOME_BASIS_MISMATCH', self.reason('RETURN_HOME'))
+        self.m.record_map_basis(SCOUT, map_session_id=MAP, map_revision=3, transform_revision=1)
+        self.assertEqual('ACCEPTED', self.reason('RETURN_HOME'))
+
+    def test_return_home_without_a_known_map_basis_is_refused(self):
+        self.m = mission.MissionCoordinator(self.search, home_positions=(home(SCOUT), home(SUPPORT)))
+        self.judged()
+        self.assertEqual('HOME_BASIS_MISMATCH', self.reason('RETURN_HOME'))
+
+    def test_home_positions_must_be_policy_robots_once(self):
+        for homes in ((home('unit_9'),), (home(SCOUT), home(SCOUT)), ('not-a-home',)):
+            with self.subTest(homes=homes), self.assertRaises(CoordinationError):
+                mission.MissionCoordinator(self.search, home_positions=homes)
+        with self.assertRaises(CoordinationError):
+            home(SCOUT, yaw=float('nan'))
+        with self.assertRaises(CoordinationError) as caught:
+            self.m.record_map_basis('unit_9', map_session_id=MAP, map_revision=3, transform_revision=1)
+        self.assertEqual('WRONG_ROBOT', caught.exception.code)
+
+    def test_segment_approval_carries_the_move_segment_keys(self):
+        self.dispatched()
+        dispatch_id = next(cid for cid, (cmd, _) in self.m.commands.items() if cmd.kind == 'DISPATCH_SUPPORT')
+        self.assertEqual(mission.SegmentApproval(dispatch_id, TARGET, 0, 7, 0), self.m.approval)
+        self.assertFalse(self.started(0, rev=1))
+        self.segment(0)
+        self.assertIsNone(self.m.approval)  # used up: one approval, one segment
+        self.m.record_target(TARGET, 1, detection_confirmed=True, report_persisted=True)
+        cont = dict(target_id=TARGET, route_revision=7, segment_index=1)
+        self.assertEqual('TARGET_REVISION_STALE', self.reason('CONTINUE_SEGMENT', target_revision=0, **cont))
+        result = self.send('CONTINUE_SEGMENT', target_revision=1, **cont)
+        self.assertEqual('ACCEPTED', result.reason)
+        self.assertEqual(mission.SegmentApproval(result.command_id, TARGET, 1, 7, 1), self.m.approval)
+        self.assertEqual(1, self.m.view().target_revision)
+        self.assertTrue(self.started(1, rev=1))
 
 
 if __name__ == '__main__':
