@@ -185,6 +185,13 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(self.events(results), [])
         self.assertEqual(max(r.reversals for r in results), 0)
 
+    def test_camera_moved_to_a_new_spot_becomes_the_new_scene(self):
+        # 카메라가 밀려 새 자리에 놓이고 시간 창 이상 멈추면 그 화면이 기준 장면이 된다.
+        # 그 뒤의 흔들림은 새 기준 장면으로 확인해 센다.
+        frames = still(0, 3) + still(300, 13, ox=20) + shake(1600, 6, first=20)
+        events = self.events(self.run_frames(self.detector(), frames))
+        self.assertEqual([e.observed_at_ns for e in events], [T0 + 2100])
+
     def test_jitter_below_noise_floor_is_not_counted(self):
         frames = [(k * 100, scene(ox=8 + k % 2)) for k in range(8)]  # 1칸 왕복 < shift_min 1.5
         results = self.run_frames(self.detector(), frames)

@@ -72,7 +72,8 @@ class DisasterSignPolicy:
     - ``shift_min``: 방향을 기록하는 최소 이동(칸). 정지 상태 잡음 바닥값으로 정한다.
     - ``scene_match_min``: 지금 화면과 기준 장면의 ZNCC 가 이 이상이어야 "같은 장면".
       기준 장면은 격자를 2x2 로 한 번 더 줄인 것이고 ±``search_cells`` 칸(격자로는
-      2배) 안에서 가장 잘 맞는 위치로 비교한다.
+      2배) 안에서 가장 잘 맞는 위치로 비교한다. 흔들림 없이 ``window_ns`` 이상 멈춰 있을
+      때만 새로 고친다.
     - ``shakes_min``/``window_ns``: 이 시간 창 안에 방향 전환이 이 횟수 이상이면 조건 참.
     - ``hold_ns``: 조건이 이만큼 이어져야 사건 1개. ``window_ns`` 이하(PR #33, 2026-10-09).
     - ``release_ns``: 사건 뒤 조건이 이만큼 거짓이어야 다시 낼 수 있다.
@@ -277,6 +278,7 @@ class DisasterSignDetector:
         self._last_ns = None        # 마지막으로 처리한 프레임 시각
         self._prev_grid = None      # 직전 프레임 격자(비교 기준)
         self._ref_thumb = None      # 기준 장면(흔들리지 않을 때의 화면, 축소)
+        self._still_since = None    # 화면이 잡음 수준으로 멈춰 있기 시작한 시각
         self._last_dir = None       # 마지막으로 기록한 이동 방향 (dx, dy)
         self._reversal_ns = []      # 시간 창 안의 방향 전환 시각들
         self._true_since = None     # 조건이 참이 된 시각(hold 계산)
@@ -285,6 +287,7 @@ class DisasterSignDetector:
 
     def _reset_motion(self):
         self._prev_grid, self._ref_thumb, self._last_dir, self._reversal_ns = None, None, None, []
+        self._still_since = None
         self._true_since, self._false_since = None, None
 
     def update(self, rgb):
@@ -314,16 +317,21 @@ class DisasterSignDetector:
         if textured_ratio < self.policy.valid_ratio_min or matched_ratio < self.policy.valid_ratio_min:
             # 판정하지 않는다: 횟수·hold·release 구간을 건드리지 않는다.
             reason = "OCCLUDED" if textured_ratio < self.policy.valid_ratio_min else "MATCH_FAILED"
+            self._still_since = None
             return SignFrame("UNKNOWN", reason, None, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio)
 
         shift = _whole_view(matched, self.policy)
+        if shift is None or math.hypot(*shift) >= self.policy.shift_min:
+            self._still_since = None  # 멈춤이 끊겼다
         if shift is None:
             return self._judge(frame, evidence_sha256, "PARTIAL_MOTION", None, textured_ratio, matched_ratio,
                                force_false=True)
         if math.hypot(*shift) < self.policy.shift_min:
-            if not self._reversal_ns:
-                # 흔들림이 없는 동안에만 기준 장면을 새로 고친다(조명·배치 변화 반영).
+            self._still_since = stamp if self._still_since is None else self._still_since
+            if not self._reversal_ns and stamp - self._still_since >= self.policy.window_ns:
+                # 흔들림 없이 시간 창 이상 멈춰 있을 때만 기준 장면을 새로 고친다(조명·배치 변화 반영).
+                # 잠깐 멈춘 손을 기준 장면으로 삼지 않기 위해서다.
                 self._ref_thumb = _thumb(grid)
             return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio)
         if _scene_score(self._ref_thumb, _thumb(grid), self.policy.search_cells) < self.policy.scene_match_min:
