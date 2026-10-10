@@ -12,7 +12,7 @@ SQLite 파일 세 개를 쓴다. **쓰는 쪽은 파일마다 하나**이고, �
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
 | 현장 상태 `operations-site-state` (schema 1.0 → 1.1 [제안]) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | main (1.0), 1.1 은 4절 |
-| 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | PR #50 |
+| 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 outbox (장부와 같은 파일 또는 생산자 쪽 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
 공통: 모든 파일에 `metadata(key TEXT PRIMARY KEY, value TEXT)` 표가 있고 `role`·`schema`(또는 `schema_version`) 를 담는다. 역할·스키마·정책이 다른 파일을 열면 `POLICY_MISMATCH`, sqlite 오류는 `STORAGE_ERROR` 로 끝나며 조용히 새 파일을 만들지 않는다. 시각은 전부 정수 나노초(`*_ns`), JSON 열은 `canonical()`(키 정렬·공백 없음) 직렬화다.
@@ -25,7 +25,7 @@ SQLite 파일 세 개를 쓴다. **쓰는 쪽은 파일마다 하나**이고, �
 | --- | --- | --- |
 | `reports` | `report_id TEXT PK`, `payload_sha256`, `payload_json`, `envelope_json`, `state`, `revision INTEGER`, `receipt_id`, `received_at_ns`, `persisted_at_ns NULL`, `error_code NULL` | 구조 보고 한 건. `state` ∈ RECEIVED / PENDING_EVIDENCE / PERSISTED. 같은 `report_id` 재전송은 payload 해시가 같으면 멱등(같은 receipt), 다르면 `ID_CONTENT_CONFLICT`. 필수 증거가 다 저장되기 전엔 PERSISTED 가 아니다 |
 | `evidence` | `evidence_id TEXT PK`, `ref_json`, `content BLOB`, `stored_at_ns` | 증거 원 bytes. `ref_json` 의 sha256 과 bytes 해시가 다르면 거절 |
-| `outbox` (생산자 쪽) | `report_id TEXT PK`, `payload_sha256`, `payload_json`, `state`, `attempts INTEGER`, `receipt_json NULL`, `last_error NULL` | 아직 PERSISTED receipt 를 못 받은 보고. `state` ∈ PENDING / RETRY_PENDING / PERSISTED. 재전송은 같은 payload 로만 |
+| `outbox` (생산자 쪽) | `report_id TEXT PK`, `payload_sha256`, `payload_json`, `state`, `attempts INTEGER`, `receipt_json NULL`, `last_error NULL` | 아직 PERSISTED 영수증을 못 받은 보고. `state` 는 넣을 때 `QUEUED`, 보내다 실패하면 `RETRY_PENDING`, 영수증을 받으면 그 영수증의 상태(`RECEIVED` / `PENDING_EVIDENCE` / `PERSISTED`)로 바뀐다. `PERSISTED` 가 아닌 행만 다시 보낸다. 재전송은 같은 payload 로만 |
 
 읽기: `read_reports(db_path, limit, report_id)` — 보고 공개 필드만(payload·state·receipt·시각).
 
@@ -41,7 +41,7 @@ SQLite 파일 세 개를 쓴다. **쓰는 쪽은 파일마다 하나**이고, �
 
 읽기: `read_robot_status`, `read_site_events(limit)`, `read_target_states`. `exit_pass_count` 는 서로 다른 `EXIT_PASS` 수이며 카메라 1대 구성에서는 항상 0 이라 화면에서 숨긴다. 구조 4단계(미확정/미구조/지원 중/구출 완료)는 저장하지 않고 콘솔이 합성한다(Q-20, #37 규칙표).
 
-## 3. 콘솔 계정 (`console-accounts`, schema 1.0, PR #50)
+## 3. 콘솔 계정 (`console-accounts`, schema 1.0, main)
 
 콘솔이 소유하는 파일. 운영 장부·현장 상태의 단일 쓰기 규칙과 무관하다. `metadata`: `role=console-accounts`, `schema_version=1.0`.
 
