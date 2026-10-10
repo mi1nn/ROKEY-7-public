@@ -115,7 +115,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | 구분 | 내용 |
 | --- | --- |
 | Goal | command_id, task_id, generation, robot_id, coordinator_id/authority_epoch, kind, issued_at/deadline, command lease 참조, target_id/estimate_revision 또는 search_area_ref, 필요한 frame/session/revision, 정책/설정 버전 |
-| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`, `MOVE_SEGMENT`, `RETURN_HOME`. `MOVE_SEGMENT` 는 운영자가 승인한 한 구간만 대상 쪽으로 움직이는 AMR2 임무(Q-12 결정 2026-10-10)로, `APPROACH_TARGET` 처럼 경로 근거가 필요한 대상 임무다. `RETURN_HOME` 은 완료·취소 뒤 프로파일의 홈 위치로 가는 새 generation 임무(Q-22, BRD Part I 3.9)이고 대상이 없다. 어휘에 있다고 실행기가 받는 것은 아니며, 구현하지 않은 실행기는 계속 거절한다. 도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
+| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`, `MOVE_SEGMENT`, `RETURN_HOME`. 대상 임무(`TARGET_TASK_KINDS`)는 `REOBSERVE_TARGET`·`APPROACH_TARGET`·`MOVE_SEGMENT` 이고 `target_id`·`target_revision` 이 필수다. `MOVE_SEGMENT` 는 운영자 승인 한 건(`OperatorApproval`, 한 구간)에 묶인 AMR2 한 구간 이동이다(Q-12 결정 2026-10-10). 승인과 대상·revision·경로·`segment_index` 가 같아야 하고, 성공은 그 구간 도착·정지이지 접근 완료가 아니다. 다음 구간은 ‘계속’ 승인마다 새 명령·task·generation 으로만 발급하고 자동 발급하지 않는다(규칙 원문은 [SDD](sdd-node-interface-spec-v0.1.md) ExecuteTask·SubmitOperatorCommand). `RETURN_HOME` 은 임무 완료 또는 운영자 취소 뒤 두 로봇(SCOUT·SUPPORT) 각각이 복귀 위치로 가는 새 generation 임무이고(BRD Part I 3.9.1) 대상이 없다. 복귀 위치의 출처는 Q-22 이며, 위치가 없거나 지금 지도와 맞지 않으면 발급하지 않는다. 실행기가 어떤 종류를 받는지는 `rescue_robot` 의 허용 목록이 정한다. 도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
 | 수락 조건 | ID/버전/시각/권한·generation 일치, 필요한 센서·시간·TF·Nav2 준비, stop latch 없음, lease 유효, 필수 설정 확정, 현재 지도 revision 호환. 도킹 장치가 있는 플랫폼의 수색/접근/재관측 이동은 fresh dock_status의 is_docked=false 필요 |
 | Feedback | task/generation, 실행 상태, 현재 목표/경로 상태, 마지막 관측 나이, 장애/보류 사유, 실제 pose의 시각/품질. action feedback 수신 자체를 성공으로 보지 않음 |
 | Result | 수락한 action의 outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACHABLE`, `FAILED` 중 하나. terminal_reason, stop_confirmed, motion_state, 사용한 관측/좌표 revision, stop 증거, 보고 참조를 포함. 결과가 없으면 UNKNOWN/PENDING 유지 |
@@ -201,7 +201,8 @@ IDL 규칙:
 - 필드 이름·순서·타입은 JSON 이 원본이다. JSON 을 먼저 고치고, `tests/test_interfaces_schema.py` 가 IDL 과 같은지 ROS 없이 검사한다.
 - UUID 는 `string`, 시각은 `int64 *_ns`(`builtin_interfaces/Time` 아님, C-03), 없을 수 있는 값은 `bool has_*`/`*_known` + 값.
 - JSON 의 `string(A/B)` 열거는 `string` 필드 + 같은 파일의 상수 `<FIELD>_<VALUE>="<VALUE>"` 다. 상수 선언 자체는 필드 값의 검증을 강제하지 않는다. UUID·열거값·시각·선택 필드의 유효성은 각 ROS 경계 모듈이 검사한다.
-- SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 Python `TASK_KINDS` 에 들어갔지만 `rescue_robot` 실행기는 아직 거절하고(C-06 kind 행), `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
+- SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 Python `TASK_KINDS` 에 들어갔고, 실행기가 받는지는 `rescue_robot` 의 허용 목록이 정한다(C-06 kind 행). `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
+- Heartbeat(2026-10-10 작전 결정, OPS-17 ① 재확인): Phase 1 의 로봇 PC 안 구간(실행기 ↔ 명령 watchdog, #35)은 `rescue_interfaces/Heartbeat` 대신 `std_msgs/Header` 와 launch 파라미터의 토픽 이름으로 한다. SDD IF-012·013 의 중앙 구간은 구현하지 않았다. 토픽 이름은 SDD 이름(`/rescue/robots/{r}/heartbeat`·`…/watchdog_heartbeat`)과 겹치지 않게 둔다(같은 이름에 타입이 다르면 오류 없이 수신이 0 이 된다). `Heartbeat` 로 옮기는 때: coordination·operations 가 heartbeat 로 생존을 판정하는 코드가 생길 때, watchdog 을 로봇에 둘 때, 실행기 fence 를 watchdog 출력 억제로 전달할 때. 옮길 때는 안쪽·중앙 구간을 한 PR 에서 함께 옮긴다.
 - 문자열·배열 길이 상한은 두지 않았다 [제안]. 실측 뒤 정한다.
 - 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
 

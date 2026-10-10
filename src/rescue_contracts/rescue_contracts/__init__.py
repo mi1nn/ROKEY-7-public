@@ -223,11 +223,11 @@ class TaskAdmission:
 # ---- Bundle 1 (2026-10-08, BRD v0.1): roles, site events, system modes, rescue states.
 ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
 # C-06 task kinds — the single vocabulary for rescue_robot.Task and coordination reservations.
-# MOVE_SEGMENT: AMR2 moves one operator-approved route segment toward a target (Q-12 decided
-# 2026-10-10); like APPROACH_TARGET it needs path evidence. RETURN_HOME: a new-generation task to
-# the profile home pose after completion or cancel (Q-22, BRD Part I 3.9); it carries no target.
-# A kind in this set is only a word both sides agree on: an executor that does not implement it
-# must still reject it (rescue_robot keeps its own accepted list).
+# MOVE_SEGMENT: AMR2 moves one route segment under one operator approval (Q-12 decided
+# 2026-10-10). It is a target task (target_id + target_revision must match the approval); success
+# is arriving and stopping at that segment, not the approach. RETURN_HOME: either robot returns to
+# its home pose after completion or an operator cancel (BRD Part I 3.9.1; home source is Q-22); no
+# target. Which kinds an executor accepts is its own list (rescue_robot).
 TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD', 'MOVE_SEGMENT', 'RETURN_HOME'})
 TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET', 'MOVE_SEGMENT'})
 SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS'})
