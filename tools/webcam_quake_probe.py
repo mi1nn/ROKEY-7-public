@@ -5,7 +5,8 @@
 읽어 넣어 주기만 한다. 로봇·ROS 를 쓰지 않는다.
 
 사용:
-    python3 tools/webcam_quake_probe.py --csv quake_probe.csv
+    python3 tools/webcam_quake_probe.py --list                 # 연결된 카메라 번호 찾기
+    python3 tools/webcam_quake_probe.py --camera 1 --csv quake_probe.csv
 
 창에서 숫자 키로 지금 하는 상황을 표시하면 CSV 의 label 칸에 남는다.
     1 still(가만히)  2 shake(흔들기)  3 light(조명 켜기·끄기)  4 pass(앞 지나가기)
@@ -37,7 +38,8 @@ FIELDS = ("stamp_ns", "label", "status", "reason", "dx", "dy", "reversals", "con
 
 def parse_args():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--camera", type=int, default=0, help="OpenCV 카메라 번호")
+    ap.add_argument("--camera", type=int, default=0, help="OpenCV 카메라 번호 (--list 로 확인)")
+    ap.add_argument("--list", action="store_true", help="0~4번 카메라를 열어 보고 해상도를 출력한 뒤 종료")
     ap.add_argument("--width", type=int, default=640)
     ap.add_argument("--height", type=int, default=480)
     ap.add_argument("--stride", type=int, default=8, help="격자 1칸 픽셀")
@@ -91,12 +93,24 @@ def summarize(rows):
               f"UNKNOWN {unknown}, 처리 p95 {p95(procs):.0f} ms")
 
 
+def list_cameras(cv2):
+    """번호마다 열어 보고 프레임 크기를 출력한다. 노트북 내장 카메라가 보통 0번이다."""
+    for index in range(5):
+        cap = cv2.VideoCapture(index)
+        ok, frame = cap.read() if cap.isOpened() else (False, None)
+        print(f"카메라 {index}: " + (f"열림 {frame.shape[1]}x{frame.shape[0]}" if ok else "없음"))
+        cap.release()
+
+
 def main():
     args = parse_args()
     try:
         import cv2
     except ImportError:
         sys.exit("OpenCV(cv2)가 필요합니다: pip install opencv-python")
+    if args.list:
+        list_cameras(cv2)
+        return
     detector = DisasterSignDetector(
         SourceBinding(None, "cam_fixed", str(uuid4()), "probe-host-clock", "DRIVER_RECEIVE", "UNKNOWN",
                       "uncalibrated", "UNKNOWN", None),
