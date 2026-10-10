@@ -75,7 +75,7 @@ class DisasterSignTests(unittest.TestCase):
         # 격자 48x48, 여백 2칸 -> 블록 4x4 개(각 11x11 칸).
         self.policy = DisasterSignPolicy(sample_stride=1, blocks_x=4, blocks_y=4, search_cells=2,
                                          texture_min=5.0, match_min=0.8, valid_ratio_min=0.5, agree_tol=1.0,
-                                         shift_min=1.5, scene_match_min=0.5, shakes_min=3, window_ns=1000, hold_ns=100,
+                                         shift_min=1.5, scene_match_min=0.5, rebase_ns=500, shakes_min=3, window_ns=1000, hold_ns=100,
                                          release_ns=300, max_gap_ns=150)
 
     def detector(self, **policy):
@@ -311,7 +311,7 @@ class DisasterSignTests(unittest.TestCase):
         for bad in (dict(blocks_x=3), dict(blocks_y=0), dict(search_cells=0), dict(texture_min=0.0),
                     dict(match_min=1.5), dict(valid_ratio_min=0.0), dict(shift_min=0.0), dict(shakes_min=0),
                     dict(hold_ns=1001), dict(hold_ns=1.0), dict(window_ns=0), dict(max_gap_ns=0),
-                    dict(sample_stride=0), dict(agree_tol=-1.0), dict(scene_match_min=1.5)):
+                    dict(sample_stride=0), dict(agree_tol=-1.0), dict(scene_match_min=1.5), dict(rebase_ns=-1)):
             self.assertCode("INVALID_INPUT", lambda bad=bad: replace(self.policy, **bad))
 
 

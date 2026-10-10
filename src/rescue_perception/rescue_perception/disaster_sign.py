@@ -13,8 +13,9 @@
    그와 같은 방향의 블록이 있어야 한다. 아니면 부분 움직임(사람 통과)이라 거짓.
 5. 장면 확인: 카메라가 흔들리면 보이는 장면은 같고 위치만 밀린다. 렌즈 앞의 손처럼
    가까운 물체가 화면 전체를 덮으면 장면 자체가 바뀐다. 그래서 흔들리기 전 장면(기준
-   장면)을 기억해 두고, 지금 화면이 그것을 조금 옮긴 것과 ZNCC 로 맞지 않으면
-   SCENE_CHANGED(UNKNOWN) 로 보고 세지 않는다(2026-10-10 실측 오탐).
+   장면)을 기억해 두고, 블록마다 지금 화면이 그것을 조금 옮긴 것과 ZNCC 로 맞는지 본다.
+   맞는 블록이 절반 미만이면 가려진 것으로 보고 SCENE_CHANGED(UNKNOWN). 손에도 무늬가
+   있어 무늬 기준만으로는 가림을 못 잡기 때문이다(2026-10-10 실측).
 6. 이동이 ``shift_min`` 이상이면 방향을 기록하고, 직전 방향과 반대면(내적 < 0)
    방향 전환 1회. ``window_ns`` 안에서 ``shakes_min`` 회 이상이면 조건 참.
 
@@ -70,10 +71,13 @@ class DisasterSignPolicy:
     - ``valid_ratio_min``: 무늬 있는 블록·매칭된 블록이 각각 이 비율 이상이어야 정상 영상.
     - ``agree_tol``: 블록이 중앙값 이동과 "같은 방향"으로 인정되는 축별 허용 오차(칸).
     - ``shift_min``: 방향을 기록하는 최소 이동(칸). 정지 상태 잡음 바닥값으로 정한다.
-    - ``scene_match_min``: 지금 화면과 기준 장면의 ZNCC 가 이 이상이어야 "같은 장면".
-      기준 장면은 격자를 2x2 로 한 번 더 줄인 것이고 ±``search_cells`` 칸(격자로는
-      2배) 안에서 가장 잘 맞는 위치로 비교한다. 흔들림 없이 ``window_ns`` 이상 멈춰 있을
-      때만 새로 고친다.
+    - ``scene_match_min``: 블록마다 지금 화면과 기준 장면의 ZNCC 가 이 이상이어야 "보임".
+      기준 장면에서 ±``search_cells`` 칸 안의 가장 잘 맞는 위치로 비교한다. 흔들림 없이 ``window_ns`` 이상
+      멈춰 있을 때 새로 고친다. 기준 장면이 보이는 블록이 ``valid_ratio_min`` 미만이면
+      UNKNOWN(SCENE_CHANGED).
+    - ``rebase_ns``: 기준 장면과 다른 화면이 이만큼 안정적으로(잡음 수준 이동) 이어지면
+      카메라가 옮겨진 것으로 보고 새 기준 장면으로 삼는다. 그보다 오래 멈춘 손은 장면이
+      된다(한계).
     - ``shakes_min``/``window_ns``: 이 시간 창 안에 방향 전환이 이 횟수 이상이면 조건 참.
     - ``hold_ns``: 조건이 이만큼 이어져야 사건 1개. ``window_ns`` 이하(PR #33, 2026-10-09).
     - ``release_ns``: 사건 뒤 조건이 이만큼 거짓이어야 다시 낼 수 있다.
@@ -89,6 +93,7 @@ class DisasterSignPolicy:
     agree_tol: float
     shift_min: float
     scene_match_min: float
+    rebase_ns: int
     shakes_min: int
     window_ns: int
     hold_ns: int
@@ -111,7 +116,7 @@ class DisasterSignPolicy:
         _require(self.shift_min > 0, "INVALID_INPUT", "shift_min must be positive")
         _finite(self.scene_match_min, "scene_match_min", -1, 1)
         _count(self.shakes_min, "shakes_min", 1)
-        for name in ("window_ns", "hold_ns", "release_ns", "max_gap_ns"):
+        for name in ("window_ns", "hold_ns", "release_ns", "max_gap_ns", "rebase_ns"):
             _contract(duration_ns, getattr(self, name), name)
         _require(self.window_ns > 0 and self.max_gap_ns > 0, "INVALID_INPUT",
                  "window_ns/max_gap_ns must be positive")
@@ -129,7 +134,8 @@ class SignFrame:
       방향을 기록했으면 None.
     - ``shift``: 화면 전체 이동 (dx, dy) 칸. 재지 못했으면 None.
     - ``reversals``: 이 프레임 뒤 시간 창 안의 방향 전환 횟수.
-    - ``textured_ratio``/``matched_ratio``: 무늬 있는/매칭된 블록 비율(측정 도구용).
+    - ``textured_ratio``/``matched_ratio``/``visible_ratio``: 무늬 있는/직전 프레임과 매칭된/
+      기준 장면이 보이는 블록 비율(측정 도구용).
     """
     status: str
     reason: str | None
@@ -139,6 +145,7 @@ class SignFrame:
     event: SiteEvent | None
     textured_ratio: float | None = None
     matched_ratio: float | None = None
+    visible_ratio: float | None = None
 
 
 def _gray_grid(image, stride):
@@ -226,27 +233,26 @@ def _best_zncc(prev, a, norm_a, y0, x0, bh, bw, offsets):
     return best
 
 
-def _thumb(grid):
-    """격자를 2x2 평균으로 한 번 더 줄인 것(기준 장면 비교용)."""
-    return [[(grid[2 * y][2 * x] + grid[2 * y][2 * x + 1] + grid[2 * y + 1][2 * x] + grid[2 * y + 1][2 * x + 1]) / 4
-             for x in range(len(grid[0]) // 2)] for y in range(len(grid) // 2)]
+def _visible_ratio(ref, cur, policy):
+    """기준 장면이 아직 보이는 블록 비율.
 
-
-def _scene_score(ref, cur, search):
-    """지금 화면(축소)이 기준 장면(축소)을 ±search 칸 옮긴 것과 얼마나 맞는지: 최고 ZNCC.
-
-    가장자리 ``search`` 칸을 뺀 가운데 전체를 한 조각으로 비교한다. 무늬가 없으면 -2.
+    격자를 이동량 측정과 같은 블록으로 나누고, 블록마다 기준 장면에서 ±``search_cells`` 칸 안의
+    최고 ZNCC 가 ``scene_match_min`` 이상이면 "보임". 무늬가 없는 블록은 보임으로 세지 않는다.
+    손처럼 무늬가 있는 물체가 가려도 원래 장면과 다르므로 "안 보임" 이 된다.
     """
-    h, w = len(cur) - 2 * search, len(cur[0]) - 2 * search
-    if h < 2 or w < 2:
-        return -2.0
-    a = [cur[y][x] for y in range(search, search + h) for x in range(search, search + w)]
-    mean = sum(a) / len(a)
-    a = [v - mean for v in a]
-    norm_a = math.sqrt(sum(v * v for v in a))
-    if norm_a <= 1e-9:
-        return -2.0
-    return _best_zncc(ref, a, norm_a, search, search, h, w, _offsets(search))[2]
+    s = policy.search_cells
+    bh, bw = _block_size(cur, policy)
+    n, offsets, visible = bh * bw, _offsets(s), 0
+    for by in range(policy.blocks_y):
+        for bx in range(policy.blocks_x):
+            y0, x0 = s + by * bh, s + bx * bw
+            a = [cur[y][x] for y in range(y0, y0 + bh) for x in range(x0, x0 + bw)]
+            mean = sum(a) / n
+            a = [v - mean for v in a]
+            norm_a = math.sqrt(sum(v * v for v in a))
+            if norm_a > 1e-9 and _best_zncc(ref, a, norm_a, y0, x0, bh, bw, offsets)[2] >= policy.scene_match_min:
+                visible += 1
+    return visible / (policy.blocks_x * policy.blocks_y)
 
 
 def _whole_view(matched, policy):
@@ -277,8 +283,9 @@ class DisasterSignDetector:
         self.binding, self.policy = binding, policy
         self._last_ns = None        # 마지막으로 처리한 프레임 시각
         self._prev_grid = None      # 직전 프레임 격자(비교 기준)
-        self._ref_thumb = None      # 기준 장면(흔들리지 않을 때의 화면, 축소)
+        self._ref_grid = None       # 기준 장면(흔들리지 않을 때의 화면)
         self._still_since = None    # 화면이 잡음 수준으로 멈춰 있기 시작한 시각
+        self._changed_since = None  # 기준 장면과 다른 화면이 안정적으로 이어지기 시작한 시각
         self._last_dir = None       # 마지막으로 기록한 이동 방향 (dx, dy)
         self._reversal_ns = []      # 시간 창 안의 방향 전환 시각들
         self._true_since = None     # 조건이 참이 된 시각(hold 계산)
@@ -286,8 +293,8 @@ class DisasterSignDetector:
         self._armed = True          # 사건을 낼 수 있는 상태인가
 
     def _reset_motion(self):
-        self._prev_grid, self._ref_thumb, self._last_dir, self._reversal_ns = None, None, None, []
-        self._still_since = None
+        self._prev_grid, self._ref_grid, self._last_dir, self._reversal_ns = None, None, None, []
+        self._still_since, self._changed_since = None, None
         self._true_since, self._false_since = None, None
 
     def update(self, rgb):
@@ -307,21 +314,39 @@ class DisasterSignDetector:
         prev, self._prev_grid = self._prev_grid, grid  # UNKNOWN 이어도 다음 비교 기준은 이 프레임
         self._reversal_ns = [t for t in self._reversal_ns if t > stamp - self.policy.window_ns]
         if prev is None:
-            self._ref_thumb = _thumb(grid)  # 처음 보는 화면을 기준 장면으로
+            self._ref_grid = grid  # 처음 보는 화면을 기준 장면으로
             return self._judge(frame, evidence_sha256, "FIRST_FRAME", None, None, None)
 
         blocks = _block_shifts(prev, grid, self.policy)
         textured = [b for b in blocks if b[2]]
         matched = [b for b in textured if b[5] >= self.policy.match_min]
         textured_ratio, matched_ratio = len(textured) / len(blocks), len(matched) / len(blocks)
-        if textured_ratio < self.policy.valid_ratio_min or matched_ratio < self.policy.valid_ratio_min:
-            # 판정하지 않는다: 횟수·hold·release 구간을 건드리지 않는다.
-            reason = "OCCLUDED" if textured_ratio < self.policy.valid_ratio_min else "MATCH_FAILED"
-            self._still_since = None
-            return SignFrame("UNKNOWN", reason, None, len(self._reversal_ns), False, None,
+        vmin = self.policy.valid_ratio_min
+        # 이하 UNKNOWN 은 판정하지 않는다는 뜻: 횟수·hold·release 구간을 건드리지 않는다.
+        if textured_ratio < vmin:
+            self._still_since, self._changed_since = None, None
+            return SignFrame("UNKNOWN", "OCCLUDED", None, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio)
+        shift = _whole_view(matched, self.policy) if matched_ratio >= vmin else None
+        visible_ratio = _visible_ratio(self._ref_grid, grid, self.policy)
+        if visible_ratio < vmin:
+            # 원래 장면이 절반도 안 보인다: 손 등 가까운 물체가 가렸거나 카메라가 다른 곳을 본다.
+            self._still_since = None
+            if shift is not None and math.hypot(*shift) < self.policy.shift_min:
+                # 바뀐 화면이 rebase_ns 이상 안정적이면 카메라가 옮겨진 것으로 보고 새 기준 장면으로.
+                self._changed_since = stamp if self._changed_since is None else self._changed_since
+                if stamp - self._changed_since >= self.policy.rebase_ns:
+                    self._ref_grid, self._changed_since = grid, None
+            else:
+                self._changed_since = None
+            return SignFrame("UNKNOWN", "SCENE_CHANGED", shift, len(self._reversal_ns), False, None,
+                             textured_ratio, matched_ratio, visible_ratio)
+        self._changed_since = None
+        if matched_ratio < vmin:
+            self._still_since = None
+            return SignFrame("UNKNOWN", "MATCH_FAILED", None, len(self._reversal_ns), False, None,
+                             textured_ratio, matched_ratio, visible_ratio)
 
-        shift = _whole_view(matched, self.policy)
         if shift is None or math.hypot(*shift) >= self.policy.shift_min:
             self._still_since = None  # 멈춤이 끊겼다
         if shift is None:
@@ -332,12 +357,8 @@ class DisasterSignDetector:
             if not self._reversal_ns and stamp - self._still_since >= self.policy.window_ns:
                 # 흔들림 없이 시간 창 이상 멈춰 있을 때만 기준 장면을 새로 고친다(조명·배치 변화 반영).
                 # 잠깐 멈춘 손을 기준 장면으로 삼지 않기 위해서다.
-                self._ref_thumb = _thumb(grid)
+                self._ref_grid = grid
             return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio)
-        if _scene_score(self._ref_thumb, _thumb(grid), self.policy.search_cells) < self.policy.scene_match_min:
-            # 화면 전체가 움직였지만 원래 장면이 아니다(렌즈 앞 손 등): 판정하지 않는다.
-            return SignFrame("UNKNOWN", "SCENE_CHANGED", shift, len(self._reversal_ns), False, None,
-                             textured_ratio, matched_ratio)
         if self._last_dir is not None and shift[0] * self._last_dir[0] + shift[1] * self._last_dir[1] < 0:
             self._reversal_ns.append(stamp)  # 직전 방향과 반대: 방향 전환 1회
         self._last_dir = shift
