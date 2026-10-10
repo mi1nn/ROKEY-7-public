@@ -159,7 +159,8 @@ class Task:
             validate_robot_id(self.robot_id)
         except RescueError as exc:
             raise ContractError(exc.detail, exc.code) from exc
-        if self.kind not in ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'):
+        if self.kind not in ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD',
+                             'MOVE_SEGMENT', 'RETURN_HOME'):
             raise ContractError('task kind')
         wall_time(self.issued_at_ns)
         wall_time(self.deadline_ns)
