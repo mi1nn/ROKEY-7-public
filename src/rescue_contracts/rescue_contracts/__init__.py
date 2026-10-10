@@ -225,7 +225,7 @@ ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
 # C-06 task kinds — the single vocabulary for rescue_robot.Task and coordination reservations.
 TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'})
 TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET'})
-SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS'})
+SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS', 'TARGET_DISAPPEARED_CANDIDATE'})
 STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN'})
 CLOCK_STATES = frozenset({'SYNCED', 'UNKNOWN'})
 SYSTEM_MODES = frozenset({'NORMAL', 'DISASTER', 'CLEARING'})
@@ -248,8 +248,13 @@ def camera_id(value):
 class SiteEvent:
     """An observation made by a fixed site camera, not by a robot.
 
-    DISASTER_SIGN: disaster sign from camera A (the judging rule, e.g. image shake/occlusion for an earthquake, is a policy value, not the event name). EXIT_PASS: a person
-    passing the exit seen by camera B. It carries evidence, never a command.
+    DISASTER_SIGN: disaster sign (the judging rule, e.g. image shake for an earthquake,
+    is a policy value, not the event name). TARGET_DISAPPEARED_CANDIDATE: the fixed
+    camera watching a known target stopped seeing it; it names the target and the watch
+    (``target_id``/``watch_id``) and is only a *candidate* — rescue is confirmed by the
+    robot's re-observation, never by this event alone (2026-10-09: one fixed camera, no
+    exit camera). EXIT_PASS is kept in the vocabulary for stored data; nothing produces it
+    in the single-camera deployment. It carries evidence, never a command.
     """
     event_id: str
     camera_id: str
@@ -265,11 +270,23 @@ class SiteEvent:
     clock_state: str
     clock_error_bound_ns: int | None
     detail: str = ''
+    # Only for TARGET_DISAPPEARED_CANDIDATE: which target the camera was watching and
+    # which watch (SetCameraWatch) produced it. Other kinds must leave both None.
+    target_id: str | None = None
+    watch_id: str | None = None
 
     def __post_init__(self):
         uuid_string(self.event_id)
         camera_id(self.camera_id)
         _require(isinstance(self.kind, str) and self.kind in SITE_EVENT_KINDS, 'site event kind')
+        if self.kind == 'TARGET_DISAPPEARED_CANDIDATE':
+            _require(isinstance(self.target_id, str) and 0 < len(self.target_id) <= 128,
+                     'TARGET_DISAPPEARED_CANDIDATE needs a non-empty target_id')
+            _require(isinstance(self.watch_id, str), 'TARGET_DISAPPEARED_CANDIDATE needs a watch_id')
+            uuid_string(self.watch_id)
+        else:
+            _require(self.target_id is None and self.watch_id is None,
+                     'target_id/watch_id only on TARGET_DISAPPEARED_CANDIDATE')
         timestamp_ns(self.observed_at_ns)
         uuid_string(self.evidence_id)
         _require(isinstance(self.evidence_sha256, str) and re.fullmatch(r'[0-9a-f]{64}', self.evidence_sha256),
