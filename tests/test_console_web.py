@@ -250,6 +250,39 @@ class FlaskBoundaryTests(AccountsFixture):
         self.assertEqual(digest_dir(self.dir), before)                      # ledgers untouched
 
     @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_repeated_wrong_passwords_lock_that_name_for_a_while(self):
+        from rescue_console.app import create_app
+        from rescue_console.throttle import LOGIN_LOCK_S, LOGIN_MAX_FAILURES, LoginThrottle
+        clock = [1000.0]
+        app = create_app(self.db, accounts_path=self.accounts, secret_key=SECRET,
+                         login_throttle=LoginThrottle(clock=lambda: clock[0]))
+        client = app.test_client()
+        for _ in range(LOGIN_MAX_FAILURES):
+            self.login(client, 'admin', 'wrong-pass-1')
+        # Locked: even the right password is refused, and the page says to wait.
+        self.assertEqual(self.login(client, *ADMIN).headers['Location'], '/login')
+        self.assertIn(f'{LOGIN_LOCK_S}초 뒤', client.get('/login').get_data(as_text=True))
+        self.assertEqual(client.get('/').status_code, 302)
+        # Another name is not locked.
+        other = app.test_client()
+        self.assertEqual(self.login(other, *CUSTOMER).headers['Location'], '/')
+        clock[0] += LOGIN_LOCK_S
+        self.assertEqual(self.login(client, *ADMIN).headers['Location'], '/')
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_responses_carry_security_headers_and_data_is_not_cached(self):
+        client = self.app().test_client()
+        self.login(client, *ADMIN)
+        for path in ('/login', '/', '/fragment', '/api/view'):
+            with self.subTest(path=path):
+                headers = client.get(path).headers
+                self.assertEqual(headers['X-Content-Type-Options'], 'nosniff')
+                self.assertEqual(headers['X-Frame-Options'], 'DENY')
+                self.assertEqual(headers['Referrer-Policy'], 'no-referrer')
+                self.assertIn("frame-ancestors 'none'", headers['Content-Security-Policy'])
+                self.assertEqual(headers['Cache-Control'], 'no-store')
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
     def test_customer_views_only_and_admin_manages_accounts(self):
         app = self.app()
         customer = app.test_client()
