@@ -46,6 +46,7 @@ LABELS = {ord("1"): "still", ord("2"): "shake", ord("3"): "light", ord("4"): "pa
 LABEL_KO = {"still": "가만히", "shake": "흔들기", "light": "조명", "pass": "지나가기", "cover": "가리기"}
 REASON_KO = {"FIRST_FRAME": "첫 프레임", "OCCLUDED": "무늬 부족 (어둡거나 렌즈 가림)",
              "MATCH_FAILED": "직전 화면과 맞지 않음", "SCENE_CHANGED": "원래 장면이 가려짐",
+             "QUADRANT_COVERED": "한 구역이 완전히 가려짐",
              "PARTIAL_MOTION": "화면 일부만 움직임 (사람 등)", "BELOW_NOISE": "움직임 없음", None: "흔들림 기록 중"}
 FIELDS = ("time", "elapsed_s", "stamp_ns", "label", "status", "reason", "dx", "dy", "reversals", "condition",
           "event", "textured_ratio", "matched_ratio", "visible_ratio", "proc_ms")
@@ -213,7 +214,7 @@ class Dashboard:
             return "카메라 끊김", ORANGE, "다시 연결하는 중", "!"
         if result.status == "UNKNOWN":
             detail = REASON_KO.get(result.reason, result.reason)
-            if result.reason == "SCENE_CHANGED" and result.visible_ratio is not None:
+            if result.reason in ("SCENE_CHANGED", "QUADRANT_COVERED") and result.visible_ratio is not None:
                 detail += f" · {result.visible_ratio * 100:.0f}% 보임"
             return "판단 보류", GRAY, detail, "?"
         if result.condition:
