@@ -237,8 +237,8 @@ def _robots(view):
                          '</section>')
             continue
         motion = robot['motion_state']
-        stale = (f'<p class="alert">낡음: {_age(robot["received_age_s"])} 동안 새 상태가 없습니다. '
-                 '표시 값은 그때의 것입니다.</p>') if robot['stale'] else ''
+        stale = (f'<p class="alert" title="표시 값은 마지막으로 받은 상태입니다">낡음: '
+                 f'{_age(robot["received_age_s"])} 동안 새 상태 없음</p>') if robot['stale'] else ''
         units.append(
             f'<section class="unit {(role or "unknown").lower()}{" stale" if robot["stale"] else ""}" '
             f'data-robot="{escape(robot["robot_id"])}">{head}'
@@ -358,7 +358,7 @@ dl{margin:0}
 /* ---- console grid ---- */
 .console{display:grid;gap:10px;padding:10px;min-height:100vh;
   grid-template-columns:minmax(0,1fr) 400px 470px;
-  grid-template-rows:auto auto minmax(0,1fr) 230px;
+  grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
   grid-template-areas:"band band top" "warn warn side" "map middle side" "log log side"}
 #live{display:contents}
 #mission{grid-area:band} #warnings{grid-area:warn} #map{grid-area:map} #middle{grid-area:middle}
@@ -370,6 +370,8 @@ dl{margin:0}
 }
 #map,#middle>section,#events,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
 #middle{display:flex;flex-direction:column;gap:10px;min-height:0}
+/* Robot cards give way (and scroll) before the victims list does (#64). */
+#robots{min-height:0;overflow:auto}
 #side{display:flex;flex-direction:column;gap:10px;min-height:0}
 
 /* ---- band ---- */
@@ -446,14 +448,14 @@ dl{margin:0}
 .battery.low .value{color:var(--signal);font-weight:700}
 .battery .value{min-width:3.2em;text-align:right;font-weight:500} .battery .age{font-size:12px;color:var(--ink-2)}
 .battery.none .value{color:var(--ink-2);text-align:left}
-.unit dl{display:grid;grid-template-columns:auto 1fr;column-gap:10px;font-size:13px}
+.unit dl{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:10px;font-size:13px}
 .unit dl div{display:contents} .unit dt{color:var(--ink-2)} .unit dd{margin:0}
 .unit .alert{margin-top:6px;padding:4px 8px;background:var(--caution-tint);font-size:13px}
 .unit.stale,.unit.missing{border-left-color:var(--caution)}
 .unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.55}
 
 /* ---- victims ---- */
-#targets{display:flex;flex-direction:column;min-height:0;flex:1}
+#targets{display:flex;flex-direction:column;min-height:240px;flex:1}
 .stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:0 0 8px;padding:0;list-style:none}
 .stage-counts li{display:flex;align-items:center;gap:6px;padding:3px 8px;background:#fff;border-left:4px solid var(--pending);font-size:13px}
 .stage-counts li b{margin-left:auto;font-size:18px}
