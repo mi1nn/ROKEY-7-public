@@ -97,6 +97,39 @@ class AccountStoreTests(unittest.TestCase):
             self.store.update('boss', status='INACTIVE')
         self.assertEqual('LAST_ADMIN', caught.exception.detail_code)
 
+    def test_auth_nonce_rotates_for_credentials_role_and_status_but_not_profile(self):
+        self.store.add('jane', 'jane-pass-1', role='CUSTOMER')
+        nonce = self.store.get('jane')['auth_nonce']
+        self.assertNotEqual(nonce, self.store.get('admin')['auth_nonce'])
+        self.store.update('jane', display_name='Jane', email='jane@example.com', role='CUSTOMER', status='ACTIVE')
+        self.assertEqual(nonce, self.store.get('jane')['auth_nonce'])
+        for change in (dict(password='jane-pass-2'), dict(role='ADMIN'), dict(status='INACTIVE'), dict(status='ACTIVE')):
+            with self.subTest(change=list(change)):
+                self.store.update('jane', **change)
+                newer = self.store.get('jane')['auth_nonce']
+                self.assertNotEqual(nonce, newer)
+                nonce = newer
+
+    def test_open_migrates_legacy_accounts_without_resetting_passwords_or_nonce(self):
+        legacy = self.path.with_name('legacy.sqlite3')
+        with sqlite3.connect(self.path) as source:
+            row = source.execute('SELECT username, display_name, email, role, status, password_hash, '
+                                 'created_at_ns, updated_at_ns FROM accounts').fetchone()
+        with sqlite3.connect(legacy) as db:
+            db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            db.executemany('INSERT INTO metadata VALUES (?, ?)', [('role', 'console-accounts'), ('schema_version', '1.0')])
+            db.execute('CREATE TABLE accounts (username TEXT PRIMARY KEY, display_name TEXT NOT NULL, '
+                       'email TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, password_hash TEXT NOT NULL, '
+                       'created_at_ns INTEGER NOT NULL, updated_at_ns INTEGER NOT NULL)')
+            db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?)', row)
+        migrated = AccountStore.open(legacy)
+        account = migrated.authenticate('admin', 'admin-pass-1')
+        self.assertEqual('ADMIN', account['role'])
+        self.assertTrue(account['auth_nonce'])
+        self.assertEqual(account['auth_nonce'], AccountStore.open(legacy).get('admin')['auth_nonce'])
+        with sqlite3.connect(legacy) as db:
+            self.assertEqual('1.1', db.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0])
+
 
 if __name__ == '__main__':
     unittest.main()

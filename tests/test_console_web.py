@@ -67,14 +67,15 @@ class CommandPlaceholderTests(LedgerFixture):
 
     def test_dashboard_header_names_the_user_and_hides_admin_link_from_customers(self):
         view = self.view()
-        admin_html = render_page(view, {'username': 'admin', 'display_name': 'Boss', 'role': 'ADMIN'})
+        admin_html = render_page(view, {'username': 'admin', 'display_name': 'Boss', 'role': 'ADMIN'}, 'logout-token')
         self.assertIn('Boss (ADMIN)', admin_html)
         self.assertIn('href="/admin/accounts"', admin_html)
-        self.assertIn('href="/logout"', admin_html)
-        customer_html = render_page(view, {'username': 'jane', 'display_name': '<b>', 'role': 'CUSTOMER'})
+        self.assertIn('method="post" action="/logout"', admin_html)
+        self.assertIn('name="csrf" value="logout-token"', admin_html)
+        customer_html = render_page(view, {'username': 'jane', 'display_name': '<b>', 'role': 'CUSTOMER'}, 'logout-token')
         self.assertNotIn('href="/admin/accounts"', customer_html)
         self.assertIn('&lt;b&gt; (CUSTOMER)', customer_html)
-        self.assertNotIn('<form', customer_html)
+        self.assertEqual(re.findall(r'<form[^>]+action="([^"]+)"', customer_html), ['/logout'])
 
     def test_login_and_accounts_pages_carry_csrf_and_escape_values(self):
         login = render_login('tok&en', [('danger', '<x>')])
@@ -142,7 +143,7 @@ class FlaskBoundaryTests(AccountsFixture):
         client = app.test_client()
         self.assertEqual(client.get('/').status_code, 302)
         self.assertEqual(client.get('/').headers['Location'].split('?')[0], '/login')
-        self.assertEqual(client.get('/fragment').status_code, 302)
+        self.assertEqual(client.get('/fragment').status_code, 401)
         self.assertEqual(client.get('/api/view').status_code, 401)
         self.assertEqual(client.get('/admin/accounts').status_code, 302)
         for name, _ in COMMANDS:
@@ -162,7 +163,7 @@ class FlaskBoundaryTests(AccountsFixture):
         self.assertIn('admin (ADMIN)', page)
         self.assertEqual(client.get('/api/view').get_json()['exit_count'], None)
         self.assertEqual(client.get('/login').headers['Location'], '/')   # already logged in
-        self.assertEqual(client.get('/logout').status_code, 302)
+        self.assertEqual(client.post('/logout', data={'csrf': self.csrf(client)}).status_code, 303)
         self.assertEqual(client.get('/api/view').status_code, 401)
         self.assertEqual(digest_dir(self.dir), before)                      # ledgers untouched
 
@@ -198,6 +199,84 @@ class FlaskBoundaryTests(AccountsFixture):
         self.login(client, *ADMIN)
         self.assertEqual(client.get('/api/view').status_code, 503)
         self.assertFalse((self.dir / 'absent.sqlite3').exists())
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_deleted_username_reuse_cannot_grant_old_session_admin_access(self):
+        app = self.app()
+        customer = app.test_client()
+        self.login(customer, *CUSTOMER)
+        cookie = customer.get_cookie('session').value
+        with customer.session_transaction() as session:
+            old_csrf = session['csrf']
+        self.assertEqual(customer.get('/admin/accounts').status_code, 403)
+        store = AccountStore.open(self.accounts)
+        store.delete('jane', by='admin')
+        store.add('jane', 'new-owner-password', role='ADMIN')
+        self.assertEqual(customer.get('/api/view').status_code, 401)
+        replay = app.test_client()
+        replay.set_cookie('session', cookie)
+        self.assertEqual(replay.get('/admin/accounts').status_code, 302)
+        replay.set_cookie('session', cookie)
+        response = replay.post('/admin/accounts', data={'csrf': old_csrf, 'username': 'intruder',
+                                                       'password': 'intruder-password', 'role': 'ADMIN'})
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(store.get('intruder'))
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_password_reset_revokes_existing_session_and_allows_new_login(self):
+        client = self.app().test_client()
+        self.login(client, *CUSTOMER)
+        AccountStore.open(self.accounts).update('jane', password='replacement-password')
+        self.assertEqual(client.get('/api/view').status_code, 401)
+        self.assertEqual(self.login(client, 'jane', 'replacement-password').headers['Location'], '/')
+        self.assertEqual(client.get('/api/view').status_code, 200)
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_reactivation_does_not_revive_a_previously_revoked_cookie(self):
+        app = self.app()
+        client = app.test_client()
+        self.login(client, *CUSTOMER)
+        cookie = client.get_cookie('session').value
+        store = AccountStore.open(self.accounts)
+        store.update('jane', status='INACTIVE')
+        self.assertEqual(client.get('/api/view').status_code, 401)
+        store.update('jane', status='ACTIVE')
+        replay = app.test_client()
+        replay.set_cookie('session', cookie)
+        self.assertEqual(replay.get('/api/view').status_code, 401)
+        self.assertEqual(self.login(client, *CUSTOMER).headers['Location'], '/')
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_role_change_requires_a_fresh_login(self):
+        client = self.app().test_client()
+        self.login(client, *CUSTOMER)
+        AccountStore.open(self.accounts).update('jane', role='ADMIN')
+        self.assertEqual(client.get('/admin/accounts').status_code, 302)
+        self.login(client, *CUSTOMER)
+        self.assertEqual(client.get('/admin/accounts').status_code, 200)
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_expired_fragment_never_redirects_to_a_login_document(self):
+        client = self.app().test_client()
+        self.login(client, *CUSTOMER)
+        self.assertEqual(client.get('/fragment').status_code, 200)
+        AccountStore.open(self.accounts).update('jane', status='INACTIVE')
+        response = client.get('/fragment', follow_redirects=True)
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(response.history)
+        self.assertNotIn('<form', response.get_data(as_text=True))
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_logout_requires_post_and_csrf_and_invalidates_the_client_session(self):
+        client = self.app().test_client()
+        self.login(client, *CUSTOMER)
+        token = self.csrf(client, '/')
+        self.assertEqual(client.get('/logout').status_code, 405)
+        self.assertEqual(client.post('/logout').status_code, 400)
+        self.assertEqual(client.post('/logout', data={'csrf': 'incorrect'}).status_code, 400)
+        self.assertEqual(client.get('/api/view').status_code, 200)
+        self.assertEqual(client.post('/logout', data={'csrf': token}).status_code, 303)
+        self.assertEqual(client.get('/api/view').status_code, 401)
 
 
 if __name__ == '__main__':
