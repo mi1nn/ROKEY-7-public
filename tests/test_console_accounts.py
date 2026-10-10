@@ -80,6 +80,21 @@ class AccountStoreTests(unittest.TestCase):
             self.store.update('ghost', status='INACTIVE')
         self.assertEqual('NOT_FOUND', caught.exception.detail_code)
 
+    def test_account_identity_and_auth_version(self):
+        """Sessions bind to (account_id, auth_version): names can be reused, credentials can change."""
+        jane = self.store.add('jane', 'jane-pass-1', role='CUSTOMER')
+        self.assertEqual(jane['auth_version'], 1)
+        first_id = jane['account_id']
+        self.store.delete('jane', by='admin')
+        self.assertNotEqual(self.store.add('jane', 'jane-pass-2', role='ADMIN')['account_id'], first_id)
+        self.assertEqual(self.store.update('jane', display_name='J')['auth_version'], 1)      # cosmetic: unchanged
+        self.assertEqual(self.store.update('jane', password='jane-pass-3')['auth_version'], 2)  # credential: bumped
+        self.assertEqual(self.store.update('jane', status='INACTIVE')['auth_version'], 3)
+        self.assertEqual(self.store.update('jane', role='CUSTOMER', status='ACTIVE')['auth_version'], 4)
+        self.assertEqual(self.store.authenticate('jane', 'jane-pass-3')['auth_version'], 4)
+        self.assertEqual(self.store.get_by_id(self.store.get('jane')['account_id'])['username'], 'jane')
+        self.assertIsNone(self.store.get_by_id('no-such-id'))
+
     def test_last_active_admin_is_protected(self):
         for kwargs in (dict(status='INACTIVE'), dict(role='CUSTOMER')):
             with self.subTest(kwargs=kwargs), self.assertRaises(ConsoleError) as caught:

@@ -65,12 +65,19 @@ class CommandPlaceholderTests(LedgerFixture):
         self.assertNotRegex(html, r"(?i)method\s*[:=]\s*['\"]?(post|put|delete)")
         self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
 
+    def test_logged_in_page_has_only_the_logout_form(self):
+        html = render_page(self.view(), {'username': 'jane', 'display_name': 'Jane', 'role': 'CUSTOMER'}, csrf='tok')
+        forms = re.findall(r'<form[^>]*>', html)
+        self.assertEqual(len(forms), 1)
+        self.assertIn('action="/logout"', forms[0])
+        self.assertIn('name="csrf"', html)
+
     def test_dashboard_header_names_the_user_and_hides_admin_link_from_customers(self):
         view = self.view()
         admin_html = render_page(view, {'username': 'admin', 'display_name': 'Boss', 'role': 'ADMIN'})
         self.assertIn('Boss (ADMIN)', admin_html)
         self.assertIn('href="/admin/accounts"', admin_html)
-        self.assertIn('href="/logout"', admin_html)
+        self.assertIn('action="/logout"', admin_html)
         customer_html = render_page(view, {'username': 'jane', 'display_name': '<b>', 'role': 'CUSTOMER'})
         self.assertNotIn('href="/admin/accounts"', customer_html)
         self.assertIn('&lt;b&gt; (CUSTOMER)', customer_html)
@@ -142,7 +149,7 @@ class FlaskBoundaryTests(AccountsFixture):
         client = app.test_client()
         self.assertEqual(client.get('/').status_code, 302)
         self.assertEqual(client.get('/').headers['Location'].split('?')[0], '/login')
-        self.assertEqual(client.get('/fragment').status_code, 302)
+        self.assertEqual(client.get('/fragment').status_code, 401)
         self.assertEqual(client.get('/api/view').status_code, 401)
         self.assertEqual(client.get('/admin/accounts').status_code, 302)
         for name, _ in COMMANDS:
@@ -162,7 +169,7 @@ class FlaskBoundaryTests(AccountsFixture):
         self.assertIn('admin (ADMIN)', page)
         self.assertEqual(client.get('/api/view').get_json()['exit_count'], None)
         self.assertEqual(client.get('/login').headers['Location'], '/')   # already logged in
-        self.assertEqual(client.get('/logout').status_code, 302)
+        self.assertEqual(client.post('/logout', data={'csrf': self.csrf(client, '/')}).status_code, 302)
         self.assertEqual(client.get('/api/view').status_code, 401)
         self.assertEqual(digest_dir(self.dir), before)                      # ledgers untouched
 
@@ -191,6 +198,75 @@ class FlaskBoundaryTests(AccountsFixture):
         admin.post('/admin/accounts/admin', data={'csrf': csrf, '_action': 'delete'})
         self.assertIsNotNone(AccountStore.open(self.accounts).get('admin'))                        # self / last admin
         self.assertIn('변경 실패', admin.get('/admin/accounts').get_data(as_text=True))
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_old_sessions_die_with_the_account_they_came_from(self):
+        """AST-50-01: a session is bound to the account row and its auth version, not to the name."""
+        app = self.app()
+        admin = app.test_client()
+        self.login(admin, *ADMIN)
+        csrf = self.csrf(admin)
+        old_customer = app.test_client()
+        self.login(old_customer, *CUSTOMER)
+        self.assertEqual(old_customer.get('/api/view').status_code, 200)
+        # delete jane, recreate the same name as ADMIN: the old cookie must not inherit anything
+        admin.post('/admin/accounts/jane', data={'csrf': csrf, '_action': 'delete'})
+        admin.post('/admin/accounts', data={'csrf': csrf, 'username': 'jane', 'password': 'other-pass-9', 'role': 'ADMIN'})
+        self.assertEqual(old_customer.get('/api/view').status_code, 401)
+        self.assertNotEqual(old_customer.get('/admin/accounts').status_code, 200)
+        self.assertNotEqual(old_customer.post('/admin/accounts', data={'csrf': csrf, 'username': 'evil',
+                                                                       'password': 'evil-pass-9', 'role': 'ADMIN'}).status_code, 303)
+        self.assertIsNone(AccountStore.open(self.accounts).get('evil'))
+        # password reset ends other sessions of that account
+        fresh = app.test_client()
+        self.login(fresh, 'jane', 'other-pass-9')
+        self.assertEqual(fresh.get('/api/view').status_code, 200)
+        admin.post('/admin/accounts/jane', data={'csrf': csrf, '_action': 'update', 'display_name': 'jane', 'email': '',
+                                                 'role': 'ADMIN', 'status': 'ACTIVE', 'password': 'newer-pass-9'})
+        self.assertEqual(fresh.get('/api/view').status_code, 401)
+        # deactivate then reactivate: a cookie saved before deactivation stays dead
+        again = app.test_client()
+        self.login(again, 'jane', 'newer-pass-9')
+        for status in ('INACTIVE', 'ACTIVE'):
+            admin.post('/admin/accounts/jane', data={'csrf': csrf, '_action': 'update', 'display_name': 'jane', 'email': '',
+                                                     'role': 'ADMIN', 'status': status})
+        self.assertEqual(again.get('/api/view').status_code, 401)
+        # the admin's own session is untouched by changes to other accounts
+        self.assertEqual(admin.get('/api/view').status_code, 200)
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_fragment_polling_gets_401_not_a_login_document(self):
+        """AST-50-02: the poller must never receive the login page as a fragment."""
+        app = self.app()
+        anonymous = app.test_client()
+        response = anonymous.get('/fragment')
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn('<!doctype', response.get_data(as_text=True).lower())
+        customer = app.test_client()
+        self.login(customer, *CUSTOMER)
+        self.assertEqual(customer.get('/fragment').status_code, 200)
+        admin = app.test_client()
+        self.login(admin, *ADMIN)
+        admin.post('/admin/accounts/jane', data={'csrf': self.csrf(admin), '_action': 'update', 'display_name': 'Jane',
+                                                 'email': 'jane@example.com', 'role': 'CUSTOMER', 'status': 'INACTIVE'})
+        self.assertEqual(customer.get('/fragment').status_code, 401)
+        page = render_page(self.view(), {'username': 'jane', 'display_name': 'Jane', 'role': 'CUSTOMER'})
+        self.assertIn('401', page)                      # the poller handles it...
+        self.assertIn("'/login'", page)                 # ...by leaving for the login page
+        self.assertIn('clearInterval', page)            # ...and stops polling
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_logout_is_a_post_with_csrf(self):
+        """AST-50-03: a link click must not end the session."""
+        app = self.app()
+        client = app.test_client()
+        self.login(client, *ADMIN)
+        self.assertEqual(client.get('/logout').status_code, 405)
+        self.assertEqual(client.post('/logout').status_code, 400)
+        self.assertEqual(client.get('/api/view').status_code, 200)
+        csrf = self.csrf(client, '/')
+        self.assertEqual(client.post('/logout', data={'csrf': csrf}).status_code, 302)
+        self.assertEqual(client.get('/api/view').status_code, 401)
 
     @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
     def test_broken_ledger_is_a_visible_failure(self):
