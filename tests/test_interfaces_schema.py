@@ -15,11 +15,12 @@ PKG = ROOT / 'src' / 'rescue_interfaces'
 
 # Phase 1 adopted 2026-10-10 (contracts.md C-10). RecheckObservation/PassageAssessment
 # are pulled in because TaskResult/RouteCandidate/ObserveTarget embed them.
+# TargetPresence/CameraStatus/SetCameraWatch (fixed-camera watch) moved up from phase 2.
 MESSAGES = ('Envelope', 'ObservationTime', 'FrameRef', 'EvidenceRef', 'RobotStatus', 'RobotPose', 'Heartbeat',
             'CommandLease', 'TaskAdmission', 'TaskResult', 'OperatorApproval', 'RouteCandidate', 'SiteEvent',
             'TargetObservation', 'TargetLocation', 'MapState', 'ReportReceipt', 'RecheckObservation',
-            'PassageAssessment')
-SERVICES = ('RequestStop', 'RegisterAuthority', 'ResetStop', 'SubmitOperatorCommand')
+            'PassageAssessment', 'TargetPresence', 'CameraStatus')
+SERVICES = ('RequestStop', 'RegisterAuthority', 'ResetStop', 'SubmitOperatorCommand', 'SetCameraWatch')
 ACTIONS = ('ExecuteTask', 'ObserveTarget')
 SECTIONS = {'msg': (None,), 'srv': ('Request', 'Response'), 'action': ('Goal', 'Result', 'Feedback')}
 ENUM = re.compile(r'[A-Z][A-Z0-9_]*(/[A-Z][A-Z0-9_]*)*')
