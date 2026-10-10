@@ -14,7 +14,7 @@
 5. 장면 확인: 카메라가 흔들리면 보이는 장면은 같고 위치만 밀린다. 렌즈 앞의 손처럼
    가까운 물체가 화면 전체를 덮으면 장면 자체가 바뀐다. 그래서 흔들리기 전 장면(기준
    장면)을 기억해 두고, 블록마다 지금 화면이 그것을 조금 옮긴 것과 ZNCC 로 맞는지 본다.
-   맞는 블록이 절반 미만이면 가려진 것으로 보고 SCENE_CHANGED(UNKNOWN). 손에도 무늬가
+   맞는 블록이 ``visible_min`` 미만이면 가려진 것으로 보고 SCENE_CHANGED(UNKNOWN). 손에도 무늬가
    있어 무늬 기준만으로는 가림을 못 잡기 때문이다(2026-10-10 실측).
 6. 이동이 ``shift_min`` 이상이면 방향을 기록하고, 직전 방향과 반대면(내적 < 0)
    방향 전환 1회. ``window_ns`` 안에서 ``shakes_min`` 회 이상이면 조건 참.
@@ -73,8 +73,10 @@ class DisasterSignPolicy:
     - ``shift_min``: 방향을 기록하는 최소 이동(칸). 정지 상태 잡음 바닥값으로 정한다.
     - ``scene_match_min``: 블록마다 지금 화면과 기준 장면의 ZNCC 가 이 이상이어야 "보임".
       기준 장면에서 ±``search_cells`` 칸 안의 가장 잘 맞는 위치로 비교한다. 흔들림 없이 ``window_ns`` 이상
-      멈춰 있을 때 새로 고친다. 기준 장면이 보이는 블록이 ``valid_ratio_min`` 미만이면
-      UNKNOWN(SCENE_CHANGED).
+      멈춰 있을 때 새로 고친다.
+    - ``visible_min``: 기준 장면이 보이는 블록이 이 비율 미만이면(화면 대부분이 가려짐)
+      UNKNOWN(SCENE_CHANGED). 그보다 덜 가려지면(조금 떨어져 지나가는 사람) 판정을 계속하고
+      네 사분면 확인이 부분 움직임으로 거른다(2026-10-10 사용자 확인).
     - ``rebase_ns``: 기준 장면과 다른 화면이 이만큼 안정적으로(잡음 수준 이동) 이어지면
       카메라가 옮겨진 것으로 보고 새 기준 장면으로 삼는다. 그보다 오래 멈춘 손은 장면이
       된다(한계).
@@ -93,6 +95,7 @@ class DisasterSignPolicy:
     agree_tol: float
     shift_min: float
     scene_match_min: float
+    visible_min: float
     rebase_ns: int
     shakes_min: int
     window_ns: int
@@ -115,6 +118,7 @@ class DisasterSignPolicy:
         _finite(self.shift_min, "shift_min", 0, 2 * self.search_cells)
         _require(self.shift_min > 0, "INVALID_INPUT", "shift_min must be positive")
         _finite(self.scene_match_min, "scene_match_min", -1, 1)
+        _finite(self.visible_min, "visible_min", 0, 1)
         _count(self.shakes_min, "shakes_min", 1)
         for name in ("window_ns", "hold_ns", "release_ns", "max_gap_ns", "rebase_ns"):
             _contract(duration_ns, getattr(self, name), name)
@@ -329,8 +333,8 @@ class DisasterSignDetector:
                              textured_ratio, matched_ratio)
         shift = _whole_view(matched, self.policy) if matched_ratio >= vmin else None
         visible_ratio = _visible_ratio(self._ref_grid, grid, self.policy)
-        if visible_ratio < vmin:
-            # 원래 장면이 절반도 안 보인다: 손 등 가까운 물체가 가렸거나 카메라가 다른 곳을 본다.
+        if visible_ratio < self.policy.visible_min:
+            # 원래 장면이 거의 안 보인다: 손 등 가까운 물체가 가렸거나 카메라가 다른 곳을 본다.
             self._still_since = None
             if shift is not None and math.hypot(*shift) < self.policy.shift_min:
                 # 바뀐 화면이 rebase_ns 이상 안정적이면 카메라가 옮겨진 것으로 보고 새 기준 장면으로.
