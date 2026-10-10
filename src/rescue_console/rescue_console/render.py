@@ -2,11 +2,15 @@
 
 from datetime import datetime
 from html import escape
+import math
 
 # Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
 # ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
 POLL_INTERVAL_MS = 1000
 MISSING = '—'
+# Map marker sizes in map pixels (0.05 m/px for the pre-quake map): robot body radius and heading
+# length, target dot radius. Display only ([제안] 관제·화면, 2026-10-10).
+ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.2, 4.5, 1.4
 
 
 def _text(value):
@@ -124,6 +128,42 @@ def _events(view):
             + ''.join(rows) + '</table>')
 
 
+def _map(view):
+    """Map image with an SVG overlay in image pixel units. Without a map, the placeholder note."""
+    layer = view['map']
+    if not layer.get('available'):
+        return f'<section id="map" class="placeholder">{escape(layer["note"])}</section>'
+    width, height = layer['width_px'], layer['height_px']
+    marks = []
+    for target in layer['targets']:
+        marks.append(
+            f'<circle class="mark {target["stage"].lower()}" cx="{target["px"]}" cy="{target["py"]}" r="{TARGET_MARK_PX}">'
+            f'<title>{escape(target["id"])} {escape(target["stage"])}</title></circle>'
+            f'<text class="label" x="{target["px"] + TARGET_MARK_PX + 0.6}" y="{target["py"] + 0.8}">'
+            f'{escape(target["id"][:4])}</text>')
+    for robot in layer['robots']:
+        x, y = robot['px'], robot['py']
+        heading = ''
+        if robot['yaw'] is not None:
+            # Image rows grow downwards, so +yaw (counter-clockwise in the map) is -y here.
+            hx = round(x + HEADING_PX * math.cos(robot['yaw']), 2)
+            hy = round(y - HEADING_PX * math.sin(robot['yaw']), 2)
+            heading = f'<line class="heading" x1="{x}" y1="{y}" x2="{hx}" y2="{hy}"/>'
+        role = (robot.get('role') or 'unknown').lower()
+        marks.append(
+            f'<g class="robot {escape(role)}">{heading}<circle cx="{x}" cy="{y}" r="{ROBOT_MARK_PX}">'
+            f'<title>{escape(robot["id"])}</title></circle>'
+            f'<text class="label" x="{x + ROBOT_MARK_PX + 0.6}" y="{y - ROBOT_MARK_PX}">{escape(robot["id"])}</text></g>')
+    unplotted = [f'{w["kind"]} {w["id"]}: frame {w["frame_id"]}' for w in layer['frame_mismatch']]
+    unplotted += [f'{w["kind"]} {w["id"]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f})' for w in layer['off_map']]
+    notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
+    return (f'<section id="map" class="map"><div class="mapbox">'
+            f'<img src="{escape(layer["url"])}" width="{width}" height="{height}" alt="기준 지도">'
+            f'<svg viewBox="0 0 {width} {height}" preserveAspectRatio="none">{"".join(marks)}</svg></div>'
+            f'<small>{escape(layer["note"])}</small>'
+            + (f'<ul class="unplotted">{notes}</ul>' if notes else '') + '</section>')
+
+
 def _commands(view):
     buttons = ''.join(
         f'<button type="button" disabled data-command="{escape(c["name"])}" title="{escape(c["reason"])}">'
@@ -139,8 +179,7 @@ def render_fragment(view):
             + f'<div id="built" data-built-ns="{view["built_at_ns"]}">서버 집계 {_time(view["built_at_ns"])}'
             f' · 증거 정책 {escape(view["evidence_policy"])}</div>'
             + (f'<ul id="warnings">{warnings}</ul>' if warnings else '')
-            + f'<div class="grid"><section id="map" class="placeholder">{escape(view["map"]["note"])}</section>'
-            + _summary(view) + '</div>' + _robots(view) + _targets(view) + _events(view))
+            + '<div class="grid">' + _map(view) + _summary(view) + '</div>' + _robots(view) + _targets(view) + _events(view))
 
 
 _STYLE = '''
@@ -165,6 +204,15 @@ tr.stale td{color:#a60}.stale-tag{color:#fff;background:#c60;padding:0 4px;borde
 #cameras img{display:block;width:480px;max-width:100%;min-height:120px}
 #cameras figcaption{background:#fff;padding:2px 6px;font-size:13px}
 #cameras .lost{color:#a00}
+.mapbox{position:relative;border:1px solid #aaa;background:#cdcdcd}
+.mapbox img{display:block;width:100%;height:auto;image-rendering:pixelated}
+.mapbox svg{position:absolute;inset:0;width:100%;height:100%}
+.mapbox .label{font-size:2.4px;paint-order:stroke;stroke:#fff;stroke-width:.5px}
+.mapbox .heading{stroke:#000;stroke-width:.6}
+.mapbox .robot circle{stroke:#000;stroke-width:.3}.robot.scout circle{fill:#36c}.robot.support circle{fill:#93c}
+.robot.unknown circle{fill:#999}.mark{stroke:#fff;stroke-width:.4}
+.mark.unconfirmed{fill:#777}.mark.not_rescued{fill:#d22}.mark.supporting{fill:#e90}.mark.rescued{fill:#2a2}
+.unplotted{color:#a60;font-size:13px;margin:4px 0}
 header.user{display:flex;justify-content:space-between;align-items:center;gap:12px}
 header.user nav a{margin-left:12px}
 .card{max-width:420px;margin:48px auto;padding:24px;background:#fff;border:1px solid #ccc;border-radius:8px}

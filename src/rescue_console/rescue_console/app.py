@@ -10,17 +10,29 @@ import secrets
 import time
 
 from .accounts import AccountStore
+from .mapimage import load_map, map_overlay
 from .render import render_accounts, render_fragment, render_login, render_page
 from .sources import load_ledger, load_site_state, load_status
 from .view import ConsoleError, build_view
 
 
-def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None):
+# Paths that answer 401 instead of redirecting to the login page (polled data, the map image).
+DATA_PATHS = ('/fragment', '/map.png')
+
+
+def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None):
     """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
     if site_state_path is not None and status_path is not None:
         raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
-    return build_view(load_ledger(ledger_path), status, built_at_ns=clock())
+    view = build_view(load_ledger(ledger_path), status, built_at_ns=clock())
+    if map_image is not None:
+        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
+        for where in view['map']['frame_mismatch']:
+            view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
+        for where in view['map']['off_map']:
+            view['warnings'].append(f"지도 밖 좌표: {where['kind']} {where['id']} ({where['x']:.2f}, {where['y']:.2f})")
+    return view
 
 
 def parse_camera(text):
@@ -31,7 +43,8 @@ def parse_camera(text):
     return camera_id, url
 
 
-def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=()):
+def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
+               map_path=None):
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -43,12 +56,13 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
     cameras = tuple(cameras)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
+    map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup
     app = Flask(__name__)
     app.secret_key = secret_key
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
 
     def view():
-        return current_view(ledger_path, status_path, site_state_path=site_state_path)
+        return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image)
 
     def user():
         """The account behind this session, or None.
@@ -82,7 +96,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
             if account is None:
                 # Data routes answer 401 so the poller never swallows a login document (AST-50-02);
                 # only whole pages redirect.
-                if request.path.startswith('/api/') or request.path == '/fragment':
+                if request.path.startswith('/api/') or request.path in DATA_PATHS:
                     return jsonify({'error': 'login required'}), 401
                 return redirect('/login')
             return handler(account, *args, **kwargs)
@@ -143,6 +157,14 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @login_required
     def api_view(account):
         return jsonify(view())
+
+    @app.get('/map.png')
+    @login_required
+    def map_png(account):
+        if map_image is None:
+            abort(404, 'no map: start with --map MAP_YAML')
+        # The URL carries the PGM hash (`?v=`), so a cached copy is never a different map.
+        return Response(map_image.png, mimetype='image/png', headers={'Cache-Control': 'private, max-age=3600'})
 
     # ---- accounts (ADMIN) ------------------------------------------------------------
     def accounts_page(account, status=200):
