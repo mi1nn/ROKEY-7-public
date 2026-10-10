@@ -191,11 +191,13 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 
 | 구분 | 1차 채택 |
 | --- | --- |
-| msg (19) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment |
-| srv (4) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand |
+| msg (21) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment, TargetPresence, CameraStatus |
+| srv (5) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand, SetCameraWatch |
 | action (2) | ExecuteTask, ObserveTarget |
 
 `RecheckObservation`·`PassageAssessment` 는 `TaskResult`·`RouteCandidate`·`ObserveTarget` 이 품고 있어 같이 들어왔다. 구조만 있고 통로 판정의 채택(Q-25)은 아니다.
+
+`TargetPresence`(IF-077)·`CameraStatus`(IF-075)·`SetCameraWatch`(IF-078)는 2026-10-10 에 2차에서 올렸다. 카메라 1대 결정(2026-10-09) 뒤 재관측 트리거는 고정 웹캠의 소실 후보이고, 후보를 만들려면 coordinator 가 카메라에 감시(watch)를 주는 `SetCameraWatch` 가 있어야 한다. 두 메시지는 감시 상태와 영상 상태를 알리는 쪽이다. 이 채택은 [제안]이며 저장소 소유자의 머지로 확정한다. 카메라 쪽 노드와 변환기는 아직 없다.
 
 IDL 규칙:
 - 필드 이름·순서·타입은 JSON 이 원본이다. JSON 을 먼저 고치고, `tests/test_interfaces_schema.py` 가 IDL 과 같은지 ROS 없이 검사한다.
@@ -203,9 +205,16 @@ IDL 규칙:
 - JSON 의 `string(A/B)` 열거는 `string` 필드 + 같은 파일의 상수 `<FIELD>_<VALUE>="<VALUE>"` 다. 상수 선언 자체는 필드 값의 검증을 강제하지 않는다. UUID·열거값·시각·선택 필드의 유효성은 각 ROS 경계 모듈이 검사한다.
 - SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 아직 Python `TASK_KINDS` 에 없고, `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
 - 문자열·배열 길이 상한은 두지 않았다 [제안]. 실측 뒤 정한다.
+- 고정 카메라 감시(`SetCameraWatch`·`TargetPresence`·`CameraStatus`, 2026-10-10):
+  - 재관측 트리거는 `SiteEvent(TARGET_DISAPPEARED_CANDIDATE)` 하나뿐이다. `TargetPresence` 의 소실 후보 상태(`ABSENT_CANDIDATE`)는 표시용이고 재관측이나 판정의 입력이 아니다. 같은 뜻의 주인을 둘 두지 않는다.
+  - 경계 검사: ROI 는 `0≤min<max≤1` 이고, UUID 는 형식을 검사하며, 빈 열거값은 거절한다. 해제(`enable=false`)는 `watch_id`·`expected_watch_revision` 이 활성 감시와 같고 ROI 도 활성 감시 값과 같을 때만 받는다. 기본 생성 값(빈 문자열·0)을 설정 요청으로 받지 않는다.
+  - 낡은 값: 값을 받은 적이 없거나, `valid_until_ns` 가 지났거나, `watch_id`·`watch_revision`·`publisher_boot_id` 가 기록한 활성 감시(수락 응답을 준 boot)와 다르면 UNKNOWN 이다. latch 된(TRANSIENT_LOCAL) `TargetPresence` 와 boot 가 바뀐 응답은 성공으로 보지 않는다.
+  - `camera_id` 하나에 `CameraStatus` 를 내는 노드는 하나(`cam.capture`)다. `stream_state` 가 ONLINE 이 아니거나 `visibility_state` 가 VALID 가 아니면 후보를 만들지 않는다.
+  - Python DTO 는 아직 없다. 첫 소비자 PR 에서 `rescue_contracts` 에 넣는다. IDL 생성·import 를 변환 성공으로 보지 않는다.
+  - `watch_id`·`watch_revision` 의 해석과 `SET_CAMERA_WATCH` → `SetCameraWatch` 변환 규칙은 SDD JSON 의 Rules 가 원본이다. 아래는 그 Rules 에 넣을 안이다 [제안, PM 반영 요청]. `watch_id` 는 (camera, target, ROI) 에 고정한다. `watch_revision` 은 카메라당 감시 칸의 교체 번호이고 0 은 비어 있음이다. 변환은 프로파일에서 `TARGET_WATCH` 카메라가 정확히 1대일 때만 한다.
 - 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
 
-2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, TargetEstimate·TargetSnapshot, SystemState, CameraStatus, TargetPresence, RescueReport, SetCameraWatch, PrepareMapping, EvaluateRoute, EvaluatePassage.
+2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, TargetEstimate·TargetSnapshot, SystemState, RescueReport, PrepareMapping, EvaluateRoute, EvaluatePassage.
 
 ## 고정 원본에서 가져온 계약 근거
 
