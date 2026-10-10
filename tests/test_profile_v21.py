@@ -54,7 +54,8 @@ class V21ProfileTests(unittest.TestCase):
         self.assertEqual(2, len(central.network.discovery_servers))
         self.assertEqual((0, 1), tuple(s.server_id for s in central.network.discovery_servers))
         self.assertFalse(central.network.super_client)
-        self.assertEqual({"DISASTER_SIGN", "EXIT_PASS"}, {c.role for c in profile.site_cameras})
+        # One fixed camera (2026-10-09 decision) that both detects the disaster sign and watches targets.
+        self.assertEqual([("DISASTER_SIGN", "TARGET_WATCH")], [c.roles for c in profile.site_cameras])
         self.assertTrue(all(c.id.startswith("cam_") for c in profile.site_cameras))
         self.assertEqual([0.0, 1.5708], [area.entry_yaw for area in profile.mission.search_areas])
 
@@ -118,13 +119,19 @@ class V21ProfileTests(unittest.TestCase):
         self.save(); self.assertRejected("site_cameras[0].id")
         self.setUp(); self.data["site_cameras"][0]["host"] = "nowhere"
         self.save(); self.assertRejected("unknown host")
-        self.setUp(); self.data["site_cameras"][0]["role"] = "FIRE"
-        self.save(); self.assertRejected("role")
-        self.setUp(); self.data["site_cameras"][1]["id"] = self.data["site_cameras"][0]["id"]
+        self.setUp(); self.data["site_cameras"][0]["roles"] = ["FIRE"]
+        self.save(); self.assertRejected("roles")
+        self.setUp(); self.data["site_cameras"][0]["roles"] = []
+        self.save(); self.assertRejected("roles")
+        self.setUp(); self.data["site_cameras"][0]["roles"] = "DISASTER_SIGN"
+        self.save(); self.assertRejected("roles")
+        self.setUp(); self.data["site_cameras"][0]["roles"] = ["DISASTER_SIGN", "DISASTER_SIGN"]
+        self.save(); self.assertRejected("roles")
+        self.setUp(); self.data["site_cameras"].append(dict(self.data["site_cameras"][0]))
         self.save(); self.assertRejected("site_cameras id")
         self.setUp(); self.data["site_cameras"][0]["source"] = ""
         self.save(); self.assertRejected("source")
-        self.assertEqual(("DISASTER_SIGN", "EXIT_PASS"), SITE_CAMERA_ROLES)
+        self.assertEqual(("DISASTER_SIGN", "TARGET_WATCH", "EXIT_PASS"), SITE_CAMERA_ROLES)
 
     def test_null_is_not_absent_and_server_id_is_global(self):
         self.data["hosts"][0]["network"] = None
@@ -145,7 +152,7 @@ class V21ProfileTests(unittest.TestCase):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             self.assertEqual(0, main([str(self.profile)]))
-        self.assertIn("2 site cameras", out.getvalue())
+        self.assertIn("1 site camera", out.getvalue())
         self.assertIn("4 hosts with network", out.getvalue())
 
 

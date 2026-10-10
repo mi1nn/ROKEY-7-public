@@ -21,7 +21,7 @@ updated: 2026-10-08
 | 수색 분담·대상 사건·임무 배정 | `rescue_coordination` | 로봇 실행기에 임무 요청. 직접 `cmd_vel`·Nav2 action·lifecycle 변경 금지 |
 | 운영자 요청·보고 수신·영속 기록 | `rescue_operations` | API 요청을 coordination/robot 계약으로 전달. 직접 Nav2/속도 발행 금지 |
 | ROS 메시지와 버전 | `rescue_interfaces` 담당 1명 | 관련 소비자·시험의 변경 영향과 함께 수정. 각 구현 세션이 독자 계약을 추가하지 않음 |
-| 고정 카메라 A·B 의 현장 사건(`SiteEvent`) | `rescue_perception` 의 고정 카메라 어댑터가 생성, `rescue_coordination` 이 소비 | 재난 징후(`DISASTER_SIGN`, 판정 조건은 정책 값 — 지진 시연은 흔들림·가려짐)·출구 통과(`EXIT_PASS`)는 **증거**이지 명령이 아니다. 재난 모드 전환·출동 지시는 coordination 의 정책이 하고, 카메라 어댑터는 주행·모드 변경을 발행하지 않음(BRD v0.1 UC-01·06, 2026-10-08) |
+| 고정 카메라 A·B 의 현장 사건(`SiteEvent`) | `rescue_perception` 의 고정 카메라 어댑터가 생성, `rescue_coordination` 이 소비 | 재난 징후(`DISASTER_SIGN`, 판정 조건은 정책 값·Part I 는 화재)·출구 통과(`EXIT_PASS`)는 **증거**이지 명령이 아니다. 재난 모드 전환·출동 지시는 coordination 의 정책이 하고, 카메라 어댑터는 주행·모드 변경을 발행하지 않음(BRD v0.1 UC-01·06, 2026-10-08) |
 
 고사양 PC 두 대에 로봇별 SLAM/Nav2/실행·추론을 배치하고, 중간 사양 PC 두 대에 coordination과 operations를 나누는 것은 부하 측정 전 가설이다. 순수 판단 로직은 ROS 입출력 어댑터와 분리한다. 파일 경계는 PR 2와 함께 확정한다.
 
@@ -102,7 +102,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 도킹 상태/관측 시각·준비 action 상태(해당 플랫폼), 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
 | `RescueReport` | report_id, target_id, 관측·확인·접근 결과, 수행 로봇/task/generation, 위치/frame/revision, observed_at·confirmed_at·reported_at, 접근 불가 등 사유, evidence_ref, 스키마·모델·배포 버전 | 사람 이송/부상/생존을 확정하지 않음. 오래된 사진을 새 재확인 사진으로 대체하지 않음 |
 | `ReportReceipt` | receipt_id, 참조 report_id, 수신 상태, 영속 저장 시각·저장 revision 또는 실패 코드 | `RECEIVED`와 `PERSISTED`를 구분. 보고 완료는 현재 정책에 필요한 payload와 증거가 영속 저장되고 해당 receipt가 돌아온 상태 |
-| `SiteEvent` | event_id, camera_id(`cam_<id>`), kind(`DISASTER_SIGN`/`EXIT_PASS`), observed_at_ns + C-03 시간 기준(clock_domain_id·stamp_semantics·clock_state·clock_error_bound_ns), evidence_id/sha256(생산자가 발급, operations 는 bytes 를 그 ID 로 저장·해시 검증), confidence(규칙 기반 어댑터는 1.0 = "규칙 충족", 이진; 소비자는 confidence 로 2차 판정하지 않고 측정값은 detail 에서 감사), detail | 고정 카메라의 증거 사건. 로봇 관측(`TargetObservation`)과 별개이며 `source_robot` 에 카메라를 넣지 않는다. `EXIT_PASS` 의 사람 식별·중복 집계 금지는 Q-13 결정 뒤 필드 추가. `time_basis_declared` 는 세 시간 메타데이터가 **선언됐다**는 사전 조건일 뿐이다 — True 만으로 다른 관측과의 순서·최신성·구출 완료를 승인할 수 없고, 소비자가 양측 `clock_domain_id` 일치, 송수신 오차 합의 정책 상한, 미래 시각·나이 한도를 따로 검사한다(C-03; `rescue_perception.validate_freshness` 와 같은 규칙). False 면 기록만 되고 판정 입력이 아니다. 실행 가능한 Python 정의는 `rescue_contracts.SiteEvent` |
+| `SiteEvent` | event_id, camera_id(`cam_<id>`), kind(`DISASTER_SIGN`/`EXIT_PASS`), observed_at_ns + C-03 시간 기준(clock_domain_id·stamp_semantics·clock_state·clock_error_bound_ns), evidence_id/sha256(생산자가 발급, operations 는 bytes 를 그 ID 로 저장·해시 검증), confidence, detail | 고정 카메라의 증거 사건. 로봇 관측(`TargetObservation`)과 별개이며 `source_robot` 에 카메라를 넣지 않는다. `EXIT_PASS` 의 사람 식별·중복 집계 금지는 Q-13 결정 뒤 필드 추가. `time_basis_declared` 는 세 시간 메타데이터가 **선언됐다**는 사전 조건일 뿐이다 — True 만으로 다른 관측과의 순서·최신성·구출 완료를 승인할 수 없고, 소비자가 양측 `clock_domain_id` 일치, 송수신 오차 합의 정책 상한, 미래 시각·나이 한도를 따로 검사한다(C-03; `rescue_perception.validate_freshness` 와 같은 규칙). False 면 기록만 되고 판정 입력이 아니다. 실행 가능한 Python 정의는 `rescue_contracts.SiteEvent` |
 
 `tracking_mode={DETECTION_ONLY,TRACKING,TRACKING_FALLBACK}`는 필수이며 관측 payload hash에 포함한다. TRACKING은 비어 있지 않은 track ID가 필요하고 다른 두 모드는 track_id=None이다. tracking fallback을 정상 tracking이나 단순 ID 누락과 구별한다.
 
