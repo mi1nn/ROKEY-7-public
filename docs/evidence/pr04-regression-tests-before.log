@@ -28,19 +28,19 @@ test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentP
 FAIL: test_cli_rejects_nul_input_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_input_path_without_traceback)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 232, in test_cli_rejects_nul_input_path_without_traceback
+  File "<REPO>/tests/test_profile.py", line 232, in test_cli_rejects_nul_input_path_without_traceback
     self.assert_cli_rejects_without_traceback("bad\x00.json")
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
+  File "<REPO>/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
     self.assertEqual(result.returncode, 2, result.stderr)
 AssertionError: 1 != 2 : Traceback (most recent call last):
   File "<string>", line 1, in <module>
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
+  File "<REPO>/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
     profile = load_deployment(args.profile)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/profile.py", line 153, in load_deployment
+  File "<REPO>/src/rescue_bringup/rescue_bringup/profile.py", line 153, in load_deployment
     profile_path = Path(path).resolve(strict=True)
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1240, in resolve
+  File "<PYTHON312>/lib/python3.12/pathlib.py", line 1240, in resolve
     s = self._flavour.realpath(self, strict=strict)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<frozen posixpath>", line 424, in realpath
@@ -52,22 +52,22 @@ ValueError: lstat: embedded null character in path
 FAIL: test_cli_rejects_nul_parameter_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_parameter_path_without_traceback)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 229, in test_cli_rejects_nul_parameter_path_without_traceback
+  File "<REPO>/tests/test_profile.py", line 229, in test_cli_rejects_nul_parameter_path_without_traceback
     self.assert_cli_rejects_without_traceback(self.profile)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
+  File "<REPO>/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
     self.assertEqual(result.returncode, 2, result.stderr)
 AssertionError: 1 != 2 : Traceback (most recent call last):
   File "<string>", line 1, in <module>
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
+  File "<REPO>/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
     profile = load_deployment(args.profile)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/profile.py", line 194, in load_deployment
+  File "<REPO>/src/rescue_bringup/rescue_bringup/profile.py", line 194, in load_deployment
     parameters_path = _parameter_path(profile_path.parent, robot["parameters_file"])
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/profile.py", line 124, in _parameter_path
+  File "<REPO>/src/rescue_bringup/rescue_bringup/profile.py", line 124, in _parameter_path
     resolved = (root / relative).resolve(strict=True)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1240, in resolve
+  File "<PYTHON312>/lib/python3.12/pathlib.py", line 1240, in resolve
     s = self._flavour.realpath(self, strict=strict)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "<frozen posixpath>", line 424, in realpath
@@ -79,28 +79,28 @@ ValueError: lstat: embedded null character in path
 FAIL: test_cli_rejects_overlong_json_integer_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_overlong_json_integer_without_traceback)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 224, in test_cli_rejects_overlong_json_integer_without_traceback
+  File "<REPO>/tests/test_profile.py", line 224, in test_cli_rejects_overlong_json_integer_without_traceback
     self.assert_cli_rejects_without_traceback(self.profile)
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
+  File "<REPO>/tests/test_profile.py", line 217, in assert_cli_rejects_without_traceback
     self.assertEqual(result.returncode, 2, result.stderr)
 AssertionError: 1 != 2 : Traceback (most recent call last):
   File "<string>", line 1, in <module>
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
+  File "<REPO>/src/rescue_bringup/rescue_bringup/cli.py", line 15, in main
     profile = load_deployment(args.profile)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/profile.py", line 156, in load_deployment
+  File "<REPO>/src/rescue_bringup/rescue_bringup/profile.py", line 156, in load_deployment
     data = _fields(_read_json(profile_path), {
                    ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup/rescue_bringup/profile.py", line 78, in _read_json
+  File "<REPO>/src/rescue_bringup/rescue_bringup/profile.py", line 78, in _read_json
     return json.loads(raw.decode("utf-8"), object_pairs_hook=_object,
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/__init__.py", line 359, in loads
+  File "<PYTHON312>/lib/python3.12/json/__init__.py", line 359, in loads
     return cls(**kw).decode(s)
            ^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/decoder.py", line 338, in decode
+  File "<PYTHON312>/lib/python3.12/json/decoder.py", line 338, in decode
     obj, end = self.raw_decode(s, idx=_w(s, 0).end())
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/json/decoder.py", line 354, in raw_decode
+  File "<PYTHON312>/lib/python3.12/json/decoder.py", line 354, in raw_decode
     obj, end = self.scan_once(s, idx)
                ^^^^^^^^^^^^^^^^^^^^^^
 ValueError: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit
