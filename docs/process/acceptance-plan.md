@@ -134,7 +134,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 | 담당 | 소유 범위 제안 | 검증 책임 |
 | --- | --- | --- |
-| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 미구현), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/process/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
+| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 1차 — contracts C-10), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/process/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
 | 로봇·지도(Claude) | `rescue_robot`, `rescue_mapping`, `rescue_bringup` 의 로봇별 실행/launch, `config/` 값 | SLAM/Nav2·TF·native sensor·goal/cancel·최종 watchdog·좌표 revision/실측. 로봇을 움직이는 유일한 자리 |
 | 인식(Claude) | `rescue_perception`, 해당 모델/데이터 평가 도구·`assets/manifest/`, 고정 카메라 어댑터(`SiteEvent` 생산) | 동기화/거리/관측·다중 대상·시간/위치 품질·독립 평가·부하. 주행 명령 없음 |
 | 협업·관제(Claude) | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장(DB 스키마·운영 장부 소유) | task/target 상태·통로·인계·재시작·명령 경합·구출 완료 판정·UI 가 읽을 API 의 일치. `cmd_vel`·Nav2 직접 호출 없음 |

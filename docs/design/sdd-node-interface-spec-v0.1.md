@@ -107,93 +107,95 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 
 ## 토픽 연결 정의
 
-| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
-| --- | --- | --- | --- | --- | --- | --- |
-| IF-001 | /amr1/scan | sensor_msgs/msg/LaserScan | amr1.lidar | amr1.slam, amr1.executor, amr1.perception, amr1.global_costmap, amr1.local_costmap, amr1.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-002 | /amr1/odom | nav_msgs/msg/Odometry | amr1.base | amr1.executor, amr1.controller, amr1.mapping, amr1.smoother | 속도·pose·정지 증거 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-003 | /amr1/rgb/image_raw | sensor_msgs/msg/Image | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-004 | /amr1/depth/image_raw | sensor_msgs/msg/Image | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-005 | /amr1/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-006 | /amr1/tf | tf2_msgs/msg/TFMessage | amr1.base, amr1.slam | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED |
-| IF-007 | /amr1/tf_static | tf2_msgs/msg/TFMessage | amr1.static_tf | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED |
-| IF-008 | /amr1/map | nav_msgs/msg/OccupancyGrid | amr1.slam | amr1.global_costmap, amr1.mapping, amr1.search | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED |
-| IF-009 | /rescue/robots/amr1/map_state | rescue_interfaces/msg/MapState | amr1.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-010 | /rescue/robots/amr1/pose | rescue_interfaces/msg/RobotPose | amr1.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-011 | /rescue/robots/amr1/status | rescue_interfaces/msg/RobotStatus | amr1.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-012 | /rescue/robots/amr1/heartbeat | rescue_interfaces/msg/Heartbeat | amr1.executor | central.coordinator, central.operations, amr1.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-013 | /rescue/robots/amr1/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr1.watchdog | amr1.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-014 | /rescue/robots/amr1/command_lease | rescue_interfaces/msg/CommandLease | central.coordinator | amr1.executor | 단일 authority/generation의 기간 갱신. 새 이동 goal 아님 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-015 | /rescue/robots/amr1/command_permit | rescue_interfaces/msg/CommandPermit | amr1.executor | amr1.watchdog | 유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-016 | /rescue/robots/amr1/task_admission | rescue_interfaces/msg/TaskAdmission | amr1.executor | central.coordinator, central.operations | 수락/거절 및 거절 이유; action Result와 구분 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-027 | /amr1/cmd_vel_nav | geometry_msgs/msg/Twist | amr1.controller | amr1.smoother | Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED |
-| IF-028 | /amr1/cmd_vel_smoothed | geometry_msgs/msg/Twist | amr1.smoother | amr1.collision | 평활화 속도 → Collision Monitor | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED |
-| IF-029 | /amr1/cmd_vel_safe | geometry_msgs/msg/Twist | amr1.collision | amr1.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED |
-| IF-030 | /amr1/cmd_vel | geometry_msgs/msg/Twist | amr1.watchdog | amr1.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED |
-| IF-033 | /amr2/scan | sensor_msgs/msg/LaserScan | amr2.lidar | amr2.slam, amr2.executor, amr2.perception, amr2.global_costmap, amr2.local_costmap, amr2.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-034 | /amr2/odom | nav_msgs/msg/Odometry | amr2.base | amr2.executor, amr2.controller, amr2.mapping, amr2.smoother | 속도·pose·정지 증거 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-035 | /amr2/rgb/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-036 | /amr2/depth/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-037 | /amr2/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED |
-| IF-038 | /amr2/tf | tf2_msgs/msg/TFMessage | amr2.base, amr2.slam | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED |
-| IF-039 | /amr2/tf_static | tf2_msgs/msg/TFMessage | amr2.static_tf | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED |
-| IF-040 | /amr2/map | nav_msgs/msg/OccupancyGrid | amr2.slam | amr2.global_costmap, amr2.mapping | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED |
-| IF-041 | /rescue/robots/amr2/map_state | rescue_interfaces/msg/MapState | amr2.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-042 | /rescue/robots/amr2/pose | rescue_interfaces/msg/RobotPose | amr2.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-043 | /rescue/robots/amr2/status | rescue_interfaces/msg/RobotStatus | amr2.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-044 | /rescue/robots/amr2/heartbeat | rescue_interfaces/msg/Heartbeat | amr2.executor | central.coordinator, central.operations, amr2.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-045 | /rescue/robots/amr2/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr2.watchdog | amr2.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-046 | /rescue/robots/amr2/command_lease | rescue_interfaces/msg/CommandLease | central.coordinator | amr2.executor | 단일 authority/generation의 기간 갱신. 새 이동 goal 아님 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-047 | /rescue/robots/amr2/command_permit | rescue_interfaces/msg/CommandPermit | amr2.executor | amr2.watchdog | 유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-048 | /rescue/robots/amr2/task_admission | rescue_interfaces/msg/TaskAdmission | amr2.executor | central.coordinator, central.operations | 수락/거절 및 거절 이유; action Result와 구분 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-059 | /amr2/cmd_vel_nav | geometry_msgs/msg/Twist | amr2.controller | amr2.smoother | Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED |
-| IF-060 | /amr2/cmd_vel_smoothed | geometry_msgs/msg/Twist | amr2.smoother | amr2.collision | 평활화 속도 → Collision Monitor | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED |
-| IF-061 | /amr2/cmd_vel_safe | geometry_msgs/msg/Twist | amr2.collision | amr2.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED |
-| IF-062 | /amr2/cmd_vel | geometry_msgs/msg/Twist | amr2.watchdog | amr2.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED |
-| IF-065 | /rescue/observations | rescue_interfaces/msg/TargetObservation | amr1.perception, amr2.perception | amr1.mapping, amr2.mapping | 연속 원 관측; 각 mapping은 자기 source_robot만 소비 | BEST_EFFORT / VOLATILE / KEEP_LAST 10; PROPOSED |
-| IF-066 | /rescue/target_locations | rescue_interfaces/msg/TargetLocation | amr1.mapping, amr2.mapping | central.coordinator | 첫 발견·중요 좌표 변화·원 관측/근거; 저장 receipt까지 outbox 재전송 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-067 | /rescue/frame_alignments | rescue_interfaces/msg/FrameAlignmentSnapshot | central.frames | amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, central.coordinator, central.operations | 두 로봇 mission 정렬의 전체 snapshot | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-068 | /rescue/robots/amr1/search_candidates | rescue_interfaces/msg/SearchCandidates | amr1.search | amr1.executor | frontier/waypoint 후보; search task 없이 스스로 이동시키지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-070 | /rescue/targets | rescue_interfaces/msg/TargetSnapshot | central.coordinator | central.operations | target 전체 snapshot; target 좌표와 approach/segment goal 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-071 | /rescue/system_state | rescue_interfaces/msg/SystemState | central.coordinator | central.operations | NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
-| IF-072 | /rescue/reports | rescue_interfaces/msg/RescueReport | central.coordinator | central.operations | 대상/임무/재확인 기록; 같은 report_id·payload 재시도 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-073 | /rescue/report_receipts | rescue_interfaces/msg/ReportReceipt | central.operations | central.coordinator, amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, cam.quake, cam.presence | DB commit·필수 증거 저장 뒤 PERSISTED; included_record_ids로 outbox 정리 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-074 | /rescue/cameras/cam_fixed/image_raw | sensor_msgs/msg/Image | cam.capture | cam.quake, cam.presence, cam.video | 인형이 있는 고정 시야의 웹캠 원 영상 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; PROPOSED |
-| IF-075 | /rescue/cameras/cam_fixed/status | rescue_interfaces/msg/CameraStatus | cam.capture | cam.quake, cam.presence, central.coordinator, central.operations | stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED |
-| IF-076 | /rescue/site_events | rescue_interfaces/msg/SiteEvent | cam.quake, cam.presence | central.coordinator | DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED |
-| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED |
+`IDL` 열: `1차` 는 `src/rescue_interfaces` 에 정의가 있는 사용자 정의 타입, `2차` 는 아직 정의가 없는 타입, `표준` 은 ROS·Nav2 표준 타입이다. 기준은 [contracts C-10](contracts.md)(2026-10-10)이고 아래 서비스·액션·메시지 표에도 같은 표시를 둔다. IDL 정의가 있다는 것이지 그 통신을 하는 노드가 구현됐다는 뜻은 아니다.
+
+| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 | IDL |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| IF-001 | /amr1/scan | sensor_msgs/msg/LaserScan | amr1.lidar | amr1.slam, amr1.executor, amr1.perception, amr1.global_costmap, amr1.local_costmap, amr1.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-002 | /amr1/odom | nav_msgs/msg/Odometry | amr1.base | amr1.executor, amr1.controller, amr1.mapping, amr1.smoother | 속도·pose·정지 증거 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-003 | /amr1/rgb/image_raw | sensor_msgs/msg/Image | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-004 | /amr1/depth/image_raw | sensor_msgs/msg/Image | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-005 | /amr1/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-006 | /amr1/tf | tf2_msgs/msg/TFMessage | amr1.base, amr1.slam | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-007 | /amr1/tf_static | tf2_msgs/msg/TFMessage | amr1.static_tf | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-008 | /amr1/map | nav_msgs/msg/OccupancyGrid | amr1.slam | amr1.global_costmap, amr1.mapping, amr1.search | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-009 | /rescue/robots/amr1/map_state | rescue_interfaces/msg/MapState | amr1.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-010 | /rescue/robots/amr1/pose | rescue_interfaces/msg/RobotPose | amr1.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-011 | /rescue/robots/amr1/status | rescue_interfaces/msg/RobotStatus | amr1.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-012 | /rescue/robots/amr1/heartbeat | rescue_interfaces/msg/Heartbeat | amr1.executor | central.coordinator, central.operations, amr1.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-013 | /rescue/robots/amr1/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr1.watchdog | amr1.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-014 | /rescue/robots/amr1/command_lease | rescue_interfaces/msg/CommandLease | central.coordinator | amr1.executor | 단일 authority/generation의 기간 갱신. 새 이동 goal 아님 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-015 | /rescue/robots/amr1/command_permit | rescue_interfaces/msg/CommandPermit | amr1.executor | amr1.watchdog | 유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
+| IF-016 | /rescue/robots/amr1/task_admission | rescue_interfaces/msg/TaskAdmission | amr1.executor | central.coordinator, central.operations | 수락/거절 및 거절 이유; action Result와 구분 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-027 | /amr1/cmd_vel_nav | geometry_msgs/msg/Twist | amr1.controller | amr1.smoother | Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-028 | /amr1/cmd_vel_smoothed | geometry_msgs/msg/Twist | amr1.smoother | amr1.collision | 평활화 속도 → Collision Monitor | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-029 | /amr1/cmd_vel_safe | geometry_msgs/msg/Twist | amr1.collision | amr1.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
+| IF-030 | /amr1/cmd_vel | geometry_msgs/msg/Twist | amr1.watchdog | amr1.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
+| IF-033 | /amr2/scan | sensor_msgs/msg/LaserScan | amr2.lidar | amr2.slam, amr2.executor, amr2.perception, amr2.global_costmap, amr2.local_costmap, amr2.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-034 | /amr2/odom | nav_msgs/msg/Odometry | amr2.base | amr2.executor, amr2.controller, amr2.mapping, amr2.smoother | 속도·pose·정지 증거 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-035 | /amr2/rgb/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-036 | /amr2/depth/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-037 | /amr2/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-038 | /amr2/tf | tf2_msgs/msg/TFMessage | amr2.base, amr2.slam | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-039 | /amr2/tf_static | tf2_msgs/msg/TFMessage | amr2.static_tf | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-040 | /amr2/map | nav_msgs/msg/OccupancyGrid | amr2.slam | amr2.global_costmap, amr2.mapping | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-041 | /rescue/robots/amr2/map_state | rescue_interfaces/msg/MapState | amr2.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-042 | /rescue/robots/amr2/pose | rescue_interfaces/msg/RobotPose | amr2.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-043 | /rescue/robots/amr2/status | rescue_interfaces/msg/RobotStatus | amr2.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-044 | /rescue/robots/amr2/heartbeat | rescue_interfaces/msg/Heartbeat | amr2.executor | central.coordinator, central.operations, amr2.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-045 | /rescue/robots/amr2/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr2.watchdog | amr2.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-046 | /rescue/robots/amr2/command_lease | rescue_interfaces/msg/CommandLease | central.coordinator | amr2.executor | 단일 authority/generation의 기간 갱신. 새 이동 goal 아님 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-047 | /rescue/robots/amr2/command_permit | rescue_interfaces/msg/CommandPermit | amr2.executor | amr2.watchdog | 유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
+| IF-048 | /rescue/robots/amr2/task_admission | rescue_interfaces/msg/TaskAdmission | amr2.executor | central.coordinator, central.operations | 수락/거절 및 거절 이유; action Result와 구분 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-059 | /amr2/cmd_vel_nav | geometry_msgs/msg/Twist | amr2.controller | amr2.smoother | Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-060 | /amr2/cmd_vel_smoothed | geometry_msgs/msg/Twist | amr2.smoother | amr2.collision | 평활화 속도 → Collision Monitor | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-061 | /amr2/cmd_vel_safe | geometry_msgs/msg/Twist | amr2.collision | amr2.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
+| IF-062 | /amr2/cmd_vel | geometry_msgs/msg/Twist | amr2.watchdog | amr2.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
+| IF-065 | /rescue/observations | rescue_interfaces/msg/TargetObservation | amr1.perception, amr2.perception | amr1.mapping, amr2.mapping | 연속 원 관측; 각 mapping은 자기 source_robot만 소비 | BEST_EFFORT / VOLATILE / KEEP_LAST 10; PROPOSED | 1차 |
+| IF-066 | /rescue/target_locations | rescue_interfaces/msg/TargetLocation | amr1.mapping, amr2.mapping | central.coordinator | 첫 발견·중요 좌표 변화·원 관측/근거; 저장 receipt까지 outbox 재전송 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-067 | /rescue/frame_alignments | rescue_interfaces/msg/FrameAlignmentSnapshot | central.frames | amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, central.coordinator, central.operations | 두 로봇 mission 정렬의 전체 snapshot | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
+| IF-068 | /rescue/robots/amr1/search_candidates | rescue_interfaces/msg/SearchCandidates | amr1.search | amr1.executor | frontier/waypoint 후보; search task 없이 스스로 이동시키지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
+| IF-070 | /rescue/targets | rescue_interfaces/msg/TargetSnapshot | central.coordinator | central.operations | target 전체 snapshot; target 좌표와 approach/segment goal 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
+| IF-071 | /rescue/system_state | rescue_interfaces/msg/SystemState | central.coordinator | central.operations | NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
+| IF-072 | /rescue/reports | rescue_interfaces/msg/RescueReport | central.coordinator | central.operations | 대상/임무/재확인 기록; 같은 report_id·payload 재시도 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 2차 |
+| IF-073 | /rescue/report_receipts | rescue_interfaces/msg/ReportReceipt | central.operations | central.coordinator, amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, cam.quake, cam.presence | DB commit·필수 증거 저장 뒤 PERSISTED; included_record_ids로 outbox 정리 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-074 | /rescue/cameras/cam_fixed/image_raw | sensor_msgs/msg/Image | cam.capture | cam.quake, cam.presence, cam.video | 인형이 있는 고정 시야의 웹캠 원 영상 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; PROPOSED | 표준 |
+| IF-075 | /rescue/cameras/cam_fixed/status | rescue_interfaces/msg/CameraStatus | cam.capture | cam.quake, cam.presence, central.coordinator, central.operations | stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
+| IF-076 | /rescue/site_events | rescue_interfaces/msg/SiteEvent | cam.quake, cam.presence | central.coordinator | DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
 
 ## 서비스 연결 정의
 
-| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
-| --- | --- | --- | --- | --- | --- | --- |
-| IF-017 | /rescue/robots/amr1/register_authority | rescue_interfaces/srv/RegisterAuthority | central.coordinator | amr1.executor | stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음 | N/A; PROPOSED |
-| IF-018 | /rescue/robots/amr1/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr1.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED |
-| IF-019 | /rescue/robots/amr1/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr1.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED |
-| IF-049 | /rescue/robots/amr2/register_authority | rescue_interfaces/srv/RegisterAuthority | central.coordinator | amr2.executor | stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음 | N/A; PROPOSED |
-| IF-050 | /rescue/robots/amr2/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr2.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED |
-| IF-051 | /rescue/robots/amr2/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr2.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED |
-| IF-078 | /rescue/cameras/cam_fixed/set_watch | rescue_interfaces/srv/SetCameraWatch | central.coordinator | cam.presence | target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요 | N/A; PROPOSED |
-| IF-079 | /rescue/operator_command | rescue_interfaces/srv/SubmitOperatorCommand | central.operations | central.coordinator | 출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결 | N/A; PROPOSED |
+| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 | IDL |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| IF-017 | /rescue/robots/amr1/register_authority | rescue_interfaces/srv/RegisterAuthority | central.coordinator | amr1.executor | stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음 | N/A; PROPOSED | 1차 |
+| IF-018 | /rescue/robots/amr1/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr1.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED | 1차 |
+| IF-019 | /rescue/robots/amr1/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr1.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED | 1차 |
+| IF-049 | /rescue/robots/amr2/register_authority | rescue_interfaces/srv/RegisterAuthority | central.coordinator | amr2.executor | stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음 | N/A; PROPOSED | 1차 |
+| IF-050 | /rescue/robots/amr2/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr2.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED | 1차 |
+| IF-051 | /rescue/robots/amr2/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr2.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED | 1차 |
+| IF-078 | /rescue/cameras/cam_fixed/set_watch | rescue_interfaces/srv/SetCameraWatch | central.coordinator | cam.presence | target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요 | N/A; PROPOSED | 2차 |
+| IF-079 | /rescue/operator_command | rescue_interfaces/srv/SubmitOperatorCommand | central.operations | central.coordinator | 출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결 | N/A; PROPOSED | 1차 |
 
 ## 액션 연결 정의
 
-| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
-| --- | --- | --- | --- | --- | --- | --- |
-| IF-020 | /rescue/robots/amr1/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr1.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED |
-| IF-021 | /rescue/robots/amr1/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr1.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED |
-| IF-022 | /rescue/robots/amr1/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr1.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED |
-| IF-023 | /rescue/robots/amr1/observe_target | rescue_interfaces/action/ObserveTarget | amr1.executor | amr1.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED |
-| IF-024 | /amr1/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr1.executor | amr1.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY |
-| IF-025 | /amr1/compute_path_to_pose | nav2_msgs/action/ComputePathToPose | amr1.executor, amr1.bt | amr1.planner | 경로 조회; 결과만으로 주행/통로 통과 성공 아님 | N/A; STANDARD_JAZZY |
-| IF-026 | /amr1/follow_path | nav2_msgs/action/FollowPath | amr1.bt | amr1.controller | Nav2 내부 경로 제어 | N/A; STANDARD_JAZZY |
-| IF-052 | /rescue/robots/amr2/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr2.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED |
-| IF-053 | /rescue/robots/amr2/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr2.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED |
-| IF-054 | /rescue/robots/amr2/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr2.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED |
-| IF-055 | /rescue/robots/amr2/observe_target | rescue_interfaces/action/ObserveTarget | amr2.executor | amr2.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED |
-| IF-056 | /amr2/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr2.executor | amr2.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY |
-| IF-057 | /amr2/compute_path_to_pose | nav2_msgs/action/ComputePathToPose | amr2.executor, amr2.bt | amr2.planner | 경로 조회; 결과만으로 주행/통로 통과 성공 아님 | N/A; STANDARD_JAZZY |
-| IF-058 | /amr2/follow_path | nav2_msgs/action/FollowPath | amr2.bt | amr2.controller | Nav2 내부 경로 제어 | N/A; STANDARD_JAZZY |
-| IF-069 | /rescue/robots/amr2/evaluate_passage | rescue_interfaces/action/EvaluatePassage | amr2.executor | amr2.passage | route/segment 및 로봇 box의 3D 여유 평가; 주행 없음 | N/A; PROPOSED |
+| ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 | IDL |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| IF-020 | /rescue/robots/amr1/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr1.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED | 2차 |
+| IF-021 | /rescue/robots/amr1/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr1.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED | 1차 |
+| IF-022 | /rescue/robots/amr1/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr1.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED | 2차 |
+| IF-023 | /rescue/robots/amr1/observe_target | rescue_interfaces/action/ObserveTarget | amr1.executor | amr1.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED | 1차 |
+| IF-024 | /amr1/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr1.executor | amr1.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY | 표준 |
+| IF-025 | /amr1/compute_path_to_pose | nav2_msgs/action/ComputePathToPose | amr1.executor, amr1.bt | amr1.planner | 경로 조회; 결과만으로 주행/통로 통과 성공 아님 | N/A; STANDARD_JAZZY | 표준 |
+| IF-026 | /amr1/follow_path | nav2_msgs/action/FollowPath | amr1.bt | amr1.controller | Nav2 내부 경로 제어 | N/A; STANDARD_JAZZY | 표준 |
+| IF-052 | /rescue/robots/amr2/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr2.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED | 2차 |
+| IF-053 | /rescue/robots/amr2/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr2.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED | 1차 |
+| IF-054 | /rescue/robots/amr2/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr2.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED | 2차 |
+| IF-055 | /rescue/robots/amr2/observe_target | rescue_interfaces/action/ObserveTarget | amr2.executor | amr2.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED | 1차 |
+| IF-056 | /amr2/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr2.executor | amr2.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY | 표준 |
+| IF-057 | /amr2/compute_path_to_pose | nav2_msgs/action/ComputePathToPose | amr2.executor, amr2.bt | amr2.planner | 경로 조회; 결과만으로 주행/통로 통과 성공 아님 | N/A; STANDARD_JAZZY | 표준 |
+| IF-058 | /amr2/follow_path | nav2_msgs/action/FollowPath | amr2.bt | amr2.controller | Nav2 내부 경로 제어 | N/A; STANDARD_JAZZY | 표준 |
+| IF-069 | /rescue/robots/amr2/evaluate_passage | rescue_interfaces/action/EvaluatePassage | amr2.executor | amr2.passage | route/segment 및 로봇 box의 3D 여유 평가; 주행 없음 | N/A; PROPOSED | 2차 |
 
 ## HTTP·웹 연결 정의
 
@@ -225,41 +227,43 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 
 UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직렬화 상수로 고정하기 전의 논리 어휘다. 배열 상한·문자열 상한·minor 호환·오류 코드 번호는 IDL 구현 전에 고정한다. `has_*` false인 payload를 0 좌표/거리로 해석하지 않는다.
 
-| 메시지/구조 | 필수 필드와 의미 |
-| --- | --- |
-| Envelope | schema_version:string, publisher_id:string, publisher_boot_id:UUID string, sequence:uint64, published_at_ns:int64. 전송 identity와 원 관측 identity를 분리. |
-| ObservationTime | observed_at_ns:int64, valid_until_ns:int64, stamp_semantics:string(CAPTURE/DRIVER_RECEIVE/UNKNOWN), clock_domain_id:string, clock_state:string(SYNCED/UNKNOWN), has_clock_error_bound:bool, clock_error_bound_ns:uint64. 없으면 has=false; 0으로 성공을 표현하지 않음. |
-| EvidenceRef | evidence_id:UUID string, sha256:string, mime_type:string, source_id:string, source_boot_id:UUID string, observed_at_ns:int64. bytes는 HTTP로 별도 전송; hash·원 시각 보존. |
-| FrameRef | robot_id:string, native_frame:string, mission_frame:string, map_session_id:UUID string, map_revision:uint64, transform_revision:uint64, alignment_status:string(VALID/DEGRADED/INVALID). 실제 frame 문자열은 profile 대응. |
-| TargetObservation | envelope:Envelope, observation_id:UUID, source_robot:string, source_camera:string, source_boot_id:UUID, time:ObservationTime, class_label:string, confidence:float64, model_id:string, model_sha256:string, tracking_mode:string, has_track_id:bool, track_id:string, bbox_xyxy_pixels:float64[4], sensor_frame:string, localization_status:string(VALID/UNKNOWN/INVALID), sensor_position:geometry_msgs/Point, position_covariance:float64[9], depth_status:string, evidence:EvidenceRef. 탐지와 좌표 성공은 별도. |
-| TargetLocation | envelope:Envelope, location_id:UUID, observation:TargetObservation, frame_ref:FrameRef, projection_status:string(VALID/STALE_DERIVATION/NEEDS_REOBSERVATION/EXPIRED), mission_position:geometry_msgs/Point, covariance:float64[9]. UNKNOWN 위치 수치는 사용 금지. 동일 location_id 재발행의 의미 payload는 불변. |
-| MapState | envelope:Envelope, robot_id:string, snapshot_id:UUID, map_session_id:UUID, map_revision:uint64, map_update_sequence:uint64, generated_at_ns:int64, localization_quality:string, correction_detection_status:string(KNOWN/UNKNOWN), current_native_map_frame:string. 단순 TF tick마다 map_revision을 올리지 않음. |
-| RobotPose | envelope:Envelope, robot_id:string, source_boot_id:UUID, time:ObservationTime, native_pose:geometry_msgs/PoseWithCovarianceStamped, mission_pose:geometry_msgs/PoseWithCovarianceStamped, frame_ref:FrameRef, mission_pose_status:string(VALID/UNKNOWN/INVALID). header stamp·frame과 time/ref 일치 검사. |
-| FrameAlignmentSnapshot | envelope:Envelope, snapshot_id:UUID, alignments:FrameAlignment[]. 전체 snapshot이며 delta와 혼합하지 않음. |
-| FrameAlignment | frame_ref:FrameRef, authority_id:string, transform:geometry_msgs/Transform, covariance:float64[36], valid_from_ns:int64, valid_until_ns:int64, status:string(VALID/DEGRADED/INVALID), calibration_evidence:EvidenceRef[]. 계측/검증 없는 alignment는 INVALID. |
-| SearchCandidates | envelope:Envelope, robot_id:string, area_ref:string, frame_ref:FrameRef, generated_at_ns:int64, valid_until_ns:int64, candidate_poses:geometry_msgs/PoseStamped[], policy_version:string. 실제 주행은 executor의 유효 SEARCH_AREA task 안에서만. |
-| Heartbeat | envelope:Envelope, robot_id:string, producer_role:string(EXECUTOR/WATCHDOG), robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, emitted_at_ns:int64, command_fenced:bool. 수신자의 local monotonic watchdog과 별개. |
-| CommandLease | envelope:Envelope, lease_id:UUID, robot_id:string, robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, renewal_sequence:uint64, issued_at_ns:int64, valid_until_ns:int64. 만료 lease의 늦은 갱신은 부활 금지. |
-| CommandPermit | envelope:Envelope, permit_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, lease_id:UUID, mode:string(ALLOW/FENCED), issued_at_ns:int64, valid_until_ns:int64, reason:string. 장치 로컬 watchdog은 유효 permit·fresh heartbeat·fresh 속도를 모두 확인. |
-| RobotStatus | envelope:Envelope, robot_id:string, robot_boot_id:UUID, state_sequence:uint64, observed_at_ns:int64, authority_epoch:UUID, active_task_id:string, generation:uint64, readiness:string(READY/DEGRADED/NOT_READY/UNKNOWN), task_state:string, motion_state:string(STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED), segment_index:uint32, stop_reason:string, stop_evidence:EvidenceRef[], dock_state:string(DOCKED/UNDOCKED/UNKNOWN), dock_observed_at_ns:int64, lease_valid:bool, sensor_quality:string, nav2_state:string, battery_known:bool, battery_fraction:float64. 미확인 값을 정상으로 채우지 않음. |
-| TaskAdmission | envelope:Envelope, admission_id:UUID, command_id:UUID, task_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, accepted:bool, reason_code:string, observed_at_ns:int64. goal accepted=false의 상세 이유 및 수락 장부의 근거. |
-| TargetEstimate | target_id:UUID, estimate_revision:uint64, locations:TargetLocation[], latest_observed_at_ns:int64, valid_until_ns:int64, mission_position:geometry_msgs/Point, covariance:float64[9], confirmation_state:string(CANDIDATE/CONFIRMED/NEEDS_REOBSERVATION/DISMISSED), approach_state:string(UNASSIGNED/ASSIGNED/IN_PROGRESS/APPROACH_COMPLETE/BLOCKED/UNREACHABLE/CANCELED/FAILED), segment_phase:string(IDLE/EVALUATING/AWAITING_APPROVAL/EXECUTING/STOPPING/STOPPED/UNKNOWN), rescue_state:string(NOT_CHECKED/RECHECK_NEEDED/RESCUE_CONFIRMED), persisted_report_id:string. locations가 관측별 provenance를 보존. AWAITING_APPROVAL는 coordinator 상태이며 종료한 executor action의 feedback을 다시 발행하지 않음. |
-| TargetSnapshot | envelope:Envelope, snapshot_id:UUID, targets:TargetEstimate[]. 전체 상태 snapshot. 웹의 저장 완료 좌표 표시는 operations 장부 기준. |
-| SystemState | envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string. |
-| SiteEvent | envelope:Envelope, event_id:UUID, camera_id:string(cam_fixed 예시), source_boot_id:UUID, kind:string(DISASTER_SIGN/TARGET_DISAPPEARED_CANDIDATE), time:ObservationTime, target_id:string, watch_id:string, confidence:float64, visibility_state:string(VALID/OCCLUDED/UNKNOWN), metrics_name:string[], metrics_value:float64[], policy_version:string, evidence:EvidenceRef. 재난 징후는 target/watch 비어 있음; 소실 후보는 둘 다 필수. |
-| CameraStatus | envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN. |
-| TargetPresence | envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요. |
-| RecheckObservation | observation_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, source_boot_id:UUID, time:ObservationTime, frame_ref:FrameRef, watched_native_point:geometry_msgs/Point, camera_state:string(PRESENT/ABSENT/UNKNOWN), lidar_state:string(BLOCKED/CLEAR/UNKNOWN), coverage_state:string(VALID/INVALID/UNKNOWN), sensor_window_start_ns:int64, sensor_window_end_ns:int64, detector_health:string, evidence:EvidenceRef[]. EMPTY 탐지 배열만으로 ABSENT 금지; 실제 시야/거리/센서 품질이 필요. |
-| PassageAssessment | assessment_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, frame_ref:FrameRef, time:ObservationTime, status:string(PASSABLE/BLOCKED/UNKNOWN), width_known:bool, min_width_m:float64, height_known:bool, min_headroom_m:float64, floor_geometry_known:bool, uncertainty_m:float64, footprint_profile_id:string, policy_version:string, reason:string, evidence:EvidenceRef[]. 측정 실패 값은 *_known=false이며 판정에 사용 금지. |
-| RouteCandidate | route_id:UUID, route_revision:uint64, robot_id:string, target_id:string, segment_index:uint32, frame_ref:FrameRef, planned_path:nav_msgs/Path, approach_goal:geometry_msgs/PoseStamped, generated_at_ns:int64, valid_until_ns:int64, path_sha256:string, approval_corridor_sha256:string, assessment:PassageAssessment, planner_evidence_id:string, policy_version:string. 대상 좌표·접근 목표는 다른 값. |
-| OperatorApproval | approval_id:UUID, command_id:UUID, operator_id:string(서버 인증값), robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, target_id:string, target_estimate_revision:uint64, route_id:UUID, route_revision:uint64, segment_index:uint32, approved_at_ns:int64, valid_until_ns:int64, scope:string(ONE_SEGMENT). 같은 구간의 같은 의미만 멱등 허용. |
-| RescueReport | envelope:Envelope, report_id:UUID, target_id:string, task_id:string, generation:uint64, record_ids:UUID[], locations:TargetLocation[], site_events:SiteEvent[], rechecks:RecheckObservation[], routes:RouteCandidate[], approvals:OperatorApproval[], task_admissions:TaskAdmission[], has_task_result:bool, task_result:TaskResult, confirmation_state:string, approach_state:string, rescue_state:string, evidence_refs:EvidenceRef[], first_issued_at_ns:int64, meaning_sha256:string. 해당 기록이 없는 optional section은 명시적으로 빈 배열/has flag. |
-| ReportReceipt | envelope:Envelope, receipt_id:UUID, report_id:UUID, meaning_sha256:string, included_record_ids:UUID[], state:string(RECEIVED/PENDING_EVIDENCE/PERSISTED/REJECTED), persisted_at_ns:int64, has_persisted_at:bool, storage_revision:uint64, reason_code:string. included_record_ids는 저장한 보고의 내용과 일치. |
-| TaskResult | task_id:UUID, command_id:UUID, robot_id:string, generation:uint64, outcome:string(COMPLETED/CANCELED/EXPIRED/UNREACHABLE/FAILED), completion_scope:string(SEARCH/SEGMENT/TARGET_APPROACH/RECHECK/RETURN/HOLD), terminal_reason:string, original_cause:string, stop_confirmed:bool, motion_state:string, final_pose:RobotPose, used_record_ids:UUID[], frame_ref:FrameRef, recheck:RecheckObservation, has_recheck:bool, stop_evidence:EvidenceRef[]. 구간 성공을 접근/구조 성공으로 바꾸지 않음. |
+| 메시지/구조 | 필수 필드와 의미 | IDL |
+| --- | --- | --- |
+| Envelope | schema_version:string, publisher_id:string, publisher_boot_id:UUID string, sequence:uint64, published_at_ns:int64. 전송 identity와 원 관측 identity를 분리. | 1차 |
+| ObservationTime | observed_at_ns:int64, valid_until_ns:int64, stamp_semantics:string(CAPTURE/DRIVER_RECEIVE/UNKNOWN), clock_domain_id:string, clock_state:string(SYNCED/UNKNOWN), has_clock_error_bound:bool, clock_error_bound_ns:uint64. 없으면 has=false; 0으로 성공을 표현하지 않음. | 1차 |
+| EvidenceRef | evidence_id:UUID string, sha256:string, mime_type:string, source_id:string, source_boot_id:UUID string, observed_at_ns:int64. bytes는 HTTP로 별도 전송; hash·원 시각 보존. | 1차 |
+| FrameRef | robot_id:string, native_frame:string, mission_frame:string, map_session_id:UUID string, map_revision:uint64, transform_revision:uint64, alignment_status:string(VALID/DEGRADED/INVALID). 실제 frame 문자열은 profile 대응. | 1차 |
+| TargetObservation | envelope:Envelope, observation_id:UUID, source_robot:string, source_camera:string, source_boot_id:UUID, time:ObservationTime, class_label:string, confidence:float64, model_id:string, model_sha256:string, tracking_mode:string, has_track_id:bool, track_id:string, bbox_xyxy_pixels:float64[4], sensor_frame:string, localization_status:string(VALID/UNKNOWN/INVALID), sensor_position:geometry_msgs/Point, position_covariance:float64[9], depth_status:string, evidence:EvidenceRef. 탐지와 좌표 성공은 별도. | 1차 |
+| TargetLocation | envelope:Envelope, location_id:UUID, observation:TargetObservation, frame_ref:FrameRef, projection_status:string(VALID/STALE_DERIVATION/NEEDS_REOBSERVATION/EXPIRED), mission_position:geometry_msgs/Point, covariance:float64[9]. UNKNOWN 위치 수치는 사용 금지. 동일 location_id 재발행의 의미 payload는 불변. | 1차 |
+| MapState | envelope:Envelope, robot_id:string, snapshot_id:UUID, map_session_id:UUID, map_revision:uint64, map_update_sequence:uint64, generated_at_ns:int64, localization_quality:string, correction_detection_status:string(KNOWN/UNKNOWN), current_native_map_frame:string. 단순 TF tick마다 map_revision을 올리지 않음. | 1차 |
+| RobotPose | envelope:Envelope, robot_id:string, source_boot_id:UUID, time:ObservationTime, native_pose:geometry_msgs/PoseWithCovarianceStamped, mission_pose:geometry_msgs/PoseWithCovarianceStamped, frame_ref:FrameRef, mission_pose_status:string(VALID/UNKNOWN/INVALID). header stamp·frame과 time/ref 일치 검사. | 1차 |
+| FrameAlignmentSnapshot | envelope:Envelope, snapshot_id:UUID, alignments:FrameAlignment[]. 전체 snapshot이며 delta와 혼합하지 않음. | 2차 |
+| FrameAlignment | frame_ref:FrameRef, authority_id:string, transform:geometry_msgs/Transform, covariance:float64[36], valid_from_ns:int64, valid_until_ns:int64, status:string(VALID/DEGRADED/INVALID), calibration_evidence:EvidenceRef[]. 계측/검증 없는 alignment는 INVALID. | 2차 |
+| SearchCandidates | envelope:Envelope, robot_id:string, area_ref:string, frame_ref:FrameRef, generated_at_ns:int64, valid_until_ns:int64, candidate_poses:geometry_msgs/PoseStamped[], policy_version:string. 실제 주행은 executor의 유효 SEARCH_AREA task 안에서만. | 2차 |
+| Heartbeat | envelope:Envelope, robot_id:string, producer_role:string(EXECUTOR/WATCHDOG), robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, emitted_at_ns:int64, command_fenced:bool. 수신자의 local monotonic watchdog과 별개. | 1차 |
+| CommandLease | envelope:Envelope, lease_id:UUID, robot_id:string, robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, renewal_sequence:uint64, issued_at_ns:int64, valid_until_ns:int64. 만료 lease의 늦은 갱신은 부활 금지. | 1차 |
+| CommandPermit | envelope:Envelope, permit_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, lease_id:UUID, mode:string(ALLOW/FENCED), issued_at_ns:int64, valid_until_ns:int64, reason:string. 장치 로컬 watchdog은 유효 permit·fresh heartbeat·fresh 속도를 모두 확인. | 2차 |
+| RobotStatus | envelope:Envelope, robot_id:string, robot_boot_id:UUID, state_sequence:uint64, observed_at_ns:int64, authority_epoch:UUID, active_task_id:string, generation:uint64, readiness:string(READY/DEGRADED/NOT_READY/UNKNOWN), task_state:string, motion_state:string(STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED), segment_index:uint32, stop_reason:string, stop_evidence:EvidenceRef[], dock_state:string(DOCKED/UNDOCKED/UNKNOWN), dock_observed_at_ns:int64, lease_valid:bool, sensor_quality:string, nav2_state:string, battery_known:bool, battery_fraction:float64. 미확인 값을 정상으로 채우지 않음. | 1차 |
+| TaskAdmission | envelope:Envelope, admission_id:UUID, command_id:UUID, task_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, accepted:bool, reason_code:string, observed_at_ns:int64. goal accepted=false의 상세 이유 및 수락 장부의 근거. | 1차 |
+| TargetEstimate | target_id:UUID, estimate_revision:uint64, locations:TargetLocation[], latest_observed_at_ns:int64, valid_until_ns:int64, mission_position:geometry_msgs/Point, covariance:float64[9], confirmation_state:string(CANDIDATE/CONFIRMED/NEEDS_REOBSERVATION/DISMISSED), approach_state:string(UNASSIGNED/ASSIGNED/IN_PROGRESS/APPROACH_COMPLETE/BLOCKED/UNREACHABLE/CANCELED/FAILED), segment_phase:string(IDLE/EVALUATING/AWAITING_APPROVAL/EXECUTING/STOPPING/STOPPED/UNKNOWN), rescue_state:string(NOT_CHECKED/RECHECK_NEEDED/RESCUE_CONFIRMED), persisted_report_id:string. locations가 관측별 provenance를 보존. AWAITING_APPROVAL는 coordinator 상태이며 종료한 executor action의 feedback을 다시 발행하지 않음. | 2차 |
+| TargetSnapshot | envelope:Envelope, snapshot_id:UUID, targets:TargetEstimate[]. 전체 상태 snapshot. 웹의 저장 완료 좌표 표시는 operations 장부 기준. | 2차 |
+| SystemState | envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string. | 2차 |
+| SiteEvent | envelope:Envelope, event_id:UUID, camera_id:string(cam_fixed 예시), source_boot_id:UUID, kind:string(DISASTER_SIGN/TARGET_DISAPPEARED_CANDIDATE), time:ObservationTime, target_id:string, watch_id:string, confidence:float64, visibility_state:string(VALID/OCCLUDED/UNKNOWN), metrics_name:string[], metrics_value:float64[], policy_version:string, evidence:EvidenceRef. 재난 징후는 target/watch 비어 있음; 소실 후보는 둘 다 필수. | 1차 |
+| CameraStatus | envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN. | 2차 |
+| TargetPresence | envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요. | 2차 |
+| RecheckObservation | observation_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, source_boot_id:UUID, time:ObservationTime, frame_ref:FrameRef, watched_native_point:geometry_msgs/Point, camera_state:string(PRESENT/ABSENT/UNKNOWN), lidar_state:string(BLOCKED/CLEAR/UNKNOWN), coverage_state:string(VALID/INVALID/UNKNOWN), sensor_window_start_ns:int64, sensor_window_end_ns:int64, detector_health:string, evidence:EvidenceRef[]. EMPTY 탐지 배열만으로 ABSENT 금지; 실제 시야/거리/센서 품질이 필요. | 1차 |
+| PassageAssessment | assessment_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, frame_ref:FrameRef, time:ObservationTime, status:string(PASSABLE/BLOCKED/UNKNOWN), width_known:bool, min_width_m:float64, height_known:bool, min_headroom_m:float64, floor_geometry_known:bool, uncertainty_m:float64, footprint_profile_id:string, policy_version:string, reason:string, evidence:EvidenceRef[]. 측정 실패 값은 *_known=false이며 판정에 사용 금지. | 1차 |
+| RouteCandidate | route_id:UUID, route_revision:uint64, robot_id:string, target_id:string, segment_index:uint32, frame_ref:FrameRef, planned_path:nav_msgs/Path, approach_goal:geometry_msgs/PoseStamped, generated_at_ns:int64, valid_until_ns:int64, path_sha256:string, approval_corridor_sha256:string, assessment:PassageAssessment, planner_evidence_id:string, policy_version:string. 대상 좌표·접근 목표는 다른 값. | 1차 |
+| OperatorApproval | approval_id:UUID, command_id:UUID, operator_id:string(서버 인증값), robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, target_id:string, target_estimate_revision:uint64, route_id:UUID, route_revision:uint64, segment_index:uint32, approved_at_ns:int64, valid_until_ns:int64, scope:string(ONE_SEGMENT). 같은 구간의 같은 의미만 멱등 허용. | 1차 |
+| RescueReport | envelope:Envelope, report_id:UUID, target_id:string, task_id:string, generation:uint64, record_ids:UUID[], locations:TargetLocation[], site_events:SiteEvent[], rechecks:RecheckObservation[], routes:RouteCandidate[], approvals:OperatorApproval[], task_admissions:TaskAdmission[], has_task_result:bool, task_result:TaskResult, confirmation_state:string, approach_state:string, rescue_state:string, evidence_refs:EvidenceRef[], first_issued_at_ns:int64, meaning_sha256:string. 해당 기록이 없는 optional section은 명시적으로 빈 배열/has flag. | 2차 |
+| ReportReceipt | envelope:Envelope, receipt_id:UUID, report_id:UUID, meaning_sha256:string, included_record_ids:UUID[], state:string(RECEIVED/PENDING_EVIDENCE/PERSISTED/REJECTED), persisted_at_ns:int64, has_persisted_at:bool, storage_revision:uint64, reason_code:string. included_record_ids는 저장한 보고의 내용과 일치. | 1차 |
+| TaskResult | task_id:UUID, command_id:UUID, robot_id:string, generation:uint64, outcome:string(COMPLETED/CANCELED/EXPIRED/UNREACHABLE/FAILED), completion_scope:string(SEARCH/SEGMENT/TARGET_APPROACH/RECHECK/RETURN/HOLD), terminal_reason:string, original_cause:string, stop_confirmed:bool, motion_state:string, final_pose:RobotPose, used_record_ids:UUID[], frame_ref:FrameRef, recheck:RecheckObservation, has_recheck:bool, stop_evidence:EvidenceRef[]. 구간 성공을 접근/구조 성공으로 바꾸지 않음. | 1차 |
 
 ## 서비스 Request / Response 계약
 
 ### SubmitOperatorCommand
+
+IDL: 1차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |
@@ -269,6 +273,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 
 ### RequestStop
 
+IDL: 1차 ([contracts C-10](contracts.md)).
+
 | 구분 | 정의 |
 | --- | --- |
 | Request | envelope:Envelope, stop_command_id:UUID, requester_id:string, authority_epoch:string, robot_id:string, scope:string(ACTIVE_TASK/ALL_MOTION), reason_code:string, issued_at_ns:int64, deadline_ns:int64. |
@@ -276,6 +282,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 | Rules | 일반 임무보다 우선 접수. callback에서 실제 정지를 기다리지 않음. 후속 RobotStatus STOPPED/STOP_UNCONFIRMED 및 TaskResult로 판정. 권한 있는 정지 요청은 활성 task ID를 몰라도 가능. |
 
 ### RegisterAuthority
+
+IDL: 1차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |
@@ -285,6 +293,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 
 ### ResetStop
 
+IDL: 1차 ([contracts C-10](contracts.md)).
+
 | 구분 | 정의 |
 | --- | --- |
 | Request | envelope:Envelope, reset_command_id:UUID, robot_id:string, expected_robot_boot_id:UUID, authority_epoch:UUID, expected_latch_id:UUID, resolved_reason_code:string, issued_at_ns:int64, deadline_ns:int64. |
@@ -292,6 +302,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 | Rules | 현장 E-stop/fault 해제를 대신하지 않음. 정지·원인 해결·live readiness·권한 확인 후 software latch만 해제. 이전 task 자동 재개 없음; 새 generation 필요. |
 
 ### SetCameraWatch
+
+IDL: 2차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |
@@ -303,6 +315,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 
 ### PrepareMapping
 
+IDL: 2차 ([contracts C-10](contracts.md)).
+
 | 구분 | 정의 |
 | --- | --- |
 | Goal | envelope:Envelope, request_id:UUID, robot_id:string, operation:string(PREPARE/START), baseline_map_ref:string, mapping_profile_id:string, expected_map_session_id:string, issued_at_ns:int64, deadline_ns:int64. |
@@ -311,6 +325,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 | Rules | mapping 소유 adapter가 bringup의 지정 backend 기동/activation 절차를 요청하고 fresh map/scan/TF로 준비 결과를 확인. 단순 process 시작을 READY로 표시하지 않음. 실제 slam_toolbox lifecycle/process API는 설치 버전 확인 후 binding을 고정하며 임의의 표준 service 이름을 가정하지 않음. 활성 이동 중 session reset/기준 지도 교체 금지. PREPARE는 사전 점검, START는 지진 이후 SLAM 시작 요청. Nav2 이동은 별도 executor guard. |
 
 ### ExecuteTask
+
+IDL: 1차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |
@@ -321,6 +337,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 
 ### EvaluateRoute
 
+IDL: 2차 ([contracts C-10](contracts.md)).
+
 | 구분 | 정의 |
 | --- | --- |
 | Goal | envelope:Envelope, request_id:UUID, robot_id:string, target_id:string, target_estimate_revision:uint64, purpose:string(APPROACH/SEGMENT/RECHECK/RETURN), segment_index:uint32, candidate_goal:geometry_msgs/PoseStamped, has_candidate_goal:bool, home_ref:string, frame_ref:FrameRef, footprint_profile_id:string, policy_version:string, deadline_ns:int64. |
@@ -330,6 +348,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 
 ### ObserveTarget
 
+IDL: 1차 ([contracts C-10](contracts.md)).
+
 | 구분 | 정의 |
 | --- | --- |
 | Goal | envelope:Envelope, request_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, watched_native_point:geometry_msgs/Point, frame_ref:FrameRef, requested_window_ns:uint64, policy_version:string, deadline_ns:int64. |
@@ -338,6 +358,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 | Rules | perception은 센서 취득·판정만 수행. target point의 실제 시야/거리/검출기/TF 유효성이 충족돼야 ABSENT 또는 CLEAR를 발행. 고정 카메라 소실 이후 완료 판정용 AMR1 관측 창이 새로 확보돼야 함. 취소/timeout은 UNKNOWN이며 부재 성공으로 만들지 않음. |
 
 ### EvaluatePassage
+
+IDL: 2차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |

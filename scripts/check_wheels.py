@@ -16,7 +16,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_PACKAGES = ('rescue_bringup', 'rescue_console', 'rescue_contracts', 'rescue_coordination',
                      'rescue_mapping', 'rescue_operations', 'rescue_perception', 'rescue_robot')
-PACKAGES = sorted((ROOT / 'src').glob('rescue_*'))
+# Python packages only; rescue_interfaces is an ament_cmake IDL package (colcon, not pip).
+PACKAGES = sorted(p for p in (ROOT / 'src').glob('rescue_*') if (p / 'setup.py').is_file())
 
 
 def main():
