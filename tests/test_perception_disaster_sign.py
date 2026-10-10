@@ -176,6 +176,14 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(self.events(results), [])
         self.assertEqual(max(r.reversals for r in results), 0)
 
+    def test_mostly_covered_by_a_textured_hand_is_unknown(self):
+        # 손이 화면의 80% 이상을 가리고 멈춰 있음(2026-10-10 실측): 손에도 무늬가 있어
+        # 무늬 기준으로는 "보임" 이지만 원래 장면이 거의 안 보이므로 판단하지 않는다.
+        covered = [[hand()[y][x] if not (x >= 36 and y >= 36) else scene()[y][x] for x in range(48)]
+                   for y in range(48)]  # 오른쪽 아래 1/16 만 원래 장면
+        results = self.run_frames(self.detector(), still(0, 3) + [(300 + k * 100, covered) for k in range(6)])
+        self.assertEqual({(r.status, r.reason) for r in results[3:]}, {("UNKNOWN", "SCENE_CHANGED")})
+
     def test_hand_pausing_briefly_does_not_become_the_scene(self):
         # 손이 렌즈 앞에서 잠깐 멈췄다가 다시 움직임: 잠깐 멈춘 손 화면을 기준 장면으로
         # 삼으면 그다음 손 움직임을 흔들림으로 센다(합성 영상 재생에서 발견, 2026-10-10).
