@@ -120,14 +120,51 @@ class PageTests(LedgerFixture):
     def test_mode_badge_shows_disaster_with_trigger_time(self):
         html = render_fragment(self.view())
         self.assertIn('data-mode="DISASTER"', html)
-        self.assertIn('<b>재난</b>', html)
+        self.assertIn('class="mode-word">재난</h1>', html)
         self.assertIn(f'title="{self.status["site_events"]["site_events"][1]["observed_at_ns"]}"', html)
         self.assertIn('data-mode=""', render_fragment(self.view({})))
 
     def test_stale_robot_rows_are_marked(self):
         html = render_fragment(self.view())   # received 10 s before the build time
-        self.assertEqual(html.count('<tr class="stale">'), 2)
+        self.assertEqual(len(re.findall(r'<section class="unit [a-z]+ stale"', html)), 2)
         self.assertIn('낡음', html)
+        fresh = render_fragment(self.view(built_at_ns=self.status['robot_status']['robots'][0]['received_at_ns']))
+        self.assertNotIn(' stale"', fresh)
+
+    def test_page_loads_nothing_from_outside(self):
+        # The field network may have no internet: no CDN, web font, external stylesheet or script.
+        html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),))
+        self.assertNotRegex(html, r'<link|@import|url\(|<script[^>]+src=')
+        external = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
+        self.assertEqual(external, ['http://camera.invalid:8081/stream'])   # only the camera the operator gave
+
+    def test_codes_are_shown_as_korean_words_and_unknown_codes_stay_visible(self):
+        html = render_fragment(self.view())
+        robots = html[html.index('id="robots"'):html.index('id="targets"')]
+        self.assertIn('이동 중', robots)
+        self.assertIn('준비됨', robots)
+        self.assertNotIn('>MOVING<', robots)
+        self.assertIn('정찰', robots)
+        status = dict(self.status, robot_status={'schema_version': '1.0', 'robots': [
+            dict(self.status['robot_status']['robots'][0], motion_state='DOCKING_SOMEHOW')]})
+        self.assertIn('DOCKING_SOMEHOW', render_fragment(self.view(status)))
+
+    def test_command_panel_puts_approvals_first_and_stop_apart(self):
+        html = render_page(self.view())
+        panel = html[html.index('id="commands"'):]
+        approve = panel[panel.index('cmd-group approve'):panel.index('cmd-group mission')]
+        self.assertIn('data-command="DISPATCH_SUPPORT"', approve)
+        self.assertIn('data-command="CONTINUE_SEGMENT"', approve)
+        stop = panel[panel.index('cmd-group stop'):]
+        self.assertIn('data-command="STOP_ROBOT"', stop)
+        # AGENTS.md 7절: the field stop does not depend on this page.
+        self.assertIn('현장 비상 정지 장치', panel)
+
+    def test_rescued_victim_is_struck_through_on_the_map_legend(self):
+        html = render_fragment(self.view())
+        rescued_icon = re.search(r'<svg class="vicon rescued".*?</svg>', html).group(0)
+        self.assertIn('<line', rescued_icon)
+        self.assertNotIn('<line', re.search(r'<svg class="vicon not_rescued".*?</svg>', html).group(0))
 
     def test_ages_read_at_a_glance(self):
         self.assertEqual([_age(v) for v in (None, 0.44, 59.9, 185, 7800, 91_616_778.5, -3.0)],

@@ -184,8 +184,8 @@ class MapScreenTests(LedgerFixture):
         self.assertEqual(view['map']['robots'], [])
         self.assertEqual(len(view['map']['targets']), len(view['targets']))
         html = render_fragment(view)
-        self.assertIn('<img src="map.png?v=', html)
-        self.assertEqual(html.count('<circle class="mark'), len(view['targets']))
+        self.assertIn('<image href="map.png?v=', html)
+        self.assertEqual(html.count('<g class="victim '), len(view['targets']))
         page = render_page(view)
         self.assertEqual(re.findall(r"fetch\('([^']*)'", page), ['fragment'])   # the image is not a poll
 
@@ -264,7 +264,7 @@ class MapRouteTests(AccountsFixture):
         self.assertEqual(decode_png(response.get_data()), (WIDTH, HEIGHT, PIXELS))
         self.assertIn('max-age', response.headers['Cache-Control'])
         self.assertEqual(client.post('/map.png').status_code, 405)
-        self.assertIn('<img src="map.png?v=', client.get('/').get_data(as_text=True))
+        self.assertIn('<image href="map.png?v=', client.get('/').get_data(as_text=True))
         self.assertIsNotNone(client.get('/api/view').get_json()['map']['url'])
         self.assertEqual(digest_dir(self.dir), before)
 

@@ -318,7 +318,7 @@ class OfflineRehearsalLedgerTests(unittest.TestCase):
         self.assertGreater(len(view['targets']), 0)
         for row in view['targets']:
             self.assertIn(row['target_id'], html)
-        self.assertEqual(html.count('class="event"'), len(ledger['reports']))
+        self.assertEqual(html.count('class="event report"'), len(ledger['reports']))
 
     def test_example_status_fixture_matches_offline_ledger(self):
         example = ROOT / 'src' / 'rescue_console' / 'examples' / 'status.example.json'
