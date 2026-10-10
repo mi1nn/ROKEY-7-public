@@ -126,6 +126,13 @@ class PersonPipeline:
         _require(isinstance(inference, Inference), "INVALID_INPUT", "detector must return Inference or None")
         # Build every observation first; only a fully valid frame changes state
         # (same rule as #30 CDX-30-01: a rejected frame leaves no trace).
+        # Every label must be one the model can emit. Otherwise "ran, no person" would be
+        # indistinguishable from "this model cannot see a person" (recheck ABSENT leak).
+        classes = inference.model.class_labels
+        missing = [label for label in self.confirmation.person_labels if label not in classes]
+        _require(not missing, "MODEL_CLASS_MISMATCH", f"person_labels not in model manifest: {missing}")
+        for output in inference.outputs:
+            _require(output.class_label in classes, "MODEL_CLASS_MISMATCH", output.class_label)
         built = []
         for index, output in enumerate(inference.outputs):
             if output.class_label not in self.confirmation.person_labels:
@@ -133,7 +140,6 @@ class PersonPipeline:
             track = output.track_id if inference.tracking_mode == "TRACKING" else None
             _require(inference.tracking_mode == "TRACKING" or output.track_id is None, "INVALID_INPUT",
                      "track_id outside TRACKING mode")
-            _require(output.class_label in inference.model.class_labels, "MODEL_CLASS_MISMATCH", output.class_label)
             detection = Detection(inference.model.class_labels.index(output.class_label), output.class_label,
                                   output.confidence, output.bbox, track, inference.tracking_mode)
             key = f"{self.binding.source_boot_id}/{stamp}/{index}"
