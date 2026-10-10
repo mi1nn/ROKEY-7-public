@@ -52,12 +52,15 @@ def parse_args():
     ap.add_argument("--valid-ratio", type=float, default=0.5)
     ap.add_argument("--agree-tol", type=float, default=1.0)
     ap.add_argument("--shift-min", type=float, default=1.0, help="방향을 기록할 최소 이동(칸)")
+    ap.add_argument("--scene-match-min", type=float, default=0.5, help="기준 장면과 같은 장면으로 볼 ZNCC")
     ap.add_argument("--shakes", type=int, default=4, help="창 안 방향 전환 횟수 N")
     ap.add_argument("--window-s", type=float, default=3.0)
     ap.add_argument("--hold-s", type=float, default=0.2)
     ap.add_argument("--release-s", type=float, default=2.0)
     ap.add_argument("--max-gap-s", type=float, default=0.5)
     ap.add_argument("--csv", type=Path, help="프레임별 기록을 남길 CSV 경로")
+    ap.add_argument("--record", type=Path, help="웹캠 원본 영상을 이 파일(.mp4)로 녹화")
+    ap.add_argument("--video", type=Path, help="웹캠 대신 녹화한 영상을 재생해 판정(시각은 프레임 번호 / fps)")
     ap.add_argument("--no-window", action="store_true", help="화면 없이 콘솔만 (라벨 키 사용 불가)")
     return ap.parse_args()
 
@@ -67,7 +70,8 @@ def policy_from(args):
     return DisasterSignPolicy(sample_stride=args.stride, blocks_x=args.blocks[0], blocks_y=args.blocks[1],
                               search_cells=args.search, texture_min=args.texture_min, match_min=args.match_min,
                               valid_ratio_min=args.valid_ratio, agree_tol=args.agree_tol,
-                              shift_min=args.shift_min, shakes_min=args.shakes, window_ns=ns(args.window_s),
+                              shift_min=args.shift_min, scene_match_min=args.scene_match_min,
+                              shakes_min=args.shakes, window_ns=ns(args.window_s),
                               hold_ns=ns(args.hold_s), release_ns=ns(args.release_s),
                               max_gap_ns=ns(args.max_gap_s))
 
@@ -169,6 +173,14 @@ def clock(stamp_ns, started_ns):
                 elapsed_s=round((stamp_ns - started_ns) / 1e9, 3))
 
 
+_RECORD_SIZE = {}
+
+
+def recorder_size(recorder, frame):
+    """녹화 파일은 처음 프레임 크기로 고정된다. 크기가 다른 프레임(카메라 켜질 때 등)은 건너뛴다."""
+    return _RECORD_SIZE.setdefault(id(recorder), (frame.shape[1], frame.shape[0]))
+
+
 def open_camera(cv2, args):
     cap = cv2.VideoCapture(args.camera)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
@@ -198,7 +210,9 @@ def main():
         SourceBinding(None, "cam_fixed", str(uuid4()), "probe-host-clock", "DRIVER_RECEIVE", "UNKNOWN",
                       "uncalibrated", "UNKNOWN", None),
         policy_from(args))
-    cap = open_camera(cv2, args)
+    cap = cv2.VideoCapture(str(args.video)) if args.video else open_camera(cv2, args)
+    if args.video and not cap.isOpened():
+        sys.exit(f"영상 {args.video} 를 열 수 없습니다")
     if not cap.isOpened():
         sys.exit(f"카메라 {args.camera} 를 열 수 없습니다 (macOS 는 터미널 앱의 카메라 권한 확인)")
     writer = None
@@ -209,11 +223,26 @@ def main():
     label, rows, events, last_reversals, lost_since = "still", [], 0, 0, None
     last_frame, banner, banner_until = None, "", 0
     started = time.time_ns()
+    video_fps = (cap.get(cv2.CAP_PROP_FPS) or 25.0) if args.video else None
+    frame_index, recorder = 0, None
     print(f"정책: {detector.policy}")
     try:
         while True:
             ok, frame = cap.read()
             stamp = time.time_ns()  # 드라이버에서 받은 시각(촬영 시각 아님)
+            if args.video:
+                if not ok:
+                    print("영상 끝")
+                    break
+                stamp = started + int(frame_index * 1e9 / video_fps)  # 녹화 영상은 프레임 번호로 시각을 만든다
+                frame_index += 1
+            if ok and args.record:
+                if recorder is None:
+                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                    recorder = cv2.VideoWriter(str(args.record), fourcc, cap.get(cv2.CAP_PROP_FPS) or 25.0,
+                                               (frame.shape[1], frame.shape[0]))
+                if (frame.shape[1], frame.shape[0]) == recorder_size(recorder, frame):
+                    recorder.write(frame)
             if not ok:
                 # 끊김은 종료하지 않고 기록한 뒤 다시 연결한다. 판정기는 다음 프레임에서
                 # 간격이 max_gap 을 넘은 것을 보고 횟수·구간을 스스로 초기화한다.
@@ -268,6 +297,9 @@ def main():
         pass
     finally:
         cap.release()
+        if recorder is not None:
+            recorder.release()
+            print(f"녹화 저장: {args.record.resolve()}")
         if not args.no_window:
             cv2.destroyAllWindows()
         if writer:
