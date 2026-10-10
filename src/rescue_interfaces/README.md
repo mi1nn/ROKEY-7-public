@@ -3,7 +3,8 @@
 SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 19·서비스 4·액션 2의 정의만 둔다. 판단 로직은 없다. 채택 범위와 IDL 규칙은 [contracts C-10](../../docs/design/contracts.md)에 있다.
 
 - 필드는 [`sdd-node-contracts-v0.1.json`](../../docs/design/sdd-node-contracts-v0.1.json)이 원본이다. 필드를 바꿀 때는 JSON 을 먼저 고친다. [`tests/test_interfaces_schema.py`](../../tests/test_interfaces_schema.py)가 이 폴더의 IDL 과 JSON·`CMakeLists.txt` 목록이 같은지 ROS 없이 검사한다.
-- ROS 메시지와 Python 값(`rescue_contracts`·각 패키지 dataclass)의 변환은 각 패키지의 ROS 경계 모듈이 한다.
+- ROS 메시지와 Python 값(`rescue_contracts`·각 패키지 dataclass)의 변환은 각 패키지의 ROS 경계 모듈이 맡으며, 이 패키지에는 변환기가 없다. 현재 Python `TASK_KINDS` 에 없는 `MOVE_SEGMENT`·`RETURN_HOME`, #48 반영 전 `SiteEvent` 소실 후보, 장부와 구조가 다른 `EvidenceRef`·`ReportReceipt` 는 [C-10](../../docs/design/contracts.md)의 후속 연결 범위다. IDL 생성·import 성공을 기존 Python 값으로의 변환 성공으로 해석하지 않는다.
+- 문자열 상수는 허용값을 자동으로 강제하지 않는다. 각 경계 모듈은 UUID·열거값·시각·`has_*`/`*_known` 등을 검증하고, 미지원 값이나 미확인 상태를 정상 값으로 바꾸지 않아야 한다.
 - 빌드: `colcon build --packages-select rescue_interfaces` (ROS 2 Jazzy). CI 에는 ROS 가 없어 이 빌드는 돌지 않는다.
 
 ## 통신별 입력과 출력
