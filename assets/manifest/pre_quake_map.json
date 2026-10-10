@@ -1,0 +1,48 @@
+{
+  "name": "pre_quake_map",
+  "asset_directory": "assets/maps/pre_quake",
+  "files": {
+    "map.pgm": "bf462f299999663be79b59dec431b763720fdf994754a141d9d4cfcdb99beda3",
+    "map.yaml": "848f3b86c3f88a99efd3ace489b6e53d8ecd7ad655c450cbc4148012b95c6bb1"
+  },
+  "hash_algorithm": "sha256",
+  "recorded_at": "2026-10-10",
+  "source": "로봇·지도 담당자가 robot6으로 SLAM 매핑하고 map_saver_cli로 저장한 재난 전 기준 지도",
+  "robot": "robot6 [설정, Q-01 확정 전]",
+  "slam": {
+    "backend": "slam_toolbox",
+    "version": "미확인",
+    "launch": "turtlebot4_navigation/slam.launch.py"
+  },
+  "resolution_m": 0.05,
+  "origin": [
+    -5.345,
+    -1.077,
+    0
+  ],
+  "origin_units": [
+    "m",
+    "m",
+    "rad"
+  ],
+  "size_px": [
+    117,
+    83
+  ],
+  "area_m": [
+    5.85,
+    4.15
+  ],
+  "frame": "map (기준 지도 frame = mission frame 후보, Q-09)",
+  "consumers": [
+    "AMR1",
+    "AMR2"
+  ],
+  "verification_environment": {
+    "ros_distro": "jazzy",
+    "robot_namespace": "/robot6",
+    "evidence": "담당자 실습 보고. 실기 로그·bag 미첨부"
+  },
+  "verified": "담당자 보고 2026-10-10: 저장 지도 위치 추정·Nav2 목표 이동 성공. 로그·bag 없음 → E3 NOT_RUN. 실제 공간 일치·두 로봇 위치 추정 E3/E4 NOT_RUN",
+  "profile_binding": "로봇별 지도 경로 키 추가는 작전·오케스트레이터 후속 PR에서 처리"
+}

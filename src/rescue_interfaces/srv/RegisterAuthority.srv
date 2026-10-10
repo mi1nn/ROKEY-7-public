@@ -1,0 +1,17 @@
+# SDD v0.1 services.RegisterAuthority (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string command_id
+string robot_id
+string expected_robot_boot_id
+string coordinator_id
+string authority_epoch
+string policy_version
+int64 issued_at_ns
+int64 deadline_ns
+---
+Envelope envelope
+bool accepted
+string robot_boot_id
+string authority_epoch
+string reason_code
