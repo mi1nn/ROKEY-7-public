@@ -245,6 +245,15 @@ class DisasterSignTests(unittest.TestCase):
         self.assertEqual(retry.status, "PROCESSED")
         self.assertIsNotNone(retry.event)
 
+    def test_frame_size_change_restarts_instead_of_crashing(self):
+        # 웹캠이 켜지면서 해상도를 바꾸면 첫 프레임과 다음 프레임 크기가 다르다(2026-10-10 실측
+        # IndexError). 크기가 바뀌면 직전 프레임과 비교하지 않고 처음부터 다시 센다.
+        d = self.detector()
+        self.run_frames(d, [(k * 100, scene(size=40, ox=8 + 2 * (k % 2))) for k in range(4)])
+        result = d.update(image(400, scene()))  # 40x40 -> 48x48
+        self.assertEqual((result.status, result.reason, result.reversals), ("PROCESSED", "FIRST_FRAME", 0))
+        self.assertEqual(d.update(image(500, scene(ox=10))).shift, (2, 0))
+
     def test_rejected_frame_then_retry_of_same_stamp(self):
         d = self.detector()
         self.run_frames(d, still(0, 1))
