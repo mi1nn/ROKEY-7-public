@@ -1,4 +1,4 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src/rescue_contracts", "src/rescue_bringup", "src/rescue_robot", "src/rescue_mapping", "src/rescue_perception", "src/rescue_coordination", "src/rescue_operations"]
+pythonpath = ["src/rescue_contracts", "src/rescue_bringup", "src/rescue_robot", "src/rescue_mapping", "src/rescue_perception", "src/rescue_coordination", "src/rescue_operations", "src/rescue_console"]
 addopts = "-ra"
