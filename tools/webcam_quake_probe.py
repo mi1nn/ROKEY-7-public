@@ -7,7 +7,7 @@
 사용:
     python3 tools/webcam_quake_probe.py --list               # 연결된 카메라 번호 찾기
     python3 tools/webcam_quake_probe.py --camera 0 --record  # 측정 + 화면 녹화
-    python3 tools/webcam_quake_probe.py --video .artifacts/webcam_quake/<측정>/raw.mp4   # 녹화 재생
+    python3 tools/webcam_quake_probe.py --video 영상.mp4      # 웹캠 대신 영상 파일로
 
 창에서 숫자 키로 지금 하는 상황을 표시하면 기록의 label 칸에 남는다.
     1 가만히(still)  2 흔들기(shake)  3 조명(light)  4 지나가기(pass)  5 가리기(cover)  q 종료
@@ -16,10 +16,9 @@
     probe.csv  프레임별 판정 기록(앞 두 칸은 실제 시각과 경과 초)
     meta.json  실행 인자·판정 정책·git SHA·상황별 요약
     view.mp4   대시보드 화면 그대로 (--record)
-    raw.mp4    웹캠 원본, --video 로 다시 판정할 때 쓴다 (--record)
 
 인자 기본값은 측정을 시작하기 위한 값일 뿐 Q-11 확정값이 아니다(2026-10-10).
-한글 표시에 Pillow 와 한글 글꼴(macOS 기본 Apple SD Gothic Neo)을 쓴다. 없으면 영문 글꼴로 그린다.
+화면은 Pillow 와 한글 글꼴(macOS 기본 Apple SD Gothic Neo)로 그린다. 없으면 --no-window 로만 돈다.
 """
 import argparse
 from collections import deque
@@ -58,15 +57,15 @@ BG, CARD, LINE = (32, 28, 25), (48, 43, 39), (78, 72, 66)
 TEXT, MUTED = (240, 240, 240), (165, 160, 155)
 GREEN, RED, GRAY, ORANGE, YELLOW, BLUE = ((80, 175, 76), (53, 57, 229), (120, 120, 120), (0, 140, 245),
                                           (40, 202, 255), (245, 165, 66))
-PANEL_W, VIEW_H = 380, 480
+PANEL_W, VIEW_H = 400, 480
 
 
 def parse_args():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--camera", type=int, default=0, help="OpenCV 카메라 번호 (--list 로 확인)")
     ap.add_argument("--list", action="store_true", help="0~4번 카메라를 열어 보고 해상도를 출력한 뒤 종료")
-    ap.add_argument("--video", type=Path, help="웹캠 대신 녹화한 원본 영상(raw.mp4)을 판정(시각은 프레임 번호 / fps)")
-    ap.add_argument("--record", action="store_true", help="대시보드 화면(view.mp4)과 원본(raw.mp4)을 녹화")
+    ap.add_argument("--video", type=Path, help="웹캠 대신 영상 파일을 판정(시각은 프레임 번호 / fps)")
+    ap.add_argument("--record", action="store_true", help="대시보드 화면을 view.mp4 로 녹화")
     ap.add_argument("--out", type=Path, help=f"결과 폴더 (기본: {OUT_ROOT.relative_to(ROOT)}/<날짜-시각>)")
     ap.add_argument("--no-window", action="store_true", help="화면 없이 콘솔만 (라벨 키 사용 불가)")
     ap.add_argument("--width", type=int, default=640)
@@ -79,7 +78,8 @@ def parse_args():
     ap.add_argument("--valid-ratio", type=float, default=0.5)
     ap.add_argument("--agree-tol", type=float, default=1.0)
     ap.add_argument("--shift-min", type=float, default=1.0, help="방향을 기록할 최소 이동(칸)")
-    ap.add_argument("--scene-match-min", type=float, default=0.8, help="블록이 기준 장면과 같다고 볼 ZNCC")
+    ap.add_argument("--scene-match-min", type=float, default=0.6, help="블록이 기준 장면과 같다고 볼 ZNCC")
+    ap.add_argument("--visible-min", type=float, default=0.3, help="원래 장면이 이 비율 미만으로 보이면 판단 보류")
     ap.add_argument("--rebase-s", type=float, default=10.0, help="바뀐 화면을 새 기준 장면으로 삼을 안정 시간(초)")
     ap.add_argument("--shakes", type=int, default=4, help="창 안 방향 전환 횟수 N")
     ap.add_argument("--window-s", type=float, default=3.0)
@@ -95,6 +95,7 @@ def policy_from(args):
                               search_cells=args.search, texture_min=args.texture_min, match_min=args.match_min,
                               valid_ratio_min=args.valid_ratio, agree_tol=args.agree_tol,
                               shift_min=args.shift_min, scene_match_min=args.scene_match_min,
+                              visible_min=args.visible_min,
                               rebase_ns=ns(args.rebase_s), shakes_min=args.shakes, window_ns=ns(args.window_s),
                               hold_ns=ns(args.hold_s), release_ns=ns(args.release_s),
                               max_gap_ns=ns(args.max_gap_s))
@@ -142,7 +143,8 @@ def summarize(rows):
     return out
 
 
-def load_fonts():
+def load_font_maker():
+    """한글 글꼴로 PIL 글꼴을 만드는 함수. Pillow 나 한글 글꼴이 없으면 None."""
     try:
         from PIL import ImageFont
     except ImportError:
@@ -159,171 +161,194 @@ def load_fonts():
 
 
 class Dashboard:
-    """왼쪽은 카메라 화면(블록 격자·이동 화살표), 오른쪽은 상태 패널."""
+    """왼쪽은 카메라 화면(블록 격자·이동 화살표·상황 표시), 오른쪽은 상태 패널.
 
-    def __init__(self, cv2, args):
-        self.cv2, self.args = cv2, args
-        self.make_font, self._fonts = load_fonts(), {}
-        self.history = deque(maxlen=150)   # (경과 초, 이동 크기 또는 None, 방향 전환 여부)
-        self.events = deque(maxlen=3)      # (시각, 상황)
+    도형과 글자는 Pillow 로 그린다(둥근 모서리·반투명·한글). 배열은 OpenCV 의 BGR 순서
+    그대로 두고 색도 BGR 로 넘긴다.
+    """
+
+    def __init__(self, cv2, args, make_font, replay):
+        self.cv2, self.args, self.make_font, self.replay = cv2, args, make_font, replay
+        self._fonts = {}
+        self.history = deque(maxlen=200)   # (경과 초, 이동 크기 또는 None, 방향 전환 여부)
+        self.events = deque(maxlen=3)      # 사건 시각
         self.banner_until, self.event_count, self._last_rev = 0, 0, 0
 
     def font(self, size, bold=False):
-        key = (size, bold)
-        if key not in self._fonts:
-            self._fonts[key] = self.make_font(size, bold)
-        return self._fonts[key]
+        if (size, bold) not in self._fonts:
+            self._fonts[(size, bold)] = self.make_font(size, bold)
+        return self._fonts[(size, bold)]
 
-    def note(self, stamp, elapsed, result, label):
+    def note(self, stamp, elapsed, result):
         """프레임 결과를 그래프·사건 기록에 쌓는다."""
         mag = math.hypot(*result.shift) if result.shift is not None else None
-        reversed_now = result.reversals > self._last_rev
+        self.history.append((elapsed, mag, result.reversals > self._last_rev))
         self._last_rev = result.reversals
-        self.history.append((elapsed, mag, reversed_now))
         if result.event is not None:
             self.event_count += 1
             self.banner_until = stamp + 2 * 10**9
-            self.events.appendleft((datetime.fromtimestamp(stamp / 1e9).strftime("%H:%M:%S"), label))
+            self.events.appendleft(datetime.fromtimestamp(stamp / 1e9).strftime("%H:%M:%S"))
 
     def render(self, frame, label, result, stamp, proc_ms, fps):
-        cv2, np = self.cv2, __import__("numpy")
+        from PIL import Image, ImageDraw
+        import numpy as np
+        cv2 = self.cv2
         h0, w0 = frame.shape[:2]
         view = cv2.resize(frame, (round(w0 * VIEW_H / h0), VIEW_H)) if h0 != VIEW_H else frame.copy()
         vw = view.shape[1]
+        state, color, detail, mark = self._state(result)
+        self._draw_view(view, result)
         canvas = np.full((VIEW_H, vw + PANEL_W, 3), BG, np.uint8)
-        state, color, detail = self._state(result)
-        texts = []
-        self._draw_view(view, result, color)
         canvas[:, :vw] = view
-        if stamp < self.banner_until:
-            cv2.rectangle(canvas, (0, VIEW_H // 2 - 42), (vw, VIEW_H // 2 + 42), RED, -1)
-            texts.append(((vw // 2, VIEW_H // 2), f"지진 징후 감지 #{self.event_count}", 38, TEXT, True, "mm"))
-        self._draw_panel(canvas, vw, label, result, state, color, detail, proc_ms, fps, stamp, texts)
-        self._draw_texts(canvas, texts)
-        return canvas
+        img = Image.fromarray(canvas).convert("RGBA")
+        layer = Image.new("RGBA", img.size, (0, 0, 0, 0))   # 반투명 도형
+        d = ImageDraw.Draw(layer)
+        self._view_overlay(d, vw, label, color, stamp)
+        self._panel(d, vw, label, result, state, color, detail, mark, proc_ms, fps, stamp)
+        img = Image.alpha_composite(img, layer)
+        return np.asarray(img.convert("RGB")).copy()
 
     def _state(self, result):
         if result is None:
-            return "카메라 끊김", ORANGE, "다시 연결하는 중"
+            return "카메라 끊김", ORANGE, "다시 연결하는 중", "!"
         if result.status == "UNKNOWN":
             detail = REASON_KO.get(result.reason, result.reason)
             if result.reason == "SCENE_CHANGED" and result.visible_ratio is not None:
-                detail += f" ({result.visible_ratio * 100:.0f}% 보임)"
-            return "판단 보류", GRAY, detail
+                detail += f" · {result.visible_ratio * 100:.0f}% 보임"
+            return "판단 보류", GRAY, detail, "?"
         if result.condition:
-            return "흔들림 감지", RED, f"방향 전환 {result.reversals}회"
-        return "정상", GREEN, REASON_KO.get(result.reason, result.reason)
+            return "흔들림 감지", RED, f"방향 전환 {result.reversals}회 (기준 {self.args.shakes}회)", "!"
+        return "정상", GREEN, REASON_KO.get(result.reason, result.reason), "OK"
 
-    def _draw_view(self, view, result, color):
+    def _draw_view(self, view, result):
+        """카메라 화면 위: 블록 격자(사분면 경계는 굵게)와 화면 이동 화살표."""
         cv2, a = self.cv2, self.args
         h, w = view.shape[:2]
         overlay = view.copy()
-        for i in range(1, a.blocks[0]):      # 블록 격자, 가운데(사분면 경계)는 굵게
+        for i in range(1, a.blocks[0]):
             x = w * i // a.blocks[0]
             cv2.line(overlay, (x, 0), (x, h), TEXT, 2 if i * 2 == a.blocks[0] else 1, cv2.LINE_AA)
         for j in range(1, a.blocks[1]):
             y = h * j // a.blocks[1]
             cv2.line(overlay, (0, y), (w, y), TEXT, 2 if j * 2 == a.blocks[1] else 1, cv2.LINE_AA)
-        cv2.addWeighted(overlay, 0.25, view, 0.75, 0, view)
+        cv2.addWeighted(overlay, 0.22, view, 0.78, 0, view)
         if result is not None and result.shift is not None and math.hypot(*result.shift) > 0:
             scale = a.stride * 6 * VIEW_H / max(1, a.height)  # 화면에서 잘 보이게 키운 이동 화살표
             cx, cy = w // 2, h // 2
             end = (int(cx + result.shift[0] * scale), int(cy + result.shift[1] * scale))
-            cv2.arrowedLine(view, (cx, cy), end, YELLOW, 4, cv2.LINE_AA, tipLength=0.3)
-        cv2.rectangle(view, (0, 0), (w - 1, h - 1), color, 6)
+            cv2.arrowedLine(view, (cx, cy), end, BG, 9, cv2.LINE_AA, tipLength=0.3)
+            cv2.arrowedLine(view, (cx, cy), end, YELLOW, 5, cv2.LINE_AA, tipLength=0.3)
 
-    def _draw_panel(self, c, x0, label, result, state, color, detail, proc_ms, fps, stamp, texts):
-        cv2, a = self.cv2, self.args
-        W = x0 + PANEL_W
+    def _view_overlay(self, d, vw, label, color, stamp):
+        """카메라 화면 위의 상태 테두리, 상황 표시, 범례, 사건 배너."""
+        d.rectangle((0, 0, vw - 1, VIEW_H - 1), outline=color + (255,), width=6)
+        chip = f"{'재생' if self.replay else '실시간'} · {LABEL_KO[label]}"
+        tw = d.textlength(chip, font=self.font(15, True))
+        d.rounded_rectangle((14, 14, 14 + tw + 24, 44), 10, fill=BG + (190,))
+        d.ellipse((24, 24, 34, 34), fill=(RED if not self.replay else BLUE) + (255,))
+        d.text((40, 29), chip, font=self.font(15, True), fill=TEXT + (255,), anchor="lm")
+        legend = "노란 화살표 = 화면 이동   흰 선 = 블록 (굵은 선 = 사분면)"
+        lw = d.textlength(legend, font=self.font(12))
+        d.rounded_rectangle((14, VIEW_H - 40, 14 + lw + 20, VIEW_H - 16), 8, fill=BG + (170,))
+        d.text((24, VIEW_H - 28), legend, font=self.font(12), fill=MUTED + (255,), anchor="lm")
+        if stamp < self.banner_until:
+            d.rectangle((6, 6, vw - 7, VIEW_H - 7), fill=RED + (60,))
+            d.rounded_rectangle((vw // 2 - 190, VIEW_H // 2 - 50, vw // 2 + 190, VIEW_H // 2 + 50), 18,
+                                fill=RED + (235,))
+            d.text((vw // 2, VIEW_H // 2 - 10), f"지진 징후 감지 #{self.event_count}", font=self.font(34, True),
+                   fill=TEXT + (255,), anchor="mm")
+            d.text((vw // 2, VIEW_H // 2 + 26), self.events[0] if self.events else "", font=self.font(15),
+                   fill=TEXT + (255,), anchor="mm")
+
+    def _panel(self, d, x0, label, result, state, color, detail, mark, proc_ms, fps, stamp):
+        a, W, pad = self.args, x0 + PANEL_W, 18
+        L, R = x0 + pad, x0 + PANEL_W - pad
+        T = lambda xy, s, size, fill=TEXT, bold=False, anchor="la": d.text(
+            xy, s, font=self.font(size, bold), fill=fill + (255,), anchor=anchor)
+        section = lambda y, s: T((L, y), s, 13, MUTED, True)
         # 머리
-        texts.append(((x0 + 18, 16), "지진 감지 모니터", 20, TEXT, True, "la"))
-        texts.append(((W - 18, 19), datetime.fromtimestamp(stamp / 1e9).strftime("%H:%M:%S"), 16, MUTED, False, "ra"))
-        # 상태 카드
-        cv2.rectangle(c, (x0 + 14, 52), (W - 14, 136), color, -1)
-        texts.append(((x0 + 30, 60), state, 32, TEXT, True, "la"))
-        texts.append(((x0 + 30, 106), detail or "", 15, TEXT, False, "la"))
-        # 상황 칩
-        texts.append(((x0 + 18, 148), "지금 상황 (숫자 키)", 13, MUTED, False, "la"))
-        cw, gap, y = (PANEL_W - 28 - 4 * 6) // 5, 6, 168
-        for i, key in enumerate(("still", "shake", "light", "pass", "cover")):
-            xa = x0 + 14 + i * (cw + gap)
+        T((L, 30), "지진 감지 모니터", 20, bold=True, anchor="lm")
+        T((R, 30), datetime.fromtimestamp(stamp / 1e9).strftime("%H:%M:%S"), 15, MUTED, anchor="rm")
+        # 상태 카드: 색 + 원형 표시 + 상태 + 이유
+        d.rounded_rectangle((L, 56, R, 140), 16, fill=color + (255,))
+        d.ellipse((L + 16, 74, L + 64, 122), outline=TEXT + (255,), width=3)
+        T((L + 40, 98), mark, 20 if len(mark) == 1 else 15, bold=True, anchor="mm")
+        T((L + 80, 92), state, 30, bold=True, anchor="ls")
+        T((L + 80, 120), detail or "", 14, anchor="ls")
+        # 지금 상황
+        section(156, "지금 상황  ·  숫자 키 1~5")
+        keys = ("still", "shake", "light", "pass", "cover")
+        cw = (R - L - 4 * 6) / 5
+        for i, key in enumerate(keys):
+            xa = L + i * (cw + 6)
             on = key == label
-            cv2.rectangle(c, (xa, y), (xa + cw, y + 30), YELLOW if on else CARD, -1)
-            texts.append(((xa + cw // 2, y + 15), f"{i + 1} {LABEL_KO[key]}", 13, BG if on else TEXT, on, "mm"))
-        # 방향 전환 막대
+            d.rounded_rectangle((xa, 176, xa + cw, 206), 9, fill=(YELLOW if on else CARD) + (255,))
+            T((xa + cw / 2, 191), f"{i + 1} {LABEL_KO[key]}", 13, BG if on else TEXT, on, "mm")
+        # 방향 전환: 칸 막대
         rev = result.reversals if result is not None else 0
-        texts.append(((x0 + 18, 212), f"방향 전환 (최근 {a.window_s:g}초)", 14, MUTED, False, "la"))
-        texts.append(((W - 18, 210), f"{rev} / {a.shakes}", 18, TEXT, True, "ra"))
-        self._bar(c, x0 + 18, 236, PANEL_W - 36, 12, min(1.0, rev / a.shakes), RED if rev >= a.shakes else YELLOW)
-        # 비율 게이지(가는 선 = 기준 valid_ratio)
-        gauges = (("무늬", result.textured_ratio if result else None),
-                  ("매칭", result.matched_ratio if result else None),
-                  ("장면 보임", result.visible_ratio if result else None))
-        for i, (name, value) in enumerate(gauges):
-            y = 264 + i * 22
-            texts.append(((x0 + 18, y - 2), name, 13, MUTED, False, "la"))
-            fill = 0.0 if value is None else value
-            self._bar(c, x0 + 92, y + 2, PANEL_W - 150, 10, fill, GREEN if fill >= a.valid_ratio else GRAY)
-            tx = x0 + 92 + int((PANEL_W - 150) * a.valid_ratio)
-            cv2.line(c, (tx, y - 1), (tx, y + 15), TEXT, 1)
-            texts.append(((W - 18, y - 2), "-" if value is None else f"{value * 100:.0f}%", 13, TEXT, False, "ra"))
-        # 움직임 그래프
-        gy, gh = 350, 62
-        texts.append(((x0 + 18, gy - 18), "화면 이동 크기 (최근 5초, 빨간 점 = 방향 전환)", 12, MUTED, False, "la"))
-        cv2.rectangle(c, (x0 + 14, gy), (W - 14, gy + gh), CARD, -1)
-        self._graph(c, x0 + 14, gy, PANEL_W - 28, gh)
-        # 사건 기록과 바닥글
-        texts.append(((x0 + 18, 420), f"지진 징후 사건 {self.event_count}개", 14, TEXT, True, "la"))
-        for i, (t, lab) in enumerate(self.events):
-            texts.append(((x0 + 160 + i * 72, 421), t, 12, RED, False, "la"))
-        texts.append(((x0 + 18, 452), f"{fps:4.1f} fps   처리 {proc_ms:3.0f} ms   q 종료", 13, MUTED, False, "la"))
+        section(222, f"방향 전환  ·  최근 {a.window_s:g}초")
+        T((R, 228), f"{rev} / {a.shakes}", 20, RED if rev >= a.shakes else TEXT, True, "rm")
+        n = max(1, min(a.shakes, 12))
+        sw = (R - L - (n - 1) * 5) / n
+        for i in range(n):
+            on = rev >= (i + 1) * a.shakes / n
+            xa = L + i * (sw + 5)
+            d.rounded_rectangle((xa, 246, xa + sw, 260), 5,
+                                fill=((RED if rev >= a.shakes else YELLOW) if on else LINE) + (255,))
+        # 화면 상태 게이지 (흰 눈금 = 기준)
+        section(276, "화면 상태")
+        gauges = (("무늬", result.textured_ratio if result else None, a.valid_ratio),
+                  ("직전 화면과 일치", result.matched_ratio if result else None, a.valid_ratio),
+                  ("원래 장면 보임", result.visible_ratio if result else None, a.visible_min))
+        for i, (name, value, limit) in enumerate(gauges):
+            y = 298 + i * 22
+            T((L, y + 6), name, 12, MUTED, anchor="lm")
+            gx0, gx1 = L + 110, R - 44
+            d.rounded_rectangle((gx0, y + 1, gx1, y + 11), 5, fill=LINE + (255,))
+            if value:
+                d.rounded_rectangle((gx0, y + 1, gx0 + max(10, (gx1 - gx0) * value), y + 11), 5,
+                                    fill=(GREEN if value >= limit else GRAY) + (255,))
+            tx = gx0 + (gx1 - gx0) * limit
+            d.line((tx, y - 2, tx, y + 14), fill=TEXT + (255,), width=2)
+            T((R, y + 6), "-" if value is None else f"{value * 100:.0f}%", 12, anchor="rm")
+        # 이동 그래프
+        section(366, "화면 이동 크기  ·  최근 5초")
+        T((R, 372), "● 방향 전환", 11, RED, anchor="rm")
+        self._graph(d, L, 386, R - L, 52)
+        # 바닥
+        d.line((L, 450, R, 450), fill=LINE + (255,), width=1)
+        times = "  ".join(self.events) if self.events else "없음"
+        T((L, 466), f"사건 {self.event_count}  ·  {times}", 13, RED if self.event_count else MUTED, True, "lm")
+        T((R, 466), f"{fps:.0f} fps · {proc_ms:.0f} ms", 12, MUTED, anchor="rm")
 
-    def _bar(self, c, x, y, w, h, fill, color):
-        self.cv2.rectangle(c, (x, y), (x + w, y + h), LINE, -1)
-        if fill > 0:
-            self.cv2.rectangle(c, (x, y), (x + int(w * fill), y + h), color, -1)
-
-    def _graph(self, c, x, y, w, h):
-        cv2, a = self.cv2, self.args
+    def _graph(self, d, x, y, w, h):
+        a = self.args
+        d.rounded_rectangle((x, y, x + w, y + h), 10, fill=CARD + (255,))
         if not self.history:
             return
         t_end, span = self.history[-1][0], 5.0
         top = max(a.search * 1.5, a.shift_min * 2)
-        to_xy = lambda t, m: (int(x + w * (1 - (t_end - t) / span)), int(y + h - 4 - (h - 8) * min(m, top) / top))
-        ny = to_xy(t_end, a.shift_min)[1]
-        for xx in range(x, x + w, 8):          # 점선 = shift_min(이보다 작으면 잡음)
-            cv2.line(c, (xx, ny), (min(xx + 4, x + w), ny), MUTED, 1)
-        prev = None
+        px = lambda t: x + 6 + (w - 12) * (1 - (t_end - t) / span)
+        py = lambda m: y + h - 6 - (h - 12) * min(m, top) / top
+        ny = py(a.shift_min)
+        for xx in range(int(x + 6), int(x + w - 6), 8):       # 점선 = shift_min(이보다 작으면 잡음)
+            d.line((xx, ny, min(xx + 4, x + w - 6), ny), fill=MUTED + (160,), width=1)
+        run, dots = [], []
         for t, m, rev in self.history:
             if t_end - t > span:
                 continue
-            if m is None:
-                prev = None
+            if m is None:                                       # 재지 못한 구간은 끊는다
+                if len(run) > 1:
+                    d.line(run, fill=BLUE + (255,), width=2, joint="curve")
+                run = []
                 continue
-            p = to_xy(t, m)
-            if prev is not None:
-                cv2.line(c, prev, p, BLUE, 2, cv2.LINE_AA)
+            run.append((px(t), py(m)))
             if rev:
-                cv2.circle(c, p, 4, RED, -1, cv2.LINE_AA)
-            prev = p
-
-    def _draw_texts(self, canvas, texts):
-        if self.make_font is None:            # Pillow·한글 글꼴이 없으면 OpenCV 영문 글꼴
-            for (x, y), text, size, color, bold, anchor in texts:
-                text = text.encode("ascii", "replace").decode()
-                scale = size / 30
-                tw, th = self.cv2.getTextSize(text, self.cv2.FONT_HERSHEY_SIMPLEX, scale, 1)[0]
-                x = x - tw if anchor[0] == "r" else (x - tw // 2 if anchor[0] == "m" else x)
-                y = y + th // 2 if anchor[1] == "m" else y + th
-                self.cv2.putText(canvas, text, (x, y), self.cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2 if bold else 1,
-                                 self.cv2.LINE_AA)
-            return
-        from PIL import Image, ImageDraw
-        img = Image.fromarray(canvas)         # BGR 배열 그대로: 색도 BGR 로 넘긴다
-        draw = ImageDraw.Draw(img)
-        for xy, text, size, color, bold, anchor in texts:
-            draw.text(xy, text, font=self.font(size, bold), fill=color, anchor=anchor)
-        canvas[:] = __import__("numpy").asarray(img)
+                dots.append(run[-1])
+        if len(run) > 1:
+            d.line(run, fill=BLUE + (255,), width=2, joint="curve")
+        for cx, cy in dots:
+            d.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill=RED + (255,))
 
 
 def handle_key(key, label):
@@ -394,12 +419,16 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     fps_hint = cap.get(cv2.CAP_PROP_FPS) or 25.0
     view_rec = Recorder(cv2, out / "view.mp4", fps_hint) if args.record else None
-    raw_rec = Recorder(cv2, out / "raw.mp4", fps_hint) if args.record and not args.video else None
     meta = dict(started=datetime.now().isoformat(timespec="seconds"), git_sha=git_sha(),
                 source=str(args.video) if args.video else f"camera {args.camera}",
                 args={k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}, policy=asdict(policy))
     print(f"정책: {policy}\n결과 폴더: {out}")
-    dash = None if args.no_window else Dashboard(cv2, args)
+    dash = None
+    if not args.no_window:
+        make_font = load_font_maker()
+        if make_font is None:
+            sys.exit("화면을 그리려면 Pillow 와 한글 글꼴이 필요합니다: pip install pillow (또는 --no-window)")
+        dash = Dashboard(cv2, args, make_font, replay=bool(args.video))
     handle = (out / "probe.csv").open("w", newline="")
     writer = csv.DictWriter(handle, FIELDS)
     writer.writeheader()
@@ -444,8 +473,6 @@ def main():
             if lost_since is not None:
                 print(f"카메라 다시 연결됨 ({(stamp - lost_since) / 1e9:.1f}초 끊김)")
                 lost_since = None
-            if raw_rec:
-                raw_rec.write(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             t0 = time.perf_counter()
             result = detector.update(to_image(gray, stamp))
@@ -467,7 +494,7 @@ def main():
                 print(f"*** DISASTER_SIGN [{row['time']}] [{label}]  {result.event.detail}")
             if dash is None:
                 continue
-            dash.note(stamp, row["elapsed_s"], result, label)
+            dash.note(stamp, row["elapsed_s"], result)
             last_frame = frame
             canvas = dash.render(frame, label, result, stamp, proc_ms, fps)
             if view_rec:
@@ -486,7 +513,7 @@ def main():
         meta["summary"] = summarize(rows)
         meta["ended"] = datetime.now().isoformat(timespec="seconds")
         (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=str))
-        saved = ["probe.csv", "meta.json"] + [r.path.name for r in (view_rec, raw_rec) if r and r.close()]
+        saved = ["probe.csv", "meta.json"] + (["view.mp4"] if view_rec and view_rec.close() else [])
         print(f"\n저장: {out}\n  " + ", ".join(saved))
 
 
