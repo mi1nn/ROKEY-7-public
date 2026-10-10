@@ -187,15 +187,25 @@ class DisasterSignTests(unittest.TestCase):
 
     def test_person_passing_over_part_of_the_view_is_not_unknown(self):
         # 사람이 조금 떨어져 지나가며 화면의 일부(10/16 칸)를 가림: 판단 보류가 아니라
-        # 부분 움직임(세지 않음)이어야 한다(2026-10-10 사용자 확인).
+        # 정상(세지 않음)이어야 한다(2026-10-10 사용자 확인). 멀리 있으니 네 구역 모두
+        # 원래 장면이 조금씩은 보인다(한 구역이 통째로 가려지면 판단 보류, 아래 시험).
         # 화면 옆에서 서서히 들어와(4칸 -> 8칸 -> 10칸) 10칸을 가린 채 왔다 갔다 한다.
-        masks = [lambda x, y: x < 13, lambda x, y: x < 24] + [lambda x, y: x < 24 or (x < 35 and y < 24)] * 6
+        masks = ([lambda x, y: 13 <= x < 24, lambda x, y: 13 <= x < 35]
+                 + [lambda x, y: 13 <= x < 35 or (x < 13 and y < 13) or (x >= 35 and y >= 35)] * 6)
         frames = still(0, 3) + [(300 + k * 100, [[hand(ox=2 * (k % 2))[y][x] if m(x, y) else scene()[y][x]
                                                   for x in range(48)] for y in range(48)]) for k, m in enumerate(masks)]
         results = self.run_frames(self.detector(), frames)
         self.assertNotIn("UNKNOWN", {r.status for r in results})
-        self.assertEqual({r.reason for r in results[5:]}, {"PARTIAL_MOTION"})
+        self.assertLessEqual({r.reason for r in results[5:]}, {"PARTIAL_MOTION", "BELOW_NOISE"})
+        self.assertEqual(max(r.reversals for r in results), 0)
         self.assertEqual(self.events(results), [])
+
+    def test_one_quadrant_fully_covered_is_unknown(self):
+        # 손이 화면 한쪽 구역(왼쪽 위 사분면)을 통째로 덮음(2026-10-10 실측: 가렸는데 정상).
+        # 그 구역에 원래 장면이 하나도 안 보이면 네 사분면 확인을 할 수 없으므로 판단 보류.
+        covered = [[hand()[y][x] if x < 24 and y < 24 else scene()[y][x] for x in range(48)] for y in range(48)]
+        results = self.run_frames(self.detector(), still(0, 3) + [(300 + k * 100, covered) for k in range(5)])
+        self.assertEqual({(r.status, r.reason) for r in results[3:]}, {("UNKNOWN", "QUADRANT_COVERED")})
 
     def test_hand_over_most_of_the_view_in_every_quadrant_is_not_shaking(self):
         # 손이 화면의 10/16 칸을 덮고(네 사분면 모두에 걸침) 왔다 갔다 함(2026-10-10 녹화 재생에서
