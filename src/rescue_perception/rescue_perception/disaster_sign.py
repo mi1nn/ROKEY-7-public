@@ -148,6 +148,10 @@ def _gray_grid(image, stride):
     return grid
 
 
+def _shape(grid):
+    return len(grid), len(grid[0])
+
+
 def _block_size(grid, policy):
     """블록 한 칸의 (높이, 너비). 가장자리에 ``search_cells`` 만큼 여백을 남긴다.
 
@@ -252,6 +256,8 @@ class DisasterSignDetector:
         _block_size(grid, self.policy)
         if self._last_ns is not None and stamp - self._last_ns > self.policy.max_gap_ns:
             self._reset_motion()  # 빠진 프레임은 어느 쪽 증거도 아니다
+        elif self._prev_grid is not None and _shape(grid) != _shape(self._prev_grid):
+            self._reset_motion()  # 해상도가 바뀌면 직전 프레임과 비교할 수 없다: 처음부터 다시
         self._last_ns = stamp
         prev, self._prev_grid = self._prev_grid, grid  # UNKNOWN 이어도 다음 비교 기준은 이 프레임
         self._reversal_ns = [t for t in self._reversal_ns if t > stamp - self.policy.window_ns]
