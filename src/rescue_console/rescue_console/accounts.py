@@ -43,6 +43,16 @@ def _require(ok, message, code='INVALID_INPUT'):
         raise ConsoleError(code, message)
 
 
+_DUMMY = []
+
+
+def _dummy_hash():
+    """A real hash of a random secret, made once, checked against when the name does not exist."""
+    if not _DUMMY:
+        _DUMMY.append(hash_password(secrets.token_urlsafe(16)))
+    return _DUMMY[0]
+
+
 def hash_password(password):
     _require(isinstance(password, str) and len(password) >= MIN_PASSWORD,
              f'password must be at least {MIN_PASSWORD} characters')
@@ -171,7 +181,9 @@ class AccountStore:
             return None
         with self._connect() as db:
             row = db.execute('SELECT * FROM accounts WHERE username = ?', (username,)).fetchone()
-        if row is None or row['status'] != 'ACTIVE' or not verify_password(row['password_hash'], password):
+        # Every name costs one password check, so the response time does not tell which names exist.
+        matches = verify_password(_dummy_hash() if row is None else row['password_hash'], password)
+        if row is None or row['status'] != 'ACTIVE' or not matches:
             return None
         return _public(row)
 

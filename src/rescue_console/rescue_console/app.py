@@ -13,11 +13,21 @@ from .accounts import AccountStore
 from .mapimage import load_map, map_overlay
 from .render import render_accounts, render_fragment, render_login, render_page
 from .sources import load_ledger, load_site_state, load_status
+from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
 
 # Paths that answer 401 instead of redirecting to the login page (polled data, the map image).
 DATA_PATHS = ('/fragment', '/map.png')
+# Sent with every response ([제안] 관제·화면, 2026-10-10). The pages are never framed by another
+# site, never content-sniffed, and leak no referrer to the camera URLs. A full script CSP needs the
+# inline script and style to carry a nonce first (README 「후속」).
+SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+}
 
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None):
@@ -44,7 +54,7 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None):
+               map_path=None, login_throttle=None):
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -60,6 +70,15 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     app = Flask(__name__)
     app.secret_key = secret_key
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
+    throttle = LoginThrottle() if login_throttle is None else login_throttle
+
+    @app.after_request
+    def harden(response):
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        # Live data and login pages are never served from a cache; /map.png sets its own policy.
+        response.headers.setdefault('Cache-Control', 'no-store')
+        return response
 
     def view():
         return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image)
@@ -126,10 +145,18 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @app.post('/login')
     def login():
         check_csrf()
-        account = accounts.authenticate(request.form.get('username', ''), request.form.get('password', ''))
+        username, client = request.form.get('username', ''), request.remote_addr
+        wait = throttle.locked_for(username, client)
+        if wait:
+            # Checked before the password, so a locked name gives no hint whether a guess was right.
+            flash(f'로그인을 너무 많이 틀렸습니다. {wait}초 뒤에 다시 하세요.', 'danger')
+            return redirect('/login')
+        account = accounts.authenticate(username, request.form.get('password', ''))
         if account is None:
+            throttle.failed(username, client)
             flash('아이디 또는 비밀번호가 틀립니다.', 'danger')
             return redirect('/login')
+        throttle.succeeded(username, client)
         session.clear()
         session['account_id'] = account['account_id']
         session['auth_version'] = account['auth_version']
