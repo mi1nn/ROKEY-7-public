@@ -8,7 +8,8 @@
     python3 tools/webcam_quake_probe.py --list                 # 연결된 카메라 번호 찾기
     python3 tools/webcam_quake_probe.py --camera 1 --csv quake_probe.csv
 
-창에서 숫자 키로 지금 하는 상황을 표시하면 CSV 의 label 칸에 남는다.
+창에서 숫자 키로 지금 하는 상황을 표시하면 CSV 의 label 칸에 남는다. CSV 앞 두 칸은
+실제 시각(time, 이 PC 기준)과 측정 시작부터 지난 초(elapsed_s)다.
     1 still(가만히)  2 shake(흔들기)  3 light(조명 켜기·끄기)  4 pass(앞 지나가기)
     5 cover(렌즈 가리기)  q 종료
 종료하면 상황별 요약(잡음 바닥값, 최대 전환 횟수, 사건 수, 처리 시간)을 출력한다.
@@ -17,6 +18,7 @@
 """
 import argparse
 import csv
+from datetime import datetime
 import math
 from pathlib import Path
 import sys
@@ -32,7 +34,7 @@ from rescue_perception import SourceBinding  # noqa: E402
 from rescue_perception.disaster_sign import DisasterSignDetector, DisasterSignPolicy  # noqa: E402
 
 LABELS = {ord("1"): "still", ord("2"): "shake", ord("3"): "light", ord("4"): "pass", ord("5"): "cover"}
-FIELDS = ("stamp_ns", "label", "status", "reason", "dx", "dy", "reversals", "condition", "event",
+FIELDS = ("time", "elapsed_s", "stamp_ns", "label", "status", "reason", "dx", "dy", "reversals", "condition", "event",
           "textured_ratio", "matched_ratio", "proc_ms")
 
 
@@ -161,6 +163,12 @@ def handle_key(cv2, key, label):
     return label
 
 
+def clock(stamp_ns, started_ns):
+    """CSV 앞 두 칸: 실제 시각(이 PC 기준, 밀리초까지)과 측정 시작부터 지난 초."""
+    return dict(time=datetime.fromtimestamp(stamp_ns / 1e9).strftime("%H:%M:%S.%f")[:-3],
+                elapsed_s=round((stamp_ns - started_ns) / 1e9, 3))
+
+
 def open_camera(cv2, args):
     cap = cv2.VideoCapture(args.camera)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
@@ -200,6 +208,7 @@ def main():
         writer.writeheader()
     label, rows, events, last_reversals, lost_since = "still", [], 0, 0, None
     last_frame, banner, banner_until = None, "", 0
+    started = time.time_ns()
     print(f"정책: {detector.policy}")
     try:
         while True:
@@ -211,7 +220,7 @@ def main():
                 if lost_since is None:
                     lost_since = stamp
                     print("프레임을 읽지 못했습니다 (카메라 끊김) — 다시 연결 시도 중 (q 로 종료)")
-                row = dict(stamp_ns=stamp, label=label, status="STREAM_LOST", reason="", dx="", dy="",
+                row = dict(**clock(stamp, started), stamp_ns=stamp, label=label, status="STREAM_LOST", reason="", dx="", dy="",
                            reversals=last_reversals, condition=0, event=0, textured_ratio="",
                            matched_ratio="", proc_ms=0.0)
                 rows.append(row)
@@ -236,7 +245,7 @@ def main():
             result = detector.update(to_image(gray, stamp))
             proc_ms = (time.perf_counter() - t0) * 1000
             dx, dy = result.shift if result.shift is not None else ("", "")
-            row = dict(stamp_ns=stamp, label=label, status=result.status, reason=result.reason or "",
+            row = dict(**clock(stamp, started), stamp_ns=stamp, label=label, status=result.status, reason=result.reason or "",
                        dx=dx, dy=dy, reversals=result.reversals, condition=int(result.condition),
                        event=int(result.event is not None), textured_ratio=result.textured_ratio,
                        matched_ratio=result.matched_ratio, proc_ms=round(proc_ms, 1))
