@@ -13,10 +13,11 @@ approval here is state only and issuing the Task is a follow-up. Every result
 uses a closed reason set; no free text is returned.
 """
 from dataclasses import dataclass
+import math
 
 from rescue_contracts import RESCUE_STATES, SiteEvent, timestamp_ns
 
-from .planning import CoordinationError, contract_value, revision, robot, uid
+from .planning import CoordinationError, contract_value, finite, point, revision, robot, uid
 from .search import Decision, SearchCoordinator
 
 MODE_REJECT_REASONS = frozenset({'NOT_DISASTER_SIGN', 'TIME_BASIS_UNUSABLE'})
@@ -26,7 +27,7 @@ PLAN_GATE_REASONS = frozenset({'PASSED', 'MODE_NOT_DISASTER'})
 # the manual START_SEARCH go elsewhere and are rejected here as invalid input.
 COMMAND_FIELDS = {
     'DISPATCH_SUPPORT': ('target_id', 'target_revision'),
-    'CONTINUE_SEGMENT': ('target_id', 'route_revision', 'segment_index'),
+    'CONTINUE_SEGMENT': ('target_id', 'target_revision', 'route_revision', 'segment_index'),
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
 }
@@ -34,7 +35,8 @@ OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_in
 COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
     'ALREADY_DISPATCHED', 'NOT_DISPATCHED_TARGET', 'NOT_AWAITING_APPROVAL', 'ROUTE_REVISION_STALE',
-    'SEGMENT_INDEX_MISMATCH', 'NOT_ARRIVED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING'})
+    'SEGMENT_INDEX_MISMATCH', 'NOT_ARRIVED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING',
+    'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH'})
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
 SEGMENT_PHASES = frozenset({'APPROVED', 'MOVING', 'AWAITING_APPROVAL', 'ARRIVED'})
@@ -44,6 +46,46 @@ MISSION_PHASES = frozenset({
     'AWAITING_CONTINUE', 'ARRIVED', 'CANDIDATE', 'RECHECKING', 'RESCUE_CONFIRMED', 'RECHECK_NEEDED',
     'RETURNING', 'FINISHED'})
 VERDICTS = RESCUE_STATES - {'NOT_CHECKED'}
+
+
+@dataclass(frozen=True)
+class HomePosition:
+    """Where a role robot returns to, with the map basis it was set on.
+
+    Not in profile v2 yet (only the SUPPORT's ``hold_positions``); the caller
+    passes it and a missing one is refused, never defaulted (작전 2026-10-10).
+    """
+    robot_id: str
+    mission_xy: tuple
+    yaw: float
+    map_session_id: str
+    map_revision: int
+    transform_revision: int
+
+    def __post_init__(self):
+        robot(self.robot_id)
+        point(self.mission_xy)
+        finite(self.yaw, 'yaw', minimum=-math.inf)
+        uid(self.map_session_id)
+        revision(self.map_revision)
+        revision(self.transform_revision)
+
+    @property
+    def basis(self):
+        return self.map_session_id, self.map_revision, self.transform_revision
+
+
+@dataclass(frozen=True)
+class SegmentApproval:
+    """One operator approval = one segment (ONE_SEGMENT). A MOVE_SEGMENT Task must carry the same keys."""
+    command_id: str
+    target_id: str
+    target_revision: int
+    route_revision: int
+    segment_index: int
+
+    def key(self):
+        return self.target_id, self.target_revision, self.route_revision, self.segment_index
 
 
 @dataclass(frozen=True)
@@ -117,6 +159,7 @@ class MissionView:
     trigger_event_id: str | None
     trigger_observed_at_ns: int | None
     target_id: str | None
+    target_revision: int | None
     route_revision: int | None
     segment_index: int | None
     segment_count: int | None
@@ -126,10 +169,17 @@ class MissionView:
 class MissionCoordinator:
     """One mission: one trigger, one SUPPORT dispatch (Phase 1)."""
 
-    def __init__(self, search):
+    def __init__(self, search, *, home_positions):
         if not isinstance(search, SearchCoordinator):
             raise CoordinationError('INVALID_POLICY', 'search coordinator type')
+        roles = dict(search.policy.roles)
+        homes = tuple(home_positions)
+        if not all(isinstance(h, HomePosition) and h.robot_id in roles for h in homes) or (
+                len({h.robot_id for h in homes}) != len(homes)):
+            raise CoordinationError('INVALID_POLICY', 'home positions must name role robots once')
         self.search = search
+        self.homes = {h.robot_id: h for h in homes}
+        self.map_basis = {}  # robot_id -> (map_session_id, map_revision, transform_revision) now in use
         self.mode = 'NORMAL'
         self.trigger_event_id = None
         self.trigger_observed_at_ns = None
@@ -139,6 +189,8 @@ class MissionCoordinator:
         self.routes = {}    # target_id -> (route_revision, segment_count)
         self.search_started = False
         self.dispatch_target = None
+        self.dispatch_target_revision = None
+        self.approval = None  # SegmentApproval while APPROVED/MOVING
         self.segment_index = None
         self.segment_phase = None
         self.recheck_pending = False
@@ -232,14 +284,26 @@ class MissionCoordinator:
             self.segment_index = 0
         return changed
 
-    def segment_started(self, target_id, *, route_revision, segment_index):
+    def record_map_basis(self, robot_id, *, map_session_id, map_revision, transform_revision):
+        """The map basis a role robot runs on now (mapping); RETURN_HOME compares homes with it."""
+        robot(robot_id)
+        uid(map_session_id)
+        revision(map_revision)
+        revision(transform_revision)
+        if robot_id not in dict(self.search.policy.roles):
+            raise CoordinationError('WRONG_ROBOT', 'robot has no role in this policy')
+        self.map_basis[robot_id] = (map_session_id, map_revision, transform_revision)
+
+    def segment_started(self, target_id, *, target_revision, route_revision, segment_index):
         """The executor admitted the approved segment: APPROVED -> MOVING. False if it is not that segment."""
-        if not self._is_segment(target_id, route_revision, segment_index) or self.segment_phase != 'APPROVED':
+        if not self._is_segment(target_id, target_revision, route_revision, segment_index) or (
+                self.segment_phase != 'APPROVED'):
             return False
         self.segment_phase = 'MOVING'
         return True
 
-    def segment_finished(self, target_id, *, route_revision, segment_index, completed, stop_confirmed):
+    def segment_finished(self, target_id, *, target_revision, route_revision, segment_index, completed,
+                         stop_confirmed):
         """A segment ended. Needs a confirmed stop; never authorizes the next segment.
 
         Completed: the next segment awaits approval, or ARRIVED after the last.
@@ -247,9 +311,10 @@ class MissionCoordinator:
         """
         if type(completed) is not bool or type(stop_confirmed) is not bool:
             raise CoordinationError('INVALID_INPUT', 'completed/stop_confirmed must be boolean')
-        if (not stop_confirmed or not self._is_segment(target_id, route_revision, segment_index)
+        if (not stop_confirmed or not self._is_segment(target_id, target_revision, route_revision, segment_index)
                 or self.segment_phase != 'MOVING'):
             return False
+        self.approval = None
         if completed:
             self.segment_index += 1
         self.segment_phase = 'ARRIVED' if self.segment_index == self.segment_count else 'AWAITING_APPROVAL'
@@ -302,7 +367,8 @@ class MissionCoordinator:
             return 'TARGET_REVISION_STALE'
         if command.target_id not in self.routes:
             return 'NO_ROUTE'
-        self.dispatch_target, self.segment_index, self.segment_phase = command.target_id, 0, 'APPROVED'
+        self.dispatch_target, self.segment_index = command.target_id, 0
+        self._approve(command)
         return 'ACCEPTED'
 
     def _continue_segment(self, command):
@@ -310,12 +376,20 @@ class MissionCoordinator:
             return 'NOT_DISPATCHED_TARGET'
         if self.segment_phase != 'AWAITING_APPROVAL':
             return 'NOT_AWAITING_APPROVAL'
+        if command.target_revision != self.targets[command.target_id][0]:
+            return 'TARGET_REVISION_STALE'
         if command.route_revision != self.route_revision:
             return 'ROUTE_REVISION_STALE'
         if command.segment_index != self.segment_index:
             return 'SEGMENT_INDEX_MISMATCH'
-        self.segment_phase = 'APPROVED'
+        self._approve(command)
         return 'ACCEPTED'
+
+    def _approve(self, command):
+        self.dispatch_target_revision = command.target_revision
+        self.approval = SegmentApproval(command.command_id, command.target_id, command.target_revision,
+                                        self.route_revision, self.segment_index)
+        self.segment_phase = 'APPROVED'
 
     def _request_recheck(self, command):
         if command.target_id != self.dispatch_target:
@@ -332,6 +406,11 @@ class MissionCoordinator:
             return 'ALREADY_RETURNING'
         if self.verdict is None:
             return 'NO_VERDICT'
+        robots = [r for r, _ in self.search.policy.roles]
+        if any(r not in self.homes for r in robots):
+            return 'NO_HOME_POSITION'
+        if any(self.map_basis.get(r) != self.homes[r].basis for r in robots):
+            return 'HOME_BASIS_MISMATCH'
         self.returning = True
         return 'ACCEPTED'
 
@@ -357,13 +436,12 @@ class MissionCoordinator:
 
     def view(self):
         return MissionView(self.mode, self.phase(), self.trigger_event_id, self.trigger_observed_at_ns,
-                           self.dispatch_target, self.route_revision, self.segment_index, self.segment_count,
-                           self.segment_phase)
+                           self.dispatch_target, self.dispatch_target_revision, self.route_revision,
+                           self.segment_index, self.segment_count, self.segment_phase)
 
     # -- helpers -----------------------------------------------------------
-    def _is_segment(self, target_id, route_revision, segment_index):
-        return (target_id == self.dispatch_target and route_revision == self.route_revision
-                and segment_index == self.segment_index)
+    def _is_segment(self, *key):
+        return self.approval is not None and self.approval.key() == key
 
     @staticmethod
     def _record(table, key, value, *, older):
