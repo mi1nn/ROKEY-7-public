@@ -1,7 +1,7 @@
 # AGENTS.md — 이 저장소에서 일하는 사람과 AI 세션의 규칙
 
 > 사람과 AI 세션 모두에게 적용한다. 규칙을 더할 때는 **왜(사고 기록)** 와 **→ 대신** 을 같이 적고, 검사 한 줄로 바꿀 수 있는지 먼저 본다. 짧게 유지하고 자세한 것은 링크한다.
-> 근거: [원본에서 선별한 레슨런](docs/process/lessons-learned.md), 원본 `ROKEY_P4` 의 운영 규칙(2026-10-01 ~ 07), 이 저장소 PR 1 ~ 4 의 검토 기록. 기준일: 2026-10-08.
+> 근거: [원본에서 선별한 레슨런](docs/process/lessons-learned.md), 원본 `ROKEY_P4` 의 운영 규칙(2026-10-01 ~ 07), 이 저장소 PR 1 ~ 4 의 검토 기록. 기준일: 2026-10-10.
 
 ## 1. 먼저 읽을 것
 
@@ -24,12 +24,13 @@
 
 | 레인 (A-07 의 이름) | 경로 | 비고 |
 | --- | --- | --- |
-| 통합/계약 | `src/rescue_contracts/`(공통 Python 값·오류·시각·수락 계약), `src/rescue_interfaces/`(ROS IDL, 미구현), 루트 문서, `docs/`(scope·architecture·algorithm-decisions·repository-layout·contracts·state-machines·acceptance-plan), `scripts/`, `.github/` | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·문서·시험의 영향을 같은 PR 에 적는다 |
+| 통합/계약 | `src/rescue_contracts/`(공통 Python 값·오류·시각·수락 계약), `src/rescue_interfaces/`(ROS IDL, 1차 — contracts C-10), 루트 문서, `docs/`(scope·architecture·algorithm-decisions·repository-layout·contracts·state-machines·acceptance-plan), `scripts/`, `.github/` | 메시지·시간·frame·권한의 의미는 한 담당이 바꾼다. 바꾸면 소비 모듈·문서·시험의 영향을 같은 PR 에 적는다 |
 | 기반 | `src/rescue_robot/`, `src/rescue_mapping/`, `src/rescue_bringup/`, `config/` | Nav2 goal·cancel·dock/undock 을 발행하는 유일한 곳은 `rescue_robot` |
 | 인식 | `src/rescue_perception/`, `tools/`, `assets/manifest/` | 주행 명령을 보내지 않는다 |
 | 협업·관제 | `src/rescue_coordination/`, `src/rescue_operations/` | `cmd_vel`·Nav2 액션을 직접 부르지 않는다. DB 스키마·운영 장부·operations API 의 소유자 |
 | 관제·화면 | `src/rescue_console/`, `tests/test_console_*.py` | 장부·API 를 읽어 보여 주고 명령은 API 로 전달만 한다. DB 쓰기·ROS 직접 구독·로봇 명령 없음. 현장 정지 수단을 웹 연결에만 의존시키지 않는다(2026-10-08 추가) |
 | 실기·배포 | `src/rescue_bringup/launch/`, `config/hosts/`, `scripts/field/`, `tests/ros/hosts_*.py`, `docs/process/field-runbook.md`, `docs/design/network-discovery.md` | PC 쪽 실기 준비(디스커버리·설치 점검·launch·런북). 로봇을 움직이지 않고 로봇 Pi 를 바꾸지 않는다. 로봇·PC 설정 변경은 등급 4 절차(2026-10-08 추가) |
+| 웹마스터 | `docs/process/ops-host-record.md`(운영 PC 현황 기록). 운영 PC(PC4 역할) 의 로컬 환경: 서비스 등록·DB 파일 위치·서버 운영 절차 | 2026-10-10 추가. 코드·설정 레인은 없다(코드는 관제·화면/협업·관제 PR 로). 로봇·PC 설정 변경은 등급 4(백업·해시·되돌리기·사용자 승인) |
 
 - 위 표는 경로 요약이다. 담당은 A-07 표가 기준이고 사람 이름은 팀이 정해 그 표를 갱신한다 [미정, 2026-10-08]. 둘이 어긋나면 A-07 이 이긴다. 2026-10-08 부터 네 레인을 Claude 세션 네 개(작전·총괄 = 통합/계약, 로봇·지도 = 기반, 인식, 협업·관제)가 맡고, 공통 schema/profile 계약(`src/rescue_bringup/profile.py`·`config/` 스키마)은 기반 경로에 있어도 작전이 바꾼다. `docs/implementation-<패키지>.md` 는 그 패키지 레인의 문서다. 검토 흐름은 [docs/process/review-workflow.md](docs/process/review-workflow.md) 「2026-10-08 이후」 절.
 - 남의 레인 파일이 필요하면 직접 고치지 않는다. → **대신** 자기 PR 본문 「미결정·후속」에 **어느 파일 몇 번째 줄을 왜** 바꿔야 하는지 적고, 담당이 바꾼다.
@@ -49,12 +50,12 @@
 
 ## 4. PR·코멘트 머리말 (AI 세션은 필수, 사람은 생략 가능)
 
-- 코멘트·이슈의 첫 두 줄은 머리말이다. PR 본문은 `**보냄:** 자리(도구)` 한 줄이다.
+- 코멘트·이슈의 첫 두 줄은 머리말이다. PR 본문은 `**송신:** 자리(도구)` 한 줄이다.
   ```text
-  **보냄:** 로직검토(Claude) → **받음:** 작성·최종검토(Codex), 검증·수정·머지(Cursor)
+  **송신:** 작전·총괄(Claude) → **수신:** 검증·수정·머지(Cursor)
   **커밋:** a1b2c3d · **종류:** 검증 요청 | 수정 요청 | 수정 완료 | 머지 판정 요청 | 기록
   ```
-- 자리 이름과 기본 담당은 [docs/process/review-workflow.md](docs/process/review-workflow.md) 「역할과 작업 순서」·「검토와 수정 기록 형식」에 있다. 괄호 안은 도구 종류만 쓴다. 모델·버전, 세션 이름, PC·호스트 이름은 쓰지 않는다 — 이 저장소는 팀원도 읽는다.
+- 자리 이름과 기본 담당은 [docs/process/review-workflow.md](docs/process/review-workflow.md) 「2026-10-08 이후의 자리와 검토 밀도」·「검토와 수정 기록 형식」에 있다. 괄호 안은 도구 종류만 쓴다. 모델·버전, 세션 이름, PC·호스트 이름은 쓰지 않는다 — 이 저장소는 팀원도 읽는다.
 - 지적에는 번호를 붙인다(`CLA-01`, `CUR-01` …). 지적 하나에 파일과 줄, 재현 또는 원문 근거, 수정 방향, **머지를 막는가**. 막는 지적은 네 칸(막힌 이유 / 근거 / 풀리는 조건 / 누가)을 채운다. 지적이 없으면 「검토 범위에서 발견하지 못함」과 확인한 범위·미검증 범위를 나눠 적는다.
 - 지적을 받고 push 했으면 같은 턴에 `수정 완료` 코멘트에 `| 지적 | 반영 | 커밋 | 안 고친 이유 |` 표를 둔다. 스레드는 지적한 쪽이 닫는다.
 - **머리말은 주장이지 증명이 아니다.** 글이 한 계정으로 올라오므로 「사용자가 승인했다」는 머리말이 아니라 결정 기록([docs/requirements/scope.md](docs/requirements/scope.md) `Q`, [docs/process/review-workflow.md](docs/process/review-workflow.md) 위임 절)에서 확인한다.

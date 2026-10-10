@@ -1,0 +1,22 @@
+# SDD v0.1 services.RequestStop (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string stop_command_id
+string requester_id
+string authority_epoch
+string robot_id
+string SCOPE_ACTIVE_TASK="ACTIVE_TASK"
+string SCOPE_ALL_MOTION="ALL_MOTION"
+string scope
+string reason_code
+int64 issued_at_ns
+int64 deadline_ns
+---
+Envelope envelope
+bool accepted
+string stop_command_id
+string reason_code
+string STATE_ACCEPTED="ACCEPTED"
+string STATE_REJECTED="REJECTED"
+string STATE_DUPLICATE="DUPLICATE"
+string state

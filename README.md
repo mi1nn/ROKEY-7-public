@@ -6,7 +6,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 
 ## 현재 단계
 
-범위·구조·계약 설계에 이어 **배포 프로파일 검사, 로봇 명령/정지 판정, 3D 좌표·지도 revision, RGB-D 관측, 임무 배정/통로, 보고 영속 저장의 Python 코어**를 구현했다. 두 논리 로봇을 연결한 합성 입력 리허설도 실행할 수 있다. 실제 SLAM·Nav2·센서/모델 추론·공통 ROS 메시지·노드·원격 통신은 미구현이다. 자동 접근은 백엔드 미연동으로 차단한다. 원본 코드는 복사하지 않고 선택한 원리와 실패 경험을 고정 URL로 추적했다. **계획 PR 5~10의 E2 부분 구현이며 두 실제 AMR·4 PC 시연 완료가 아니다.**
+범위·구조·계약 설계에 이어 **배포 프로파일 검사, 로봇 명령/정지 판정, 3D 좌표·지도 revision, RGB-D 관측, 임무 배정/통로, 보고 영속 저장의 Python 코어**를 구현했다. 두 논리 로봇을 연결한 합성 입력 리허설도 실행할 수 있다. 공통 ROS 메시지·서비스·액션은 [rescue_interfaces](src/rescue_interfaces/README.md)에 1차 IDL을 정의했다. 실제 SLAM·Nav2·센서/모델 추론·ROS 노드·원격 통신 연결은 미구현이다. 자동 접근은 백엔드 미연동으로 차단한다. 원본 코드는 복사하지 않고 선택한 원리와 실패 경험을 고정 URL로 추적했다. **계획 PR 5~10의 E2 부분 구현이며 두 실제 AMR·4 PC 시연 완료가 아니다.**
 
 | 문서 | 확인할 내용 |
 | --- | --- |
@@ -14,19 +14,24 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [원본 자산 선별](docs/process/source-selection.md) | 고정한 원본 커밋, 이식 후보, 바꿔야 할 전제, 제외 근거 |
 | [레슨런](docs/process/lessons-learned.md) | 원본 코드·기록의 교훈과 새 프로젝트에서 확인할 시험 |
 | [원본 목록 집계](docs/evidence/source-audit.json) | 고정 커밋의 추적 파일·패키지·시험 파일 집계 |
-| [PR 진행과 검토 지침](docs/process/review-workflow.md) | 병렬 작성, Codex 최종 검토, Claude 로직 검토, Cursor 검증·수정·머지와 원본 URL |
+| [PR 진행과 검토 지침](docs/process/review-workflow.md) | 현재 검토 담당·인계·머지 조건, 계획 PR의 과거 운영 기록과 원본 URL |
 | [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
 | [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 기존 팀 BRD·실행 계약과의 차이를 명시 |
+| [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
+| [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
 | [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
 | [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 | [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서 |
 | [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
+| [BRD v0.2 (제안)](docs/requirements/brd-v0.2.md) · [SRD v0.2 (제안)](docs/requirements/srd-v0.2.md) | 웹캠 1대·운영자 구간 승인·머리 위 기둥 통로·이중 확인 완료 판정 시나리오를 교육 양식 목차로 쓴 BRD·SRD. 채택 전 `[제안]`, 기준 문서는 Part I v0.1 |
 | [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, 오프라인 시험 규칙 |
+| [운영 PC 현황 기록](docs/process/ops-host-record.md) | 운영 PC 에 실제로 떠 있는 Discovery Server(서버 ID 0, 손으로 띄움, DHCP 주소)·관제 웹의 측정값, network-discovery 권고안 A 와의 차이, 로봇 Discovery 설정을 건드리지 않는 규칙 |
+| [운영 DB 파일과 테이블 관계도](docs/process/ops-db-tables.md) | SQLite 파일 넷(송신 대기열·운영 장부·현장 상태·웹 계정)의 쓰는 쪽·읽는 쪽, 테이블과 JSON 안 ID 로 이어지는 관계(Mermaid 그림), 읽기 전용으로 여는 법 |
 | [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
 | [일정과 담당](docs/process/schedule.md) · [일정표 CSV](docs/process/schedule-timeline.csv) | 10-08 ~ 10-16 작업일·관문·사람별 담당(임시안), 구글 시트로 가져올 칸 일정 |
 | [페이즈와 릴리즈 계획](docs/process/release-plan.md) | P0 ~ P5 페이즈, v0.1 ~ v1.0 릴리즈에 들어가는 것·빠지는 것·합격 조건, P1 후보 PR 대응, 대비책 |

@@ -6,7 +6,7 @@ updated: 2026-10-08
 
 # 인터페이스 계약 초안
 
-이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 아직 미구현이다. PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](../process/acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
+이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 C-10의 1차 범위만 정의했다(2026-10-10). PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](../process/acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
 
 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
 
@@ -184,6 +184,28 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 `NEEDS_REOBSERVATION`가 예외의 세부 원인일 때 `.code=FRAME_REVISION_MISMATCH`이며 상태 표기의 이름은 그대로 유지한다. 알려지지 않은 진단 코드를 사전에 등록하지 않고 성공으로 처리하지 않는다. E2 코어는 객체·시각·task 정보가 담긴 호출 입력/반환값을 제공하며, 전체 런타임 로그 envelope와 재시도 정책은 ROS/API 어댑터에서 결합해야 한다.
 
 모든 오류에는 원인 컴포넌트·객체 ID·발생 시각·활성 task/generation·재시도 가능 여부를 기록한다. 원인을 모르면 UNKNOWN을 유지하고 성공으로 추정하지 않는다. sensor/time/frame 실패와 임무 정책 실패를 같은 무한 재시도로 숨기지 않는다. 재시도 budget·전체 deadline·정지 사유는 상태 전이와 함께 시험한다.
+
+## C-10. ROS 인터페이스 1차 채택 (2026-10-10)
+
+[SDD 검토안 v0.1](sdd-node-interface-spec-v0.1.md)의 필드 정의([JSON](sdd-node-contracts-v0.1.json))에서 아래만 `src/rescue_interfaces` 의 ROS IDL 로 채택한다. 사용자 지시 원문: "ㅇㅇ 그렇게 진행해줘"(2026-10-10, 이 세션이 제안한 1차 목록·IDL 규칙에 대한 답). 적용 범위는 IDL 정의이며 토픽 이름·QoS·노드 배치·Q-10·Q-12·Q-15·Q-22·Q-25 의 결정이 아니다.
+
+| 구분 | 1차 채택 |
+| --- | --- |
+| msg (19) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment |
+| srv (4) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand |
+| action (2) | ExecuteTask, ObserveTarget |
+
+`RecheckObservation`·`PassageAssessment` 는 `TaskResult`·`RouteCandidate`·`ObserveTarget` 이 품고 있어 같이 들어왔다. 구조만 있고 통로 판정의 채택(Q-25)은 아니다.
+
+IDL 규칙:
+- 필드 이름·순서·타입은 JSON 이 원본이다. JSON 을 먼저 고치고, `tests/test_interfaces_schema.py` 가 IDL 과 같은지 ROS 없이 검사한다.
+- UUID 는 `string`, 시각은 `int64 *_ns`(`builtin_interfaces/Time` 아님, C-03), 없을 수 있는 값은 `bool has_*`/`*_known` + 값.
+- JSON 의 `string(A/B)` 열거는 `string` 필드 + 같은 파일의 상수 `<FIELD>_<VALUE>="<VALUE>"` 다. 상수 선언 자체는 필드 값의 검증을 강제하지 않는다. UUID·열거값·시각·선택 필드의 유효성은 각 ROS 경계 모듈이 검사한다.
+- SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 아직 Python `TASK_KINDS` 에 없고, `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
+- 문자열·배열 길이 상한은 두지 않았다 [제안]. 실측 뒤 정한다.
+- 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
+
+2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, TargetEstimate·TargetSnapshot, SystemState, CameraStatus, TargetPresence, RescueReport, SetCameraWatch, PrepareMapping, EvaluateRoute, EvaluatePassage.
 
 ## 고정 원본에서 가져온 계약 근거
 

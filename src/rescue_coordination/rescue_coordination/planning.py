@@ -7,7 +7,8 @@ import math
 from uuid import UUID
 
 from rescue_contracts import (RescueError, canonical_code, robot_id, robot_ids,
-                              timestamp_ns, duration_ns, TaskAdmission)
+                              timestamp_ns, duration_ns, TaskAdmission,
+                              TASK_KINDS, TARGET_TASK_KINDS)
 
 
 class CoordinationError(RescueError):
@@ -137,12 +138,6 @@ def select_candidate(candidates, *, now_ns, policy, available_robots):
                 and distance + c.uncertainty <= policy.max_distance):
             accepted.append(c)
     return min(accepted, key=lambda c: (c.path_length, c.robot_id, c.goal_xy)) if accepted else None
-
-
-# Same kinds as rescue_robot.executor.Task (C-06); kept here to avoid a
-# coordination -> robot import.
-TASK_KINDS = ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD')
-TARGET_TASK_KINDS = ('REOBSERVE_TARGET', 'APPROACH_TARGET')
 
 
 @dataclass(frozen=True)
