@@ -94,6 +94,73 @@ def summarize(rows):
               f"UNKNOWN {unknown}, 카메라 끊김 {lost}, 처리 p95 {p95(procs):.0f} ms")
 
 
+WINDOW = "webcam quake probe"
+KEY_HELP = (("1", "still"), ("2", "shake"), ("3", "light"), ("4", "pass"), ("5", "cover"))
+# OpenCV 기본 글꼴은 영문만 그린다. 색은 BGR.
+GREEN, RED, GRAY, ORANGE, YELLOW, WHITE, BLACK = ((40, 160, 40), (40, 40, 220), (110, 110, 110),
+                                                 (0, 140, 255), (0, 220, 255), (255, 255, 255), (0, 0, 0))
+
+
+def _bar(cv2, frame, y0, y1, color):
+    cv2.rectangle(frame, (0, y0), (frame.shape[1], y1), color, -1)
+
+
+def draw_overlay(cv2, frame, label, result, args, proc_ms, events, banner):
+    """맨 위: 지금 상황(라벨)과 판정 상태를 크게. 가운데: 전환 횟수 막대. 맨 아래: 키 안내."""
+    h, w = frame.shape[:2]
+    if result is None:
+        state, color = "NO CAMERA", ORANGE
+        banner = banner or "reconnecting camera..."
+    elif result.status == "UNKNOWN":
+        state, color = f"UNKNOWN ({result.reason})", GRAY
+    elif result.condition:
+        state, color = "SHAKING", RED
+    else:
+        state, color = "NORMAL", GREEN
+    _bar(cv2, frame, 0, 60, color)
+    cv2.putText(frame, f"MODE: {label.upper()}", (12, 42), cv2.FONT_HERSHEY_SIMPLEX, 1.1, WHITE, 3)
+    size = cv2.getTextSize(state, cv2.FONT_HERSHEY_SIMPLEX, 0.9, 2)[0]
+    cv2.putText(frame, state, (w - size[0] - 12, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, WHITE, 2)
+    if result is not None:
+        # 방향 전환 횟수 / 기준 N 막대
+        filled = min(1.0, result.reversals / args.shakes)
+        cv2.rectangle(frame, (12, 72), (312, 92), WHITE, 2)
+        cv2.rectangle(frame, (14, 74), (14 + int(296 * filled), 90), RED if filled >= 1 else YELLOW, -1)
+        cv2.putText(frame, f"reversals {result.reversals}/{args.shakes}", (322, 89),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, WHITE, 2)
+        info = (f"shift {result.shift}  reason {result.reason or '-'}",
+                f"textured {result.textured_ratio}  matched {result.matched_ratio}",
+                f"proc {proc_ms:.0f} ms   events {events}")
+        _bar(cv2, frame, h - 120, h - 36, (50, 50, 50))
+        for i, text in enumerate(info):
+            cv2.putText(frame, text, (12, h - 96 + 24 * i), cv2.FONT_HERSHEY_SIMPLEX, 0.6, WHITE, 1)
+    if banner:
+        # 사건이 난 직후 2초 동안 화면 가운데에 크게
+        size = cv2.getTextSize(banner, cv2.FONT_HERSHEY_SIMPLEX, 1.4, 4)[0]
+        x, y = (w - size[0]) // 2, h // 2
+        fill = color if result is None else RED
+        cv2.rectangle(frame, (x - 16, y - size[1] - 16), (x + size[0] + 16, y + 16), fill, -1)
+        cv2.putText(frame, banner, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1.4, WHITE, 4)
+    _bar(cv2, frame, h - 36, h, BLACK)
+    x = 12
+    for key, name in KEY_HELP + (("q", "quit"),):
+        text = f"[{key}] {name}"
+        cv2.putText(frame, text, (x, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.6, YELLOW if name == label else WHITE,
+                    2 if name == label else 1)
+        x += cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0][0] + 18
+    cv2.imshow(WINDOW, frame)
+
+
+def handle_key(cv2, key, label):
+    """q 면 None, 숫자 키면 새 라벨, 그 밖에는 그대로."""
+    if key == ord("q"):
+        return None
+    if key in LABELS and LABELS[key] != label:
+        print(f"-- 상황: {LABELS[key]}")
+        return LABELS[key]
+    return label
+
+
 def open_camera(cv2, args):
     cap = cv2.VideoCapture(args.camera)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
@@ -132,6 +199,7 @@ def main():
         writer = csv.DictWriter(handle, FIELDS)
         writer.writeheader()
     label, rows, events, last_reversals, lost_since = "still", [], 0, 0, None
+    last_frame, banner, banner_until = None, "", 0
     print(f"정책: {detector.policy}")
     try:
         while True:
@@ -149,10 +217,14 @@ def main():
                 rows.append(row)
                 if writer:
                     writer.writerow(row)
-                if not args.no_window and cv2.waitKey(500) & 0xFF == ord("q"):
-                    break
                 if args.no_window:
                     time.sleep(0.5)
+                else:
+                    if last_frame is not None:
+                        draw_overlay(cv2, last_frame.copy(), label, None, args, 0, events, "")
+                    label = handle_key(cv2, cv2.waitKey(500) & 0xFF, label)
+                    if label is None:
+                        break
                 cap.release()
                 cap = open_camera(cv2, args)
                 continue
@@ -174,23 +246,15 @@ def main():
                 writer.writerow(row)
             if result.event is not None:
                 events += 1
+                banner, banner_until = f"DISASTER_SIGN #{events}", stamp + 2 * 10**9
                 print(f"*** DISASTER_SIGN #{events}  [{label}]  {result.event.detail}")
             if args.no_window:
                 continue
-            color = (0, 0, 255) if result.condition else (0, 200, 0)
-            lines = (f"[{label}] {result.status} {result.reason or ''}",
-                     f"shift {result.shift}  reversals {result.reversals}/{args.shakes}",
-                     f"textured {result.textured_ratio}  matched {result.matched_ratio}",
-                     f"proc {proc_ms:.0f} ms  events {events}")
-            for i, text in enumerate(lines):
-                cv2.putText(frame, text, (10, 25 + 25 * i), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-            cv2.imshow("webcam quake probe (1-5 label, q quit)", frame)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
+            last_frame = frame.copy()
+            draw_overlay(cv2, frame, label, result, args, proc_ms, events, banner if stamp < banner_until else "")
+            label = handle_key(cv2, cv2.waitKey(1) & 0xFF, label)
+            if label is None:
                 break
-            if key in LABELS:
-                label = LABELS[key]
-                print(f"-- 상황: {label}")
     except KeyboardInterrupt:
         pass
     finally:
