@@ -13,15 +13,30 @@ def _text(value):
     return MISSING if value is None else escape(str(value))
 
 
-def _time(ns):
+def _time(ns, ref_ns=None):
+    """Clock time of a ns stamp; the date is added when it is not the day of `ref_ns`."""
     if ns is None:
         return MISSING
-    stamp = datetime.fromtimestamp(ns / 1e9).strftime('%H:%M:%S.%f')[:-3]
+    moment = datetime.fromtimestamp(ns / 1e9)
+    same_day = ref_ns is None or moment.date() == datetime.fromtimestamp(ref_ns / 1e9).date()
+    stamp = moment.strftime('%H:%M:%S.%f' if same_day else '%Y-%m-%d %H:%M:%S.%f')[:-3]
     return f'<span title="{ns}">{stamp}</span>'
 
 
 def _age(seconds):
-    return MISSING if seconds is None else f'{seconds:.1f}s'
+    """Short age text: 0.4s, 12.0s, 3분 05초, 2시간 10분, 41일. Negative means a clock ahead of this host."""
+    if seconds is None:
+        return MISSING
+    sign, value = ('-', -seconds) if seconds < 0 else ('', seconds)
+    if value < 60:
+        text = f'{value:.1f}s'
+    elif value < 3600:
+        text = f'{int(value // 60)}분 {int(value % 60):02d}초'
+    elif value < 86400:
+        text = f'{int(value // 3600)}시간 {int(value % 3600 // 60)}분'
+    else:
+        text = f'{int(value // 86400)}일'
+    return sign + text
 
 
 def _pose(pose):
@@ -36,13 +51,15 @@ def _robots(view):
     rows = []
     for robot in view['robots']:
         battery = MISSING if robot['battery_percent'] is None else f"{robot['battery_percent']:.0f}%"
+        row_class = 'missing' if not robot['has_status'] else 'stale' if robot['stale'] else ''
+        stale = ' <b class="stale-tag">낡음</b>' if robot['has_status'] and robot['stale'] else ''
         rows.append(
-            f'<tr class="{"" if robot["has_status"] else "missing"}"><td>{_text(robot["robot_id"])}</td>'
+            f'<tr class="{row_class}"><td>{_text(robot["robot_id"])}</td>'
             f'<td>{_text(robot["role"])}</td><td>{_pose(robot["pose"])}</td>'
             f'<td>{_text(robot["motion_state"])}</td><td>{_text(robot["readiness"])}</td>'
             f'<td>{battery} <small>({_age(robot["battery_age_s"])})</small></td>'
             f'<td>{_text(robot["active_task_id"])}</td><td>{_age(robot["age_s"])}</td>'
-            f'<td>{_age(robot["received_age_s"])}</td></tr>')
+            f'<td>{_age(robot["received_age_s"])}{stale}</td></tr>')
     return ('<table id="robots"><caption>로봇</caption><tr><th>ID</th><th>역할</th><th>위치</th>'
             '<th>동작</th><th>준비</th><th>배터리 (나이)</th><th>작업</th><th>상태 나이</th><th>수신 나이</th></tr>'
             + ''.join(rows) + '</table>')
@@ -68,12 +85,27 @@ def _targets(view):
             + ''.join(rows) + '</table>')
 
 
+def _mission(view):
+    """Mode badge. The exit count is not drawn: one fixed camera, no EXIT_PASS producer (db-schema 2절)."""
+    mission = view['mission']
+    mode = (mission['mode'] or 'unknown').lower()
+    if mission['mode'] == 'DISASTER':
+        detail = (f'트리거 {_time(mission["trigger_ns"], view["built_at_ns"])}'
+                  f' · 진동 사건 {mission["sign_count"]}건')
+    elif mission['mode'] == 'NORMAL':
+        detail = '진동 사건 없음'
+    else:
+        detail = '현장 사건 입력 없음'
+    return (f'<div id="mission" class="mode {mode}" data-mode="{escape(mission["mode"] or "")}">'
+            f'<b>{escape(mission["label"])}</b> <span>{detail}</span>'
+            '<small>현장 사건 기준 추정 — 임무 상태 표 연결 전</small></div>')
+
+
 def _summary(view):
-    counts = ''.join(f'<li>{escape(label)} <b>{view["stage_counts"][stage]}</b></li>'
+    counts = ''.join(f'<li class="stage {stage.lower()}">{escape(label)} <b>{view["stage_counts"][stage]}</b></li>'
                      for stage, label in (('UNCONFIRMED', '미확정'), ('NOT_RESCUED', '미구조'),
                                           ('SUPPORTING', '지원 중'), ('RESCUED', '구출 완료')))
-    return (f'<section id="summary"><div class="exit">출구 누적 <b id="exit-count">{_text(view["exit_count"])}</b></div>'
-            f'<ul class="stages">{counts}</ul></section>')
+    return f'<section id="summary"><ul class="stages">{counts}</ul></section>'
 
 
 def _events(view):
@@ -81,7 +113,8 @@ def _events(view):
     for event in view['events']:
         rows.append(
             f'<tr class="event" data-ref="{escape(event["ref_id"])}" data-event-ns="{event["event_ns"]}">'
-            f'<td>{_time(event["event_ns"])}</td><td>{_time(event["received_at_ns"])}</td>'
+            f'<td>{_time(event["event_ns"], view["built_at_ns"])}</td>'
+            f'<td>{_time(event["received_at_ns"], view["built_at_ns"])}</td>'
             f'<td class="rendered">{MISSING}</td><td class="latency">{MISSING}</td>'
             f'<td>{escape(event["kind"])}</td><td>{escape(event["source"])}</td><td>{_text(event["subject"])}</td>'
             f'<td>{escape(event["detail"])}</td><td>{escape(event["clock_domain_id"])}</td></tr>')
@@ -102,7 +135,8 @@ def _commands(view):
 def render_fragment(view):
     """The part of the page that the browser replaces on every poll."""
     warnings = ''.join(f'<li>{escape(w)}</li>' for w in view['warnings'])
-    return (f'<div id="built" data-built-ns="{view["built_at_ns"]}">서버 집계 {_time(view["built_at_ns"])}'
+    return (_mission(view)
+            + f'<div id="built" data-built-ns="{view["built_at_ns"]}">서버 집계 {_time(view["built_at_ns"])}'
             f' · 증거 정책 {escape(view["evidence_policy"])}</div>'
             + (f'<ul id="warnings">{warnings}</ul>' if warnings else '')
             + f'<div class="grid"><section id="map" class="placeholder">{escape(view["map"]["note"])}</section>'
@@ -117,10 +151,20 @@ th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}
 tr.missing td{color:#999}
 .grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
 .placeholder{min-height:180px;border:2px dashed #aaa;display:flex;align-items:center;justify-content:center;color:#777}
-.exit{font-size:28px}.stages{list-style:none;padding:0}
+.stages{list-style:none;padding:0}.stages li{padding:2px 8px;margin:2px 0;font-size:18px}
 .stage.unconfirmed{background:#eee}.stage.not_rescued{background:#fdd}
 .stage.supporting{background:#ffd}.stage.rescued{background:#dfd}
 #warnings{color:#a00}#commands button{margin-right:6px}
+tr.stale td{color:#a60}.stale-tag{color:#fff;background:#c60;padding:0 4px;border-radius:3px;font-size:12px}
+.mode{display:flex;gap:12px;align-items:baseline;padding:8px 12px;margin:8px 0;border-radius:6px;font-size:18px}
+.mode small{margin-left:auto;font-size:12px;color:#666}
+.mode.normal{background:#e8f4e8}.mode.disaster{background:#c00;color:#fff}.mode.disaster small{color:#fdd}
+.mode.unknown{background:#eee;color:#666}
+#cameras{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+#cameras figure{margin:0;border:1px solid #ccc;background:#000;position:relative}
+#cameras img{display:block;width:480px;max-width:100%;min-height:120px}
+#cameras figcaption{background:#fff;padding:2px 6px;font-size:13px}
+#cameras .lost{color:#a00}
 header.user{display:flex;justify-content:space-between;align-items:center;gap:12px}
 header.user nav a{margin-left:12px}
 .card{max-width:420px;margin:48px auto;padding:24px;background:#fff;border:1px solid #ccc;border-radius:8px}
@@ -133,6 +177,18 @@ form.inline{display:inline}form.inline input{width:9em}form.inline select{margin
 _SCRIPT = '''
 const firstSeen = new Map();
 window.kpi04 = [];
+// Same formats as render.py _time / _age, so the server and browser columns read alike.
+function clock(ms) {
+  const d = new Date(ms), pad = (n, w) => String(n).padStart(w || 2, '0');
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
+}
+function age(s) {
+  const sign = s < 0 ? '-' : '', v = Math.abs(s);
+  if (v < 60) return sign + v.toFixed(2) + 's';
+  if (v < 3600) return sign + Math.floor(v / 60) + '분 ' + String(Math.floor(v % 60)).padStart(2, '0') + '초';
+  if (v < 86400) return sign + Math.floor(v / 3600) + '시간 ' + Math.floor(v % 3600 / 60) + '분';
+  return sign + Math.floor(v / 86400) + '일';
+}
 function stamp() {
   const now = Date.now();
   for (const row of document.querySelectorAll('tr.event')) {
@@ -143,8 +199,8 @@ function stamp() {
     }
     const shown = firstSeen.get(ref);
     row.dataset.renderedMs = shown;
-    row.querySelector('.rendered').textContent = new Date(shown).toLocaleTimeString();
-    row.querySelector('.latency').textContent = ((shown - eventMs) / 1000).toFixed(2) + 's';
+    row.querySelector('.rendered').textContent = clock(shown);
+    row.querySelector('.latency').textContent = age((shown - eventMs) / 1000);
   }
 }
 let timer = null;
@@ -192,10 +248,28 @@ def _header(user, csrf):
             '<button type="submit">로그아웃</button></form></nav></header>')
 
 
-def render_page(view, user=None, csrf=None):
+def _cameras(cameras):
+    """Camera streams embedded straight from the camera PC's MJPEG gateway (IF-082).
+
+    Outside the polled fragment, so a poll never restarts a stream. The console does not relay
+    video. A broken stream is shown as lost, not hidden.
+    """
+    if not cameras:
+        return ''
+    figures = ''.join(
+        f'<figure><img src="{escape(url)}" alt="{escape(camera_id)} 영상" '
+        'onerror="this.nextElementSibling.classList.add(\'lost\');'
+        'this.nextElementSibling.lastChild.textContent=\' — 영상 끊김\'">'
+        f'<figcaption>{escape(camera_id)}<span></span></figcaption></figure>'
+        for camera_id, url in cameras)
+    return f'<section id="cameras">{figures}</section>'
+
+
+def render_page(view, user=None, csrf=None, cameras=()):
+    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments."""
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
     return (_head('구조 관제') + _header(user, csrf) + '<div id="poll-error" style="color:#a00"></div>'
-            + _commands(view) + f'<div id="live">{render_fragment(view)}</div>'
+            + _commands(view) + _cameras(cameras) + f'<div id="live">{render_fragment(view)}</div>'
             f'<script>{script}</script></body></html>')
 
 

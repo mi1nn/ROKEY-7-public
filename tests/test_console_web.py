@@ -6,9 +6,9 @@ import unittest
 from unittest import mock
 
 from rescue_console.accounts import AccountStore
-from rescue_console.render import render_accounts, render_fragment, render_login, render_page
+from rescue_console.render import _age, render_accounts, render_fragment, render_login, render_page
 from rescue_console.view import COMMANDS, ConsoleError, request_command
-from test_console_view import LedgerFixture, digest_dir, site_event
+from test_console_view import LedgerFixture, digest_dir, site_event, write_site_state
 
 HAS_FLASK = importlib.util.find_spec('flask') is not None
 SECRET = 'unit-test-secret-key-0123456789'
@@ -107,12 +107,51 @@ class PageTests(LedgerFixture):
         self.assertEqual(stamped, [row['event_ns'] for row in view['events']])
         self.assertIn(f'data-built-ns="{view["built_at_ns"]}"', html)
 
-    def test_one_screen_has_map_slot_robots_targets_exit_count_and_events(self):
+    def test_one_screen_has_mode_map_slot_robots_targets_and_events(self):
         html = render_page(self.view())
-        for marker in ('id="map"', 'id="robots"', 'id="targets"', 'id="exit-count"', 'id="events"', 'id="commands"'):
+        for marker in ('id="mission"', 'id="map"', 'id="robots"', 'id="targets"', 'id="events"', 'id="commands"'):
             self.assertIn(marker, html)
         for label in ('미확정', '미구조', '지원 중', '구출 완료'):
             self.assertIn(label, html)
+        # One fixed camera: no exit counter on screen (db-schema 2절).
+        self.assertNotIn('exit-count', html)
+        self.assertNotIn('출구 누적', html)
+
+    def test_mode_badge_shows_disaster_with_trigger_time(self):
+        html = render_fragment(self.view())
+        self.assertIn('data-mode="DISASTER"', html)
+        self.assertIn('<b>재난</b>', html)
+        self.assertIn(f'title="{self.status["site_events"]["site_events"][1]["observed_at_ns"]}"', html)
+        self.assertIn('data-mode=""', render_fragment(self.view({})))
+
+    def test_stale_robot_rows_are_marked(self):
+        html = render_fragment(self.view())   # received 10 s before the build time
+        self.assertEqual(html.count('<tr class="stale">'), 2)
+        self.assertIn('낡음', html)
+
+    def test_ages_read_at_a_glance(self):
+        self.assertEqual([_age(v) for v in (None, 0.44, 59.9, 185, 7800, 91_616_778.5, -3.0)],
+                         ['—', '0.4s', '59.9s', '3분 05초', '2시간 10분', '1060일', '-3.0s'])
+
+    def test_camera_streams_sit_outside_the_polled_fragment(self):
+        cameras = (('cam_a', 'http://camera.invalid:8081/stream?q="x"'),)
+        html = render_page(self.view(), cameras=cameras)
+        live = html.index('<div id="live">')
+        figure = html.index('<section id="cameras">')
+        self.assertLess(figure, live)    # a poll replaces #live only, so the stream is never restarted
+        self.assertIn('src="http://camera.invalid:8081/stream?q=&quot;x&quot;"', html)
+        self.assertIn('영상 끊김', html)
+        self.assertNotIn('id="cameras"', render_page(self.view()))
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+
+    def test_camera_argument_needs_an_id_and_http_url(self):
+        from rescue_console.app import parse_camera
+        self.assertEqual(parse_camera('cam_a=http://camera.invalid:8081/stream'),
+                         ('cam_a', 'http://camera.invalid:8081/stream'))
+        for bad in ('cam_a', '=http://x', 'cam_a=javascript:alert(1)', 'cam_a=file:///etc/passwd'):
+            with self.subTest(bad=bad), self.assertRaises(ConsoleError) as caught:
+                parse_camera(bad)
+            self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
 
     def test_untrusted_text_is_escaped(self):
         status = dict(self.status, site_events={'schema_version': '1.1', 'exit_pass_count': 1,
@@ -274,6 +313,33 @@ class FlaskBoundaryTests(AccountsFixture):
         self.login(client, *ADMIN)
         self.assertEqual(client.get('/api/view').status_code, 503)
         self.assertFalse((self.dir / 'absent.sqlite3').exists())
+
+
+@unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+class SiteStateWebTests(AccountsFixture):
+    def test_console_serves_the_site_state_db_and_camera_streams(self):
+        from rescue_console.app import create_app
+        site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(site_db, self.status)
+        app = create_app(self.db, accounts_path=self.accounts, secret_key=SECRET, site_state_path=site_db,
+                         cameras=[('cam_a', 'http://camera.invalid:8081/stream')])
+        client = app.test_client()
+        self.login(client, *CUSTOMER)
+        before = digest_dir(self.dir)
+        model = client.get('/api/view').get_json()
+        self.assertEqual(model['mission']['mode'], 'DISASTER')
+        self.assertEqual([r['robot_id'] for r in model['robots'] if r['has_status']], ['robot_a', 'robot_b'])
+        self.assertFalse([w for w in model['warnings'] if '입력 없음' in w])
+        self.assertIn('src="http://camera.invalid:8081/stream"', client.get('/').get_data(as_text=True))
+        self.assertNotIn('camera.invalid', client.get('/fragment').get_data(as_text=True))
+        self.assertEqual(digest_dir(self.dir), before)
+
+    def test_site_state_and_fixture_together_fail_at_startup(self):
+        from rescue_console.app import create_app
+        with self.assertRaises(ConsoleError) as caught:
+            create_app(self.db, 'status.json', accounts_path=self.accounts, secret_key=SECRET,
+                       site_state_path=self.dir / 'site_state.sqlite3')
+        self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
 
 
 if __name__ == '__main__':

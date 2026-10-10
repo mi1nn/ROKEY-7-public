@@ -10,7 +10,7 @@
 | 모듈 | 하는 일 | 의존 |
 | --- | --- | --- |
 | `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 명령 자리 | 표준 라이브러리, `rescue_contracts` |
-| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를 읽기 전용(`mode=ro`, `query_only`)으로 읽고, 상태 픽스처 JSON 을 읽음 | `rescue_operations` |
+| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 셋으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장. Flask 없이 시험 | 표준 라이브러리 |
 | `app.py` | Flask 경계. `GET /`, `GET /fragment`, `GET /api/view` 만 | Flask (선택) |
 
@@ -30,6 +30,15 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts
     --status src/rescue_console/examples/status.example.json --port 8080
 # 브라우저: http://127.0.0.1:8080/  → 로그인 페이지
 ```
+
+operations 가 현장 상태 DB 를 쓰고 있으면 픽스처 대신 그 파일을 준다. 둘을 같이 주면 시작하지 않는다.
+
+```bash
+python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <현장 상태 DB> \
+    --camera cam_a=http://<카메라 PC>:<포트>/<경로> --port 8080
+```
+
+- `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
 
 - 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.
 - 계정 파일과 세션 비밀은 저장소 밖에 둔다([SDD 10절 외부 파일 목록](../../docs/design/architecture.md)에 추가 예정).
@@ -52,14 +61,29 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts
 
 ## 입력
 
-| 입력 | 지금 | 이후 |
+| 입력 | `--site-state` (operations 가 쓰는 현장 상태 DB) | `--status` (E2 픽스처) |
 | --- | --- | --- |
-| 보고 장부 | `read_reports(db, limit=1000)` 결과 | 그대로 |
-| 로봇 상태 | 픽스처의 `robot_status` | `rescue_operations.site_state.read_robot_status(site_db)` (협업·관제 PR #34) |
-| 현장 사건·출구 누적 | 픽스처의 `site_events` | `read_site_events(site_db)` |
-| 대상 상태(구조·지원) | 픽스처의 `target_states` | `read_target_states(site_db)` |
+| 보고 장부 | `read_reports(db, limit=1000)` | 같음 |
+| 로봇 상태 | `rescue_operations.site_state.read_robot_status(site_db)` | 픽스처의 `robot_status` |
+| 현장 사건 | `read_site_events(site_db, limit=1000)` | 픽스처의 `site_events` |
+| 대상 상태(구조·지원) | `read_target_states(site_db)` | 픽스처의 `target_states` |
 
-픽스처의 세 칸은 위 함수의 반환 형식 그대로다(협업·관제와 2026-10-08 합의). 칸이 없으면 기본값으로 채우지 않고 화면 경고 「<칸> 입력 없음」으로 보인다. 출구 누적 수는 `exit_pass_count` 를 그대로 쓰고 화면에서 다시 세지 않는다(구출 판정과 같은 숫자를 쓰기 위해).
+픽스처의 세 칸은 위 함수의 반환 형식 그대로다(협업·관제와 2026-10-08 합의). 칸이 없으면 기본값으로 채우지 않고 화면 경고 「<칸> 입력 없음」으로 보인다.
+
+- 세 읽기는 한 트랜잭션이 아니다. 그 사이에 쓰인 행은 한 번의 폴링에서 한 표에만 먼저 보일 수 있다(다음 폴링에서 맞춰짐).
+- `read_site_events` 는 오래된 순으로 `limit` 개를 준다. 콘솔은 최대(1000)를 요청하므로 현장 사건이 1000건을 넘으면 최신 사건이 빠진다(후속: 협업·관제에 최신순 또는 커서 요청).
+- 출구 누적(`exit_pass_count`)은 화면에 그리지 않는다. 고정 카메라 1대 결정(2026-10-09)으로 `EXIT_PASS` 생산자가 없어 항상 0 이다([DB 스키마](../../docs/design/db-schema.md) 2절, [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 3절). `/api/view` 에는 값이 그대로 남는다. 「구출 완료 ≤ 출구 누적」(Part I 3.5.5) 경고도 같이 뺐다 — 구출 판정의 트리거는 카메라의 대상 소실 후보다(#48).
+
+## 화면 위쪽: 모드 배지와 웹캠
+
+- **모드 배지:** 현장 사건에 `DISASTER_SIGN` 이 하나라도 있으면 「재난」(빨강), 없으면 「평시」, 현장 사건 입력이 없으면 「모름」. 트리거 시각은 가장 이른 `DISASTER_SIGN` 의 `observed_at_ns` 다. 현장 상태 1.1 의 `mission_state` 표가 생기면 그 값으로 바꾼다 — 지금은 현장 사건에서 **추정**한 것이고 화면에도 그렇게 적는다.
+- **웹캠:** `--camera` 로 받은 MJPEG 주소를 `<img src>` 로 넣는다(IF-082). 콘솔은 영상을 중계하지 않는다. 영상은 1초마다 바뀌는 조각(`#live`) **밖**에 있어 폴링이 스트림을 끊지 않는다. 영상이 끊기면 캡션에 「영상 끊김」을 띄운다. 카메라 주소는 프로파일 v2.1 `site_cameras`(#39)가 들어오면 거기서 받는다.
+
+## 시각과 나이 표시
+
+- 시각은 `HH:MM:SS.mmm`(서버·브라우저 같은 형식, 24시간). 서버 집계 날짜와 다른 날의 시각은 날짜를 붙인다. 원래 ns 값은 마우스를 올리면(title) 보인다.
+- 나이는 `0.4s` · `3분 05초` · `2시간 10분` · `41일` 로 줄여 쓴다. 음수는 상대 시계가 이 PC 보다 앞선 것이다.
+- 로봇 행은 operations 수신 뒤 `STATUS_STALE_S = 5` 초가 지나면 「낡음」으로 표시한다([제안] 관제·화면 2026-10-10, 표시 전용 — 준비 판정 아님 C-05). 프로파일 v2.1(#39)의 readiness `max_age_s` 가 들어오면 그 값으로 바꾼다.
 
 ## 구조 상태 4단계 (Q-20: 표시층 합성)
 
@@ -75,7 +99,6 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts
 
 - 미확정 대상에 구출·지원 상태가 붙어 오면 R1 로 보이고 「입력 불일치」 경고를 단다.
 - 대상마다 최신 보고는 `(reported_at_ns, received_at_ns, report_id)` 가 가장 큰 것이다.
-- 구출 완료 수가 출구 누적보다 크면 경고한다(Part I 3.5.5). 화면은 막지 않고 보여만 준다.
 
 ## KPI-04 측정 (표시 지연 3초)
 
@@ -92,5 +115,5 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts
 
 - 하지 않음: 운영 장부 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
-- 후속: site-state DB 경로 인자와 PR #34 읽기 함수 연결, 지도 스냅샷 표시(로봇·지도 제공 뒤), 카메라 A·B 영상 두 창(인식 MJPEG 합의 뒤), KPI-04 자동 측정, 오류 이력 표(3.7.4, `read_errors`), 명령 연결(Q-22 뒤).
+- 후속: 지도와 마커(별도 PR), 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), KPI-04 자동 측정, 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
 - 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.
