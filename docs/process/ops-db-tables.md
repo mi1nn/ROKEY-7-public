@@ -6,9 +6,9 @@ updated: 2026-10-10
 
 # 운영 DB 파일과 테이블 관계도 (웹마스터, 2026-10-10)
 
-관제 웹과 operations 가 쓰는 SQLite 파일이 넷이고, 파일마다 쓰는 쪽이 하나다. 이 문서는 **어느 파일에 어떤 테이블이 있고, 테이블끼리 어떤 ID 로 이어지는지**를 그림으로 보여 준다. 스키마의 기준은 코드다(아래 「기준 코드」). 스키마를 바꾸는 것은 각 담당 레인이고, 이 문서는 바뀐 뒤 따라 고친다.
+관제 웹과 operations 가 쓰는 SQLite 파일이 넷이고, 파일마다 쓰는 쪽이 하나다. 이 문서는 **어느 파일에 어떤 테이블이 있고, 테이블끼리 어떤 ID 로 이어지는지**를 그림으로 보여 준다. 표·열 정의는 [DB 스키마](../design/db-schema.md)와 아래 「기준 코드」에서 확인한다. 설명이 어긋나면 해당 커밋의 코드를 기준으로 바로잡는다. 이 문서는 관계 그림과 읽기 전용으로 여는 법을 다룬다. 스키마를 바꾸는 것은 각 담당 레인이고, 이 문서는 바뀐 뒤 따라 고친다.
 
-- 외래 키(`FOREIGN KEY`) 제약은 **하나도 없다.** 테이블 사이 관계는 JSON 열 안의 ID 로만 이어지고, 맞는지는 쓰는 코드가 검사한다. DB 도구에서 관계선이 보이지 않는 이유다.
+- 외래 키(`FOREIGN KEY`) 제약은 **하나도 없다.** 테이블 사이 관계는 `report_id` 같은 일반 열이나 JSON 안의 ID 를 대조해 해석한다. 쓰는 코드는 ID 형식·허용 로봇·증거 참조 등을 검사하지만, 다른 DB 의 로봇·대상 상태 행이 존재하는지까지 보장하지는 않는다. DB 도구에서 관계선이 보이지 않는 이유다.
 - 모든 파일에 `metadata(key, value)` 테이블이 있고, `role` 값으로 어떤 파일인지 구분한다. 다른 역할의 파일을 잘못 열면 코드가 `POLICY_MISMATCH` 로 거절한다.
 - 시각 열(`*_ns`)은 전부 나노초 정수다(`int64`).
 
@@ -46,14 +46,14 @@ flowchart LR
 
 ## 2. 테이블 관계
 
-표 제목의 앞부분이 파일(1절 표의 이름)이다. **실선은 같은 파일 안, 점선은 다른 파일 사이**의 관계이고, 선 이름표의 `payload.*`·`state.*` 는 JSON 열 안의 필드다.
+표 제목의 앞부분이 파일(1절 표의 이름)이다. 이 그림에서는 **실선은 같은 파일 안, 점선은 다른 파일 사이**의 ID 대응을 뜻한다. 외래 키나 식별 관계를 선언하는 선은 아니다. 선 이름표의 `payload.*`·`state.*` 는 JSON 열 안의 필드다. 로봇·대상 상태를 아직 받지 않았다면 보고에 ID 가 있어도 대응 상태 행은 0개일 수 있다.
 
 ```mermaid
 erDiagram
   outbox |o..o| reports : "같은 report_id (보내는 PC → 운영 PC)"
   reports }o--o{ evidence : "payload.evidence_refs[].evidence_id"
-  robot_status ||..o{ reports : "payload.robot_id"
-  target_states ||..o{ reports : "payload.target_id"
+  robot_status |o..o{ reports : "payload.robot_id"
+  target_states |o..o{ reports : "payload.target_id"
   robot_status |o--o{ target_states : "state.support_robot_id"
 
   outbox["송신 대기열 · outbox"] {
@@ -70,7 +70,7 @@ erDiagram
     TEXT payload_sha256
     TEXT payload_json "robot_id, target_id, observation_id, evidence_refs[], position ..."
     TEXT envelope_json "publisher_id, sequence, published_at_ns"
-    TEXT state "PENDING_EVIDENCE, PERSISTED"
+    TEXT state "RECEIVED, PENDING_EVIDENCE, PERSISTED"
     INTEGER revision "상태가 바뀔 때마다 +1"
     TEXT receipt_id
     INTEGER received_at_ns
@@ -119,9 +119,9 @@ erDiagram
 
 읽는 법:
 
-- **보고 → 증거 사진:** `reports.payload_json` 의 `evidence_refs[]` 가 `evidence.evidence_id` 를 가리킨다. 증거의 `ref_json.observation_id` 는 보고의 `observation_id` 또는 `confirmation_observation_id` 와 같아야 한다. 장부의 증거 정책(`metadata.evidence_policy` = `OPTIONAL`·`OBSERVATION`·`CONFIRMATION`)이 요구하는 사진이 아직 없으면 보고는 `PENDING_EVIDENCE` 로 남고, 사진이 들어오면 `PERSISTED` 로 바뀐다.
+- **보고 → 증거 사진:** `reports.payload_json` 의 `evidence_refs[]` 가 `evidence.evidence_id` 를 가리킨다. 증거의 `ref_json.observation_id` 는 보고의 `observation_id` 또는 `confirmation_observation_id` 와 같아야 한다. `receive()` 는 먼저 `RECEIVED` 행을 커밋한다. 이후 `persist(report_id)` 가 보고에 적힌 증거 참조가 모두 저장됐는지와 장부의 증거 정책(`metadata.evidence_policy` = `OPTIONAL`·`OBSERVATION`·`CONFIRMATION`)을 확인해 `PENDING_EVIDENCE` 또는 `PERSISTED` 로 바꾼다. `OPTIONAL` 도 보고에 참조를 적었다면 해당 사진이 필요하다. 사진을 `store_evidence()` 로 저장하는 것만으로 보고 상태가 바뀌지는 않으며, 다시 `persist()` 를 호출해야 한다.
 - **보내는 쪽 → 받는 쪽:** 송신 대기열의 `outbox.report_id` 와 운영 장부의 `reports.report_id` 는 같은 보고다. 파일이 다른 PC 에 있어 DB 로는 이어지지 않고, 운영 장부가 돌려준 영수증을 `outbox.receipt_json` 에 적어 짝을 맞춘다.
-- **로봇·대상 → 보고:** 보고의 `robot_id`·`target_id` 가 현장 상태의 `robot_status`·`target_states` 와 같은 ID 를 쓴다. 두 테이블은 다른 파일(현장 상태 DB)에 있다. 관제 화면은 이 ID 로 둘을 맞춰 구조 상태 4단계를 만든다([rescue_console README](../../src/rescue_console/README.md)).
+- **로봇·대상 → 보고:** 보고의 `robot_id`·`target_id` 가 현장 상태의 `robot_status`·`target_states` 와 같은 ID 를 쓴다. 두 테이블은 다른 파일(현장 상태 DB)에 있고, 보고 수신 시 대응 상태 행이 존재할 필요는 없다. 관제 화면은 이 ID 로 보고와 현장 상태를 대조하며, 구조 상태 4단계는 보고와 대상 상태를 합쳐 만든다([rescue_console README](../../src/rescue_console/README.md)).
 - **지원 로봇:** `target_states.state_json.support_robot_id` 는 지원 상태가 `NONE` 일 때만 비어 있고, 값이 있으면 허용 로봇 ID 중 하나다.
 - **현장 사건의 사진:** `site_events.event_json` 에도 `evidence_id` 가 있지만, 그 사진을 운영 장부 `evidence` 에 넣는 코드는 main 에 없다. 둘이 같은 ID 체계인지는 [미확인]이라 그림에 선을 긋지 않았다.
 - **웹 계정**은 다른 테이블과 이어지지 않는다. 보고·현장 상태 쪽 DB 에는 쓰지 않는다.
