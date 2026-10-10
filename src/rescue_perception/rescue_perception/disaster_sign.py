@@ -9,8 +9,8 @@
    밝기·대비가 화면 전체로 바뀌어도 점수가 그대로라 조명 변화가 이동으로 보이지 않는다.
 3. 영상 정상 확인: 무늬 있는 블록(가림·어두움)이나 매칭된 블록이 너무 적으면
    UNKNOWN. UNKNOWN 프레임은 흔들림 횟수를 더하지도 지우지도 않는다.
-4. 화면 전체 확인: 블록 이동량의 중앙값을 화면 이동으로 보고, 네 사분면 모두에
-   그와 같은 방향의 블록이 있어야 한다. 아니면 부분 움직임(사람 통과)이라 거짓.
+4. 화면 전체 확인: 원래 장면이 보이는 블록(5)의 이동량 중앙값을 화면 이동으로 보고, 네
+   사분면 모두에 그와 같은 방향의 블록이 있어야 한다. 아니면 부분 움직임(사람 통과)이라 거짓.
 5. 장면 확인: 카메라가 흔들리면 보이는 장면은 같고 위치만 밀린다. 렌즈 앞의 손처럼
    가까운 물체가 화면 전체를 덮으면 장면 자체가 바뀐다. 그래서 흔들리기 전 장면(기준
    장면)을 기억해 두고, 블록마다 지금 화면이 그것을 조금 옮긴 것과 ZNCC 로 맞는지 본다.
@@ -237,8 +237,8 @@ def _best_zncc(prev, a, norm_a, y0, x0, bh, bw, offsets):
     return best
 
 
-def _visible_ratio(ref, cur, policy):
-    """기준 장면이 아직 보이는 블록 비율.
+def _visible_blocks(ref, cur, policy):
+    """기준 장면이 아직 보이는 블록들의 (bx, by) 집합.
 
     격자를 이동량 측정과 같은 블록으로 나누고, 블록마다 기준 장면에서 ±``search_cells`` 칸 안의
     최고 ZNCC 가 ``scene_match_min`` 이상이면 "보임". 무늬가 없는 블록은 보임으로 세지 않는다.
@@ -246,7 +246,7 @@ def _visible_ratio(ref, cur, policy):
     """
     s = policy.search_cells
     bh, bw = _block_size(cur, policy)
-    n, offsets, visible = bh * bw, _offsets(s), 0
+    n, offsets, visible = bh * bw, _offsets(s), set()
     for by in range(policy.blocks_y):
         for bx in range(policy.blocks_x):
             y0, x0 = s + by * bh, s + bx * bw
@@ -255,8 +255,8 @@ def _visible_ratio(ref, cur, policy):
             a = [v - mean for v in a]
             norm_a = math.sqrt(sum(v * v for v in a))
             if norm_a > 1e-9 and _best_zncc(ref, a, norm_a, y0, x0, bh, bw, offsets)[2] >= policy.scene_match_min:
-                visible += 1
-    return visible / (policy.blocks_x * policy.blocks_y)
+                visible.add((bx, by))
+    return visible
 
 
 def _whole_view(matched, policy):
@@ -331,19 +331,25 @@ class DisasterSignDetector:
             self._still_since, self._changed_since = None, None
             return SignFrame("UNKNOWN", "OCCLUDED", None, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio)
-        shift = _whole_view(matched, self.policy) if matched_ratio >= vmin else None
-        visible_ratio = _visible_ratio(self._ref_grid, grid, self.policy)
+        visible = _visible_blocks(self._ref_grid, grid, self.policy)
+        visible_ratio = len(visible) / len(blocks)
+        # 화면 이동은 원래 장면이 보이는 블록으로만 정한다: 카메라가 흔들리면 움직이는 것은 장면이다.
+        # 손·사람이 덮은 블록은 투표에서 뺀다(덮은 물체의 움직임을 흔들림으로 세지 않도록).
+        scene_blocks = [b for b in matched if (b[0], b[1]) in visible]
+        shift = _whole_view(scene_blocks, self.policy) if matched_ratio >= vmin and scene_blocks else None
+        frame_shift = _whole_view(matched, self.policy) if matched_ratio >= vmin and matched else None
         if visible_ratio < self.policy.visible_min:
             # 원래 장면이 거의 안 보인다: 손 등 가까운 물체가 가렸거나 카메라가 다른 곳을 본다.
             self._still_since = None
-            if shift is not None and math.hypot(*shift) < self.policy.shift_min:
+            if frame_shift is not None and math.hypot(*frame_shift) < self.policy.shift_min:
                 # 바뀐 화면이 rebase_ns 이상 안정적이면 카메라가 옮겨진 것으로 보고 새 기준 장면으로.
                 self._changed_since = stamp if self._changed_since is None else self._changed_since
                 if stamp - self._changed_since >= self.policy.rebase_ns:
                     self._ref_grid, self._changed_since = grid, None
             else:
                 self._changed_since = None
-            return SignFrame("UNKNOWN", "SCENE_CHANGED", shift, len(self._reversal_ns), False, None,
+            # 원래 장면이 안 보이므로 이동은 화면 전체(덮은 물체 포함)의 값을 참고로만 싣는다.
+            return SignFrame("UNKNOWN", "SCENE_CHANGED", frame_shift, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio, visible_ratio)
         self._changed_since = None
         if matched_ratio < vmin:
