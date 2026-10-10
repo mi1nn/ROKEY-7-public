@@ -7,11 +7,13 @@ import tempfile
 import unittest
 from uuid import NAMESPACE_URL, uuid5
 
-from rescue_contracts import RESCUE_STATES
+from rescue_contracts import RESCUE_STATES, SiteEvent
 from rescue_operations.ledger import ReportLedger
+from rescue_operations.site_state import SiteStateLedger
+from rescue_console.app import current_view
 from rescue_console.render import render_page
-from rescue_console.sources import load_ledger, load_status
-from rescue_console.view import (STAGE_RULES, STAGES, ConsoleError, build_view,
+from rescue_console.sources import load_ledger, load_site_state, load_status
+from rescue_console.view import (STAGE_RULES, STAGES, STATUS_STALE_S, ConsoleError, build_view,
                                  compose_stage)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +82,17 @@ def digest_dir(path):
         if not p.name.endswith(('-wal', '-shm')):
             result[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
     return result
+
+
+def write_site_state(path, status):
+    """Writes the fixture shapes into a site-state DB with the operations API (test setup only)."""
+    with SiteStateLedger(path, allowed_robot_ids=ROBOTS) as ledger:
+        for robot in status['robot_status']['robots']:
+            ledger.record_robot_status({k: v for k, v in robot.items() if k != 'received_at_ns'})
+        for raw in status['site_events']['site_events']:
+            ledger.record_site_event(SiteEvent(**raw))
+        for state in status['target_states']['targets']:
+            ledger.record_target_state(state)
 
 
 class LedgerFixture(unittest.TestCase):
@@ -213,9 +226,37 @@ class LedgerViewTests(LedgerFixture):
         self.assertEqual(view['exit_count'], 3)
         self.assertFalse(any('3.5.5' in w for w in view['warnings']))
 
-    def test_rescued_above_exit_count_is_flagged(self):
+    def test_exit_count_zero_with_rescues_is_not_a_warning(self):
+        # One fixed camera: no EXIT_PASS producer, the count stays 0 (db-schema 2절); rescues are normal.
         status = dict(self.status, site_events={'schema_version': '1.1', 'exit_pass_count': 0, 'site_events': []})
-        self.assertTrue(any('3.5.5' in w for w in self.view(status)['warnings']))
+        view = self.view(status)
+        self.assertEqual(view['stage_counts']['RESCUED'], 1)
+        self.assertEqual(view['exit_count'], 0)
+        self.assertEqual([w for w in view['warnings'] if '출구' in w or '3.5.5' in w], [])
+
+    def test_mission_mode_comes_from_the_first_disaster_sign(self):
+        events = [site_event('quake-late', 'DISASTER_SIGN', 7), site_event('exit-1'),
+                  site_event('quake-early', 'DISASTER_SIGN', 2)]
+        mission = self.view(dict(self.status, site_events={'schema_version': '1.0', 'exit_pass_count': 0,
+                                                           'site_events': events}))['mission']
+        self.assertEqual((mission['mode'], mission['label'], mission['sign_count']), ('DISASTER', '재난', 2))
+        self.assertEqual(mission['trigger_event_id'], uid('quake-early'))
+        self.assertEqual(mission['trigger_ns'], T0 + 2 * SECOND)
+
+    def test_mission_mode_is_normal_without_signs_and_unknown_without_input(self):
+        calm = self.view(dict(self.status, site_events={'schema_version': '1.0', 'exit_pass_count': 0,
+                                                        'site_events': [site_event('exit-1')]}))
+        self.assertEqual((calm['mission']['mode'], calm['mission']['trigger_ns']), ('NORMAL', None))
+        unknown = self.view({})
+        self.assertIsNone(unknown['mission']['mode'])
+        self.assertEqual(unknown['mission']['label'], '모름')
+
+    def test_robot_rows_are_stale_past_the_display_limit(self):
+        fresh = self.view(built_at_ns=T0 + 20 * SECOND + int(STATUS_STALE_S * SECOND))
+        self.assertEqual({row['stale'] for row in fresh['robots']}, {False})
+        late = self.view(built_at_ns=T0 + 20 * SECOND + int(STATUS_STALE_S * SECOND) + 1)
+        self.assertEqual({row['stale'] for row in late['robots']}, {True})
+        self.assertEqual({row['stale'] for row in self.view({})['robots']}, {True})
 
     def test_robots_follow_ledger_deployment_and_unknowns_stay_none(self):
         view = self.view()
@@ -277,7 +318,7 @@ class OfflineRehearsalLedgerTests(unittest.TestCase):
         self.assertGreater(len(view['targets']), 0)
         for row in view['targets']:
             self.assertIn(row['target_id'], html)
-        self.assertEqual(html.count('class="event"'), len(ledger['reports']))
+        self.assertEqual(html.count('class="event report"'), len(ledger['reports']))
 
     def test_example_status_fixture_matches_offline_ledger(self):
         example = ROOT / 'src' / 'rescue_console' / 'examples' / 'status.example.json'
@@ -292,6 +333,46 @@ class OfflineRehearsalLedgerTests(unittest.TestCase):
         self.assertEqual({row['has_status'] for row in view['robots']}, {True})
         self.assertFalse([w for w in view['warnings'] if '입력 없음' in w or '보고가 없는' in w])
         self.assertEqual(view['exit_count'], 1)
+
+
+class SiteStateSourceTests(LedgerFixture):
+    """--site-state: the console reads the operations site-state DB (#34) and never writes it."""
+
+    def setUp(self):
+        super().setUp()
+        self.site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(self.site_db, self.status)
+
+    def test_site_state_db_gives_the_fixture_shapes(self):
+        status = load_site_state(self.site_db)
+        self.assertEqual(set(status), {'robot_status', 'site_events', 'target_states'})
+        self.assertEqual([r['robot_id'] for r in status['robot_status']['robots']], list(ROBOTS))
+        self.assertEqual(status['site_events']['exit_pass_count'], 1)
+        db_view = build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND)
+        fixture_view = self.view()
+        for key in ('targets', 'stage_counts', 'exit_count', 'mission'):
+            self.assertEqual(db_view[key], fixture_view[key], key)
+        self.assertEqual([w for w in db_view['warnings'] if '입력 없음' in w], [])
+
+    def test_site_state_read_changes_nothing_and_missing_db_is_not_created(self):
+        before = digest_dir(self.dir)
+        current_view(self.db, site_state_path=self.site_db)
+        self.assertEqual(digest_dir(self.dir), before)
+        with self.assertRaises(ConsoleError) as caught:
+            load_site_state(self.dir / 'absent.sqlite3')
+        self.assertEqual(caught.exception.detail_code, 'STORAGE_ERROR')
+        self.assertFalse((self.dir / 'absent.sqlite3').exists())
+
+    def test_ledger_file_is_not_a_site_state_db(self):
+        with self.assertRaises(ConsoleError) as caught:
+            load_site_state(self.db)
+        self.assertEqual(caught.exception.detail_code, 'STORAGE_ERROR')
+        self.assertIn('POLICY_MISMATCH', str(caught.exception))
+
+    def test_site_state_and_fixture_together_are_refused(self):
+        with self.assertRaises(ConsoleError) as caught:
+            current_view(self.db, 'status.json', site_state_path=self.site_db)
+        self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
 
 
 if __name__ == '__main__':

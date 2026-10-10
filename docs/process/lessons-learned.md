@@ -86,7 +86,7 @@ updated: 2026-10-08
 
 **근거:** `[원본 기록]` [P4 협업 회고](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-03-lessons-p1-p3.md#L47-L51)는 같은 파일·결함에 병렬 PR이 겹치고 머지 뒤 push가 생긴 문제를 적는다. [PR 템플릿](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/.github/pull_request_template.md#L1-L34)은 변경 범위·SoT·증거·로봇 영향을 분리한다. [문서 검사 코드](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/scripts/check_docs.py#L1-L10)는 문서 경로 등의 검사이지 시스템 동작 판정이 아니다.
 
-**적용:** Codex는 머지를 기다리지 않고 PR을 작성하며 피드백을 반영한 뒤 최종 검토한다. Claude는 로직·계획 검토, Cursor는 검증·수정·머지를 맡는다. 시작 시 같은 base/head SHA·원본 커밋·완료 조건을 제공하고, 수정 후 의미 있는 변경은 Claude가 다시 검토한다. 지적 번호, 근거, 반영 커밋, 재검토 범위와 의존 순서에 따른 머지는 [검토 지침](review-workflow.md)에 따라 추적한다. 공통 계약 수정은 소비 모듈과 시험의 영향을 함께 기록한다. 원본 규약 전체를 사본으로 늘리지 않고 이번 프로젝트의 역할·계약을 별도로 정한다.
+**적용:** 작성과 검토는 병렬로 진행하며, 담당과 인계 순서는 [현재 검토 절차](review-workflow.md#current-review-workflow)를 따른다. 시작 시 같은 base/head SHA·원본 커밋·완료 조건을 제공하고, 수정 후에는 독립 검토 담당이 변경과 영향 범위를 다시 확인한다. 지적 번호, 근거, 반영 커밋, 재검토 범위와 의존 순서에 따른 머지는 [검토 지침](review-workflow.md)에 따라 추적한다. 공통 계약 수정은 소비 모듈과 시험의 영향을 함께 기록한다. 원본 규약 전체를 사본으로 늘리지 않고 이번 프로젝트의 역할·계약을 별도로 정한다.
 
 **확인:** 실제 실행한 명령·원문 결과·미실행 항목을 분리한다. 문서 검사 통과를 알고리즘·ROS·로봇 검증 통과로 바꾸어 쓰지 않는다. 원본 시험 수나 과거 PASS를 현재 커밋의 PASS로 쓰지 않는다. 연결: RQ-07, 모든 계획 PR.
 

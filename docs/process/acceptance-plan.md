@@ -134,12 +134,13 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 | 담당 | 소유 범위 제안 | 검증 책임 |
 | --- | --- | --- |
-| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 미구현), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/process/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
+| 작전·총괄(Claude) | `rescue_contracts`(Python 공통 어휘·DTO), `rescue_interfaces`(ROS IDL, 1차 — contracts C-10), 공통 schema/profile 계약(`rescue_bringup/profile.py`·`config/` 스키마), 루트 문서·계약 문서·검증 설정(`scripts/`·`.github/`), `docs/process/work-bundles.md` | 작업 묶음 지정, 계약 호환·ID/시간/frame/권한 불변식, 구현 PR 통합 검토(`OPS-nn`)와 `Cursor 인계 가능` 신호. 자기 계약 PR 은 자기 검토 아님 |
 | 로봇·지도(Claude) | `rescue_robot`, `rescue_mapping`, `rescue_bringup` 의 로봇별 실행/launch, `config/` 값 | SLAM/Nav2·TF·native sensor·goal/cancel·최종 watchdog·좌표 revision/실측. 로봇을 움직이는 유일한 자리 |
 | 인식(Claude) | `rescue_perception`, 해당 모델/데이터 평가 도구·`assets/manifest/`, 고정 카메라 어댑터(`SiteEvent` 생산) | 동기화/거리/관측·다중 대상·시간/위치 품질·독립 평가·부하. 주행 명령 없음 |
 | 협업·관제(Claude) | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장(DB 스키마·운영 장부 소유) | task/target 상태·통로·인계·재시작·명령 경합·구출 완료 판정·UI 가 읽을 API 의 일치. `cmd_vel`·Nav2 직접 호출 없음 |
 | 관제·화면(Claude) | `rescue_console`(관제 화면: 지도·로봇·사람 좌표·구조 상태·출구 카운트 표시, 운영자 명령 전달) | 표시 값과 장부의 1:1, 표시 지연(KPI-04), 명령 버튼이 API 밖으로 아무것도 보내지 않음. DB 쓰기·ROS 직접 구독 없음 |
 | 실기·배포(Claude) | `rescue_bringup/launch/`, `config/hosts/`, `scripts/field/`, `tests/ros/hosts_*`, `field-runbook.md`, `network-discovery.md` | PC 환경·디스커버리·설치 점검(preflight), launch 파라미터, 4-PC 기동 탐침(AC-01), 현장 점검 목록. 로봇을 움직이지 않음 |
+| 웹마스터(Claude) | 운영 PC(PC4 역할) 로컬 환경 운영: Discovery Server·관제 웹·DB 파일의 서비스 등록과 운영 절차, `docs/process/ops-host-record.md`. 코드 소유 없음 | 운영 PC 현황의 측정·기록(E1), 서비스 등록 전후 해시·되돌리기 기록(등급 4 절차). 로봇 설정은 읽기만 |
 | 검증·수정·머지(Cursor) | — | head 독립 검증(`CUR-nn`), 작은 수정, merge commit |
 | 딥검증(아스트라) | — | 사용자가 부를 때만. 계약 PR 의 두 번째 독립 검토 |
 | 작성·최종검토(Codex) | — | 계획 PR 1 ~ 10 작성·최종 검토를 마침(2026-10-08). 이후 묶음에서는 호출하지 않음 |
@@ -152,7 +153,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 최신 사용자 요청에 따라 **초안 작성은 병렬/연속 진행하고 머지를 기다리지 않는다.** 각 PR은 자신의 base/head·부모 PR·추가 diff·미완료 관문을 기록한다. 피드백은 한 번에 모아 수정할 수 있으며, 수정 내용이 공통 계약에 영향을 주면 관련 Draft에도 반영한다.
 
-Claude는 전체 논리·계획을 검토하고, Codex는 반영 후 최종 검토·일관성 확인을 수행하며, Cursor는 검증·필요한 수정·의존 순서의 main 머지를 담당한다. 의미를 바꾸는 Cursor 수정은 계약/계획 영향에 맞춰 Claude·Codex의 관련 재검토를 거친다. 오탈자·링크 수정도 실제 변경 범위의 검사를 다시 수행한다. 세부 운영은 [리뷰 작업 흐름](review-workflow.md)을 따른다.
+검토 담당·인계·머지와 의미를 바꾸는 수정의 재검토는 [현재 검토 절차](review-workflow.md#current-review-workflow)와 [머지 조건](review-workflow.md#current-merge-conditions)을 따른다. 위 표의 계획 PR 작성·최종검토 기록을 현재 담당 배정으로 사용하지 않는다. 오탈자·링크 수정도 실제 변경 범위의 검사를 수행한다.
 
 하위 PR이 부모 Draft를 base로 했으면 부모 변경/머지 뒤 base와 diff를 갱신하고 변경된 검토 기준을 표시한다. 스택 아래의 새 커밋이 들어왔는데 이전 head의 승인/검증을 그대로 최종 결과로 쓰지 않는다. main 반영은 선행 의존 PR의 실제 MERGED 상태·반영 commit을 확인한 순서로 진행한다. 현재 PR 1~4는 리뷰 작업 흐름에 따라 **merge commit 방식으로 main에만** 머지하고 다음 PR base를 최신 main으로 갱신한다. 예외적으로 squash/rebase가 발생하면 진행을 멈추고 하위 고유 diff·기반·검토 head를 재구성하여 재검증한다. 검증 head와 실제 merge commit을 함께 기록한다.
 
