@@ -15,6 +15,8 @@ SQLite 파일 세 개를 쓴다. **쓰는 쪽은 파일마다 하나**이고, �
 | 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 outbox (장부와 같은 파일 또는 생산자 쪽 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
+테이블 사이 관계를 그림으로 보려면 [운영 DB 파일과 테이블 관계도](../process/ops-db-tables.md)(웹마스터)를 본다. 표·열 정의의 기준은 이 문서와 코드다.
+
 공통: 모든 파일에 `metadata(key TEXT PRIMARY KEY, value TEXT)` 표가 있고 `role`·`schema`(또는 `schema_version`) 를 담는다. 역할·스키마·정책이 다른 파일을 열면 `POLICY_MISMATCH`, sqlite 오류는 `STORAGE_ERROR` 로 끝나며 조용히 새 파일을 만들지 않는다. 시각은 전부 정수 나노초(`*_ns`), JSON 열은 `canonical()`(키 정렬·공백 없음) 직렬화다.
 
 ## 1. 운영 장부 (`operations-ledger`, schema 1.0)
