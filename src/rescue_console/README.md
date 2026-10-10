@@ -22,13 +22,33 @@ Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `c
 python3 -m pip install flask                      # 웹으로 볼 때만
 export PYTHONPATH=$(ls -d src/rescue_* | tr '\n' ':')
 python3 -m rescue_bringup.offline_demo config/deployment.example.json --output <TMP>/run
-python3 -m rescue_console <TMP>/run/operations.sqlite3 \
+# 계정 파일은 한 번만 만든다(관리자 1명). 비밀번호는 환경 변수 또는 프롬프트
+RESCUE_CONSOLE_ADMIN_PASSWORD='<8자 이상>' python3 -m rescue_console.accounts init <TMP>/accounts.sqlite3 --admin admin
+# 세션 서명 비밀은 환경 변수(16자 이상). 코드·저장소에 두지 않는다
+export RESCUE_CONSOLE_SECRET="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
+python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts.sqlite3 \
     --status src/rescue_console/examples/status.example.json --port 8080
-# 브라우저: http://127.0.0.1:8080/
+# 브라우저: http://127.0.0.1:8080/  → 로그인 페이지
 ```
 
-- 장부 경로·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로를 두지 않는다.
+- 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.
+- 계정 파일과 세션 비밀은 저장소 밖에 둔다([SDD 10절 외부 파일 목록](../../docs/design/architecture.md)에 추가 예정).
 - `examples/status.example.json` 은 예시 값이다(오프라인 리허설 장부의 대상 ID 에 맞춤). 실제 값이 아니다.
+
+## 로그인과 계정 (강사 day5 요구: 로그인 페이지 + SQLite 로그인 데이터)
+
+| 역할 | 할 수 있는 것 |
+| --- | --- |
+| `ADMIN` | 관제 화면, 계정 관리(`/admin/accounts`: CUSTOMER·ADMIN 추가, 표시 이름·이메일·역할·상태·비밀번호 수정, 삭제), 앞으로 운영자 명령 |
+| `CUSTOMER` | 관제 화면 보기만. 계정 관리 페이지는 403 |
+
+- 모든 페이지는 로그인이 필요하다. 미로그인은 `/login` 으로, `/api/*` 는 401.
+- 비밀번호는 PBKDF2-HMAC-SHA256(소금 16바이트, 200,000회) 해시로만 저장한다. 평문은 저장·로그하지 않는다. 틀린 아이디·틀린 비밀번호·비활성 계정은 같은 문구로 거절한다.
+- 마지막 `ACTIVE` `ADMIN` 은 비활성화·강등·삭제할 수 없고, 로그인한 본인 계정은 삭제할 수 없다.
+- 세션 쿠키는 계정 ID 와 인증 버전을 담는다. 계정을 지우고 같은 이름을 다시 만들면 ID 가 달라지고, 비밀번호·역할·상태를 바꾸면 인증 버전이 올라가서, 그 전에 발급된 쿠키는 서버에서 전부 거절된다(API·조각은 401, 페이지는 로그인으로). 폴링 중 401 을 받으면 화면이 폴링을 멈추고 로그인 페이지로 간다.
+- 로그아웃은 POST + CSRF 다. 링크·이미지 태그로는 로그아웃되지 않는다.
+- 폼은 세션별 CSRF 토큰을 요구한다(없으면 400). 세션 쿠키는 HttpOnly·SameSite=Lax.
+- 계정 DB 는 콘솔 소유 파일이다. 운영 장부(보고·site_state)의 단일 쓰기 규칙과 무관하며 콘솔은 그쪽에 여전히 쓰지 않는다.
 
 ## 입력
 
@@ -70,7 +90,7 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 \
 
 ## 하지 않는 것 / 후속
 
-- 하지 않음: DB 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍, 로그인(Q 결정 전).
+- 하지 않음: 운영 장부 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
 - 후속: site-state DB 경로 인자와 PR #34 읽기 함수 연결, 지도 스냅샷 표시(로봇·지도 제공 뒤), 카메라 A·B 영상 두 창(인식 MJPEG 합의 뒤), KPI-04 자동 측정, 오류 이력 표(3.7.4, `read_errors`), 명령 연결(Q-22 뒤).
-- 강사 day5 예제는 [docs/source-selection.md](../../docs/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 예제 코드는 열어 보지 않았고 옮긴 줄이 없다.
+- 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.
