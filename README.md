@@ -31,6 +31,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [BRD v0.2 (제안)](docs/requirements/brd-v0.2.md) · [SRD v0.2 (제안)](docs/requirements/srd-v0.2.md) | 웹캠 1대·운영자 구간 승인·머리 위 기둥 통로·이중 확인 완료 판정 시나리오를 교육 양식 목차로 쓴 BRD·SRD. 채택 전 `[제안]`, 기준 문서는 Part I v0.1 |
 | [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, 오프라인 시험 규칙 |
 | [운영 PC 현황 기록](docs/process/ops-host-record.md) | 운영 PC 에 실제로 떠 있는 Discovery Server(서버 ID 0, 손으로 띄움, DHCP 주소)·관제 웹의 측정값, network-discovery 권고안 A 와의 차이, 로봇 Discovery 설정을 건드리지 않는 규칙 |
+| [운영 DB 파일과 테이블 관계도](docs/process/ops-db-tables.md) | SQLite 파일 넷(송신 대기열·운영 장부·현장 상태·웹 계정)의 쓰는 쪽·읽는 쪽, 테이블과 JSON 안 ID 로 이어지는 관계(Mermaid 그림), 읽기 전용으로 여는 법 |
 | [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
 | [일정과 담당](docs/process/schedule.md) · [일정표 CSV](docs/process/schedule-timeline.csv) | 10-08 ~ 10-16 작업일·관문·사람별 담당(임시안), 구글 시트로 가져올 칸 일정 |
 | [페이즈와 릴리즈 계획](docs/process/release-plan.md) | P0 ~ P5 페이즈, v0.1 ~ v1.0 릴리즈에 들어가는 것·빠지는 것·합격 조건, P1 후보 PR 대응, 대비책 |
