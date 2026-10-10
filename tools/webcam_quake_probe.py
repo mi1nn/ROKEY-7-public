@@ -35,7 +35,7 @@ from rescue_perception.disaster_sign import DisasterSignDetector, DisasterSignPo
 
 LABELS = {ord("1"): "still", ord("2"): "shake", ord("3"): "light", ord("4"): "pass", ord("5"): "cover"}
 FIELDS = ("time", "elapsed_s", "stamp_ns", "label", "status", "reason", "dx", "dy", "reversals", "condition", "event",
-          "textured_ratio", "matched_ratio", "proc_ms")
+          "textured_ratio", "matched_ratio", "visible_ratio", "proc_ms")
 
 
 def parse_args():
@@ -52,7 +52,8 @@ def parse_args():
     ap.add_argument("--valid-ratio", type=float, default=0.5)
     ap.add_argument("--agree-tol", type=float, default=1.0)
     ap.add_argument("--shift-min", type=float, default=1.0, help="방향을 기록할 최소 이동(칸)")
-    ap.add_argument("--scene-match-min", type=float, default=0.5, help="기준 장면과 같은 장면으로 볼 ZNCC")
+    ap.add_argument("--scene-match-min", type=float, default=0.8, help="기준 장면과 같은 장면으로 볼 ZNCC")
+    ap.add_argument("--rebase-s", type=float, default=10.0, help="바뀐 화면을 새 기준 장면으로 삼을 안정 시간(초)")
     ap.add_argument("--shakes", type=int, default=4, help="창 안 방향 전환 횟수 N")
     ap.add_argument("--window-s", type=float, default=3.0)
     ap.add_argument("--hold-s", type=float, default=0.2)
@@ -71,6 +72,7 @@ def policy_from(args):
                               search_cells=args.search, texture_min=args.texture_min, match_min=args.match_min,
                               valid_ratio_min=args.valid_ratio, agree_tol=args.agree_tol,
                               shift_min=args.shift_min, scene_match_min=args.scene_match_min,
+                              rebase_ns=ns(args.rebase_s),
                               shakes_min=args.shakes, window_ns=ns(args.window_s),
                               hold_ns=ns(args.hold_s), release_ns=ns(args.release_s),
                               max_gap_ns=ns(args.max_gap_s))
@@ -135,7 +137,7 @@ def draw_overlay(cv2, frame, label, result, args, proc_ms, events, banner):
         cv2.putText(frame, f"reversals {result.reversals}/{args.shakes}", (322, 89),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, WHITE, 2)
         info = (f"shift {result.shift}  reason {result.reason or '-'}",
-                f"textured {result.textured_ratio}  matched {result.matched_ratio}",
+                f"textured {result.textured_ratio}  matched {result.matched_ratio}  visible {result.visible_ratio}",
                 f"proc {proc_ms:.0f} ms   events {events}")
         _bar(cv2, frame, h - 120, h - 36, (50, 50, 50))
         for i, text in enumerate(info):
@@ -251,7 +253,7 @@ def main():
                     print("프레임을 읽지 못했습니다 (카메라 끊김) — 다시 연결 시도 중 (q 로 종료)")
                 row = dict(**clock(stamp, started), stamp_ns=stamp, label=label, status="STREAM_LOST", reason="", dx="", dy="",
                            reversals=last_reversals, condition=0, event=0, textured_ratio="",
-                           matched_ratio="", proc_ms=0.0)
+                           matched_ratio="", visible_ratio="", proc_ms=0.0)
                 rows.append(row)
                 if writer:
                     writer.writerow(row)
@@ -277,7 +279,9 @@ def main():
             row = dict(**clock(stamp, started), stamp_ns=stamp, label=label, status=result.status, reason=result.reason or "",
                        dx=dx, dy=dy, reversals=result.reversals, condition=int(result.condition),
                        event=int(result.event is not None), textured_ratio=result.textured_ratio,
-                       matched_ratio=result.matched_ratio, proc_ms=round(proc_ms, 1))
+                       matched_ratio=result.matched_ratio,
+                       visible_ratio="" if result.visible_ratio is None else round(result.visible_ratio, 3),
+                       proc_ms=round(proc_ms, 1))
             rows.append(row)
             last_reversals = result.reversals
             if writer:
