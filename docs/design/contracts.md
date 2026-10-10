@@ -115,7 +115,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | 구분 | 내용 |
 | --- | --- |
 | Goal | command_id, task_id, generation, robot_id, coordinator_id/authority_epoch, kind, issued_at/deadline, command lease 참조, target_id/estimate_revision 또는 search_area_ref, 필요한 frame/session/revision, 정책/설정 버전 |
-| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`. 협업의 자동 귀환·도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
+| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`, `MOVE_SEGMENT`, `RETURN_HOME`. `MOVE_SEGMENT` 는 운영자가 승인한 한 구간만 대상 쪽으로 움직이는 AMR2 임무(Q-12 결정 2026-10-10)로, `APPROACH_TARGET` 처럼 경로 근거가 필요한 대상 임무다. `RETURN_HOME` 은 완료·취소 뒤 프로파일의 홈 위치로 가는 새 generation 임무(Q-22, BRD Part I 3.9)이고 대상이 없다. 어휘에 있다고 실행기가 받는 것은 아니며, 구현하지 않은 실행기는 계속 거절한다. 도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
 | 수락 조건 | ID/버전/시각/권한·generation 일치, 필요한 센서·시간·TF·Nav2 준비, stop latch 없음, lease 유효, 필수 설정 확정, 현재 지도 revision 호환. 도킹 장치가 있는 플랫폼의 수색/접근/재관측 이동은 fresh dock_status의 is_docked=false 필요 |
 | Feedback | task/generation, 실행 상태, 현재 목표/경로 상태, 마지막 관측 나이, 장애/보류 사유, 실제 pose의 시각/품질. action feedback 수신 자체를 성공으로 보지 않음 |
 | Result | 수락한 action의 outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACHABLE`, `FAILED` 중 하나. terminal_reason, stop_confirmed, motion_state, 사용한 관측/좌표 revision, stop 증거, 보고 참조를 포함. 결과가 없으면 UNKNOWN/PENDING 유지 |
