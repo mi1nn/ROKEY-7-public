@@ -40,6 +40,11 @@ def moved_where(mask, dx):
     return [[moving[y][x] if mask(x, y) else still[y][x] for x in range(48)] for y in range(48)]
 
 
+def hand(ox=0, size=48):
+    """렌즈 바로 앞의 손: 장면과 전혀 다른 무늬가 화면 전체를 덮는다(값 40..100)."""
+    return [[40 + ((x * 31337 + y * 7331) ** 2 // 7) % 61 for x in range(ox, ox + size)] for y in range(size)]
+
+
 COVERED = [[10] * 48 for _ in range(48)]
 
 
@@ -162,6 +167,14 @@ class DisasterSignTests(unittest.TestCase):
         results = self.run_frames(self.detector(), frames)
         self.assertEqual({r.reason for r in results[1:]}, {"PARTIAL_MOTION"})
         self.assertEqual(self.events(results), [])
+
+    def test_hand_moving_right_in_front_of_lens_is_not_shaking(self):
+        # 손이 렌즈 가까이서 화면 전체를 덮고 왔다 갔다 함(2026-10-10 실측 오탐): 16칸이 모두
+        # 같이 움직이지만 보이는 것이 원래 장면이 아니다 -> 세지 않는다.
+        frames = still(0, 3) + [(300 + k * 100, hand(ox=2 * (k % 2))) for k in range(10)]
+        results = self.run_frames(self.detector(), frames)
+        self.assertEqual(self.events(results), [])
+        self.assertEqual(max(r.reversals for r in results), 0)
 
     def test_jitter_below_noise_floor_is_not_counted(self):
         frames = [(k * 100, scene(ox=8 + k % 2)) for k in range(8)]  # 1칸 왕복 < shift_min 1.5
