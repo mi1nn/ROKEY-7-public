@@ -30,14 +30,26 @@ def board(shift=0):
 COVERED = [[10] * 16 for _ in range(16)]
 
 
+def scene(size=48, ox=8, oy=8):
+    """Fixed pseudo-random texture (values 30..120) seen through a size x size window at (ox, oy)."""
+    return [[30 + ((x * 7919 + y * 104729) ** 2 // 13) % 91 for x in range(ox, ox + size)]
+            for y in range(oy, oy + size)]
+
+
+def lit(rows, gain):
+    """Same scene under different lighting: every pixel scaled, nothing moves."""
+    return [[min(255, round(v * gain)) for v in row] for row in rows]
+
+
 def image(k, rows, encoding="mono8"):
     if encoding == "mono8":
         data = bytes(v for row in rows for v in row)
     else:
         data = bytes(c for row in rows for v in row for c in (v, v, v))
     channels = 1 if encoding == "mono8" else 3
+    height, width = len(rows), len(rows[0])
     return NS(header=NS(stamp=NS(sec=T0_SEC, nanosec=T0_NSEC + k), frame_id="cam_a/rgb_optical"),
-              width=16, height=16, encoding=encoding, is_bigendian=0, step=16 * channels, data=data)
+              width=width, height=height, encoding=encoding, is_bigendian=0, step=width * channels, data=data)
 
 
 class DisasterSignTests(unittest.TestCase):
@@ -50,6 +62,9 @@ class DisasterSignTests(unittest.TestCase):
 
     def detector(self, **policy):
         return DisasterSignDetector(self.binding, replace(self.policy, **policy))
+
+    def shake_detector(self):
+        return self.detector(use_shake=True, use_occlusion=False)
 
     def run_frames(self, detector, frames):
         return [detector.update(image(k, rows)) for k, rows in frames]
@@ -167,6 +182,13 @@ class DisasterSignTests(unittest.TestCase):
         bad.encoding = "yuv422"
         self.assertCode("INVALID_INPUT", lambda: d.update(bad))
         self.assertEqual(d.update(image(100, COVERED)).status, "PROCESSED")
+
+    def test_lighting_change_alone_raises_nothing(self):
+        # Lights dimmed/brightened/flickering with a still camera: nothing moved, so
+        # no disaster sign (PR #33 review, 2026-10-09: edge indicators flip on lighting).
+        gains = (1.0, 0.4, 1.0, 0.4, 2.0, 0.4, 1.0, 0.4, 2.0, 1.0)
+        frames = [(k * 100, lit(scene(), gain)) for k, gain in enumerate(gains)]
+        self.assertEqual(self.events(self.run_frames(self.shake_detector(), frames)), [])
 
     def test_invalid_inputs_are_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: DisasterSignDetector(replace(self.binding, source_robot="robot_a"),
