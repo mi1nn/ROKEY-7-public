@@ -153,7 +153,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 
 최신 사용자 요청에 따라 **초안 작성은 병렬/연속 진행하고 머지를 기다리지 않는다.** 각 PR은 자신의 base/head·부모 PR·추가 diff·미완료 관문을 기록한다. 피드백은 한 번에 모아 수정할 수 있으며, 수정 내용이 공통 계약에 영향을 주면 관련 Draft에도 반영한다.
 
-Claude는 전체 논리·계획을 검토하고, Codex는 반영 후 최종 검토·일관성 확인을 수행하며, Cursor는 검증·필요한 수정·의존 순서의 main 머지를 담당한다. 의미를 바꾸는 Cursor 수정은 계약/계획 영향에 맞춰 Claude·Codex의 관련 재검토를 거친다. 오탈자·링크 수정도 실제 변경 범위의 검사를 다시 수행한다. 세부 운영은 [리뷰 작업 흐름](review-workflow.md)을 따른다.
+검토 담당·인계·머지와 의미를 바꾸는 수정의 재검토는 [현재 검토 절차](review-workflow.md#current-review-workflow)와 [머지 조건](review-workflow.md#current-merge-conditions)을 따른다. 위 표의 계획 PR 작성·최종검토 기록을 현재 담당 배정으로 사용하지 않는다. 오탈자·링크 수정도 실제 변경 범위의 검사를 수행한다.
 
 하위 PR이 부모 Draft를 base로 했으면 부모 변경/머지 뒤 base와 diff를 갱신하고 변경된 검토 기준을 표시한다. 스택 아래의 새 커밋이 들어왔는데 이전 head의 승인/검증을 그대로 최종 결과로 쓰지 않는다. main 반영은 선행 의존 PR의 실제 MERGED 상태·반영 commit을 확인한 순서로 진행한다. 현재 PR 1~4는 리뷰 작업 흐름에 따라 **merge commit 방식으로 main에만** 머지하고 다음 PR base를 최신 main으로 갱신한다. 예외적으로 squash/rebase가 발생하면 진행을 멈추고 하위 고유 diff·기반·검토 head를 재구성하여 재검증한다. 검증 head와 실제 merge commit을 함께 기록한다.
 
