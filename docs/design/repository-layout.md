@@ -1,7 +1,7 @@
 ---
 title: 파이널 디렉터리 구조와 코드 이식 경계
 status: proposed
-updated: 2026-10-08
+updated: 2026-10-10
 ---
 
 # 파이널 디렉터리 구조와 코드 이식 경계
@@ -33,6 +33,7 @@ ROKEY-7/
     rescue_robot/               로봇별 임무 실행·Nav2 어댑터
     rescue_coordination/        수색 분담·대상 사건·임무 배정
     rescue_operations/          관제 API·영속 기록·보고
+    rescue_console/             관제 웹 화면·로그인 (명령은 operations API 로)
     rescue_bringup/             실행 구성·프로파일 검사·launch
   config/
     profiles/                   두 로봇·현재 네 호스트 기준 배치 구성
@@ -60,7 +61,8 @@ ROKEY-7/
 | `rescue_perception` | 입력 헤더를 보존한 탐지·거리·관측 생성 | observation·class·quality | 로봇 주행 명령, 재발행으로 관측 수명 연장 |
 | `rescue_robot` | 한 로봇의 임무 수락·실행·취소·결과, Nav2 주행 요청·외부 경로 조회 adapter | task·robot state·map validity | 전 로봇의 배정, 별도 임의 속도 우회 경로 |
 | `rescue_coordination` | 관측을 사건으로 관리, 수색·확인·접근 배정 | event·task·status·report | Nav2/속도 직접 명령, SLAM TF 재발행 |
-| `rescue_operations` | UI/API·명령 요청·보고 저장·증거 검색 | 사건·명령 결과·보고 | 독자적 로봇 제어, 공유 SQLite 파일로 여러 PC 쓰기 |
+| `rescue_operations` | 관제 API·명령 요청·보고 저장·증거 검색 | 사건·명령 결과·보고 | 독자적 로봇 제어, 공유 SQLite 파일로 여러 PC 쓰기 |
+| `rescue_console` | 관제 웹 화면·로그인·계정 관리 | 장부·현장 상태 읽기 함수, operations 명령 API | 장부·현장 상태 DB 쓰기, ROS 직접 구독, 로봇 직접 명령, 현장 정지 수단 대신하기 |
 | `rescue_bringup` | 호스트/로봇별 설정 검증·실행 묶음·운용 dock/undock 요청 전달 | profile·package/contract versions·운용 요청 | 직접 로봇 액션 발행, 센서 사실·시험 PASS의 생성 |
 
 도메인 모듈은 ROS 메시지 객체 대신 명시된 값/타입을 입력받고 결과·명령 의도를 반환한다. ROS 어댑터가 메시지·액션·시각·QoS를 연결한다. 판단 함수를 시험하기 위해 ROS 전체를 실행하지 않아도 되게 하고, 그 시험을 ROS·실기 시험과 구별한다.
