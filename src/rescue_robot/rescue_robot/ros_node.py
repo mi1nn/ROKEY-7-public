@@ -1,10 +1,10 @@
 """ROS 2 boundary for CommandAdapter: NavigateToPose client, odometry, dock status.
 
 ROS packages are imported inside functions so `rescue_robot` stays importable
-and testable without ROS. This node has no task ingress yet (ExecuteTask lives
-in the unimplemented rescue_interfaces) and its guard rejects every dispatch
-until the mapping revision guard is connected, so it cannot start a motion on
-its own. It observes odometry, dock status and Nav2 availability.
+and testable without ROS. This node has no task ingress yet (the ExecuteTask IDL
+exists in rescue_interfaces, #62, but no ExecuteTask input node is implemented)
+and its guard rejects every dispatch until the mapping revision guard is
+connected, so it cannot start a motion on its own. It observes odometry, dock status and Nav2 availability.
 """
 import math
 import subprocess

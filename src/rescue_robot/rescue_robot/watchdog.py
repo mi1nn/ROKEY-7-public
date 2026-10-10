@@ -7,9 +7,10 @@ input, and only this watchdog writes the robot's final command topic.
   command adapter process on the PC) is fresh. Anything else becomes a zero
   command; it is never clamped or delayed.
 - A stale executor heartbeat, an out-of-limit or non-finite command, or local time
-  going backwards latches STOP: one zero command, no forwarding, and the
-  watchdog's own heartbeat stops (the adapter's `watchdog` readiness flag then
-  expires, so no new goal is sent).
+  going backwards latches STOP: a zero on the transition, then every input
+  command becomes a zero (no forwarding), and the watchdog's own heartbeat
+  stops (the adapter's `watchdog` readiness flag then expires, so no new goal
+  is sent).
 - A heartbeat coming back never releases the latch (C-06: new connection or
   heartbeat alone does not unlatch). Only `reset(now)` with a fresh heartbeat does;
   the executor's own STOP latch and new-generation rule are separate and stay.
