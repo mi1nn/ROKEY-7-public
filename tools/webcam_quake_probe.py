@@ -85,12 +85,20 @@ def summarize(rows):
     print("\n=== 상황별 요약 ===")
     for label, rs in by_label.items():
         mags = sorted(math.hypot(r["dx"], r["dy"]) for r in rs if r["dx"] != "")
-        procs = sorted(r["proc_ms"] for r in rs)
         p95 = lambda xs: xs[min(len(xs) - 1, int(len(xs) * 0.95))] if xs else float("nan")
         unknown = sum(r["status"] == "UNKNOWN" for r in rs)
+        lost = sum(r["status"] == "STREAM_LOST" for r in rs)
+        procs = sorted(r["proc_ms"] for r in rs if r["status"] != "STREAM_LOST")
         print(f"[{label}] 프레임 {len(rs)}, 사건 {sum(r['event'] for r in rs)}, 최대 전환 {max(r['reversals'] for r in rs)}, "
               f"이동 크기 p95 {p95(mags):.2f} / 최대 {mags[-1] if mags else float('nan'):.2f} 칸, "
-              f"UNKNOWN {unknown}, 처리 p95 {p95(procs):.0f} ms")
+              f"UNKNOWN {unknown}, 카메라 끊김 {lost}, 처리 p95 {p95(procs):.0f} ms")
+
+
+def open_camera(cv2, args):
+    cap = cv2.VideoCapture(args.camera)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+    return cap
 
 
 def list_cameras(cv2):
@@ -115,9 +123,7 @@ def main():
         SourceBinding(None, "cam_fixed", str(uuid4()), "probe-host-clock", "DRIVER_RECEIVE", "UNKNOWN",
                       "uncalibrated", "UNKNOWN", None),
         policy_from(args))
-    cap = cv2.VideoCapture(args.camera)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+    cap = open_camera(cv2, args)
     if not cap.isOpened():
         sys.exit(f"카메라 {args.camera} 를 열 수 없습니다 (macOS 는 터미널 앱의 카메라 권한 확인)")
     writer = None
@@ -125,15 +131,34 @@ def main():
         handle = args.csv.open("w", newline="")
         writer = csv.DictWriter(handle, FIELDS)
         writer.writeheader()
-    label, rows, events = "still", [], 0
+    label, rows, events, last_reversals, lost_since = "still", [], 0, 0, None
     print(f"정책: {detector.policy}")
     try:
         while True:
             ok, frame = cap.read()
             stamp = time.time_ns()  # 드라이버에서 받은 시각(촬영 시각 아님)
             if not ok:
-                print("프레임을 읽지 못했습니다 (카메라 끊김) — 종료")
-                break
+                # 끊김은 종료하지 않고 기록한 뒤 다시 연결한다. 판정기는 다음 프레임에서
+                # 간격이 max_gap 을 넘은 것을 보고 횟수·구간을 스스로 초기화한다.
+                if lost_since is None:
+                    lost_since = stamp
+                    print("프레임을 읽지 못했습니다 (카메라 끊김) — 다시 연결 시도 중 (q 로 종료)")
+                row = dict(stamp_ns=stamp, label=label, status="STREAM_LOST", reason="", dx="", dy="",
+                           reversals=last_reversals, condition=0, event=0, textured_ratio="",
+                           matched_ratio="", proc_ms=0.0)
+                rows.append(row)
+                if writer:
+                    writer.writerow(row)
+                if not args.no_window and cv2.waitKey(500) & 0xFF == ord("q"):
+                    break
+                if args.no_window:
+                    time.sleep(0.5)
+                cap.release()
+                cap = open_camera(cv2, args)
+                continue
+            if lost_since is not None:
+                print(f"카메라 다시 연결됨 ({(stamp - lost_since) / 1e9:.1f}초 끊김)")
+                lost_since = None
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             t0 = time.perf_counter()
             result = detector.update(to_image(gray, stamp))
@@ -144,6 +169,7 @@ def main():
                        event=int(result.event is not None), textured_ratio=result.textured_ratio,
                        matched_ratio=result.matched_ratio, proc_ms=round(proc_ms, 1))
             rows.append(row)
+            last_reversals = result.reversals
             if writer:
                 writer.writerow(row)
             if result.event is not None:
