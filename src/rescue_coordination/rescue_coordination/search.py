@@ -14,12 +14,13 @@ from dataclasses import dataclass, field
 import math
 from uuid import uuid4
 
-from rescue_contracts import timestamp_ns, duration_ns
+from rescue_contracts import ROBOT_ROLES as ROLES, timestamp_ns, duration_ns
 
+# APPROACH_PROJECTION_STATUS: mapping projection status that may feed an approach (defined in dispatch).
+from .dispatch import APPROACH_PROJECTION_STATUS, select_dispatch_target
 from .planning import (Allocator, CoordinationError, PathCandidate, Reservation,
                        contract_value, finite, point, revision, robot, uid)
 
-ROLES = ('SCOUT', 'SUPPORT')  # BRD v0.1 names: TB1 정찰 / TB2 구조 지원
 ACTIONS = frozenset({'RESERVED', 'KEEP', 'WAIT', 'RELEASE_REQUIRED'})
 # Closed set of decision reasons; no free text is returned (작전 Q5, 2026-10-08).
 SEARCH_REJECT_REASONS = frozenset({
@@ -29,8 +30,6 @@ SEARCH_REJECT_REASONS = frozenset({
     'EVENT_ALREADY_HAS_APPROACH'})
 DECISION_REASONS = SEARCH_REJECT_REASONS | {'PENDING', 'ACTIVE', 'PENDING_EXECUTOR_ADMISSION'}
 EXCLUSION_REASONS = frozenset({'BASIS_NOT_EXECUTABLE', 'NO_MAP_REVISION', 'WITHDRAWN'})
-# mapping.MappingRegistry.projection(...).status that may feed an approach.
-APPROACH_PROJECTION_STATUS = 'VALID'
 
 
 @dataclass(frozen=True)
@@ -65,6 +64,27 @@ class MissionSite:
 
     def bound_to_map(self):
         return None not in (self.map_session_id, self.map_revision, self.transform_revision)
+
+
+def mission_sites(areas, *, entry_yaws):
+    """Profile v2 ``mission.search_areas`` -> ``MissionSite`` tuple, order kept.
+
+    ``areas`` are ``rescue_bringup.profile.SearchArea`` values (read by attribute,
+    so coordination does not import bringup). ``entry_yaws`` maps every area id to
+    its arrival heading until profile v2.1 carries ``search_areas[].entry_yaw``;
+    a missing, extra or non-finite heading is rejected, never defaulted. The
+    basis kind is copied as is: whether it may run is ``SearchPolicy``'s call.
+    """
+    areas = tuple(areas)
+    ids = [area.id for area in areas]
+    if not areas or len(set(ids)) != len(ids):
+        raise CoordinationError('INVALID_INPUT', 'search areas must be non-empty and unique')
+    if not isinstance(entry_yaws, dict) or set(entry_yaws) != set(ids):
+        raise CoordinationError('INVALID_INPUT', 'entry_yaws must name exactly the search areas')
+    return tuple(MissionSite(area.id, tuple(area.mission_xy), area.basis.kind,
+                             area.basis.map_session_id, area.basis.map_revision,
+                             area.basis.transform_revision, entry_yaw=entry_yaws[area.id])
+                 for area in areas)
 
 
 @dataclass(frozen=True)
@@ -269,6 +289,16 @@ class SearchCoordinator:
         if decision.action == 'RESERVED':
             self.approach_tasks[event_id] = decision.reservation.task_id
         return decision
+
+    def select_approach_target(self, targets, *, policy, origin, now_ns):
+        """Rank confirmed targets for the SUPPORT robot (``dispatch.select_dispatch_target``).
+
+        Events that already have an approach reservation here are skipped, so one
+        target never gets a second dispatch. The result is only a choice; pass it
+        to ``request_approach`` to reserve.
+        """
+        return select_dispatch_target(targets, policy=policy, support_robot_id=self.policy.role_of('SUPPORT'),
+                                      assigned_events=frozenset(self.approach_tasks), origin=origin, now_ns=now_ns)
 
     def withdraw_area(self, area_id):
         """Stop proposing an area (e.g. its map basis became invalid)."""
