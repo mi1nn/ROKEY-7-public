@@ -96,11 +96,23 @@ def resolve_device(devices, selector):
     return hits[0]
 
 
+# 장치는 30 fps 를 30.000030 처럼 보고한다(2026-10-11 USB 웹캠). 요청값이 이만큼 안이면 같은 값으로 본다.
+FPS_TOL = 0.01
+
+
 def check_mode(modes, size, fps):
-    """요청한 해상도·fps 를 장치가 지원하는지. 아니면 지원 목록과 함께 실패."""
-    if not any((w, h) == size and lo <= fps <= hi for w, h, lo, hi in modes):
-        listed = ", ".join(f"{w}x{h}@{lo:g}-{hi:g}" for w, h, lo, hi in modes) or "알 수 없음"
-        raise SystemExit(f"{size[0]}x{size[1]}@{fps:g} 는 지원하지 않음. 지원: {listed}")
+    """요청한 해상도·fps 를 장치가 지원하면 ffmpeg 에 넘길 fps 문자열을 돌려준다. 아니면 지원 목록과 함께 실패.
+
+    범위 끝값 근처면 장치가 보고한 값 그대로를 쓴다. AVFoundation 은 반올림한 30 을 30.000030 범위로
+    받아 주지 않는다.
+    """
+    for w, h, lo, hi in modes:
+        if (w, h) != size or not lo - FPS_TOL <= fps <= hi + FPS_TOL:
+            continue
+        rate = lo if abs(fps - lo) <= FPS_TOL else hi if abs(fps - hi) <= FPS_TOL else fps
+        return f"{rate:.6f}"
+    listed = ", ".join(f"{w}x{h}@{lo:g}-{hi:g}" for w, h, lo, hi in modes) or "알 수 없음"
+    raise SystemExit(f"{size[0]}x{size[1]}@{fps:g} 는 지원하지 않음. 지원: {listed}")
 
 
 def check_actual(probe, size, fps, fps_tol=1.0):
@@ -187,10 +199,10 @@ def cmd_modes(args):
 
 def cmd_preview(args):
     index, name = resolve_device(list_devices(), args.device)
-    check_mode(list_modes(index), args.size, args.fps)
-    print(f"[{index}] {name} {args.size[0]}x{args.size[1]}@{args.fps:g} 미리보기 — 창을 닫거나 q 로 끝")
+    rate = check_mode(list_modes(index), args.size, args.fps)
+    print(f"[{index}] {name} {args.size[0]}x{args.size[1]}@{rate} 미리보기 — 창을 닫거나 q 로 끝")
     subprocess.run(["ffplay", "-hide_banner", "-loglevel", "error", "-f", "avfoundation",
-                    "-framerate", f"{args.fps:g}", "-video_size", f"{args.size[0]}x{args.size[1]}",
+                    "-framerate", rate, "-video_size", f"{args.size[0]}x{args.size[1]}",
                     "-i", f"{index}:none", "-window_title", f"preview {name}"])
 
 
@@ -198,14 +210,14 @@ def cmd_record(args):
     split, default_seconds, distance, what = CLIPS[args.clip]
     seconds = args.seconds or default_seconds
     index, name = resolve_device(list_devices(), args.device)
-    check_mode(list_modes(index), args.size, args.fps)
+    rate = check_mode(list_modes(index), args.size, args.fps)
     now = datetime.now()
     out = clip_path(args.clip, now)
     out.parent.mkdir(parents=True, exist_ok=True)
     print(f"{args.clip} ({split}) {distance}: {what}")
-    print(f"[{index}] {name} {args.size[0]}x{args.size[1]}@{args.fps:g}, {seconds}초 — 일찍 끝내려면 q")
+    print(f"[{index}] {name} {args.size[0]}x{args.size[1]}@{rate}, {seconds}초 — 일찍 끝내려면 q")
     rec = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "warning", "-stats", "-f", "avfoundation",
-                          "-framerate", f"{args.fps:g}", "-video_size", f"{args.size[0]}x{args.size[1]}",
+                          "-framerate", rate, "-video_size", f"{args.size[0]}x{args.size[1]}",
                           "-i", f"{index}:none", "-t", str(seconds), "-c:v", "libx264", "-preset", "veryfast",
                           "-crf", "18", "-pix_fmt", "yuv420p", "-y", str(out)])
     if rec.returncode != 0 or not out.exists():
@@ -215,7 +227,8 @@ def cmd_record(args):
     problems = check_actual(probe, args.size, args.fps)
     meta = {"clip": args.clip, "split": split, "distance": distance, "what": what, "note": args.note,
             "ok": not problems, "problems": problems, "device": {"index": index, "name": name},
-            "requested": {"width": args.size[0], "height": args.size[1], "fps": args.fps, "seconds": seconds},
+            "requested": {"width": args.size[0], "height": args.size[1], "fps": args.fps, "device_fps": rate,
+                          "seconds": seconds},
             "duration_s": float(probe.get("format", {}).get("duration", 0.0)),
             "recorded_at": now.isoformat(timespec="seconds"), "file": out.name, "sha256": sha256(out),
             "git_sha": git_sha(), "ffmpeg": _ffmpeg("-version").stdout.splitlines()[0]}
