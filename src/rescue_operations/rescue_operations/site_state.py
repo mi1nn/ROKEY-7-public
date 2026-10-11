@@ -279,7 +279,8 @@ class SiteStateLedger(_Database):
         """Append one console command and its answer, rejections included. Returns False for a resend."""
         command = _command(command, self.allowed_robot_ids)
         with self._transaction() as db:
-            row = db.execute("SELECT * FROM operator_commands WHERE command_id = ?", (command["command_id"],)).fetchone()
+            row = db.execute("SELECT * FROM operator_commands WHERE command_id = ?",
+                             (command["command_id"],)).fetchone()
             if row is not None:
                 require(_command_row(row) == command, "command_id has different content", "ID_CONTENT_CONFLICT")
                 return False
@@ -309,8 +310,8 @@ class SiteStateLedger(_Database):
             row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
             if row is not None:
                 if mission["updated_at_ns"] == row["updated_at_ns"]:
-                    require({key: row[key] for key in MISSION_KEYS} == mission, "same mission time with different content",
-                            "ID_CONTENT_CONFLICT")
+                    require({key: row[key] for key in MISSION_KEYS} == mission,
+                            "same mission time with different content", "ID_CONTENT_CONFLICT")
                     return False
                 if mission["updated_at_ns"] < row["updated_at_ns"]:
                     return False

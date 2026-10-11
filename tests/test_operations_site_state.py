@@ -253,7 +253,8 @@ class SiteStateTests(unittest.TestCase):
     # --- operator commands --------------------------------------------------
     def test_operator_commands_keep_rejections_and_resends_are_idempotent(self):
         rejected = command(701, kind='DISPATCH_SUPPORT', segment_index=None, route_revision=None,
-                           requested_at_ns=6_000, accepted=False, result=None, reason='GUARD_INVALID: no confirmed target')
+                           requested_at_ns=6_000, accepted=False, result=None,
+                           reason='GUARD_INVALID: no confirmed target')
         stop = command(702, kind='STOP_ROBOT', target_id=None, segment_index=None, route_revision=None,
                        requested_at_ns=8_000)
         with self.ledger() as ledger:
