@@ -14,18 +14,19 @@ The node runs as a child process with config/deployment.v2.example.json (robot_a
 robot_b SUPPORT). This probe is the fake executor of robot_a: it accepts ExecuteTask,
 publishes TaskAdmission and returns COMPLETED with a confirmed stop. Checks:
 1. no goal before DISASTER_SIGN; 2. DISASTER_SIGN + READY status -> SEARCH_AREA for the
-first area; 3. admission + completed result -> SEARCH_AREA for the second area;
-4. REQUEST_RECHECK of an unknown target -> REJECTED/NOT_FOUND, replay -> DUPLICATE;
-5. the node refuses to start without parameters (exit 2); 6. a VALID TargetLocation ->
-RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one
-MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
-ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
-without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
-generation as the goal, renewal_sequence strictly rising, none after its result; 9. a
-RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals; 10. a
-REOBSERVE_TARGET the executor never admits: renewals stop after admission_timeout_s and,
-once a STOPPED status arrives, it is issued again as a new task; 11. a TargetSnapshot names
-the target with its saved report.
+first area, while the idle robot reports lease_valid=false (#100); 3. admission +
+completed result -> SEARCH_AREA for the second area; 4. REQUEST_RECHECK of an unknown
+target -> REJECTED/NOT_FOUND, replay -> DUPLICATE; 5. the node refuses to start without
+parameters (exit 2); 6. a VALID TargetLocation -> RescueReport, PERSISTED receipt ->
+SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one MOVE_SEGMENT to robot_b with route
+(UNKNOWN assessment, no planner values) and a ONE_SEGMENT approval; its completed result
+-> AWAITING_CONTINUE and no next segment without CONTINUE_SEGMENT; its
+route.generated_at_ns is set, not after the goal; 8. CommandLease for the first
+SEARCH_AREA: same lease_id and generation as the goal, renewal_sequence strictly rising,
+none after its result; 9. a RobotStatus with a stop reason for the running MOVE_SEGMENT ->
+no further renewals; 10. a REOBSERVE_TARGET the executor never admits: renewals stop after
+admission_timeout_s and, once a STOPPED status arrives, it is issued again as a new task;
+11. a TargetSnapshot names the target with its saved report.
 Exit code 0 = all held.
 """
 import os
@@ -112,7 +113,9 @@ class FakeExecutor(Node):
 
     def publish_status(self):
         for robot, pub in self.status.items():
-            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY', lease_valid=True,
+            # Like the executor (#100): a lease belongs to a task, so an idle robot reports lease_valid=false.
+            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY',
+                                    lease_valid=bool(self.active[robot]),
                                     observed_at_ns=self.get_clock().now().nanoseconds,
                                     active_task_id=self.active[robot], stop_reason=self.stop_reason[robot],
                                     motion_state='MOVING' if self.active[robot] else 'STOPPED'))
@@ -229,6 +232,8 @@ def main():
                 g.approval.scope, g.route.assessment.status, g.route.planner_evidence_id, len(g.route.planned_path.poses),
                 g.route.approach_goal.pose.position.x, g.route.frame_ref.alignment_status) == (
                 True, g.task_id, 'MOVE_SEGMENT', SUPPORT, True, True, 'ONE_SEGMENT', 'UNKNOWN', '', 0, 1.0, 'VALID')
+            checks['MOVE_SEGMENT route carries the time it was made'] = bool(g) and (
+                0 < g.route.generated_at_ns <= g.issued_at_ns < g.route.valid_until_ns)
             if g:
                 wait(executor, lambda: False, 1.0, probe.publish_status)
                 renewed = [l for l in probe.leases if l.lease_id == g.lease_id]
