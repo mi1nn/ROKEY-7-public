@@ -364,10 +364,11 @@ class CoordinatorCore:
     def tick(self, now_ns):
         """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
         contract_value(timestamp_ns, now_ns)
-        if self.mission.mode == 'DISASTER':
-            self._issue_segment(now_ns)
-            self._issue_rechecks(now_ns)
-            self._issue_search(now_ns)
+        # Order matters: an open recheck takes a free SCOUT before a new search area does.
+        # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
+        self._issue_segment(now_ns)
+        self._issue_rechecks(now_ns)
+        self._issue_search(now_ns)
         sent, self.outbox = self.outbox, []
         return sent
 
@@ -492,8 +493,8 @@ class CoordinatorCore:
     def _issue_search(self, now_ns):
         scout = self.roles['SCOUT']
         state = self.ready(scout, now_ns)
-        if state is None or any(r.link_id not in self.recheck_tasks for r in self.mission.open_rechecks.values()):
-            return  # an open recheck waiting for the SCOUT goes before a new search area
+        if state is None:
+            return
         gate = self.mission.plan(scout, robot_boot_id=state[0], ready=state[1], now_ns=now_ns)
         if gate.decision is not None and gate.decision.action == 'RESERVED':
             self.outbox.append(gate.decision.task_fields | dict(route=None, approval=None))
