@@ -11,9 +11,8 @@ ROS packages are imported inside functions, so this module stays importable and
   ``MissionCoordinator.handle_command``; a replayed command_id answers DUPLICATE
   with the first answer (C-11 row 10).
 
-Not yet (PR body): MOVE_SEGMENT/REOBSERVE_TARGET issuance (no path evidence
-source, 작전 Q7), CommandLease, SystemState publishing (2차 IDL), target intake,
-SetCameraWatch, RETURN_HOME assignment.
+Not yet (PR body): SetCameraWatch and candidate -> verdict linking, HomePosition
+and RETURN_HOME assignment (Q-22), TargetSnapshot publishing.
 """
 import hashlib
 import json
@@ -108,9 +107,9 @@ def admission_from_msg(msg):
 def fill_execute_task_goal(goal, fields, *, coordinator_id):
     """``Decision.task_fields`` -> ExecuteTask goal (attribute assignment only).
 
-    ``frame_ref.alignment_status`` stays empty: alignment is the mapping's call
-    and the coordinator never asserts VALID. ``lease_id`` stays empty until
-    CommandLease publishing exists; the executor must treat both as not given.
+    ``frame_ref.alignment_status`` stays empty for SEARCH_AREA: alignment is the
+    mapping's call and the coordinator never asserts VALID. ``lease_id`` names the
+    CommandLease this node renews for the task.
     """
     pose = fields['goal_pose']
     for name in ('command_id', 'task_id', 'robot_id', 'authority_epoch', 'generation', 'kind', 'issued_at_ns',
@@ -122,6 +121,7 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
     goal.target_id = fields['target_id'] or ''
     goal.target_estimate_revision = fields['target_revision'] or 0
     goal.search_area_ref = fields['search_area_ref'] or ''
+    goal.lease_id = fields['lease_id']
     frame = goal.frame_ref
     frame.robot_id = fields['robot_id']
     if pose is not None:
@@ -187,7 +187,7 @@ class CoordinatorCore:
     """
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
-                 report_retry_ns, new_id=None):
+                 report_retry_ns, lease_renew_period_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -195,6 +195,11 @@ class CoordinatorCore:
         finite(merge_distance_m, 'merge_distance_m')
         if merge_distance_m <= 0 or report_retry_ns <= 0:
             raise CoordinationError('INVALID_POLICY', 'merge distance and report retry must be positive')
+        # CommandLease length = the task lease the executor holds (SearchPolicy.lease_duration).
+        lease_ns = seconds_to_ns(str(mission.search.policy.lease_duration))
+        contract_value(duration_ns, lease_renew_period_ns)
+        if not 0 < lease_renew_period_ns <= lease_ns // 2:
+            raise CoordinationError('INVALID_POLICY', 'lease renewal period must be at most half the lease')
         segment_goals = tuple(segment_goals)
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
@@ -213,6 +218,8 @@ class CoordinatorCore:
         self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
         self.issue_block = None  # why the last approved/open task could not be issued (for the log)
         self.state_sequence, self.last_state = 0, None
+        self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
+        self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
         self.status = {}         # robot_id -> latest RobotStatus fields used here
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
         self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
@@ -466,7 +473,7 @@ class CoordinatorCore:
                           valid_until_ns=fields['deadline_ns']))
         self.segment_tasks[approval.command_id] = fields['task_id']
         self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
-        self.outbox.append(fields)
+        self._send(fields)
         return fields['task_id']
 
     def _issue_rechecks(self, now_ns):
@@ -488,7 +495,7 @@ class CoordinatorCore:
                                    approval=None)
             self.recheck_tasks[recheck.link_id] = fields['task_id']
             self.task_meta[fields['task_id']] = ('REOBSERVE_TARGET', recheck.link_id)
-            self.outbox.append(fields)
+            self._send(fields)
 
     def _issue_search(self, now_ns):
         scout = self.roles['SCOUT']
@@ -497,7 +504,46 @@ class CoordinatorCore:
             return
         gate = self.mission.plan(scout, robot_boot_id=state[0], ready=state[1], now_ns=now_ns)
         if gate.decision is not None and gate.decision.action == 'RESERVED':
-            self.outbox.append(gate.decision.task_fields | dict(route=None, approval=None))
+            self._send(gate.decision.task_fields | dict(route=None, approval=None))
+
+    def _send(self, fields):
+        """Queue task fields with a fresh lease_id and start renewing that lease."""
+        lease_id = self.new_id()
+        fields = fields | dict(lease_id=lease_id)
+        self.leases[fields['task_id']] = dict(
+            lease_id=lease_id, robot_id=fields['robot_id'], robot_boot_id=fields['robot_boot_id'],
+            authority_epoch=fields['authority_epoch'], generation=fields['generation'], renewal_sequence=0,
+            next_ns=None)
+        self.outbox.append(fields)
+
+    def leases_due(self, now_ns):
+        """CommandLease renewals to publish now (작전 2026-10-11).
+
+        Renewal stops for good when the task left the Allocator (result, refusal),
+        the mode is not DISASTER, the robot's status is stale or from another boot,
+        or the reservation's authority/generation differs. The executor then stops
+        itself with LEASE_EXPIRED; nothing extends a lease silently.
+        """
+        contract_value(timestamp_ns, now_ns)
+        allocator, due = self.search.allocator, []
+        for task_id, lease in list(self.leases.items()):
+            item = allocator.active.get(task_id) or allocator.pending.get(task_id)
+            state = self.status.get(lease['robot_id'])
+            fresh = (state is not None and state[3] <= now_ns and now_ns - state[3] <= self.status_max_age_ns
+                     and state[0] == lease['robot_boot_id'])
+            if (item is None or self.mission.mode != 'DISASTER' or not fresh
+                    or (item.authority_epoch, item.generation) != (lease['authority_epoch'], lease['generation'])):
+                del self.leases[task_id]
+                continue
+            if lease['next_ns'] is not None and now_ns < lease['next_ns']:
+                continue
+            lease['renewal_sequence'] += 1
+            lease['next_ns'] = now_ns + self.lease_renew_period_ns
+            due.append(dict(lease_id=lease['lease_id'], robot_id=lease['robot_id'],
+                            robot_boot_id=lease['robot_boot_id'], authority_epoch=lease['authority_epoch'],
+                            generation=lease['generation'], renewal_sequence=lease['renewal_sequence'],
+                            issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_ns))
+        return due
 
     def _forget(self, task_id):
         kind, key = self.task_meta.pop(task_id)
@@ -558,7 +604,8 @@ def build_core(values):
     return CoordinatorCore(mission, status_max_age_ns=seconds_to_ns(str(values['status_max_age_s'])),
                            segment_goals=segments, route_revision=values['route_revision'],
                            observe_goal=GoalPoint((x, y), yaw, *basis), merge_distance_m=values['merge_distance_m'],
-                           report_retry_ns=seconds_to_ns(str(values['report_retry_s'])))
+                           report_retry_ns=seconds_to_ns(str(values['report_retry_s'])),
+                           lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -570,7 +617,10 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # Phase 1 rule (#88): fixed segment ends [x, y, yaw]*N, the observation point [x, y, yaw], their map basis.
     'route_segment_goals': 'DOUBLE_ARRAY', 'route_revision': 'INTEGER', 'observe_goal': 'DOUBLE_ARRAY',
     'goal_map_session_id': 'STRING', 'goal_map_revision': 'INTEGER', 'goal_transform_revision': 'INTEGER',
-    'merge_distance_m': 'DOUBLE', 'report_retry_s': 'DOUBLE'}  # Q-21 merge distance; RescueReport resend period
+    'merge_distance_m': 'DOUBLE', 'report_retry_s': 'DOUBLE',  # Q-21 merge distance; RescueReport resend period
+    # CommandLease renewal period; at most half of lease_duration_s, which must equal the executor's
+    # lease_duration (C-10 「명령 lease」, #88). Checked at start: otherwise FATAL exit 2.
+    'lease_renew_period_s': 'DOUBLE'}
 
 
 def main(args=None):
@@ -581,8 +631,9 @@ def main(args=None):
     from rcl_interfaces.msg import ParameterType
     from rescue_interfaces.action import ExecuteTask
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import (ReportReceipt, RescueReport, RobotStatus, SiteEvent as SiteEventMsg,
-                                       SystemState, TargetLocation, TaskAdmission as AdmissionMsg)
+    from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
+                                       SiteEvent as SiteEventMsg, SystemState, TargetLocation,
+                                       TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     rclpy.init(args=args)
@@ -648,6 +699,8 @@ def main(args=None):
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
         state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
         report_pub = node.create_publisher(RescueReport, REPORT_TOPIC, 10)
+        lease_pubs = {robot: node.create_publisher(CommandLease, ROBOT_PREFIX + robot + '/command_lease', 1)
+                      for robot in core.roles.values()}  # IF-014: RELIABLE / VOLATILE / KEEP_LAST 1
         last_block = [None]
 
         def publish_report(report):
@@ -666,6 +719,9 @@ def main(args=None):
                 send(fields)
             for report in core.reports_due(now):
                 publish_report(report)
+            for lease in core.leases_due(now):
+                msg = CommandLease(coordinator_id=values['coordinator_id'], **lease)
+                lease_pubs[lease['robot_id']].publish(envelope(msg))
             if core.issue_block != last_block[0]:
                 last_block[0] = core.issue_block
                 if core.issue_block:
