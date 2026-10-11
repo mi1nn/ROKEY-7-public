@@ -1,13 +1,12 @@
 """ROS 2 boundary of the DB writer: subscribe, convert with ros_ingest, write site_state.
 
 The only process that writes the site-state DB (db-schema: one writer per file). It
-subscribes to RobotStatus and RobotPose per robot and to the fixed camera's SiteEvent
-(1차 IDL), and never publishes or commands anything. ROS packages are imported inside
+subscribes to RobotStatus and RobotPose per robot, the fixed camera's SiteEvent and the
+coordinator's SystemState (1차 IDL), and never publishes or commands anything. ROS packages are imported inside
 main() so this module imports without ROS. Topic names, roles and the DB path come
 from parameters (launch/profile); nothing here has a default (AGENTS 8절).
 
-Not yet: the mission state (SystemState is not in the 1차 IDL on main; #88), target
-states, operator commands and map snapshots.
+Not yet: target states, operator commands and map snapshots.
 """
 import subprocess
 import time
@@ -18,9 +17,9 @@ from rescue_contracts import ROBOT_ROLES
 from .schema import OperationsError, allowed_robots, require, text
 from .site_state import SCHEMA_VERSION
 
-# SDD v0.1 IF-010/011/042/043/076 [제안]: reliability / durability / depth per topic.
+# SDD v0.1 IF-010/011/042/043/071/076 [제안]: reliability / durability / depth per topic.
 QOS = {'status': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'pose': ('RELIABLE', 'VOLATILE', 1),
-       'site_events': ('RELIABLE', 'VOLATILE', 10)}
+       'site_events': ('RELIABLE', 'VOLATILE', 10), 'system_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
 ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics')
 
 
@@ -45,9 +44,11 @@ def node_config(values):
             'robot_roles must be SCOUT and SUPPORT, one each')
     topics = [text(topic, name) for name in ('status_topics', 'pose_topics') for topic in values[name]]
     topics.append(text(values['site_events_topic'], 'site_events_topic'))
+    topics.append(text(values['system_state_topic'], 'system_state_topic'))
     require(len(set(topics)) == len(topics), 'every subscribed topic must be different')
     # The path itself (parent exists, not a directory) is checked when the ledger opens it.
     return {'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
+            'system_state_topic': values['system_state_topic'],
             'roles': dict(zip(ids, roles)),
             'robots': list(zip(ids, values['status_topics'], values['pose_topics']))}
 
@@ -59,7 +60,7 @@ def main(args=None):
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import RobotPose, RobotStatus, SiteEvent
+    from rescue_interfaces.msg import RobotPose, RobotStatus, SiteEvent, SystemState
 
     from .ros_ingest import SiteStateIngest
     from .site_state import SiteStateLedger
@@ -69,7 +70,8 @@ def main(args=None):
     log = node.get_logger()
     names = {'db_path': Parameter.Type.STRING, 'allowed_robot_ids': Parameter.Type.STRING_ARRAY,
              'robot_roles': Parameter.Type.STRING_ARRAY, 'status_topics': Parameter.Type.STRING_ARRAY,
-             'pose_topics': Parameter.Type.STRING_ARRAY, 'site_events_topic': Parameter.Type.STRING}
+             'pose_topics': Parameter.Type.STRING_ARRAY, 'site_events_topic': Parameter.Type.STRING,
+             'system_state_topic': Parameter.Type.STRING}
     values = {}
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, kind)
@@ -89,7 +91,8 @@ def main(args=None):
         raise SystemExit(2) from exc
     ingest = SiteStateIngest(ledger, roles=config['roles'])
     log.info(f'rescue_db_writer git={git_sha()} db={config["db_path"]} schema={SCHEMA_VERSION} '
-             f'robots={config["robots"]} roles={config["roles"]} site_events={config["site_events_topic"]}')
+             f'robots={config["robots"]} roles={config["roles"]} site_events={config["site_events_topic"]} '
+             f'system_state={config["system_state_topic"]}')
 
     def qos(kind):
         reliability, durability, depth = QOS[kind]
@@ -108,7 +111,9 @@ def main(args=None):
         return on_message
 
     subscriptions = [node.create_subscription(SiteEvent, config['site_events_topic'],
-                                              handler(ingest.on_site_event, 'site_event'), qos('site_events'))]
+                                              handler(ingest.on_site_event, 'site_event'), qos('site_events')),
+                     node.create_subscription(SystemState, config['system_state_topic'],
+                                              handler(ingest.on_system_state, 'system_state'), qos('system_state'))]
     for robot, status_topic, pose_topic in config['robots']:
         subscriptions.append(node.create_subscription(
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))
