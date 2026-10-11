@@ -25,10 +25,14 @@ from uuid import uuid4
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import COMMAND_FIELDS, MissionCoordinator, OperatorCommand
-from .planning import Allocator, CoordinationError, GoalPoint, contract_value, revision
+from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
 
 SITE_EVENT_TOPIC = '/rescue/site_events'
+TARGET_LOCATION_TOPIC = '/rescue/target_locations'
+REPORT_TOPIC = '/rescue/reports'
+REPORT_RECEIPT_TOPIC = '/rescue/report_receipts'
+SYSTEM_STATE_TOPIC = '/rescue/system_state'
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
 ROBOT_PREFIX = '/rescue/robots/'  # + robot_id + '/execute_task' etc. (rescue_interfaces README)
 # Mission refusal -> C-09 common code for SubmitOperatorCommand.reason_code (OPS-58, 2026-10-11).
@@ -47,6 +51,14 @@ REASON_CODES = {
 # The robot that a command may name (empty = not named).
 COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
+# C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
+SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
+                        'ARRIVED': 'STOPPED'}
+
+
+def system_mode(mode, phase):
+    """SystemState.mode (C-10, #88): MISSION_FINISHED once the phase is FINISHED."""
+    return 'MISSION_FINISHED' if phase == 'FINISHED' else mode
 
 
 def git_sha():
@@ -126,11 +138,16 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
         for name in ('route_id', 'route_revision', 'robot_id', 'target_id', 'segment_index'):
             setattr(r, name, route[name])
         r.policy_version = fields['policy_version']
-        r.frame_ref.robot_id = fields['robot_id']
-        r.frame_ref.mission_frame = pose['frame_id']
-        r.frame_ref.map_session_id, r.frame_ref.map_revision = end.map_session_id, end.map_revision
-        r.frame_ref.transform_revision = end.transform_revision
-        r.approach_goal.header.frame_id = pose['frame_id']
+        r.valid_until_ns = route['valid_until_ns']
+        # frame_ref is the target's current one (alignment from mapping, never set here); the
+        # top-level frame_ref carries the same basis for target tasks.
+        for ref in (r.frame_ref, frame):
+            for name in ('robot_id', 'native_frame', 'mission_frame', 'map_session_id', 'map_revision',
+                         'transform_revision', 'alignment_status'):
+                setattr(ref, name, getattr(route['frame_ref'], name))
+        r.approach_goal.header.frame_id = route['frame_ref'].mission_frame
+        a = r.assessment  # no passage evidence (#88): UNKNOWN, nothing known
+        a.status, a.width_known, a.height_known, a.floor_geometry_known = 'UNKNOWN', False, False, False
         r.approach_goal.pose.position.x, r.approach_goal.pose.position.y = map(float, end.mission_xy)
         q = r.approach_goal.pose.orientation
         q.x, q.y, q.z, q.w = 0.0, 0.0, math.sin(end.yaw / 2.0), math.cos(end.yaw / 2.0)
@@ -169,10 +186,15 @@ class CoordinatorCore:
     destinations only; the executor guards and Nav2 verify the path.
     """
 
-    def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal):
+    def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
+                 report_retry_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
+        contract_value(duration_ns, report_retry_ns)
+        finite(merge_distance_m, 'merge_distance_m')
+        if merge_distance_m <= 0 or report_retry_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'merge distance and report retry must be positive')
         segment_goals = tuple(segment_goals)
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
@@ -183,6 +205,14 @@ class CoordinatorCore:
         self.status_max_age_ns = status_max_age_ns
         self.segment_goals, self.route_revision, self.observe_goal = segment_goals, route_revision, observe_goal
         self.route_id = route_id(segment_goals)
+        self.observe_route_id = route_id((observe_goal,))
+        self.merge_distance_m, self.report_retry_ns = merge_distance_m, report_retry_ns
+        self.new_id = new_id or (lambda: str(uuid4()))
+        self.locations = {}      # location_id -> (target_id, TargetLocation msg, content key)
+        self.target_geo = {}     # target_id -> (basis, (x, y), [location msgs]) of the latest merge
+        self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
+        self.issue_block = None  # why the last approved/open task could not be issued (for the log)
+        self.state_sequence, self.last_state = 0, None
         self.status = {}         # robot_id -> latest RobotStatus fields used here
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
         self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
@@ -190,7 +220,6 @@ class CoordinatorCore:
         self.recheck_tasks = {}  # recheck link_id -> task_id; dropped when a recheck did not complete
         self.task_meta = {}      # task_id -> ('MOVE_SEGMENT', SegmentApproval) | ('REOBSERVE_TARGET', link_id)
         self.outbox = []         # task fields reserved and not yet handed to the node
-        self.last_phase = None
         self.last_reason = None  # mission reason behind the latest reply, for the node log
 
     # -- inputs --------------------------------------------------------------
@@ -232,6 +261,95 @@ class CoordinatorCore:
         elif meta and meta[0] == 'REOBSERVE_TARGET' and result.outcome != 'COMPLETED':
             self._forget(task_id)  # C-11 row 5: same recheck, new task_id and generation
         return True
+
+    def on_target_location(self, msg, *, now_ns):
+        """A VALID TargetLocation -> target_id (작전 2026-10-11, Q-13 merge by position, Q-21 distance).
+
+        Same map basis (session, revision, transform revision) and within
+        ``merge_distance_m`` of a target's latest position: same target, revision + 1.
+        Farther: a new target. Another basis than an existing target: refused, never
+        split into a new target (distances across bases mean nothing).
+        """
+        contract_value(timestamp_ns, now_ns)
+        if msg.projection_status != 'VALID':
+            raise CoordinationError('STALE_OBSERVATION', 'only VALID projections become targets')
+        uid(msg.location_id)
+        f = msg.frame_ref
+        basis = (uid(f.map_session_id), revision(f.map_revision), revision(f.transform_revision))
+        xy = point((float(msg.mission_position.x), float(msg.mission_position.y)))
+        key = (basis, xy, f.alignment_status, f.mission_frame)
+        seen = self.locations.get(msg.location_id)
+        if seen is not None:
+            if seen[2] != key:
+                raise CoordinationError('ID_CONTENT_CONFLICT', 'location content differs for the same location_id')
+            return seen[0]
+        if any(geo[0] != basis for geo in self.target_geo.values()):
+            raise CoordinationError('FRAME_REVISION_MISMATCH', 'location map basis differs from the known targets')
+        near = sorted((math.dist(geo[1], xy), target_id) for target_id, geo in self.target_geo.items()
+                      if math.dist(geo[1], xy) <= self.merge_distance_m)
+        if near:
+            target_id = near[0][1]
+            locations = self.target_geo[target_id][2] + [msg]
+            target_revision = self.mission.targets[target_id][0] + 1
+        else:
+            target_id, locations, target_revision = self.new_id(), [msg], 0
+        # Thin version: the perception node publishes confirmed detections only (작전 decision 3).
+        self.mission.record_target(target_id, target_revision, detection_confirmed=True, report_persisted=False)
+        if not near:
+            self.mission.record_route(target_id, route_revision=self.route_revision,
+                                      segment_count=len(self.segment_goals))
+        self.target_geo[target_id] = (basis, xy, locations)
+        self.locations[msg.location_id] = (target_id, msg, key)
+        report_id = self.new_id()
+        self.reports[report_id] = dict(report_id=report_id, target_id=target_id, target_revision=target_revision,
+                                       record_ids=[loc.location_id for loc in locations], locations=list(locations),
+                                       first_issued_at_ns=now_ns, next_send_ns=now_ns, done=False)
+        return target_id
+
+    def reports_due(self, now_ns):
+        """RescueReports to (re)send now; resent every ``report_retry_ns`` until PERSISTED or REJECTED."""
+        due = []
+        for report in self.reports.values():
+            if not report['done'] and report['next_send_ns'] <= now_ns:
+                report['next_send_ns'] = now_ns + self.report_retry_ns
+                due.append({k: v for k, v in report.items() if k not in ('next_send_ns', 'done')})
+        return due
+
+    def on_receipt(self, msg):
+        """ReportReceipt: PERSISTED covering every record of our report saves that target revision."""
+        report = self.reports.get(msg.report_id)
+        if report is None or report['done']:
+            return False
+        if msg.state == 'REJECTED':
+            report['done'] = True  # visible in the log; not resent, not saved (no silent fallback)
+            return False
+        if msg.state != 'PERSISTED' or not set(report['record_ids']) <= set(msg.included_record_ids):
+            return False
+        report['done'] = True
+        self.mission.record_target(report['target_id'], report['target_revision'], detection_confirmed=True,
+                                   report_persisted=True)
+        return True
+
+    def system_state_change(self, now_ns):
+        """SystemState fields (C-10, #88) when they changed since the last call, else None."""
+        view = self.mission.view()
+        allocator = self.search.allocator
+        state = dict(
+            mode=system_mode(view.mode, view.phase), phase=view.phase,
+            cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
+            active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
+            policy_version=self.search.policy.version, reason='',
+            has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
+            trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
+            has_dispatch=view.target_id is not None, target_id=view.target_id or '',
+            target_revision=view.target_revision or 0, route_revision=view.route_revision or 0,
+            segment_index=view.segment_index or 0, segment_count=view.segment_count or 0,
+            segment_phase=SEGMENT_PHASE_STATES.get(view.segment_phase, 'IDLE'))
+        if state == self.last_state:
+            return None
+        self.last_state = state
+        self.state_sequence += 1
+        return state | dict(state_sequence=self.state_sequence, changed_at_ns=now_ns)
 
     def ready(self, robot_id, now_ns):
         """(robot_boot_id, ready) from the latest RobotStatus, or None before any status."""
@@ -285,14 +403,6 @@ class CoordinatorCore:
         self.replies[command.command_id] = (command, reply)
         return reply
 
-    def phase_change(self):
-        """The new phase when it changed since the last call, else None (for the log)."""
-        phase = self.mission.phase()
-        if phase == self.last_phase:
-            return None
-        self.last_phase = phase
-        return phase
-
     # -- issuing -----------------------------------------------------------------
     def _free(self, role, now_ns):
         """robot_boot_id when the role robot is known, ready and has no task; else None."""
@@ -301,6 +411,29 @@ class CoordinatorCore:
         if state is None or not state[1] or self.search.assignment(robot_id) is not None:
             return None
         return state[0]
+
+    def _route_frame(self, target_id, goal):
+        """The target's current frame_ref when the goal shares its basis and alignment is VALID (#88)."""
+        geo = self.target_geo.get(target_id)
+        if geo is None:
+            self.issue_block = 'TARGET_LOCATION_UNKNOWN'
+            return None
+        f = geo[2][-1].frame_ref
+        if f.mission_frame != self.search.policy.mission_frame_id:
+            self.issue_block = 'ROUTE_BASIS_MISMATCH'
+            return None
+        if f.alignment_status != 'VALID':
+            self.issue_block = 'TARGET_ALIGNMENT_NOT_VALID'
+            return None
+        if geo[0] != (goal.map_session_id, goal.map_revision, goal.transform_revision):
+            self.issue_block = 'ROUTE_BASIS_MISMATCH'
+            return None
+        return f
+
+    def _route(self, fields, goal, frame, route_id, segment_index):
+        return dict(route_id=route_id, route_revision=self.route_revision, robot_id=fields['robot_id'],
+                    target_id=fields['target_id'], segment_index=segment_index, approach_goal=goal,
+                    frame_ref=frame, valid_until_ns=fields['deadline_ns'])
 
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
@@ -311,6 +444,9 @@ class CoordinatorCore:
         if boot is None:
             return None
         goal = self.segment_goals[approval.segment_index]
+        frame = self._route_frame(approval.target_id, goal)
+        if frame is None:
+            return None
         decision = self.search.reserve_goal_task(
             self.roles['SUPPORT'], robot_boot_id=boot, kind='MOVE_SEGMENT', target_id=approval.target_id,
             target_revision=approval.target_revision, goal=goal, approval_id=approval.command_id, now_ns=now_ns)
@@ -319,14 +455,14 @@ class CoordinatorCore:
         fields = decision.task_fields
         command = self.mission.commands[approval.command_id][0]
         fields = fields | dict(
-            route=dict(route_id=self.route_id, route_revision=approval.route_revision, robot_id=fields['robot_id'],
-                       target_id=approval.target_id, segment_index=approval.segment_index, approach_goal=goal),
+            route=self._route(fields, goal, frame, self.route_id, approval.segment_index),
             approval=dict(approval_id=approval.command_id, command_id=approval.command_id,
                           operator_id=command.operator_id, robot_id=fields['robot_id'], robot_boot_id=boot,
                           authority_epoch=fields['authority_epoch'], target_id=approval.target_id,
                           target_estimate_revision=approval.target_revision, route_id=self.route_id,
                           route_revision=approval.route_revision, segment_index=approval.segment_index,
-                          approved_at_ns=self.accepted_at[approval.command_id], scope='ONE_SEGMENT'))
+                          approved_at_ns=self.accepted_at[approval.command_id], scope='ONE_SEGMENT',
+                          valid_until_ns=fields['deadline_ns']))
         self.segment_tasks[approval.command_id] = fields['task_id']
         self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
         self.outbox.append(fields)
@@ -337,14 +473,18 @@ class CoordinatorCore:
             if recheck.link_id in self.recheck_tasks:
                 continue
             boot = self._free('SCOUT', now_ns)
-            if boot is None:
+            frame = self._route_frame(target_id, self.observe_goal)
+            if boot is None or frame is None:
                 return
             decision = self.search.reserve_goal_task(
                 self.roles['SCOUT'], robot_boot_id=boot, kind='REOBSERVE_TARGET', target_id=target_id,
                 target_revision=self.mission.targets[target_id][0], goal=self.observe_goal, now_ns=now_ns)
             if decision.action != 'RESERVED':
                 return
-            fields = decision.task_fields | dict(route=None, approval=None)
+            fields = decision.task_fields
+            # REOBSERVE: the observation point as route, no operator approval (C-10, #88).
+            fields = fields | dict(route=self._route(fields, self.observe_goal, frame, self.observe_route_id, 0),
+                                   approval=None)
             self.recheck_tasks[recheck.link_id] = fields['task_id']
             self.task_meta[fields['task_id']] = ('REOBSERVE_TARGET', recheck.link_id)
             self.outbox.append(fields)
@@ -416,7 +556,8 @@ def build_core(values):
     x, y, yaw = values['observe_goal']
     return CoordinatorCore(mission, status_max_age_ns=seconds_to_ns(str(values['status_max_age_s'])),
                            segment_goals=segments, route_revision=values['route_revision'],
-                           observe_goal=GoalPoint((x, y), yaw, *basis))
+                           observe_goal=GoalPoint((x, y), yaw, *basis), merge_distance_m=values['merge_distance_m'],
+                           report_retry_ns=seconds_to_ns(str(values['report_retry_s'])))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -427,16 +568,20 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'tick_period_s': 'DOUBLE',
     # Phase 1 rule (#88): fixed segment ends [x, y, yaw]*N, the observation point [x, y, yaw], their map basis.
     'route_segment_goals': 'DOUBLE_ARRAY', 'route_revision': 'INTEGER', 'observe_goal': 'DOUBLE_ARRAY',
-    'goal_map_session_id': 'STRING', 'goal_map_revision': 'INTEGER', 'goal_transform_revision': 'INTEGER'}
+    'goal_map_session_id': 'STRING', 'goal_map_revision': 'INTEGER', 'goal_transform_revision': 'INTEGER',
+    'merge_distance_m': 'DOUBLE', 'report_retry_s': 'DOUBLE'}  # Q-21 merge distance; RescueReport resend period
 
 
 def main(args=None):
     import rclpy
     from rclpy.action import ActionClient
+    from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rcl_interfaces.msg import ParameterType
     from rescue_interfaces.action import ExecuteTask
-    from rescue_interfaces.msg import RobotStatus, SiteEvent as SiteEventMsg, TaskAdmission as AdmissionMsg
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from rescue_interfaces.msg import (ReportReceipt, RescueReport, RobotStatus, SiteEvent as SiteEventMsg,
+                                       SystemState, TargetLocation, TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     rclpy.init(args=args)
@@ -460,11 +605,13 @@ def main(args=None):
             return node.get_clock().now().nanoseconds
 
         def envelope(msg):
-            msg.schema_version = values['envelope_schema_version']
-            msg.publisher_id = values['coordinator_id']
-            msg.publisher_boot_id = boot_id
-            msg.sequence = next(sequence)
-            msg.published_at_ns = now_ns()
+            """Fill ``msg.envelope`` (or ``msg`` itself when it is an Envelope) and return ``msg``."""
+            env = getattr(msg, 'envelope', msg)
+            env.schema_version = values['envelope_schema_version']
+            env.publisher_id = values['coordinator_id']
+            env.publisher_boot_id = boot_id
+            env.sequence = next(sequence)
+            env.published_at_ns = now_ns()
             return msg
 
         def guarded(label, callback):
@@ -496,12 +643,38 @@ def main(args=None):
                 handle.get_result_async().add_done_callback(guarded('result', lambda done: log.info(
                     f'RESULT task={task_id} released={core.on_result(task_id, done.result().result.result)}')))
 
+        snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                              durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
+        state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
+        report_pub = node.create_publisher(RescueReport, REPORT_TOPIC, 10)
+        last_block = [None]
+
+        def publish_report(report):
+            msg = RescueReport(report_id=report['report_id'], target_id=report['target_id'],
+                               record_ids=report['record_ids'], locations=report['locations'],
+                               confirmation_state='CONFIRMED', approach_state='UNASSIGNED', rescue_state='NOT_CHECKED',
+                               first_issued_at_ns=report['first_issued_at_ns'], has_task_result=False)
+            meaning = json.dumps([report['target_id'], report['target_revision'], report['record_ids']])
+            msg.meaning_sha256 = hashlib.sha256(meaning.encode()).hexdigest()
+            report_pub.publish(envelope(msg))
+            log.info(f'REPORT {report["report_id"]} target={report["target_id"]} rev={report["target_revision"]}')
+
         def tick():
-            for fields in core.tick(now_ns()):
+            now = now_ns()
+            for fields in core.tick(now):
                 send(fields)
-            phase = core.phase_change()
-            if phase is not None:  # SystemState is 2차 IDL: logged, not published (작전 Q1)
-                log.info(f'PHASE {phase} view={core.mission.view()}')
+            for report in core.reports_due(now):
+                publish_report(report)
+            if core.issue_block != last_block[0]:
+                last_block[0] = core.issue_block
+                if core.issue_block:
+                    log.error(f'task not issued: {core.issue_block}')
+            state = core.system_state_change(now)
+            if state is not None:
+                msg = SystemState(**state)
+                envelope(msg)
+                state_pub.publish(msg)
+                log.info(f'SYSTEM_STATE {state}')
 
         def on_site_event(msg):
             log.info(f'SITE_EVENT {msg.event_id} {msg.kind} -> {core.on_site_event(msg)}')
@@ -523,10 +696,14 @@ def main(args=None):
                                      guarded('status', core.on_status), 1)
             node.create_subscription(AdmissionMsg, ROBOT_PREFIX + robot + '/task_admission', guarded(
                 'admission', lambda msg: log.info(f'ADMISSION {msg.task_id} -> {core.on_admission(msg)}')), 10)
+        node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
+            f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
+        node.create_subscription(ReportReceipt, REPORT_RECEIPT_TOPIC, guarded('receipt', lambda msg: log.info(
+            f'RECEIPT {msg.report_id} {msg.state} -> saved={core.on_receipt(msg)}')), 10)
         node.create_service(SubmitOperatorCommand, OPERATOR_COMMAND_SERVICE, on_command)
         node.create_timer(values['tick_period_s'], guarded('tick', tick))
         rclpy.spin(node)
-    except (KeyboardInterrupt, SystemExit) as exc:
+    except (KeyboardInterrupt, ExternalShutdownException, SystemExit) as exc:
         if isinstance(exc, SystemExit) and exc.code not in (None, 0):
             raise
     finally:

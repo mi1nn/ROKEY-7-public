@@ -16,7 +16,11 @@ publishes TaskAdmission and returns COMPLETED with a confirmed stop. Checks:
 1. no goal before DISASTER_SIGN; 2. DISASTER_SIGN + READY status -> SEARCH_AREA for the
 first area; 3. admission + completed result -> SEARCH_AREA for the second area;
 4. REQUEST_RECHECK of an unknown target -> REJECTED/NOT_FOUND, replay -> DUPLICATE;
-5. the node refuses to start without parameters (exit 2). Exit code 0 = all held.
+5. the node refuses to start without parameters (exit 2); 6. a VALID TargetLocation ->
+RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one
+MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
+ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
+without CONTINUE_SEGMENT. Exit code 0 = all held.
 """
 import os
 import subprocess
@@ -29,10 +33,13 @@ from rclpy.action import ActionServer
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rescue_interfaces.action import ExecuteTask
-from rescue_interfaces.msg import RobotStatus, SiteEvent, TaskAdmission
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from rescue_interfaces.msg import (ReportReceipt, RescueReport, RobotStatus, SiteEvent, SystemState, TargetLocation,
+                                   TaskAdmission)
 from rescue_interfaces.srv import SubmitOperatorCommand
 
-SCOUT = 'robot_a'
+SCOUT, SUPPORT = 'robot_a', 'robot_b'
+MAP = '22222222-2222-4222-8222-222222222222'
 AREAS = ('11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111112')
 NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '-p', 'executable_bases:=[PRIOR_MAP]',
              '-p', 'task_duration_s:=60.0', '-p', 'lease_duration_s:=10.0', '-p', 'executor_policy_version:=e3',
@@ -41,7 +48,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'tick_period_s:=0.2', '-p', 'route_segment_goals:=[1.0, 0.0, 0.0, 2.0, 0.0, 0.0]',
              '-p', 'route_revision:=1', '-p', 'observe_goal:=[3.0, 1.0, 0.0]',
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
-             '-p', 'goal_transform_revision:=1']
+             '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0']
 
 
 def node_command(repo, extra):
@@ -50,23 +57,35 @@ def node_command(repo, extra):
 
 
 class FakeExecutor(Node):
+    """Fake executors of both robots plus the operations side (reports, receipts, operator commands)."""
+
     def __init__(self):
         super().__init__('e3_fake_executor')
-        self.goals = []
-        self.admission = self.create_publisher(TaskAdmission, f'/rescue/robots/{SCOUT}/task_admission', 10)
-        self.status = self.create_publisher(RobotStatus, f'/rescue/robots/{SCOUT}/status', 1)
+        self.goals, self.support_goals, self.reports, self.states = [], [], [], []
+        self.admission = {r: self.create_publisher(TaskAdmission, f'/rescue/robots/{r}/task_admission', 10)
+                          for r in (SCOUT, SUPPORT)}
+        self.status = {r: self.create_publisher(RobotStatus, f'/rescue/robots/{r}/status', 1) for r in (SCOUT, SUPPORT)}
         self.site = self.create_publisher(SiteEvent, '/rescue/site_events', 10)
+        self.location = self.create_publisher(TargetLocation, '/rescue/target_locations', 10)
+        self.receipt = self.create_publisher(ReportReceipt, '/rescue/report_receipts', 10)
         self.command = self.create_client(SubmitOperatorCommand, '/rescue/operator_command')
-        self.boot = str(uuid4())
-        ActionServer(self, ExecuteTask, f'/rescue/robots/{SCOUT}/execute_task', self.execute)
+        self.create_subscription(RescueReport, '/rescue/reports', self.reports.append, 10)
+        snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
+        self.boot = {r: str(uuid4()) for r in (SCOUT, SUPPORT)}
+        ActionServer(self, ExecuteTask, f'/rescue/robots/{SCOUT}/execute_task',
+                     lambda handle: self.execute(handle, self.goals))
+        ActionServer(self, ExecuteTask, f'/rescue/robots/{SUPPORT}/execute_task',
+                     lambda handle: self.execute(handle, self.support_goals))
 
-    def execute(self, handle):
+    def execute(self, handle, goals):
         goal = handle.request
-        self.goals.append(goal)
+        goals.append(goal)
         admission = TaskAdmission(command_id=goal.command_id, task_id=goal.task_id, robot_id=goal.robot_id,
                                   robot_boot_id=goal.expected_robot_boot_id, authority_epoch=goal.authority_epoch,
                                   generation=goal.generation, accepted=True, admission_id=str(uuid4()))
-        self.admission.publish(admission)
+        self.admission[goal.robot_id].publish(admission)
         time.sleep(.5)  # let the admission land before the result
         handle.succeed()
         result = ExecuteTask.Result()
@@ -74,8 +93,18 @@ class FakeExecutor(Node):
         return result
 
     def publish_status(self):
-        self.status.publish(RobotStatus(robot_id=SCOUT, robot_boot_id=self.boot, readiness='READY', lease_valid=True,
-                                        observed_at_ns=self.get_clock().now().nanoseconds))
+        for robot, pub in self.status.items():
+            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY', lease_valid=True,
+                                    observed_at_ns=self.get_clock().now().nanoseconds))
+
+    def publish_location(self):
+        msg = TargetLocation(location_id=str(uuid4()), projection_status='VALID')
+        f = msg.frame_ref
+        f.robot_id, f.native_frame, f.mission_frame, f.map_session_id = SCOUT, 'map', 'mission', MAP
+        f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
+        msg.mission_position.x, msg.mission_position.y = 2.5, 0.5
+        self.location.publish(msg)
+        return msg.location_id
 
     def publish_disaster(self):
         msg = SiteEvent(event_id=str(uuid4()), camera_id='cam_fixed', kind='DISASTER_SIGN', confidence=.9,
@@ -140,13 +169,41 @@ def main():
         checks['unknown recheck -> REJECTED NOT_FOUND'] = (first.accepted, first.request_state, first.reason_code) == (
             False, 'REJECTED', 'NOT_FOUND')
         checks['replay -> DUPLICATE'] = (replay.request_state, replay.accepted) == ('DUPLICATE', False)
+        location_id = probe.publish_location()
+        got_report = wait(executor, lambda: probe.reports, 10, probe.publish_status)
+        report = probe.reports[0] if got_report else None
+        checks['TargetLocation -> RescueReport'] = bool(report) and list(report.record_ids) == [location_id]
+        if report:
+            probe.receipt.publish(ReportReceipt(report_id=report.report_id, included_record_ids=[location_id],
+                                                state='PERSISTED', has_persisted_at=True,
+                                                persisted_at_ns=probe.get_clock().now().nanoseconds))
+        found = wait(executor, lambda: probe.states and probe.states[-1].phase == 'TARGET_FOUND', 10,
+                     probe.publish_status)
+        checks['PERSISTED -> SystemState TARGET_FOUND'] = found
+        if report:
+            dispatch = call(executor, probe, SubmitOperatorCommand.Request(
+                command_id=str(uuid4()), operation='DISPATCH_SUPPORT', operator_id='e3', target_id=report.target_id,
+                expected_target_revision=0, issued_at_ns=probe.get_clock().now().nanoseconds))
+            got_segment = wait(executor, lambda: probe.support_goals, 10, probe.publish_status)
+            g = probe.support_goals[0] if got_segment else None
+            checks['DISPATCH -> one MOVE_SEGMENT with route and ONE_SEGMENT approval'] = bool(g) and (
+                dispatch.accepted, dispatch.created_task_id, g.kind, g.robot_id, g.has_route, g.has_approval,
+                g.approval.scope, g.route.assessment.status, g.route.planner_evidence_id, len(g.route.planned_path.poses),
+                g.route.approach_goal.pose.position.x, g.route.frame_ref.alignment_status) == (
+                True, g.task_id, 'MOVE_SEGMENT', SUPPORT, True, True, 'ONE_SEGMENT', 'UNKNOWN', '', 0, 1.0, 'VALID')
+            waiting = wait(executor, lambda: probe.states and probe.states[-1].phase == 'AWAITING_CONTINUE', 10,
+                           probe.publish_status)
+            wait(executor, lambda: False, 2, probe.publish_status)
+            checks['segment done -> AWAITING_CONTINUE, no next segment by itself'] = waiting and (
+                len(probe.support_goals), probe.states[-1].segment_phase, probe.states[-1].segment_index) == (
+                1, 'AWAITING_APPROVAL', 1)
     finally:
         executor.shutdown()
         probe.destroy_node()
         rclpy.try_shutdown()
         child.terminate()
         output, _ = child.communicate(timeout=10)
-    print(output)
+        print(output)  # the node log, also when a check raised
     for name, ok in checks.items():
         print(('PASS ' if ok else 'FAIL ') + name)
     raise SystemExit(0 if checks and all(checks.values()) else 1)
