@@ -42,7 +42,7 @@ class MissionTestCase(unittest.TestCase):
                                        requested_at_ns=NOW, **fields)
 
     def send(self, kind, **fields):
-        return self.m.handle_command(self.command(kind, **fields))
+        return self.m.handle_command(self.command(kind, **fields), now_ns=NOW + 1)
 
     def reason(self, kind, **fields):
         result = self.send(kind, **fields)
@@ -230,15 +230,33 @@ class OperatorCommandTests(MissionTestCase):
             with self.subTest(count=count), self.assertRaises(CoordinationError):
                 self.m.record_route(OTHER, route_revision=1, segment_count=count)
 
-    def test_recheck_only_after_arrival_and_once_at_a_time(self):
-        self.dispatched(segments=2)
-        self.assertEqual('NOT_ARRIVED', self.reason('REQUEST_RECHECK', target_id=TARGET))
-        self.reach_end()
-        self.assertEqual('NOT_DISPATCHED_TARGET', self.reason('REQUEST_RECHECK', target_id=OTHER))
-        self.assertEqual('ACCEPTED', self.reason('REQUEST_RECHECK', target_id=TARGET))
+    def test_recheck_follows_c11_row_10(self):
+        """Q-26 (2026-10-11): any recorded target, no arrival condition, one open recheck, judged target refused."""
+        self.disaster()
+        self.assertEqual('UNKNOWN_TARGET', self.reason('REQUEST_RECHECK', target_id=TARGET))
+        self.m.record_target(TARGET, 0, detection_confirmed=True, report_persisted=True)
+        result = self.send('REQUEST_RECHECK', target_id=TARGET)  # no dispatch, no arrival
+        self.assertEqual('ACCEPTED', result.reason)
+        # No camera candidate intake yet, so the operator path: command_id in the candidate slot,
+        # the coordinator's acceptance time for C-11 row 11.
+        self.assertEqual(mission.RecheckRequest(result.command_id, TARGET, 'OPERATOR', NOW + 1),
+                         self.m.open_rechecks[TARGET])
         self.assertEqual('RECHECK_ALREADY_REQUESTED', self.reason('REQUEST_RECHECK', target_id=TARGET))
         self.m.record_rescue_verdict(TARGET, 'RECHECK_NEEDED')
+        self.assertNotIn(TARGET, self.m.open_rechecks)
         self.assertEqual('ACCEPTED', self.reason('REQUEST_RECHECK', target_id=TARGET))
+        self.m.record_rescue_verdict(TARGET, 'RESCUE_CONFIRMED')
+        self.assertEqual('TARGET_ALREADY_JUDGED', self.reason('REQUEST_RECHECK', target_id=TARGET))
+
+    def test_rechecks_are_per_target(self):
+        self.disaster()
+        for target in (TARGET, OTHER):
+            self.m.record_target(target, 0, detection_confirmed=True, report_persisted=True)
+            self.assertEqual('ACCEPTED', self.reason('REQUEST_RECHECK', target_id=target))
+        with self.assertRaises(CoordinationError):
+            self.m.record_rescue_verdict(uid(502), 'RESCUE_CONFIRMED')
+        self.m.record_rescue_verdict(OTHER, 'RESCUE_CONFIRMED')
+        self.assertEqual({TARGET}, set(self.m.open_rechecks))
 
     def test_return_home_only_after_a_verdict(self):
         self.arrived()
@@ -261,13 +279,13 @@ class OperatorCommandTests(MissionTestCase):
     def test_command_id_replay_is_idempotent_and_conflict_is_rejected(self):
         self.dispatched()
         command = self.command('CONTINUE_SEGMENT', **T0, route_revision=7, segment_index=1)
-        first = self.m.handle_command(command)
+        first = self.m.handle_command(command, now_ns=NOW)
         self.assertEqual('NOT_AWAITING_APPROVAL', first.reason)
         self.segment(0)
-        self.assertEqual(first, self.m.handle_command(command))  # replay, not re-judged
+        self.assertEqual(first, self.m.handle_command(command, now_ns=NOW))  # replay, not re-judged
         self.assertEqual('AWAITING_APPROVAL', self.m.segment_phase)
         with self.assertRaises(CoordinationError) as caught:
-            self.m.handle_command(replace(command, segment_index=2))
+            self.m.handle_command(replace(command, segment_index=2), now_ns=NOW)
         self.assertEqual('ID_CONTENT_CONFLICT', caught.exception.code)
 
     def test_malformed_commands_are_invalid_input(self):
