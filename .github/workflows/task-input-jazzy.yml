@@ -11,7 +11,7 @@ permissions:
 
 # Evidence for this exact PR #100 revision, not an arbitrary moving branch.
 env:
-  TASK_INPUT_HEAD: 2768e0edc3b0f46c92521bf121c0a3399dc1b96a
+  TASK_INPUT_HEAD: dbfa740faea9d8f9897d1636d04a61ade15661da
 
 jobs:
   jazzy-transport:
@@ -85,6 +85,15 @@ jobs:
             -u RMW_FASTRTPS_USE_QOS_FROM_XML -u ROS_LOCALHOST_ONLY \
             ros2 run rescue_robot task_runtime_demo \
             --ros --domain-id 173 --stage fallback --timeout 30 2>&1 | tee evidence/fallback.log
+      - name: Standalone HOLD action probe with the shared namespace helper
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/local_setup.bash
+          env -u ROS_DISCOVERY_SERVER -u ROS_SUPER_CLIENT -u ROS_STATIC_PEERS \
+            -u FASTDDS_DEFAULT_PROFILES_FILE -u FASTRTPS_DEFAULT_PROFILES_FILE \
+            -u RMW_FASTRTPS_USE_QOS_FROM_XML -u ROS_LOCALHOST_ONLY \
+            ros2 run rescue_robot task_server_probe \
+            --domain-id 173 --timeout 20 2>&1 | tee evidence/hold-probe.log
       - name: Check reports and preserve the validation limits
         run: |
           python3 - <<'PY'
@@ -108,8 +117,13 @@ jobs:
                   assert report['cancel'] == 'CANCELED_STOP_CONFIRMED', report
                   assert report['renewal']['active_for_s'] > report['renewal']['initial_duration_s'], report
               results[stage] = report
+          hold = json.loads(Path('evidence/hold-probe.log').read_text().splitlines()[-1])
+          assert hold['status'] == 'PASSED' and hold['task'] == 'HOLD', hold
+          assert hold['admission_received'] and hold['action_result_received'], hold
+          assert not hold['nav2_client_created'] and not hold['cmd_vel_publisher_created'], hold
           evidence = dict(tested_head=os.environ['TASK_INPUT_HEAD'], colcon='PASSED',
               generated_idl='PASSED', ros_transport='PASSED', stages=results,
+              standalone_hold_probe=hold,
               motion_inputs='SYNTHETIC', production_node_start='NOT_RUN',
               coordinator_integration='NOT_RUN', nav2_transport='NOT_RUN', robot_validation='NOT_RUN')
           Path('evidence/report.json').write_text(json.dumps(evidence, indent=2) + '\n')
