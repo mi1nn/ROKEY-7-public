@@ -15,7 +15,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='두 로봇의 경로 후보·임무 배정·접근 확인·통로 점유 Python 코어. ROS 어댑터는 미구현.',
+    description='두 로봇의 경로 후보·임무 배정·접근 확인·통로 점유 Python 코어와 임무 조정기 ROS 노드(얇은 버전).',
     license="LicenseRef-Unspecified",
-    entry_points={"console_scripts": []},
+    entry_points={"console_scripts": ["mission_coordinator = rescue_coordination.ros_node:main"]},
 )
