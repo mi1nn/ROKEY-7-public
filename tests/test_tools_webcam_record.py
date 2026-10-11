@@ -121,6 +121,20 @@ class WebcamRecordTests(unittest.TestCase):
             s.wrote_frame()
         self.assertEqual(s.scene_s, 1.5)
 
+    def test_markers_follow_the_real_frame_rate(self):
+        # 2026-10-11 실제 녹화: 30 fps 요청, 카메라가 16.1 fps 만 줌 -> 영상이 1.9배 빨리 재생됐다.
+        # 실제 fps 로 저장하면 장면 시각도 그 fps 로 다시 계산돼야 한다.
+        scenes = [("train", 5, "", "a"), ("val", 5, "", "b")]
+        s = wr.Session(30, scenes)
+        s.toggle()
+        for _ in range(160):
+            s.wrote_frame()
+        s.move(1)
+        self.assertEqual(s.markers[-1]["frame"], 160)
+        s.fps = 16.0  # 저장할 때 실제 fps 로 바꾼다
+        self.assertEqual(s.val_start_s, 10.0)
+        self.assertEqual(s.video_s, 10.0)
+
     def test_no_validation_marker_means_unknown(self):
         s = wr.Session(30)
         s.toggle()
