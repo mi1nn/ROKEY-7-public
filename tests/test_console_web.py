@@ -6,7 +6,8 @@ import unittest
 from unittest import mock
 
 from rescue_console.accounts import AccountStore
-from rescue_console.render import _age, render_accounts, render_fragment, render_login, render_page
+from rescue_console.render import (_age, _elapsed, failure_text, render_accounts, render_failure, render_fragment,
+                                   render_login, render_page)
 from rescue_console.view import COMMANDS, ConsoleError, request_command
 from test_console_view import LedgerFixture, digest_dir, site_event, write_site_state
 
@@ -57,10 +58,14 @@ class CommandPlaceholderTests(LedgerFixture):
     def test_page_buttons_are_disabled_and_page_has_no_write_path(self):
         html = render_page(self.view())
         buttons = re.findall(r'<button[^>]*>', html)
-        self.assertEqual(len(buttons), len(COMMANDS))
-        for button in buttons:
+        commands = [b for b in buttons if 'data-command=' in b]
+        self.assertEqual(len(commands), len(COMMANDS))
+        for button in commands:
             self.assertIn(' disabled', button)
             self.assertNotIn('onclick', button)
+        # The only other button saves the KPI-04 records in the browser.
+        self.assertEqual([b for b in buttons if 'data-command=' not in b],
+                         ['<button type="button" id="kpi-save" class="mini">'])
         self.assertNotIn('<form', html)
         self.assertNotRegex(html, r"(?i)method\s*[:=]\s*['\"]?(post|put|delete)")
         self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
@@ -166,6 +171,44 @@ class PageTests(LedgerFixture):
         self.assertIn('<line', rescued_icon)
         self.assertNotIn('<line', re.search(r'<svg class="vicon not_rescued".*?</svg>', html).group(0))
 
+    def test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing(self):
+        html = render_page(self.view())
+        self.assertIn('id="kpi"', html)
+        self.assertIn('live: loaded', html)                       # rows present at load are history
+        self.assertIn('r.latency_s <= 3)', html)                  # KPI-04 budget substituted
+        self.assertNotIn('KPI_BUDGET_S', html)
+        self.assertIn('new Blob(', html)                          # saved in the browser
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+
+    def test_event_rows_carry_what_the_kpi04_file_needs(self):
+        view = self.view()
+        html = render_fragment(view)
+        for event in view['events']:
+            row = re.search(r'<tr class="event[^>]*data-ref="%s"[^>]*>' % re.escape(event['ref_id']), html).group(0)
+            self.assertIn(f'data-kind="{event["kind"]}"', row)
+            self.assertIn(f'data-clock="{event["clock_domain_id"]}"', row)
+            self.assertIn(f'data-received-ns="{event["received_at_ns"] or ""}"', row)
+
+    def test_failure_page_says_what_to_check_and_retries(self):
+        html = render_failure('STORAGE_ERROR', 'ledger read failed: <unable to open>')
+        self.assertIn('화면을 그릴 수 없습니다', html)
+        self.assertIn('파일 경로', html)                         # the hint for STORAGE_ERROR
+        self.assertIn('&lt;unable to open&gt;', html)
+        self.assertIn('http-equiv="refresh"', html)
+        self.assertIn('현장 비상 정지', html)
+        self.assertNotIn('<script', html)
+        self.assertIn('콘솔을 띄운 터미널', render_failure('SOMETHING_NEW', 'x'))
+        self.assertTrue(failure_text('INVALID_INPUT', 'bad').startswith('INVALID_INPUT: '))
+
+    def test_tab_title_carries_the_disaster_mode(self):
+        self.assertIn('<title>[재난] 구조 관제</title>', render_page(self.view()))
+        self.assertIn('<title>구조 관제</title>', render_page(self.view({})))
+        self.assertIn("'[갱신 끊김] '", render_page(self.view()))   # set by the poller when updates stop
+
+    def test_elapsed_time_switches_to_days(self):
+        self.assertEqual([_elapsed(v) for v in (None, -1, 95, 3600 * 5 + 60 * 7, 86400 * 1060 + 3600 * 14 + 5)],
+                         ['—', '—', '1분 35초', '5시간 07분', '1060일 14시간'])
+
     def test_ages_read_at_a_glance(self):
         self.assertEqual([_age(v) for v in (None, 0.44, 59.9, 185, 7800, 91_616_778.5, -3.0)],
                          ['—', '0.4s', '59.9s', '3분 05초', '2시간 10분', '1060일', '-3.0s'])
@@ -196,6 +239,34 @@ class PageTests(LedgerFixture):
         html = render_fragment(self.view(status))
         self.assertNotIn('<script>alert', html)
         self.assertIn('&lt;script&gt;', html)
+
+
+class LayoutTests(unittest.TestCase):
+    """#64: in a real browser window (1920x1080 monitor minus tab bar = 1853x963) the victims list was cut to 0 px.
+
+    CI has no browser, so these pin the CSS rules that keep it visible; the window measurements are in the PR.
+    """
+
+    @staticmethod
+    def rule(selector):
+        from rescue_console.render import _STYLE
+        found = re.search(r'(?m)^' + re.escape(selector) + r'\{([^}]*)\}', _STYLE)
+        return '' if found is None else found.group(1)
+
+    def test_victims_panel_keeps_room_for_its_list(self):
+        height = re.search(r'min-height:(\d+)px', self.rule('#targets'))
+        self.assertIsNotNone(height, '#targets needs a pixel min-height')
+        self.assertGreaterEqual(int(height.group(1)), 230)
+
+    def test_robot_cards_scroll_instead_of_squeezing_the_victims(self):
+        robots = self.rule('#robots')
+        self.assertIn('min-height:0', robots)
+        self.assertIn('overflow:auto', robots)
+
+    def test_event_log_row_fits_its_content(self):
+        from rescue_console.render import _STYLE
+        rows = re.search(r'grid-template-rows:([^;]*);', _STYLE).group(1)
+        self.assertNotRegex(rows, r'(?<![(\w])230px')      # a fixed 230 px row left empty space under few events
 
 
 class FlaskBoundaryTests(AccountsFixture):
@@ -248,6 +319,39 @@ class FlaskBoundaryTests(AccountsFixture):
         self.assertEqual(client.post('/logout', data={'csrf': self.csrf(client, '/')}).status_code, 302)
         self.assertEqual(client.get('/api/view').status_code, 401)
         self.assertEqual(digest_dir(self.dir), before)                      # ledgers untouched
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_repeated_wrong_passwords_lock_that_name_for_a_while(self):
+        from rescue_console.app import create_app
+        from rescue_console.throttle import LOGIN_LOCK_S, LOGIN_MAX_FAILURES, LoginThrottle
+        clock = [1000.0]
+        app = create_app(self.db, accounts_path=self.accounts, secret_key=SECRET,
+                         login_throttle=LoginThrottle(clock=lambda: clock[0]))
+        client = app.test_client()
+        for _ in range(LOGIN_MAX_FAILURES):
+            self.login(client, 'admin', 'wrong-pass-1')
+        # Locked: even the right password is refused, and the page says to wait.
+        self.assertEqual(self.login(client, *ADMIN).headers['Location'], '/login')
+        self.assertIn(f'{LOGIN_LOCK_S}초 뒤', client.get('/login').get_data(as_text=True))
+        self.assertEqual(client.get('/').status_code, 302)
+        # Another name is not locked.
+        other = app.test_client()
+        self.assertEqual(self.login(other, *CUSTOMER).headers['Location'], '/')
+        clock[0] += LOGIN_LOCK_S
+        self.assertEqual(self.login(client, *ADMIN).headers['Location'], '/')
+
+    @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
+    def test_responses_carry_security_headers_and_data_is_not_cached(self):
+        client = self.app().test_client()
+        self.login(client, *ADMIN)
+        for path in ('/login', '/', '/fragment', '/api/view'):
+            with self.subTest(path=path):
+                headers = client.get(path).headers
+                self.assertEqual(headers['X-Content-Type-Options'], 'nosniff')
+                self.assertEqual(headers['X-Frame-Options'], 'DENY')
+                self.assertEqual(headers['Referrer-Policy'], 'no-referrer')
+                self.assertIn("frame-ancestors 'none'", headers['Content-Security-Policy'])
+                self.assertEqual(headers['Cache-Control'], 'no-store')
 
     @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
     def test_customer_views_only_and_admin_manages_accounts(self):
@@ -348,7 +452,16 @@ class FlaskBoundaryTests(AccountsFixture):
     def test_broken_ledger_is_a_visible_failure(self):
         client = self.app(self.dir / 'absent.sqlite3').test_client()
         self.login(client, *ADMIN)
-        self.assertEqual(client.get('/api/view').status_code, 503)
+        api = client.get('/api/view')
+        self.assertEqual(api.status_code, 503)
+        self.assertEqual(api.get_json()['error'], 'STORAGE_ERROR')
+        self.assertIn('파일 경로', api.get_json()['hint'])
+        page = client.get('/')
+        self.assertEqual(page.status_code, 503)
+        self.assertIn('화면을 그릴 수 없습니다', page.get_data(as_text=True))
+        fragment = client.get('/fragment')
+        self.assertEqual(fragment.status_code, 503)
+        self.assertTrue(fragment.get_data(as_text=True).startswith('STORAGE_ERROR: '))
         self.assertFalse((self.dir / 'absent.sqlite3').exists())
 
 

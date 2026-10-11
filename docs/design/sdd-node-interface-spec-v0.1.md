@@ -425,6 +425,9 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 | 07 | PC4 좌표·상태·수신확인 |
 | 08 | PC4 웹·DB·HTTP |
 | 09 | DDS 발견·데이터 경계 |
+| 10 | `rescue_interfaces` 통신 흐름: [패키지 README](../../src/rescue_interfaces/README.md) 「통신별 입력과 출력」 표의 그림(2026-10-10 추가) |
+
+포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01~09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 재검사는 미실행.
 
 모든 상세 연결은 `IF-001`~`IF-086`과 endpoint/type을 표시한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
 
