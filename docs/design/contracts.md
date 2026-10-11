@@ -1,7 +1,7 @@
 ---
 title: 구조 수색 시스템의 인터페이스 계약 초안
 status: draft-proposal
-updated: 2026-10-08
+updated: 2026-10-11
 ---
 
 # 인터페이스 계약 초안
@@ -212,7 +212,7 @@ IDL 규칙:
 
 ## C-11. 소실 후보 → 재관측 → 구출 판정 연결 (카메라 1대, 2026-10-10)
 
-카메라 1대 결정(2026-10-09)으로 출구 카운트가 빠졌다. 그 자리를 고정 웹캠의 대상 소실 후보(`SiteEvent(kind=TARGET_DISAPPEARED_CANDIDATE)`)가 맡는다. 아래는 후보를 받아 SCOUT 재관측을 예약하고 구출 완료를 판정할 때 무엇으로 무엇을 잇는지의 계약이다. 판정 조건 자체는 [BRD v0.2](../requirements/brd-v0.2.md) 3.5.5(카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID)를 따른다. 정책 수치는 프로파일 값이고 여기에 쓰지 않는다. 후보를 받을지, 재관측을 어느 후보에 붙일지는 coordination 이 한 곳에서 정한다.
+카메라 1대 결정(2026-10-09)으로 출구 카운트가 빠졌다. 그 자리를 고정 웹캠의 대상 소실 후보(`SiteEvent(kind=TARGET_DISAPPEARED_CANDIDATE)`)가 맡는다. 웹캠이 판정 불가(UNKNOWN)여서 후보를 낼 수 없을 때는 운영자가 영상을 보고 낸 재확인 지시(`REQUEST_RECHECK`)가 후보 자리를 맡는다(scope Q-26, 2026-10-11). 아래 10행이 그 규칙이다. 아래는 후보를 받아 SCOUT 재관측을 예약하고 구출 완료를 판정할 때 무엇으로 무엇을 잇는지의 계약이다. 판정 조건 자체는 [BRD v0.2](../requirements/brd-v0.2.md) 3.5.5(카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID)를 따른다. 정책 수치는 프로파일 값이고 여기에 쓰지 않는다. 후보를 받을지, 재관측을 어느 후보에 붙일지는 coordination 이 한 곳에서 정한다.
 
 | # | 항목 | 규칙 | 어기면 |
 | --- | --- | --- | --- |
@@ -225,8 +225,10 @@ IDL 규칙:
 | 7 | 판정 연결 | 판정은 coordination 기록에서 그 대상의 후보와 연결된 task_id 들을 받는다. 재관측은 task_id 별로 보관하고, 연결된 task 의 재관측만 판정에 쓴다. 연결되지 않은 재관측은 판정 근거의 버전을 올리지 않는다. 확정 조건: 그 후보, `candidate.target_id == target_id`, 재관측 task 가 연결 목록에 있음, 로봇이 SCOUT, frame_ref 의 map session·revision 이 맞고 정렬 VALID, 카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID. 판정 기록에는 쓴 후보 event_id 와 재관측 observation_id 를 남긴다 | `CANDIDATE_NOT_LINKED` 등 → `RECHECK_NEEDED` |
 | 8 | 시각 순서 (C-03) | 비교하려면 후보와 재관측 모두 시간 기준이 선언돼 있고(UNKNOWN 아님, SYNCED, 오차 있음), `clock_domain_id` 가 같고, 오차 합이 정책 상한 이하여야 한다. 같은 `clock_domain_id` 는 설정만으로 주지 않는다. 같은 chrony 기준에 동기화했고, 그 호스트의 SYNCED 상태와 오차 상한을 측정해 기록했을 때만 같은 값을 쓴다 [제안, #76 CDX-76-03]. 측정 전에는 시간 기준을 UNKNOWN 또는 오차 None 으로 둔다. 순서: `sensor_window_start_ns − candidate.observed_at_ns > 오차 합`. LiDAR 는 같은 관측 창 안이라 따로 검사하지 않는다. watch_id·task_id 의 인과 순서로 이 검사를 대신하지 않는다 | 비교할 수 없음 → `CANDIDATE_TIME_BASIS_UNUSABLE`. 순서 위반 → `ORDER_VIOLATION` |
 | 9 | IDL ↔ Python | `SiteEvent` 는 C-10 의 규칙을 따른다. RecheckObservation + TaskResult → 판정 입력: `camera_state` PRESENT/ABSENT/UNKNOWN → 사람 있음 True/False/None, `lidar_state` BLOCKED/CLEAR/UNKNOWN → 장애물 True/False/None, `coverage_state` VALID/INVALID/UNKNOWN → 시야·깊이·스캔 범위가 모두 True/False/None. LiDAR 시각·clock 은 `RecheckObservation.time` 이다. 시간 기준이 UNKNOWN 이거나 오차가 없으면 오차를 None 으로 둔다 | 변환 실패 → `INVALID_INPUT`, 로그. 대체값을 쓰지 않는다 |
+| 10 | 운영자 재확인 지시 (Q-26) | `SubmitOperatorCommand(operation=REQUEST_RECHECK)` 는 `target_id`(1행과 같은 값)가 있어야 한다. coordination 은 지시의 `command_id` 를 3행의 후보 `event_id` 자리에 두고 `command_id → {task_id}` 를 기록한다(응답 `created_task_id`). 재전송은 같은 command_id·같은 내용이다(멱등). 열린 재관측은 대상당 1개이며, 후보와 지시가 겹치면 먼저 연 재관측 하나만 둔다. 시각 순서는 8행 대신 "지시를 수락한 뒤 예약한 task_id 의 재관측만 쓴다"로 정한다(예약 순서가 순서를 보장한다). 판정 기록에는 근거 출처를 `OPERATOR` 와 `CAMERA` 로 나눠 남긴다. 운영자 판단은 웹캠 판정이 아니며, 카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID(7·9행)는 그대로 모두 필요하다 | `target_id` 없음·모르는 대상·완료된 대상 → 거절(`REJECTED`, 출동하지 않음). 같은 command_id 다른 내용 → 거절 |
 
-남은 의존 (2026-10-10):
+남은 의존 (2026-10-10, 10행은 2026-10-11):
+- 10행의 운영자 경로는 관제 웹에 "웹캠 판정 불가 + 인형 안 보임" 알림과 그 대상의 재확인 지시 버튼이 있어야 쓸 수 있다(관제·화면). `REQUEST_RECHECK` 는 1차 IDL 에 있어 IDL 변경은 없다.
 - coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 2차라 IDL 에 없다(C-10). 1차로 올리지 않으면 10-13 흐름에서 후보를 만들 길이 없다. 요구사항 문서 작성 자리(SDD)·저장소 소유자 결정 대기.
 - 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
 
