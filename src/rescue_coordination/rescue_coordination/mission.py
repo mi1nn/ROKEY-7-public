@@ -389,6 +389,13 @@ class MissionCoordinator:
         self.search_authorized = True
         return 'ACCEPTED'
 
+    def cancel_search_start(self):
+        """Withdraw an accepted START_SEARCH whose first area was not reserved yet. True when withdrawn."""
+        if not self.search_authorized or self.search_started:
+            return False
+        self.search_authorized = False
+        return True
+
     def _dispatch_support(self, command, now_ns):
         target = self.targets.get(command.target_id)
         if self.dispatch_target is not None:
