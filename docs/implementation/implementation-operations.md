@@ -164,7 +164,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `.record_site_event(SiteEvent)` | 저장했으면 `True` | 사건 ID별 추가만 한다. 같은 내용 재전송은 `False`, 다른 내용은 `ID_CONTENT_CONFLICT` |
 | `.record_target_state(dict)` | 저장했으면 `True` | 대상당 최신 1행. `updated_at_ns`가 더 큰 것만 받는다. 보류 사유는 `RECHECK_NEEDED`일 때만 있다. `support_robot_id`는 `support_state=NONE`일 때만 None |
 | `.record_error(dict)` | 새 행의 `seq` | 오류 이력(3.7.4), 추가 전용. 키 `at_ns, robot_id, task_id, code, detail`. `code` 는 C-09 `CANONICAL_CODES` 만, 세부 원인은 `detail`. `robot_id`·`task_id` 는 None 가능 |
-| `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `MISSION_MODES`·`MISSION_PHASES` 는 [제안] |
+| `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `mode` 는 계약 `SYSTEM_MODES`(CLEARING 포함), `MISSION_PHASES` 는 [제안] |
 | `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`([제안]), 거절이면 `reason` 필수. 재전송 멱등 |
 | `.record_map_snapshot(dict)` | 저장했으면 `True` | 스냅샷 ID별 추가만. 키 `snapshot_id, robot_id, revision, path, sha256, at_ns`. bytes 는 DB 밖 |
 | `read_robot_status(path)` | `{schema_version, robots:[{robot_id, robot_boot_id, state_sequence, role, stamp_ns, pose, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, received_at_ns}]}` | 표시용 스냅샷이다. live readiness 증거가 아니다(C-05). frame이 다른 pose끼리 거리를 비교하지 않는다 |
@@ -178,3 +178,26 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
 후속: `status_json`·`state_json` 의 키 추가(`dock_state`·`segment_index`·`segment_phase`·`candidate_event_id`)는 발행·소비 쪽 확인 뒤로 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 판정 이력 영속화와 재시작 복구, ROS 수신 어댑터(누가 언제 `record_*`를 부르는지), 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+
+### 오프라인 리허설: 현장 상태 DB 의 BRD 흐름 (E2, 2026-10-11)
+
+`tests/test_operations_site_flow.py` 가 [console-and-db-plan](../design/console-and-db-plan.md) 1절 흐름(웹캠 1대)을 합성 데이터로 현장 상태 DB 에 차례로 기록하고, 단계마다 operations 읽기 함수로 화면에 나갈 값을 확인한다. 실제 로봇 0대, ROS·카메라·coordination 판정 없음. 언제 재난인지, 출동을 받을지, 구출 완료인지는 coordination 몫이라 **정해진 결과를 넣는다**. 이 리허설이 검증하는 것은 DB 와 읽기 API 가 흐름을 빠짐없이 담고 보여 주는지다. E3·E4 는 NOT_RUN 이다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 17단계: 평시 → 지진 감지 → AMR1 정찰 → 지도 → 발견(미확정) → 확정 전 출동 거절 → 확정 → 출동 승인 → 구간 정지 → 오류 → 계속 → 도착 → 구조 완료 후보 → 재확인 → 구출 완료 → 복귀 → 종료 | 단계마다 임무 단계가 기대대로 바뀌고 모든 기록이 저장됨 |
+| 교차 확인 | 배지의 트리거 = 저장된 `DISASTER_SIGN`(시각 같음), 후보 사건의 `target_id` = 구출 완료 대상, 승인 명령의 대상·로봇 = 화면의 지원 로봇 |
+| operations 재시작 뒤 전체 재전송 | 오류 이력만 늘고(추가 전용) 나머지 표는 그대로 |
+| 늦게 온 스냅샷 | 임무·대상·로봇 상태를 되돌리지 않음 |
+| 오탐 해제(S-00 DISASTER → CLEARING → NORMAL) | 리허설에서 처음 실패(`mode` 가 NORMAL/DISASTER 만 받음) → 계약 `SYSTEM_MODES` 로 고침 |
+
+리허설이 드러낸 빈 곳 (결정 대기, 코드 변경 없음):
+
+1. 카메라 감시 설정 `SET_CAMERA_WATCH`(C-11 2행)를 명령 이력에 남길 수 없다. `OPERATOR_COMMAND_KINDS` 와 1차 IDL 의 차이(#81 검토 ①)이며, 시험은 `expectedFailure` 로 둔다. 작전이 목록을 정하면 지운다.
+2. 화면의 「구간 i/N」 을 담을 곳이 없다. 구간 번호는 운영자 명령에만 있고 임무·로봇 상태에는 없다(보류한 `segment_index`). 발행 쪽 형식은 1차 IDL `RobotStatus.segment_index` 로 이미 있으므로 DB 쓰기 어댑터(이 레인) 작업에서 함께 정한다.
+3. 도킹 상태를 담을 곳이 없다(보류한 `dock_state`). 1차 IDL `RobotStatus.dock_state`(DOCKED·UNDOCKED·UNKNOWN)로 이미 있으므로 2와 같이 정한다.
+4. 후보와 대상의 연결은 `site_events` 의 후보 `target_id` 로 이미 읽을 수 있다. 보류한 `target_states.state_json.candidate_event_id` 는 이 연결만을 위해서라면 필요 없을 수 있다 [제안].
+5. 오류 이력에는 재전송 구분 키가 없어, 어댑터가 재시작 뒤 같은 오류를 다시 보내면 행이 늘어난다. DB 쓰기 어댑터(이 레인)가 오류를 다시 보내지 않는다(설계 그대로).
+6. 콘솔의 모드 표시(`view.py` `MODES`)에 CLEARING 이 없다. 콘솔이 `read_mission_state` 를 읽기 시작할 때 필요하다(관제·화면).
+
+`FLOW` 는 데이터, `apply` 하나만 DB 에 쓴다. [통합 리허설](implementation-integration.md)의 `offline_demo`(기반 레인)로 옮길 때는 이 둘을 가져가 summary 검사로 잇고, coordination 코어가 main 에 들어오면 정해진 결과 자리를 코어 출력으로 바꾼다.
