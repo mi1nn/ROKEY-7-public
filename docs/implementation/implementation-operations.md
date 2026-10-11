@@ -164,7 +164,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `.record_site_event(SiteEvent)` | 저장했으면 `True` | 사건 ID별 추가만 한다. 같은 내용 재전송은 `False`, 다른 내용은 `ID_CONTENT_CONFLICT` |
 | `.record_target_state(dict)` | 저장했으면 `True` | 대상당 최신 1행. `updated_at_ns`가 더 큰 것만 받는다. 보류 사유는 `RECHECK_NEEDED`일 때만 있다. `support_robot_id`는 `support_state=NONE`일 때만 None |
 | `read_robot_status(path)` | `{schema_version, robots:[{robot_id, robot_boot_id, state_sequence, role, stamp_ns, pose, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, received_at_ns}]}` | 표시용 스냅샷이다. live readiness 증거가 아니다(C-05). frame이 다른 pose끼리 거리를 비교하지 않는다 |
-| `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다 |
+| `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다. 사건마다 `SiteEvent` 필드를 모두 담는다: #48 전에 저장된 행의 `target_id`·`watch_id` 는 None 으로 채우고, 그런 사건의 같은 내용 재전송은 멱등이다 |
 | `read_target_states(path)` | `{schema_version, targets:[{target_id, position, detection_confirmed, rescue_state, rescue_reasons, verdict_id, support_state, support_robot_id, updated_at_ns}]}` | 구조 상태 4단계는 화면 표시층이 이 원자료로 합성한다(Q-20). 계약 어휘 `RESCUE_STATES`는 그대로 둔다 |
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
