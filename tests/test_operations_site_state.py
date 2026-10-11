@@ -1,6 +1,7 @@
 """Operations read API for the control screen: robot snapshot, site events + exit count, target states (E2)."""
 from dataclasses import asdict
 from pathlib import Path
+import re
 import sqlite3
 import tempfile
 import unittest
@@ -11,6 +12,8 @@ from rescue_operations.schema import OperationsError
 from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
+# 1차 IDL of the operator command service; every operation it names must be recordable.
+OPERATOR_SRV = Path(__file__).resolve().parents[1] / 'src' / 'rescue_interfaces' / 'srv' / 'SubmitOperatorCommand.srv'
 READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
            'read_mission_state', 'read_operator_commands', 'read_map_snapshots')
 
@@ -311,6 +314,17 @@ class SiteStateTests(unittest.TestCase):
         self.assertEqual([stop, command(), rejected], result['commands'])
         self.assertIs(False, result['commands'][2]['accepted'])
         self.assertEqual([stop], site_state.read_operator_commands(self.path, limit=1)['commands'])
+
+    def test_every_operation_of_the_command_service_can_be_recorded(self):
+        """The console forwards SubmitOperatorCommand (1차 IDL, #77·#98); a refused record would lose it."""
+        operations = re.findall(r'^string OPERATION_\w+="(\w+)"', OPERATOR_SRV.read_text(), re.M)
+        self.assertGreaterEqual(len(operations), 8, operations)  # parsed, not an empty pass
+        self.assertLessEqual(set(operations), site_state.OPERATOR_COMMAND_KINDS,
+                             sorted(set(operations) - site_state.OPERATOR_COMMAND_KINDS))
+        with self.ledger() as ledger:
+            for n, kind in enumerate(operations):
+                with self.subTest(kind=kind):
+                    self.assertTrue(ledger.record_operator_command(command(900 + n, kind=kind)))
 
     def test_operator_command_rejects_bad_input(self):
         bad = [dict(command_id='x'), dict(kind='SELF_DESTRUCT'), dict(operator_id=''), dict(robot_id='robot_x'),
