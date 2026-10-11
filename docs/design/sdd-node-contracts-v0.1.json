@@ -1526,7 +1526,7 @@
       "targets": [
         "central.operations"
       ],
-      "purpose": "NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs",
+      "purpose": "NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs, 임무 phase·트리거·출동 구간(C-10 2026-10-11)",
       "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
       "status": "PROPOSED"
     },
