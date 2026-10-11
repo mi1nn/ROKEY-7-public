@@ -133,6 +133,17 @@ class V21ProfileTests(unittest.TestCase):
         self.save(); self.assertRejected("source")
         self.assertEqual(("DISASTER_SIGN", "TARGET_WATCH", "EXIT_PASS"), SITE_CAMERA_ROLES)
 
+    def test_camera_only_host_counts_as_used(self):
+        # AST39-02: a host whose only role is the fixed camera is a valid placement.
+        self.data["services"]["coordination_host"] = "operations"
+        self.data["site_cameras"][0]["host"] = "coordination"
+        self.save()
+        self.assertEqual(["coordination"], [c.host for c in load_deployment(self.profile).site_cameras])
+        # Counting cameras does not hide a host that has no role at all.
+        self.data["site_cameras"][0]["host"] = "operations"
+        self.save()
+        self.assertRejected("hosts without an assigned role: ['coordination']")
+
     def test_null_is_not_absent_and_server_id_is_global(self):
         self.data["hosts"][0]["network"] = None
         self.save(); self.assertRejected("network")
