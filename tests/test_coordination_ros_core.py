@@ -6,7 +6,7 @@ import itertools
 from types import SimpleNamespace as NS
 import unittest
 
-from rescue_contracts import RescueError
+from rescue_contracts import CANONICAL_CODES, RescueError
 from rescue_coordination.planning import Allocator
 from rescue_coordination.search import SearchCoordinator
 from rescue_coordination import mission, ros_node
@@ -156,7 +156,7 @@ class OperatorServiceTests(CoreTestCase):
 
     def test_normal_mode_rejects_with_a_closed_reason(self):
         reply = self.response('RETURN_HOME')
-        self.assertEqual((False, 'REJECTED', 'MODE_NOT_DISASTER', ''),
+        self.assertEqual((False, 'REJECTED', 'NOT_AUTHORIZED', ''),
                          (reply['accepted'], reply['request_state'], reply['reason_code'], reply['created_task_id']))
 
     def test_recheck_rejections_use_c11_row_10_codes(self):
@@ -171,7 +171,7 @@ class OperatorServiceTests(CoreTestCase):
     def test_replay_is_duplicate_with_the_first_answer_and_conflict_is_rejected(self):
         self.disaster()
         first = self.response('RETURN_HOME')
-        self.assertEqual((False, 'NO_VERDICT'), (first['accepted'], first['reason_code']))
+        self.assertEqual((False, 'PENDING_EVIDENCE'), (first['accepted'], first['reason_code']))
         again = self.response('RETURN_HOME')
         self.assertEqual(('DUPLICATE', False, ''), (again['request_state'], again['accepted'], again['created_task_id']))
         other = self.response('RETURN_HOME', operator_id='someone-else')
@@ -194,7 +194,7 @@ class OperatorServiceTests(CoreTestCase):
         self.response('DISPATCH_SUPPORT', target_id=TARGET)
         reply = self.response('CONTINUE_SEGMENT', command_id=uid(701), target_id=TARGET, route_revision=7,
                               segment_index=1)
-        self.assertEqual('NOT_AWAITING_APPROVAL', reply['reason_code'])
+        self.assertEqual('TASK_BUSY', reply['reason_code'])
 
     def test_malformed_or_unsupported_requests_are_rejected_as_invalid_input(self):
         self.disaster()
@@ -207,6 +207,14 @@ class OperatorServiceTests(CoreTestCase):
                 reply = self.response(operation, **changes)
                 self.assertEqual((False, 'REJECTED', 'INVALID_INPUT'),
                                  (reply['accepted'], reply['request_state'], reply['reason_code']))
+
+    def test_every_refusal_maps_to_a_c09_code(self):
+        # OPS-58 (2026-10-11): reason_code carries the common code at the node boundary.
+        self.assertEqual(set(mission.COMMAND_REJECT_REASONS), set(ros_node.REASON_CODES))
+        self.assertLessEqual(set(ros_node.REASON_CODES.values()), CANONICAL_CODES)
+        for reason, code in (('UNKNOWN_TARGET', 'NOT_FOUND'), ('TARGET_ALREADY_JUDGED', 'INVALID_INPUT'),
+                             ('RECHECK_ALREADY_REQUESTED', 'TASK_BUSY')):  # C-11 row 10
+            self.assertEqual(code, ros_node.REASON_CODES[reason])
 
     def test_role_robot_may_be_named(self):
         self.disaster()
