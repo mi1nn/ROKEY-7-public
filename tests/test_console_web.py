@@ -198,6 +198,34 @@ class PageTests(LedgerFixture):
         self.assertIn('&lt;script&gt;', html)
 
 
+class LayoutTests(unittest.TestCase):
+    """#64: in a real browser window (1920x1080 monitor minus tab bar = 1853x963) the victims list was cut to 0 px.
+
+    CI has no browser, so these pin the CSS rules that keep it visible; the window measurements are in the PR.
+    """
+
+    @staticmethod
+    def rule(selector):
+        from rescue_console.render import _STYLE
+        found = re.search(r'(?m)^' + re.escape(selector) + r'\{([^}]*)\}', _STYLE)
+        return '' if found is None else found.group(1)
+
+    def test_victims_panel_keeps_room_for_its_list(self):
+        height = re.search(r'min-height:(\d+)px', self.rule('#targets'))
+        self.assertIsNotNone(height, '#targets needs a pixel min-height')
+        self.assertGreaterEqual(int(height.group(1)), 230)
+
+    def test_robot_cards_scroll_instead_of_squeezing_the_victims(self):
+        robots = self.rule('#robots')
+        self.assertIn('min-height:0', robots)
+        self.assertIn('overflow:auto', robots)
+
+    def test_event_log_row_fits_its_content(self):
+        from rescue_console.render import _STYLE
+        rows = re.search(r'grid-template-rows:([^;]*);', _STYLE).group(1)
+        self.assertNotRegex(rows, r'(?<![(\w])230px')      # a fixed 230 px row left empty space under few events
+
+
 class FlaskBoundaryTests(AccountsFixture):
     def test_missing_flask_is_a_clear_error_not_a_fallback(self):
         from rescue_console.app import create_app

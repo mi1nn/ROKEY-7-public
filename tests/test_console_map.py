@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import shutil
 import struct
 import tempfile
 import unittest
@@ -238,6 +239,52 @@ class PreQuakeMapAssetTests(unittest.TestCase):
         # the far corner of the stated area is the top-right image corner
         x, y = manifest['origin'][0] + manifest['area_m'][0], manifest['origin'][1] + manifest['area_m'][1]
         self.assertEqual(world_to_pixel(meta, x, y), (float(width), 0.0))
+
+
+class ExampleFixtureOnMapTests(unittest.TestCase):
+    """#64: the example status fixture must draw on the pre-quake map, not fill the screen with warnings."""
+
+    FREE_RADIUS_M = 0.2
+
+    def setUp(self):
+        self.example = ROOT / 'src' / 'rescue_console' / 'examples' / 'status.example.json'
+        self.map_yaml = ROOT / 'assets' / 'maps' / 'pre_quake' / 'map.yaml'
+        if not (self.example.exists() and self.map_yaml.exists()):
+            self.skipTest('source checkout only: example fixture and map assets are not installed')
+
+    def test_example_poses_land_on_free_cells_of_the_pre_quake_map(self):
+        spec = parse_map_yaml(self.map_yaml.read_text(encoding='utf-8'))
+        meta = load_map(self.map_yaml).meta
+        width, height, pixels, _ = read_pgm((self.map_yaml.parent / spec['image']).read_bytes())
+        free_above = 255 * (1 - spec['free_thresh'])          # trinary map: value above this is free space
+        reach = round(self.FREE_RADIUS_M / meta['resolution'])
+        status = json.loads(self.example.read_text(encoding='utf-8'))
+        poses = [(r['robot_id'], r['pose']) for r in status['robot_status']['robots'] if r['pose']]
+        poses += [(t['target_id'], t['position']) for t in status['target_states']['targets'] if t['position']]
+        self.assertEqual(len(poses), 4)
+        for ident, pose in poses:
+            with self.subTest(ident=ident):
+                self.assertEqual(pose['frame_id'], MAP_FRAME)
+                pixel = world_to_pixel(meta, pose['x'], pose['y'])
+                self.assertIsNotNone(pixel, f'{ident} ({pose["x"]}, {pose["y"]}) is off the map')
+                col, row = int(pixel[0]), int(pixel[1])
+                around = [pixels[r * width + c]
+                          for r in range(row - reach, row + reach + 1) for c in range(col - reach, col + reach + 1)
+                          if (r - row) ** 2 + (c - col) ** 2 <= reach ** 2 and 0 <= r < height and 0 <= c < width]
+                self.assertTrue(all(value > free_above for value in around), f'{ident} is on or next to a wall')
+
+    def test_offline_ledger_with_example_and_map_has_nothing_off_the_map(self):
+        from rescue_bringup.offline_demo import run_scenario
+        with tempfile.TemporaryDirectory() as folder:
+            shutil.copytree(ROOT / 'config', Path(folder) / 'config')
+            run_scenario(Path(folder) / 'config' / 'deployment.example.json', Path(folder) / 'run')
+            view = current_view(Path(folder) / 'run' / 'operations.sqlite3', self.example,
+                                map_image=load_map(self.map_yaml))
+        self.assertEqual(view['map']['off_map'], [])
+        self.assertEqual(view['map']['frame_mismatch'], [])
+        self.assertEqual(len(view['map']['robots']), 2)
+        self.assertEqual(len(view['map']['targets']), len(view['targets']))
+        self.assertFalse([w for w in view['warnings'] if '지도' in w])
 
 
 class MapRouteTests(AccountsFixture):

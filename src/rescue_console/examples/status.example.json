@@ -9,8 +9,8 @@
         "role": "SCOUT",
         "stamp_ns": 1700000005123456789,
         "pose": {
-          "x": 1.2,
-          "y": 0.4,
+          "x": -1.0,
+          "y": 0.8,
           "yaw": 0.0,
           "frame_id": "map"
         },
@@ -84,8 +84,8 @@
       {
         "target_id": "d62ed6f2-f721-5df4-bf3e-b35882601e36",
         "position": {
-          "x": 2.0,
-          "y": 1.5,
+          "x": -4.0,
+          "y": 2.0,
           "frame_id": "map",
           "map_session_id": "00000000-0000-4000-8000-0000000000ff",
           "map_revision": 1
@@ -101,8 +101,8 @@
       {
         "target_id": "108b8599-a8c6-541a-bb02-67232d912edd",
         "position": {
-          "x": 3.1,
-          "y": -0.8,
+          "x": -2.5,
+          "y": -0.3,
           "frame_id": "map",
           "map_session_id": "00000000-0000-4000-8000-0000000000ff",
           "map_revision": 1
