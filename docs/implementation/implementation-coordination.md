@@ -108,6 +108,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | `/rescue/report_receipts` (ReportReceipt) | 받음 | 그 보고의 기록을 모두 포함한 `PERSISTED` 만 저장 확인(출동 관문의 "저장") |
 | `/rescue/operator_command` (SubmitOperatorCommand) | 서비스 | 임무 관문 판정. 같은 command_id·같은 내용은 `DUPLICATE` 로 첫 응답을, 내용이 다르면 `ID_CONTENT_CONFLICT` |
 | `/rescue/robots/{r}/command_lease` (CommandLease) | 보냄 | task 마다 `lease_id` 를 `ExecuteTask.lease_id` 에 싣고 `lease_renew_period_s` 마다 갱신한다(`renewal_sequence` 1씩 증가, 같은 boot·authority·generation). task 종료·거절, 재난 모드 아님, 그 로봇 상태가 낡음·다른 boot, authority/generation 불일치면 그 lease 는 다시 갱신하지 않는다. 그러면 실행기가 `LEASE_EXPIRED` 로 스스로 정지한다(C-10 「명령 lease」, #88). 보조 규칙(작전 2026-10-11): 그 task 를 가리키는 RobotStatus 에 `stop_reason` 이 있거나 `motion_state` 가 STOPPING·STOP_UNCONFIRMED 이거나 `lease_valid=false` 이면, 또는 수락 뒤 도착한 상태가 다른 task 를 가리키면 갱신을 멈춘다. 정지된 로봇에 lease 를 계속 연장하지 않는다는 뜻이고, 정지 자체는 실행기 latch 몫이다. 수락 전 상태와 이전 task 의 정지 사유는 새 lease 를 끊지 않는다. `valid_until_ns` 는 정보용 |
+| `/rescue/targets` (TargetSnapshot, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만, 대상마다 `TargetEstimate` 하나(target_id 순). `persisted_report_id` 는 지금 revision 의 저장된 보고만, 확정 상태는 `CONFIRMED`(얇은 버전), 출동 대상의 `approach_state` 는 APPROVED→ASSIGNED·MOVING/AWAITING_APPROVAL→IN_PROGRESS·ARRIVED→APPROACH_COMPLETE [제안], 나머지는 UNASSIGNED |
 | `/rescue/system_state` (SystemState, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만. `segment_phase` 는 APPROVED·MOVING→EXECUTING, AWAITING_APPROVAL→AWAITING_APPROVAL, ARRIVED→STOPPED. phase `FINISHED` 면 mode `MISSION_FINISHED`(C-10, #88) |
 
 - **경로 증거 Phase 1 규칙**(작전 2026-10-11, #88): `EvaluateRoute` 가 2차라 planner 경로 증거가 없다. `planning.Reservation` 은 ONE_SEGMENT 승인과 구간 끝 `GoalPoint` 가 있는 `MOVE_SEGMENT`, 고정 관측 지점이 있는 `REOBSERVE_TARGET` 만 `PathCandidate` 없이 받는다. 승인 없는 MOVE_SEGMENT, 관측 지점 없는 REOBSERVE, APPROACH_TARGET 은 여전히 거절한다. `ExecuteTask.route` 에는 `approach_goal`(구간 끝 또는 관측 지점)만 싣고, `planned_path`·`path_sha256`·`planner_evidence_id` 는 비우며, `assessment` 는 `UNKNOWN`(알려진 값 없음)이다. `route.frame_ref` 는 대상의 마지막 `TargetLocation.frame_ref` 를 그대로 쓰고, alignment 가 `VALID` 가 아니거나 목표의 지도 기준과 다르면 발급하지 않고 로그에 남긴다(`TARGET_ALIGNMENT_NOT_VALID`·`ROUTE_BASIS_MISMATCH`). 실제 경로 검증은 실행기 guard·Nav2 몫이고 실패는 `TaskResult` 로 드러난다.
@@ -142,7 +143,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
 | `merge_distance_m` | double | 대상 병합 거리(Q-21) |
 
-아직 하지 않은 것: `HomePosition` 파라미터와 `RETURN_HOME` 배정(Q-22), `SetCameraWatch`(#77)·카메라 후보 수용과 판정 연결(#80·#32), `TargetSnapshot` 발행, 진행 중 수색 구역의 선점. E3 확인: `tests/ros/e3_coordinator_probe.py`(가짜 실행기 2대, 로봇 없음, `ROS_DOMAIN_ID` 10 이상·`LOCALHOST`·Discovery Server 해제).
+아직 하지 않은 것: `HomePosition` 파라미터와 `RETURN_HOME` 배정(Q-22), `SetCameraWatch`(#77)·카메라 후보 수용과 판정 연결(#80·#32), 진행 중 수색 구역의 선점. E3 확인: `tests/ros/e3_coordinator_probe.py`(가짜 실행기 2대, 로봇 없음, `ROS_DOMAIN_ID` 10 이상·`LOCALHOST`·Discovery Server 해제).
 
 ## 검증
 

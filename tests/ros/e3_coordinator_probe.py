@@ -22,7 +22,8 @@ MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
 ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
 without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
 generation as the goal, renewal_sequence strictly rising, none after its result; 9. a
-RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals.
+RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals; 10. a
+TargetSnapshot names the target with its saved report.
 Exit code 0 = all held.
 """
 import os
@@ -38,7 +39,7 @@ from rclpy.node import Node
 from rescue_interfaces.action import ExecuteTask
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus, SiteEvent, SystemState,
-                                   TargetLocation, TaskAdmission)
+                                   TargetLocation, TargetSnapshot, TaskAdmission)
 from rescue_interfaces.srv import SubmitOperatorCommand
 
 SCOUT, SUPPORT = 'robot_a', 'robot_b'
@@ -66,6 +67,7 @@ class FakeExecutor(Node):
     def __init__(self):
         super().__init__('e3_fake_executor')
         self.goals, self.support_goals, self.reports, self.states, self.leases = [], [], [], [], []
+        self.snapshots = []
         self.admission = {r: self.create_publisher(TaskAdmission, f'/rescue/robots/{r}/task_admission', 10)
                           for r in (SCOUT, SUPPORT)}
         self.status = {r: self.create_publisher(RobotStatus, f'/rescue/robots/{r}/status', 1) for r in (SCOUT, SUPPORT)}
@@ -80,6 +82,7 @@ class FakeExecutor(Node):
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
+        self.create_subscription(TargetSnapshot, '/rescue/targets', self.snapshots.append, snapshot)
         self.boot = {r: str(uuid4()) for r in (SCOUT, SUPPORT)}
         ActionServer(self, ExecuteTask, f'/rescue/robots/{SCOUT}/execute_task',
                      lambda handle: self.execute(handle, self.goals))
@@ -205,6 +208,11 @@ def main():
         found = wait(executor, lambda: probe.states and probe.states[-1].phase == 'TARGET_FOUND', 10,
                      probe.publish_status)
         checks['PERSISTED -> SystemState TARGET_FOUND'] = found
+        saved = wait(executor, lambda: probe.snapshots and probe.snapshots[-1].targets
+                     and probe.snapshots[-1].targets[0].persisted_report_id, 10, probe.publish_status)
+        checks['TargetSnapshot names the saved target'] = bool(saved and report) and (
+            probe.snapshots[-1].targets[0].target_id, probe.snapshots[-1].targets[0].persisted_report_id,
+            probe.snapshots[-1].targets[0].mission_position.x) == (report.target_id, report.report_id, 2.5)
         if report:
             dispatch = call(executor, probe, SubmitOperatorCommand.Request(
                 command_id=str(uuid4()), operation='DISPATCH_SUPPORT', operator_id='e3', target_id=report.target_id,

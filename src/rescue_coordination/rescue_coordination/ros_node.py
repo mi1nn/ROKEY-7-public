@@ -32,6 +32,7 @@ TARGET_LOCATION_TOPIC = '/rescue/target_locations'
 REPORT_TOPIC = '/rescue/reports'
 REPORT_RECEIPT_TOPIC = '/rescue/report_receipts'
 SYSTEM_STATE_TOPIC = '/rescue/system_state'
+TARGETS_TOPIC = '/rescue/targets'
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
 ROBOT_PREFIX = '/rescue/robots/'  # + robot_id + '/execute_task' etc. (rescue_interfaces README)
 # Mission refusal -> C-09 common code for SubmitOperatorCommand.reason_code (OPS-58, 2026-10-11).
@@ -54,6 +55,9 @@ STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.mot
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
                         'ARRIVED': 'STOPPED'}
+# Internal segment phase -> TargetEstimate.approach_state for the dispatched target [제안].
+APPROACH_STATES = {'APPROVED': 'ASSIGNED', 'MOVING': 'IN_PROGRESS', 'AWAITING_APPROVAL': 'IN_PROGRESS',
+                   'ARRIVED': 'APPROACH_COMPLETE'}
 
 
 def system_mode(mode, phase):
@@ -219,6 +223,7 @@ class CoordinatorCore:
         self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
         self.issue_block = None  # why the last approved/open task could not be issued (for the log)
         self.state_sequence, self.last_state = 0, None
+        self.last_targets = None
         self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
         self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
         self.status_arrivals = 0
@@ -340,7 +345,7 @@ class CoordinatorCore:
             return False
         if msg.state != 'PERSISTED' or not set(report['record_ids']) <= set(msg.included_record_ids):
             return False
-        report['done'] = True
+        report['done'] = report['persisted'] = True
         self.mission.record_target(report['target_id'], report['target_revision'], detection_confirmed=True,
                                    report_persisted=True)
         return True
@@ -365,6 +370,37 @@ class CoordinatorCore:
         self.last_state = state
         self.state_sequence += 1
         return state | dict(state_sequence=self.state_sequence, changed_at_ns=now_ns)
+
+    def target_snapshot_change(self):
+        """TargetSnapshot fields (IF-070) when the targets changed since the last call, else None.
+
+        One TargetEstimate per target, ordered by target_id. ``persisted_report_id`` is
+        the saved report of the current revision only (a newer revision is unsaved until
+        its own receipt). Confirmation is CONFIRMED: the thin version takes confirmed
+        detections only (작전 decision 3).
+        """
+        mission = self.mission
+        saved = {(r['target_id'], r['target_revision']): r['report_id'] for r in self.reports.values()
+                 if r['done'] and r.get('persisted')}
+        targets = []
+        for target_id in sorted(self.target_geo):
+            basis, xy, locations = self.target_geo[target_id]
+            target_revision = mission.targets[target_id][0]
+            dispatched = target_id == mission.dispatch_target
+            latest = locations[-1]
+            targets.append(dict(
+                target_id=target_id, estimate_revision=target_revision, locations=list(locations),
+                latest_observed_at_ns=max(loc.observation.time.observed_at_ns for loc in locations),
+                valid_until_ns=latest.observation.time.valid_until_ns, mission_position=xy,
+                covariance=list(latest.covariance), confirmation_state='CONFIRMED',
+                approach_state=APPROACH_STATES[mission.segment_phase] if dispatched else 'UNASSIGNED',
+                segment_phase=SEGMENT_PHASE_STATES[mission.segment_phase] if dispatched else 'IDLE',
+                rescue_state=mission.verdicts.get(target_id, 'NOT_CHECKED'),
+                persisted_report_id=saved.get((target_id, target_revision), '')))
+        if targets == self.last_targets:
+            return None
+        self.last_targets = targets
+        return dict(snapshot_id=self.new_id(), targets=targets)
 
     def ready(self, robot_id, now_ns):
         """(robot_boot_id, ready) from the latest RobotStatus, or None before any status."""
@@ -656,8 +692,8 @@ def main(args=None):
     from rescue_interfaces.action import ExecuteTask
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
-                                       SiteEvent as SiteEventMsg, SystemState, TargetLocation,
-                                       TaskAdmission as AdmissionMsg)
+                                       SiteEvent as SiteEventMsg, SystemState, TargetEstimate, TargetLocation,
+                                       TargetSnapshot, TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     rclpy.init(args=args)
@@ -722,6 +758,7 @@ def main(args=None):
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
         state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
+        targets_pub = node.create_publisher(TargetSnapshot, TARGETS_TOPIC, snapshot)  # IF-070 latest snapshot
         report_pub = node.create_publisher(RescueReport, REPORT_TOPIC, 10)
         lease_pubs = {robot: node.create_publisher(CommandLease, ROBOT_PREFIX + robot + '/command_lease', 1)
                       for robot in core.roles.values()}  # IF-014: RELIABLE / VOLATILE / KEEP_LAST 1
@@ -750,6 +787,17 @@ def main(args=None):
                 last_block[0] = core.issue_block
                 if core.issue_block:
                     log.error(f'task not issued: {core.issue_block}')
+            targets = core.target_snapshot_change()
+            if targets is not None:
+                estimates = []
+                for item in targets['targets']:
+                    estimate = TargetEstimate(**{k: v for k, v in item.items() if k != 'mission_position'})
+                    estimate.mission_position.x, estimate.mission_position.y = map(float, item['mission_position'])
+                    estimates.append(estimate)
+                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=targets['snapshot_id'], targets=estimates)))
+                summary = [(t['target_id'], t['estimate_revision'], t['approach_state'], t['rescue_state'])
+                           for t in targets['targets']]
+                log.info(f'TARGETS {targets["snapshot_id"]} {summary}')
             state = core.system_state_change(now)
             if state is not None:
                 msg = SystemState(**state)
