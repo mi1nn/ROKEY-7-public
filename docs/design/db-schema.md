@@ -37,7 +37,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
-| `robot_status` | `robot_id TEXT PK`, `robot_boot_id`, `state_sequence INTEGER`, `stamp_ns`, `status_json`, `received_at_ns` | 로봇당 최신 1행. 같은 boot 는 `state_sequence` 가 클 때만 교체(같은 sequence 에 다른 내용이면 `ID_CONTENT_CONFLICT`), 다른 boot 는 `stamp_ns` 가 클 때만. `status_json` 키: robot_id, robot_boot_id, state_sequence, role(SCOUT/SUPPORT/UNKNOWN), stamp_ns, pose{x,y,yaw,frame_id}, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation |
+| `robot_status` | `robot_id TEXT PK`, `robot_boot_id`, `state_sequence INTEGER`, `stamp_ns`, `status_json`, `received_at_ns` | 로봇당 최신 1행. 같은 boot 는 `state_sequence` 가 클 때만 교체(같은 sequence 에 다른 내용이면 `ID_CONTENT_CONFLICT`), 다른 boot 는 `stamp_ns` 가 클 때만. `status_json` 키: robot_id, robot_boot_id, state_sequence, role(SCOUT/SUPPORT/UNKNOWN), stamp_ns, pose{x,y,yaw,frame_id}, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, 그리고 선택 키 dock_state(DOCKED/UNDOCKED/UNKNOWN)·segment_index(1차 IDL `RobotStatus`, 2026-10-11; 없는 옛 행은 None 으로 읽음). pose 는 `record_robot_pose` 로 따로 바뀌고(받은 시각 `received_at_ns` 는 그대로) 같은 sequence 의 동일성 비교에서 빠진다 |
 | `site_events` | `event_id TEXT PK`, `kind`, `observed_at_ns`, `event_json`, `received_at_ns` | 고정 카메라 사건 추가 전용(`SiteEvent` 를 `asdict` 로 저장). 같은 내용 재전송은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 현재 Python 계약 어휘는 `DISASTER_SIGN`·`EXIT_PASS`(카메라 1대 결정으로 생산자 없음)다. `TARGET_DISAPPEARED_CANDIDATE` 는 #48의 후속 계약 반영 대상이다 |
 | `target_states` | `target_id TEXT PK`, `updated_at_ns`, `state_json` | 대상당 최신 1행. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함. `state_json` 키: target_id, position{x,y,frame_id,map_session_id,map_revision}, detection_confirmed, rescue_state(계약 `RESCUE_STATES`), rescue_reasons, verdict_id, support_state(NONE/ASSIGNED/ARRIVED/FAILED [제안]), support_robot_id, updated_at_ns |
 
@@ -68,7 +68,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_mission_state` 는 `mission` 하나(기록 전에는 None).
 
-보류 — JSON 키 추가(팀 확인 뒤): 계획 3절의 `robot_status.status_json` 의 `dock_state`·`segment_index`, `target_states.state_json` 의 `segment_phase`·`candidate_event_id` 는 이 PR 에 넣지 않았다. 지금 검증(`schema.exact`)은 키 집합이 정확히 맞아야 해서, 키를 더하면 발행 쪽(operations ROS 어댑터)과 읽는 쪽(콘솔)이 같이 바뀌어야 한다. 넣을 때는 5절대로 읽는 쪽이 없는 키를 기본값으로 읽게 한다.
+보류 — JSON 키 추가: `robot_status.status_json` 의 `dock_state`·`segment_index` 는 1차 IDL `RobotStatus` 에 맞춰 선택 키로 넣었다(2절, 2026-10-11). `target_states.state_json` 의 `segment_phase`·`candidate_event_id` 는 아직 넣지 않았다. 지금 검증(`schema.exact`)은 키 집합이 정확히 맞아야 해서, 키를 더하면 발행 쪽(operations ROS 어댑터)과 읽는 쪽(콘솔)이 같이 바뀌어야 한다. 넣을 때는 5절대로 읽는 쪽이 없는 키를 기본값으로 읽게 한다.
 
 ## 5. 바꿀 때 지키는 것
 

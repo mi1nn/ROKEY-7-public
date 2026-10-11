@@ -177,4 +177,23 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
-후속: `status_json`·`state_json` 의 키 추가(`dock_state`·`segment_index`·`segment_phase`·`candidate_event_id`)는 발행·소비 쪽 확인 뒤로 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 판정 이력 영속화와 재시작 복구, ROS 수신 어댑터(누가 언제 `record_*`를 부르는지), 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+후속: `state_json` 의 키 추가(`segment_phase`·`candidate_event_id`)는 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 로봇 상태의 `dock_state`·`segment_index` 와 ROS 수신은 아래 「DB 쓰기 어댑터」 절. 판정 이력 영속화와 재시작 복구, 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+
+## DB 쓰기 어댑터 (ROS → 현장 상태 DB, 2026-10-11)
+
+현장 상태 DB 의 유일한 쓰기 프로세스다. 담당은 상태 감시([일정](../process/schedule.md) 2절 담당표, 10-11 팀 공지). 변환 코어 `rescue_operations/ros_ingest.py` 는 ROS 를 import 하지 않고 필드 이름으로만 읽어 E2 로 시험한다. `rescue_operations/ros_node.py`(실행 이름 `db_writer`)는 구독만 하고 코어를 부른다. 발행·명령은 없다.
+
+| 받는 것 (1차 IDL) | DB | 규칙 |
+| --- | --- | --- |
+| `RobotStatus` (로봇별 토픽) | `robot_status` | 역할은 배치 설정(`robot_roles`). `battery_known=false`·빈 `active_task_id`·빈 `dock_state` 는 None, 배터리는 `battery_fraction`×100 과 상태 시각. `segment_index` 는 진행 중 task 가 있을 때만 [제안]. 오래된 sequence 는 오류 없이 무시 |
+| `RobotPose` (로봇별 토픽) | `robot_status.pose` | `mission_pose_status=VALID` 일 때만 x·y·yaw·frame_id, 아니면 위치를 숨긴다. 오는 즉시 `record_robot_pose` 로 쓰고 받은 시각은 바꾸지 않는다. 표시용이며 준비 증거가 아니다(C-05) |
+| `SiteEvent` | `site_events` | C-10: `visibility_state` 가 VALID 가 아니면 거절. 빈 `target_id`·`watch_id` 는 None, `has_clock_error_bound=false` 면 오차 None. 계약에 없는 `source_boot_id`·`metrics`·`policy_version` 은 버린다 |
+
+거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·076 의 [제안] 값, 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
+
+| 검증 | 결과 |
+| --- | --- |
+| E2: `tests/test_operations_ros_ingest.py`, `tests/test_operations_ros_node.py`, `tests/test_operations_site_state.py` | 통과 |
+| 로컬 ROS 실행(jazzy, `ROS_DOMAIN_ID=77`, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 한 PC, 2026-10-11): 합성 발행기가 상태·위치·사건(VALID 1, OCCLUDED 1)을 4초간 되풀이 | 첫 실행에서 결함 둘(상태 뒤 위치가 오면 재전송이 `ID_CONTENT_CONFLICT`, SIGINT 에 종료 코드 1)을 찾아 고침. 고친 뒤: 로봇 행에 역할·위치(yaw 0.5)·도킹·구간·배터리, VALID 사건 1건, `error_log` 는 OCCLUDED 8건뿐, 종료 코드 0 |
+
+E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 임무 상태(`SystemState`, #88 은 아직 main 에 없음)·대상 상태·운영자 명령·지도는 아직 받지 않는다. 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).
