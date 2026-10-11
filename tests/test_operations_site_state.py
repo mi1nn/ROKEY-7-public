@@ -10,6 +10,8 @@ from rescue_operations.schema import OperationsError
 from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
+READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
+           'read_mission_state', 'read_operator_commands', 'read_map_snapshots')
 
 
 def uid(n):
@@ -36,6 +38,31 @@ def target_state(**changes):
                   detection_confirmed=True, rescue_state='RECHECK_NEEDED',
                   rescue_reasons=['EXIT_NOT_LINKED'], verdict_id=uid(600), support_state='ASSIGNED',
                   support_robot_id='robot_b', updated_at_ns=3_000)
+    return values | changes
+
+
+def error_entry(**changes):
+    values = dict(at_ns=5_000, robot_id='robot_a', task_id=uid(2), code='NAV_NOT_READY',
+                  detail='rescue_robot.NAV2_INACTIVE: bt_navigator not active')
+    return values | changes
+
+
+def mission(**changes):
+    values = dict(mode='DISASTER', phase='SEARCHING', trigger_event_id=uid(30), started_at_ns=1_500, generation=1,
+                  updated_at_ns=4_000)
+    return values | changes
+
+
+def command(n=700, **changes):
+    values = dict(command_id=uid(n), kind='CONTINUE_SEGMENT', operator_id='admin', robot_id='robot_b',
+                  target_id=uid(500), segment_index=2, route_revision=1, requested_at_ns=7_000, accepted=True,
+                  result='ACCEPTED', reason=None)
+    return values | changes
+
+
+def map_snapshot(n=800, **changes):
+    values = dict(snapshot_id=uid(n), robot_id='robot_a', revision=3, path='maps/robot_a/rev3.png', sha256='b' * 64,
+                  at_ns=9_000)
     return values | changes
 
 
@@ -166,10 +193,125 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_target_state(target_state(**change))
 
+    # --- error log (BRD 3.7.4) ----------------------------------------------
+    def test_error_log_appends_every_entry_and_reads_newest_first(self):
+        with self.ledger() as ledger:
+            first = ledger.record_error(error_entry())
+            again = ledger.record_error(error_entry())  # a repeated failure is a new entry, not a resend
+            system = ledger.record_error(error_entry(at_ns=6_000, robot_id=None, task_id=None,
+                                                     code='SESSION_FAULT',
+                                                     detail='rescue_mapping.SESSION_LOST'))
+            self.assertEqual(3, len({first, again, system}))
+        result = site_state.read_error_log(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        errors = result['errors']
+        self.assertEqual([system, again, first], [e['seq'] for e in errors])
+        self.assertEqual(error_entry() | {'seq': first}, errors[2])
+        self.assertEqual((None, None), (errors[0]['robot_id'], errors[0]['task_id']))
+        self.assertEqual([system], [e['seq'] for e in site_state.read_error_log(self.path, limit=1)['errors']])
+
+    def test_error_log_rejects_bad_input(self):
+        bad = [dict(code='SOMETHING_WENT_WRONG'), dict(code='rescue_robot.NAV2_INACTIVE'), dict(robot_id='robot_x'),
+               dict(task_id='x'), dict(at_ns=0), dict(detail=''), dict(detail='x' * 1025), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_error(error_entry(**change))
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
+    # --- mission state ------------------------------------------------------
+    def test_mission_state_is_one_row_and_only_newer_replaces(self):
+        self.ledger().close()
+        self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
+        idle = mission(mode='NORMAL', phase='IDLE', trigger_event_id=None, started_at_ns=None, generation=0,
+                       updated_at_ns=1_000)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_mission_state(idle))
+            self.assertTrue(ledger.record_mission_state(mission()))
+            self.assertFalse(ledger.record_mission_state(mission()))  # identical resend
+            self.assertFalse(ledger.record_mission_state(mission(phase='DISASTER', updated_at_ns=3_000)))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_mission_state(mission(phase='TARGET_FOUND'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_mission_state(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual(mission(), result['mission'])
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(1, db.execute('SELECT COUNT(*) FROM mission_state').fetchone()[0])
+        db.close()
+
+    def test_mission_state_rejects_bad_input(self):
+        bad = [dict(mode='PANIC'), dict(phase='DONE'), dict(trigger_event_id='x'), dict(trigger_event_id=None),
+               dict(started_at_ns=None), dict(started_at_ns=0), dict(generation=-1), dict(generation=None),
+               dict(updated_at_ns=0), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_mission_state(mission(**change))
+        self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
+
+    # --- operator commands --------------------------------------------------
+    def test_operator_commands_keep_rejections_and_resends_are_idempotent(self):
+        rejected = command(701, kind='DISPATCH_SUPPORT', segment_index=None, route_revision=None,
+                           requested_at_ns=6_000, accepted=False, result=None,
+                           reason='GUARD_INVALID: no confirmed target')
+        stop = command(702, kind='STOP_ROBOT', target_id=None, segment_index=None, route_revision=None,
+                       requested_at_ns=8_000)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_operator_command(command()))
+            self.assertFalse(ledger.record_operator_command(command()))  # identical resend
+            self.assertTrue(ledger.record_operator_command(rejected))
+            self.assertTrue(ledger.record_operator_command(stop))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_operator_command(command(accepted=False, reason='late'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_operator_commands(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual([stop, command(), rejected], result['commands'])
+        self.assertIs(False, result['commands'][2]['accepted'])
+        self.assertEqual([stop], site_state.read_operator_commands(self.path, limit=1)['commands'])
+
+    def test_operator_command_rejects_bad_input(self):
+        bad = [dict(command_id='x'), dict(kind='SELF_DESTRUCT'), dict(operator_id=''), dict(robot_id='robot_x'),
+               dict(target_id='x'), dict(segment_index=-1), dict(route_revision=1.0), dict(requested_at_ns=0),
+               dict(accepted=1), dict(result=''), dict(accepted=False, reason=None), dict(reason=''),
+               dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_operator_command(command(**change))
+        self.assertEqual([], site_state.read_operator_commands(self.path)['commands'])
+
+    # --- map snapshots ------------------------------------------------------
+    def test_map_snapshots_append_and_resends_are_idempotent(self):
+        older = map_snapshot(801, revision=2, path='maps/robot_a/rev2.png', sha256='c' * 64, at_ns=8_000)
+        other = map_snapshot(802, robot_id='robot_b', at_ns=8_500)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_map_snapshot(map_snapshot()))
+            self.assertFalse(ledger.record_map_snapshot(map_snapshot()))
+            self.assertTrue(ledger.record_map_snapshot(older))
+            self.assertTrue(ledger.record_map_snapshot(other))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_map_snapshot(map_snapshot(sha256='d' * 64))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_map_snapshots(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual([map_snapshot(), other, older], result['maps'])
+        self.assertEqual([map_snapshot()], site_state.read_map_snapshots(self.path, limit=1)['maps'])
+
+    def test_map_snapshot_rejects_bad_input(self):
+        bad = [dict(snapshot_id='x'), dict(robot_id='robot_x'), dict(revision=-1), dict(path=''),
+               dict(path='a\x00b'), dict(sha256='B' * 64), dict(sha256='b' * 63), dict(at_ns=0), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_map_snapshot(map_snapshot(**change))
+        self.assertEqual([], site_state.read_map_snapshots(self.path)['maps'])
+
     # --- read boundary ------------------------------------------------------
     def test_readers_do_not_create_or_accept_other_databases(self):
         missing = Path(self.temp.name) / 'missing.db'
-        for read in (site_state.read_robot_status, site_state.read_site_events, site_state.read_target_states):
+        for read in (getattr(site_state, name) for name in READERS):
             with self.subTest(read=read.__name__):
                 with self.assertRaises(OperationsError) as caught:
                     read(missing)
@@ -178,7 +320,7 @@ class SiteStateTests(unittest.TestCase):
         other = Path(self.temp.name) / 'reports.db'
         from rescue_operations.ledger import ReportLedger
         ReportLedger(other, evidence_policy='OPTIONAL', allowed_robot_ids=ALLOWED).close()
-        for read in (site_state.read_robot_status, site_state.read_site_events, site_state.read_target_states):
+        for read in (getattr(site_state, name) for name in READERS):
             with self.subTest(other=read.__name__), self.assertRaises(OperationsError) as caught:
                 read(other)
             self.assertEqual('POLICY_MISMATCH', self.code(caught))
@@ -199,6 +341,67 @@ class SiteStateTests(unittest.TestCase):
         with sqlite3.connect(self.path) as db:
             self.assertEqual('operations-site-state',
                              dict(db.execute('SELECT key, value FROM metadata'))['role'])
+
+    # --- schema 1.0 -> 1.1 ----------------------------------------------------
+    def write_schema_1_0(self, allowed=ALLOWED):
+        """A site-state file exactly as the schema 1.0 writer left it (main at PR #66)."""
+        status = robot_status()
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            db.executemany('INSERT INTO metadata VALUES (?, ?)',
+                           [('schema', '1.0'), ('role', 'operations-site-state'),
+                            ('allowed_robot_ids', site_state.canonical(site_state.allowed_robots(allowed)))])
+            db.execute("""CREATE TABLE robot_status (
+                robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
+                stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
+            db.execute("""CREATE TABLE site_events (
+                event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
+                event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
+            db.execute("""CREATE TABLE target_states (
+                target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""")
+            db.execute('INSERT INTO robot_status VALUES (?, ?, ?, ?, ?, ?)',
+                       (status['robot_id'], status['robot_boot_id'], status['state_sequence'], status['stamp_ns'],
+                        site_state.canonical(status), 1_500))
+            db.execute('INSERT INTO target_states VALUES (?, ?, ?)',
+                       (uid(500), 3_000, site_state.canonical(target_state())))
+        db.close()
+
+    def metadata_and_tables(self):
+        db = sqlite3.connect(self.path)
+        try:
+            metadata = dict(db.execute('SELECT key, value FROM metadata'))
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        finally:
+            db.close()
+        return metadata, tables
+
+    def test_opening_schema_1_0_db_upgrades_tables_without_dropping_data(self):
+        self.write_schema_1_0()
+        self.ledger().close()
+        metadata, tables = self.metadata_and_tables()
+        self.assertEqual('1.1', metadata['schema'])
+        self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
+                              'robot_status', 'site_events', 'target_states'}, tables)
+        robots = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual([robot_status() | {'received_at_ns': 1_500}], robots)
+        self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
+        self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
+
+    def test_schema_1_0_db_with_other_policy_is_rejected_and_left_unchanged(self):
+        self.write_schema_1_0(allowed=('robot_a', 'robot_c'))
+        with self.assertRaises(OperationsError) as caught:
+            self.ledger()
+        self.assertEqual('POLICY_MISMATCH', self.code(caught))
+        metadata, tables = self.metadata_and_tables()
+        self.assertEqual('1.0', metadata['schema'])
+        self.assertNotIn('error_log', tables)
+
+    def test_readers_reject_a_schema_1_0_file_until_the_writer_upgrades_it(self):
+        self.write_schema_1_0()
+        with self.assertRaises(OperationsError) as caught:
+            site_state.read_robot_status(self.path)
+        self.assertEqual('POLICY_MISMATCH', self.code(caught))
 
 
 if __name__ == '__main__':

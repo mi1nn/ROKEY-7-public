@@ -1,0 +1,15 @@
+{
+  "topics": {"rgb": "/synthetic/rgb", "depth": "/synthetic/depth", "camera_info": "/synthetic/camera_info", "detections": "/synthetic/detections"},
+  "binding": {"source_robot": "robot_a", "source_camera": "front", "source_boot_id": "00000000-0000-0000-0000-000000000064",
+              "clock_domain_id": "synthetic-bag", "rgb_stamp_semantics": "CAPTURE", "depth_stamp_semantics": "CAPTURE",
+              "calibration_id": "synthetic-cal", "clock_state": "SYNCED", "clock_error_bound_ns": 10000000},
+  "alignment": {"evidence_id": "synthetic-alignment", "calibration_id": "synthetic-cal",
+                "rgb_frame_id": "synthetic/rgb_optical", "depth_frame_id": "synthetic/rgb_optical", "verified": true},
+  "rectified": true,
+  "model": {"model_id": "synthetic-recorded-detections", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "class_labels": ["person"]},
+  "tracking_mode": "DETECTION_ONLY",
+  "depth_policy": {"max_stamp_skew_ns": 20000000, "min_depth_m": 0.5, "max_depth_m": 5.0, "min_valid_pixels": 2,
+                   "min_valid_fraction": 0.5, "max_depth_spread_m": 0.5},
+  "observation_policy": {"validity_ns": 2000000000},
+  "observation_namespace": "6f1a7c1e-2a5b-4f0e-9a51-2d8f7f3c9b10"
+}
