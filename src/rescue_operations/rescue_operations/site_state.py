@@ -11,6 +11,7 @@ the number of distinct EXIT_PASS events stored here; recognition removes track
 duplicates before it publishes, and nothing here removes them again (TS-04).
 """
 
+from collections.abc import Mapping
 from dataclasses import asdict
 import json
 import math
@@ -42,6 +43,9 @@ OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINU
                                     "RETURN_HOME", "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
+# Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.
+ROBOT_DEFAULTS = {"dock_state": None, "segment_index": None}
+DOCK_STATES = frozenset({"DOCKED", "UNDOCKED", "UNKNOWN"})  # RobotStatus.DOCK_STATE_*
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
@@ -95,7 +99,8 @@ def _pair(first, second, label):
 
 
 def _robot_status(value, allowed):
-    status = dict(exact(value, ROBOT_KEYS, "robot status"))
+    require(isinstance(value, Mapping), "robot status must be an object")
+    status = dict(exact(ROBOT_DEFAULTS | dict(value), ROBOT_KEYS | ROBOT_DEFAULTS.keys(), "robot status"))
     _member(status["robot_id"], allowed, "robot_id")
     uid(status["robot_boot_id"], "robot_boot_id")
     uint(status["state_sequence"], "state_sequence")
@@ -116,7 +121,16 @@ def _robot_status(value, allowed):
     if status["active_task_id"] is not None:
         uid(status["active_task_id"], "active_task_id")
         uint(status["generation"], "generation")
+    require(status["dock_state"] is None or status["dock_state"] in DOCK_STATES,
+            "dock_state must be DOCKED, UNDOCKED, UNKNOWN or None")
+    if status["segment_index"] is not None:
+        uint(status["segment_index"], "segment_index")
     return status
+
+
+def _stored_status(status_json):
+    """A stored robot snapshot with every current key; keys added later read as None."""
+    return ROBOT_DEFAULTS | json.loads(status_json)
 
 
 def _target_state(value, allowed):
@@ -224,7 +238,8 @@ class SiteStateLedger(_Database):
             if row is not None:
                 if row["robot_boot_id"] == status["robot_boot_id"]:
                     if status["state_sequence"] == row["state_sequence"]:
-                        require(row["status_json"] == encoded, "same boot and sequence with different content",
+                        require(canonical(_stored_status(row["status_json"])) == encoded,
+                                "same boot and sequence with different content",
                                 "ID_CONTENT_CONFLICT")
                         return False
                     if status["state_sequence"] < row["state_sequence"]:
@@ -352,7 +367,7 @@ def _read(db_path, query):
 def read_robot_status(db_path):
     def query(db):
         rows = db.execute("SELECT status_json, received_at_ns FROM robot_status ORDER BY robot_id").fetchall()
-        return {"robots": [json.loads(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
+        return {"robots": [_stored_status(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
                            for row in rows]}
     return _read(db_path, query)
 

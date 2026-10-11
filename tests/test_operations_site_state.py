@@ -417,7 +417,8 @@ class SiteStateTests(unittest.TestCase):
         self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
                               'robot_status', 'site_events', 'target_states'}, tables)
         robots = site_state.read_robot_status(self.path)['robots']
-        self.assertEqual([robot_status() | {'received_at_ns': 1_500}], robots)
+        self.assertEqual([robot_status() | {'received_at_ns': 1_500, 'dock_state': None, 'segment_index': None}],
+                         robots)
         self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
         self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
 
