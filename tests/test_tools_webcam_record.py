@@ -56,6 +56,16 @@ class WebcamRecordTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 wr.check_mode(modes, size, fps)
 
+    def test_device_rate_with_float_noise_is_accepted_and_used_exactly(self):
+        # 2026-10-11 USB 웹캠: 1280x720@[30.000030 30.000030] 를 30 으로 요청하면 거절됐다.
+        # ffmpeg 에는 장치가 보고한 값 그대로를 넘긴다(반올림한 30 은 장치가 거절).
+        modes = wr.parse_modes("[in#0 @ 0x1]   1280x720@[30.000030 30.000030]fps\n"
+                               "[in#0 @ 0x1]   1280x720@[10.000000 10.000000]fps\n")
+        self.assertEqual(wr.check_mode(modes, (1280, 720), 30), "30.000030")
+        self.assertEqual(wr.check_mode(modes, (1280, 720), 10), "10.000000")
+        with self.assertRaises(SystemExit):
+            wr.check_mode(modes, (1280, 720), 20)
+
     def test_actual_resolution_and_fps_are_checked(self):
         self.assertEqual(wr.check_actual(probe(1280, 720, "30/1"), (1280, 720), 30), [])
         self.assertEqual(wr.check_actual(probe(1280, 720, "30000/1001"), (1280, 720), 30), [])
