@@ -243,8 +243,13 @@ class SystemStateConversion(unittest.TestCase):
     def test_dispatching_state_becomes_the_mission_row(self):
         self.assertEqual(dict(mode='DISASTER', phase='SEGMENT_MOVING', trigger_event_id=uid(10), started_at_ns=T0,
                               generation=None, updated_at_ns=T0 + 100, target_id=uid(500), target_revision=2,
-                              route_revision=1, segment_index=1, segment_count=3, segment_phase='EXECUTING'),
+                              route_revision=1, segment_index=1, segment_count=3, segment_phase='EXECUTING',
+                              reason=None),
                          self.convert(system_state_msg()))
+
+    def test_reason_code_is_kept_and_empty_is_none(self):
+        self.assertEqual('SEARCH_QUEUED', self.convert(system_state_msg(reason='SEARCH_QUEUED'))['reason'])
+        self.assertIsNone(self.convert(system_state_msg(reason=''))['reason'])
 
     def test_has_flags_false_give_none_not_zeroes(self):
         mission = self.convert(system_state_msg(phase='IDLE', dispatch=False, trigger=False, mode='NORMAL'))

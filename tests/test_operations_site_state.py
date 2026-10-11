@@ -54,9 +54,9 @@ def mission(**changes):
     return values | changes
 
 
-# Mission fields added in schema 1.2 (SystemState dispatch, C-10); absent means no AMR2 dispatch yet.
+# Mission fields added in schema 1.2 (SystemState dispatch and reason, C-10); absent means none yet.
 NO_DISPATCH = dict(target_id=None, target_revision=None, route_revision=None, segment_index=None,
-                   segment_count=None, segment_phase=None)
+                   segment_count=None, segment_phase=None, reason=None)
 
 
 def dispatch(**changes):
@@ -349,13 +349,26 @@ class SiteStateTests(unittest.TestCase):
         """schema 1.2: SystemState (C-10, contracts 207행) carries the AMR2 dispatch and MISSION_FINISHED."""
         with self.ledger() as ledger:
             self.assertTrue(ledger.record_mission_state(mission(generation=None, updated_at_ns=5_000) | dispatch()))
-            self.assertEqual(mission(generation=None, updated_at_ns=5_000) | dispatch(),
+            self.assertEqual(mission(generation=None, updated_at_ns=5_000) | dispatch() | dict(reason=None),
                              site_state.read_mission_state(self.path)['mission'])
             done = mission(mode='MISSION_FINISHED', phase='FINISHED', generation=None, updated_at_ns=6_000)
             self.assertTrue(ledger.record_mission_state(done | dispatch(segment_index=3, segment_phase='STOPPED')))
             self.assertTrue(ledger.record_mission_state(mission(updated_at_ns=7_000)))  # old writers still work
         self.assertEqual(mission(updated_at_ns=7_000) | NO_DISPATCH,
                          site_state.read_mission_state(self.path)['mission'])
+
+    def test_mission_reason_code_is_kept_and_optional(self):
+        """#91 (CLA-02): a blocked approach keeps the phase and puts the cause code in SystemState.reason."""
+        with self.ledger() as ledger:
+            blocked = (mission(updated_at_ns=5_000) | dispatch(segment_phase='STOPPED')
+                       | dict(reason='ROUTE_BASIS_MISMATCH'))
+            self.assertTrue(ledger.record_mission_state(blocked))
+            self.assertEqual('ROUTE_BASIS_MISMATCH', site_state.read_mission_state(self.path)['mission']['reason'])
+            self.assertTrue(ledger.record_mission_state(mission(updated_at_ns=6_000)))  # no reason -> None
+            self.assertIsNone(site_state.read_mission_state(self.path)['mission']['reason'])
+            for bad in ('', 'x' * 257, 7):
+                with self.subTest(reason=bad), self.assertRaises(OperationsError):
+                    ledger.record_mission_state(mission(updated_at_ns=7_000) | dict(reason=bad))
 
     def test_mission_dispatch_and_finished_rules_are_checked(self):
         bad = [mission(mode='MISSION_FINISHED'),                      # only with phase FINISHED
