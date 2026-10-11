@@ -20,7 +20,7 @@ import time
 from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
 
 from .ledger import _Database, _limit, _path
-from .schema import (OperationsError, allowed_robots, canonical, exact, require, text, timestamp,
+from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
 SCHEMA_VERSION = "1.1"
@@ -49,6 +49,7 @@ TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
                 "requested_at_ns", "accepted", "result", "reason"}
+MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 
 
@@ -195,6 +196,17 @@ def _command(value, allowed):
     return command
 
 
+def _map_snapshot(value, allowed):
+    snapshot = exact(value, MAP_KEYS, "map snapshot")
+    uid(snapshot["snapshot_id"], "snapshot_id")
+    _member(snapshot["robot_id"], allowed, "robot_id")
+    uint(snapshot["revision"], "revision")
+    text(snapshot["path"], "path", 1024)
+    sha(snapshot["sha256"], "sha256")
+    timestamp(snapshot["at_ns"], "at_ns")
+    return snapshot
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -275,6 +287,19 @@ class SiteStateLedger(_Database):
                        (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
                         command["target_id"], command["segment_index"], command["route_revision"],
                         command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"]))
+        return True
+
+    def record_map_snapshot(self, snapshot):
+        """Append one stored map image (IF-084). Returns False for a resend."""
+        snapshot = _map_snapshot(snapshot, self.allowed_robot_ids)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM map_snapshots WHERE snapshot_id = ?", (snapshot["snapshot_id"],)).fetchone()
+            if row is not None:
+                require(dict(row) == snapshot, "snapshot_id has different content", "ID_CONTENT_CONFLICT")
+                return False
+            db.execute("INSERT INTO map_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+                       (snapshot["snapshot_id"], snapshot["robot_id"], snapshot["revision"], snapshot["path"],
+                        snapshot["sha256"], snapshot["at_ns"]))
         return True
 
     def record_mission_state(self, mission):
@@ -376,4 +401,15 @@ def read_operator_commands(db_path, *, limit=100):
         rows = db.execute("SELECT * FROM operator_commands ORDER BY requested_at_ns DESC, command_id DESC LIMIT ?",
                           (limit,)).fetchall()
         return {"commands": [_command_row(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_map_snapshots(db_path, *, limit=100):
+    """Newest first. The image bytes stay in the file at ``path``; check them against ``sha256``."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT * FROM map_snapshots ORDER BY at_ns DESC, snapshot_id DESC LIMIT ?",
+                          (limit,)).fetchall()
+        return {"maps": [dict(row) for row in rows]}
     return _read(db_path, query)
