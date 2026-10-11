@@ -164,6 +164,7 @@ class RouteFrameTests(TargetTestCase):
         self.assertEqual((True, False, OBSERVE.mission_xy[0], 'UNKNOWN'),
                          (goal.has_route, goal.has_approval, goal.route.approach_goal.pose.position.x,
                           goal.route.assessment.status))
+        self.assertEqual(NOW, goal.route.generated_at_ns)  # made with the target, not at sending
 
 
 class SystemStateTests(TargetTestCase):
