@@ -88,6 +88,38 @@ class SiteRuntimeTests(unittest.TestCase):
         self.assertEqual(self.runtime.server.on_goal(self.f.g),'reject')
         self.assertFalse(self.f.r.f.port.goals)
 
+    def test_lease_issuer_rejections_explain_boot_and_publisher_without_renewing(self):
+        for field, reason in (('robot_boot_id', 'ROBOT_BOOT_ID_MISMATCH'),
+                              ('publisher_id', 'PUBLISHER_ID_MISMATCH'),
+                              ('publisher_boot_id', 'PUBLISHER_BOOT_ID_MISMATCH')):
+            with self.subTest(field=field):
+                self.setUp()
+                self.assertEqual(self.runtime.server.on_goal(self.f.g), 'accept')
+                lease = deepcopy(self.f.l)
+                if field == 'robot_boot_id':
+                    lease.robot_boot_id = phase.ingress_tests.uid(99)
+                else:
+                    setattr(lease.envelope, field, 'unregistered-publisher')
+                until = self.adapter.executor.lease_until
+                self.assertFalse(self.runtime.server.on_lease(lease))
+                self.assertIn(reason, '\n'.join(self.node.warnings))
+                self.assertEqual(self.adapter.executor.lease_until, until)
+                self.assertFalse(self.f.r.f.port.goals)
+
+    def test_stored_duplicate_and_identity_conflict_have_distinct_rejection_logs(self):
+        self.assertEqual(self.runtime.server.on_goal(self.f.g), 'accept')
+        lease = deepcopy(self.f.l)
+        self.assertTrue(self.runtime.server.on_lease(lease))
+        until = self.adapter.executor.lease_until
+        self.assertFalse(self.runtime.server.on_lease(lease))
+        self.assertIn('NONINCREASING_SEQUENCE', '\n'.join(self.node.warnings))
+        self.node.warnings.clear()
+        lease.generation += 1
+        lease.renewal_sequence += 1
+        self.assertFalse(self.runtime.server.on_lease(lease))
+        self.assertIn('LEASE_IDENTITY_CONFLICT', '\n'.join(self.node.warnings))
+        self.assertEqual(self.adapter.executor.lease_until, until)
+
     def test_missing_or_stale_inputs_reject_and_do_not_refresh_timestamp(self):
         self.data['valid_until_ns']=self.adapter.wall_clock_ns()
         self.assertEqual(self.runtime.server.on_goal(self.f.g),'reject')

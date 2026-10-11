@@ -37,6 +37,7 @@ class Action:
 class Node:
     def __init__(self):
         self.messages, self.errors = [], []
+        self.warnings, self.debug_messages = [], []
 
     def create_publisher(self, *args):
         return NS(publish=self.messages.append)
@@ -51,7 +52,8 @@ class Node:
         pass
 
     def get_logger(self):
-        return NS(error=self.errors.append, warning=self.errors.append)
+        return NS(error=self.errors.append, warning=self.warnings.append,
+                  debug=self.debug_messages.append)
 
 
 class Handle:
@@ -185,6 +187,49 @@ class TaskServerTests(unittest.TestCase):
         until = self.fixture.adapter.executor.lease_until
         self.server.on_lease(renewal)
         self.assertEqual(self.fixture.adapter.executor.lease_until, until)
+
+    def test_authentication_rejection_logs_without_extending_lease(self):
+        self.server.on_goal(self.goal)
+        self.lease.renewal_sequence += 1
+        self.lease_allowed = False
+        until = self.fixture.adapter.executor.lease_until
+        self.assertFalse(self.server.on_lease(self.lease))
+        self.assertIn('LEASE_AUTHENTICATION_OR_STORAGE_REJECTED', '\n'.join(self.node.warnings))
+        self.assertEqual(self.fixture.adapter.executor.lease_until, until)
+
+    def test_other_lease_logs_debug_without_extending_active_task(self):
+        self.server.on_goal(self.goal)
+        self.lease.lease_id = ingress_tests.uid(99)
+        until = self.fixture.adapter.executor.lease_until
+        self.assertFalse(self.server.on_lease(self.lease))
+        self.assertIn('OTHER_LEASE_ID', '\n'.join(self.node.debug_messages))
+        self.assertFalse(self.node.warnings)
+        self.assertEqual(self.fixture.adapter.executor.lease_until, until)
+
+    def test_pre_goal_lease_is_stored_with_debug_and_no_dispatch(self):
+        self.assertTrue(self.server.on_lease(self.lease))
+        self.assertIn('STORED_BEFORE_TASK', '\n'.join(self.node.debug_messages))
+        self.assertIsNone(self.fixture.adapter.executor.active)
+        self.assertFalse(self.fixture.fixture.nav_b.goals)
+
+    def test_executor_rejection_logs_expiry_stopping_and_sequence(self):
+        for reason in ('NONINCREASING_SEQUENCE', 'STOPPING', 'LOCAL_LEASE_EXPIRED'):
+            with self.subTest(reason=reason):
+                self.setUp()
+                self.server.on_goal(self.goal)
+                if reason == 'STOPPING':
+                    self.lease.renewal_sequence += 1
+                    self.fixture.adapter.request_stop('CANCEL_USER')
+                elif reason == 'LOCAL_LEASE_EXPIRED':
+                    self.lease.renewal_sequence += 1
+                    self.fixture.fixture.advance(POLICY.duration_s)
+                    self.lease.issued_at_ns = self.fixture.adapter.wall_clock_ns()
+                    self.lease.valid_until_ns = self.lease.issued_at_ns + 2_000_000_000
+                until = self.fixture.adapter.executor.lease_until
+                self.assertFalse(self.server.on_lease(self.lease))
+                self.assertIn(reason, '\n'.join(self.node.warnings))
+                self.assertEqual(self.fixture.adapter.executor.lease_until, until)
+                self.assertFalse(self.fixture.fixture.nav_b.goals)
 
     def test_stop_unconfirmed_result_aborts_action(self):
         self.server.on_goal(self.goal)
