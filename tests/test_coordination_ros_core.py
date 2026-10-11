@@ -40,7 +40,8 @@ def frame(**changes):
 
 def location(n, xy=(4., 4.), **changes):
     values = dict(location_id=uid(800 + n), frame_ref=frame(), projection_status='VALID',
-                  mission_position=NS(x=xy[0], y=xy[1], z=0.))
+                  mission_position=NS(x=xy[0], y=xy[1], z=0.), covariance=[.01 * n] * 9,
+                  observation=NS(time=NS(observed_at_ns=NOW - 10**8 + n, valid_until_ns=NOW + 10**9 + n)))
     return NS(**(values | changes))
 
 
