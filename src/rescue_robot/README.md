@@ -198,3 +198,47 @@ UNKNOWN/거절이다. formula는 [chrony 공식 문서](https://chrony-project.o
 소프트웨어 구현/합성 검사와 실제 ROS·장비 검증을 구분한다. 실제 움직임을 주장하려면 생성
 IDL/Jazzy, 중앙/지도/clock/protection 입력, Nav2 종료와 fresh odom 정지, watchdog 최종 속도
 배선을 현장에서 확인해야 한다. 별도 사이트 runtime 코드 작성 요청으로 미루지 않는다.
+
+## 수색용 입력 축소 (2026-10-11)
+
+[사용자 요구, 2026-10-11] “그러면 줄여줘. 너무 과하잖아”. 적용 범위는
+#100의 로컬 입력 준비 부담이다. 새 시험·데모·탐침은 늘리지 않는다.
+변경 경로는 이 README, `rescue_robot/task_site_runtime.py`,
+`rescue_robot/task_prepare.py`, 기존 `tests/test_robot_task_prepare.py`와
+`tests/test_robot_task_site_runtime.py`다. 공통 계약·IDL·다른 레인 코드는 변경하지 않는다.
+
+한 로봇의 SEARCH_AREA/RETURN_HOME/HOLD용으로 `rescue-robot-search-inputs/1`을 제공한다.
+`task_prepare`는 이 작은 양식을 기본으로 만들고, 대상 임무용 기존 양식은
+`--input-mode full`로 선택한다. 기존 파일은 어느 모드에서도 덮어쓰지 않는다.
+
+수색 입력에서 작성할 항목은 다음 다섯 묶음이다.
+
+| 묶음 | 내용 |
+| --- | --- |
+| 파일 | format, generated_at_ns, valid_until_ns |
+| clock | domain_id, state, error_bound_ns, epoch_id, valid_until_ns |
+| authority | coordinator_id, authority_epoch, robot_boot_id, publisher_id, publisher_boot_id |
+| map | map_frame, map_session_id, map_revision, map_update_sequence, localization_status, transform_revision, transform_xy_yaw, position_error_m, rotation_error_rad, evidence_id |
+| destinations | 수색 UUID 또는 home_ref를 키로 하는 공통 임무 좌표 [x, y, yaw] |
+
+단일 지도·목적지 기준을 한 번 기록한다. 지도 관측 시각과 목적지의 시각·로봇·지도
+버전, 변환의 유효기간을 따로 반복하지 않는다. 하나의 목적지 기준으로 기존 37개
+말단 필드에서 25개로 줄고 targets/approvals/protected_routes 빈 객체도 필요 없다.
+지도 권한은 runtime.mapping_authority, 지도 clock domain은 clock.domain_id를 사용한다.
+공통 mission_frame과 정책 수치는 여전히 runtime.json에서 정한다.
+
+**이 양식은 모든 값이 함께 확인된 하나의 스냅샷에만 쓴다.** generated_at_ns부터
+valid_until_ns까지 전체 권한·지도·변환·목적지가 유효하다는 생산자의 확인이다.
+서로 다른 원 관측 시각/만료를 가진 기록은 기존 full 형식을 사용한다.
+복사·재발행이나 새 시계 측정만으로 파일 시각을 갱신하지 않는다. 소비자는 읽을 때
+시각·버전·ID·측정값을 만들지 않고 기존 clock/권한/좌표/lease/정지 검사를 그대로 적용한다.
+변환 유효 시작은 generated_at_ns이며, 현재 시각의 오차 범위까지 포함해야 하므로
+생성 직후에는 clock_error_bound_ns만큼의 여유가 필요하다.
+
+REOBSERVE_TARGET/MOVE_SEGMENT는 이 양식에서 거절하고 기존 full 입력을 사용한다.
+SEARCH_AREA의 destinations 키는 search_area_ref와 같은 canonical UUID다.
+목적지 좌표는 mission_frame 기준이고 이동 로봇의 현재 map frame으로 변환해 보낸다.
+로봇 namespace, odom/센서/Nav2/watchdog 준비, 명시적 arm은 기존 실행 구성에서 제공한다.
+
+이 변경은 입력 구조 축소다. 실제 clock/지도/권한 값의 확인과 producer의 지속 연결,
+실제 Nav2·로봇 주행은 별도이며 이 변경만으로 준비 완료를 주장하지 않는다.
