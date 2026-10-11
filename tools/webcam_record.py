@@ -23,6 +23,7 @@
 찍히는 사람의 동의를 받고, 외부 업로드(Roboflow 등)는 팀과 정한 뒤 한다.
 """
 import argparse
+from collections import deque
 from datetime import datetime
 import hashlib
 import json
@@ -247,7 +248,7 @@ def cmd_record(args):
 FONT_PATHS = ("/System/Library/Fonts/AppleSDGothicNeo.ttc", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
               "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
 VIEW_MAX_W = 1280   # 미리보기 창의 최대 너비(녹화 영상에는 영향 없음)
-FPS_WARN = 0.10     # 실제 받은 fps 가 요청과 이 비율 넘게 다르면 그 영상은 "요청과 다름"
+FPS_WARN = 0.10     # 카메라가 실제로 준 fps 가 요청과 이 비율 넘게 다르면 실제 fps 로 다시 저장한다
 
 
 class Session:
@@ -261,7 +262,7 @@ class Session:
     def __init__(self, fps, scenes=SCENES):
         self.fps, self.scenes = fps, scenes
         self.state, self.frames, self.scene = "WAIT", 0, 0
-        self.markers = []
+        self._marks = []  # (장면 번호, 학습/검증, 프레임 번호): 시각은 저장할 때의 fps 로 계산한다
 
     @property
     def video_s(self):
@@ -289,19 +290,23 @@ class Session:
                 self._mark()
 
     def _mark(self):
-        self.markers.append({"scene": self.scene, "split": self.scenes[self.scene][0],
-                             "video_s": round(self.video_s, 3)})
+        self._marks.append((self.scene, self.scenes[self.scene][0], self.frames))
+
+    @property
+    def markers(self):
+        return [{"scene": scene, "split": split, "frame": frame, "video_s": round(frame / self.fps, 3)}
+                for scene, split, frame in self._marks]
 
     @property
     def scene_s(self):
         """지금 장면에서 찍은 영상 시간(초)."""
-        since = [m["video_s"] for m in self.markers if m["scene"] == self.scene]
-        return self.video_s - since[-1] if since and self.state != "WAIT" else 0.0
+        since = [frame for scene, _, frame in self._marks if scene == self.scene]
+        return (self.frames - since[-1]) / self.fps if since and self.state != "WAIT" else 0.0
 
     @property
     def val_start_s(self):
-        hits = [m["video_s"] for m in self.markers if m["split"] == "val"]
-        return hits[0] if hits else None
+        hits = [frame for _, split, frame in self._marks if split == "val"]
+        return round(hits[0] / self.fps, 3) if hits else None
 
 
 def mmss(seconds):
@@ -356,6 +361,18 @@ def _overlay(frame, session, info, fonts):
     return np.asarray(img)[:, :, ::-1].copy()
 
 
+def retime(path, from_fps, to_fps):
+    """요청 fps 로 쓴 영상을 실제 fps 로 다시 저장한다(프레임은 그대로, 재생 시간만 실제와 같게)."""
+    tmp = path.with_name(path.stem + "-retime.mp4")
+    run = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path),
+                          "-vf", f"setpts=PTS*{from_fps:g}/{to_fps:.4f}", "-r", f"{to_fps:.2f}",
+                          "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+                          "-y", str(tmp)])
+    if run.returncode != 0:
+        raise SystemExit(f"실제 fps 로 다시 저장하지 못함(ffmpeg exit {run.returncode}) — 원본은 {path.name}")
+    tmp.replace(path)
+
+
 def cmd_gui(args):
     import cv2
     split, _, _, what = CLIPS[args.clip]
@@ -377,6 +394,7 @@ def cmd_gui(args):
     out.parent.mkdir(parents=True, exist_ok=True)
     writer, rec_wall, rec_frames_wall = None, 0.0, 0
     last = time.monotonic()
+    recent = deque(maxlen=30)  # 최근 프레임 도착 시각: 녹화 전에도 카메라가 실제로 주는 fps 를 보여 준다
     cv2.namedWindow("webcam record", cv2.WINDOW_AUTOSIZE)
     try:
         while True:
@@ -385,6 +403,7 @@ def cmd_gui(args):
                 print("카메라 프레임을 읽지 못함 — 저장하고 끝냄")
                 break
             t = time.monotonic()
+            recent.append(t)
             if session.state == "REC":
                 if writer is None:
                     writer = subprocess.Popen(
@@ -397,9 +416,8 @@ def cmd_gui(args):
                 rec_wall += t - last
                 rec_frames_wall += 1
             last = t
-            measured = rec_frames_wall / rec_wall if rec_wall > 1 else None
-            info = (f"{args.size[0]}x{args.size[1]} 요청 {args.fps:g}fps"
-                    + (f" · 실제 {measured:.1f}fps" if measured else "") + f" · {out.name}")
+            live = (len(recent) - 1) / (recent[-1] - recent[0]) if len(recent) > 1 and recent[-1] > recent[0] else 0
+            info = f"{args.size[0]}x{args.size[1]} 요청 {args.fps:g}fps · 카메라 실제 {live:.1f}fps · {out.name}"
             cv2.imshow("webcam record", _overlay(frame, session, info, fonts))
             key = cv2.waitKey(1) & 0xFF
             if key == ord(" "):
@@ -420,21 +438,28 @@ def cmd_gui(args):
         print("녹화를 시작하지 않았음 — 저장할 것 없음")
         return
     measured = rec_frames_wall / rec_wall if rec_wall > 0 else 0.0
+    warnings = []
+    if measured > 0 and abs(measured - args.fps) > FPS_WARN * args.fps:
+        # 프레임은 요청 fps 로 썼으므로 그대로 두면 재생 속도가 틀린다: 실제 fps 로 다시 저장한다.
+        retime(out, args.fps, measured)
+        session.fps = round(measured, 2)
+        warnings.append(f"카메라가 실제로 {measured:.1f}fps 만 줌(요청 {args.fps:g}) — 실제 fps 로 다시 저장. "
+                        "어두우면 웹캠이 fps 를 낮춘다: 조명을 밝게")
     probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json",
                                        str(out)], capture_output=True, text=True, check=True).stdout)
-    problems = check_actual(probe, args.size, args.fps)
-    if abs(measured - args.fps) > FPS_WARN * args.fps:
-        # 영상은 요청 fps 로 저장되므로 실제로 덜 받았으면 재생이 빨라진다
-        problems.append(f"카메라에서 실제로 받은 fps {measured:.1f} 가 요청 {args.fps:g} 와 다름(재생 속도가 틀림)")
+    problems = check_actual(probe, args.size, session.fps)
     meta = {"clip": args.clip, "split": split, "what": what, "note": args.note, "ok": not problems,
-            "problems": problems, "device": {"opencv_index": args.camera},
+            "problems": problems, "warnings": warnings, "saved_fps": session.fps,
+            "device": {"opencv_index": args.camera},
             "requested": {"width": args.size[0], "height": args.size[1], "fps": args.fps},
             "measured_fps": round(measured, 2), "frames": session.frames, "duration_s": round(session.video_s, 2),
             "markers": session.markers, "val_start_s": session.val_start_s,
             "recorded_at": now.isoformat(timespec="seconds"), "file": out.name, "sha256": sha256(out),
             "git_sha": git_sha(), "ffmpeg": _ffmpeg("-version").stdout.splitlines()[0]}
     out.with_suffix(".json").write_text(json.dumps(meta, ensure_ascii=False, indent=2))
-    print(f"저장: {out.relative_to(ROOT)} ({session.video_s:.1f}초, 실제 {measured:.1f}fps)")
+    print(f"저장: {out.relative_to(ROOT)} ({session.video_s:.1f}초, {session.fps:g}fps)")
+    for w in warnings:
+        print("주의: " + w)
     if session.val_start_s is None:
         print("검증 장면 표시가 없음 — split 할 때 --at 으로 검증 시작 초를 직접 넣는다")
     else:
