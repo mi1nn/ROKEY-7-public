@@ -231,7 +231,7 @@ class CoordinatorCore:
         self.locations = {}      # location_id -> (target_id, TargetLocation msg, content key)
         self.target_geo = {}     # target_id -> (basis, (x, y), [location msgs]) of the latest merge
         self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
-        self.issue_block = None  # why the last approved/open task could not be issued (for the log)
+        self.issue_block = None  # why an approved/open task is held right now; recomputed every tick
         self.state_sequence, self.last_state = 0, None
         self.last_targets = None
         self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
@@ -444,6 +444,7 @@ class CoordinatorCore:
     def tick(self, now_ns):
         """Task fields to send now: approved segment, open rechecks, then the SCOUT's search once started."""
         contract_value(timestamp_ns, now_ns)
+        self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
         self._expire_unadmitted(now_ns)
         detail = self.status_detail.get(self.roles['SCOUT'])
         if self.mission.mode != 'DISASTER':
@@ -571,7 +572,6 @@ class CoordinatorCore:
                           approved_at_ns=self.accepted_at[approval.command_id], scope='ONE_SEGMENT',
                           valid_until_ns=fields['deadline_ns']))
         self.segment_tasks[approval.command_id] = fields['task_id']
-        self.issue_block = None
         self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
         self._send(fields)
         return fields['task_id']
@@ -663,13 +663,14 @@ class CoordinatorCore:
             if task_id not in self.timed_out:
                 self.timed_out[task_id] = self.status_arrivals
                 self.leases.pop(task_id, None)
-                self.issue_block = 'ADMISSION_TIMEOUT'
             detail = self.status_detail.get(item.robot_id)
             if (detail is not None and detail[0] > self.timed_out[task_id] and detail[2] == 'STOPPED'
                     and detail[4] != task_id and self.search.finish(item, outcome='FAILED', stop_confirmed=True)):
                 del self.timed_out[task_id]
                 if task_id in self.task_meta:
                     self._forget(task_id)
+        if self.timed_out:
+            self.issue_block = 'ADMISSION_TIMEOUT'  # held until stop evidence releases the task
 
     def search_queued(self):
         """START_SEARCH accepted but the first area not reserved yet (the SCOUT is busy); shown as SEARCH_QUEUED."""
