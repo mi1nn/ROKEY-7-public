@@ -191,11 +191,13 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 
 | 구분 | 1차 채택 |
 | --- | --- |
-| msg (23) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment, SystemState·RescueReport·TargetSnapshot·TargetEstimate(2026-10-11 추가) |
-| srv (4) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand |
+| msg (25) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment, TargetPresence, CameraStatus, SystemState·RescueReport·TargetSnapshot·TargetEstimate(2026-10-11 추가) |
+| srv (5) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand, SetCameraWatch |
 | action (2) | ExecuteTask, ObserveTarget |
 
 `RecheckObservation`·`PassageAssessment` 는 `TaskResult`·`RouteCandidate`·`ObserveTarget` 이 품고 있어 같이 들어왔다. 구조만 있고 통로 판정의 채택(Q-25)은 아니다.
+
+`TargetPresence`(IF-077)·`CameraStatus`(IF-075)·`SetCameraWatch`(IF-078)는 2026-10-10 에 2차에서 올렸다. 카메라 1대 결정(2026-10-09) 뒤 재관측 트리거는 고정 웹캠의 소실 후보이고, 후보를 만들려면 coordinator 가 카메라에 감시(watch)를 주는 `SetCameraWatch` 가 있어야 한다. 두 메시지는 감시 상태와 영상 상태를 알리는 쪽이다. 이 채택은 [제안]이며 저장소 소유자의 머지로 확정한다. 카메라 쪽 노드와 변환기는 아직 없다.
 
 IDL 규칙:
 - 필드 이름·순서·타입은 JSON 이 원본이다. JSON 을 먼저 고치고, `tests/test_interfaces_schema.py` 가 IDL 과 같은지 ROS 없이 검사한다.
@@ -213,10 +215,17 @@ IDL 규칙:
   - **lease 수신 적격성(AST88-02):** `CommandLease.issued_at_ns`는 원 발급 시각이고, `valid_until_ns`는 그 갱신 메시지를 수락할 수 있는 절대 만료 시각이다(관제·로그 전용 값이 아님). 둘 다 양의 정수 ns이며 `issued_at_ns < valid_until_ns`여야 한다. ROS 입력은 송수신 호스트의 선언된 같은 clock domain, SYNCED 상태, 측정된 오차 상한과 정책상 오차 상한을 확인한다(C-03). 이 시간 기준의 근거가 없거나 clock step/restart가 있으면 갱신하지 않는다. 수신 wall 시각을 `now_ns`, 송수신 오차 합을 `error_ns`라 할 때 `issued_at_ns <= now_ns + error_ns`, `now_ns - issued_at_ns + error_ns <= lease_max_age_ns`, `now_ns + error_ns < valid_until_ns`를 모두 요구한다. `lease_max_age_ns`와 허용 오차 상한은 시험 전에 정한 정책 값이며 기본값은 없다. 미설정·미확인·미래 허용치 초과·낡음·만료 메시지는 로그에 이유를 남기고 버린다. 이미 끝난 로컬 steady lease, STOPPING, 이전/중복 sequence도 기존 renew 검사대로 거절한다. 수신 적격성을 통과한 새 갱신만 로컬 steady 기한을 정책 `lease_duration`만큼 갱신하며, 다른 PC의 절대 시각을 로컬 monotonic 값으로 직접 비교하지 않는다. 이 관문은 ROS 입력 경계가 구현해야 하며, 시각 인자가 없는 현재 `Executor.renew` 호출만으로 구현된 것으로 보지 않는다.
   - 후속 구현 필수 시험(AST88-01·02): 통로 판정 필요/불명 구간, 통로 밖 목적지로 가는 경로의 통로 진입, 재계획 후 통로 진입을 거절·정지시키는지 확인한다. lease는 정상 새 메시지, 증가 sequence라도 만료·낡은 메시지, 오차로 만료 경계를 넘는 메시지, 시간 기준 불명, 발행 중단 뒤 지연 큐, 로컬 만료 뒤 갱신을 확인한다. 거절 메시지는 lease 기한을 바꾸면 안 된다. 이 문서 변경은 해당 실행 시험의 통과 증거가 아니다.
 - 문자열·배열 길이 상한은 두지 않았다 [제안]. 실측 뒤 정한다.
+- 고정 카메라 감시(`SetCameraWatch`·`TargetPresence`·`CameraStatus`, 2026-10-10):
+  - 재관측 트리거는 `SiteEvent(TARGET_DISAPPEARED_CANDIDATE)` 하나뿐이다. `TargetPresence` 의 소실 후보 상태(`ABSENT_CANDIDATE`)는 표시용이고 재관측이나 판정의 입력이 아니다. 같은 뜻의 주인을 둘 두지 않는다.
+  - 경계 검사: ROI 는 `0≤min<max≤1` 이고, UUID 는 형식을 검사하며, 빈 열거값은 거절한다. 해제(`enable=false`)는 `watch_id`·`expected_watch_revision` 이 활성 감시와 같고 ROI 도 활성 감시 값과 같을 때만 받는다. 기본 생성 값(빈 문자열·0)을 설정 요청으로 받지 않는다.
+  - 낡은 값: 값을 받은 적이 없거나, `valid_until_ns` 가 지났거나, `watch_id`·`watch_revision`·`publisher_boot_id` 가 기록한 활성 감시(수락 응답을 준 boot)와 다르면 UNKNOWN 이다. latch 된(TRANSIENT_LOCAL) `TargetPresence` 와 boot 가 바뀐 응답은 성공으로 보지 않는다.
+  - `camera_id` 하나에 `CameraStatus` 를 내는 노드는 하나(`cam.capture`)다. `stream_state` 가 ONLINE 이 아니거나 `visibility_state` 가 VALID 가 아니면 후보를 만들지 않는다.
+  - Python DTO 는 아직 없다. 첫 소비자 PR 에서 `rescue_contracts` 에 넣는다. IDL 생성·import 를 변환 성공으로 보지 않는다.
+  - `watch_id`·`watch_revision` 의 해석과 `SET_CAMERA_WATCH` → `SetCameraWatch` 변환 규칙은 SDD JSON 의 Rules 가 원본이다. 아래는 그 Rules 에 넣을 안이다 [제안, PM 반영 요청]. `watch_id` 는 (camera, target, ROI) 에 고정한다. `watch_revision` 은 카메라당 감시 칸의 교체 번호이고 0 은 비어 있음이다. 변환은 프로파일에서 `TARGET_WATCH` 카메라가 정확히 1대일 때만 한다.
 - 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
 - `SiteEvent`(2026-10-10 작전 결정): IDL 의 `visibility_state` 에 대응하는 Python 필드는 두지 않는다. SDD 확장표(394행)의 "visibility 필드 추가" 와 다른 의도적 차이다. `SiteEvent` 는 시야가 유효(VALID)한 판정에서만 만든다(BRD v0.2 3.5.2·3.5.3, SRD 6.1). 그래서 Python → ROS 경계는 `VISIBILITY_STATE_VALID` 만 쓰고, ROS → Python 경계는 VALID 가 아닌 값(빈 문자열 포함)을 `INVALID_INPUT` 으로 거절한다. 거절한 사건은 판정·출동·재관측에 넣지 않고 이유를 로그에 남긴다. 판단 보류(UNKNOWN)와 그 이유(지진 판정의 OCCLUDED·MATCH_FAILED·SCENE_CHANGED·QUADRANT_COVERED)는 `SiteEvent` 로 보내지 않는다. 대상 가림은 2차 `TargetPresence`(cam.presence), 영상 끊김은 2차 `CameraStatus`(cam.capture)가 맡는다. `target_id`·`watch_id` 는 IDL 에서 DISASTER_SIGN 일 때 빈 문자열이고 Python 에서는 None 이다. 소실 후보인데 비었거나 UUID 가 아니면 경계 모듈이 거절한다.
 
-2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, CameraStatus, TargetPresence, SetCameraWatch, PrepareMapping, EvaluateRoute, EvaluatePassage.
+2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, PrepareMapping, EvaluateRoute, EvaluatePassage.
 
 <a id="c-11"></a>
 
@@ -241,7 +250,7 @@ IDL 규칙:
 남은 의존 (2026-10-10, 10·11행은 2026-10-11):
 - 11행도 8행과 같은 시간 기준이 필요하다. 아래 시각 오차 상한(Q-06)이 없으면 운영자 경로도 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다.
 - 10행의 운영자 경로는 관제 웹에 "웹캠 판정 불가 + 인형 안 보임" 알림과 그 대상의 재확인 지시 버튼이 있어야 쓸 수 있다(관제·화면). `REQUEST_RECHECK` 는 1차 IDL 에 있어 IDL 변경은 없다.
-- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 2차라 IDL 에 없다(C-10). 1차로 올리지 않으면 10-13 흐름에서 후보를 만들 길이 없다. 요구사항 문서 작성 자리(SDD)·저장소 소유자 결정 대기.
+- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 #77 로 1차가 됐다(2026-10-11). 남은 것은 ROI 출처(#76)와 카메라 노드·coordinator 의 watch 생명주기 구현이다.
 - 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
 
 ## 고정 원본에서 가져온 계약 근거
