@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-11",
+  "class_names": [
+    "survivor"
+  ],
+  "experiments": {
+    "yolo26n_survivor_noaug_512": {
+      "best_pt_sha256": "44029601a769145889a276300f8da517ae96fa0fbe11cc9f17898d1ad0dc05e8",
+      "initial_weights_sha256": "9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef",
+      "dataset_zip_sha256": "311ac276b700e072c62413e8d054eb670a887ebf00de69db2dc4553ba90d4ba2",
+      "epochs_completed": 38,
+      "best_epoch_by_map50_95": "18",
+      "metrics": {
+        "metrics/precision(B)": 0.9994559990232079,
+        "metrics/recall(B)": 0.98989898989899,
+        "metrics/mAP50(B)": 0.9949,
+        "metrics/mAP50-95(B)": 0.9859653237968964,
+        "fitness": 0.9859653237968964
+      },
+      "weights_location": "external artifact; identified by SHA256; binary not committed"
+    },
+    "yolo26n_survivor_scale_light_512": {
+      "best_pt_sha256": "19e8af48720a7ac461a5a8c769dbe25d1723fe315923845fc3ca584f807c6f5b",
+      "initial_weights_sha256": "9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef",
+      "dataset_zip_sha256": "311ac276b700e072c62413e8d054eb670a887ebf00de69db2dc4553ba90d4ba2",
+      "epochs_completed": 66,
+      "best_epoch_by_map50_95": "46",
+      "metrics": {
+        "metrics/precision(B)": 1.0,
+        "metrics/recall(B)": 0.9995391221792126,
+        "metrics/mAP50(B)": 0.995,
+        "metrics/mAP50-95(B)": 0.993,
+        "fitness": 0.993
+      },
+      "weights_location": "external artifact; identified by SHA256; binary not committed"
+    }
+  }
+}
