@@ -153,6 +153,7 @@ class RouteFrameTests(TargetTestCase):
         target = self.core.on_target_location(location(1, frame_ref=frame(alignment_status='DEGRADED')), now_ns=NOW)
         self.core.on_status(status_msg(SCOUT))
         self.core.on_command(request('REQUEST_RECHECK', command_id=uid(701), target_id=target), now_ns=NOW)
+        self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
         (fields,) = self.core.tick(NOW)
         self.assertEqual(('SEARCH_AREA', 'TARGET_ALIGNMENT_NOT_VALID'), (fields['kind'], self.core.issue_block))
 
@@ -164,6 +165,7 @@ class RouteFrameTests(TargetTestCase):
         self.assertEqual((True, False, OBSERVE.mission_xy[0], 'UNKNOWN'),
                          (goal.has_route, goal.has_approval, goal.route.approach_goal.pose.position.x,
                           goal.route.assessment.status))
+        self.assertEqual(NOW, goal.route.generated_at_ns)  # made with the target, not at sending
 
 
 class SystemStateTests(TargetTestCase):

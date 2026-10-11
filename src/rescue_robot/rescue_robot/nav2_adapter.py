@@ -154,9 +154,10 @@ class CommandAdapter:
             finally:
                 self._after()
 
-    def renew(self, command_id, authority_epoch, generation, sequence):
+    def renew(self, command_id, authority_epoch, generation, sequence, *, lease_duration=None):
         with self.lock:
-            return self.executor.renew(command_id, authority_epoch, generation, sequence, now=self.clock())
+            return self.executor.renew(command_id, authority_epoch, generation, sequence,
+                                       now=self.clock(), lease_duration=lease_duration)
 
     def request_stop(self, cause, outcome='CANCELED'):
         with self.lock:

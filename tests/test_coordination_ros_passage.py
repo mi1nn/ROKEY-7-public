@@ -63,6 +63,8 @@ class LeaseTtlTests(unittest.TestCase):
         core = make_core()
         core.on_site_event(site_msg())
         core.on_status(status_msg())
+        self.assertEqual('ACCEPTED', core.on_command(request('START_SEARCH', command_id=uid(690)),
+                                                     now_ns=NOW)['request_state'])
         (fields,) = core.tick(NOW)
         (lease,) = core.leases_due(NOW)
         self.assertEqual((NOW, NOW + TTL), (lease['issued_at_ns'], lease['valid_until_ns']))
