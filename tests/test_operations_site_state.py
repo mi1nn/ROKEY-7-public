@@ -10,7 +10,8 @@ from rescue_operations.schema import OperationsError
 from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
-READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log')
+READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
+           'read_mission_state')
 
 
 def uid(n):
@@ -43,6 +44,12 @@ def target_state(**changes):
 def error_entry(**changes):
     values = dict(at_ns=5_000, robot_id='robot_a', task_id=uid(2), code='NAV_NOT_READY',
                   detail='rescue_robot.NAV2_INACTIVE: bt_navigator not active')
+    return values | changes
+
+
+def mission(**changes):
+    values = dict(mode='DISASTER', phase='SEARCHING', trigger_event_id=uid(30), started_at_ns=1_500, generation=1,
+                  updated_at_ns=4_000)
     return values | changes
 
 
@@ -198,6 +205,37 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_error(error_entry(**change))
         self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
+    # --- mission state ------------------------------------------------------
+    def test_mission_state_is_one_row_and_only_newer_replaces(self):
+        self.ledger().close()
+        self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
+        idle = mission(mode='NORMAL', phase='IDLE', trigger_event_id=None, started_at_ns=None, generation=0,
+                       updated_at_ns=1_000)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_mission_state(idle))
+            self.assertTrue(ledger.record_mission_state(mission()))
+            self.assertFalse(ledger.record_mission_state(mission()))  # identical resend
+            self.assertFalse(ledger.record_mission_state(mission(phase='DISASTER', updated_at_ns=3_000)))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_mission_state(mission(phase='TARGET_FOUND'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_mission_state(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual(mission(), result['mission'])
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(1, db.execute('SELECT COUNT(*) FROM mission_state').fetchone()[0])
+        db.close()
+
+    def test_mission_state_rejects_bad_input(self):
+        bad = [dict(mode='PANIC'), dict(phase='DONE'), dict(trigger_event_id='x'), dict(trigger_event_id=None),
+               dict(started_at_ns=None), dict(started_at_ns=0), dict(generation=-1), dict(generation=None),
+               dict(updated_at_ns=0), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_mission_state(mission(**change))
+        self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
 
     # --- read boundary ------------------------------------------------------
     def test_readers_do_not_create_or_accept_other_databases(self):
