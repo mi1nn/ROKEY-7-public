@@ -45,6 +45,7 @@ def find_cycle(graph):
 
 
 class PackageDependencyGraphTests(unittest.TestCase):
+    @unittest.skipUnless(SRC.is_dir(), 'source checkout absent (installed-wheel run): package.xml check NOT_RUN here')
     def test_repository_packages_have_no_dependency_cycle(self):
         graph = repository_graph()
         self.assertIn('rescue_coordination', graph)  # the scan found the packages
