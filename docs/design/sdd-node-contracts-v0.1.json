@@ -4,7 +4,7 @@
     "status": "DESIGN_PROPOSAL_NOT_IMPLEMENTED",
     "date": "2026-10-09",
     "repository_head": "d03b6c8d70db49e098818b4d8463b22c258d9065",
-    "scope": "2 AMR / 4 PC / 1 fixed webcam viewing dummy rescue site; per-segment operator approval",
+    "scope": "2 AMR / 4 PC / 1 fixed webcam viewing dummy rescue site; existing segment wire contracts plus camera leg-skeleton continuous-following requirement pending Q-27",
     "diagram_stage": "NATIVE_EDITABLE_DIAGRAM_DEFINED",
     "qos_values": "PROPOSAL",
     "physical_validation": "NOT_RUN",
@@ -14,7 +14,16 @@
       "docs/design/contracts.md",
       "docs/design/state-machines.md",
       "docs/design/network-discovery.md"
-    ]
+    ],
+    "amr2_escort_requirement": {
+      "date": "2026-10-11",
+      "source": "scope.md RQ-10 / Q-27; PM user request",
+      "mode": "CAMERA_LEG_SKELETON_FOLLOW_BEHIND",
+      "approval": "DISPATCH_ONCE_CONTINUOUS_TO_DESTINATION",
+      "execution_status": "NOT_IMPLEMENTED",
+      "wire_contract": "UNDEFINED_PENDING_Q27",
+      "legacy_segment_interfaces": "Existing MOVE_SEGMENT/CONTINUE_SEGMENT/ONE_SEGMENT definitions below describe segment navigation, not continuous following."
+    }
   },
   "nodes": [
     {
@@ -1848,7 +1857,7 @@
     "SubmitOperatorCommand": {
       "Request": "envelope:Envelope, command_id:UUID, operation:string(DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK/RETURN_HOME/FINISH_MISSION/RESET_STOP/SET_CAMERA_WATCH), operator_id:string(operations 인증값), robot_id:string, target_id:string, expected_task_id:string, expected_generation:uint64, expected_target_revision:uint64, route_id:string, route_revision:uint64, segment_index:uint32, issued_at_ns:int64, deadline_ns:int64, roi_xyxy_normalized:float64[4], association_evidence_id:string. operation별 필수 필드는 검증; 나머지는 명시적 비적용.",
       "Response": "envelope:Envelope, accepted:bool, command_id:UUID, request_state:string(ACCEPTED/REJECTED/DUPLICATE), reason_code:string, created_task_id:string, approval_id:string. accepted는 접수이며 이동·구조·저장 완료가 아님.",
-      "Rules": "웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload."
+      "Rules": "웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload. SET_CAMERA_WATCH는 서버가 profile의 TARGET_WATCH 카메라 1대·ROI와 확인된 target_id를 결합한다. coordinator가 watch_id를 발급하고 association_method=OPERATOR_ROI, association_evidence_id=command_id로 SetCameraWatch를 요청하며 수락된 boot/revision을 기록한다. 거절은 상태로 보고하고 활성 감시로 기록하지 않는다."
     },
     "RequestStop": {
       "Request": "envelope:Envelope, stop_command_id:UUID, requester_id:string, authority_epoch:string, robot_id:string, scope:string(ACTIVE_TASK/ALL_MOTION), reason_code:string, issued_at_ns:int64, deadline_ns:int64.",
@@ -1868,7 +1877,7 @@
     "SetCameraWatch": {
       "Request": "envelope:Envelope, command_id:UUID, camera_id:string, watch_id:UUID, target_id:UUID, expected_watch_revision:uint64, roi_xyxy_normalized:float64[4], association_method:string(CALIBRATED_PROJECTION/OPERATOR_ROI), association_evidence_id:string, enable:bool, issued_at_ns:int64, deadline_ns:int64.",
       "Response": "envelope:Envelope, accepted:bool, watch_id:UUID, watch_revision:uint64, reason_code:string.",
-      "Rules": "ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개로 시작하며 교체/해제는 revision을 확인. image_size/camera_pose 변경 시 watch 무효화. target_id 없이 소실 이벤트 발행하지 않음. 카메라를 robot_id 목록에 넣지 않음."
+      "Rules": "ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개이며 profile TARGET_WATCH 카메라가 정확히 1대일 때만 무장. watch_id는 (camera_id,target_id,ROI)에 고정하고 변경 시 새 UUID. watch_revision은 카메라 감시 슬롯의 교체·해제 번호, 0은 비어 있음이며 재결합 키가 아니다. 교체/해제는 expected_watch_revision을 검사하며 해제는 활성 watch_id·ROI도 일치해야 함. 빈 UUID·열거/기본 생성값은 거절. image_size/camera_pose 변경·어댑터 재시작 시 watch 무효화. 수락 응답의 publisher_boot_id와 revision을 저장하고 낡거나 boot/watch 불일치한 상태는 UNKNOWN. target_id 없이 소실 이벤트 발행하지 않음. 재관측 트리거는 SiteEvent(TARGET_DISAPPEARED_CANDIDATE)만이며 TargetPresence.ABSENT_CANDIDATE는 표시용. 카메라를 robot_id 목록에 넣지 않음."
     }
   },
   "actions": {

@@ -1,12 +1,14 @@
 ---
 title: 관제 웹·DB 구성 계획 — PC4(operations·web·DB)
 status: draft   # 테이블·API·화면 구성은 [제안]. 담당자(오케스트레이터·웹, 상태 감시) 확인과 PR 머지로 확정한다
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # 관제 웹·DB 구성 계획
 
 [SDD 노드·인터페이스 검토안](sdd-node-interface-spec-v0.1.md)의 PC4 몫(central.operations · central.web · central.db, IF-080 ~ IF-084)을 **지금 코드 위에 어떻게 올릴지** 적는다. 시나리오는 [BRD Part I](../requirements/brd-part1-v0.1.md)과 2026-10-09 팀 결정(고정 카메라 1대, AMR2 승인 관문)을 따른다. 날짜·담당은 [일정](../process/schedule.md)과 PM 의 일정 v2(10-10 ~ 10-13 웹 줄) 기준이다.
+
+AMR2 동행 요구는 2026-10-11 사용자 요청 [RQ-10·Q-27](../requirements/scope.md)으로 수정한다. 구조대원이 앞서고 AMR2가 탑재 카메라의 다리 스켈레톤을 추적해 출동 승인 후 목적지까지 연속 추종한다. 구간별 ‘계속’은 새 시나리오에서 제외한다. 이 계획의 추종 상태·재시작 명령은 [C-12](contracts.md#c-12)의 요구·제안이며 현재 API/IDL 구현을 뜻하지 않는다.
 
 ## 1. 흐름과 승인 관문
 
@@ -16,15 +18,16 @@ updated: 2026-10-10
 | AMR1 정찰 시작 | **coordinator 자동** (승인 없음) | AMR1 상태·지도·탐색 영역 표시. 수동 시작 버튼은 자동 실패 시 대체 수단 |
 | 요구조자 좌표 → DB | 인식 → operations | 대상 마커·4단계 상태 |
 | AMR2 출동 | **운영자 승인** (`DISPATCH_SUPPORT`) | 승인 버튼. 확정 대상이 있을 때만 활성 |
-| 구간 이동 → 정지 → 다음 구간 | **운영자 "계속"** (`CONTINUE_SEGMENT`) | 구간 i/N 표시, 계속 버튼은 `AWAITING_APPROVAL` 일 때만 활성. 구조대원은 AMR2 뒤를 따라간다 |
+| 사람 뒤 연속 추종 → 목적지 정지 | 출동 승인 뒤 로봇 실행기 [Q-27 계약 미정] | 동일 구조대원 추종 상태·입력 유효성·목적지·중단 이유 표시. 구간별 계속 버튼 없음 |
+| 추종 중단 → 재시작 | 원인 해소·정지 확인 뒤 **새 운영자 승인** [제안, Q-27] | 자동 대상 전환·자동 재시작 금지. 재시작 입력/액션은 미정 |
 | 웹캠 소실 → `TARGET_DISAPPEARED_CANDIDATE` | 인식(카메라) | "구조 완료 후보" 표시 |
 | AMR1 재확인 → 판정 | coordinator 자동 (수동 `REQUEST_RECHECK` 가능) | RESCUE_CONFIRMED / RECHECK_NEEDED |
 | 복귀 → 종료 | coordinator 자동 (수동 `RETURN_HOME` 가능) | 복귀·종료 표시 |
 
-승인 관문은 **AMR2 출동과 구간 계속, 두 곳**이다. AMR1 시작은 자동이므로 KPI-02(이벤트 → 출동 명령)는 AMR1 에 그대로 적용하고, AMR2 는 "승인 후 n초" 로 따로 잰다(Q-25).
+새 동행 시나리오는 **AMR2 출동 승인 한 번 뒤 연속 추종**이다. 안전 정지 후 재시작 승인은 별도 검토한다(Q-27). 기존 `CONTINUE_SEGMENT`·`MOVE_SEGMENT` 계약은 구간 이동용으로 보존하지만 연속 추종 흐름에 연결하지 않는다. AMR1 시작은 자동이므로 KPI-02(이벤트 → 출동 명령)는 AMR1 에 그대로 적용하고, AMR2 는 "승인 후 n초" 로 따로 잰다(Q-25).
 
 웹이 보는 임무 상태(표시용, 판정은 coordinator):
-`IDLE → DISASTER → SEARCHING → TARGET_FOUND → DISPATCH_APPROVED → (SEGMENT_MOVING ⇄ AWAITING_CONTINUE) → ARRIVED → CANDIDATE → RECHECKING → RESCUE_CONFIRMED | RECHECK_NEEDED → RETURNING → FINISHED`
+`IDLE → DISASTER → SEARCHING → TARGET_FOUND → DISPATCH_APPROVED → FOLLOWING (중단 시 STOPPING → STOPPED → 재승인 대기) → ARRIVED → CANDIDATE → RECHECKING → RESCUE_CONFIRMED | RECHECK_NEEDED → RETURNING → FINISHED`
 
 ## 2. 프로세스와 역할
 
@@ -76,8 +79,8 @@ PC4 한 대(관제 PC)에 프로세스 둘.
 | --- | --- |
 | 위 | 모드 배지(평시/재난, 트리거 시각), 웹캠 영상 |
 | 왼쪽 | 지도 PNG + AMR1·AMR2 마커 + 대상 마커 |
-| 가운데 | 로봇 표(준비·이동·배터리·도킹·임무·구간 i/N), 대상 표(4단계 + 후보), 사건 로그(KPI-04 지연 열) |
-| 오른쪽 | 버튼: AMR2 출동 승인 · 계속 · 재확인 지시 · 복귀 · 일시정지 · 재개 · 취소 · 정지 · (수동 탐색 시작) |
+| 가운데 | 로봇 표(준비·이동·배터리·도킹·임무·추종/중단 상태 [Q-27]), 대상 표(4단계 + 후보), 사건 로그(KPI-04 지연 열) |
+| 오른쪽 | 버튼: AMR2 출동 승인 · 추종 재시작 승인 [Q-27] · 재확인 지시 · 복귀 · 일시정지 · 재개 · 취소 · 정지 · (수동 탐색 시작) |
 
 AMR2 카메라·통과 박스 표시(일정 v2 r46)는 통로 판정 범위가 정해진 뒤(Q-25) 자리만 둔다.
 
@@ -88,7 +91,7 @@ AMR2 카메라·통과 박스 표시(일정 v2 r46)는 통로 판정 범위가 �
 | 10-10 오전 | 이 계획 확정, site_state 1.1 스키마 PR, 로그인 | 상태 감시, 오케스트레이터·웹 |
 | 10-10 오후·저녁 | snapshot API, 웹캠 영상 표시, 지진 상태 표시 | 오케스트레이터·웹 |
 | 10-11 | 지도, 상태 수집 → DB, 오류 이력, (수동 탐색 시작 버튼) | 상태 감시, 오케스트레이터·웹 |
-| 10-12 | 출동 승인·계속 버튼, 제어 버튼, 통합 launch 에 operations_node | 오케스트레이터·웹, 상태 감시 |
+| 10-12 | 출동 승인·추종/중단 상태 [Q-27 계약 검토 후], 제어 버튼, 통합 launch 에 operations_node | 오케스트레이터·웹, 상태 감시 |
 | 10-13 | 후보 → 재확인 → 완료 → 복귀 흐름, E2E | 전원 |
 
 PR 은 작게 넷으로 나눈다.

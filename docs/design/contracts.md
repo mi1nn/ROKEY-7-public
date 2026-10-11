@@ -209,11 +209,11 @@ IDL 규칙:
   - 재관측 트리거는 `SiteEvent(TARGET_DISAPPEARED_CANDIDATE)` 하나뿐이다. `TargetPresence` 의 소실 후보 상태(`ABSENT_CANDIDATE`)는 표시용이고 재관측이나 판정의 입력이 아니다. 같은 뜻의 주인을 둘 두지 않는다.
   - 경계 검사: ROI 는 `0≤min<max≤1` 이고, UUID 는 형식을 검사하며, 빈 열거값은 거절한다. 해제(`enable=false`)는 `watch_id`·`expected_watch_revision` 이 활성 감시와 같고 ROI 도 활성 감시 값과 같을 때만 받는다. 기본 생성 값(빈 문자열·0)을 설정 요청으로 받지 않는다.
   - 낡은 값: 값을 받은 적이 없거나, `valid_until_ns` 가 지났거나, `watch_id`·`watch_revision`·`publisher_boot_id` 가 기록한 활성 감시(수락 응답을 준 boot)와 다르면 UNKNOWN 이다. latch 된(TRANSIENT_LOCAL) `TargetPresence` 와 boot 가 바뀐 응답은 성공으로 보지 않는다.
-  - `camera_id` 하나에 `CameraStatus` 를 내는 노드는 하나(`cam.capture`)다. `stream_state` 가 ONLINE 이 아니거나 `visibility_state` 가 VALID 가 아니면 후보를 만들지 않는다.
+  - `camera_id` 하나에 `CameraStatus` 를 내는 노드는 하나(`cam.capture`)다. `CameraStatus.stream_state` 가 ONLINE 이 아니거나 `TargetPresence.visibility_state` 가 VALID 가 아니면 후보를 만들지 않는다. CameraStatus 자체에는 visibility_state 필드가 없다.
   - Python DTO 는 아직 없다. 첫 소비자 PR 에서 `rescue_contracts` 에 넣는다. IDL 생성·import 를 변환 성공으로 보지 않는다.
-  - `watch_id`·`watch_revision` 의 해석과 `SET_CAMERA_WATCH` → `SetCameraWatch` 변환 규칙은 SDD JSON 의 Rules 가 원본이다. 아래는 그 Rules 에 넣을 안이다 [제안, PM 반영 요청]. `watch_id` 는 (camera, target, ROI) 에 고정한다. `watch_revision` 은 카메라당 감시 칸의 교체 번호이고 0 은 비어 있음이다. 변환은 프로파일에서 `TARGET_WATCH` 카메라가 정확히 1대일 때만 한다.
+  - `watch_id`·`watch_revision` 의 해석과 `SET_CAMERA_WATCH` → `SetCameraWatch` 변환 규칙은 SDD JSON 의 Rules 가 원본이다. SDD JSON·명세에 이 규칙을 기록했다 [제안, 2026-10-11]. `watch_id` 는 (camera, target, ROI) 에 고정한다. `watch_revision` 은 카메라당 감시 칸의 교체 번호이고 0 은 비어 있음이다. 변환은 프로파일에서 `TARGET_WATCH` 카메라가 정확히 1대일 때만 한다.
 - 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
-- `SiteEvent`(2026-10-10 작전 결정): IDL 의 `visibility_state` 에 대응하는 Python 필드는 두지 않는다. SDD 확장표(394행)의 "visibility 필드 추가" 와 다른 의도적 차이다. `SiteEvent` 는 시야가 유효(VALID)한 판정에서만 만든다(BRD v0.2 3.5.2·3.5.3, SRD 6.1). 그래서 Python → ROS 경계는 `VISIBILITY_STATE_VALID` 만 쓰고, ROS → Python 경계는 VALID 가 아닌 값(빈 문자열 포함)을 `INVALID_INPUT` 으로 거절한다. 거절한 사건은 판정·출동·재관측에 넣지 않고 이유를 로그에 남긴다. 판단 보류(UNKNOWN)와 그 이유(지진 판정의 OCCLUDED·MATCH_FAILED·SCENE_CHANGED·QUADRANT_COVERED)는 `SiteEvent` 로 보내지 않는다. 대상 가림은 2차 `TargetPresence`(cam.presence), 영상 끊김은 2차 `CameraStatus`(cam.capture)가 맡는다. `target_id`·`watch_id` 는 IDL 에서 DISASTER_SIGN 일 때 빈 문자열이고 Python 에서는 None 이다. 소실 후보인데 비었거나 UUID 가 아니면 경계 모듈이 거절한다.
+- `SiteEvent`(2026-10-10 작전 결정): IDL 의 `visibility_state` 에 대응하는 Python 필드는 두지 않는다. SDD 확장표(394행)의 "visibility 필드 추가" 와 다른 의도적 차이다. `SiteEvent` 는 시야가 유효(VALID)한 판정에서만 만든다(BRD v0.2 3.5.2·3.5.3, SRD 6.1). 그래서 Python → ROS 경계는 `VISIBILITY_STATE_VALID` 만 쓰고, ROS → Python 경계는 VALID 가 아닌 값(빈 문자열 포함)을 `INVALID_INPUT` 으로 거절한다. 거절한 사건은 판정·출동·재관측에 넣지 않고 이유를 로그에 남긴다. 판단 보류(UNKNOWN)와 그 이유(지진 판정의 OCCLUDED·MATCH_FAILED·SCENE_CHANGED·QUADRANT_COVERED)는 `SiteEvent` 로 보내지 않는다. 대상 가림은 1차 `TargetPresence`(cam.presence), 영상 끊김은 1차 `CameraStatus`(cam.capture)가 맡는다. `target_id`·`watch_id` 는 IDL 에서 DISASTER_SIGN 일 때 빈 문자열이고 Python 에서는 None 이다. 소실 후보인데 비었거나 UUID 가 아니면 경계 모듈이 거절한다.
 
 2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, TargetEstimate·TargetSnapshot, SystemState, RescueReport, PrepareMapping, EvaluateRoute, EvaluatePassage.
 
@@ -236,8 +236,20 @@ IDL 규칙:
 | 9 | IDL ↔ Python | `SiteEvent` 는 C-10 의 규칙을 따른다. RecheckObservation + TaskResult → 판정 입력: `camera_state` PRESENT/ABSENT/UNKNOWN → 사람 있음 True/False/None, `lidar_state` BLOCKED/CLEAR/UNKNOWN → 장애물 True/False/None, `coverage_state` VALID/INVALID/UNKNOWN → 시야·깊이·스캔 범위가 모두 True/False/None. LiDAR 시각·clock 은 `RecheckObservation.time` 이다. 시간 기준이 UNKNOWN 이거나 오차가 없으면 오차를 None 으로 둔다 | 변환 실패 → `INVALID_INPUT`, 로그. 대체값을 쓰지 않는다 |
 
 남은 의존 (2026-10-10):
-- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 2차라 IDL 에 없다(C-10). 1차로 올리지 않으면 10-13 흐름에서 후보를 만들 길이 없다. 요구사항 문서 작성 자리(SDD)·저장소 소유자 결정 대기.
+- `SetCameraWatch`(IF-078)와 `TargetPresence`·`CameraStatus`는 C-10의 1차 IDL 정의에 포함한다 [#77 제안 재사용, 2026-10-11]. coordinator → 카메라 ROS 경계·Python DTO·무장 응답/boot·감시 생명주기 연결은 미구현이며, IDL 파일만으로 소실 후보 생성 흐름이 연결되지는 않는다.
 - 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
+
+<a id="c-12"></a>
+
+## C-12. AMR2 카메라 다리 스켈레톤 연속 추종 요구 (2026-10-11)
+
+`[사용자 요구]` 사용자 원문(2026-10-11, PM 측 Codex 대화): “사람과 나란히 이동하는 게 아닌 캠으로 사람의 다리를 스켈레톤으로 추종해 뒤따라 가는 방식으로 수정해서 PR에 같이 첨부해.” 승인 정책 확인 답변: “출동 승인 후 목적지까지 연속 추종”. 적용 범위는 AMR2 동행 요구와 설계 검토다. 실제 사람인 구조대원이 앞서고 AMR2가 탑재 카메라로 다리 스켈레톤을 추적해 뒤따른다. 요구조자는 인형이며 이 추종 대상과 구분한다. 구간별 ‘계속’ 승인은 새 동행 시나리오에서 제외한다. 모델·추종 입력/액션·거리 기준·재시작 계약과 실기 검증은 Q-27의 후속이다. 기존 실행 코드를 연속 추종 구현으로 보지 않는다. [scope RQ-10·Q-27](../requirements/scope.md)의 요구 변경이며 팀 채택·실행 계약·실기 검증을 완료한 기록은 아니다.
+
+- 출동 승인 한 번 뒤 구조대원이 앞서고 AMR2가 목적지까지 연속으로 뒤따른다. 구간별 `CONTINUE_SEGMENT`는 이 시나리오에 사용하지 않는다. 목적지 좌표·허용 경로·승인 유효 범위와 도착·실제 정지의 조건은 후속 계약에서 명시해야 한다.
+- PC2의 인식은 AMR2 탑재 카메라에서 실제 사람의 다리 키포인트를 관측한다. 추종 사람의 track과 요구조자 인형의 `target_id`/PC3 watch를 구별한다. `TargetPresence`·`SetCameraWatch`를 사람 추종 입력으로 재사용하지 않는다.
+- 인식은 주행 명령을 직접 발행하지 않는다. 이동·취소·정지는 `rescue_robot`만 발행하고 활성 이동은 로봇당 하나다. Nav2 이동과 추종 출력의 동시 발행을 허용하지 않는다 [기존 C-06 권한 경계 유지].
+- `[제안]` 동일 사람의 유효 관측·거리·경로와 live 권한/lease가 유지될 때만 이동한다. 가림·소실·관측 만료·거리 불확실·경로 이탈·위험에서는 취소 → 실제 정지 관측, 미확인 시 STOP_UNCONFIRMED를 따른다. 다른 사람으로 자동 전환하거나 재획득만으로 자동 재시작하지 않는다. 원인 해소·정지 확인·새 승인/명령 뒤에만 재시작한다.
+- ROS 추종 입력의 필드/타입, 실행 action 또는 task kind, keypoint 모델·신뢰도·거리/시각 기준·TF·재획득·경로/통로 검사는 Q-27에서 인식·로봇·협업·관제 담당이 함께 정의한다. 기존 `ExecuteTask(MOVE_SEGMENT)`·`OperatorApproval(scope=ONE_SEGMENT)`·`RouteCandidate.segment_index`는 구간 이동 계약이며 이 요구의 구현이 아니다. 이번 PR은 이 IDL을 연속 추종 의미로 바꾸거나 추종 실행 코드를 추가하지 않는다. E3/E4는 NOT_RUN이다.
 
 ## 고정 원본에서 가져온 계약 근거
 

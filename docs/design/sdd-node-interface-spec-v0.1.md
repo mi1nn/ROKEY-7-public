@@ -1,7 +1,7 @@
 ---
 title: 단일 웹캠·구간 승인 SDD 노드 및 인터페이스 검토안 v0.1
 status: draft-proposal
-updated: 2026-10-09
+updated: 2026-10-11
 ---
 
 # ROKEY-7 SDD 노드·인터페이스 정의 v0.1
@@ -27,11 +27,17 @@ updated: 2026-10-09
 
 PM 측 Codex 세션의 문서 등록 요청(2026-10-09): “해당 인터페이스 명세에 대한 내용이 https://github.com/jaebeom/ROKEY-7/tree/main 여기에 없다면 PR 넣어줘.” 적용 범위는 명세의 저장소 등록·PR 검토이며, Q-10·Q-12·Q-15·Q-22의 채택이나 실기 실행 승인이 아니다. 앞선 PM 측 세션의 시나리오 확인 원문은 “인형이 보이는 구조 지점을 계속 촬영”이고, PC별 배치 요청 원문은 “PC1에 AMR1에 대한 내용이 있고, PC2에 AMR2가 있고, PC3에 CAM, PC4에 웹”이다(이 세션의 기록일 2026-10-09).
 
+## 2026-10-11 변경 범위
+
+`CameraStatus`·`TargetPresence`·`SetCameraWatch`는 [#77](https://github.com/jaebeom/ROKEY-7/pull/77)의 1차 IDL 정의를 재사용한다. 필드 정의·순서와 CMake 등록은 그대로이며 아래 표·JSON Rules·draw.io 표시를 정합시켰다. 노드 연결·변환기·ROS 실행 완료를 뜻하지 않는다.
+
+`[사용자 요구]` 사용자 원문(2026-10-11, PM 측 Codex 대화): “사람과 나란히 이동하는 게 아닌 캠으로 사람의 다리를 스켈레톤으로 추종해 뒤따라 가는 방식으로 수정해서 PR에 같이 첨부해.” 승인 정책 확인 답변: “출동 승인 후 목적지까지 연속 추종”. 적용 범위는 AMR2 동행 요구와 설계 검토다. 실제 사람인 구조대원이 앞서고 AMR2가 탑재 카메라로 다리 스켈레톤을 추적해 뒤따른다. 요구조자는 인형이며 이 추종 대상과 구분한다. 구간별 ‘계속’ 승인은 새 동행 시나리오에서 제외한다. 모델·추종 입력/액션·거리 기준·재시작 계약과 실기 검증은 Q-27의 후속이다. 기존 실행 코드를 연속 추종 구현으로 보지 않는다. [contracts C-12](contracts.md#c-12)를 따른다. 아래 기존 `MOVE_SEGMENT`·`CONTINUE_SEGMENT`·`ONE_SEGMENT` 필드는 구간 이동 계약으로 보존한다. **연속 추종 입력·액션은 아직 정의되지 않았고**, 01~10쪽은 기존 연결을 보존하며 11쪽은 변경 요구 흐름을 구분해 그린다.
+
 ## 적용 시나리오와 현재 증거
 
 - [PM 요구, 2026-10-09] PC1=AMR1 정찰·재확인, PC2=AMR2 구급상자·구간 이동, PC3=웹캠 1대, PC4=웹·API·DB·임무 조정·Discovery. 실제 호스트 이름/IP/로봇 ID는 profile로 대응한다.
 - [PM 요구, 2026-10-09] 고정 웹캠은 인형이 보이는 구조 지점을 계속 촬영한다. 인형 소실은 완료 후보이며 가림·stream failure는 UNKNOWN.
-- [PM 요구, 2026-10-09] AMR2는 운영자 출동 승인 후 정지점 한 구간씩 저속 이동하고, 매번 “계속”으로 다음 구간을 승인한다. 사람 다리 추종은 이번 계약에 넣지 않는다.
+- [사용자 요구, 2026-10-11] AMR2는 출동 승인 후 앞서 걷는 구조대원의 다리 스켈레톤을 탑재 카메라로 추적해 목적지까지 연속으로 뒤따른다. 구간별 “계속” 승인은 제외한다. 실현할 추종 입력·액션·모델은 Q-27에서 정의한다.
 - [문서 확인, 2026-10-09] 확인 기준은 `origin/main` SHA `d03b6c8d70db49e098818b4d8463b22c258d9065`. `git ls-tree -r --name-only origin/main docs`와 `git grep -n -E 'SubmitOperatorCommand|SetCameraWatch|EvaluatePassage|MOVE_SEGMENT|ABSENT_CANDIDATE|PrepareMapping|ExecuteTask|sdd-node|rokey7-sdd' origin/main -- docs README.md`로 검사했다. 기존 ExecuteTask/RequestStop 의미는 contracts에 있으나, 이 상세 명세·JSON·CSV·draw.io는 해당 main의 docs에 없었다. 이 검색은 런타임 구현 유무나 열린 PR의 구현 완료를 판정하지 않는다.
 - [기존 계약] 명령 소유·원 관측 시각·좌표 revision·실제 정지·영속 receipt 원칙은 유지한다. 새 타입과 완료/승인 시나리오의 차이는 위 적용 경계 및 아래 확장 목록을 따른다. 저장소 실행 코드·실물 설정은 변경하지 않는다.
 
@@ -48,8 +54,8 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 1. PC3 capture → quake/presence/video. 웹은 PC3 video gateway를 HTTP로 조회한다.
 2. quake → `/rescue/site_events(DISASTER_SIGN)` → coordinator. 유효 영상/시간·중복 event ID·판정 정책을 검사해 DISASTER를 표시하고 근거를 저장한다. 근거 PERSISTED 뒤 AMR1 `PrepareMapping(START)`로 기준 지도 기반 SLAM 시작/준비를 요청한다. fresh map/TF·로봇 준비/권한/lease가 유효하면 설정한 재난 대응 정책이 AMR1 `ExecuteTask(SEARCH_AREA)`를 한 번 발급한다. 트리거 자체는 주행 명령이 아니며, AMR2의 출동/계속은 사용자 승인 관문을 갖는다. AMR2 위치 추정용 backend는 대기 단계의 PREPARE/START로 준비하되 이동하지 않는다.
 3. AMR1 perception → 원 관측 → mapping → mission-frame TargetLocation → coordinator. 유효 target ID/좌표·보고를 만들고 `/rescue/reports` → operations → DB·필수 증거 commit → `/rescue/report_receipts(PERSISTED)` 순서를 거친다. 웹 지도는 operations 장부에서 조회한다.
-4. target 저장·좌표·AMR2 준비가 유효하면 coordinator → AMR2 `EvaluateRoute`. 실행기가 planner에 경로를 묻고 필요 구간의 3D passage 평가를 얻는다. 승인 가능한 구간·접근 목표·평가 근거를 웹에 표시한다.
-5. DISPATCH_SUPPORT 승인 → `ExecuteTask(MOVE_SEGMENT)` 한 구간. 도착 후 실제 정지와 Result를 확인해 coordinator의 segment_phase=AWAITING_APPROVAL로 표시한다. CONTINUE_SEGMENT마다 새 command/task/generation과 ONE_SEGMENT 승인을 발급한다. 최종 구간 뒤 AMR2 `REOBSERVE_TARGET` → `ObserveTarget`으로 인형을 재탐지한다.
+4. target 저장·좌표·AMR2 준비가 유효하면 목적지·허용 경로·통로 평가 근거를 웹에 표시한다. 기존 `EvaluateRoute` 정의는 구간 이동 계약이며 연속 추종 경로 검사·승인 결합은 Q-27에서 정한다.
+5. DISPATCH_SUPPORT 출동 승인 → PC2의 다리 스켈레톤 관측 → 승인된 연속 추종 임무로 목적지까지 구조대원 뒤를 따른다 [요구, 실행 입력/액션 미정]. 구간별 CONTINUE_SEGMENT를 발급하지 않는다. 대상 소실·가림·낡은 입력·거리 불확실·허용 경로 이탈이면 취소·실제 정지 확인 후 사유를 보고하고 새 승인을 기다린다 [C-12 제안]. 목적지 도착·정지 뒤 AMR2 `REOBSERVE_TARGET` → `ObserveTarget`으로 인형을 재탐지한다. 인식 노드는 이동 명령을 발행하지 않는다.
 6. 고정 webcam target/ROI 연결은 검증된 projection 또는 운영자 ROI 선택으로 만든다. coordinator → `SetCameraWatch`. 유효 시야에서 연속 소실이면 `TARGET_DISAPPEARED_CANDIDATE(target_id,watch_id)`를 발행한다. track ID만으로 로봇 대상과 동일 인형이라고 가정하지 않는다.
 7. coordinator → AMR1 `ExecuteTask(REOBSERVE_TARGET)` → 해당 지점 이동·정지 → `ObserveTarget`. 결과는 camera, LiDAR, coverage를 각각 전달한다. 이미 오래된 대상 좌표는 제한된 재수색 정책으로 새로 검증하거나 재관측을 보류한다.
 8. 같은 사건의 유효 소실 후보 + 소실 후 취득한 AMR1 관측 창 + camera ABSENT + LiDAR CLEAR + coverage VALID + 동일 좌표 세션/품질이 모두 확인되면 `RESCUE_CONFIRMED`를 **시연 판정**으로 기록한다. 현재 두 입력의 clock 오차와 원 시각으로 선후 관계를 검사한다. 하나라도 UNKNOWN이면 RECHECK_NEEDED다. 2D LiDAR CLEAR는 사람의 부재나 실제 구출을 단독 증명하지 않는다.
@@ -160,9 +166,9 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-072 | /rescue/reports | rescue_interfaces/msg/RescueReport | central.coordinator | central.operations | 대상/임무/재확인 기록; 같은 report_id·payload 재시도 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 2차 |
 | IF-073 | /rescue/report_receipts | rescue_interfaces/msg/ReportReceipt | central.operations | central.coordinator, amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, cam.quake, cam.presence | DB commit·필수 증거 저장 뒤 PERSISTED; included_record_ids로 outbox 정리 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
 | IF-074 | /rescue/cameras/cam_fixed/image_raw | sensor_msgs/msg/Image | cam.capture | cam.quake, cam.presence, cam.video | 인형이 있는 고정 시야의 웹캠 원 영상 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; PROPOSED | 표준 |
-| IF-075 | /rescue/cameras/cam_fixed/status | rescue_interfaces/msg/CameraStatus | cam.capture | cam.quake, cam.presence, central.coordinator, central.operations | stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
+| IF-075 | /rescue/cameras/cam_fixed/status | rescue_interfaces/msg/CameraStatus | cam.capture | cam.quake, cam.presence, central.coordinator, central.operations | stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
 | IF-076 | /rescue/site_events | rescue_interfaces/msg/SiteEvent | cam.quake, cam.presence | central.coordinator | DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
-| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
+| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
 
 ## 서비스 연결 정의
 
@@ -174,7 +180,7 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-049 | /rescue/robots/amr2/register_authority | rescue_interfaces/srv/RegisterAuthority | central.coordinator | amr2.executor | stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음 | N/A; PROPOSED | 1차 |
 | IF-050 | /rescue/robots/amr2/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr2.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED | 1차 |
 | IF-051 | /rescue/robots/amr2/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr2.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED | 1차 |
-| IF-078 | /rescue/cameras/cam_fixed/set_watch | rescue_interfaces/srv/SetCameraWatch | central.coordinator | cam.presence | target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요 | N/A; PROPOSED | 2차 |
+| IF-078 | /rescue/cameras/cam_fixed/set_watch | rescue_interfaces/srv/SetCameraWatch | central.coordinator | cam.presence | target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요 | N/A; PROPOSED | 1차 |
 | IF-079 | /rescue/operator_command | rescue_interfaces/srv/SubmitOperatorCommand | central.operations | central.coordinator | 출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결 | N/A; PROPOSED | 1차 |
 
 ## 액션 연결 정의
@@ -249,8 +255,8 @@ UUID는 문자열 UUID, 거리 m·각도 rad·시간 정수 ns. enum은 ROS 직�
 | TargetSnapshot | envelope:Envelope, snapshot_id:UUID, targets:TargetEstimate[]. 전체 상태 snapshot. 웹의 저장 완료 좌표 표시는 operations 장부 기준. | 2차 |
 | SystemState | envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string. | 2차 |
 | SiteEvent | envelope:Envelope, event_id:UUID, camera_id:string(cam_fixed 예시), source_boot_id:UUID, kind:string(DISASTER_SIGN/TARGET_DISAPPEARED_CANDIDATE), time:ObservationTime, target_id:string, watch_id:string, confidence:float64, visibility_state:string(VALID/OCCLUDED/UNKNOWN), metrics_name:string[], metrics_value:float64[], policy_version:string, evidence:EvidenceRef. 재난 징후는 target/watch 비어 있음; 소실 후보는 둘 다 필수. | 1차 |
-| CameraStatus | envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN. | 2차 |
-| TargetPresence | envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요. | 2차 |
+| CameraStatus | envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN. | 1차 |
+| TargetPresence | envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요. | 1차 |
 | RecheckObservation | observation_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, source_boot_id:UUID, time:ObservationTime, frame_ref:FrameRef, watched_native_point:geometry_msgs/Point, camera_state:string(PRESENT/ABSENT/UNKNOWN), lidar_state:string(BLOCKED/CLEAR/UNKNOWN), coverage_state:string(VALID/INVALID/UNKNOWN), sensor_window_start_ns:int64, sensor_window_end_ns:int64, detector_health:string, evidence:EvidenceRef[]. EMPTY 탐지 배열만으로 ABSENT 금지; 실제 시야/거리/센서 품질이 필요. | 1차 |
 | PassageAssessment | assessment_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, frame_ref:FrameRef, time:ObservationTime, status:string(PASSABLE/BLOCKED/UNKNOWN), width_known:bool, min_width_m:float64, height_known:bool, min_headroom_m:float64, floor_geometry_known:bool, uncertainty_m:float64, footprint_profile_id:string, policy_version:string, reason:string, evidence:EvidenceRef[]. 측정 실패 값은 *_known=false이며 판정에 사용 금지. | 1차 |
 | RouteCandidate | route_id:UUID, route_revision:uint64, robot_id:string, target_id:string, segment_index:uint32, frame_ref:FrameRef, planned_path:nav_msgs/Path, approach_goal:geometry_msgs/PoseStamped, generated_at_ns:int64, valid_until_ns:int64, path_sha256:string, approval_corridor_sha256:string, assessment:PassageAssessment, planner_evidence_id:string, policy_version:string. 대상 좌표·접근 목표는 다른 값. | 1차 |
@@ -269,7 +275,7 @@ IDL: 1차 ([contracts C-10](contracts.md)).
 | --- | --- |
 | Request | envelope:Envelope, command_id:UUID, operation:string(DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK/RETURN_HOME/FINISH_MISSION/RESET_STOP/SET_CAMERA_WATCH), operator_id:string(operations 인증값), robot_id:string, target_id:string, expected_task_id:string, expected_generation:uint64, expected_target_revision:uint64, route_id:string, route_revision:uint64, segment_index:uint32, issued_at_ns:int64, deadline_ns:int64, roi_xyxy_normalized:float64[4], association_evidence_id:string. operation별 필수 필드는 검증; 나머지는 명시적 비적용. |
 | Response | envelope:Envelope, accepted:bool, command_id:UUID, request_state:string(ACCEPTED/REJECTED/DUPLICATE), reason_code:string, created_task_id:string, approval_id:string. accepted는 접수이며 이동·구조·저장 완료가 아님. |
-| Rules | 웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload. |
+| Rules | 웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload. SET_CAMERA_WATCH는 서버가 profile의 TARGET_WATCH 카메라 1대·ROI와 확인된 target_id를 결합한다. coordinator가 watch_id를 발급하고 association_method=OPERATOR_ROI, association_evidence_id=command_id로 SetCameraWatch를 요청하며 수락된 boot/revision을 기록한다. 거절은 상태로 보고하고 활성 감시로 기록하지 않는다. |
 
 ### RequestStop
 
@@ -303,13 +309,13 @@ IDL: 1차 ([contracts C-10](contracts.md)).
 
 ### SetCameraWatch
 
-IDL: 2차 ([contracts C-10](contracts.md)).
+IDL: 1차 ([contracts C-10](contracts.md)).
 
 | 구분 | 정의 |
 | --- | --- |
 | Request | envelope:Envelope, command_id:UUID, camera_id:string, watch_id:UUID, target_id:UUID, expected_watch_revision:uint64, roi_xyxy_normalized:float64[4], association_method:string(CALIBRATED_PROJECTION/OPERATOR_ROI), association_evidence_id:string, enable:bool, issued_at_ns:int64, deadline_ns:int64. |
 | Response | envelope:Envelope, accepted:bool, watch_id:UUID, watch_revision:uint64, reason_code:string. |
-| Rules | ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개로 시작하며 교체/해제는 revision을 확인. image_size/camera_pose 변경 시 watch 무효화. target_id 없이 소실 이벤트 발행하지 않음. 카메라를 robot_id 목록에 넣지 않음. |
+| Rules | ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개이며 profile TARGET_WATCH 카메라가 정확히 1대일 때만 무장. watch_id는 (camera_id,target_id,ROI)에 고정하고 변경 시 새 UUID. watch_revision은 카메라 감시 슬롯의 교체·해제 번호, 0은 비어 있음이며 재결합 키가 아니다. 교체/해제는 expected_watch_revision을 검사하며 해제는 활성 watch_id·ROI도 일치해야 함. 빈 UUID·열거/기본 생성값은 거절. image_size/camera_pose 변경·어댑터 재시작 시 watch 무효화. 수락 응답의 publisher_boot_id와 revision을 저장하고 낡거나 boot/watch 불일치한 상태는 UNKNOWN. target_id 없이 소실 이벤트 발행하지 않음. 재관측 트리거는 SiteEvent(TARGET_DISAPPEARED_CANDIDATE)만이며 TargetPresence.ABSENT_CANDIDATE는 표시용. 카메라를 robot_id 목록에 넣지 않음. |
 
 ## 액션 Goal / Result / Feedback 계약
 
@@ -426,8 +432,9 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 | 08 | PC4 웹·DB·HTTP |
 | 09 | DDS 발견·데이터 경계 |
 | 10 | `rescue_interfaces` 통신 흐름: [패키지 README](../../src/rescue_interfaces/README.md) 「통신별 입력과 출력」 표의 그림(2026-10-10 추가) |
+| 11 | AMR2 카메라 다리 스켈레톤 연속 추종 요구(C-12): 출동 승인·목적지 정지·대상 소실 시 정지. ROS 입력/액션 미정 |
 
-포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01~09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 재검사는 미실행.
+포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01~09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 2026-10-11 변경은 감시 3종의 1차 표시와 별도 11쪽 요구 흐름을 추가한다. XML/연결 정합 검사와 화면 검증은 이번 PR 검증 기록에 별도로 남긴다.
 
 모든 상세 연결은 `IF-001`~`IF-086`과 endpoint/type을 표시한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
 
