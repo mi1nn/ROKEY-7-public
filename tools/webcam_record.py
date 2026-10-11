@@ -5,12 +5,13 @@
 촬영 뒤 실제 해상도 확인(ffprobe), 기록(meta json)만 한다. 로봇·ROS 를 쓰지 않는다.
 
 사용:
-    python3 tools/webcam_record.py checklist                          # 촬영할 클립 목록
+    python3 tools/webcam_record.py checklist                          # 찍을 장면 순서(끌개 시나리오)
     python3 tools/webcam_record.py devices                            # 카메라 번호·이름
     python3 tools/webcam_record.py modes --device USB                 # 그 카메라가 지원하는 해상도·fps
     python3 tools/webcam_record.py preview --device USB --size 1280x720 --fps 30   # 구도 맞추기 (창 닫으면 끝)
-    python3 tools/webcam_record.py record --clip C06 --device USB --size 1280x720 --fps 30
-    python3 tools/webcam_record.py status                             # 찍은 클립 / 남은 클립
+    python3 tools/webcam_record.py record --device USB --size 1280x720 --fps 30   # 시나리오 한 번에(S01)
+    python3 tools/webcam_record.py split .artifacts/webcam_clips/<날짜>/S01-<시각>.mp4  # 학습·검증 자르기
+    python3 tools/webcam_record.py status                             # 찍은 영상
 
 ``--device`` 는 번호(0, 1 …) 또는 이름 일부("USB", "C920")다. iPhone 이 연결되면 번호가
 바뀌므로 이름을 권한다. 녹화 중 q 를 누르면 일찍 끝난다.
@@ -33,25 +34,26 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 OUT_ROOT = ROOT / ".artifacts" / "webcam_clips"
 
-# 촬영 체크리스트(고정 카메라 담당 계획, 2026-10-11). split: train 은 학습, val 은 학습에 쓰지 않는 검증용.
-# seconds 는 기본 촬영 길이. 초당 2~3장을 뽑으면 30초 클립 하나가 60~90장이다.
-CLIPS = {
-    "C01": ("train", 20, "배경", "빈 출구 — 인형·사람 없음"),
-    "C02": ("train", 30, "배경", "사람만 지나감(인형 없음) — 빈손, 가방 등"),
-    "C03": ("train", 30, "가까이", "인형을 바닥에 두고 자세 바꾸기(눕힘·세움·엎드림·옆으로)"),
-    "C04": ("train", 30, "중간", "인형 바닥, 자세 바꾸기"),
-    "C05": ("train", 30, "멀리(출구 끝)", "인형 바닥, 자세 바꾸기 — 신뢰도가 떨어지던 거리"),
-    "C06": ("train", 30, "가까이→멀리", "인형을 안고 천천히 출구로 지나감(여러 번 왕복)"),
-    "C07": ("train", 30, "가까이→멀리", "인형을 한 손으로 들고 보통 속도로 지나감"),
-    "C08": ("train", 30, "가까이→멀리", "인형이 몸에 일부 가려지게 안고 지나감(옆구리·등 쪽)"),
-    "C09": ("train", 30, "가까이→멀리", "빠르게 지나감 — 번진 프레임 포함"),
-    "C10": ("train", 30, "중간", "출구 앞에서 머뭇거리다 되돌아옴(인형 든 채)"),
-    "C11": ("train", 30, "전체", "조명 바꾸기(불 끄고 켜기·한쪽만) — 인형 바닥 + 들고 이동"),
-    "C12": ("train", 30, "전체", "두 사람 — 한 명은 인형, 한 명은 빈손으로 같이 지나감"),
-    "V01": ("val", 30, "전체", "검증: 안고 지나감 + 바닥 멀리(섞어서)"),
-    "V02": ("val", 30, "전체", "검증: 한 손 들기 + 가려짐 + 사람만 지나감"),
-    "V03": ("val", 30, "전체", "검증: 학습 클립과 다른 사람·다른 조명"),
-}
+# 촬영 체크리스트(고정 카메라 담당 계획, 2026-10-11 개정): 인형은 끌개에 올려 줄로 당겨 출구로 내보낸다.
+# 영상 하나(S01)로 아래 장면을 순서대로 찍는다. (초, 거리, 장면). 마지막 val 장면들은 학습에 쓰지 않는
+# 검증 구간이라 `split` 으로 따로 잘라 둔다. 초는 대략이며 장면이 끝나면 다음으로 넘어가면 된다.
+SCENES = [
+    ("train", 15, "배경", "빈 출구 — 인형·끌개·사람 없음"),
+    ("train", 20, "배경", "사람만 지나감(빈손) 2회"),
+    ("train", 20, "가까이→멀리", "빈 끌개만 줄로 당겨 출구 통과 2회 — 끌개를 인형으로 잡지 않게"),
+    ("train", 30, "가까이", "끌개 위 인형, 멈춘 채 끌개 방향 돌리기(머리 앞·뒤·옆)"),
+    ("train", 30, "중간", "같은 것을 중간 거리에서"),
+    ("train", 30, "멀리(출구 끝)", "같은 것을 출구 끝에서 — 신뢰도가 떨어지던 거리"),
+    ("train", 45, "가까이→멀리", "천천히 당겨 출구 통과 3회 — 회마다 인형 자세 바꾸기(눕힘·옆으로·엎드림)"),
+    ("train", 30, "가까이→멀리", "보통 속도·빠르게 당겨 통과 각 1~2회"),
+    ("train", 25, "중간", "출구 앞에서 멈췄다 다시 당김, 한 번은 뒤로 되돌아옴"),
+    ("train", 25, "가까이→멀리", "당기는 사람이 끌개와 카메라 사이를 지나가며 인형을 일부 가림"),
+    ("train", 25, "가까이→멀리", "조명 바꾸고(불 끄기·한쪽만) 통과 1~2회"),
+    ("val", 60, "전체", "검증: 다른 사람이 당기기, 위 상황을 섞어 통과 3회(천천히·빠르게·가림)"),
+]
+VAL_START_S = sum(sec for split, sec, _, _ in SCENES if split == "train")
+CLIPS = {"S01": ("train+val", sum(sec for _, sec, _, _ in SCENES) + 15, "전체",
+                 f"끌개 시나리오 한 번에 — {VAL_START_S}초 이후는 검증 구간")}
 
 _DEVICE = re.compile(r"\[(\d+)\] (.+)$")
 _MODE = re.compile(r"(\d+)x(\d+)@\[([\d.]+) ([\d.]+)\]fps")
@@ -178,11 +180,13 @@ def sha256(path):
 
 
 def cmd_checklist(_args):
+    t = 0
+    print(f"영상 하나(S01)로 순서대로 찍는다. 약 {CLIPS['S01'][1]}초, {VAL_START_S}초부터 검증 구간.")
+    for split, seconds, distance, what in SCENES:
+        print(f"{t // 60}:{t % 60:02d}  {split:<6}{distance:<14}{what}")
+        t += seconds
     done = done_clips()
-    print(f"{'클립':<5}{'용도':<7}{'초':>4}  {'거리':<12}내용")
-    for clip, (split, seconds, distance, what) in CLIPS.items():
-        mark = f"  [찍음 {done[clip]}]" if clip in done else ""
-        print(f"{clip:<5}{split:<7}{seconds:>4}  {distance:<12}{what}{mark}")
+    print("찍은 영상: " + (", ".join(f"{c}x{n}" for c, n in sorted(done.items())) or "없음"))
 
 
 def cmd_devices(_args):
@@ -238,6 +242,23 @@ def cmd_record(args):
         raise SystemExit("요청과 다름 — 이 클립은 찍음으로 치지 않음: " + "; ".join(problems))
 
 
+def cmd_split(args):
+    """찍은 영상을 학습 구간과 검증 구간 두 파일로 자른다(다시 인코딩해 자르는 시각이 정확하다)."""
+    src = Path(args.file)
+    if not src.exists():
+        raise SystemExit(f"파일 없음: {src}")
+    at = VAL_START_S if args.at is None else args.at
+    for part, extra in (("train", ["-t", str(at)]), ("val", ["-ss", str(at)])):
+        out = src.with_name(f"{src.stem}-{part}.mp4")
+        run = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(src), *extra,
+                              "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+                              "-an", "-y", str(out)])
+        if run.returncode != 0:
+            raise SystemExit(f"자르기 실패(ffmpeg exit {run.returncode}): {out.name}")
+        print(f"{part}: {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
+    print(f"{at}초 기준으로 잘랐다. Roboflow 에는 train 은 학습용, val 은 검증용(Valid)으로 따로 올린다.")
+
+
 def cmd_status(_args):
     done = done_clips()
     left = [c for c in CLIPS if c not in done]
@@ -251,6 +272,10 @@ def main(argv=None):
     sub.add_parser("checklist", help="촬영할 클립 목록").set_defaults(fn=cmd_checklist)
     sub.add_parser("devices", help="카메라 번호·이름").set_defaults(fn=cmd_devices)
     sub.add_parser("status", help="찍은 클립 / 남은 클립").set_defaults(fn=cmd_status)
+    p = sub.add_parser("split", help="찍은 영상을 학습·검증 두 파일로 자르기")
+    p.add_argument("file", help="record 가 만든 .mp4")
+    p.add_argument("--at", type=int, help=f"검증 시작 초(기본 {VAL_START_S})")
+    p.set_defaults(fn=cmd_split)
     p = sub.add_parser("modes", help="지원 해상도·fps")
     p.add_argument("--device", required=True)
     p.set_defaults(fn=cmd_modes)
@@ -260,7 +285,7 @@ def main(argv=None):
         p.add_argument("--size", type=parse_size, required=True, help="예: 1280x720")
         p.add_argument("--fps", type=float, required=True)
         if name == "record":
-            p.add_argument("--clip", required=True, choices=sorted(CLIPS))
+            p.add_argument("--clip", default="S01", choices=sorted(CLIPS))
             p.add_argument("--seconds", type=int, help="기본은 체크리스트의 초")
             p.add_argument("--note", default="", help="메모(누가 들었는지, 조명 등)")
         p.set_defaults(fn=fn)

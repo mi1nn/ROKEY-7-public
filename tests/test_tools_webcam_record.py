@@ -79,10 +79,14 @@ class WebcamRecordTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 wr.parse_size(bad)
 
-    def test_checklist_has_train_and_held_out_clips(self):
-        splits = {split for split, _, _, _ in wr.CLIPS.values()}
-        self.assertEqual(splits, {"train", "val"})
-        self.assertTrue(all(type(s) is int and s > 0 for _, s, _, _ in wr.CLIPS.values()))
+    def test_one_take_ends_with_a_held_out_validation_part(self):
+        splits = [split for split, _, _, _ in wr.SCENES]
+        self.assertEqual(set(splits), {"train", "val"})
+        # 검증 구간은 마지막에 몰려 있어야 한 번 자르기로 나뉜다
+        self.assertEqual(splits, sorted(splits, key=lambda x: x == "val"))
+        self.assertEqual(wr.VAL_START_S, sum(s for split, s, _, _ in wr.SCENES if split == "train"))
+        self.assertGreater(wr.CLIPS["S01"][1], wr.VAL_START_S)
+        self.assertTrue(all(type(s) is int and s > 0 for _, s, _, _ in wr.SCENES))
 
     def test_only_checked_clips_count_as_done(self):
         with tempfile.TemporaryDirectory() as tmp:
