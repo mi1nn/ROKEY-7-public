@@ -34,8 +34,6 @@ POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
-# SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
-EVENT_DEFAULTS = {f.name: f.default for f in fields(SiteEvent) if f.default is not MISSING}
 
 
 def _finite(value, label):
@@ -75,6 +73,10 @@ def _robot_status(value, allowed):
         uid(status["active_task_id"], "active_task_id")
         uint(status["generation"], "generation")
     return status
+
+
+# SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
+EVENT_DEFAULTS = {f.name: f.default for f in fields(SiteEvent) if f.default is not MISSING}
 
 
 def _stored_event(event_json):
