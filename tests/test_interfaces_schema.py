@@ -14,11 +14,12 @@ JSON_PATH = ROOT / 'docs' / 'design' / 'sdd-node-contracts-v0.1.json'
 PKG = ROOT / 'src' / 'rescue_interfaces'
 
 # Phase 1 adopted 2026-10-10 (contracts.md C-10). RecheckObservation/PassageAssessment
-# are pulled in because TaskResult/RouteCandidate/ObserveTarget embed them.
+# are pulled in because TaskResult/RouteCandidate/ObserveTarget embed them. SystemState, RescueReport,
+# TargetSnapshot/TargetEstimate joined phase 1 on 2026-10-11 for the coordinator thin slice (C-10).
 MESSAGES = ('Envelope', 'ObservationTime', 'FrameRef', 'EvidenceRef', 'RobotStatus', 'RobotPose', 'Heartbeat',
             'CommandLease', 'TaskAdmission', 'TaskResult', 'OperatorApproval', 'RouteCandidate', 'SiteEvent',
             'TargetObservation', 'TargetLocation', 'MapState', 'ReportReceipt', 'RecheckObservation',
-            'PassageAssessment')
+            'PassageAssessment', 'SystemState', 'RescueReport', 'TargetEstimate', 'TargetSnapshot')
 SERVICES = ('RequestStop', 'RegisterAuthority', 'ResetStop', 'SubmitOperatorCommand')
 ACTIONS = ('ExecuteTask', 'ObserveTarget')
 SECTIONS = {'msg': (None,), 'srv': ('Request', 'Response'), 'action': ('Goal', 'Result', 'Feedback')}
