@@ -94,7 +94,7 @@ class SiteStateTests(unittest.TestCase):
         self.assertEqual(['robot_a', 'robot_b'], [r['robot_id'] for r in robots])
         self.assertEqual(6, robots[0]['state_sequence'])
         self.assertIsNone(robots[1]['pose'])
-        expected = set(robot_status()) | {'received_at_ns'}
+        expected = set(robot_status()) | {'received_at_ns', 'dock_state', 'segment_index'}
         self.assertEqual([expected, expected], [set(r) for r in robots])
         self.assertIsInstance(robots[0]['received_at_ns'], int)
 
@@ -114,6 +114,59 @@ class SiteStateTests(unittest.TestCase):
             self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
         robot = site_state.read_robot_status(self.path)['robots'][0]
         self.assertEqual((uid(9), 0), (robot['robot_boot_id'], robot['state_sequence']))
+
+    def test_dock_state_and_segment_index_are_optional_robot_keys(self):
+        """1차 IDL RobotStatus carries them; older writers and rows do not (db-schema 5절: default on read)."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_robot_status(robot_status(dock_state='UNDOCKED', segment_index=2)))
+            self.assertTrue(ledger.record_robot_status(robot_status(robot_id='robot_b', role='SUPPORT')))
+        robots = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual([('UNDOCKED', 2), (None, None)], [(r['dock_state'], r['segment_index']) for r in robots])
+
+    def test_robot_row_stored_without_the_new_keys_reads_as_none_and_resend_is_idempotent(self):
+        self.ledger().close()
+        old = robot_status()
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('INSERT INTO robot_status VALUES (?, ?, ?, ?, ?, ?)',
+                       (old['robot_id'], old['robot_boot_id'], old['state_sequence'], old['stamp_ns'],
+                        site_state.canonical(old), 1_500))
+        db.close()
+        (robot,) = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual((None, None), (robot['dock_state'], robot['segment_index']))
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_robot_status(old))
+            self.assertFalse(ledger.record_robot_status(old | {'dock_state': None, 'segment_index': None}))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_robot_status(old | {'dock_state': 'DOCKED'})
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+
+    def test_new_robot_keys_are_checked(self):
+        with self.ledger() as ledger:
+            for change in (dict(dock_state='FLOATING'), dict(dock_state=''), dict(segment_index=-1),
+                           dict(segment_index=1.0), dict(segment_index=True)):
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_robot_status(robot_status(**change))
+
+    def test_pose_is_updated_on_its_own_and_is_not_part_of_the_status_identity(self):
+        pose = dict(x=7.0, y=8.0, yaw=0.0, frame_id='mission')
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # no snapshot yet: nothing to update
+            ledger.record_robot_status(robot_status(pose=None))
+            self.assertTrue(ledger.record_robot_pose('robot_a', pose))
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # same pose: unchanged
+            self.assertFalse(ledger.record_robot_status(robot_status(pose=None)))  # same status, pose apart
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_robot_status(robot_status(readiness='NOT_READY'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+            self.assertTrue(ledger.record_robot_pose('robot_a', None))  # hidden again
+            for bad in (dict(x=float('nan'), y=0.0, yaw=0.0, frame_id='m'), dict(x=1.0)):
+                with self.subTest(bad=bad), self.assertRaises(OperationsError):
+                    ledger.record_robot_pose('robot_a', bad)
+            with self.assertRaises(OperationsError):
+                ledger.record_robot_pose('robot_x', pose)
+        (robot,) = site_state.read_robot_status(self.path)['robots']
+        self.assertIsNone(robot['pose'])
 
     def test_robot_status_rejects_bad_input(self):
         bad = [dict(robot_id='robot_x'), dict(role='LEADER'), dict(state_sequence=-1), dict(stamp_ns=0),
@@ -425,7 +478,8 @@ class SiteStateTests(unittest.TestCase):
         self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
                               'robot_status', 'site_events', 'target_states'}, tables)
         robots = site_state.read_robot_status(self.path)['robots']
-        self.assertEqual([robot_status() | {'received_at_ns': 1_500}], robots)
+        self.assertEqual([robot_status() | {'received_at_ns': 1_500, 'dock_state': None, 'segment_index': None}],
+                         robots)
         self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
         self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
 
