@@ -1,0 +1,1 @@
+[FATAL] [1791455835.374297964] [robot_a.rescue_command_watchdog]: missing parameters: ['cmd_vel_in_topic', 'cmd_vel_out_topic', 'cmd_vel_stamped', 'executor_heartbeat_topic', 'namespace', 'step_period', 'watchdog.command_max_age_s', 'watchdog.heartbeat_max_age_s', 'watchdog.max_angular_rps', 'watchdog.max_linear_mps', 'watchdog.version', 'watchdog_heartbeat_topic']
