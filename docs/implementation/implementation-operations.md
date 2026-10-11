@@ -194,10 +194,10 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 리허설이 드러낸 빈 곳 (결정 대기, 코드 변경 없음):
 
 1. 카메라 감시 설정 `SET_CAMERA_WATCH`(C-11 2행)를 명령 이력에 남길 수 없다. `OPERATOR_COMMAND_KINDS` 와 1차 IDL 의 차이(#81 검토 ①)이며, 시험은 `expectedFailure` 로 둔다. 작전이 목록을 정하면 지운다.
-2. 화면의 「구간 i/N」 을 담을 곳이 없다. 구간 번호는 운영자 명령에만 있고 임무·로봇 상태에는 없다(보류한 `segment_index`).
-3. 도킹 상태를 담을 곳이 없다(보류한 `dock_state`).
+2. 화면의 「구간 i/N」 을 담을 곳이 없다. 구간 번호는 운영자 명령에만 있고 임무·로봇 상태에는 없다(보류한 `segment_index`). 발행 쪽 형식은 1차 IDL `RobotStatus.segment_index` 로 이미 있으므로 DB 쓰기 어댑터(이 레인) 작업에서 함께 정한다.
+3. 도킹 상태를 담을 곳이 없다(보류한 `dock_state`). 1차 IDL `RobotStatus.dock_state`(DOCKED·UNDOCKED·UNKNOWN)로 이미 있으므로 2와 같이 정한다.
 4. 후보와 대상의 연결은 `site_events` 의 후보 `target_id` 로 이미 읽을 수 있다. 보류한 `target_states.state_json.candidate_event_id` 는 이 연결만을 위해서라면 필요 없을 수 있다 [제안].
-5. 오류 이력에는 재전송 구분 키가 없어, 어댑터가 재시작 뒤 같은 오류를 다시 보내면 행이 늘어난다. 어댑터는 오류를 다시 보내지 않는다(설계 그대로).
+5. 오류 이력에는 재전송 구분 키가 없어, 어댑터가 재시작 뒤 같은 오류를 다시 보내면 행이 늘어난다. DB 쓰기 어댑터(이 레인)가 오류를 다시 보내지 않는다(설계 그대로).
 6. 콘솔의 모드 표시(`view.py` `MODES`)에 CLEARING 이 없다. 콘솔이 `read_mission_state` 를 읽기 시작할 때 필요하다(관제·화면).
 
 `FLOW` 는 데이터, `apply` 하나만 DB 에 쓴다. [통합 리허설](implementation-integration.md)의 `offline_demo`(기반 레인)로 옮길 때는 이 둘을 가져가 summary 검사로 잇고, coordination 코어가 main 에 들어오면 정해진 결과 자리를 코어 출력으로 바꾼다.
