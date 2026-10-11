@@ -1,4 +1,4 @@
-"""Operations-owned site state for the control screen (BRD Part I 3.7.1~3.7.3).
+"""Operations-owned site state for the control screen (BRD Part I 3.7.1~3.7.4).
 
 A separate SQLite file from the report ledger, so the fixed report schema 1.0
 and its reopen policy are untouched. One writer (operations); readers open it
@@ -17,7 +17,7 @@ import math
 import sqlite3
 import time
 
-from rescue_contracts import RESCUE_STATES, ROBOT_ROLES, SiteEvent
+from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
 
 from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, text, timestamp,
@@ -36,6 +36,7 @@ POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
+ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 
 
 # 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절).
@@ -133,6 +134,19 @@ def _target_state(value, allowed):
     return state
 
 
+def _error_entry(value, allowed):
+    entry = exact(value, ERROR_KEYS, "error entry")
+    timestamp(entry["at_ns"], "at_ns")
+    if entry["robot_id"] is not None:
+        _member(entry["robot_id"], allowed, "robot_id")
+    if entry["task_id"] is not None:
+        uid(entry["task_id"], "task_id")
+    # C-09: consumers branch on the common code; the qualified cause belongs in detail.
+    require(entry["code"] in CANONICAL_CODES, "code must be a C-09 common code (rescue_contracts.CANONICAL_CODES)")
+    text(entry["detail"], "detail", 1024)
+    return entry
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -194,6 +208,15 @@ class SiteStateLedger(_Database):
         return True
 
 
+    def record_error(self, entry):
+        """Append one failure (BRD 3.7.4). Every call is a new row; returns its ``seq``."""
+        entry = _error_entry(entry, self.allowed_robot_ids)
+        with self._transaction() as db:
+            cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail) VALUES (?, ?, ?, ?, ?)",
+                                (entry["at_ns"], entry["robot_id"], entry["task_id"], entry["code"], entry["detail"]))
+        return cursor.lastrowid
+
+
 def _read(db_path, query):
     """Open read-only, check role/schema/policy, run ``query(db)``; never create the file."""
     path = _path(db_path)
@@ -240,4 +263,15 @@ def read_target_states(db_path):
     def query(db):
         rows = db.execute("SELECT state_json FROM target_states ORDER BY target_id").fetchall()
         return {"targets": [json.loads(row["state_json"]) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_error_log(db_path, *, limit=100):
+    """Newest first; ``limit`` keeps the latest N entries."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT seq, at_ns, robot_id, task_id, code, detail FROM error_log "
+                          "ORDER BY at_ns DESC, seq DESC LIMIT ?", (limit,)).fetchall()
+        return {"errors": [dict(row) for row in rows]}
     return _read(db_path, query)
