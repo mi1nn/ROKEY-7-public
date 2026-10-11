@@ -10,12 +10,14 @@ updated: 2026-10-11
 
 AMR2 동행 요구는 2026-10-11 사용자 요청 [RQ-10·Q-27](../requirements/scope.md)으로 수정한다. 구조대원이 앞서고 AMR2가 탑재 카메라의 다리 스켈레톤을 추적해 출동 승인 후 목적지까지 연속 추종한다. 구간별 ‘계속’은 새 시나리오에서 제외한다. 이 계획의 추종 상태·재시작 명령은 [C-12](contracts.md#c-12)의 요구·제안이며 현재 API/IDL 구현을 뜻하지 않는다.
 
+AMR1 최초 정찰은 [RQ-11·Q-28](../requirements/scope.md)의 관제 버튼 명령으로 시작한다. 재난 표시·근거 저장만으로 SEARCHING으로 가지 않는다. 기존 #90 자동 발급은 수정 대상이고, 현재 SubmitOperatorCommand IDL에는 START_SEARCH가 없다. 이 화면·API 항목은 구현 계획이다.
+
 ## 1. 흐름과 승인 관문
 
 | 단계 | 누가 | 웹이 하는 일 |
 | --- | --- | --- |
 | 웹캠 진동 → `SiteEvent(DISASTER_SIGN)` | 인식(카메라) | 재난 모드 배지, 트리거 시각 표시 |
-| AMR1 정찰 시작 | **coordinator 자동** (승인 없음) | AMR1 상태·지도·탐색 영역 표시. 수동 시작 버튼은 자동 실패 시 대체 수단 |
+| AMR1 정찰 시작 | **운영자 출동 버튼** → operations → coordinator [RQ-11, Q-28] | 재난 표시 뒤 출동 명령 대기. 버튼 명령 검증·지도 준비 뒤 정찰 요청, 상태·지도·탐색 영역 표시. START_SEARCH ROS 확장·소비자는 미구현 |
 | 요구조자 좌표 → DB | 인식 → operations | 대상 마커·4단계 상태 |
 | AMR2 출동 | **운영자 승인** (`DISPATCH_SUPPORT`) | 승인 버튼. 확정 대상이 있을 때만 활성 |
 | 사람 뒤 연속 추종 → 목적지 정지 | 출동 승인 뒤 로봇 실행기 [Q-27 계약 미정] | 동일 구조대원 추종 상태·입력 유효성·목적지·중단 이유 표시. 구간별 계속 버튼 없음 |
@@ -24,7 +26,7 @@ AMR2 동행 요구는 2026-10-11 사용자 요청 [RQ-10·Q-27](../requirements/
 | AMR1 재확인 → 판정 | coordinator 자동 (수동 `REQUEST_RECHECK` 가능) | RESCUE_CONFIRMED / RECHECK_NEEDED |
 | 복귀 → 종료 | coordinator 자동 (수동 `RETURN_HOME` 가능) | 복귀·종료 표시 |
 
-새 동행 시나리오는 **AMR2 출동 승인 한 번 뒤 연속 추종**이다. 안전 정지 후 재시작 승인은 별도 검토한다(Q-27). 기존 `CONTINUE_SEGMENT`·`MOVE_SEGMENT` 계약은 구간 이동용으로 보존하지만 연속 추종 흐름에 연결하지 않는다. AMR1 시작은 자동이므로 KPI-02(이벤트 → 출동 명령)는 AMR1 에 그대로 적용하고, AMR2 는 "승인 후 n초" 로 따로 잰다(Q-25).
+새 동행 시나리오는 **AMR2 출동 승인 한 번 뒤 연속 추종**이다. 안전 정지 후 재시작 승인은 별도 검토한다(Q-27). 기존 `CONTINUE_SEGMENT`·`MOVE_SEGMENT` 계약은 구간 이동용으로 보존하지만 연속 추종 흐름에 연결하지 않는다. AMR1 최초 정찰은 관제 버튼이 시작 조건이다(RQ-11). KPI-02 기준점을 버튼의 유효 명령 수락 → 정찰 명령 발급으로 바꾸고, 재난 감지부터 버튼까지 운영자 대기 시간은 따로 기록한다. AMR2 승인 지연도 별도로 잰다. 기존 자동 시작 기록은 scope Q-12에 보존한다.
 
 웹이 보는 임무 상태(표시용, 판정은 coordinator):
 `IDLE → DISASTER → SEARCHING → TARGET_FOUND → DISPATCH_APPROVED → FOLLOWING (중단 시 STOPPING → STOPPED → 재승인 대기) → ARRIVED → CANDIDATE → RECHECKING → RESCUE_CONFIRMED | RECHECK_NEEDED → RETURNING → FINISHED`
@@ -62,7 +64,7 @@ PC4 한 대(관제 PC)에 프로세스 둘.
 | 경로 | 뜻 |
 | --- | --- |
 | `GET /api/snapshot` | mission + robots + targets(4단계 합성은 #37 규칙표) + events + 미처리 명령 |
-| `POST /api/operator-commands` | kind ∈ {START_SEARCH(수동 대체), DISPATCH_SUPPORT, CONTINUE_SEGMENT, SET_CAMERA_WATCH, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
+| `POST /api/operator-commands` | kind ∈ {START_SEARCH(AMR1 최초 출동 버튼, ROS IDL·연결 Q-28 후속), DISPATCH_SUPPORT, CONTINUE_SEGMENT, SET_CAMERA_WATCH, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
 | `PUT /api/evidence/{id}` | 웹캠 후보 jpeg + sha256 → PERSISTED / REJECTED |
 | `PUT /api/maps/{id}` | 지도 PNG + revision |
 | 로그인 | 세션 쿠키. 역할 `ADMIN`(화면·명령·계정 관리)과 `CUSTOMER`(보기만). ADMIN 이 CUSTOMER 계정을 만들고·고치고·지운다(강사 day5 요구: 로그인 페이지 + SQLite 로그인 데이터). 계정 파일·세션 비밀은 저장소 밖([SDD 10절 목록](architecture.md) 에 추가). operator_id 가 명령에 박힌다 |

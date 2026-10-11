@@ -33,6 +33,8 @@ PM 측 Codex 세션의 문서 등록 요청(2026-10-09): “해당 인터페이�
 
 `[사용자 요구]` 사용자 원문(2026-10-11, PM 측 Codex 대화): “사람과 나란히 이동하는 게 아닌 캠으로 사람의 다리를 스켈레톤으로 추종해 뒤따라 가는 방식으로 수정해서 PR에 같이 첨부해.” 승인 정책 확인 답변: “출동 승인 후 목적지까지 연속 추종”. 적용 범위는 AMR2 동행 요구와 설계 검토다. 실제 사람인 구조대원이 앞서고 AMR2가 탑재 카메라로 다리 스켈레톤을 추적해 뒤따른다. 요구조자는 인형이며 이 추종 대상과 구분한다. 구간별 ‘계속’ 승인은 새 동행 시나리오에서 제외한다. 모델·추종 입력/액션·거리 기준·재시작 계약과 실기 검증은 Q-27의 후속이다. 기존 실행 코드를 연속 추종 구현으로 보지 않는다. [contracts C-12](contracts.md#c-12)를 따른다. 아래 기존 `MOVE_SEGMENT`·`CONTINUE_SEGMENT`·`ONE_SEGMENT` 필드는 구간 이동 계약으로 보존한다. **연속 추종 입력·액션은 아직 정의되지 않았고**, 01~10쪽은 기존 연결을 보존하며 11쪽은 변경 요구 흐름을 구분해 그린다.
 
+AMR1 최초 정찰은 [RQ-11·Q-28](../requirements/scope.md)의 관제 출동 버튼 명령으로 시작한다(사용자 확인 2026-10-11, contracts C-13). 재난 이벤트는 표시·근거 저장만 한다. 기존 Q-12 자동 기록은 과거 근거이며, START_SEARCH의 공통 ROS operation·소비자 연결은 아직 없다. 아래 기존 SubmitOperatorCommand 필드 목록은 현재 IDL 정의를 보존한다.
+
 ## 적용 시나리오와 현재 증거
 
 - [PM 요구, 2026-10-09] PC1=AMR1 정찰·재확인, PC2=AMR2 구급상자·구간 이동, PC3=웹캠 1대, PC4=웹·API·DB·임무 조정·Discovery. 실제 호스트 이름/IP/로봇 ID는 profile로 대응한다.
@@ -52,7 +54,7 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 ## 시나리오별 발행·수신 순서
 
 1. PC3 capture → quake/presence/video. 웹은 PC3 video gateway를 HTTP로 조회한다.
-2. quake → `/rescue/site_events(DISASTER_SIGN)` → coordinator. 유효 영상/시간·중복 event ID·판정 정책을 검사해 DISASTER를 표시하고 근거를 저장한다. 근거 PERSISTED 뒤 AMR1 `PrepareMapping(START)`로 기준 지도 기반 SLAM 시작/준비를 요청한다. fresh map/TF·로봇 준비/권한/lease가 유효하면 설정한 재난 대응 정책이 AMR1 `ExecuteTask(SEARCH_AREA)`를 한 번 발급한다. 트리거 자체는 주행 명령이 아니며, AMR2의 출동/계속은 사용자 승인 관문을 갖는다. AMR2 위치 추정용 backend는 대기 단계의 PREPARE/START로 준비하되 이동하지 않는다.
+2. quake → `/rescue/site_events(DISASTER_SIGN)` → coordinator. 유효 영상/시간·중복 event ID·판정 정책을 검사해 DISASTER를 표시하고 근거를 저장한다. 근거 PERSISTED 뒤 관제의 AMR1 출동 버튼 명령을 기다린다. 유효 명령을 받은 coordinator가 AMR1 `PrepareMapping(START)`로 기준 지도 기반 SLAM 시작/준비를 요청한다. fresh map/TF·로봇 준비/권한/lease가 유효하면 AMR1 `ExecuteTask(SEARCH_AREA)`를 발급한다. 재난 이벤트만으로 최초 정찰을 자동 발급하지 않는다(RQ-11). 버튼 START_SEARCH의 ROS operation·소비자 연결은 Q-28 후속이며 이 흐름은 요구 정의다. AMR2 출동은 별도 사용자 승인 관문을 갖는다. AMR2 위치 추정용 backend는 대기 단계의 PREPARE/START로 준비하되 이동하지 않는다.
 3. AMR1 perception → 원 관측 → mapping → mission-frame TargetLocation → coordinator. 유효 target ID/좌표·보고를 만들고 `/rescue/reports` → operations → DB·필수 증거 commit → `/rescue/report_receipts(PERSISTED)` 순서를 거친다. 웹 지도는 operations 장부에서 조회한다.
 4. target 저장·좌표·AMR2 준비가 유효하면 목적지·허용 경로·통로 평가 근거를 웹에 표시한다. 기존 `EvaluateRoute` 정의는 구간 이동 계약이며 연속 추종 경로 검사·승인 결합은 Q-27에서 정한다.
 5. DISPATCH_SUPPORT 출동 승인 → PC2의 다리 스켈레톤 관측 → 승인된 연속 추종 임무로 목적지까지 구조대원 뒤를 따른다 [요구, 실행 입력/액션 미정]. 구간별 CONTINUE_SEGMENT를 발급하지 않는다. 대상 소실·가림·낡은 입력·거리 불확실·허용 경로 이탈이면 취소·실제 정지 확인 후 사유를 보고하고 새 승인을 기다린다 [C-12 제안]. 목적지 도착·정지 뒤 AMR2 `REOBSERVE_TARGET` → `ObserveTarget`으로 인형을 재탐지한다. 인식 노드는 이동 명령을 발행하지 않는다.

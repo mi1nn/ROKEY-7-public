@@ -23,6 +23,18 @@
       "execution_status": "NOT_IMPLEMENTED",
       "wire_contract": "UNDEFINED_PENDING_Q27",
       "legacy_segment_interfaces": "Existing MOVE_SEGMENT/CONTINUE_SEGMENT/ONE_SEGMENT definitions below describe segment navigation, not continuous following."
+    },
+    "amr1_dispatch_requirement": {
+      "date": "2026-10-11",
+      "source": "scope.md RQ-11 / Q-28; PM user clarification",
+      "source_quote": "AMR1 출동 방식은 관제 모니터의 버튼으로 신호를 받아 출동하는거야",
+      "mode": "OPERATOR_CONSOLE_BUTTON",
+      "event_behavior": "Validate disaster event, display and persist evidence; await operator dispatch command.",
+      "start_command": "START_SEARCH (design name; not present in SubmitOperatorCommand IDL)",
+      "sequence": "Operator dispatch command -> PrepareMapping(START) readiness -> ExecuteTask(SEARCH_AREA)",
+      "execution_status": "NOT_IMPLEMENTED",
+      "wire_contract": "OPERATION_EXTENSION_PENDING_Q28",
+      "historical_policy": "The 2026-10-10 owner automatic-start record remains in scope Q-12; this PM requirement is not a claim of completed owner/team review."
     }
   },
   "nodes": [

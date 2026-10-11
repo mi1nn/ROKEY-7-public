@@ -251,6 +251,18 @@ IDL 규칙:
 - `[제안]` 동일 사람의 유효 관측·거리·경로와 live 권한/lease가 유지될 때만 이동한다. 가림·소실·관측 만료·거리 불확실·경로 이탈·위험에서는 취소 → 실제 정지 관측, 미확인 시 STOP_UNCONFIRMED를 따른다. 다른 사람으로 자동 전환하거나 재획득만으로 자동 재시작하지 않는다. 원인 해소·정지 확인·새 승인/명령 뒤에만 재시작한다.
 - ROS 추종 입력의 필드/타입, 실행 action 또는 task kind, keypoint 모델·신뢰도·거리/시각 기준·TF·재획득·경로/통로 검사는 Q-27에서 인식·로봇·협업·관제 담당이 함께 정의한다. 기존 `ExecuteTask(MOVE_SEGMENT)`·`OperatorApproval(scope=ONE_SEGMENT)`·`RouteCandidate.segment_index`는 구간 이동 계약이며 이 요구의 구현이 아니다. 이번 PR은 이 IDL을 연속 추종 의미로 바꾸거나 추종 실행 코드를 추가하지 않는다. E3/E4는 NOT_RUN이다.
 
+<a id="c-13"></a>
+
+## C-13. AMR1 관제 버튼 출동 요구 (2026-10-11)
+
+`[사용자 요구, 2026-10-11]` 사용자 원문(PM 측 Codex 대화): “AMR1 출동 방식은 관제 모니터의 버튼으로 신호를 받아 출동하는거야”. 적용 범위는 AMR1 최초 정찰의 시작 조건이다. 재난 이벤트는 표시·근거 저장만 하고, 운영자의 관제 출동 버튼 명령 뒤에 지도 준비와 수색을 요청한다. 저장소 소유자·팀의 검토 완료나 ROS 연결·실기 완료를 뜻하지 않는다.
+
+- 요구 흐름: PC3 SiteEvent(DISASTER_SIGN) → PC4 coordinator의 재난 검증·표시·근거 저장 → 관제의 AMR1 출동 버튼 → operations → coordinator의 지도 준비·ExecuteTask(SEARCH_AREA) 요청. 버튼 전에는 지도 START·최초 수색을 자동 발급하지 않는다. launch/PREPARE 등 사전 준비와 최초 임무 출동은 구별한다.
+- `DISASTER → SEARCHING`은 유효한 운영자 출동 명령과 기존 지도·센서·TF·권한·lease 준비 관문 뒤에 일어난다. UI 버튼 접수는 실제 출동·수색 시작 완료가 아니다. 인식·웹은 Nav2/cmd_vel을 직접 호출하지 않는다.
+- 명령 이름 `START_SEARCH`는 HTTP 계획·Python 현장 상태 어휘에 있으나 현재 `SubmitOperatorCommand` ROS IDL에는 없다. operation/DTO·ROS 경계·operations/coordinator·UI·준비·중복 명령 시험의 정의/연결은 Q-28 후속이며, 미지원 입력을 수락된 출동으로 표시하지 않는다. 이번 문서 변경은 필드·타입이나 실행 코드를 추가하지 않는다.
+- Q-12의 2026-10-10 저장소 소유자 자동 출동 기록과 이번 PM 측 사용자 요구의 차이를 보존한다. #91 CLA-03의 “#76 7번 결정 전 자동” 문구는 이 요구에 맞춰 작전 담당이 갱신하고, #90의 자동 SEARCH_AREA 발급은 협업·관제 담당이 수정한다. 팀 계약·구현 완료로 선행 판정하지 않는다.
+- AMR1 재관측·복귀 정책과 AMR2 RQ-10은 이 요구의 적용 범위가 아니다. E3 버튼 왕복·명령 발급과 E4 실제 출동은 NOT_RUN이다.
+
 ## 고정 원본에서 가져온 계약 근거
 
 - 관측 재발행·수신 시각 혼동: [AMR webcam publish](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L109-L159), [follower 수신](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304).
