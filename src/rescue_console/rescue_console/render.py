@@ -11,6 +11,8 @@ from .view import STAGES
 # Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
 # ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
 POLL_INTERVAL_MS = 1000
+# KPI-04 budget: event time -> shown on the operator screen (BRD v0.1 KPI-04, 3 s).
+KPI04_BUDGET_S = 3.0
 MISSING = '—'
 # Map marker sizes in map pixels (0.05 m/px for the pre-quake map): robot arrow half-width and
 # nose length, victim V half-width. Display only ([제안] 관제·화면, 2026-10-10).
@@ -56,6 +58,15 @@ BATTERY_LOW, BATTERY_WARN = 25, 50
 # Survey grid spacing on the map, metres.
 GRID_M = 1.0
 STAGE_ORDER = ('UNCONFIRMED', 'NOT_RESCUED', 'SUPPORTING', 'RESCUED')
+# What the operator checks when the console cannot read its inputs, by ConsoleError code.
+FAILURE_HINTS = {
+    'STORAGE_ERROR': '운영 장부나 현장 상태 DB 를 읽지 못했습니다. 실행 인자의 파일 경로와 operations 프로세스가 돌고 있는지 확인하세요.',
+    'INVALID_INPUT': '읽은 데이터의 형식이 화면이 기대한 것과 다릅니다. operations 와 콘솔이 같은 버전인지 확인하세요.',
+    'POLICY_MISMATCH': '연 파일이 기대한 DB 가 아닙니다(역할·스키마가 다름). 실행 인자의 경로를 확인하세요.',
+}
+FAILURE_HINT_OTHER = '콘솔을 띄운 터미널의 로그를 확인하세요.'
+# The failure page reloads itself this often, so the screen comes back once the input is readable.
+FAILURE_RETRY_S = 5
 
 
 def _short(ident):
@@ -76,7 +87,9 @@ def _elapsed(seconds):
     seconds = int(seconds)
     if seconds < 3600:
         return f'{seconds // 60}분 {seconds % 60:02d}초'
-    return f'{seconds // 3600}시간 {seconds % 3600 // 60:02d}분'
+    if seconds < 86400:
+        return f'{seconds // 3600}시간 {seconds % 3600 // 60:02d}분'
+    return f'{seconds // 86400}일 {seconds % 86400 // 3600}시간'
 
 
 def _pose(pose):
@@ -237,8 +250,8 @@ def _robots(view):
                          '</section>')
             continue
         motion = robot['motion_state']
-        stale = (f'<p class="alert">낡음: {_age(robot["received_age_s"])} 동안 새 상태가 없습니다. '
-                 '표시 값은 그때의 것입니다.</p>') if robot['stale'] else ''
+        stale = (f'<p class="alert" title="표시 값은 마지막으로 받은 상태입니다">낡음: '
+                 f'{_age(robot["received_age_s"])} 동안 새 상태 없음</p>') if robot['stale'] else ''
         units.append(
             f'<section class="unit {(role or "unknown").lower()}{" stale" if robot["stale"] else ""}" '
             f'data-robot="{escape(robot["robot_id"])}">{head}'
@@ -297,7 +310,8 @@ def _events(view):
     for event in view['events']:
         rows.append(
             f'<tr class="event {event["kind"].lower()}" data-ref="{escape(event["ref_id"])}" '
-            f'data-event-ns="{event["event_ns"]}">'
+            f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
+            f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}">'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
             f'<td class="kind">{_word("event", event["kind"])}</td>'
             f'<td>{escape(event["source"])}</td><td>{_short(event["subject"])}</td>'
@@ -358,7 +372,7 @@ dl{margin:0}
 /* ---- console grid ---- */
 .console{display:grid;gap:10px;padding:10px;min-height:100vh;
   grid-template-columns:minmax(0,1fr) 400px 470px;
-  grid-template-rows:auto auto minmax(0,1fr) 230px;
+  grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
   grid-template-areas:"band band top" "warn warn side" "map middle side" "log log side"}
 #live{display:contents}
 #mission{grid-area:band} #warnings{grid-area:warn} #map{grid-area:map} #middle{grid-area:middle}
@@ -370,6 +384,8 @@ dl{margin:0}
 }
 #map,#middle>section,#events,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
 #middle{display:flex;flex-direction:column;gap:10px;min-height:0}
+/* Robot cards give way (and scroll) before the victims list does (#64). */
+#robots{min-height:0;overflow:auto}
 #side{display:flex;flex-direction:column;gap:10px;min-height:0}
 
 /* ---- band ---- */
@@ -381,13 +397,17 @@ dl{margin:0}
 .band.disaster{background:var(--signal);border-color:var(--signal);color:#fff}
 .band.disaster dt,.band.disaster .mode-note,.band.disaster #built{color:#ffd9de}
 .band.unknown .mode-word{color:var(--pending)}
-#topbar{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:8px 12px;background:var(--panel);
-  border:1px solid var(--rule)}
-#topbar .who{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:6px 10px;
+  padding:8px 12px;background:var(--panel);border:1px solid var(--rule)}
+#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#topbar .kpi{grid-column:1/-1;grid-row:2}
 #poll{font-size:13px;display:flex;gap:6px;align-items:center}
 #poll::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--safe)}
 #poll.lost{color:var(--signal);font-weight:700} #poll.lost::before{background:var(--signal)}
 #poll.wait::before{background:var(--pending)}
+#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:700}
+.mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
 
 /* ---- warnings ---- */
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
@@ -446,14 +466,14 @@ dl{margin:0}
 .battery.low .value{color:var(--signal);font-weight:700}
 .battery .value{min-width:3.2em;text-align:right;font-weight:500} .battery .age{font-size:12px;color:var(--ink-2)}
 .battery.none .value{color:var(--ink-2);text-align:left}
-.unit dl{display:grid;grid-template-columns:auto 1fr;column-gap:10px;font-size:13px}
+.unit dl{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:10px;font-size:13px}
 .unit dl div{display:contents} .unit dt{color:var(--ink-2)} .unit dd{margin:0}
 .unit .alert{margin-top:6px;padding:4px 8px;background:var(--caution-tint);font-size:13px}
 .unit.stale,.unit.missing{border-left-color:var(--caution)}
 .unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.55}
 
 /* ---- victims ---- */
-#targets{display:flex;flex-direction:column;min-height:0;flex:1}
+#targets{display:flex;flex-direction:column;min-height:240px;flex:1}
 .stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:0 0 8px;padding:0;list-style:none}
 .stage-counts li{display:flex;align-items:center;gap:6px;padding:3px 8px;background:#fff;border-left:4px solid var(--pending);font-size:13px}
 .stage-counts li b{margin-left:auto;font-size:18px}
@@ -505,7 +525,9 @@ dl{margin:0}
 
 /* ---- forms (login, accounts) ---- */
 .card{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--rule)}
-.card h1{font-size:22px;margin-bottom:12px} .card button{margin-top:16px}
+.card h1{font-size:22px;margin-bottom:12px}
+.failure{border-left:8px solid var(--signal)} .failure p{margin-top:10px}
+.failure .detail{font-size:13px;color:var(--ink-2);word-break:break-all} .failure .retry{font-size:13px} .card button{margin-top:16px}
 .card label{display:block;margin:12px 0 4px}.card input{width:100%;padding:8px;font:inherit;border:1px solid var(--rule)}
 .card button,form.inline button{font:inherit;padding:8px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:3px;cursor:pointer}
 #topbar form.inline button{padding:3px 10px;background:#fff;color:var(--ink)}
@@ -541,7 +563,11 @@ function stamp() {
     const ref = row.dataset.ref, eventMs = Number(row.dataset.eventNs) / 1e6;
     if (!firstSeen.has(ref)) {
       firstSeen.set(ref, now);
-      window.kpi04.push({ref_id: ref, event_ns: row.dataset.eventNs, rendered_ms: now});
+      // live: the row arrived while this page was open. Rows already there at load are history,
+      // not display latency, and stay out of the KPI-04 summary.
+      window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
+                         event_ns: row.dataset.eventNs, received_at_ns: row.dataset.receivedNs || '',
+                         rendered_ms: now, latency_s: (now - eventMs) / 1000, live: loaded});
     }
     const shown = firstSeen.get(ref);
     row.dataset.renderedMs = shown;
@@ -551,8 +577,45 @@ function stamp() {
     row.classList.toggle('fresh', loaded && now - shown < FRESH_MS);
   }
   loaded = true;
+  kpiSummary();
+}
+function kpiSummary() {
+  const el = document.getElementById('kpi');
+  if (!el) return;
+  const live = window.kpi04.filter(r => r.live);
+  if (!live.length) {
+    el.className = '';
+    el.textContent = 'KPI-04: 페이지를 연 뒤 들어온 사건 없음';
+    return;
+  }
+  const within = live.filter(r => r.latency_s <= KPI_BUDGET_S).length;
+  const worst = Math.max(...live.map(r => r.latency_s));
+  el.className = within === live.length ? 'ok' : 'over';
+  el.textContent = 'KPI-04: 실시간 사건 ' + live.length + '건 중 ' + KPI_BUDGET_S + '초 이내 ' + within + '건, 최대 ' + age(worst);
+}
+function csvCell(value) {
+  const text = String(value);
+  return /[",\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+// Saves the records as a CSV file in the browser (Blob); nothing is sent to the server.
+function saveKpi() {
+  const keys = ['ref_id', 'kind', 'clock_domain_id', 'event_ns', 'received_at_ns', 'rendered_ms', 'latency_s', 'live'];
+  const lines = window.kpi04.map(r => keys.map(k => csvCell(k === 'latency_s' ? r[k].toFixed(3) : r[k])).join(','));
+  const url = URL.createObjectURL(new Blob([[keys.join(',')].concat(lines).join('\\n') + '\\n'], {type: 'text/csv'}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'kpi04-' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+// The tab title carries the state too, so a background tab still says 재난 or 갱신 끊김.
+function title(lost) {
+  const band = document.getElementById('mission');
+  const tag = lost ? '[갱신 끊김] ' : band && band.dataset.mode === 'DISASTER' ? '[재난] ' : '';
+  document.title = tag + '구조 관제';
 }
 function pollStatus(ok, message) {
+  title(!ok);
   const el = document.getElementById('poll');
   if (ok) {
     lastOk = Date.now();
@@ -574,7 +637,11 @@ async function poll() {
       location.href = response.status === 401 ? '/login' : response.url;
       return;
     }
-    if (!response.ok) throw new Error('HTTP ' + response.status);
+    if (!response.ok) {
+      // The server says what failed (render.failure_text); show it instead of a bare status code.
+      const reason = (await response.text()).slice(0, 200);
+      throw new Error('HTTP ' + response.status + (reason ? ' ' + reason : ''));
+    }
     document.getElementById('live').innerHTML = await response.text();
     stamp();
     pollStatus(true);
@@ -582,6 +649,7 @@ async function poll() {
     pollStatus(false, error.message);
   }
 }
+document.getElementById('kpi-save').addEventListener('click', saveKpi);
 stamp();
 pollStatus(true);
 timer = setInterval(poll, POLL_MS);
@@ -632,11 +700,37 @@ def _cameras(cameras):
     return f'<section id="cameras"><h2>웹캠</h2>{figures}</section>'
 
 
+def page_title(view):
+    return ('[재난] ' if view['mission']['mode'] == 'DISASTER' else '') + '구조 관제'
+
+
+def failure_text(code, message):
+    """One line for the poll status: the code, what to check, and the raw detail."""
+    return f'{code}: {FAILURE_HINTS.get(code, FAILURE_HINT_OTHER)} ({message})'
+
+
+def render_failure(code, message):
+    """Whole-page failure (503): what failed and what to check, retried every FAILURE_RETRY_S.
+
+    Never an empty but healthy-looking console (AGENTS.md 7절: failures must show).
+    """
+    return (_head('[화면 오류] 구조 관제').replace(
+                '<meta charset="utf-8">', f'<meta charset="utf-8"><meta http-equiv="refresh" content="{FAILURE_RETRY_S}">')
+            + '<main class="card failure"><h1>화면을 그릴 수 없습니다</h1>'
+            f'<p class="hint">{escape(FAILURE_HINTS.get(code, FAILURE_HINT_OTHER))}</p>'
+            f'<p class="detail"><code>{escape(code)}</code> {escape(message)}</p>'
+            f'<p class="retry">{FAILURE_RETRY_S}초마다 다시 시도합니다. 로봇은 이 화면과 상관없이 동작하므로, '
+            '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
+
+
 def render_page(view, user=None, csrf=None, cameras=()):
     """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments."""
-    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
-    return (_head('구조 관제') + '<main class="console">'
+    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
+    return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
+            + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
+            'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
+            '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
             + f'<aside id="side">{_cameras(cameras)}{_commands(view)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
