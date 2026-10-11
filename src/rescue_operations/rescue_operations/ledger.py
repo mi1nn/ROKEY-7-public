@@ -63,7 +63,13 @@ class _Database:
     def allowed_robot_ids(self):
         return self._allowed_robot_ids
 
-    def __init__(self, db_path, role, metadata=None):
+    def __init__(self, db_path, role, metadata=None, *, schema="1.0", upgrades_from=(), tables=()):
+        """Open or create; ``tables`` DDL runs in the same transaction as the metadata check.
+
+        A file whose metadata differs from the wanted one only in ``schema``, with the old
+        value in ``upgrades_from``, is upgraded: ``tables`` adds what is missing and the
+        schema value is raised. Nothing is dropped. Any other difference is POLICY_MISMATCH.
+        """
         self.path = _path(db_path)
         self._lock = threading.RLock()
         self._db = None
@@ -75,12 +81,16 @@ class _Database:
             self._db.execute("PRAGMA synchronous = FULL")
             with self._transaction() as db:
                 db.execute("CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
-                wanted = {"schema": "1.0", "role": role, **(metadata or {})}
+                wanted = {"schema": schema, "role": role, **(metadata or {})}
                 current = dict(db.execute("SELECT key, value FROM metadata"))
-                if current:
-                    require(current == wanted, "DB role/schema/policy cannot change on reopen", "POLICY_MISMATCH")
-                else:
+                if not current:
                     db.executemany("INSERT INTO metadata VALUES (?, ?)", wanted.items())
+                elif current != wanted:
+                    require(current.get("schema") in upgrades_from and current | {"schema": schema} == wanted,
+                            "DB role/schema/policy cannot change on reopen", "POLICY_MISMATCH")
+                    db.execute("UPDATE metadata SET value = ? WHERE key = 'schema'", (schema,))
+                for ddl in tables:
+                    db.execute(ddl)
         except (sqlite3.Error, OperationsError) as exc:
             self.close()
             if isinstance(exc, OperationsError):

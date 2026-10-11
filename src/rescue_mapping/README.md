@@ -30,7 +30,7 @@ Python 표준 라이브러리로 3D 좌표 변환, 원 관측 보존, 로봇별 
 PYTHONPATH=src/rescue_contracts:src/rescue_mapping python3 -m unittest discover -s tests -p test_mapping.py -v
 ```
 
-테스트의 시간·오차·좌표는 합성 fixture이고 운용 기준이 아니다. Python wheel 설치는 가능하지만 ROS adapter·실제 backend 연동·`colcon`/실기 통과는 이 시험의 범위가 아니다. 저장소의 `docs/implementation-mapping.md`에 계약과 미구현 범위를 기록한다.
+테스트의 시간·오차·좌표는 합성 fixture이고 운용 기준이 아니다. Python wheel 설치는 가능하지만 ROS adapter·실제 backend 연동·`colcon`/실기 통과는 이 시험의 범위가 아니다. 저장소의 `docs/implementation/implementation-mapping.md`에 계약과 미구현 범위를 기록한다.
 
 원본 코드는 복사하지 않았다. 프로젝트 라이선스·maintainer는 미결정이며 기존 `LicenseRef-Unspecified`·`maintainer@example.invalid`를 유지한다. 배포용 릴리스 metadata가 아니다.
 
