@@ -100,7 +100,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | 통신 | 방향 | 하는 일 |
 | --- | --- | --- |
 | `/rescue/site_events` (SiteEvent) | 받음 | `VALID` 시야만 사건으로 바꾼다(C-10). `DISASTER_SIGN` → 모드 관문 |
-| `/rescue/robots/{r}/status` (RobotStatus) | 받음 | `READY`·`lease_valid`·나이 ≤ `status_max_age_s` 일 때만 준비됨 |
+| `/rescue/robots/{r}/status` (RobotStatus) | 받음 | `READY`·나이 ≤ `status_max_age_s` 일 때만 새 task 를 낼 준비가 됨. `lease_valid` 는 작업 중 정지 감시에만 쓴다(대기 중인 로봇은 lease 가 없다, #100) |
 | `/rescue/robots/{r}/execute_task` (ExecuteTask) | 보냄 | 재난 모드의 SCOUT 에 `SEARCH_AREA`(승인 없음, Q-12), 승인마다 SUPPORT 에 `MOVE_SEGMENT`, 열린 재확인마다 SCOUT 에 `REOBSERVE_TARGET`. 결과는 정지 확인이 있어야 예약을 푼다 |
 | `/rescue/robots/{r}/task_admission` (TaskAdmission) | 받음 | ACTIVE 로 가는 유일한 길. goal 수락만으로는 ACTIVE 가 아니다 |
 | `/rescue/target_locations` (TargetLocation) | 받음 | `VALID` 투영만 대상이 된다. 아래 병합 규칙 |
