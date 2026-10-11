@@ -168,9 +168,14 @@ class SiteRuntimeTests(unittest.TestCase):
     def test_search_area_resolves_configured_point_with_empty_wire_alignment(self):
         g=self.f.g; g.kind='SEARCH_AREA'; g.target_id=''; g.target_estimate_revision=0
         g.has_route=g.has_approval=False; g.search_area_ref=phase.runtime.mapping.uid(998)
-        self.data['destinations'][g.search_area_ref]=dict(robot_id=g.robot_id,
-            map_session_id=g.frame_ref.map_session_id,map_revision=0,transform_revision=1,
-            xy_yaw=[4.,0.,0.],observed_at_ns=self.f.r.now,valid_until_ns=g.deadline_ns)
+        m=self.data['maps'][g.robot_id]
+        self.data=dict(format='rescue-robot-search-inputs/1',
+            generated_at_ns=m['valid_from_ns'],valid_until_ns=g.deadline_ns,
+            clock=self.data['clock'],authority=self.data['authority'],
+            map={k:m[k] for k in ('map_frame','map_session_id','map_revision',
+                'map_update_sequence','localization_status','transform_revision',
+                'transform_xy_yaw','position_error_m','rotation_error_rad','evidence_id')},
+            destinations={g.search_area_ref:[4.,0.,0.]})
         g.frame_ref.native_frame=g.frame_ref.alignment_status=''
         self.assertEqual(self.runtime.server.on_goal(g),'accept',self.node.errors)
         self.adapter.step(); self.assertEqual(self.f.r.f.port.goals[0][1].x,2.)
@@ -192,14 +197,14 @@ class SiteRuntimeTests(unittest.TestCase):
     def test_malformed_live_mapping_input_stops_search_instead_of_breaking_timer(self):
         self.test_search_area_resolves_configured_point_with_empty_wire_alignment()
         self.adapter.on_goal_response(self.f.g.command_id,True)
-        self.data['maps']={}
+        self.data['map']={}
         self.adapter.step()
         self.assertEqual(self.f.r.f.port.cancels,[self.f.g.command_id])
 
     def test_search_destination_change_requires_new_command(self):
         self.test_search_area_resolves_configured_point_with_empty_wire_alignment()
         self.adapter.on_goal_response(self.f.g.command_id,True)
-        self.data['destinations'][self.f.g.search_area_ref]['xy_yaw'][0]+=1.
+        self.data['destinations'][self.f.g.search_area_ref][0]+=1.
         self.adapter.step()
         self.assertEqual(self.f.r.f.port.cancels,[self.f.g.command_id])
 

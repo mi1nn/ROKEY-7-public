@@ -15,6 +15,12 @@ class TaskPrepareTests(unittest.TestCase):
             self.assertIn('lease.duration_s',report['missing'])
             c=json.loads((Path(d)/'runtime.json').read_text())
             self.assertIsNone(c['lease']['duration_s'])
+            inputs=json.loads((Path(d)/'inputs.json').read_text())
+            self.assertEqual(inputs['format'],'rescue-robot-search-inputs/1')
+            self.assertNotIn('targets',inputs)
+            self.assertNotIn('approvals',inputs)
+            self.assertNotIn('protected_routes',inputs)
+            self.assertEqual(inputs['map']['localization_status'],'UNKNOWN')
             self.assertEqual(c['endpoints']['action_name'],'/rescue/robots/logical_tb2/execute_task')
             overlay=json.loads((Path(d)/'task.params.yaml').read_text())
             self.assertEqual(overlay['/**']['ros__parameters']['task.runtime_factory'],
