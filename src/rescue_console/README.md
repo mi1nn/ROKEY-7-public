@@ -60,6 +60,9 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 - 세션 쿠키는 계정 ID 와 인증 버전을 담는다. 계정을 지우고 같은 이름을 다시 만들면 ID 가 달라지고, 비밀번호·역할·상태를 바꾸면 인증 버전이 올라가서, 그 전에 발급된 쿠키는 서버에서 전부 거절된다(API·조각은 401, 페이지는 로그인으로). 폴링 중 401 을 받으면 화면이 폴링을 멈추고 로그인 페이지로 간다.
 - 로그아웃은 POST + CSRF 다. 링크·이미지 태그로는 로그아웃되지 않는다.
 - 폼은 세션별 CSRF 토큰을 요구한다(없으면 400). 세션 쿠키는 HttpOnly·SameSite=Lax.
+- **반복 실패 잠금:** 같은 아이디를 같은 접속지에서 5분 안에 5번 틀리면 60초 동안 그 아이디·접속지의 로그인을 거절한다(맞는 비밀번호도). 화면에는 「n초 뒤에 다시 하세요」가 뜬다. 기록은 콘솔 프로세스 메모리에만 있고(재시작하면 사라짐) 계정 DB 에 쓰지 않는다. 다른 아이디·다른 접속지는 영향이 없다. 값은 `throttle.py` 상단 상수([제안] 2026-10-10). 기록은 스레드 잠금(`threading.Lock`) 안에서만 바뀐다(개발 서버가 요청을 스레드로 처리, OPS-51-01). 한계: 잠금 확인과 비밀번호 확인 사이에 동시에 들어온 요청 묶음은 잠금이 걸리기 전에 모두 평가된다. 그 묶음의 크기는 요청마다 드는 PBKDF2 20만 회 비용이 묶는다.
+- **같은 비용:** 없는 아이디·비활성 계정도 비밀번호 해시 확인을 한 번 거친다. 응답 시간으로 어떤 아이디가 있는지 알 수 없다.
+- **응답 헤더:** 모든 응답에 `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` 을 붙인다(`app.SECURITY_HEADERS`). 페이지·조각·API 는 `Cache-Control: no-store` 이고, `/map.png` 만 자기 캐시 정책을 쓴다. 스크립트까지 막는 CSP 는 인라인 스크립트·스타일에 nonce 를 붙인 뒤에 한다(후속).
 - 계정 DB 는 콘솔 소유 파일이다. 운영 장부(보고·site_state)의 단일 쓰기 규칙과 무관하며 콘솔은 그쪽에 여전히 쓰지 않는다.
 
 ## 입력
