@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from rescue_console.accounts import ACCOUNT_ROLES, ACCOUNT_STATUSES, AccountStore
 from rescue_console.view import ConsoleError
@@ -17,6 +18,18 @@ class AccountStoreTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / 'accounts.sqlite3'
         self.store = AccountStore.create(self.path, 'admin', 'admin-pass-1')
+
+    def test_unknown_and_inactive_names_cost_a_password_check_too(self):
+        # Otherwise the response time tells which names exist (an unknown name returned at once,
+        # a real one after 200k PBKDF2 rounds).
+        import rescue_console.accounts as accounts
+        store = self.store
+        store.add('sleepy', 'sleepy-pass-1', role='CUSTOMER', status='INACTIVE')
+        for name in ('nobody', 'sleepy'):
+            with self.subTest(name=name), mock.patch.object(accounts, 'verify_password',
+                                                            wraps=accounts.verify_password) as check:
+                self.assertIsNone(store.authenticate(name, 'whatever-1'))
+                self.assertEqual(check.call_count, 1)
 
     def test_vocabularies(self):
         self.assertEqual(('ADMIN', 'CUSTOMER'), ACCOUNT_ROLES)

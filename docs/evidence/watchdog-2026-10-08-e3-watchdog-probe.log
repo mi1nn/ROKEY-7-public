@@ -1,0 +1,6 @@
+[INFO] [1791455919.465084688] [robot_a.rescue_command_watchdog]: watchdog ARMED reason=- t=608028.678
+[WARN] [1791455920.757952939] [robot_a.rescue_command_watchdog]: watchdog STOP_LATCHED reason=EXECUTOR_HEARTBEAT_STALE t=608029.982
+[WARN] [1791455921.608150623] [robot_a.rescue_command_watchdog]: reset requested: success=True state=ARMED
+[INFO] [1791455921.608515746] [robot_a.rescue_command_watchdog]: watchdog ARMED reason=RESET t=608030.833
+{'domain': 42, 'checks': {'a_forwards': True, 'b_only_zero': True, 'a_flag_true': True, 'b_flag_false': True, 'a_latched': True, 'a_zero_after_latch': True, 'a_flag_false': True, 'a_still_latched': True, 'reset_ok': True, 'a_forwards_after_reset': True, 'b_never_armed': True}, 'events_a': [('ARMED', '', 608028.677823304), ('STOP_LATCHED', 'EXECUTOR_HEARTBEAT_STALE', 608029.982252419), ('ARMED', 'RESET', 608030.833051222)]}
+E3 watchdog probe: PASSED

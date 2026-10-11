@@ -1,7 +1,7 @@
 ---
 title: 구조 수색 시스템의 인터페이스 계약 초안
 status: draft-proposal
-updated: 2026-10-08
+updated: 2026-10-11
 ---
 
 # 인터페이스 계약 초안
@@ -21,7 +21,7 @@ updated: 2026-10-08
 | 수색 분담·대상 사건·임무 배정 | `rescue_coordination` | 로봇 실행기에 임무 요청. 직접 `cmd_vel`·Nav2 action·lifecycle 변경 금지 |
 | 운영자 요청·보고 수신·영속 기록 | `rescue_operations` | API 요청을 coordination/robot 계약으로 전달. 직접 Nav2/속도 발행 금지 |
 | ROS 메시지와 버전 | `rescue_interfaces` 담당 1명 | 관련 소비자·시험의 변경 영향과 함께 수정. 각 구현 세션이 독자 계약을 추가하지 않음 |
-| 고정 카메라 A·B 의 현장 사건(`SiteEvent`) | `rescue_perception` 의 고정 카메라 어댑터가 생성, `rescue_coordination` 이 소비 | 재난 징후(`DISASTER_SIGN`, 판정 조건은 정책 값·Part I 는 화재)·출구 통과(`EXIT_PASS`)는 **증거**이지 명령이 아니다. 재난 모드 전환·출동 지시는 coordination 의 정책이 하고, 카메라 어댑터는 주행·모드 변경을 발행하지 않음(BRD v0.1 UC-01·06, 2026-10-08) |
+| 고정 카메라의 현장 사건(`SiteEvent`) | `rescue_perception` 의 고정 카메라 어댑터가 생성, `rescue_coordination` 이 소비 | 재난 징후(`DISASTER_SIGN`, 판정 조건은 정책 값·Part I 는 지진)·대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, 2026-10-09 카메라 1대 결정)는 **증거**이지 명령이 아니다. `EXIT_PASS` 는 이미 저장된 자료를 읽을 수 있게 어휘에만 남기며, 카메라 1대 구성에서는 만드는 쪽이 없다. 재난 모드 전환·출동 지시는 coordination 의 정책이 하고, 카메라 어댑터는 주행·모드 변경을 발행하지 않음(BRD v0.1 UC-01·06, 2026-10-08) |
 
 고사양 PC 두 대에 로봇별 SLAM/Nav2/실행·추론을 배치하고, 중간 사양 PC 두 대에 coordination과 operations를 나누는 것은 부하 측정 전 가설이다. 순수 판단 로직은 ROS 입출력 어댑터와 분리한다. 파일 경계는 PR 2와 함께 확정한다.
 
@@ -102,7 +102,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | `RobotStatus` | robot_id, boot·sequence, 로봇별 pose/frame/stamp/품질, 활성 task/generation, readiness, motion_state, stop 사유/증거, 센서·TF·시간·Nav2·명령 lease 상태, 도킹 상태/관측 시각·준비 action 상태(해당 플랫폼), 배터리 상태 | 상대 pose를 같은 mission frame으로 변환하지 않고 거리 비교 금지. 알 수 없는 값은 UNKNOWN. retained snapshot은 운영 표시용이며 live readiness 증거가 아님 |
 | `RescueReport` | report_id, target_id, 관측·확인·접근 결과, 수행 로봇/task/generation, 위치/frame/revision, observed_at·confirmed_at·reported_at, 접근 불가 등 사유, evidence_ref, 스키마·모델·배포 버전 | 사람 이송/부상/생존을 확정하지 않음. 오래된 사진을 새 재확인 사진으로 대체하지 않음 |
 | `ReportReceipt` | receipt_id, 참조 report_id, 수신 상태, 영속 저장 시각·저장 revision 또는 실패 코드 | `RECEIVED`와 `PERSISTED`를 구분. 보고 완료는 현재 정책에 필요한 payload와 증거가 영속 저장되고 해당 receipt가 돌아온 상태 |
-| `SiteEvent` | event_id, camera_id(`cam_<id>`), kind(`DISASTER_SIGN`/`EXIT_PASS`), observed_at_ns + C-03 시간 기준(clock_domain_id·stamp_semantics·clock_state·clock_error_bound_ns), evidence_id/sha256(생산자가 발급, operations 는 bytes 를 그 ID 로 저장·해시 검증), confidence, detail | 고정 카메라의 증거 사건. 로봇 관측(`TargetObservation`)과 별개이며 `source_robot` 에 카메라를 넣지 않는다. `EXIT_PASS` 의 사람 식별·중복 집계 금지는 Q-13 결정 뒤 필드 추가. `time_basis_declared` 는 세 시간 메타데이터가 **선언됐다**는 사전 조건일 뿐이다 — True 만으로 다른 관측과의 순서·최신성·구출 완료를 승인할 수 없고, 소비자가 양측 `clock_domain_id` 일치, 송수신 오차 합의 정책 상한, 미래 시각·나이 한도를 따로 검사한다(C-03; `rescue_perception.validate_freshness` 와 같은 규칙). False 면 기록만 되고 판정 입력이 아니다. 실행 가능한 Python 정의는 `rescue_contracts.SiteEvent` |
+| `SiteEvent` | event_id, camera_id(`cam_<id>`), kind(`DISASTER_SIGN`/`TARGET_DISAPPEARED_CANDIDATE`/`EXIT_PASS`), target_id·watch_id(소실 후보에만. coordinator 가 감시 설정 때 발급한 canonical UUID 를 카메라가 그대로 되돌린다. 다른 종류는 None), observed_at_ns + C-03 시간 기준(clock_domain_id·stamp_semantics·clock_state·clock_error_bound_ns), evidence_id/sha256(생산자가 발급, operations 는 bytes 를 그 ID 로 저장·해시 검증), confidence(규칙 기반 어댑터는 1.0 = "규칙 충족", 이진; 소비자는 confidence 로 2차 판정하지 않고 측정값은 detail 에서 감사), detail | 고정 카메라의 증거 사건. 로봇 관측(`TargetObservation`)과 별개이며 `source_robot` 에 카메라를 넣지 않는다. 소실 후보는 재확인의 **트리거**일 뿐 완료 증거가 아니다(KPI-06). 후보의 연결·멱등·시각 순서는 [C-11](#c-11). 고정 카메라는 1대로 확정됐다(2026-10-09). 그래서 `EXIT_PASS` 는 만드는 쪽이 없고, 전에 붙이려던 사람 식별 필드도 만들지 않는다. `time_basis_declared` 는 세 시간 메타데이터가 **선언됐다**는 사전 조건일 뿐이다 — True 만으로 다른 관측과의 순서·최신성·구출 완료를 승인할 수 없고, 소비자가 양측 `clock_domain_id` 일치, 송수신 오차 합의 정책 상한, 미래 시각·나이 한도를 따로 검사한다(C-03; `rescue_perception.validate_freshness` 와 같은 규칙). False 면 기록만 되고 판정 입력이 아니다. 실행 가능한 Python 정의는 `rescue_contracts.SiteEvent` |
 
 `tracking_mode={DETECTION_ONLY,TRACKING,TRACKING_FALLBACK}`는 필수이며 관측 payload hash에 포함한다. TRACKING은 비어 있지 않은 track ID가 필요하고 다른 두 모드는 track_id=None이다. tracking fallback을 정상 tracking이나 단순 ID 누락과 구별한다.
 
@@ -115,7 +115,7 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 | 구분 | 내용 |
 | --- | --- |
 | Goal | command_id, task_id, generation, robot_id, coordinator_id/authority_epoch, kind, issued_at/deadline, command lease 참조, target_id/estimate_revision 또는 search_area_ref, 필요한 frame/session/revision, 정책/설정 버전 |
-| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`. 협업의 자동 귀환·도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
+| kind | `SEARCH_AREA`, `REOBSERVE_TARGET`, `APPROACH_TARGET`, `HOLD`, `MOVE_SEGMENT`, `RETURN_HOME`. 대상 임무(`TARGET_TASK_KINDS`)는 `REOBSERVE_TARGET`·`APPROACH_TARGET`·`MOVE_SEGMENT` 이고 `target_id`·`target_revision` 이 필수다. `MOVE_SEGMENT` 는 운영자 승인 한 건(`OperatorApproval`, 한 구간)에 묶인 AMR2 한 구간 이동이다(Q-12 결정 2026-10-10). 승인과 대상·revision·경로·`segment_index` 가 같아야 하고, 성공은 그 구간 도착·정지이지 접근 완료가 아니다. 다음 구간은 ‘계속’ 승인마다 새 명령·task·generation 으로만 발급하고 자동 발급하지 않는다(규칙 원문은 [SDD](sdd-node-interface-spec-v0.1.md) ExecuteTask·SubmitOperatorCommand). `RETURN_HOME` 은 임무 완료 또는 운영자 취소 뒤 두 로봇(SCOUT·SUPPORT) 각각이 복귀 위치로 가는 새 generation 임무이고(BRD Part I 3.9.1) 대상이 없다. 복귀 위치의 출처는 Q-22 이며, 위치가 없거나 지금 지도와 맞지 않으면 발급하지 않는다. 실행기가 어떤 종류를 받는지는 `rescue_robot` 의 허용 목록이 정한다. 도킹·물품 전달은 기본 범위에 추가하지 않음. 준비용 UNDOCK/DOCK는 아래 별도 경로 |
 | 수락 조건 | ID/버전/시각/권한·generation 일치, 필요한 센서·시간·TF·Nav2 준비, stop latch 없음, lease 유효, 필수 설정 확정, 현재 지도 revision 호환. 도킹 장치가 있는 플랫폼의 수색/접근/재관측 이동은 fresh dock_status의 is_docked=false 필요 |
 | Feedback | task/generation, 실행 상태, 현재 목표/경로 상태, 마지막 관측 나이, 장애/보류 사유, 실제 pose의 시각/품질. action feedback 수신 자체를 성공으로 보지 않음 |
 | Result | 수락한 action의 outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACHABLE`, `FAILED` 중 하나. terminal_reason, stop_confirmed, motion_state, 사용한 관측/좌표 revision, stop 증거, 보고 참조를 포함. 결과가 없으면 UNKNOWN/PENDING 유지 |
@@ -191,7 +191,7 @@ Discovery 진단에는 `ROS_SUPER_CLIENT` 설정 여부·서버 목록/ID·프�
 
 | 구분 | 1차 채택 |
 | --- | --- |
-| msg (21) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment, TargetPresence, CameraStatus |
+| msg (25) | Envelope, ObservationTime, FrameRef, EvidenceRef, RobotStatus, RobotPose, Heartbeat, CommandLease, TaskAdmission, TaskResult, OperatorApproval, RouteCandidate, SiteEvent, TargetObservation, TargetLocation, MapState, ReportReceipt, RecheckObservation, PassageAssessment, TargetPresence, CameraStatus, SystemState·RescueReport·TargetSnapshot·TargetEstimate(2026-10-11 추가) |
 | srv (5) | RequestStop, RegisterAuthority, ResetStop, SubmitOperatorCommand, SetCameraWatch |
 | action (2) | ExecuteTask, ObserveTarget |
 
@@ -203,7 +203,13 @@ IDL 규칙:
 - 필드 이름·순서·타입은 JSON 이 원본이다. JSON 을 먼저 고치고, `tests/test_interfaces_schema.py` 가 IDL 과 같은지 ROS 없이 검사한다.
 - UUID 는 `string`, 시각은 `int64 *_ns`(`builtin_interfaces/Time` 아님, C-03), 없을 수 있는 값은 `bool has_*`/`*_known` + 값.
 - JSON 의 `string(A/B)` 열거는 `string` 필드 + 같은 파일의 상수 `<FIELD>_<VALUE>="<VALUE>"` 다. 상수 선언 자체는 필드 값의 검증을 강제하지 않는다. UUID·열거값·시각·선택 필드의 유효성은 각 ROS 경계 모듈이 검사한다.
-- SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 아직 Python `TASK_KINDS` 에 없고, `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
+- SDD 의 IDL 과 현재 `rescue_contracts`·장부 DTO 는 1:1 변환 계약이 아니다. `MOVE_SEGMENT`·`RETURN_HOME` 은 Python `TASK_KINDS` 에 들어갔고, 실행기가 받는지는 `rescue_robot` 의 허용 목록이 정한다(C-06 kind 행). `SiteEvent` 의 소실 후보는 #48의 계약 반영이 선행되어야 한다. `EvidenceRef`·`ReportReceipt` 도 기존 장부와 필드 이름·구조가 달라 명시적 변환이 필요하다. 이 PR은 변환기나 실행 노드를 추가하지 않으며, 계약 정합·변환 검증 전에는 새 어휘의 실행 연결을 완료로 보지 않는다.
+- Heartbeat(2026-10-10 작전 결정, OPS-17 ① 재확인): Phase 1 의 로봇 PC 안 구간(실행기 ↔ 명령 watchdog, #35)은 `rescue_interfaces/Heartbeat` 대신 `std_msgs/Header` 와 launch 파라미터의 토픽 이름으로 한다. SDD IF-012·013 의 중앙 구간은 구현하지 않았다. 토픽 이름은 SDD 이름(`/rescue/robots/{r}/heartbeat`·`…/watchdog_heartbeat`)과 겹치지 않게 둔다(같은 이름에 타입이 다르면 오류 없이 수신이 0 이 된다). `Heartbeat` 로 옮기는 때: coordination·operations 가 heartbeat 로 생존을 판정하는 코드가 생길 때, watchdog 을 로봇에 둘 때, 실행기 fence 를 watchdog 출력 억제로 전달할 때. 옮길 때는 안쪽·중앙 구간을 한 PR 에서 함께 옮긴다.
+- 임무 조정기 얇은 연결(2026-10-11 작전 결정, 저장소 소유자의 조정기 구현 지시 "ㄱㄱ"): 10-13 얇은 전 구간에 필요한 `SystemState`(IF-071)·`RescueReport`(IF-072)·`TargetSnapshot`(IF-070)과 그 안의 `TargetEstimate` 를 1차로 올린다. `RescueReport` 가 있어야 operations 의 `ReportReceipt(PERSISTED)` 가 생기고, 그것이 AMR2 출동 관문(확정 + 저장 확인)을 연다.
+  - `SystemState` 는 SDD 필드 뒤에 임무 화면용 필드를 더했다(JSON 을 먼저 고침): `phase`(console-and-db-plan 1절·site_state 1.1 `MISSION_PHASES` 14개), 트리거(`has_trigger`·`trigger_event_id`·`trigger_observed_at_ns`), 출동 구간(`has_dispatch`·`target_id`·`target_revision`·`route_revision`·`segment_index`·`segment_count`·`segment_phase`). Phase 1 은 AMR2 출동 대상이 한 번에 하나라 출동 구간을 이 snapshot 에 둔다. `segment_phase` 어휘는 `TargetEstimate.segment_phase` 와 같다. 조정기 내부 값(APPROVED·MOVING·AWAITING_APPROVAL·ARRIVED)은 노드 경계에서 EXECUTING·EXECUTING·AWAITING_APPROVAL·STOPPED 로 바꾼다. `mode` 는 SDD 대로 NORMAL/DISASTER/MISSION_FINISHED 이고, phase FINISHED 일 때 MISSION_FINISHED 다.
+  - 경로 증거(Phase 1): `EvaluateRoute`(IF-022) 가 2차라 planner 경로 증거가 없다. 그래서 `MOVE_SEGMENT` 는 운영자 `OperatorApproval(scope=ONE_SEGMENT)` 이 있을 때만, `REOBSERVE_TARGET` 은 정책의 고정 관측 지점이 있을 때만 경로 증거 없이 예약한다. `ExecuteTask.route` 에는 `approach_goal`(구간 끝 또는 관측 지점, 정책 값)만 싣고 `planned_path` 는 비우며, `planner_evidence_id`·`path_sha256` 은 빈 값이다. planner 가 낸 것처럼 보이는 값(통과 가능·도달 가능 등)은 만들지 않는다(AGENTS 실패 처리: 탐지값을 지어내지 않는다). 실제 경로 검증은 실행기 guard·Nav2 가 하고, 실패는 `TaskResult` FAILED 로 드러난다. `EvaluateRoute` 가 1차로 오면 이 예외를 없앤다.
+  - 경로 증거 없는 `route` 의 채우는 법(로봇·지도 제안 반영): `route.frame_ref` 는 필수이고 그 대상의 현재 지도 기준(map_session_id·map_revision·transform_revision, alignment VALID)과 같아야 하며, `approach_goal.header.frame_id == frame_ref.mission_frame` 이다. `route.assessment` 는 `status=UNKNOWN`, `width_known`·`height_known`·`floor_geometry_known` 모두 false 로 보낸다(빈 status 는 어휘 밖). `MOVE_SEGMENT` 의 승인 결속은 `approval` 의 route_id·route_revision·segment_index·robot_id·robot_boot_id·authority_epoch·valid_until_ns 가 goal·route 와 같을 때만 유효하다. path_sha256 이 비어 있으므로 `approach_goal` 이 바뀌면 route_revision 을 올리고, 이전 승인은 쓰지 않는다. `REOBSERVE_TARGET` 은 운영자 승인 대상이 아니라 `has_approval=false` 다. 운영자 `REQUEST_RECHECK` 는 명령 기록(C-11 10행)이지 `OperatorApproval` 이 아니다.
+  - 명령 lease(Phase 1, IF-014·046 `CommandLease`): 조정기는 task 마다 `lease_id` 를 만들어 `ExecuteTask.lease_id` 에 싣고, 그 task 가 끝나거나 재난 모드 해제·운영자 정지·로봇 상태 낡음·authority/generation 변경이 있을 때까지 `CommandLease` 를 주기 발행한다(같은 lease_id·robot_boot_id·authority_epoch·generation, `renewal_sequence` 증가). 실행기 ROS 입력은 goal 수락 때 `lease_id → command_id` 를 기록하고, 맞는 갱신마다 `Executor.renew(command_id, authority_epoch, generation, renewal_sequence)` 를 부른다. lease_id·boot_id 가 다르면 무시하고 로그를 남긴다. **lease 길이는 실행기 정책 파라미터**(`lease_duration`, 로봇 쪽, 기본값 없음)다. 갱신이 없을 때 얼마나 더 움직일지는 로봇이 자기 steady 시계로 정한다(C-03: 다른 PC 의 시각과 비교하지 않음). `CommandLease.valid_until_ns` 는 관제·로그용 정보이며 실행기의 정지 기한이 아니다. 조정기는 같은 `lease_duration` 값을 파라미터로 받아 갱신 주기가 그 절반 이하인지 기동 때 검사하고, 아니면 기동을 거부한다. 두 값의 출처를 하나로 묶는 것(배포 프로파일)은 후속이다.
 - 문자열·배열 길이 상한은 두지 않았다 [제안]. 실측 뒤 정한다.
 - 고정 카메라 감시(`SetCameraWatch`·`TargetPresence`·`CameraStatus`, 2026-10-10):
   - 재관측 트리거는 `SiteEvent(TARGET_DISAPPEARED_CANDIDATE)` 하나뿐이다. `TargetPresence` 의 소실 후보 상태(`ABSENT_CANDIDATE`)는 표시용이고 재관측이나 판정의 입력이 아니다. 같은 뜻의 주인을 둘 두지 않는다.
@@ -213,8 +219,35 @@ IDL 규칙:
   - Python DTO 는 아직 없다. 첫 소비자 PR 에서 `rescue_contracts` 에 넣는다. IDL 생성·import 를 변환 성공으로 보지 않는다.
   - `watch_id`·`watch_revision` 의 해석과 `SET_CAMERA_WATCH` → `SetCameraWatch` 변환 규칙은 SDD JSON 의 Rules 가 원본이다. 아래는 그 Rules 에 넣을 안이다 [제안, PM 반영 요청]. `watch_id` 는 (camera, target, ROI) 에 고정한다. `watch_revision` 은 카메라당 감시 칸의 교체 번호이고 0 은 비어 있음이다. 변환은 프로파일에서 `TARGET_WATCH` 카메라가 정확히 1대일 때만 한다.
 - 호환되지 않는 변경은 `Envelope.schema_version` 을 올린다. 버전 문자열 형식은 미정이다.
+- `SiteEvent`(2026-10-10 작전 결정): IDL 의 `visibility_state` 에 대응하는 Python 필드는 두지 않는다. SDD 확장표(394행)의 "visibility 필드 추가" 와 다른 의도적 차이다. `SiteEvent` 는 시야가 유효(VALID)한 판정에서만 만든다(BRD v0.2 3.5.2·3.5.3, SRD 6.1). 그래서 Python → ROS 경계는 `VISIBILITY_STATE_VALID` 만 쓰고, ROS → Python 경계는 VALID 가 아닌 값(빈 문자열 포함)을 `INVALID_INPUT` 으로 거절한다. 거절한 사건은 판정·출동·재관측에 넣지 않고 이유를 로그에 남긴다. 판단 보류(UNKNOWN)와 그 이유(지진 판정의 OCCLUDED·MATCH_FAILED·SCENE_CHANGED·QUADRANT_COVERED)는 `SiteEvent` 로 보내지 않는다. 대상 가림은 2차 `TargetPresence`(cam.presence), 영상 끊김은 2차 `CameraStatus`(cam.capture)가 맡는다. `target_id`·`watch_id` 는 IDL 에서 DISASTER_SIGN 일 때 빈 문자열이고 Python 에서는 None 이다. 소실 후보인데 비었거나 UUID 가 아니면 경계 모듈이 거절한다.
 
-2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, TargetEstimate·TargetSnapshot, SystemState, RescueReport, PrepareMapping, EvaluateRoute, EvaluatePassage.
+2차(미채택): FrameAlignmentSnapshot·FrameAlignment, SearchCandidates, CommandPermit, PrepareMapping, EvaluateRoute, EvaluatePassage.
+
+<a id="c-11"></a>
+
+## C-11. 소실 후보 → 재관측 → 구출 판정 연결 (카메라 1대, 2026-10-10)
+
+카메라 1대 결정(2026-10-09)으로 출구 카운트가 빠졌다. 그 자리를 고정 웹캠의 대상 소실 후보(`SiteEvent(kind=TARGET_DISAPPEARED_CANDIDATE)`)가 맡는다. 웹캠이 판정 불가(UNKNOWN)여서 후보를 낼 수 없을 때는 운영자가 영상을 보고 낸 재확인 지시(`REQUEST_RECHECK`)가 후보 자리를 맡는다(scope Q-26, 2026-10-11). 아래 10·11행이 그 규칙이다. 아래는 후보를 받아 SCOUT 재관측을 예약하고 구출 완료를 판정할 때 무엇으로 무엇을 잇는지의 계약이다. 판정 조건 자체는 [BRD v0.2](../requirements/brd-v0.2.md) 3.5.5(카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID)를 따른다. 정책 수치는 프로파일 값이고 여기에 쓰지 않는다. 후보를 받을지, 재관측을 어느 후보에 붙일지는 coordination 이 한 곳에서 정한다.
+
+| # | 항목 | 규칙 | 어기면 |
+| --- | --- | --- | --- |
+| 1 | `target_id` | coordination 의 발견 사건 UUID 이며, coordination 코드의 discovery `event_id` 와 같은 값이다(이름은 바꾸지 않는다). SET_CAMERA_WATCH, SetCameraWatch, 소실 후보, REOBSERVE_TARGET 의 goal, RecheckObservation, 판정이 모두 같은 값을 쓴다 | `INVALID_INPUT` |
+| 2 | `watch_id` | coordination 이 발급한다. 입력은 운영자 `SET_CAMERA_WATCH`(SubmitOperatorCommand, 1차)다. SetCameraWatch 요청을 보낼 때 기록하고, 카메라가 거절하면 지운다. (camera_id, target_id, ROI) 는 watch_id 에 고정이고, 바꾸려면 새 watch_id 를 쓴다. `watch_revision` 은 카메라 슬롯의 교체·해제 횟수일 뿐 같은 watch_id 를 다시 묶는 데 쓰지 않는다. 카메라당 ACTIVE watch 는 1개이고, 프로파일 `TARGET_WATCH` 역할 카메라에만 무장한다. watch 가 끝나는 때: 교체·해제, 대상 판정 종료, 후보 1건을 받거나 거절했을 때, 카메라 어댑터 재시작 | 같은 watch_id 에 다른 결합 → `ID_CONTENT_CONFLICT`(C-09 예외) |
+| 3 | 후보 `event_id` | 카메라 어댑터가 발급한다. 재전송은 같은 ID·같은 내용이다(C-02). 생산자는 watch 하나에 후보 하나만 낸다. event_id 검사(멱등·충돌)를 watch 상태 검사보다 먼저 한다 | 같은 ID·같은 내용 → 멱등(새 임무 없음). 같은 ID·다른 내용, 또는 같은 watch_id 에 다른 event_id → `ID_CONTENT_CONFLICT` |
+| 4 | 후보 수용 | 기록된 watch 가 있고, `camera_id`·`target_id` 가 그 watch 와 같고, `time_basis_declared` 가 참이다. `stamp_semantics` 는 CAPTURE 나 DRIVER_RECEIVE 를 실제 값대로 쓴다 | `CANDIDATE_NOT_LINKED`·`CANDIDATE_TIME_BASIS_UNUSABLE` → 출동하지 않는다. 그 watch 를 끝내고 "재무장 필요" 를 관제에 드러낸다 |
+| 5 | 재관측 `task_id` | 받은 후보마다 SCOUT 의 REOBSERVE_TARGET 을 자동 예약하고, `후보 event_id → {task_id}` 를 coordination 이 기록한다. 열린 재관측은 후보당 1개다. 결과가 COMPLETED 가 아니면 같은 후보로 새 task_id·generation 을 다시 예약한다. COMPLETED 뒤에는 운영자 `REQUEST_RECHECK`(SCOUT 지정)만 받고, 그 대상의 가장 최근 수용 후보에 연결한다. 후보 없이 들어온 재관측과 SUPPORT 의 재관측은 기록만 하고 판정 근거가 아니다. 접근 완료와 출구 카운트는 조건이 아니다 | 기록에 없는 task 의 재관측 → 7행 `CANDIDATE_NOT_LINKED` |
+| 6 | `target_revision` | 연결 키가 아니다. REOBSERVE goal 의 `target_estimate_revision` 과 같은 값이다(C-06) | — |
+| 7 | 판정 연결 | 판정은 coordination 기록에서 그 대상의 후보와 연결된 task_id 들을 받는다. 재관측은 task_id 별로 보관하고, 연결된 task 의 재관측만 판정에 쓴다. 연결되지 않은 재관측은 판정 근거의 버전을 올리지 않는다. 확정 조건: 그 후보, `candidate.target_id == target_id`, 재관측 task 가 연결 목록에 있음, 로봇이 SCOUT, frame_ref 의 map session·revision 이 맞고 정렬 VALID, 카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID. 판정 기록에는 쓴 후보 event_id 와 재관측 observation_id 를 남긴다 | `CANDIDATE_NOT_LINKED` 등 → `RECHECK_NEEDED` |
+| 8 | 시각 순서 (C-03) | 비교하려면 후보와 재관측 모두 시간 기준이 선언돼 있고(UNKNOWN 아님, SYNCED, 오차 있음), `clock_domain_id` 가 같고, 오차 합이 정책 상한 이하여야 한다. 같은 `clock_domain_id` 는 설정만으로 주지 않는다. 같은 chrony 기준에 동기화했고, 그 호스트의 SYNCED 상태와 오차 상한을 측정해 기록했을 때만 같은 값을 쓴다 [제안, #76 CDX-76-03]. 측정 전에는 시간 기준을 UNKNOWN 또는 오차 None 으로 둔다. 순서: `sensor_window_start_ns − candidate.observed_at_ns > 오차 합`. LiDAR 는 같은 관측 창 안이라 따로 검사하지 않는다. watch_id·task_id 의 인과 순서로 이 검사를 대신하지 않는다 | 비교할 수 없음 → `CANDIDATE_TIME_BASIS_UNUSABLE`. 순서 위반 → `ORDER_VIOLATION` |
+| 9 | IDL ↔ Python | `SiteEvent` 는 C-10 의 규칙을 따른다. RecheckObservation + TaskResult → 판정 입력: `camera_state` PRESENT/ABSENT/UNKNOWN → 사람 있음 True/False/None, `lidar_state` BLOCKED/CLEAR/UNKNOWN → 장애물 True/False/None, `coverage_state` VALID/INVALID/UNKNOWN → 시야·깊이·스캔 범위가 모두 True/False/None. LiDAR 시각·clock 은 `RecheckObservation.time` 이다. 시간 기준이 UNKNOWN 이거나 오차가 없으면 오차를 None 으로 둔다 | 변환 실패 → `INVALID_INPUT`, 로그. 대체값을 쓰지 않는다 |
+| 10 | 운영자 재확인 지시: 경로 선택·연결·응답 (Q-26) | `SubmitOperatorCommand(operation=REQUEST_RECHECK)` 는 `target_id`(1행과 같은 값)가 있어야 한다. coordination 은 이 순서로 검사한다. ① `command_id` 먼저: 같은 ID·같은 내용이면 `DUPLICATE` 로 처음 응답의 `accepted`·`created_task_id` 를 그대로 돌려준다(그 뒤 대상이 완료됐어도 같다). ② 대상: 기록에 없거나 이미 판정이 끝난 대상이면 거절. ③ 열린 재관측: 그 대상에 어느 경로로든 열린 재관측이 있으면 거절하고, 열린 task 의 연결·출처는 바꾸지 않는다. ④ 경로 선택: 그 대상에 수용된 카메라 후보가 하나라도 있으면 5행대로 가장 최근 수용 후보에 연결하고 8행 검사를 쓴다(출처 `CAMERA`). 수용된 후보가 하나도 없을 때만 운영자 경로다. `command_id` 를 3행 후보 `event_id` 자리에 두고 `command_id → {task_id}` 를 기록하며, 시각은 11행으로 검사한다(출처 `OPERATOR`). 수락하면 `accepted=true`·`ACCEPTED`·`created_task_id`=새 task 이고, 거절하면 `accepted=false`·`REJECTED`·`created_task_id` 빈 값이다. 운영자 경로 task 가 열린 동안 카메라 후보가 오면 후보는 기록만 하고 재관측을 새로 열지 않는다. 그 task 가 끝나고 `RESCUE_CONFIRMED` 가 아니면 5행대로 그 후보의 재관측을 예약한다. 한 판정은 한 경로의 근거만 쓴다. 운영자 경로의 재관측을 카메라 후보의 근거로 옮겨 쓰지 않는다. 판정 기록에는 7행의 후보 event_id 대신 `command_id` 와 출처 `OPERATOR` 를 남긴다. 운영자 판단은 웹캠 판정이 아니다. 카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID(7·9행)는 그대로 모두 필요하다 | `target_id` 없음 → `INVALID_INPUT`. 모르는 대상 → `NOT_FOUND`. 판정이 끝난 대상 → `INVALID_INPUT`. 열린 재관측 있음 → `TASK_BUSY`. 같은 command_id·다른 내용 → `ID_CONTENT_CONFLICT`. 모두 `REJECTED` 이고 출동하지 않는다 |
+| 11 | 운영자 경로의 시각 순서 (C-03) | 8행과 같은 시간 기준 조건을 쓴다(양쪽 시간 기준 선언, SYNCED, 오차 있음, 같은 `clock_domain_id`, 오차 합이 정책 상한 이하). 후보 `observed_at_ns` 대신 coordination 이 지시를 수락한 시각 `accepted_at_ns` 를 쓴다. coordination 은 이 시각을 자기 호스트의 `clock_domain_id`·오차와 함께 기록한다. 순서: `sensor_window_start_ns − accepted_at_ns > 오차 합`. 지시 전에 취득해 버퍼에 있던 프레임·스캔과 늦게 도착한 이전 샘플은 이 검사로 빠진다. task 예약 순서나 명령 순서로 이 검사를 대신하지 않는다. 관측자는 `ObserveTarget` goal 을 받고 정지를 확인한 뒤 취득한 샘플로만 창을 만든다(SDD ObserveTarget Rules 의 "새 관측 창"을 운영자 경로에서는 지시 수락 이후로 읽는다). 관측 나이·품질 조건(7·9행, C-03)은 그대로다. 구현 시험(인식·협업·관제): 지시 전 프레임·스캔을 재사용하면 거절 | 비교할 수 없음 → `CANDIDATE_TIME_BASIS_UNUSABLE`. 순서 위반 → `ORDER_VIOLATION`. 둘 다 `RECHECK_NEEDED` |
+
+남은 의존 (2026-10-10, 10·11행은 2026-10-11):
+- 11행도 8행과 같은 시간 기준이 필요하다. 아래 시각 오차 상한(Q-06)이 없으면 운영자 경로도 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다.
+- 10행의 운영자 경로는 관제 웹에 "웹캠 판정 불가 + 인형 안 보임" 알림과 그 대상의 재확인 지시 버튼이 있어야 쓸 수 있다(관제·화면). `REQUEST_RECHECK` 는 1차 IDL 에 있어 IDL 변경은 없다.
+- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 #77 로 1차가 됐다(2026-10-11). 남은 것은 ROI 출처(#76)와 카메라 노드·coordinator 의 watch 생명주기 구현이다.
+- 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
 
 ## 고정 원본에서 가져온 계약 근거
 
