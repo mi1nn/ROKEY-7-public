@@ -150,9 +150,11 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 ## KPI-04 측정 (표시 지연 3초)
 
 - **정의:** 지연 = 브라우저가 그 이벤트 행을 처음 그린 시각 − 이벤트 시각(`observed_at_ns`). 이벤트 시각은 로봇·카메라 시계, 표시 시각은 브라우저 PC 시계라 **두 시계가 맞을 때만**(C-03, 같은 시계 영역 또는 동기화 오차 안) 의미가 있다. 행마다 시계 영역(`clock_domain_id`)을 같이 보인다.
-- **기록 위치:** 이벤트 표에 이벤트 시각·장부 기록 시각(`received_at_ns`)·화면 표시 시각·지연을 같이 둔다. 브라우저 `window.kpi04` 배열에 `{ref_id, event_ns, rendered_ms}` 가 처음 그린 순서대로 쌓인다(개발자 도구에서 `copy(JSON.stringify(kpi04))`). 서버 집계 시각은 `data-built-ns` 에 있다.
+- **기록 위치:** 이벤트 표에 이벤트 시각·장부 기록 시각(`received_at_ns`)·화면 표시 시각·지연을 같이 둔다. 브라우저 `window.kpi04` 배열에 행을 처음 그린 순서대로 `{ref_id, kind, clock_domain_id, event_ns, received_at_ns, rendered_ms, latency_s, live}` 가 쌓인다. 서버 집계 시각은 `data-built-ns` 에 있다.
+- **실시간 사건만 센다:** 페이지를 열 때 이미 있던 행은 지난 기록이라 `live: false` 이고 요약에서 뺀다. 페이지를 연 뒤 새로 나타난 행만 `live: true` 다.
+- **요약과 저장:** 오른쪽 위에 「KPI-04: 실시간 사건 n건 중 3초 이내 m건, 최대 x」가 보인다. 모두 3초(`render.KPI04_BUDGET_S`) 이내면 초록, 하나라도 넘으면 빨강이다. 「지연 기록 저장」을 누르면 같은 기록을 CSV(`kpi04-<시각>.csv`)로 내려받는다. 파일은 브라우저 안에서 만들고 서버로는 아무것도 보내지 않는다. 시험 회차가 끝나면 이 파일을 증거로 남긴다.
 - **폴링:** 브라우저가 `POLL_INTERVAL_MS = 1000` 마다 `GET fragment` 를 받아 바꾼다. 3초 예산 중 폴링 대기 최대 1초, 나머지가 장부 기록·읽기·전송이다. 갱신이 실패하면 화면 위에 「갱신 실패 — 표시 값이 낡았을 수 있음」을 띄운다.
-- 지연 구간 나누기: 이벤트 → 장부 기록(`received_at_ns − event_ns`, 장부 PC 시계) / 장부 기록 → 화면(`rendered − received_at_ns`, 화면과 장부가 같은 PC 일 때). 자동 측정 스크립트는 후속이다.
+- 지연 구간 나누기: 이벤트 → 장부 기록(`received_at_ns − event_ns`, 장부 PC 시계) / 장부 기록 → 화면(`rendered_ms − received_at_ns`, 화면과 장부가 같은 PC 일 때). CSV 에 두 시각이 다 있어 회차 뒤에 나눠 볼 수 있다. 현장 사건 행은 `received_at_ns` 가 비어 있다(`read_site_events` 가 돌려주지 않음, 협업·관제 요청 중).
 
 ## 운영자 명령 (자리만)
 
@@ -170,5 +172,5 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 
 - 하지 않음: 운영 장부 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
-- 후속: 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), KPI-04 자동 측정, 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
+- 후속: 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
 - 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.

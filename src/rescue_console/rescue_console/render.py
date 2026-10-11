@@ -11,6 +11,8 @@ from .view import STAGES
 # Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
 # ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
 POLL_INTERVAL_MS = 1000
+# KPI-04 budget: event time -> shown on the operator screen (BRD v0.1 KPI-04, 3 s).
+KPI04_BUDGET_S = 3.0
 MISSING = '—'
 # Map marker sizes in map pixels (0.05 m/px for the pre-quake map): robot arrow half-width and
 # nose length, victim V half-width. Display only ([제안] 관제·화면, 2026-10-10).
@@ -308,7 +310,8 @@ def _events(view):
     for event in view['events']:
         rows.append(
             f'<tr class="event {event["kind"].lower()}" data-ref="{escape(event["ref_id"])}" '
-            f'data-event-ns="{event["event_ns"]}">'
+            f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
+            f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}">'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
             f'<td class="kind">{_word("event", event["kind"])}</td>'
             f'<td>{escape(event["source"])}</td><td>{_short(event["subject"])}</td>'
@@ -394,13 +397,17 @@ dl{margin:0}
 .band.disaster{background:var(--signal);border-color:var(--signal);color:#fff}
 .band.disaster dt,.band.disaster .mode-note,.band.disaster #built{color:#ffd9de}
 .band.unknown .mode-word{color:var(--pending)}
-#topbar{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:8px 12px;background:var(--panel);
-  border:1px solid var(--rule)}
-#topbar .who{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:6px 10px;
+  padding:8px 12px;background:var(--panel);border:1px solid var(--rule)}
+#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#topbar .kpi{grid-column:1/-1;grid-row:2}
 #poll{font-size:13px;display:flex;gap:6px;align-items:center}
 #poll::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--safe)}
 #poll.lost{color:var(--signal);font-weight:700} #poll.lost::before{background:var(--signal)}
 #poll.wait::before{background:var(--pending)}
+#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:700}
+.mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
 
 /* ---- warnings ---- */
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
@@ -556,7 +563,11 @@ function stamp() {
     const ref = row.dataset.ref, eventMs = Number(row.dataset.eventNs) / 1e6;
     if (!firstSeen.has(ref)) {
       firstSeen.set(ref, now);
-      window.kpi04.push({ref_id: ref, event_ns: row.dataset.eventNs, rendered_ms: now});
+      // live: the row arrived while this page was open. Rows already there at load are history,
+      // not display latency, and stay out of the KPI-04 summary.
+      window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
+                         event_ns: row.dataset.eventNs, received_at_ns: row.dataset.receivedNs || '',
+                         rendered_ms: now, latency_s: (now - eventMs) / 1000, live: loaded});
     }
     const shown = firstSeen.get(ref);
     row.dataset.renderedMs = shown;
@@ -566,6 +577,36 @@ function stamp() {
     row.classList.toggle('fresh', loaded && now - shown < FRESH_MS);
   }
   loaded = true;
+  kpiSummary();
+}
+function kpiSummary() {
+  const el = document.getElementById('kpi');
+  if (!el) return;
+  const live = window.kpi04.filter(r => r.live);
+  if (!live.length) {
+    el.className = '';
+    el.textContent = 'KPI-04: 페이지를 연 뒤 들어온 사건 없음';
+    return;
+  }
+  const within = live.filter(r => r.latency_s <= KPI_BUDGET_S).length;
+  const worst = Math.max(...live.map(r => r.latency_s));
+  el.className = within === live.length ? 'ok' : 'over';
+  el.textContent = 'KPI-04: 실시간 사건 ' + live.length + '건 중 ' + KPI_BUDGET_S + '초 이내 ' + within + '건, 최대 ' + age(worst);
+}
+function csvCell(value) {
+  const text = String(value);
+  return /[",\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+// Saves the records as a CSV file in the browser (Blob); nothing is sent to the server.
+function saveKpi() {
+  const keys = ['ref_id', 'kind', 'clock_domain_id', 'event_ns', 'received_at_ns', 'rendered_ms', 'latency_s', 'live'];
+  const lines = window.kpi04.map(r => keys.map(k => csvCell(k === 'latency_s' ? r[k].toFixed(3) : r[k])).join(','));
+  const url = URL.createObjectURL(new Blob([[keys.join(',')].concat(lines).join('\\n') + '\\n'], {type: 'text/csv'}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'kpi04-' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 // The tab title carries the state too, so a background tab still says 재난 or 갱신 끊김.
 function title(lost) {
@@ -608,6 +649,7 @@ async function poll() {
     pollStatus(false, error.message);
   }
 }
+document.getElementById('kpi-save').addEventListener('click', saveKpi);
 stamp();
 pollStatus(true);
 timer = setInterval(poll, POLL_MS);
@@ -683,9 +725,12 @@ def render_failure(code, message):
 
 def render_page(view, user=None, csrf=None, cameras=()):
     """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments."""
-    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
+    script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
     return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
+            + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
+            'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
+            '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
             + f'<aside id="side">{_cameras(cameras)}{_commands(view)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'

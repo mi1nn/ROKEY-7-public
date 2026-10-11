@@ -58,10 +58,14 @@ class CommandPlaceholderTests(LedgerFixture):
     def test_page_buttons_are_disabled_and_page_has_no_write_path(self):
         html = render_page(self.view())
         buttons = re.findall(r'<button[^>]*>', html)
-        self.assertEqual(len(buttons), len(COMMANDS))
-        for button in buttons:
+        commands = [b for b in buttons if 'data-command=' in b]
+        self.assertEqual(len(commands), len(COMMANDS))
+        for button in commands:
             self.assertIn(' disabled', button)
             self.assertNotIn('onclick', button)
+        # The only other button saves the KPI-04 records in the browser.
+        self.assertEqual([b for b in buttons if 'data-command=' not in b],
+                         ['<button type="button" id="kpi-save" class="mini">'])
         self.assertNotIn('<form', html)
         self.assertNotRegex(html, r"(?i)method\s*[:=]\s*['\"]?(post|put|delete)")
         self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
@@ -166,6 +170,24 @@ class PageTests(LedgerFixture):
         rescued_icon = re.search(r'<svg class="vicon rescued".*?</svg>', html).group(0)
         self.assertIn('<line', rescued_icon)
         self.assertNotIn('<line', re.search(r'<svg class="vicon not_rescued".*?</svg>', html).group(0))
+
+    def test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing(self):
+        html = render_page(self.view())
+        self.assertIn('id="kpi"', html)
+        self.assertIn('live: loaded', html)                       # rows present at load are history
+        self.assertIn('r.latency_s <= 3)', html)                  # KPI-04 budget substituted
+        self.assertNotIn('KPI_BUDGET_S', html)
+        self.assertIn('new Blob(', html)                          # saved in the browser
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+
+    def test_event_rows_carry_what_the_kpi04_file_needs(self):
+        view = self.view()
+        html = render_fragment(view)
+        for event in view['events']:
+            row = re.search(r'<tr class="event[^>]*data-ref="%s"[^>]*>' % re.escape(event['ref_id']), html).group(0)
+            self.assertIn(f'data-kind="{event["kind"]}"', row)
+            self.assertIn(f'data-clock="{event["clock_domain_id"]}"', row)
+            self.assertIn(f'data-received-ns="{event["received_at_ns"] or ""}"', row)
 
     def test_failure_page_says_what_to_check_and_retries(self):
         html = render_failure('STORAGE_ERROR', 'ledger read failed: <unable to open>')
