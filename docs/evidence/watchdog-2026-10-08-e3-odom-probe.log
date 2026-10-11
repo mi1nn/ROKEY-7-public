@@ -1,0 +1,2 @@
+{'domain': 42, 'robot_a.motion': 'STOPPED', 'robot_b.motion': 'MOVING', 'robot_a.last_sample': True, 'robot_b.last_sample': True, 'unusable': {'robot_a': 0, 'robot_b': 0}}
+E3 odom probe: PASSED

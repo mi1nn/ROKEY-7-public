@@ -1,9 +1,9 @@
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 --version
+$ <PYTHON312>/bin/python3 --version
 Python 3.12.14
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m pip wheel --no-deps --no-build-isolation --no-index --no-cache-dir --wheel-dir /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_robot /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_perception /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_coordination /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_mapping /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_operations /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/src/rescue_bringup
+$ <PYTHON312>/bin/python3 -m pip wheel --no-deps --no-build-isolation --no-index --no-cache-dir --wheel-dir <REPO>/.artifacts/python312-corrected/wheels <REPO>/src/rescue_robot <REPO>/src/rescue_perception <REPO>/src/rescue_coordination <REPO>/src/rescue_mapping <REPO>/src/rescue_operations <REPO>/src/rescue_bringup
 Processing ./src/rescue_robot
   Preparing metadata (pyproject.toml): started
   Preparing metadata (pyproject.toml): finished with status 'done'
@@ -26,36 +26,36 @@ Building wheels for collected packages: rescue_robot, rescue_perception, rescue_
   Building wheel for rescue_robot (pyproject.toml): started
   Building wheel for rescue_robot (pyproject.toml): finished with status 'done'
   Created wheel for rescue_robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=3361 sha256=8430db87c48ba2f2a061caebc087677a4ea2e74f386d76349d95173680c9bf2c
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/e1/2e/b7/4192aa8b95079576254a55686ad57d49cde8093d496abd96f6
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/e1/2e/b7/4192aa8b95079576254a55686ad57d49cde8093d496abd96f6
   Building wheel for rescue_perception (pyproject.toml): started
   Building wheel for rescue_perception (pyproject.toml): finished with status 'done'
   Created wheel for rescue_perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=3524 sha256=80ffe8ba92311f61b4313c8210fc2fe090ac7c7d1fa16b144a0aa1426df0cc27
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/a4/91/34/30e35d8343a4fb7fb66e6b2323471fc3d06d790577c4cecec2
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/a4/91/34/30e35d8343a4fb7fb66e6b2323471fc3d06d790577c4cecec2
   Building wheel for rescue_coordination (pyproject.toml): started
   Building wheel for rescue_coordination (pyproject.toml): finished with status 'done'
   Created wheel for rescue_coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=3623 sha256=a4e52842128d729fd00d23e4737e902753ad6e8941dfa5841f7547ab8a64fceb
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/ad/e7/38/a616f5073d49afbff7caf96d1947a2c7caca5b3b7c3fad1c5a
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/ad/e7/38/a616f5073d49afbff7caf96d1947a2c7caca5b3b7c3fad1c5a
   Building wheel for rescue_mapping (pyproject.toml): started
   Building wheel for rescue_mapping (pyproject.toml): finished with status 'done'
   Created wheel for rescue_mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=3429 sha256=808805f669f633c61006f0d779ccb06ef613b1563d39f8d770187e45ff6e3767
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/56/cc/5e/59ceb0270d19e75a2899715e2d89de1285c0f3ae87638a1d10
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/56/cc/5e/59ceb0270d19e75a2899715e2d89de1285c0f3ae87638a1d10
   Building wheel for rescue_operations (pyproject.toml): started
   Building wheel for rescue_operations (pyproject.toml): finished with status 'done'
   Created wheel for rescue_operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=3436 sha256=e3cfc62480c8472f00356d4376cc1c3b994a543dc21829c2489f18b2e2ea0ed0
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/4c/a2/15/b845ad895b6bfaf43ca437503c88694060ced8109b6e2f4d33
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/4c/a2/15/b845ad895b6bfaf43ca437503c88694060ced8109b6e2f4d33
   Building wheel for rescue_bringup (pyproject.toml): started
   Building wheel for rescue_bringup (pyproject.toml): finished with status 'done'
   Created wheel for rescue_bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=7303 sha256=56e464e901f5c0f13c7c0019351dfeeabae82523e9f1d3a2752f06066b977402
-  Stored in directory: /private/var/folders/n3/vgh_31mx27z4vk9zy1l80c6r0000gn/T/pip-ephem-wheel-cache-hp056ye8/wheels/ec/9f/08/55511b32cccba6baeee6e3700894e2341ce78b8d30376edba5
+  Stored in directory: <TMPDIR>/pip-ephem-wheel-cache-hp056ye8/wheels/ec/9f/08/55511b32cccba6baeee6e3700894e2341ce78b8d30376edba5
 Successfully built rescue_robot rescue_perception rescue_coordination rescue_mapping rescue_operations rescue_bringup
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m venv /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv
+$ <PYTHON312>/bin/python3 -m venv <REPO>/.artifacts/python312-corrected/venv
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/python -m pip install --no-index --no-deps --no-cache-dir /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_bringup-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_coordination-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_mapping-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_operations-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_perception-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/wheels/rescue_robot-0.0.0-py3-none-any.whl
+$ <REPO>/.artifacts/python312-corrected/venv/bin/python -m pip install --no-index --no-deps --no-cache-dir <REPO>/.artifacts/python312-corrected/wheels/rescue_bringup-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312-corrected/wheels/rescue_coordination-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312-corrected/wheels/rescue_mapping-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312-corrected/wheels/rescue_operations-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312-corrected/wheels/rescue_perception-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312-corrected/wheels/rescue_robot-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312-corrected/wheels/rescue_bringup-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312-corrected/wheels/rescue_coordination-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312-corrected/wheels/rescue_mapping-0.0.0-py3-none-any.whl
@@ -67,7 +67,7 @@ Successfully installed rescue-bringup-0.0.0 rescue-coordination-0.0.0 rescue-map
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/python -I -c import importlib, pathlib, sys
+$ <REPO>/.artifacts/python312-corrected/venv/bin/python -I -c import importlib, pathlib, sys
 packages = ["rescue_robot", "rescue_perception", "rescue_coordination", "rescue_mapping", "rescue_operations", "rescue_bringup"]
 for name in packages:
     origin = pathlib.Path(importlib.import_module(name).__file__).resolve()
@@ -86,7 +86,7 @@ rclpy not imported
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/check_deployment config/deployment.example.json
+$ <REPO>/.artifacts/python312-corrected/venv/bin/check_deployment config/deployment.example.json
 STATIC CONFIG VALID: review_example; 2 robots; 4 hosts (2 high, 2 mid)
 robot_a: namespace=/robot_a, command_host=compute_a
 robot_b: namespace=/robot_b, command_host=compute_b
@@ -95,24 +95,24 @@ Runtime is disabled. No hardware, ROS graph, timing or safety validation was per
 
 exit=0; expected=0
 REGRESSION CASE: overlong_integer
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/check_deployment /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/installed-run/overlong_integer/config/deployment.example.json
+$ <REPO>/.artifacts/python312-corrected/venv/bin/check_deployment <REPO>/.artifacts/python312-corrected/installed-run/overlong_integer/config/deployment.example.json
 
-INVALID: cannot read JSON configuration /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/installed-run/overlong_integer/config/deployment.example.json: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit
+INVALID: cannot read JSON configuration <REPO>/.artifacts/python312-corrected/installed-run/overlong_integer/config/deployment.example.json: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit
 
 exit=2; expected=2
 REGRESSION CASE: nul_parameter_path
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/check_deployment /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/installed-run/nul_parameter_path/config/deployment.example.json
+$ <REPO>/.artifacts/python312-corrected/venv/bin/check_deployment <REPO>/.artifacts/python312-corrected/installed-run/nul_parameter_path/config/deployment.example.json
 
 INVALID: parameters_file cannot be resolved: 'bad\x00.json'
 
 exit=2; expected=2
 REGRESSION CASE: nul_input_path
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/python -I -c from rescue_bringup.cli import main; raise SystemExit(main(["bad\x00.json"]))
+$ <REPO>/.artifacts/python312-corrected/venv/bin/python -I -c from rescue_bringup.cli import main; raise SystemExit(main(["bad\x00.json"]))
 
 INVALID: profile cannot be resolved: PosixPath('bad\x00.json')
 
 exit=2; expected=2
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312-corrected/venv/bin/python -I -m unittest discover -s /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/tests -v
+$ <REPO>/.artifacts/python312-corrected/venv/bin/python -I -m unittest discover -s <REPO>/tests -v
 
 test_cli_distinguishes_static_validation_from_runtime (test_profile.DeploymentProfileTests.test_cli_distinguishes_static_validation_from_runtime) ... ok
 test_cli_rejects_nul_input_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_input_path_without_traceback) ... ok

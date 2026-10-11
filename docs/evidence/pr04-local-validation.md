@@ -2,6 +2,8 @@
 
 **과거 검증 기록:** 이 문서와 `pr04-corrected-artifact-hashes.json`은 2026-10-07 초안 및 최초 PR 4 코드의 이력이다. 2026-10-08 CLA-14~16 반영으로 소스가 달라졌으므로 여기에 기록한 해시·시험 수를 현재 코드의 검증 결과로 사용하지 않는다. 새 검증은 [2026-10-08 리뷰 수정 기록](pr04-review-2026-10-08.md)에 둔다. 과거 로그와 해시 파일은 덮어쓰지 않았다.
 
+**경로 표기(2026-10-10, #12):** 로그 5개(`pr04-corrected-installed-python312.log`, `pr04-installed-cli-python312.log`, `pr04-regression-tests-before.log`, `pr04-valueerror-before.log`, `pr04-wheel-python312.log`)의 개인 작업 사본·번들 Python·임시 경로만 `<REPO>`/`<PYTHON312>`/`<TMPDIR>`로 바꿨다. 명령·출력·결과·종료 코드는 그대로다. 그래서 이 다섯 파일은 처음 남긴 바이트와 다르다. 다섯 파일의 해시를 기록한 곳은 없다(저장소 전체에서 sha256 검색, 0건).
+
 날짜: 2026-10-07 KST. 대상: `work/pr04-draft`의 새 구현. 이 기록은 아직 Git SHA가 부여되기 전 초안에서 수행한 검사다. PR에 옮긴 뒤 실제 head SHA에서 재검증한다.
 
 첫 환경: Python 3.11.8. `pytest`, `yaml` 모듈은 발견됐고 `rclpy`는 발견되지 않았다. 후속 검증에는 wheel·setuptools가 이미 설치된 bundled Python 3.12.14를 사용했다. 순수 로직과 테스트는 표준 라이브러리만 사용한다. ROS 설치나 로봇 연결은 시도하지 않았다.

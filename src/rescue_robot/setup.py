@@ -17,5 +17,6 @@ setup(
     maintainer_email="maintainer@example.invalid",
     description='로봇별 명령·취소·정지 판정 Python 코어와 Nav2 명령 어댑터(ROS 경계는 ros_node).',
     license="LicenseRef-Unspecified",
-    entry_points={"console_scripts": ["command_adapter = rescue_robot.ros_node:main"]},
+    entry_points={"console_scripts": ["command_adapter = rescue_robot.ros_node:main",
+                                       "command_watchdog = rescue_robot.watchdog_node:main"]},
 )
