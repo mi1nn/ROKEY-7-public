@@ -21,7 +21,8 @@ RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT
 MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
 ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
 without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
-generation as the goal, renewal_sequence strictly rising, none after its result.
+generation as the goal, renewal_sequence strictly rising, none after its result; 9. a
+RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals.
 Exit code 0 = all held.
 """
 import os
@@ -74,6 +75,8 @@ class FakeExecutor(Node):
         self.command = self.create_client(SubmitOperatorCommand, '/rescue/operator_command')
         self.create_subscription(RescueReport, '/rescue/reports', self.reports.append, 10)
         self.create_subscription(CommandLease, f'/rescue/robots/{SCOUT}/command_lease', self.leases.append, 10)
+        self.create_subscription(CommandLease, f'/rescue/robots/{SUPPORT}/command_lease', self.leases.append, 10)
+        self.active, self.stop_reason = {SCOUT: '', SUPPORT: ''}, {SCOUT: '', SUPPORT: ''}
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
@@ -90,7 +93,10 @@ class FakeExecutor(Node):
                                   robot_boot_id=goal.expected_robot_boot_id, authority_epoch=goal.authority_epoch,
                                   generation=goal.generation, accepted=True, admission_id=str(uuid4()))
         self.admission[goal.robot_id].publish(admission)
-        time.sleep(1.)  # let the admission and a few lease renewals land before the result
+        self.active[goal.robot_id] = goal.task_id
+        # Let the admission and a few lease renewals land; the SUPPORT segment runs long enough for check 9.
+        time.sleep(4. if goal.robot_id == SUPPORT else 1.)
+        self.active[goal.robot_id] = ''
         handle.succeed()
         result = ExecuteTask.Result()
         result.result.task_id, result.result.outcome, result.result.stop_confirmed = goal.task_id, 'COMPLETED', True
@@ -99,7 +105,9 @@ class FakeExecutor(Node):
     def publish_status(self):
         for robot, pub in self.status.items():
             pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY', lease_valid=True,
-                                    observed_at_ns=self.get_clock().now().nanoseconds))
+                                    observed_at_ns=self.get_clock().now().nanoseconds,
+                                    active_task_id=self.active[robot], stop_reason=self.stop_reason[robot],
+                                    motion_state='MOVING' if self.active[robot] else 'STOPPED'))
 
     def publish_location(self):
         msg = TargetLocation(location_id=str(uuid4()), projection_status='VALID')
@@ -208,6 +216,16 @@ def main():
                 g.approval.scope, g.route.assessment.status, g.route.planner_evidence_id, len(g.route.planned_path.poses),
                 g.route.approach_goal.pose.position.x, g.route.frame_ref.alignment_status) == (
                 True, g.task_id, 'MOVE_SEGMENT', SUPPORT, True, True, 'ONE_SEGMENT', 'UNKNOWN', '', 0, 1.0, 'VALID')
+            if g:
+                wait(executor, lambda: False, 1.0, probe.publish_status)
+                renewed = [l for l in probe.leases if l.lease_id == g.lease_id]
+                probe.stop_reason[SUPPORT] = 'OPERATOR_STOP'
+                wait(executor, lambda: False, 0.5, probe.publish_status)
+                before = len([l for l in probe.leases if l.lease_id == g.lease_id])
+                wait(executor, lambda: False, 1.0, probe.publish_status)
+                after = len([l for l in probe.leases if l.lease_id == g.lease_id])
+                checks['stop_reason in RobotStatus -> no further renewals'] = len(renewed) >= 2 and before == after
+                probe.stop_reason[SUPPORT] = ''
             waiting = wait(executor, lambda: probe.states and probe.states[-1].phase == 'AWAITING_CONTINUE', 10,
                            probe.publish_status)
             wait(executor, lambda: False, 2, probe.publish_status)

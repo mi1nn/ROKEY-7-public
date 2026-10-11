@@ -50,6 +50,7 @@ REASON_CODES = {
 # The robot that a command may name (empty = not named).
 COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
+STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
                         'ARRIVED': 'STOPPED'}
@@ -220,6 +221,8 @@ class CoordinatorCore:
         self.state_sequence, self.last_state = 0, None
         self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
         self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
+        self.status_arrivals = 0
+        self.status_detail = {}  # robot_id -> (arrival, stop_reason, motion_state, lease_valid, active_task_id)
         self.status = {}         # robot_id -> latest RobotStatus fields used here
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
         self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
@@ -237,11 +240,16 @@ class CoordinatorCore:
         if msg.robot_id not in self.roles.values():
             raise CoordinationError('WRONG_ROBOT', 'status from a robot outside the policy')
         self.status[msg.robot_id] = (msg.robot_boot_id, msg.readiness, bool(msg.lease_valid), msg.observed_at_ns)
+        self.status_arrivals += 1  # arrival order at this node; no clock comparison
+        self.status_detail[msg.robot_id] = (self.status_arrivals, msg.stop_reason, msg.motion_state,
+                                            bool(msg.lease_valid), msg.active_task_id)
 
     def on_admission(self, msg):
         admission = admission_from_msg(msg)
         admitted = self.search.record_admission(admission)
         meta = self.task_meta.get(admission.task_id)
+        if admitted and admission.accepted and admission.task_id in self.leases:
+            self.leases[admission.task_id]['admitted_after'] = self.status_arrivals
         if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
             self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
                                          route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
@@ -513,7 +521,7 @@ class CoordinatorCore:
         self.leases[fields['task_id']] = dict(
             lease_id=lease_id, robot_id=fields['robot_id'], robot_boot_id=fields['robot_boot_id'],
             authority_epoch=fields['authority_epoch'], generation=fields['generation'], renewal_sequence=0,
-            next_ns=None)
+            next_ns=None, admitted_after=None)
         self.outbox.append(fields)
 
     def leases_due(self, now_ns):
@@ -531,7 +539,7 @@ class CoordinatorCore:
             state = self.status.get(lease['robot_id'])
             fresh = (state is not None and state[3] <= now_ns and now_ns - state[3] <= self.status_max_age_ns
                      and state[0] == lease['robot_boot_id'])
-            if (item is None or self.mission.mode != 'DISASTER' or not fresh
+            if (item is None or self.mission.mode != 'DISASTER' or not fresh or self._robot_stopped(task_id, lease)
                     or (item.authority_epoch, item.generation) != (lease['authority_epoch'], lease['generation'])):
                 del self.leases[task_id]
                 continue
@@ -544,6 +552,22 @@ class CoordinatorCore:
                             generation=lease['generation'], renewal_sequence=lease['renewal_sequence'],
                             issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_ns))
         return due
+
+    def _robot_stopped(self, task_id, lease):
+        """Supporting rule (작전 2026-10-11): never extend a stopped robot's lease; the stop is the executor latch.
+
+        A status naming this task with a stop reason, a stopping motion or an
+        invalid lease stops renewal; so does a status that arrived after the
+        admission and names another task. Statuses before the admission (no
+        active task yet, or a previous task's stop reason) do not cut a new lease.
+        """
+        detail = self.status_detail.get(lease['robot_id'])
+        if detail is None:
+            return False
+        arrival, stop_reason, motion_state, lease_valid, active_task_id = detail
+        if active_task_id == task_id:
+            return bool(stop_reason) or motion_state in STOPPING_MOTION or not lease_valid
+        return lease['admitted_after'] is not None and arrival > lease['admitted_after']
 
     def _forget(self, task_id):
         kind, key = self.task_meta.pop(task_id)
