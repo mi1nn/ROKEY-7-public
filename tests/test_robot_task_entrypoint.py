@@ -1,5 +1,7 @@
 """Installed entrypoint validation without importing ROS at module import time."""
 import sys
+import runpy
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -9,6 +11,19 @@ from rescue_robot.task_input_node import resolve_factory, main, attach_configure
 
 
 class EntryPointTests(unittest.TestCase):
+    def test_existing_launch_alias_and_new_entrypoint_share_one_runtime(self):
+        setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
+        if setup.is_file():
+            metadata = {}
+            with patch('setuptools.setup', side_effect=lambda **kwargs: metadata.update(kwargs)):
+                runpy.run_path(str(setup))
+            entries = dict(item.split(' = ', 1) for item in metadata['entry_points']['console_scripts'])
+        else:
+            from importlib.metadata import distribution
+            entries = {e.name: e.value for e in distribution('rescue_robot').entry_points}
+        self.assertEqual(entries['robot_task_input'], 'rescue_robot.task_input_node:main')
+        self.assertEqual(entries['task_input'], entries['robot_task_input'])
+
     def test_requires_explicit_installed_factory_reference(self):
         for value in (None,'','file.py','module:factory:extra','../module:factory','module:a.b'):
             with self.assertRaises(ContractError):resolve_factory(value)
