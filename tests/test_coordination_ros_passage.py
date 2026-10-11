@@ -7,8 +7,8 @@ passage-free (field-checked value, no default); otherwise "passage assessment re
 import unittest
 
 from rescue_contracts import RescueError
-from test_coordination_ros_core import (SEGMENTS, SUPPORT, TTL, admission_msg, location, make_core, receipt, request,
-                                        site_msg, status_msg)
+from test_coordination_ros_core import (ACCEPT, SEGMENTS, SUPPORT, TTL, admission_msg, frame, location, make_core,
+                                        receipt, request, site_msg, status_msg)
 from test_coordination_search import NOW, uid
 from types import SimpleNamespace as NS
 
@@ -73,6 +73,36 @@ class LeaseTtlTests(unittest.TestCase):
         for ttl in (0, -1, 1.5):
             with self.subTest(ttl=ttl), self.assertRaises(RescueError):
                 make_core(lease_message_ttl_ns=ttl)
+
+
+class StaleBlockTests(unittest.TestCase):
+    """작전 OPS-70-01: SystemState.reason shows only a hold that still stands, not the last one ever seen."""
+
+    def test_admission_timeout_clears_once_the_task_is_released_and_reissued(self):
+        core = make_core()
+        core.on_site_event(site_msg())
+        core.on_status(status_msg())
+        core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
+        (fields,) = core.tick(NOW)
+        late = NOW + ACCEPT + 1
+        core.on_status(status_msg(observed_at_ns=late, motion_state='MOVING', active_task_id=fields['task_id']))
+        self.assertEqual([], core.tick(late))
+        self.assertEqual('ADMISSION_TIMEOUT', core.system_state_change(late)['reason'])
+        core.on_status(status_msg(observed_at_ns=late + 1))  # stopped, no active task: released
+        (again,) = core.tick(late + 1)
+        self.assertEqual('', core.system_state_change(late + 1)['reason'])
+
+    def test_alignment_block_clears_once_the_recheck_is_issued(self):
+        core = make_core()
+        core.on_site_event(site_msg())
+        target = core.on_target_location(location(1, frame_ref=frame(alignment_status='DEGRADED')), now_ns=NOW)
+        core.on_command(request('REQUEST_RECHECK', command_id=uid(701), target_id=target), now_ns=NOW)
+        self.assertEqual([], core.tick(NOW))
+        self.assertEqual('TARGET_ALIGNMENT_NOT_VALID', core.system_state_change(NOW)['reason'])
+        self.assertEqual(target, core.on_target_location(location(2, (4.2, 4.)), now_ns=NOW))  # aligned again
+        core.on_status(status_msg())
+        (fields,) = core.tick(NOW)
+        self.assertEqual(('REOBSERVE_TARGET', ''), (fields['kind'], core.system_state_change(NOW)['reason']))
 
 
 if __name__ == '__main__':
