@@ -4,8 +4,10 @@ import os
 import sys
 from types import SimpleNamespace as NS
 from unittest.mock import patch
+from uuid import UUID
 from rescue_robot.task_runtime_demo import run_e2
 from rescue_robot import task_runtime_demo as demo
+from rescue_robot import task_server_probe as probe
 
 
 class DelayedRosTransport:
@@ -113,6 +115,18 @@ class DelayedRosTransport:
 
 
 class OrderedRuntimeTests(unittest.TestCase):
+    def test_probe_namespace_is_valid_for_every_uuid_hex_prefix(self):
+        for first in '0123456789abcdef':
+            with self.subTest(first=first):
+                value = UUID(first + '1234567-89ab-4cde-8123-456789abcdef')
+                with patch.object(demo, 'uuid4', return_value=value), \
+                        patch.object(probe, 'uuid4', return_value=value):
+                    fixture = demo.Fixture(demo.DemoNode(), bindings=demo.fake_bindings())
+                try:
+                    self.assertRegex(fixture.prefix, r'^(/[A-Za-z_][A-Za-z0-9_]*)+$')
+                finally:
+                    fixture.runtime.destroy()
+
     def test_ros_hold_waits_for_result_after_lease_delivery(self):
         transport = DelayedRosTransport()
         report = transport.run()
