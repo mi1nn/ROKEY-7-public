@@ -141,6 +141,28 @@ def select_candidate(candidates, *, now_ns, policy, available_robots):
 
 
 @dataclass(frozen=True)
+class GoalPoint:
+    """A configured goal in the mission frame with the map basis it was set on.
+
+    Phase 1 (작전 2026-10-11, #88): a segment end or a fixed observation point from
+    the deployment parameters. It is a destination, not path evidence; the
+    executor guards and Nav2 verify the path and report failure as FAILED.
+    """
+    mission_xy: tuple
+    yaw: float
+    map_session_id: str
+    map_revision: int
+    transform_revision: int
+
+    def __post_init__(self):
+        point(self.mission_xy)
+        finite(self.yaw, 'yaw', minimum=-math.inf)
+        uid(self.map_session_id)
+        revision(self.map_revision)
+        revision(self.transform_revision)
+
+
+@dataclass(frozen=True)
 class Reservation:
     task_id: str
     target_id: str
@@ -152,6 +174,10 @@ class Reservation:
     command_id: str
     robot_boot_id: str
     task_kind: str = 'APPROACH_TARGET'
+    # Phase 1 rule (#88): without a candidate, MOVE_SEGMENT needs a ONE_SEGMENT approval and its
+    # segment-end goal; REOBSERVE_TARGET needs a fixed observation goal. Nowhere else.
+    goal: GoalPoint | None = None
+    approval_id: str | None = None
 
     def __post_init__(self):
         for value in (self.task_id, self.target_id, self.authority_epoch, self.command_id, self.robot_boot_id):
@@ -161,10 +187,21 @@ class Reservation:
         robot(self.robot_id)
         if self.task_kind not in TASK_KINDS:
             raise CoordinationError('INVALID_RESERVATION', 'task kind')
-        # Target tasks need planner path evidence (select_candidate result).
-        # SEARCH_AREA/HOLD carry none, so None is allowed only for them.
-        if self.candidate is None and self.task_kind in TARGET_TASK_KINDS:
-            raise CoordinationError('INVALID_RESERVATION', 'target task needs a path candidate')
+        # Target tasks need planner path evidence (select_candidate result), except the
+        # Phase 1 rule above. SEARCH_AREA/HOLD carry none.
+        if self.goal is not None and not isinstance(self.goal, GoalPoint):
+            raise CoordinationError('INVALID_RESERVATION', 'goal type')
+        if self.approval_id is not None:
+            uid(self.approval_id)
+        without_candidate = {'MOVE_SEGMENT': self.goal is not None and self.approval_id is not None,
+                             'REOBSERVE_TARGET': self.goal is not None and self.approval_id is None}
+        if self.candidate is None and self.task_kind in TARGET_TASK_KINDS and not without_candidate.get(
+                self.task_kind):
+            raise CoordinationError('INVALID_RESERVATION', 'target task needs a path candidate or the Phase 1 goal')
+        if (self.goal is not None or self.approval_id is not None) and (
+                self.candidate is not None or self.task_kind not in without_candidate):
+            raise CoordinationError('INVALID_RESERVATION', 'goal/approval only replace a candidate for '
+                                    'MOVE_SEGMENT/REOBSERVE_TARGET')
         if self.candidate is not None and (not isinstance(self.candidate, PathCandidate)
                                            or self.candidate.robot_id != self.robot_id):
             raise CoordinationError('INVALID_RESERVATION', 'candidate owner')
