@@ -10,6 +10,7 @@ from rescue_operations.schema import OperationsError
 from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
+READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log')
 
 
 def uid(n):
@@ -36,6 +37,12 @@ def target_state(**changes):
                   detection_confirmed=True, rescue_state='RECHECK_NEEDED',
                   rescue_reasons=['EXIT_NOT_LINKED'], verdict_id=uid(600), support_state='ASSIGNED',
                   support_robot_id='robot_b', updated_at_ns=3_000)
+    return values | changes
+
+
+def error_entry(**changes):
+    values = dict(at_ns=5_000, robot_id='robot_a', task_id=uid(2), code='NAV_NOT_READY',
+                  detail='rescue_robot.NAV2_INACTIVE: bt_navigator not active')
     return values | changes
 
 
@@ -166,10 +173,36 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_target_state(target_state(**change))
 
+    # --- error log (BRD 3.7.4) ----------------------------------------------
+    def test_error_log_appends_every_entry_and_reads_newest_first(self):
+        with self.ledger() as ledger:
+            first = ledger.record_error(error_entry())
+            again = ledger.record_error(error_entry())  # a repeated failure is a new entry, not a resend
+            system = ledger.record_error(error_entry(at_ns=6_000, robot_id=None, task_id=None,
+                                                     code='SESSION_FAULT',
+                                                     detail='rescue_mapping.SESSION_LOST'))
+            self.assertEqual(3, len({first, again, system}))
+        result = site_state.read_error_log(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        errors = result['errors']
+        self.assertEqual([system, again, first], [e['seq'] for e in errors])
+        self.assertEqual(error_entry() | {'seq': first}, errors[2])
+        self.assertEqual((None, None), (errors[0]['robot_id'], errors[0]['task_id']))
+        self.assertEqual([system], [e['seq'] for e in site_state.read_error_log(self.path, limit=1)['errors']])
+
+    def test_error_log_rejects_bad_input(self):
+        bad = [dict(code='SOMETHING_WENT_WRONG'), dict(code='rescue_robot.NAV2_INACTIVE'), dict(robot_id='robot_x'),
+               dict(task_id='x'), dict(at_ns=0), dict(detail=''), dict(detail='x' * 1025), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_error(error_entry(**change))
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
     # --- read boundary ------------------------------------------------------
     def test_readers_do_not_create_or_accept_other_databases(self):
         missing = Path(self.temp.name) / 'missing.db'
-        for read in (site_state.read_robot_status, site_state.read_site_events, site_state.read_target_states):
+        for read in (getattr(site_state, name) for name in READERS):
             with self.subTest(read=read.__name__):
                 with self.assertRaises(OperationsError) as caught:
                     read(missing)
@@ -178,7 +211,7 @@ class SiteStateTests(unittest.TestCase):
         other = Path(self.temp.name) / 'reports.db'
         from rescue_operations.ledger import ReportLedger
         ReportLedger(other, evidence_policy='OPTIONAL', allowed_robot_ids=ALLOWED).close()
-        for read in (site_state.read_robot_status, site_state.read_site_events, site_state.read_target_states):
+        for read in (getattr(site_state, name) for name in READERS):
             with self.subTest(other=read.__name__), self.assertRaises(OperationsError) as caught:
                 read(other)
             self.assertEqual('POLICY_MISMATCH', self.code(caught))
