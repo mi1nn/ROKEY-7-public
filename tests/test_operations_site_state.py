@@ -11,7 +11,7 @@ from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
 READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
-           'read_mission_state')
+           'read_mission_state', 'read_operator_commands')
 
 
 def uid(n):
@@ -50,6 +50,13 @@ def error_entry(**changes):
 def mission(**changes):
     values = dict(mode='DISASTER', phase='SEARCHING', trigger_event_id=uid(30), started_at_ns=1_500, generation=1,
                   updated_at_ns=4_000)
+    return values | changes
+
+
+def command(n=700, **changes):
+    values = dict(command_id=uid(n), kind='CONTINUE_SEGMENT', operator_id='admin', robot_id='robot_b',
+                  target_id=uid(500), segment_index=2, route_revision=1, requested_at_ns=7_000, accepted=True,
+                  result='ACCEPTED', reason=None)
     return values | changes
 
 
@@ -236,6 +243,37 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_mission_state(mission(**change))
         self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
+
+    # --- operator commands --------------------------------------------------
+    def test_operator_commands_keep_rejections_and_resends_are_idempotent(self):
+        rejected = command(701, kind='DISPATCH_SUPPORT', segment_index=None, route_revision=None,
+                           requested_at_ns=6_000, accepted=False, result=None, reason='GUARD_INVALID: no confirmed target')
+        stop = command(702, kind='STOP_ROBOT', target_id=None, segment_index=None, route_revision=None,
+                       requested_at_ns=8_000)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_operator_command(command()))
+            self.assertFalse(ledger.record_operator_command(command()))  # identical resend
+            self.assertTrue(ledger.record_operator_command(rejected))
+            self.assertTrue(ledger.record_operator_command(stop))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_operator_command(command(accepted=False, reason='late'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_operator_commands(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual([stop, command(), rejected], result['commands'])
+        self.assertIs(False, result['commands'][2]['accepted'])
+        self.assertEqual([stop], site_state.read_operator_commands(self.path, limit=1)['commands'])
+
+    def test_operator_command_rejects_bad_input(self):
+        bad = [dict(command_id='x'), dict(kind='SELF_DESTRUCT'), dict(operator_id=''), dict(robot_id='robot_x'),
+               dict(target_id='x'), dict(segment_index=-1), dict(route_revision=1.0), dict(requested_at_ns=0),
+               dict(accepted=1), dict(result=''), dict(accepted=False, reason=None), dict(reason=''),
+               dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_operator_command(command(**change))
+        self.assertEqual([], site_state.read_operator_commands(self.path)['commands'])
 
     # --- read boundary ------------------------------------------------------
     def test_readers_do_not_create_or_accept_other_databases(self):
