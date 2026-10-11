@@ -93,14 +93,15 @@ class SiteStateIngest:
         self._poses = {}  # robot_id -> latest pose (None once the latest is not VALID)
 
     def on_robot_pose(self, msg, *, received_at_ns):
-        """True a VALID pose is kept, False the robot's pose is now hidden, None refused (and logged)."""
+        """True a VALID pose is shown, False the robot's pose is now hidden, None refused (and logged)."""
         robot = getattr(msg, "robot_id", None)
         try:
             pose = pose_from_msg(msg)
+            self._poses[robot] = pose  # used by the next status, and written now for the map
+            self.ledger.record_robot_pose(robot, pose)
         except OperationsError as exc:
             self._log(exc, received_at_ns, f"robot_pose {robot!r}", robot_id=robot)
             return None
-        self._poses[robot] = pose
         return pose is not None
 
     def on_robot_status(self, msg, *, received_at_ns):

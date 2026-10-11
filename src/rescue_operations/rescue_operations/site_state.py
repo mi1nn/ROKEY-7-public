@@ -98,6 +98,14 @@ def _pair(first, second, label):
     require((first is None) == (second is None), label + " must be both present or both None")
 
 
+def _pose(value):
+    if value is None:
+        return None
+    pose = exact(value, POSE_KEYS, "pose")
+    return {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
+            "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+
+
 def _robot_status(value, allowed):
     require(isinstance(value, Mapping), "robot status must be an object")
     status = dict(exact(ROBOT_DEFAULTS | dict(value), ROBOT_KEYS | ROBOT_DEFAULTS.keys(), "robot status"))
@@ -106,10 +114,7 @@ def _robot_status(value, allowed):
     uint(status["state_sequence"], "state_sequence")
     require(status["role"] == UNKNOWN or status["role"] in ROBOT_ROLES, "role must be SCOUT, SUPPORT or UNKNOWN")
     timestamp(status["stamp_ns"], "stamp_ns")
-    if status["pose"] is not None:
-        pose = exact(status["pose"], POSE_KEYS, "pose")
-        status["pose"] = {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
-                          "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+    status["pose"] = _pose(status["pose"])
     text(status["motion_state"], "motion_state", 64)
     text(status["readiness"], "readiness", 64)
     _pair(status["battery_percent"], status["battery_stamp_ns"], "battery_percent/battery_stamp_ns")
@@ -238,9 +243,10 @@ class SiteStateLedger(_Database):
             if row is not None:
                 if row["robot_boot_id"] == status["robot_boot_id"]:
                     if status["state_sequence"] == row["state_sequence"]:
-                        require(canonical(_stored_status(row["status_json"])) == encoded,
-                                "same boot and sequence with different content",
-                                "ID_CONTENT_CONFLICT")
+                        # The pose comes on its own topic (record_robot_pose); it is not this status's content.
+                        require(canonical(_stored_status(row["status_json"]) | {"pose": None})
+                                == canonical(status | {"pose": None}),
+                                "same boot and sequence with different content", "ID_CONTENT_CONFLICT")
                         return False
                     if status["state_sequence"] < row["state_sequence"]:
                         return False
@@ -249,6 +255,25 @@ class SiteStateLedger(_Database):
             db.execute("INSERT OR REPLACE INTO robot_status VALUES (?, ?, ?, ?, ?, ?)",
                        (status["robot_id"], status["robot_boot_id"], status["state_sequence"], status["stamp_ns"],
                         encoded, timestamp(time.time_ns(), "received_at_ns")))
+        return True
+
+    def record_robot_pose(self, robot_id, pose):
+        """Replace only the pose of the robot's current snapshot (None hides it).
+
+        False when there is no snapshot yet or the pose is unchanged. received_at_ns is kept: it
+        is when the status arrived, and a newer pose must not make an old status look fresh.
+        """
+        _member(robot_id, self.allowed_robot_ids, "robot_id")
+        pose = _pose(pose)
+        with self._transaction() as db:
+            row = db.execute("SELECT status_json FROM robot_status WHERE robot_id = ?", (robot_id,)).fetchone()
+            if row is None:
+                return False
+            stored = _stored_status(row["status_json"])
+            if stored["pose"] == pose:
+                return False
+            db.execute("UPDATE robot_status SET status_json = ? WHERE robot_id = ?",
+                       (canonical(stored | {"pose": pose}), robot_id))
         return True
 
     def record_site_event(self, event):

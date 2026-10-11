@@ -55,6 +55,7 @@ def node_config(values):
 def main(args=None):
     import rclpy
     from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -115,8 +116,8 @@ def main(args=None):
             RobotPose, pose_topic, handler(ingest.on_robot_pose, robot + ' pose'), qos('pose')))
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except (KeyboardInterrupt, ExternalShutdownException):  # jazzy: SIGINT shuts the context down
+        log.info('rescue_db_writer stopping')
     finally:
         ledger.close()
         node.destroy_node()
