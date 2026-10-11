@@ -1,0 +1,127 @@
+name: task-input-jazzy
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/task-input-jazzy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Evidence for this exact PR #100 revision, not an arbitrary moving branch.
+env:
+  TASK_INPUT_HEAD: 2768e0edc3b0f46c92521bf121c0a3399dc1b96a
+
+jobs:
+  jazzy-transport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: ros:jazzy-ros-base-noble
+    defaults:
+      run:
+        shell: bash
+        working-directory: tested-task-input
+    env:
+      ROS_DOMAIN_ID: '173'
+      ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TASK_INPUT_HEAD }}
+          path: tested-task-input
+          persist-credentials: false
+      - name: Install build and IDL dependencies in the disposable container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git build-essential cmake python3-dev python3-colcon-common-extensions \
+            ros-jazzy-rosidl-default-generators \
+            ros-jazzy-geometry-msgs ros-jazzy-nav-msgs ros-jazzy-action-msgs
+      - name: Record exact source and ROS environment
+        run: |
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$TASK_INPUT_HEAD"
+          source /opt/ros/jazzy/setup.bash
+          {
+            git rev-parse HEAD
+            cat /etc/os-release
+            python3 --version
+            dpkg-query -W ros-jazzy-rclpy ros-jazzy-rmw-fastrtps-cpp ros-jazzy-rosidl-default-generators
+            printf 'ROS_DISTRO=%s\nROS_DOMAIN_ID=%s\nROS_AUTOMATIC_DISCOVERY_RANGE=%s\nRMW_IMPLEMENTATION=%s\n' \
+              "$ROS_DISTRO" "$ROS_DOMAIN_ID" "$ROS_AUTOMATIC_DISCOVERY_RANGE" "$RMW_IMPLEMENTATION"
+          } | tee evidence/environment.log
+      - name: Build only the task input packages
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --symlink-install \
+            --paths src/rescue_interfaces src/rescue_contracts src/rescue_mapping src/rescue_robot \
+            --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3 2>&1 | tee evidence/colcon.log
+      - name: Verify generated IDL and installed entrypoints
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/local_setup.bash
+          python3 -c 'import rclpy; from rescue_interfaces.action import ExecuteTask; from rescue_interfaces.msg import CommandLease, TaskAdmission, RobotStatus; print("GENERATED_IDL_IMPORT_OK")' \
+            | tee evidence/idl.log
+          ros2 pkg executables rescue_robot | tee evidence/executables.log
+          grep -Fx 'rescue_robot task_input' evidence/executables.log
+          grep -Fx 'rescue_robot robot_task_input' evidence/executables.log
+      - name: Common tasks, renewal, cancellation and expiry over real ROS transport
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/local_setup.bash
+          env -u ROS_DISCOVERY_SERVER -u ROS_SUPER_CLIENT -u ROS_STATIC_PEERS \
+            -u FASTDDS_DEFAULT_PROFILES_FILE -u FASTRTPS_DEFAULT_PROFILES_FILE \
+            -u RMW_FASTRTPS_USE_QOS_FROM_XML -u ROS_LOCALHOST_ONLY \
+            ros2 run rescue_robot task_runtime_demo \
+            --ros --domain-id 173 --stage common --timeout 30 2>&1 | tee evidence/common.log
+      - name: Minimal segment fallback over real ROS transport
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/local_setup.bash
+          env -u ROS_DISCOVERY_SERVER -u ROS_SUPER_CLIENT -u ROS_STATIC_PEERS \
+            -u FASTDDS_DEFAULT_PROFILES_FILE -u FASTRTPS_DEFAULT_PROFILES_FILE \
+            -u RMW_FASTRTPS_USE_QOS_FROM_XML -u ROS_LOCALHOST_ONLY \
+            ros2 run rescue_robot task_runtime_demo \
+            --ros --domain-id 173 --stage fallback --timeout 30 2>&1 | tee evidence/fallback.log
+      - name: Check reports and preserve the validation limits
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          stages = {
+              'common': [('SEARCH_AREA', 'SEARCH'), ('REOBSERVE_TARGET', 'RECHECK'), ('HOLD', 'HOLD')],
+              'fallback': [('MOVE_SEGMENT', 'SEGMENT')],
+          }
+          results = {}
+          for stage, expected in stages.items():
+              report = json.loads(Path('evidence', stage + '.log').read_text().splitlines()[-1])
+              assert report['status'] == 'PASSED' and report['layer'] == 'E3-LOCALHOST', report
+              assert [(s['kind'], s['scope']) for s in report['scenarios']] == expected, report
+              assert all(s['outcome'] == 'COMPLETED' for s in report['scenarios']), report
+              assert report['lease_expiry'] == 'EXPIRED_STOP_CONFIRMED', report
+              assert report['admission_count'] >= len(expected) and report['status_count'] > 0, report
+              assert report['inputs'] == 'SYNTHETIC', report
+              assert not report['real_nav2_client_created'] and report['robot_validation'] == 'NOT_RUN', report
+              if stage == 'common':
+                  assert report['cancel'] == 'CANCELED_STOP_CONFIRMED', report
+                  assert report['renewal']['active_for_s'] > report['renewal']['initial_duration_s'], report
+              results[stage] = report
+          evidence = dict(tested_head=os.environ['TASK_INPUT_HEAD'], colcon='PASSED',
+              generated_idl='PASSED', ros_transport='PASSED', stages=results,
+              motion_inputs='SYNTHETIC', production_node_start='NOT_RUN',
+              coordinator_integration='NOT_RUN', nav2_transport='NOT_RUN', robot_validation='NOT_RUN')
+          Path('evidence/report.json').write_text(json.dumps(evidence, indent=2) + '\n')
+          print(json.dumps(evidence))
+          PY
+      - name: Upload successful or failed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task-input-jazzy-${{ env.TASK_INPUT_HEAD }}
+          path: |
+            tested-task-input/evidence/
+            tested-task-input/log/
+          if-no-files-found: warn
+          retention-days: 14
