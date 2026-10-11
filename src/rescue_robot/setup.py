@@ -19,6 +19,7 @@ setup(
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": ["command_adapter = rescue_robot.ros_node:main",
                                        "task_input = rescue_robot.task_input_node:main",
+                                       "robot_task_input = rescue_robot.task_input_node:main",
                                        "command_watchdog = rescue_robot.watchdog_node:main",
                                        "task_server_probe = rescue_robot.task_server_probe:main",
                                        "task_runtime_demo = rescue_robot.task_runtime_demo:main",
