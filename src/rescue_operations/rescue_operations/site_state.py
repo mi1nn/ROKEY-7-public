@@ -18,7 +18,7 @@ import math
 import sqlite3
 import time
 
-from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
+from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SYSTEM_MODES, SiteEvent
 
 from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
@@ -33,7 +33,8 @@ UNKNOWN = "UNKNOWN"
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
 # Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
 # vocabulary written by operations from coordinator results; the coordinator owns the decisions.
-MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
+# Mode is the contract system mode (S-00): NORMAL, DISASTER and CLEARING (false-alarm clearing).
+MISSION_MODES = SYSTEM_MODES
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
@@ -182,7 +183,7 @@ def _error_entry(value, allowed):
 
 def _mission(value):
     mission = exact(value, MISSION_KEYS, "mission state")
-    require(mission["mode"] in MISSION_MODES, "mode must be NORMAL or DISASTER")
+    require(mission["mode"] in MISSION_MODES, "mode must be one of SYSTEM_MODES (S-00)")
     require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
     _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
     if mission["trigger_event_id"] is not None:
