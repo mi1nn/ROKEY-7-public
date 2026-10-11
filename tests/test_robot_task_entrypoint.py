@@ -11,6 +11,13 @@ from rescue_robot.task_input_node import resolve_factory, main, attach_configure
 
 
 class EntryPointTests(unittest.TestCase):
+    def test_source_alias_check_has_no_build_tool_dependency(self):
+        setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
+        if not setup.is_file():
+            self.skipTest('source-only check; installed aliases are checked through distribution metadata')
+        with patch.dict(sys.modules, {'setuptools': None}):
+            self.test_existing_launch_alias_and_new_entrypoint_share_one_runtime()
+
     def test_existing_launch_alias_and_new_entrypoint_share_one_runtime(self):
         setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
         if setup.is_file():
