@@ -12,8 +12,8 @@
     python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30      # 화면 보며 녹화(권장)
     python3 tools/webcam_record.py record --device USB --size 1280x720 --fps 30   # 화면 없이 정해진 시간 녹화
     python3 tools/webcam_record.py split .artifacts/webcam_clips/<날짜>/S01-<시각>.mp4  # 학습·검증 자르기
-    python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30 --clip VDARK   # 평가 클립(조건별)
-    python3 tools/webcam_record.py conditions <Roboflow 내보내기 폴더>              # eval_conditions.csv
+    python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30 --clip VAL     # 평가(조건마다 N)
+    python3 tools/webcam_record.py conditions <Roboflow 폴더> --sample-fps 1               # eval_conditions.csv
     python3 tools/webcam_record.py status                             # 찍은 영상
 
 ``--device`` 는 번호(0, 1 …) 또는 이름 일부("USB", "C920")다. iPhone 이 연결되면 번호가
@@ -59,8 +59,9 @@ SCENES = [
 VAL_START_S = sum(sec for split, sec, _, _ in SCENES if split == "train")
 TRAIN_SCENES = [sc for sc in SCENES if sc[0] == "train"]
 
-# 평가 촬영(2026-10-11 개정): 평가셋은 학습과 다른 회차·시간대에 따로 찍고, valid 와 test 도 서로 다른 회차로
-# 찍는다. 조건마다 영상을 따로 찍어 파일 이름(클립 ID)으로 조건을 구분한다(Roboflow 가 파일 이름을 유지한다).
+# 평가 촬영(2026-10-11 개정, 고정 카메라 담당 결정: 영상 3개 — 학습 S02, valid VAL, test TEST, 같은 시간대·사람).
+# 평가 영상 하나 안에서 아래 조건을 순서대로 찍고 GUI 에서 N 으로 넘긴다. 넘긴 시각(markers)으로 각 프레임의
+# 조건을 붙인다(`conditions` 명령). valid·test 를 같은 회차에 찍으면 두 셋의 조건이 비슷하다는 점을 보고에 적는다.
 EVAL_CONDITIONS = {
     "NORM": ("일반", "가까이→멀리", "보통 조명에서 끌개를 당겨 출구 통과 4~5회(속도·인형 자세를 바꿔 가며)"),
     "DARK": ("저조도", "가까이→멀리", "형광등 일부를 끄고 통과 4~5회 — 화면 아래 '카메라 실제 fps' 를 메모"),
@@ -68,34 +69,46 @@ EVAL_CONDITIONS = {
     "FAR": ("원거리", "멀리(출구 끝)", "출구 끝에서 인형을 멈추거나 천천히 움직임, 자세 바꾸기"),
     "BG": ("배경", "전체", "인형 없이: 빈 출구 → 사람만 지나감 → 빈 끌개만 당김(각 20초 정도)"),
 }
-EVAL_SECONDS = 60
+EVAL_ORDER = list(EVAL_CONDITIONS)
+EVAL_SECONDS = 60  # 조건 하나당
+
+
+def eval_scenes(split):
+    return [(split, EVAL_SECONDS, dist, f"[{cond}] {what}") for cond, dist, what in EVAL_CONDITIONS.values()]
+
+
 CLIPS = {
     "S01": ("train+val", sum(sec for _, sec, _, _ in SCENES) + 15, "전체",
             f"끌개 시나리오 한 번에 — {VAL_START_S}초 이후는 검증 구간"),
     "S02": ("train", sum(sec for _, sec, _, _ in TRAIN_SCENES) + 15, "전체",
             "추가 학습 촬영 — S01 과 같은 장면(검증 장면 없음). 저조도·원거리를 넉넉히"),
+    "VAL": ("val", EVAL_SECONDS * len(EVAL_CONDITIONS) + 15, "전체", "평가(valid) — 조건 5개를 순서대로, 조건마다 N"),
+    "TEST": ("test", EVAL_SECONDS * len(EVAL_CONDITIONS) + 15, "전체", "평가(test) — 조건 5개를 순서대로, 조건마다 N"),
 }
-for _prefix, _split in (("V", "val"), ("T", "test")):
-    for _key, (_cond, _dist, _what) in EVAL_CONDITIONS.items():
-        CLIPS[_prefix + _key] = (_split, EVAL_SECONDS, _dist, f"[{_cond}] {_what}")
 
 
 def scenes_for(clip):
-    """GUI 가 보여 줄 장면 목록. S01 은 전체 시나리오, S02 는 학습 장면만, 평가 클립은 장면 하나."""
-    if clip == "S01":
-        return SCENES
-    if clip == "S02":
-        return TRAIN_SCENES
-    split, seconds, distance, what = CLIPS[clip]
-    return [(split, seconds, distance, what)]
+    """GUI 가 보여 줄 장면 목록."""
+    return {"S01": SCENES, "S02": TRAIN_SCENES, "VAL": eval_scenes("val"), "TEST": eval_scenes("test")}[clip]
 
 
-def condition_of(filename):
-    """Roboflow 파일 이름(예: VDARK-142233_mp4-0003_jpg.rf.x.jpg)의 클립 ID 로 평가 조건을 돌려준다. 아니면 None."""
-    clip = re.split(r"[-_]", Path(filename).name, maxsplit=1)[0]
-    if clip[:1] in ("V", "T") and clip[1:] in EVAL_CONDITIONS:
-        return EVAL_CONDITIONS[clip[1:]][0]
-    return None
+_FRAME = re.compile(r"^(?P<stem>(?P<clip>[A-Z0-9]+)-\d{6})_mp4-(?P<index>\d+)_")
+
+
+def parse_frame_name(filename):
+    """Roboflow 파일 이름(예: VAL-142233_mp4-0012_jpg.rf.x.jpg) -> (클립, 영상 파일 stem, 프레임 번호). 아니면 None."""
+    m = _FRAME.match(Path(filename).name)
+    return (m["clip"], m["stem"], int(m["index"])) if m else None
+
+
+def condition_at(markers, t):
+    """영상 시각 t(초)의 조건 이름. markers 는 GUI 가 남긴 [{scene, video_s}] (장면 번호 = EVAL_ORDER 순서)."""
+    current = None
+    for m in sorted(markers, key=lambda m: m["video_s"]):
+        if m["video_s"] <= t:
+            current = m["scene"]
+    return None if current is None else EVAL_CONDITIONS[EVAL_ORDER[current]][0]
+
 
 _DEVICE = re.compile(r"\[(\d+)\] (.+)$")
 _MODE = re.compile(r"(\d+)x(\d+)@\[([\d.]+) ([\d.]+)\]fps")
@@ -222,16 +235,12 @@ def sha256(path):
 
 
 def cmd_checklist(_args):
-    t = 0
-    print(f"[학습 추가] S02 — S01 과 같은 장면, 약 {CLIPS['S02'][1]}초")
-    for split, seconds, distance, what in TRAIN_SCENES:
-        print(f"  {t // 60}:{t % 60:02d}  {distance:<14}{what}")
-        t += seconds
-    for prefix, label in (("V", "valid 회차 (학습과 다른 시간대)"), ("T", "test 회차 (valid 와도 다른 시간대·다른 사람)")):
-        print(f"\n[평가] {label} — 조건마다 영상 하나, 각 {EVAL_SECONDS}초")
-        for key in EVAL_CONDITIONS:
-            split, seconds, distance, what = CLIPS[prefix + key]
-            print(f"  {prefix + key:<7}{distance:<14}{what}")
+    for clip, title in (("S02", "① 학습"), ("VAL", "② 평가 valid"), ("TEST", "③ 평가 test")):
+        t = 0
+        print(f"\n{title} — {clip}, 약 {CLIPS[clip][1] // 60}분 (장면이 끝나면 N)")
+        for split, seconds, distance, what in scenes_for(clip):
+            print(f"  {t // 60}:{t % 60:02d}  {distance:<14}{what}")
+            t += seconds
     done = done_clips()
     print("\n찍은 영상: " + (", ".join(f"{c}x{n}" for c, n in sorted(done.items())) or "없음"))
 
@@ -537,25 +546,38 @@ def cmd_split(args):
 
 
 def cmd_conditions(args):
-    """Roboflow 내보내기 폴더의 valid/test 이미지에서 평가 조건 표(eval_conditions.csv)를 만든다."""
+    """Roboflow 내보내기 폴더의 valid/test 이미지에 평가 조건을 붙여 eval_conditions.csv 를 만든다.
+
+    프레임 번호 / Roboflow 에서 뽑은 초당 장수(--sample-fps) = 영상 시각. 그 시각에 GUI 로 표시한 장면이 조건이다.
+    장면을 넘긴 순간 근처(±1 프레임 간격)는 조건이 어긋날 수 있다.
+    """
     root = Path(args.dataset)
-    rows = [(split, p.name, condition_of(p.name)) for split in ("valid", "test")
-            for p in sorted((root / split / "images").glob("*"))]
-    missing = [r for r in rows if r[2] is None]
+    metas = {m.stem: json.loads(m.read_text()) for m in Path(args.clips).glob("*/*.json")}
+    rows, problems = [], []
+    for split in ("valid", "test"):
+        for p in sorted((root / split / "images").glob("*")):
+            parsed = parse_frame_name(p.name)
+            if parsed is None or parsed[0] not in ("VAL", "TEST"):
+                problems.append(f"{split}/{p.name}: 평가 영상(VAL/TEST) 프레임이 아님"); continue
+            clip, stem, index = parsed
+            if stem not in metas:
+                problems.append(f"{split}/{p.name}: 녹화 기록 {stem}.json 없음"); continue
+            cond = condition_at(metas[stem].get("markers", []), index / args.sample_fps)
+            if cond is None:
+                problems.append(f"{split}/{p.name}: 장면 표시 없음"); continue
+            rows.append((split, p.name, cond))
     out = Path(args.out)
     with open(out, "w", newline="") as f:
         f.write("split,image,condition\n")
-        for split, name, cond in rows:
-            if cond is not None:
-                f.write(f"{split},{name},{cond}\n")
+        f.writelines(f"{a},{b},{c}\n" for a, b, c in rows)
     counts = {}
     for split, _, cond in rows:
         counts[(split, cond)] = counts.get((split, cond), 0) + 1
-    for (split, cond), n in sorted(counts.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))):
-        print(f"{split:<6}{cond or '조건 없음(평가 클립 아님)'}: {n}장")
-    print(f"저장: {out}")
-    if missing:
-        print(f"주의: 평가 클립 이름이 아닌 이미지 {len(missing)}장 — valid/test 에 다른 영상이 섞였는지 확인")
+    for (split, cond), n in sorted(counts.items()):
+        print(f"{split:<6}{cond}: {n}장")
+    print(f"저장: {out} ({len(rows)}장)")
+    for msg in problems:
+        print("주의: " + msg)
 
 
 def cmd_status(_args):
@@ -573,6 +595,8 @@ def main(argv=None):
     sub.add_parser("status", help="찍은 클립 / 남은 클립").set_defaults(fn=cmd_status)
     p = sub.add_parser("conditions", help="Roboflow 내보내기 폴더에서 eval_conditions.csv 만들기")
     p.add_argument("dataset", help="압축을 푼 Roboflow 내보내기 폴더(valid/, test/ 가 있는 곳)")
+    p.add_argument("--sample-fps", type=float, required=True, help="Roboflow 에서 영상을 뽑을 때 고른 초당 장수")
+    p.add_argument("--clips", default=str(OUT_ROOT), help="녹화 기록(.json)이 있는 폴더")
     p.add_argument("--out", default="eval_conditions.csv")
     p.set_defaults(fn=cmd_conditions)
     p = sub.add_parser("gui", help="화면을 보며 녹화(스페이스 시작·일시정지, N 다음 장면, S 저장)")

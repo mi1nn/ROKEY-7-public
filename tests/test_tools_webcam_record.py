@@ -143,20 +143,23 @@ class WebcamRecordTests(unittest.TestCase):
     def test_mmss(self):
         self.assertEqual([wr.mmss(x) for x in (0, 59.9, 61, 370)], ["00:00", "00:59", "01:01", "06:10"])
 
-    def test_eval_clips_cover_each_condition_in_valid_and_test(self):
-        for prefix, split in (("V", "val"), ("T", "test")):
-            for key in wr.EVAL_CONDITIONS:
-                self.assertEqual(wr.CLIPS[prefix + key][0], split)
-        self.assertEqual(wr.CLIPS["S02"][0], "train")
+    def test_three_videos_train_valid_test(self):
+        self.assertEqual({c: wr.CLIPS[c][0] for c in ("S02", "VAL", "TEST")},
+                         {"S02": "train", "VAL": "val", "TEST": "test"})
         self.assertTrue(all(sc[0] == "train" for sc in wr.scenes_for("S02")))
-        self.assertEqual(wr.scenes_for("S01"), wr.SCENES)
-        self.assertEqual(len(wr.scenes_for("TBG")), 1)
+        self.assertEqual([sc[0] for sc in wr.scenes_for("TEST")], ["test"] * len(wr.EVAL_CONDITIONS))
 
-    def test_condition_from_roboflow_file_name(self):
-        self.assertEqual(wr.condition_of("VDARK-142233_mp4-0003_jpg.rf.ab12.jpg"), "저조도")
-        self.assertEqual(wr.condition_of("TBG-150102_mp4-0010_jpg.rf.cd34.jpg"), "배경")
-        for name in ("S01-131956_mp4-0001_jpg.rf.x.jpg", "VXYZ-1_mp4-1.jpg", "NORM-1.jpg"):
-            self.assertIsNone(wr.condition_of(name), name)
+    def test_roboflow_frame_name(self):
+        self.assertEqual(wr.parse_frame_name("VAL-142233_mp4-0012_jpg.rf.ab12.jpg"), ("VAL", "VAL-142233", 12))
+        self.assertEqual(wr.parse_frame_name("S01-131956_mp4-0001_jpg.rf.x.jpg"), ("S01", "S01-131956", 1))
+        self.assertIsNone(wr.parse_frame_name("photo.jpg"))
+
+    def test_condition_follows_scene_markers(self):
+        # 일반 0초, 저조도 61.5초, 가려짐 130초에 N
+        markers = [{"scene": 0, "video_s": 0.0}, {"scene": 1, "video_s": 61.5}, {"scene": 2, "video_s": 130.0}]
+        self.assertEqual([wr.condition_at(markers, t) for t in (0, 61.0, 61.5, 129.9, 200)],
+                         ["일반", "일반", "저조도", "저조도", "가려짐"])
+        self.assertIsNone(wr.condition_at([], 5))
 
     def test_only_checked_clips_count_as_done(self):
         with tempfile.TemporaryDirectory() as tmp:
