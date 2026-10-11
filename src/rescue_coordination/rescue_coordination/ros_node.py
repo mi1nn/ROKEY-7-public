@@ -28,9 +28,19 @@ from .search import SearchCoordinator, SearchPolicy, mission_sites
 SITE_EVENT_TOPIC = '/rescue/site_events'
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
 ROBOT_PREFIX = '/rescue/robots/'  # + robot_id + '/execute_task' etc. (rescue_interfaces README)
-# C-11 row 10 response codes for REQUEST_RECHECK; other refusals return the mission reason itself.
-RECHECK_REASON_CODES = {'UNKNOWN_TARGET': 'NOT_FOUND', 'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
-                        'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY'}
+# Mission refusal -> C-09 common code for SubmitOperatorCommand.reason_code (OPS-58, 2026-10-11).
+# The REQUEST_RECHECK rows are C-11 row 10; the rest are [제안]. The mission reason is logged.
+REASON_CODES = {
+    'MODE_NOT_DISASTER': 'NOT_AUTHORIZED',
+    'UNKNOWN_TARGET': 'NOT_FOUND', 'NO_HOME_POSITION': 'NOT_FOUND',
+    'TARGET_NOT_CONFIRMED': 'PENDING_EVIDENCE', 'NO_ROUTE': 'PENDING_EVIDENCE', 'NO_VERDICT': 'PENDING_EVIDENCE',
+    'ALREADY_DISPATCHED': 'TASK_BUSY', 'NOT_AWAITING_APPROVAL': 'TASK_BUSY', 'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY',
+    'ALREADY_RETURNING': 'TASK_BUSY',
+    'TARGET_REVISION_STALE': 'INVALID_INPUT', 'ROUTE_REVISION_STALE': 'INVALID_INPUT',
+    'SEGMENT_INDEX_MISMATCH': 'INVALID_INPUT', 'NOT_DISPATCHED_TARGET': 'INVALID_INPUT',
+    'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
+    'HOME_BASIS_MISMATCH': 'FRAME_REVISION_MISMATCH',
+}
 # The robot that a command may name (empty = not named).
 COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
@@ -136,6 +146,7 @@ class CoordinatorCore:
         self.status = {}     # robot_id -> latest RobotStatus fields used here
         self.replies = {}    # command_id -> (OperatorCommand, reply dict)
         self.last_phase = None
+        self.last_reason = None  # mission reason behind the latest reply, for the node log
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
@@ -184,6 +195,7 @@ class CoordinatorCore:
         try:
             command = operator_command_from_request(req, self.roles)
         except RescueError as exc:
+            self.last_reason = exc.detail
             return self._reply(False, 'REJECTED', exc.code)
         seen = self.replies.get(command.command_id)
         if seen is not None:
@@ -192,12 +204,12 @@ class CoordinatorCore:
             first = seen[1]
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
         result = self.mission.handle_command(command, now_ns=now_ns)
+        self.last_reason = result.reason
         if result.accepted:
             # No MOVE_SEGMENT/REOBSERVE_TARGET Task yet (작전 Q7): accepted = received, no created task.
             reply = self._reply(True, 'ACCEPTED', '')
         else:
-            code = RECHECK_REASON_CODES.get(result.reason) if command.kind == 'REQUEST_RECHECK' else None
-            reply = self._reply(False, 'REJECTED', code or result.reason)
+            reply = self._reply(False, 'REJECTED', REASON_CODES[result.reason])
         self.replies[command.command_id] = (command, reply)
         return reply
 
@@ -348,7 +360,7 @@ def main(args=None):
             res.command_id = req.command_id
             for name, value in reply.items():
                 setattr(res, name, value)
-            log.info(f'COMMAND {req.command_id} {req.operation} -> {reply}')
+            log.info(f'COMMAND {req.command_id} {req.operation} -> {reply} reason={core.last_reason}')
             tick()
             return res
 
