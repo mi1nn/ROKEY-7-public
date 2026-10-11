@@ -1,7 +1,7 @@
 ---
 title: DB 스키마 — 운영 장부·현장 상태·콘솔 계정
-status: draft   # 1.0 절과 계정 표는 main 기준, 1.1 절은 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
-updated: 2026-10-10
+status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
+updated: 2026-10-11
 ---
 
 # DB 스키마
@@ -11,7 +11,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 파일 (역할 값 `metadata.role`) | 쓰는 쪽 | 읽는 쪽 | 코드 | 상태 |
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
-| 현장 상태 `operations-site-state` (schema 1.0 → 1.1 [제안]) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | main (1.0), 1.1 은 4절 |
+| 현장 상태 `operations-site-state` (schema 1.1, 1.0 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
 | 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 송신 대기열 `report-outbox` (생산자 쪽 별도 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
@@ -31,9 +31,9 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 읽기: `read_reports(db_path, limit, report_id)` — 보고 공개 필드만(payload·state·receipt·시각).
 
-## 2. 현장 상태 (`operations-site-state`, schema 1.0, main)
+## 2. 현장 상태 (`operations-site-state`, schema 1.0 의 표, main)
 
-`metadata`: `schema=1.0`, `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
+1.1 에서도 이 세 표는 그대로이고 4절의 표가 더해진다. `metadata`: `schema=1.1`(1.0 파일은 4절대로 올림), `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
@@ -53,20 +53,22 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 읽기·쓰기는 모두 콘솔 프로세스. 관리자 1명은 `python3 -m rescue_console.accounts init` 으로 만든다. 계정 파일과 세션 비밀은 저장소 밖에 둔다(SDD 외부 파일 목록에 추가할 항목).
 
-## 4. 현장 상태 1.1 [제안] — 상태 감시 담당이 구현하며 이 표를 확정한다
+## 4. 현장 상태 1.1 (구현됨, 2026-10-11) — 2절 표에 더하는 표
 
-[console-and-db-plan](console-and-db-plan.md) 3절의 추가분. 2절 표에 더하는 것이고 기존 열은 지우지 않는다.
+[console-and-db-plan](console-and-db-plan.md) 3절의 추가분을 `rescue_operations/site_state.py` 에 구현했다. 2절 표는 그대로 두고 아래 네 표를 더한다. 어휘(`MISSION_PHASES`·`OPERATOR_COMMAND_KINDS`)는 계획 문서에서 옮긴 **[제안]** 이고, 바꿀 때는 이 표와 코드 상수를 같은 PR 에서 바꾼다.
 
-| 표 | 열 (제안) | 쓰는 시점 | 읽는 쪽 |
-| --- | --- | --- | --- |
-| `mission_state` (1행) | `mode`(NORMAL/DISASTER), `phase`(계획 1절 상태), `trigger_event_id`, `started_at_ns`, `generation`, `updated_at_ns` | 사건·승인·완료마다 operations 가 갱신 | 콘솔 배지·흐름 |
-| `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id`, `target_id`, `segment_index`, `route_revision`, `requested_at_ns`, `accepted INTEGER`, `result`, `reason` | `POST /api/operator-commands` 마다, 거절도 기록 | 콘솔 명령 이력, 인수 시험 |
-| `error_log` | `at_ns`, `robot_id`, `task_id`, `code`, `detail` | 실패 경로마다 | 콘솔 오류 이력(3.7.4) |
-| `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | `PUT /api/maps/{id}` 마다 | 콘솔 지도 |
-| `robot_status.status_json` 추가 키 | `dock_state`, `segment_index` (battery·motion_state·readiness 는 이미 있음) | 로봇 상태마다 | 콘솔 로봇 표 |
-| `target_states.state_json` 추가 키 | `segment_phase`(AWAITING_APPROVAL 등), `candidate_event_id` | 승인·후보마다 | 콘솔 대상 표·버튼 활성화 |
+| 표 | 열 | 뜻 · 규칙 |
+| --- | --- | --- |
+| `error_log` | `seq INTEGER PK`, `at_ns`, `robot_id NULL`, `task_id NULL`, `code`, `detail` | 실패 경로마다 한 행(3.7.4). **추가 전용**이고 같은 실패가 반복되면 새 행이다. `code` 는 C-09 공통 코드(`rescue_contracts.CANONICAL_CODES`)만 받고, `rescue_robot.NAV2_INACTIVE` 같은 세부 원인은 `detail`(1~1024자)에 쓴다. `robot_id` 는 배치 허용 로봇 또는 None(시스템 오류), `task_id` 는 UUID 또는 None |
+| `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation`, `updated_at_ns` | `mode` ∈ NORMAL / DISASTER, `phase` ∈ 계획 1절의 표시용 상태 14개. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
+| `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 계획 4절의 9종. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
+| `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | 지도 이미지 한 장(IF-084). 이미지 bytes 는 DB 에 넣지 않고 `path`·`sha256`(소문자 64자)만 둔다. 같은 ID 같은 내용은 멱등 |
 
-규칙(제안): `metadata.schema` 를 `1.1` 로 올리고 1.0 파일은 열 때 표를 추가해 올린다(열 삭제 없음). 명령 ID 는 UUID, 같은 ID 재전송은 멱등. 시각·좌표 키 이름은 계약(C-03·C-04) 그대로 쓴다.
+올리기 규칙: `metadata.schema` 는 `1.1` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고 schema 를 `1.1` 로 올린다. 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 1.1 파일만 받으므로, 1.0 파일은 operations 가 한 번 연 뒤에 읽힌다.
+
+읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_mission_state` 는 `mission` 하나(기록 전에는 None).
+
+보류 — JSON 키 추가(팀 확인 뒤): 계획 3절의 `robot_status.status_json` 의 `dock_state`·`segment_index`, `target_states.state_json` 의 `segment_phase`·`candidate_event_id` 는 이 PR 에 넣지 않았다. 지금 검증(`schema.exact`)은 키 집합이 정확히 맞아야 해서, 키를 더하면 발행 쪽(operations ROS 어댑터)과 읽는 쪽(콘솔)이 같이 바뀌어야 한다. 넣을 때는 5절대로 읽는 쪽이 없는 키를 기본값으로 읽게 한다.
 
 ## 5. 바꿀 때 지키는 것
 
