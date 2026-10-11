@@ -64,15 +64,17 @@ MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generatio
 # The AMR2 dispatch (schema 1.2): all None without a dispatch, all present with one.
 DISPATCH_DEFAULTS = {"target_id": None, "target_revision": None, "route_revision": None, "segment_index": None,
                      "segment_count": None, "segment_phase": None}
+# SystemState.reason: the coordinator's cause code when it holds the mission (#91 CLA-02), else None.
+OPTIONAL_MISSION = DISPATCH_DEFAULTS | {"reason": None}
 MISSION_COLUMNS = ("mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns",
-                   *DISPATCH_DEFAULTS)
+                   *OPTIONAL_MISSION)
 
 
 MISSION_DDL = """CREATE TABLE IF NOT EXISTS mission_state (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
         trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER, updated_at_ns INTEGER NOT NULL,
         target_id TEXT, target_revision INTEGER, route_revision INTEGER, segment_index INTEGER,
-        segment_count INTEGER, segment_phase TEXT)"""
+        segment_count INTEGER, segment_phase TEXT, reason TEXT)"""
 # 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절); 1.2 reshapes mission_state.
 TABLES = (
     """CREATE TABLE IF NOT EXISTS robot_status (
@@ -216,7 +218,7 @@ def _migrate(db, old_schema):
 
 def _mission(value):
     require(isinstance(value, Mapping), "mission state must be an object")
-    mission = dict(exact(DISPATCH_DEFAULTS | dict(value), MISSION_KEYS | DISPATCH_DEFAULTS.keys(), "mission state"))
+    mission = dict(exact(OPTIONAL_MISSION | dict(value), MISSION_KEYS | OPTIONAL_MISSION.keys(), "mission state"))
     require(mission["mode"] in MISSION_MODES, "mode must be one of SYSTEM_MODES (S-00)")
     require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
     _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
@@ -226,6 +228,8 @@ def _mission(value):
     if mission["generation"] is not None:
         uint(mission["generation"], "generation")
     timestamp(mission["updated_at_ns"], "updated_at_ns")
+    if mission["reason"] is not None:
+        text(mission["reason"], "reason")
     require(mission["mode"] != FINISHED_MODE or mission["phase"] == "FINISHED",
             "MISSION_FINISHED only with phase FINISHED (C-10)")
     dispatch = [mission[key] for key in DISPATCH_DEFAULTS]

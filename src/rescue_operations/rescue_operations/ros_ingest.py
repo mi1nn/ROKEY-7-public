@@ -89,8 +89,9 @@ def mission_from_msg(msg):
 
     has_trigger/has_dispatch false -> those fields are None (the message carries 0 / '' there).
     The change time orders the rows: state_sequence restarts at 1 when the coordinator restarts.
-    SystemState has no mission generation, so generation is None. Dropped: cause_event_ids,
-    active_task_ids, policy_version, reason, state_sequence and the envelope.
+    SystemState has no mission generation, so generation is None. reason (the coordinator's cause
+    code, #91) is kept; empty means none. Dropped: cause_event_ids, active_task_ids, policy_version,
+    state_sequence and the envelope.
     """
     try:
         trigger, dispatch = msg.has_trigger, msg.has_dispatch
@@ -103,7 +104,7 @@ def mission_from_msg(msg):
                     route_revision=msg.route_revision if dispatch else None,
                     segment_index=msg.segment_index if dispatch else None,
                     segment_count=msg.segment_count if dispatch else None,
-                    segment_phase=msg.segment_phase if dispatch else None)
+                    segment_phase=msg.segment_phase if dispatch else None, reason=_optional(msg.reason))
     except (AttributeError, TypeError) as exc:
         raise _invalid(exc, "system state") from exc
 
