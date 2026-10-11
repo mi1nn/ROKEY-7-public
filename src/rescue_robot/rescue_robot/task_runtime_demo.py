@@ -17,6 +17,7 @@ from rescue_robot.executor import Executor, Policy
 from rescue_robot.nav2_adapter import CommandAdapter
 from rescue_robot.task_policy import ClockBasis, LeasePolicy
 from rescue_robot.task_site_runtime import InputStore, SiteRuntime
+from rescue_robot.task_server_probe import probe_namespace
 
 DEMO_POLICY=Policy('SYNTHETIC-ONLY',1.,2.,.2,.15,1.,.01,.01)
 DEMO_LEASE=LeasePolicy(.6,1_000_000_000,20_000_000,'SYNTHETIC-CLOCK')
@@ -72,7 +73,7 @@ class Fixture:
     def __init__(self,node,*,clock=time.monotonic,wall=time.time_ns,bindings=None):
         self.node=node; self.clock=clock; self.wall=wall
         robot='synthetic_robot'; boot=str(uuid4()); epoch=str(uuid4()); session=str(uuid4())
-        self.prefix='/rokey_local_probe/'+uuid4().hex
+        self.prefix=probe_namespace()
         now=wall(); until=now+180*SECOND
         self.port=SimulatedNav()
         self.adapter=CommandAdapter(Executor(robot,boot,epoch,DEMO_POLICY,allowed_robot_ids=(robot,'synthetic_other')),

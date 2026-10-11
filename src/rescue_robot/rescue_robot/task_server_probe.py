@@ -18,6 +18,11 @@ from rescue_robot.task_server import TaskActionServer
 from rescue_robot.task_policy import ClockBasis, LeasePolicy
 
 
+def probe_namespace():
+    """Unique local test namespace whose tokens never start with a digit."""
+    return '/rokey_local_probe/p_' + uuid4().hex
+
+
 def check_environment(domain_id):
     if type(domain_id) is not int or not 0 <= domain_id <= 232:
         raise ContractError('probe domain must be explicitly selected in 0..232')
@@ -57,7 +62,7 @@ def main(args=None):
     rclpy.init(args=[])
     node = Node('task_transport_probe_' + uuid4().hex[:8])
     robot, boot, epoch, coordinator = 'probe_robot', str(uuid4()), str(uuid4()), str(uuid4())
-    prefix = '/rokey_local_probe/' + uuid4().hex
+    prefix = probe_namespace()
     # All policy, readiness and odometry values below are synthetic test data.
     policy = Policy('probe-only', 1., 2., .2, .15, 1., .01, .01)
     executor = Executor(robot, boot, epoch, policy, allowed_robot_ids=(robot, 'probe_other'))
