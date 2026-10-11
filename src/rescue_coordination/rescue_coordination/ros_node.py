@@ -411,6 +411,14 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if (command.kind == 'START_SEARCH' and self.mission.mode == 'DISASTER' and not self.mission.search_authorized
+                and not (self.ready(self.roles['SCOUT'], now_ns) or (None, False))[1]):
+            # #98: a SCOUT of unknown or not-ready state refuses the start; it does not count as started,
+            # so no robot leaves at an unknown moment after the button. The operator presses again when ready.
+            self.last_reason = 'SCOUT_NOT_READY'
+            reply = self._reply(False, 'REJECTED', 'NAV_NOT_READY')
+            self.replies[command.command_id] = (command, reply)
+            return reply
         result = self.mission.handle_command(command, now_ns=now_ns)
         self.last_reason = result.reason
         if result.accepted:

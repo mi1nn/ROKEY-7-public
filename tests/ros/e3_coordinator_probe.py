@@ -14,7 +14,8 @@ The node runs as a child process with config/deployment.v2.example.json (robot_a
 robot_b SUPPORT). This probe is the fake executor of robot_a: it accepts ExecuteTask,
 publishes TaskAdmission and returns COMPLETED with a confirmed stop. Checks:
 1. no goal before DISASTER_SIGN, nor after it until START_SEARCH (owner decision 2026-10-11,
-#85); 2. START_SEARCH + READY status -> SEARCH_AREA for the first area; 3. admission + completed result -> SEARCH_AREA for the second area;
+#85); START_SEARCH while the SCOUT is NOT_READY -> REJECTED/NAV_NOT_READY and no goal (#98);
+2. START_SEARCH (new command_id) + READY status -> SEARCH_AREA for the first area; 3. admission + completed result -> SEARCH_AREA for the second area;
 4. REQUEST_RECHECK of an unknown target -> REJECTED/NOT_FOUND, replay -> DUPLICATE;
 5. the node refuses to start without parameters (exit 2); 6. a VALID TargetLocation ->
 RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one
@@ -79,6 +80,7 @@ class FakeExecutor(Node):
         self.create_subscription(CommandLease, f'/rescue/robots/{SCOUT}/command_lease', self.leases.append, 10)
         self.create_subscription(CommandLease, f'/rescue/robots/{SUPPORT}/command_lease', self.leases.append, 10)
         self.active, self.stop_reason = {SCOUT: '', SUPPORT: ''}, {SCOUT: '', SUPPORT: ''}
+        self.readiness = {SCOUT: 'READY', SUPPORT: 'READY'}
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
@@ -109,7 +111,8 @@ class FakeExecutor(Node):
 
     def publish_status(self):
         for robot, pub in self.status.items():
-            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY', lease_valid=True,
+            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness=self.readiness[robot],
+                                    lease_valid=True,
                                     observed_at_ns=self.get_clock().now().nanoseconds,
                                     active_task_id=self.active[robot], stop_reason=self.stop_reason[robot],
                                     motion_state='MOVING' if self.active[robot] else 'STOPPED'))
@@ -177,6 +180,17 @@ def main():
         probe.publish_disaster()
         wait(executor, lambda: False, 2, probe.publish_status)
         checks['DISASTER_SIGN alone -> no goal'] = not probe.goals
+        probe.readiness[SCOUT] = 'NOT_READY'
+        wait(executor, lambda: False, 1, probe.publish_status)
+        early = call(executor, probe, SubmitOperatorCommand.Request(
+            command_id=str(uuid4()), operation='START_SEARCH', operator_id='e3',
+            issued_at_ns=probe.get_clock().now().nanoseconds))
+        wait(executor, lambda: False, 1, probe.publish_status)
+        checks['START_SEARCH before ready -> REJECTED NAV_NOT_READY, no goal'] = (
+            early.accepted, early.request_state, early.reason_code, len(probe.goals)) == (
+            False, 'REJECTED', 'NAV_NOT_READY', 0)
+        probe.readiness[SCOUT] = 'READY'
+        wait(executor, lambda: False, 1, probe.publish_status)
         start = call(executor, probe, SubmitOperatorCommand.Request(
             command_id=str(uuid4()), operation='START_SEARCH', operator_id='e3',
             issued_at_ns=probe.get_clock().now().nanoseconds))

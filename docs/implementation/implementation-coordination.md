@@ -101,7 +101,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | --- | --- | --- |
 | `/rescue/site_events` (SiteEvent) | 받음 | `VALID` 시야만 사건으로 바꾼다(C-10). `DISASTER_SIGN` → 모드 관문(재난 모드 표시·저장까지) |
 | `/rescue/robots/{r}/status` (RobotStatus) | 받음 | `READY`·`lease_valid`·나이 ≤ `status_max_age_s` 일 때만 준비됨 |
-| `/rescue/robots/{r}/execute_task` (ExecuteTask) | 보냄 | 운영자 `START_SEARCH` 를 받은 뒤 SCOUT 에 `SEARCH_AREA`(저장소 소유자 결정 2026-10-11, #85: 재난 신호만으로는 출동하지 않음), 승인마다 SUPPORT 에 `MOVE_SEGMENT`, 열린 재확인마다 SCOUT 에 `REOBSERVE_TARGET`. 결과는 정지 확인이 있어야 예약을 푼다 |
+| `/rescue/robots/{r}/execute_task` (ExecuteTask) | 보냄 | 운영자 `START_SEARCH` 를 받은 뒤 SCOUT 에 `SEARCH_AREA`(저장소 소유자 결정 2026-10-11, #85: 재난 신호만으로는 출동하지 않음). SCOUT 상태를 모르거나 준비 전이면 `START_SEARCH` 는 `REJECTED`·`NAV_NOT_READY` 이고 시작으로 치지 않는다(#98: 버튼 뒤 알 수 없는 시점에 출발하지 않음, 준비 뒤 다시 누름). 준비됐지만 다른 task 중이면 받고, 수색은 그 task 뒤에 나간다, 승인마다 SUPPORT 에 `MOVE_SEGMENT`, 열린 재확인마다 SCOUT 에 `REOBSERVE_TARGET`. 결과는 정지 확인이 있어야 예약을 푼다 |
 | `/rescue/robots/{r}/task_admission` (TaskAdmission) | 받음 | ACTIVE 로 가는 유일한 길. goal 수락만으로는 ACTIVE 가 아니다 |
 | `/rescue/target_locations` (TargetLocation) | 받음 | `VALID` 투영만 대상이 된다. 아래 병합 규칙 |
 | `/rescue/reports` (RescueReport) | 보냄 | 대상 revision 마다 보고 하나. `report_retry_s` 마다 PERSISTED·REJECTED 까지 다시 보낸다 |
@@ -125,6 +125,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | `TARGET_REVISION_STALE`, `ROUTE_REVISION_STALE`, `SEGMENT_INDEX_MISMATCH`, `NOT_DISPATCHED_TARGET`, `TARGET_ALREADY_JUDGED` | `INVALID_INPUT` |
 | `HOME_BASIS_MISMATCH` | `FRAME_REVISION_MISMATCH` |
 | 처리하지 않는 operation(`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 필수 필드 누락, 역할과 다른 `robot_id` | `INVALID_INPUT` |
+| SCOUT 상태를 모르거나 준비 전의 `START_SEARCH`(노드 경계 판정, 로그 사유 `SCOUT_NOT_READY`) | `NAV_NOT_READY` |
 
 파라미터는 모두 필수이고 기본값이 없다. 하나라도 없으면 `missing parameters` FATAL 로 exit 2 다. 기동할 때 git SHA·boot ID·적용 파라미터·역할을 로그에 남긴다. 종료는 `rclpy.try_shutdown()`.
 
