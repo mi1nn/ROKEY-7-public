@@ -23,7 +23,9 @@ from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+# A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
+UPGRADES_FROM = frozenset({"1.0"})
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
@@ -34,6 +36,33 @@ POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
+
+
+# 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절).
+TABLES = (
+    """CREATE TABLE IF NOT EXISTS robot_status (
+        robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
+        stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS site_events (
+        event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
+        event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS target_states (
+        target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS error_log (
+        seq INTEGER PRIMARY KEY, at_ns INTEGER NOT NULL, robot_id TEXT, task_id TEXT,
+        code TEXT NOT NULL, detail TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS mission_state (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
+        trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER NOT NULL,
+        updated_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS operator_commands (
+        command_id TEXT PRIMARY KEY, kind TEXT NOT NULL, operator_id TEXT NOT NULL, robot_id TEXT,
+        target_id TEXT, segment_index INTEGER, route_revision INTEGER, requested_at_ns INTEGER NOT NULL,
+        accepted INTEGER NOT NULL, result TEXT, reason TEXT)""",
+    """CREATE TABLE IF NOT EXISTS map_snapshots (
+        snapshot_id TEXT PRIMARY KEY, robot_id TEXT NOT NULL, revision INTEGER NOT NULL,
+        path TEXT NOT NULL, sha256 TEXT NOT NULL, at_ns INTEGER NOT NULL)""",
+)
 
 
 def _finite(value, label):
@@ -109,20 +138,8 @@ class SiteStateLedger(_Database):
 
     def __init__(self, db_path, *, allowed_robot_ids):
         self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
-        super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)})
-        try:
-            with self._transaction() as db:
-                db.execute("""CREATE TABLE IF NOT EXISTS robot_status (
-                    robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
-                    stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
-                db.execute("""CREATE TABLE IF NOT EXISTS site_events (
-                    event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
-                    event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
-                db.execute("""CREATE TABLE IF NOT EXISTS target_states (
-                    target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""")
-        except BaseException:
-            self.close()
-            raise
+        super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)},
+                         schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES)
 
     def record_robot_status(self, status):
         """Store the latest snapshot. Returns False for a stale or identical resend."""
@@ -187,7 +204,7 @@ def _read(db_path, query):
         db.execute("PRAGMA query_only = ON")
         metadata = dict(db.execute("SELECT key, value FROM metadata"))
         require(metadata.get("role") == ROLE and metadata.get("schema") == SCHEMA_VERSION,
-                "not an operations site-state schema 1.0 database", "POLICY_MISMATCH")
+                "not an operations site-state schema " + SCHEMA_VERSION + " database", "POLICY_MISMATCH")
         try:
             allowed_robots(json.loads(metadata["allowed_robot_ids"]))
         except (KeyError, ValueError, TypeError) as exc:
