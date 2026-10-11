@@ -53,6 +53,17 @@ def mission(**changes):
     return values | changes
 
 
+# Mission fields added in schema 1.2 (SystemState dispatch, C-10); absent means no AMR2 dispatch yet.
+NO_DISPATCH = dict(target_id=None, target_revision=None, route_revision=None, segment_index=None,
+                   segment_count=None, segment_phase=None)
+
+
+def dispatch(**changes):
+    values = dict(target_id=uid(500), target_revision=2, route_revision=1, segment_index=1, segment_count=3,
+                  segment_phase='EXECUTING')
+    return values | changes
+
+
 def command(n=700, **changes):
     values = dict(command_id=uid(n), kind='CONTINUE_SEGMENT', operator_id='admin', robot_id='robot_b',
                   target_id=uid(500), segment_index=2, route_revision=1, requested_at_ns=7_000, accepted=True,
@@ -288,14 +299,38 @@ class SiteStateTests(unittest.TestCase):
             self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
         result = site_state.read_mission_state(self.path)
         self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
-        self.assertEqual(mission(), result['mission'])
+        self.assertEqual(mission() | NO_DISPATCH, result['mission'])
         with sqlite3.connect(self.path) as db:
             self.assertEqual(1, db.execute('SELECT COUNT(*) FROM mission_state').fetchone()[0])
         db.close()
 
+    def test_mission_dispatch_fields_and_finished_mode_round_trip(self):
+        """schema 1.2: SystemState (C-10, contracts 207행) carries the AMR2 dispatch and MISSION_FINISHED."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_mission_state(mission(generation=None, updated_at_ns=5_000) | dispatch()))
+            self.assertEqual(mission(generation=None, updated_at_ns=5_000) | dispatch(),
+                             site_state.read_mission_state(self.path)['mission'])
+            done = mission(mode='MISSION_FINISHED', phase='FINISHED', generation=None, updated_at_ns=6_000)
+            self.assertTrue(ledger.record_mission_state(done | dispatch(segment_index=3, segment_phase='STOPPED')))
+            self.assertTrue(ledger.record_mission_state(mission(updated_at_ns=7_000)))  # old writers still work
+        self.assertEqual(mission(updated_at_ns=7_000) | NO_DISPATCH,
+                         site_state.read_mission_state(self.path)['mission'])
+
+    def test_mission_dispatch_and_finished_rules_are_checked(self):
+        bad = [mission(mode='MISSION_FINISHED'),                      # only with phase FINISHED
+               mission(phase='FINISHED', mode='MISSION_FINISHED') | dispatch(segment_phase='MOVING'),  # core word
+               mission() | dispatch(segment_phase=''), mission() | dispatch(target_id=None),  # partial group
+               mission() | dispatch(segment_count=None), mission() | dispatch(segment_index=4),  # past the count
+               mission() | dispatch(target_revision=-1), mission() | dispatch(target_id='x')]
+        with self.ledger() as ledger:
+            for value in bad:
+                with self.subTest(value=value), self.assertRaises(OperationsError):
+                    ledger.record_mission_state(value)
+        self.assertIsNone(site_state.read_mission_state(self.path)['mission'])
+
     def test_mission_state_rejects_bad_input(self):
         bad = [dict(mode='PANIC'), dict(phase='DONE'), dict(trigger_event_id='x'), dict(trigger_event_id=None),
-               dict(started_at_ns=None), dict(started_at_ns=0), dict(generation=-1), dict(generation=None),
+               dict(started_at_ns=None), dict(started_at_ns=0), dict(generation=-1), dict(generation=1.0),
                dict(updated_at_ns=0), dict(extra=1)]
         with self.ledger() as ledger:
             for change in bad:
@@ -433,7 +468,7 @@ class SiteStateTests(unittest.TestCase):
         self.write_schema_1_0()
         self.ledger().close()
         metadata, tables = self.metadata_and_tables()
-        self.assertEqual('1.1', metadata['schema'])
+        self.assertEqual(site_state.SCHEMA_VERSION, metadata['schema'])
         self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
                               'robot_status', 'site_events', 'target_states'}, tables)
         robots = site_state.read_robot_status(self.path)['robots']
@@ -441,6 +476,31 @@ class SiteStateTests(unittest.TestCase):
                          robots)
         self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
         self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
+
+    def test_opening_schema_1_1_db_rebuilds_mission_state_and_keeps_its_row(self):
+        """A 1.1 file (main at #87) has mission_state without the dispatch columns and generation NOT NULL."""
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            db.executemany('INSERT INTO metadata VALUES (?, ?)',
+                           [('schema', '1.1'), ('role', 'operations-site-state'),
+                            ('allowed_robot_ids', site_state.canonical(site_state.allowed_robots(ALLOWED)))])
+            db.execute("""CREATE TABLE mission_state (
+                singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
+                trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER NOT NULL,
+                updated_at_ns INTEGER NOT NULL)""")
+            db.execute('INSERT INTO mission_state VALUES (1, ?, ?, ?, ?, ?, ?)',
+                       ('DISASTER', 'SEARCHING', uid(30), 1_500, 1, 4_000))
+        db.close()
+        self.ledger().close()
+        metadata, tables = self.metadata_and_tables()
+        self.assertEqual(('1.2', site_state.SCHEMA_VERSION), (metadata['schema'], metadata['schema']))
+        self.assertLessEqual({'mission_state', 'robot_status', 'site_events', 'target_states', 'error_log',
+                              'operator_commands', 'map_snapshots'}, tables)
+        self.assertEqual(mission() | NO_DISPATCH, site_state.read_mission_state(self.path)['mission'])
+        with self.ledger() as ledger:  # the rebuilt table takes the 1.2 shape
+            self.assertTrue(ledger.record_mission_state(mission(generation=None, updated_at_ns=5_000) | dispatch()))
+        self.ledger().close()  # reopening a 1.2 file is a plain reopen
 
     def test_schema_1_0_db_with_other_policy_is_rejected_and_left_unchanged(self):
         self.write_schema_1_0(allowed=('robot_a', 'robot_c'))
