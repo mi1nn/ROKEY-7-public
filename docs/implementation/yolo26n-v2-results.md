@@ -81,3 +81,7 @@ optimizer auto는 args.yaml의 lr0=0.01·momentum=0.937을 무시한다. 실제 
 ![robot5 100 epoch 모델: 인형 confidence 0.98](yolo26n-results/robot5-100epoch-capture.png)
 
 사용 모델 SHA256: `0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74`. PR에 첨부한 최대200 epoch 모델과 구분한다.
+
+### 실측 거리와 근거리 confidence
+
+[사용자 실측 보고, 2026-10-11] 위 결과 이미지에서 robot5와 인형의 거리는 **2.2m**이며, 해당 프레임 confidence는 **0.9814 (화면 0.98)**였다. 사용자는 **2.2m보다 가까운 거리에서도 관측 중 confidence가 항상 0.8 이상 표시됐다**고 보고했다. 모델은 위 100 epoch best.pt다. 근거리의 개별 거리·프레임 수·연속 로그는 제공되지 않아 정량 성공률이나 모든 조건의 보장으로 확대하지 않는다. 실제 사람 오탐 여부는 별도 평가 대상이다.
