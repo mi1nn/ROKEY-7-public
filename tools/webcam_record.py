@@ -12,6 +12,8 @@
     python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30      # 화면 보며 녹화(권장)
     python3 tools/webcam_record.py record --device USB --size 1280x720 --fps 30   # 화면 없이 정해진 시간 녹화
     python3 tools/webcam_record.py split .artifacts/webcam_clips/<날짜>/S01-<시각>.mp4  # 학습·검증 자르기
+    python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30 --clip VDARK   # 평가 클립(조건별)
+    python3 tools/webcam_record.py conditions <Roboflow 내보내기 폴더>              # eval_conditions.csv
     python3 tools/webcam_record.py status                             # 찍은 영상
 
 ``--device`` 는 번호(0, 1 …) 또는 이름 일부("USB", "C920")다. iPhone 이 연결되면 번호가
@@ -55,8 +57,45 @@ SCENES = [
     ("val", 60, "전체", "검증: 다른 사람이 당기기, 위 상황을 섞어 통과 3회(천천히·빠르게·가림)"),
 ]
 VAL_START_S = sum(sec for split, sec, _, _ in SCENES if split == "train")
-CLIPS = {"S01": ("train+val", sum(sec for _, sec, _, _ in SCENES) + 15, "전체",
-                 f"끌개 시나리오 한 번에 — {VAL_START_S}초 이후는 검증 구간")}
+TRAIN_SCENES = [sc for sc in SCENES if sc[0] == "train"]
+
+# 평가 촬영(2026-10-11 개정): 평가셋은 학습과 다른 회차·시간대에 따로 찍고, valid 와 test 도 서로 다른 회차로
+# 찍는다. 조건마다 영상을 따로 찍어 파일 이름(클립 ID)으로 조건을 구분한다(Roboflow 가 파일 이름을 유지한다).
+EVAL_CONDITIONS = {
+    "NORM": ("일반", "가까이→멀리", "보통 조명에서 끌개를 당겨 출구 통과 4~5회(속도·인형 자세를 바꿔 가며)"),
+    "DARK": ("저조도", "가까이→멀리", "형광등 일부를 끄고 통과 4~5회 — 화면 아래 '카메라 실제 fps' 를 메모"),
+    "OCCL": ("가려짐", "가까이→멀리", "당기는 사람이 끌개와 카메라 사이를 지나며 인형을 일부 가림, 4~5회"),
+    "FAR": ("원거리", "멀리(출구 끝)", "출구 끝에서 인형을 멈추거나 천천히 움직임, 자세 바꾸기"),
+    "BG": ("배경", "전체", "인형 없이: 빈 출구 → 사람만 지나감 → 빈 끌개만 당김(각 20초 정도)"),
+}
+EVAL_SECONDS = 60
+CLIPS = {
+    "S01": ("train+val", sum(sec for _, sec, _, _ in SCENES) + 15, "전체",
+            f"끌개 시나리오 한 번에 — {VAL_START_S}초 이후는 검증 구간"),
+    "S02": ("train", sum(sec for _, sec, _, _ in TRAIN_SCENES) + 15, "전체",
+            "추가 학습 촬영 — S01 과 같은 장면(검증 장면 없음). 저조도·원거리를 넉넉히"),
+}
+for _prefix, _split in (("V", "val"), ("T", "test")):
+    for _key, (_cond, _dist, _what) in EVAL_CONDITIONS.items():
+        CLIPS[_prefix + _key] = (_split, EVAL_SECONDS, _dist, f"[{_cond}] {_what}")
+
+
+def scenes_for(clip):
+    """GUI 가 보여 줄 장면 목록. S01 은 전체 시나리오, S02 는 학습 장면만, 평가 클립은 장면 하나."""
+    if clip == "S01":
+        return SCENES
+    if clip == "S02":
+        return TRAIN_SCENES
+    split, seconds, distance, what = CLIPS[clip]
+    return [(split, seconds, distance, what)]
+
+
+def condition_of(filename):
+    """Roboflow 파일 이름(예: VDARK-142233_mp4-0003_jpg.rf.x.jpg)의 클립 ID 로 평가 조건을 돌려준다. 아니면 None."""
+    clip = re.split(r"[-_]", Path(filename).name, maxsplit=1)[0]
+    if clip[:1] in ("V", "T") and clip[1:] in EVAL_CONDITIONS:
+        return EVAL_CONDITIONS[clip[1:]][0]
+    return None
 
 _DEVICE = re.compile(r"\[(\d+)\] (.+)$")
 _MODE = re.compile(r"(\d+)x(\d+)@\[([\d.]+) ([\d.]+)\]fps")
@@ -184,12 +223,17 @@ def sha256(path):
 
 def cmd_checklist(_args):
     t = 0
-    print(f"영상 하나(S01)로 순서대로 찍는다. 약 {CLIPS['S01'][1]}초, {VAL_START_S}초부터 검증 구간.")
-    for split, seconds, distance, what in SCENES:
-        print(f"{t // 60}:{t % 60:02d}  {split:<6}{distance:<14}{what}")
+    print(f"[학습 추가] S02 — S01 과 같은 장면, 약 {CLIPS['S02'][1]}초")
+    for split, seconds, distance, what in TRAIN_SCENES:
+        print(f"  {t // 60}:{t % 60:02d}  {distance:<14}{what}")
         t += seconds
+    for prefix, label in (("V", "valid 회차 (학습과 다른 시간대)"), ("T", "test 회차 (valid 와도 다른 시간대·다른 사람)")):
+        print(f"\n[평가] {label} — 조건마다 영상 하나, 각 {EVAL_SECONDS}초")
+        for key in EVAL_CONDITIONS:
+            split, seconds, distance, what = CLIPS[prefix + key]
+            print(f"  {prefix + key:<7}{distance:<14}{what}")
     done = done_clips()
-    print("찍은 영상: " + (", ".join(f"{c}x{n}" for c, n in sorted(done.items())) or "없음"))
+    print("\n찍은 영상: " + (", ".join(f"{c}x{n}" for c, n in sorted(done.items())) or "없음"))
 
 
 def cmd_devices(_args):
@@ -376,7 +420,7 @@ def retime(path, from_fps, to_fps):
 def cmd_gui(args):
     import cv2
     split, _, _, what = CLIPS[args.clip]
-    session = Session(args.fps)
+    session = Session(args.fps, scenes_for(args.clip))
     fonts = _font_maker()
     cap = cv2.VideoCapture(args.camera, cv2.CAP_AVFOUNDATION)
     if not cap.isOpened():
@@ -492,6 +536,28 @@ def cmd_split(args):
     print(f"{at}초 기준으로 잘랐다. Roboflow 에는 train 은 학습용, val 은 검증용(Valid)으로 따로 올린다.")
 
 
+def cmd_conditions(args):
+    """Roboflow 내보내기 폴더의 valid/test 이미지에서 평가 조건 표(eval_conditions.csv)를 만든다."""
+    root = Path(args.dataset)
+    rows = [(split, p.name, condition_of(p.name)) for split in ("valid", "test")
+            for p in sorted((root / split / "images").glob("*"))]
+    missing = [r for r in rows if r[2] is None]
+    out = Path(args.out)
+    with open(out, "w", newline="") as f:
+        f.write("split,image,condition\n")
+        for split, name, cond in rows:
+            if cond is not None:
+                f.write(f"{split},{name},{cond}\n")
+    counts = {}
+    for split, _, cond in rows:
+        counts[(split, cond)] = counts.get((split, cond), 0) + 1
+    for (split, cond), n in sorted(counts.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))):
+        print(f"{split:<6}{cond or '조건 없음(평가 클립 아님)'}: {n}장")
+    print(f"저장: {out}")
+    if missing:
+        print(f"주의: 평가 클립 이름이 아닌 이미지 {len(missing)}장 — valid/test 에 다른 영상이 섞였는지 확인")
+
+
 def cmd_status(_args):
     done = done_clips()
     left = [c for c in CLIPS if c not in done]
@@ -505,6 +571,10 @@ def main(argv=None):
     sub.add_parser("checklist", help="촬영할 클립 목록").set_defaults(fn=cmd_checklist)
     sub.add_parser("devices", help="카메라 번호·이름").set_defaults(fn=cmd_devices)
     sub.add_parser("status", help="찍은 클립 / 남은 클립").set_defaults(fn=cmd_status)
+    p = sub.add_parser("conditions", help="Roboflow 내보내기 폴더에서 eval_conditions.csv 만들기")
+    p.add_argument("dataset", help="압축을 푼 Roboflow 내보내기 폴더(valid/, test/ 가 있는 곳)")
+    p.add_argument("--out", default="eval_conditions.csv")
+    p.set_defaults(fn=cmd_conditions)
     p = sub.add_parser("gui", help="화면을 보며 녹화(스페이스 시작·일시정지, N 다음 장면, S 저장)")
     p.add_argument("--camera", type=int, default=0, help="OpenCV 카메라 번호")
     p.add_argument("--size", type=parse_size, required=True, help="예: 1280x720")
@@ -530,7 +600,7 @@ def main(argv=None):
             p.add_argument("--note", default="", help="메모(누가 들었는지, 조명 등)")
         p.set_defaults(fn=fn)
     args = ap.parse_args(argv)
-    if args.cmd not in ("checklist", "status"):
+    if args.cmd not in ("checklist", "status", "conditions"):
         missing = [t for t in ("ffmpeg", "ffprobe", "ffplay") if shutil.which(t) is None]
         if missing:
             raise SystemExit(f"없음: {', '.join(missing)} (brew install ffmpeg)")
