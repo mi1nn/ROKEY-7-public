@@ -212,7 +212,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `RobotPose` (로봇별 토픽) | `robot_status.pose` | `mission_pose_status=VALID` 일 때만 x·y·yaw·frame_id, 아니면 위치를 숨긴다. 오는 즉시 `record_robot_pose` 로 쓰고 받은 시각은 바꾸지 않는다. 표시용이며 준비 증거가 아니다(C-05) |
 | `SiteEvent` | `site_events` | C-10: `visibility_state` 가 VALID 가 아니면 거절. 빈 `target_id`·`watch_id` 는 None, `has_clock_error_bound=false` 면 오차 None. 계약에 없는 `source_boot_id`·`metrics`·`policy_version` 은 버린다 |
 
-거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·076 의 [제안] 값, 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
+거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·076 의 [제안] 신뢰성·깊이에, 구독 지속성은 모두 VOLATILE(IF-011 의 TRANSIENT_LOCAL 발행과도 VOLATILE 발행과도 맞음. TRANSIENT_LOCAL 구독은 VOLATILE 발행을 거절해 #90 probe 와의 실행에서 로봇 상태가 들어오지 않았다), 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
 
 | 검증 | 결과 |
 | --- | --- |

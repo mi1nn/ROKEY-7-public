@@ -18,8 +18,11 @@ from rescue_contracts import ROBOT_ROLES
 from .schema import OperationsError, allowed_robots, require, text
 from .site_state import SCHEMA_VERSION
 
-# SDD v0.1 IF-010/011/042/043/076 [제안]: reliability / durability / depth per topic.
-QOS = {'status': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'pose': ('RELIABLE', 'VOLATILE', 1),
+# Subscriber QoS (reliability, durability, depth). Reliability/depth follow SDD v0.1 IF-010/011/076 [제안].
+# Durability is VOLATILE even where the SDD publisher is TRANSIENT_LOCAL (IF-011): a VOLATILE
+# subscription matches both kinds of publisher, a TRANSIENT_LOCAL one refuses a VOLATILE publisher
+# (local ROS run with the #90 probe, 2026-10-11). Status is periodic, so no latched copy is needed.
+QOS = {'status': ('RELIABLE', 'VOLATILE', 1), 'pose': ('RELIABLE', 'VOLATILE', 1),
        'site_events': ('RELIABLE', 'VOLATILE', 10)}
 ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics')
 
