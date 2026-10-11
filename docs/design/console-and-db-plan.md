@@ -59,7 +59,7 @@ PC4 한 대(관제 PC)에 프로세스 둘.
 | 경로 | 뜻 |
 | --- | --- |
 | `GET /api/snapshot` | mission + robots + targets(4단계 합성은 #37 규칙표) + events + 미처리 명령 |
-| `POST /api/operator-commands` | kind ∈ {START_SEARCH(AMR1 출동 버튼, 2026-10-11 #85), DISPATCH_SUPPORT, CONTINUE_SEGMENT, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
+| `POST /api/operator-commands` | kind ∈ {START_SEARCH(수동 대체), DISPATCH_SUPPORT, CONTINUE_SEGMENT, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
 | `PUT /api/evidence/{id}` | 웹캠 후보 jpeg + sha256 → PERSISTED / REJECTED |
 | `PUT /api/maps/{id}` | 지도 PNG + revision |
 | 로그인 | 세션 쿠키. 역할 `ADMIN`(화면·명령·계정 관리)과 `CUSTOMER`(보기만). ADMIN 이 CUSTOMER 계정을 만들고·고치고·지운다(강사 day5 요구: 로그인 페이지 + SQLite 로그인 데이터). 계정 파일·세션 비밀은 저장소 밖([SDD 10절 목록](architecture.md) 에 추가). operator_id 가 명령에 박힌다 |
