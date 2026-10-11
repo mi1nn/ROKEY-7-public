@@ -7,7 +7,7 @@ from types import SimpleNamespace as NS
 import unittest
 
 from rescue_contracts import CANONICAL_CODES, RescueError
-from rescue_coordination.planning import Allocator
+from rescue_coordination.planning import Allocator, GoalPoint
 from rescue_coordination.search import SearchCoordinator
 from rescue_coordination import mission, ros_node
 from test_coordination_search import BOOT, EPOCH, MAP, NOW, policy, uid
@@ -15,6 +15,8 @@ from test_coordination_search import BOOT, EPOCH, MAP, NOW, policy, uid
 SCOUT, SUPPORT = 'unit_1', 'unit_2'
 TARGET = uid(500)
 MAX_AGE = 2_000_000_000
+SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
+OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
 
 
 def time_msg(**changes):
@@ -49,13 +51,24 @@ def request(operation, **changes):
     return NS(**(values | changes))
 
 
+def frame_template():
+    return NS(robot_id='', native_frame='', mission_frame='', map_session_id='', map_revision=0, transform_revision=0,
+              alignment_status='')
+
+
 def goal_template():
-    frame = NS(robot_id='', native_frame='', mission_frame='', map_session_id='', map_revision=0,
-               transform_revision=0, alignment_status='')
+    frame = frame_template()
+    pose = NS(header=NS(frame_id=''), pose=NS(position=NS(x=0., y=0., z=0.), orientation=NS(x=0., y=0., z=0., w=1.)))
+    route = NS(route_id='', route_revision=0, robot_id='', target_id='', segment_index=0, frame_ref=frame_template(),
+               approach_goal=pose, generated_at_ns=0, valid_until_ns=0, path_sha256='', approval_corridor_sha256='',
+               planner_evidence_id='', policy_version='')
+    approval = NS(approval_id='', command_id='', operator_id='', robot_id='', robot_boot_id='', authority_epoch='',
+                  target_id='', target_estimate_revision=0, route_id='', route_revision=0, segment_index=0,
+                  approved_at_ns=0, valid_until_ns=0, scope='')
     return NS(command_id='', task_id='', robot_id='', expected_robot_boot_id='', coordinator_id='',
               authority_epoch='', generation=0, kind='', issued_at_ns=0, deadline_ns=0, lease_id='', target_id='',
-              target_estimate_revision=0, search_area_ref='', home_ref='', frame_ref=frame, has_route=False,
-              has_approval=False, policy_version='')
+              target_estimate_revision=0, search_area_ref='', home_ref='', frame_ref=frame, route=route,
+              has_route=False, approval=approval, has_approval=False, policy_version='')
 
 
 class CoreTestCase(unittest.TestCase):
@@ -64,7 +77,8 @@ class CoreTestCase(unittest.TestCase):
         search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
                                    new_id=lambda: uid(next(self.ids)))
         self.core = ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()),
-                                             status_max_age_ns=MAX_AGE)
+                                             status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7,
+                                             observe_goal=OBSERVE)
 
     def disaster(self):
         self.assertEqual('ENTERED_DISASTER', self.core.on_site_event(site_msg()).reason)
@@ -221,6 +235,117 @@ class OperatorServiceTests(CoreTestCase):
         self.core.mission.record_target(TARGET, 0, detection_confirmed=True, report_persisted=True)
         reply = self.response('REQUEST_RECHECK', target_id=TARGET, robot_id=SCOUT)
         self.assertEqual('ACCEPTED', reply['request_state'])
+
+
+
+class TaskIssueTests(CoreTestCase):
+    """작전 2026-10-11 (#88 Phase 1 rule): approvals and rechecks become ExecuteTask goals."""
+
+    def setUp(self):
+        super().setUp()
+        self.disaster()
+        self.core.mission.record_target(TARGET, 0, detection_confirmed=True, report_persisted=True)
+        self.core.mission.record_route(TARGET, route_revision=7, segment_count=len(SEGMENTS))
+
+    def command(self, operation, n, **fields):
+        return self.core.on_command(request(operation, command_id=uid(700 + n), target_id=TARGET, **fields),
+                                    now_ns=NOW + n)
+
+    def dispatch(self):
+        self.core.on_status(status_msg(SUPPORT))
+        reply = self.command('DISPATCH_SUPPORT', 1)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual((True, fields['task_id']), (reply['accepted'], reply['created_task_id']))
+        return fields
+
+    def finish(self, fields, outcome='COMPLETED'):
+        self.assertTrue(self.core.on_admission(admission_msg(fields)))
+        self.assertTrue(self.core.on_result(fields['task_id'], NS(outcome=outcome, stop_confirmed=True)))
+
+    def test_dispatch_issues_one_move_segment_with_route_and_approval(self):
+        fields = self.dispatch()
+        self.assertEqual(('MOVE_SEGMENT', SUPPORT, TARGET, 0), (fields['kind'], fields['robot_id'], fields['target_id'],
+                                                                fields['target_revision']))
+        route, approval = fields['route'], fields['approval']
+        self.assertEqual((7, 0, SEGMENTS[0], ros_node.route_id(SEGMENTS)),
+                         (route['route_revision'], route['segment_index'], route['approach_goal'], route['route_id']))
+        self.assertEqual((uid(701), uid(701), 'admin', 'ONE_SEGMENT', 0, NOW + 1),
+                         (approval['approval_id'], approval['command_id'], approval['operator_id'], approval['scope'],
+                          approval['segment_index'], approval['approved_at_ns']))
+        goal = ros_node.fill_execute_task_goal(goal_template(), fields, coordinator_id='coord')
+        self.assertEqual((True, True, 'ONE_SEGMENT', 1.0, '', ''),
+                         (goal.has_route, goal.has_approval, goal.approval.scope, goal.route.approach_goal.pose.position.x,
+                          goal.route.planner_evidence_id, goal.route.path_sha256))  # no planner-looking values
+        self.assertEqual([], self.core.tick(NOW))  # one approval, one task
+
+    def test_segment_waits_for_a_known_support_and_is_issued_later(self):
+        reply = self.command('DISPATCH_SUPPORT', 1)
+        self.assertEqual((True, ''), (reply['accepted'], reply['created_task_id']))
+        self.assertEqual([], self.core.tick(NOW))
+        self.core.on_status(status_msg(SUPPORT))
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual('MOVE_SEGMENT', fields['kind'])
+
+    def test_admission_and_stopped_result_drive_the_segment_state(self):
+        first = self.dispatch()
+        self.assertTrue(self.core.on_admission(admission_msg(first)))
+        self.assertEqual('MOVING', self.core.mission.segment_phase)
+        self.assertTrue(self.core.on_result(first['task_id'], NS(outcome='COMPLETED', stop_confirmed=True)))
+        self.assertEqual(('AWAITING_APPROVAL', 1), (self.core.mission.segment_phase, self.core.mission.segment_index))
+        self.assertEqual([], self.core.tick(NOW))  # never the next segment by itself
+        reply = self.command('CONTINUE_SEGMENT', 2, route_revision=7, segment_index=1)
+        (second,) = self.core.tick(NOW)
+        self.assertEqual((reply['created_task_id'], SEGMENTS[1], 1), (second['task_id'], second['route']['approach_goal'],
+                                                                     second['route']['segment_index']))
+
+    def test_failed_segment_waits_for_approval_again(self):
+        first = self.dispatch()
+        self.finish(first, 'UNREACHABLE')
+        self.assertEqual(('AWAITING_APPROVAL', 0), (self.core.mission.segment_phase, self.core.mission.segment_index))
+        self.assertEqual([], self.core.tick(NOW))
+
+    def test_result_without_a_confirmed_stop_changes_nothing(self):
+        first = self.dispatch()
+        self.core.on_admission(admission_msg(first))
+        self.assertFalse(self.core.on_result(first['task_id'], NS(outcome='COMPLETED', stop_confirmed=False)))
+        self.assertEqual('MOVING', self.core.mission.segment_phase)
+
+    def test_recheck_issues_reobserve_at_the_observation_goal(self):
+        self.core.on_status(status_msg(SCOUT))
+        reply = self.command('REQUEST_RECHECK', 3)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('REOBSERVE_TARGET', SCOUT, TARGET, fields['task_id'], None),
+                         (fields['kind'], fields['robot_id'], fields['target_id'], reply['created_task_id'],
+                          fields['approval']))
+        self.assertEqual((OBSERVE.mission_xy[0], OBSERVE.yaw), (fields['goal_pose']['x'], fields['goal_pose']['yaw']))
+
+    def test_recheck_waits_for_the_current_search_area_then_goes_first(self):
+        self.core.on_status(status_msg(SCOUT))
+        (search,) = self.core.tick(NOW)
+        self.assertEqual('', self.command('REQUEST_RECHECK', 3)['created_task_id'])  # SCOUT is searching
+        self.finish(search)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual('REOBSERVE_TARGET', fields['kind'])  # before the next search area
+
+    def test_recheck_that_did_not_complete_is_reissued_once(self):
+        self.core.on_status(status_msg(SCOUT))
+        self.command('REQUEST_RECHECK', 3)
+        (first,) = self.core.tick(NOW)
+        self.finish(first, 'FAILED')
+        (again,) = self.core.tick(NOW)
+        self.assertEqual('REOBSERVE_TARGET', again['kind'])
+        self.assertNotEqual(first['task_id'], again['task_id'])
+        self.finish(again)
+        (search,) = self.core.tick(NOW)  # completed: the recheck waits for its verdict, the SCOUT searches on
+        self.assertEqual('SEARCH_AREA', search['kind'])
+
+    def test_core_rejects_a_route_without_segments_or_with_another_basis(self):
+        search = self.core.search
+        for changes in (dict(segment_goals=()), dict(segment_goals=(OBSERVE, 'x'))):
+            with self.subTest(changes=changes), self.assertRaises(RescueError):
+                ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()),
+                                         **(dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7,
+                                                 observe_goal=OBSERVE) | changes))
 
 
 if __name__ == '__main__':
