@@ -160,6 +160,7 @@ class SiteRuntime:
     def __init__(self,node,adapter,config,inputs,*,bindings=None):
         self.node,self.adapter,self.inputs=node,adapter,inputs
         self.config=deepcopy(config); self.leases={}; self.closed=False
+        self.last_lease_rejection=''
         if config['robot_id']!=adapter.robot_id: raise ContractError('runtime robot differs','WRONG_ROBOT')
         self.gate=Phase1RouteGate(adapter,registry=inputs,authorize_operator=inputs.authorize_operator,
             current_target_revision=inputs.current_target_revision,passage_guard=inputs.passage_guard,
@@ -171,28 +172,42 @@ class SiteRuntime:
             schema_version=config['schema_version'],publisher_id=config['publisher_id'],
             poll_period_s=config['poll_period_s'],lookup_lease=lambda goal:self.leases.get(goal.lease_id),
             accept_lease=self.accept_lease,encode_result=self.encode_result,bindings=bindings,
+            lease_rejection_reason=lambda:self.last_lease_rejection,
             **config['endpoints'])
         self.services=[]
         self.install_live_authority_guard()
 
-    def _issuer(self,message,*,boot_field):
+    def _issuer_rejection(self,message,*,boot_field):
         a=self.inputs.current()['authority']; e=message.envelope
-        return (message.robot_id==self.adapter.robot_id
-            and getattr(message,boot_field)==a['robot_boot_id']==self.adapter.executor.robot_boot_id
-            and message.authority_epoch==a['authority_epoch']==self.adapter.executor.authority_epoch
-            and message.coordinator_id==a['coordinator_id']
-            and e.schema_version==self.config['schema_version']
-            and e.publisher_id==a['publisher_id'] and e.publisher_boot_id==a['publisher_boot_id'])
+        checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
+            (getattr(message,boot_field)==a['robot_boot_id']==self.adapter.executor.robot_boot_id,
+             'ROBOT_BOOT_ID_MISMATCH'),
+            (message.authority_epoch==a['authority_epoch']==self.adapter.executor.authority_epoch,
+             'AUTHORITY_EPOCH_MISMATCH'),
+            (message.coordinator_id==a['coordinator_id'],'COORDINATOR_ID_MISMATCH'),
+            (e.schema_version==self.config['schema_version'],'SCHEMA_VERSION_MISMATCH'),
+            (e.publisher_id==a['publisher_id'],'PUBLISHER_ID_MISMATCH'),
+            (e.publisher_boot_id==a['publisher_boot_id'],'PUBLISHER_BOOT_ID_MISMATCH'))
+        return next((reason for accepted,reason in checks if not accepted),'')
+
+    def _issuer(self,message,*,boot_field):
+        return not self._issuer_rejection(message,boot_field=boot_field)
 
     def authorize(self,goal,lease):
         return self._issuer(goal,boot_field='expected_robot_boot_id') and (
             lease is None or self._issuer(lease,boot_field='robot_boot_id'))
 
     def accept_lease(self,lease):
-        if not self._issuer(lease,boot_field='robot_boot_id'): return False
+        # TaskActionServer reads this diagnostic under the shared adapter lock.
+        self.last_lease_rejection=self._issuer_rejection(lease,boot_field='robot_boot_id')
+        if self.last_lease_rejection: return False
         old=self.leases.get(lease.lease_id)
         identity=lambda m:(m.lease_id,m.robot_id,m.robot_boot_id,m.authority_epoch,m.coordinator_id,m.generation)
-        if old is not None and (identity(old)!=identity(lease) or lease.renewal_sequence<=old.renewal_sequence):
+        if old is not None and identity(old)!=identity(lease):
+            self.last_lease_rejection='LEASE_IDENTITY_CONFLICT'
+            return False
+        if old is not None and lease.renewal_sequence<=old.renewal_sequence:
+            self.last_lease_rejection='NONINCREASING_SEQUENCE'
             return False
         self.leases[lease.lease_id]=deepcopy(lease)
         return True

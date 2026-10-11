@@ -167,6 +167,11 @@ ROS/IDL을 설치한 PC에서, 실제 로봇 도메인과 겹치지 않는 사�
 실행하면 실제 ExecuteTask/CommandLease/TaskAdmission/RobotStatus 왕복을 검사한다.
 이 E3도 motion 입력은 합성이며 실제 Nav2/로봇 검증이 아니다.
 
+CommandLease 거절 로그에는 lease/robot/boot/coordinator/authority/generation/sequence를
+남긴다. 등록된 발행자·boot·권한 불일치, 중복/역행 sequence, 로컬 lease 만료와 STOPPING은
+warning으로 구분한다. goal보다 먼저 저장한 lease와 다른 lease_id의 메시지는 debug로
+기록한다. 이 진단은 lease 수락 조건이나 로컬 정지 기한을 바꾸지 않는다.
+
 `task_prepare --directory <출력폴더> --robot-id <논리ID> --namespace <물리namespace>`는
 runtime.json, inputs.json, task.params.yaml, preparation.json을 만든다. 기존 adapter
 파라미터에 task.params.yaml을 겹쳐 로드한다. 결정된 수치를 `--settings <JSON>`으로 넣을

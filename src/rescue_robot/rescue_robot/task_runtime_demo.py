@@ -45,7 +45,8 @@ class DemoNode:
     def destroy_timer(self,*args): pass
     def destroy_subscription(self,*args): pass
     def destroy_publisher(self,*args): pass
-    def get_logger(self): return NS(error=self.errors.append)
+    def get_logger(self):
+        return NS(error=self.errors.append,warning=self.errors.append,debug=lambda message:None)
 
 
 def fake_bindings():

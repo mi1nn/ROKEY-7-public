@@ -68,7 +68,7 @@ def ros_bindings():
 class TaskActionServer:
     def __init__(self, node, ingress, *, action_name, lease_topic, admission_topic, status_topic,
                  poll_period_s, schema_version, publisher_id, lookup_lease,
-                 accept_lease, encode_result, bindings=None):
+                 accept_lease, encode_result, bindings=None, lease_rejection_reason=None):
         for value in (action_name, lease_topic, admission_topic, status_topic, schema_version, publisher_id):
             if not isinstance(value, str) or not value:
                 raise ContractError('explicit endpoint and envelope settings required')
@@ -77,9 +77,12 @@ class TaskActionServer:
         for callback in (lookup_lease, accept_lease, encode_result):
             if not callable(callback):
                 raise ContractError('lease storage/authentication and result encoder required')
+        if lease_rejection_reason is not None and not callable(lease_rejection_reason):
+            raise ContractError('lease rejection diagnostic must be callable')
         number(poll_period_s, 'poll_period_s', positive=True)
         self.node, self.ingress = node, ingress
         self.lookup_lease, self.accept_lease = lookup_lease, accept_lease
+        self.lease_rejection_reason = lease_rejection_reason
         self.encode_result = encode_result
         self.schema_version, self.publisher_id = schema_version, publisher_id
         self.sequence = 0
@@ -144,6 +147,14 @@ class TaskActionServer:
                     self.node.get_logger().error(f'TaskAdmission publish failed: {publish_error}')
                 return self.bindings.GoalResponse.REJECT
 
+    def log_lease(self, level, reason, lease):
+        """Keep a rejection trace without changing storage, admission or expiry."""
+        getattr(self.node.get_logger(), level)(
+            f'CommandLease {reason}: lease_id={lease.lease_id} robot_id={lease.robot_id} '
+            f'robot_boot_id={lease.robot_boot_id} coordinator_id={lease.coordinator_id} '
+            f'authority_epoch={lease.authority_epoch} generation={lease.generation} '
+            f'renewal_sequence={lease.renewal_sequence}')
+
     def on_lease(self, lease):
         with self.ingress.adapter.lock:
             try:
@@ -151,14 +162,33 @@ class TaskActionServer:
                 # Initial leases may arrive before there is an active task.
                 self.ingress.validate_lease(lease)
                 if self.accept_lease(lease) is not True:
+                    reason = (self.lease_rejection_reason() if self.lease_rejection_reason else None)
+                    self.log_lease('warning', reason or 'LEASE_AUTHENTICATION_OR_STORAGE_REJECTED', lease)
                     return False
                 active = self.ingress.adapter.executor.active
                 if active is None:
+                    self.log_lease('debug', 'STORED_BEFORE_TASK', lease)
                     return True
                 request = self.ingress.requests.get(active.command_id)
-                if request is None or request[0].lease_id != lease.lease_id:
+                if request is None:
+                    self.log_lease('warning', 'ACTIVE_REQUEST_UNAVAILABLE', lease)
                     return False
-                return self.ingress.renew(lease)
+                if request[0].lease_id != lease.lease_id:
+                    self.log_lease('debug', 'OTHER_LEASE_ID', lease)
+                    return False
+                renewed = self.ingress.renew(lease)
+                if not renewed:
+                    executor = self.ingress.adapter.executor
+                    if executor.state == 'STOPPING':
+                        reason = 'STOPPING'
+                    elif self.ingress.adapter.clock() >= executor.lease_until:
+                        reason = 'LOCAL_LEASE_EXPIRED'
+                    elif lease.renewal_sequence <= executor.lease_sequence:
+                        reason = 'NONINCREASING_SEQUENCE'
+                    else:
+                        reason = 'RENEWAL_REJECTED'
+                    self.log_lease('warning', reason, lease)
+                return renewed
             except Exception as exc:
                 self.node.get_logger().error(f'CommandLease rejected: {exc}')
                 return False
