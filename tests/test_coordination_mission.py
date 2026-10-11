@@ -230,6 +230,14 @@ class OperatorCommandTests(MissionTestCase):
             with self.subTest(count=count), self.assertRaises(CoordinationError):
                 self.m.record_route(OTHER, route_revision=1, segment_count=count)
 
+    def test_save_receipt_may_arrive_after_the_revision(self):
+        # The report receipt (PERSISTED) comes after the location that made the revision.
+        self.assertTrue(self.m.record_target(TARGET, 0, detection_confirmed=True, report_persisted=False))
+        self.assertTrue(self.m.record_target(TARGET, 0, detection_confirmed=True, report_persisted=True))
+        with self.assertRaises(CoordinationError) as caught:  # a saved revision never becomes unsaved
+            self.m.record_target(TARGET, 0, detection_confirmed=True, report_persisted=False)
+        self.assertEqual('ID_CONTENT_CONFLICT', caught.exception.code)
+
     def test_recheck_follows_c11_row_10(self):
         """Q-26 (2026-10-11): any recorded target, no arrival condition, one open recheck, judged target refused."""
         self.disaster()

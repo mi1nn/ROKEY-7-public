@@ -19,6 +19,32 @@ SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
 OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
 
 
+def make_core(**changes):
+    ids = itertools.count(1000)
+    search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
+                               new_id=lambda: uid(next(ids)))
+    values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
+                  merge_distance_m=1.0, report_retry_ns=1_000_000_000, new_id=lambda: uid(next(ids)))
+    return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
+
+
+def frame(**changes):
+    values = dict(robot_id=SCOUT, native_frame='map', mission_frame='mission', map_session_id=MAP, map_revision=3,
+                  transform_revision=1, alignment_status='VALID')
+    return NS(**(values | changes))
+
+
+def location(n, xy=(4., 4.), **changes):
+    values = dict(location_id=uid(800 + n), frame_ref=frame(), projection_status='VALID',
+                  mission_position=NS(x=xy[0], y=xy[1], z=0.))
+    return NS(**(values | changes))
+
+
+def receipt(report, state='PERSISTED', **changes):
+    values = dict(report_id=report['report_id'], included_record_ids=list(report['record_ids']), state=state)
+    return NS(**(values | changes))
+
+
 def time_msg(**changes):
     values = dict(observed_at_ns=NOW - 10**9, valid_until_ns=0, stamp_semantics='CAPTURE',
                   clock_domain_id='site-clock', clock_state='SYNCED', has_clock_error_bound=True,
@@ -61,7 +87,8 @@ def goal_template():
     pose = NS(header=NS(frame_id=''), pose=NS(position=NS(x=0., y=0., z=0.), orientation=NS(x=0., y=0., z=0., w=1.)))
     route = NS(route_id='', route_revision=0, robot_id='', target_id='', segment_index=0, frame_ref=frame_template(),
                approach_goal=pose, generated_at_ns=0, valid_until_ns=0, path_sha256='', approval_corridor_sha256='',
-               planner_evidence_id='', policy_version='')
+               planner_evidence_id='', policy_version='',
+               assessment=NS(status='', width_known=False, height_known=False, floor_geometry_known=False))
     approval = NS(approval_id='', command_id='', operator_id='', robot_id='', robot_boot_id='', authority_epoch='',
                   target_id='', target_estimate_revision=0, route_id='', route_revision=0, segment_index=0,
                   approved_at_ns=0, valid_until_ns=0, scope='')
@@ -73,12 +100,7 @@ def goal_template():
 
 class CoreTestCase(unittest.TestCase):
     def setUp(self):
-        self.ids = itertools.count(1000)
-        search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
-                                   new_id=lambda: uid(next(self.ids)))
-        self.core = ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()),
-                                             status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7,
-                                             observe_goal=OBSERVE)
+        self.core = make_core()
 
     def disaster(self):
         self.assertEqual('ENTERED_DISASTER', self.core.on_site_event(site_msg()).reason)
@@ -244,11 +266,12 @@ class TaskIssueTests(CoreTestCase):
     def setUp(self):
         super().setUp()
         self.disaster()
-        self.core.mission.record_target(TARGET, 0, detection_confirmed=True, report_persisted=True)
-        self.core.mission.record_route(TARGET, route_revision=7, segment_count=len(SEGMENTS))
+        self.target = self.core.on_target_location(location(1), now_ns=NOW)  # route recorded on creation
+        (report,) = self.core.reports_due(NOW)
+        self.assertTrue(self.core.on_receipt(receipt(report)))
 
     def command(self, operation, n, **fields):
-        return self.core.on_command(request(operation, command_id=uid(700 + n), target_id=TARGET, **fields),
+        return self.core.on_command(request(operation, command_id=uid(700 + n), target_id=self.target, **fields),
                                     now_ns=NOW + n)
 
     def dispatch(self):
@@ -264,8 +287,8 @@ class TaskIssueTests(CoreTestCase):
 
     def test_dispatch_issues_one_move_segment_with_route_and_approval(self):
         fields = self.dispatch()
-        self.assertEqual(('MOVE_SEGMENT', SUPPORT, TARGET, 0), (fields['kind'], fields['robot_id'], fields['target_id'],
-                                                                fields['target_revision']))
+        self.assertEqual(('MOVE_SEGMENT', SUPPORT, self.target, 0),
+                         (fields['kind'], fields['robot_id'], fields['target_id'], fields['target_revision']))
         route, approval = fields['route'], fields['approval']
         self.assertEqual((7, 0, SEGMENTS[0], ros_node.route_id(SEGMENTS)),
                          (route['route_revision'], route['segment_index'], route['approach_goal'], route['route_id']))
@@ -314,7 +337,7 @@ class TaskIssueTests(CoreTestCase):
         self.core.on_status(status_msg(SCOUT))
         reply = self.command('REQUEST_RECHECK', 3)
         (fields,) = self.core.tick(NOW)
-        self.assertEqual(('REOBSERVE_TARGET', SCOUT, TARGET, fields['task_id'], None),
+        self.assertEqual(('REOBSERVE_TARGET', SCOUT, self.target, fields['task_id'], None),
                          (fields['kind'], fields['robot_id'], fields['target_id'], reply['created_task_id'],
                           fields['approval']))
         self.assertEqual((OBSERVE.mission_xy[0], OBSERVE.yaw), (fields['goal_pose']['x'], fields['goal_pose']['yaw']))
@@ -340,12 +363,10 @@ class TaskIssueTests(CoreTestCase):
         self.assertEqual('SEARCH_AREA', search['kind'])
 
     def test_core_rejects_a_route_without_segments_or_with_another_basis(self):
-        search = self.core.search
-        for changes in (dict(segment_goals=()), dict(segment_goals=(OBSERVE, 'x'))):
+        for changes in (dict(segment_goals=()), dict(segment_goals=(OBSERVE, 'x')), dict(merge_distance_m=0.),
+                        dict(merge_distance_m=float('nan')), dict(report_retry_ns=0)):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
-                ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()),
-                                         **(dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7,
-                                                 observe_goal=OBSERVE) | changes))
+                make_core(**changes)
 
 
 if __name__ == '__main__':
