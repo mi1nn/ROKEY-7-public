@@ -18,6 +18,7 @@ MAX_AGE = 2_000_000_000
 PERIOD = 2_000_000_000   # lease renewal period; policy() lease_duration is 10 s
 LEASE = 10_000_000_000
 ACCEPT = 3_000_000_000   # admission timeout
+TTL = 1_500_000_000      # CommandLease message time-to-live (AST88-02)
 SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
 OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
 
@@ -28,7 +29,8 @@ def make_core(**changes):
                                new_id=lambda: uid(next(ids)))
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
-                  admission_timeout_ns=ACCEPT, new_id=lambda: uid(next(ids)))
+                  admission_timeout_ns=ACCEPT, segment_passage_free=(True,) * len(SEGMENTS),
+                  lease_message_ttl_ns=TTL, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -508,7 +510,7 @@ class CommandLeaseTests(CoreTestCase):
         fields = self.issued()
         (lease,) = self.core.leases_due(NOW)
         self.assertEqual((fields['lease_id'], SCOUT, BOOT[SCOUT], fields['authority_epoch'], fields['generation'], 1,
-                          NOW, NOW + LEASE),
+                          NOW, NOW + TTL),
                          (lease['lease_id'], lease['robot_id'], lease['robot_boot_id'], lease['authority_epoch'],
                           lease['generation'], lease['renewal_sequence'], lease['issued_at_ns'],
                           lease['valid_until_ns']))
