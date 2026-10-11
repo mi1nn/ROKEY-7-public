@@ -38,7 +38,10 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'task_duration_s:=60.0', '-p', 'lease_duration_s:=10.0', '-p', 'executor_policy_version:=e3',
              '-p', 'mission_frame_id:=mission', '-p', 'authority_epoch:=00000000-0000-4000-8000-000000000004',
              '-p', 'coordinator_id:=coord-e3', '-p', 'envelope_schema_version:=e3', '-p', 'status_max_age_s:=5.0',
-             '-p', 'tick_period_s:=0.2']
+             '-p', 'tick_period_s:=0.2', '-p', 'route_segment_goals:=[1.0, 0.0, 0.0, 2.0, 0.0, 0.0]',
+             '-p', 'route_revision:=1', '-p', 'observe_goal:=[3.0, 1.0, 0.0]',
+             '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
+             '-p', 'goal_transform_revision:=1']
 
 
 def node_command(repo, extra):

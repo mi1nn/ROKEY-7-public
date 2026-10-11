@@ -15,6 +15,9 @@ Not yet (PR body): MOVE_SEGMENT/REOBSERVE_TARGET issuance (no path evidence
 source, 작전 Q7), CommandLease, SystemState publishing (2차 IDL), target intake,
 SetCameraWatch, RETURN_HOME assignment.
 """
+import hashlib
+import json
+import math
 import subprocess
 from pathlib import Path
 from uuid import uuid4
@@ -22,7 +25,7 @@ from uuid import uuid4
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import COMMAND_FIELDS, MissionCoordinator, OperatorCommand
-from .planning import Allocator, CoordinationError, contract_value
+from .planning import Allocator, CoordinationError, GoalPoint, contract_value, revision
 from .search import SearchCoordinator, SearchPolicy, mission_sites
 
 SITE_EVENT_TOPIC = '/rescue/site_events'
@@ -114,7 +117,26 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
         frame.map_session_id = pose['map_session_id']
         frame.map_revision = pose['map_revision']
         frame.transform_revision = pose['transform_revision']
-    goal.has_route = goal.has_approval = False
+    route, approval = fields.get('route'), fields.get('approval')
+    goal.has_route, goal.has_approval = route is not None, approval is not None
+    if route is not None:
+        # Phase 1 rule (#88): approach_goal is the configured segment end; planned_path,
+        # path_sha256, planner_evidence_id and the passage assessment stay empty.
+        r, end = goal.route, route['approach_goal']
+        for name in ('route_id', 'route_revision', 'robot_id', 'target_id', 'segment_index'):
+            setattr(r, name, route[name])
+        r.policy_version = fields['policy_version']
+        r.frame_ref.robot_id = fields['robot_id']
+        r.frame_ref.mission_frame = pose['frame_id']
+        r.frame_ref.map_session_id, r.frame_ref.map_revision = end.map_session_id, end.map_revision
+        r.frame_ref.transform_revision = end.transform_revision
+        r.approach_goal.header.frame_id = pose['frame_id']
+        r.approach_goal.pose.position.x, r.approach_goal.pose.position.y = map(float, end.mission_xy)
+        q = r.approach_goal.pose.orientation
+        q.x, q.y, q.z, q.w = 0.0, 0.0, math.sin(end.yaw / 2.0), math.cos(end.yaw / 2.0)
+    if approval is not None:
+        for name, value in approval.items():
+            setattr(goal.approval, name, value)
     return goal
 
 
@@ -132,19 +154,42 @@ def operator_command_from_request(req, roles):
                            **{name: values[name] if name in used else None for name in values})
 
 
-class CoordinatorCore:
-    """Everything the node decides, without ROS. The node only moves messages."""
+def route_id(segment_goals):
+    """sha256 of the configured segment-end list (작전 #88: route_id of the fixed route)."""
+    text = json.dumps([[g.mission_xy[0], g.mission_xy[1], g.yaw, g.map_session_id, g.map_revision,
+                        g.transform_revision] for g in segment_goals], separators=(',', ':'))
+    return hashlib.sha256(text.encode()).hexdigest()
 
-    def __init__(self, mission, *, status_max_age_ns):
+
+class CoordinatorCore:
+    """Everything the node decides, without ROS. The node only moves messages.
+
+    ``segment_goals`` (one ``GoalPoint`` per segment end, revision ``route_revision``)
+    and ``observe_goal`` are deployment parameters (Phase 1 rule, #88). They are
+    destinations only; the executor guards and Nav2 verify the path.
+    """
+
+    def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
+        segment_goals = tuple(segment_goals)
+        if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
+            raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
+        revision(route_revision)
         self.mission = mission
         self.search = mission.search
         self.roles = {role: robot_id for robot_id, role in self.search.policy.roles}
         self.status_max_age_ns = status_max_age_ns
-        self.status = {}     # robot_id -> latest RobotStatus fields used here
-        self.replies = {}    # command_id -> (OperatorCommand, reply dict)
+        self.segment_goals, self.route_revision, self.observe_goal = segment_goals, route_revision, observe_goal
+        self.route_id = route_id(segment_goals)
+        self.status = {}         # robot_id -> latest RobotStatus fields used here
+        self.replies = {}        # command_id -> (OperatorCommand, reply dict)
+        self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
+        self.segment_tasks = {}  # approval command_id -> task_id (one approval, one task)
+        self.recheck_tasks = {}  # recheck link_id -> task_id; dropped when a recheck did not complete
+        self.task_meta = {}      # task_id -> ('MOVE_SEGMENT', SegmentApproval) | ('REOBSERVE_TARGET', link_id)
+        self.outbox = []         # task fields reserved and not yet handed to the node
         self.last_phase = None
         self.last_reason = None  # mission reason behind the latest reply, for the node log
 
@@ -158,7 +203,15 @@ class CoordinatorCore:
         self.status[msg.robot_id] = (msg.robot_boot_id, msg.readiness, bool(msg.lease_valid), msg.observed_at_ns)
 
     def on_admission(self, msg):
-        return self.search.record_admission(admission_from_msg(msg))
+        admission = admission_from_msg(msg)
+        admitted = self.search.record_admission(admission)
+        meta = self.task_meta.get(admission.task_id)
+        if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
+            self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
+                                         route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
+        elif admitted and not admission.accepted and meta:
+            self._forget(admission.task_id)  # refused before moving: issue again on the next tick
+        return admitted
 
     def on_result(self, task_id, result):
         """Action result for one task; released only with a confirmed stop (Allocator rule)."""
@@ -166,7 +219,19 @@ class CoordinatorCore:
         item = allocator.active.get(task_id) or allocator.pending.get(task_id)
         if item is None or result.outcome not in EXECUTOR_OUTCOMES:
             return False
-        return self.search.finish(item, outcome=result.outcome, stop_confirmed=bool(result.stop_confirmed))
+        stop = bool(result.stop_confirmed)
+        if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
+            return False
+        meta = self.task_meta.get(task_id)
+        if meta and meta[0] == 'MOVE_SEGMENT':
+            approval = meta[1]
+            self.mission.segment_finished(approval.target_id, target_revision=approval.target_revision,
+                                          route_revision=approval.route_revision,
+                                          segment_index=approval.segment_index,
+                                          completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
+        elif meta and meta[0] == 'REOBSERVE_TARGET' and result.outcome != 'COMPLETED':
+            self._forget(task_id)  # C-11 row 5: same recheck, new task_id and generation
+        return True
 
     def ready(self, robot_id, now_ns):
         """(robot_boot_id, ready) from the latest RobotStatus, or None before any status."""
@@ -179,16 +244,14 @@ class CoordinatorCore:
 
     # -- decisions -------------------------------------------------------------
     def tick(self, now_ns):
-        """Task fields to send now. Only the SCOUT is driven automatically (Q-12)."""
+        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
         contract_value(timestamp_ns, now_ns)
-        scout = self.roles['SCOUT']
-        state = self.ready(scout, now_ns)
-        if state is None or self.mission.mode != 'DISASTER':
-            return []
-        boot, ready = state
-        gate = self.mission.plan(scout, robot_boot_id=boot, ready=ready, now_ns=now_ns)
-        decision = gate.decision
-        return [decision.task_fields] if decision is not None and decision.action == 'RESERVED' else []
+        if self.mission.mode == 'DISASTER':
+            self._issue_segment(now_ns)
+            self._issue_rechecks(now_ns)
+            self._issue_search(now_ns)
+        sent, self.outbox = self.outbox, []
+        return sent
 
     def on_command(self, req, *, now_ns):
         """SubmitOperatorCommand -> reply fields (accepted, request_state, reason_code, created_task_id)."""
@@ -200,14 +263,23 @@ class CoordinatorCore:
         seen = self.replies.get(command.command_id)
         if seen is not None:
             if seen[0] != command:
+                self.last_reason = 'ID_CONTENT_CONFLICT'
                 return self._reply(False, 'REJECTED', 'ID_CONTENT_CONFLICT')
             first = seen[1]
+            self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
         result = self.mission.handle_command(command, now_ns=now_ns)
         self.last_reason = result.reason
         if result.accepted:
-            # No MOVE_SEGMENT/REOBSERVE_TARGET Task yet (작전 Q7): accepted = received, no created task.
-            reply = self._reply(True, 'ACCEPTED', '')
+            self.accepted_at[command.command_id] = now_ns
+            task_id = ''
+            if command.kind in ('DISPATCH_SUPPORT', 'CONTINUE_SEGMENT'):
+                task_id = self._issue_segment(now_ns) or ''
+            elif command.kind == 'REQUEST_RECHECK':
+                self._issue_rechecks(now_ns)
+                task_id = self.recheck_tasks.get(command.command_id, '')
+            # Empty created_task_id: accepted, the task follows when the robot is free and known.
+            reply = self._reply(True, 'ACCEPTED', '', task_id)
         else:
             reply = self._reply(False, 'REJECTED', REASON_CODES[result.reason])
         self.replies[command.command_id] = (command, reply)
@@ -220,6 +292,76 @@ class CoordinatorCore:
             return None
         self.last_phase = phase
         return phase
+
+    # -- issuing -----------------------------------------------------------------
+    def _free(self, role, now_ns):
+        """robot_boot_id when the role robot is known, ready and has no task; else None."""
+        robot_id = self.roles[role]
+        state = self.ready(robot_id, now_ns)
+        if state is None or not state[1] or self.search.assignment(robot_id) is not None:
+            return None
+        return state[0]
+
+    def _issue_segment(self, now_ns):
+        approval = self.mission.approval
+        if (approval is None or self.mission.segment_phase != 'APPROVED'
+                or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
+            return self.segment_tasks.get(approval.command_id) if approval else None
+        boot = self._free('SUPPORT', now_ns)
+        if boot is None:
+            return None
+        goal = self.segment_goals[approval.segment_index]
+        decision = self.search.reserve_goal_task(
+            self.roles['SUPPORT'], robot_boot_id=boot, kind='MOVE_SEGMENT', target_id=approval.target_id,
+            target_revision=approval.target_revision, goal=goal, approval_id=approval.command_id, now_ns=now_ns)
+        if decision.action != 'RESERVED':
+            return None
+        fields = decision.task_fields
+        command = self.mission.commands[approval.command_id][0]
+        fields = fields | dict(
+            route=dict(route_id=self.route_id, route_revision=approval.route_revision, robot_id=fields['robot_id'],
+                       target_id=approval.target_id, segment_index=approval.segment_index, approach_goal=goal),
+            approval=dict(approval_id=approval.command_id, command_id=approval.command_id,
+                          operator_id=command.operator_id, robot_id=fields['robot_id'], robot_boot_id=boot,
+                          authority_epoch=fields['authority_epoch'], target_id=approval.target_id,
+                          target_estimate_revision=approval.target_revision, route_id=self.route_id,
+                          route_revision=approval.route_revision, segment_index=approval.segment_index,
+                          approved_at_ns=self.accepted_at[approval.command_id], scope='ONE_SEGMENT'))
+        self.segment_tasks[approval.command_id] = fields['task_id']
+        self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
+        self.outbox.append(fields)
+        return fields['task_id']
+
+    def _issue_rechecks(self, now_ns):
+        for target_id, recheck in self.mission.open_rechecks.items():
+            if recheck.link_id in self.recheck_tasks:
+                continue
+            boot = self._free('SCOUT', now_ns)
+            if boot is None:
+                return
+            decision = self.search.reserve_goal_task(
+                self.roles['SCOUT'], robot_boot_id=boot, kind='REOBSERVE_TARGET', target_id=target_id,
+                target_revision=self.mission.targets[target_id][0], goal=self.observe_goal, now_ns=now_ns)
+            if decision.action != 'RESERVED':
+                return
+            fields = decision.task_fields | dict(route=None, approval=None)
+            self.recheck_tasks[recheck.link_id] = fields['task_id']
+            self.task_meta[fields['task_id']] = ('REOBSERVE_TARGET', recheck.link_id)
+            self.outbox.append(fields)
+
+    def _issue_search(self, now_ns):
+        scout = self.roles['SCOUT']
+        state = self.ready(scout, now_ns)
+        if state is None or any(r.link_id not in self.recheck_tasks for r in self.mission.open_rechecks.values()):
+            return  # an open recheck waiting for the SCOUT goes before a new search area
+        gate = self.mission.plan(scout, robot_boot_id=state[0], ready=state[1], now_ns=now_ns)
+        if gate.decision is not None and gate.decision.action == 'RESERVED':
+            self.outbox.append(gate.decision.task_fields | dict(route=None, approval=None))
+
+    def _forget(self, task_id):
+        kind, key = self.task_meta.pop(task_id)
+        table = self.segment_tasks if kind == 'MOVE_SEGMENT' else self.recheck_tasks
+        table.pop(key.command_id if kind == 'MOVE_SEGMENT' else key, None)
 
     @staticmethod
     def _reply(accepted, state, reason_code, created_task_id=''):
@@ -266,7 +408,15 @@ def build_core(values):
     search = SearchCoordinator(Allocator(values['authority_epoch'], allowed_robot_ids=robot_ids), policy)
     # No profile home positions yet: RETURN_HOME stays NO_HOME_POSITION (assignment is Q-22, later).
     mission = MissionCoordinator(search, home_positions=())
-    return CoordinatorCore(mission, status_max_age_ns=seconds_to_ns(str(values['status_max_age_s'])))
+    basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
+    flat = list(values['route_segment_goals'])
+    if len(flat) % 3 or len(values['observe_goal']) != 3:
+        raise CoordinationError('INVALID_POLICY', 'goals are [x, y, yaw] triples in the mission frame')
+    segments = tuple(GoalPoint((flat[i], flat[i + 1]), flat[i + 2], *basis) for i in range(0, len(flat), 3))
+    x, y, yaw = values['observe_goal']
+    return CoordinatorCore(mission, status_max_age_ns=seconds_to_ns(str(values['status_max_age_s'])),
+                           segment_goals=segments, route_revision=values['route_revision'],
+                           observe_goal=GoalPoint((x, y), yaw, *basis))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -274,7 +424,10 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'executable_bases': 'STRING_ARRAY', 'task_duration_s': 'DOUBLE', 'lease_duration_s': 'DOUBLE',
     'executor_policy_version': 'STRING', 'mission_frame_id': 'STRING', 'authority_epoch': 'STRING',
     'coordinator_id': 'STRING', 'envelope_schema_version': 'STRING', 'status_max_age_s': 'DOUBLE',
-    'tick_period_s': 'DOUBLE'}
+    'tick_period_s': 'DOUBLE',
+    # Phase 1 rule (#88): fixed segment ends [x, y, yaw]*N, the observation point [x, y, yaw], their map basis.
+    'route_segment_goals': 'DOUBLE_ARRAY', 'route_revision': 'INTEGER', 'observe_goal': 'DOUBLE_ARRAY',
+    'goal_map_session_id': 'STRING', 'goal_map_revision': 'INTEGER', 'goal_transform_revision': 'INTEGER'}
 
 
 def main(args=None):
