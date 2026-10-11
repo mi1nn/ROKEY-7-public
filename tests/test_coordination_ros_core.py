@@ -107,7 +107,10 @@ class CoreTestCase(unittest.TestCase):
         self.core = make_core()
 
     def disaster(self):
+        """DISASTER_SIGN, then the operator's START_SEARCH (owner decision 2026-10-11, #85)."""
         self.assertEqual('ENTERED_DISASTER', self.core.on_site_event(site_msg()).reason)
+        reply = self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
+        self.assertEqual('ACCEPTED', reply['request_state'])
 
 
 class ConversionTests(CoreTestCase):
@@ -141,6 +144,24 @@ class ConversionTests(CoreTestCase):
 
 
 class ScoutDispatchTests(CoreTestCase):
+    def test_disaster_alone_starts_no_search(self):
+        self.core.on_status(status_msg())
+        self.core.on_site_event(site_msg())
+        self.assertEqual([], self.core.tick(NOW))
+        self.assertEqual('DISASTER', self.core.mission.phase())
+
+    def test_start_search_issues_the_first_area_at_once(self):
+        self.core.on_status(status_msg())
+        self.core.on_site_event(site_msg())
+        reply = self.core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual((True, fields['task_id'], 'SEARCH_AREA'),
+                         (reply['accepted'], reply['created_task_id'], fields['kind']))
+        again = self.core.on_command(request('START_SEARCH', command_id=uid(691)), now_ns=NOW)
+        self.assertEqual(('REJECTED', 'TASK_BUSY'), (again['request_state'], again['reason_code']))
+        wrong = self.core.on_command(request('START_SEARCH', command_id=uid(692), robot_id=SUPPORT), now_ns=NOW)
+        self.assertEqual('INVALID_INPUT', wrong['reason_code'])
+
     def test_disaster_and_a_ready_scout_give_one_search_goal(self):
         self.assertEqual([], self.core.tick(NOW))  # no status yet
         self.core.on_status(status_msg())
