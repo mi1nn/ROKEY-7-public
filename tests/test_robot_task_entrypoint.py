@@ -1,6 +1,6 @@
 """Installed entrypoint validation without importing ROS at module import time."""
 import sys
-import runpy
+import ast
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -21,10 +21,20 @@ class EntryPointTests(unittest.TestCase):
     def test_existing_launch_alias_and_new_entrypoint_share_one_runtime(self):
         setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
         if setup.is_file():
-            metadata = {}
-            with patch('setuptools.setup', side_effect=lambda **kwargs: metadata.update(kwargs)):
-                runpy.run_path(str(setup))
-            entries = dict(item.split(' = ', 1) for item in metadata['entry_points']['console_scripts'])
+            # The source suite has no build-tool dependency (notably on Python
+            # 3.12). Check the declared aliases with stdlib only; the wheel
+            # suite below checks the real installed distribution metadata.
+            tree = ast.parse(setup.read_text(encoding='utf-8'))
+            calls = [node for node in tree.body if isinstance(node, ast.Expr)
+                     and isinstance(node.value, ast.Call)
+                     and isinstance(node.value.func, ast.Name)
+                     and node.value.func.id == 'setup']
+            self.assertEqual(len(calls), 1)
+            values = [keyword.value for keyword in calls[0].value.keywords
+                      if keyword.arg == 'entry_points']
+            self.assertEqual(len(values), 1)
+            entries = dict(item.split(' = ', 1) for item in
+                           ast.literal_eval(values[0])['console_scripts'])
         else:
             from importlib.metadata import distribution
             entries = {e.name: e.value for e in distribution('rescue_robot').entry_points}
