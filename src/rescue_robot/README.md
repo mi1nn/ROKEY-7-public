@@ -104,3 +104,92 @@ python3 tests/ros/e3_watchdog_probe.py
 ```
 
 E3 탐침은 실제 토픽이 네임스페이스별로 섞이지 않는지 본다: odom 탐침은 `/robot_a/odom`·`/robot_b/odom` 정지 증거, 준비 신호 탐침은 odom·LaserScan·`map → odom` TF, watchdog 탐침은 전달·heartbeat 만료 latch·회복 뒤에도 latch 유지·`~/reset`·robot_b 격리와 어댑터 `watchdog` flag. `NavigateToPose` action 은 다루지 않는다.
+
+## 설치 가능한 임무 입력 진입점 (`task_input`, 2026-10-11)
+
+`ros2 run rescue_robot task_input`은 기존 `ros_node.main`과 동일한 프로세스에서
+`task.runtime_factory`의 설치된 `module:callable`을 호출한다. 별도 Nav2 발행자나
+두 번째 command adapter를 띄우지 않는다. factory는 `(node, adapter)`를 받아
+`attach_task_runtime`의 인증·lease·지도·목표·결과 입력을 연결하고 `destroy()`를
+가진 runtime을 반환한다. Jazzy의 타입 지정 파라미터 선언은 기존
+`declare_required`를 재사용한다. factory 파라미터 누락은 기동 오류이며 자동 arm은 없다.
+
+실기·배포 launch는 기존 command_adapter 프로세스를 이 진입점으로 교체하고
+동일 namespace/정책/heartbeat 설정 및 설치된 factory를 넘겨야 한다. 둘을 동시에
+실행하지 않는다. 아래 운영 factory는 포함했으며 실제 데이터 입력 제공자의 연결은 남아 있다.
+단일 프로세스 설치와 구간 guard 결합은
+[`tests/test_robot_task_entrypoint.py`](../../tests/test_robot_task_entrypoint.py) 및
+[`tests/test_robot_task_runtime_integration.py`](../../tests/test_robot_task_runtime_integration.py)에서
+모의 입력으로 검증한다. 시계 역행은 runtime을 차단하며 정상 복구 후 새 runtime이 필요하다.
+
+`RETURN_HOME`은 수락할 때와 매 step에서 같은 `home_ref`의 현재 기록을 조회한다.
+위치·frame·revision이 바뀌거나 조회가 실패하면 취소·정지 관문으로 들어가며
+새 귀환 임무를 받아야 한다. 구간/귀환 cache 오류는 기동 중 로그에 남기고 guard를
+거부한다. resolver와 검증 콜백은 검증된 로컬 cache를 읽으며 동기 RPC를 호출하지 않는다.
+## 임무 입력 런타임과 watchdog 독립 개발 (2026-10-11)
+
+[사용자 요구, 2026-10-11] “watchdog 없는 상태에서 구현을 완료하고 watchdog을 나중에
+추가하는게 맞지 않아? … 필요한거 너가 제작해.” 적용 범위는 임무 입력 구현·개발 검증이다.
+watchdog 현장 파라미터 결정(#94)을 소스 작성의 선행 조건으로 두지 않는다.
+
+#85의 [소유자 결정 전달](https://github.com/jaebeom/ROKEY-7/pull/85#issuecomment-6106387180)과
+[제환 대상 작업 순서](https://github.com/jaebeom/ROKEY-7/pull/85#issuecomment-6106393544)를
+반영해 공통 ExecuteTask/CommandLease/수락·결과·정지 및 SEARCH_AREA·REOBSERVE_TARGET을
+먼저 연결한다. MOVE_SEGMENT는 예비 모드로 유지한다. 연속 추종의 담당·입력/액션·거리·유실·
+도착 규칙은 작전·PM의 Q-27 결정 대상이며, 기존 구간 이동을 추종으로 바꾸지 않는다.
+AMR1 관제 START_SEARCH는 중앙이 ExecuteTask를 발급하는 조건이다. 로봇은 버튼/지진
+이벤트를 독자 처리하지 않는다. #90은 머지됐지만 버튼 전환과 최초 idle lease 관문은 후속이다.
+
+`task_site_runtime:create_runtime`을 패키지에 포함했다. 사용자가 임의 factory/encoder를
+새로 작성하지 않아도 된다. 한 CommandAdapter에 action/lease/admission/status를 붙이고,
+`~/task_arm`, `~/task_stop`을 제공한다. 설치·재접속은 자동 arm이 아니다. watchdog 토픽이
+없어도 endpoint를 생성하고 상태/거절 이유를 발행하지만, C-01의 실제 이동 READY 관문에서
+watchdog가 없음을 정상으로 바꾸지 않는다. #92의 수동 Nav2 실습은 별도 구성이다.
+
+watchdog와 실제 로봇 없이 현재 설치 런타임 전체를 재현한다:
+
+```bash
+python3 -m rescue_robot.task_runtime_demo
+# 설치본: ros2 run rescue_robot task_runtime_demo
+```
+
+#85 요청 순서로 따로 검사하려면 먼저 `task_runtime_demo --stage common`, 다음
+`task_runtime_demo --stage fallback`을 실행한다. common은 SEARCH_AREA·REOBSERVE_TARGET·HOLD,
+fallback은 MOVE_SEGMENT만 실행한다. common은 최초 lease 기간보다 오래 유지하는 실제 갱신,
+중복 갱신 거절, 취소 뒤 정지 확인, odom 없이 STOP_UNCONFIRMED도 모의 재현한다.
+ROS 모드에도 `--stage common`/`--stage fallback`을 쓸 수 있다. 실제 ROS lease 갱신과
+action 취소·결과는 현장 개발 PC에서 검사해야 하며 현재 준비 환경은 E3 NOT_RUN이다.
+
+E2: SEARCH_AREA/REOBSERVE_TARGET/MOVE_SEGMENT/RETURN_HOME/HOLD와 lease 만료 취소를
+돌린다. 좌표·권한·경로 보호·readiness·odom·Nav2 port는 명시적 SYNTHETIC이며 실기 증거가 아니다.
+ROS/IDL을 설치한 PC에서, 실제 로봇 도메인과 겹치지 않는 사용하지 않는 테스트 도메인을
+선택하고 Discovery Server를 끈 LOCALHOST 셸에서 `task_runtime_demo --ros --domain-id <선택값>`을
+실행하면 실제 ExecuteTask/CommandLease/TaskAdmission/RobotStatus 왕복을 검사한다.
+이 E3도 motion 입력은 합성이며 실제 Nav2/로봇 검증이 아니다.
+
+`task_prepare --directory <출력폴더> --robot-id <논리ID> --namespace <물리namespace>`는
+runtime.json, inputs.json, task.params.yaml, preparation.json을 만든다. 기존 adapter
+파라미터에 task.params.yaml을 겹쳐 로드한다. 결정된 수치를 `--settings <JSON>`으로 넣을
+수 있고 미정값은 null과 NOT_CONFIGURED 목록으로 남는다. 예시·모의 수치를 현장에 승계하지
+않으며, 재실행해도 기존 live inputs.json의 시각/내용을 덮어쓰지 않는다.
+
+운영 입력은 `InputStore`가 읽는 로컬 trusted IPC 파일(`rescue-robot-inputs/1`)이다.
+schema/clock/authority/maps/targets/approvals/protected_routes/destinations를 원 관측 시각과
+만료, map/transform revision, 증거 ID와 함께 제공한다. 이는 중앙·지도·경로 보호 adapter의
+실제 입력을 수용하는 경계다. 제어된 파일/디렉터리의 신뢰를 전제로 하며 DDS 암호 인증을
+구현한 것은 아니다. 파일 읽기로 유효기간을 늘리지 않는다. 데이터 없음·가림·만료·지도 변경·
+권한 철회·입력 형식 오류는 거절/취소가 되고 정상값으로 대체하지 않는다. 실제 producer의
+지속적인 export/캘리브레이션·Nav2 보호 증거 연결은 E3/E4 통합에서 확인한다.
+
+시각 측정은 각 관련 PC에서 `clock_capture capture --host-id <호스트역할> --clock-domain
+<팀기준> --output <JSON>`을 실행한다. `--interval-s <주기>`로 계속 갱신할 수 있다. 도구는
+chronyc tracking/sources와 chronyd 프로세스/boot를 읽고 원문·종료 코드·보수적 오차 추정치를
+저장한다. 설정/시각을 변경하지 않는다. 두 결과는 `clock_capture combine --sender <JSON>
+--receiver <JSON> --clock-domain <팀기준> --max-age-ns <정책> --max-error-ns <정책>
+--output <clock-basis.json>`으로 합친다. 양쪽 오차를 합산하며 미동기·미측정·낡음·상한 초과는
+UNKNOWN/거절이다. formula는 [chrony 공식 문서](https://chrony-project.org/doc/4.5/chronyc.html#tracking)
+기준이며 공통 시간 기준의 정확성·팀 domain 선택까지 자동 증명하지 않는다.
+
+소프트웨어 구현/합성 검사와 실제 ROS·장비 검증을 구분한다. 실제 움직임을 주장하려면 생성
+IDL/Jazzy, 중앙/지도/clock/protection 입력, Nav2 종료와 fresh odom 정지, watchdog 최종 속도
+배선을 현장에서 확인해야 한다. 별도 사이트 runtime 코드 작성 요청으로 미루지 않는다.
