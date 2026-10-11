@@ -30,6 +30,12 @@ ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
+# Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
+# vocabulary written by operations from coordinator results; the coordinator owns the decisions.
+MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
+MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
+                            "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
+                            "RECHECK_NEEDED", "RETURNING", "FINISHED"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
@@ -37,6 +43,7 @@ TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
+MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 
 
 # 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절).
@@ -147,6 +154,19 @@ def _error_entry(value, allowed):
     return entry
 
 
+def _mission(value):
+    mission = exact(value, MISSION_KEYS, "mission state")
+    require(mission["mode"] in MISSION_MODES, "mode must be NORMAL or DISASTER")
+    require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
+    _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
+    if mission["trigger_event_id"] is not None:
+        uid(mission["trigger_event_id"], "trigger_event_id")
+        timestamp(mission["started_at_ns"], "started_at_ns")
+    uint(mission["generation"], "generation")
+    timestamp(mission["updated_at_ns"], "updated_at_ns")
+    return mission
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -207,7 +227,6 @@ class SiteStateLedger(_Database):
                        (state["target_id"], state["updated_at_ns"], encoded))
         return True
 
-
     def record_error(self, entry):
         """Append one failure (BRD 3.7.4). Every call is a new row; returns its ``seq``."""
         entry = _error_entry(entry, self.allowed_robot_ids)
@@ -215,6 +234,24 @@ class SiteStateLedger(_Database):
             cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail) VALUES (?, ?, ?, ?, ?)",
                                 (entry["at_ns"], entry["robot_id"], entry["task_id"], entry["code"], entry["detail"]))
         return cursor.lastrowid
+
+    def record_mission_state(self, mission):
+        """Replace the single mission row. Only a newer ``updated_at_ns`` replaces it."""
+        mission = _mission(mission)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
+            if row is not None:
+                if mission["updated_at_ns"] == row["updated_at_ns"]:
+                    require({key: row[key] for key in MISSION_KEYS} == mission, "same mission time with different content",
+                            "ID_CONTENT_CONFLICT")
+                    return False
+                if mission["updated_at_ns"] < row["updated_at_ns"]:
+                    return False
+            db.execute("""INSERT OR REPLACE INTO mission_state (singleton, mode, phase, trigger_event_id,
+                started_at_ns, generation, updated_at_ns) VALUES (1, ?, ?, ?, ?, ?, ?)""",
+                       (mission["mode"], mission["phase"], mission["trigger_event_id"], mission["started_at_ns"],
+                        mission["generation"], mission["updated_at_ns"]))
+        return True
 
 
 def _read(db_path, query):
@@ -274,4 +311,12 @@ def read_error_log(db_path, *, limit=100):
         rows = db.execute("SELECT seq, at_ns, robot_id, task_id, code, detail FROM error_log "
                           "ORDER BY at_ns DESC, seq DESC LIMIT ?", (limit,)).fetchall()
         return {"errors": [dict(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_mission_state(db_path):
+    """The single mission row, or None before operations has written one."""
+    def query(db):
+        row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
+        return {"mission": None if row is None else {key: row[key] for key in MISSION_KEYS}}
     return _read(db_path, query)
