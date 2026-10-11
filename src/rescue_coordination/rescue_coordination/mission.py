@@ -22,10 +22,12 @@ from .search import Decision, SearchCoordinator
 
 MODE_REJECT_REASONS = frozenset({'NOT_DISASTER_SIGN', 'TIME_BASIS_UNUSABLE'})
 MODE_EVENT_REASONS = MODE_REJECT_REASONS | {'ENTERED_DISASTER', 'ALREADY_DISASTER'}
-PLAN_GATE_REASONS = frozenset({'PASSED', 'MODE_NOT_DISASTER'})
-# Commands this gate judges (console-and-db-plan 4). STOP/PAUSE/RESUME/CANCEL and
-# the manual START_SEARCH go elsewhere and are rejected here as invalid input.
+PLAN_GATE_REASONS = frozenset({'PASSED', 'MODE_NOT_DISASTER', 'SEARCH_NOT_STARTED'})
+# Commands this gate judges (console-and-db-plan 4). STOP/PAUSE/RESUME/CANCEL go
+# elsewhere and are rejected here as invalid input. START_SEARCH is how AMR1 starts
+# (owner decision 2026-10-11, #85): the disaster event alone only shows and stores.
 COMMAND_FIELDS = {
+    'START_SEARCH': (),
     'DISPATCH_SUPPORT': ('target_id', 'target_revision'),
     'CONTINUE_SEGMENT': ('target_id', 'target_revision', 'route_revision', 'segment_index'),
     'REQUEST_RECHECK': ('target_id',),
@@ -36,7 +38,7 @@ COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
     'ALREADY_DISPATCHED', 'NOT_DISPATCHED_TARGET', 'NOT_AWAITING_APPROVAL', 'ROUTE_REVISION_STALE',
     'SEGMENT_INDEX_MISMATCH', 'TARGET_ALREADY_JUDGED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING',
-    'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH'})
+    'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH', 'SEARCH_ALREADY_STARTED'})
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
 SEGMENT_PHASES = frozenset({'APPROVED', 'MOVING', 'AWAITING_APPROVAL', 'ARRIVED'})
@@ -202,6 +204,7 @@ class MissionCoordinator:
         self.targets = {}   # target_id -> (target_revision, detection_confirmed, report_persisted)
         self.routes = {}    # target_id -> (route_revision, segment_count)
         self.search_started = False
+        self.search_authorized = False  # operator START_SEARCH accepted (#85)
         self.dispatch_target = None
         self.dispatch_target_revision = None
         self.approval = None  # SegmentApproval while APPROVED/MOVING
@@ -258,6 +261,8 @@ class MissionCoordinator:
         role = dict(self.search.policy.roles).get(robot(robot_id))
         if role == 'SCOUT' and self.mode != 'DISASTER':
             return PlanGate('MODE_NOT_DISASTER', None)
+        if role == 'SCOUT' and not self.search_authorized:
+            return PlanGate('SEARCH_NOT_STARTED', None)
         decision = self.search.plan(robot_id, robot_boot_id=robot_boot_id, ready=ready, now_ns=now_ns)
         if decision.reservation is not None and decision.reservation.task_kind == 'SEARCH_AREA':
             self.search_started = True
@@ -376,6 +381,13 @@ class MissionCoordinator:
         result = CommandResult(command.command_id, reason == 'ACCEPTED', reason)
         self.commands[command.command_id] = (command, result)
         return result
+
+    def _start_search(self, command, now_ns):
+        """The operator's START_SEARCH (#85): once per mission, in DISASTER only."""
+        if self.search_authorized:
+            return 'SEARCH_ALREADY_STARTED'
+        self.search_authorized = True
+        return 'ACCEPTED'
 
     def _dispatch_support(self, command, now_ns):
         target = self.targets.get(command.target_id)

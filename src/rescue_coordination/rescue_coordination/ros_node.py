@@ -3,8 +3,9 @@
 ROS packages are imported inside functions, so this module stays importable and
 ``CoordinatorCore`` is testable without ROS. Thin version for the 10-13 run:
 
-- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate; once in
-  DISASTER a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` with no operator approval.
+- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate (shown and
+  stored); a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` only after the operator's
+  START_SEARCH (owner decision 2026-10-11, #85).
 - ``/rescue/robots/{r}/task_admission`` is the only path to ACTIVE; the action
   result releases the reservation only with a confirmed stop.
 - ``/rescue/operator_command`` (SubmitOperatorCommand) is judged by
@@ -41,14 +42,15 @@ REASON_CODES = {
     'UNKNOWN_TARGET': 'NOT_FOUND', 'NO_HOME_POSITION': 'NOT_FOUND',
     'TARGET_NOT_CONFIRMED': 'PENDING_EVIDENCE', 'NO_ROUTE': 'PENDING_EVIDENCE', 'NO_VERDICT': 'PENDING_EVIDENCE',
     'ALREADY_DISPATCHED': 'TASK_BUSY', 'NOT_AWAITING_APPROVAL': 'TASK_BUSY', 'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY',
-    'ALREADY_RETURNING': 'TASK_BUSY',
+    'ALREADY_RETURNING': 'TASK_BUSY', 'SEARCH_ALREADY_STARTED': 'TASK_BUSY',
     'TARGET_REVISION_STALE': 'INVALID_INPUT', 'ROUTE_REVISION_STALE': 'INVALID_INPUT',
     'SEGMENT_INDEX_MISMATCH': 'INVALID_INPUT', 'NOT_DISPATCHED_TARGET': 'INVALID_INPUT',
     'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
     'HOME_BASIS_MISMATCH': 'FRAME_REVISION_MISMATCH',
 }
 # The robot that a command may name (empty = not named).
-COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
+COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT',
+                 'START_SEARCH': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
@@ -383,7 +385,7 @@ class CoordinatorCore:
 
     # -- decisions -------------------------------------------------------------
     def tick(self, now_ns):
-        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
+        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search once started."""
         contract_value(timestamp_ns, now_ns)
         self._expire_unadmitted(now_ns)
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
@@ -419,6 +421,10 @@ class CoordinatorCore:
             elif command.kind == 'REQUEST_RECHECK':
                 self._issue_rechecks(now_ns)
                 task_id = self.recheck_tasks.get(command.command_id, '')
+            elif command.kind == 'START_SEARCH':
+                queued = len(self.outbox)
+                self._issue_search(now_ns)
+                task_id = next((f['task_id'] for f in self.outbox[queued:] if f['kind'] == 'SEARCH_AREA'), '')
             # Empty created_task_id: accepted, the task follows when the robot is free and known.
             reply = self._reply(True, 'ACCEPTED', '', task_id)
         else:
