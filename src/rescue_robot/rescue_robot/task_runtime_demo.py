@@ -272,7 +272,10 @@ def run_ros(domain_id,timeout,*,stage='all'):
             wait(lambda:f.adapter.executor.lease_sequence==0)
             if kind!='HOLD':
                 wait(lambda:goal.command_id in f.adapter.sent)
-                f.adapter.on_terminal(goal.command_id,4); wait(done.done)
+                f.adapter.on_terminal(goal.command_id,4)
+            # HOLD also completes asynchronously after the stop gate and ROS
+            # result delivery; lease receipt alone does not finish its Future.
+            wait(done.done)
             result=done.result().result.result
             if not result.stop_confirmed: raise RuntimeError('synthetic stop missing')
             if result.outcome!='COMPLETED': raise RuntimeError('completion outcome')
