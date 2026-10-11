@@ -170,7 +170,7 @@ class ScoutDispatchTests(CoreTestCase):
     def test_start_search_before_the_scout_is_ready_is_refused_and_not_counted(self):
         # 작전 2026-10-11 (#98): never a robot leaving at an unknown moment after the button.
         self.core.on_site_event(site_msg())
-        for status in (None, dict(readiness='DEGRADED'), dict(lease_valid=False), dict(observed_at_ns=NOW - MAX_AGE - 1)):
+        for status in (None, dict(readiness='DEGRADED'), dict(observed_at_ns=NOW - MAX_AGE - 1)):
             with self.subTest(status=status):
                 if status is not None:
                     self.core.on_status(status_msg(**status))
@@ -246,11 +246,19 @@ class ScoutDispatchTests(CoreTestCase):
 
     def test_scout_that_is_not_ready_gets_nothing(self):
         self.disaster()
-        for changes in (dict(readiness='DEGRADED'), dict(readiness='UNKNOWN'), dict(lease_valid=False),
+        for changes in (dict(readiness='DEGRADED'), dict(readiness='UNKNOWN'),
                         dict(observed_at_ns=NOW - MAX_AGE - 1), dict(observed_at_ns=NOW + 1)):
             with self.subTest(changes=changes):
                 self.core.on_status(status_msg(**changes))
                 self.assertEqual([], self.core.tick(NOW))
+
+    def test_idle_scout_without_a_lease_gets_the_first_search_goal(self):
+        # An idle robot holds no CommandLease (leases are per task), so lease_valid is false
+        # until its first task; requiring it would never issue that task (#100).
+        self.disaster()
+        self.start_search(lease_valid=False)  # START_SEARCH is accepted, not NAV_NOT_READY
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('SEARCH_AREA', SCOUT), (fields['kind'], fields['robot_id']))
 
     def test_status_of_an_unknown_robot_is_rejected(self):
         with self.assertRaises(RescueError):
@@ -398,6 +406,22 @@ class TaskIssueTests(CoreTestCase):
                          (goal.has_route, goal.has_approval, goal.approval.scope, goal.route.approach_goal.pose.position.x,
                           goal.route.planner_evidence_id, goal.route.path_sha256))  # no planner-looking values
         self.assertEqual([], self.core.tick(NOW))  # one approval, one task
+
+    def test_idle_support_without_a_lease_gets_the_segment(self):
+        self.core.on_status(status_msg(SUPPORT, lease_valid=False))
+        reply = self.command('DISPATCH_SUPPORT', 1)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('MOVE_SEGMENT', reply['created_task_id']), (fields['kind'], fields['task_id']))
+
+    def test_segment_route_keeps_the_time_the_route_was_made(self):
+        # The route was made when the target was created (setUp, NOW); a later issue keeps that time.
+        self.core.on_status(status_msg(SUPPORT))
+        self.command('DISPATCH_SUPPORT', 1)
+        (fields,) = self.core.tick(NOW + 10**9)
+        self.assertEqual(NOW, fields['route']['generated_at_ns'])
+        goal = ros_node.fill_execute_task_goal(goal_template(), fields, coordinator_id='coord')
+        self.assertEqual(NOW, goal.route.generated_at_ns)
+        self.assertLess(goal.route.generated_at_ns, goal.route.valid_until_ns)
 
     def test_segment_waits_for_a_known_support_and_is_issued_later(self):
         reply = self.command('DISPATCH_SUPPORT', 1)

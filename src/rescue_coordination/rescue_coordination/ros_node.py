@@ -145,7 +145,7 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
         for name in ('route_id', 'route_revision', 'robot_id', 'target_id', 'segment_index'):
             setattr(r, name, route[name])
         r.policy_version = fields['policy_version']
-        r.valid_until_ns = route['valid_until_ns']
+        r.generated_at_ns, r.valid_until_ns = route['generated_at_ns'], route['valid_until_ns']
         # frame_ref is the target's current one (alignment from mapping, never set here); the
         # top-level frame_ref carries the same basis for target tasks.
         for ref in (r.frame_ref, frame):
@@ -237,6 +237,7 @@ class CoordinatorCore:
         self.timed_out = {}      # task_id -> status arrival count when its admission timed out
         self.status_detail = {}  # robot_id -> (arrival, stop_reason, motion_state, lease_valid, active_task_id)
         self.status = {}         # robot_id -> latest RobotStatus fields used here
+        self.route_made_at = {}  # target_id -> wall time its routes were made (target creation), resent as is
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
         self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
         self.segment_tasks = {}  # approval command_id -> task_id (one approval, one task)
@@ -330,6 +331,7 @@ class CoordinatorCore:
         if not near:
             self.mission.record_route(target_id, route_revision=self.route_revision,
                                       segment_count=len(self.segment_goals))
+            self.route_made_at[target_id] = now_ns
         self.target_geo[target_id] = (basis, xy, locations)
         self.locations[msg.location_id] = (target_id, msg, key)
         report_id = self.new_id()
@@ -415,13 +417,18 @@ class CoordinatorCore:
         return dict(snapshot_id=self.new_id(), targets=targets)
 
     def ready(self, robot_id, now_ns):
-        """(robot_boot_id, ready) from the latest RobotStatus, or None before any status."""
+        """(robot_boot_id, ready) from the latest RobotStatus, or None before any status.
+
+        Ready to take a new task: READY and fresh. lease_valid is not asked here: a
+        lease belongs to a task, so an idle robot never has one (#100). It is watched
+        only while a task runs (``_robot_stopped``).
+        """
         status = self.status.get(robot_id)
         if status is None:
             return None
-        boot, readiness, lease_valid, observed_at_ns = status
+        boot, readiness, _, observed_at_ns = status
         fresh = observed_at_ns <= now_ns and now_ns - observed_at_ns <= self.status_max_age_ns
-        return boot, readiness == 'READY' and lease_valid and fresh
+        return boot, readiness == 'READY' and fresh
 
     # -- decisions -------------------------------------------------------------
     def tick(self, now_ns):
@@ -515,7 +522,8 @@ class CoordinatorCore:
     def _route(self, fields, goal, frame, route_id, segment_index):
         return dict(route_id=route_id, route_revision=self.route_revision, robot_id=fields['robot_id'],
                     target_id=fields['target_id'], segment_index=segment_index, approach_goal=goal,
-                    frame_ref=frame, valid_until_ns=fields['deadline_ns'])
+                    frame_ref=frame, generated_at_ns=self.route_made_at[fields['target_id']],
+                    valid_until_ns=fields['deadline_ns'])
 
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
