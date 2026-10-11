@@ -54,7 +54,7 @@ SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 23·서비스 4·액션 2
 
 | 통신 | 종류 | 입력 | 출력 | IDL |
 | --- | --- | --- | --- | --- |
-| `/rescue/operator_command` | Service `SubmitOperatorCommand` (`operations` → `coordinator`) | operation(`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 승인자, 로봇, 대상, 예상 task·generation, 경로·구간 번호 | 접수 여부, created_task_id, approval_id. 접수일 뿐 이동 완료가 아님 | 1차 |
+| `/rescue/operator_command` | Service `SubmitOperatorCommand` (`operations` → `coordinator`) | operation(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 승인자, 로봇, 대상, 예상 task·generation, 경로·구간 번호 | 접수 여부, created_task_id, approval_id. 접수일 뿐 이동 완료가 아님 | 1차 |
 | `/rescue/report_receipts` | Topic `ReportReceipt` (`operations` → 보고를 보낸 모든 노드) | DB 저장 뒤 PERSISTED | 받은 쪽이 재전송을 멈춤 | 1차 |
 | `/rescue/reports` | Topic `RescueReport` (`coordinator` → `operations`) | 구조 보고 묶음 | | 1차 (2026-10-11) |
 | `/rescue/targets`, `/rescue/system_state` | Topic `TargetSnapshot`·`SystemState` | 대상 전체 상태, 시스템 모드·임무 단계·출동 구간 | | 1차 (2026-10-11) |
