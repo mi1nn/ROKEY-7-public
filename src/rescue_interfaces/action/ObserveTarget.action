@@ -1,0 +1,29 @@
+# SDD v0.1 actions.ObserveTarget (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string request_id
+string task_id
+string target_id
+string robot_id
+geometry_msgs/Point watched_native_point
+FrameRef frame_ref
+uint64 requested_window_ns
+string policy_version
+int64 deadline_ns
+---
+Envelope envelope
+string OUTCOME_OBSERVED="OBSERVED"
+string OUTCOME_UNKNOWN="UNKNOWN"
+string OUTCOME_FAILED="FAILED"
+string outcome
+RecheckObservation observation
+string reason_code
+---
+Envelope envelope
+string request_id
+string PHASE_COLLECTING="COLLECTING"
+string PHASE_CHECKING_COVERAGE="CHECKING_COVERAGE"
+string PHASE_FINALIZING="FINALIZING"
+string phase
+string camera_state
+string lidar_state

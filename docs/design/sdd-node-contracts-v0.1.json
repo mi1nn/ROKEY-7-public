@@ -1,0 +1,1911 @@
+{
+  "metadata": {
+    "version": "0.1",
+    "status": "DESIGN_PROPOSAL_NOT_IMPLEMENTED",
+    "date": "2026-10-09",
+    "repository_head": "d03b6c8d70db49e098818b4d8463b22c258d9065",
+    "scope": "2 AMR / 4 PC / 1 fixed webcam viewing dummy rescue site; per-segment operator approval",
+    "diagram_stage": "NATIVE_EDITABLE_DIAGRAM_DEFINED",
+    "qos_values": "PROPOSAL",
+    "physical_validation": "NOT_RUN",
+    "applicability": "Separate single-camera, operator-approved segment design proposal; does not replace the current BRD/contracts or constitute a runtime deployment profile.",
+    "baseline_documents": [
+      "docs/requirements/scope.md",
+      "docs/design/contracts.md",
+      "docs/design/state-machines.md",
+      "docs/design/network-discovery.md"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "amr1.base",
+      "host": "AMR1",
+      "name": "base_driver",
+      "responsibility": "odom·장치 상태·구동 입력. 실제 제조사 노드 이름/형식은 배포 프로파일로 대응",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr1.lidar",
+      "host": "AMR1",
+      "name": "lidar_driver",
+      "responsibility": "2D LaserScan 취득",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr1.rgbd",
+      "host": "AMR1",
+      "name": "rgbd_driver",
+      "responsibility": "RGB·정렬 Depth·CameraInfo 취득. RGB-D 장착/정합 확인 필요",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr1.static_tf",
+      "host": "AMR1",
+      "name": "static_tf_publisher",
+      "responsibility": "실측한 base↔센서 고정 변환; 장비 robot_state_publisher 등에 대응",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr1.watchdog",
+      "host": "AMR1",
+      "name": "command_watchdog_node",
+      "responsibility": "PC 연결과 독립된 최종 명령 만료·stop fence·장치 출력 억제. 설치/지원은 미확인",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "amr1.slam",
+      "host": "PC1",
+      "name": "slam_toolbox",
+      "responsibility": "scan·TF로 local map 및 map→odom 제공. backend 채택 제안",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.perception",
+      "host": "PC1",
+      "name": "target_perception_node",
+      "responsibility": "인형 탐지·sensor-frame 위치·증거·관측 창 기반 재확인. 주행 권한 없음",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "amr1.mapping",
+      "host": "PC1",
+      "name": "mapping_adapter_node",
+      "responsibility": "SLAM 준비 요청·원 관측 시각 TF·mission 위치·지도 revision·지도 변화 표시 자료·pose snapshot",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "amr1.executor",
+      "host": "PC1",
+      "name": "task_executor_node",
+      "responsibility": "임무/승인/lease 검증·readiness·Nav2 호출·취소·실제 정지 판정",
+      "kind": "ROS_NODE",
+      "status": "PARTIAL_ADAPTER_EXISTS_NEW_ENDPOINTS_PROPOSED"
+    },
+    {
+      "id": "amr1.bt",
+      "host": "PC1",
+      "name": "bt_navigator",
+      "responsibility": "NavigateToPose 서버; 지정한 BT가 planner/controller를 호출",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.planner",
+      "host": "PC1",
+      "name": "planner_server",
+      "responsibility": "ComputePathToPose 서버; global costmap 기반 경로 계산",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.controller",
+      "host": "PC1",
+      "name": "controller_server",
+      "responsibility": "FollowPath 서버; local costmap 기반 제어 속도",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.global_costmap",
+      "host": "PC1",
+      "name": "global_costmap",
+      "responsibility": "map·scan·TF 기반 전역 비용지도; planner의 내부 소유 노드",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.local_costmap",
+      "host": "PC1",
+      "name": "local_costmap",
+      "responsibility": "scan·TF 기반 지역 비용지도; controller의 내부 소유 노드",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.smoother",
+      "host": "PC1",
+      "name": "velocity_smoother",
+      "responsibility": "속도 평활화; 낮은 속도 제한은 회차 프로파일로 설정",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.collision",
+      "host": "PC1",
+      "name": "collision_monitor",
+      "responsibility": "fresh scan·footprint 기반 최종 Nav2 속도 보호",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.base",
+      "host": "AMR2",
+      "name": "base_driver",
+      "responsibility": "odom·장치 상태·구동 입력. 실제 제조사 노드 이름/형식은 배포 프로파일로 대응",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr2.lidar",
+      "host": "AMR2",
+      "name": "lidar_driver",
+      "responsibility": "2D LaserScan 취득",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr2.rgbd",
+      "host": "AMR2",
+      "name": "rgbd_driver",
+      "responsibility": "RGB·정렬 Depth·CameraInfo 취득. RGB-D 장착/정합 확인 필요",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr2.static_tf",
+      "host": "AMR2",
+      "name": "static_tf_publisher",
+      "responsibility": "실측한 base↔센서 고정 변환; 장비 robot_state_publisher 등에 대응",
+      "kind": "ROS_NODE",
+      "status": "NATIVE_BINDING_UNVERIFIED"
+    },
+    {
+      "id": "amr2.watchdog",
+      "host": "AMR2",
+      "name": "command_watchdog_node",
+      "responsibility": "PC 연결과 독립된 최종 명령 만료·stop fence·장치 출력 억제. 설치/지원은 미확인",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "amr2.slam",
+      "host": "PC2",
+      "name": "slam_toolbox",
+      "responsibility": "scan·TF로 local map 및 map→odom 제공. backend 채택 제안",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.perception",
+      "host": "PC2",
+      "name": "target_perception_node",
+      "responsibility": "인형 탐지·sensor-frame 위치·증거·관측 창 기반 재확인. 주행 권한 없음",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "amr2.mapping",
+      "host": "PC2",
+      "name": "mapping_adapter_node",
+      "responsibility": "SLAM 준비 요청·원 관측 시각 TF·mission 위치·지도 revision·지도 변화 표시 자료·pose snapshot",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "amr2.executor",
+      "host": "PC2",
+      "name": "task_executor_node",
+      "responsibility": "임무/승인/lease 검증·readiness·Nav2 호출·취소·실제 정지 판정",
+      "kind": "ROS_NODE",
+      "status": "PARTIAL_ADAPTER_EXISTS_NEW_ENDPOINTS_PROPOSED"
+    },
+    {
+      "id": "amr2.bt",
+      "host": "PC2",
+      "name": "bt_navigator",
+      "responsibility": "NavigateToPose 서버; 지정한 BT가 planner/controller를 호출",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.planner",
+      "host": "PC2",
+      "name": "planner_server",
+      "responsibility": "ComputePathToPose 서버; global costmap 기반 경로 계산",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.controller",
+      "host": "PC2",
+      "name": "controller_server",
+      "responsibility": "FollowPath 서버; local costmap 기반 제어 속도",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.global_costmap",
+      "host": "PC2",
+      "name": "global_costmap",
+      "responsibility": "map·scan·TF 기반 전역 비용지도; planner의 내부 소유 노드",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.local_costmap",
+      "host": "PC2",
+      "name": "local_costmap",
+      "responsibility": "scan·TF 기반 지역 비용지도; controller의 내부 소유 노드",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.smoother",
+      "host": "PC2",
+      "name": "velocity_smoother",
+      "responsibility": "속도 평활화; 낮은 속도 제한은 회차 프로파일로 설정",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr2.collision",
+      "host": "PC2",
+      "name": "collision_monitor",
+      "responsibility": "fresh scan·footprint 기반 최종 Nav2 속도 보호",
+      "kind": "ROS_NODE",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "amr1.search",
+      "host": "PC1",
+      "name": "search_candidate_node",
+      "responsibility": "지정 구역의 waypoint/frontier 후보 생성. Nav2 goal 발행 없음",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "amr2.passage",
+      "host": "PC2",
+      "name": "passage_evaluator_node",
+      "responsibility": "RGB-D로 평가 경로의 폭·바닥·천장 여유 측정; PASSABLE/BLOCKED/UNKNOWN",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "cam.capture",
+      "host": "PC3",
+      "name": "webcam_capture_node",
+      "responsibility": "USB 웹캠 원 영상·관측 시각·카메라 상태",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "cam.quake",
+      "host": "PC3",
+      "name": "quake_detector_node",
+      "responsibility": "영상 엣지 흔들림을 DISASTER_SIGN 증거로 발행",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "cam.presence",
+      "host": "PC3",
+      "name": "target_presence_node",
+      "responsibility": "연결된 target/ROI 감시; 가림·유효 시야를 검사해 소실 후보 발행",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "cam.video",
+      "host": "PC3",
+      "name": "video_gateway",
+      "responsibility": "웹캠 HTTP 영상 스트림; 영상 인코딩/서빙",
+      "kind": "PROCESS",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.frames",
+      "host": "PC4",
+      "name": "frame_registry_node",
+      "responsibility": "공통 mission 정렬의 단일 authority. 로봇별 map session/revision 변화에 정렬 무효화",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.coordinator",
+      "host": "PC4",
+      "name": "mission_coordinator_node",
+      "responsibility": "사건 연결·대상 ID·출동/구간 승인·임무 세대·완료 시연 판정",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.operations",
+      "host": "PC4",
+      "name": "operations_node",
+      "responsibility": "HTTP API·ROS 어댑터·보고/증거 수신·DB 단일 쓰기·조회·SSE",
+      "kind": "ROS_NODE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.web",
+      "host": "PC4",
+      "name": "web_console",
+      "responsibility": "영상·지도·상태·승인/계속/정지 UI. ROS 직접 연결 없음",
+      "kind": "WEB_FRONTEND",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.db",
+      "host": "PC4",
+      "name": "DB / evidence store",
+      "responsibility": "operations만 쓰는 장부·증거 저장",
+      "kind": "STORE",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "central.discovery",
+      "host": "PC4",
+      "name": "Fast DDS Discovery Server",
+      "responsibility": "참여자/endpoint 발견. 애플리케이션 데이터 중계 없음",
+      "kind": "DISCOVERY_PROCESS",
+      "status": "DEPLOYMENT_PROPOSED"
+    }
+  ],
+  "interfaces": [
+    {
+      "id": "IF-001",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/scan",
+      "type": "sensor_msgs/msg/LaserScan",
+      "sources": [
+        "amr1.lidar"
+      ],
+      "targets": [
+        "amr1.slam",
+        "amr1.executor",
+        "amr1.perception",
+        "amr1.global_costmap",
+        "amr1.local_costmap",
+        "amr1.collision"
+      ],
+      "purpose": "장애물·SLAM·readiness·재확인",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-002",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/odom",
+      "type": "nav_msgs/msg/Odometry",
+      "sources": [
+        "amr1.base"
+      ],
+      "targets": [
+        "amr1.executor",
+        "amr1.controller",
+        "amr1.mapping",
+        "amr1.smoother"
+      ],
+      "purpose": "속도·pose·정지 증거",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-003",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/rgb/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "sources": [
+        "amr1.rgbd"
+      ],
+      "targets": [
+        "amr1.perception",
+        "amr1.executor"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-004",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/depth/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "sources": [
+        "amr1.rgbd"
+      ],
+      "targets": [
+        "amr1.perception",
+        "amr1.executor"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-005",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/rgb/camera_info",
+      "type": "sensor_msgs/msg/CameraInfo",
+      "sources": [
+        "amr1.rgbd"
+      ],
+      "targets": [
+        "amr1.perception",
+        "amr1.executor"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-006",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/tf",
+      "type": "tf2_msgs/msg/TFMessage",
+      "sources": [
+        "amr1.base",
+        "amr1.slam"
+      ],
+      "targets": [
+        "amr1.slam",
+        "amr1.mapping",
+        "amr1.executor",
+        "amr1.perception",
+        "amr1.planner",
+        "amr1.controller",
+        "amr1.global_costmap",
+        "amr1.local_costmap",
+        "amr1.collision"
+      ],
+      "purpose": "각 로봇 전용 TF buffer; edge authority 중복 금지",
+      "qos": "표준 TF QoS; 설치 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-007",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/tf_static",
+      "type": "tf2_msgs/msg/TFMessage",
+      "sources": [
+        "amr1.static_tf"
+      ],
+      "targets": [
+        "amr1.slam",
+        "amr1.mapping",
+        "amr1.executor",
+        "amr1.perception",
+        "amr1.planner",
+        "amr1.controller",
+        "amr1.global_costmap",
+        "amr1.local_costmap",
+        "amr1.collision"
+      ],
+      "purpose": "고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지",
+      "qos": "표준 static TF QoS",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-008",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/map",
+      "type": "nav_msgs/msg/OccupancyGrid",
+      "sources": [
+        "amr1.slam"
+      ],
+      "targets": [
+        "amr1.global_costmap",
+        "amr1.mapping",
+        "amr1.search"
+      ],
+      "purpose": "자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-009",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/map_state",
+      "type": "rescue_interfaces/msg/MapState",
+      "sources": [
+        "amr1.mapping"
+      ],
+      "targets": [
+        "central.frames",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "session/revision/quality; map 단독 stamp와 구분",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-010",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/pose",
+      "type": "rescue_interfaces/msg/RobotPose",
+      "sources": [
+        "amr1.mapping"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "mission pose + native pose + 정렬/시각/불확실성",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-011",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/status",
+      "type": "rescue_interfaces/msg/RobotStatus",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "task/readiness/motion/segment 상태; retained는 live 증거 아님",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-012",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/heartbeat",
+      "type": "rescue_interfaces/msg/Heartbeat",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations",
+        "amr1.watchdog"
+      ],
+      "purpose": "live executor heartbeat",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-013",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/watchdog_heartbeat",
+      "type": "rescue_interfaces/msg/Heartbeat",
+      "sources": [
+        "amr1.watchdog"
+      ],
+      "targets": [
+        "amr1.executor",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "장치 최종 감시 생존·fence 상태",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-014",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/command_lease",
+      "type": "rescue_interfaces/msg/CommandLease",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "단일 authority/generation의 기간 갱신. 새 이동 goal 아님",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-015",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/command_permit",
+      "type": "rescue_interfaces/msg/CommandPermit",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "amr1.watchdog"
+      ],
+      "purpose": "유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-016",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/task_admission",
+      "type": "rescue_interfaces/msg/TaskAdmission",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "수락/거절 및 거절 이유; action Result와 구분",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-017",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr1/register_authority",
+      "type": "rescue_interfaces/srv/RegisterAuthority",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-018",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr1/request_stop",
+      "type": "rescue_interfaces/srv/RequestStop",
+      "sources": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-019",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr1/reset_stop",
+      "type": "rescue_interfaces/srv/ResetStop",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-020",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr1/prepare_mapping",
+      "type": "rescue_interfaces/action/PrepareMapping",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.mapping"
+      ],
+      "purpose": "baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-021",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr1/execute_task",
+      "type": "rescue_interfaces/action/ExecuteTask",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-022",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr1/evaluate_route",
+      "type": "rescue_interfaces/action/EvaluateRoute",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-023",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr1/observe_target",
+      "type": "rescue_interfaces/action/ObserveTarget",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "amr1.perception"
+      ],
+      "purpose": "관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-024",
+      "kind": "ACTION",
+      "endpoint": "/amr1/navigate_to_pose",
+      "type": "nav2_msgs/action/NavigateToPose",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "amr1.bt"
+      ],
+      "purpose": "표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-025",
+      "kind": "ACTION",
+      "endpoint": "/amr1/compute_path_to_pose",
+      "type": "nav2_msgs/action/ComputePathToPose",
+      "sources": [
+        "amr1.executor",
+        "amr1.bt"
+      ],
+      "targets": [
+        "amr1.planner"
+      ],
+      "purpose": "경로 조회; 결과만으로 주행/통로 통과 성공 아님",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-026",
+      "kind": "ACTION",
+      "endpoint": "/amr1/follow_path",
+      "type": "nav2_msgs/action/FollowPath",
+      "sources": [
+        "amr1.bt"
+      ],
+      "targets": [
+        "amr1.controller"
+      ],
+      "purpose": "Nav2 내부 경로 제어",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-027",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/cmd_vel_nav",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr1.controller"
+      ],
+      "targets": [
+        "amr1.smoother"
+      ],
+      "purpose": "Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-028",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/cmd_vel_smoothed",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr1.smoother"
+      ],
+      "targets": [
+        "amr1.collision"
+      ],
+      "purpose": "평활화 속도 → Collision Monitor",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-029",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/cmd_vel_safe",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr1.collision"
+      ],
+      "targets": [
+        "amr1.watchdog"
+      ],
+      "purpose": "Nav2 보호 이후 장치 watchdog으로 전달",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "BINDING_PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "IF-030",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/cmd_vel",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr1.watchdog"
+      ],
+      "targets": [
+        "amr1.base"
+      ],
+      "purpose": "실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "BINDING_PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "IF-031",
+      "kind": "LOCAL_CALL",
+      "endpoint": "global_costmap access",
+      "type": "nav2_costmap_2d internal API",
+      "sources": [
+        "amr1.global_costmap"
+      ],
+      "targets": [
+        "amr1.planner"
+      ],
+      "purpose": "planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음",
+      "qos": "N/A",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "IF-032",
+      "kind": "LOCAL_CALL",
+      "endpoint": "local_costmap access",
+      "type": "nav2_costmap_2d internal API",
+      "sources": [
+        "amr1.local_costmap"
+      ],
+      "targets": [
+        "amr1.controller"
+      ],
+      "purpose": "controller가 자기 Costmap2DROS 객체를 사용",
+      "qos": "N/A",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "IF-033",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/scan",
+      "type": "sensor_msgs/msg/LaserScan",
+      "sources": [
+        "amr2.lidar"
+      ],
+      "targets": [
+        "amr2.slam",
+        "amr2.executor",
+        "amr2.perception",
+        "amr2.global_costmap",
+        "amr2.local_costmap",
+        "amr2.collision"
+      ],
+      "purpose": "장애물·SLAM·readiness·재확인",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-034",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/odom",
+      "type": "nav_msgs/msg/Odometry",
+      "sources": [
+        "amr2.base"
+      ],
+      "targets": [
+        "amr2.executor",
+        "amr2.controller",
+        "amr2.mapping",
+        "amr2.smoother"
+      ],
+      "purpose": "속도·pose·정지 증거",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-035",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/rgb/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "sources": [
+        "amr2.rgbd"
+      ],
+      "targets": [
+        "amr2.perception",
+        "amr2.executor",
+        "amr2.passage"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-036",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/depth/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "sources": [
+        "amr2.rgbd"
+      ],
+      "targets": [
+        "amr2.perception",
+        "amr2.executor",
+        "amr2.passage"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-037",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/rgb/camera_info",
+      "type": "sensor_msgs/msg/CameraInfo",
+      "sources": [
+        "amr2.rgbd"
+      ],
+      "targets": [
+        "amr2.perception",
+        "amr2.executor",
+        "amr2.passage"
+      ],
+      "purpose": "RGB/Depth/CameraInfo 정합; 실제 native 이름 remap",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-038",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/tf",
+      "type": "tf2_msgs/msg/TFMessage",
+      "sources": [
+        "amr2.base",
+        "amr2.slam"
+      ],
+      "targets": [
+        "amr2.slam",
+        "amr2.mapping",
+        "amr2.executor",
+        "amr2.perception",
+        "amr2.planner",
+        "amr2.controller",
+        "amr2.global_costmap",
+        "amr2.local_costmap",
+        "amr2.collision",
+        "amr2.passage"
+      ],
+      "purpose": "각 로봇 전용 TF buffer; edge authority 중복 금지",
+      "qos": "표준 TF QoS; 설치 확인",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-039",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/tf_static",
+      "type": "tf2_msgs/msg/TFMessage",
+      "sources": [
+        "amr2.static_tf"
+      ],
+      "targets": [
+        "amr2.slam",
+        "amr2.mapping",
+        "amr2.executor",
+        "amr2.perception",
+        "amr2.planner",
+        "amr2.controller",
+        "amr2.global_costmap",
+        "amr2.local_costmap",
+        "amr2.collision",
+        "amr2.passage"
+      ],
+      "purpose": "고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지",
+      "qos": "표준 static TF QoS",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-040",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/map",
+      "type": "nav_msgs/msg/OccupancyGrid",
+      "sources": [
+        "amr2.slam"
+      ],
+      "targets": [
+        "amr2.global_costmap",
+        "amr2.mapping"
+      ],
+      "purpose": "자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-041",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/map_state",
+      "type": "rescue_interfaces/msg/MapState",
+      "sources": [
+        "amr2.mapping"
+      ],
+      "targets": [
+        "central.frames",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "session/revision/quality; map 단독 stamp와 구분",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-042",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/pose",
+      "type": "rescue_interfaces/msg/RobotPose",
+      "sources": [
+        "amr2.mapping"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "mission pose + native pose + 정렬/시각/불확실성",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-043",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/status",
+      "type": "rescue_interfaces/msg/RobotStatus",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "task/readiness/motion/segment 상태; retained는 live 증거 아님",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-044",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/heartbeat",
+      "type": "rescue_interfaces/msg/Heartbeat",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations",
+        "amr2.watchdog"
+      ],
+      "purpose": "live executor heartbeat",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-045",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/watchdog_heartbeat",
+      "type": "rescue_interfaces/msg/Heartbeat",
+      "sources": [
+        "amr2.watchdog"
+      ],
+      "targets": [
+        "amr2.executor",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "장치 최종 감시 생존·fence 상태",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-046",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/command_lease",
+      "type": "rescue_interfaces/msg/CommandLease",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "단일 authority/generation의 기간 갱신. 새 이동 goal 아님",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-047",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/command_permit",
+      "type": "rescue_interfaces/msg/CommandPermit",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "amr2.watchdog"
+      ],
+      "purpose": "유효 permit/heartbeat/속도 중 하나라도 만료 시 장치 출력 억제",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-048",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr2/task_admission",
+      "type": "rescue_interfaces/msg/TaskAdmission",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "수락/거절 및 거절 이유; action Result와 구분",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-049",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr2/register_authority",
+      "type": "rescue_interfaces/srv/RegisterAuthority",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "stopped/disarmed에서 새 authority 등록; 등록만으로 이동 없음",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-050",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr2/request_stop",
+      "type": "rescue_interfaces/srv/RequestStop",
+      "sources": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-051",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/robots/amr2/reset_stop",
+      "type": "rescue_interfaces/srv/ResetStop",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-052",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr2/prepare_mapping",
+      "type": "rescue_interfaces/action/PrepareMapping",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.mapping"
+      ],
+      "purpose": "baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-053",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr2/execute_task",
+      "type": "rescue_interfaces/action/ExecuteTask",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-054",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr2/evaluate_route",
+      "type": "rescue_interfaces/action/EvaluateRoute",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "amr2.executor"
+      ],
+      "purpose": "주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-055",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr2/observe_target",
+      "type": "rescue_interfaces/action/ObserveTarget",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "amr2.perception"
+      ],
+      "purpose": "관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-056",
+      "kind": "ACTION",
+      "endpoint": "/amr2/navigate_to_pose",
+      "type": "nav2_msgs/action/NavigateToPose",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "amr2.bt"
+      ],
+      "purpose": "표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-057",
+      "kind": "ACTION",
+      "endpoint": "/amr2/compute_path_to_pose",
+      "type": "nav2_msgs/action/ComputePathToPose",
+      "sources": [
+        "amr2.executor",
+        "amr2.bt"
+      ],
+      "targets": [
+        "amr2.planner"
+      ],
+      "purpose": "경로 조회; 결과만으로 주행/통로 통과 성공 아님",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-058",
+      "kind": "ACTION",
+      "endpoint": "/amr2/follow_path",
+      "type": "nav2_msgs/action/FollowPath",
+      "sources": [
+        "amr2.bt"
+      ],
+      "targets": [
+        "amr2.controller"
+      ],
+      "purpose": "Nav2 내부 경로 제어",
+      "qos": "N/A",
+      "status": "STANDARD_JAZZY"
+    },
+    {
+      "id": "IF-059",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/cmd_vel_nav",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr2.controller"
+      ],
+      "targets": [
+        "amr2.smoother"
+      ],
+      "purpose": "Nav2 제어 속도; Jazzy 기준, native TwistStamped 사용 여부 확인",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-060",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/cmd_vel_smoothed",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr2.smoother"
+      ],
+      "targets": [
+        "amr2.collision"
+      ],
+      "purpose": "평활화 속도 → Collision Monitor",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "STANDARD_BINDING_PROPOSED"
+    },
+    {
+      "id": "IF-061",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/cmd_vel_safe",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr2.collision"
+      ],
+      "targets": [
+        "amr2.watchdog"
+      ],
+      "purpose": "Nav2 보호 이후 장치 watchdog으로 전달",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "BINDING_PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "IF-062",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/cmd_vel",
+      "type": "geometry_msgs/msg/Twist",
+      "sources": [
+        "amr2.watchdog"
+      ],
+      "targets": [
+        "amr2.base"
+      ],
+      "purpose": "실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "BINDING_PROPOSED_NOT_INSTALLED"
+    },
+    {
+      "id": "IF-063",
+      "kind": "LOCAL_CALL",
+      "endpoint": "global_costmap access",
+      "type": "nav2_costmap_2d internal API",
+      "sources": [
+        "amr2.global_costmap"
+      ],
+      "targets": [
+        "amr2.planner"
+      ],
+      "purpose": "planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음",
+      "qos": "N/A",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "IF-064",
+      "kind": "LOCAL_CALL",
+      "endpoint": "local_costmap access",
+      "type": "nav2_costmap_2d internal API",
+      "sources": [
+        "amr2.local_costmap"
+      ],
+      "targets": [
+        "amr2.controller"
+      ],
+      "purpose": "controller가 자기 Costmap2DROS 객체를 사용",
+      "qos": "N/A",
+      "status": "STANDARD_CANDIDATE"
+    },
+    {
+      "id": "IF-065",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/observations",
+      "type": "rescue_interfaces/msg/TargetObservation",
+      "sources": [
+        "amr1.perception",
+        "amr2.perception"
+      ],
+      "targets": [
+        "amr1.mapping",
+        "amr2.mapping"
+      ],
+      "purpose": "연속 원 관측; 각 mapping은 자기 source_robot만 소비",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 10",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-066",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/target_locations",
+      "type": "rescue_interfaces/msg/TargetLocation",
+      "sources": [
+        "amr1.mapping",
+        "amr2.mapping"
+      ],
+      "targets": [
+        "central.coordinator"
+      ],
+      "purpose": "첫 발견·중요 좌표 변화·원 관측/근거; 저장 receipt까지 outbox 재전송",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-067",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/frame_alignments",
+      "type": "rescue_interfaces/msg/FrameAlignmentSnapshot",
+      "sources": [
+        "central.frames"
+      ],
+      "targets": [
+        "amr1.mapping",
+        "amr2.mapping",
+        "amr1.executor",
+        "amr2.executor",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "두 로봇 mission 정렬의 전체 snapshot",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-068",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/robots/amr1/search_candidates",
+      "type": "rescue_interfaces/msg/SearchCandidates",
+      "sources": [
+        "amr1.search"
+      ],
+      "targets": [
+        "amr1.executor"
+      ],
+      "purpose": "frontier/waypoint 후보; search task 없이 스스로 이동시키지 않음",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-069",
+      "kind": "ACTION",
+      "endpoint": "/rescue/robots/amr2/evaluate_passage",
+      "type": "rescue_interfaces/action/EvaluatePassage",
+      "sources": [
+        "amr2.executor"
+      ],
+      "targets": [
+        "amr2.passage"
+      ],
+      "purpose": "route/segment 및 로봇 box의 3D 여유 평가; 주행 없음",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-070",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/targets",
+      "type": "rescue_interfaces/msg/TargetSnapshot",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "target 전체 snapshot; target 좌표와 approach/segment goal 구분",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-071",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/system_state",
+      "type": "rescue_interfaces/msg/SystemState",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-072",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/reports",
+      "type": "rescue_interfaces/msg/RescueReport",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "대상/임무/재확인 기록; 같은 report_id·payload 재시도",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-073",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/report_receipts",
+      "type": "rescue_interfaces/msg/ReportReceipt",
+      "sources": [
+        "central.operations"
+      ],
+      "targets": [
+        "central.coordinator",
+        "amr1.mapping",
+        "amr2.mapping",
+        "amr1.executor",
+        "amr2.executor",
+        "cam.quake",
+        "cam.presence"
+      ],
+      "purpose": "DB commit·필수 증거 저장 뒤 PERSISTED; included_record_ids로 outbox 정리",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-074",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/cameras/cam_fixed/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "sources": [
+        "cam.capture"
+      ],
+      "targets": [
+        "cam.quake",
+        "cam.presence",
+        "cam.video"
+      ],
+      "purpose": "인형이 있는 고정 시야의 웹캠 원 영상",
+      "qos": "BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-075",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/cameras/cam_fixed/status",
+      "type": "rescue_interfaces/msg/CameraStatus",
+      "sources": [
+        "cam.capture"
+      ],
+      "targets": [
+        "cam.quake",
+        "cam.presence",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-076",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/site_events",
+      "type": "rescue_interfaces/msg/SiteEvent",
+      "sources": [
+        "cam.quake",
+        "cam.presence"
+      ],
+      "targets": [
+        "central.coordinator"
+      ],
+      "purpose": "DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거",
+      "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-077",
+      "kind": "TOPIC",
+      "endpoint": "/rescue/cameras/cam_fixed/presence",
+      "type": "rescue_interfaces/msg/TargetPresence",
+      "sources": [
+        "cam.presence"
+      ],
+      "targets": [
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-078",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/cameras/cam_fixed/set_watch",
+      "type": "rescue_interfaces/srv/SetCameraWatch",
+      "sources": [
+        "central.coordinator"
+      ],
+      "targets": [
+        "cam.presence"
+      ],
+      "purpose": "target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-079",
+      "kind": "SERVICE",
+      "endpoint": "/rescue/operator_command",
+      "type": "rescue_interfaces/srv/SubmitOperatorCommand",
+      "sources": [
+        "central.operations"
+      ],
+      "targets": [
+        "central.coordinator"
+      ],
+      "purpose": "출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-080",
+      "kind": "HTTP",
+      "endpoint": "POST /api/operator-commands",
+      "type": "JSON OperatorCommand + accepted/request_id",
+      "sources": [
+        "central.web"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "세션 인증된 운영 요청; STOP_ROBOT는 operations가 RequestStop로 우선 전달, 나머지는 coordinator 서비스로 전달",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-081",
+      "kind": "HTTP",
+      "endpoint": "GET /api/snapshot + GET /api/events (SSE)",
+      "type": "JSON ConsoleSnapshot / EventStream",
+      "sources": [
+        "central.operations"
+      ],
+      "targets": [
+        "central.web"
+      ],
+      "purpose": "DB에 저장된 대상 좌표·보고 상태와 수신 시각이 있는 live 로봇 상태",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-082",
+      "kind": "HTTP",
+      "endpoint": "GET /video/cam_fixed.mjpg",
+      "type": "multipart/x-mixed-replace",
+      "sources": [
+        "cam.video"
+      ],
+      "targets": [
+        "central.web"
+      ],
+      "purpose": "PC3의 HTTP 영상 gateway를 PC4 브라우저가 조회",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-083",
+      "kind": "HTTP",
+      "endpoint": "PUT /api/evidence/{evidence_id}",
+      "type": "bytes + sha256 -> PERSISTED/REJECTED",
+      "sources": [
+        "amr1.perception",
+        "amr2.perception",
+        "cam.quake",
+        "cam.presence",
+        "amr2.passage"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "증거 원 bytes와 hash; ROS event는 EvidenceRef만 사용",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-084",
+      "kind": "HTTP",
+      "endpoint": "PUT /api/maps/{snapshot_id}",
+      "type": "MapSnapshot: grid + MapState + baseline-diff + sha256",
+      "sources": [
+        "amr1.mapping",
+        "amr2.mapping"
+      ],
+      "targets": [
+        "central.operations"
+      ],
+      "purpose": "지도 내용/metadata/변화 표시 자료를 같은 snapshot ID로 원자적으로 저장",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-085",
+      "kind": "LOCAL_CALL",
+      "endpoint": "ledger / evidence store transaction",
+      "type": "SQL + file store",
+      "sources": [
+        "central.operations"
+      ],
+      "targets": [
+        "central.db"
+      ],
+      "purpose": "DB 단일 writer 및 보고/증거 commit",
+      "qos": "N/A",
+      "status": "PROPOSED"
+    },
+    {
+      "id": "IF-086",
+      "kind": "DISCOVERY",
+      "endpoint": "DDS discovery metadata",
+      "type": "Fast DDS discovery protocol",
+      "sources": [
+        "amr1.base",
+        "amr1.lidar",
+        "amr1.rgbd",
+        "amr1.static_tf",
+        "amr1.watchdog",
+        "amr1.slam",
+        "amr1.perception",
+        "amr1.mapping",
+        "amr1.executor",
+        "amr1.bt",
+        "amr1.planner",
+        "amr1.controller",
+        "amr1.global_costmap",
+        "amr1.local_costmap",
+        "amr1.smoother",
+        "amr1.collision",
+        "amr2.base",
+        "amr2.lidar",
+        "amr2.rgbd",
+        "amr2.static_tf",
+        "amr2.watchdog",
+        "amr2.slam",
+        "amr2.perception",
+        "amr2.mapping",
+        "amr2.executor",
+        "amr2.bt",
+        "amr2.planner",
+        "amr2.controller",
+        "amr2.global_costmap",
+        "amr2.local_costmap",
+        "amr2.smoother",
+        "amr2.collision",
+        "amr1.search",
+        "amr2.passage",
+        "cam.capture",
+        "cam.quake",
+        "cam.presence",
+        "central.frames",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "targets": [
+        "central.discovery"
+      ],
+      "purpose": "참여자 ↔ 서버 발견 정보. Topic/Service/Action 데이터 흐름과 분리",
+      "qos": "N/A",
+      "status": "DEPLOYMENT_PROPOSED"
+    }
+  ],
+  "message_schemas": {
+    "Envelope": "schema_version:string, publisher_id:string, publisher_boot_id:UUID string, sequence:uint64, published_at_ns:int64. 전송 identity와 원 관측 identity를 분리.",
+    "ObservationTime": "observed_at_ns:int64, valid_until_ns:int64, stamp_semantics:string(CAPTURE/DRIVER_RECEIVE/UNKNOWN), clock_domain_id:string, clock_state:string(SYNCED/UNKNOWN), has_clock_error_bound:bool, clock_error_bound_ns:uint64. 없으면 has=false; 0으로 성공을 표현하지 않음.",
+    "EvidenceRef": "evidence_id:UUID string, sha256:string, mime_type:string, source_id:string, source_boot_id:UUID string, observed_at_ns:int64. bytes는 HTTP로 별도 전송; hash·원 시각 보존.",
+    "FrameRef": "robot_id:string, native_frame:string, mission_frame:string, map_session_id:UUID string, map_revision:uint64, transform_revision:uint64, alignment_status:string(VALID/DEGRADED/INVALID). 실제 frame 문자열은 profile 대응.",
+    "TargetObservation": "envelope:Envelope, observation_id:UUID, source_robot:string, source_camera:string, source_boot_id:UUID, time:ObservationTime, class_label:string, confidence:float64, model_id:string, model_sha256:string, tracking_mode:string, has_track_id:bool, track_id:string, bbox_xyxy_pixels:float64[4], sensor_frame:string, localization_status:string(VALID/UNKNOWN/INVALID), sensor_position:geometry_msgs/Point, position_covariance:float64[9], depth_status:string, evidence:EvidenceRef. 탐지와 좌표 성공은 별도.",
+    "TargetLocation": "envelope:Envelope, location_id:UUID, observation:TargetObservation, frame_ref:FrameRef, projection_status:string(VALID/STALE_DERIVATION/NEEDS_REOBSERVATION/EXPIRED), mission_position:geometry_msgs/Point, covariance:float64[9]. UNKNOWN 위치 수치는 사용 금지. 동일 location_id 재발행의 의미 payload는 불변.",
+    "MapState": "envelope:Envelope, robot_id:string, snapshot_id:UUID, map_session_id:UUID, map_revision:uint64, map_update_sequence:uint64, generated_at_ns:int64, localization_quality:string, correction_detection_status:string(KNOWN/UNKNOWN), current_native_map_frame:string. 단순 TF tick마다 map_revision을 올리지 않음.",
+    "RobotPose": "envelope:Envelope, robot_id:string, source_boot_id:UUID, time:ObservationTime, native_pose:geometry_msgs/PoseWithCovarianceStamped, mission_pose:geometry_msgs/PoseWithCovarianceStamped, frame_ref:FrameRef, mission_pose_status:string(VALID/UNKNOWN/INVALID). header stamp·frame과 time/ref 일치 검사.",
+    "FrameAlignmentSnapshot": "envelope:Envelope, snapshot_id:UUID, alignments:FrameAlignment[]. 전체 snapshot이며 delta와 혼합하지 않음.",
+    "FrameAlignment": "frame_ref:FrameRef, authority_id:string, transform:geometry_msgs/Transform, covariance:float64[36], valid_from_ns:int64, valid_until_ns:int64, status:string(VALID/DEGRADED/INVALID), calibration_evidence:EvidenceRef[]. 계측/검증 없는 alignment는 INVALID.",
+    "SearchCandidates": "envelope:Envelope, robot_id:string, area_ref:string, frame_ref:FrameRef, generated_at_ns:int64, valid_until_ns:int64, candidate_poses:geometry_msgs/PoseStamped[], policy_version:string. 실제 주행은 executor의 유효 SEARCH_AREA task 안에서만.",
+    "Heartbeat": "envelope:Envelope, robot_id:string, producer_role:string(EXECUTOR/WATCHDOG), robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, emitted_at_ns:int64, command_fenced:bool. 수신자의 local monotonic watchdog과 별개.",
+    "CommandLease": "envelope:Envelope, lease_id:UUID, robot_id:string, robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, renewal_sequence:uint64, issued_at_ns:int64, valid_until_ns:int64. 만료 lease의 늦은 갱신은 부활 금지.",
+    "CommandPermit": "envelope:Envelope, permit_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, lease_id:UUID, mode:string(ALLOW/FENCED), issued_at_ns:int64, valid_until_ns:int64, reason:string. 장치 로컬 watchdog은 유효 permit·fresh heartbeat·fresh 속도를 모두 확인.",
+    "RobotStatus": "envelope:Envelope, robot_id:string, robot_boot_id:UUID, state_sequence:uint64, observed_at_ns:int64, authority_epoch:UUID, active_task_id:string, generation:uint64, readiness:string(READY/DEGRADED/NOT_READY/UNKNOWN), task_state:string, motion_state:string(STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED), segment_index:uint32, stop_reason:string, stop_evidence:EvidenceRef[], dock_state:string(DOCKED/UNDOCKED/UNKNOWN), dock_observed_at_ns:int64, lease_valid:bool, sensor_quality:string, nav2_state:string, battery_known:bool, battery_fraction:float64. 미확인 값을 정상으로 채우지 않음.",
+    "TaskAdmission": "envelope:Envelope, admission_id:UUID, command_id:UUID, task_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, accepted:bool, reason_code:string, observed_at_ns:int64. goal accepted=false의 상세 이유 및 수락 장부의 근거.",
+    "TargetEstimate": "target_id:UUID, estimate_revision:uint64, locations:TargetLocation[], latest_observed_at_ns:int64, valid_until_ns:int64, mission_position:geometry_msgs/Point, covariance:float64[9], confirmation_state:string(CANDIDATE/CONFIRMED/NEEDS_REOBSERVATION/DISMISSED), approach_state:string(UNASSIGNED/ASSIGNED/IN_PROGRESS/APPROACH_COMPLETE/BLOCKED/UNREACHABLE/CANCELED/FAILED), segment_phase:string(IDLE/EVALUATING/AWAITING_APPROVAL/EXECUTING/STOPPING/STOPPED/UNKNOWN), rescue_state:string(NOT_CHECKED/RECHECK_NEEDED/RESCUE_CONFIRMED), persisted_report_id:string. locations가 관측별 provenance를 보존. AWAITING_APPROVAL는 coordinator 상태이며 종료한 executor action의 feedback을 다시 발행하지 않음.",
+    "TargetSnapshot": "envelope:Envelope, snapshot_id:UUID, targets:TargetEstimate[]. 전체 상태 snapshot. 웹의 저장 완료 좌표 표시는 operations 장부 기준.",
+    "SystemState": "envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string.",
+    "SiteEvent": "envelope:Envelope, event_id:UUID, camera_id:string(cam_fixed 예시), source_boot_id:UUID, kind:string(DISASTER_SIGN/TARGET_DISAPPEARED_CANDIDATE), time:ObservationTime, target_id:string, watch_id:string, confidence:float64, visibility_state:string(VALID/OCCLUDED/UNKNOWN), metrics_name:string[], metrics_value:float64[], policy_version:string, evidence:EvidenceRef. 재난 징후는 target/watch 비어 있음; 소실 후보는 둘 다 필수.",
+    "CameraStatus": "envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN.",
+    "TargetPresence": "envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요.",
+    "RecheckObservation": "observation_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, source_boot_id:UUID, time:ObservationTime, frame_ref:FrameRef, watched_native_point:geometry_msgs/Point, camera_state:string(PRESENT/ABSENT/UNKNOWN), lidar_state:string(BLOCKED/CLEAR/UNKNOWN), coverage_state:string(VALID/INVALID/UNKNOWN), sensor_window_start_ns:int64, sensor_window_end_ns:int64, detector_health:string, evidence:EvidenceRef[]. EMPTY 탐지 배열만으로 ABSENT 금지; 실제 시야/거리/센서 품질이 필요.",
+    "PassageAssessment": "assessment_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, frame_ref:FrameRef, time:ObservationTime, status:string(PASSABLE/BLOCKED/UNKNOWN), width_known:bool, min_width_m:float64, height_known:bool, min_headroom_m:float64, floor_geometry_known:bool, uncertainty_m:float64, footprint_profile_id:string, policy_version:string, reason:string, evidence:EvidenceRef[]. 측정 실패 값은 *_known=false이며 판정에 사용 금지.",
+    "RouteCandidate": "route_id:UUID, route_revision:uint64, robot_id:string, target_id:string, segment_index:uint32, frame_ref:FrameRef, planned_path:nav_msgs/Path, approach_goal:geometry_msgs/PoseStamped, generated_at_ns:int64, valid_until_ns:int64, path_sha256:string, approval_corridor_sha256:string, assessment:PassageAssessment, planner_evidence_id:string, policy_version:string. 대상 좌표·접근 목표는 다른 값.",
+    "OperatorApproval": "approval_id:UUID, command_id:UUID, operator_id:string(서버 인증값), robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, target_id:string, target_estimate_revision:uint64, route_id:UUID, route_revision:uint64, segment_index:uint32, approved_at_ns:int64, valid_until_ns:int64, scope:string(ONE_SEGMENT). 같은 구간의 같은 의미만 멱등 허용.",
+    "RescueReport": "envelope:Envelope, report_id:UUID, target_id:string, task_id:string, generation:uint64, record_ids:UUID[], locations:TargetLocation[], site_events:SiteEvent[], rechecks:RecheckObservation[], routes:RouteCandidate[], approvals:OperatorApproval[], task_admissions:TaskAdmission[], has_task_result:bool, task_result:TaskResult, confirmation_state:string, approach_state:string, rescue_state:string, evidence_refs:EvidenceRef[], first_issued_at_ns:int64, meaning_sha256:string. 해당 기록이 없는 optional section은 명시적으로 빈 배열/has flag.",
+    "ReportReceipt": "envelope:Envelope, receipt_id:UUID, report_id:UUID, meaning_sha256:string, included_record_ids:UUID[], state:string(RECEIVED/PENDING_EVIDENCE/PERSISTED/REJECTED), persisted_at_ns:int64, has_persisted_at:bool, storage_revision:uint64, reason_code:string. included_record_ids는 저장한 보고의 내용과 일치.",
+    "TaskResult": "task_id:UUID, command_id:UUID, robot_id:string, generation:uint64, outcome:string(COMPLETED/CANCELED/EXPIRED/UNREACHABLE/FAILED), completion_scope:string(SEARCH/SEGMENT/TARGET_APPROACH/RECHECK/RETURN/HOLD), terminal_reason:string, original_cause:string, stop_confirmed:bool, motion_state:string, final_pose:RobotPose, used_record_ids:UUID[], frame_ref:FrameRef, recheck:RecheckObservation, has_recheck:bool, stop_evidence:EvidenceRef[]. 구간 성공을 접근/구조 성공으로 바꾸지 않음."
+  },
+  "services": {
+    "SubmitOperatorCommand": {
+      "Request": "envelope:Envelope, command_id:UUID, operation:string(DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK/RETURN_HOME/FINISH_MISSION/RESET_STOP/SET_CAMERA_WATCH), operator_id:string(operations 인증값), robot_id:string, target_id:string, expected_task_id:string, expected_generation:uint64, expected_target_revision:uint64, route_id:string, route_revision:uint64, segment_index:uint32, issued_at_ns:int64, deadline_ns:int64, roi_xyxy_normalized:float64[4], association_evidence_id:string. operation별 필수 필드는 검증; 나머지는 명시적 비적용.",
+      "Response": "envelope:Envelope, accepted:bool, command_id:UUID, request_state:string(ACCEPTED/REJECTED/DUPLICATE), reason_code:string, created_task_id:string, approval_id:string. accepted는 접수이며 이동·구조·저장 완료가 아님.",
+      "Rules": "웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload."
+    },
+    "RequestStop": {
+      "Request": "envelope:Envelope, stop_command_id:UUID, requester_id:string, authority_epoch:string, robot_id:string, scope:string(ACTIVE_TASK/ALL_MOTION), reason_code:string, issued_at_ns:int64, deadline_ns:int64.",
+      "Response": "envelope:Envelope, accepted:bool, stop_command_id:UUID, reason_code:string, state:string(ACCEPTED/REJECTED/DUPLICATE).",
+      "Rules": "일반 임무보다 우선 접수. callback에서 실제 정지를 기다리지 않음. 후속 RobotStatus STOPPED/STOP_UNCONFIRMED 및 TaskResult로 판정. 권한 있는 정지 요청은 활성 task ID를 몰라도 가능."
+    },
+    "RegisterAuthority": {
+      "Request": "envelope:Envelope, command_id:UUID, robot_id:string, expected_robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, policy_version:string, issued_at_ns:int64, deadline_ns:int64.",
+      "Response": "envelope:Envelope, accepted:bool, robot_boot_id:UUID, authority_epoch:UUID, reason_code:string.",
+      "Rules": "기존 이동/제어권 종료와 실제 정지 확인 후 등록. authority_epoch UUID의 크기로 신구 판단하지 않음. 등록은 ARMED 절차의 일부이고 lease/이동 허가를 자동 생성하지 않음."
+    },
+    "ResetStop": {
+      "Request": "envelope:Envelope, reset_command_id:UUID, robot_id:string, expected_robot_boot_id:UUID, authority_epoch:UUID, expected_latch_id:UUID, resolved_reason_code:string, issued_at_ns:int64, deadline_ns:int64.",
+      "Response": "envelope:Envelope, accepted:bool, latch_released:bool, reason_code:string.",
+      "Rules": "현장 E-stop/fault 해제를 대신하지 않음. 정지·원인 해결·live readiness·권한 확인 후 software latch만 해제. 이전 task 자동 재개 없음; 새 generation 필요."
+    },
+    "SetCameraWatch": {
+      "Request": "envelope:Envelope, command_id:UUID, camera_id:string, watch_id:UUID, target_id:UUID, expected_watch_revision:uint64, roi_xyxy_normalized:float64[4], association_method:string(CALIBRATED_PROJECTION/OPERATOR_ROI), association_evidence_id:string, enable:bool, issued_at_ns:int64, deadline_ns:int64.",
+      "Response": "envelope:Envelope, accepted:bool, watch_id:UUID, watch_revision:uint64, reason_code:string.",
+      "Rules": "ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개로 시작하며 교체/해제는 revision을 확인. image_size/camera_pose 변경 시 watch 무효화. target_id 없이 소실 이벤트 발행하지 않음. 카메라를 robot_id 목록에 넣지 않음."
+    }
+  },
+  "actions": {
+    "PrepareMapping": {
+      "Goal": "envelope:Envelope, request_id:UUID, robot_id:string, operation:string(PREPARE/START), baseline_map_ref:string, mapping_profile_id:string, expected_map_session_id:string, issued_at_ns:int64, deadline_ns:int64.",
+      "Result": "envelope:Envelope, outcome:string(READY/FAILED/UNKNOWN), map_state:MapState, reason_code:string.",
+      "Feedback": "envelope:Envelope, request_id:UUID, phase:string(CHECKING_PROFILE/STARTING_BACKEND/WAITING_FRESH_MAP_TF), reason_code:string.",
+      "Rules": "mapping 소유 adapter가 bringup의 지정 backend 기동/activation 절차를 요청하고 fresh map/scan/TF로 준비 결과를 확인. 단순 process 시작을 READY로 표시하지 않음. 실제 slam_toolbox lifecycle/process API는 설치 버전 확인 후 binding을 고정하며 임의의 표준 service 이름을 가정하지 않음. 활성 이동 중 session reset/기준 지도 교체 금지. PREPARE는 사전 점검, START는 지진 이후 SLAM 시작 요청. Nav2 이동은 별도 executor guard."
+    },
+    "ExecuteTask": {
+      "Goal": "envelope:Envelope, command_id:UUID, task_id:UUID, robot_id:string, expected_robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, kind:string(SEARCH_AREA/APPROACH_TARGET/REOBSERVE_TARGET/HOLD/MOVE_SEGMENT/RETURN_HOME), issued_at_ns:int64, deadline_ns:int64, lease_id:UUID, target_id:string, target_estimate_revision:uint64, search_area_ref:string, home_ref:string, frame_ref:FrameRef, route:RouteCandidate, has_route:bool, approval:OperatorApproval, has_approval:bool, policy_version:string.",
+      "Result": "envelope:Envelope, result:TaskResult.",
+      "Feedback": "envelope:Envelope, task_id:UUID, generation:uint64, state:string(VALIDATING/PLANNING/NAVIGATING/VERIFYING/STOPPING), segment_index:uint32, current_pose:RobotPose, distance_remaining_known:bool, distance_remaining_m:float64, reason_code:string. UNKNOWN pose/distance는 status/known=false로 명시하고 숫자 사용 금지.",
+      "Rules": "로봇당 활성 이동 task 1개. MOVE_SEGMENT는 APPROACH와 별도 새 kind: 한 구간 도착·실제 정지 뒤 Result(COMPLETED, scope=SEGMENT). coordinator는 다음 구간을 자동 발급하지 않음. 최종 구간 뒤 REOBSERVE_TARGET로 AMR2 카메라 재확인. RETURN_HOME은 현재 유효 home_ref를 재해석하며 초기 pose를 stale goal로 재사용하지 않음. 수락 전 거절은 action Result가 아니라 accepted=false + TaskAdmission. 이동 출력이 있었던 모든 종료 경로는 stop 관문."
+    },
+    "EvaluateRoute": {
+      "Goal": "envelope:Envelope, request_id:UUID, robot_id:string, target_id:string, target_estimate_revision:uint64, purpose:string(APPROACH/SEGMENT/RECHECK/RETURN), segment_index:uint32, candidate_goal:geometry_msgs/PoseStamped, has_candidate_goal:bool, home_ref:string, frame_ref:FrameRef, footprint_profile_id:string, policy_version:string, deadline_ns:int64.",
+      "Result": "envelope:Envelope, outcome:string(VALID/BLOCKED/UNKNOWN/FAILED), has_route:bool, route:RouteCandidate, reason_code:string.",
+      "Feedback": "envelope:Envelope, request_id:UUID, phase:string(PLANNING/EVALUATING_PASSAGE/VALIDATING), reason_code:string.",
+      "Rules": "executor가 ComputePathToPose를 호출하고 AMR2는 필요한 구간에서 EvaluatePassage를 호출. 주행 없음. 승인은 평가된 route corridor/segment/revision에 결합. 재계획이 승인 범위를 벗어나거나 의미 있는 지도/위치/평가 변화이면 승인 무효화·정지·재평가. 계산 실패를 경로 가능으로 대체하지 않음."
+    },
+    "ObserveTarget": {
+      "Goal": "envelope:Envelope, request_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, watched_native_point:geometry_msgs/Point, frame_ref:FrameRef, requested_window_ns:uint64, policy_version:string, deadline_ns:int64.",
+      "Result": "envelope:Envelope, outcome:string(OBSERVED/UNKNOWN/FAILED), observation:RecheckObservation, reason_code:string.",
+      "Feedback": "envelope:Envelope, request_id:UUID, phase:string(COLLECTING/CHECKING_COVERAGE/FINALIZING), camera_state:string, lidar_state:string.",
+      "Rules": "perception은 센서 취득·판정만 수행. target point의 실제 시야/거리/검출기/TF 유효성이 충족돼야 ABSENT 또는 CLEAR를 발행. 고정 카메라 소실 이후 완료 판정용 AMR1 관측 창이 새로 확보돼야 함. 취소/timeout은 UNKNOWN이며 부재 성공으로 만들지 않음."
+    },
+    "EvaluatePassage": {
+      "Goal": "envelope:Envelope, request_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, path:nav_msgs/Path, frame_ref:FrameRef, footprint_profile_id:string, policy_version:string, deadline_ns:int64.",
+      "Result": "envelope:Envelope, assessment:PassageAssessment.",
+      "Feedback": "envelope:Envelope, request_id:UUID, phase:string(COLLECTING_DEPTH/PROJECTING/CHECKING_CLEARANCE), valid_samples:uint32, reason_code:string.",
+      "Rules": "footprint_profile은 로봇 box의 폭·높이·길이·하중 포함 envelope와 불확실성/안전 여유를 정의. 경로 swept volume 전체의 바닥/천장·폭을 평가. 상부 3D 여유가 알려지지 않으면 UNKNOWN. 2D LiDAR만으로 기울어진 기둥 하부 통과 승인 금지. 카메라 box overlay는 검토용 증거이며 PASSABLE 계산을 대신하지 않음."
+    }
+  },
+  "standard_action_notes": {
+    "nav2_msgs/action/NavigateToPose": "Goal은 stamped 목표 pose와 BT 선택, Feedback은 현재 pose·진행 시간/거리, Result는 오류 코드/메시지. 성공과 실제 정지·대상 재확인은 분리.",
+    "nav2_msgs/action/ComputePathToPose": "Goal은 목표·시작 pose와 planner 선택/시작 사용 여부, Result는 path·계산 시간·오류. Jazzy feedback에는 사용자 필드 없음. 경로 조회는 로봇 이동 아님.",
+    "nav2_msgs/action/FollowPath": "Goal은 경로 및 controller/checker 선택, Feedback은 추종 거리/속도, Result는 오류. Nav2 내부 bt→controller 연결."
+  }
+}
