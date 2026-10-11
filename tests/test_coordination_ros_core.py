@@ -185,6 +185,53 @@ class ScoutDispatchTests(CoreTestCase):
         self.assertEqual(('ACCEPTED', fields['task_id'], 'SEARCH_AREA'),
                          (reply['request_state'], reply['created_task_id'], fields['kind']))
 
+    def queued(self):
+        """START_SEARCH accepted while the ready SCOUT is busy with a recheck: the search waits (#99)."""
+        self.disaster()
+        target = self.core.on_target_location(location(1), now_ns=NOW)
+        (report,) = self.core.reports_due(NOW)
+        self.core.on_receipt(receipt(report))
+        self.core.on_status(status_msg())
+        self.core.on_command(request('REQUEST_RECHECK', command_id=uid(701), target_id=target), now_ns=NOW)
+        (recheck,) = self.core.tick(NOW)
+        reply = self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
+        self.assertEqual((True, ''), (reply['accepted'], reply['created_task_id']))
+        return recheck
+
+    def finish(self, fields, outcome='COMPLETED'):
+        self.core.on_admission(admission_msg(fields))
+        self.assertTrue(self.core.on_result(fields['task_id'], NS(outcome=outcome, stop_confirmed=True)))
+
+    def test_waiting_search_is_shown_then_issued_after_the_current_task(self):
+        recheck = self.queued()
+        self.assertEqual('SEARCH_QUEUED', self.core.system_state_change(NOW)['reason'])
+        self.finish(recheck)
+        (search,) = self.core.tick(NOW)
+        self.assertEqual('SEARCH_AREA', search['kind'])
+        self.assertEqual('', self.core.system_state_change(NOW)['reason'])
+
+    def test_stop_cancels_the_waiting_search(self):
+        for stop in ('status', 'canceled', 'mode'):
+            with self.subTest(stop=stop):
+                self.setUp()
+                recheck = self.queued()
+                if stop == 'status':
+                    self.core.on_status(status_msg(motion_state='STOPPING', active_task_id=recheck['task_id']))
+                    self.core.tick(NOW)
+                    self.assertFalse(self.core.search_queued())  # withdrawn by the stopping status alone
+                    self.finish(recheck)
+                elif stop == 'canceled':
+                    self.finish(recheck, 'CANCELED')  # the executor ends an operator stop as CANCELED
+                else:
+                    self.core.mission.mode = 'NORMAL'  # disaster mode cleared (CLEARING is not built yet)
+                    self.core.tick(NOW)
+                    self.core.mission.mode = 'DISASTER'
+                    self.finish(recheck)
+                self.assertEqual([], [f for f in self.core.tick(NOW) if f['kind'] == 'SEARCH_AREA'])
+                self.assertNotEqual('SEARCH_QUEUED', self.core.system_state_change(NOW)['reason'])
+                again = self.core.on_command(request('START_SEARCH', command_id=uid(691)), now_ns=NOW)
+                self.assertEqual('ACCEPTED', again['request_state'])  # the operator presses again
+
     def test_disaster_and_a_ready_scout_give_one_search_goal(self):
         self.assertEqual([], self.core.tick(NOW))  # no status yet
         self.core.on_status(status_msg())
