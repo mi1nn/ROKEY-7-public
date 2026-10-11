@@ -12,17 +12,17 @@ The goal carries the CoordinateVersion it was validated under
 - `check(task)` is the adapter guard on every step. It fails (-> GUARD_INVALID,
   cancel, stop gate) when the version is no longer current or the alignment is
   unusable, which also catches an alignment change while driving (C-04).
-REOBSERVE_TARGET/APPROACH_TARGET additionally need `target_gate(task)` is True;
+REOBSERVE_TARGET/APPROACH_TARGET/MOVE_SEGMENT additionally need `target_gate(task)` is True;
 the caller wires GoalSnapshot coordinates_valid and auto_approach_eligible
 (always False today). Nothing here makes approach eligible.
 """
 import math
 import time
 
-from rescue_contracts import RescueError
+from rescue_contracts import RescueError, TARGET_TASK_KINDS
 from rescue_robot.executor import ContractError, GoalPose
 
-TARGET_KINDS = ('REOBSERVE_TARGET', 'APPROACH_TARGET')
+TARGET_KINDS = TARGET_TASK_KINDS
 
 
 class MissionGoalBinder:
