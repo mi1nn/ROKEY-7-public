@@ -15,6 +15,8 @@ from test_coordination_search import BOOT, EPOCH, MAP, NOW, policy, uid
 SCOUT, SUPPORT = 'unit_1', 'unit_2'
 TARGET = uid(500)
 MAX_AGE = 2_000_000_000
+PERIOD = 2_000_000_000   # lease renewal period; policy() lease_duration is 10 s
+LEASE = 10_000_000_000
 SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
 OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
 
@@ -24,7 +26,8 @@ def make_core(**changes):
     search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
                                new_id=lambda: uid(next(ids)))
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
-                  merge_distance_m=1.0, report_retry_ns=1_000_000_000, new_id=lambda: uid(next(ids)))
+                  merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
+                  new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -133,7 +136,7 @@ class ConversionTests(CoreTestCase):
                          (goal.frame_ref.robot_id, goal.frame_ref.mission_frame, goal.frame_ref.map_session_id,
                           goal.frame_ref.map_revision, goal.frame_ref.transform_revision,
                           goal.frame_ref.alignment_status))  # alignment is the mapping's call, never assumed
-        self.assertEqual(('', ''), (goal.target_id, goal.lease_id))
+        self.assertEqual(('', fields['lease_id']), (goal.target_id, goal.lease_id))
 
 
 class ScoutDispatchTests(CoreTestCase):
@@ -367,6 +370,69 @@ class TaskIssueTests(CoreTestCase):
                         dict(merge_distance_m=float('nan')), dict(report_retry_ns=0)):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
                 make_core(**changes)
+
+
+
+class CommandLeaseTests(CoreTestCase):
+    """작전 2026-10-11: renew every task's CommandLease; stop renewing and let the executor stop itself."""
+
+    def issued(self):
+        self.disaster()
+        self.core.on_status(status_msg())
+        (fields,) = self.core.tick(NOW)
+        return fields
+
+    def test_each_task_gets_a_lease_renewed_with_rising_sequence(self):
+        fields = self.issued()
+        (lease,) = self.core.leases_due(NOW)
+        self.assertEqual((fields['lease_id'], SCOUT, BOOT[SCOUT], fields['authority_epoch'], fields['generation'], 1,
+                          NOW, NOW + LEASE),
+                         (lease['lease_id'], lease['robot_id'], lease['robot_boot_id'], lease['authority_epoch'],
+                          lease['generation'], lease['renewal_sequence'], lease['issued_at_ns'],
+                          lease['valid_until_ns']))
+        self.core.on_status(status_msg(observed_at_ns=NOW + PERIOD - 10))  # keep the robot's status fresh
+        self.assertEqual([], self.core.leases_due(NOW + PERIOD - 1))
+        (again,) = self.core.leases_due(NOW + PERIOD)
+        self.assertEqual((fields['lease_id'], 2), (again['lease_id'], again['renewal_sequence']))
+
+    def test_finished_or_refused_task_is_not_renewed(self):
+        fields = self.issued()
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='COMPLETED', stop_confirmed=True))
+        self.assertEqual([], [l for l in self.core.leases_due(NOW) if l['lease_id'] == fields['lease_id']])
+        (second,) = self.core.tick(NOW)
+        self.core.on_admission(admission_msg(second, accepted=False))
+        self.assertEqual([], [l for l in self.core.leases_due(NOW) if l['lease_id'] == second['lease_id']])
+
+    def test_stale_status_stops_renewal_for_good(self):
+        fields = self.issued()
+        self.core.leases_due(NOW)
+        self.assertEqual([], self.core.leases_due(NOW + MAX_AGE + PERIOD))  # status from NOW - 0.1 s is stale
+        self.core.on_status(status_msg(observed_at_ns=NOW + MAX_AGE + PERIOD))
+        self.assertEqual([], self.core.leases_due(NOW + MAX_AGE + 2 * PERIOD))  # never silently extended again
+        self.assertNotIn(fields['lease_id'], {l['lease_id'] for l in self.core.leases_due(NOW + 10 * PERIOD)})
+
+    def test_new_robot_boot_stops_renewal(self):
+        self.issued()
+        self.core.on_status(status_msg(robot_boot_id=uid(77)))
+        self.assertEqual([], self.core.leases_due(NOW))
+
+    def test_segment_lease_is_bound_to_the_support_task(self):
+        self.disaster()
+        target = self.core.on_target_location(location(1), now_ns=NOW)
+        (report,) = self.core.reports_due(NOW)
+        self.core.on_receipt(receipt(report))
+        self.core.on_status(status_msg(SUPPORT))
+        self.core.on_command(request('DISPATCH_SUPPORT', command_id=uid(701), target_id=target), now_ns=NOW)
+        (fields,) = self.core.tick(NOW)
+        (lease,) = self.core.leases_due(NOW)
+        self.assertEqual((SUPPORT, fields['generation'], fields['lease_id']),
+                         (lease['robot_id'], lease['generation'], lease['lease_id']))
+
+    def test_period_must_be_at_most_half_the_lease(self):
+        with self.assertRaises(RescueError):
+            make_core(lease_renew_period_ns=LEASE // 2 + 1)
+        make_core(lease_renew_period_ns=LEASE // 2)
 
 
 if __name__ == '__main__':
