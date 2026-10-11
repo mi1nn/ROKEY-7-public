@@ -28,12 +28,22 @@
     }
   },
   "uploaded_model": {
-    "path": "assets/models/survivor_v2_amr_mini_640_e200_best.pt",
-    "sha256": "05df523cfbb3d9a6511187d4951316145aaea534a199ebf529f67fc2de527c46",
-    "size_bytes": 5388101,
+    "path": "assets/models/best.pt",
+    "sha256": "0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74",
+    "size_bytes": 5393477,
     "class_names": [
       "survivor"
     ],
     "imgsz": 640
+  },
+  "selection": {
+    "date": "2026-10-11",
+    "experiment": "survivor_yolo26n_640",
+    "purpose": "AMR camera vision survivor detection",
+    "authority": "User explicitly selected 100 epoch model and requested merge; prior merge hold lifted",
+    "limitations": [
+      "Actual person false positives remain to be evaluated for selected model",
+      "2.2m capture and near-range confidence are observations, not all-condition guarantees"
+    ]
   }
 }

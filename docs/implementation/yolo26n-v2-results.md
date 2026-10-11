@@ -4,14 +4,14 @@
 
 ## 제출 모델과 상태
 
-[측정, 2026-10-11] 최신 제출 모델은 **최대 200 epoch 실험의 best.pt**이다. 58 epoch에서 patience=20 조기 종료가 발동했다. 최신 실험이라는 이유로 100 epoch 모델보다 성능이 우수하다고 주장하지 않는다.
+[사용자 결정, 2026-10-11] “100epoch가 훨씬 좋은걸 확인했으니 최종으로 그걸 best.pt로 확정해서 앞으로 camera amr용의 vision용으로 쓴다고 올려줘 pr을 그리고 머지 요청을 해줘”. **100 epoch 실험의 best.pt를 최종 채택하여 앞으로 AMR 카메라 vision의 survivor 탐지에 사용한다.** 최대200 실험은 비교 기록으로 보존한다.
 
-- [best.pt](../../assets/models/survivor_v2_amr_mini_640_e200_best.pt)
+- [최종 best.pt](../../assets/models/best.pt)
 - [모델 해시·출처 manifest](../../assets/manifest/yolo26n-survivor-v2.json)
-- SHA256: `05df523cfbb3d9a6511187d4951316145aaea534a199ebf529f67fc2de527c46`
+- SHA256: `0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74`
 - 클래스: `{0: survivor}`. 추론 입력 imgsz=640.
 
-**머지 보류 유지.** 이전 사용자의 “원하는 만큼 학습 결과가 안나와서 머지는 하지 말라”는 지시는 아직 해제되지 않았다. 이번 지시는 결과 제출이며 머지 승인이 아니다.
+[사용자 결정] 기존 머지 보류는 이번 최종 채택·머지 요청으로 해제한다. 필요한 독립 검토와 CI를 확인한 뒤 머지를 요청한다. 최종 모델 채택은 실제 사람 오탐 해결을 주장하지 않으며 자동 주행·대상 접근 승인과도 별개다.
 
 ## 원본 방식과 데이터
 
@@ -80,7 +80,7 @@ optimizer auto는 args.yaml의 lr0=0.01·momentum=0.937을 무시한다. 실제 
 
 ![robot5 100 epoch 모델: 인형 confidence 0.98](yolo26n-results/robot5-100epoch-capture.png)
 
-사용 모델 SHA256: `0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74`. PR에 첨부한 최대200 epoch 모델과 구분한다.
+사용 모델 SHA256: `0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74`. PR에 첨부한 최종 best.pt와 동일한 100 epoch 모델이다.
 
 ### 실측 거리와 근거리 confidence
 
