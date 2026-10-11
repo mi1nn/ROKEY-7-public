@@ -65,9 +65,9 @@
 | `executor_heartbeat_topic` | 이 노드가 step 마다 발행하는 heartbeat(`std_msgs/Header`). 명령 watchdog 이 듣는다(필수) |
 | `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf,watchdog_heartbeat}`(초) | 준비 신호 정책. 값 미정 [미확인] |
 
-이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력이 없고(`ExecuteTask` IDL 은 `rescue_interfaces` 에 있음(#62), ExecuteTask 입력 노드는 미구현), 이 프로세스에 정렬 입력(mapping ROS 어댑터)이 없어 guard 가 모든 dispatch 를 거절한다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
+`command_adapter` 단독 실행은 임무·정렬 입력을 연결하지 않아 모든 dispatch를 거절한다. 아래 `task_input`은 동일 프로세스에 SEARCH 입력을 연결한다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
 
-파라미터는 `declare_required` 로 타입만 선언한다(jazzy rclpy 는 값 없는 `descriptor=` 선언을 거부해 이전 코드는 기동하지 못했다). 빠진 값은 `missing parameters` 로 기동 거부한다.
+파라미터는 `declare_required`로 `Parameter.Type`과 타입이 명시된 읽기 전용 descriptor를 함께 선언한다. 빠진 값은 `missing parameters`로 기동 거부한다. 시작 실패 때에도 노드와 ROS context를 정리한다.
 
 ## 명령 watchdog (`command_watchdog`, C-01·TR-11)
 
@@ -107,26 +107,83 @@ E3 탐침은 실제 토픽이 네임스페이스별로 섞이지 않는지 본�
 
 ## 설치 가능한 임무 입력 진입점 (`task_input`, 2026-10-11)
 
-`ros2 run rescue_robot task_input`은 기존 `ros_node.main`과 동일한 프로세스에서
-`task.runtime_factory`의 설치된 `module:callable`을 호출한다. 별도 Nav2 발행자나
-두 번째 command adapter를 띄우지 않는다. factory는 `(node, adapter)`를 받아
-`attach_task_runtime`의 인증·lease·지도·목표·결과 입력을 연결하고 `destroy()`를
-가진 runtime을 반환한다. Jazzy의 타입 지정 파라미터 선언은 기존
-`declare_required`를 재사용한다. factory 파라미터 누락은 기동 오류이며 자동 arm은 없다.
+`ros2 run rescue_robot task_input`과 기존 별칭 `robot_task_input`은 동일한 프로세스에서
+내장 `SearchRuntime`을 연결한다. 한 로봇의 SEARCH_AREA 한 건만 활성화하며, 다른 종류의
+임무는 거절한다. 별도 Nav2 발행자나 두 번째 command adapter를 띄우지 않는다.
+`task.runtime_config`의 절대경로 JSON을 읽고 그 `input_file`의 절대경로로 live 입력을
+읽는다. 동적 `task.runtime_factory`는 이 진입점의 필수 파라미터가 아니며 runtime을
+선택하지 않는다. 정책·입력·명시적 arm 없이 출발하지 않는다.
 
 실기·배포 launch는 기존 command_adapter 프로세스를 이 진입점으로 교체하고
-동일 namespace/정책/heartbeat 설정 및 설치된 factory를 넘겨야 한다. 둘을 동시에
-실행하지 않는다. 아래 운영 factory는 포함했으며 실제 데이터 입력 제공자의 연결은 남아 있다.
-단일 프로세스 설치와 구간 guard 결합은
+동일 namespace/정책/heartbeat 설정 및 runtime 설정 경로를 넘겨야 한다. 둘을 동시에
+실행하지 않는다. 실제 데이터 입력 제공자의 연결은 남아 있다.
+단일 프로세스 설치와 SEARCH 입력 검사는
 [`tests/test_robot_task_entrypoint.py`](../../tests/test_robot_task_entrypoint.py) 및
-[`tests/test_robot_task_runtime_integration.py`](../../tests/test_robot_task_runtime_integration.py)에서
+[`tests/test_robot_search_input.py`](../../tests/test_robot_search_input.py)에서
 모의 입력으로 검증한다. 시계 역행은 runtime을 차단하며 정상 복구 후 새 runtime이 필요하다.
 
-`RETURN_HOME`은 수락할 때와 매 step에서 같은 `home_ref`의 현재 기록을 조회한다.
+기존 `task_site_runtime` API의 `RETURN_HOME`은 수락할 때와 매 step에서 같은 `home_ref`의 현재 기록을 조회한다.
 위치·frame·revision이 바뀌거나 조회가 실패하면 취소·정지 관문으로 들어가며
 새 귀환 임무를 받아야 한다. 구간/귀환 cache 오류는 기동 중 로그에 남기고 guard를
 거부한다. resolver와 검증 콜백은 검증된 로컬 cache를 읽으며 동기 RPC를 호출하지 않는다.
+
+## 2026-10-12 단일 로봇 SEARCH 실기 준비
+
+[사용자 요구, 2026-10-11] 로봇 1대가 SEARCH_AREA 한 건을 받아 실제 Nav2로 이동하는
+단일 동작 통합 테스트를 준비한다. 구역 전체 경로 생성·카메라 수색 완료는 이 시험의 범위가 아니다.
+
+```bash
+colcon build --packages-up-to rescue_robot
+source install/setup.bash
+ros2 run rescue_robot task_input --ros-args --params-file <existing-adapter-params.yaml> \
+  -p task.runtime_config:=<absolute-runtime-json-path> -r __ns:=<verified-namespace>
+```
+
+ROS 시작 파라미터는 위 표의 연결 이름·정지/readiness 기준을 유지한다. `task.params.yaml`은
+전달 방법의 예시이며 필수 파일명이 아니다. runtime JSON은 `rescue-robot-runtime/1` 형식이고,
+robot_id, mission_frame, schema_version, publisher_id, clock_error_bound_ns,
+mapping_authority, max_position_error_m, max_rotation_error_rad, input_max_age_ns,
+poll_period_s, input_file, lease의 duration_s/max_age_ns/max_error_ns/clock_domain_id,
+endpoints의 action_name/lease_topic/admission_topic/status_topic을 명시한다.
+
+inputs JSON은 `rescue-robot-inputs/1` 형식이며 generated_at_ns/valid_until_ns와
+clock/authority/maps/destinations를 제공한다. SEARCH에는 targets/approvals/protected_routes가
+필요 없다. search_area_ref로 선택한 destinations의 mission 좌표 끝 위치를 역변환하여
+실제 Nav2 map 좌표로 보낸다. `transform_xy_yaw`는 map→mission 변환이며, 두 좌표계가
+같은 것을 확인했으면 [0, 0, 0]을 사용한다. position_error_m/rotation_error_rad/evidence_id는
+좌표 정합의 오차·검증 근거이고 Nav2 주행 후 도착 오차가 아니다.
+
+노드를 DISARMED로 시작한 뒤 기동 로그/RobotStatus의 robot_boot_id를 inputs에 반영한다.
+실제 시계·지도·odom·센서·TF·dock·Nav2·watchdog 준비를 확인하고 `~/task_arm`을 호출한다.
+임무와 lease의 ID·발행자·권한·지도 버전은 입력 기록과 일치해야 한다. Nav2 성공만으로
+완료하지 않고, action 종료 뒤 fresh odometry의 정지를 확인한다. 입력 만료·권한 철회·
+목표/지도 변경은 취소·정지 확인으로 처리한다. 파일 읽기로 원 관측의 유효기간을 늘리지 않는다.
+현재 변경에는 실기용 입력의 작성·주기 갱신 프로그램이나 실측 정책값을 포함하지 않는다.
+
+| 준비 항목 | 담당안 | 비고 |
+| --- | --- | --- |
+| clock.* | 전제환 + 참여 PC 사용자 | 참여 호스트와 필요한 로봇 시각 동기·오차 확인 |
+| map_frame, localization_status, transform_xy_yaw | 전제환 | 실제 설정·위치추정·좌표 관계 확인 |
+| position_error_m, rotation_error_rad, evidence_id | 전제환·이태규 | 주행 전 정합 확인·근거 기록 |
+| destinations[search_area_ref].xy_yaw | 전제환 | 도달 가능한 테스트 끝 위치·방향 선택 |
+| authority.* | 전제환, 추후 임재범과 합의 | 테스트 발행자·세션 사용, robot_boot_id는 실행 노드에서 취득 |
+| 지도/session/revision/sequence | 전제환·백승민 | 지도·정합 버전 공동 관리, 임무 발행 측과 일치 |
+| 관측·생성·만료 시각 | 전제환, 정책은 백승민과 합의 | 실제 관측·생성 시각 기록, 유효기간 합의 |
+| inputs JSON 작성·갱신, runtime 및 ROS 시작 설정 | 전제환 | 기존 설정 확인·조합, 실기 준비 후 연결 |
+
+위 내용은 사용자의 테스트 준비 담당안이며 팀 합의 완료를 뜻하지 않는다. 테스트 조건과
+정책은 PM 백승민과 합의 후 최종 확정한다. 로봇 번호·시험 시각·운용 임계값은 아직 정하지 않는다.
+
+[`e3_search_nav2_probe.py`](../../tests/ros/e3_search_nav2_probe.py)는 사용하지 않는
+LOCALHOST 도메인에서 SEARCH→NavigateToPose→lease→정지 결과의 실제 ROS 전송을 검사한다.
+Nav2 서버·odom·준비 상태·시계·정합·권한은 TEST_ONLY 합성 입력이고 실제 planner/장비
+주행은 검사하지 않는다. `python3 tests/ros/e3_search_nav2_probe.py --domain-id <unused-domain>`으로
+실행하며 ROS Jazzy와 이 브랜치의 설치 overlay가 필요하다. 실제 CLI 시작 파라미터 검사는 별도다.
+
 ## 임무 입력 런타임과 watchdog 독립 개발 (2026-10-11)
+
+아래는 기존 다종 임무 `task_site_runtime` API와 개발 도구의 설명이다. 코드·console script는
+보존하며, 현재 기본 `task_input`의 SEARCH-only 수락 범위를 확장하지 않는다.
 
 [사용자 요구, 2026-10-11] “watchdog 없는 상태에서 구현을 완료하고 watchdog을 나중에
 추가하는게 맞지 않아? … 필요한거 너가 제작해.” 적용 범위는 임무 입력 구현·개발 검증이다.

@@ -14,7 +14,6 @@ from rescue_robot.goal_binding import MissionGoalBinder
 from rescue_robot.task_ingress import TaskIngress
 from rescue_robot.task_wire import validate_completion_scope
 from rescue_robot.task_status import fill_robot_status
-from rescue_robot.phase1_route import Phase1RouteGate
 
 
 def attach_task_runtime(node, adapter, *, registry, target_gate, authorize, resolve_goal,
@@ -37,6 +36,8 @@ def attach_task_runtime(node, adapter, *, registry, target_gate, authorize, reso
         binder = MissionGoalBinder(registry, adapter.robot_id, target_gate=target_gate,
                                    wall_clock_ns=adapter.wall_clock_ns)
         for gate in (segment_gate, phase1_gate):
+            if gate is None: continue
+            from rescue_robot.phase1_route import Phase1RouteGate
             if isinstance(gate, Phase1RouteGate) and gate.registry is not registry:
                 raise ContractError('route gate and motion binder must share authoritative mapping input')
         ingress = TaskIngress(adapter, authorize=authorize, resolve_goal=resolve_goal,

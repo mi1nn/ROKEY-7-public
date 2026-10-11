@@ -7,7 +7,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from rescue_robot.executor import ContractError
-from rescue_robot.task_input_node import resolve_factory, main, attach_configured_runtime
+from rescue_robot.task_input_node import main, attach_configured_runtime, create_runtime
 
 
 class EntryPointTests(unittest.TestCase):
@@ -41,17 +41,23 @@ class EntryPointTests(unittest.TestCase):
         self.assertEqual(entries['robot_task_input'], 'rescue_robot.task_input_node:main')
         self.assertEqual(entries['task_input'], entries['robot_task_input'])
 
-    def test_requires_explicit_installed_factory_reference(self):
-        for value in (None,'','file.py','module:factory:extra','../module:factory','module:a.b'):
-            with self.assertRaises(ContractError):resolve_factory(value)
+    def test_config_path_must_be_absolute(self):
+        with patch.dict(sys.modules, {
+            'rcl_interfaces.msg': SimpleNamespace(ParameterType=SimpleNamespace(PARAMETER_STRING=4)),
+            'rescue_robot.ros_node': SimpleNamespace(declare_required=lambda node, names: (
+                {'task.runtime_config': 'relative/runtime.json'}, []))}):
+            with self.assertRaises(ContractError): create_runtime(object(), object())
 
-    def test_factory_must_be_callable(self):
-        with patch('rescue_robot.task_input_node.importlib.import_module',return_value=SimpleNamespace(factory=1)):
-            with self.assertRaises(ContractError):resolve_factory('module:factory')
+    def test_missing_runtime_config_rejected_before_reading_input(self):
+        with patch.dict(sys.modules, {
+            'rcl_interfaces.msg': SimpleNamespace(ParameterType=SimpleNamespace(PARAMETER_STRING=4)),
+            'rescue_robot.ros_node': SimpleNamespace(declare_required=lambda node, names: (
+                {'task.runtime_config': None}, ['task.runtime_config']))}):
+            with self.assertRaises(ContractError): create_runtime(object(), object())
 
-    def test_missing_factory_is_visible(self):
-        with patch('rescue_robot.task_input_node.importlib.import_module',return_value=SimpleNamespace()):
-            with self.assertRaises(AttributeError):resolve_factory('module:factory')
+    def test_invalid_runtime_return_is_rejected(self):
+        with patch('rescue_robot.task_input_node.create_runtime', return_value=None):
+            with self.assertRaises(ContractError): attach_configured_runtime(object(), object())
 
     def test_entrypoint_shares_adapter_instead_of_creating_second_node(self):
         calls=[]
@@ -66,26 +72,22 @@ class EntryPointTests(unittest.TestCase):
         with patch.dict(sys.modules,{'rescue_robot.ros_node':SimpleNamespace(main=lambda args=None:None)}):
             with self.assertRaises(SystemExit):main()
 
-    def test_required_factory_uses_existing_jazzy_typed_parameter_helper(self):
+    def test_builtin_runtime_attaches_without_dynamic_factory(self):
         runtime = SimpleNamespace(destroy=lambda: None)
+        node = SimpleNamespace(get_logger=lambda: SimpleNamespace(info=lambda message: None))
+        with patch('rescue_robot.task_input_node.create_runtime', return_value=runtime):
+            self.assertIs(attach_configured_runtime(node, object()), runtime)
+
+    def test_config_parameter_uses_existing_jazzy_typed_helper(self):
         calls = []
         def declare(node, names):
             calls.append(names)
-            return {'task.runtime_factory': 'module:factory'}, []
-        node = SimpleNamespace(get_logger=lambda: SimpleNamespace(info=lambda message: None))
+            return {}, ['task.runtime_config']
         with patch.dict(sys.modules, {
             'rcl_interfaces.msg': SimpleNamespace(ParameterType=SimpleNamespace(PARAMETER_STRING=4)),
             'rescue_robot.ros_node': SimpleNamespace(declare_required=declare)}):
-            with patch('rescue_robot.task_input_node.resolve_factory', return_value=lambda node, adapter: runtime):
-                self.assertIs(attach_configured_runtime(node, object()), runtime)
-        self.assertEqual(calls, [{'task.runtime_factory': 4}])
-
-    def test_unset_factory_rejected_before_loading_site_code(self):
-        with patch.dict(sys.modules, {
-            'rcl_interfaces.msg': SimpleNamespace(ParameterType=SimpleNamespace(PARAMETER_STRING=4)),
-            'rescue_robot.ros_node': SimpleNamespace(declare_required=lambda node, names: (
-                {'task.runtime_factory': None}, ['task.runtime_factory']))}):
-            with self.assertRaises(ContractError): attach_configured_runtime(object(), object())
+            with self.assertRaises(ContractError): create_runtime(object(), object())
+        self.assertEqual(calls, [{'task.runtime_config': 4}])
 
 
 if __name__ == '__main__':

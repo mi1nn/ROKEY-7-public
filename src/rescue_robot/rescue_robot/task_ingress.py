@@ -12,8 +12,6 @@ from rescue_contracts import RescueError
 
 from rescue_robot.executor import ContractError, Task, identifier, generation, wall_time
 from rescue_robot.task_wire import validate_task_wire, validate_resolved_goal
-from rescue_robot.segment_approval import SegmentApprovalGate
-from rescue_robot.phase1_route import Phase1RouteGate
 from rescue_robot.task_policy import LeasePolicy, validate_clock_basis, validate_lease_reception
 
 
@@ -83,6 +81,8 @@ class TaskIngress:
                                        basis=self._clock(now), now_ns=now)
 
     def _segment(self, goal):
+        from rescue_robot.segment_approval import SegmentApprovalGate
+        from rescue_robot.phase1_route import Phase1RouteGate
         gate = self.segment_gate
         if (not isinstance(gate, (SegmentApprovalGate, Phase1RouteGate)) or gate.adapter is not self.adapter
                 or gate.clock_error_bound_ns != self.clock_error_bound_ns):
@@ -95,6 +95,8 @@ class TaskIngress:
             self._now()
             self._clock(self.last_wall_ns)
             if task.kind == 'MOVE_SEGMENT':
+                from rescue_robot.segment_approval import SegmentApprovalGate
+                from rescue_robot.phase1_route import Phase1RouteGate
                 gate = self.segment_gate
                 if (not isinstance(gate, (SegmentApprovalGate, Phase1RouteGate)) or gate.adapter is not self.adapter
                         or gate.clock_error_bound_ns != self.clock_error_bound_ns):
@@ -120,6 +122,7 @@ class TaskIngress:
         return True
 
     def _phase1(self, goal):
+        from rescue_robot.phase1_route import Phase1RouteGate
         gate = self.phase1_gate
         if (not isinstance(gate, Phase1RouteGate) or gate.adapter is not self.adapter
                 or gate.clock_error_bound_ns != self.clock_error_bound_ns):
@@ -179,6 +182,7 @@ class TaskIngress:
             validate_task_wire(goal, None, now_ns=now,
                                clock_error_bound_ns=self.clock_error_bound_ns)
             if goal.kind == 'MOVE_SEGMENT':
+                from rescue_robot.phase1_route import Phase1RouteGate
                 pose = self._segment(goal).goal_pose
             elif self._uses_phase1(goal):
                 pose = self._phase1(goal).goal_pose
