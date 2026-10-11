@@ -23,6 +23,30 @@ def git(repo, *args):
     return subprocess.check_output(['git', '-C', str(repo), *args], stderr=subprocess.PIPE)
 
 
+# AGENTS.md: no personal absolute paths in the repository; use repo-relative paths or
+# <REPO>/<TMP>/<HOME> tokens. `/home/ubuntu/` is the TurtleBot4 image user on every
+# robot, not a person, so it is allowed.
+PERSONAL_PATH = re.compile(r'/Users/[A-Za-z]|/home/(?!ubuntu/)[a-z]|/var/folders/[A-Za-z0-9_]')
+
+
+def personal_paths(name, text):
+    """'name:line' for every line of text that contains a personal absolute path."""
+    return [f'{name}:{n}' for n, line in enumerate(text.splitlines(), 1) if PERSONAL_PATH.search(line)]
+
+
+def check_personal_paths(root):
+    """Scan every tracked text file (files with a NUL byte are skipped as binary)."""
+    names = git(root, 'ls-files', '-z').decode().split('\0')[:-1]
+    hits = []
+    for name in names:
+        data = (root / name).read_bytes()
+        if b'\0' not in data:
+            hits += personal_paths(name, data.decode('utf-8', 'replace'))
+    require(not hits, f'personal absolute path in {len(hits)} lines: ' + ', '.join(hits[:10])
+            + (' ...' if len(hits) > 10 else ''))
+    print(f'PASS personal paths: tracked_files={len(names)}')
+
+
 def inventory(repo, record, name):
     paths = git(repo, 'ls-tree', '-r', '--name-only', '-z', record['commit']).decode().split('\0')[:-1]
     measured = {
@@ -40,6 +64,7 @@ def inventory(repo, record, name):
 
 
 def check(root, source_paths):
+    check_personal_paths(root)
     audit = json.loads((root / 'docs/evidence/source-audit.json').read_text())
     records = {'jaebeom/ROKEY_P4': audit['sources']['ROKEY_P4'],
                'mi1nn/amr-mini-project': audit['sources']['amr-mini-project']}
@@ -84,7 +109,7 @@ def check(root, source_paths):
     print(f'PASS markdown: files={len(docs)}, local_links={local}, pinned_source_links={pinned}, line_ranges={ranges}')
     if not sources:
         print('SKIP source objects, line bounds and inventory: supply --sources P4_DIR AMR_DIR')
-    print('NOT CHECKED: prose meaning, local heading anchors, external web availability')
+    print('NOT CHECKED: prose meaning, local heading anchors, external web availability, host names, IPs, tokens')
     print('NOT RUN: source tests, colcon, ROS, model inference, bag replay, robot/4-PC acceptance')
 
 
