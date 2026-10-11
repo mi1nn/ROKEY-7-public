@@ -20,7 +20,9 @@ first area; 3. admission + completed result -> SEARCH_AREA for the second area;
 RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one
 MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
 ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
-without CONTINUE_SEGMENT. Exit code 0 = all held.
+without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
+generation as the goal, renewal_sequence strictly rising, none after its result.
+Exit code 0 = all held.
 """
 import os
 import subprocess
@@ -34,8 +36,8 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rescue_interfaces.action import ExecuteTask
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from rescue_interfaces.msg import (ReportReceipt, RescueReport, RobotStatus, SiteEvent, SystemState, TargetLocation,
-                                   TaskAdmission)
+from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus, SiteEvent, SystemState,
+                                   TargetLocation, TaskAdmission)
 from rescue_interfaces.srv import SubmitOperatorCommand
 
 SCOUT, SUPPORT = 'robot_a', 'robot_b'
@@ -48,7 +50,8 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'tick_period_s:=0.2', '-p', 'route_segment_goals:=[1.0, 0.0, 0.0, 2.0, 0.0, 0.0]',
              '-p', 'route_revision:=1', '-p', 'observe_goal:=[3.0, 1.0, 0.0]',
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
-             '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0']
+             '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0',
+             '-p', 'lease_renew_period_s:=0.2']
 
 
 def node_command(repo, extra):
@@ -61,7 +64,7 @@ class FakeExecutor(Node):
 
     def __init__(self):
         super().__init__('e3_fake_executor')
-        self.goals, self.support_goals, self.reports, self.states = [], [], [], []
+        self.goals, self.support_goals, self.reports, self.states, self.leases = [], [], [], [], []
         self.admission = {r: self.create_publisher(TaskAdmission, f'/rescue/robots/{r}/task_admission', 10)
                           for r in (SCOUT, SUPPORT)}
         self.status = {r: self.create_publisher(RobotStatus, f'/rescue/robots/{r}/status', 1) for r in (SCOUT, SUPPORT)}
@@ -70,6 +73,7 @@ class FakeExecutor(Node):
         self.receipt = self.create_publisher(ReportReceipt, '/rescue/report_receipts', 10)
         self.command = self.create_client(SubmitOperatorCommand, '/rescue/operator_command')
         self.create_subscription(RescueReport, '/rescue/reports', self.reports.append, 10)
+        self.create_subscription(CommandLease, f'/rescue/robots/{SCOUT}/command_lease', self.leases.append, 10)
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
@@ -86,7 +90,7 @@ class FakeExecutor(Node):
                                   robot_boot_id=goal.expected_robot_boot_id, authority_epoch=goal.authority_epoch,
                                   generation=goal.generation, accepted=True, admission_id=str(uuid4()))
         self.admission[goal.robot_id].publish(admission)
-        time.sleep(.5)  # let the admission land before the result
+        time.sleep(1.)  # let the admission and a few lease renewals land before the result
         handle.succeed()
         result = ExecuteTask.Result()
         result.result.task_id, result.result.outcome, result.result.stop_confirmed = goal.task_id, 'COMPLETED', True
@@ -144,6 +148,9 @@ def main():
     refused = subprocess.run(node_command(repo, []), capture_output=True, text=True, timeout=30)
     checks['missing parameters -> exit 2'] = refused.returncode == 2 and 'missing parameters' in refused.stderr
     profile = os.path.join(repo, 'config', 'deployment.v2.example.json')
+    slow = subprocess.run(node_command(repo, ['-p', f'profile_path:={profile}'] + NODE_ARGS
+                                       + ['-p', 'lease_renew_period_s:=6.0']), capture_output=True, text=True, timeout=30)
+    checks['renewal period > lease/2 -> exit 2'] = slow.returncode == 2 and 'configuration rejected' in slow.stderr
     child = subprocess.Popen(node_command(repo, ['-p', f'profile_path:={profile}'] + NODE_ARGS),
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     rclpy.init()
@@ -162,6 +169,16 @@ def main():
         got_second = wait(executor, lambda: len(probe.goals) >= 2, 10, probe.publish_status)
         checks['completed + admission -> second area'] = got_second and probe.goals[1].search_area_ref == AREAS[1]
         wait(executor, lambda: False, 1.5)  # let the second goal finish before teardown
+        first_goal = probe.goals[0] if probe.goals else None
+        mine = [l for l in probe.leases if first_goal and l.lease_id == first_goal.lease_id]
+        sequences = [l.renewal_sequence for l in mine]
+        checks['CommandLease: same lease/generation, rising sequence'] = bool(first_goal) and len(mine) >= 2 and all(
+            l.generation == first_goal.generation and l.robot_boot_id == first_goal.expected_robot_boot_id
+            for l in mine) and sequences == sorted(set(sequences))
+        count = len(mine)
+        wait(executor, lambda: False, 1.0, probe.publish_status)
+        checks['CommandLease: none after the task result'] = count == len(
+            [l for l in probe.leases if first_goal and l.lease_id == first_goal.lease_id])
         req = SubmitOperatorCommand.Request(command_id=str(uuid4()), operation='REQUEST_RECHECK', operator_id='e3',
                                             target_id=str(uuid4()), issued_at_ns=probe.get_clock().now().nanoseconds)
         first = call(executor, probe, req)
