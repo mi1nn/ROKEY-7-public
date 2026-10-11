@@ -200,6 +200,67 @@ class SiteStateTests(unittest.TestCase):
             self.assertEqual('operations-site-state',
                              dict(db.execute('SELECT key, value FROM metadata'))['role'])
 
+    # --- schema 1.0 -> 1.1 ----------------------------------------------------
+    def write_schema_1_0(self, allowed=ALLOWED):
+        """A site-state file exactly as the schema 1.0 writer left it (main at PR #66)."""
+        status = robot_status()
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            db.executemany('INSERT INTO metadata VALUES (?, ?)',
+                           [('schema', '1.0'), ('role', 'operations-site-state'),
+                            ('allowed_robot_ids', site_state.canonical(site_state.allowed_robots(allowed)))])
+            db.execute("""CREATE TABLE robot_status (
+                robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
+                stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
+            db.execute("""CREATE TABLE site_events (
+                event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
+                event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
+            db.execute("""CREATE TABLE target_states (
+                target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""")
+            db.execute('INSERT INTO robot_status VALUES (?, ?, ?, ?, ?, ?)',
+                       (status['robot_id'], status['robot_boot_id'], status['state_sequence'], status['stamp_ns'],
+                        site_state.canonical(status), 1_500))
+            db.execute('INSERT INTO target_states VALUES (?, ?, ?)',
+                       (uid(500), 3_000, site_state.canonical(target_state())))
+        db.close()
+
+    def metadata_and_tables(self):
+        db = sqlite3.connect(self.path)
+        try:
+            metadata = dict(db.execute('SELECT key, value FROM metadata'))
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        finally:
+            db.close()
+        return metadata, tables
+
+    def test_opening_schema_1_0_db_upgrades_tables_without_dropping_data(self):
+        self.write_schema_1_0()
+        self.ledger().close()
+        metadata, tables = self.metadata_and_tables()
+        self.assertEqual('1.1', metadata['schema'])
+        self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
+                              'robot_status', 'site_events', 'target_states'}, tables)
+        robots = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual([robot_status() | {'received_at_ns': 1_500}], robots)
+        self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
+        self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
+
+    def test_schema_1_0_db_with_other_policy_is_rejected_and_left_unchanged(self):
+        self.write_schema_1_0(allowed=('robot_a', 'robot_c'))
+        with self.assertRaises(OperationsError) as caught:
+            self.ledger()
+        self.assertEqual('POLICY_MISMATCH', self.code(caught))
+        metadata, tables = self.metadata_and_tables()
+        self.assertEqual('1.0', metadata['schema'])
+        self.assertNotIn('error_log', tables)
+
+    def test_readers_reject_a_schema_1_0_file_until_the_writer_upgrades_it(self):
+        self.write_schema_1_0()
+        with self.assertRaises(OperationsError) as caught:
+            site_state.read_robot_status(self.path)
+        self.assertEqual('POLICY_MISMATCH', self.code(caught))
+
 
 if __name__ == '__main__':
     unittest.main()
