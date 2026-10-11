@@ -1,0 +1,2 @@
+{'domain': 42, 'flags': {'robot_a': {'driver': True, 'sensors': True, 'slam': True}, 'robot_b': {'driver': False, 'sensors': False, 'slam': False}}}
+E3 readiness probe: PASSED

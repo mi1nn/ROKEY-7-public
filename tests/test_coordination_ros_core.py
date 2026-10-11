@@ -17,6 +17,7 @@ TARGET = uid(500)
 MAX_AGE = 2_000_000_000
 PERIOD = 2_000_000_000   # lease renewal period; policy() lease_duration is 10 s
 LEASE = 10_000_000_000
+ACCEPT = 3_000_000_000   # admission timeout
 SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
 OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
 
@@ -27,7 +28,7 @@ def make_core(**changes):
                                new_id=lambda: uid(next(ids)))
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
-                  new_id=lambda: uid(next(ids)))
+                  admission_timeout_ns=ACCEPT, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -368,7 +369,7 @@ class TaskIssueTests(CoreTestCase):
 
     def test_core_rejects_a_route_without_segments_or_with_another_basis(self):
         for changes in (dict(segment_goals=()), dict(segment_goals=(OBSERVE, 'x')), dict(merge_distance_m=0.),
-                        dict(merge_distance_m=float('nan')), dict(report_retry_ns=0)):
+                        dict(merge_distance_m=float('nan')), dict(report_retry_ns=0), dict(admission_timeout_ns=0)):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
                 make_core(**changes)
 
@@ -465,6 +466,25 @@ class CommandLeaseTests(CoreTestCase):
         self.core.on_admission(admission_msg(fields))
         self.core.on_status(self.moving(fields, observed_at_ns=NOW + 1))
         self.assertEqual(1, len(self.core.leases_due(NOW + PERIOD)))
+
+    def test_task_never_admitted_stops_renewing_and_is_released_on_stop_evidence(self):
+        # 작전 2026-10-11: no lease renewed forever for a task the executor never admitted.
+        fields = self.issued()
+        late = NOW + ACCEPT + 1
+        self.core.on_status(status_msg(observed_at_ns=late, motion_state='MOVING', active_task_id=fields['task_id']))
+        self.assertEqual([], self.core.leases_due(late))
+        self.assertEqual([], self.core.tick(late))  # still reserved: the robot may be running it
+        self.assertIn(fields['task_id'], self.core.search.allocator.pending)
+        self.core.on_status(status_msg(observed_at_ns=late + 1))  # stopped, no active task
+        (again,) = self.core.tick(late + 1)
+        self.assertNotIn(fields['task_id'], self.core.search.allocator.pending)
+        self.assertEqual((fields['search_area_ref'], 'SEARCH_AREA'), (again['search_area_ref'], again['kind']))
+        self.assertNotEqual(fields['task_id'], again['task_id'])
+
+    def test_admission_in_time_keeps_the_lease(self):
+        fields = self.admitted()
+        self.core.on_status(self.moving(fields, observed_at_ns=NOW + ACCEPT + 1))
+        self.assertEqual(1, len(self.core.leases_due(NOW + ACCEPT + 1)))
 
     def test_period_must_be_at_most_half_the_lease(self):
         with self.assertRaises(RescueError):

@@ -23,7 +23,9 @@ ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segm
 without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
 generation as the goal, renewal_sequence strictly rising, none after its result; 9. a
 RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals; 10. a
-TargetSnapshot names the target with its saved report.
+REOBSERVE_TARGET the executor never admits: renewals stop after admission_timeout_s and,
+once a STOPPED status arrives, it is issued again as a new task; 11. a TargetSnapshot names
+the target with its saved report.
 Exit code 0 = all held.
 """
 import os
@@ -53,7 +55,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'route_revision:=1', '-p', 'observe_goal:=[3.0, 1.0, 0.0]',
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
              '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0',
-             '-p', 'lease_renew_period_s:=0.2']
+             '-p', 'lease_renew_period_s:=0.2', '-p', 'admission_timeout_s:=1.0']
 
 
 def node_command(repo, extra):
@@ -92,6 +94,9 @@ class FakeExecutor(Node):
     def execute(self, handle, goals):
         goal = handle.request
         goals.append(goal)
+        if goal.kind == 'REOBSERVE_TARGET' and sum(g.kind == 'REOBSERVE_TARGET' for g in goals) == 1:
+            handle.abort()  # the first recheck is never admitted (check 10): no TaskAdmission, no outcome
+            return ExecuteTask.Result()
         admission = TaskAdmission(command_id=goal.command_id, task_id=goal.task_id, robot_id=goal.robot_id,
                                   robot_boot_id=goal.expected_robot_boot_id, authority_epoch=goal.authority_epoch,
                                   generation=goal.generation, accepted=True, admission_id=str(uuid4()))
@@ -240,6 +245,20 @@ def main():
             checks['segment done -> AWAITING_CONTINUE, no next segment by itself'] = waiting and (
                 len(probe.support_goals), probe.states[-1].segment_phase, probe.states[-1].segment_index) == (
                 1, 'AWAITING_APPROVAL', 1)
+            recheck = call(executor, probe, SubmitOperatorCommand.Request(
+                command_id=str(uuid4()), operation='REQUEST_RECHECK', operator_id='e3', target_id=report.target_id,
+                issued_at_ns=probe.get_clock().now().nanoseconds))
+            rechecks = lambda: [g for g in probe.goals if g.kind == 'REOBSERVE_TARGET']
+            got = wait(executor, lambda: rechecks(), 10, probe.publish_status)
+            first_recheck = rechecks()[0] if got else None
+            wait(executor, lambda: False, 2.0, probe.publish_status)  # past admission_timeout_s
+            count = lambda: len([l for l in probe.leases if first_recheck and l.lease_id == first_recheck.lease_id])
+            stopped_at = count()
+            reissued = wait(executor, lambda: len(rechecks()) >= 2, 10, probe.publish_status)
+            checks['unadmitted recheck: renewals stop, reissued after STOPPED status'] = bool(
+                recheck.accepted and first_recheck) and reissued and stopped_at == count() and (
+                rechecks()[1].task_id != first_recheck.task_id)
+            wait(executor, lambda: False, 1.5, probe.publish_status)  # let the reissued recheck finish
     finally:
         executor.shutdown()
         probe.destroy_node()

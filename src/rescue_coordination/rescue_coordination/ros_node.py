@@ -192,7 +192,7 @@ class CoordinatorCore:
     """
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
-                 report_retry_ns, lease_renew_period_ns, new_id=None):
+                 report_retry_ns, lease_renew_period_ns, admission_timeout_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -205,6 +205,9 @@ class CoordinatorCore:
         contract_value(duration_ns, lease_renew_period_ns)
         if not 0 < lease_renew_period_ns <= lease_ns // 2:
             raise CoordinationError('INVALID_POLICY', 'lease renewal period must be at most half the lease')
+        contract_value(duration_ns, admission_timeout_ns)
+        if admission_timeout_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'admission timeout must be positive')
         segment_goals = tuple(segment_goals)
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
@@ -227,6 +230,9 @@ class CoordinatorCore:
         self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
         self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
         self.status_arrivals = 0
+        self.admission_timeout_ns = admission_timeout_ns
+        self.issued_at = {}      # task_id -> issued_at_ns, for the admission timeout
+        self.timed_out = {}      # task_id -> status arrival count when its admission timed out
         self.status_detail = {}  # robot_id -> (arrival, stop_reason, motion_state, lease_valid, active_task_id)
         self.status = {}         # robot_id -> latest RobotStatus fields used here
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
@@ -415,6 +421,7 @@ class CoordinatorCore:
     def tick(self, now_ns):
         """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
         contract_value(timestamp_ns, now_ns)
+        self._expire_unadmitted(now_ns)
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
         self._issue_segment(now_ns)
@@ -554,6 +561,7 @@ class CoordinatorCore:
         """Queue task fields with a fresh lease_id and start renewing that lease."""
         lease_id = self.new_id()
         fields = fields | dict(lease_id=lease_id)
+        self.issued_at[fields['task_id']] = fields['issued_at_ns']
         self.leases[fields['task_id']] = dict(
             lease_id=lease_id, robot_id=fields['robot_id'], robot_boot_id=fields['robot_boot_id'],
             authority_epoch=fields['authority_epoch'], generation=fields['generation'], renewal_sequence=0,
@@ -569,6 +577,7 @@ class CoordinatorCore:
         itself with LEASE_EXPIRED; nothing extends a lease silently.
         """
         contract_value(timestamp_ns, now_ns)
+        self._expire_unadmitted(now_ns)
         allocator, due = self.search.allocator, []
         for task_id, lease in list(self.leases.items()):
             item = allocator.active.get(task_id) or allocator.pending.get(task_id)
@@ -588,6 +597,30 @@ class CoordinatorCore:
                             generation=lease['generation'], renewal_sequence=lease['renewal_sequence'],
                             issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_ns))
         return due
+
+    def _expire_unadmitted(self, now_ns):
+        """Admission timeout (작전 2026-10-11): a task still PENDING after ``admission_timeout_ns``.
+
+        Its lease is never renewed again. The reservation is released only on stop
+        evidence: a RobotStatus that arrived after the timeout and shows the robot
+        STOPPED and not running this task (the admission may have been lost while
+        the robot started). Released search areas and rechecks are issued again.
+        """
+        allocator = self.search.allocator
+        for task_id, item in list(allocator.pending.items()):
+            issued = self.issued_at.get(task_id)
+            if issued is None or now_ns - issued <= self.admission_timeout_ns:
+                continue
+            if task_id not in self.timed_out:
+                self.timed_out[task_id] = self.status_arrivals
+                self.leases.pop(task_id, None)
+                self.issue_block = 'ADMISSION_TIMEOUT'
+            detail = self.status_detail.get(item.robot_id)
+            if (detail is not None and detail[0] > self.timed_out[task_id] and detail[2] == 'STOPPED'
+                    and detail[4] != task_id and self.search.finish(item, outcome='FAILED', stop_confirmed=True)):
+                del self.timed_out[task_id]
+                if task_id in self.task_meta:
+                    self._forget(task_id)
 
     def _robot_stopped(self, task_id, lease):
         """Supporting rule (작전 2026-10-11): never extend a stopped robot's lease; the stop is the executor latch.
@@ -665,7 +698,8 @@ def build_core(values):
                            segment_goals=segments, route_revision=values['route_revision'],
                            observe_goal=GoalPoint((x, y), yaw, *basis), merge_distance_m=values['merge_distance_m'],
                            report_retry_ns=seconds_to_ns(str(values['report_retry_s'])),
-                           lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])))
+                           lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])),
+                           admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -680,7 +714,8 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'merge_distance_m': 'DOUBLE', 'report_retry_s': 'DOUBLE',  # Q-21 merge distance; RescueReport resend period
     # CommandLease renewal period; at most half of lease_duration_s, which must equal the executor's
     # lease_duration (C-10 「명령 lease」, #88). Checked at start: otherwise FATAL exit 2.
-    'lease_renew_period_s': 'DOUBLE'}
+    'lease_renew_period_s': 'DOUBLE',
+    'admission_timeout_s': 'DOUBLE'}  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
 
 
 def main(args=None):

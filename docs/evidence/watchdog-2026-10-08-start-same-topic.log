@@ -1,0 +1,1 @@
+[FATAL] [1791455840.105381966] [robot_a.rescue_command_watchdog]: cmd_vel_in_topic and cmd_vel_out_topic must differ (the watchdog is the only writer)
