@@ -52,6 +52,18 @@ class NodeConfig(unittest.TestCase):
                 node_config(params(**change))
             self.assertEqual('INVALID_INPUT', caught.exception.code)
 
+    def test_subscriptions_accept_both_latched_and_plain_publishers(self):
+        """Local ROS run with the #90 probe (2026-10-11): a VOLATILE RobotStatus publisher and a
+        TRANSIENT_LOCAL subscription are incompatible, so no status arrived. A VOLATILE subscription
+        matches either kind; only SystemState keeps TRANSIENT_LOCAL to get the coordinator's latest
+        state on a late start (#90 publishes it latched)."""
+        from rescue_operations.ros_node import QOS
+        durability = {kind: value for kind, (_, value, _) in QOS.items()}
+        for kind in ('status', 'pose', 'site_events'):
+            with self.subTest(kind=kind):
+                self.assertEqual('VOLATILE', durability[kind])
+        self.assertEqual('TRANSIENT_LOCAL', durability['system_state'])  # #90 latches it
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -213,7 +213,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `SystemState` (`/rescue/system_state`, #90 발행) | `mission_state` | 머지된 C-10(`contracts.md` 207행) 그대로. `has_trigger`·`has_dispatch` 가 거짓이면 그 칸은 None(메시지의 0·빈 문자열을 쓰지 않음), 구간 상태는 IDL 어휘 7개(조정기 내부 어휘는 거절), 순서는 `changed_at_ns`(조정기 재시작 시 `state_sequence` 가 1부터라 쓰지 않음), `generation` 은 None |
 | `SiteEvent` | `site_events` | C-10: `visibility_state` 가 VALID 가 아니면 거절. 빈 `target_id`·`watch_id` 는 None, `has_clock_error_bound=false` 면 오차 None. 계약에 없는 `source_boot_id`·`metrics`·`policy_version` 은 버린다 |
 
-거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`, `system_state_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·071·076 의 [제안] 값, 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
+거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`, `system_state_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·071·076 의 [제안] 신뢰성·깊이에, 구독 지속성은 `SystemState` 만 TRANSIENT_LOCAL(#90 이 래치로 발행, 늦게 시작해도 현재 임무 상태를 받음)이고 나머지는 VOLATILE(IF-011 의 TRANSIENT_LOCAL 발행과도 VOLATILE 발행과도 맞음. TRANSIENT_LOCAL 구독은 VOLATILE 발행을 거절해 #90 probe 와의 실행에서 로봇 상태가 들어오지 않았다), 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
 
 | 검증 | 결과 |
 | --- | --- |
