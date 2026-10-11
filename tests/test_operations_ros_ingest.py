@@ -198,6 +198,16 @@ class RobotStatusIngest(unittest.TestCase):
         self.ingest.on_robot_status(robot_status_msg(), received_at_ns=T0 + 3)
         self.assertIsNone(self.robots()['robot_a']['pose'])
 
+    def test_pose_after_status_updates_the_map_and_a_status_resend_is_not_a_conflict(self):
+        """Found in the local ROS run (2026-10-11): pose comes on its own topic, faster than status."""
+        self.assertTrue(self.ingest.on_robot_status(robot_status_msg(), received_at_ns=T0 + 1))
+        self.assertTrue(self.ingest.on_robot_pose(pose_msg(x=4.0), received_at_ns=T0 + 2))
+        self.assertEqual(4.0, self.robots()['robot_a']['pose']['x'])  # shown without waiting for a status
+        self.assertFalse(self.ingest.on_robot_status(robot_status_msg(), received_at_ns=T0 + 3))
+        self.assertTrue(self.ingest.on_robot_pose(pose_msg(x=5.0), received_at_ns=T0 + 4))
+        self.assertEqual(5.0, self.robots()['robot_a']['pose']['x'])
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
     def test_stale_status_is_ignored_without_an_error(self):
         self.ingest.on_robot_status(robot_status_msg(sequence=6), received_at_ns=T0 + 3)
         self.assertFalse(self.ingest.on_robot_status(robot_status_msg(sequence=5), received_at_ns=T0 + 4))

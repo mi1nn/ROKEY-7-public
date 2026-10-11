@@ -147,6 +147,26 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_robot_status(robot_status(**change))
 
+    def test_pose_is_updated_on_its_own_and_is_not_part_of_the_status_identity(self):
+        pose = dict(x=7.0, y=8.0, yaw=0.0, frame_id='mission')
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # no snapshot yet: nothing to update
+            ledger.record_robot_status(robot_status(pose=None))
+            self.assertTrue(ledger.record_robot_pose('robot_a', pose))
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # same pose: unchanged
+            self.assertFalse(ledger.record_robot_status(robot_status(pose=None)))  # same status, pose apart
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_robot_status(robot_status(readiness='NOT_READY'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+            self.assertTrue(ledger.record_robot_pose('robot_a', None))  # hidden again
+            for bad in (dict(x=float('nan'), y=0.0, yaw=0.0, frame_id='m'), dict(x=1.0)):
+                with self.subTest(bad=bad), self.assertRaises(OperationsError):
+                    ledger.record_robot_pose('robot_a', bad)
+            with self.assertRaises(OperationsError):
+                ledger.record_robot_pose('robot_x', pose)
+        (robot,) = site_state.read_robot_status(self.path)['robots']
+        self.assertIsNone(robot['pose'])
+
     def test_robot_status_rejects_bad_input(self):
         bad = [dict(robot_id='robot_x'), dict(role='LEADER'), dict(state_sequence=-1), dict(stamp_ns=0),
                dict(pose=dict(x=float('nan'), y=0.0, yaw=0.0, frame_id='m')), dict(pose=dict(x=0.0, y=0.0)),
