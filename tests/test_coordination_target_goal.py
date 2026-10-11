@@ -51,9 +51,10 @@ class TargetGoalTests(unittest.TestCase):
     def test_goal_and_approval_only_where_the_rule_allows(self):
         for kind, changes in (('SEARCH_AREA', dict(goal=goal())), ('HOLD', dict(approval_id=uid(4))),
                               ('APPROACH_TARGET', dict(candidate=candidate(), goal=goal())),
-                              ('MOVE_SEGMENT', dict(candidate=candidate(), goal=goal(), approval_id=uid(4)))):
-            with self.subTest(kind=kind), self.assertRaises(CoordinationError):
-                reservation(kind, **changes)
+                              ('MOVE_SEGMENT', dict(candidate=candidate(), goal=goal(), approval_id=uid(4))),
+                              ('REOBSERVE_TARGET', dict(goal=goal(), approval_id=uid(4)))):
+            with self.subTest(kind=kind, changes=changes), self.assertRaises(CoordinationError):
+                reservation(kind, robot=SCOUT if kind == 'REOBSERVE_TARGET' else SUPPORT, **changes)
 
     def test_goal_point_validation(self):
         for changes in (dict(mission_xy=(1., math.nan)), dict(yaw=math.inf), dict(map_session_id='x'),
