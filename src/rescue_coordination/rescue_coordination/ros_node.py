@@ -3,8 +3,9 @@
 ROS packages are imported inside functions, so this module stays importable and
 ``CoordinatorCore`` is testable without ROS. Thin version for the 10-13 run:
 
-- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate; once in
-  DISASTER a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` with no operator approval.
+- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate (shown and
+  stored); a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` only after the operator's
+  START_SEARCH (owner decision 2026-10-11, #85).
 - ``/rescue/robots/{r}/task_admission`` is the only path to ACTIVE; the action
   result releases the reservation only with a confirmed stop.
 - ``/rescue/operator_command`` (SubmitOperatorCommand) is judged by
@@ -42,14 +43,15 @@ REASON_CODES = {
     'UNKNOWN_TARGET': 'NOT_FOUND', 'NO_HOME_POSITION': 'NOT_FOUND',
     'TARGET_NOT_CONFIRMED': 'PENDING_EVIDENCE', 'NO_ROUTE': 'PENDING_EVIDENCE', 'NO_VERDICT': 'PENDING_EVIDENCE',
     'ALREADY_DISPATCHED': 'TASK_BUSY', 'NOT_AWAITING_APPROVAL': 'TASK_BUSY', 'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY',
-    'ALREADY_RETURNING': 'TASK_BUSY',
+    'ALREADY_RETURNING': 'TASK_BUSY', 'SEARCH_ALREADY_STARTED': 'TASK_BUSY',
     'TARGET_REVISION_STALE': 'INVALID_INPUT', 'ROUTE_REVISION_STALE': 'INVALID_INPUT',
     'SEGMENT_INDEX_MISMATCH': 'INVALID_INPUT', 'NOT_DISPATCHED_TARGET': 'INVALID_INPUT',
     'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
     'HOME_BASIS_MISMATCH': 'FRAME_REVISION_MISMATCH',
 }
 # The robot that a command may name (empty = not named).
-COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
+COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT',
+                 'START_SEARCH': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
@@ -278,6 +280,10 @@ class CoordinatorCore:
         stop = bool(result.stop_confirmed)
         if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
             return False
+        if item.robot_id == self.roles['SCOUT'] and result.outcome == 'CANCELED':
+            # The executor ends a stop (operator, lease, deadline) as CANCELED; a FAILED/UNREACHABLE
+            # task is not a stop and leaves the waiting search in place.
+            self._cancel_queued_search('SCOUT_TASK_CANCELED')
         meta = self.task_meta.get(task_id)
         if meta and meta[0] == 'MOVE_SEGMENT':
             approval = meta[1]
@@ -366,7 +372,7 @@ class CoordinatorCore:
             mode=system_mode(view.mode, view.phase), phase=view.phase,
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
-            policy_version=self.search.policy.version, reason='',
+            policy_version=self.search.policy.version, reason='SEARCH_QUEUED' if self.search_queued() else '',
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -426,9 +432,14 @@ class CoordinatorCore:
 
     # -- decisions -------------------------------------------------------------
     def tick(self, now_ns):
-        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
+        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search once started."""
         contract_value(timestamp_ns, now_ns)
         self._expire_unadmitted(now_ns)
+        detail = self.status_detail.get(self.roles['SCOUT'])
+        if self.mission.mode != 'DISASTER':
+            self._cancel_queued_search('MODE_NOT_DISASTER')
+        elif detail is not None and detail[2] in STOPPING_MOTION:
+            self._cancel_queued_search('SCOUT_STOPPING')
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
         self._issue_segment(now_ns)
@@ -452,6 +463,14 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if (command.kind == 'START_SEARCH' and self.mission.mode == 'DISASTER' and not self.mission.search_authorized
+                and not (self.ready(self.roles['SCOUT'], now_ns) or (None, False))[1]):
+            # #98: a SCOUT of unknown or not-ready state refuses the start; it does not count as started,
+            # so no robot leaves at an unknown moment after the button. The operator presses again when ready.
+            self.last_reason = 'SCOUT_NOT_READY'
+            reply = self._reply(False, 'REJECTED', 'NAV_NOT_READY')
+            self.replies[command.command_id] = (command, reply)
+            return reply
         result = self.mission.handle_command(command, now_ns=now_ns)
         self.last_reason = result.reason
         if result.accepted:
@@ -462,6 +481,10 @@ class CoordinatorCore:
             elif command.kind == 'REQUEST_RECHECK':
                 self._issue_rechecks(now_ns)
                 task_id = self.recheck_tasks.get(command.command_id, '')
+            elif command.kind == 'START_SEARCH':
+                queued = len(self.outbox)
+                self._issue_search(now_ns)
+                task_id = next((f['task_id'] for f in self.outbox[queued:] if f['kind'] == 'SEARCH_AREA'), '')
             # Empty created_task_id: accepted, the task follows when the robot is free and known.
             reply = self._reply(True, 'ACCEPTED', '', task_id)
         else:
@@ -629,6 +652,16 @@ class CoordinatorCore:
                 del self.timed_out[task_id]
                 if task_id in self.task_meta:
                     self._forget(task_id)
+
+    def search_queued(self):
+        """START_SEARCH accepted but the first area not reserved yet (the SCOUT is busy); shown as SEARCH_QUEUED."""
+        mission = self.mission
+        return mission.mode == 'DISASTER' and mission.search_authorized and not mission.search_started
+
+    def _cancel_queued_search(self, why):
+        """A stop or the end of disaster mode withdraws a waiting search (작전 2026-10-11, #99)."""
+        if self.mission.cancel_search_start():
+            self.last_reason = f'SEARCH_START_CANCELED:{why}'
 
     def _robot_stopped(self, task_id, lease):
         """Supporting rule (작전 2026-10-11): never extend a stopped robot's lease; the stop is the executor latch.

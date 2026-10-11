@@ -59,10 +59,12 @@ PC4 한 대(관제 PC)에 프로세스 둘.
 | 경로 | 뜻 |
 | --- | --- |
 | `GET /api/snapshot` | mission + robots + targets(4단계 합성은 #37 규칙표) + events + 미처리 명령 |
-| `POST /api/operator-commands` | kind ∈ {START_SEARCH(수동 대체), DISPATCH_SUPPORT, CONTINUE_SEGMENT, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
+| `POST /api/operator-commands` | kind ∈ {START_SEARCH(수동 대체), DISPATCH_SUPPORT, CONTINUE_SEGMENT, SET_CAMERA_WATCH, REQUEST_RECHECK, RETURN_HOME, PAUSE, RESUME, CANCEL, STOP_ROBOT}. 응답 accepted / request_id / reason. STOP 은 RequestStop 으로 먼저, 나머지는 coordinator 서비스 |
 | `PUT /api/evidence/{id}` | 웹캠 후보 jpeg + sha256 → PERSISTED / REJECTED |
 | `PUT /api/maps/{id}` | 지도 PNG + revision |
 | 로그인 | 세션 쿠키. 역할 `ADMIN`(화면·명령·계정 관리)과 `CUSTOMER`(보기만). ADMIN 이 CUSTOMER 계정을 만들고·고치고·지운다(강사 day5 요구: 로그인 페이지 + SQLite 로그인 데이터). 계정 파일·세션 비밀은 저장소 밖([SDD 10절 목록](architecture.md) 에 추가). operator_id 가 명령에 박힌다 |
+
+**감시 시작(SET_CAMERA_WATCH)** [제안, #76 CDX-76-02]: 대상 감시 영역(ROI)은 프로파일의 camera watch 값이다. 운영자가 확정 대상 하나를 고르고 그 ROI 를 연결·확인하면 operations 가 `SET_CAMERA_WATCH`(target_id, ROI, `association_method=OPERATOR_ROI`, `association_evidence_id`=이 명령의 command_id)를 coordinator 로 보낸다. coordinator 가 `watch_id` 를 발급해 `SetCameraWatch` 로 카메라에 준다([contracts C-11](contracts.md#c-11) 2행). 자동 등록은 하지 않는다. 카메라 설치 각도나 영상 크기가 바뀌면 그 watch 는 무효이고 다시 연결한다.
 
 **명령 관문은 서버에 둔다.** CONTINUE_SEGMENT 는 `segment_phase == AWAITING_APPROVAL` 일 때만, DISPATCH_SUPPORT 는 확정 대상이 있을 때만, RESUME 은 정지 증거 뒤에만(Q-22). 버튼 활성화는 이 관문의 거울이지 관문 자체가 아니다. 받은 명령은 전부 `operator_commands` 에 남긴다(거절 포함).
 

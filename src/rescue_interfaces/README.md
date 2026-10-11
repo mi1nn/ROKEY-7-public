@@ -1,10 +1,11 @@
 # rescue_interfaces
 
-SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 23·서비스 4·액션 2의 정의만 둔다. 판단 로직은 없다. 채택 범위와 IDL 규칙은 [contracts C-10](../../docs/design/contracts.md)에 있다.
+SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 25·서비스 5·액션 2의 정의만 둔다. 판단 로직은 없다. 채택 범위와 IDL 규칙은 [contracts C-10](../../docs/design/contracts.md)에 있다.
 
 - 필드는 [`sdd-node-contracts-v0.1.json`](../../docs/design/sdd-node-contracts-v0.1.json)이 원본이다. 필드를 바꿀 때는 JSON 을 먼저 고친다. [`tests/test_interfaces_schema.py`](../../tests/test_interfaces_schema.py)가 이 폴더의 IDL 과 JSON·`CMakeLists.txt` 목록이 같은지 ROS 없이 검사한다.
 - ROS 메시지와 Python 값(`rescue_contracts`·각 패키지 dataclass)의 변환은 각 패키지의 ROS 경계 모듈이 맡으며, 이 패키지에는 변환기가 없다. `MOVE_SEGMENT`·`RETURN_HOME` 의 실행기 구현(어휘는 Python `TASK_KINDS` 에 있으나 `rescue_robot` 실행기는 아직 거절), #48 반영 전 `SiteEvent` 소실 후보, 장부와 구조가 다른 `EvidenceRef`·`ReportReceipt` 는 [C-10](../../docs/design/contracts.md)의 후속 연결 범위다. IDL 생성·import 성공을 기존 Python 값으로의 변환 성공으로 해석하지 않는다.
 - 문자열 상수는 허용값을 자동으로 강제하지 않는다. 각 경계 모듈은 UUID·열거값·시각·`has_*`/`*_known` 등을 검증하고, 미지원 값이나 미확인 상태를 정상 값으로 바꾸지 않아야 한다.
+- `TargetPresence`·`CameraStatus`·`SetCameraWatch` 는 Python DTO 가 아직 없다(첫 소비자 PR 에서 `rescue_contracts` 에 넣는다). 감시의 경계 검사와 낡은 값 처리는 [C-10](../../docs/design/contracts.md) IDL 규칙에 있다.
 - 빌드: `colcon build --packages-select rescue_interfaces` (ROS 2 Jazzy). CI 에는 ROS 가 없어 이 빌드는 돌지 않는다.
 
 ## 통신별 입력과 출력
@@ -46,15 +47,15 @@ SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 23·서비스 4·액션 2
 | 통신 | 종류 | 내용 | IDL |
 | --- | --- | --- | --- |
 | `/rescue/site_events` | Topic `SiteEvent` | 지진 징후(`DISASTER_SIGN`) 또는 인형 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`) + 근거 | 1차 |
-| `/rescue/cameras/cam_fixed/presence` | Topic `TargetPresence` | 감시 영역별 PRESENT·ABSENT_CANDIDATE·UNKNOWN | 2차 |
-| `/rescue/cameras/cam_fixed/status` | Topic `CameraStatus` | 영상 끊김·품질 | 2차 |
-| `/rescue/cameras/cam_fixed/set_watch` | Service `SetCameraWatch` | `coordinator` 가 감시 영역 지정 → 수락 여부 | 2차 |
+| `/rescue/cameras/cam_fixed/presence` | Topic `TargetPresence` | 감시 영역별 PRESENT·ABSENT_CANDIDATE·UNKNOWN | 1차 |
+| `/rescue/cameras/cam_fixed/status` | Topic `CameraStatus` | 영상 끊김·품질 | 1차 |
+| `/rescue/cameras/cam_fixed/set_watch` | Service `SetCameraWatch` | `coordinator` 가 감시 영역 지정 → 수락 여부 | 1차 |
 
 ### PC4 안: `operations` ↔ `coordinator`
 
 | 통신 | 종류 | 입력 | 출력 | IDL |
 | --- | --- | --- | --- | --- |
-| `/rescue/operator_command` | Service `SubmitOperatorCommand` (`operations` → `coordinator`) | operation(`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 승인자, 로봇, 대상, 예상 task·generation, 경로·구간 번호 | 접수 여부, created_task_id, approval_id. 접수일 뿐 이동 완료가 아님 | 1차 |
+| `/rescue/operator_command` | Service `SubmitOperatorCommand` (`operations` → `coordinator`) | operation(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 승인자, 로봇, 대상, 예상 task·generation, 경로·구간 번호 | 접수 여부, created_task_id, approval_id. 접수일 뿐 이동 완료가 아님 | 1차 |
 | `/rescue/report_receipts` | Topic `ReportReceipt` (`operations` → 보고를 보낸 모든 노드) | DB 저장 뒤 PERSISTED | 받은 쪽이 재전송을 멈춤 | 1차 |
 | `/rescue/reports` | Topic `RescueReport` (`coordinator` → `operations`) | 구조 보고 묶음 | | 1차 (2026-10-11) |
 | `/rescue/targets`, `/rescue/system_state` | Topic `TargetSnapshot`·`SystemState` | 대상 전체 상태, 시스템 모드·임무 단계·출동 구간 | | 1차 (2026-10-11) |

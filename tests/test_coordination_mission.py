@@ -97,9 +97,22 @@ class ModeGateTests(MissionTestCase):
                          (result.event_id, result.reason, result.mode))
         self.assertEqual((event.event_id, event.observed_at_ns),
                          (self.m.trigger_event_id, self.m.trigger_observed_at_ns))
+        # Owner decision 2026-10-11 (#85): the disaster only shows and stores; AMR1 waits for START_SEARCH.
+        gate = self.m.plan(SCOUT, robot_boot_id=BOOT[SCOUT], ready=True, now_ns=NOW)
+        self.assertEqual(('SEARCH_NOT_STARTED', None), (gate.reason, gate.decision))
+        self.assertEqual({}, self.search.allocator.pending)
+        self.assertEqual('ACCEPTED', self.reason('START_SEARCH'))
         gate = self.m.plan(SCOUT, robot_boot_id=BOOT[SCOUT], ready=True, now_ns=NOW)
         self.assertEqual(('PASSED', 'RESERVED', 'SEARCH_AREA'),
                          (gate.reason, gate.decision.action, gate.decision.reservation.task_kind))
+
+    def test_start_search_needs_disaster_and_is_accepted_once(self):
+        self.assertEqual('MODE_NOT_DISASTER', self.reason('START_SEARCH'))
+        self.disaster()
+        self.assertEqual('ACCEPTED', self.reason('START_SEARCH'))
+        self.assertEqual('SEARCH_ALREADY_STARTED', self.reason('START_SEARCH'))
+        with self.assertRaises(CoordinationError):  # START_SEARCH carries no target or route fields
+            self.command('START_SEARCH', target_id=TARGET)
 
     def test_support_plan_is_not_gated_by_mode(self):
         gate = self.m.plan(SUPPORT, robot_boot_id=BOOT[SUPPORT], ready=True, now_ns=NOW)
@@ -320,6 +333,7 @@ class MissionPhaseTests(MissionTestCase):
         seen = [self.m.phase()]
         self.disaster()
         seen.append(self.m.phase())
+        self.reason('START_SEARCH')
         gate = self.m.plan(SCOUT, robot_boot_id=BOOT[SCOUT], ready=True, now_ns=NOW)
         self.assertTrue(self.search.record_admission(receipt(gate.decision.reservation)))
         seen.append(self.m.phase())
