@@ -136,6 +136,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | `executable_bases` | string[] | 실행해도 되는 구역 근거 종류 |
 | `task_duration_s`, `status_max_age_s`, `tick_period_s`, `report_retry_s` | double | 임무 기한·상태 나이 상한·판단 주기·보고 재전송 주기 |
 | `lease_duration_s`, `lease_renew_period_s` | double | 실행기 정책의 lease 길이와 같은 값, 갱신 주기. 주기가 길이의 절반을 넘으면 기동 거부(exit 2) |
+| `admission_timeout_s` | double | 수락 시한. 이때까지 TaskAdmission 이 없는 task 는 lease 갱신을 영구히 멈추고, 시한 뒤 도착한 RobotStatus 가 STOPPED·다른 task 일 때 예약을 풀어 다시 발급한다(작전 2026-10-11) |
 | `route_segment_goals` | double[] | 구간 끝 `[x, y, yaw]` × N (mission frame) |
 | `route_revision` | int | 그 목록의 revision. 목록이 바뀌면 올린다(이전 승인은 쓰지 않음) |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
