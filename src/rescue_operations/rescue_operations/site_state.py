@@ -12,7 +12,7 @@ duplicates before it publishes, and nothing here removes them again (TS-04).
 """
 
 from collections.abc import Mapping
-from dataclasses import asdict
+from dataclasses import MISSING, asdict, fields
 import json
 import math
 import sqlite3
@@ -149,6 +149,15 @@ def _robot_status(value, allowed):
 def _stored_status(status_json):
     """A stored robot snapshot with every current key; keys added later read as None."""
     return ROBOT_DEFAULTS | json.loads(status_json)
+
+
+# SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
+EVENT_DEFAULTS = {f.name: f.default for f in fields(SiteEvent) if f.default is not MISSING}
+
+
+def _stored_event(event_json):
+    """A stored event with every current SiteEvent field; keys added later take their defaults."""
+    return EVENT_DEFAULTS | json.loads(event_json)
 
 
 def _target_state(value, allowed):
@@ -321,7 +330,8 @@ class SiteStateLedger(_Database):
         with self._transaction() as db:
             row = db.execute("SELECT event_json FROM site_events WHERE event_id = ?", (event.event_id,)).fetchone()
             if row is not None:
-                require(row["event_json"] == encoded, "event_id has different content", "ID_CONTENT_CONFLICT")
+                require(canonical(_stored_event(row["event_json"])) == encoded, "event_id has different content",
+                        "ID_CONTENT_CONFLICT")
                 return False
             db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?)",
                        (event.event_id, event.kind, event.observed_at_ns, encoded,
@@ -440,7 +450,7 @@ def read_site_events(db_path, *, limit=100):
         count = db.execute("SELECT COUNT(DISTINCT event_id) FROM site_events WHERE kind = 'EXIT_PASS'").fetchone()[0]
         rows = db.execute("SELECT event_json FROM site_events ORDER BY observed_at_ns, event_id LIMIT ?",
                           (limit,)).fetchall()
-        return {"exit_pass_count": count, "site_events": [json.loads(row["event_json"]) for row in rows]}
+        return {"exit_pass_count": count, "site_events": [_stored_event(row["event_json"]) for row in rows]}
     return _read(db_path, query)
 
 

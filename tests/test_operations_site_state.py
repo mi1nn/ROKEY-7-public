@@ -1,4 +1,5 @@
 """Operations read API for the control screen: robot snapshot, site events + exit count, target states (E2)."""
+from dataclasses import asdict
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -211,6 +212,46 @@ class SiteStateTests(unittest.TestCase):
         first = result['site_events'][1]
         self.assertEqual(set(SiteEvent.__dataclass_fields__), set(first))
         self.assertEqual(site_event(10), SiteEvent(**first))
+
+    def test_disappeared_candidate_keeps_target_and_watch(self):
+        candidate = site_event(50, kind='TARGET_DISAPPEARED_CANDIDATE', at=3_000, target_id=uid(500),
+                               watch_id=uid(510))
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_site_event(candidate))
+            self.assertFalse(ledger.record_site_event(candidate))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_site_event(site_event(50, kind='TARGET_DISAPPEARED_CANDIDATE', at=3_000,
+                                                    target_id=uid(500), watch_id=uid(511)))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_site_events(self.path)
+        self.assertEqual(0, result['exit_pass_count'])
+        self.assertEqual([candidate], [SiteEvent(**e) for e in result['site_events']])
+
+    def write_event_before_target_and_watch(self, event):
+        """A row written before #48: event_json has no target_id/watch_id keys."""
+        self.ledger().close()
+        legacy = {k: v for k, v in asdict(event).items() if k not in ('target_id', 'watch_id')}
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('INSERT INTO site_events VALUES (?, ?, ?, ?, ?)',
+                       (event.event_id, event.kind, event.observed_at_ns, site_state.canonical(legacy), 1_100))
+        db.close()
+
+    def test_events_stored_before_target_and_watch_read_back_with_none(self):
+        old = site_event(60, kind='DISASTER_SIGN', at=1_000)
+        self.write_event_before_target_and_watch(old)
+        stored = site_state.read_site_events(self.path)['site_events']
+        self.assertEqual([set(SiteEvent.__dataclass_fields__)], [set(e) for e in stored])  # db-schema 5절
+        self.assertEqual([old], [SiteEvent(**e) for e in stored])
+
+    def test_resending_an_event_stored_before_target_and_watch_is_not_a_conflict(self):
+        old = site_event(60, kind='DISASTER_SIGN', at=1_000)
+        self.write_event_before_target_and_watch(old)
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_site_event(old))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_site_event(site_event(60, kind='DISASTER_SIGN', at=1_001))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
 
     def test_exit_count_is_over_all_events_not_the_page(self):
         with self.ledger() as ledger:

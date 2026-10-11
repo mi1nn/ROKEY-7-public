@@ -265,7 +265,8 @@ class MissionCoordinator:
 
     # -- inputs ------------------------------------------------------------
     def record_target(self, target_id, target_revision, *, detection_confirmed, report_persisted):
-        """Latest revision wins; an older one is ignored (False), same revision with other content conflicts.
+        """Latest revision wins; an older one is ignored (False), same revision with other content conflicts,
+        except ``report_persisted`` turning True later for the same revision.
 
         A target may be dispatched only when the detection is CONFIRMED and the
         report receipt is PERSISTED (S-00).
@@ -275,6 +276,9 @@ class MissionCoordinator:
         if type(detection_confirmed) is not bool or type(report_persisted) is not bool:
             raise CoordinationError('INVALID_INPUT', 'target confirmation flags must be boolean')
         value = (target_revision, detection_confirmed, report_persisted)
+        if self.targets.get(target_id) == (target_revision, detection_confirmed, False) and report_persisted:
+            self.targets[target_id] = value  # the save receipt arrives after the revision; never the reverse
+            return True
         return self._record(self.targets, target_id, value, older='ignore')
 
     def record_route(self, target_id, *, route_revision, segment_count):
