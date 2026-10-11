@@ -64,7 +64,7 @@ def site_msg(n=1, **changes):
 
 def status_msg(robot=SCOUT, **changes):
     values = dict(robot_id=robot, robot_boot_id=BOOT[robot], observed_at_ns=NOW - 10**8, readiness='READY',
-                  lease_valid=True)
+                  lease_valid=True, stop_reason='', motion_state='STOPPED', active_task_id='')
     return NS(**(values | changes))
 
 
@@ -428,6 +428,42 @@ class CommandLeaseTests(CoreTestCase):
         (lease,) = self.core.leases_due(NOW)
         self.assertEqual((SUPPORT, fields['generation'], fields['lease_id']),
                          (lease['robot_id'], lease['generation'], lease['lease_id']))
+
+    def admitted(self):
+        fields = self.issued()
+        self.assertTrue(self.core.on_admission(admission_msg(fields)))
+        return fields
+
+    def moving(self, fields, **changes):
+        values = dict(active_task_id=fields['task_id'], motion_state='MOVING')
+        return status_msg(**(values | changes))
+
+    def test_stopped_robot_gets_no_more_renewals(self):
+        # 작전 2026-10-11: a supporting rule; the stop itself is the executor latch.
+        for changes in (dict(stop_reason='OPERATOR_STOP'), dict(motion_state='STOPPING'),
+                        dict(motion_state='STOP_UNCONFIRMED'), dict(lease_valid=False)):
+            with self.subTest(changes=changes):
+                self.setUp()
+                fields = self.admitted()
+                self.core.on_status(self.moving(fields))
+                self.assertEqual(1, len(self.core.leases_due(NOW)))
+                self.core.on_status(self.moving(fields, observed_at_ns=NOW + PERIOD - 10, **changes))  # fresh
+                self.assertEqual([], self.core.leases_due(NOW + PERIOD))
+                self.core.on_status(self.moving(fields, observed_at_ns=NOW + 2 * PERIOD - 10))
+                self.assertEqual([], self.core.leases_due(NOW + 2 * PERIOD))  # not resumed
+
+    def test_status_naming_another_task_after_admission_stops_renewal(self):
+        fields = self.admitted()
+        self.core.on_status(self.moving(fields, active_task_id=uid(42)))
+        self.assertEqual([], self.core.leases_due(NOW))
+
+    def test_status_before_admission_does_not_cut_a_new_lease(self):
+        fields = self.issued()  # the executor has not admitted it: no active task, no lease yet
+        self.core.on_status(status_msg(lease_valid=False, stop_reason='COMPLETED', active_task_id=uid(42)))
+        self.assertEqual(fields['lease_id'], self.core.leases_due(NOW)[0]['lease_id'])
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_status(self.moving(fields, observed_at_ns=NOW + 1))
+        self.assertEqual(1, len(self.core.leases_due(NOW + PERIOD)))
 
     def test_period_must_be_at_most_half_the_lease(self):
         with self.assertRaises(RescueError):
