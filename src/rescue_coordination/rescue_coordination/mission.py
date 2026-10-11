@@ -35,7 +35,7 @@ OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_in
 COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
     'ALREADY_DISPATCHED', 'NOT_DISPATCHED_TARGET', 'NOT_AWAITING_APPROVAL', 'ROUTE_REVISION_STALE',
-    'SEGMENT_INDEX_MISMATCH', 'NOT_ARRIVED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING',
+    'SEGMENT_INDEX_MISMATCH', 'TARGET_ALREADY_JUDGED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING',
     'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH'})
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
@@ -86,6 +86,20 @@ class SegmentApproval:
 
     def key(self):
         return self.target_id, self.target_revision, self.route_revision, self.segment_index
+
+
+@dataclass(frozen=True)
+class RecheckRequest:
+    """An open SCOUT recheck of one target (C-11 rows 10-11).
+
+    ``source`` is OPERATOR: camera candidates (row 4-5) are not taken in yet, so
+    ``link_id`` is the command_id sitting in the candidate event_id slot, and
+    ``accepted_at_ns`` is when this coordinator accepted it (row 11 ordering).
+    """
+    link_id: str
+    target_id: str
+    source: str
+    accepted_at_ns: int
 
 
 @dataclass(frozen=True)
@@ -193,8 +207,9 @@ class MissionCoordinator:
         self.approval = None  # SegmentApproval while APPROVED/MOVING
         self.segment_index = None
         self.segment_phase = None
-        self.recheck_pending = False
-        self.verdict = None
+        self.open_rechecks = {}  # target_id -> RecheckRequest; one open recheck per target
+        self.verdicts = {}       # target_id -> RESCUE_CONFIRMED | RECHECK_NEEDED
+        self.verdict = None      # the latest verdict, for the displayed phase
         self.returning = False
         self.returned = set()
 
@@ -321,12 +336,13 @@ class MissionCoordinator:
         return True
 
     def record_rescue_verdict(self, target_id, state):
-        """The rescue judgement for the pending recheck (RESCUE_CONFIRMED or RECHECK_NEEDED)."""
-        if target_id != self.dispatch_target or not self.recheck_pending:
-            raise CoordinationError('INVALID_INPUT', 'no recheck pending for this target')
+        """The rescue judgement that closes the target's open recheck (RESCUE_CONFIRMED or RECHECK_NEEDED)."""
+        if target_id not in self.open_rechecks:
+            raise CoordinationError('INVALID_INPUT', 'no recheck open for this target')
         if state not in VERDICTS:
             raise CoordinationError('INVALID_INPUT', 'verdict must be RESCUE_CONFIRMED or RECHECK_NEEDED')
-        self.verdict, self.recheck_pending = state, False
+        del self.open_rechecks[target_id]
+        self.verdicts[target_id] = self.verdict = state
 
     def record_returned(self, robot_id):
         """A role robot is back after RETURN_HOME; FINISHED when every role robot is."""
@@ -336,12 +352,14 @@ class MissionCoordinator:
         self.returned.add(robot_id)
 
     # -- operator command gate --------------------------------------------
-    def handle_command(self, command):
+    def handle_command(self, command, *, now_ns):
         """Judge one operator command on the server side (console-and-db-plan 4).
 
-        A replayed command_id returns its first result unchanged; the same ID
-        with other content is ``ID_CONTENT_CONFLICT``.
+        A replayed command_id returns its first result unchanged, even if the
+        target was judged since (C-11 row 10 ①); the same ID with other content
+        is ``ID_CONTENT_CONFLICT``. ``now_ns`` is this coordinator's acceptance time.
         """
+        contract_value(timestamp_ns, now_ns)
         if not isinstance(command, OperatorCommand):
             raise CoordinationError('INVALID_INPUT', 'OperatorCommand required')
         seen = self.commands.get(command.command_id)
@@ -349,12 +367,13 @@ class MissionCoordinator:
             if seen[0] != command:
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'command content differs for the same command_id')
             return seen[1]
-        reason = 'MODE_NOT_DISASTER' if self.mode != 'DISASTER' else getattr(self, '_' + command.kind.lower())(command)
+        reason = 'MODE_NOT_DISASTER' if self.mode != 'DISASTER' else (
+            getattr(self, '_' + command.kind.lower())(command, now_ns))
         result = CommandResult(command.command_id, reason == 'ACCEPTED', reason)
         self.commands[command.command_id] = (command, result)
         return result
 
-    def _dispatch_support(self, command):
+    def _dispatch_support(self, command, now_ns):
         target = self.targets.get(command.target_id)
         if self.dispatch_target is not None:
             return 'ALREADY_DISPATCHED'
@@ -371,7 +390,7 @@ class MissionCoordinator:
         self._approve(command)
         return 'ACCEPTED'
 
-    def _continue_segment(self, command):
+    def _continue_segment(self, command, now_ns):
         if command.target_id != self.dispatch_target:
             return 'NOT_DISPATCHED_TARGET'
         if self.segment_phase != 'AWAITING_APPROVAL':
@@ -391,17 +410,19 @@ class MissionCoordinator:
                                         self.route_revision, self.segment_index)
         self.segment_phase = 'APPROVED'
 
-    def _request_recheck(self, command):
-        if command.target_id != self.dispatch_target:
-            return 'NOT_DISPATCHED_TARGET'
-        if self.segment_phase != 'ARRIVED':
-            return 'NOT_ARRIVED'
-        if self.recheck_pending:
+    def _request_recheck(self, command, now_ns):
+        """C-11 row 10 (Q-26): any recorded target; arrival and dispatch are not conditions."""
+        if command.target_id not in self.targets:
+            return 'UNKNOWN_TARGET'
+        if self.verdicts.get(command.target_id) == 'RESCUE_CONFIRMED':
+            return 'TARGET_ALREADY_JUDGED'
+        if command.target_id in self.open_rechecks:
             return 'RECHECK_ALREADY_REQUESTED'
-        self.recheck_pending, self.verdict = True, None
+        self.open_rechecks[command.target_id] = RecheckRequest(command.command_id, command.target_id, 'OPERATOR',
+                                                               now_ns)
         return 'ACCEPTED'
 
-    def _return_home(self, command):
+    def _return_home(self, command, now_ns):
         if self.returning:
             return 'ALREADY_RETURNING'
         if self.verdict is None:
@@ -422,11 +443,11 @@ class MissionCoordinator:
         if self.returning:
             roles = {r for r, _ in self.search.policy.roles}
             return 'FINISHED' if self.returned >= roles else 'RETURNING'
+        if self.open_rechecks:
+            return 'RECHECKING'
+        if self.verdict is not None:
+            return self.verdict
         if self.dispatch_target is not None:
-            if self.recheck_pending:
-                return 'RECHECKING'
-            if self.verdict is not None:
-                return self.verdict
             return {'ARRIVED': 'ARRIVED', 'AWAITING_APPROVAL': 'AWAITING_CONTINUE', 'MOVING': 'SEGMENT_MOVING',
                     'APPROVED': 'DISPATCH_APPROVED' if self.segment_index == 0 else 'SEGMENT_MOVING'
                     }[self.segment_phase]
