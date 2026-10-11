@@ -147,6 +147,15 @@ class RouteFrameTests(TargetTestCase):
         self.assertEqual([], self.core.tick(NOW))
         self.assertEqual('TARGET_ALIGNMENT_NOT_VALID', self.core.issue_block)
 
+    def test_blocked_recheck_does_not_stop_the_search(self):
+        self.core = make_core()
+        self.core.on_site_event(site_msg())
+        target = self.core.on_target_location(location(1, frame_ref=frame(alignment_status='DEGRADED')), now_ns=NOW)
+        self.core.on_status(status_msg(SCOUT))
+        self.core.on_command(request('REQUEST_RECHECK', command_id=uid(701), target_id=target), now_ns=NOW)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('SEARCH_AREA', 'TARGET_ALIGNMENT_NOT_VALID'), (fields['kind'], self.core.issue_block))
+
     def test_reobserve_carries_the_observation_point_as_route_without_approval(self):
         self.core.on_status(status_msg(SCOUT))
         self.send('REQUEST_RECHECK', 3)
