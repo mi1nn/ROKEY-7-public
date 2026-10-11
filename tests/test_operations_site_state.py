@@ -315,6 +315,8 @@ class SiteStateTests(unittest.TestCase):
         self.assertIs(False, result['commands'][2]['accepted'])
         self.assertEqual([stop], site_state.read_operator_commands(self.path, limit=1)['commands'])
 
+    @unittest.skipUnless(OPERATOR_SRV.is_file(),
+                         'source checkout absent (installed-wheel run): IDL comparison NOT_RUN here')
     def test_every_operation_of_the_command_service_can_be_recorded(self):
         """The console forwards SubmitOperatorCommand (1차 IDL, #77·#98); a refused record would lose it."""
         operations = re.findall(r'^string OPERATION_\w+="(\w+)"', OPERATOR_SRV.read_text(), re.M)
