@@ -45,7 +45,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 | `robots[].command_host` | 해당 로봇의 명령 소유 호스트 ID 하나. 중복 제어 프로세스가 실제로 없는지는 ROS 그래프로 별도 검증해야 함 |
 | `robots[].slam_host`, `perception_host` | 등록된 호스트를 가리키는 배치 후보. 명령 소유권을 추가로 부여하지 않음 |
 | `robots[].parameters_file` | 실제 프로파일 파일의 디렉터리 안의 상대 `.json` 파일. 절대 경로·상위 경로·그 디렉터리 밖 symlink 거절 |
-| `services.coordination_host`, `operations_host` | 등록된 호스트 참조. 현재 `REQUIRE_ALL_HOSTS_USED` 기준안에서는 모든 호스트가 적어도 하나의 역할에 사용되어야 함 |
+| `services.coordination_host`, `operations_host` | 등록된 호스트 참조. 현재 `REQUIRE_ALL_HOSTS_USED` 기준안에서는 모든 호스트가 적어도 하나의 역할에 사용되어야 함. 고정 카메라 호스트(`site_cameras[].host`)도 역할로 센다 |
 
 두 로봇의 `command_host`는 같은 호스트일 수 있다. 이는 로봇마다 하나인 논리적 명령 소유자를 한 PC에서 실행할 수 있다는 뜻이며, 같은 로봇을 여러 제어기가 동시에 지휘해도 된다는 뜻은 아니다. 협업 조정(`coordination_host`)과 관제·기록(`operations_host`)도 한 호스트에 둘 수 있다. 현재 기준안에서는 그 결과 다른 등록 호스트가 미사용이 되면 거절되므로, 해당 호스트는 SLAM·인식 등 다른 역할에 배정되어야 한다. 실제 프로세스 수·발행자·부하·장애 격리는 이후 실행 전 점검의 대상이다.
 

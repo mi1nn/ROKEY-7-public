@@ -505,8 +505,6 @@ def load_deployment(path: str | Path) -> Deployment:
                             perception_host, robot["parameters_file"], parameters))
     _unique([robot.id for robot in robots], "robot id")
     _unique([robot.namespace for robot in robots], "robot namespace")
-    if REQUIRE_ALL_HOSTS_USED and known_hosts != used_hosts:
-        raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     if len({robot.parameters.use_sim_time for robot in robots}) != 1:
         raise ProfileError("all robots must use the same use_sim_time setting")
     mission = _mission(data["mission"], [robot.id for robot in robots]) if schema_version == 2 else None
@@ -524,10 +522,11 @@ def load_deployment(path: str | Path) -> Deployment:
                     or any(not isinstance(r, str) or r not in SITE_CAMERA_ROLES for r in roles_raw)
                     or len(set(roles_raw)) != len(roles_raw)):
                 raise ProfileError(f"{label}.roles must be a non-empty list of distinct values from {list(SITE_CAMERA_ROLES)}")
-            host_id = _identifier(cam["host"], label + ".host")
-            if host_id not in known_hosts:
-                raise ProfileError(f"{label}.host references unknown host: {host_id}")
+            host_id = host_reference(cam["host"], label + ".host")
             cameras.append(SiteCamera(cam["id"], host_id, tuple(roles_raw), _nonempty(cam["source"], label + ".source")))
         _unique([cam.id for cam in cameras], "site_cameras id")
+    # After every host reference, cameras included: a camera-only host is a valid role (AST39-02).
+    if REQUIRE_ALL_HOSTS_USED and known_hosts != used_hosts:
+        raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host,
                       schema_version, mission, tuple(cameras))
