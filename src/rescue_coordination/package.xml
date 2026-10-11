@@ -8,7 +8,10 @@
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
   <exec_depend>rescue_contracts</exec_depend>
-  <exec_depend>rescue_bringup</exec_depend>
+  <!-- rescue_bringup is not declared: it depends on this package (launch, offline demo), and declaring
+       both made colcon refuse the workspace (#100 BUILD-01). ros_node.build_core imports
+       rescue_bringup.profile lazily; install rescue_bringup with this node. Moving the profile
+       loader below both packages is the follow-up that restores the declaration. -->
   <exec_depend>rescue_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
