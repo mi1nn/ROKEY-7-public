@@ -188,7 +188,8 @@ class CoordinatorCore:
     """
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
-                 report_retry_ns, lease_renew_period_ns, admission_timeout_ns, new_id=None):
+                 report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
+                 lease_message_ttl_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -202,8 +203,12 @@ class CoordinatorCore:
         if not 0 < lease_renew_period_ns <= lease_ns // 2:
             raise CoordinationError('INVALID_POLICY', 'lease renewal period must be at most half the lease')
         contract_value(duration_ns, admission_timeout_ns)
-        if admission_timeout_ns <= 0:
-            raise CoordinationError('INVALID_POLICY', 'admission timeout must be positive')
+        contract_value(duration_ns, lease_message_ttl_ns)
+        if admission_timeout_ns <= 0 or lease_message_ttl_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'admission timeout and lease message TTL must be positive')
+        segment_passage_free = tuple(segment_passage_free)
+        if not all(type(value) is bool for value in segment_passage_free):
+            raise CoordinationError('INVALID_POLICY', 'segment passage values must be booleans')
         segment_goals = tuple(segment_goals)
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
@@ -226,6 +231,10 @@ class CoordinatorCore:
         self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
         self.status_arrivals = 0
         self.admission_timeout_ns = admission_timeout_ns
+        # AST88-01 (OPS-60): field-checked "no passage assessment needed" per segment end. A
+        # list of another length marks nothing passage-free.
+        self.segment_passage_free = segment_passage_free
+        self.lease_message_ttl_ns = lease_message_ttl_ns  # AST88-02: CommandLease receive deadline
         self.issued_at = {}      # task_id -> issued_at_ns, for the admission timeout
         self.timed_out = {}      # task_id -> status arrival count when its admission timed out
         self.status_detail = {}  # robot_id -> (arrival, stop_reason, motion_state, lease_valid, active_task_id)
@@ -359,7 +368,7 @@ class CoordinatorCore:
             mode=system_mode(view.mode, view.phase), phase=view.phase,
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
-            policy_version=self.search.policy.version, reason='',
+            policy_version=self.search.policy.version, reason=self.issue_block or '',
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -435,6 +444,10 @@ class CoordinatorCore:
             return None
         return state[0]
 
+    def _passage_free(self, segment_index):
+        flags = self.segment_passage_free
+        return len(flags) == len(self.segment_goals) and flags[segment_index] is True
+
     def _route_frame(self, target_id, goal):
         """The target's current frame_ref when the goal shares its basis and alignment is VALID (#88)."""
         geo = self.target_geo.get(target_id)
@@ -463,6 +476,9 @@ class CoordinatorCore:
         if (approval is None or self.mission.segment_phase != 'APPROVED'
                 or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
             return self.segment_tasks.get(approval.command_id) if approval else None
+        if not self._passage_free(approval.segment_index):
+            self.issue_block = 'PASSAGE_ASSESSMENT_REQUIRED'  # Q-25 default: hold, never guess
+            return None
         boot = self._free('SUPPORT', now_ns)
         if boot is None:
             return None
@@ -487,6 +503,7 @@ class CoordinatorCore:
                           approved_at_ns=self.accepted_at[approval.command_id], scope='ONE_SEGMENT',
                           valid_until_ns=fields['deadline_ns']))
         self.segment_tasks[approval.command_id] = fields['task_id']
+        self.issue_block = None
         self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
         self._send(fields)
         return fields['task_id']
@@ -559,7 +576,7 @@ class CoordinatorCore:
             due.append(dict(lease_id=lease['lease_id'], robot_id=lease['robot_id'],
                             robot_boot_id=lease['robot_boot_id'], authority_epoch=lease['authority_epoch'],
                             generation=lease['generation'], renewal_sequence=lease['renewal_sequence'],
-                            issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_ns))
+                            issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_message_ttl_ns))
         return due
 
     def _expire_unadmitted(self, now_ns):
@@ -663,7 +680,9 @@ def build_core(values):
                            observe_goal=GoalPoint((x, y), yaw, *basis), merge_distance_m=values['merge_distance_m'],
                            report_retry_ns=seconds_to_ns(str(values['report_retry_s'])),
                            lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])),
-                           admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])))
+                           admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])),
+                           segment_passage_free=tuple(values['route_segment_passage_free']),
+                           lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -679,7 +698,11 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # CommandLease renewal period; at most half of lease_duration_s, which must equal the executor's
     # lease_duration (C-10 「명령 lease」, #88). Checked at start: otherwise FATAL exit 2.
     'lease_renew_period_s': 'DOUBLE',
-    'admission_timeout_s': 'DOUBLE'}  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
+    'admission_timeout_s': 'DOUBLE',  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
+    'lease_message_ttl_s': 'DOUBLE',  # CommandLease.valid_until_ns = issued_at_ns + this (AST88-02)
+    # AST88-01: one field-checked bool per segment end; may be empty (= nothing passage-free, hold).
+    'route_segment_passage_free': 'BOOL_ARRAY'}
+OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 
 
 def main(args=None):
@@ -700,7 +723,8 @@ def main(args=None):
     log = node.get_logger()
     try:
         values, missing = declare_required(
-            node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()})
+            node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()},
+            optional=OPTIONAL_PARAMETERS)
         if missing:
             log.fatal(f'missing parameters: {missing}')
             raise SystemExit(2)
