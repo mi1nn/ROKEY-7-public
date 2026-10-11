@@ -11,7 +11,7 @@ from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
 READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
-           'read_mission_state', 'read_operator_commands')
+           'read_mission_state', 'read_operator_commands', 'read_map_snapshots')
 
 
 def uid(n):
@@ -57,6 +57,12 @@ def command(n=700, **changes):
     values = dict(command_id=uid(n), kind='CONTINUE_SEGMENT', operator_id='admin', robot_id='robot_b',
                   target_id=uid(500), segment_index=2, route_revision=1, requested_at_ns=7_000, accepted=True,
                   result='ACCEPTED', reason=None)
+    return values | changes
+
+
+def map_snapshot(n=800, **changes):
+    values = dict(snapshot_id=uid(n), robot_id='robot_a', revision=3, path='maps/robot_a/rev3.png', sha256='b' * 64,
+                  at_ns=9_000)
     return values | changes
 
 
@@ -274,6 +280,32 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(change=change), self.assertRaises(OperationsError):
                     ledger.record_operator_command(command(**change))
         self.assertEqual([], site_state.read_operator_commands(self.path)['commands'])
+
+    # --- map snapshots ------------------------------------------------------
+    def test_map_snapshots_append_and_resends_are_idempotent(self):
+        older = map_snapshot(801, revision=2, path='maps/robot_a/rev2.png', sha256='c' * 64, at_ns=8_000)
+        other = map_snapshot(802, robot_id='robot_b', at_ns=8_500)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_map_snapshot(map_snapshot()))
+            self.assertFalse(ledger.record_map_snapshot(map_snapshot()))
+            self.assertTrue(ledger.record_map_snapshot(older))
+            self.assertTrue(ledger.record_map_snapshot(other))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_map_snapshot(map_snapshot(sha256='d' * 64))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_map_snapshots(self.path)
+        self.assertEqual(site_state.SCHEMA_VERSION, result['schema_version'])
+        self.assertEqual([map_snapshot(), other, older], result['maps'])
+        self.assertEqual([map_snapshot()], site_state.read_map_snapshots(self.path, limit=1)['maps'])
+
+    def test_map_snapshot_rejects_bad_input(self):
+        bad = [dict(snapshot_id='x'), dict(robot_id='robot_x'), dict(revision=-1), dict(path=''),
+               dict(path='a\x00b'), dict(sha256='B' * 64), dict(sha256='b' * 63), dict(at_ns=0), dict(extra=1)]
+        with self.ledger() as ledger:
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_map_snapshot(map_snapshot(**change))
+        self.assertEqual([], site_state.read_map_snapshots(self.path)['maps'])
 
     # --- read boundary ------------------------------------------------------
     def test_readers_do_not_create_or_accept_other_databases(self):
