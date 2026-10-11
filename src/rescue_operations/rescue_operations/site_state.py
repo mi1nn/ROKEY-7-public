@@ -11,13 +11,13 @@ the number of distinct EXIT_PASS events stored here; recognition removes track
 duplicates before it publishes, and nothing here removes them again (TS-04).
 """
 
-from dataclasses import asdict
+from dataclasses import MISSING, asdict, fields
 import json
 import math
 import sqlite3
 import time
 
-from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
+from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SYSTEM_MODES, SiteEvent
 
 from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
@@ -32,7 +32,8 @@ UNKNOWN = "UNKNOWN"
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
 # Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
 # vocabulary written by operations from coordinator results; the coordinator owns the decisions.
-MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
+# Mode is the contract system mode (S-00): NORMAL, DISASTER and CLEARING (false-alarm clearing).
+MISSION_MODES = SYSTEM_MODES
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
@@ -119,6 +120,15 @@ def _robot_status(value, allowed):
     return status
 
 
+# SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
+EVENT_DEFAULTS = {f.name: f.default for f in fields(SiteEvent) if f.default is not MISSING}
+
+
+def _stored_event(event_json):
+    """A stored event with every current SiteEvent field; keys added later take their defaults."""
+    return EVENT_DEFAULTS | json.loads(event_json)
+
+
 def _target_state(value, allowed):
     state = dict(exact(value, TARGET_KEYS, "target state"))
     uid(state["target_id"], "target_id")
@@ -163,7 +173,7 @@ def _error_entry(value, allowed):
 
 def _mission(value):
     mission = exact(value, MISSION_KEYS, "mission state")
-    require(mission["mode"] in MISSION_MODES, "mode must be NORMAL or DISASTER")
+    require(mission["mode"] in MISSION_MODES, "mode must be one of SYSTEM_MODES (S-00)")
     require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
     _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
     if mission["trigger_event_id"] is not None:
@@ -243,7 +253,8 @@ class SiteStateLedger(_Database):
         with self._transaction() as db:
             row = db.execute("SELECT event_json FROM site_events WHERE event_id = ?", (event.event_id,)).fetchone()
             if row is not None:
-                require(row["event_json"] == encoded, "event_id has different content", "ID_CONTENT_CONFLICT")
+                require(canonical(_stored_event(row["event_json"])) == encoded, "event_id has different content",
+                        "ID_CONTENT_CONFLICT")
                 return False
             db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?)",
                        (event.event_id, event.kind, event.observed_at_ns, encoded,
@@ -364,7 +375,7 @@ def read_site_events(db_path, *, limit=100):
         count = db.execute("SELECT COUNT(DISTINCT event_id) FROM site_events WHERE kind = 'EXIT_PASS'").fetchone()[0]
         rows = db.execute("SELECT event_json FROM site_events ORDER BY observed_at_ns, event_id LIMIT ?",
                           (limit,)).fetchall()
-        return {"exit_pass_count": count, "site_events": [json.loads(row["event_json"]) for row in rows]}
+        return {"exit_pass_count": count, "site_events": [_stored_event(row["event_json"]) for row in rows]}
     return _read(db_path, query)
 
 
