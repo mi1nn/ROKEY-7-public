@@ -56,6 +56,15 @@ BATTERY_LOW, BATTERY_WARN = 25, 50
 # Survey grid spacing on the map, metres.
 GRID_M = 1.0
 STAGE_ORDER = ('UNCONFIRMED', 'NOT_RESCUED', 'SUPPORTING', 'RESCUED')
+# What the operator checks when the console cannot read its inputs, by ConsoleError code.
+FAILURE_HINTS = {
+    'STORAGE_ERROR': '운영 장부나 현장 상태 DB 를 읽지 못했습니다. 실행 인자의 파일 경로와 operations 프로세스가 돌고 있는지 확인하세요.',
+    'INVALID_INPUT': '읽은 데이터의 형식이 화면이 기대한 것과 다릅니다. operations 와 콘솔이 같은 버전인지 확인하세요.',
+    'POLICY_MISMATCH': '연 파일이 기대한 DB 가 아닙니다(역할·스키마가 다름). 실행 인자의 경로를 확인하세요.',
+}
+FAILURE_HINT_OTHER = '콘솔을 띄운 터미널의 로그를 확인하세요.'
+# The failure page reloads itself this often, so the screen comes back once the input is readable.
+FAILURE_RETRY_S = 5
 
 
 def _short(ident):
@@ -76,7 +85,9 @@ def _elapsed(seconds):
     seconds = int(seconds)
     if seconds < 3600:
         return f'{seconds // 60}분 {seconds % 60:02d}초'
-    return f'{seconds // 3600}시간 {seconds % 3600 // 60:02d}분'
+    if seconds < 86400:
+        return f'{seconds // 3600}시간 {seconds % 3600 // 60:02d}분'
+    return f'{seconds // 86400}일 {seconds % 86400 // 3600}시간'
 
 
 def _pose(pose):
@@ -507,7 +518,9 @@ dl{margin:0}
 
 /* ---- forms (login, accounts) ---- */
 .card{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--rule)}
-.card h1{font-size:22px;margin-bottom:12px} .card button{margin-top:16px}
+.card h1{font-size:22px;margin-bottom:12px}
+.failure{border-left:8px solid var(--signal)} .failure p{margin-top:10px}
+.failure .detail{font-size:13px;color:var(--ink-2);word-break:break-all} .failure .retry{font-size:13px} .card button{margin-top:16px}
 .card label{display:block;margin:12px 0 4px}.card input{width:100%;padding:8px;font:inherit;border:1px solid var(--rule)}
 .card button,form.inline button{font:inherit;padding:8px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:3px;cursor:pointer}
 #topbar form.inline button{padding:3px 10px;background:#fff;color:var(--ink)}
@@ -554,7 +567,14 @@ function stamp() {
   }
   loaded = true;
 }
+// The tab title carries the state too, so a background tab still says 재난 or 갱신 끊김.
+function title(lost) {
+  const band = document.getElementById('mission');
+  const tag = lost ? '[갱신 끊김] ' : band && band.dataset.mode === 'DISASTER' ? '[재난] ' : '';
+  document.title = tag + '구조 관제';
+}
 function pollStatus(ok, message) {
+  title(!ok);
   const el = document.getElementById('poll');
   if (ok) {
     lastOk = Date.now();
@@ -576,7 +596,11 @@ async function poll() {
       location.href = response.status === 401 ? '/login' : response.url;
       return;
     }
-    if (!response.ok) throw new Error('HTTP ' + response.status);
+    if (!response.ok) {
+      // The server says what failed (render.failure_text); show it instead of a bare status code.
+      const reason = (await response.text()).slice(0, 200);
+      throw new Error('HTTP ' + response.status + (reason ? ' ' + reason : ''));
+    }
     document.getElementById('live').innerHTML = await response.text();
     stamp();
     pollStatus(true);
@@ -634,10 +658,33 @@ def _cameras(cameras):
     return f'<section id="cameras"><h2>웹캠</h2>{figures}</section>'
 
 
+def page_title(view):
+    return ('[재난] ' if view['mission']['mode'] == 'DISASTER' else '') + '구조 관제'
+
+
+def failure_text(code, message):
+    """One line for the poll status: the code, what to check, and the raw detail."""
+    return f'{code}: {FAILURE_HINTS.get(code, FAILURE_HINT_OTHER)} ({message})'
+
+
+def render_failure(code, message):
+    """Whole-page failure (503): what failed and what to check, retried every FAILURE_RETRY_S.
+
+    Never an empty but healthy-looking console (AGENTS.md 7절: failures must show).
+    """
+    return (_head('[화면 오류] 구조 관제').replace(
+                '<meta charset="utf-8">', f'<meta charset="utf-8"><meta http-equiv="refresh" content="{FAILURE_RETRY_S}">')
+            + '<main class="card failure"><h1>화면을 그릴 수 없습니다</h1>'
+            f'<p class="hint">{escape(FAILURE_HINTS.get(code, FAILURE_HINT_OTHER))}</p>'
+            f'<p class="detail"><code>{escape(code)}</code> {escape(message)}</p>'
+            f'<p class="retry">{FAILURE_RETRY_S}초마다 다시 시도합니다. 로봇은 이 화면과 상관없이 동작하므로, '
+            '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
+
+
 def render_page(view, user=None, csrf=None, cameras=()):
     """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments."""
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS))
-    return (_head('구조 관제') + '<main class="console">'
+    return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + _user_nav(user, csrf) + '</section>'
             + f'<aside id="side">{_cameras(cameras)}{_commands(view)}</aside>'

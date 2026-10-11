@@ -11,7 +11,8 @@ import time
 
 from .accounts import AccountStore
 from .mapimage import load_map, map_overlay
-from .render import render_accounts, render_fragment, render_login, render_page
+from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, failure_text, render_accounts, render_failure,
+                     render_fragment, render_login, render_page)
 from .sources import load_ledger, load_site_state, load_status
 from .view import ConsoleError, build_view
 
@@ -113,8 +114,14 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     @app.errorhandler(ConsoleError)
     def failed(exc):
-        # Shown as a failure, never as an empty but healthy screen.
-        return Response(f'console input failed: {exc}', status=503, mimetype='text/plain')
+        # The page gets a page that says what to check; the poller gets one line it can show;
+        # the API gets the code. All 503, so nothing reads as a healthy empty screen.
+        if request.path == '/':
+            return Response(render_failure(exc.detail_code, exc.detail), status=503, mimetype='text/html')
+        if request.path.startswith('/api/'):
+            return jsonify({'error': exc.detail_code, 'message': exc.detail,
+                            'hint': FAILURE_HINTS.get(exc.detail_code, FAILURE_HINT_OTHER)}), 503
+        return Response(failure_text(exc.detail_code, exc.detail), status=503, mimetype='text/plain')
 
     # ---- login ----------------------------------------------------------------------
     @app.get('/login')

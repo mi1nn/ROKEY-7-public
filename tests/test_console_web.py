@@ -6,7 +6,8 @@ import unittest
 from unittest import mock
 
 from rescue_console.accounts import AccountStore
-from rescue_console.render import _age, render_accounts, render_fragment, render_login, render_page
+from rescue_console.render import (_age, _elapsed, failure_text, render_accounts, render_failure, render_fragment,
+                                   render_login, render_page)
 from rescue_console.view import COMMANDS, ConsoleError, request_command
 from test_console_view import LedgerFixture, digest_dir, site_event, write_site_state
 
@@ -165,6 +166,26 @@ class PageTests(LedgerFixture):
         rescued_icon = re.search(r'<svg class="vicon rescued".*?</svg>', html).group(0)
         self.assertIn('<line', rescued_icon)
         self.assertNotIn('<line', re.search(r'<svg class="vicon not_rescued".*?</svg>', html).group(0))
+
+    def test_failure_page_says_what_to_check_and_retries(self):
+        html = render_failure('STORAGE_ERROR', 'ledger read failed: <unable to open>')
+        self.assertIn('화면을 그릴 수 없습니다', html)
+        self.assertIn('파일 경로', html)                         # the hint for STORAGE_ERROR
+        self.assertIn('&lt;unable to open&gt;', html)
+        self.assertIn('http-equiv="refresh"', html)
+        self.assertIn('현장 비상 정지', html)
+        self.assertNotIn('<script', html)
+        self.assertIn('콘솔을 띄운 터미널', render_failure('SOMETHING_NEW', 'x'))
+        self.assertTrue(failure_text('INVALID_INPUT', 'bad').startswith('INVALID_INPUT: '))
+
+    def test_tab_title_carries_the_disaster_mode(self):
+        self.assertIn('<title>[재난] 구조 관제</title>', render_page(self.view()))
+        self.assertIn('<title>구조 관제</title>', render_page(self.view({})))
+        self.assertIn("'[갱신 끊김] '", render_page(self.view()))   # set by the poller when updates stop
+
+    def test_elapsed_time_switches_to_days(self):
+        self.assertEqual([_elapsed(v) for v in (None, -1, 95, 3600 * 5 + 60 * 7, 86400 * 1060 + 3600 * 14 + 5)],
+                         ['—', '—', '1분 35초', '5시간 07분', '1060일 14시간'])
 
     def test_ages_read_at_a_glance(self):
         self.assertEqual([_age(v) for v in (None, 0.44, 59.9, 185, 7800, 91_616_778.5, -3.0)],
@@ -376,7 +397,16 @@ class FlaskBoundaryTests(AccountsFixture):
     def test_broken_ledger_is_a_visible_failure(self):
         client = self.app(self.dir / 'absent.sqlite3').test_client()
         self.login(client, *ADMIN)
-        self.assertEqual(client.get('/api/view').status_code, 503)
+        api = client.get('/api/view')
+        self.assertEqual(api.status_code, 503)
+        self.assertEqual(api.get_json()['error'], 'STORAGE_ERROR')
+        self.assertIn('파일 경로', api.get_json()['hint'])
+        page = client.get('/')
+        self.assertEqual(page.status_code, 503)
+        self.assertIn('화면을 그릴 수 없습니다', page.get_data(as_text=True))
+        fragment = client.get('/fragment')
+        self.assertEqual(fragment.status_code, 503)
+        self.assertTrue(fragment.get_data(as_text=True).startswith('STORAGE_ERROR: '))
         self.assertFalse((self.dir / 'absent.sqlite3').exists())
 
 
