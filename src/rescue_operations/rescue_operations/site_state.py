@@ -36,6 +36,10 @@ MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
+# Commands the console may send [제안, console-and-db-plan 4절 2026-10-10]. The gate that accepts or
+# rejects them is in the operations API; this table only keeps what was asked and what was answered.
+OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
+                                    "RETURN_HOME", "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
@@ -43,6 +47,8 @@ TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
+COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
+                "requested_at_ns", "accepted", "result", "reason"}
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 
 
@@ -167,6 +173,28 @@ def _mission(value):
     return mission
 
 
+def _command(value, allowed):
+    command = exact(value, COMMAND_KEYS, "operator command")
+    uid(command["command_id"], "command_id")
+    require(command["kind"] in OPERATOR_COMMAND_KINDS, "kind must be one of OPERATOR_COMMAND_KINDS")
+    text(command["operator_id"], "operator_id")
+    if command["robot_id"] is not None:
+        _member(command["robot_id"], allowed, "robot_id")
+    if command["target_id"] is not None:
+        uid(command["target_id"], "target_id")
+    for key in ("segment_index", "route_revision"):
+        if command[key] is not None:
+            uint(command[key], key)
+    timestamp(command["requested_at_ns"], "requested_at_ns")
+    require(type(command["accepted"]) is bool, "accepted must be boolean")
+    if command["result"] is not None:
+        text(command["result"], "result", 64)
+    if command["reason"] is not None:
+        text(command["reason"], "reason", 1024)
+    require(command["accepted"] or command["reason"] is not None, "a rejected command needs a reason")
+    return command
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -235,6 +263,20 @@ class SiteStateLedger(_Database):
                                 (entry["at_ns"], entry["robot_id"], entry["task_id"], entry["code"], entry["detail"]))
         return cursor.lastrowid
 
+    def record_operator_command(self, command):
+        """Append one console command and its answer, rejections included. Returns False for a resend."""
+        command = _command(command, self.allowed_robot_ids)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM operator_commands WHERE command_id = ?", (command["command_id"],)).fetchone()
+            if row is not None:
+                require(_command_row(row) == command, "command_id has different content", "ID_CONTENT_CONFLICT")
+                return False
+            db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
+                        command["target_id"], command["segment_index"], command["route_revision"],
+                        command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"]))
+        return True
+
     def record_mission_state(self, mission):
         """Replace the single mission row. Only a newer ``updated_at_ns`` replaces it."""
         mission = _mission(mission)
@@ -252,6 +294,10 @@ class SiteStateLedger(_Database):
                        (mission["mode"], mission["phase"], mission["trigger_event_id"], mission["started_at_ns"],
                         mission["generation"], mission["updated_at_ns"]))
         return True
+
+
+def _command_row(row):
+    return {key: row[key] for key in COMMAND_KEYS} | {"accepted": bool(row["accepted"])}
 
 
 def _read(db_path, query):
@@ -319,4 +365,15 @@ def read_mission_state(db_path):
     def query(db):
         row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
         return {"mission": None if row is None else {key: row[key] for key in MISSION_KEYS}}
+    return _read(db_path, query)
+
+
+def read_operator_commands(db_path, *, limit=100):
+    """Newest first; ``limit`` keeps the latest N commands."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT * FROM operator_commands ORDER BY requested_at_ns DESC, command_id DESC LIMIT ?",
+                          (limit,)).fetchall()
+        return {"commands": [_command_row(row) for row in rows]}
     return _read(db_path, query)
