@@ -1,12 +1,16 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # 기록 입력 기반 인식 코어
 
 계획 PR 7은 [C-02·03·05](../design/contracts.md), [D-06](../design/algorithm-decisions.md), [CT-01·02·03·10](../process/acceptance-plan.md)의 일부를 실행 가능한 순수 Python 로직으로 구현한다. RGB 픽셀에서 사람을 찾는 모델은 아직 없다. 입력은 이미 얻은 탐지 bbox/class와 RGB/Depth 메타데이터, 복호화된 깊이 배열이다. 이 PR에서 실제 YOLO, 가중치, ROS, CameraInfo 구독, TF, 카메라, 두 로봇을 실행하지 않았다.
+
+## AMR 학습 클래스 변경(2026-10-11)
+
+[사용자 요구] 이번 OAK-D 영상 학습의 단일 클래스는 기존 `person` 대신 `survivor`(class ID `0`)다. [수집·전처리·학습 계획](oakd-survivor-training-plan.md)에 `oakd/image_raw` 영상 촬영과 1초 간격 추출, 파라미터 비교·결과 docs 제출을 정리했다. 모델 추론과 학습 결과는 아직 NOT_RUN이다. 후속 연동은 모델 metadata·`ModelManifest.class_labels`·`ConfirmationPolicy.person_labels`·Detector 출력 label을 `survivor`로 일치시킨다. 기존 API 이름과 과거 person 합성 시험은 유지하며, survivor는 개별 인형 신원이나 생존 판정이 아니다.
 
 ## 입력과 광학 위치
 
@@ -49,12 +53,27 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 항목 | 규칙 |
 | --- | --- |
 | 모델 | `Detector` 인터페이스(`infer(rgb, observed_at_ns) -> Inference | None`) 뒤에 둔다. 가중치·런타임은 Q-18로 열려 있어 이 PR에 추론 구현이 없다. `RecordedDetections`는 프레임 stamp(int ns)별로 녹화된 탐지를 돌려주는 재생용 구현이다. 그 stamp에 기록이 없으면 `None`(모델이 돌지 않음)이고 빈 결과와 구별한다 |
-| 관측 | 사람 label(`ConfirmationPolicy.person_labels`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
+| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
 | 확정 | `CONFIRMED`는 `confidence ≥ confirm_confidence_min`이면서 위치가 `LOCATED`일 때만이다. 아니면 `UNCONFIRMED`이고 이유(`LOW_CONFIDENCE`, 위치 실패 이유)를 붙인다. 값은 Q-21이며 기본값이 없다. 미확정도 관측으로 남는다 |
 | 후보 표시 | `new_candidate`: 같은 track은 처음 한 번, 그리고 CONFIRMED로 오를 때 한 번 더 참이다. 내려가는 변화는 새 후보가 아니다. track이 없는 탐지는 프레임 사이를 이을 수 없어 매번 새 후보다(보수적 과분리) |
 | 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
 
 관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+
+## 탐지 클래스 이름: `survivor` (2026-10-11)
+
+요구조자(시연 인형)를 탐지하는 YOLO 모델의 클래스 이름은 **`survivor` 하나로 통일한다.** 고정 카메라 담당 지시(2026-10-11, 원문 "클래스명은 survivor로 한다", 적용 범위: 이 저장소의 모든 인형 탐지 모델과 학습 데이터).
+
+| 대상 | 규칙 |
+| --- | --- |
+| 적용 범위 | 고정 웹캠(출구 인형 카운트·구조 지점 감시)과 로봇 카메라(`person_pipeline`) 모두. 모델이 둘이어도 클래스 이름은 같다 |
+| 학습 데이터 | Roboflow 등 라벨링 도구의 클래스 이름도 `survivor`. `doll`·`teddy bear`·`person` 으로 라벨하지 않는다 |
+| 라벨 기준 | 시연 인형(요구조자 대체물) 한 개를 상자 하나로 감싼다. 구조대원·줄을 당기는 사람·끌개는 `survivor` 가 아니며 라벨하지 않는다(사람만 나온 프레임은 빈 이미지로 남긴다) |
+| 코드·설정 | 이름을 코드 상수로 두지 않는다. 모델 manifest 의 `ModelManifest.class_labels` 와 로봇 카메라의 `ConfirmationPolicy.person_labels` 에 `("survivor",)` 를 설정으로 넣는다(AGENTS.md 8절). 다른 이름이 오면 지금처럼 `MODEL_CLASS_MISMATCH` 로 거절된다 |
+| 사전학습 모델 | COCO 사전학습 모델은 인형을 `teddy bear` 로 낸다(2026-10-11 웹캠 확인). 확인용일 뿐 배포하지 않으며, `teddy bear` 를 `survivor` 로 바꿔 부르는 매핑을 두지 않는다. 배포 모델은 `survivor` 로 학습한 모델이다 |
+| 기록 | 학습한 모델은 `assets/manifest/` 에 출처·데이터셋 버전·가중치 해시와 함께 `class_labels: ["survivor"]` 를 적는다 |
+
+기존 시험의 `"person"`·`"dummy"`·`"doll"` 은 합성 입력의 임의 이름이라 그대로 둔다(클래스 이름이 설정으로만 들어온다는 것을 시험한다).
 
 ## 보수적 사건 후보
 
