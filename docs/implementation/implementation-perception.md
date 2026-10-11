@@ -1,7 +1,7 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # 기록 입력 기반 인식 코어
@@ -55,6 +55,21 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
 
 관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+
+## 탐지 클래스 이름: `survivor` (2026-10-11)
+
+요구조자(시연 인형)를 탐지하는 YOLO 모델의 클래스 이름은 **`survivor` 하나로 통일한다.** 고정 카메라 담당 지시(2026-10-11, 원문 "클래스명은 survivor로 한다", 적용 범위: 이 저장소의 모든 인형 탐지 모델과 학습 데이터).
+
+| 대상 | 규칙 |
+| --- | --- |
+| 적용 범위 | 고정 웹캠(출구 인형 카운트·구조 지점 감시)과 로봇 카메라(`person_pipeline`) 모두. 모델이 둘이어도 클래스 이름은 같다 |
+| 학습 데이터 | Roboflow 등 라벨링 도구의 클래스 이름도 `survivor`. `doll`·`teddy bear`·`person` 으로 라벨하지 않는다 |
+| 라벨 기준 | 시연 인형(요구조자 대체물) 한 개를 상자 하나로 감싼다. 구조대원·줄을 당기는 사람·끌개는 `survivor` 가 아니며 라벨하지 않는다(사람만 나온 프레임은 빈 이미지로 남긴다) |
+| 코드·설정 | 이름을 코드 상수로 두지 않는다. 모델 manifest 의 `ModelManifest.class_labels` 와 로봇 카메라의 `ConfirmationPolicy.person_labels` 에 `("survivor",)` 를 설정으로 넣는다(AGENTS.md 8절). 다른 이름이 오면 지금처럼 `MODEL_CLASS_MISMATCH` 로 거절된다 |
+| 사전학습 모델 | COCO 사전학습 모델은 인형을 `teddy bear` 로 낸다(2026-10-11 웹캠 확인). 확인용일 뿐 배포하지 않으며, `teddy bear` 를 `survivor` 로 바꿔 부르는 매핑을 두지 않는다. 배포 모델은 `survivor` 로 학습한 모델이다 |
+| 기록 | 학습한 모델은 `assets/manifest/` 에 출처·데이터셋 버전·가중치 해시와 함께 `class_labels: ["survivor"]` 를 적는다 |
+
+기존 시험의 `"person"`·`"dummy"`·`"doll"` 은 합성 입력의 임의 이름이라 그대로 둔다(클래스 이름이 설정으로만 들어온다는 것을 시험한다).
 
 ## 보수적 사건 후보
 
