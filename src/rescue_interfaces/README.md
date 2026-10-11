@@ -1,6 +1,6 @@
 # rescue_interfaces
 
-SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 19·서비스 4·액션 2의 정의만 둔다. 판단 로직은 없다. 채택 범위와 IDL 규칙은 [contracts C-10](../../docs/design/contracts.md)에 있다.
+SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 23·서비스 4·액션 2의 정의만 둔다. 판단 로직은 없다. 채택 범위와 IDL 규칙은 [contracts C-10](../../docs/design/contracts.md)에 있다.
 
 - 필드는 [`sdd-node-contracts-v0.1.json`](../../docs/design/sdd-node-contracts-v0.1.json)이 원본이다. 필드를 바꿀 때는 JSON 을 먼저 고친다. [`tests/test_interfaces_schema.py`](../../tests/test_interfaces_schema.py)가 이 폴더의 IDL 과 JSON·`CMakeLists.txt` 목록이 같은지 ROS 없이 검사한다.
 - ROS 메시지와 Python 값(`rescue_contracts`·각 패키지 dataclass)의 변환은 각 패키지의 ROS 경계 모듈이 맡으며, 이 패키지에는 변환기가 없다. `MOVE_SEGMENT`·`RETURN_HOME` 의 실행기 구현(어휘는 Python `TASK_KINDS` 에 있으나 `rescue_robot` 실행기는 아직 거절), #48 반영 전 `SiteEvent` 소실 후보, 장부와 구조가 다른 `EvidenceRef`·`ReportReceipt` 는 [C-10](../../docs/design/contracts.md)의 후속 연결 범위다. IDL 생성·import 성공을 기존 Python 값으로의 변환 성공으로 해석하지 않는다.
@@ -56,8 +56,8 @@ SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 19·서비스 4·액션 2
 | --- | --- | --- | --- | --- |
 | `/rescue/operator_command` | Service `SubmitOperatorCommand` (`operations` → `coordinator`) | operation(`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 승인자, 로봇, 대상, 예상 task·generation, 경로·구간 번호 | 접수 여부, created_task_id, approval_id. 접수일 뿐 이동 완료가 아님 | 1차 |
 | `/rescue/report_receipts` | Topic `ReportReceipt` (`operations` → 보고를 보낸 모든 노드) | DB 저장 뒤 PERSISTED | 받은 쪽이 재전송을 멈춤 | 1차 |
-| `/rescue/reports` | Topic `RescueReport` (`coordinator` → `operations`) | 구조 보고 묶음 | | 2차 |
-| `/rescue/targets`, `/rescue/system_state` | Topic `TargetSnapshot`·`SystemState` | 대상 전체 상태, 시스템 모드 | | 2차 |
+| `/rescue/reports` | Topic `RescueReport` (`coordinator` → `operations`) | 구조 보고 묶음 | | 1차 (2026-10-11) |
+| `/rescue/targets`, `/rescue/system_state` | Topic `TargetSnapshot`·`SystemState` | 대상 전체 상태, 시스템 모드·임무 단계·출동 구간 | | 1차 (2026-10-11) |
 | `/rescue/frame_alignments` | Topic `FrameAlignmentSnapshot` | 두 로봇 지도 정렬(Q-03·Q-09) | | 2차 |
 
 관제 웹 ↔ `operations` 는 ROS 가 아니라 HTTP·SSE 다(명세 「HTTP·웹 연결 정의」).
