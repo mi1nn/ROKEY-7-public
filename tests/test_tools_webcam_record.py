@@ -88,6 +88,47 @@ class WebcamRecordTests(unittest.TestCase):
         self.assertGreater(wr.CLIPS["S01"][1], wr.VAL_START_S)
         self.assertTrue(all(type(s) is int and s > 0 for _, s, _, _ in wr.SCENES))
 
+    def test_session_start_pause_resume(self):
+        s = wr.Session(10)
+        self.assertEqual(s.state, "WAIT")
+        with self.assertRaises(RuntimeError):
+            s.wrote_frame()  # 시작 전에는 쓰지 않는다
+        s.toggle()
+        for _ in range(20):
+            s.wrote_frame()
+        s.toggle()
+        self.assertEqual((s.state, s.video_s), ("PAUSE", 2.0))
+        with self.assertRaises(RuntimeError):
+            s.wrote_frame()  # 일시정지 중에도 쓰지 않는다 -> 영상 시간이 멈춘다
+        s.toggle()
+        s.wrote_frame()
+        self.assertEqual((s.state, s.frames), ("REC", 21))
+
+    def test_scene_markers_give_validation_start(self):
+        scenes = [("train", 5, "", "a"), ("train", 5, "", "b"), ("val", 5, "", "c")]
+        s = wr.Session(10, scenes)
+        s.move(1)  # 시작 전에 넘긴 장면은 시각을 남기지 않는다
+        s.move(-1)
+        s.toggle()
+        for step in (1, 1):
+            for _ in range(30):
+                s.wrote_frame()
+            s.move(step)
+        s.move(1)  # 마지막 장면에서 더 넘겨도 그대로
+        self.assertEqual([m["video_s"] for m in s.markers], [0.0, 3.0, 6.0])
+        self.assertEqual(s.val_start_s, 6.0)
+        for _ in range(15):
+            s.wrote_frame()
+        self.assertEqual(s.scene_s, 1.5)
+
+    def test_no_validation_marker_means_unknown(self):
+        s = wr.Session(30)
+        s.toggle()
+        self.assertIsNone(s.val_start_s)
+
+    def test_mmss(self):
+        self.assertEqual([wr.mmss(x) for x in (0, 59.9, 61, 370)], ["00:00", "00:59", "01:01", "06:10"])
+
     def test_only_checked_clips_count_as_done(self):
         with tempfile.TemporaryDirectory() as tmp:
             day = Path(tmp) / "20261011"

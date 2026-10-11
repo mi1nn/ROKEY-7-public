@@ -9,7 +9,8 @@
     python3 tools/webcam_record.py devices                            # 카메라 번호·이름
     python3 tools/webcam_record.py modes --device USB                 # 그 카메라가 지원하는 해상도·fps
     python3 tools/webcam_record.py preview --device USB --size 1280x720 --fps 30   # 구도 맞추기 (창 닫으면 끝)
-    python3 tools/webcam_record.py record --device USB --size 1280x720 --fps 30   # 시나리오 한 번에(S01)
+    python3 tools/webcam_record.py gui --camera 0 --size 1280x720 --fps 30      # 화면 보며 녹화(권장)
+    python3 tools/webcam_record.py record --device USB --size 1280x720 --fps 30   # 화면 없이 정해진 시간 녹화
     python3 tools/webcam_record.py split .artifacts/webcam_clips/<날짜>/S01-<시각>.mp4  # 학습·검증 자르기
     python3 tools/webcam_record.py status                             # 찍은 영상
 
@@ -30,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_ROOT = ROOT / ".artifacts" / "webcam_clips"
@@ -242,12 +244,218 @@ def cmd_record(args):
         raise SystemExit("요청과 다름 — 이 클립은 찍음으로 치지 않음: " + "; ".join(problems))
 
 
+FONT_PATHS = ("/System/Library/Fonts/AppleSDGothicNeo.ttc", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+              "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
+VIEW_MAX_W = 1280   # 미리보기 창의 최대 너비(녹화 영상에는 영향 없음)
+FPS_WARN = 0.10     # 실제 받은 fps 가 요청과 이 비율 넘게 다르면 그 영상은 "요청과 다름"
+
+
+class Session:
+    """GUI 녹화 상태. 화면·카메라 없이 시험된다.
+
+    WAIT(시작 전) -> REC <-> PAUSE. 일시정지 중에는 프레임을 쓰지 않으므로 영상 시간도 멈춘다.
+    장면 표시(``markers``)는 (장면 번호, 영상 시각 초) 로 남기고, 검증 장면에 처음 들어간 영상 시각이
+    ``val_start_s`` 다(split 이 이 값으로 자른다).
+    """
+
+    def __init__(self, fps, scenes=SCENES):
+        self.fps, self.scenes = fps, scenes
+        self.state, self.frames, self.scene = "WAIT", 0, 0
+        self.markers = []
+
+    @property
+    def video_s(self):
+        return self.frames / self.fps
+
+    def toggle(self):
+        """스페이스: 시작 / 일시정지 / 다시 시작."""
+        if self.state == "WAIT":
+            self.state = "REC"
+            self._mark()
+        else:
+            self.state = "PAUSE" if self.state == "REC" else "REC"
+
+    def wrote_frame(self):
+        if self.state != "REC":
+            raise RuntimeError("frame written while not recording")
+        self.frames += 1
+
+    def move(self, step):
+        """N(+1) / B(-1): 장면 넘기기. 녹화를 시작한 뒤에만 시각을 남긴다."""
+        new = min(max(self.scene + step, 0), len(self.scenes) - 1)
+        if new != self.scene:
+            self.scene = new
+            if self.state != "WAIT":
+                self._mark()
+
+    def _mark(self):
+        self.markers.append({"scene": self.scene, "split": self.scenes[self.scene][0],
+                             "video_s": round(self.video_s, 3)})
+
+    @property
+    def scene_s(self):
+        """지금 장면에서 찍은 영상 시간(초)."""
+        since = [m["video_s"] for m in self.markers if m["scene"] == self.scene]
+        return self.video_s - since[-1] if since and self.state != "WAIT" else 0.0
+
+    @property
+    def val_start_s(self):
+        hits = [m["video_s"] for m in self.markers if m["split"] == "val"]
+        return hits[0] if hits else None
+
+
+def mmss(seconds):
+    seconds = int(seconds)
+    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def _font_maker():
+    from PIL import ImageFont
+    for path in FONT_PATHS:
+        try:
+            ImageFont.truetype(path, 12)
+            return lambda size, path=path: ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    raise SystemExit("한글 글꼴을 찾지 못함: " + ", ".join(FONT_PATHS))
+
+
+def _overlay(frame, session, info, fonts):
+    """미리보기 화면 아래에 상태 띠를 그린다(녹화 영상에는 그리지 않는다)."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    import cv2
+    h, w = frame.shape[:2]
+    if w > VIEW_MAX_W:
+        frame = cv2.resize(frame, (VIEW_MAX_W, round(h * VIEW_MAX_W / w)))
+        h, w = frame.shape[:2]
+    band = 150
+    canvas = np.zeros((h + band, w, 3), dtype=np.uint8)
+    canvas[:h] = frame
+    img = Image.fromarray(canvas[:, :, ::-1])
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, h, w, h + band), fill=(28, 28, 32))
+    state = {"WAIT": ("대기 — 스페이스로 녹화 시작", (200, 200, 200)),
+             "REC": ("● 녹화 중", (255, 70, 70)), "PAUSE": ("❚❚ 일시정지", (255, 200, 60))}[session.state]
+    d.text((16, h + 10), state[0], font=fonts(28), fill=state[1])
+    planned = sum(sec for _, sec, _, _ in session.scenes)
+    d.text((w - 16, h + 10), f"{mmss(session.video_s)} / 계획 {mmss(planned)}", font=fonts(28),
+           fill=(255, 255, 255), anchor="ra")
+    split, sec, distance, what = session.scenes[session.scene]
+    color = (120, 200, 255) if split == "train" else (255, 160, 220)
+    d.text((16, h + 52), f"장면 {session.scene + 1}/{len(session.scenes)} [{'검증' if split == 'val' else '학습'}] "
+                         f"{mmss(session.scene_s)} / {mmss(sec)}  {distance}", font=fonts(20), fill=color)
+    d.text((16, h + 80), what, font=fonts(20), fill=(255, 255, 255))
+    if session.scene + 1 < len(session.scenes):
+        d.text((16, h + 110), "다음: " + session.scenes[session.scene + 1][3], font=fonts(16), fill=(150, 150, 150))
+    d.text((w - 16, h + 56), info, font=fonts(16), fill=(150, 150, 150), anchor="ra")
+    d.text((w - 16, h + 112), "스페이스 시작·일시정지   N 다음 장면   B 이전 장면   S 저장하고 끝", font=fonts(16),
+           fill=(150, 150, 150), anchor="ra")
+    if session.scene_s > sec and session.state == "REC":
+        d.rectangle((0, h, w, h + 4), fill=(255, 200, 60))  # 계획 시간을 넘김: N 으로 넘어갈 때
+    return np.asarray(img)[:, :, ::-1].copy()
+
+
+def cmd_gui(args):
+    import cv2
+    split, _, _, what = CLIPS[args.clip]
+    session = Session(args.fps)
+    fonts = _font_maker()
+    cap = cv2.VideoCapture(args.camera, cv2.CAP_AVFOUNDATION)
+    if not cap.isOpened():
+        raise SystemExit(f"카메라 {args.camera} 를 열 수 없음. 이 터미널 앱의 macOS 카메라 권한을 확인")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.size[0])
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.size[1])
+    cap.set(cv2.CAP_PROP_FPS, args.fps)
+    ok, frame = cap.read()
+    if not ok or (frame.shape[1], frame.shape[0]) != args.size:
+        got = "프레임 없음" if not ok else f"{frame.shape[1]}x{frame.shape[0]}"
+        cap.release()
+        raise SystemExit(f"요청 {args.size[0]}x{args.size[1]} 인데 카메라가 {got} 를 줌 — 다른 해상도로 찍지 않음")
+    now = datetime.now()
+    out = clip_path(args.clip, now)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    writer, rec_wall, rec_frames_wall = None, 0.0, 0
+    last = time.monotonic()
+    cv2.namedWindow("webcam record", cv2.WINDOW_AUTOSIZE)
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                print("카메라 프레임을 읽지 못함 — 저장하고 끝냄")
+                break
+            t = time.monotonic()
+            if session.state == "REC":
+                if writer is None:
+                    writer = subprocess.Popen(
+                        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24",
+                         "-s", f"{args.size[0]}x{args.size[1]}", "-r", f"{args.fps:g}", "-i", "-",
+                         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-y",
+                         str(out)], stdin=subprocess.PIPE)
+                writer.stdin.write(frame.tobytes())
+                session.wrote_frame()
+                rec_wall += t - last
+                rec_frames_wall += 1
+            last = t
+            measured = rec_frames_wall / rec_wall if rec_wall > 1 else None
+            info = (f"{args.size[0]}x{args.size[1]} 요청 {args.fps:g}fps"
+                    + (f" · 실제 {measured:.1f}fps" if measured else "") + f" · {out.name}")
+            cv2.imshow("webcam record", _overlay(frame, session, info, fonts))
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord(" "):
+                session.toggle()
+            elif key in (ord("n"), ord("N")):
+                session.move(1)
+            elif key in (ord("b"), ord("B")):
+                session.move(-1)
+            elif key in (ord("s"), ord("S"), ord("q"), ord("Q"), 27):
+                break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        if writer is not None:
+            writer.stdin.close()
+            writer.wait()
+    if writer is None:
+        print("녹화를 시작하지 않았음 — 저장할 것 없음")
+        return
+    measured = rec_frames_wall / rec_wall if rec_wall > 0 else 0.0
+    probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json",
+                                       str(out)], capture_output=True, text=True, check=True).stdout)
+    problems = check_actual(probe, args.size, args.fps)
+    if abs(measured - args.fps) > FPS_WARN * args.fps:
+        # 영상은 요청 fps 로 저장되므로 실제로 덜 받았으면 재생이 빨라진다
+        problems.append(f"카메라에서 실제로 받은 fps {measured:.1f} 가 요청 {args.fps:g} 와 다름(재생 속도가 틀림)")
+    meta = {"clip": args.clip, "split": split, "what": what, "note": args.note, "ok": not problems,
+            "problems": problems, "device": {"opencv_index": args.camera},
+            "requested": {"width": args.size[0], "height": args.size[1], "fps": args.fps},
+            "measured_fps": round(measured, 2), "frames": session.frames, "duration_s": round(session.video_s, 2),
+            "markers": session.markers, "val_start_s": session.val_start_s,
+            "recorded_at": now.isoformat(timespec="seconds"), "file": out.name, "sha256": sha256(out),
+            "git_sha": git_sha(), "ffmpeg": _ffmpeg("-version").stdout.splitlines()[0]}
+    out.with_suffix(".json").write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+    print(f"저장: {out.relative_to(ROOT)} ({session.video_s:.1f}초, 실제 {measured:.1f}fps)")
+    if session.val_start_s is None:
+        print("검증 장면 표시가 없음 — split 할 때 --at 으로 검증 시작 초를 직접 넣는다")
+    else:
+        print(f"검증 구간 시작: {session.val_start_s:.1f}초 (split 이 이 값을 쓴다)")
+    if problems:
+        raise SystemExit("요청과 다름 — 이 영상은 찍음으로 치지 않음: " + "; ".join(problems))
+
+
 def cmd_split(args):
     """찍은 영상을 학습 구간과 검증 구간 두 파일로 자른다(다시 인코딩해 자르는 시각이 정확하다)."""
     src = Path(args.file)
     if not src.exists():
         raise SystemExit(f"파일 없음: {src}")
-    at = VAL_START_S if args.at is None else args.at
+    meta = src.with_suffix(".json")
+    recorded = json.loads(meta.read_text()).get("val_start_s") if meta.exists() else None
+    if args.at is not None:
+        at = args.at
+    elif recorded is not None:
+        at = recorded  # gui 에서 검증 장면으로 넘어간 시각
+    else:
+        raise SystemExit("검증 시작 시각을 모름 — --at <초> 로 넣는다(gui 로 찍으면 자동)")
     for part, extra in (("train", ["-t", str(at)]), ("val", ["-ss", str(at)])):
         out = src.with_name(f"{src.stem}-{part}.mp4")
         run = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(src), *extra,
@@ -272,9 +480,16 @@ def main(argv=None):
     sub.add_parser("checklist", help="촬영할 클립 목록").set_defaults(fn=cmd_checklist)
     sub.add_parser("devices", help="카메라 번호·이름").set_defaults(fn=cmd_devices)
     sub.add_parser("status", help="찍은 클립 / 남은 클립").set_defaults(fn=cmd_status)
+    p = sub.add_parser("gui", help="화면을 보며 녹화(스페이스 시작·일시정지, N 다음 장면, S 저장)")
+    p.add_argument("--camera", type=int, default=0, help="OpenCV 카메라 번호")
+    p.add_argument("--size", type=parse_size, required=True, help="예: 1280x720")
+    p.add_argument("--fps", type=float, required=True)
+    p.add_argument("--clip", default="S01", choices=sorted(CLIPS))
+    p.add_argument("--note", default="", help="메모(누가 당겼는지, 조명 등)")
+    p.set_defaults(fn=cmd_gui)
     p = sub.add_parser("split", help="찍은 영상을 학습·검증 두 파일로 자르기")
     p.add_argument("file", help="record 가 만든 .mp4")
-    p.add_argument("--at", type=int, help=f"검증 시작 초(기본 {VAL_START_S})")
+    p.add_argument("--at", type=float, help="검증 시작 초(없으면 gui 기록의 값)")
     p.set_defaults(fn=cmd_split)
     p = sub.add_parser("modes", help="지원 해상도·fps")
     p.add_argument("--device", required=True)
