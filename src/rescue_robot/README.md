@@ -199,6 +199,7 @@ UNKNOWN/거절이다. formula는 [chrony 공식 문서](https://chrony-project.o
 IDL/Jazzy, 중앙/지도/clock/protection 입력, Nav2 종료와 fresh odom 정지, watchdog 최종 속도
 배선을 현장에서 확인해야 한다. 별도 사이트 runtime 코드 작성 요청으로 미루지 않는다.
 
+
 ## 수색용 입력 축소 (2026-10-11)
 
 [사용자 요구, 2026-10-11] “그러면 줄여줘. 너무 과하잖아”. 적용 범위는
@@ -222,8 +223,8 @@ IDL/Jazzy, 중앙/지도/clock/protection 입력, Nav2 종료와 fresh odom 정�
 | destinations | 수색 UUID 또는 home_ref를 키로 하는 공통 임무 좌표 [x, y, yaw] |
 
 단일 지도·목적지 기준을 한 번 기록한다. 지도 관측 시각과 목적지의 시각·로봇·지도
-버전, 변환의 유효기간을 따로 반복하지 않는다. 하나의 목적지 기준으로 기존 37개
-말단 필드에서 25개로 줄고 targets/approvals/protected_routes 빈 객체도 필요 없다.
+버전, 변환의 유효기간을 따로 반복하지 않는다. 하나의 목적지 기준으로 기존 36개
+말단 필드에서 24개로 줄고 targets/approvals/protected_routes 빈 객체도 필요 없다.
 지도 권한은 runtime.mapping_authority, 지도 clock domain은 clock.domain_id를 사용한다.
 공통 mission_frame과 정책 수치는 여전히 runtime.json에서 정한다.
 

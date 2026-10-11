@@ -8,12 +8,14 @@ import argparse
 import json
 from pathlib import Path
 
-from rescue_robot.task_site_runtime import atomic_json, InputStore
+from rescue_robot.task_site_runtime import atomic_json, InputStore, SEARCH_INPUT_FORMAT
 
 
-def prepare(directory,*,robot_id,namespace,settings=None):
+def prepare(directory,*,robot_id,namespace,settings=None,input_mode='search'):
     if not robot_id or not namespace.startswith('/') or namespace=='/' or '//' in namespace:
         raise ValueError('explicit logical robot_id and physical namespace required')
+    if input_mode not in ('search','full'):
+        raise ValueError('input_mode must be search or full')
     root=Path(directory).resolve(); root.mkdir(parents=True,exist_ok=True)
     c=dict(format='rescue-robot-runtime/1',robot_id=robot_id,mission_frame=None,schema_version=None,
         publisher_id=None,clock_error_bound_ns=None,lease=dict(duration_s=None,max_age_ns=None,
@@ -38,9 +40,17 @@ def prepare(directory,*,robot_id,namespace,settings=None):
     atomic_json(root/'runtime.json',c)
     # Preserve live inputs during regeneration; do not reset/refill them.
     if not (root/'inputs.json').exists():
-        atomic_json(root/'inputs.json',dict(format='rescue-robot-inputs/1',generated_at_ns=0,valid_until_ns=0,
+        snapshot=dict(format=SEARCH_INPUT_FORMAT if input_mode=='search' else 'rescue-robot-inputs/1',
+            generated_at_ns=0,valid_until_ns=0,
             clock=dict(domain_id=None,state='UNKNOWN',error_bound_ns=None,epoch_id=None,valid_until_ns=0),
-            authority={},maps={},targets={},approvals={},protected_routes={},destinations={}))
+            authority={},destinations={})
+        if input_mode=='full':
+            snapshot.update(maps={},targets={},approvals={},protected_routes={})
+        else:
+            snapshot['map']=dict(map_frame=None,map_session_id=None,map_revision=None,
+                map_update_sequence=None,localization_status='UNKNOWN',transform_revision=None,
+                transform_xy_yaw=None,position_error_m=None,rotation_error_rad=None,evidence_id=None)
+        atomic_json(root/'inputs.json',snapshot)
     params={'task.runtime_factory':'rescue_robot.task_site_runtime:create_runtime',
             'task.runtime_config':str(root/'runtime.json')}
     # JSON is also valid YAML. This overlays existing adapter parameters without
@@ -59,9 +69,11 @@ def main(args=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory',required=True); parser.add_argument('--robot-id',required=True)
     parser.add_argument('--namespace',required=True); parser.add_argument('--settings',help='explicit agreed runtime settings JSON')
+    parser.add_argument('--input-mode',choices=('search','full'),default='search',
+                        help='small single-robot search snapshot, or full target/approval inputs')
     opt=parser.parse_args(args)
     settings=json.loads(Path(opt.settings).read_text()) if opt.settings else None
-    report=prepare(opt.directory,robot_id=opt.robot_id,namespace=opt.namespace,settings=settings)
+    report=prepare(opt.directory,robot_id=opt.robot_id,namespace=opt.namespace,settings=settings,input_mode=opt.input_mode)
     print(json.dumps(report,ensure_ascii=False)); return 0 if report['status']=='CONFIGURED_ONLY' else 3
 
 

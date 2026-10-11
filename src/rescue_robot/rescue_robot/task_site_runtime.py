@@ -43,6 +43,28 @@ def positive_ns(value,name):
     return value
 
 
+SEARCH_INPUT_FORMAT = 'rescue-robot-search-inputs/1'
+
+
+def search_snapshot(data, config):
+    """One robot and one verified interval; never derive freshness from reading.
+
+    The producer confirms the complete snapshot together. Independent source
+    observation times must use the existing full format instead.
+    """
+    robot = config['robot_id']
+    start, until = data['generated_at_ns'], data['valid_until_ns']
+    mapping = dict(data['map'], observed_at_ns=start, valid_until_ns=until,
+        valid_from_ns=start, transform_valid_until_ns=until,
+        authority_id=config['mapping_authority'], clock_domain_id=data['clock']['domain_id'])
+    destinations = {ref: dict(robot_id=robot, xy_yaw=pose,
+        map_session_id=mapping['map_session_id'], map_revision=mapping['map_revision'],
+        transform_revision=mapping['transform_revision'], observed_at_ns=start, valid_until_ns=until)
+        for ref, pose in data['destinations'].items()}
+    return dict(data, maps={robot: mapping}, destinations=destinations,
+                targets={}, approvals={}, protected_routes={})
+
+
 class InputStore:
     """Freshness-checked facade used by both phase-one gate and goal binder."""
     def __init__(self,config,*,wall_clock_ns=time.time_ns,read=None):
@@ -75,9 +97,11 @@ class InputStore:
         self._last_time=now
         try: data=self.read()
         except (OSError,ValueError) as exc: raise ContractError('trusted input unavailable','NOT_AUTHORIZED') from exc
-        if not isinstance(data,dict) or data.get('format')!='rescue-robot-inputs/1':
+        if not isinstance(data,dict) or data.get('format') not in ('rescue-robot-inputs/1', SEARCH_INPUT_FORMAT):
             raise ContractError('input snapshot format')
         self._window(data['generated_at_ns'],data['valid_until_ns'],now)
+        if data['format'] == SEARCH_INPUT_FORMAT:
+            data = search_snapshot(data, self.config)
         return data
 
     def clock_basis(self):
@@ -178,7 +202,11 @@ class SiteRuntime:
         self.install_live_authority_guard()
 
     def _issuer_rejection(self,message,*,boot_field):
-        a=self.inputs.current()['authority']; e=message.envelope
+        data=self.inputs.current()
+        if (data['format'] == SEARCH_INPUT_FORMAT and getattr(message,'kind',None) is not None
+                and message.kind not in ('SEARCH_AREA','RETURN_HOME','HOLD')):
+            return 'SEARCH_INPUT_KIND_UNSUPPORTED'
+        a=data['authority']; e=message.envelope
         checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
             (getattr(message,boot_field)==a['robot_boot_id']==self.adapter.executor.robot_boot_id,
              'ROBOT_BOOT_ID_MISMATCH'),
