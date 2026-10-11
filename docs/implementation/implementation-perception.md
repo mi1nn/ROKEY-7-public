@@ -42,6 +42,20 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 이 registry는 단일 프로세스의 E2 기록이다. 영속 dedup, 재시작 복구, 시계의 순방향 급변 감지, 소스 재등록/활성 boot fencing, 수신 메모리 상한·감사 저장·transport 재연결은 미구현이다. 소비자는 admission 당시의 유효성을 영구 허가로 쓰지 않고 실제 사용 시점에 freshness·좌표·권한을 다시 검사해야 한다. 인터페이스 dataclass는 신뢰 경계나 서명이 아니며 외부 입력 adapter의 검증을 대체하지 않는다.
 
+## 로봇 카메라 사람 탐지 파이프라인 (E2)
+
+`rescue_perception.person_pipeline`은 로봇 카메라 한 스트림의 프레임마다 탐지기 → 위치 → 관측 → 확정 여부를 잇는다. 주행·임무·관측 간 병합은 하지 않는다.
+
+| 항목 | 규칙 |
+| --- | --- |
+| 모델 | `Detector` 인터페이스(`infer(rgb, observed_at_ns) -> Inference | None`) 뒤에 둔다. 가중치·런타임은 Q-18로 열려 있어 이 PR에 추론 구현이 없다. `RecordedDetections`는 프레임 stamp(int ns)별로 녹화된 탐지를 돌려주는 재생용 구현이다. 그 stamp에 기록이 없으면 `None`(모델이 돌지 않음)이고 빈 결과와 구별한다 |
+| 관측 | 사람 label(`ConfirmationPolicy.person_labels`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
+| 확정 | `CONFIRMED`는 `confidence ≥ confirm_confidence_min`이면서 위치가 `LOCATED`일 때만이다. 아니면 `UNCONFIRMED`이고 이유(`LOW_CONFIDENCE`, 위치 실패 이유)를 붙인다. 값은 Q-21이며 기본값이 없다. 미확정도 관측으로 남는다 |
+| 후보 표시 | `new_candidate`: 같은 track은 처음 한 번, 그리고 CONFIRMED로 오를 때 한 번 더 참이다. 내려가는 변화는 새 후보가 아니다. track이 없는 탐지는 프레임 사이를 이을 수 없어 매번 새 후보다(보수적 과분리) |
+| 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
+
+관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+
 ## 보수적 사건 후보
 
 `ConservativeEventRegistry.register(admission, event_id=..., candidate_event_ids=...)`는 수신한 관측별로 별도 CANDIDATE를 만든다. 같은 관측을 재등록하면 같은 사건을 반환하며 event ID/연결 목록 또는 원 payload가 달라지면 충돌이다. REORDERED 관측은 새 사건 입력으로 수락하지 않는다. 같은 frame의 다른 사람, 다른 로봇의 같은 track ID, track 없는 관측은 각각 별도 사건이다.
@@ -106,6 +120,17 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 **소스 정보는 밖에서 넣는다.** `SourceBinding`은 `source_robot`·`source_camera`·`source_boot_id`·clock domain·**스트림별** stamp 의미·`calibration_id`·clock 상태·오차 상한을 가진다. 어댑터는 토픽 이름이나 메시지 내용으로 이것을 추정하지 않는다. `source_robot=None`(로봇이 아닌 소스, 예: 고정 카메라)이면 `LocalizationResult`까지만 만들고 `observation=None`, `observation_blocked="SOURCE_IDENTITY_UNDEFINED"`를 돌려준다. 지금 `Observation` 계약에는 로봇 식별만 있으므로, 고정 카메라의 식별은 공통 계약이 정할 때까지 임시 값으로 채우지 않는다. 그때도 `FrameMeta`·`LocalizationResult`를 그대로 입력으로 쓸 수 있게 두 단계를 나눴다.
 
 시험은 `tests/test_perception_adapter.py`(14개)다. 2026-10-08 기준 녹화 bag이 없어 **모든 입력이 합성**이다. 실제 epoch `1700000000123456789` ns가 헤더 → `FrameMeta` → `Observation`까지 리터럴로 같은지, 정렬·시각·깊이 실패 7종이 위치 없이 관측으로 남는지, 중복·역순 입력이 `last_new_receive`와 `valid_until_ns`를 바꾸지 않는지를 확인한다. **실시간 성능은 미검증(NOT_RUN)이다:** Depth 바이트 전수 디코딩과 `DepthFrame` 전수 검사가 모두 Python 루프다.
+
+## 녹화(rosbag2) 재생 도구
+
+`tools/perception_bag_replay.py`는 rosbag2 녹화를 위 입력 어댑터에 그대로 넣는다. 로봇·ROS 그래프·모델 없이 돈다. bag을 읽으려면 ROS 2 Python 패키지(`rosbag2_py`, `rclpy`, `rosidl_runtime_py`, `vision_msgs`)가 필요하다.
+
+- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다.
+- `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
+- `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
+- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`(4개)로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+
+실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
 
 ## 실제 카메라 연결 조건
 

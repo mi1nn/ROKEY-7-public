@@ -245,9 +245,12 @@ class SearchCoordinatorTests(unittest.TestCase):
         self.assertEqual(1, len(c.approach_tasks))
 
     def test_approach_reservation_without_path_candidate_is_impossible(self):
-        for kind in ('APPROACH_TARGET', 'REOBSERVE_TARGET'):
+        for kind in ('APPROACH_TARGET', 'REOBSERVE_TARGET', 'MOVE_SEGMENT'):
             with self.assertRaises(CoordinationError):
                 Reservation(uid(1), uid(2), 0, 'unit_2', 0, EPOCH, None, uid(3), BOOT['unit_2'], task_kind=kind)
+        # RETURN_HOME, like SEARCH_AREA/HOLD, is not a target task and may carry no path candidate.
+        self.assertEqual('RETURN_HOME', Reservation(uid(1), uid(2), 0, 'unit_2', 0, EPOCH, None, uid(3), BOOT['unit_2'],
+                                                   task_kind='RETURN_HOME').task_kind)
         with self.assertRaises(CoordinationError):  # default kind is a target task
             Reservation(uid(1), uid(2), 0, 'unit_2', 0, EPOCH, None, uid(3), BOOT['unit_2'])
         with self.assertRaises(CoordinationError):

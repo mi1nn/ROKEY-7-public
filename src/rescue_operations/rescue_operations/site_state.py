@@ -1,4 +1,4 @@
-"""Operations-owned site state for the control screen (BRD Part I 3.7.1~3.7.3).
+"""Operations-owned site state for the control screen (BRD Part I 3.7.1~3.7.4).
 
 A separate SQLite file from the report ledger, so the fixed report schema 1.0
 and its reopen policy are untouched. One writer (operations); readers open it
@@ -17,23 +17,67 @@ import math
 import sqlite3
 import time
 
-from rescue_contracts import RESCUE_STATES, ROBOT_ROLES, SiteEvent
+from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
 
 from .ledger import _Database, _limit, _path
-from .schema import (OperationsError, allowed_robots, canonical, exact, require, text, timestamp,
+from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+# A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
+UPGRADES_FROM = frozenset({"1.0"})
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
+# Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
+# vocabulary written by operations from coordinator results; the coordinator owns the decisions.
+MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
+MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
+                            "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
+                            "RECHECK_NEEDED", "RETURNING", "FINISHED"})
+# Commands the console may send [제안, console-and-db-plan 4절 2026-10-10]. The gate that accepts or
+# rejects them is in the operations API; this table only keeps what was asked and what was answered.
+OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
+                                    "RETURN_HOME", "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
+ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
+COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
+                "requested_at_ns", "accepted", "result", "reason"}
+MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
+MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
+
+
+# 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절).
+TABLES = (
+    """CREATE TABLE IF NOT EXISTS robot_status (
+        robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
+        stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS site_events (
+        event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
+        event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS target_states (
+        target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS error_log (
+        seq INTEGER PRIMARY KEY, at_ns INTEGER NOT NULL, robot_id TEXT, task_id TEXT,
+        code TEXT NOT NULL, detail TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS mission_state (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
+        trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER NOT NULL,
+        updated_at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS operator_commands (
+        command_id TEXT PRIMARY KEY, kind TEXT NOT NULL, operator_id TEXT NOT NULL, robot_id TEXT,
+        target_id TEXT, segment_index INTEGER, route_revision INTEGER, requested_at_ns INTEGER NOT NULL,
+        accepted INTEGER NOT NULL, result TEXT, reason TEXT)""",
+    """CREATE TABLE IF NOT EXISTS map_snapshots (
+        snapshot_id TEXT PRIMARY KEY, robot_id TEXT NOT NULL, revision INTEGER NOT NULL,
+        path TEXT NOT NULL, sha256 TEXT NOT NULL, at_ns INTEGER NOT NULL)""",
+)
 
 
 def _finite(value, label):
@@ -104,25 +148,72 @@ def _target_state(value, allowed):
     return state
 
 
+def _error_entry(value, allowed):
+    entry = exact(value, ERROR_KEYS, "error entry")
+    timestamp(entry["at_ns"], "at_ns")
+    if entry["robot_id"] is not None:
+        _member(entry["robot_id"], allowed, "robot_id")
+    if entry["task_id"] is not None:
+        uid(entry["task_id"], "task_id")
+    # C-09: consumers branch on the common code; the qualified cause belongs in detail.
+    require(entry["code"] in CANONICAL_CODES, "code must be a C-09 common code (rescue_contracts.CANONICAL_CODES)")
+    text(entry["detail"], "detail", 1024)
+    return entry
+
+
+def _mission(value):
+    mission = exact(value, MISSION_KEYS, "mission state")
+    require(mission["mode"] in MISSION_MODES, "mode must be NORMAL or DISASTER")
+    require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
+    _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
+    if mission["trigger_event_id"] is not None:
+        uid(mission["trigger_event_id"], "trigger_event_id")
+        timestamp(mission["started_at_ns"], "started_at_ns")
+    uint(mission["generation"], "generation")
+    timestamp(mission["updated_at_ns"], "updated_at_ns")
+    return mission
+
+
+def _command(value, allowed):
+    command = exact(value, COMMAND_KEYS, "operator command")
+    uid(command["command_id"], "command_id")
+    require(command["kind"] in OPERATOR_COMMAND_KINDS, "kind must be one of OPERATOR_COMMAND_KINDS")
+    text(command["operator_id"], "operator_id")
+    if command["robot_id"] is not None:
+        _member(command["robot_id"], allowed, "robot_id")
+    if command["target_id"] is not None:
+        uid(command["target_id"], "target_id")
+    for key in ("segment_index", "route_revision"):
+        if command[key] is not None:
+            uint(command[key], key)
+    timestamp(command["requested_at_ns"], "requested_at_ns")
+    require(type(command["accepted"]) is bool, "accepted must be boolean")
+    if command["result"] is not None:
+        text(command["result"], "result", 64)
+    if command["reason"] is not None:
+        text(command["reason"], "reason", 1024)
+    require(command["accepted"] or command["reason"] is not None, "a rejected command needs a reason")
+    return command
+
+
+def _map_snapshot(value, allowed):
+    snapshot = exact(value, MAP_KEYS, "map snapshot")
+    uid(snapshot["snapshot_id"], "snapshot_id")
+    _member(snapshot["robot_id"], allowed, "robot_id")
+    uint(snapshot["revision"], "revision")
+    text(snapshot["path"], "path", 1024)
+    sha(snapshot["sha256"], "sha256")
+    timestamp(snapshot["at_ns"], "at_ns")
+    return snapshot
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
     def __init__(self, db_path, *, allowed_robot_ids):
         self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
-        super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)})
-        try:
-            with self._transaction() as db:
-                db.execute("""CREATE TABLE IF NOT EXISTS robot_status (
-                    robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
-                    stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
-                db.execute("""CREATE TABLE IF NOT EXISTS site_events (
-                    event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
-                    event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""")
-                db.execute("""CREATE TABLE IF NOT EXISTS target_states (
-                    target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""")
-        except BaseException:
-            self.close()
-            raise
+        super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)},
+                         schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES)
 
     def record_robot_status(self, status):
         """Store the latest snapshot. Returns False for a stale or identical resend."""
@@ -176,6 +267,64 @@ class SiteStateLedger(_Database):
                        (state["target_id"], state["updated_at_ns"], encoded))
         return True
 
+    def record_error(self, entry):
+        """Append one failure (BRD 3.7.4). Every call is a new row; returns its ``seq``."""
+        entry = _error_entry(entry, self.allowed_robot_ids)
+        with self._transaction() as db:
+            cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail) VALUES (?, ?, ?, ?, ?)",
+                                (entry["at_ns"], entry["robot_id"], entry["task_id"], entry["code"], entry["detail"]))
+        return cursor.lastrowid
+
+    def record_operator_command(self, command):
+        """Append one console command and its answer, rejections included. Returns False for a resend."""
+        command = _command(command, self.allowed_robot_ids)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM operator_commands WHERE command_id = ?",
+                             (command["command_id"],)).fetchone()
+            if row is not None:
+                require(_command_row(row) == command, "command_id has different content", "ID_CONTENT_CONFLICT")
+                return False
+            db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
+                        command["target_id"], command["segment_index"], command["route_revision"],
+                        command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"]))
+        return True
+
+    def record_map_snapshot(self, snapshot):
+        """Append one stored map image (IF-084). Returns False for a resend."""
+        snapshot = _map_snapshot(snapshot, self.allowed_robot_ids)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM map_snapshots WHERE snapshot_id = ?", (snapshot["snapshot_id"],)).fetchone()
+            if row is not None:
+                require(dict(row) == snapshot, "snapshot_id has different content", "ID_CONTENT_CONFLICT")
+                return False
+            db.execute("INSERT INTO map_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+                       (snapshot["snapshot_id"], snapshot["robot_id"], snapshot["revision"], snapshot["path"],
+                        snapshot["sha256"], snapshot["at_ns"]))
+        return True
+
+    def record_mission_state(self, mission):
+        """Replace the single mission row. Only a newer ``updated_at_ns`` replaces it."""
+        mission = _mission(mission)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
+            if row is not None:
+                if mission["updated_at_ns"] == row["updated_at_ns"]:
+                    require({key: row[key] for key in MISSION_KEYS} == mission,
+                            "same mission time with different content", "ID_CONTENT_CONFLICT")
+                    return False
+                if mission["updated_at_ns"] < row["updated_at_ns"]:
+                    return False
+            db.execute("""INSERT OR REPLACE INTO mission_state (singleton, mode, phase, trigger_event_id,
+                started_at_ns, generation, updated_at_ns) VALUES (1, ?, ?, ?, ?, ?, ?)""",
+                       (mission["mode"], mission["phase"], mission["trigger_event_id"], mission["started_at_ns"],
+                        mission["generation"], mission["updated_at_ns"]))
+        return True
+
+
+def _command_row(row):
+    return {key: row[key] for key in COMMAND_KEYS} | {"accepted": bool(row["accepted"])}
+
 
 def _read(db_path, query):
     """Open read-only, check role/schema/policy, run ``query(db)``; never create the file."""
@@ -187,7 +336,7 @@ def _read(db_path, query):
         db.execute("PRAGMA query_only = ON")
         metadata = dict(db.execute("SELECT key, value FROM metadata"))
         require(metadata.get("role") == ROLE and metadata.get("schema") == SCHEMA_VERSION,
-                "not an operations site-state schema 1.0 database", "POLICY_MISMATCH")
+                "not an operations site-state schema " + SCHEMA_VERSION + " database", "POLICY_MISMATCH")
         try:
             allowed_robots(json.loads(metadata["allowed_robot_ids"]))
         except (KeyError, ValueError, TypeError) as exc:
@@ -223,4 +372,45 @@ def read_target_states(db_path):
     def query(db):
         rows = db.execute("SELECT state_json FROM target_states ORDER BY target_id").fetchall()
         return {"targets": [json.loads(row["state_json"]) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_error_log(db_path, *, limit=100):
+    """Newest first; ``limit`` keeps the latest N entries."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT seq, at_ns, robot_id, task_id, code, detail FROM error_log "
+                          "ORDER BY at_ns DESC, seq DESC LIMIT ?", (limit,)).fetchall()
+        return {"errors": [dict(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_mission_state(db_path):
+    """The single mission row, or None before operations has written one."""
+    def query(db):
+        row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
+        return {"mission": None if row is None else {key: row[key] for key in MISSION_KEYS}}
+    return _read(db_path, query)
+
+
+def read_operator_commands(db_path, *, limit=100):
+    """Newest first; ``limit`` keeps the latest N commands."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT * FROM operator_commands ORDER BY requested_at_ns DESC, command_id DESC LIMIT ?",
+                          (limit,)).fetchall()
+        return {"commands": [_command_row(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_map_snapshots(db_path, *, limit=100):
+    """Newest first. The image bytes stay in the file at ``path``; check them against ``sha256``."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT * FROM map_snapshots ORDER BY at_ns DESC, snapshot_id DESC LIMIT ?",
+                          (limit,)).fetchall()
+        return {"maps": [dict(row) for row in rows]}
     return _read(db_path, query)

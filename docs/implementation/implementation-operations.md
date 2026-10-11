@@ -153,9 +153,9 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 `OperationsError`는 공통 `RescueError`이며 `.code`는 C-09, `.detail_code`는 `rescue_operations.<원 세부 코드>`다. 예를 들어 저장 실패는 `REPORT_NOT_PERSISTED`/`rescue_operations.STORAGE_ERROR`로 표현한다. `tests/test_review_operations.py`는 사용자 지정 ID, 알 수 없는 원본/수행 로봇, 정책 불변·재오픈 불일치·기존 metadata 부재를 실제 임시 SQLite로 검사한다. 기존 실행 증거·source hash는 수정하지 않는다.
 
-## 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1~3.7.3, 2026-10-08)
+## 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1~3.7.4, 2026-10-08, 1.1 은 2026-10-11)
 
-관제·화면이 읽을 로봇 상태, 현장 사건·출구 카운트, 대상 상태를 `rescue_operations/site_state.py`에 둔다. 보고 장부와는 **다른 SQLite 파일**(metadata `role=operations-site-state`, `schema=1.0`)이다. 보고 스키마 1.0과 재오픈 정책은 바꾸지 않는다. 쓰는 쪽은 operations 하나다. 읽는 쪽은 `mode=ro`·`query_only`로 열고, 없는 파일을 만들지 않는다. 단, WAL 모드 DB를 읽기 전용으로 열어도 SQLite가 빈 `-wal`·`-shm` 파일을 만들 수 있다. 본문 파일 바이트는 바뀌지 않는다(관제·화면 확인, 2026-10-08). 시험은 본문 바이트 불변과 없는 DB 미생성만 검사한다.
+관제·화면이 읽을 로봇 상태, 현장 사건·출구 카운트, 대상 상태를 `rescue_operations/site_state.py`에 둔다. 보고 장부와는 **다른 SQLite 파일**(metadata `role=operations-site-state`, `schema=1.1`)이다. 쓰는 쪽이 1.0 파일을 열면 같은 트랜잭션에서 빠진 표를 더하고 schema 를 올린다(열 삭제 없음, [db-schema](../design/db-schema.md) 4절). 읽기 함수는 1.1 파일만 받는다. 보고 스키마 1.0과 재오픈 정책은 바꾸지 않는다. 쓰는 쪽은 operations 하나다. 읽는 쪽은 `mode=ro`·`query_only`로 열고, 없는 파일을 만들지 않는다. 단, WAL 모드 DB를 읽기 전용으로 열어도 SQLite가 빈 `-wal`·`-shm` 파일을 만들 수 있다. 본문 파일 바이트는 바뀌지 않는다(관제·화면 확인, 2026-10-08). 시험은 본문 바이트 불변과 없는 DB 미생성만 검사한다.
 
 | 함수 | 반환 | 규칙 |
 | --- | --- | --- |
@@ -163,10 +163,18 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `.record_robot_status(dict)` | 저장했으면 `True` | 로봇당 최신 1행. 같은 boot에서는 sequence가 큰 것만 받는다. 같은 sequence에 다른 내용이면 `ID_CONTENT_CONFLICT`. 다른 boot는 `stamp_ns`가 더 클 때만 받는다(늦게 온 이전 boot 메시지 차단). 배터리 값·시각, 활성 task·generation은 짝으로만 있음 |
 | `.record_site_event(SiteEvent)` | 저장했으면 `True` | 사건 ID별 추가만 한다. 같은 내용 재전송은 `False`, 다른 내용은 `ID_CONTENT_CONFLICT` |
 | `.record_target_state(dict)` | 저장했으면 `True` | 대상당 최신 1행. `updated_at_ns`가 더 큰 것만 받는다. 보류 사유는 `RECHECK_NEEDED`일 때만 있다. `support_robot_id`는 `support_state=NONE`일 때만 None |
+| `.record_error(dict)` | 새 행의 `seq` | 오류 이력(3.7.4), 추가 전용. 키 `at_ns, robot_id, task_id, code, detail`. `code` 는 C-09 `CANONICAL_CODES` 만, 세부 원인은 `detail`. `robot_id`·`task_id` 는 None 가능 |
+| `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `MISSION_MODES`·`MISSION_PHASES` 는 [제안] |
+| `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`([제안]), 거절이면 `reason` 필수. 재전송 멱등 |
+| `.record_map_snapshot(dict)` | 저장했으면 `True` | 스냅샷 ID별 추가만. 키 `snapshot_id, robot_id, revision, path, sha256, at_ns`. bytes 는 DB 밖 |
 | `read_robot_status(path)` | `{schema_version, robots:[{robot_id, robot_boot_id, state_sequence, role, stamp_ns, pose, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, received_at_ns}]}` | 표시용 스냅샷이다. live readiness 증거가 아니다(C-05). frame이 다른 pose끼리 거리를 비교하지 않는다 |
 | `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다 |
 | `read_target_states(path)` | `{schema_version, targets:[{target_id, position, detection_confirmed, rescue_state, rescue_reasons, verdict_id, support_state, support_robot_id, updated_at_ns}]}` | 구조 상태 4단계는 화면 표시층이 이 원자료로 합성한다(Q-20). 계약 어휘 `RESCUE_STATES`는 그대로 둔다 |
+| `read_error_log(path, *, limit=100)` | `{schema_version, errors:[{seq, at_ns, robot_id, task_id, code, detail}]}` | 최신 순, `limit` 은 최근 N건 |
+| `read_mission_state(path)` | `{schema_version, mission}` | 기록 전에는 `mission=None`. 표시용이고 판정은 coordinator |
+| `read_operator_commands(path, *, limit=100)` | `{schema_version, commands:[명령 dict, accepted 는 bool]}` | `requested_at_ns` 최신 순 |
+| `read_map_snapshots(path, *, limit=100)` | `{schema_version, maps:[스냅샷 dict]}` | `at_ns` 최신 순. 이미지는 `path` 에서 읽고 `sha256` 으로 확인 |
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
-후속: 오류 이력(3.7.4)은 2차다. 판정 이력 영속화와 재시작 복구, ROS 수신 어댑터(누가 언제 `record_*`를 부르는지), 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+후속: `status_json`·`state_json` 의 키 추가(`dock_state`·`segment_index`·`segment_phase`·`candidate_event_id`)는 발행·소비 쪽 확인 뒤로 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 판정 이력 영속화와 재시작 복구, ROS 수신 어댑터(누가 언제 `record_*`를 부르는지), 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
