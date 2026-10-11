@@ -107,8 +107,12 @@ class CoreTestCase(unittest.TestCase):
         self.core = make_core()
 
     def disaster(self):
-        """DISASTER_SIGN, then the operator's START_SEARCH (owner decision 2026-10-11, #85)."""
+        """DISASTER_SIGN only; AMR1 waits for START_SEARCH (owner decision 2026-10-11, #85)."""
         self.assertEqual('ENTERED_DISASTER', self.core.on_site_event(site_msg()).reason)
+
+    def start_search(self, **status):
+        """A ready SCOUT, then the operator's START_SEARCH (accepted only when the SCOUT is ready)."""
+        self.core.on_status(status_msg(**status))
         reply = self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
         self.assertEqual('ACCEPTED', reply['request_state'])
 
@@ -129,7 +133,7 @@ class ConversionTests(CoreTestCase):
 
     def test_execute_task_goal_carries_the_reservation(self):
         self.disaster()
-        self.core.on_status(status_msg())
+        self.start_search()
         (fields,) = self.core.tick(NOW)
         goal = ros_node.fill_execute_task_goal(goal_template(), fields, coordinator_id='coord')
         self.assertEqual((fields['task_id'], SCOUT, BOOT[SCOUT], 'coord', 'SEARCH_AREA', fields['search_area_ref'],
@@ -162,11 +166,32 @@ class ScoutDispatchTests(CoreTestCase):
         wrong = self.core.on_command(request('START_SEARCH', command_id=uid(692), robot_id=SUPPORT), now_ns=NOW)
         self.assertEqual('INVALID_INPUT', wrong['reason_code'])
 
+    def test_start_search_before_the_scout_is_ready_is_refused_and_not_counted(self):
+        # 작전 2026-10-11 (#98): never a robot leaving at an unknown moment after the button.
+        self.core.on_site_event(site_msg())
+        for status in (None, dict(readiness='DEGRADED'), dict(lease_valid=False), dict(observed_at_ns=NOW - MAX_AGE - 1)):
+            with self.subTest(status=status):
+                if status is not None:
+                    self.core.on_status(status_msg(**status))
+                reply = self.core.on_command(request('START_SEARCH', command_id=uid(680 + len(str(status)))),
+                                             now_ns=NOW)
+                self.assertEqual((False, 'REJECTED', 'NAV_NOT_READY', ''),
+                                 (reply['accepted'], reply['request_state'], reply['reason_code'],
+                                  reply['created_task_id']))
+                self.assertEqual([], self.core.tick(NOW))
+        self.core.on_status(status_msg())
+        reply = self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('ACCEPTED', fields['task_id'], 'SEARCH_AREA'),
+                         (reply['request_state'], reply['created_task_id'], fields['kind']))
+
     def test_disaster_and_a_ready_scout_give_one_search_goal(self):
         self.assertEqual([], self.core.tick(NOW))  # no status yet
         self.core.on_status(status_msg())
         self.assertEqual([], self.core.tick(NOW))  # NORMAL
         self.disaster()
+        self.assertEqual([], self.core.tick(NOW))  # no START_SEARCH yet
+        self.core.on_command(request('START_SEARCH', command_id=uid(690)), now_ns=NOW)
         (fields,) = self.core.tick(NOW)
         self.assertEqual(('SEARCH_AREA', SCOUT), (fields['kind'], fields['robot_id']))
         self.assertEqual([], self.core.tick(NOW))  # PENDING is kept, not re-sent
@@ -185,7 +210,7 @@ class ScoutDispatchTests(CoreTestCase):
 
     def test_admission_activates_and_completed_result_moves_to_the_next_area(self):
         self.disaster()
-        self.core.on_status(status_msg())
+        self.start_search()
         (first,) = self.core.tick(NOW)
         self.assertTrue(self.core.on_admission(admission_msg(first)))
         self.assertIn(first['task_id'], self.core.mission.search.allocator.active)
@@ -195,7 +220,7 @@ class ScoutDispatchTests(CoreTestCase):
 
     def test_result_without_confirmed_stop_keeps_the_task(self):
         self.disaster()
-        self.core.on_status(status_msg())
+        self.start_search()
         (first,) = self.core.tick(NOW)
         self.core.on_admission(admission_msg(first))
         self.assertFalse(self.core.on_result(first['task_id'], NS(outcome='COMPLETED', stop_confirmed=False)))
@@ -204,7 +229,7 @@ class ScoutDispatchTests(CoreTestCase):
 
     def test_rejected_admission_frees_the_scout(self):
         self.disaster()
-        self.core.on_status(status_msg())
+        self.start_search()
         (first,) = self.core.tick(NOW)
         self.core.on_admission(admission_msg(first, accepted=False))
         (again,) = self.core.tick(NOW)
@@ -368,7 +393,7 @@ class TaskIssueTests(CoreTestCase):
         self.assertEqual((OBSERVE.mission_xy[0], OBSERVE.yaw), (fields['goal_pose']['x'], fields['goal_pose']['yaw']))
 
     def test_recheck_waits_for_the_current_search_area_then_goes_first(self):
-        self.core.on_status(status_msg(SCOUT))
+        self.start_search()
         (search,) = self.core.tick(NOW)
         self.assertEqual('', self.command('REQUEST_RECHECK', 3)['created_task_id'])  # SCOUT is searching
         self.finish(search)
@@ -379,6 +404,9 @@ class TaskIssueTests(CoreTestCase):
         self.core.on_status(status_msg(SCOUT))
         self.command('REQUEST_RECHECK', 3)
         (first,) = self.core.tick(NOW)
+        # The SCOUT is ready but busy rechecking: START_SEARCH is accepted and the search follows the recheck.
+        self.assertEqual('', self.core.on_command(request('START_SEARCH', command_id=uid(690)),
+                                                  now_ns=NOW)['created_task_id'])
         self.finish(first, 'FAILED')
         (again,) = self.core.tick(NOW)
         self.assertEqual('REOBSERVE_TARGET', again['kind'])
@@ -400,7 +428,7 @@ class CommandLeaseTests(CoreTestCase):
 
     def issued(self):
         self.disaster()
-        self.core.on_status(status_msg())
+        self.start_search()
         (fields,) = self.core.tick(NOW)
         return fields
 
