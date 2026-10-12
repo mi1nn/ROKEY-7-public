@@ -41,7 +41,8 @@ def target_state(**changes):
                   position=dict(x=3.0, y=4.0, frame_id='mission', map_session_id=uid(5), map_revision=2),
                   detection_confirmed=True, rescue_state='RECHECK_NEEDED',
                   rescue_reasons=['EXIT_NOT_LINKED'], verdict_id=uid(600), support_state='ASSIGNED',
-                  support_robot_id='robot_b', updated_at_ns=3_000, target_revision=None)
+                  support_robot_id='robot_b', updated_at_ns=3_000, target_revision=None,
+                  persisted_report_id=None)
     return values | changes
 
 
@@ -303,7 +304,7 @@ class SiteStateTests(unittest.TestCase):
             self.assertTrue(ledger.record_target_state(target_state(target_id=uid(501))))
         with sqlite3.connect(self.path) as db:  # a row written before the key existed
             stored = target_state(target_id=uid(502))
-            del stored['target_revision']
+            del stored['target_revision'], stored['persisted_report_id']
             db.execute("INSERT INTO target_states VALUES (?, ?, ?)",
                        (stored["target_id"], stored["updated_at_ns"], site_state.canonical(stored)))
         with self.ledger() as ledger:
@@ -311,13 +312,27 @@ class SiteStateTests(unittest.TestCase):
         revisions = {t['target_id']: t['target_revision'] for t in site_state.read_target_states(self.path)['targets']}
         self.assertEqual({uid(500): 4, uid(501): None, uid(502): None}, revisions)
 
+    def test_persisted_report_id_is_an_optional_key_and_old_rows_read_as_none(self):
+        """#118 (관제·화면 요청): the console enables AMR2 dispatch only for a target whose report the
+        coordinator saw persisted; a row stored before the key reads as None (button stays off)."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_target_state(target_state(persisted_report_id=uid(700))))
+        with sqlite3.connect(self.path) as db:
+            stored = target_state(target_id=uid(502))
+            del stored['persisted_report_id']
+            db.execute("INSERT INTO target_states VALUES (?, ?, ?)",
+                       (stored["target_id"], stored["updated_at_ns"], site_state.canonical(stored)))
+        reports = {t['target_id']: t['persisted_report_id']
+                   for t in site_state.read_target_states(self.path)['targets']}
+        self.assertEqual({uid(500): uid(700), uid(502): None}, reports)
+
     def test_target_state_rejects_inconsistent_input(self):
         bad = [dict(rescue_state='DONE'), dict(rescue_state='RESCUE_CONFIRMED'),
                dict(rescue_reasons=['A', 'A']), dict(rescue_reasons=['not an id']), dict(support_state='MOVING'),
                dict(support_state='NONE'), dict(support_robot_id=None), dict(support_robot_id='robot_x'),
                dict(detection_confirmed=1), dict(position=dict(x=1.0, y=2.0)), dict(updated_at_ns=0),
                dict(verdict_id='x'), dict(target_revision=-1), dict(target_revision='2'),
-               dict(target_revision=True)]
+               dict(target_revision=True), dict(persisted_report_id=''), dict(persisted_report_id=5)]
         with self.ledger() as ledger:
             for change in bad:
                 with self.subTest(change=change), self.assertRaises(OperationsError):
