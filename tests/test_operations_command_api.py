@@ -28,7 +28,7 @@ def request(kind='START_SEARCH', **changes):
     extra = {'START_SEARCH': {}, 'RETURN_HOME': {},
              'DISPATCH_SUPPORT': dict(target_id=uid(500), target_revision=2),
              'CONTINUE_SEGMENT': dict(target_id=uid(500), target_revision=2, route_revision=1, segment_index=1),
-             'REQUEST_RECHECK': dict(target_id=uid(500))}[kind]
+             'REQUEST_RECHECK': dict(target_id=uid(500))}.get(kind, {})
     return dict(command_id=uid(77), kind=kind, operator_id='admin') | extra | changes
 
 
@@ -61,7 +61,7 @@ class ParseCommand(unittest.TestCase):
         for raw in bad:
             with self.subTest(raw=raw[:60]), self.assertRaises(OperationsError) as caught:
                 self.parse(raw)
-            self.assertEqual('INVALID_INPUT', caught.exception.detail_code)
+            self.assertEqual('INVALID_INPUT', caught.exception.code)
 
 
 class ServiceFields(unittest.TestCase):
