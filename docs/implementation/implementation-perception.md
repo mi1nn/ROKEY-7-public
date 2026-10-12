@@ -99,7 +99,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 **실측 도구:** `tools/webcam_quake_probe.py`가 OpenCV 로 웹캠 프레임을 읽어 위 판정에 넣고 대시보드로 보여 준다. 왼쪽은 카메라 화면(블록 격자·사분면 경계·이동 화살표·상태 색 테두리·사건 배너), 오른쪽은 상태 카드(정상·흔들림 감지·판단 보류·카메라 끊김과 이유), 상황 칩, 방향 전환 칸 막대, 무늬·직전 화면 일치·원래 장면 보임 게이지(눈금 = 기준), 최근 5초 이동 그래프, 사건 기록이다. 숫자 키로 상황(가만히·흔들기·조명·지나가기·가리기)을 표시한다. 결과는 측정마다 `.artifacts/webcam_quake/<날짜-시각>/`(`.gitignore` 대상)에 `probe.csv`(프레임별 기록), `meta.json`(인자·정책·git SHA·상황별 요약), `--record` 이면 `view.mp4`(대시보드 화면)로 남는다. `--video`로 영상 파일을 같은 판정에 넣을 수 있다. 카메라가 끊기면 종료하지 않고 다시 연결한다. 인자 기본값은 측정 시작값이지 Q-11 값이 아니다(장면 일치 0.6·보임 30% 는 2026-10-10 녹화 분석에서 고른 시작값).
 
-**한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실제 웹캠 측정·오탐률·처리 속도는 NOT_RUN 이다.
+**한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실물 USB 웹캠에서 `webcam_node` 로 흔들기 1회에 `DISASTER_SIGN` 1건(방향 전환 4/4)을 확인했다 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). 오탐률·장시간 측정은 NOT_RUN 이다.
 
 ## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
 
@@ -129,7 +129,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 - **고르기(valid):** valid 에서 yolo26n 은 rtdetr-l·yolov8n·yolov8s·yolo26s·yolo11n 과 **구분 불가**이고 yolo11s 보다만 높다(차이 구간이 0 을 넘는 쌍만 "우세") [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.valid`]. 즉 valid 만으로는 최상위 묶음(6개)을 가를 수 없고, 그 묶음 안에서 가장 작고(2.38M) CPU 가 가장 빠른(107 ms) yolo26n 을 고른다.
 - **확인(test):** test 에서 yolo26n 은 나머지 6개 모두보다 높고 차이의 95% 구간이 모두 0 보다 크다(+0.020~+0.037) [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.test`]. 나머지 6개끼리는 test 15쌍 모두 구분 불가. valid→test 하락도 yolo26n 이 가장 작다(0.038, 나머지 0.051~0.080). **웹캠 인형 탐지 모델로 yolo26n 을 제안한다** [제안].
 - 한계: valid·test 를 같은 시간대·같은 사람이 찍었다. 배경 이미지가 valid 14·test 10장뿐이다. 조건별(저조도·가려짐·원거리) 분석 없음.
-- NOT_RUN: **PC3 에서 실물 웹캠 실시간 테스트**(fps·소실 판정), 실기(E3·E4).
+- 실물 웹캠 실시간: 5.00 fps 유지, 인형 탐지 신뢰도 0.96, 소실 후보 정상 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). NOT_RUN: PC3 에서의 측정, 조건별(저조도·원거리) 측정, 실기(E3·E4).
 - 상세 보고서(학습 곡선 7개 비교·실패 이미지·그림): 팀 Notion [「[perception] Webcam 출구 구조 판정」](https://www.notion.so/3f6d8f79f52d80929ae1c089a194a6cc). 저장소의 수치 근거는 위 결과 원본 파일이다.
 
 ## 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
@@ -145,9 +145,9 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 판정 불가 | 가림(OCCLUDED)·영상 상태 불명·탐지기 결과 없음은 UNKNOWN, 소실 시간을 다시 잰다. 후보를 만들지 않고 관제 웹의 운영자 판단(REQUEST_RECHECK, C-11 10행)으로 넘긴다. 간격 > `max_gap_ns` 도 다시 잰다 |
 | 순서 | 중복·역순 프레임은 상태를 바꾸지 않는다. 재생하면 같은 결과·같은 ID |
 
-`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. NOT_RUN: 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행), 실제 탐지기 연결, PC3 실제 웹캠 실시간 테스트, 실기.
+`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
 
-## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 전, 2026-10-12)
+## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
 
 SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로세스 하나로 묶었다. 10-13 얇은 전 구간 실기에 웹캠 소실 후보가 들어가야 해서, 노드를 셋으로 나누지 않고 프레임 하나를 같은 시각으로 세 판정에 넣는다. 원 영상 토픽(IF-074)과 영상 게이트웨이(cam.video)는 없다.
 
@@ -158,13 +158,20 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
 | `TargetPresence` | `/rescue/cameras/cam_fixed/presence` | 감시가 있을 때 프레임마다(RELIABLE·TRANSIENT_LOCAL·1) |
 | `SetCameraWatch` | `/rescue/cameras/cam_fixed/set_watch` | `webcam_service.WatchSlot` 이 수락·거절. 응답 이유: ACCEPTED·CAMERA_MISMATCH·EXPIRED·REVISION_MISMATCH·INVALID_INPUT·WATCH_MISMATCH |
 
-- 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(18개).
+- 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(19개).
 - **국소 가림 한계(OPS-74-02):** 사람이 ROI 만 가리면 화면 전체 가림이 아니라 VALID 로 들어가 소실 시간이 흐른다. 후보는 재확인 트리거일 뿐이고 AMR1 재관측이 확정한다(KPI-06).
 - 탐지기: 웹캠 survivor yolo26n(위 절). 기동 때 모델 파일 sha256 이 `model_sha256` 과 다르면 기동하지 않는다. 탐지 실패 프레임은 탐지 결과 없음(UNKNOWN)으로 넣고 소실로 세지 않는다.
 - 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
 - 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/config/webcam_node.example.yaml` [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
 - 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
-- NOT_RUN: **ROS 실행(노드 기동·토픽·서비스)**, PC3 실물 웹캠, coordinator 의 SetCameraWatch 호출과 연결, 실기.
+- ROS 실행 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인]: `ROS_DOMAIN_ID` 를 로봇과 다른 값으로, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 설정 해제. USB 웹캠(640×480), 모델 sha256 `8b61f691…` 일치.
+  - 기동 로그: git SHA·boot id·모델 경로·sha256·카메라·해상도·주기·정책 값 전부 한 줄. SIGINT 종료 로그 남음.
+  - status·site_events·presence 토픽과 set_watch 서비스가 뜬다. status ONLINE, 5.00 fps(목표 5).
+  - CPU(코어 1개 기준 `top`): 감시 없음 약 33%(지진 판정만), 감시 중 약 42%(+ yolo26n). RSS 약 600 MB. 감시를 건 직후 첫 10초 구간만 4.1 fps(첫 추론 준비), 이후 5.00.
+  - 감시 걸기(OPERATOR_ROI, 인형 둘레 ROI) → ACCEPTED·revision 1, presence PRESENT/VALID. 인형을 치우자 마지막으로 본 뒤 약 3.3 초(17 프레임)에 `TARGET_DISAPPEARED_CANDIDATE` 1건, presence ABSENT_CANDIDATE. 웹캠을 흔들자 `DISASTER_SIGN` 1건(방향 전환 4/4).
+  - 고친 것: `watch_id` 가 UUID 가 아닌 요청이 INVALID_INPUT 으로만 남고 이유가 로그에 없었다 → 거절 이유를 로그에 붙인다(`detail=watch_id: canonical nonzero UUID required`).
+  - 주의: `device_index` 는 꽂는 순서로 바뀐다(이 PC 는 내장 카메라가 0, USB 웹캠이 2). 현장에서 다른 카메라를 열 수 있다.
+- NOT_RUN: PC3 에서의 실행, 장시간·오탐률 측정, coordinator 의 SetCameraWatch 호출과 연결, 실기.
 
 ## 공개 API와 E2 실행
 
