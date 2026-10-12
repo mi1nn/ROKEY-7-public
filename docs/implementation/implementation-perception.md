@@ -1,7 +1,7 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # 기록 입력 기반 인식 코어
@@ -99,7 +99,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 **실측 도구:** `tools/webcam_quake_probe.py`가 OpenCV 로 웹캠 프레임을 읽어 위 판정에 넣고 대시보드로 보여 준다. 왼쪽은 카메라 화면(블록 격자·사분면 경계·이동 화살표·상태 색 테두리·사건 배너), 오른쪽은 상태 카드(정상·흔들림 감지·판단 보류·카메라 끊김과 이유), 상황 칩, 방향 전환 칸 막대, 무늬·직전 화면 일치·원래 장면 보임 게이지(눈금 = 기준), 최근 5초 이동 그래프, 사건 기록이다. 숫자 키로 상황(가만히·흔들기·조명·지나가기·가리기)을 표시한다. 결과는 측정마다 `.artifacts/webcam_quake/<날짜-시각>/`(`.gitignore` 대상)에 `probe.csv`(프레임별 기록), `meta.json`(인자·정책·git SHA·상황별 요약), `--record` 이면 `view.mp4`(대시보드 화면)로 남는다. `--video`로 영상 파일을 같은 판정에 넣을 수 있다. 카메라가 끊기면 종료하지 않고 다시 연결한다. 인자 기본값은 측정 시작값이지 Q-11 값이 아니다(장면 일치 0.6·보임 30% 는 2026-10-10 녹화 분석에서 고른 시작값).
 
-**한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실제 웹캠 측정·오탐률·처리 속도는 NOT_RUN 이다.
+**한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실물 USB 웹캠에서 `webcam_node` 로 흔들기 1회에 `DISASTER_SIGN` 1건(방향 전환 4/4)을 확인했다 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). 오탐률·장시간 측정은 NOT_RUN 이다.
 
 ## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
 
@@ -129,7 +129,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 - **고르기(valid):** valid 에서 yolo26n 은 rtdetr-l·yolov8n·yolov8s·yolo26s·yolo11n 과 **구분 불가**이고 yolo11s 보다만 높다(차이 구간이 0 을 넘는 쌍만 "우세") [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.valid`]. 즉 valid 만으로는 최상위 묶음(6개)을 가를 수 없고, 그 묶음 안에서 가장 작고(2.38M) CPU 가 가장 빠른(107 ms) yolo26n 을 고른다.
 - **확인(test):** test 에서 yolo26n 은 나머지 6개 모두보다 높고 차이의 95% 구간이 모두 0 보다 크다(+0.020~+0.037) [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.test`]. 나머지 6개끼리는 test 15쌍 모두 구분 불가. valid→test 하락도 yolo26n 이 가장 작다(0.038, 나머지 0.051~0.080). **웹캠 인형 탐지 모델로 yolo26n 을 제안한다** [제안].
 - 한계: valid·test 를 같은 시간대·같은 사람이 찍었다. 배경 이미지가 valid 14·test 10장뿐이다. 조건별(저조도·가려짐·원거리) 분석 없음.
-- NOT_RUN: **PC3 에서 실물 웹캠 실시간 테스트**(fps·소실 판정), 실기(E3·E4).
+- 실물 웹캠 실시간: 5.00 fps 유지, 인형 탐지 신뢰도 0.96, 소실 후보 정상 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). NOT_RUN: PC3 에서의 측정, 조건별(저조도·원거리) 측정, 실기(E3·E4).
 - 상세 보고서(학습 곡선 7개 비교·실패 이미지·그림): 팀 Notion [「[perception] Webcam 출구 구조 판정」](https://www.notion.so/3f6d8f79f52d80929ae1c089a194a6cc). 저장소의 수치 근거는 위 결과 원본 파일이다.
 
 ## 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
@@ -145,7 +145,33 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 판정 불가 | 가림(OCCLUDED)·영상 상태 불명·탐지기 결과 없음은 UNKNOWN, 소실 시간을 다시 잰다. 후보를 만들지 않고 관제 웹의 운영자 판단(REQUEST_RECHECK, C-11 10행)으로 넘긴다. 간격 > `max_gap_ns` 도 다시 잰다 |
 | 순서 | 중복·역순 프레임은 상태를 바꾸지 않는다. 재생하면 같은 결과·같은 ID |
 
-`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. NOT_RUN: 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행), 실제 탐지기 연결, PC3 실제 웹캠 실시간 테스트, 실기.
+`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
+
+## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
+
+SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로세스 하나로 묶었다. 10-13 얇은 전 구간 실기에 웹캠 소실 후보가 들어가야 해서, 노드를 셋으로 나누지 않고 프레임 하나를 같은 시각으로 세 판정에 넣는다. 원 영상 토픽(IF-074)과 영상 게이트웨이(cam.video)는 없다.
+
+| 출력·입력 | 이름(예시 파라미터) | 내용 |
+| --- | --- | --- |
+| `CameraStatus` | `/rescue/cameras/cam_fixed/status` | 프레임마다. 열기·읽기 실패는 OFFLINE, 요청과 다른 해상도는 DEGRADED |
+| `SiteEvent` | `/rescue/site_events` | 지진 징후(`disaster_sign`)와 소실 후보(`target_watch`). VALID 시야에서만 생긴다 |
+| `TargetPresence` | `/rescue/cameras/cam_fixed/presence` | 감시가 있을 때 프레임마다(RELIABLE·TRANSIENT_LOCAL·1) |
+| `SetCameraWatch` | `/rescue/cameras/cam_fixed/set_watch` | `webcam_service.WatchSlot` 이 수락·거절. 응답 이유: ACCEPTED·CAMERA_MISMATCH·EXPIRED·REVISION_MISMATCH·INVALID_INPUT·WATCH_MISMATCH |
+
+- 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(19개).
+- **국소 가림 한계(OPS-74-02):** 사람이 ROI 만 가리면 화면 전체 가림이 아니라 VALID 로 들어가 소실 시간이 흐른다. 후보는 재확인 트리거일 뿐이고 AMR1 재관측이 확정한다(KPI-06).
+- 탐지기: 웹캠 survivor yolo26n(위 절). 기동 때 모델 파일 sha256 이 `model_sha256` 과 다르면 기동하지 않는다. 탐지 실패 프레임은 탐지 결과 없음(UNKNOWN)으로 넣고 소실로 세지 않는다.
+- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
+- 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/rescue_perception/config/webcam_node.example.yaml`(설치하면 `share/rescue_perception/config/` 에도 있다) [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
+- 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
+- ROS 실행 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인]: `ROS_DOMAIN_ID` 를 로봇과 다른 값으로, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 설정 해제. USB 웹캠(640×480), 모델 sha256 `8b61f691…` 일치.
+  - 기동 로그: git SHA·boot id·모델 경로·sha256·카메라·해상도·주기·정책 값 전부 한 줄. SIGINT 종료 로그 남음.
+  - status·site_events·presence 토픽과 set_watch 서비스가 뜬다. status ONLINE, 5.00 fps(목표 5).
+  - CPU(코어 1개 기준 `top`): 감시 없음 약 33%(지진 판정만), 감시 중 약 42%(+ yolo26n). RSS 약 600 MB. 감시를 건 직후 첫 10초 구간만 4.1 fps(첫 추론 준비), 이후 5.00.
+  - 감시 걸기(OPERATOR_ROI, 인형 둘레 ROI) → ACCEPTED·revision 1, presence PRESENT/VALID. 인형을 치우자 마지막으로 본 뒤 약 3.3 초(17 프레임)에 `TARGET_DISAPPEARED_CANDIDATE` 1건, presence ABSENT_CANDIDATE. 웹캠을 흔들자 `DISASTER_SIGN` 1건(방향 전환 4/4).
+  - 고친 것: `watch_id` 가 UUID 가 아닌 요청이 INVALID_INPUT 으로만 남고 이유가 로그에 없었다 → 거절 이유를 로그에 붙인다(`detail=watch_id: canonical nonzero UUID required`).
+  - 주의: `device_index` 는 꽂는 순서로 바뀐다(이 PC 는 내장 카메라가 0, USB 웹캠이 2). 현장에서 다른 카메라를 열 수 있다.
+- NOT_RUN: PC3 에서의 실행, 장시간·오탐률 측정, coordinator 의 SetCameraWatch 호출과 연결, 실기.
 
 ## 공개 API와 E2 실행
 
@@ -190,12 +216,38 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 `tools/perception_bag_replay.py`는 rosbag2 녹화를 위 입력 어댑터에 그대로 넣는다. 로봇·ROS 그래프·모델 없이 돈다. bag을 읽으려면 ROS 2 Python 패키지(`rosbag2_py`, `rclpy`, `rosidl_runtime_py`, `vision_msgs`)가 필요하다.
 
-- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다.
+- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다. 빈 탐지 배열은 `EMPTY_DETECTIONS`로 출력해 탐지가 없는 프레임과 입력 누락을 구별한다.
 - `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
 - `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
-- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`(4개)로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`로 시험한다. `rescue_perception.bag_replay_cli`가 rclpy 역직렬화와 CLI만 맡고 `tools/perception_bag_replay.py`는 source checkout의 진입 wrapper다. 설치본은 `python3 -m rescue_perception.bag_replay_cli replay BAG --config CFG`로 같은 경로를 실행한다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
 
 실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
+
+### 오프라인 시각·동기화 진단 (2026-10-12, E2)
+
+[사용자 요구] 2026-10-12 원문: “add the smallest offline rosbag replay adapter … reports unusable timestamps or synchronization gaps. Keep it E2-only … Do not assume a bag is present; make the input path configurable.” 적용 범위는 인식 레인의 기존 `bag_replay.py`와 CLI·해당 시험·이 구현 기록이다. 최신 `main`에 이미 있는 재생 경로를 재사용하며 공통 계약·운용 정책을 바꾸지 않는다.
+
+```bash
+# BAG_PATH와 CFG_PATH는 사용자가 지정한다. 기본 bag 위치·자동 탐색 없음.
+python3 tools/perception_bag_replay.py replay "$BAG_PATH" --config "$CFG_PATH"
+# ROS 없는 합성 기록 시험
+PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discover -s tests -p test_perception_bag_replay.py -v
+```
+
+- RGB·Depth·CameraInfo·탐지 배열 및 개별 탐지의 헤더를 공통 정수 ns 변환으로 검사한다. 0·음수·float·bool·잘못된 nanosec·int64 범위 초과·필드 누락은 `REJECTED / UNUSABLE_TIMESTAMP`와 role·상세 이유를 출력한다. 기록 단계 오류에는 `record_index`(선택된 토픽의 입력 순번)가 있으며 `stamp_ns=null`이다. 개별 탐지 오류의 `stamp_ns`는 배열의 유효 시각이고 `index`는 배열 안의 순번이다. 오류 입력만 제외하고 뒤의 유효 기록을 처리한다. bag 수신 시각이나 실행 PC의 현재 시각으로 헤더를 채우지 않는다.
+- RGB 헤더는 탐지 배열과 같은 stamp여야 한다. Depth 차이가 `DepthPolicy.max_stamp_skew_ns`와 같으면 허용하고 초과하면 `UNPAIRED / NO_DEPTH_WITHIN_SKEW`로 보고한다. 가장 가까운 Depth의 원 시각·절대 차이 `depth_skew_ns`·설정 상한을 함께 출력하며 Depth가 없으면 시각·차이는 `null`이다. RGB·CameraInfo 누락도 기존 이유로 보고한다. `UNKNOWN` 또는 서로 다른 stamp 의미, 검증되지 않은 정렬과 깊이 결측은 기존 코어의 위치 실패 이유로 남는다.
+- 설정 토픽은 각 역할마다 비어 있지 않은 서로 다른 문자열이어야 한다. bag 경로가 없으면 ROS import 전에 명시적으로 실패한다. CLI 종료코드는 결과가 있고 위치 실패·거절·공백이 없을 때 `0`(빈 탐지 배열은 정상 결과), 거절·위치 실패·공백 또는 재생 결과가 전혀 없을 때 `1`, 경로·설정·ROS 의존성·읽기 오류는 stderr의 `INPUT_ERROR`와 `2`다. 결과가 없으면 stdout에 `EMPTY_REPLAY`를 출력한다. 읽기 오류 전에 출력된 진단은 남을 수 있으므로 종료코드까지 확인한다.
+
+**검증 가능:** 합성 기록의 exact ns 보존, 헤더 형식 오류, 탐지 stamp에 따른 RGB 매칭, 설정된 RGB–Depth 차이 경계와 미매칭, 기존 코어의 optical 위치/위치 거절 경로. 새로운 운용 임계값은 없다. 이 진단은 recorded stamp 사이의 차이이며 센서 캡처 동기화의 실측이 아니다.
+
+**검증 불가 / NOT_RUN:** 실제 녹화 bag의 유무·내용·출처, 캡처/드라이버 stamp 의미와 시계 오차, 실제 RGB–Depth 공간 정렬·보정, TF·지도 revision·공통 좌표, 모델 가중치/성능·신원 동일성, 현재 wall 시각에 대한 freshness/admission, DDS·QoS·네트워크 누락·실시간 처리, 물리 접근·정지와 2 AMR·4 PC 인수. 그래프 구독·발행·`rclpy.init`·`ros2 bag play`는 호출하지 않는다. ROS 라이브러리는 파일 역직렬화 경계에만 사용하며 E3/E4 통과를 주장하지 않는다.
+
+**검증 기록 [측정, 2026-10-12]:** ROS 없는 replay 시험 13개 PASSED(exit 0). 수정 전 회귀시험은 FAILED(9 failures, 23 errors, exit 1)였고 시험을 수정 코드보다 먼저 커밋했다. 임시 디렉터리에 기존 `write-synthetic`으로 만든 bag을 역직렬화해 원 ns와 optical point 2개, `DEPTH_INSUFFICIENT` 1개를 확인했다. replay exit 1은 주입한 깊이 결측의 예상 결과다. 합성 bag은 실행 뒤 제거했으며 실제 녹화의 증거가 아니다. `python3 -I scripts/run_tests.py`의 전체 단위시험 835개 PASSED(exit 0). 문서 검사 PASSED(exit 0); 원본 객체/줄 상한 검사는 `--sources` 미제공으로 SKIP이다.
+
+**설치본 CI 오류 수정 [측정, 2026-10-12]:** 최초 head `36f31e4`에서 docs·Python 3.10~3.12 CI는 PASSED였지만 `installed-wheels`는 FAILED였다. CLI 시험이 checkout의 `tools/perception_bag_replay.py`를 직접 읽어, tools가 없는 설치본에서 `FileNotFoundError` 3건이 발생했다. CLI 로직을 패키지 모듈 `bag_replay_cli.py`로 옮기고 시험도 그 모듈을 import하게 했다. 기존 tools 명령은 wrapper로 유지한다. 설치본 CI를 우회하거나 시험을 skip하지 않는다. 변경 시험의 수정 전 결과는 13개 중 errors=3, exit 1이며 시험 커밋 뒤에 구현을 둔다. 수정 후 source 시험 835개는 skip 없이 OK(exit 0), `python3 -I scripts/check_wheels.py`는 8개 설치 wheel·835개 시험 OK(exit 0, Flask 미설치 웹 시험 27개 SKIP/NOT_RUN)였다. replay 시험 13개는 설치본에서도 skip 없이 실행했다. 합성 bag에서 기존 tools 명령과 패키지 모듈 명령의 JSON 출력은 같았고, 깊이 결측의 exit 1·없는 bag의 exit 2를 확인했다.
+
+**처리 한계:** 짝짓기는 녹화 전체를 메모리에 보관하고 Depth 최근접 검색을 하며, 메시지가 탐지 배열 뒤에 저장돼도 헤더로 매칭할 수 있다. 실제 도착 지연/온라인 queue·메모리/처리 예산을 검증하지 않는다. Depth 한 장을 여러 배열이 쓸 수 있고 같은 RGB stamp의 반복은 마지막 기록을 쓴다. CameraInfo는 배열 전에 본 마지막 유효 기록이며 보정 변경의 시간적 유효성/실물 정합을 인증하지 않는다. 탐지 배열이 없는 RGB/Depth 기록은 `EMPTY_REPLAY`이며 미사용 프레임의 누락률이나 탐지 성능은 계산하지 않는다. timestamp 역순·시계 되감김의 세션 분할, 원본 bag 해시·영속 observation dedup·transport 손실률은 제공하지 않는다. 재생 namespace·binding은 입력마다 출처에 맞게 제공하고 재생 결과를 주행 허가로 쓰지 않는다.
+
 
 ## 실제 카메라 연결 조건
 
