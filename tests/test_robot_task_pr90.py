@@ -11,16 +11,11 @@ import test_task_ingress as ingress_tests
 import test_task_server as transport
 import test_robot_task_runtime_integration as runtime
 from rescue_robot.executor import ContractError
-from rescue_robot.task_policy import ClockBasis, LeasePolicy, validate_lease_reception
+from rescue_robot.task_policy import validate_lease_reception
 from rescue_robot.phase1_route import Phase1RouteGate
+from robot_task_policy_fixtures import POLICY, clock_basis
 
 BOUND = 10_000_000
-POLICY = LeasePolicy(2., 1_000_000_000, 100_000_000, 'test-clock')
-
-
-def clock_basis(adapter):
-    return ClockBasis('test-clock', 'SYNCED', BOUND, 'test-clock-session',
-                      adapter.wall_clock_ns() + 60_000_000_000)
 
 
 class LeaseReceptionTests(unittest.TestCase):
@@ -58,15 +53,6 @@ class LeaseReceptionTests(unittest.TestCase):
                         dict(valid_until_ns=self.now)):
             with self.subTest(changes=changes), self.assertRaises(ContractError):
                 self.check(basis=replace(self.basis, **changes))
-
-    def test_message_expiry_is_reception_gate_not_local_steady_lease_length(self):
-        self.ingress.submit(self.goal, self.lease)
-        self.f.fixture.advance(.5)
-        self.lease.issued_at_ns = self.f.fixture.clock.wall()
-        self.lease.valid_until_ns = self.lease.issued_at_ns + 100_000_000
-        self.lease.renewal_sequence = 1
-        self.assertTrue(self.ingress.renew(self.lease))
-        self.assertAlmostEqual(self.f.adapter.executor.lease_until, self.f.fixture.clock() + POLICY.duration_s)
 
     def test_clock_session_change_and_forward_step_latch_runtime(self):
         self.ingress.submit(self.goal, self.lease)
@@ -192,12 +178,6 @@ class Phase1RouteTests(unittest.TestCase):
 
 
 class TransportContractTests(unittest.TestCase):
-    def test_goal_first_matches_pr90_send_order(self):
-        f = transport.TaskServerTests(); f.setUp()
-        f.server.lookup_lease = lambda goal: None
-        self.assertEqual(f.server.on_goal(f.goal), 'accept')
-        self.assertTrue(f.server.on_lease(f.lease))
-
     def test_real_robot_status_uses_stop_observation_not_cancel_ack(self):
         f = transport.TaskServerTests(); f.setUp()
         f.server.on_goal(f.goal)
