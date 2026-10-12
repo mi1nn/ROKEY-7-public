@@ -24,17 +24,22 @@ from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 # A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
-UPGRADES_FROM = frozenset({"1.0"})
+UPGRADES_FROM = frozenset({"1.0", "1.1"})  # 1.1 -> 1.2 rebuilds mission_state
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
 # Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
 # vocabulary written by operations from coordinator results; the coordinator owns the decisions.
-# Mode is the contract system mode (S-00): NORMAL, DISASTER and CLEARING (false-alarm clearing).
-MISSION_MODES = SYSTEM_MODES
+# Mode is the contract system mode (S-00: NORMAL, DISASTER, CLEARING) plus SystemState's MISSION_FINISHED,
+# which the coordinator sends exactly when the phase is FINISHED (C-10, contracts 207행, #88).
+FINISHED_MODE = "MISSION_FINISHED"
+MISSION_MODES = SYSTEM_MODES | {FINISHED_MODE}
+# SystemState.SEGMENT_PHASE_* (1차 IDL, #88); the coordinator maps its own words at the node (C-10).
+SEGMENT_PHASES = frozenset({"IDLE", "EVALUATING", "AWAITING_APPROVAL", "EXECUTING", "STOPPING", "STOPPED",
+                            "UNKNOWN"})
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
@@ -59,9 +64,21 @@ COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "s
                 "requested_at_ns", "accepted", "result", "reason"}
 MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
+# The AMR2 dispatch (schema 1.2): all None without a dispatch, all present with one.
+DISPATCH_DEFAULTS = {"target_id": None, "target_revision": None, "route_revision": None, "segment_index": None,
+                     "segment_count": None, "segment_phase": None}
+# SystemState.reason: the coordinator's cause code when it holds the mission (#91 CLA-02), else None.
+OPTIONAL_MISSION = DISPATCH_DEFAULTS | {"reason": None}
+MISSION_COLUMNS = ("mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns",
+                   *OPTIONAL_MISSION)
 
 
-# 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절).
+MISSION_DDL = """CREATE TABLE IF NOT EXISTS mission_state (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
+        trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER, updated_at_ns INTEGER NOT NULL,
+        target_id TEXT, target_revision INTEGER, route_revision INTEGER, segment_index INTEGER,
+        segment_count INTEGER, segment_phase TEXT, reason TEXT)"""
+# 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절); 1.2 reshapes mission_state.
 TABLES = (
     """CREATE TABLE IF NOT EXISTS robot_status (
         robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
@@ -74,10 +91,7 @@ TABLES = (
     """CREATE TABLE IF NOT EXISTS error_log (
         seq INTEGER PRIMARY KEY, at_ns INTEGER NOT NULL, robot_id TEXT, task_id TEXT,
         code TEXT NOT NULL, detail TEXT NOT NULL)""",
-    """CREATE TABLE IF NOT EXISTS mission_state (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), mode TEXT NOT NULL, phase TEXT NOT NULL,
-        trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER NOT NULL,
-        updated_at_ns INTEGER NOT NULL)""",
+    MISSION_DDL,
     """CREATE TABLE IF NOT EXISTS operator_commands (
         command_id TEXT PRIMARY KEY, kind TEXT NOT NULL, operator_id TEXT NOT NULL, robot_id TEXT,
         target_id TEXT, segment_index INTEGER, route_revision INTEGER, requested_at_ns INTEGER NOT NULL,
@@ -193,16 +207,43 @@ def _error_entry(value, allowed):
     return entry
 
 
+def _migrate(db, old_schema):
+    """1.1 -> 1.2: mission_state gets the dispatch columns and a nullable generation (SQLite cannot relax
+    NOT NULL in place, so the one-row table is rebuilt). A 1.0 file has no mission_state yet."""
+    if old_schema == "1.1":
+        db.execute("ALTER TABLE mission_state RENAME TO mission_state_1_1")
+        db.execute(MISSION_DDL)
+        db.execute("""INSERT INTO mission_state (singleton, mode, phase, trigger_event_id, started_at_ns, generation,
+            updated_at_ns) SELECT singleton, mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns
+            FROM mission_state_1_1""")
+        db.execute("DROP TABLE mission_state_1_1")
+
+
 def _mission(value):
-    mission = exact(value, MISSION_KEYS, "mission state")
+    require(isinstance(value, Mapping), "mission state must be an object")
+    mission = dict(exact(OPTIONAL_MISSION | dict(value), MISSION_KEYS | OPTIONAL_MISSION.keys(), "mission state"))
     require(mission["mode"] in MISSION_MODES, "mode must be one of SYSTEM_MODES (S-00)")
     require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
     _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
     if mission["trigger_event_id"] is not None:
         uid(mission["trigger_event_id"], "trigger_event_id")
         timestamp(mission["started_at_ns"], "started_at_ns")
-    uint(mission["generation"], "generation")
+    if mission["generation"] is not None:
+        uint(mission["generation"], "generation")
     timestamp(mission["updated_at_ns"], "updated_at_ns")
+    if mission["reason"] is not None:
+        text(mission["reason"], "reason")
+    require(mission["mode"] != FINISHED_MODE or mission["phase"] == "FINISHED",
+            "MISSION_FINISHED only with phase FINISHED (C-10)")
+    dispatch = [mission[key] for key in DISPATCH_DEFAULTS]
+    require(all(v is None for v in dispatch) or all(v is not None for v in dispatch),
+            "dispatch fields are all present or all None")
+    if mission["target_id"] is not None:
+        uid(mission["target_id"], "target_id")
+        for key in ("target_revision", "route_revision", "segment_index", "segment_count"):
+            uint(mission[key], key)
+        require(mission["segment_index"] <= mission["segment_count"], "segment_index must not pass segment_count")
+        require(mission["segment_phase"] in SEGMENT_PHASES, "segment_phase must be one of SEGMENT_PHASES")
     return mission
 
 
@@ -245,7 +286,7 @@ class SiteStateLedger(_Database):
     def __init__(self, db_path, *, allowed_robot_ids):
         self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
         super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)},
-                         schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES)
+                         schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES, migrate=_migrate)
 
     def record_robot_status(self, status):
         """Store the latest snapshot. Returns False for a stale or identical resend."""
@@ -364,15 +405,13 @@ class SiteStateLedger(_Database):
             row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
             if row is not None:
                 if mission["updated_at_ns"] == row["updated_at_ns"]:
-                    require({key: row[key] for key in MISSION_KEYS} == mission,
+                    require({key: row[key] for key in MISSION_COLUMNS} == mission,
                             "same mission time with different content", "ID_CONTENT_CONFLICT")
                     return False
                 if mission["updated_at_ns"] < row["updated_at_ns"]:
                     return False
-            db.execute("""INSERT OR REPLACE INTO mission_state (singleton, mode, phase, trigger_event_id,
-                started_at_ns, generation, updated_at_ns) VALUES (1, ?, ?, ?, ?, ?, ?)""",
-                       (mission["mode"], mission["phase"], mission["trigger_event_id"], mission["started_at_ns"],
-                        mission["generation"], mission["updated_at_ns"]))
+            db.execute(f"INSERT OR REPLACE INTO mission_state (singleton, {', '.join(MISSION_COLUMNS)}) "
+                       f"VALUES (1{', ?' * len(MISSION_COLUMNS)})", [mission[key] for key in MISSION_COLUMNS])
         return True
 
 
@@ -444,7 +483,7 @@ def read_mission_state(db_path):
     """The single mission row, or None before operations has written one."""
     def query(db):
         row = db.execute("SELECT * FROM mission_state WHERE singleton = 1").fetchone()
-        return {"mission": None if row is None else {key: row[key] for key in MISSION_KEYS}}
+        return {"mission": None if row is None else {key: row[key] for key in MISSION_COLUMNS}}
     return _read(db_path, query)
 
 

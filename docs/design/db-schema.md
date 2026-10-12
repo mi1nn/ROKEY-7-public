@@ -1,6 +1,6 @@
 ---
 title: DB 스키마 — 운영 장부·현장 상태·콘솔 계정
-status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
+status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
 updated: 2026-10-11
 ---
 
@@ -11,7 +11,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 파일 (역할 값 `metadata.role`) | 쓰는 쪽 | 읽는 쪽 | 코드 | 상태 |
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
-| 현장 상태 `operations-site-state` (schema 1.1, 1.0 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
+| 현장 상태 `operations-site-state` (schema 1.2, 1.0·1.1 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
 | 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 송신 대기열 `report-outbox` (생산자 쪽 별도 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
@@ -33,7 +33,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 ## 2. 현장 상태 (`operations-site-state`, schema 1.0 의 표, main)
 
-1.1 에서도 이 세 표는 그대로이고 4절의 표가 더해진다. `metadata`: `schema=1.1`(1.0 파일은 4절대로 올림), `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
+1.1·1.2 에서도 이 세 표는 그대로이고 4절의 표가 더해진다. `metadata`: `schema=1.2`(1.0·1.1 파일은 4절대로 올림), `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
@@ -60,11 +60,11 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
 | `error_log` | `seq INTEGER PK`, `at_ns`, `robot_id NULL`, `task_id NULL`, `code`, `detail` | 실패 경로마다 한 행(3.7.4). **추가 전용**이고 같은 실패가 반복되면 새 행이다. `code` 는 C-09 공통 코드(`rescue_contracts.CANONICAL_CODES`)만 받고, `rescue_robot.NAV2_INACTIVE` 같은 세부 원인은 `detail`(1~1024자)에 쓴다. `robot_id` 는 배치 허용 로봇 또는 None(시스템 오류), `task_id` 는 UUID 또는 None |
-| `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation`, `updated_at_ns` | `mode` ∈ 계약 `SYSTEM_MODES`(S-00: NORMAL / DISASTER / CLEARING — 오탐 해제 중), `phase` ∈ 계획 1절의 표시용 상태 14개. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
+| `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation NULL`, `updated_at_ns`, 1.2: `target_id NULL`, `target_revision NULL`, `route_revision NULL`, `segment_index NULL`, `segment_count NULL`, `segment_phase NULL`, `reason NULL` | `mode` ∈ 계약 `SYSTEM_MODES`(S-00: NORMAL / DISASTER / CLEARING — 오탐 해제 중) 와 `MISSION_FINISHED`(phase FINISHED 일 때만, C-10 `SystemState`), `phase` ∈ 계획 1절의 표시용 상태 14개. 출동 칸 여섯은 AMR2 출동이 없으면 모두 None, 있으면 모두 있고 `segment_index` ≤ `segment_count`, `segment_phase` ∈ `SystemState.SEGMENT_PHASE_*` 7개. `generation` 은 `SystemState` 에 없어 None 일 수 있다. `reason` 은 조정기가 임무를 붙잡을 때의 사유 코드(#91 CLA-02, 예: 접근 막힘)이고 없으면 None. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
 | `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 1차 IDL `SubmitOperatorCommand` 의 operation 8개와 콘솔 계획의 PAUSE·RESUME·CANCEL·STOP_ROBOT. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
 | `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | 지도 이미지 한 장(IF-084). 이미지 bytes 는 DB 에 넣지 않고 `path`·`sha256`(소문자 64자)만 둔다. 같은 ID 같은 내용은 멱등 |
 
-올리기 규칙: `metadata.schema` 는 `1.1` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고 schema 를 `1.1` 로 올린다. 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 1.1 파일만 받으므로, 1.0 파일은 operations 가 한 번 연 뒤에 읽힌다.
+올리기 규칙: `metadata.schema` 는 `1.2` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고, 1.1 파일을 열면 `mission_state`(1행)를 1.2 모양으로 다시 만들어 기존 행을 옮긴 뒤(SQLite 는 NOT NULL 을 그 자리에서 풀 수 없음) schema 를 `1.2` 로 올린다. 다른 표와 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 최신 schema 파일만 받으므로, 이전 파일은 operations 가 한 번 연 뒤에 읽힌다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
 
 읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_mission_state` 는 `mission` 하나(기록 전에는 None).
 

@@ -61,6 +61,18 @@ def pose_msg(robot='robot_a', status='VALID', x=1.0, y=2.0, qz=0.0, qw=1.0, fram
                mission_pose=stamped, frame_ref=None, mission_pose_status=status)
 
 
+def system_state_msg(phase='SEGMENT_MOVING', changed=T0 + 100, dispatch=True, trigger=True, **changes):
+    """Field names and empty-value convention as #90 publishes them (0 / '' when has_* is false)."""
+    values = dict(envelope=envelope(), state_sequence=7, mode='DISASTER', changed_at_ns=changed,
+                  cause_event_ids=[uid(10)] if trigger else [], active_task_ids=[uid(2)], policy_version='p1',
+                  reason='', phase=phase, has_trigger=trigger, trigger_event_id=uid(10) if trigger else '',
+                  trigger_observed_at_ns=T0 if trigger else 0, has_dispatch=dispatch,
+                  target_id=uid(500) if dispatch else '', target_revision=2 if dispatch else 0,
+                  route_revision=1 if dispatch else 0, segment_index=1 if dispatch else 0,
+                  segment_count=3 if dispatch else 0, segment_phase='EXECUTING' if dispatch else 'IDLE')
+    return Msg(**(values | changes))
+
+
 class SiteEventConversion(unittest.TestCase):
     def test_disaster_sign_message_becomes_the_contract_event(self):
         from rescue_operations.ros_ingest import site_event_from_msg
@@ -221,6 +233,67 @@ class RobotStatusIngest(unittest.TestCase):
         self.assertEqual([('WRONG_ROBOT', None), ('INVALID_INPUT', 'robot_a')],
                          [(e['code'], e['robot_id']) for e in errors])
         self.assertTrue(all('robot_status' in e['detail'] for e in errors))
+
+
+class SystemStateConversion(unittest.TestCase):
+    def convert(self, msg):
+        from rescue_operations.ros_ingest import mission_from_msg
+        return mission_from_msg(msg)
+
+    def test_dispatching_state_becomes_the_mission_row(self):
+        self.assertEqual(dict(mode='DISASTER', phase='SEGMENT_MOVING', trigger_event_id=uid(10), started_at_ns=T0,
+                              generation=None, updated_at_ns=T0 + 100, target_id=uid(500), target_revision=2,
+                              route_revision=1, segment_index=1, segment_count=3, segment_phase='EXECUTING',
+                              reason=None),
+                         self.convert(system_state_msg()))
+
+    def test_reason_code_is_kept_and_empty_is_none(self):
+        self.assertEqual('SEARCH_QUEUED', self.convert(system_state_msg(reason='SEARCH_QUEUED'))['reason'])
+        self.assertIsNone(self.convert(system_state_msg(reason=''))['reason'])
+
+    def test_has_flags_false_give_none_not_zeroes(self):
+        mission = self.convert(system_state_msg(phase='IDLE', dispatch=False, trigger=False, mode='NORMAL'))
+        self.assertEqual((None, None), (mission['trigger_event_id'], mission['started_at_ns']))
+        self.assertEqual([None] * 6, [mission[k] for k in ('target_id', 'target_revision', 'route_revision',
+                                                            'segment_index', 'segment_count', 'segment_phase')])
+
+
+class SystemStateIngest(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / 'site_state.sqlite3'
+        self.ledger = site_state.SiteStateLedger(self.path, allowed_robot_ids=ROBOTS)
+        self.addCleanup(self.ledger.close)
+        from rescue_operations.ros_ingest import SiteStateIngest
+        self.ingest = SiteStateIngest(self.ledger, roles=ROLES)
+
+    def mission(self):
+        return site_state.read_mission_state(self.path)['mission']
+
+    def test_states_are_stored_in_change_order_and_a_coordinator_restart_is_not_mistaken(self):
+        self.assertTrue(self.ingest.on_system_state(system_state_msg(), received_at_ns=T0 + 101))
+        self.assertFalse(self.ingest.on_system_state(system_state_msg(), received_at_ns=T0 + 102))  # resend
+        # A restarted coordinator counts state_sequence from 1 again; change time decides, not the counter.
+        restarted = system_state_msg('AWAITING_CONTINUE', changed=T0 + 200, state_sequence=1,
+                                     segment_phase='AWAITING_APPROVAL')
+        self.assertTrue(self.ingest.on_system_state(restarted, received_at_ns=T0 + 201))
+        self.assertFalse(self.ingest.on_system_state(system_state_msg(changed=T0 + 150), received_at_ns=T0 + 202))
+        self.assertEqual(('AWAITING_CONTINUE', 1, 3), (self.mission()['phase'], self.mission()['segment_index'],
+                                                       self.mission()['segment_count']))
+        done = system_state_msg('FINISHED', changed=T0 + 300, mode='MISSION_FINISHED', segment_index=3,
+                                segment_phase='STOPPED')
+        self.assertTrue(self.ingest.on_system_state(done, received_at_ns=T0 + 301))
+        self.assertEqual(('MISSION_FINISHED', 'FINISHED'), (self.mission()['mode'], self.mission()['phase']))
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
+    def test_refused_state_lands_in_the_error_log(self):
+        self.assertIsNone(self.ingest.on_system_state(system_state_msg(segment_phase='MOVING'),
+                                                      received_at_ns=T0 + 5))
+        self.assertIsNone(self.mission())
+        (error,) = site_state.read_error_log(self.path)['errors']
+        self.assertEqual(('INVALID_INPUT', None), (error['code'], error['robot_id']))
+        self.assertIn('system_state', error['detail'])
 
 
 if __name__ == '__main__':
