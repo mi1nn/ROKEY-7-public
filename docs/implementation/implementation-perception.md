@@ -101,6 +101,37 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 **한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실제 웹캠 측정·오탐률·처리 속도는 NOT_RUN 이다.
 
+## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
+
+웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 가중치·영상·데이터셋은 저장소에 넣지 않는다(선정 뒤 `assets/manifest/` 에 출처·해시 기록). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
+
+- #95 와의 관계: #95 는 **AMR 카메라(OAK-D)** 용 yolo26n 이고, 이 절은 **고정 웹캠** 용이다. 같은 모델 구조지만 학습 데이터(카메라·화각·장면)가 달라 가중치를 서로 바꿔 쓰지 않는다.
+- 노트북: `tools/colab/survivor_model_compare.ipynb` — Colab 한 번 실행으로 학습·평가·속도·오탐/미탐·bootstrap 95% 구간·요약. 끝난 모델은 건너뛰고, 한 모델이 실패해도 나머지를 계속하며 실패를 기록한다.
+- 결과 원본(노트북이 만든 파일 그대로, [측정, 2026-10-11, Colab T4]):
+  - [`webcam-survivor-compare/results.csv`](webcam-survivor-compare/results.csv): 모델별 valid·test mAP, P/R, best epoch, 학습 시간, GPU·CPU ms(Ultralytics `val`)
+  - [`webcam-survivor-compare/analysis.json`](webcam-survivor-compare/analysis.json): 모델별 bootstrap 95% 구간·TP/FP/FN·실패 이미지 이름, 모델 쌍 21개의 valid·test 차이와 구간
+  - [`webcam-survivor-compare/dataset_info.json`](webcam-survivor-compare/dataset_info.json): 데이터셋 zip sha256, 분할별 이미지·박스 수, Roboflow 전처리·증강
+- 데이터셋 `survivor-webcam-v2`(파일 `survivor-v2-merged.zip`, sha256 `46d901fc…`): train 720장(웹캠 영상 1개, 원본 240 × 증강 3), valid 236장·인형 222, test 246장·인형 236 [측정, 2026-10-11; [dataset_info.json](webcam-survivor-compare/dataset_info.json)]. valid·test 는 **학습과 따로 찍은 영상**에서만 뽑았고 증강은 train 에만 있다. 첫 데이터셋은 영상 하나를 무작위로 나눠 평가 인형 43개 중 39개가 학습 인형과 사실상 같았고(인형 영역 유사도 ≥ 0.95), v2 는 0/458 이다 [측정, 2026-10-11; 로컬 분석, 원본 파일은 저장소 밖].
+- 설정: 100 epoch, patience 30, 입력 640, batch 16(rtdetr-l 8), seed 0, AdamW lr0 0.002(auto), Colab T4.
+
+| 모델 | 파라미터(M) | valid mAP50-95 (95% 구간) | test mAP50-95 (95% 구간) | test 오탐 / 미탐 | CPU ms/장(Colab) |
+| --- | --- | --- | --- | --- | --- |
+| **yolo26n** | 2.38 | 0.958 (0.947~0.968) | **0.920** (0.900~0.937) | 8 / 7 | **107** |
+| yolo26s | 9.47 | 0.958 (0.948~0.966) | 0.901 (0.877~0.920) | 18 / 6 | 312 |
+| yolov8s | 11.13 | 0.960 (0.949~0.969) | 0.897 (0.875~0.923) | 5 / 4 | 299 |
+| yolo11s | 9.41 | 0.948 (0.935~0.961) | 0.897 (0.868~0.918) | 6 / 6 | 281 |
+| rtdetr-l | 31.99 | 0.966 (0.957~0.974) | 0.894 (0.867~0.918) | 4 / 9 | 1,245 |
+| yolov8n | 3.01 | 0.962 (0.952~0.971) | 0.882 (0.865~0.908) | 2 / 6 | 116 |
+| yolo11n | 2.58 | 0.952 (0.939~0.960) | 0.881 (0.862~0.903) | 6 / 3 | 155 |
+
+[측정, 2026-10-11] mAP·파라미터·CPU ms 는 [results.csv](webcam-survivor-compare/results.csv), 95% 구간·오탐/미탐은 [analysis.json](webcam-survivor-compare/analysis.json) 이다(구간은 이미지 bootstrap 1,000회로 다시 잰 mAP 기준이라 점추정과 소수 셋째 자리가 다를 수 있다). 오탐·미탐은 신뢰도 0.25, IoU 0.5 기준이다.
+
+- **고르기(valid):** valid 에서 yolo26n 은 rtdetr-l·yolov8n·yolov8s·yolo26s·yolo11n 과 **구분 불가**이고 yolo11s 보다만 높다(차이 구간이 0 을 넘는 쌍만 "우세") [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.valid`]. 즉 valid 만으로는 최상위 묶음(6개)을 가를 수 없고, 그 묶음 안에서 가장 작고(2.38M) CPU 가 가장 빠른(107 ms) yolo26n 을 고른다.
+- **확인(test):** test 에서 yolo26n 은 나머지 6개 모두보다 높고 차이의 95% 구간이 모두 0 보다 크다(+0.020~+0.037) [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.test`]. 나머지 6개끼리는 test 15쌍 모두 구분 불가. valid→test 하락도 yolo26n 이 가장 작다(0.038, 나머지 0.051~0.080). **웹캠 인형 탐지 모델로 yolo26n 을 제안한다** [제안].
+- 한계: valid·test 를 같은 시간대·같은 사람이 찍었다. 배경 이미지가 valid 14·test 10장뿐이다. 조건별(저조도·가려짐·원거리) 분석 없음.
+- NOT_RUN: **PC3 에서 실물 웹캠 실시간 테스트**(fps·소실 판정), 실기(E3·E4).
+- 상세 보고서(학습 곡선 7개 비교·실패 이미지·그림): 팀 Notion [「[perception] Webcam 출구 구조 판정」](https://www.notion.so/3f6d8f79f52d80929ae1c089a194a6cc). 저장소의 수치 근거는 위 결과 원본 파일이다.
+
 ## 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
 
 `rescue_perception.target_watch`는 Q-26 결정(웹캠 = 지진 감지 + 구조 지점 대상 소실 후보)과 [C-11](../design/contracts.md)에 따라, 감시 영역(ROI) 안의 인형 유무로 `SiteEvent(kind="TARGET_DISAPPEARED_CANDIDATE")`를 만든다. 인형 상자는 웹캠 survivor 탐지기가 주고, 이 모듈은 상자와 ROI 만 본다. ROS·모델 없이 시험된다.
