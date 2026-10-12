@@ -16,11 +16,10 @@ from uuid import uuid4
 
 from .amr_camera_support import PARAMS as PREVIEW_PARAMS, PreviewProcessor, git_sha, validate_labels, verify_model
 from .amr_target_support import (MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
-    fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform)
+    fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform, load_depth_calibration, decode_depth_png)
 from .adapter import ObservationPolicy, SourceBinding, stamp_ns
 from .core import AlignmentEvidence, DepthPolicy, ModelManifest, TimePolicy
 from .person_pipeline import ConfirmationPolicy, PersonPipeline
-from .depth_calibration import load_depth_calibration
 
 PARAMS = dict(PREVIEW_PARAMS, **{
     'physical_robot_id': 'STRING', 'depth_calibration_path': 'STRING',
@@ -102,7 +101,6 @@ def create_node(*, model_factory=None, transform_lookup=None):
     from rclpy.time import Time
     from sensor_msgs.msg import CameraInfo, CompressedImage, Image
     from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
-    from .compressed_depth import decode_depth_png
 
     node = Node('amr_target_node')
     try:

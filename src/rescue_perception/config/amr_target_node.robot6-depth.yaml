@@ -4,4 +4,4 @@
 amr_target_node:
   ros__parameters:
     physical_robot_id: robot6
-    depth_calibration_path: package:robot6-depth-pr126.json
+    depth_calibration_path: package:robot6_depth.json

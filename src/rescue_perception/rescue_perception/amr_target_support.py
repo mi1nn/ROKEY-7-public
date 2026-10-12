@@ -5,6 +5,12 @@ Map/alignment metadata must come from the mapping owner, never from detection.
 """
 from dataclasses import dataclass
 import math
+import hashlib
+import json
+import re
+import struct
+from pathlib import Path
+from importlib.resources import files
 from uuid import NAMESPACE_URL, uuid5
 
 from rescue_contracts import ros_time_to_ns, timestamp_ns, uuid_string
@@ -207,3 +213,72 @@ def fill_location(message, observation_message, observation, metadata, sensor_to
     if not all(math.isfinite(value) for value in message.covariance):
         raise ValueError('derived covariance is not finite')
     return message
+
+
+# Robot-specific correction and compressedDepth decoding are kept in this
+# existing target boundary module. OpenCV/NumPy remain lazy imports.
+@dataclass(frozen=True)
+class DepthCalibration:
+    calibration_id: str
+    physical_robot_id: str
+    scale: float
+    offset_m: float
+    sha256: str
+
+
+def load_depth_calibration(path, *, physical_robot_id):
+    def resource_bytes(name):
+        if not isinstance(name, str) or not name or Path(name).name != name:
+            raise ValueError('depth calibration resource must be a file name')
+        return files('rescue_perception').joinpath('config').joinpath(name).read_bytes()
+
+    path = str(path)
+    payload = resource_bytes(path[len('package:'):]) if path.startswith('package:') else Path(path).read_bytes()
+    raw = json.loads(payload)
+    for key in ('calibration_id', 'physical_robot_id', 'source_url', 'date'):
+        if not isinstance(raw.get(key), str) or not raw[key].strip():
+            raise ValueError(f'depth calibration requires {key}')
+    if raw['physical_robot_id'] != physical_robot_id:
+        raise ValueError('depth calibration physical robot mismatch')
+    scale, offset = raw.get('scale'), raw.get('offset_m')
+    if type(scale) not in (float, int) or not math.isfinite(scale) or scale <= 0:
+        raise ValueError('depth calibration scale must be positive and finite')
+    if type(offset) not in (float, int) or not math.isfinite(offset):
+        raise ValueError('depth calibration offset_m must be finite')
+    if raw.get('input_unit') != 'm' or raw.get('input_state') != 'raw_uncorrected':
+        raise ValueError('depth calibration expects raw uncorrected metric depth')
+    return DepthCalibration(raw['calibration_id'], physical_robot_id, float(scale), float(offset),
+                            hashlib.sha256(payload).hexdigest())
+
+
+def decode_depth_png(message, *, byte_order, bridge):
+    import cv2
+    import numpy as np
+    fmt = message.format
+    match = re.fullmatch(r'\s*(16UC1|32FC1);\s*compressedDepth(?:\s+png)?\s*', fmt)
+    if not match:
+        raise ValueError(f'only 16UC1/32FC1 compressedDepth PNG is supported, got {fmt!r}')
+    if byte_order not in ('little', 'big'):
+        raise ValueError('depth publisher byte order must be little or big')
+    header = struct.Struct(('<' if byte_order == 'little' else '>') + 'iff')
+    payload = bytes(message.data)
+    if len(payload) <= header.size or payload[header.size:header.size+8] != b'\x89PNG\r\n\x1a\n':
+        raise ValueError('compressedDepth header/PNG payload missing')
+    mode, factor, offset = header.unpack_from(payload)
+    if mode != 0:
+        raise ValueError('unsupported compressedDepth header mode')
+    depth = cv2.imdecode(np.frombuffer(payload[header.size:], dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+    if depth is None or depth.ndim != 2 or depth.dtype != np.uint16:
+        raise ValueError('compressedDepth PNG must decode to a uint16 single-channel array')
+    if match.group(1) == '32FC1':
+        if not math.isfinite(factor) or factor <= 0 or not math.isfinite(offset):
+            raise ValueError('invalid float-depth reconstruction parameters')
+        denominator = depth.astype(np.float32) - offset
+        valid = (depth != 0) & (denominator > 0)
+        restored = np.full(depth.shape, np.nan, dtype=np.float32)
+        restored[valid] = factor / denominator[valid]
+        depth = restored
+    image = bridge.cv2_to_imgmsg(depth, encoding=match.group(1))
+    from copy import deepcopy
+    image.header = deepcopy(message.header)
+    return image

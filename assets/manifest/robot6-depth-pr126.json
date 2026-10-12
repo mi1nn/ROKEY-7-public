@@ -1,9 +1,0 @@
-{
-  "physical_robot_id": "robot6",
-  "date": "2026-10-12",
-  "source_url": "https://github.com/jaebeom/ROKEY-7/pull/126",
-  "source_commit": "6bf2e66ddc15944da6846276a186e8f784268f78",
-  "profile_resource": "robot6-depth-pr126.json",
-  "profile_sha256": "d7063f20122df3093c2ea3f0545bcf554c2679d2029512ac5491768c8635c6b0",
-  "note": "Canonical scale, measurement and authorization are in packaged rescue_perception/config/robot6-depth-pr126.json; no duplicated coefficient."
-}
