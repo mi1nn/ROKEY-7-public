@@ -97,13 +97,17 @@ class CommandGate:
         self.ledger = ledger
         self.send = send
         self.timeout_ns = timeout_ns
+        # command_id -> first issue time. The coordinator compares the whole command, issued_at_ns
+        # included, so a resend must carry the first time to get DUPLICATE (kept for this process).
+        self._issued = {}
 
     def handle(self, raw, *, received_at_ns):
         try:
             command = parse_command(raw)
         except OperationsError as exc:
             return self._refuse(raw, exc, received_at_ns)
-        fields = service_fields(command, issued_at_ns=received_at_ns, timeout_ns=self.timeout_ns)
+        issued_at_ns = self._issued.setdefault(command["command_id"], received_at_ns)
+        fields = service_fields(command, issued_at_ns=issued_at_ns, timeout_ns=self.timeout_ns)
         try:
             reply = self.send(fields)
         except (CommandUnavailable, CommandTimeout) as exc:
@@ -114,7 +118,7 @@ class CommandGate:
         accepted, state = bool(reply["accepted"]), reply["request_state"]
         # A refusal always names a reason (DB rule and the console's answer shape).
         reason = _optional(reply["reason_code"]) or (None if accepted else "UNKNOWN")
-        self._record(command, received_at_ns, accepted=accepted, result=state, reason=reason,
+        self._record(command, issued_at_ns, accepted=accepted, result=state, reason=reason,
                      duplicate=state == "DUPLICATE")
         return 200, {"accepted": accepted, "request_id": command["command_id"], "reason": reason,
                      "request_state": state, "created_task_id": _optional(reply["created_task_id"])}
