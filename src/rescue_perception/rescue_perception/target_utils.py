@@ -11,6 +11,8 @@ import struct
 from pathlib import Path
 from importlib.resources import files
 
+from rescue_contracts import ros_time_to_ns
+from rescue_mapping import RigidTransform
 from .core import AlignmentEvidence, DepthPolicy
 from .person_pipeline import ConfirmationPolicy, DetectorOutput, Inference
 from .adapter import ObservationPolicy, SourceBinding
@@ -26,6 +28,8 @@ SETTINGS = {
     'depth_byte_order': 'little',
     'camera_info_topic': 'camera/camera_info',
     'observations_topic': '/rescue/observations',
+    'base_point_topic': 'perception/target_base_point',
+    'base_frame': 'base_link',
     'robot_id': 'robot_a',
     'physical_robot_id': 'robot6',
     'depth_calibration_path': 'package:robot6_depth.json',
@@ -70,7 +74,7 @@ def target_config(v, boot_id):
         if v[key] <= 0:
             raise ValueError(f'{key} must be positive')
     topics = [v[key] for key in ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
-                                 'observations_topic')]
+                                 'observations_topic', 'base_point_topic')]
     if len(topics) != len(set(topics)):
         raise ValueError('all input/output topics must differ')
     bound = v['clock_error_bound_ns']
@@ -163,6 +167,34 @@ def fill_observation(message, observation, covariance):
     e = message.evidence
     e.evidence_id, e.sha256, e.mime_type = o.evidence_id, o.evidence_sha256, 'application/octet-stream'
     e.source_id, e.source_boot_id, e.observed_at_ns = o.source_camera, o.source_boot_id, o.observed_at_ns
+    return message
+
+
+def fill_base_point(message, observation, lookup, *, base_frame):
+    """Camera optical XYZ -> robot base XYZ using capture-time TF only.
+
+    lookup(target, source, stamp_ns) must query that exact time, never latest.
+    A zero-stamped static mounting transform is accepted after that query.
+    No map/odom transform is requested; failure leaves the camera observation intact.
+    """
+    point = observation.localization.point_optical
+    if point is None or not all(math.isfinite(x) for x in point):
+        raise ValueError('valid camera-relative XYZ required')
+    stamp = observation.observed_at_ns
+    transform = lookup(base_frame, observation.frame.frame_id, stamp)
+    if transform.header.frame_id != base_frame or transform.child_frame_id != observation.frame.frame_id:
+        raise ValueError('camera-to-base TF frame mismatch')
+    sec, nsec = transform.header.stamp.sec, transform.header.stamp.nanosec
+    tf_stamp = 0 if type(sec) is int and type(nsec) is int and sec == nsec == 0 else ros_time_to_ns(sec, nsec)
+    if tf_stamp not in (0, stamp):
+        raise ValueError('camera-to-base TF must match capture time or be static')
+    t, q = transform.transform.translation, transform.transform.rotation
+    result = RigidTransform((t.x, t.y, t.z), (q.x, q.y, q.z, q.w)).apply(point)
+    if not all(math.isfinite(x) for x in result):
+        raise ValueError('base-relative XYZ must be finite')
+    message.header.frame_id = base_frame
+    message.header.stamp.sec, message.header.stamp.nanosec = divmod(stamp, 10**9)
+    message.point.x, message.point.y, message.point.z = result
     return message
 
 

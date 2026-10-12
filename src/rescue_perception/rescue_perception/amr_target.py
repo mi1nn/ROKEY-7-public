@@ -1,7 +1,8 @@
 """AMR RGB-D observation node: detection, depth correction and TargetObservation.
 
 Map projection is separate code for later connection to existing rescue_mapping.
-This node does not subscribe to maps, query TF or publish TargetLocation.
+Camera-to-base TF produces auxiliary relative points; no map/odom lookup
+or TargetLocation publisher is connected.
 """
 import json
 import os
@@ -13,6 +14,9 @@ import cv2
 import rclpy
 import message_filters
 from cv_bridge import CvBridge
+from geometry_msgs.msg import PointStamped
+from tf2_ros import Buffer, TransformListener
+from rclpy.time import Time
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
@@ -22,13 +26,13 @@ from rclpy.executors import ExternalShutdownException
 
 from .camera_utils import PreviewProcessor, git_sha, validate_labels, verify_model
 from .target_utils import (SETTINGS, target_config, PreparedDetector, fill_envelope,
-    fill_observation, inference_from_result, decode_depth_png)
+    fill_observation, fill_base_point, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
 
 
-def create_node(*, model_factory=None):
+def create_node(*, model_factory=None, transform_lookup=None):
     """Create the RGB-D observation node; mapping integration is a later step."""
 
     node = Node('amr_target')
@@ -37,7 +41,7 @@ def create_node(*, model_factory=None):
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
-                      'observations_topic')
+                      'observations_topic', 'base_point_topic')
         topics = {key: node.resolve_topic_name(v[key]) for key in topic_keys}
         if len(set(topics.values())) != len(topics):
             raise ValueError('remapped input/output topics must differ')
@@ -60,6 +64,13 @@ def create_node(*, model_factory=None):
                                 durability=DurabilityPolicy.VOLATILE)
         observation_pub = node.create_publisher(TargetObservation, topics['observations_topic'],
             QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+        base_point_pub = node.create_publisher(PointStamped, topics['base_point_topic'],
+            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+        if transform_lookup is None:
+            buffer = Buffer(node=node)
+            node.relative_tf_listener = TransformListener(buffer, node, spin_thread=False)
+            transform_lookup = lambda target, source, stamp: buffer.lookup_transform(
+                target, source, Time(nanoseconds=stamp))
         image_pub = node.create_publisher(Image, topics['annotated_topic'], 1)
         state = {'info': None, 'last_success': time.monotonic(),
                  'warning': 0., 'frames': 0, 'observation_seq': 0}
@@ -104,6 +115,15 @@ def create_node(*, model_factory=None):
                     now = node.get_clock().now().nanoseconds
                     envelope(observation.envelope, 'observation_seq', now)
                     observation_pub.publish(observation)
+                    if o.localization.point_optical is not None:
+                        try:
+                            base_point = fill_base_point(PointStamped(), o, transform_lookup,
+                                                         base_frame=v['base_frame'])
+                            base_point_pub.publish(base_point)
+                        except Exception as exc:
+                            node.get_logger().warning(
+                                f'base point unavailable; camera observation {o.observation_id} retained: '
+                                f'{type(exc).__name__}: {exc}')
                     if candidate.status != 'CONFIRMED':
                         node.get_logger().warning(f'target unconfirmed: {candidate.reasons}')
                 state['frames'] += 1
