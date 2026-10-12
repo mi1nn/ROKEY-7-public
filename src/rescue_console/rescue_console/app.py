@@ -1,15 +1,17 @@
 """Flask boundary (optional dependency).
 
-Login is required for every page. ADMIN manages accounts at /admin/accounts; CUSTOMER
-only views. Data routes stay GET-only; the console still writes nothing to the
-operations ledgers. Forms carry a per-session CSRF token.
+Login is required for every page. ADMIN manages accounts at /admin/accounts and sends operator
+commands (POST /commands, passed on to operations); CUSTOMER only views. Data routes stay GET-only;
+the console writes nothing to the operations ledgers. Forms and commands carry a per-session CSRF token.
 """
 
 import functools
 import secrets
 import time
+import uuid
 
 from .accounts import AccountStore
+from .commands import build_request, command_access, parse_operations_url, post_json, send_command
 from .mapimage import load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
@@ -18,8 +20,8 @@ from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
 
-# Paths that answer 401 instead of redirecting to the login page (polled data, the map image).
-DATA_PATHS = ('/fragment', '/map.png')
+# Paths that answer 401 instead of redirecting to the login page (polled data, the map image, commands).
+DATA_PATHS = ('/fragment', '/map.png', '/commands')
 # Sent with every response ([제안] 관제·화면, 2026-10-10). The pages are never framed by another
 # site, never content-sniffed, and leak no referrer to the camera URLs. A full script CSP needs the
 # inline script and style to carry a nonce first (README 「후속」).
@@ -55,7 +57,9 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, login_throttle=None):
+               map_path=None, login_throttle=None, operations_url=None, command_transport=None):
+    """`operations_url`: base URL of operations' HTTP API. Without it the command buttons stay off
+    (no default address). `command_transport` replaces the HTTP POST in tests."""
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -68,6 +72,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     cameras = tuple(cameras)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup
+    operations = None if operations_url is None else parse_operations_url(operations_url)
+    transport = post_json if command_transport is None else command_transport
     app = Flask(__name__)
     app.secret_key = secret_key
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
@@ -180,7 +186,9 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @app.get('/')
     @login_required
     def page(account):
-        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras), mimetype='text/html')
+        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras,
+                                    command_access=command_access(account['role'], operations is not None)),
+                        mimetype='text/html')
 
     @app.get('/fragment')
     @login_required
@@ -199,6 +207,34 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
             abort(404, 'no map: start with --map MAP_YAML')
         # The URL carries the PGM hash (`?v=`), so a cached copy is never a different map.
         return Response(map_image.png, mimetype='image/png', headers={'Cache-Control': 'private, max-age=3600'})
+
+    # ---- operator commands (ADMIN) -----------------------------------------------------
+    @app.post('/commands')
+    @login_required
+    def command(account):
+        """One press -> one POST to operations. The answer or the failure goes back to the page as JSON.
+
+        Nothing here retries, guesses or writes; operations records the command (operator_commands)
+        and the coordinator decides. Refusals before sending say so with sent=false.
+        """
+        def refuse(code, message, status):
+            app.logger.warning('command refused before sending: %s %s (%s)', code, message, account['username'])
+            return jsonify({'sent': False, 'error': code, 'message': message}), status
+        if not secrets.compare_digest(request.form.get('csrf', ''), session.get('csrf', '-')):
+            return refuse('CSRF', 'csrf token mismatch — reload the page', 400)
+        allowed, reason = command_access(account['role'], operations is not None)
+        if not allowed:
+            return refuse('NOT_AUTHORIZED' if account['role'] != 'ADMIN' else 'NOT_CONNECTED', reason,
+                          403 if account['role'] != 'ADMIN' else 503)
+        try:
+            payload = build_request(request.form, operator_id=account['username'], command_id=str(uuid.uuid4()))
+        except ConsoleError as exc:
+            return refuse(exc.detail_code, exc.detail, 400)
+        result = send_command(operations, payload, transport=transport)
+        log = app.logger.info if result['sent'] else app.logger.warning
+        log('operator command %s %s by %s -> %s', payload['kind'], payload['command_id'], account['username'],
+            {key: value for key, value in result.items() if key not in ('command_id', 'kind')})
+        return jsonify(result), 200 if result['sent'] else 502
 
     # ---- accounts (ADMIN) ------------------------------------------------------------
     def accounts_page(account, status=200):

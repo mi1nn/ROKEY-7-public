@@ -1,0 +1,30 @@
+{
+  "_note": "예시다. 실제 장비 값이 아니다. 작전의 프로파일 v2.1 hosts[].network 블록(#39: domain_id, discovery_servers[{server_id, address, port}], super_client)이 들어오면 그 값으로 대체하고 이 파일은 지운다. <...> 주소와 server_id null 은 자리표시자이고 scripts/field/preflight.py 는 비교하지 않고 NOT_RUN 으로 둔다. 서버 ID 는 로봇 Pi 의 Onboard Server ID(로봇마다 고유, Q-01 배정 뒤)다. 규칙은 docs/design/network-discovery.md.",
+  "host_example_version": 0,
+  "role": "robot_control_1",
+  "deployment_host": "compute_a",
+  "purpose": "robot_a 의 SLAM·Nav2·명령. 자기 로봇 서버만 목록에 둔다 [제안]",
+  "ros": {
+    "distro": "jazzy",
+    "rmw_implementation": "rmw_fastrtps_cpp",
+    "domain_id": null,
+    "super_client_runtime": false
+  },
+  "discovery_servers": [
+    {
+      "server_id": null,
+      "address": "<robot_a-pi>",
+      "port": 11811,
+      "robot_namespace": "/robot_a"
+    }
+  ],
+  "watch_namespaces": [
+    "/robot_a"
+  ],
+  "required_packages": [
+    "nav2_msgs",
+    "irobot_create_msgs",
+    "turtlebot4_*",
+    "rmw_fastrtps_cpp"
+  ]
+}

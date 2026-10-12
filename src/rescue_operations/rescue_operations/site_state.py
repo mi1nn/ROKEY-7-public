@@ -58,6 +58,11 @@ DOCK_STATES = frozenset({"DOCKED", "UNDOCKED", "UNKNOWN"})  # RobotStatus.DOCK_S
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
+# Optional target key (#115): the estimate revision the console shows and sends back with DISPATCH_SUPPORT.
+# A row stored before it, or a writer without it, reads as None.
+# persisted_report_id (#118): the report of this revision the coordinator saw PERSISTED, else None;
+# the console enables AMR2 dispatch only with it (the coordinator also requires it).
+TARGET_DEFAULTS = {"target_revision": None, "persisted_report_id": None}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
@@ -166,7 +171,8 @@ def _stored_event(event_json):
 
 
 def _target_state(value, allowed):
-    state = dict(exact(value, TARGET_KEYS, "target state"))
+    require(isinstance(value, Mapping), "target state must be an object")
+    state = dict(exact(TARGET_DEFAULTS | dict(value), TARGET_KEYS | TARGET_DEFAULTS.keys(), "target state"))
     uid(state["target_id"], "target_id")
     if state["position"] is not None:
         position = exact(state["position"], TARGET_POSITION_KEYS, "position")
@@ -180,8 +186,8 @@ def _target_state(value, allowed):
     # The closed reason set belongs to the coordination policy; here only its shape is checked.
     require(isinstance(reasons, list) and all(isinstance(r, str) and r.isidentifier() for r in reasons)
             and len(set(reasons)) == len(reasons), "rescue_reasons must be unique identifiers")
-    require(bool(reasons) == (state["rescue_state"] == "RECHECK_NEEDED"),
-            "rescue_reasons are present exactly when RECHECK_NEEDED")
+    # TargetEstimate (#96) has no reason field, so a RECHECK_NEEDED target may come without one.
+    require(not reasons or state["rescue_state"] == "RECHECK_NEEDED", "rescue_reasons are only for RECHECK_NEEDED")
     state["rescue_reasons"] = sorted(reasons)
     if state["verdict_id"] is not None:
         uid(state["verdict_id"], "verdict_id")
@@ -191,7 +197,16 @@ def _target_state(value, allowed):
     if state["support_robot_id"] is not None:
         _member(state["support_robot_id"], allowed, "support_robot_id")
     timestamp(state["updated_at_ns"], "updated_at_ns")
+    if state["target_revision"] is not None:
+        uint(state["target_revision"], "target_revision")
+    if state["persisted_report_id"] is not None:
+        text(state["persisted_report_id"], "persisted_report_id")
     return state
+
+
+def _stored_target(state_json):
+    """A stored target state with every current key; keys added later read as None."""
+    return TARGET_DEFAULTS | json.loads(state_json)
 
 
 def _error_entry(value, allowed):
@@ -353,7 +368,8 @@ class SiteStateLedger(_Database):
             row = db.execute("SELECT * FROM target_states WHERE target_id = ?", (state["target_id"],)).fetchone()
             if row is not None:
                 if state["updated_at_ns"] == row["updated_at_ns"]:
-                    require(row["state_json"] == encoded, "same target and time with different content",
+                    require(canonical(_stored_target(row["state_json"])) == encoded,
+                            "same target and time with different content",
                             "ID_CONTENT_CONFLICT")
                     return False
                 if state["updated_at_ns"] < row["updated_at_ns"]:
@@ -464,7 +480,7 @@ def read_site_events(db_path, *, limit=100):
 def read_target_states(db_path):
     def query(db):
         rows = db.execute("SELECT state_json FROM target_states ORDER BY target_id").fetchall()
-        return {"targets": [json.loads(row["state_json"]) for row in rows]}
+        return {"targets": [_stored_target(row["state_json"]) for row in rows]}
     return _read(db_path, query)
 
 
