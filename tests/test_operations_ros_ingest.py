@@ -327,7 +327,7 @@ class TargetConversion(unittest.TestCase):
                               position=dict(x=3.0, y=4.0, frame_id='mission', map_session_id=uid(5), map_revision=2),
                               detection_confirmed=True, rescue_state='NOT_CHECKED', rescue_reasons=[],
                               verdict_id=None, support_state='ASSIGNED', support_robot_id='robot_b',
-                              updated_at_ns=T0 + 50),
+                              updated_at_ns=T0 + 50, target_revision=2),
                          self.convert(target_msg()))
 
     def test_approach_states_fold_into_the_four_support_states(self):

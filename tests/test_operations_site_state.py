@@ -296,12 +296,27 @@ class SiteStateTests(unittest.TestCase):
             self.assertTrue(ledger.record_target_state(target_state(rescue_reasons=[])))
         self.assertEqual([], site_state.read_target_states(self.path)['targets'][0]['rescue_reasons'])
 
+    def test_target_revision_is_an_optional_key_and_old_rows_read_as_none(self):
+        """#115: the console sends the target_revision it showed; rows stored before it read as None."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_target_state(target_state(target_revision=4)))
+            self.assertTrue(ledger.record_target_state(target_state(target_id=uid(501))))
+        with sqlite3.connect(self.path) as db:  # a row written before the key existed
+            stored = target_state(target_id=uid(502))
+            db.execute("INSERT INTO target_states VALUES (?, ?, ?)",
+                       (stored["target_id"], stored["updated_at_ns"], site_state.canonical(stored)))
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_target_state(target_state(target_id=uid(502))))  # same content
+        revisions = {t['target_id']: t['target_revision'] for t in site_state.read_target_states(self.path)['targets']}
+        self.assertEqual({uid(500): 4, uid(501): None, uid(502): None}, revisions)
+
     def test_target_state_rejects_inconsistent_input(self):
         bad = [dict(rescue_state='DONE'), dict(rescue_state='RESCUE_CONFIRMED'),
                dict(rescue_reasons=['A', 'A']), dict(rescue_reasons=['not an id']), dict(support_state='MOVING'),
                dict(support_state='NONE'), dict(support_robot_id=None), dict(support_robot_id='robot_x'),
                dict(detection_confirmed=1), dict(position=dict(x=1.0, y=2.0)), dict(updated_at_ns=0),
-               dict(verdict_id='x')]
+               dict(verdict_id='x'), dict(target_revision=-1), dict(target_revision='2'),
+               dict(target_revision=True)]
         with self.ledger() as ledger:
             for change in bad:
                 with self.subTest(change=change), self.assertRaises(OperationsError):
