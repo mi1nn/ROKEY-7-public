@@ -2,13 +2,13 @@
 
 [사용자 요구, 2026-10-11] #82의 학습 계획 후속으로 두 실험과 비교 결과를 제출한다.
 
-## 상태와 머지 보류
+## 상태
 
-**머지하지 않는다.** [사용자 결정, 2026-10-11] “아직 원하는 만큼 학습 결과가 안나와서 머지는 하지 말라고 해줘”. 본 PR은 Draft로 유지하며 재학습·재시험 결과와 사용자의 보류 해제 전까지 머지하지 않는다.
+[사용자 결정, 2026-10-11] 처음에는 학습 결과가 부족해 머지를 보류했고, 재학습 뒤 보류를 해제했다. 최종 모델은 100 epoch 재학습 best.pt이며 결과는 [Survivor v2 재학습 결과](yolo26n-v2-results.md)에 있다. 이 문서는 그 전 두 실험(512)의 기록이다.
 
 ## 데이터와 공통 설정
 
-[설정, 2026-10-11] 클래스는 survivor(ID 0) 하나, 이미지 512×512 총 494장(train 346 / valid 99 / test 49). 두 실험은 같은 ZIP SHA256·초기 YOLO26n 가중치·분할·seed 0을 사용했다. 출처 해시와 best.pt 해시는 [모델 manifest](../../assets/manifest/yolo26n-survivor.json)에 기록했다. 데이터셋 이미지와 가중치 바이너리는 이 PR에 포함하지 않았다. 모델 파일은 로컬 실험 산출물에 있으며 공유 다운로드 위치는 아직 등록하지 않았다.
+[설정, 2026-10-11] 클래스는 survivor(ID 0) 하나, 이미지 512×512 총 494장(train 346 / valid 99 / test 49). 두 실험은 같은 ZIP SHA256·초기 YOLO26n 가중치·분할·seed 0을 사용했다. 출처 해시와 best.pt 해시는 [모델 manifest](../../assets/manifest/yolo26n-survivor.json)에 기록했다. 데이터셋 이미지와 이 두 실험의 가중치 바이너리는 저장소에 넣지 않았다(로컬 실험 산출물). 최종 채택 모델은 `assets/models/best.pt`이고 해시는 [v2 manifest](../../assets/manifest/yolo26n-survivor-v2.json)에 있다.
 
 [설정, 2026-10-11] imgsz=512, 최대 epochs=100, patience=20, batch=8, AdamW, lr0=0.001, lrf=0.01, weight_decay=0.0005, deterministic=True, GPU device=0, AMP=True. 환경은 ultralytics 8.4.170, torch 2.14.1+cu130이다. GPU 기종·추론 FPS·종단 지연은 미측정이다.
 
