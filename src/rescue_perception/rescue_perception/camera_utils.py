@@ -10,6 +10,24 @@ from pathlib import Path
 import re
 import subprocess
 
+# User settings, 2026-10-12: one robot6/GPU deployment, no external YAML.
+# Controller deployment: Ubuntu 24.04, ROS 2 Jazzy, RTX 4070.
+# Topic/frame names still require live verification; no sensor settings are changed.
+SETTINGS = {
+    'image_topic': 'camera/image_raw/compressed',
+    'image_type': 'compressed',
+    'annotated_topic': 'perception/annotated',
+    'model_path': 'assets/models/best.pt',
+    'model_sha256': '0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74',
+    'model_label': 'survivor',
+    'model_imgsz': 640,
+    'model_conf': 0.5,
+    'device': '0',
+    'show': False,
+    'no_frame_warn_s': 5.0,
+    'log_every': 10,
+}
+
 PARAMS = {
     'image_topic': 'STRING', 'image_type': 'STRING', 'annotated_topic': 'STRING',
     'model_path': 'STRING', 'model_sha256': 'STRING', 'model_label': 'STRING',

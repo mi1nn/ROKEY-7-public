@@ -3,7 +3,7 @@
 Reuse PersonPipeline for RGB-D checks and rescue_mapping for rigid transforms.
 Map/alignment metadata must come from the mapping owner, never from detection.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 import hashlib
 import json
@@ -15,8 +15,106 @@ from uuid import NAMESPACE_URL, uuid5
 
 from rescue_contracts import ros_time_to_ns, timestamp_ns, uuid_string
 from rescue_mapping import FrameAlignment, RigidTransform
-from .core import validate_freshness
-from .person_pipeline import DetectorOutput, Inference
+from .core import AlignmentEvidence, DepthPolicy, TimePolicy, validate_freshness
+from .person_pipeline import ConfirmationPolicy, DetectorOutput, Inference
+from .adapter import ObservationPolicy, SourceBinding
+from .camera_utils import SETTINGS as CAMERA_SETTINGS, validate_config
+
+
+# User settings, 2026-10-12: share RGB settings and always select robot6 correction.
+# UNKNOWN clock/alignment values are deliberate until measured; locations stay blocked.
+SETTINGS = {
+    **CAMERA_SETTINGS,
+    'depth_topic': 'camera/depth/image_raw/compressedDepth',
+    'depth_transport': 'compressedDepth',
+    'depth_byte_order': 'little',
+    'camera_info_topic': 'camera/camera_info',
+    'observations_topic': '/rescue/observations',
+    'locations_topic': '/rescue/target_locations',
+    'map_state_topic': 'mapping/map_state',
+    'robot_id': 'robot_a',
+    'physical_robot_id': 'robot6',
+    'depth_calibration_path': 'package:robot6_depth.json',
+    'camera_id': 'amr_rgbd',
+    'model_id': 'survivor_yolo26n_640',
+    'confirm_confidence_min': 0.8,
+    'rgb_optical_frame': 'camera_rgb_optical',
+    'depth_optical_frame': 'camera_rgb_optical',
+    'calibration_id': 'UNCONFIGURED',
+    'alignment_evidence_id': 'UNCONFIGURED',
+    'rgb_rectified': False,
+    'rgb_depth_alignment_verified': False,
+    'rgb_stamp_semantics': 'UNKNOWN',
+    'depth_stamp_semantics': 'UNKNOWN',
+    'clock_domain_id': 'UNCONFIGURED',
+    'clock_state': 'UNKNOWN',
+    'clock_error_bound_ns': -1,
+    'receiver_clock_error_ns': 0,
+    'publisher_id': 'amr.perception',
+    'envelope_version': '0.1',
+    'sync_queue_size': 3,
+    'sync_slop_ns': 20000000,
+    'camera_info_max_age_ns': 1000000000,
+    'observation_validity_ns': 2000000000,
+    'max_map_age_ns': 1000000000,
+    'max_age_ns': 1000000000,
+    'max_future_ns': 0,
+    'max_clock_error_ns': 20000000,
+    'stamp_delay_bound_ns': 0,
+    'min_depth_m': 0.2,
+    'max_depth_m': 5.0,
+    'min_valid_pixels': 10,
+    'min_valid_fraction': 0.5,
+    'max_depth_spread_m': 0.5,
+    'sensor_variance_xyz': [0.04, 0.04, 0.04],
+    'alignment_authority': 'UNCONFIGURED',
+    'max_alignment_position_error_m': 0.1,
+    'max_alignment_rotation_error_rad': 0.1,
+}
+
+def target_config(v, boot_id):
+    validate_config(v)
+    for key, default in SETTINGS.items():
+        if key not in v or type(v[key]) is not type(default):
+            raise ValueError(f'missing/invalid setting: {key}')
+        if isinstance(v[key], str) and not v[key].strip():
+            raise ValueError(f'empty setting: {key}')
+    if v['depth_transport'] not in ('raw', 'compressedDepth') or v['depth_byte_order'] not in ('little', 'big'):
+        raise ValueError('depth_transport must be raw/compressedDepth; specify publisher byte order')
+    for key in ('sync_queue_size', 'camera_info_max_age_ns', 'observation_validity_ns', 'max_map_age_ns'):
+        if v[key] <= 0:
+            raise ValueError(f'{key} must be positive')
+    topics = [v[key] for key in ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
+                                 'observations_topic', 'locations_topic', 'map_state_topic')]
+    if len(topics) != len(set(topics)):
+        raise ValueError('all input/output topics must differ')
+    bound = v['clock_error_bound_ns']
+    if bound < -1:
+        raise ValueError('clock_error_bound_ns must be >=0 or -1 (UNKNOWN)')
+    binding = SourceBinding(v['robot_id'], v['camera_id'], boot_id, v['clock_domain_id'],
+        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], v['clock_state'],
+        bound if bound >= 0 else None)
+    alignment = AlignmentEvidence(v['alignment_evidence_id'], v['calibration_id'],
+        v['rgb_optical_frame'], v['depth_optical_frame'], v['rgb_depth_alignment_verified'])
+    depth = DepthPolicy(v['sync_slop_ns'], v['min_depth_m'], v['max_depth_m'],
+                        v['min_valid_pixels'], v['min_valid_fraction'], v['max_depth_spread_m'])
+    if v['depth_calibration_path'] != 'UNCONFIGURED':
+        calibration = load_depth_calibration(v['depth_calibration_path'], physical_robot_id=v['physical_robot_id'])
+        depth = replace(depth, scale=calibration.scale, offset_m=calibration.offset_m)
+        calibration_id = f'{binding.calibration_id}|depth:{calibration.calibration_id}:{calibration.sha256}'
+        binding = replace(binding, calibration_id=calibration_id)
+        alignment = replace(alignment, calibration_id=calibration_id)
+    expiry = ObservationPolicy(v['observation_validity_ns'])
+    confirmation = ConfirmationPolicy((v['model_label'],), v['confirm_confidence_min'])
+    if v['confirm_confidence_min'] < v['model_conf']:
+        raise ValueError('confirm_confidence_min must not be below model_conf')
+    freshness = TimePolicy(v['max_age_ns'], v['max_future_ns'], v['max_clock_error_ns'], v['stamp_delay_bound_ns'])
+    if v['envelope_version'] != '0.1':
+        raise ValueError('only the current ROS wire envelope version 0.1 is supported')
+    covariance = covariance_matrix(v['sensor_variance_xyz'])
+    if v['receiver_clock_error_ns'] < 0:
+        raise ValueError('receiver_clock_error_ns must be nonnegative')
+    return binding, alignment, depth, expiry, confirmation, freshness, covariance
 
 
 def inference_from_result(result, manifest):

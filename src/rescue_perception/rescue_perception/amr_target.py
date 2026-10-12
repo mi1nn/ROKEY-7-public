@@ -7,126 +7,35 @@ This composition is a field-test bridge; deployment can move projection to the
 mapping owner's node without changing message contracts. No robot commands.
 """
 import json
+import math
 import os
 import sys
 import time
-from dataclasses import replace
 from uuid import uuid4
 
-from .amr_camera import SETTINGS as CAMERA_SETTINGS
-from .camera_utils import PreviewProcessor, git_sha, validate_config, validate_labels, verify_model
-from .target_utils import (MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
-    fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform, load_depth_calibration, decode_depth_png)
-from .adapter import ObservationPolicy, SourceBinding, stamp_ns
-from .core import AlignmentEvidence, DepthPolicy, ModelManifest, TimePolicy
-from .person_pipeline import ConfirmationPolicy, PersonPipeline
+import cv2
+import rclpy
+import message_filters
+from cv_bridge import CvBridge
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, CompressedImage, Image
+from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
+from ultralytics import YOLO
+from tf2_ros import Buffer, TransformListener
+from rclpy.executors import ExternalShutdownException
 
-# User settings, 2026-10-12: share RGB settings and always select robot6 correction.
-# UNKNOWN clock/alignment values are deliberate until measured; locations stay blocked.
-SETTINGS = {
-    **CAMERA_SETTINGS,
-    'depth_topic': 'camera/depth/image_raw/compressedDepth',
-    'depth_transport': 'compressedDepth',
-    'depth_byte_order': 'little',
-    'camera_info_topic': 'camera/camera_info',
-    'observations_topic': '/rescue/observations',
-    'locations_topic': '/rescue/target_locations',
-    'map_state_topic': 'mapping/map_state',
-    'robot_id': 'robot_a',
-    'physical_robot_id': 'robot6',
-    'depth_calibration_path': 'package:robot6_depth.json',
-    'camera_id': 'amr_rgbd',
-    'model_id': 'survivor_yolo26n_640',
-    'confirm_confidence_min': 0.8,
-    'rgb_optical_frame': 'camera_rgb_optical',
-    'depth_optical_frame': 'camera_rgb_optical',
-    'calibration_id': 'UNCONFIGURED',
-    'alignment_evidence_id': 'UNCONFIGURED',
-    'rgb_rectified': False,
-    'rgb_depth_alignment_verified': False,
-    'rgb_stamp_semantics': 'UNKNOWN',
-    'depth_stamp_semantics': 'UNKNOWN',
-    'clock_domain_id': 'UNCONFIGURED',
-    'clock_state': 'UNKNOWN',
-    'clock_error_bound_ns': -1,
-    'receiver_clock_error_ns': 0,
-    'publisher_id': 'amr.perception',
-    'envelope_version': '0.1',
-    'sync_queue_size': 3,
-    'sync_slop_ns': 20000000,
-    'camera_info_max_age_ns': 1000000000,
-    'observation_validity_ns': 2000000000,
-    'max_map_age_ns': 1000000000,
-    'max_age_ns': 1000000000,
-    'max_future_ns': 0,
-    'max_clock_error_ns': 20000000,
-    'stamp_delay_bound_ns': 0,
-    'min_depth_m': 0.2,
-    'max_depth_m': 5.0,
-    'min_valid_pixels': 10,
-    'min_valid_fraction': 0.5,
-    'max_depth_spread_m': 0.5,
-    'sensor_variance_xyz': [0.04, 0.04, 0.04],
-    'alignment_authority': 'UNCONFIGURED',
-    'max_alignment_position_error_m': 0.1,
-    'max_alignment_rotation_error_rad': 0.1,
-}
-
-def target_config(v, boot_id):
-    validate_config(v)
-    for key, default in SETTINGS.items():
-        if key not in v or type(v[key]) is not type(default):
-            raise ValueError(f'missing/invalid setting: {key}')
-        if isinstance(v[key], str) and not v[key].strip():
-            raise ValueError(f'empty setting: {key}')
-    if v['depth_transport'] not in ('raw', 'compressedDepth') or v['depth_byte_order'] not in ('little', 'big'):
-        raise ValueError('depth_transport must be raw/compressedDepth; specify publisher byte order')
-    for key in ('sync_queue_size', 'camera_info_max_age_ns', 'observation_validity_ns', 'max_map_age_ns'):
-        if v[key] <= 0:
-            raise ValueError(f'{key} must be positive')
-    topics = [v[key] for key in ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
-                                 'observations_topic', 'locations_topic', 'map_state_topic')]
-    if len(topics) != len(set(topics)):
-        raise ValueError('all input/output topics must differ')
-    bound = v['clock_error_bound_ns']
-    if bound < -1:
-        raise ValueError('clock_error_bound_ns must be >=0 or -1 (UNKNOWN)')
-    binding = SourceBinding(v['robot_id'], v['camera_id'], boot_id, v['clock_domain_id'],
-        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], v['clock_state'],
-        bound if bound >= 0 else None)
-    alignment = AlignmentEvidence(v['alignment_evidence_id'], v['calibration_id'],
-        v['rgb_optical_frame'], v['depth_optical_frame'], v['rgb_depth_alignment_verified'])
-    depth = DepthPolicy(v['sync_slop_ns'], v['min_depth_m'], v['max_depth_m'],
-                        v['min_valid_pixels'], v['min_valid_fraction'], v['max_depth_spread_m'])
-    if v['depth_calibration_path'] != 'UNCONFIGURED':
-        calibration = load_depth_calibration(v['depth_calibration_path'], physical_robot_id=v['physical_robot_id'])
-        depth = replace(depth, scale=calibration.scale, offset_m=calibration.offset_m)
-        calibration_id = f'{binding.calibration_id}|depth:{calibration.calibration_id}:{calibration.sha256}'
-        binding = replace(binding, calibration_id=calibration_id)
-        alignment = replace(alignment, calibration_id=calibration_id)
-    expiry = ObservationPolicy(v['observation_validity_ns'])
-    confirmation = ConfirmationPolicy((v['model_label'],), v['confirm_confidence_min'])
-    if v['confirm_confidence_min'] < v['model_conf']:
-        raise ValueError('confirm_confidence_min must not be below model_conf')
-    freshness = TimePolicy(v['max_age_ns'], v['max_future_ns'], v['max_clock_error_ns'], v['stamp_delay_bound_ns'])
-    if v['envelope_version'] != '0.1':
-        raise ValueError('only the current ROS wire envelope version 0.1 is supported')
-    covariance = covariance_matrix(v['sensor_variance_xyz'])
-    if v['receiver_clock_error_ns'] < 0:
-        raise ValueError('receiver_clock_error_ns must be nonnegative')
-    return binding, alignment, depth, expiry, confirmation, freshness, covariance
+from .camera_utils import PreviewProcessor, git_sha, validate_labels, verify_model
+from .target_utils import (SETTINGS, target_config, MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
+    fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform, decode_depth_png)
+from .adapter import stamp_ns
+from .core import ModelManifest
+from .person_pipeline import PersonPipeline
 
 
 def create_node(*, model_factory=None, transform_lookup=None, projection_metadata: ProjectionMetadata | None = None):
     """Mapping owner may inject verified ProjectionMetadata; no file/template is loaded."""
-    import cv2
-    import message_filters
-    from cv_bridge import CvBridge
-    from rclpy.node import Node
-    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-    from rclpy.time import Time
-    from sensor_msgs.msg import CameraInfo, CompressedImage, Image
-    from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
 
     node = Node('amr_target')
     try:
@@ -146,14 +55,12 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
                 raise ValueError('mapping metadata robot/clock domain mismatch')
             if covariance_matrix(metadata.sensor_variance_xyz) != covariance:
                 raise ValueError('configured sensor variances differ from mapping covariance evidence')
-            import math
             for value, limit in ((a.position_error_m, v['max_alignment_position_error_m']),
                                  (a.rotation_error_rad, v['max_alignment_rotation_error_rad'])):
                 if not math.isfinite(limit) or limit < 0 or value > limit:
                     raise ValueError('mapping alignment error exceeds configured limit')
         path, model_hash = verify_model(v['model_path'], v['model_sha256'])
         if model_factory is None:
-            from ultralytics import YOLO
             model_factory = YOLO
         model = model_factory(path)
         validate_labels(model.names, v['model_label'])
@@ -168,7 +75,6 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
                 raise ValueError('show=true requires a desktop display')
             cv2.namedWindow('AMR YOLO target', cv2.WINDOW_NORMAL)
         if metadata is not None and transform_lookup is None:
-            from tf2_ros import Buffer, TransformListener
             buffer = Buffer(node=node)
             listener = TransformListener(buffer, node, spin_thread=False)
             node.target_tf_listener = listener
@@ -296,13 +202,6 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
 
 def main(args=None):
     node = None
-    try:
-        import cv2
-        import rclpy
-        from rclpy.executors import ExternalShutdownException
-    except ImportError as exc:
-        print(f'AMR target dependency missing: {exc}', file=sys.stderr)
-        return 2
     try:
         rclpy.init(args=args)
         node = create_node()

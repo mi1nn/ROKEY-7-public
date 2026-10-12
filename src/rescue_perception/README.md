@@ -20,7 +20,7 @@
 
 DepthFrame의 전체 픽셀 검사와 ROI list는 E2 기록 입력용이다. 실시간 승급 전에는 ROI 원점·intrinsics·encoding 검증을 보존하는 crop/array 어댑터와 두 영상 동시 입력의 지연·메모리 측정이 필요하다.
 
-저장소 루트에서:
+실제 실행은 로봇 제어용 컴퓨터의 저장소 루트에서 준비한다:
 
 ```sh
 PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discover -s tests -p 'test_perception*.py' -v
@@ -39,21 +39,23 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 
 | 파일 | 목적 |
 | --- | --- |
-| [amr_camera.py](rescue_perception/amr_camera.py) | RGB raw/compressed → YOLO 1회 → 원 헤더를 보존한 annotated Image. 공통 실행 설정은 상단 SETTINGS에 둔다 |
-| [amr_target.py](rescue_perception/amr_target.py) | RGB·Depth·CameraInfo → 기존 PersonPipeline·adapter·core → TargetObservation. RGB 설정을 공유하고 Depth·관측 정책만 SETTINGS에 추가한다 |
-| [camera_utils.py](rescue_perception/camera_utils.py) | 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
-| [target_utils.py](rescue_perception/target_utils.py) | YOLO 관측/좌표 메시지, map revision/TF/공분산 검사, compressedDepth PNG 복호화, robot6 보정 로드 |
+| [amr_camera.py](rescue_perception/amr_camera.py) | RGB raw/compressed → YOLO 1회 → 원 헤더를 보존한 annotated Image. ROS·영상·모델 의존성은 파일 상단에서 import한다 |
+| [amr_target.py](rescue_perception/amr_target.py) | RGB·Depth·CameraInfo → 기존 PersonPipeline·adapter·core → TargetObservation. ROS·영상·모델 의존성은 파일 상단에서 import한다 |
+| [camera_utils.py](rescue_perception/camera_utils.py) | 공통 SETTINGS, 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
+| [target_utils.py](rescue_perception/target_utils.py) | RGB-D SETTINGS·target_config, YOLO 관측/좌표 메시지, map revision/TF/공분산 검사, Depth 복호화·보정 |
 | [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 보정계수·원 측정값·날짜·PR #126 출처·적용 한계. 설치본에도 포함 |
 
-[사용자 요구, 2026-10-12] “환경별 설정하는거는 싹다 지워버리고 필수적인 부분은 코드에 넣어주는 식으로 코드를 줄여주고 node 와 support를 파일이름좀 바꿔봐 형식이 너무 길어”. AMR YAML 3개와 projection template JSON, 필수 ROS 파라미터 선언/읽기 코드를 제거했다. 위 두 노드의 SETTINGS를 직접 사용하며 환경별 override 파일은 없다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
+[사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
+
+[사용자 요구, 2026-10-12] 실제 실행 대상은 README 시나리오의 로봇 제어용 컴퓨터다. 기준 환경은 MSI RTX 4070 노트북·Ubuntu 24.04·ROS 2 Jazzy다. 이 저장소에서는 베이스와 테스트 코드를 작성하며 작성 환경에서 ROS 노드를 실행하는 것을 전제하지 않는다. ROS가 없는 환경에서 노드 import를 허용하기 위한 함수 내부 import와 의존성 오류 호환 분기를 제거했다. 순수 설정·보정·검사 시험은 utils를 직접 import한다.
 
 [설정/사용자 요구, 2026-10-12] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.8`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot6_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. clock/stamp/alignment는 UNKNOWN·미확인을 유지한다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
 
-[사용자 요구, 2026-10-12] “이것은 robot6_depth로 수정해서 한개의 파일로 합쳐주고”. 보정 데이터는 JSON 한 곳에 둔다. [계산, 2026-10-12] PR #126의 단일 82cm 기록에서 scale = 0.82 / mean(0.854, 0.853, 0.857), offset=0. RGB는 유지하고 Depth를 m로 변환한 뒤 원 0·음수·NaN·Inf를 제외한다. raw_m * scale + offset_m을 한 번 적용하고 범위·불연속 검사·중앙값으로 optical XYZ를 계산한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m 모두 같은 보정을 사용한다. 다른 physical_robot_id는 보정 로드 시 거절하며 이미 보정된 입력은 사용하지 않는다.
+[사용자 요구, 2026-10-12] robot6 보정 데이터와 출처는 JSON 한 곳에 둔다. [계산, 2026-10-12] PR #126의 단일 82cm 기록에서 scale = 0.82 / mean(0.854, 0.853, 0.857), offset=0. RGB는 유지하고 Depth를 m로 변환한 뒤 원 0·음수·NaN·Inf를 제외한다. raw_m * scale + offset_m을 한 번 적용하고 범위·불연속 검사·중앙값으로 optical XYZ를 계산한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m 모두 같은 보정을 사용한다. 다른 physical_robot_id는 보정 로드 시 거절하며 이미 보정된 입력은 사용하지 않는다.
 
 ### 빌드와 실행
 
-ROS·OpenCV·cv_bridge·Ultralytics와 CUDA 사용 가능한 추론 환경이 필요하다. 모델은 [선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)의 best.pt다. 저장소 루트에서:
+ROS·OpenCV·cv_bridge·Ultralytics와 CUDA 사용 가능한 추론 환경이 필요하다. 모델은 [선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)의 best.pt다. 실제 실행은 로봇 제어용 컴퓨터의 저장소 루트에서 준비한다:
 
 ```bash
 source /opt/ros/jazzy/setup.bash

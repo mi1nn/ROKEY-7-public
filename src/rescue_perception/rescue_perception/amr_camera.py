@@ -1,7 +1,7 @@
 """ROS boundary: compressed-first AMR RGB -> local YOLO -> annotated Image.
 
 Following PR #113: local model hash, startup/failure
-logs, lazy ROS/model imports, ROS-free helpers. This is a diagnostic preview,
+logs, ROS-free helpers. This is a diagnostic preview,
 not a PersonPipeline/Observation producer. No robot control or sensor restart.
 """
 import json
@@ -9,34 +9,21 @@ import os
 import sys
 import time
 
-from .camera_utils import (PreviewProcessor, git_sha, validate_config,
-                                 validate_labels, verify_model)
+import cv2
+import rclpy
+from cv_bridge import CvBridge
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import CompressedImage, Image
+from ultralytics import YOLO
+from rclpy.executors import ExternalShutdownException
 
+from .camera_utils import (SETTINGS, PreviewProcessor, git_sha, validate_config,
+    validate_labels, verify_model)
 
-# User settings, 2026-10-12: one robot6/GPU deployment, no external YAML.
-# Topic/frame names still require live verification; no sensor settings are changed.
-SETTINGS = {
-    'image_topic': 'camera/image_raw/compressed',
-    'image_type': 'compressed',
-    'annotated_topic': 'perception/annotated',
-    'model_path': 'assets/models/best.pt',
-    'model_sha256': '0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74',
-    'model_label': 'survivor',
-    'model_imgsz': 640,
-    'model_conf': 0.5,
-    'device': '0',
-    'show': False,
-    'no_frame_warn_s': 5.0,
-    'log_every': 10,
-}
 
 def create_node(*, model_factory=None):
     """Create the ROS node. model_factory is an injection point for synthetic tests."""
-    import cv2
-    from cv_bridge import CvBridge
-    from rclpy.node import Node
-    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from sensor_msgs.msg import CompressedImage, Image
 
     node = Node('amr_camera')
     try:
@@ -51,7 +38,6 @@ def create_node(*, model_factory=None):
                 raise RuntimeError('show=true requires a desktop display; use show=false for headless ROS')
             cv2.namedWindow('AMR YOLO', cv2.WINDOW_NORMAL)
         if model_factory is None:
-            from ultralytics import YOLO
             model_factory = YOLO
         model = model_factory(model_path)
         validate_labels(model.names, v['model_label'])
@@ -112,13 +98,6 @@ def create_node(*, model_factory=None):
 
 
 def main(args=None):
-    try:
-        import cv2
-        import rclpy
-        from rclpy.executors import ExternalShutdownException
-    except ImportError as exc:
-        print(f'AMR YOLO dependency unavailable: {exc}. Source ROS and prepare the preview environment.', file=sys.stderr)
-        return 2
     node = None
     try:
         rclpy.init(args=args)
