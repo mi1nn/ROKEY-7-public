@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" pages="10">
+<mxfile host="app.diagrams.net" pages="11">
   <diagram id="overview" name="01 하드웨어·노드 전체도">
     <mxGraphModel dx="1800" dy="1200" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="1840" pageHeight="1520" math="0" shadow="0" background="#F6F8FC">
       <root>
@@ -8,7 +8,7 @@
         <mxCell id="overview-title" value="ROKEY-7 · 하드웨어별 노드와 주요 통신" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=31;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
           <mxGeometry x="36" y="24" width="1768" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="overview-subtitle" value="인터페이스 설계 v0.1 / 2026-10-09 · 상세 연결은 02–09 페이지 · [제안] 설치 노드 이름과 QoS는 실기 확인 전" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=18;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
+        <mxCell id="overview-subtitle" value="인터페이스 설계 v0.1 · 02–10 기존 연결 / 11 AMR2 연속 추종 요구(2026-10-11) · 노드 배선·실기 미검증" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=18;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
           <mxGeometry x="36" y="83" width="1768" height="46" as="geometry" />
         </mxCell>
         <mxCell id="overview-legend" value="T 토픽: PUB → SUB  |  S 서비스: client → server  |  A 액션: client → server (feedback / result / cancel 포함)  |  HTTP 녹색  |  내부 호출 회색  |  [1차] rescue_interfaces 정의 있음 · [2차] 점선, 정의 없음 (contracts C-10)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=16;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
@@ -229,7 +229,7 @@
         <mxCell id="overview-central-note" value="02·04 센서 / SLAM&#10;03·05 명령 / Nav2&#10;06 CAM / 후보 판정&#10;07 공통 상태 / 좌표&#10;08 웹 / DB / API&#10;09 DDS 디스커버리" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=22;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
           <mxGeometry x="785" y="425" width="255" height="300" as="geometry" />
         </mxCell>
-        <mxCell id="overview-state-note" value="지진 이벤트 → AMR1 수색 → 좌표 확정 → 사람 승인 → AMR2 한 구간 이동 → 소실 후보 → AMR1 재확인 → 완료 / 복귀" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=22;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+        <mxCell id="overview-state-note" value="[기존 구간 이동 계약 · 연속 추종 요구는 11쪽, 입력/액션 Q-27 미정]&#10;지진 이벤트 → AMR1 수색 → 좌표 확정 → 사람 승인 → AMR2 한 구간 이동 → 소실 후보 → AMR1 재확인 → 완료 / 복귀" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=22;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
           <mxGeometry x="40" y="1320" width="1760" height="64" as="geometry" />
         </mxCell>
         <mxCell id="overview-footer" value="전체도는 대표 흐름만 표시합니다. 실제 데이터는 DDS 참여자 사이로 전달되고 Discovery Server는 발견 메타데이터만 처리합니다.&#10;AMR 탑재 watchdog와 RGB-D의 실제 구성은 [미확인]; PC1/PC2/PC3/PC4 명칭은 배치 역할의 예시입니다." style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=17;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
@@ -3233,7 +3233,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="amr2-control-footer" value="AMR2: MOVE_SEGMENT 하나마다 실제 정지 확인 후 AWAITING_APPROVAL. 다음 “계속”은 새 command/task/generation·ONE_SEGMENT 승인입니다. EvaluatePassage는 통과 근거만 제공합니다.&#10;S/A 선은 요청 방향입니다. 응답·feedback·result는 같은 채널로 돌아옵니다. 네임스페이스 및 실제 장치 토픽 바인딩은 배포 프로파일에서 확정합니다." style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=17;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
+        <mxCell id="amr2-control-footer" value="[기존 구간 이동 계약 · 연속 추종 요구는 11쪽, 입력/액션 Q-27 미정]&#10;AMR2: MOVE_SEGMENT 하나마다 실제 정지 확인 후 AWAITING_APPROVAL. 다음 “계속”은 새 command/task/generation·ONE_SEGMENT 승인입니다. EvaluatePassage는 통과 근거만 제공합니다.&#10;S/A 선은 요청 방향입니다. 응답·feedback·result는 같은 채널로 돌아옵니다. 네임스페이스 및 실제 장치 토픽 바인딩은 배포 프로파일에서 확정합니다." style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#CAD5E3;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=17;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;strokeColor=none;fillColor=none;spacing=0;align=left;verticalAlign=top;connectable=0;" vertex="1" parent="1">
           <mxGeometry x="36" y="2855" width="1708" height="74" as="geometry" />
         </mxCell>
       </root>
@@ -3335,7 +3335,7 @@
         <mxCell id="camera-r1-central.operations" value="operations_node&#10;SUB · central.operations" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F1EBFA;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="camera-host-PC4">
           <mxGeometry x="224" y="380" width="194" height="86" as="geometry" />
         </mxCell>
-        <mxCell id="camera-port-IF-075" value="IF-075 · T&#10;/rescue/cameras/cam_fixed/status&#10;rescue_interfaces/msg/CameraStatus [2차]" style="dashed=1;dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#2374C9;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+        <mxCell id="camera-port-IF-075" value="IF-075 · T&#10;/rescue/cameras/cam_fixed/status&#10;rescue_interfaces/msg/CameraStatus [1차]" style="dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#2374C9;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
           <mxGeometry x="44" y="545" width="360" height="76" as="geometry" />
         </mxCell>
         <mxCell id="camera-edge-IF-075-in-0" value="" style="edgeStyle=none;noEdgeStyle=1;rounded=0;html=0;strokeColor=#2374C9;strokeWidth=1.5;endArrow=block;endFill=1;endSize=8;startArrow=none;startFill=1;startSize=8;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#2374C9;labelBackgroundColor=#F6F8FC;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="camera-r1-cam.capture" target="camera-port-IF-075">
@@ -3436,7 +3436,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="camera-port-IF-077" value="IF-077 · T&#10;/rescue/cameras/cam_fixed/presence&#10;rescue_interfaces/msg/TargetPresence [2차]" style="dashed=1;dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#2374C9;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+        <mxCell id="camera-port-IF-077" value="IF-077 · T&#10;/rescue/cameras/cam_fixed/presence&#10;rescue_interfaces/msg/TargetPresence [1차]" style="dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#2374C9;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
           <mxGeometry x="44" y="909" width="360" height="76" as="geometry" />
         </mxCell>
         <mxCell id="camera-edge-IF-077-in-0" value="" style="edgeStyle=none;noEdgeStyle=1;rounded=0;html=0;strokeColor=#2374C9;strokeWidth=1.5;endArrow=block;endFill=1;endSize=8;startArrow=none;startFill=1;startSize=8;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#2374C9;labelBackgroundColor=#F6F8FC;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="camera-r2-cam.presence" target="camera-port-IF-077">
@@ -3478,7 +3478,7 @@
         <mxCell id="camera-r3-central.coordinator" value="mission_coordinator_node&#10;client · central.coordinator" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F1EBFA;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="camera-host-PC4">
           <mxGeometry x="14" y="864" width="194" height="86" as="geometry" />
         </mxCell>
-        <mxCell id="camera-port-IF-078" value="IF-078 · S&#10;/rescue/cameras/cam_fixed/set_watch&#10;rescue_interfaces/srv/SetCameraWatch [2차]" style="dashed=1;dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8058B7;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+        <mxCell id="camera-port-IF-078" value="IF-078 · S&#10;/rescue/cameras/cam_fixed/set_watch&#10;rescue_interfaces/srv/SetCameraWatch [1차]" style="dashPattern=6 4;rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8058B7;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=14;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
           <mxGeometry x="44" y="1029" width="360" height="76" as="geometry" />
         </mxCell>
         <mxCell id="camera-edge-IF-078-in-0" value="" style="edgeStyle=none;noEdgeStyle=1;rounded=0;html=0;strokeColor=#8058B7;strokeWidth=1.5;endArrow=block;endFill=1;endSize=8;startArrow=none;startFill=1;startSize=8;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#8058B7;labelBackgroundColor=#F6F8FC;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="camera-r3-central.coordinator" target="camera-port-IF-078">
@@ -4805,56 +4805,323 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="if-title" value="ROKEY-7 · rescue_interfaces 통신 흐름 (1차 / 2차)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=31;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1"><mxGeometry x="36" y="24" width="2300" height="50" as="geometry" /></mxCell>
-        <mxCell id="if-subtitle" value="2026-10-10 · src/rescue_interfaces/README.md 「통신별 입력과 출력」의 그림 · 연결의 원본은 SDD 명세 표(다르면 명세가 이김) · AMR1 은 PC1, AMR2 는 PC2 에서 따로 실행 · 정의가 있다는 뜻이지 노드가 구현됐다는 뜻은 아님" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=17;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1"><mxGeometry x="36" y="83" width="2300" height="46" as="geometry" /></mxCell>
-        <mxCell id="if-legend" value="T 토픽 파랑: PUB → SUB  |  S 서비스 보라 / A 액션 주황: client → server (응답·feedback·result 는 역방향)  |  HTTP 녹색  |  실선 = [1차] 정의 있음  |  회색 점선 = [2차] 정의 없음 (contracts C-10)  |  표준 = ROS/Nav2 기본 타입" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=16;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1"><mxGeometry x="36" y="137" width="2300" height="44" as="geometry" /></mxCell>
-        <mxCell id="if-h-web" value="관제 웹 (브라우저)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EEF7F0;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1"><mxGeometry x="40" y="220" width="300" height="260" as="geometry" /></mxCell>
-        <mxCell id="if-h-pc4" value="PC4 · 관제 / 서버" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F4EEFA;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1"><mxGeometry x="400" y="220" width="560" height="1040" as="geometry" /></mxCell>
-        <mxCell id="if-h-pc3" value="PC3 · 고정 웹캠" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFF6E8;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1"><mxGeometry x="40" y="860" width="300" height="400" as="geometry" /></mxCell>
-        <mxCell id="if-h-pc1" value="PC1 · AMR1 수색 / 지도  (/rescue/robots/amr1/…)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EAF2FD;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1"><mxGeometry x="1400" y="220" width="900" height="500" as="geometry" /></mxCell>
-        <mxCell id="if-h-pc2" value="PC2 · AMR2 지원 / 구간 이동  (/rescue/robots/amr2/…)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EAF7F4;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1"><mxGeometry x="1400" y="760" width="900" height="500" as="geometry" /></mxCell>
-        <mxCell id="if-web" value="관제 화면&#10;(rescue_console)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="80" y="300" width="220" height="110" as="geometry" /></mxCell>
-        <mxCell id="if-ops" value="operations_node&#10;central.operations&#10;승인 API · DB 장부" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="460" y="300" width="440" height="130" as="geometry" /></mxCell>
-        <mxCell id="if-coord" value="mission_coordinator_node&#10;central.coordinator&#10;임무 상태 · 명령 발급" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="460" y="760" width="440" height="130" as="geometry" /></mxCell>
-        <mxCell id="if-cam" value="camera_monitor_node&#10;cam_fixed&#10;지진 징후 · 인형 소실" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="80" y="940" width="220" height="130" as="geometry" /></mxCell>
-        <mxCell id="if-ex1" value="task_executor_node · amr1.executor&#10;SEARCH_AREA · REOBSERVE_TARGET&#10;APPROACH_TARGET · HOLD · RETURN_HOME" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1460" y="290" width="320" height="130" as="geometry" /></mxCell>
-        <mxCell id="if-nav1" value="Nav2 (amr1)&#10;bt_navigator → 구동" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F2F4F7;strokeColor=#B5BFCC;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="2040" y="284" width="220" height="90" as="geometry" /></mxCell>
-        <mxCell id="if-srch1" value="search_candidate_node&#10;amr1.search" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=6 4;" vertex="1" parent="1"><mxGeometry x="2040" y="440" width="220" height="80" as="geometry" /></mxCell>
-        <mxCell id="if-perc1" value="target_perception_node&#10;amr1.perception" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="2040" y="590" width="220" height="100" as="geometry" /></mxCell>
-        <mxCell id="if-map1" value="mapping_adapter_node&#10;amr1.mapping" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1460" y="590" width="320" height="100" as="geometry" /></mxCell>
-        <mxCell id="if-ex2" value="task_executor_node · amr2.executor&#10;MOVE_SEGMENT (구간마다 승인)&#10;APPROACH_TARGET · HOLD · RETURN_HOME" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1460" y="830" width="320" height="130" as="geometry" /></mxCell>
-        <mxCell id="if-nav2" value="Nav2 (amr2)&#10;bt_navigator → 구동" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F2F4F7;strokeColor=#B5BFCC;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="2040" y="824" width="220" height="90" as="geometry" /></mxCell>
-        <mxCell id="if-pass2" value="passage_evaluator_node&#10;amr2.passage (Q-25)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=6 4;" vertex="1" parent="1"><mxGeometry x="2040" y="960" width="220" height="80" as="geometry" /></mxCell>
-        <mxCell id="if-perc2" value="target_perception_node&#10;amr2.perception" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="2040" y="1110" width="220" height="100" as="geometry" /></mxCell>
-        <mxCell id="if-map2" value="mapping_adapter_node&#10;amr2.mapping" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1460" y="1130" width="320" height="100" as="geometry" /></mxCell>
-        <mxCell id="if-e1" value="HTTP POST&#10;승인 · 정지 · 계속" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2E8B57;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-web" target="if-ops"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e2" value="snapshot · SSE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2E8B57;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-web"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e3" value="S SubmitOperatorCommand [1차]&#10;/rescue/operator_command&#10;DISPATCH_SUPPORT · CONTINUE_SEGMENT · RETURN_HOME …" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-coord"><mxGeometry x="-0.7" relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e4" value="T RescueReport · TargetSnapshot&#10;SystemState · FrameAlignmentSnapshot [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ops"><mxGeometry x="0.0" relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e5" value="A ExecuteTask · T CommandLease&#10;S RegisterAuthority · ResetStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.15;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex1"><mxGeometry x="0.6" relative="1" as="geometry"><Array as="points"><mxPoint x="1000" y="779.5" /><mxPoint x="1000" y="329" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e6" value="S RequestStop [1차] (coordinator 도 호출)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.677;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-ex1"><mxGeometry x="0.0" relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e7" value="T RobotStatus · Heartbeat · TaskAdmission [1차] (→ operations 도)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.9;exitDx=0;exitDy=0;entryX=1;entryY=0.31;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-coord"><mxGeometry x="-0.6" relative="1" as="geometry"><Array as="points"><mxPoint x="1040" y="407" /><mxPoint x="1040" y="800" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e8" value="A EvaluateRoute [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.05;exitDx=0;exitDy=0;entryX=0.15;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex1"><mxGeometry x="0.5" relative="1" as="geometry"><Array as="points"><mxPoint x="1020" y="766.5" /><mxPoint x="1020" y="470" /><mxPoint x="1508" y="470" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e9" value="T RobotPose · MapState · TargetLocation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.54;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-map1" target="if-coord"><mxGeometry x="-0.5" relative="1" as="geometry"><Array as="points"><mxPoint x="1060" y="640" /><mxPoint x="1060" y="830" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e10" value="T ReportReceipt [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.9;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-map1"><mxGeometry x="0.5" relative="1" as="geometry"><Array as="points"><mxPoint x="1080" y="417" /><mxPoint x="1080" y="670" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e11" value="A ExecuteTask · T CommandLease&#10;S RegisterAuthority · ResetStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.1615;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex2"><mxGeometry x="0.2" relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e12" value="S RequestStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-ex2"><mxGeometry x="0.7" relative="1" as="geometry"><Array as="points"><mxPoint x="1120" y="397.5" /><mxPoint x="1120" y="895" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e13" value="T RobotStatus · Heartbeat · TaskAdmission [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=1;entryY=0.885;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-coord"><mxGeometry x="-0.5" relative="1" as="geometry"><Array as="points"><mxPoint x="1060" y="940.5" /><mxPoint x="1060" y="875" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e14" value="A EvaluateRoute [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.15;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex2"><mxGeometry x="0.3" relative="1" as="geometry"><Array as="points"><mxPoint x="834" y="1000" /><mxPoint x="1508" y="1000" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e15" value="T RobotPose · MapState · TargetLocation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.95;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-map2" target="if-coord"><mxGeometry x="-0.3" relative="1" as="geometry"><Array as="points"><mxPoint x="878" y="1180" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e16" value="T ReportReceipt [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.95;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-map2"><mxGeometry x="0.75" relative="1" as="geometry"><Array as="points"><mxPoint x="1140" y="423.5" /><mxPoint x="1140" y="1210" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e17" value="A NavigateToPose (표준)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A8699;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-nav1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e18" value="T SearchCandidates [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-srch1" target="if-ex1"><mxGeometry x="-0.6" relative="1" as="geometry"><Array as="points"><mxPoint x="1900" y="480" /><mxPoint x="1900" y="400.5" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e19" value="A ObserveTarget [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-perc1"><mxGeometry x="0.4" relative="1" as="geometry"><Array as="points"><mxPoint x="1716" y="640" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e20" value="T TargetObservation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-perc1" target="if-map1"><mxGeometry x="0.0" relative="1" as="geometry"><Array as="points"><mxPoint x="2150" y="706" /><mxPoint x="1620" y="706" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e21" value="A NavigateToPose (표준)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A8699;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-nav2"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e22" value="A EvaluatePassage [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-pass2"><mxGeometry x="0.5" relative="1" as="geometry"><Array as="points"><mxPoint x="1900" y="934" /><mxPoint x="1900" y="1000" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e23" value="A ObserveTarget [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-perc2"><mxGeometry x="0.4" relative="1" as="geometry"><Array as="points"><mxPoint x="1716" y="1160" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e24" value="T TargetObservation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-perc2" target="if-map2"><mxGeometry x="0.0" relative="1" as="geometry"><Array as="points"><mxPoint x="2150" y="1246" /><mxPoint x="1620" y="1246" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e25" value="T SiteEvent [1차]&#10;DISASTER_SIGN · TARGET_DISAPPEARED_CANDIDATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-cam" target="if-coord"><mxGeometry x="0.3" relative="1" as="geometry" /></mxCell>
-        <mxCell id="if-e26" value="T TargetPresence · CameraStatus [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.2;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-cam" target="if-coord"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="548" y="1044" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-e27" value="S SetCameraWatch [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-cam"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="380" y="870" /><mxPoint x="380" y="900" /><mxPoint x="190" y="900" /></Array></mxGeometry></mxCell>
-        <mxCell id="if-footer" value="ReportReceipt 는 DB 저장 뒤 보고를 보낸 모든 노드(mapping·executor·coordinator·camera)에 가지만 그림에는 mapping 만 그렸다.  AMR2 구간 하나: 관제 웹 &quot;계속&quot; → operations → SubmitOperatorCommand(CONTINUE_SEGMENT) → coordinator → &#10;ExecuteTask(MOVE_SEGMENT, 새 generation) → amr2.executor → TaskAdmission → NavigateToPose → Feedback(구간 i) → status STOPPED → Result(COMPLETED, scope=SEGMENT) → 다음 &quot;계속&quot; 대기" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=16;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1"><mxGeometry x="36" y="1290" width="2300" height="60" as="geometry" /></mxCell>
+        <mxCell id="if-title" value="ROKEY-7 · rescue_interfaces 통신 흐름 (1차 / 2차)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=31;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="36" y="24" width="2300" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="if-subtitle" value="2026-10-10 · src/rescue_interfaces/README.md 「통신별 입력과 출력」의 그림 · 연결의 원본은 SDD 명세 표(다르면 명세가 이김) · AMR1 은 PC1, AMR2 는 PC2 에서 따로 실행 · 정의가 있다는 뜻이지 노드가 구현됐다는 뜻은 아님" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=17;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="36" y="83" width="2300" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="if-legend" value="T 토픽 파랑: PUB → SUB  |  S 서비스 보라 / A 액션 주황: client → server (응답·feedback·result 는 역방향)  |  HTTP 녹색  |  실선 = [1차] 정의 있음  |  회색 점선 = [2차] 정의 없음 (contracts C-10)  |  표준 = ROS/Nav2 기본 타입" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=16;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="36" y="137" width="2300" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="if-h-web" value="관제 웹 (브라우저)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EEF7F0;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="300" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="if-h-pc4" value="PC4 · 관제 / 서버" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F4EEFA;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="400" y="220" width="560" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="if-h-pc3" value="PC3 · 고정 웹캠" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFF6E8;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="860" width="300" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="if-h-pc1" value="PC1 · AMR1 수색 / 지도  (/rescue/robots/amr1/…)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EAF2FD;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="220" width="900" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="if-h-pc2" value="PC2 · AMR2 지원 / 구간 이동  (/rescue/robots/amr2/…)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#EAF7F4;strokeColor=#8CA0BA;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=20;fontColor=#18263C;fontStyle=1;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="760" width="900" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="if-web" value="관제 화면&#10;(rescue_console)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="300" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="if-ops" value="operations_node&#10;central.operations&#10;승인 API · DB 장부" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="460" y="300" width="440" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="if-coord" value="mission_coordinator_node&#10;central.coordinator&#10;임무 상태 · 명령 발급" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="460" y="760" width="440" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="if-cam" value="camera_monitor_node&#10;cam_fixed&#10;지진 징후 · 인형 소실" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="940" width="220" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="if-ex1" value="task_executor_node · amr1.executor&#10;SEARCH_AREA · REOBSERVE_TARGET&#10;APPROACH_TARGET · HOLD · RETURN_HOME" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="290" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="if-nav1" value="Nav2 (amr1)&#10;bt_navigator → 구동" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F2F4F7;strokeColor=#B5BFCC;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="284" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="if-srch1" value="search_candidate_node&#10;amr1.search" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="440" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="if-perc1" value="target_perception_node&#10;amr1.perception" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="590" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="if-map1" value="mapping_adapter_node&#10;amr1.mapping" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="590" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="if-ex2" value="task_executor_node · amr2.executor&#10;MOVE_SEGMENT (구간마다 승인)&#10;APPROACH_TARGET · HOLD · RETURN_HOME" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="830" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="if-nav2" value="Nav2 (amr2)&#10;bt_navigator → 구동" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#F2F4F7;strokeColor=#B5BFCC;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="824" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="if-pass2" value="passage_evaluator_node&#10;amr2.passage (Q-25)" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="960" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="if-perc2" value="target_perception_node&#10;amr2.perception" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="1110" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="if-map2" value="mapping_adapter_node&#10;amr2.mapping" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#94A6BD;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=15;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="1130" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e1" value="HTTP POST&#10;승인 · 정지 · 계속" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2E8B57;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-web" target="if-ops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e2" value="snapshot · SSE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2E8B57;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-web">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e3" value="S SubmitOperatorCommand [1차]&#10;/rescue/operator_command&#10;DISPATCH_SUPPORT · CONTINUE_SEGMENT · RETURN_HOME …" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-coord">
+          <mxGeometry x="-0.7" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e4" value="T RescueReport · TargetSnapshot&#10;SystemState · FrameAlignmentSnapshot [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ops">
+          <mxGeometry x="0.0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e5" value="A ExecuteTask · T CommandLease&#10;S RegisterAuthority · ResetStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.15;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex1">
+          <mxGeometry x="0.6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="779.5" />
+              <mxPoint x="1000" y="329" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e6" value="S RequestStop [1차] (coordinator 도 호출)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.677;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-ex1">
+          <mxGeometry x="0.0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e7" value="T RobotStatus · Heartbeat · TaskAdmission [1차] (→ operations 도)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.9;exitDx=0;exitDy=0;entryX=1;entryY=0.31;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-coord">
+          <mxGeometry x="-0.6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="407" />
+              <mxPoint x="1040" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e8" value="A EvaluateRoute [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.05;exitDx=0;exitDy=0;entryX=0.15;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex1">
+          <mxGeometry x="0.5" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1020" y="766.5" />
+              <mxPoint x="1020" y="470" />
+              <mxPoint x="1508" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e9" value="T RobotPose · MapState · TargetLocation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.54;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-map1" target="if-coord">
+          <mxGeometry x="-0.5" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="640" />
+              <mxPoint x="1060" y="830" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e10" value="T ReportReceipt [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.9;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-map1">
+          <mxGeometry x="0.5" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1080" y="417" />
+              <mxPoint x="1080" y="670" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e11" value="A ExecuteTask · T CommandLease&#10;S RegisterAuthority · ResetStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.1615;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex2">
+          <mxGeometry x="0.2" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e12" value="S RequestStop [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A4CB0;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-ex2">
+          <mxGeometry x="0.7" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1120" y="397.5" />
+              <mxPoint x="1120" y="895" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e13" value="T RobotStatus · Heartbeat · TaskAdmission [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=1;entryY=0.885;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-coord">
+          <mxGeometry x="-0.5" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="940.5" />
+              <mxPoint x="1060" y="875" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e14" value="A EvaluateRoute [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.15;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-ex2">
+          <mxGeometry x="0.3" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="834" y="1000" />
+              <mxPoint x="1508" y="1000" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e15" value="T RobotPose · MapState · TargetLocation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.95;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-map2" target="if-coord">
+          <mxGeometry x="-0.3" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="878" y="1180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e16" value="T ReportReceipt [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.95;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ops" target="if-map2">
+          <mxGeometry x="0.75" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1140" y="423.5" />
+              <mxPoint x="1140" y="1210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e17" value="A NavigateToPose (표준)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A8699;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-nav1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e18" value="T SearchCandidates [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-srch1" target="if-ex1">
+          <mxGeometry x="-0.6" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1900" y="480" />
+              <mxPoint x="1900" y="400.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e19" value="A ObserveTarget [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex1" target="if-perc1">
+          <mxGeometry x="0.4" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1716" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e20" value="T TargetObservation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-perc1" target="if-map1">
+          <mxGeometry x="0.0" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2150" y="706" />
+              <mxPoint x="1620" y="706" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e21" value="A NavigateToPose (표준)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#7A8699;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-nav2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e22" value="A EvaluatePassage [2차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashed=1;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-pass2">
+          <mxGeometry x="0.5" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1900" y="934" />
+              <mxPoint x="1900" y="1000" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e23" value="A ObserveTarget [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#D26B1C;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-ex2" target="if-perc2">
+          <mxGeometry x="0.4" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1716" y="1160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e24" value="T TargetObservation [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-perc2" target="if-map2">
+          <mxGeometry x="0.0" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2150" y="1246" />
+              <mxPoint x="1620" y="1246" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e25" value="T SiteEvent [1차]&#10;DISASTER_SIGN · TARGET_DISAPPEARED_CANDIDATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#2F6FB5;strokeWidth=2;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-cam" target="if-coord">
+          <mxGeometry x="0.3" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="if-e26" value="T TargetPresence · CameraStatus [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.2;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-cam" target="if-coord">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="548" y="1044" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-e27" value="S SetCameraWatch [1차]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#9AA5B4;strokeWidth=2;dashPattern=6 4;endArrow=block;endFill=1;endSize=8;fontFamily=Apple SD Gothic Neo;fontSize=13;fontColor=#18263C;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="if-coord" target="if-cam">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="870" />
+              <mxPoint x="380" y="900" />
+              <mxPoint x="190" y="900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="if-footer" value="[기존 구간 이동 계약 · 연속 추종 요구는 11쪽, 입력/액션 Q-27 미정]&#10;ReportReceipt 는 DB 저장 뒤 보고를 보낸 모든 노드(mapping·executor·coordinator·camera)에 가지만 그림에는 mapping 만 그렸다.  AMR2 구간 하나: 관제 웹 &quot;계속&quot; → operations → SubmitOperatorCommand(CONTINUE_SEGMENT) → coordinator → &#10;ExecuteTask(MOVE_SEGMENT, 새 generation) → amr2.executor → TaskAdmission → NavigateToPose → Feedback(구간 i) → status STOPPED → Result(COMPLETED, scope=SEGMENT) → 다음 &quot;계속&quot; 대기" style="rounded=1;arcSize=10;whiteSpace=wrap;html=0;fillColor=none;strokeColor=none;strokeWidth=1.5;fontFamily=Apple SD Gothic Neo;fontSize=16;fontColor=#18263C;fontStyle=0;align=center;verticalAlign=middle;spacing=8;align=left;verticalAlign=top;spacing=0;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="36" y="1290" width="2300" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="amr2-skeleton-requirement" name="11 AMR2 연속 추종 요구">
+    <mxGraphModel dx="1400" dy="1000" grid="0" gridSize="10" page="1" pageScale="1" pageWidth="1440" pageHeight="1140" background="#F6F8FC">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sk-title" value="AMR2 · 출동 승인 후 카메라 다리 스켈레톤으로 목적지까지 연속 추종" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=25;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="20" width="1370" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-subtitle" value="사용자 요구 2026-10-11 · scope RQ-10 / Q-27 · contracts C-12&#10;점선은 요구 데이터 흐름: ROS 토픽·서비스·액션과 모델은 미정, 실제 배선·추종 구현 없음" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="100" width="1370" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-person" value="실제 구조대원&#10;사람이 앞서 걷고 AMR2가 뒤따름&#10;요구조자 인형과 구분" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EAF2FD;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="225" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-camera" value="AMR2 탑재 카메라&#10;다리 영상 / 취득 시각&#10;PC3 고정 웹캠 감시와 별개" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EAF2FD;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="410" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-pc2" value="PC2 · AMR2 인식·추종 실행 책임 [요구, 미구현]" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EEF3FC;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;align=left;verticalAlign=top;spacingTop=18;spacingLeft=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="405" y="215" width="590" height="555" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-pose" value="다리 스켈레톤 인식&#10;키포인트·동일 추종 대상·관측 유효성&#10;모델 / ROS 입력 타입 미정(Q-27)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="435" y="285" width="530" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-executor" value="rescue_robot 실행 경계&#10;유효 관측·거리·허용 경로·권한 확인&#10;활성 이동 1개 / 이동·취소·정지의 유일 발행자&#10;추종 액션·주행 방식 미정(Q-27)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="435" y="480" width="530" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-stop" value="취소 → 실제 정지 확인 → 사유 보고&#10;가림·소실·관측 만료·거리 불확실·위험&#10;자동 사람 전환·자동 재시작 금지 [제안]" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF1E7;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=15;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="435" y="675" width="530" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-approval" value="PC4 · 웹 / operations / coordinator&#10;출동 승인 1회 + 목적지·허용 범위&#10;구간별 ‘계속’ 승인 없음" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E9F7EF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1055" y="225" width="340" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-motion" value="AMR2 구동&#10;사람 뒤에서 저속 연속 추종&#10;Nav2 출력과 추종 출력 동시 발행 금지" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#EAF2FD;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1055" y="480" width="340" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-arrival" value="목적지 도착·실제 정지&#10;AMR2 카메라로 인형 재탐지&#10;웹캠 소실 후보 → AMR1 재확인" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E9F7EF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=17;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1055" y="680" width="340" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-footer" value="구간 이동의 MOVE_SEGMENT / CONTINUE_SEGMENT / ONE_SEGMENT는 01–10쪽의 기존 계약이다. 연속 추종 구현으로 재사용하지 않는다.&#10;정지 후 재시작은 원인 해소·정지 확인·새 승인/명령 필요 [제안]. 깊이·거리/TF 보정·추종 액션·종료/취소·검증 기준은 Q-27 후속이다.&#10;E3 ROS 연결 / E4 사람 추종·정지: NOT_RUN. 현장 정지 수단은 웹 연결에만 의존하지 않는다." style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#8CA0BA;fontFamily=Apple SD Gothic Neo;fontSize=16;align=center;verticalAlign=middle;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="955" width="1370" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e1" value="다리 영상" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-person" target="sk-camera">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e2" value="담당 PC에서 처리" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-camera" target="sk-pose">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e3" value="추종 입력·시각 / 타입 미정" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-pose" target="sk-executor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e4" value="출동 승인" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;exitX=0;exitY=0.5;entryX=1;entryY=0.2;" edge="1" parent="1" source="sk-approval" target="sk-executor">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1025" y="287.5" />
+              <mxPoint x="1025" y="510" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sk-e5" value="유효한 이동 명령" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-executor" target="sk-motion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e6" value="입력·안전 조건 위반" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-executor" target="sk-stop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e7" value="도착·정지 관측" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;" edge="1" parent="1" source="sk-motion" target="sk-arrival">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sk-e8" value="중단·재승인 요청" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;dashed=1;strokeColor=#566C88;fontFamily=Apple SD Gothic Neo;fontSize=14;exitX=0.9;exitY=1;entryX=1;entryY=0.5;" edge="1" parent="1" source="sk-stop" target="sk-approval">
+          <mxGeometry relative="1" as="geometry" x="-0.6">
+            <Array as="points">
+              <mxPoint x="912" y="865" />
+              <mxPoint x="1420" y="865" />
+              <mxPoint x="1420" y="287.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

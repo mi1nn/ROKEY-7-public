@@ -1,5 +1,5 @@
 """Run the console: python -m rescue_console LEDGER --accounts ACCOUNTS
-[--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--map MAP_YAML] [--port N].
+[--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--map MAP_YAML] [--operations URL] [--port N].
 
 The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
 accounts file is created once with `python -m rescue_console.accounts init`.
@@ -23,6 +23,10 @@ def main(argv=None):
     parser.add_argument('--camera', action='append', default=[], metavar='ID=URL',
                         help='camera MJPEG stream shown on the page, e.g. cam_a=http://<camera host>:<port>/stream')
     parser.add_argument('--map', help='map_server map YAML (binary PGM) drawn under robot and target markers')
+    parser.add_argument('--operations', metavar='URL',
+                        help='operations HTTP API base, e.g. http://<operations host>:<port>; '
+                             'operator commands go to URL/api/operator-commands. No default: without it the '
+                             'command buttons stay off')
     parser.add_argument('--secret-env', default='RESCUE_CONSOLE_SECRET',
                         help='environment variable holding the session secret (>= 16 chars)')
     parser.add_argument('--host', default='127.0.0.1',
@@ -35,10 +39,13 @@ def main(argv=None):
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
         cameras = [parse_camera(text) for text in args.camera]
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
-                         site_state_path=args.site_state, cameras=cameras, map_path=args.map)
+                         site_state_path=args.site_state, cameras=cameras, map_path=args.map,
+                         operations_url=args.operations)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2
+    if args.operations is None:
+        print('operations 주소 없음: 명령 비활성 (--operations URL 로 켬)', file=sys.stderr)
     app.run(host=args.host, port=args.port, debug=False)
     return 0
 
