@@ -275,13 +275,21 @@ class GateTests(LedgerFixture):
         self.assertEqual(start['args'], {})
         self.assertOff(self.gates(mission_state('DISASTER', 'SEARCHING'))['START_SEARCH'], '이미 수색')
 
-    def with_revisions(self, **revisions):
-        return [dict(state, target_revision=revisions[label]) if label in revisions else state
-                for label, state in zip(('unconfirmed', 'waiting', 'supporting', 'rescued'),
-                                        self.status['target_states']['targets'])]
+    def with_revisions(self, saved=(), **revisions):
+        """Target states with the revision the operator approves; the `saved` ones also carry the report the
+        coordinator holds a PERSISTED receipt for (#118 선택 키 persisted_report_id)."""
+        rows = []
+        for label, state in zip(('unconfirmed', 'waiting', 'supporting', 'rescued'),
+                                self.status['target_states']['targets']):
+            if label in revisions:
+                state = dict(state, target_revision=revisions[label])
+            if label in saved:
+                state = dict(state, persisted_report_id=uid(f'saved-{label}'))
+            rows.append(state)
+        return rows
 
     def test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet(self):
-        targets = self.with_revisions(waiting=4, supporting=7, rescued=2)
+        targets = self.with_revisions(saved=('waiting', 'supporting', 'rescued'), waiting=4, supporting=7, rescued=2)
         dispatch_gate = self.gates(mission_state('DISASTER', 'TARGET_FOUND'), targets=targets)['DISPATCH_SUPPORT']
         self.assertTrue(dispatch_gate['enabled'])
         # Confirmed, not rescued and with the revision the operator approves. The ledger-only target has no
@@ -295,6 +303,41 @@ class GateTests(LedgerFixture):
         lone = self.gates(mission_state('DISASTER', 'SEARCHING'), targets=[target_state('unconfirmed', confirmed=False)],
                           ledger_reports=False)
         self.assertOff(lone['DISPATCH_SUPPORT'], '확정 대상 없음')
+
+    def test_dispatch_waits_for_the_report_receipt(self):
+        # mission.py _dispatch_support: confirmed AND report_persisted, else TARGET_NOT_CONFIRMED. The thin
+        # TargetSnapshot marks every target CONFIRMED, so "확인됨" alone would offer a press that is refused.
+        found = mission_state('DISASTER', 'TARGET_FOUND')
+        none_saved = self.gates(found, targets=self.with_revisions(waiting=4, supporting=7))['DISPATCH_SUPPORT']
+        self.assertOff(none_saved, '보고 저장 대기')
+        self.assertEqual(none_saved['choices'], [])
+        one_saved = self.gates(found, targets=self.with_revisions(saved=('supporting',), waiting=4, supporting=7))
+        gate = one_saved['DISPATCH_SUPPORT']
+        self.assertTrue(gate['enabled'])
+        self.assertEqual([c['target_id'] for c in gate['choices']], [uid('supporting')])
+        self.assertIn('보고 저장 대기 1명', gate['reason'])
+
+    def test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger(self):
+        # Rows written before #118 have no persisted_report_id. The ledger receipt is not the coordinator's:
+        # no silent fallback, the button stays off (PR검토보조 2026-10-12, 소유자 지시 전달).
+        view = build_view(load_ledger(self.db), dict(self.status, mission_state={
+            'schema_version': '1.2', 'mission': mission_state('DISASTER', 'TARGET_FOUND')},
+            target_states={'schema_version': '1.2', 'targets': self.with_revisions(waiting=4)}),
+            built_at_ns=T0 + 30 * SECOND)
+        waiting = next(t for t in view['targets'] if t['target_id'] == uid('waiting'))
+        self.assertEqual(waiting['receipt_status'], 'PERSISTED')
+        self.assertIsNone(waiting['persisted_report_id'])
+        gate = next(c for c in view['commands'] if c['name'] == 'DISPATCH_SUPPORT')
+        self.assertOff(gate, '보고 저장 대기')
+
+    def test_malformed_revision_or_receipt_fails_the_poll(self):
+        found = mission_state('DISASTER', 'TARGET_FOUND')
+        for field, value in (('target_revision', -1), ('target_revision', '4'), ('target_revision', True),
+                             ('persisted_report_id', ''), ('persisted_report_id', 7)):
+            with self.subTest(field=field, value=value):
+                targets = [dict(state, **{field: value}) for state in self.with_revisions(waiting=4)]
+                with self.assertRaises(ConsoleError):
+                    self.gates(found, targets=targets)
 
     def test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows(self):
         gate = self.gates(mission_state('DISASTER', 'AWAITING_CONTINUE', dispatch=dispatch()))['CONTINUE_SEGMENT']
