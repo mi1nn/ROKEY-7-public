@@ -19,8 +19,8 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
-| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 기존 팀 BRD·실행 계약과의 차이를 명시 |
-| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 노드·토픽 상세는 `rokey7-sdd.drawio` 01~10쪽 |
+| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 도면 00쪽 통합 시스템 설계도와 기존 01~11쪽 상세도, 관제 웹 데이터 출처. 기존 팀 BRD·실행 계약과의 차이를 명시 |
+| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
 | [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
