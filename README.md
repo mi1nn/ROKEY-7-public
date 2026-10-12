@@ -17,6 +17,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [PR 진행과 검토 지침](docs/process/review-workflow.md) | 현재 검토 담당·인계·머지 조건, 계획 PR의 과거 운영 기록과 원본 URL |
 | [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
+| [AMR1 explore_lite 단독 시험](docs/implementation/amr1-explore-lite-field-test.md) | robot6 단독 탐색의 실행·중단 절차, 미실행 관문과 PR 결과 댓글 양식 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
 | [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 기존 팀 BRD·실행 계약과의 차이를 명시 |
