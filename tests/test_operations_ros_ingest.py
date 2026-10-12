@@ -327,7 +327,7 @@ class TargetConversion(unittest.TestCase):
                               position=dict(x=3.0, y=4.0, frame_id='mission', map_session_id=uid(5), map_revision=2),
                               detection_confirmed=True, rescue_state='NOT_CHECKED', rescue_reasons=[],
                               verdict_id=None, support_state='ASSIGNED', support_robot_id='robot_b',
-                              updated_at_ns=T0 + 50, target_revision=2),
+                              updated_at_ns=T0 + 50, target_revision=2, persisted_report_id=None),
                          self.convert(target_msg()))
 
     def test_approach_states_fold_into_the_four_support_states(self):
@@ -338,6 +338,11 @@ class TargetConversion(unittest.TestCase):
                 target = self.convert(target_msg(approach=approach))
                 self.assertEqual(support, target['support_state'])
                 self.assertEqual(None if support == 'NONE' else 'robot_b', target['support_robot_id'])
+
+    def test_saved_report_id_is_kept_and_empty_is_none(self):
+        """The coordinator fills persisted_report_id once a PERSISTED receipt came for this revision."""
+        self.assertEqual(uid(700), self.convert(target_msg(persisted_report_id=uid(700)))['persisted_report_id'])
+        self.assertIsNone(self.convert(target_msg(persisted_report_id=''))['persisted_report_id'])
 
     def test_not_confirmed_and_no_location_give_false_and_none(self):
         target = self.convert(target_msg(confirmation_state='DISMISSED', locations=[]))

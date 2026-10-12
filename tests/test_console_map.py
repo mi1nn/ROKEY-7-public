@@ -188,7 +188,7 @@ class MapScreenTests(LedgerFixture):
         self.assertIn('<image href="map.png?v=', html)
         self.assertEqual(html.count('<g class="victim '), len(view['targets']))
         page = render_page(view)
-        self.assertEqual(re.findall(r"fetch\('([^']*)'", page), ['fragment'])   # the image is not a poll
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", page), ['fragment', 'commands'])   # the image is not a poll
 
     def test_robot_heading_and_off_map_warning(self):
         status_path = self.dir / 'status.json'
