@@ -1,0 +1,30 @@
+{
+  "zip_sha256": "311ac276b700e072c62413e8d054eb670a887ebf00de69db2dc4553ba90d4ba2",
+  "initial_weights_sha256": "9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef",
+  "counts": {
+    "train": 346,
+    "valid": 99,
+    "test": 49
+  },
+  "class_names": [
+    "survivor"
+  ],
+  "arguments": {
+    "zip": "dataset.zip",
+    "weights": "yolo26n.pt",
+    "dataset": "dataset",
+    "project": "runs",
+    "name": "yolo26n_survivor_noaug_512",
+    "imgsz": 512,
+    "epochs": 100,
+    "batch": 8,
+    "device": "0",
+    "seed": 0,
+    "augmentation": "none",
+    "prepare_only": false,
+    "evaluate_test": false
+  },
+  "ultralytics": "8.4.170",
+  "torch": "2.14.1+cu130",
+  "device": "0"
+}

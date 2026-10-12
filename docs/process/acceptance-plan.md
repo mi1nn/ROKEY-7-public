@@ -1,7 +1,7 @@
 ---
 title: 사전 시험 기준·구현 분담·통합 관문 초안
 status: draft-proposal
-updated: 2026-10-08
+updated: 2026-10-10
 ---
 
 # 시험·작업 분담 초안
@@ -105,7 +105,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 | AC-02 | A 관측 기준점을 B가 재관측·접근 해석 | 물리 기준점의 실측값과 A/B 추정 오차. 다른 출발 자세, map 세션 변경, backend 보정 발생 시 유효성/정지·재관측 |
 | AC-03 | 합의한 사람/인형을 여러 거리·방향·가림/조명에서 발견 | 이미지/시퀀스 단위 탐지 TP/FP/FN, 같은 사람 중복 사건 수, 위치 오차. 사람과 인형 결과를 혼합하지 않음 |
 | AC-04 | 이동 중 장애물 추가 및 이후 제거 | scan 관측 시각, local/global costmap 변화, 경로 변경·대기/접근 불가 시각, SLAM 지도 갱신을 각각 기록. costmap clearing만으로 SLAM 지도 보정 성공을 주장하지 않음 |
-| AC-05 | A 발견→B 수락·접근·재확인·정지·보고, A의 별도 수색 | 원 관측부터 receipt까지 task/target/observation ID로 연결. B의 fresh 재관측 전 A 지원/정보 만료 정책 확인. A/B 역할 교환 회차 포함 |
+| AC-05 | A 발견→운영자 출동 승인→B 구간별 접근(구간마다 정지 후 ‘계속’ 승인)·재확인·정지·보고, A의 별도 수색 | 원 관측부터 receipt까지 task/target/observation ID와 승인 기록(누가·언제·무엇을)으로 연결. 승인 없이 B가 출발하거나 다음 구간으로 움직인 횟수 0. B의 fresh 재관측 전 A 지원/정보 만료 정책 확인. A/B 역할 교환 회차 포함 |
 | AC-06 | 대상/TF/센서/명령·보고 경로의 중단·지연·복구 | 어느 관문이 언제 발동했는지, 실제 정지/확인 불가, 재개 권한·새 generation, 원 관측 시각 보존 |
 | AC-07 | 우회로가 없는 대상 | 접근 실패와 발견/보고 성공을 구분. 제한된 재시도·접근 불가 이유·필수 현장 정보 저장 |
 
@@ -138,7 +138,7 @@ PR 7의 기록 입력 개발이나 PR 9의 모의 데이터 개발은 기반 실
 | 로봇·지도(Claude) | `rescue_robot`, `rescue_mapping`, `rescue_bringup` 의 로봇별 실행/launch, `config/` 값 | SLAM/Nav2·TF·native sensor·goal/cancel·최종 watchdog·좌표 revision/실측. 로봇을 움직이는 유일한 자리 |
 | 인식(Claude) | `rescue_perception`, 해당 모델/데이터 평가 도구·`assets/manifest/`, 고정 카메라 어댑터(`SiteEvent` 생산) | 동기화/거리/관측·다중 대상·시간/위치 품질·독립 평가·부하. 주행 명령 없음 |
 | 협업·관제(Claude) | `rescue_coordination`, `rescue_operations`, API·사건/보고 저장(DB 스키마·운영 장부 소유) | task/target 상태·통로·인계·재시작·명령 경합·구출 완료 판정·UI 가 읽을 API 의 일치. `cmd_vel`·Nav2 직접 호출 없음 |
-| 관제·화면(Claude) | `rescue_console`(관제 화면: 지도·로봇·사람 좌표·구조 상태·출구 카운트 표시, 운영자 명령 전달) | 표시 값과 장부의 1:1, 표시 지연(KPI-04), 명령 버튼이 API 밖으로 아무것도 보내지 않음. DB 쓰기·ROS 직접 구독 없음 |
+| 관제·화면(Claude) | `rescue_console`(관제 화면: 지도·로봇·사람 좌표·구조 상태·웹캠 영상 표시, 운영자 명령 전달 — AMR2 출동 승인·구간 ‘계속’ 포함) | 표시 값과 장부의 1:1, 표시 지연(KPI-04), 명령 버튼이 API 밖으로 아무것도 보내지 않음. DB 쓰기·ROS 직접 구독 없음 |
 | 실기·배포(Claude) | `rescue_bringup/launch/`, `config/hosts/`, `scripts/field/`, `tests/ros/hosts_*`, `field-runbook.md`, `network-discovery.md` | PC 환경·디스커버리·설치 점검(preflight), launch 파라미터, 4-PC 기동 탐침(AC-01), 현장 점검 목록. 로봇을 움직이지 않음 |
 | 웹마스터(Claude) | 운영 PC(PC4 역할) 로컬 환경 운영: Discovery Server·관제 웹·DB 파일의 서비스 등록과 운영 절차, `docs/process/ops-host-record.md`. 코드 소유 없음 | 운영 PC 현황의 측정·기록(E1), 서비스 등록 전후 해시·되돌리기 기록(등급 4 절차). 로봇 설정은 읽기만 |
 | 검증·수정·머지(Cursor) | — | head 독립 검증(`CUR-nn`), 작은 수정, merge commit |

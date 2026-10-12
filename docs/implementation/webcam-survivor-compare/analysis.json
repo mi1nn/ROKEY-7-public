@@ -1,0 +1,719 @@
+{
+  "per_model": {
+    "yolov8n": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.961,
+        "ci95": [
+          0.9519,
+          0.9714
+        ],
+        "tp": 221,
+        "fp": 6,
+        "fn": 1,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0079_jpg.rf.067a2e0012aa0b75fbd521593fb8b2a8.jpg",
+          "S02-154010_mp4-0080_jpg.rf.4c3abe41bb2d2cf300395722b8c67ade.jpg",
+          "S02-154010_mp4-0081_jpg.rf.8588216fe6773c04346c30ab7807822b.jpg",
+          "S02-154010_mp4-0082_jpg.rf.aec8b753b8e03221b28255e7cb6d7233.jpg",
+          "S02-154010_mp4-0084_jpg.rf.3424eef0bf1baffdd3ae1c7aba7470ca.jpg",
+          "S02-154010_mp4-0085_jpg.rf.2760f807d8c2b58068d4c93b361b2890.jpg",
+          "S02-154010_mp4-0164_jpg.rf.c2c87afa068025e3f63353cbfd87ecec.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.8871,
+        "ci95": [
+          0.8651,
+          0.9082
+        ],
+        "tp": 230,
+        "fp": 2,
+        "fn": 6,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0081_jpg.rf.c28704c9d2ddccba4ea23fd45b8b4ecc.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0116_jpg.rf.0f2e0f7d9154b3f14190be1550864b42.jpg",
+          "TEST-154901_mp4-0118_jpg.rf.25fb1edd5022e83fa94eebb9e67498de.jpg",
+          "TEST-154901_mp4-0144_jpg.rf.94378147ad55fbfd66cd3b2628e20207.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg"
+        ]
+      }
+    },
+    "yolo11n": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.9501,
+        "ci95": [
+          0.9387,
+          0.9601
+        ],
+        "tp": 222,
+        "fp": 1,
+        "fn": 0,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0180_jpg.rf.6f860513a9f0110a0d0e4feaa6ba7d7a.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.882,
+        "ci95": [
+          0.8619,
+          0.9029
+        ],
+        "tp": 233,
+        "fp": 6,
+        "fn": 3,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0016_jpg.rf.76ebd04324ca775cb204579ba678cd02.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0118_jpg.rf.25fb1edd5022e83fa94eebb9e67498de.jpg",
+          "TEST-154901_mp4-0137_jpg.rf.b321344ac521ced31a21b659361946d7.jpg",
+          "TEST-154901_mp4-0180_jpg.rf.945cb8cbda12ed5688ee2b19373a99d5.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0215_jpg.rf.db67ae2c22c3f2e2da66c8d53a3106fd.jpg"
+        ]
+      }
+    },
+    "yolov8s": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.9607,
+        "ci95": [
+          0.9486,
+          0.9694
+        ],
+        "tp": 221,
+        "fp": 0,
+        "fn": 1,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0034_jpg.rf.4c2a901052e3786383007b26831163d3.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.8972,
+        "ci95": [
+          0.8746,
+          0.9225
+        ],
+        "tp": 232,
+        "fp": 5,
+        "fn": 4,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0016_jpg.rf.76ebd04324ca775cb204579ba678cd02.jpg",
+          "TEST-154901_mp4-0073_jpg.rf.e90b16e1333948c0544dc99a03d743f1.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0116_jpg.rf.0f2e0f7d9154b3f14190be1550864b42.jpg",
+          "TEST-154901_mp4-0180_jpg.rf.945cb8cbda12ed5688ee2b19373a99d5.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0241_jpg.rf.d160e35bc7f1777a2cf07890edfdf220.jpg"
+        ]
+      }
+    },
+    "yolo11s": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.9495,
+        "ci95": [
+          0.9349,
+          0.9606
+        ],
+        "tp": 220,
+        "fp": 0,
+        "fn": 2,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0034_jpg.rf.4c2a901052e3786383007b26831163d3.jpg",
+          "S02-154010_mp4-0164_jpg.rf.c2c87afa068025e3f63353cbfd87ecec.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.8957,
+        "ci95": [
+          0.8684,
+          0.9183
+        ],
+        "tp": 230,
+        "fp": 6,
+        "fn": 6,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0016_jpg.rf.76ebd04324ca775cb204579ba678cd02.jpg",
+          "TEST-154901_mp4-0073_jpg.rf.e90b16e1333948c0544dc99a03d743f1.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0116_jpg.rf.0f2e0f7d9154b3f14190be1550864b42.jpg",
+          "TEST-154901_mp4-0147_jpg.rf.9f13f446acd493a763c3bdd821256ba2.jpg",
+          "TEST-154901_mp4-0180_jpg.rf.945cb8cbda12ed5688ee2b19373a99d5.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0215_jpg.rf.db67ae2c22c3f2e2da66c8d53a3106fd.jpg"
+        ]
+      }
+    },
+    "yolo26s": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.9573,
+        "ci95": [
+          0.9478,
+          0.9662
+        ],
+        "tp": 222,
+        "fp": 4,
+        "fn": 0,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0053_jpg.rf.6f680066dccf1d6b081f37885aff9bc3.jpg",
+          "S02-154010_mp4-0054_jpg.rf.441f0ca494cd26ff340364ebdddae5d9.jpg",
+          "S02-154010_mp4-0133_jpg.rf.220338d2aba99cd3f24814d1c96ce421.jpg",
+          "S02-154010_mp4-0201_jpg.rf.cb3de5ddb96af8698b1fea06167e69a5.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.899,
+        "ci95": [
+          0.8765,
+          0.9195
+        ],
+        "tp": 230,
+        "fp": 18,
+        "fn": 6,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0036_jpg.rf.cf87bebb80bcffd5c47ed2c51655b62d.jpg",
+          "TEST-154901_mp4-0062_jpg.rf.eace193e45f2d1d4971d4969d1b97240.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0118_jpg.rf.25fb1edd5022e83fa94eebb9e67498de.jpg",
+          "TEST-154901_mp4-0119_jpg.rf.85fa783c8b390f41af32df3cd2632154.jpg",
+          "TEST-154901_mp4-0137_jpg.rf.b321344ac521ced31a21b659361946d7.jpg",
+          "TEST-154901_mp4-0168_jpg.rf.9150a91a66eae055eccd3525360a8b8a.jpg",
+          "TEST-154901_mp4-0169_jpg.rf.ff1f0cfd95454b4b5b30b34e9aa5f237.jpg",
+          "TEST-154901_mp4-0180_jpg.rf.945cb8cbda12ed5688ee2b19373a99d5.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0188_jpg.rf.a3d5497db8e3c4abb4a4c028c6277287.jpg",
+          "TEST-154901_mp4-0192_jpg.rf.13dd04fdd6bed473f528bba3c6efa794.jpg",
+          "TEST-154901_mp4-0201_jpg.rf.484b28160583529df8a33d21ee193a04.jpg",
+          "TEST-154901_mp4-0209_jpg.rf.91f90820a3e8ae47f5cfe9196a558691.jpg",
+          "TEST-154901_mp4-0222_jpg.rf.4bc0641046c5167db1f966d29281585a.jpg",
+          "TEST-154901_mp4-0235_jpg.rf.d8768ab7274ab2fc2522c6bd36bd4d24.jpg",
+          "TEST-154901_mp4-0243_jpg.rf.0d1f4a40019ba121b21121c519913479.jpg",
+          "TEST-154901_mp4-0244_jpg.rf.38565100c8c56d80d915888e9ffa3bdc.jpg",
+          "TEST-154901_mp4-0245_jpg.rf.ab2513e48ddc3d66de33b97b8009c8d3.jpg",
+          "TEST-154901_mp4-0246_jpg.rf.b472752c027ee9f94941e0851fc9f19f.jpg",
+          "TEST-154901_mp4-0247_jpg.rf.43756cbb9c964f43bac9c524b2cfe660.jpg",
+          "TEST-154901_mp4-0248_jpg.rf.5943abcd90a50e924ba5f82147254c38.jpg",
+          "TEST-154901_mp4-0250_jpg.rf.55b2b31501d3f79175a5a35952983703.jpg"
+        ]
+      }
+    },
+    "rtdetr-l": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.966,
+        "ci95": [
+          0.9565,
+          0.9738
+        ],
+        "tp": 222,
+        "fp": 0,
+        "fn": 0,
+        "fp_on_background": 0,
+        "failure_images": []
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.894,
+        "ci95": [
+          0.8665,
+          0.9184
+        ],
+        "tp": 227,
+        "fp": 4,
+        "fn": 9,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0046_jpg.rf.6cf3968b2f9cb35cd38b5c84a6a239a4.jpg",
+          "TEST-154901_mp4-0080_jpg.rf.35eddc1e36b1af78a87a45e0f4bae59d.jpg",
+          "TEST-154901_mp4-0081_jpg.rf.c28704c9d2ddccba4ea23fd45b8b4ecc.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0137_jpg.rf.b321344ac521ced31a21b659361946d7.jpg",
+          "TEST-154901_mp4-0180_jpg.rf.945cb8cbda12ed5688ee2b19373a99d5.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0183_jpg.rf.9a9faf00b5018581fe33541f46753ea1.jpg",
+          "TEST-154901_mp4-0222_jpg.rf.4bc0641046c5167db1f966d29281585a.jpg"
+        ]
+      }
+    },
+    "yolo26n": {
+      "valid": {
+        "images": 236,
+        "instances": 222,
+        "background_images": 14,
+        "mAP50_95": 0.9583,
+        "ci95": [
+          0.9474,
+          0.9683
+        ],
+        "tp": 222,
+        "fp": 2,
+        "fn": 0,
+        "fp_on_background": 0,
+        "failure_images": [
+          "S02-154010_mp4-0070_jpg.rf.5dc6a3c47ef6c22a3137bb3f3938cd80.jpg",
+          "S02-154010_mp4-0071_jpg.rf.5ae11a7fd304286edcbf07fb0b19be2f.jpg"
+        ]
+      },
+      "test": {
+        "images": 246,
+        "instances": 236,
+        "background_images": 10,
+        "mAP50_95": 0.9189,
+        "ci95": [
+          0.8995,
+          0.937
+        ],
+        "tp": 229,
+        "fp": 8,
+        "fn": 7,
+        "fp_on_background": 0,
+        "failure_images": [
+          "TEST-154901_mp4-0003_jpg.rf.fd84a06b1b1a3e1c2ea0f8ece217ba7c.jpg",
+          "TEST-154901_mp4-0016_jpg.rf.76ebd04324ca775cb204579ba678cd02.jpg",
+          "TEST-154901_mp4-0038_jpg.rf.061d67d016f26644f95400082738ced9.jpg",
+          "TEST-154901_mp4-0046_jpg.rf.6cf3968b2f9cb35cd38b5c84a6a239a4.jpg",
+          "TEST-154901_mp4-0050_jpg.rf.42ca1bfaf7987583ca442ab2b3a4c9e0.jpg",
+          "TEST-154901_mp4-0077_jpg.rf.4c551e6651ed7276e5c1ec8fc2696561.jpg",
+          "TEST-154901_mp4-0082_jpg.rf.93581faa78decf9e5a213223458aa72b.jpg",
+          "TEST-154901_mp4-0100_jpg.rf.8468ed635b194cb1209d991a5fe960d6.jpg",
+          "TEST-154901_mp4-0113_jpg.rf.ba07a46bf11414f06f4e2077ad1852c2.jpg",
+          "TEST-154901_mp4-0145_jpg.rf.9b5369ef5af6a50ebe44386788634bde.jpg",
+          "TEST-154901_mp4-0150_jpg.rf.f44b35a4ea9f83af8cae4e856a31de47.jpg",
+          "TEST-154901_mp4-0151_jpg.rf.5515f7146a3a1e8527339102f0e2b2c1.jpg",
+          "TEST-154901_mp4-0181_jpg.rf.4efecea53f38308912c3794dd376ea7d.jpg",
+          "TEST-154901_mp4-0182_jpg.rf.0497e93f83f2edc7b2424b5b10c2c521.jpg",
+          "TEST-154901_mp4-0215_jpg.rf.db67ae2c22c3f2e2da66c8d53a3106fd.jpg"
+        ]
+      }
+    }
+  },
+  "pairwise": {
+    "yolov8n vs yolo11n": {
+      "valid": {
+        "diff": 0.0109,
+        "ci95": [
+          0.0027,
+          0.0206
+        ],
+        "verdict": "yolov8n 우세"
+      },
+      "test": {
+        "diff": 0.0051,
+        "ci95": [
+          -0.0129,
+          0.0211
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8n vs yolov8s": {
+      "valid": {
+        "diff": 0.0003,
+        "ci95": [
+          -0.006,
+          0.0099
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0101,
+        "ci95": [
+          -0.0259,
+          0.0033
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8n vs yolo11s": {
+      "valid": {
+        "diff": 0.0115,
+        "ci95": [
+          0.0036,
+          0.0233
+        ],
+        "verdict": "yolov8n 우세"
+      },
+      "test": {
+        "diff": -0.0086,
+        "ci95": [
+          -0.0232,
+          0.0107
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8n vs yolo26s": {
+      "valid": {
+        "diff": 0.0037,
+        "ci95": [
+          -0.0058,
+          0.0146
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0119,
+        "ci95": [
+          -0.0283,
+          0.0078
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8n vs rtdetr-l": {
+      "valid": {
+        "diff": -0.005,
+        "ci95": [
+          -0.0115,
+          0.0031
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0069,
+        "ci95": [
+          -0.026,
+          0.0147
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8n vs yolo26n": {
+      "valid": {
+        "diff": 0.0027,
+        "ci95": [
+          -0.0057,
+          0.0122
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0318,
+        "ci95": [
+          -0.0476,
+          -0.0155
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    },
+    "yolo11n vs yolov8s": {
+      "valid": {
+        "diff": -0.0106,
+        "ci95": [
+          -0.0195,
+          -0.0005
+        ],
+        "verdict": "yolov8s 우세"
+      },
+      "test": {
+        "diff": -0.0152,
+        "ci95": [
+          -0.0335,
+          0.0021
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11n vs yolo11s": {
+      "valid": {
+        "diff": 0.0006,
+        "ci95": [
+          -0.0083,
+          0.0115
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0137,
+        "ci95": [
+          -0.0299,
+          0.0091
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11n vs yolo26s": {
+      "valid": {
+        "diff": -0.0072,
+        "ci95": [
+          -0.0182,
+          0.0022
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.017,
+        "ci95": [
+          -0.0349,
+          0.0027
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11n vs rtdetr-l": {
+      "valid": {
+        "diff": -0.0159,
+        "ci95": [
+          -0.0238,
+          -0.008
+        ],
+        "verdict": "rtdetr-l 우세"
+      },
+      "test": {
+        "diff": -0.012,
+        "ci95": [
+          -0.0324,
+          0.0129
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11n vs yolo26n": {
+      "valid": {
+        "diff": -0.0082,
+        "ci95": [
+          -0.0193,
+          0.0014
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0369,
+        "ci95": [
+          -0.0505,
+          -0.022
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    },
+    "yolov8s vs yolo11s": {
+      "valid": {
+        "diff": 0.0112,
+        "ci95": [
+          0.0018,
+          0.0208
+        ],
+        "verdict": "yolov8s 우세"
+      },
+      "test": {
+        "diff": 0.0015,
+        "ci95": [
+          -0.0142,
+          0.0204
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8s vs yolo26s": {
+      "valid": {
+        "diff": 0.0034,
+        "ci95": [
+          -0.0087,
+          0.0128
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0018,
+        "ci95": [
+          -0.0214,
+          0.0176
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8s vs rtdetr-l": {
+      "valid": {
+        "diff": -0.0053,
+        "ci95": [
+          -0.0134,
+          0.0014
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": 0.0032,
+        "ci95": [
+          -0.0147,
+          0.0264
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolov8s vs yolo26n": {
+      "valid": {
+        "diff": 0.0024,
+        "ci95": [
+          -0.0067,
+          0.0093
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0217,
+        "ci95": [
+          -0.0375,
+          -0.0054
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    },
+    "yolo11s vs yolo26s": {
+      "valid": {
+        "diff": -0.0078,
+        "ci95": [
+          -0.0196,
+          0.0016
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0033,
+        "ci95": [
+          -0.0238,
+          0.0155
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11s vs rtdetr-l": {
+      "valid": {
+        "diff": -0.0165,
+        "ci95": [
+          -0.0261,
+          -0.0082
+        ],
+        "verdict": "rtdetr-l 우세"
+      },
+      "test": {
+        "diff": 0.0017,
+        "ci95": [
+          -0.0159,
+          0.02
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo11s vs yolo26n": {
+      "valid": {
+        "diff": -0.0088,
+        "ci95": [
+          -0.0202,
+          -0.0016
+        ],
+        "verdict": "yolo26n 우세"
+      },
+      "test": {
+        "diff": -0.0232,
+        "ci95": [
+          -0.0468,
+          -0.0051
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    },
+    "yolo26s vs rtdetr-l": {
+      "valid": {
+        "diff": -0.0087,
+        "ci95": [
+          -0.016,
+          -0.0005
+        ],
+        "verdict": "rtdetr-l 우세"
+      },
+      "test": {
+        "diff": 0.005,
+        "ci95": [
+          -0.0181,
+          0.0322
+        ],
+        "verdict": "구분 불가"
+      }
+    },
+    "yolo26s vs yolo26n": {
+      "valid": {
+        "diff": -0.001,
+        "ci95": [
+          -0.0104,
+          0.0078
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0199,
+        "ci95": [
+          -0.0411,
+          -0.0016
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    },
+    "rtdetr-l vs yolo26n": {
+      "valid": {
+        "diff": 0.0077,
+        "ci95": [
+          -0.001,
+          0.0147
+        ],
+        "verdict": "구분 불가"
+      },
+      "test": {
+        "diff": -0.0249,
+        "ci95": [
+          -0.0524,
+          -0.0022
+        ],
+        "verdict": "yolo26n 우세"
+      }
+    }
+  }
+}

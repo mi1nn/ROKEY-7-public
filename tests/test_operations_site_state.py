@@ -1,5 +1,7 @@
 """Operations read API for the control screen: robot snapshot, site events + exit count, target states (E2)."""
+from dataclasses import asdict
 from pathlib import Path
+import re
 import sqlite3
 import tempfile
 import unittest
@@ -10,6 +12,8 @@ from rescue_operations.schema import OperationsError
 from rescue_operations import site_state
 
 ALLOWED = ('robot_a', 'robot_b')
+# 1차 IDL of the operator command service; every operation it names must be recordable.
+OPERATOR_SRV = Path(__file__).resolve().parents[1] / 'src' / 'rescue_interfaces' / 'srv' / 'SubmitOperatorCommand.srv'
 READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
            'read_mission_state', 'read_operator_commands', 'read_map_snapshots')
 
@@ -93,7 +97,7 @@ class SiteStateTests(unittest.TestCase):
         self.assertEqual(['robot_a', 'robot_b'], [r['robot_id'] for r in robots])
         self.assertEqual(6, robots[0]['state_sequence'])
         self.assertIsNone(robots[1]['pose'])
-        expected = set(robot_status()) | {'received_at_ns'}
+        expected = set(robot_status()) | {'received_at_ns', 'dock_state', 'segment_index'}
         self.assertEqual([expected, expected], [set(r) for r in robots])
         self.assertIsInstance(robots[0]['received_at_ns'], int)
 
@@ -113,6 +117,59 @@ class SiteStateTests(unittest.TestCase):
             self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
         robot = site_state.read_robot_status(self.path)['robots'][0]
         self.assertEqual((uid(9), 0), (robot['robot_boot_id'], robot['state_sequence']))
+
+    def test_dock_state_and_segment_index_are_optional_robot_keys(self):
+        """1차 IDL RobotStatus carries them; older writers and rows do not (db-schema 5절: default on read)."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_robot_status(robot_status(dock_state='UNDOCKED', segment_index=2)))
+            self.assertTrue(ledger.record_robot_status(robot_status(robot_id='robot_b', role='SUPPORT')))
+        robots = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual([('UNDOCKED', 2), (None, None)], [(r['dock_state'], r['segment_index']) for r in robots])
+
+    def test_robot_row_stored_without_the_new_keys_reads_as_none_and_resend_is_idempotent(self):
+        self.ledger().close()
+        old = robot_status()
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('INSERT INTO robot_status VALUES (?, ?, ?, ?, ?, ?)',
+                       (old['robot_id'], old['robot_boot_id'], old['state_sequence'], old['stamp_ns'],
+                        site_state.canonical(old), 1_500))
+        db.close()
+        (robot,) = site_state.read_robot_status(self.path)['robots']
+        self.assertEqual((None, None), (robot['dock_state'], robot['segment_index']))
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_robot_status(old))
+            self.assertFalse(ledger.record_robot_status(old | {'dock_state': None, 'segment_index': None}))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_robot_status(old | {'dock_state': 'DOCKED'})
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+
+    def test_new_robot_keys_are_checked(self):
+        with self.ledger() as ledger:
+            for change in (dict(dock_state='FLOATING'), dict(dock_state=''), dict(segment_index=-1),
+                           dict(segment_index=1.0), dict(segment_index=True)):
+                with self.subTest(change=change), self.assertRaises(OperationsError):
+                    ledger.record_robot_status(robot_status(**change))
+
+    def test_pose_is_updated_on_its_own_and_is_not_part_of_the_status_identity(self):
+        pose = dict(x=7.0, y=8.0, yaw=0.0, frame_id='mission')
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # no snapshot yet: nothing to update
+            ledger.record_robot_status(robot_status(pose=None))
+            self.assertTrue(ledger.record_robot_pose('robot_a', pose))
+            self.assertFalse(ledger.record_robot_pose('robot_a', pose))  # same pose: unchanged
+            self.assertFalse(ledger.record_robot_status(robot_status(pose=None)))  # same status, pose apart
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_robot_status(robot_status(readiness='NOT_READY'))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+            self.assertTrue(ledger.record_robot_pose('robot_a', None))  # hidden again
+            for bad in (dict(x=float('nan'), y=0.0, yaw=0.0, frame_id='m'), dict(x=1.0)):
+                with self.subTest(bad=bad), self.assertRaises(OperationsError):
+                    ledger.record_robot_pose('robot_a', bad)
+            with self.assertRaises(OperationsError):
+                ledger.record_robot_pose('robot_x', pose)
+        (robot,) = site_state.read_robot_status(self.path)['robots']
+        self.assertIsNone(robot['pose'])
 
     def test_robot_status_rejects_bad_input(self):
         bad = [dict(robot_id='robot_x'), dict(role='LEADER'), dict(state_sequence=-1), dict(stamp_ns=0),
@@ -147,6 +204,46 @@ class SiteStateTests(unittest.TestCase):
         first = result['site_events'][1]
         self.assertEqual(set(SiteEvent.__dataclass_fields__), set(first))
         self.assertEqual(site_event(10), SiteEvent(**first))
+
+    def test_disappeared_candidate_keeps_target_and_watch(self):
+        candidate = site_event(50, kind='TARGET_DISAPPEARED_CANDIDATE', at=3_000, target_id=uid(500),
+                               watch_id=uid(510))
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_site_event(candidate))
+            self.assertFalse(ledger.record_site_event(candidate))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_site_event(site_event(50, kind='TARGET_DISAPPEARED_CANDIDATE', at=3_000,
+                                                    target_id=uid(500), watch_id=uid(511)))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
+        result = site_state.read_site_events(self.path)
+        self.assertEqual(0, result['exit_pass_count'])
+        self.assertEqual([candidate], [SiteEvent(**e) for e in result['site_events']])
+
+    def write_event_before_target_and_watch(self, event):
+        """A row written before #48: event_json has no target_id/watch_id keys."""
+        self.ledger().close()
+        legacy = {k: v for k, v in asdict(event).items() if k not in ('target_id', 'watch_id')}
+        db = sqlite3.connect(self.path)
+        with db:
+            db.execute('INSERT INTO site_events VALUES (?, ?, ?, ?, ?)',
+                       (event.event_id, event.kind, event.observed_at_ns, site_state.canonical(legacy), 1_100))
+        db.close()
+
+    def test_events_stored_before_target_and_watch_read_back_with_none(self):
+        old = site_event(60, kind='DISASTER_SIGN', at=1_000)
+        self.write_event_before_target_and_watch(old)
+        stored = site_state.read_site_events(self.path)['site_events']
+        self.assertEqual([set(SiteEvent.__dataclass_fields__)], [set(e) for e in stored])  # db-schema 5절
+        self.assertEqual([old], [SiteEvent(**e) for e in stored])
+
+    def test_resending_an_event_stored_before_target_and_watch_is_not_a_conflict(self):
+        old = site_event(60, kind='DISASTER_SIGN', at=1_000)
+        self.write_event_before_target_and_watch(old)
+        with self.ledger() as ledger:
+            self.assertFalse(ledger.record_site_event(old))
+            with self.assertRaises(OperationsError) as caught:
+                ledger.record_site_event(site_event(60, kind='DISASTER_SIGN', at=1_001))
+            self.assertEqual('ID_CONTENT_CONFLICT', self.code(caught))
 
     def test_exit_count_is_over_all_events_not_the_page(self):
         with self.ledger() as ledger:
@@ -271,6 +368,19 @@ class SiteStateTests(unittest.TestCase):
         self.assertIs(False, result['commands'][2]['accepted'])
         self.assertEqual([stop], site_state.read_operator_commands(self.path, limit=1)['commands'])
 
+    @unittest.skipUnless(OPERATOR_SRV.is_file(),
+                         'source checkout absent (installed-wheel run): IDL comparison NOT_RUN here')
+    def test_every_operation_of_the_command_service_can_be_recorded(self):
+        """The console forwards SubmitOperatorCommand (1차 IDL, #77·#98); a refused record would lose it."""
+        operations = re.findall(r'^string OPERATION_\w+="(\w+)"', OPERATOR_SRV.read_text(), re.M)
+        self.assertGreaterEqual(len(operations), 8, operations)  # parsed, not an empty pass
+        self.assertLessEqual(set(operations), site_state.OPERATOR_COMMAND_KINDS,
+                             sorted(set(operations) - site_state.OPERATOR_COMMAND_KINDS))
+        with self.ledger() as ledger:
+            for n, kind in enumerate(operations):
+                with self.subTest(kind=kind):
+                    self.assertTrue(ledger.record_operator_command(command(900 + n, kind=kind)))
+
     def test_operator_command_rejects_bad_input(self):
         bad = [dict(command_id='x'), dict(kind='SELF_DESTRUCT'), dict(operator_id=''), dict(robot_id='robot_x'),
                dict(target_id='x'), dict(segment_index=-1), dict(route_revision=1.0), dict(requested_at_ns=0),
@@ -384,7 +494,8 @@ class SiteStateTests(unittest.TestCase):
         self.assertLessEqual({'error_log', 'mission_state', 'operator_commands', 'map_snapshots',
                               'robot_status', 'site_events', 'target_states'}, tables)
         robots = site_state.read_robot_status(self.path)['robots']
-        self.assertEqual([robot_status() | {'received_at_ns': 1_500}], robots)
+        self.assertEqual([robot_status() | {'received_at_ns': 1_500, 'dock_state': None, 'segment_index': None}],
+                         robots)
         self.assertEqual([target_state()], site_state.read_target_states(self.path)['targets'])
         self.ledger().close()  # an upgraded file reopens as a plain 1.1 file
 

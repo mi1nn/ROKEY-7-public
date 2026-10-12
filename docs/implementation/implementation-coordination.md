@@ -78,6 +78,77 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
   - `BASIS_MISMATCH`
 - `RECHECK_NEEDED` 대상은 다시 갈 수 있다. 접근이 실패해 해제된 사건도 `approach_tasks`에 남으므로 자동으로 다시 고르지 않는다. 재출동 규칙은 미결정이다.
 
+## 임무 모드·운영자 명령 관문 (scope Q-12, 2026-10-10)
+
+`rescue_coordination/mission.py`의 `MissionCoordinator`는 `SearchCoordinator` 위에 얹은 임무 한 건의 상태다. 세대 장부는 두지 않고 예약은 `SearchCoordinator.plan`에 맡긴다. 흐름과 관문은 [관제 웹·DB 계획](../design/console-and-db-plan.md) 1·4절과 [상태 전이](../design/state-machines.md) S-00을 따른다.
+
+| API | 판정 | 결과 |
+| --- | --- | --- |
+| `record_site_event(event)` | `DISASTER_SIGN`이고 `SiteEvent.time_basis_declared`(C-03: stamp 의미 ≠ UNKNOWN, `SYNCED`, 오차 상한 있음)일 때만 NORMAL → DISASTER | 닫힌 사유 `MODE_EVENT_REASONS`. 다른 종류는 `NOT_DISASTER_SIGN`, 시각 기준이 없으면 `TIME_BASIS_UNUSABLE`, 이미 재난이면 `ALREADY_DISASTER`(첫 트리거 유지). 같은 event_id는 첫 결과를 그대로, 내용이 다르면 `ID_CONTENT_CONFLICT` |
+| `plan(robot, ...)` | SCOUT는 DISASTER 전에, 그리고 운영자 `START_SEARCH` 를 받기 전에는 `SearchCoordinator.plan`을 부르지 않는다(저장소 소유자 결정 2026-10-11, #85). SUPPORT의 HOLD(제자리 정지)는 통과 | `PlanGate(reason, decision)`. `MODE_NOT_DISASTER`·`SEARCH_NOT_STARTED`면 예약이 없다 |
+| `handle_command(OperatorCommand, now_ns)` | 서버 쪽 관문. 모든 명령은 DISASTER에서만. `START_SEARCH` 는 한 번만(다시 오면 `SEARCH_ALREADY_STARTED`). `DISPATCH_SUPPORT`는 확정(`detection_confirmed`)·저장(`report_persisted`)·최신 revision·경로가 있는 대상에 한 번. `CONTINUE_SEGMENT`는 `segment_phase == AWAITING_APPROVAL`이고 대상 revision·경로 revision·구간 번호가 지금 것과 같을 때. `REQUEST_RECHECK`는 [계약](../design/contracts.md) C-11 10행(Q-26, 2026-10-11)대로 기록된 대상이고, `RESCUE_CONFIRMED`로 판정이 끝나지 않았고, 그 대상에 열린 재관측이 없을 때(출동·도착은 조건이 아니다). 받으면 대상별 `RecheckRequest`(출처 `OPERATOR`, command_id 를 후보 자리에, 수락 시각 `now_ns`)를 연다. `RETURN_HOME`은 판정이 나온 뒤, 두 역할 로봇 모두 복귀 위치(`HomePosition`)가 있고 그 지도 근거(map session·revision·transform revision)가 `record_map_basis`로 받은 지금 지도와 같을 때. 아니면 `NO_HOME_POSITION`·`HOME_BASIS_MISMATCH`로 거절하고 다른 위치로 대신하지 않는다 | `CommandResult(accepted, reason)`, 거절 사유는 닫힌 집합 `COMMAND_REJECT_REASONS`. 같은 command_id는 첫 결과를 그대로(그 뒤 대상이 판정됐어도 재판정하지 않음), 내용이 다르면 `ID_CONTENT_CONFLICT`. 종류 밖 명령·필드 누락/과잉은 `INVALID_INPUT` |
+| `segment_started`·`segment_finished` | 승인 한 건이 구간 하나다(`SegmentApproval`: 명령 ID, `target_id`·`target_revision`·`route_revision`·`segment_index`). 이 네 키가 같은 구간만 `APPROVED → MOVING`. 끝은 정지 확인이 있어야 받고, 받으면 승인을 다 쓴다 | 완료면 다음 구간이 `AWAITING_APPROVAL`(마지막이면 `ARRIVED`), 미완료면 같은 구간이 다시 승인 대기. **다음 구간을 스스로 승인하지 않는다** |
+| `record_route(target, route_revision, segment_count)` | 새 revision은 정지해 승인을 기다릴 때(또는 출동 전)만 바꿀 수 있고, 바뀌면 구간 0부터 다시 센다. 낮은 revision은 거절 | 이전 revision으로 누른 "계속"은 `ROUTE_REVISION_STALE` |
+| `phase()`·`view()` | 1절의 표시 단계(`MISSION_PHASES`)를 계산한다. 화면은 읽기만 한다 | `CANDIDATE`는 `TARGET_DISAPPEARED_CANDIDATE`(#48) 전까지 나오지 않는다 |
+
+`MOVE_SEGMENT`·`RETURN_HOME`은 아직 `rescue_contracts.TASK_KINDS`에 없다(#65). 그래서 이 모듈의 승인은 상태만 바꾸고 `Task`를 발급하지 않는다. `MOVE_SEGMENT`는 대상 임무로 정할 예정이라(#65, C-06) 후속 발급은 `approval`의 네 키를 그대로 `Task`에 싣는다. 복귀 위치는 프로파일 v2에 아직 없어(SUPPORT의 `hold_positions`만 있음) 호출하는 쪽이 넘긴다. 발급과 실행기 결과 연결, 재확인·복귀의 자동 시작, 카메라 후보(`TARGET_DISAPPEARED_CANDIDATE`) 수용과 출처 `CAMERA` 경로, 11행의 수락 시각 clock domain·오차 기록은 후속이다. 실제 ROS·DB·웹 연결은 미실행이다.
+
+## 임무 조정기 ROS 노드 — 얇은 버전 (10-13 전 구간, 2026-10-11)
+
+`rescue_coordination/ros_node.py`의 `mission_coordinator`(console_scripts)는 SDD `central.coordinator`의 얇은 버전이다. 판단은 ROS 없이 시험하는 `CoordinatorCore`가 하고, `main()`은 메시지만 옮긴다. ROS 패키지는 함수 안에서 import 하므로 ROS 없는 환경에서도 모듈과 코어를 시험할 수 있다. 로봇을 움직이는 것은 실행기이고, 이 노드는 `ExecuteTask` goal 을 보낼 뿐이다.
+
+| 통신 | 방향 | 하는 일 |
+| --- | --- | --- |
+| `/rescue/site_events` (SiteEvent) | 받음 | `VALID` 시야만 사건으로 바꾼다(C-10). `DISASTER_SIGN` → 모드 관문(재난 모드 표시·저장까지) |
+| `/rescue/robots/{r}/status` (RobotStatus) | 받음 | `READY`·나이 ≤ `status_max_age_s` 일 때만 새 task 를 낼 준비가 됨. `lease_valid` 는 작업 중 정지 감시에만 쓴다(대기 중인 로봇은 lease 가 없다, #100) |
+| `/rescue/robots/{r}/execute_task` (ExecuteTask) | 보냄 | 운영자 `START_SEARCH` 를 받은 뒤 SCOUT 에 `SEARCH_AREA`(저장소 소유자 결정 2026-10-11, #85: 재난 신호만으로는 출동하지 않음). SCOUT 상태를 모르거나 준비 전이면 `START_SEARCH` 는 `REJECTED`·`NAV_NOT_READY` 이고 시작으로 치지 않는다(#98: 버튼 뒤 알 수 없는 시점에 출발하지 않음, 준비 뒤 다시 누름). 준비됐지만 다른 task 중이면 받고, 수색은 그 task 뒤에 나간다. 기다리는 동안 `SystemState.reason` 은 `SEARCH_QUEUED` 이고, 그 사이 재난 모드가 끝나거나 SCOUT 상태가 STOPPING·STOP_UNCONFIRMED 이거나 SCOUT task 가 CANCELED(실행기의 정지 결과)로 끝나면 대기 수색을 거둔다(운영자가 다시 누름, 작전 2026-10-11), 승인마다 SUPPORT 에 `MOVE_SEGMENT`, 열린 재확인마다 SCOUT 에 `REOBSERVE_TARGET`. 결과는 정지 확인이 있어야 예약을 푼다 |
+| `/rescue/robots/{r}/task_admission` (TaskAdmission) | 받음 | ACTIVE 로 가는 유일한 길. goal 수락만으로는 ACTIVE 가 아니다 |
+| `/rescue/target_locations` (TargetLocation) | 받음 | `VALID` 투영만 대상이 된다. 아래 병합 규칙 |
+| `/rescue/reports` (RescueReport) | 보냄 | 대상 revision 마다 보고 하나. `report_retry_s` 마다 PERSISTED·REJECTED 까지 다시 보낸다 |
+| `/rescue/report_receipts` (ReportReceipt) | 받음 | 그 보고의 기록을 모두 포함한 `PERSISTED` 만 저장 확인(출동 관문의 "저장") |
+| `/rescue/operator_command` (SubmitOperatorCommand) | 서비스 | 임무 관문 판정. 같은 command_id·같은 내용은 `DUPLICATE` 로 첫 응답을, 내용이 다르면 `ID_CONTENT_CONFLICT` |
+| `/rescue/robots/{r}/command_lease` (CommandLease) | 보냄 | task 마다 `lease_id` 를 `ExecuteTask.lease_id` 에 싣고 `lease_renew_period_s` 마다 갱신한다(`renewal_sequence` 1씩 증가, 같은 boot·authority·generation). task 종료·거절, 재난 모드 아님, 그 로봇 상태가 낡음·다른 boot, authority/generation 불일치면 그 lease 는 다시 갱신하지 않는다. 그러면 실행기가 `LEASE_EXPIRED` 로 스스로 정지한다(C-10 「명령 lease」, #88). 보조 규칙(작전 2026-10-11): 그 task 를 가리키는 RobotStatus 에 `stop_reason` 이 있거나 `motion_state` 가 STOPPING·STOP_UNCONFIRMED 이거나 `lease_valid=false` 이면, 또는 수락 뒤 도착한 상태가 다른 task 를 가리키면 갱신을 멈춘다. 정지된 로봇에 lease 를 계속 연장하지 않는다는 뜻이고, 정지 자체는 실행기 latch 몫이다. 수락 전 상태와 이전 task 의 정지 사유는 새 lease 를 끊지 않는다. `valid_until_ns` 는 그 갱신 메시지의 수신 만료(`lease_message_ttl_s`, AST88-02) |
+| `/rescue/targets` (TargetSnapshot, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만, 대상마다 `TargetEstimate` 하나(target_id 순). `persisted_report_id` 는 지금 revision 의 저장된 보고만, 확정 상태는 `CONFIRMED`(얇은 버전), 출동 대상의 `approach_state` 는 APPROVED→ASSIGNED·MOVING/AWAITING_APPROVAL→IN_PROGRESS·ARRIVED→APPROACH_COMPLETE [제안], 나머지는 UNASSIGNED |
+| `/rescue/system_state` (SystemState, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만. `segment_phase` 는 APPROVED·MOVING→EXECUTING, AWAITING_APPROVAL→AWAITING_APPROVAL, ARRIVED→STOPPED. phase `FINISHED` 면 mode `MISSION_FINISHED`(C-10, #88). `reason` 은 지금 남아 있는 발급 막힘(`PASSAGE_ASSESSMENT_REQUIRED`·`ADMISSION_TIMEOUT`·`TARGET_ALIGNMENT_NOT_VALID` 등, tick 마다 다시 판정해 풀리면 지움, OPS-70-01)이 먼저, 없으면 `SEARCH_QUEUED`, 둘 다 없으면 빈 값 |
+
+- **경로 증거 Phase 1 규칙**(작전 2026-10-11, #88): `EvaluateRoute` 가 2차라 planner 경로 증거가 없다. `planning.Reservation` 은 ONE_SEGMENT 승인과 구간 끝 `GoalPoint` 가 있는 `MOVE_SEGMENT`, 고정 관측 지점이 있는 `REOBSERVE_TARGET` 만 `PathCandidate` 없이 받는다. 승인 없는 MOVE_SEGMENT, 관측 지점 없는 REOBSERVE, APPROACH_TARGET 은 여전히 거절한다. `ExecuteTask.route` 에는 `approach_goal`(구간 끝 또는 관측 지점)만 싣고, `planned_path`·`path_sha256`·`planner_evidence_id` 는 비우며, `assessment` 는 `UNKNOWN`(알려진 값 없음)이다. `route.frame_ref` 는 대상의 마지막 `TargetLocation.frame_ref` 를 그대로 쓰고, alignment 가 `VALID` 가 아니거나 목표의 지도 기준과 다르면 발급하지 않고 로그에 남긴다(`TARGET_ALIGNMENT_NOT_VALID`·`ROUTE_BASIS_MISMATCH`). 실제 경로 검증은 실행기 guard·Nav2 몫이고 실패는 `TaskResult` 로 드러난다.
+- **대상 병합**(작전 2026-10-11, Q-13·Q-21): 같은 지도 기준(map session·revision·transform revision)이고 `merge_distance_m` 안이면 같은 대상이고 revision 이 1 오른다. 밖이면 새 `target_id`(조정기 발급 UUID, C-11 1행)다. 기준이 다른 위치는 새 대상으로 나누지 않고 `FRAME_REVISION_MISMATCH` 로 거절한다. 같은 `location_id` 는 멱등, 내용이 다르면 `ID_CONTENT_CONFLICT`. 얇은 버전은 인식이 확정 탐지만 발행한다고 본다(작전 결정 3).
+- **발급 순서**: 한 tick 에서 승인된 구간 → 열린 재확인 → SCOUT 수색 순서다. 그래서 비어 있는 SCOUT 은 새 구역보다 열린 재확인을 먼저 받는다. 막힌 재확인은 수색을 멈추지 않는다. 진행 중인 수색 구역은 끊지 않는다. 다음 구간은 운영자 `CONTINUE_SEGMENT` 없이 발급하지 않는다. 완료되지 않은 재관측은 새 task 로 다시 예약한다(C-11 5행).
+
+운영자 서비스의 `reason_code` 는 C-09 공통 코드다(OPS-58). 임무 관문 사유는 노드 로그에 남긴다. REQUEST_RECHECK 의 세 줄은 C-11 10행이고, 나머지는 작전 승인(2026-10-11)이다.
+
+| 임무 관문 사유 | `reason_code` |
+| --- | --- |
+| `MODE_NOT_DISASTER` | `NOT_AUTHORIZED` |
+| `UNKNOWN_TARGET`, `NO_HOME_POSITION` | `NOT_FOUND` |
+| `TARGET_NOT_CONFIRMED`, `NO_ROUTE`, `NO_VERDICT` | `PENDING_EVIDENCE` |
+| `ALREADY_DISPATCHED`, `NOT_AWAITING_APPROVAL`, `RECHECK_ALREADY_REQUESTED`, `ALREADY_RETURNING`, `SEARCH_ALREADY_STARTED` | `TASK_BUSY` |
+| `TARGET_REVISION_STALE`, `ROUTE_REVISION_STALE`, `SEGMENT_INDEX_MISMATCH`, `NOT_DISPATCHED_TARGET`, `TARGET_ALREADY_JUDGED` | `INVALID_INPUT` |
+| `HOME_BASIS_MISMATCH` | `FRAME_REVISION_MISMATCH` |
+| 처리하지 않는 operation(`FINISH_MISSION`·`RESET_STOP`·`SET_CAMERA_WATCH`), 필수 필드 누락, 역할과 다른 `robot_id` | `INVALID_INPUT` |
+| SCOUT 상태를 모르거나 준비 전의 `START_SEARCH`(노드 경계 판정, 로그 사유 `SCOUT_NOT_READY`) | `NAV_NOT_READY` |
+
+파라미터는 모두 필수이고 기본값이 없다. 하나라도 없으면 `missing parameters` FATAL 로 exit 2 다. 기동할 때 git SHA·boot ID·적용 파라미터·역할을 로그에 남긴다. 종료는 `rclpy.try_shutdown()`.
+
+| 파라미터 | 타입 | 뜻 |
+| --- | --- | --- |
+| `profile_path` | string | 배포 프로파일 v2(역할·수색 구역) |
+| `entry_yaws` | double[] | 수색 구역 순서대로 도착 방향(rad) |
+| `policy_version`, `executor_policy_version`, `mission_frame_id`, `authority_epoch`, `coordinator_id`, `envelope_schema_version` | string | `SearchPolicy`·goal·envelope 값 |
+| `executable_bases` | string[] | 실행해도 되는 구역 근거 종류 |
+| `task_duration_s`, `status_max_age_s`, `tick_period_s`, `report_retry_s` | double | 임무 기한·상태 나이 상한·판단 주기·보고 재전송 주기 |
+| `lease_duration_s`, `lease_renew_period_s` | double | 실행기 정책의 lease 길이와 같은 값, 갱신 주기. 주기가 길이의 절반을 넘으면 기동 거부(exit 2) |
+| `lease_message_ttl_s` | double | `CommandLease.valid_until_ns` = 발급 시각 + 이 값. 그 갱신 메시지의 수신 만료다(AST88-02). 실행기는 시간 기준이 불명이면 갱신을 버리므로 Q-06(chrony) 측정이 이동의 선행 조건이다 |
+| `admission_timeout_s` | double | 수락 시한. 이때까지 TaskAdmission 이 없는 task 는 lease 갱신을 영구히 멈추고, 시한 뒤 도착한 RobotStatus 가 STOPPED·다른 task 일 때 예약을 풀어 다시 발급한다(작전 2026-10-11) |
+| `route_segment_goals` | double[] | 구간 끝 `[x, y, yaw]` × N (mission frame) |
+| `route_revision` | int | 그 목록의 revision. 목록이 바뀌면 올린다(이전 승인은 쓰지 않음) |
+| `route_segment_passage_free` | bool[] | 구간마다 "통로 판정 불필요"(현장 확인값, AST88-01·OPS-60). true 가 아니거나 길이가 구간 수와 다르면 그 구간의 MOVE_SEGMENT 를 내지 않고 `PASSAGE_ASSESSMENT_REQUIRED` 로 보류한다(SystemState.reason·로그, Q-25 기본값). 모두 보류하려면 모두 false |
+| `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
+| `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
+| `merge_distance_m` | double | 대상 병합 거리(Q-21) |
+
+아직 하지 않은 것: `HomePosition` 파라미터와 `RETURN_HOME` 배정(Q-22), `SetCameraWatch`(#77)·카메라 후보 수용과 판정 연결(#80·#32), 진행 중 수색 구역의 선점. E3 확인: `tests/ros/e3_coordinator_probe.py`(가짜 실행기 2대, 로봇 없음, `ROS_DOMAIN_ID` 10 이상·`LOCALHOST`·Discovery Server 해제).
+
 ## 검증
 
-`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다.
+`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다. `tests/test_coordination_mission.py`는 재난 전·START_SEARCH 전 SCOUT 수색 차단, 사건·명령 ID 멱등과 내용 충돌, 시각 기준 없는 사건 거절, 명령마다의 관문 사유, 정지 확인 없는 구간 종료 거절, 다음 구간 자동 승인 없음, 승인 키(대상·경로 revision·구간) 불일치 거절, 재확인 지시의 C-11 10행 순서(모르는 대상·판정 끝난 대상·열린 재관측)와 대상별 기록, 경로 교체 뒤 이전 revision 거절, 복귀 위치 없음·지도 불일치 거절, 시나리오 순서의 표시 단계를 확인한다. `tests/test_coordination_target_goal.py`는 경로 증거 Phase 1 규칙(승인 없는 MOVE_SEGMENT·관측 지점 없는 REOBSERVE·APPROACH 거절)을, `tests/test_coordination_ros_core.py`·`test_coordination_ros_targets.py`는 노드 코어(메시지 변환, START_SEARCH 뒤 SCOUT 발급, 운영자 서비스와 공통 코드, MOVE_SEGMENT·REOBSERVE 발급, 대상 병합, 보고 저장 확인, route frame, SystemState)를 ROS 없이 확인한다.

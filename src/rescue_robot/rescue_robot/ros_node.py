@@ -1,8 +1,8 @@
 """ROS 2 boundary for CommandAdapter: NavigateToPose client, odometry, dock status.
 
 ROS packages are imported inside functions so `rescue_robot` stays importable
-and testable without ROS. This node has no task ingress yet (ExecuteTask lives
-in the unimplemented rescue_interfaces) and its guard rejects every dispatch
+and testable without ROS. ExecuteTask IDL exists in rescue_interfaces, but this
+default CLI has no task runtime attached, and its guard rejects every dispatch
 until the mapping revision guard is connected, so it cannot start a motion on
 its own. It observes odometry, dock status and Nav2 availability.
 """
@@ -126,7 +126,7 @@ def camera_message_type(topic):
 
 
 def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_status_topic,
-                   tf_topic, map_frame, odom_frame):
+                   tf_topic, map_frame, odom_frame, watchdog_heartbeat_topic):
     """Arrival-only subscriptions feeding ReadinessMonitor (no message content judged,
     except that only the map->odom edge counts for slam freshness)."""
     from rclpy.qos import qos_profile_sensor_data
@@ -145,6 +145,11 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
         subs.append(node.create_subscription(WheelStatus, wheel_status_topic, arrival('wheel_status'),
                                              qos_profile_sensor_data))
 
+    if watchdog_heartbeat_topic:
+        from std_msgs.msg import Header
+        subs.append(node.create_subscription(Header, watchdog_heartbeat_topic,
+                                             arrival('watchdog_heartbeat'), 10))
+
     def on_tf(msg):
         if any(t.header.frame_id == map_frame and t.child_frame_id == odom_frame for t in msg.transforms):
             monitor.arrived('map_to_odom_tf', adapter.clock())
@@ -152,8 +157,9 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
     return subs
 
 
-def readiness_policy(version, ages, camera_topics, wheel_status_topic):
-    """driver=odom(+wheel_status), sensors=scan(+cameras), slam=map->odom TF; no watchdog source."""
+def readiness_policy(version, ages, camera_topics, wheel_status_topic, watchdog_heartbeat_topic):
+    """driver=odom(+wheel_status), sensors=scan(+cameras), slam=map->odom TF,
+    watchdog=command watchdog heartbeat (only when its topic is configured)."""
     max_age = {'odom': ages['odom'], 'scan': ages['scan'], 'map_to_odom_tf': ages['map_to_odom_tf']}
     driver, sensors = ('odom',), ('scan',)
     if wheel_status_topic:
@@ -162,14 +168,41 @@ def readiness_policy(version, ages, camera_topics, wheel_status_topic):
     for topic in camera_topics:
         max_age['camera:' + topic] = ages['camera']
         sensors += ('camera:' + topic,)
-    return ReadinessPolicy(version, max_age, {'driver': driver, 'sensors': sensors,
-                                              'slam': ('map_to_odom_tf',)})
+    flags = {'driver': driver, 'sensors': sensors, 'slam': ('map_to_odom_tf',)}
+    if watchdog_heartbeat_topic:
+        max_age['watchdog_heartbeat'] = ages['watchdog_heartbeat']
+        flags['watchdog'] = ('watchdog_heartbeat',)
+    return ReadinessPolicy(version, max_age, flags)
 
 
-def main(args=None):
+def declare_required(node, names, optional=()):
+    """Declare statically typed parameters without defaults -> (values, missing names).
+
+    rclpy (jazzy) refuses `declare_parameter(name, descriptor=...)` with no value,
+    so the type goes in as `Parameter.Type`; an unset one stays uninitialized and
+    reads as None. Empty strings/arrays are missing unless named in `optional`.
+    """
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    values = {}
+    for name, kind in names.items():  # kind: rcl_interfaces ParameterType value
+        node.declare_parameter(name, Parameter.Type(kind))
+        try:
+            values[name] = node.get_parameter(name).value
+        except ParameterUninitializedException:
+            values[name] = None
+    missing = sorted(name for name, item in values.items()
+                     if item is None or (name not in optional and item in ('', [])))
+    return values, missing
+
+
+READINESS_SOURCES = ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf', 'watchdog_heartbeat')
+
+
+def main(args=None, *, task_runtime_factory=None):
     import rclpy
     from rclpy.node import Node
-    from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+    from rcl_interfaces.msg import ParameterType
 
     rclpy.init(args=args)
     node = Node('rescue_command_adapter')
@@ -180,25 +213,19 @@ def main(args=None):
              'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
              'policy_version': string, 'step_period': double, 'clock_error_bound_s': double,
              'scan_topic': string, 'tf_topic': string, 'map_frame': string, 'odom_frame': string,
-             'readiness.version': string}
+             'readiness.version': string, 'executor_heartbeat_topic': string}
     names.update({'policy.' + field: double for field in POLICY_FIELDS})
     names.update({'readiness.max_age_s.' + source: double
-                  for source in ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf')})
-    # May be empty on purpose: no camera / no wheel_status / no watchdog source yet.
+                  for source in READINESS_SOURCES})
+    # May be empty on purpose: no camera / no wheel_status / no command watchdog
+    # (empty watchdog_heartbeat_topic = no watchdog flag = never ready to move).
     optional = {'camera_topics': ParameterType.PARAMETER_STRING_ARRAY,
                 'wheel_status_topic': string, 'watchdog_heartbeat_topic': string}
     names.update(optional)
-    for name, kind in names.items():  # no defaults: every value comes from launch/profile
-        node.declare_parameter(name, descriptor=ParameterDescriptor(type=kind, dynamic_typing=False))
-    value = {name: node.get_parameter(name).value for name in names}
-    missing = sorted(name for name, item in value.items()
-                     if item is None or (name not in optional and item in ('', [])))
+    # No defaults: every value comes from launch/profile.
+    value, missing = declare_required(node, names, optional)
     if missing:
         log.fatal(f'missing parameters: {missing}')
-        raise SystemExit(2)
-    if value['watchdog_heartbeat_topic']:
-        # Robot-side command watchdog + heartbeat does not exist yet (C-01, TR-11).
-        log.fatal('watchdog_heartbeat_topic must be empty until the robot-side watchdog exists')
         raise SystemExit(2)
     # Profile values (config/deployment.*.json) arrive as parameters from bringup;
     # this package does not import rescue_bringup (dependency points the other way).
@@ -219,23 +246,38 @@ def main(args=None):
     port.bind(adapter)
     cameras = tuple(value['camera_topics'])
     ages = {source: value['readiness.max_age_s.' + source]
-            for source in ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf')}
+            for source in READINESS_SOURCES}
     monitor = ReadinessMonitor(readiness_policy(value['readiness.version'], ages, cameras,
-                                                value['wheel_status_topic']))
+                                                value['wheel_status_topic'],
+                                                value['watchdog_heartbeat_topic']))
     bind_odometry(node, adapter, value['odom_topic'], monitor)
     bind_dock_status(node, adapter, value['dock_status_topic'])
     bind_readiness(node, monitor, adapter, scan_topic=value['scan_topic'], camera_topics=cameras,
                    wheel_status_topic=value['wheel_status_topic'], tf_topic=value['tf_topic'],
-                   map_frame=value['map_frame'], odom_frame=value['odom_frame'])
+                   map_frame=value['map_frame'], odom_frame=value['odom_frame'],
+                   watchdog_heartbeat_topic=value['watchdog_heartbeat_topic'])
+    # A site integration supplies authenticated lease/goal records, mapping
+    # authority and a result encoder. The ordinary CLI stays fail-closed.
+    task_runtime = None
+    if task_runtime_factory is not None:
+        if not callable(task_runtime_factory):
+            raise ValueError('task_runtime_factory must be callable')
+        task_runtime = task_runtime_factory(node, adapter)
+    from std_msgs.msg import Header
+    # Executor liveness for the command watchdog (C-01): one Header per step.
+    heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
 
     def step():
         adapter.observe_status(nav2=port.server_ready())
         monitor.publish(adapter)
         adapter.step()
+        heartbeat.publish(Header(stamp=node.get_clock().now().to_msg()))
     node.create_timer(value['step_period'], step)
     log.info(f'git_sha={git_sha()} boot={executor.robot_boot_id} parameters={value}')
     try:
         rclpy.spin(node)
     finally:
+        if task_runtime is not None:
+            task_runtime.destroy()
         node.destroy_node()
         rclpy.try_shutdown()

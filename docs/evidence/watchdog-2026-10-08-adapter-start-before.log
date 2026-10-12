@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<USER_CACHE>/p4/wd-main/src/rescue_robot/rescue_robot/ros_node.py", line 192, in main
+    node.declare_parameter(name, descriptor=ParameterDescriptor(type=kind, dynamic_typing=False))
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 389, in declare_parameter
+    return self.declare_parameters('', [args], ignore_override)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 509, in declare_parameters
+    raise ValueError(
+ValueError: Cannot declare a statically typed parameter with default value of type PARAMETER_NOT_SET

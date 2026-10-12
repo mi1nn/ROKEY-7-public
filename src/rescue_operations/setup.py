@@ -15,7 +15,8 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='Durable local report ledger, evidence storage and sender outbox; no ROS adapter.',
+    description='Report ledger, evidence, outbox and site-state DB; DB writer node is the ROS boundary.',
     license="LicenseRef-Unspecified",
-    entry_points={"console_scripts": ["rescue-report-export = rescue_operations.__main__:main"]},
+    entry_points={"console_scripts": ["rescue-report-export = rescue_operations.__main__:main",
+                                    "db_writer = rescue_operations.ros_node:main"]},
 )

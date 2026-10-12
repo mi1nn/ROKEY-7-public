@@ -11,13 +11,14 @@ the number of distinct EXIT_PASS events stored here; recognition removes track
 duplicates before it publishes, and nothing here removes them again (TS-04).
 """
 
-from dataclasses import asdict
+from collections.abc import Mapping
+from dataclasses import MISSING, asdict, fields
 import json
 import math
 import sqlite3
 import time
 
-from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SiteEvent
+from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SYSTEM_MODES, SiteEvent
 
 from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
@@ -32,16 +33,23 @@ UNKNOWN = "UNKNOWN"
 SUPPORT_STATES = frozenset({"NONE", "ASSIGNED", "ARRIVED", "FAILED"})
 # Mission badge and flow shown on the screen [제안, console-and-db-plan 1절·3절 2026-10-10]. Display
 # vocabulary written by operations from coordinator results; the coordinator owns the decisions.
-MISSION_MODES = frozenset({"NORMAL", "DISASTER"})
+# Mode is the contract system mode (S-00): NORMAL, DISASTER and CLEARING (false-alarm clearing).
+MISSION_MODES = SYSTEM_MODES
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
-# Commands the console may send [제안, console-and-db-plan 4절 2026-10-10]. The gate that accepts or
-# rejects them is in the operations API; this table only keeps what was asked and what was answered.
+# Commands the console may send. Every operation of the 1차 IDL service SubmitOperatorCommand (#77·#98:
+# START_SEARCH … SET_CAMERA_WATCH) plus the console plan's other buttons (PAUSE·RESUME·CANCEL·STOP_ROBOT,
+# console-and-db-plan 4절 [제안], STOP goes through RequestStop). The gate that accepts or rejects them
+# is elsewhere; this table only keeps what was asked and what was answered.
 OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
-                                    "RETURN_HOME", "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
+                                    "RETURN_HOME", "FINISH_MISSION", "RESET_STOP", "SET_CAMERA_WATCH",
+                                    "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
+# Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.
+ROBOT_DEFAULTS = {"dock_state": None, "segment_index": None}
+DOCK_STATES = frozenset({"DOCKED", "UNDOCKED", "UNKNOWN"})  # RobotStatus.DOCK_STATE_*
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
@@ -94,17 +102,23 @@ def _pair(first, second, label):
     require((first is None) == (second is None), label + " must be both present or both None")
 
 
+def _pose(value):
+    if value is None:
+        return None
+    pose = exact(value, POSE_KEYS, "pose")
+    return {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
+            "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+
+
 def _robot_status(value, allowed):
-    status = dict(exact(value, ROBOT_KEYS, "robot status"))
+    require(isinstance(value, Mapping), "robot status must be an object")
+    status = dict(exact(ROBOT_DEFAULTS | dict(value), ROBOT_KEYS | ROBOT_DEFAULTS.keys(), "robot status"))
     _member(status["robot_id"], allowed, "robot_id")
     uid(status["robot_boot_id"], "robot_boot_id")
     uint(status["state_sequence"], "state_sequence")
     require(status["role"] == UNKNOWN or status["role"] in ROBOT_ROLES, "role must be SCOUT, SUPPORT or UNKNOWN")
     timestamp(status["stamp_ns"], "stamp_ns")
-    if status["pose"] is not None:
-        pose = exact(status["pose"], POSE_KEYS, "pose")
-        status["pose"] = {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
-                          "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+    status["pose"] = _pose(status["pose"])
     text(status["motion_state"], "motion_state", 64)
     text(status["readiness"], "readiness", 64)
     _pair(status["battery_percent"], status["battery_stamp_ns"], "battery_percent/battery_stamp_ns")
@@ -116,7 +130,25 @@ def _robot_status(value, allowed):
     if status["active_task_id"] is not None:
         uid(status["active_task_id"], "active_task_id")
         uint(status["generation"], "generation")
+    require(status["dock_state"] is None or status["dock_state"] in DOCK_STATES,
+            "dock_state must be DOCKED, UNDOCKED, UNKNOWN or None")
+    if status["segment_index"] is not None:
+        uint(status["segment_index"], "segment_index")
     return status
+
+
+def _stored_status(status_json):
+    """A stored robot snapshot with every current key; keys added later read as None."""
+    return ROBOT_DEFAULTS | json.loads(status_json)
+
+
+# SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
+EVENT_DEFAULTS = {f.name: f.default for f in fields(SiteEvent) if f.default is not MISSING}
+
+
+def _stored_event(event_json):
+    """A stored event with every current SiteEvent field; keys added later take their defaults."""
+    return EVENT_DEFAULTS | json.loads(event_json)
 
 
 def _target_state(value, allowed):
@@ -163,7 +195,7 @@ def _error_entry(value, allowed):
 
 def _mission(value):
     mission = exact(value, MISSION_KEYS, "mission state")
-    require(mission["mode"] in MISSION_MODES, "mode must be NORMAL or DISASTER")
+    require(mission["mode"] in MISSION_MODES, "mode must be one of SYSTEM_MODES (S-00)")
     require(mission["phase"] in MISSION_PHASES, "phase must be one of MISSION_PHASES")
     _pair(mission["trigger_event_id"], mission["started_at_ns"], "trigger_event_id/started_at_ns")
     if mission["trigger_event_id"] is not None:
@@ -224,8 +256,10 @@ class SiteStateLedger(_Database):
             if row is not None:
                 if row["robot_boot_id"] == status["robot_boot_id"]:
                     if status["state_sequence"] == row["state_sequence"]:
-                        require(row["status_json"] == encoded, "same boot and sequence with different content",
-                                "ID_CONTENT_CONFLICT")
+                        # The pose comes on its own topic (record_robot_pose); it is not this status's content.
+                        require(canonical(_stored_status(row["status_json"]) | {"pose": None})
+                                == canonical(status | {"pose": None}),
+                                "same boot and sequence with different content", "ID_CONTENT_CONFLICT")
                         return False
                     if status["state_sequence"] < row["state_sequence"]:
                         return False
@@ -236,6 +270,25 @@ class SiteStateLedger(_Database):
                         encoded, timestamp(time.time_ns(), "received_at_ns")))
         return True
 
+    def record_robot_pose(self, robot_id, pose):
+        """Replace only the pose of the robot's current snapshot (None hides it).
+
+        False when there is no snapshot yet or the pose is unchanged. received_at_ns is kept: it
+        is when the status arrived, and a newer pose must not make an old status look fresh.
+        """
+        _member(robot_id, self.allowed_robot_ids, "robot_id")
+        pose = _pose(pose)
+        with self._transaction() as db:
+            row = db.execute("SELECT status_json FROM robot_status WHERE robot_id = ?", (robot_id,)).fetchone()
+            if row is None:
+                return False
+            stored = _stored_status(row["status_json"])
+            if stored["pose"] == pose:
+                return False
+            db.execute("UPDATE robot_status SET status_json = ? WHERE robot_id = ?",
+                       (canonical(stored | {"pose": pose}), robot_id))
+        return True
+
     def record_site_event(self, event):
         """Append one site-camera event. Returns False for an identical resend."""
         require(isinstance(event, SiteEvent), "SiteEvent required")
@@ -243,7 +296,8 @@ class SiteStateLedger(_Database):
         with self._transaction() as db:
             row = db.execute("SELECT event_json FROM site_events WHERE event_id = ?", (event.event_id,)).fetchone()
             if row is not None:
-                require(row["event_json"] == encoded, "event_id has different content", "ID_CONTENT_CONFLICT")
+                require(canonical(_stored_event(row["event_json"])) == encoded, "event_id has different content",
+                        "ID_CONTENT_CONFLICT")
                 return False
             db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?)",
                        (event.event_id, event.kind, event.observed_at_ns, encoded,
@@ -352,7 +406,7 @@ def _read(db_path, query):
 def read_robot_status(db_path):
     def query(db):
         rows = db.execute("SELECT status_json, received_at_ns FROM robot_status ORDER BY robot_id").fetchall()
-        return {"robots": [json.loads(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
+        return {"robots": [_stored_status(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
                            for row in rows]}
     return _read(db_path, query)
 
@@ -364,7 +418,7 @@ def read_site_events(db_path, *, limit=100):
         count = db.execute("SELECT COUNT(DISTINCT event_id) FROM site_events WHERE kind = 'EXIT_PASS'").fetchone()[0]
         rows = db.execute("SELECT event_json FROM site_events ORDER BY observed_at_ns, event_id LIMIT ?",
                           (limit,)).fetchall()
-        return {"exit_pass_count": count, "site_events": [json.loads(row["event_json"]) for row in rows]}
+        return {"exit_pass_count": count, "site_events": [_stored_event(row["event_json"]) for row in rows]}
     return _read(db_path, query)
 
 

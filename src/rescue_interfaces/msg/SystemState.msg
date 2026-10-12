@@ -1,0 +1,46 @@
+# SDD v0.1 message_schemas.SystemState (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+# phase 이하는 2026-10-11 1차 채택 때 임무 화면용으로 더함(contracts C-10). Phase 1 은 AMR2 출동 대상이 한 번에 하나라 출동 정보를 이 snapshot 에 둔다
+Envelope envelope
+uint64 state_sequence
+string MODE_NORMAL="NORMAL"
+string MODE_DISASTER="DISASTER"
+string MODE_MISSION_FINISHED="MISSION_FINISHED"
+string mode
+int64 changed_at_ns
+string[] cause_event_ids
+string[] active_task_ids
+string policy_version
+string reason
+string PHASE_IDLE="IDLE"
+string PHASE_DISASTER="DISASTER"
+string PHASE_SEARCHING="SEARCHING"
+string PHASE_TARGET_FOUND="TARGET_FOUND"
+string PHASE_DISPATCH_APPROVED="DISPATCH_APPROVED"
+string PHASE_SEGMENT_MOVING="SEGMENT_MOVING"
+string PHASE_AWAITING_CONTINUE="AWAITING_CONTINUE"
+string PHASE_ARRIVED="ARRIVED"
+string PHASE_CANDIDATE="CANDIDATE"
+string PHASE_RECHECKING="RECHECKING"
+string PHASE_RESCUE_CONFIRMED="RESCUE_CONFIRMED"
+string PHASE_RECHECK_NEEDED="RECHECK_NEEDED"
+string PHASE_RETURNING="RETURNING"
+string PHASE_FINISHED="FINISHED"
+string phase
+bool has_trigger
+string trigger_event_id
+int64 trigger_observed_at_ns
+bool has_dispatch
+string target_id
+uint64 target_revision
+uint64 route_revision
+uint32 segment_index
+uint32 segment_count
+string SEGMENT_PHASE_IDLE="IDLE"
+string SEGMENT_PHASE_EVALUATING="EVALUATING"
+string SEGMENT_PHASE_AWAITING_APPROVAL="AWAITING_APPROVAL"
+string SEGMENT_PHASE_EXECUTING="EXECUTING"
+string SEGMENT_PHASE_STOPPING="STOPPING"
+string SEGMENT_PHASE_STOPPED="STOPPED"
+string SEGMENT_PHASE_UNKNOWN="UNKNOWN"
+string segment_phase

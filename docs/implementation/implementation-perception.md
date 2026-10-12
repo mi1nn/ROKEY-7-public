@@ -1,12 +1,16 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # 기록 입력 기반 인식 코어
 
 계획 PR 7은 [C-02·03·05](../design/contracts.md), [D-06](../design/algorithm-decisions.md), [CT-01·02·03·10](../process/acceptance-plan.md)의 일부를 실행 가능한 순수 Python 로직으로 구현한다. RGB 픽셀에서 사람을 찾는 모델은 아직 없다. 입력은 이미 얻은 탐지 bbox/class와 RGB/Depth 메타데이터, 복호화된 깊이 배열이다. 이 PR에서 실제 YOLO, 가중치, ROS, CameraInfo 구독, TF, 카메라, 두 로봇을 실행하지 않았다.
+
+## AMR 학습 클래스 변경(2026-10-11)
+
+[사용자 요구] 이번 OAK-D 영상 학습의 단일 클래스는 기존 `person` 대신 `survivor`(class ID `0`)다. [수집·전처리·학습 계획](oakd-survivor-training-plan.md)에 `oakd/image_raw` 영상 촬영과 1초 간격 추출, 파라미터 비교·결과 docs 제출을 정리했다. 모델 추론과 학습 결과는 아직 NOT_RUN이다. 후속 연동은 모델 metadata·`ModelManifest.class_labels`·`ConfirmationPolicy.person_labels`·Detector 출력 label을 `survivor`로 일치시킨다. 기존 API 이름과 과거 person 합성 시험은 유지하며, survivor는 개별 인형 신원이나 생존 판정이 아니다.
 
 ## 입력과 광학 위치
 
@@ -49,12 +53,27 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 항목 | 규칙 |
 | --- | --- |
 | 모델 | `Detector` 인터페이스(`infer(rgb, observed_at_ns) -> Inference | None`) 뒤에 둔다. 가중치·런타임은 Q-18로 열려 있어 이 PR에 추론 구현이 없다. `RecordedDetections`는 프레임 stamp(int ns)별로 녹화된 탐지를 돌려주는 재생용 구현이다. 그 stamp에 기록이 없으면 `None`(모델이 돌지 않음)이고 빈 결과와 구별한다 |
-| 관측 | 사람 label(`ConfirmationPolicy.person_labels`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
+| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
 | 확정 | `CONFIRMED`는 `confidence ≥ confirm_confidence_min`이면서 위치가 `LOCATED`일 때만이다. 아니면 `UNCONFIRMED`이고 이유(`LOW_CONFIDENCE`, 위치 실패 이유)를 붙인다. 값은 Q-21이며 기본값이 없다. 미확정도 관측으로 남는다 |
 | 후보 표시 | `new_candidate`: 같은 track은 처음 한 번, 그리고 CONFIRMED로 오를 때 한 번 더 참이다. 내려가는 변화는 새 후보가 아니다. track이 없는 탐지는 프레임 사이를 이을 수 없어 매번 새 후보다(보수적 과분리) |
 | 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
 
 관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+
+## 탐지 클래스 이름: `survivor` (2026-10-11)
+
+요구조자(시연 인형)를 탐지하는 YOLO 모델의 클래스 이름은 **`survivor` 하나로 통일한다.** 고정 카메라 담당 지시(2026-10-11, 원문 "클래스명은 survivor로 한다", 적용 범위: 이 저장소의 모든 인형 탐지 모델과 학습 데이터).
+
+| 대상 | 규칙 |
+| --- | --- |
+| 적용 범위 | 고정 웹캠(출구 인형 카운트·구조 지점 감시)과 로봇 카메라(`person_pipeline`) 모두. 모델이 둘이어도 클래스 이름은 같다 |
+| 학습 데이터 | Roboflow 등 라벨링 도구의 클래스 이름도 `survivor`. `doll`·`teddy bear`·`person` 으로 라벨하지 않는다 |
+| 라벨 기준 | 시연 인형(요구조자 대체물) 한 개를 상자 하나로 감싼다. 구조대원·줄을 당기는 사람·끌개는 `survivor` 가 아니며 라벨하지 않는다(사람만 나온 프레임은 빈 이미지로 남긴다) |
+| 코드·설정 | 이름을 코드 상수로 두지 않는다. 모델 manifest 의 `ModelManifest.class_labels` 와 로봇 카메라의 `ConfirmationPolicy.person_labels` 에 `("survivor",)` 를 설정으로 넣는다(AGENTS.md 8절). 다른 이름이 오면 지금처럼 `MODEL_CLASS_MISMATCH` 로 거절된다 |
+| 사전학습 모델 | COCO 사전학습 모델은 인형을 `teddy bear` 로 낸다(2026-10-11 웹캠 확인). 확인용일 뿐 배포하지 않으며, `teddy bear` 를 `survivor` 로 바꿔 부르는 매핑을 두지 않는다. 배포 모델은 `survivor` 로 학습한 모델이다 |
+| 기록 | 학습한 모델은 `assets/manifest/` 에 출처·데이터셋 버전·가중치 해시와 함께 `class_labels: ["survivor"]` 를 적는다 |
+
+기존 시험의 `"person"`·`"dummy"`·`"doll"` 은 합성 입력의 임의 이름이라 그대로 둔다(클래스 이름이 설정으로만 들어온다는 것을 시험한다).
 
 ## 보수적 사건 후보
 
@@ -81,6 +100,52 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 **실측 도구:** `tools/webcam_quake_probe.py`가 OpenCV 로 웹캠 프레임을 읽어 위 판정에 넣고 대시보드로 보여 준다. 왼쪽은 카메라 화면(블록 격자·사분면 경계·이동 화살표·상태 색 테두리·사건 배너), 오른쪽은 상태 카드(정상·흔들림 감지·판단 보류·카메라 끊김과 이유), 상황 칩, 방향 전환 칸 막대, 무늬·직전 화면 일치·원래 장면 보임 게이지(눈금 = 기준), 최근 5초 이동 그래프, 사건 기록이다. 숫자 키로 상황(가만히·흔들기·조명·지나가기·가리기)을 표시한다. 결과는 측정마다 `.artifacts/webcam_quake/<날짜-시각>/`(`.gitignore` 대상)에 `probe.csv`(프레임별 기록), `meta.json`(인자·정책·git SHA·상황별 요약), `--record` 이면 `view.mp4`(대시보드 화면)로 남는다. `--video`로 영상 파일을 같은 판정에 넣을 수 있다. 카메라가 끊기면 종료하지 않고 다시 연결한다. 인자 기본값은 측정 시작값이지 Q-11 값이 아니다(장면 일치 0.6·보임 30% 는 2026-10-10 녹화 분석에서 고른 시작값).
 
 **한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실제 웹캠 측정·오탐률·처리 속도는 NOT_RUN 이다.
+
+## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
+
+웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 가중치·영상·데이터셋은 저장소에 넣지 않는다(선정 뒤 `assets/manifest/` 에 출처·해시 기록). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
+
+- #95 와의 관계: #95 는 **AMR 카메라(OAK-D)** 용 yolo26n 이고, 이 절은 **고정 웹캠** 용이다. 같은 모델 구조지만 학습 데이터(카메라·화각·장면)가 달라 가중치를 서로 바꿔 쓰지 않는다.
+- 노트북: `tools/colab/survivor_model_compare.ipynb` — Colab 한 번 실행으로 학습·평가·속도·오탐/미탐·bootstrap 95% 구간·요약. 끝난 모델은 건너뛰고, 한 모델이 실패해도 나머지를 계속하며 실패를 기록한다.
+- 결과 원본(노트북이 만든 파일 그대로, [측정, 2026-10-11, Colab T4]):
+  - [`webcam-survivor-compare/results.csv`](webcam-survivor-compare/results.csv): 모델별 valid·test mAP, P/R, best epoch, 학습 시간, GPU·CPU ms(Ultralytics `val`)
+  - [`webcam-survivor-compare/analysis.json`](webcam-survivor-compare/analysis.json): 모델별 bootstrap 95% 구간·TP/FP/FN·실패 이미지 이름, 모델 쌍 21개의 valid·test 차이와 구간
+  - [`webcam-survivor-compare/dataset_info.json`](webcam-survivor-compare/dataset_info.json): 데이터셋 zip sha256, 분할별 이미지·박스 수, Roboflow 전처리·증강
+- 데이터셋 `survivor-webcam-v2`(파일 `survivor-v2-merged.zip`, sha256 `46d901fc…`): train 720장(웹캠 영상 1개, 원본 240 × 증강 3), valid 236장·인형 222, test 246장·인형 236 [측정, 2026-10-11; [dataset_info.json](webcam-survivor-compare/dataset_info.json)]. valid·test 는 **학습과 따로 찍은 영상**에서만 뽑았고 증강은 train 에만 있다. 첫 데이터셋은 영상 하나를 무작위로 나눠 평가 인형 43개 중 39개가 학습 인형과 사실상 같았고(인형 영역 유사도 ≥ 0.95), v2 는 0/458 이다 [측정, 2026-10-11; 로컬 분석, 원본 파일은 저장소 밖].
+- 설정: 100 epoch, patience 30, 입력 640, batch 16(rtdetr-l 8), seed 0, AdamW lr0 0.002(auto), Colab T4.
+
+| 모델 | 파라미터(M) | valid mAP50-95 (95% 구간) | test mAP50-95 (95% 구간) | test 오탐 / 미탐 | CPU ms/장(Colab) |
+| --- | --- | --- | --- | --- | --- |
+| **yolo26n** | 2.38 | 0.958 (0.947~0.968) | **0.920** (0.900~0.937) | 8 / 7 | **107** |
+| yolo26s | 9.47 | 0.958 (0.948~0.966) | 0.901 (0.877~0.920) | 18 / 6 | 312 |
+| yolov8s | 11.13 | 0.960 (0.949~0.969) | 0.897 (0.875~0.923) | 5 / 4 | 299 |
+| yolo11s | 9.41 | 0.948 (0.935~0.961) | 0.897 (0.868~0.918) | 6 / 6 | 281 |
+| rtdetr-l | 31.99 | 0.966 (0.957~0.974) | 0.894 (0.867~0.918) | 4 / 9 | 1,245 |
+| yolov8n | 3.01 | 0.962 (0.952~0.971) | 0.882 (0.865~0.908) | 2 / 6 | 116 |
+| yolo11n | 2.58 | 0.952 (0.939~0.960) | 0.881 (0.862~0.903) | 6 / 3 | 155 |
+
+[측정, 2026-10-11] mAP·파라미터·CPU ms 는 [results.csv](webcam-survivor-compare/results.csv), 95% 구간·오탐/미탐은 [analysis.json](webcam-survivor-compare/analysis.json) 이다(구간은 이미지 bootstrap 1,000회로 다시 잰 mAP 기준이라 점추정과 소수 셋째 자리가 다를 수 있다). 오탐·미탐은 신뢰도 0.25, IoU 0.5 기준이다.
+
+- **고르기(valid):** valid 에서 yolo26n 은 rtdetr-l·yolov8n·yolov8s·yolo26s·yolo11n 과 **구분 불가**이고 yolo11s 보다만 높다(차이 구간이 0 을 넘는 쌍만 "우세") [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.valid`]. 즉 valid 만으로는 최상위 묶음(6개)을 가를 수 없고, 그 묶음 안에서 가장 작고(2.38M) CPU 가 가장 빠른(107 ms) yolo26n 을 고른다.
+- **확인(test):** test 에서 yolo26n 은 나머지 6개 모두보다 높고 차이의 95% 구간이 모두 0 보다 크다(+0.020~+0.037) [측정, 2026-10-11; [analysis.json](webcam-survivor-compare/analysis.json) `pairwise.*.test`]. 나머지 6개끼리는 test 15쌍 모두 구분 불가. valid→test 하락도 yolo26n 이 가장 작다(0.038, 나머지 0.051~0.080). **웹캠 인형 탐지 모델로 yolo26n 을 제안한다** [제안].
+- 한계: valid·test 를 같은 시간대·같은 사람이 찍었다. 배경 이미지가 valid 14·test 10장뿐이다. 조건별(저조도·가려짐·원거리) 분석 없음.
+- NOT_RUN: **PC3 에서 실물 웹캠 실시간 테스트**(fps·소실 판정), 실기(E3·E4).
+- 상세 보고서(학습 곡선 7개 비교·실패 이미지·그림): 팀 Notion [「[perception] Webcam 출구 구조 판정」](https://www.notion.so/3f6d8f79f52d80929ae1c089a194a6cc). 저장소의 수치 근거는 위 결과 원본 파일이다.
+
+## 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
+
+`rescue_perception.target_watch`는 Q-26 결정(웹캠 = 지진 감지 + 구조 지점 대상 소실 후보)과 [C-11](../design/contracts.md)에 따라, 감시 영역(ROI) 안의 인형 유무로 `SiteEvent(kind="TARGET_DISAPPEARED_CANDIDATE")`를 만든다. 인형 상자는 웹캠 survivor 탐지기가 주고, 이 모듈은 상자와 ROI 만 본다. ROS·모델 없이 시험된다.
+
+| 단계 | 규칙 |
+| --- | --- |
+| 감시 | `WatchSpec`: coordinator 가 발급한 `watch_id`·`target_id`(canonical UUID), 정규화 ROI, `watch_revision`(SetCameraWatch, #77). 바인딩과 다른 카메라는 거절 |
+| 있음 | 점수 ≥ `score_min` 이고 상자 면적 중 ROI 안 비율 ≥ `roi_overlap_min` 인 상자가 하나라도 있으면 PRESENT |
+| 무장 | `present_confirm_frames` 연속 있음 뒤에만 소실을 잰다. 한 번도 못 보면 UNKNOWN(`NOT_YET_SEEN`) — ROI 오류를 드러낸다 |
+| 소실 | 무장 뒤 VALID 프레임에서 "없음"이 `absent_hold_ns` 이상·`absent_min_frames` 이상 이어지면 ABSENT_CANDIDATE. 사건은 watch 하나에 하나(같은 watch → 같은 event_id) |
+| 판정 불가 | 가림(OCCLUDED)·영상 상태 불명·탐지기 결과 없음은 UNKNOWN, 소실 시간을 다시 잰다. 후보를 만들지 않고 관제 웹의 운영자 판단(REQUEST_RECHECK, C-11 10행)으로 넘긴다. 간격 > `max_gap_ns` 도 다시 잰다 |
+| 순서 | 중복·역순 프레임은 상태를 바꾸지 않는다. 재생하면 같은 결과·같은 ID |
+
+`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. NOT_RUN: 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행), 실제 탐지기 연결, PC3 실제 웹캠 실시간 테스트, 실기.
 
 ## 공개 API와 E2 실행
 

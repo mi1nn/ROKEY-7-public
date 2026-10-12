@@ -2,11 +2,18 @@
 <package format="3">
   <name>rescue_coordination</name>
   <version>0.0.0</version>
-  <description>두 로봇의 경로 후보·임무 배정·접근 확인·통로 점유 Python 코어. ROS 어댑터는 미구현.</description>
+  <description>두 로봇의 경로 후보·임무 배정·접근 확인·통로 점유 Python 코어와 임무 조정기 ROS 노드(얇은 버전).</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <exec_depend>python3</exec_depend>
   <exec_depend>rescue_contracts</exec_depend>
+  <!-- rescue_bringup is not declared: it depends on this package (launch, offline demo), and declaring
+       both made colcon refuse the workspace (#100 BUILD-01). ros_node.build_core imports
+       rescue_bringup.profile lazily; install rescue_bringup with this node. Moving the profile
+       loader below both packages is the follow-up that restores the declaration. -->
+  <exec_depend>rescue_interfaces</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

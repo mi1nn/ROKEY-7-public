@@ -26,14 +26,14 @@
     },
     "amr1_dispatch_requirement": {
       "date": "2026-10-11",
-      "source": "scope.md RQ-11 / Q-28; PM user clarification",
+      "source": "scope.md RQ-11 / Q-28; PM user clarification and repository-owner adoption (#85, 2026-10-11)",
       "source_quote": "AMR1 출동 방식은 관제 모니터의 버튼으로 신호를 받아 출동하는거야",
       "mode": "OPERATOR_CONSOLE_BUTTON",
       "event_behavior": "Validate disaster event, display and persist evidence; await operator dispatch command.",
-      "start_command": "START_SEARCH (design name; not present in SubmitOperatorCommand IDL)",
+      "start_command": "START_SEARCH (present in SubmitOperatorCommand IDL; coordinator command core is in main; console placeholder is disabled and operations transport is pending)",
       "sequence": "Operator dispatch command -> PrepareMapping(START) readiness -> ExecuteTask(SEARCH_AREA)",
-      "execution_status": "NOT_IMPLEMENTED",
-      "wire_contract": "OPERATION_EXTENSION_PENDING_Q28",
+      "execution_status": "PARTIAL_IMPLEMENTATION",
+      "wire_contract": "START_SEARCH_PRESENT; CONSOLE_OPERATIONS_TRANSPORT_PENDING_Q28",
       "historical_policy": "The 2026-10-10 owner automatic-start record remains in scope Q-12; this PM requirement is not a claim of completed owner/team review."
     }
   },
@@ -1547,7 +1547,7 @@
       "targets": [
         "central.operations"
       ],
-      "purpose": "NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs",
+      "purpose": "NORMAL/DISASTER/MISSION_FINISHED 및 원인 event/report IDs, 임무 phase·트리거·출동 구간(C-10 2026-10-11)",
       "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
       "status": "PROPOSED"
     },
@@ -1853,7 +1853,7 @@
     "TaskAdmission": "envelope:Envelope, admission_id:UUID, command_id:UUID, task_id:UUID, robot_id:string, robot_boot_id:UUID, authority_epoch:UUID, generation:uint64, accepted:bool, reason_code:string, observed_at_ns:int64. goal accepted=false의 상세 이유 및 수락 장부의 근거.",
     "TargetEstimate": "target_id:UUID, estimate_revision:uint64, locations:TargetLocation[], latest_observed_at_ns:int64, valid_until_ns:int64, mission_position:geometry_msgs/Point, covariance:float64[9], confirmation_state:string(CANDIDATE/CONFIRMED/NEEDS_REOBSERVATION/DISMISSED), approach_state:string(UNASSIGNED/ASSIGNED/IN_PROGRESS/APPROACH_COMPLETE/BLOCKED/UNREACHABLE/CANCELED/FAILED), segment_phase:string(IDLE/EVALUATING/AWAITING_APPROVAL/EXECUTING/STOPPING/STOPPED/UNKNOWN), rescue_state:string(NOT_CHECKED/RECHECK_NEEDED/RESCUE_CONFIRMED), persisted_report_id:string. locations가 관측별 provenance를 보존. AWAITING_APPROVAL는 coordinator 상태이며 종료한 executor action의 feedback을 다시 발행하지 않음.",
     "TargetSnapshot": "envelope:Envelope, snapshot_id:UUID, targets:TargetEstimate[]. 전체 상태 snapshot. 웹의 저장 완료 좌표 표시는 operations 장부 기준.",
-    "SystemState": "envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string.",
+    "SystemState": "envelope:Envelope, state_sequence:uint64, mode:string(NORMAL/DISASTER/MISSION_FINISHED), changed_at_ns:int64, cause_event_ids:UUID[], active_task_ids:UUID[], policy_version:string, reason:string, phase:string(IDLE/DISASTER/SEARCHING/TARGET_FOUND/DISPATCH_APPROVED/SEGMENT_MOVING/AWAITING_CONTINUE/ARRIVED/CANDIDATE/RECHECKING/RESCUE_CONFIRMED/RECHECK_NEEDED/RETURNING/FINISHED), has_trigger:bool, trigger_event_id:UUID, trigger_observed_at_ns:int64, has_dispatch:bool, target_id:UUID, target_revision:uint64, route_revision:uint64, segment_index:uint32, segment_count:uint32, segment_phase:string(IDLE/EVALUATING/AWAITING_APPROVAL/EXECUTING/STOPPING/STOPPED/UNKNOWN). phase 이하는 2026-10-11 1차 채택 때 임무 화면용으로 더함(contracts C-10). Phase 1 은 AMR2 출동 대상이 한 번에 하나라 출동 정보를 이 snapshot 에 둔다",
     "SiteEvent": "envelope:Envelope, event_id:UUID, camera_id:string(cam_fixed 예시), source_boot_id:UUID, kind:string(DISASTER_SIGN/TARGET_DISAPPEARED_CANDIDATE), time:ObservationTime, target_id:string, watch_id:string, confidence:float64, visibility_state:string(VALID/OCCLUDED/UNKNOWN), metrics_name:string[], metrics_value:float64[], policy_version:string, evidence:EvidenceRef. 재난 징후는 target/watch 비어 있음; 소실 후보는 둘 다 필수.",
     "CameraStatus": "envelope:Envelope, camera_id:string, source_boot_id:UUID, time:ObservationTime, stream_state:string(ONLINE/OFFLINE/DEGRADED/UNKNOWN), image_width:uint32, image_height:uint32, frame_sequence:uint64, quality_reason:string. 정지 영상·끊김·가림은 UNKNOWN.",
     "TargetPresence": "envelope:Envelope, camera_id:string, watch_id:UUID, target_id:UUID, watch_revision:uint64, time:ObservationTime, roi_xyxy_normalized:float64[4], state:string(PRESENT/ABSENT_CANDIDATE/UNKNOWN), visibility_state:string(VALID/OCCLUDED/UNKNOWN), consecutive_valid_frames:uint32, evidence:EvidenceRef. v0.1은 카메라별 활성 watch 1개. 여러 target 감시는 별도 전체 snapshot 타입이 필요.",
@@ -1867,7 +1867,7 @@
   },
   "services": {
     "SubmitOperatorCommand": {
-      "Request": "envelope:Envelope, command_id:UUID, operation:string(DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK/RETURN_HOME/FINISH_MISSION/RESET_STOP/SET_CAMERA_WATCH), operator_id:string(operations 인증값), robot_id:string, target_id:string, expected_task_id:string, expected_generation:uint64, expected_target_revision:uint64, route_id:string, route_revision:uint64, segment_index:uint32, issued_at_ns:int64, deadline_ns:int64, roi_xyxy_normalized:float64[4], association_evidence_id:string. operation별 필수 필드는 검증; 나머지는 명시적 비적용.",
+      "Request": "envelope:Envelope, command_id:UUID, operation:string(START_SEARCH/DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK/RETURN_HOME/FINISH_MISSION/RESET_STOP/SET_CAMERA_WATCH), operator_id:string(operations 인증값), robot_id:string, target_id:string, expected_task_id:string, expected_generation:uint64, expected_target_revision:uint64, route_id:string, route_revision:uint64, segment_index:uint32, issued_at_ns:int64, deadline_ns:int64, roi_xyxy_normalized:float64[4], association_evidence_id:string. operation별 필수 필드는 검증; 나머지는 명시적 비적용.",
       "Response": "envelope:Envelope, accepted:bool, command_id:UUID, request_state:string(ACCEPTED/REJECTED/DUPLICATE), reason_code:string, created_task_id:string, approval_id:string. accepted는 접수이며 이동·구조·저장 완료가 아님.",
       "Rules": "웹 operator_id 문자열을 신뢰하지 않고 서버 세션에서 설정. CONTINUE_SEGMENT는 현재 STOPPED, 이전 구간 종료, 해당 route/target revision, ONE_SEGMENT 승인 및 유효시간이 모두 맞을 때만 접수. 장부 재전송은 같은 command_id/의미 payload. SET_CAMERA_WATCH는 서버가 profile의 TARGET_WATCH 카메라 1대·ROI와 확인된 target_id를 결합한다. coordinator가 watch_id를 발급하고 association_method=OPERATOR_ROI, association_evidence_id=command_id로 SetCameraWatch를 요청하며 수락된 boot/revision을 기록한다. 거절은 상태로 보고하고 활성 감시로 기록하지 않는다."
     },

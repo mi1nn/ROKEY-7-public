@@ -164,11 +164,11 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `.record_site_event(SiteEvent)` | 저장했으면 `True` | 사건 ID별 추가만 한다. 같은 내용 재전송은 `False`, 다른 내용은 `ID_CONTENT_CONFLICT` |
 | `.record_target_state(dict)` | 저장했으면 `True` | 대상당 최신 1행. `updated_at_ns`가 더 큰 것만 받는다. 보류 사유는 `RECHECK_NEEDED`일 때만 있다. `support_robot_id`는 `support_state=NONE`일 때만 None |
 | `.record_error(dict)` | 새 행의 `seq` | 오류 이력(3.7.4), 추가 전용. 키 `at_ns, robot_id, task_id, code, detail`. `code` 는 C-09 `CANONICAL_CODES` 만, 세부 원인은 `detail`. `robot_id`·`task_id` 는 None 가능 |
-| `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `MISSION_MODES`·`MISSION_PHASES` 는 [제안] |
-| `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`([제안]), 거절이면 `reason` 필수. 재전송 멱등 |
+| `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `mode` 는 계약 `SYSTEM_MODES`(CLEARING 포함), `MISSION_PHASES` 는 [제안] |
+| `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`(1차 IDL `SubmitOperatorCommand` operation 8개 + 콘솔 계획 4개 [제안]), 거절이면 `reason` 필수. 재전송 멱등 |
 | `.record_map_snapshot(dict)` | 저장했으면 `True` | 스냅샷 ID별 추가만. 키 `snapshot_id, robot_id, revision, path, sha256, at_ns`. bytes 는 DB 밖 |
 | `read_robot_status(path)` | `{schema_version, robots:[{robot_id, robot_boot_id, state_sequence, role, stamp_ns, pose, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, received_at_ns}]}` | 표시용 스냅샷이다. live readiness 증거가 아니다(C-05). frame이 다른 pose끼리 거리를 비교하지 않는다 |
-| `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다 |
+| `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다. 사건마다 `SiteEvent` 필드를 모두 담는다: #48 전에 저장된 행의 `target_id`·`watch_id` 는 None 으로 채우고, 그런 사건의 같은 내용 재전송은 멱등이다 |
 | `read_target_states(path)` | `{schema_version, targets:[{target_id, position, detection_confirmed, rescue_state, rescue_reasons, verdict_id, support_state, support_robot_id, updated_at_ns}]}` | 구조 상태 4단계는 화면 표시층이 이 원자료로 합성한다(Q-20). 계약 어휘 `RESCUE_STATES`는 그대로 둔다 |
 | `read_error_log(path, *, limit=100)` | `{schema_version, errors:[{seq, at_ns, robot_id, task_id, code, detail}]}` | 최신 순, `limit` 은 최근 N건 |
 | `read_mission_state(path)` | `{schema_version, mission}` | 기록 전에는 `mission=None`. 표시용이고 판정은 coordinator |
@@ -177,4 +177,46 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
-후속: `status_json`·`state_json` 의 키 추가(`dock_state`·`segment_index`·`segment_phase`·`candidate_event_id`)는 발행·소비 쪽 확인 뒤로 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 판정 이력 영속화와 재시작 복구, ROS 수신 어댑터(누가 언제 `record_*`를 부르는지), 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+후속: `state_json` 의 키 추가(`segment_phase`·`candidate_event_id`)는 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 로봇 상태의 `dock_state`·`segment_index` 와 ROS 수신은 아래 「DB 쓰기 어댑터」 절. 판정 이력 영속화와 재시작 복구, 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
+
+### 오프라인 리허설: 현장 상태 DB 의 BRD 흐름 (E2, 2026-10-11)
+
+`tests/test_operations_site_flow.py` 가 [console-and-db-plan](../design/console-and-db-plan.md) 1절 흐름(웹캠 1대)을 합성 데이터로 현장 상태 DB 에 차례로 기록하고, 단계마다 operations 읽기 함수로 화면에 나갈 값을 확인한다. 실제 로봇 0대, ROS·카메라·coordination 판정 없음. 언제 재난인지, 출동을 받을지, 구출 완료인지는 coordination 몫이라 **정해진 결과를 넣는다**. 이 리허설이 검증하는 것은 DB 와 읽기 API 가 흐름을 빠짐없이 담고 보여 주는지다. E3·E4 는 NOT_RUN 이다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 17단계: 평시 → 지진 감지 → AMR1 정찰 → 지도 → 발견(미확정) → 확정 전 출동 거절 → 확정 → 출동 승인 → 구간 정지 → 오류 → 계속 → 도착 → 구조 완료 후보 → 재확인 → 구출 완료 → 복귀 → 종료 | 단계마다 임무 단계가 기대대로 바뀌고 모든 기록이 저장됨 |
+| 교차 확인 | 배지의 트리거 = 저장된 `DISASTER_SIGN`(시각 같음), 후보 사건의 `target_id` = 구출 완료 대상, 승인 명령의 대상·로봇 = 화면의 지원 로봇 |
+| operations 재시작 뒤 전체 재전송 | 오류 이력만 늘고(추가 전용) 나머지 표는 그대로 |
+| 늦게 온 스냅샷 | 임무·대상·로봇 상태를 되돌리지 않음 |
+| 오탐 해제(S-00 DISASTER → CLEARING → NORMAL) | 리허설에서 처음 실패(`mode` 가 NORMAL/DISASTER 만 받음) → 계약 `SYSTEM_MODES` 로 고침 |
+
+리허설이 드러낸 빈 곳 (결정 대기, 코드 변경 없음):
+
+1. ~~카메라 감시 설정 `SET_CAMERA_WATCH`(C-11 2행)를 명령 이력에 남길 수 없다~~ — #77·#98 로 IDL 이 정해져 `OPERATOR_COMMAND_KINDS` 에 FINISH_MISSION·RESET_STOP·SET_CAMERA_WATCH 를 더했다(2026-10-11). 시험은 IDL 파일과 대조한다.
+2. 화면의 「구간 i/N」: 로봇의 구간 번호는 아래 「DB 쓰기 어댑터」 에서 `robot_status.segment_index` 로 담았다. 구간 수(N)는 `SystemState.segment_count` 에 있어 임무 상태를 받는 다음 단계에서 담는다.
+3. 도킹 상태: 아래 「DB 쓰기 어댑터」 에서 `robot_status.dock_state` 로 담았다.
+4. 후보와 대상의 연결은 `site_events` 의 후보 `target_id` 로 이미 읽을 수 있다. 보류한 `target_states.state_json.candidate_event_id` 는 이 연결만을 위해서라면 필요 없을 수 있다 [제안].
+5. 오류 이력에는 재전송 구분 키가 없어, 어댑터가 재시작 뒤 같은 오류를 다시 보내면 행이 늘어난다. DB 쓰기 어댑터(이 레인)가 오류를 다시 보내지 않는다(설계 그대로).
+6. 콘솔의 모드 표시(`view.py` `MODES`)에 CLEARING 이 없다. 콘솔이 `read_mission_state` 를 읽기 시작할 때 필요하다(관제·화면).
+
+`FLOW` 는 데이터, `apply` 하나만 DB 에 쓴다. [통합 리허설](implementation-integration.md)의 `offline_demo`(기반 레인)로 옮길 때는 이 둘을 가져가 summary 검사로 잇고, coordination 코어가 main 에 들어오면 정해진 결과 자리를 코어 출력으로 바꾼다.
+
+## DB 쓰기 어댑터 (ROS → 현장 상태 DB, 2026-10-11)
+
+현장 상태 DB 의 유일한 쓰기 프로세스다. 담당은 상태 감시([일정](../process/schedule.md) 2절 담당표, 10-11 팀 공지). 변환 코어 `rescue_operations/ros_ingest.py` 는 ROS 를 import 하지 않고 필드 이름으로만 읽어 E2 로 시험한다. `rescue_operations/ros_node.py`(실행 이름 `db_writer`)는 구독만 하고 코어를 부른다. 발행·명령은 없다.
+
+| 받는 것 (1차 IDL) | DB | 규칙 |
+| --- | --- | --- |
+| `RobotStatus` (로봇별 토픽) | `robot_status` | 역할은 배치 설정(`robot_roles`). `battery_known=false`·빈 `active_task_id`·빈 `dock_state` 는 None, 배터리는 `battery_fraction`×100 과 상태 시각. `segment_index` 는 진행 중 task 가 있을 때만 [제안]. 오래된 sequence 는 오류 없이 무시 |
+| `RobotPose` (로봇별 토픽) | `robot_status.pose` | `mission_pose_status=VALID` 일 때만 x·y·yaw·frame_id, 아니면 위치를 숨긴다. 오는 즉시 `record_robot_pose` 로 쓰고 받은 시각은 바꾸지 않는다. 표시용이며 준비 증거가 아니다(C-05) |
+| `SiteEvent` | `site_events` | C-10: `visibility_state` 가 VALID 가 아니면 거절. 빈 `target_id`·`watch_id` 는 None, `has_clock_error_bound=false` 면 오차 None. 계약에 없는 `source_boot_id`·`metrics`·`policy_version` 은 버린다 |
+
+거절·충돌한 메시지는 표에 쓰지 않고 `error_log` 에 남긴다(공통 코드, 받은 시각, 어떤 메시지인지). DB 파일 자체가 실패하면 같은 DB 에 남길 수 없어 노드 로그(error)로 남긴다. 노드 파라미터는 기본값이 없다: `db_path`, `allowed_robot_ids`, 같은 순서의 `robot_roles`·`status_topics`·`pose_topics`, `site_events_topic`. 일관되지 않으면 시작하지 않는다(종료 코드 2). QoS 는 SDD IF-010·011·076 의 [제안] 신뢰성·깊이에, 구독 지속성은 모두 VOLATILE(IF-011 의 TRANSIENT_LOCAL 발행과도 VOLATILE 발행과도 맞음. TRANSIENT_LOCAL 구독은 VOLATILE 발행을 거절해 #90 probe 와의 실행에서 로봇 상태가 들어오지 않았다), 기동 로그에 git SHA·DB 경로·schema·로봇·토픽을 남긴다(설치본은 `.git` 이 없어 `UNKNOWN`).
+
+| 검증 | 결과 |
+| --- | --- |
+| E2: `tests/test_operations_ros_ingest.py`, `tests/test_operations_ros_node.py`, `tests/test_operations_site_state.py` | 통과 |
+| 로컬 ROS 실행(jazzy, `ROS_DOMAIN_ID=77`, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 한 PC, 2026-10-11): 합성 발행기가 상태·위치·사건(VALID 1, OCCLUDED 1)을 4초간 되풀이 | 첫 실행에서 결함 둘(상태 뒤 위치가 오면 재전송이 `ID_CONTENT_CONFLICT`, SIGINT 에 종료 코드 1)을 찾아 고침. 고친 뒤: 로봇 행에 역할·위치(yaw 0.5)·도킹·구간·배터리, VALID 사건 1건, `error_log` 는 OCCLUDED 8건뿐, 종료 코드 0 |
+
+E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 임무 상태(`SystemState`, #88 머지됨)는 다음 단계에서 받는다. 대상 상태·운영자 명령·지도는 아직 받지 않는다. 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).

@@ -1,13 +1,13 @@
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 --version
+$ <PYTHON312>/bin/python3 --version
 Python 3.12.14
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 -m venv /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/venv
+$ <PYTHON312>/bin/python3 -m venv <REPO>/.artifacts/python312/venv
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/venv/bin/python -m pip install --no-index --no-deps --no-cache-dir /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_bringup-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_coordination-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_mapping-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_operations-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_perception-0.0.0-py3-none-any.whl /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/wheels/rescue_robot-0.0.0-py3-none-any.whl
+$ <REPO>/.artifacts/python312/venv/bin/python -m pip install --no-index --no-deps --no-cache-dir <REPO>/.artifacts/python312/wheels/rescue_bringup-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312/wheels/rescue_coordination-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312/wheels/rescue_mapping-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312/wheels/rescue_operations-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312/wheels/rescue_perception-0.0.0-py3-none-any.whl <REPO>/.artifacts/python312/wheels/rescue_robot-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312/wheels/rescue_bringup-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312/wheels/rescue_coordination-0.0.0-py3-none-any.whl
 Processing ./.artifacts/python312/wheels/rescue_mapping-0.0.0-py3-none-any.whl
@@ -19,7 +19,7 @@ Successfully installed rescue-bringup-0.0.0 rescue-coordination-0.0.0 rescue-map
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/venv/bin/python -I -c import importlib, json, pathlib, sys
+$ <REPO>/.artifacts/python312/venv/bin/python -I -c import importlib, json, pathlib, sys
 packages = ["rescue_robot", "rescue_perception", "rescue_coordination", "rescue_mapping", "rescue_operations", "rescue_bringup"]
 for name in packages:
     module = importlib.import_module(name)
@@ -39,7 +39,7 @@ rclpy not imported
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/venv/bin/check_deployment config/deployment.example.json
+$ <REPO>/.artifacts/python312/venv/bin/check_deployment config/deployment.example.json
 STATIC CONFIG VALID: review_example; 2 robots; 4 hosts (2 high, 2 mid)
 robot_a: namespace=/robot_a, command_host=compute_a
 robot_b: namespace=/robot_b, command_host=compute_b
@@ -47,7 +47,7 @@ Runtime is disabled. No hardware, ROS graph, timing or safety validation was per
 
 
 exit=0; expected=0
-$ /Users/jaebeomlim/Documents/Codex/2026-10-07/https-github-com-jaebeom-rokey-p4-2/work/pr04-draft/.artifacts/python312/venv/bin/check_deployment config/deployment.example.json
+$ <REPO>/.artifacts/python312/venv/bin/check_deployment config/deployment.example.json
 
 INVALID: runtime_enabled must be false: ROS runtime is not implemented
 
