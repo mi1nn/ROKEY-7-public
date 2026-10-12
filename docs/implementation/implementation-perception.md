@@ -147,6 +147,25 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 `visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. NOT_RUN: 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행), 실제 탐지기 연결, PC3 실제 웹캠 실시간 테스트, 실기.
 
+## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 전, 2026-10-12)
+
+SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로세스 하나로 묶었다. 10-13 얇은 전 구간 실기에 웹캠 소실 후보가 들어가야 해서, 노드를 셋으로 나누지 않고 프레임 하나를 같은 시각으로 세 판정에 넣는다. 원 영상 토픽(IF-074)과 영상 게이트웨이(cam.video)는 없다.
+
+| 출력·입력 | 이름(예시 파라미터) | 내용 |
+| --- | --- | --- |
+| `CameraStatus` | `/rescue/cameras/cam_fixed/status` | 프레임마다. 열기·읽기 실패는 OFFLINE, 요청과 다른 해상도는 DEGRADED |
+| `SiteEvent` | `/rescue/site_events` | 지진 징후(`disaster_sign`)와 소실 후보(`target_watch`). VALID 시야에서만 생긴다 |
+| `TargetPresence` | `/rescue/cameras/cam_fixed/presence` | 감시가 있을 때 프레임마다(RELIABLE·TRANSIENT_LOCAL·1) |
+| `SetCameraWatch` | `/rescue/cameras/cam_fixed/set_watch` | `webcam_service.WatchSlot` 이 수락·거절. 응답 이유: ACCEPTED·CAMERA_MISMATCH·EXPIRED·REVISION_MISMATCH·INVALID_INPUT·WATCH_MISMATCH |
+
+- 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(18개).
+- **국소 가림 한계(OPS-74-02):** 사람이 ROI 만 가리면 화면 전체 가림이 아니라 VALID 로 들어가 소실 시간이 흐른다. 후보는 재확인 트리거일 뿐이고 AMR1 재관측이 확정한다(KPI-06).
+- 탐지기: 웹캠 survivor yolo26n(위 절). 기동 때 모델 파일 sha256 이 `model_sha256` 과 다르면 기동하지 않는다. 탐지 실패 프레임은 탐지 결과 없음(UNKNOWN)으로 넣고 소실로 세지 않는다.
+- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
+- 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/config/webcam_node.example.yaml` [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
+- 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
+- NOT_RUN: **ROS 실행(노드 기동·토픽·서비스)**, PC3 실물 웹캠, coordinator 의 SetCameraWatch 호출과 연결, 실기.
+
 ## 공개 API와 E2 실행
 
 공개 항목은 `rescue_perception.__init__`에서 가져올 수 있다. 호출 예시는 `tests/test_perception.py`의 setUp/observation/ingest helper에 있다. 모든 정책 수치는 그 시험의 합성 입력 전용이다.
