@@ -120,9 +120,10 @@ def target_from_msg(msg, *, published_at_ns, support_robot_id):
     stays put when only the approach changes, estimate_revision restarts with the coordinator); the
     map basis is the last location's frame_ref; the SUPPORT robot of the profile is the support
     robot. estimate_revision is kept as target_revision (#115: the console sends it back with
-    DISPATCH_SUPPORT). Not in the message, so empty: rescue_reasons, verdict_id. Dropped:
-    locations beyond the last frame_ref, latest_observed_at_ns, valid_until_ns, covariance,
-    segment_phase (in mission_state) and persisted_report_id (the operations ledger keeps reports).
+    DISPATCH_SUPPORT); persisted_report_id is kept, empty -> None (#118: the console enables dispatch
+    only with it). Not in the message, so empty: rescue_reasons, verdict_id. Dropped: locations
+    beyond the last frame_ref, latest_observed_at_ns, valid_until_ns, covariance and segment_phase
+    (in mission_state).
     """
     try:
         support = SUPPORT_STATES.get(msg.approach_state)
@@ -137,7 +138,7 @@ def target_from_msg(msg, *, published_at_ns, support_robot_id):
                     detection_confirmed=msg.confirmation_state == CONFIRMED, rescue_state=msg.rescue_state,
                     rescue_reasons=[], verdict_id=None, support_state=support,
                     support_robot_id=None if support == "NONE" else support_robot_id, updated_at_ns=published_at_ns,
-                    target_revision=msg.estimate_revision)
+                    target_revision=msg.estimate_revision, persisted_report_id=_optional(msg.persisted_report_id))
     except (OperationsError, AttributeError, TypeError, ValueError) as exc:
         raise _invalid(exc, "target") from exc
 

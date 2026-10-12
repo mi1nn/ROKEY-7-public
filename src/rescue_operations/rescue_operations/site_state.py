@@ -60,7 +60,9 @@ TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "
                "support_state", "support_robot_id", "updated_at_ns"}
 # Optional target key (#115): the estimate revision the console shows and sends back with DISPATCH_SUPPORT.
 # A row stored before it, or a writer without it, reads as None.
-TARGET_DEFAULTS = {"target_revision": None}
+# persisted_report_id (#118): the report of this revision the coordinator saw PERSISTED, else None;
+# the console enables AMR2 dispatch only with it (the coordinator also requires it).
+TARGET_DEFAULTS = {"target_revision": None, "persisted_report_id": None}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
@@ -197,6 +199,8 @@ def _target_state(value, allowed):
     timestamp(state["updated_at_ns"], "updated_at_ns")
     if state["target_revision"] is not None:
         uint(state["target_revision"], "target_revision")
+    if state["persisted_report_id"] is not None:
+        text(state["persisted_report_id"], "persisted_report_id")
     return state
 
 
