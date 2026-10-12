@@ -223,4 +223,36 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | 같은 조건에서 1.1 파일(위 실행이 남긴 DB 의 복사본)을 열고, #90 과 같은 토픽·QoS 로 `SystemState` 4단계(정찰 → 구간 이동 → 승인 대기 → 조정기 내부 어휘 MOVING) 를 발행 | 파일이 1.2 로 올라가고(`mission_state` 열 7 → 13) 기존 로봇 행·사건·오류 이력 8건이 남음. 임무 = AWAITING_CONTINUE, 구간 1/3, AWAITING_APPROVAL. MOVING 은 거절되어 `error_log` 3건. 종료 코드 0 |
 | 같은 조건(2026-10-12)에서 `tests/ros/e3_coordinator_probe.py`(실제 조정기 노드, #96 `TargetSnapshot` 발행 포함)와 db_writer 를 함께 실행 | probe PASS 19·FAIL 0, 두 프로세스 종료 코드 0. `target_states` 1행: 확인됨, NOT_CHECKED, 지원 ASSIGNED·robot_b, 지도 기준은 마지막 관측의 `frame_ref`, `target_revision` 0(조정기 `estimate_revision` 그대로), `persisted_report_id` 는 probe 가 보낸 PERSISTED 영수증의 보고 ID(선택 키를 더할 때마다 다시 실행). 같은 때 `mission_state` = DISASTER/RECHECKING/구간 1/2/AWAITING_APPROVAL. `error_log` 는 probe 의 가짜 로봇 상태(`state_sequence` 0 고정) 충돌 400건뿐이고 대상 거절은 0건 |
 
-E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 운영자 명령·지도는 아직 받지 않는다. 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).
+E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 지도는 아직 받지 않는다(운영자 명령은 아래 절). 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).
+
+## 운영자 명령 API (관제 웹 → 조정기, 2026-10-12)
+
+공지(10-12)의 「운영자 명령 API」다. 관제 웹(#115)이 `POST /api/operator-commands` 로 보낸 명령을 조정기 서비스 `SubmitOperatorCommand`(`/rescue/operator_command`)로 넘기고, 답을 돌려주고, `operator_commands` 에 남긴다. 요청·응답 모양은 #115 에서 맞췄다([코멘트](https://github.com/jaebeom/ROKEY-7/pull/115#issuecomment-6118222924)). 핵심은 `rescue_operations/command_api.py`(ROS 를 import 하지 않음, E2 시험)이고, `ros_node.py` 가 db_writer 와 **같은 프로세스**에서 HTTP 서버와 서비스 클라이언트를 띄운다([관제 웹·DB 계획](../design/console-and-db-plan.md) 2절 operations_node). 현장 상태 DB 에 쓰는 프로세스는 계속 하나이고, 구독 콜백과 HTTP 요청은 잠금으로 한 번에 하나씩 쓴다.
+
+| 요청 `kind` | 키 (조정기 `mission.COMMAND_FIELDS` 와 같음) |
+| --- | --- |
+| `START_SEARCH`·`RETURN_HOME` | `command_id`(UUID, 콘솔이 만듦)·`kind`·`operator_id` |
+| `DISPATCH_SUPPORT` | + `target_id`·`target_revision` |
+| `CONTINUE_SEGMENT` | + `target_id`·`target_revision`·`route_revision`·`segment_index` |
+| `REQUEST_RECHECK` | + `target_id` |
+
+다른 키가 있거나 필요한 키가 없거나, 위 다섯 밖의 종류(PAUSE·RESUME·CANCEL·STOP_ROBOT 등)이면 조정기에 보내지 않는다. 본문 상한은 8 KiB. IDL 로는 `target_revision` → `expected_target_revision`, 쓰지 않는 필드는 빈 값, `robot_id` 는 비운다(조정기가 역할로 고름). `issued_at_ns` 는 그 `command_id` 를 처음 받은 시각이다. 조정기는 `issued_at_ns` 까지 비교하므로, 재전송에 새 시각을 찍으면 DUPLICATE 대신 `ID_CONTENT_CONFLICT` 가 된다(아래 로컬 실행에서 찾아 고침). 이 시각은 프로세스가 기억하므로 db_writer 를 다시 켠 뒤의 재전송은 해당하지 않는다.
+
+| 상황 | HTTP | 본문 | 기록 |
+| --- | --- | --- | --- |
+| 조정기 접수·거절·DUPLICATE | 200 | `accepted`, `request_id`(= `command_id`), `reason`(조정기 `reason_code`, 거절이면 필수), `request_state`, `created_task_id` | `operator_commands`(DUPLICATE 는 처음 행을 둠) |
+| operations 가 요청을 거절 | 400 | `accepted=false`, `reason=INVALID_INPUT` | id·종류·운영자를 읽을 수 있으면 `operator_commands`(`result=REFUSED_BY_OPERATIONS`), 아니면 `error_log` |
+| 조정기 서비스 없음 / `command_timeout_s` 무응답 | 503 / 504 | `accepted` **없이** `error=ACCEPT_TIMEOUT`·`request_id` | `error_log` 만 |
+
+503·504 에 `accepted` 를 넣지 않는 것은, 조정기가 실제로 받았을 수 있는데 콘솔이 「거절」로 보이면 운영자가 새 명령을 다시 누르기 때문이다. 콘솔은 이 본문을 「전달됐는지 모름」으로 보인다(#115 `read_reply`). 같은 `command_id` 로 다시 보내면 조정기가 처음 답을 돌려준다.
+
+노드 파라미터(기본값 없음)에 `api_host`·`api_port`(1~65535)·`operator_command_service`·`command_timeout_s`(0 초과, 콘솔 5초 미만, 3.0 [제안])가 늘었다. **API 자체에는 로그인 확인이 없다.** 로그인·ADMIN 확인은 콘솔이 하므로 `api_host` 는 `127.0.0.1` 로 두고, 콘솔은 `--operations http://127.0.0.1:<api_port>` 로 연결한다. 다른 경로는 404, 본문이 너무 크면 413 이다.
+
+| 검증 | 결과 |
+| --- | --- |
+| E2: `tests/test_operations_command_api.py`(요청 검사·IDL 필드·응답·기록·재전송 시각·HTTP), `tests/test_operations_ros_node.py`(파라미터) | 통과 |
+| 로컬 ROS 실행(jazzy, `ROS_DOMAIN_ID=77`, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 환경 변수 해제, 한 PC, 2026-10-12): [`tests/ros/e3_command_api_probe.py`](../../tests/ros/e3_command_api_probe.py) 가 db_writer(API)와 실제 조정기 노드를 띄우고 콘솔처럼 POST | 첫 실행에서 재전송이 `ID_CONTENT_CONFLICT` 였다(위 `issued_at_ns`). 고친 뒤 11개 모두 PASS: 조정기 전 503(`accepted` 없음, 행 없음, `error_log` ACCEPT_TIMEOUT), 잘못된 요청 400, 재난 전 START_SEARCH 200 거절 `NOT_AUTHORIZED`, DISASTER_SIGN·READY 뒤 200 접수(작업 ID 발급), 재전송 200 DUPLICATE·처음 답, 조정기 종료 뒤 503, db_writer 종료 코드 0 |
+
+| 같은 조건에서 머지된 #115 콘솔의 전송 코드(`rescue_console.commands.build_request`·`send_command`, Flask 없이 도는 부분)로 같은 API 를 호출 | 재난 전 START_SEARCH 「거절 NOT_AUTHORIZED(재난 모드가 아님)」, 재난 뒤 「접수」, 같은 id 재전송 DUPLICATE, 출동 없는 CONTINUE_SEGMENT 「거절 INVALID_INPUT」, 조정기 종료 뒤 `BAD_RESPONSE`·전달 `UNKNOWN`(「전달됐는지 모름」), 틀린 포트 `UNREACHABLE`·전달 `NOT_SENT`. 명령 표 3행, db_writer 종료 코드 0 |
+
+E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.

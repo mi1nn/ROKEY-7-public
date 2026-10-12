@@ -23,7 +23,7 @@ rescue-report-export operations.sqlite3 --report-id <report-uuid>
 
 CLI는 operations 호스트의 기존 DB를 읽어 JSON을 출력한다. 없는 DB를 만들거나 보고를 변경하지 않는다. `PERSISTED`는 보고와 선택한 정책의 증거가 로컬 SQLite transaction으로 저장됐다는 뜻이며, 접근의 물리적 성공이나 사람 구조·생존을 판단하지 않는다.
 
-operations DB의 소유자는 operations 호스트다. 다른 PC는 DB 파일을 마운트하거나 직접 쓰지 않는다. 송신 측 outbox는 별도 로컬 DB이고 API를 통해 같은 보고 ID를 재전송한다. 보고 장부의 API 어댑터는 프로세스 내부 callable이다. 현장 상태 DB 에는 ROS 구독 노드 `db_writer`(로봇 상태·위치·고정 카메라 사건·임무 상태·대상 목록, [구현 문서](../../docs/implementation/implementation-operations.md) 「DB 쓰기 어댑터」)가 있다. 원격 HTTP·인증·실기·4-PC 통신은 아직 구현하거나 검증하지 않았다. 다른 시스템의 Nav2 goal이나 속도 명령을 발행하지 않는다.
+operations DB의 소유자는 operations 호스트다. 다른 PC는 DB 파일을 마운트하거나 직접 쓰지 않는다. 송신 측 outbox는 별도 로컬 DB이고 API를 통해 같은 보고 ID를 재전송한다. 보고 장부의 API 어댑터는 프로세스 내부 callable이다. 현장 상태 DB 에는 ROS 구독 노드 `db_writer`(로봇 상태·위치·고정 카메라 사건·임무 상태·대상 목록, [구현 문서](../../docs/implementation/implementation-operations.md) 「DB 쓰기 어댑터」)가 있다. 같은 프로세스가 관제 웹의 운영자 명령을 받아 조정기 서비스로 넘기는 HTTP API(`POST /api/operator-commands`, 같은 문서 「운영자 명령 API」)를 `127.0.0.1` 에서 연다. API 자체의 인증·원격 HTTP·실기·4-PC 통신은 아직 구현하거나 검증하지 않았다. 다른 시스템의 Nav2 goal이나 속도 명령을 발행하지 않는다.
 
 원본 코드를 복사하지 않은 새 구현이다. 패키지 버전 `0.0.0`, `LicenseRef-Unspecified`, 미지정 maintainer는 기존 기초 구조의 미결정 메타데이터를 유지한다. 배포 권한이나 라이선스 허가를 뜻하지 않는다.
 
