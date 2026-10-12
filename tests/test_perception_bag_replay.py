@@ -6,7 +6,6 @@ evidence), not here. The config mirrors tools/perception_bag_replay.synthetic.js
 """
 import copy
 import contextlib
-import importlib.util
 import io
 import json
 from pathlib import Path
@@ -199,10 +198,9 @@ class BagReplayTests(unittest.TestCase):
 
 class BagReplayCliTests(unittest.TestCase):
     def setUp(self):
-        path = Path(__file__).resolve().parents[1] / "tools" / "perception_bag_replay.py"
-        spec = importlib.util.spec_from_file_location("perception_bag_cli", path)
-        self.cli = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.cli)
+        # The same CLI must work with installed wheels and no source/tools tree.
+        from rescue_perception import bag_replay_cli
+        self.cli = bag_replay_cli
 
     def test_missing_bag_is_explicit_before_ros_import(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(self.cli, "_ros") as ros:
