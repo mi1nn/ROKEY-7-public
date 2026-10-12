@@ -26,7 +26,7 @@ from .adapter import SourceBinding
 from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
 from .target_watch import TargetWatchPolicy
-from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility
+from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, stream_state
 
 ENCODING = 'bgr8'  # OpenCV 프레임 채널 순서
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'
@@ -365,18 +365,17 @@ def main(args=None):
             return
         seq['frame'] += 1
         height, width = frame.shape[:2]
-        if (width, height) != (v['width'], v['height']):
-            publish_status('DEGRADED', stamp, width, height, reason='SIZE_MISMATCH')
-        else:
-            publish_status('ONLINE', stamp, width, height)
         if slot.observe_image_size(width, height):
             log.warning(f'image size changed to {width}x{height}; watch cleared (revision {slot.revision})')
         image = frame_image(frame, stamp, v['frame_id'])
         try:
             sign = quake.update(image)
         except PerceptionError as exc:
+            publish_status('UNKNOWN', stamp, width, height, reason='QUAKE_JUDGE_FAILED')
             log.error(f'quake judge failed: {exc.detail_code}: {exc.detail}')
             return
+        state, reason = stream_state(sign, (width, height), (v['width'], v['height']))
+        publish_status(state, stamp, width, height, reason=reason)
         if sign.event is not None:
             publish_event(sign.event)
         if slot.detector is None:

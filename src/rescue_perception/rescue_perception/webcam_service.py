@@ -119,6 +119,19 @@ class WatchSlot:
         return False
 
 
+def stream_state(sign_frame, size, expected_size):
+    """CameraStatus 의 (stream_state, quality_reason). SDD 계약: 정지 영상·끊김·가림은 UNKNOWN.
+
+    해상도가 요청과 다르면 DEGRADED(SIZE_MISMATCH), 화면 대부분이 가려졌으면(지진 판정의 OCCLUDED·
+    SCENE_CHANGED·QUADRANT_COVERED) UNKNOWN 과 그 이유, 아니면 ONLINE.
+    """
+    if tuple(size) != tuple(expected_size):
+        return "DEGRADED", "SIZE_MISMATCH"
+    if sign_frame.reason in _COVERED:
+        return "UNKNOWN", sign_frame.reason
+    return "ONLINE", ""
+
+
 def scene_visibility(sign_frame, *, stream_online):
     """지진 판정 한 프레임 -> 대상 감시의 시야(VALID/OCCLUDED/UNKNOWN)."""
     if not stream_online or sign_frame.status not in ("PROCESSED", "UNKNOWN"):
