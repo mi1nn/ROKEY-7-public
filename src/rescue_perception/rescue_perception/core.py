@@ -195,12 +195,19 @@ class AlignmentEvidence:
 
 @dataclass(frozen=True)
 class DepthPolicy:
+    """Metric depth limits and optional affine correction before XYZ projection.
+
+    Identity defaults preserve historical recorded-input behavior. Robot-specific
+    values come from an explicit calibration profile, never a global constant.
+    """
     max_stamp_skew_ns: int
     min_depth_m: float
     max_depth_m: float
     min_valid_pixels: int
     min_valid_fraction: float
     max_depth_spread_m: float
+    scale: float = 1.0
+    offset_m: float = 0.0
 
     def __post_init__(self):
         _duration(self.max_stamp_skew_ns, "max_stamp_skew_ns")
@@ -211,6 +218,8 @@ class DepthPolicy:
         _number(self.min_valid_fraction, "min_valid_fraction", positive=True)
         _require(self.min_valid_fraction <= 1, "INVALID_INPUT", "valid fraction")
         _number(self.max_depth_spread_m, "max_depth_spread_m", minimum=0)
+        _number(self.scale, "depth scale", positive=True)
+        _number(self.offset_m, "depth offset_m")
 
 
 @dataclass(frozen=True)
@@ -310,7 +319,12 @@ def locate_detection(rgb, depth, intrinsics, alignment, detection, policy):
     scale = 0.001 if depth.encoding == "16UC1" else 1.0
     # E2 ROI list allocation; no realtime throughput claim (see DepthFrame above).
     values = [depth.rows[y][x] * scale for y in range(top, bottom) for x in range(left, right)]
-    valid = [value for value in values if math.isfinite(value) and policy.min_depth_m <= value <= policy.max_depth_m]
+    # Reject sensor invalids BEFORE an offset can turn a zero/negative into a
+    # plausible range. Apply exactly once, in metres, before median/XYZ.
+    corrected = [value * policy.scale + policy.offset_m for value in values
+                 if math.isfinite(value) and value > 0]
+    valid = [value for value in corrected if math.isfinite(value) and
+             policy.min_depth_m <= value <= policy.max_depth_m]
     if len(valid) < policy.min_valid_pixels or len(valid) / len(values) < policy.min_valid_fraction:
         return unavailable("DEPTH_INSUFFICIENT", len(valid))
     if max(valid) - min(valid) > policy.max_depth_spread_m:
