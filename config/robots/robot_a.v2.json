@@ -6,5 +6,24 @@
   "use_sim_time": false,
   "nav_action": "/robot_a/navigate_to_pose",
   "odom_topic": "/robot_a/odom",
-  "dock_status_topic": "/robot_a/dock_status"
+  "dock_status_topic": "/robot_a/dock_status",
+  "readiness": {
+    "version": "example-2026-10-08",
+    "max_age_s": {
+      "odom": 0.5,
+      "scan": 0.5,
+      "camera": 1.0,
+      "wheel_status": 0.5,
+      "map_to_odom_tf": 1.0
+    },
+    "scan_topic": "/robot_a/scan",
+    "tf_topic": "/robot_a/tf",
+    "map_frame": "map",
+    "odom_frame": "odom",
+    "camera_topics": [
+      "/robot_a/oakd/rgb/preview/image_raw/compressed"
+    ],
+    "wheel_status_topic": "/robot_a/wheel_status",
+    "watchdog_heartbeat_topic": ""
+  }
 }
