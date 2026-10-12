@@ -1,0 +1,38 @@
+{
+  "note": "Template only. Mapping owner supplies measured/versioned facts. INVALID/zero placeholders must not be changed to VALID without evidence.",
+  "alignment": {
+    "source_robot": "robot_a",
+    "map_frame": "UNCONFIGURED",
+    "mission_frame": "UNCONFIGURED",
+    "map_session_id": "REPLACE_WITH_MAP_SESSION_UUID",
+    "map_revision": 0,
+    "transform_revision": 0,
+    "authority_id": "UNCONFIGURED",
+    "clock_domain_id": "UNCONFIGURED",
+    "transform": {
+      "translation_xyz": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "valid_from_ns": 0,
+    "valid_until_ns": 0,
+    "position_error_m": 0.0,
+    "rotation_error_rad": 0.0,
+    "status": "INVALID"
+  },
+  "covariance_verified": false,
+  "covariance_evidence_id": "UNCONFIGURED",
+  "sensor_variance_xyz": [
+    0.04,
+    0.04,
+    0.04
+  ]
+}

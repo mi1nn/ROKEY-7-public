@@ -1,0 +1,5 @@
+# AMR model training runtime version recorded in yolo26n-v2-results.md.
+ultralytics==8.4.170
+# ROS Jazzy cv_bridge in this workspace is built against NumPy 1.x.
+numpy==1.26.4
+opencv-python==4.10.0.84

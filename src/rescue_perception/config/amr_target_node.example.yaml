@@ -1,0 +1,64 @@
+# AMR RGB-D detection example [proposal, 2026-10-12]. No hardware facts are inferred.
+# Replace topics/frames/calibration from actual discovery and camera alignment evidence.
+# UNKNOWN clocks/unverified alignment do not produce VALID TargetLocation.
+amr_target_node:
+  ros__parameters:
+    image_topic: camera/image_raw/compressed
+    image_type: compressed
+    depth_topic: camera/depth/image_raw/compressedDepth
+    depth_transport: compressedDepth      # raw comparison is supported; compressedDepth supports PNG only
+    depth_byte_order: little              # confirm publisher platform; ConfigHeader uses native byte order
+    camera_info_topic: camera/camera_info
+    annotated_topic: perception/annotated
+    observations_topic: /rescue/observations
+    locations_topic: /rescue/target_locations
+    map_state_topic: mapping/map_state
+    robot_id: robot_a                     # logical profile ID, not inferred physical robot number
+    physical_robot_id: UNCONFIGURED       # declared physical device, distinct from logical robot_id
+    depth_calibration_path: UNCONFIGURED  # identity correction unless an explicit profile is selected
+    camera_id: amr_rgbd
+    model_id: survivor_yolo26n_640
+    model_path: assets/models/best.pt
+    model_sha256: 0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74
+    model_label: survivor
+    model_imgsz: 640
+    model_conf: 0.25
+    confirm_confidence_min: 0.8           # proposal; not accepted field threshold
+    device: cpu
+    show: false
+    no_frame_warn_s: 5.0
+    log_every: 10
+    rgb_optical_frame: camera_rgb_optical
+    depth_optical_frame: camera_rgb_optical
+    calibration_id: UNCONFIGURED
+    alignment_evidence_id: UNCONFIGURED
+    rgb_rectified: false                 # enable only with evidence for this RGB stream
+    rgb_depth_alignment_verified: false  # same dimensions alone do not establish registration
+    rgb_stamp_semantics: UNKNOWN
+    depth_stamp_semantics: UNKNOWN
+    clock_domain_id: UNCONFIGURED
+    clock_state: UNKNOWN
+    clock_error_bound_ns: -1
+    receiver_clock_error_ns: 0            # proposal; replace with measurement before projection
+    publisher_id: amr.perception
+    envelope_version: '0.1'               # 1st ROS wire version, distinct from Python Publication schema
+    sync_queue_size: 3
+    sync_slop_ns: 20000000
+    camera_info_max_age_ns: 1000000000
+    observation_validity_ns: 2000000000
+    max_map_age_ns: 1000000000
+    max_age_ns: 1000000000
+    max_future_ns: 0
+    max_clock_error_ns: 20000000
+    stamp_delay_bound_ns: 0               # proposal; not a measured driver bound
+    min_depth_m: 0.2
+    max_depth_m: 5.0
+    min_valid_pixels: 10
+    min_valid_fraction: 0.5
+    max_depth_spread_m: 0.5
+    sensor_variance_xyz: [0.04, 0.04, 0.04] # proposal m^2; must match verified mapping snapshot to emit locations
+    locations_enabled: false
+    projection_metadata_path: UNCONFIGURED
+    alignment_authority: UNCONFIGURED
+    max_alignment_position_error_m: 0.1
+    max_alignment_rotation_error_rad: 0.1

@@ -1,0 +1,16 @@
+# Preview example [proposal, 2026-10-12]; these are not acceptance thresholds.
+# Replace image_topic after ros2 topic list/type/info. No robot/discovery setting changes.
+amr_camera_node:
+  ros__parameters:
+    image_topic: camera/image_raw/compressed
+    image_type: compressed             # RGB CompressedImage; Depth uses a separate decoder
+    annotated_topic: perception/annotated
+    model_path: assets/models/best.pt  # relative to the process working directory; override as needed
+    model_sha256: 0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74
+    model_label: survivor
+    model_imgsz: 640                   # selected model training input [document, 2026-10-11]
+    model_conf: 0.25                   # preview starting value [proposal, 2026-10-12]
+    device: cpu                       # use '0' only after CUDA availability is verified
+    show: false                       # headless default in this example; override true on a desktop
+    no_frame_warn_s: 5.0
+    log_every: 10
