@@ -135,6 +135,15 @@ class CommandGate(unittest.TestCase):
         self.assertEqual(['ACCEPTED'], [r['result'] for r in self.commands()])  # the first answer stays
         self.assertEqual([], self.errors())
 
+    def test_a_resend_carries_the_first_issue_time(self):
+        """Local ROS run with the real coordinator (2026-10-12): it compares the whole command,
+        issued_at_ns included, so a resend stamped anew got ID_CONTENT_CONFLICT, not DUPLICATE."""
+        gate = self.gate(reply())
+        gate.handle(body(request()), received_at_ns=T0)
+        gate.handle(body(request()), received_at_ns=T0 + 9)
+        self.assertEqual([T0, T0], [fields['issued_at_ns'] for fields in self.sent])
+        self.assertEqual([T0 + 3_000_000_000] * 2, [fields['deadline_ns'] for fields in self.sent])
+
     def test_a_refused_request_is_not_sent_and_is_recorded_when_it_can_be(self):
         status, answer = self.gate(reply()).handle(body(request('DISPATCH_SUPPORT', target_revision=None)),
                                                    received_at_ns=T0)
