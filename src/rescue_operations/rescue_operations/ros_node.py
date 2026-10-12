@@ -131,5 +131,4 @@ def main(args=None):
     finally:
         ledger.close()
         node.destroy_node()
-        if rclpy.ok():
-            rclpy.shutdown()
+        rclpy.try_shutdown()
