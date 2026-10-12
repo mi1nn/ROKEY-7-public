@@ -73,6 +73,26 @@ def system_state_msg(phase='SEGMENT_MOVING', changed=T0 + 100, dispatch=True, tr
     return Msg(**(values | changes))
 
 
+def location_msg(n=40, session=uid(5), revision=2, frame='mission'):
+    frame_ref = Msg(robot_id='robot_a', native_frame='map', mission_frame=frame, map_session_id=session,
+                    map_revision=revision, transform_revision=1, alignment_status='VALID')
+    return Msg(envelope=envelope(), location_id=uid(n), observation=Msg(time=obs_time()), frame_ref=frame_ref,
+               projection_status='VALID', mission_position=Msg(x=0.0, y=0.0, z=0.0), covariance=[0.0] * 9)
+
+
+def target_msg(n=500, approach='IN_PROGRESS', **changes):
+    """TargetEstimate as #96 publishes it (one per target)."""
+    values = dict(target_id=uid(n), estimate_revision=2, locations=[location_msg(40, revision=1), location_msg(41)],
+                  latest_observed_at_ns=T0, valid_until_ns=T0 + 10, mission_position=Msg(x=3.0, y=4.0, z=0.0),
+                  covariance=[0.0] * 9, confirmation_state='CONFIRMED', approach_state=approach,
+                  segment_phase='EXECUTING', rescue_state='NOT_CHECKED', persisted_report_id='')
+    return Msg(**(values | changes))
+
+
+def snapshot_msg(*targets, at=T0 + 50):
+    return Msg(envelope=envelope(at=at), snapshot_id=uid(99), targets=list(targets) or [target_msg()])
+
+
 class SiteEventConversion(unittest.TestCase):
     def test_disaster_sign_message_becomes_the_contract_event(self):
         from rescue_operations.ros_ingest import site_event_from_msg
@@ -294,6 +314,81 @@ class SystemStateIngest(unittest.TestCase):
         (error,) = site_state.read_error_log(self.path)['errors']
         self.assertEqual(('INVALID_INPUT', None), (error['code'], error['robot_id']))
         self.assertIn('system_state', error['detail'])
+
+
+class TargetConversion(unittest.TestCase):
+    def convert(self, msg, at=T0 + 50):
+        from rescue_operations.ros_ingest import target_from_msg
+        return target_from_msg(msg, published_at_ns=at, support_robot_id='robot_b')
+
+    def test_estimate_becomes_the_target_row(self):
+        """#96 comment defaults: map basis from the last location, publish time orders the rows."""
+        self.assertEqual(dict(target_id=uid(500),
+                              position=dict(x=3.0, y=4.0, frame_id='mission', map_session_id=uid(5), map_revision=2),
+                              detection_confirmed=True, rescue_state='NOT_CHECKED', rescue_reasons=[],
+                              verdict_id=None, support_state='ASSIGNED', support_robot_id='robot_b',
+                              updated_at_ns=T0 + 50),
+                         self.convert(target_msg()))
+
+    def test_approach_states_fold_into_the_four_support_states(self):
+        expected = {'UNASSIGNED': 'NONE', 'CANCELED': 'NONE', 'ASSIGNED': 'ASSIGNED', 'IN_PROGRESS': 'ASSIGNED',
+                    'APPROACH_COMPLETE': 'ARRIVED', 'BLOCKED': 'FAILED', 'UNREACHABLE': 'FAILED', 'FAILED': 'FAILED'}
+        for approach, support in expected.items():
+            with self.subTest(approach=approach):
+                target = self.convert(target_msg(approach=approach))
+                self.assertEqual(support, target['support_state'])
+                self.assertEqual(None if support == 'NONE' else 'robot_b', target['support_robot_id'])
+
+    def test_not_confirmed_and_no_location_give_false_and_none(self):
+        target = self.convert(target_msg(confirmation_state='DISMISSED', locations=[]))
+        self.assertEqual((False, None), (target['detection_confirmed'], target['position']))
+
+    def test_unknown_approach_state_is_invalid_input(self):
+        with self.assertRaises(OperationsError) as caught:
+            self.convert(target_msg(approach='MOVING'))
+        self.assertEqual('INVALID_INPUT', caught.exception.code)
+
+
+class TargetSnapshotIngest(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / 'site_state.sqlite3'
+        self.ledger = site_state.SiteStateLedger(self.path, allowed_robot_ids=ROBOTS)
+        self.addCleanup(self.ledger.close)
+        from rescue_operations.ros_ingest import SiteStateIngest
+        self.ingest = SiteStateIngest(self.ledger, roles=ROLES)
+
+    def targets(self):
+        return {t['target_id']: t for t in site_state.read_target_states(self.path)['targets']}
+
+    def test_every_target_is_stored_and_an_older_snapshot_is_ignored(self):
+        first = snapshot_msg(target_msg(500), target_msg(501, approach='UNASSIGNED'))
+        self.assertTrue(self.ingest.on_target_snapshot(first, received_at_ns=T0 + 51))
+        self.assertFalse(self.ingest.on_target_snapshot(first, received_at_ns=T0 + 52))  # resend
+        # Only the approach changed (no new observation): the publish time still orders it.
+        arrived = snapshot_msg(target_msg(500, approach='APPROACH_COMPLETE'), target_msg(501, approach='UNASSIGNED'),
+                               at=T0 + 80)
+        self.assertTrue(self.ingest.on_target_snapshot(arrived, received_at_ns=T0 + 81))
+        self.assertFalse(self.ingest.on_target_snapshot(snapshot_msg(target_msg(500), at=T0 + 60),
+                                                        received_at_ns=T0 + 82))
+        stored = self.targets()
+        self.assertEqual(('ARRIVED', 'NONE'), (stored[uid(500)]['support_state'], stored[uid(501)]['support_state']))
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
+
+    def test_a_refused_target_is_logged_and_the_others_are_kept(self):
+        snapshot = snapshot_msg(target_msg(500, rescue_state='DONE'), target_msg(501))
+        self.assertIsNone(self.ingest.on_target_snapshot(snapshot, received_at_ns=T0 + 51))
+        self.assertEqual([uid(501)], list(self.targets()))
+        (error,) = site_state.read_error_log(self.path)['errors']
+        self.assertEqual('INVALID_INPUT', error['code'])
+        self.assertIn('target ' + repr(uid(500)), error['detail'])
+
+    def test_without_a_support_robot_in_the_profile_a_dispatched_target_is_refused(self):
+        from rescue_operations.ros_ingest import SiteStateIngest
+        ingest = SiteStateIngest(self.ledger, roles={'robot_a': 'SCOUT'})
+        self.assertIsNone(ingest.on_target_snapshot(snapshot_msg(), received_at_ns=T0 + 51))
+        self.assertEqual({}, self.targets())
 
 
 if __name__ == '__main__':

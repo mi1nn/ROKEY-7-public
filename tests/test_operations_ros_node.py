@@ -11,7 +11,8 @@ def params(**changes):
               'robot_roles': ['SCOUT', 'SUPPORT'],
               'status_topics': ['/rescue/robots/robot_a/status', '/rescue/robots/robot_b/status'],
               'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
-              'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state'}
+              'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state',
+              'targets_topic': '/rescue/targets'}
     return values | changes
 
 
@@ -37,8 +38,10 @@ class NodeConfig(unittest.TestCase):
         self.assertEqual([('robot_a', '/rescue/robots/robot_a/status', '/rescue/robots/robot_a/pose'),
                           ('robot_b', '/rescue/robots/robot_b/status', '/rescue/robots/robot_b/pose')],
                          config['robots'])
-        self.assertEqual(('/var/lib/rescue/site_state.sqlite3', '/rescue/site_events', '/rescue/system_state'),
-                         (config['db_path'], config['site_events_topic'], config['system_state_topic']))
+        self.assertEqual(('/var/lib/rescue/site_state.sqlite3', '/rescue/site_events', '/rescue/system_state',
+                          '/rescue/targets'),
+                         (config['db_path'], config['site_events_topic'], config['system_state_topic'],
+                          config['targets_topic']))
 
     def test_inconsistent_configuration_is_refused_before_anything_starts(self):
         from rescue_operations.ros_node import node_config
@@ -46,7 +49,8 @@ class NodeConfig(unittest.TestCase):
                dict(robot_roles=['SCOUT', 'LEADER']), dict(robot_roles=['SCOUT', 'SCOUT']),
                dict(status_topics=['/same', '/same']), dict(allowed_robot_ids=['robot_a', 'robot_a']),
                dict(site_events_topic=''), dict(db_path=''), dict(system_state_topic=''),
-               dict(system_state_topic='/rescue/site_events')]
+               dict(system_state_topic='/rescue/site_events'), dict(targets_topic=''),
+               dict(targets_topic='/rescue/system_state')]
         for change in bad:
             with self.subTest(change=change), self.assertRaises(OperationsError) as caught:
                 node_config(params(**change))
@@ -63,6 +67,7 @@ class NodeConfig(unittest.TestCase):
             with self.subTest(kind=kind):
                 self.assertEqual('VOLATILE', durability[kind])
         self.assertEqual('TRANSIENT_LOCAL', durability['system_state'])  # #90 latches it
+        self.assertEqual('TRANSIENT_LOCAL', durability['targets'])  # #96 latches TargetSnapshot too
 
 
 if __name__ == '__main__':
