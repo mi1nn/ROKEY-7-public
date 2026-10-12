@@ -2,7 +2,8 @@
 import unittest
 
 from rescue_contracts import RESCUE_STATES, ROBOT_ROLES, SITE_EVENT_KINDS, SYSTEM_MODES
-from rescue_operations.site_state import SUPPORT_STATES
+from rescue_coordination.ros_node import REASON_CODES
+from rescue_operations.site_state import MISSION_MODES, MISSION_PHASES, SEGMENT_PHASES, SUPPORT_STATES
 from rescue_console.labels import LABELS, label
 
 # Report vocabularies are inline tuples in rescue_operations.schema (no exported constant).
@@ -16,8 +17,11 @@ class LabelTests(unittest.TestCase):
         # A value added upstream fails here until it gets a label (it would still show as its code).
         for kind, values in (('role', set(ROBOT_ROLES) | {'UNKNOWN'}), ('rescue', RESCUE_STATES),
                              ('support', SUPPORT_STATES), ('event', set(SITE_EVENT_KINDS) | {'REPORT'}),
-                             ('mode', SYSTEM_MODES), ('approach', APPROACH_RESULTS),
-                             ('confirmation', CONFIRMATION_RESULTS), ('receipt', RECEIPT_STATES)):
+                             ('mode', set(SYSTEM_MODES) | MISSION_MODES), ('approach', APPROACH_RESULTS),
+                             ('confirmation', CONFIRMATION_RESULTS), ('receipt', RECEIPT_STATES),
+                             ('phase', MISSION_PHASES), ('segment', SEGMENT_PHASES),
+                             # what the coordinator answers an operator command with (#98: NAV_NOT_READY)
+                             ('reply', set(REASON_CODES.values()) | {'NAV_NOT_READY'})):
             with self.subTest(kind=kind):
                 self.assertLessEqual(set(values), set(LABELS[kind]))
 
