@@ -171,7 +171,7 @@ class PageTests(LedgerFixture):
         self.assertIn('r.latency_s <= 3)', html)                  # KPI-04 budget substituted
         self.assertNotIn('KPI_BUDGET_S', html)
         self.assertIn('new Blob(', html)                          # saved in the browser
-        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment', 'commands'])
 
     def test_event_rows_carry_what_the_kpi04_file_needs(self):
         view = self.view()
@@ -215,7 +215,7 @@ class PageTests(LedgerFixture):
         self.assertIn('src="http://camera.invalid:8081/stream?q=&quot;x&quot;"', html)
         self.assertIn('영상 끊김', html)
         self.assertNotIn('id="cameras"', render_page(self.view()))
-        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment', 'commands'])
 
     def test_camera_argument_needs_an_id_and_http_url(self):
         from rescue_console.app import parse_camera

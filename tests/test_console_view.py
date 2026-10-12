@@ -345,7 +345,7 @@ class SiteStateSourceTests(LedgerFixture):
 
     def test_site_state_db_gives_the_fixture_shapes(self):
         status = load_site_state(self.site_db)
-        self.assertEqual(set(status), {'robot_status', 'site_events', 'target_states'})
+        self.assertEqual(set(status), {'robot_status', 'site_events', 'target_states', 'mission_state'})
         self.assertEqual([r['robot_id'] for r in status['robot_status']['robots']], list(ROBOTS))
         self.assertEqual(status['site_events']['exit_pass_count'], 1)
         db_view = build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND)

@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from html import escape
+import json
 import math
 
 from .labels import label
@@ -121,16 +122,28 @@ def _victim_icon(stage):
 def _band(view):
     """Mission mode across the top. The exit count is not drawn: one fixed camera (db-schema 2절)."""
     mission = view['mission']
-    mode = mission['mode']
+    mode, source = mission['mode'], mission['source']
     built = view['built_at_ns']
     facts = []
-    if mode == 'DISASTER':
-        elapsed = (built - mission['trigger_ns']) / 1e9
-        facts = [('트리거', _time(mission['trigger_ns'], built)), ('경과', _elapsed(elapsed)),
-                 ('진동 감지', f'{mission["sign_count"]}건')]
-        note = '현장 카메라의 진동 감지로 판단'
+    if mission['trigger_ns'] is not None:
+        facts += [('트리거', _time(mission['trigger_ns'], built)),
+                  ('경과', _elapsed((built - mission['trigger_ns']) / 1e9))]
+    if mode == 'DISASTER' and mission['sign_count']:
+        facts.append(('진동 감지', f'{mission["sign_count"]}건'))
+    if mission['phase'] is not None:
+        facts.append(('단계', _word('phase', mission['phase'])))
+    dispatch = mission['dispatch']
+    if dispatch is not None:
+        facts.append(('구간', f'<span title="끝낸 구간 / 전체 구간">{dispatch["segment_index"]}/{dispatch["segment_count"]}</span> '
+                              f'{_word("segment", dispatch["segment_phase"])}'))
+    if mission['reason'] is not None:
+        facts.append(('사유', f'<span class="reason">{escape(mission["reason"])}</span>'))
+    if source == 'mission_state':
+        note = f'조정기 임무 상태, {_age((built - mission["updated_at_ns"]) / 1e9)} 전 바뀜'
+    elif mode == 'DISASTER':
+        note = '임무 상태 기록 전 — 현장 카메라의 진동 감지로 추정'
     elif mode == 'NORMAL':
-        note = '진동 감지 없음'
+        note = '임무 상태 기록 전 — 진동 감지 없음'
     else:
         note = '현장 사건을 읽지 못해 모드를 알 수 없음'
     dl = ''.join(f'<div><dt>{name}</dt><dd>{value}</dd></div>' for name, value in facts)
@@ -326,28 +339,49 @@ def _events(view):
             f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
+def _gates(view):
+    """The command gate mirror for the buttons outside the fragment; the page script applies it after each poll."""
+    gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
+    return f'<div id="gates" hidden data-gates="{escape(json.dumps(gates, ensure_ascii=False))}"></div>'
+
+
 def render_fragment(view):
     """The part of the page that the browser replaces on every poll (its children sit in the page grid)."""
     return (_band(view) + _warnings(view) + _map(view) + '<div id="middle">' + _robots(view) + _targets(view)
-            + '</div>' + _events(view))
+            + '</div>' + _events(view) + _gates(view))
 
 
 # ---- page-level parts (outside the polled fragment) -----------------------------------------
 
-def _commands(view):
-    """Buttons grouped by consequence. All disabled until the operations command API exists."""
+def _commands(view, access, csrf):
+    """Buttons grouped by consequence, a confirm step and the answers of this page's commands.
+
+    `access` is (allowed, reason) for the logged-in role (commands.command_access). A button needs
+    the access and its gate (view.command_gates); the page script re-applies the gates after each
+    poll. The panel is outside the polled fragment, so a poll never redraws it under the cursor.
+    """
+    allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
     for command in view['commands']:
+        name, reason = escape(command['name']), escape(command['reason'])
+        off = '' if allowed and command['enabled'] else ' disabled'
         groups[command['group']].append(
-            f'<button type="button" class="cmd {command["group"]}" disabled data-command="{escape(command["name"])}" '
-            f'title="{escape(command["reason"])}">{escape(command["label"])}</button>')
-    reason = escape(view['commands'][0]['reason']) if view['commands'] else ''
-    return (f'<section id="commands"><h2>명령</h2><p class="cmd-note">{reason}</p>'
+            f'<button type="button" class="cmd {command["group"]}"{off} data-command="{name}" title="{reason}">'
+            f'<span class="cmd-label">{escape(command["label"])}</span><span class="why">{reason}</span></button>')
+    data = f' data-allowed="1" data-csrf="{escape(csrf or "")}"' if allowed else ' data-allowed="0"'
+    return (f'<section id="commands"{data}><header><h2>명령</h2>'
+            f'<p class="cmd-access {"on" if allowed else "off"}">{escape(access_reason)}</p></header>'
             f'<div class="cmd-group approve">{"".join(groups["approve"])}</div>'
             f'<div class="cmd-group mission">{"".join(groups["mission"])}</div>'
             f'<div class="cmd-group stop">{"".join(groups["stop"])}</div>'
-            '<p class="estop">위험할 때는 현장 비상 정지 장치를 쓰세요. 이 화면의 정지는 보조 수단입니다.</p>'
-            '</section>')
+            '<div id="cmd-confirm" hidden><p class="what"></p>'
+            '<label id="cmd-pick-row" hidden>대상 <select id="cmd-pick"></select></label>'
+            '<dl class="args"></dl><div class="row">'
+            '<button type="button" id="cmd-send" class="cmd send">보내기</button>'
+            '<button type="button" id="cmd-cancel" class="cmd">취소</button></div></div>'
+            '<ol id="cmd-log" aria-live="polite"></ol>'
+            '<p class="estop">위험할 때는 현장 비상 정지 장치를 쓰세요. 이 화면의 명령은 보조 수단이고, '
+            '받을지는 조정기가 정합니다.</p></section>')
 
 
 _STYLE = """
@@ -397,6 +431,9 @@ dl{margin:0}
 .band.disaster{background:var(--signal);border-color:var(--signal);color:#fff}
 .band.disaster dt,.band.disaster .mode-note,.band.disaster #built{color:#ffd9de}
 .band.unknown .mode-word{color:var(--pending)}
+.band.clearing{border-left:10px solid var(--caution)}
+.band.mission_finished{border-left:10px solid var(--safe)} .band.mission_finished .mode-word{color:var(--safe)}
+.band .reason{font-size:15px;font-weight:700}
 #topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:6px 10px;
   padding:8px 12px;background:var(--panel);border:1px solid var(--rule)}
 #topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -513,14 +550,41 @@ dl{margin:0}
 #cameras figcaption{display:flex;justify-content:space-between;font-size:13px;padding-top:4px;background:var(--panel)}
 #cameras figcaption .lost{color:var(--signal);font-weight:700}
 .camera-empty p{color:var(--ink-2);font-size:13px}
-#commands .cmd-note{font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
+#commands{overflow:auto;min-height:0}
+#commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+#commands header h2{margin:0}
+.cmd-access{font-size:12.5px;color:var(--ink-2)} .cmd-access.off{color:var(--signal);font-weight:500}
 .cmd-group{display:grid;gap:6px;margin-bottom:8px}
 .cmd-group.approve{grid-template-columns:1fr}
 .cmd-group.mission{grid-template-columns:repeat(3,1fr)}
-.cmd{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:8px 6px;border-radius:3px;cursor:pointer}
-.cmd.approve{font-size:17px;font-weight:700;padding:12px;background:var(--info);border-color:var(--info);color:#fff}
-.cmd.stop{width:100%;font-size:18px;font-weight:700;padding:12px;background:var(--signal);border-color:var(--signal);color:#fff}
-.cmd:disabled{cursor:not-allowed;opacity:.38}
+.cmd{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:6px 8px;border-radius:3px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.cmd .cmd-label{font-weight:700}
+.cmd .why{font-size:11.5px;line-height:1.3;color:var(--ink-2)}
+.cmd.approve{padding:8px 12px;background:var(--info);border-color:var(--info);color:#fff}
+.cmd.approve .cmd-label{font-size:17px} .cmd.approve .why{font-size:12.5px;color:#dbe9f4}
+.cmd.stop{width:100%;padding:8px 12px;background:var(--signal);border-color:var(--signal);color:#fff}
+.cmd.stop .cmd-label{font-size:17px} .cmd.stop .why{color:#ffd9de}
+/* Off buttons stay readable: the reason under the label is the point. */
+.cmd:disabled{cursor:not-allowed;background:#e9edec;border-color:var(--rule);color:var(--ink-2)}
+.cmd:disabled .why{color:var(--ink-2)}
+/* The pressed command while its confirm step is open. */
+.cmd.armed:disabled{background:var(--info-tint);border:2px solid var(--info);color:var(--info)}
+#cmd-confirm{border:2px solid var(--info);background:#fff;padding:8px 10px;margin-bottom:8px}
+#cmd-confirm .what{font-weight:700;margin-bottom:6px}
+#cmd-confirm label{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
+#cmd-confirm label[hidden]{display:none}
+#cmd-confirm select{font:inherit;flex:1}
+#cmd-confirm .args{display:grid;grid-template-columns:auto 1fr;column-gap:10px;font-size:13px;margin-bottom:8px}
+#cmd-confirm .args dt{color:var(--ink-2)} #cmd-confirm .args dd{margin:0}
+#cmd-confirm .row{display:flex;gap:8px}
+#cmd-confirm .row .cmd{align-items:center;flex:1}
+.cmd.send{background:var(--info);border-color:var(--info);color:#fff;font-weight:700}
+#cmd-log{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px}
+#cmd-log li{padding:3px 8px;border-left:5px solid var(--pending);background:#fff;margin-bottom:3px}
+#cmd-log li time{color:var(--ink-2);margin-right:6px}
+#cmd-log li.accepted{border-left-color:var(--safe)} #cmd-log li.rejected{border-left-color:var(--caution)}
+#cmd-log li.failed{border-left-color:var(--signal);font-weight:500}
 .estop{font-size:12.5px;padding:6px 8px;border-left:6px solid var(--signal);background:#fff}
 
 /* ---- forms (login, accounts) ---- */
@@ -539,7 +603,8 @@ form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}
 .admin th,.admin td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
 """
 
-# Stamps each event row with the browser time it first appeared (KPI-04). Only GET requests.
+# Stamps each event row with the browser time it first appeared (KPI-04), and runs the command panel.
+# GET for the fragment; the one POST is an operator command to this console's /commands.
 _SCRIPT = """
 const firstSeen = new Map();
 window.kpi04 = [];
@@ -616,6 +681,8 @@ function title(lost) {
 }
 function pollStatus(ok, message) {
   title(!ok);
+  screenLost = !ok;
+  applyGates();
   const el = document.getElementById('poll');
   if (ok) {
     lastOk = Date.now();
@@ -644,13 +711,159 @@ async function poll() {
     }
     document.getElementById('live').innerHTML = await response.text();
     stamp();
+    readGates();
     pollStatus(true);
   } catch (error) {
     pollStatus(false, error.message);
   }
 }
 document.getElementById('kpi-save').addEventListener('click', saveKpi);
+
+// ---- operator commands ----
+// The gates come with every fragment (#gates). A button needs this page's access (ADMIN, operations
+// address) and its gate; while the screen is not updating every button is off. One press arms a confirm
+// step that shows what will be sent; only 보내기 sends, once. Nothing is ever resent automatically.
+const panel = document.getElementById('commands');
+const allowed = panel.dataset.allowed === '1';
+const confirmBox = document.getElementById('cmd-confirm'), pick = document.getElementById('cmd-pick');
+const sendButton = document.getElementById('cmd-send'), cancelButton = document.getElementById('cmd-cancel');
+const LOG_ROWS = 6;
+let gates = {}, armed = null, sending = false, screenLost = false;
+function readGates() {
+  const el = document.getElementById('gates');
+  try { gates = el ? JSON.parse(el.dataset.gates) : {}; } catch (error) { gates = {}; }
+}
+function nameOf(kind) {
+  const button = panel.querySelector('button[data-command="' + kind + '"] .cmd-label');
+  return button ? button.textContent : kind;
+}
+function shortId(id) { return String(id).length > 9 ? String(id).slice(0, 8) : String(id); }
+function chosen() { return armed && armed.choices.length ? armed.choices[pick.selectedIndex] : null; }
+function sameArmed(gate) {
+  if (!gate || !gate.enabled || JSON.stringify(gate.args) !== armed.args) return false;
+  const choice = chosen();
+  return !choice || gate.choices.some(c => JSON.stringify(c) === JSON.stringify(choice));
+}
+function applyGates() {
+  for (const button of panel.querySelectorAll('button[data-command]')) {
+    const gate = gates[button.dataset.command] || {enabled: false, reason: '관문 정보 없음'};
+    const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 꺼 둠' : gate.reason;
+    button.disabled = !allowed || !gate.enabled || screenLost || sending || armed !== null;
+    button.classList.toggle('armed', armed !== null && armed.kind === button.dataset.command);
+    button.querySelector('.why').textContent = reason;
+    button.title = reason;
+  }
+  if (armed && !sending && (screenLost || !sameArmed(gates[armed.kind]))) {
+    disarm('상태가 바뀌어 ' + armed.name + ' 확인을 취소했습니다. 다시 누르세요.');
+  }
+}
+function showArgs() {
+  const rows = [], args = JSON.parse(armed.args), choice = chosen();
+  const labels = {target_id: '대상', target_revision: '대상 revision', route_revision: '경로 revision',
+                  segment_index: '승인할 구간'};
+  if (choice && armed.kind === 'DISPATCH_SUPPORT') rows.push(['대상 revision', choice.target_revision]);
+  for (const key of Object.keys(args)) {
+    // segment_index counts finished segments, so it is also the 0-based index of the next one.
+    rows.push([labels[key] || key, key === 'segment_index'
+      ? (args[key] + 1) + '번째 구간 (segment_index ' + args[key] + ')' : args[key]]);
+  }
+  if (!rows.length && !choice) rows.push(['보내는 값', '명령 종류와 운영자 아이디만']);
+  const list = confirmBox.querySelector('.args');
+  list.replaceChildren();
+  for (const [name, value] of rows) {
+    const dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = name;
+    dd.textContent = String(value);
+    list.append(dt, dd);
+  }
+}
+function arm(kind) {
+  const gate = gates[kind];
+  if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
+  armed = {kind: kind, name: nameOf(kind), args: JSON.stringify(gate.args), choices: gate.choices};
+  confirmBox.querySelector('.what').textContent = armed.name + ' — 아래 내용으로 보냅니다';
+  pick.replaceChildren(...gate.choices.map(c => {
+    const option = document.createElement('option');
+    option.textContent = shortId(c.target_id) + ' ' + c.stage_label;
+    option.title = c.target_id;
+    return option;
+  }));
+  document.getElementById('cmd-pick-row').hidden = !gate.choices.length;
+  showArgs();
+  confirmBox.hidden = false;
+  applyGates();
+  sendButton.focus();
+}
+function disarm(message) {
+  armed = null;
+  confirmBox.hidden = true;
+  sendButton.disabled = cancelButton.disabled = false;
+  sendButton.textContent = '보내기';
+  if (message) log('info', message);
+  applyGates();
+}
+function log(kind, text) {
+  const item = document.createElement('li'), time = document.createElement('time');
+  item.className = kind;
+  time.textContent = clock(Date.now()).slice(0, 8);
+  item.append(time, text);
+  const list = document.getElementById('cmd-log');
+  list.prepend(item);
+  while (list.children.length > LOG_ROWS) list.lastChild.remove();
+}
+function describe(name, status, result) {
+  if (result && result.sent === true) {
+    const id = ' — request_id ' + result.request_id + (result.request_state ? ' (' + result.request_state + ')' : '');
+    if (result.accepted) return ['accepted', name + ': 접수됨 (실행 완료 아님)' + id];
+    const word = result.reason_label && result.reason_label !== result.reason ? ' (' + result.reason_label + ')' : '';
+    return ['rejected', name + ': 거절 ' + result.reason + word + id];
+  }
+  if (result && result.sent === false) {
+    const where = result.delivery === 'NOT_SENT' ? ' · 전달 안 됨'
+      : result.command_id ? ' · 전달됐는지 모름 — command_id ' + result.command_id + ' 로 명령 기록을 확인한 뒤 다시 누르세요' : '';
+    return ['failed', name + ': 보내지 못함 — ' + result.error + (result.message ? ': ' + result.message : '') + where];
+  }
+  return ['failed', name + ': 보내지 못함 — 콘솔 응답 HTTP ' + status + ', 전달됐는지 모름'];
+}
+async function send() {
+  if (!armed || sending) return;
+  const body = new URLSearchParams({csrf: panel.dataset.csrf, kind: armed.kind});
+  const args = JSON.parse(armed.args), choice = chosen();
+  if (choice) {
+    body.append('target_id', choice.target_id);
+    if (armed.kind === 'DISPATCH_SUPPORT') body.append('target_revision', String(choice.target_revision));
+  }
+  for (const key of Object.keys(args)) body.append(key, String(args[key]));
+  const name = armed.name;
+  sending = true;
+  sendButton.disabled = cancelButton.disabled = true;
+  sendButton.textContent = '보내는 중…';
+  applyGates();
+  let entry;
+  try {
+    const response = await fetch('commands', {method: 'POST', body: body, cache: 'no-store'});
+    let result = null;
+    try { result = await response.json(); } catch (error) { result = null; }
+    entry = response.status === 401 ? ['failed', name + ': 보내지 못함 — 로그인이 끝났습니다. 다시 로그인하세요.']
+      : describe(name, response.status, result);
+  } catch (error) {
+    entry = ['failed', name + ': 보내지 못함 — 콘솔 서버에 닿지 못함 (' + error.message + '), 전달됐는지 모름'];
+  }
+  log(entry[0], entry[1]);
+  sending = false;
+  disarm();
+}
+panel.addEventListener('click', event => {
+  const button = event.target.closest('button[data-command]');
+  if (button && !button.disabled) arm(button.dataset.command);
+});
+pick.addEventListener('change', showArgs);
+sendButton.addEventListener('click', send);
+cancelButton.addEventListener('click', () => disarm());
+confirmBox.addEventListener('keydown', event => { if (event.key === 'Escape' && !sending) disarm(); });
+
 stamp();
+readGates();
 pollStatus(true);
 timer = setInterval(poll, POLL_MS);
 """
@@ -723,8 +936,10 @@ def render_failure(code, message):
             '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
 
 
-def render_page(view, user=None, csrf=None, cameras=()):
-    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments."""
+def render_page(view, user=None, csrf=None, cameras=(), command_access=None):
+    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments. `command_access`:
+    (allowed, reason) from commands.command_access; without it no command can be sent from the page."""
+    access = command_access or (False, '명령 연결 없음')
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
     return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
@@ -732,7 +947,7 @@ def render_page(view, user=None, csrf=None, cameras=()):
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras)}{_commands(view)}</aside>'
+            + f'<aside id="side">{_cameras(cameras)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
 

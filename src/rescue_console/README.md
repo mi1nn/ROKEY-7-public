@@ -1,22 +1,23 @@
-# rescue_console — 관제 화면 (읽기 전용)
+# rescue_console — 관제 화면
 
-운영 장부와 상태 스냅샷을 **읽어서** 한 화면에 보여 준다(BRD Part I 3.7.5). 2026-10-08 첫 판, 담당 자리: 관제·화면.
+운영 장부와 상태 스냅샷을 **읽어서** 한 화면에 보여 주고, 운영자 명령을 operations 로 넘긴다(BRD Part I 3.7.5·3.7.6). 2026-10-08 첫 판, 담당 자리: 관제·화면.
 
-- 데이터의 진실은 협업·관제의 운영 장부(`rescue_operations`)다. 이 패키지는 DB 에 쓰지 않고, DB 파일을 만들지 않고, ROS 를 구독하지 않고, 로봇에 명령을 보내지 않는다.
+- 데이터의 진실은 협업·관제의 운영 장부(`rescue_operations`)다. 이 패키지는 운영 DB 에 쓰지 않고, DB 파일을 만들지 않고, ROS 를 구독하지 않고, 로봇에 직접 명령하지 않는다. 운영자 명령은 operations HTTP API(`POST /api/operator-commands`)로만 넘기고, 받을지는 조정기가 정한다(아래 「운영자 명령」).
 - **현장 정지 수단을 웹 연결에만 의존시키지 않는다**(팀 `AGENTS.md` 7절). 이 화면이 꺼지거나 멈춰도 로봇 쪽 정지(통신 단절 watchdog, 현장 비상 정지)는 따로 동작해야 하고, 화면은 그 대체물이 아니다.
 
 ## 구성
 
 | 모듈 | 하는 일 | 의존 |
 | --- | --- | --- |
-| `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 명령 자리 | 표준 라이브러리, `rescue_contracts` |
-| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 셋으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
+| `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 임무 상태 배지, 명령 버튼의 관문 거울 | 표준 라이브러리, `rescue_contracts` |
+| `commands.py` | 운영자 명령 요청 만들기·한 번 보내기·응답 읽기(`POST /api/operator-commands`) | 표준 라이브러리 |
+| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 넷으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 만(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, 명령은 `POST /commands` 하나(로그인·계정 폼은 아래 절) | Flask (선택) |
 
-Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 무동작 시험은 Flask 없이 돈다.
+Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
 ## 실행 (로봇 없이, E2)
 
@@ -38,10 +39,12 @@ operations 가 현장 상태 DB 를 쓰고 있으면 픽스처 대신 그 파일
 
 ```bash
 python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <현장 상태 DB> \
-    --camera cam_a=http://<카메라 PC>:<포트>/<경로> --map assets/maps/pre_quake/map.yaml --port 8080
+    --camera cam_a=http://<카메라 PC>:<포트>/<경로> --map assets/maps/pre_quake/map.yaml \
+    --operations http://<operations 호스트>:<포트> --port 8080
 ```
 
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
+- `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 
 - 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.
 - 계정 파일과 세션 비밀은 저장소 밖에 둔다([SDD 10절 외부 파일 목록](../../docs/design/architecture.md)에 추가 예정).
@@ -51,8 +54,8 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 
 | 역할 | 할 수 있는 것 |
 | --- | --- |
-| `ADMIN` | 관제 화면, 계정 관리(`/admin/accounts`: CUSTOMER·ADMIN 추가, 표시 이름·이메일·역할·상태·비밀번호 수정, 삭제), 앞으로 운영자 명령 |
-| `CUSTOMER` | 관제 화면 보기만. 계정 관리 페이지는 403 |
+| `ADMIN` | 관제 화면, 운영자 명령, 계정 관리(`/admin/accounts`: CUSTOMER·ADMIN 추가, 표시 이름·이메일·역할·상태·비밀번호 수정, 삭제) |
+| `CUSTOMER` | 관제 화면 보기만. 명령 버튼은 꺼져 있고 `POST /commands` 는 403, 계정 관리 페이지도 403 |
 
 - 모든 페이지는 로그인이 필요하다. 미로그인은 `/login` 으로, `/api/*` 는 401.
 - 비밀번호는 PBKDF2-HMAC-SHA256(소금 16바이트, 200,000회) 해시로만 저장한다. 평문은 저장·로그하지 않는다. 틀린 아이디·틀린 비밀번호·비활성 계정은 같은 문구로 거절한다.
@@ -73,10 +76,11 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 | 로봇 상태 | `rescue_operations.site_state.read_robot_status(site_db)` | 픽스처의 `robot_status` |
 | 현장 사건 | `read_site_events(site_db, limit=1000)` | 픽스처의 `site_events` |
 | 대상 상태(구조·지원) | `read_target_states(site_db)` | 픽스처의 `target_states` |
+| 임무 상태(모드·단계·출동 구간) | `read_mission_state(site_db)` (#111) | 픽스처의 `mission_state` |
 
-픽스처의 세 칸은 위 함수의 반환 형식 그대로다(협업·관제와 2026-10-08 합의). 칸이 없으면 기본값으로 채우지 않고 화면 경고 「<칸> 입력 없음」으로 보인다.
+픽스처의 네 칸은 위 함수의 반환 형식 그대로다(협업·관제와 2026-10-08 합의). 칸이 없으면 기본값으로 채우지 않고 화면 경고 「<칸> 입력 없음」으로 보인다.
 
-- 세 읽기는 한 트랜잭션이 아니다. 그 사이에 쓰인 행은 한 번의 폴링에서 한 표에만 먼저 보일 수 있다(다음 폴링에서 맞춰짐).
+- 네 읽기는 한 트랜잭션이 아니다. 그 사이에 쓰인 행은 한 번의 폴링에서 한 표에만 먼저 보일 수 있다(다음 폴링에서 맞춰짐).
 - `read_site_events` 는 오래된 순으로 `limit` 개를 준다. 콘솔은 최대(1000)를 요청하므로 현장 사건이 1000건을 넘으면 최신 사건이 빠진다(후속: 협업·관제에 최신순 또는 커서 요청).
 - 출구 누적(`exit_pass_count`)은 화면에 그리지 않는다. 고정 카메라 1대 결정(2026-10-09)으로 `EXIT_PASS` 생산자가 없어 항상 0 이다([DB 스키마](../../docs/design/db-schema.md) 2절, [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 3절). `/api/view` 에는 값이 그대로 남는다. 「구출 완료 ≤ 출구 누적」(Part I 3.5.5) 경고도 같이 뺐다 — 구출 판정의 트리거는 카메라의 대상 소실 후보다(#48).
 
@@ -85,7 +89,7 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 5절의 자리 배치를 따른다. 가로 1400px·세로 820px 이상이면 칸 배치가 고정되고 페이지 전체는 스크롤되지 않는다. 1920×1080 모니터의 실제 브라우저 창(탭바를 뺀 약 1853×963)에서 모든 칸이 한 화면에 보인다. 창이 더 낮으면 로봇 카드 칸이 먼저 줄어 그 안에서 스크롤되고, 요구조자 칸은 목록 두 줄이 보이는 높이(240px)를 지킨다. 사건 기록 줄은 내용만큼(최대 230px) 차지한다(#64). 가로 1400px 또는 세로 820px 미만이면 한 줄로 쌓여 페이지가 스크롤된다.
 
 ```text
-┌ 재난 띠: 모드 · 트리거 · 경과 · 진동 감지 수 ───────────────┬ 갱신 상태 · 사용자 ┐
+┌ 재난 띠: 모드 · 트리거 · 경과 · 단계 · 구간 · 사유 ──────────┬ 갱신 상태 · 사용자 ┐
 ├ (경고가 있을 때만) 확인할 것 ────────────────────────────────┼ 웹캠              │
 ├ 지도: 기준 지도 + 1m 격자 + 로봇·요구조자 ─┬ 로봇 AMR1·AMR2 ───┤                   │
 │                                          │ 요구조자 목록       ├ 명령              │
@@ -115,7 +119,7 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 
 ## 화면 위쪽: 모드 배지와 웹캠
 
-- **모드 배지:** 현장 사건에 `DISASTER_SIGN` 이 하나라도 있으면 「재난」(빨강 띠), 없으면 「평시」, 현장 사건 입력이 없으면 「모름」. 트리거 시각은 가장 이른 `DISASTER_SIGN` 의 `observed_at_ns` 이고, 경과는 서버 집계 시각 − 트리거다. 현장 상태 1.1 의 `mission_state` 표가 생기면 그 값으로 바꾼다 — 지금은 현장 사건에서 **추정**한 것이고 화면에도 그렇게 적는다.
+- **모드 배지:** `mission_state` 행(operations 가 조정기의 SystemState 를 적은 것, #111)을 보인다. 모드는 「평시」·「재난」(빨강 띠)·「해제 중」·「임무 종료」, 그 옆에 트리거 시각·경과(서버 집계 시각 − 트리거)·단계(`phase`)·구간 「끝낸 구간/전체 + 구간 상태」(출동 중일 때)·사유(`reason`, 있을 때)와 「조정기 임무 상태, n 전 바뀜」. 행이 아직 없으면 현장 사건의 `DISASTER_SIGN` 으로 재난/평시를 **추정**하고 「임무 상태 기록 전 — … 추정」이라고 적는다. 현장 사건도 없으면 「모름」. 단계·구간 낱말은 `labels.py`.
 - **웹캠:** `--camera` 로 받은 MJPEG 주소를 `<img src>` 로 넣는다(IF-082). 콘솔은 영상을 중계하지 않는다. 영상은 1초마다 바뀌는 조각(`#live`) **밖**에 있어 폴링이 스트림을 끊지 않는다. 영상이 끊기면 화면 안에 「영상이 들어오지 않습니다 …」와 캡션 「영상 끊김」을 띄운다. 주소가 없으면 `--camera` 를 넣으라는 안내가 자리에 남는다. 카메라 주소는 프로파일 v2.1 `site_cameras`(#39)가 들어오면 거기서 받는다.
 
 ## 시각과 나이 표시
@@ -156,21 +160,37 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
 - **폴링:** 브라우저가 `POLL_INTERVAL_MS = 1000` 마다 `GET fragment` 를 받아 바꾼다. 3초 예산 중 폴링 대기 최대 1초, 나머지가 장부 기록·읽기·전송이다. 갱신이 실패하면 화면 위에 「갱신 실패 — 표시 값이 낡았을 수 있음」을 띄운다.
 - 지연 구간 나누기: 이벤트 → 장부 기록(`received_at_ns − event_ns`, 장부 PC 시계) / 장부 기록 → 화면(`rendered_ms − received_at_ns`, 화면과 장부가 같은 PC 일 때). CSV 에 두 시각이 다 있어 회차 뒤에 나눠 볼 수 있다. 현장 사건 행은 `received_at_ns` 가 비어 있다(`read_site_events` 가 돌려주지 않음, 협업·관제 요청 중).
 
-## 운영자 명령 (자리만)
+## 운영자 명령
 
-버튼은 [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 4절 `POST /api/operator-commands` 의 종류를 그대로 쓴다(`view.COMMANDS`). 결과가 큰 순서로 묶는다.
+버튼은 [관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 4절 `POST /api/operator-commands` 의 종류다(`view.COMMANDS`). 결과가 큰 순서로 묶는다.
 
-| 묶음 | 버튼 |
-| --- | --- |
-| 승인 (크게, 파랑) | AMR2 출동 승인(`DISPATCH_SUPPORT`), 다음 구간 계속(`CONTINUE_SEGMENT`) |
-| 임무 | 재확인 지시, 복귀, 일시정지, 재개, 작업 취소, 수동 탐색 시작 |
-| 정지 (따로, 빨강) | 정지(`STOP_ROBOT`) |
+| 묶음 | 버튼 | 보냄 |
+| --- | --- | --- |
+| 승인 (크게, 파랑) — 임무 흐름의 사람 승인 지점 순서 | 수색 시작(`START_SEARCH`), AMR2 출동 승인(`DISPATCH_SUPPORT`), 다음 구간 계속(`CONTINUE_SEGMENT`) | 보냄 |
+| 임무 | 재확인 지시(`REQUEST_RECHECK`), 복귀(`RETURN_HOME`) | 보냄 |
+| 임무 | 일시정지·재개·작업 취소 | 꺼 둠 — Q-22 재개 관문 미결 |
+| 정지 (따로, 빨강) | 정지(`STOP_ROBOT`) | 꺼 둠 — RequestStop 별도 경로, 현장 정지는 별도 수단 |
 
-모두 `disabled` 다. 누를 수 없고, 명령을 받는 경로(POST 라우트)도 없고, `view.request_command` 는 항상 `NOT_CONNECTED` 로 거절한다. 명령은 operations 의 명령 API 와 Q-22 안전 관문이 생긴 뒤 연결한다(버튼 활성은 서버 관문의 거울일 뿐 관문이 아니다). 패널 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요」를 늘 둔다. 버튼은 1초 폴링 조각 밖에 있어 누르려는 순간 다시 그려지지 않는다.
+- **켜지는 때 (조정기 관문의 거울, `view.command_gates`):** 버튼 활성은 관문이 아니다. 켜진 명령도 조정기가 거절할 수 있고, 그 답을 그대로 보인다. 아래 조건 모두 `mission_state` 행이 있고 모드가 `DISASTER` 일 때만이다. 버튼 아래 작은 글씨가 지금 꺼진(켜진) 이유다.
+
+  | 명령 | 켜짐 | 보내는 값 |
+  | --- | --- | --- |
+  | 수색 시작 | 단계 `DISASTER`(아직 수색 전) | 없음 |
+  | AMR2 출동 승인 | 출동 없음, 확정·미구출 대상 중 대상 revision 이 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
+  | 다음 구간 계속 | `segment_phase == AWAITING_APPROVAL` | `mission_state` 의 `target_id`·`target_revision`·`route_revision`·`segment_index` |
+  | 재확인 지시 | 구출 확인 전 대상이 있음(운영자가 고름) | 고른 대상의 `target_id` |
+  | 복귀 | 단계 `RESCUE_CONFIRMED`·`RECHECK_NEEDED`(판정 뒤) | 없음 |
+
+  보내는 값은 **운영자가 화면에서 본 값**이다. revision·구간을 모르면 `null` 로 보내지 않고 버튼을 끈다(대상 revision 은 대상 상태에 기록되면 켜짐). 종류별 필드는 조정기 `rescue_coordination.mission.COMMAND_FIELDS` 와 같다(시험이 대조).
+- **누르기:** ADMIN 만 누를 수 있다. 버튼을 누르면 아래에 확인 칸이 열려 무엇을 보내는지(대상·revision·「n번째 구간」) 보인다. 「보내기」를 눌러야 보낸다. 확인 칸이 열린 동안 관문 값이 바뀌면(1초 폴링) 확인을 취소하고 「상태가 바뀌어 … 다시 누르세요」를 남긴다. 갱신이 끊기면 모든 버튼을 끈다(최신이 아닌 화면으로 승인하지 않음). 한 번에 한 명령만 보낸다.
+- **보내기:** 브라우저 → 콘솔 `POST /commands`(로그인·CSRF·ADMIN 확인, 폼에 없는 키는 거절) → operations `POST /api/operator-commands` 로 **한 번** 보낸다(`commands.py`, 대기 `COMMAND_TIMEOUT_S = 5` 초 [제안]). 콘솔은 `command_id`(UUID4) 를 새로 만들고 `operator_id` 에 로그인 아이디를 넣는다. 콘솔은 어떤 DB 에도 쓰지 않는다 — 명령 기록(`operator_commands`)은 operations 몫이다.
+- **답 보이기:** 패널 아래 기록(최근 6건)에 「접수됨 (실행 완료 아님)」 또는 「거절 <사유 코드> (한국어 풀이)」와 `request_id` 를 그대로 보인다. 사유 풀이는 `labels.py` 의 `reply`, 모르는 코드는 코드 그대로.
+- **실패:** 「보내지 못함」으로 드러내고 다시 보내지 않는다(팀 `AGENTS.md` 7절). 연결 거부는 「전달 안 됨」, 시간 초과·operations 오류·응답 모양이 틀림은 「전달됐는지 모름 — command_id … 로 명령 기록을 확인한 뒤 다시 누르세요」. 콘솔 터미널 로그에도 명령마다 한 줄씩 남는다.
+- 패널 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요」를 늘 둔다. 버튼은 1초 폴링 조각 밖에 있어 누르려는 순간 다시 그려지지 않고, 켜짐 상태는 조각에 실린 관문 값(`#gates`)으로 바뀐다.
 
 ## 하지 않는 것 / 후속
 
-- 하지 않음: 운영 장부 쓰기, ROS 구독, 명령 전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
+- 하지 않음: 운영 장부 쓰기, ROS 구독, 로봇에 직접 명령, 명령 재전송, 카메라 원본 스트리밍. 로그인·계정은 위 절(콘솔 소유 DB 만 쓴다).
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
-- 후속: 현장 상태 1.1(`mission_state`·`error_log`·`operator_commands`) 읽기, 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서), 오류 이력 표(3.7.4), 명령 패널(operations `POST /api/operator-commands` 뒤).
+- 후속: 일시정지·재개·취소(Q-22 뒤), 정지 버튼(RequestStop 경로), 최근 명령 표(`read_operator_commands`)·오류 이력 표(`error_log`, 3.7.4) 읽기, 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 대상 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`, #48) 표시, 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서).
 - 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.

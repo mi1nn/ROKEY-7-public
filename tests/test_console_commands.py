@@ -72,11 +72,12 @@ class CommandRequestTests(unittest.TestCase):
         self.assertEqual({kind: set(fields) for kind, fields in COMMAND_FIELDS.items()},
                          {kind: set(fields) for kind, fields in GATE.items()})
 
-    def test_dispatch_goes_without_the_target_revision_the_console_does_not_have(self):
-        # site_state target_states has no target revision yet (PR body, open item); continue has all values.
-        self.assertIsNone(self.build('DISPATCH_SUPPORT', target_id='t-1', target_revision='')['target_revision'])
-        with self.assertRaises(ConsoleError):
-            self.build('CONTINUE_SEGMENT', **dict(self.FORMS['CONTINUE_SEGMENT'], target_revision=''))
+    def test_every_value_the_operator_saw_must_be_there(self):
+        # An unknown revision or segment is never sent as null for operations to fill (작전 #115).
+        for kind, name in (('DISPATCH_SUPPORT', 'target_revision'), ('CONTINUE_SEGMENT', 'target_revision'),
+                           ('CONTINUE_SEGMENT', 'route_revision'), ('CONTINUE_SEGMENT', 'segment_index')):
+            with self.subTest(kind=kind, field=name), self.assertRaises(ConsoleError):
+                self.build(kind, **dict(self.FORMS[kind], **{name: ''}))
 
     def test_held_and_unknown_kinds_are_refused_before_anything_is_sent(self):
         for kind in HELD + ('FINISH_MISSION', 'RESET_STOP', 'SET_CAMERA_WATCH', '', 'start_search'):
@@ -274,15 +275,23 @@ class GateTests(LedgerFixture):
         self.assertEqual(start['args'], {})
         self.assertOff(self.gates(mission_state('DISASTER', 'SEARCHING'))['START_SEARCH'], '이미 수색')
 
-    def test_dispatch_needs_a_confirmed_target_and_no_dispatch_yet(self):
-        dispatch_gate = self.gates(mission_state('DISASTER', 'TARGET_FOUND'))['DISPATCH_SUPPORT']
+    def with_revisions(self, **revisions):
+        return [dict(state, target_revision=revisions[label]) if label in revisions else state
+                for label, state in zip(('unconfirmed', 'waiting', 'supporting', 'rescued'),
+                                        self.status['target_states']['targets'])]
+
+    def test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet(self):
+        targets = self.with_revisions(waiting=4, supporting=7, rescued=2)
+        dispatch_gate = self.gates(mission_state('DISASTER', 'TARGET_FOUND'), targets=targets)['DISPATCH_SUPPORT']
         self.assertTrue(dispatch_gate['enabled'])
-        # Confirmed and not rescued; the ledger-only target counts too, the coordinator decides.
-        self.assertEqual({c['target_id'] for c in dispatch_gate['choices']},
-                         {uid('waiting'), uid('supporting'), uid('arrived')})
-        self.assertEqual({c['target_revision'] for c in dispatch_gate['choices']}, {None})
-        self.assertOff(self.gates(mission_state('DISASTER', 'SEGMENT_MOVING', dispatch=dispatch('EXECUTING')))
-                       ['DISPATCH_SUPPORT'], '이미 출동')
+        # Confirmed, not rescued and with the revision the operator approves. The ledger-only target has no
+        # revision on screen, so it is not offered (작전 #115: unknown -> off, never null).
+        self.assertEqual({c['target_id']: c['target_revision'] for c in dispatch_gate['choices']},
+                         {uid('waiting'): 4, uid('supporting'): 7})
+        self.assertOff(self.gates(mission_state('DISASTER', 'TARGET_FOUND'))['DISPATCH_SUPPORT'],
+                       '대상 revision 없음')
+        self.assertOff(self.gates(mission_state('DISASTER', 'SEGMENT_MOVING', dispatch=dispatch('EXECUTING')),
+                                  targets=targets)['DISPATCH_SUPPORT'], '이미 출동')
         lone = self.gates(mission_state('DISASTER', 'SEARCHING'), targets=[target_state('unconfirmed', confirmed=False)],
                           ledger_reports=False)
         self.assertOff(lone['DISPATCH_SUPPORT'], '확정 대상 없음')

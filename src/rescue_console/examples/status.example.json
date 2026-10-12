@@ -116,5 +116,23 @@
         "updated_at_ns": 1700000006123456789
       }
     ]
+  },
+  "mission_state": {
+    "schema_version": "1.2",
+    "mission": {
+      "mode": "DISASTER",
+      "phase": "SEARCHING",
+      "trigger_event_id": "00000000-0000-4000-8000-000000000001",
+      "started_at_ns": 1699999970123456789,
+      "generation": null,
+      "updated_at_ns": 1700000006123456789,
+      "target_id": null,
+      "target_revision": null,
+      "route_revision": null,
+      "segment_index": null,
+      "segment_count": null,
+      "segment_phase": null,
+      "reason": null
+    }
   }
 }

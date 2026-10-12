@@ -6,6 +6,8 @@ Values that are missing stay None and are shown as missing; nothing is filled in
 
 from rescue_contracts import RESCUE_STATES, RescueError, SiteEvent
 
+from .labels import label
+
 # Q-20 (scope.md, 2026-10-08): the four Part I 3.7.2 stages are composed here, in the
 # display layer. The contract vocabulary (RESCUE_STATES, confirmation_result) is not extended.
 STAGES = {
@@ -29,9 +31,10 @@ STAGE_RULES = (
 )
 
 # Operator commands: the kinds of `POST /api/operator-commands` in console-and-db-plan 4절
-# (Part I 3.7.6 plus the two approval gates of 1절). Placeholders only: no transport exists until
-# that operations API and the Q-22 safety gates do. Enabling one is a separate PR with its own tests.
+# (Part I 3.7.6 plus the human gates of the mission flow). The first five are sent to operations
+# (rescue_console.commands); the rest stay off here whatever the state.
 COMMANDS = (
+    ('START_SEARCH', '수색 시작'),
     ('DISPATCH_SUPPORT', 'AMR2 출동 승인'),
     ('CONTINUE_SEGMENT', '다음 구간 계속'),
     ('REQUEST_RECHECK', '재확인 지시'),
@@ -39,17 +42,25 @@ COMMANDS = (
     ('PAUSE', '일시정지'),
     ('RESUME', '재개'),
     ('CANCEL', '작업 취소'),
-    ('START_SEARCH', '수동 탐색 시작'),
     ('STOP_ROBOT', '정지'),
 )
-# Panel grouping: the two approval gates first, the stop apart from everything else.
+# Panel grouping: the flow's human gates in order (#85 start, AMR2 dispatch, each next segment) first,
+# the stop apart from everything else.
 COMMAND_GROUPS = {
-    'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
+    'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
     'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
-    'CANCEL': 'mission', 'START_SEARCH': 'mission',
+    'CANCEL': 'mission',
     'STOP_ROBOT': 'stop',
 }
-COMMAND_DISABLED_REASON = '운영 명령 API 연결 전 — Q-22 안전 관문이 정해진 뒤 켜짐'
+# Commands the console never sends, and why (작전 2026-10-12, #115).
+HELD_COMMANDS = {
+    'PAUSE': 'Q-22 재개 관문 전',
+    'RESUME': 'Q-22 재개 관문 전',
+    'CANCEL': 'Q-22 재개 관문 전',
+    'STOP_ROBOT': 'RequestStop 별도 경로 — 위험하면 현장 비상 정지 장치',
+}
+# Phases after the mission verdict, before the return (rescue_coordination.mission: RETURN_HOME needs a verdict).
+VERDICT_PHASES = frozenset({'RESCUE_CONFIRMED', 'RECHECK_NEEDED'})
 
 # Row cap for the event table; older rows stay in the ledger ([제안] 관제·화면, 2026-10-08).
 EVENT_ROWS = 50
@@ -59,9 +70,9 @@ EVENT_ROWS = 50
 # readiness max_age_s once profile v2.1 (#39) is on main.
 STATUS_STALE_S = 5.0
 
-# Mission mode shown in the badge. Until site_state 1.1 adds `mission_state`
-# (console-and-db-plan 3절), the mode is inferred from the site events alone.
-MODES = {'NORMAL': '평시', 'DISASTER': '재난'}
+# Mission badge words: site_state MISSION_MODES (contract S-00 modes + SystemState MISSION_FINISHED).
+MODES = {'NORMAL': '평시', 'DISASTER': '재난', 'CLEARING': '해제 중', 'MISSION_FINISHED': '임무 종료'}
+DISPATCH_KEYS = ('target_id', 'target_revision', 'route_revision', 'segment_index', 'segment_count', 'segment_phase')
 
 
 class ConsoleError(ValueError):
@@ -147,6 +158,10 @@ def _targets(ledger, target_states):
             position = _position(payload['position'], 'report')
             warnings.append('구조 상태 입력 없음')
         rescue_state = None if state is None else state['rescue_state']
+        # The revision the operator approves (SubmitOperatorCommand expected_target_revision). It comes in the
+        # target state once operations stores it; until then None, and the dispatch button stays off.
+        revision = None if state is None else state.get('target_revision')
+        _require(revision is None or (type(revision) is int and revision >= 0), 'target_revision')
         support_state = None if state is None else state['support_state']
         approach = None if payload is None else payload['approach_result']
         stage, rule, rule_warnings = compose_stage(confirmed, rescue_state, support_state, approach)
@@ -154,6 +169,7 @@ def _targets(ledger, target_states):
             warnings.append('장부에 보고가 없는 대상')
         rows.append({
             'target_id': target_id,
+            'target_revision': revision,
             'stage': stage,
             'stage_label': STAGES[stage],
             'rule': rule,
@@ -263,21 +279,107 @@ def _events(ledger, site_events):
     return rows[:EVENT_ROWS], len(rows)
 
 
-def _mission(site_events):
-    """Badge input inferred from DISASTER_SIGN events; None means site events are not available."""
-    if site_events is None:
-        return {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None,
-                'trigger_ns': None, 'sign_count': 0}
-    signs = sorted((e for e in site_events if e.kind == 'DISASTER_SIGN'),
+MISSION_ROW_KEYS = frozenset({'mode', 'phase', 'trigger_event_id', 'started_at_ns', 'updated_at_ns', 'reason',
+                              *DISPATCH_KEYS})
+
+
+def _mission_row(status):
+    """The read_mission_state() result: (section present, row or None)."""
+    section = status.get('mission_state')
+    if section is None:
+        return False, None
+    _require(isinstance(section, dict) and isinstance(section.get('schema_version'), str) and 'mission' in section,
+             'mission_state must be a read API result')
+    row = section['mission']
+    _require(row is None or (isinstance(row, dict) and MISSION_ROW_KEYS <= set(row)), 'mission_state row')
+    return True, row
+
+
+def _mission(site_events, row):
+    """Badge input. The mission_state row (operations writes the coordinator's SystemState, #111) when
+    there is one. Before the first row the mode is inferred from DISASTER_SIGN events and marked so
+    (`source`); None means neither is available."""
+    signs = sorted((e for e in site_events or () if e.kind == 'DISASTER_SIGN'),
                    key=lambda e: (e.observed_at_ns, e.event_id))
+    base = {'sign_count': len(signs), 'phase': None, 'reason': None, 'dispatch': None, 'updated_at_ns': None}
+    if row is not None:
+        dispatch = None if row['target_id'] is None else {key: row[key] for key in DISPATCH_KEYS}
+        return base | {'mode': row['mode'], 'label': label('mode', row['mode']), 'source': 'mission_state',
+                       'trigger_event_id': row['trigger_event_id'], 'trigger_ns': row['started_at_ns'],
+                       'phase': row['phase'], 'reason': row['reason'], 'dispatch': dispatch,
+                       'updated_at_ns': row['updated_at_ns']}
+    if site_events is None:
+        return base | {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None, 'trigger_ns': None}
     mode = 'DISASTER' if signs else 'NORMAL'
-    return {'mode': mode, 'label': MODES[mode], 'source': 'site_events',
-            'trigger_event_id': signs[0].event_id if signs else None,
-            'trigger_ns': signs[0].observed_at_ns if signs else None, 'sign_count': len(signs)}
+    return base | {'mode': mode, 'label': MODES[mode], 'source': 'site_events',
+                   'trigger_event_id': signs[0].event_id if signs else None,
+                   'trigger_ns': signs[0].observed_at_ns if signs else None}
+
+
+def _choice(target):
+    return {'target_id': target['target_id'], 'target_revision': target['target_revision'],
+            'stage': target['stage'], 'stage_label': target['stage_label']}
+
+
+def _gate(name, mission, targets):
+    """(enabled, reason, args, choices) for one command, mirroring rescue_coordination.mission.handle_command."""
+    def off(reason):
+        return False, reason, {}, []
+    if name in HELD_COMMANDS:
+        return off(HELD_COMMANDS[name])
+    if mission['source'] != 'mission_state':
+        return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
+    if mission['mode'] != 'DISASTER':
+        return off(f"재난 모드 아님 ({mission['label']})")
+    phase, dispatch = mission['phase'], mission['dispatch']
+    if name == 'START_SEARCH':
+        return (True, '재난 감지 — 아직 수색 전', {}, []) if phase == 'DISASTER' else off('이미 수색을 시작함')
+    if name == 'DISPATCH_SUPPORT':
+        if dispatch is not None:
+            return off('이미 출동함')
+        confirmed = [t for t in targets if t['detection_confirmed'] and t['stage'] != 'RESCUED']
+        if not confirmed:
+            return off('확정 대상 없음')
+        # The operator approves the revision on screen; a target without one is not offered (never sent as null).
+        choices = [_choice(t) for t in confirmed if t['target_revision'] is not None]
+        if not choices:
+            return off('대상 revision 없음 — 대상 상태에 revision 이 기록되면 켜짐')
+        return True, f'확정 대상 {len(choices)}명 중 고름', {}, choices
+    if name == 'CONTINUE_SEGMENT':
+        if dispatch is None:
+            return off('출동 전')
+        if dispatch['segment_phase'] != 'AWAITING_APPROVAL':
+            return off(f"승인 대기 아님 ({label('segment', dispatch['segment_phase'])})")
+        args = {key: dispatch[key] for key in ('target_id', 'target_revision', 'route_revision', 'segment_index')}
+        return (True, f"구간 {dispatch['segment_index']}/{dispatch['segment_count']} 끝 — 다음 구간 승인 대기",
+                args, [])
+    if name == 'REQUEST_RECHECK':
+        open_targets = [_choice(t) for t in targets if t['rescue_state'] != 'RESCUE_CONFIRMED']
+        if not open_targets:
+            return off('재확인할 대상 없음')
+        return True, f'대상 {len(open_targets)}명 중 고름', {}, open_targets
+    if name == 'RETURN_HOME':
+        if phase == 'RETURNING':
+            return off('이미 복귀 중')
+        if phase not in VERDICT_PHASES:
+            return off('구출 판정 전')
+        return True, '판정 뒤 — 두 로봇 복귀', {}, []
+    raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
+
+
+def command_gates(mission, targets):
+    """Every command with the state of its button. A mirror of the coordinator gate for the screen,
+    not the gate: an enabled command may still be rejected, and that answer is shown as it comes."""
+    rows = []
+    for name, text in COMMANDS:
+        enabled, reason, args, choices = _gate(name, mission, targets)
+        rows.append({'name': name, 'label': text, 'group': COMMAND_GROUPS[name], 'enabled': enabled,
+                     'reason': reason, 'args': args, 'choices': choices})
+    return rows
 
 
 def build_view(ledger, status, *, built_at_ns):
-    """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states'},
+    """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states', 'mission_state'},
     each the matching operations read API result (or None when not available yet)."""
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     warnings = []
@@ -285,8 +387,9 @@ def build_view(ledger, status, *, built_at_ns):
     robot_section = _section(status, 'robot_status', 'robots')
     site_section = _section(status, 'site_events', 'site_events')
     target_section = _section(status, 'target_states', 'targets')
+    has_mission, mission_row = _mission_row(status)
     for key, section in (('robot_status', robot_section), ('site_events', site_section),
-                         ('target_states', target_section)):
+                         ('target_states', target_section), ('mission_state', has_mission or None)):
         if section is None:
             warnings.append(f'{key} 입력 없음')
     target_states = {}
@@ -304,10 +407,11 @@ def build_view(ledger, status, *, built_at_ns):
     for row in targets:
         stage_counts[row['stage']] += 1
     events, event_total = _events(ledger, site_events)
+    mission = _mission(None if site_section is None else site_events, mission_row)
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': ledger['evidence_policy'],
-        'mission': _mission(None if site_section is None else site_events),
+        'mission': mission,
         'robots': _robots(allowed, [] if robot_section is None else robot_section['robots'],
                           built_at_ns, warnings),
         'targets': targets,
@@ -316,13 +420,6 @@ def build_view(ledger, status, *, built_at_ns):
         'events': events,
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
-        'commands': [{'name': name, 'label': label, 'group': COMMAND_GROUPS[name], 'enabled': False,
-                      'reason': COMMAND_DISABLED_REASON} for name, label in COMMANDS],
+        'commands': command_gates(mission, targets),
         'warnings': warnings,
     }
-
-
-def request_command(name):
-    """Every operator command is refused here; nothing is sent to a robot or written to a DB."""
-    _require(name in dict(COMMANDS), f'unknown command {name!r}')
-    raise ConsoleError('NOT_CONNECTED', f'{name}: {COMMAND_DISABLED_REASON}')
