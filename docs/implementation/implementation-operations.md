@@ -253,4 +253,6 @@ E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드�
 | E2: `tests/test_operations_command_api.py`(요청 검사·IDL 필드·응답·기록·재전송 시각·HTTP), `tests/test_operations_ros_node.py`(파라미터) | 통과 |
 | 로컬 ROS 실행(jazzy, `ROS_DOMAIN_ID=77`, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 환경 변수 해제, 한 PC, 2026-10-12): [`tests/ros/e3_command_api_probe.py`](../../tests/ros/e3_command_api_probe.py) 가 db_writer(API)와 실제 조정기 노드를 띄우고 콘솔처럼 POST | 첫 실행에서 재전송이 `ID_CONTENT_CONFLICT` 였다(위 `issued_at_ns`). 고친 뒤 11개 모두 PASS: 조정기 전 503(`accepted` 없음, 행 없음, `error_log` ACCEPT_TIMEOUT), 잘못된 요청 400, 재난 전 START_SEARCH 200 거절 `NOT_AUTHORIZED`, DISASTER_SIGN·READY 뒤 200 접수(작업 ID 발급), 재전송 200 DUPLICATE·처음 답, 조정기 종료 뒤 503, db_writer 종료 코드 0 |
 
-E3 범위 밖: 콘솔(#115)과의 실제 연결, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.
+| 같은 조건에서 머지된 #115 콘솔의 전송 코드(`rescue_console.commands.build_request`·`send_command`, Flask 없이 도는 부분)로 같은 API 를 호출 | 재난 전 START_SEARCH 「거절 NOT_AUTHORIZED(재난 모드가 아님)」, 재난 뒤 「접수」, 같은 id 재전송 DUPLICATE, 출동 없는 CONTINUE_SEGMENT 「거절 INVALID_INPUT」, 조정기 종료 뒤 `BAD_RESPONSE`·전달 `UNKNOWN`(「전달됐는지 모름」), 틀린 포트 `UNREACHABLE`·전달 `NOT_SENT`. 명령 표 3행, db_writer 종료 코드 0 |
+
+E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.
