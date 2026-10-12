@@ -1,0 +1,64 @@
+{
+  "zip_audit": [
+    {
+      "file": "hunman.v2i.yolo26.zip",
+      "sha256": "adca41a6dc5ba112932af7065f04a45d71f45ea40675981ced9c79a9469206af",
+      "matched_reference_files": 1195,
+      "different_files": []
+    },
+    {
+      "file": "hunman.v2i.yolov11.zip",
+      "sha256": "ea83f1a6da1d069d5b9d2002b6e78fa339b7f21db02515196350444272c1d152",
+      "matched_reference_files": 1194,
+      "different_files": [
+        "README.roboflow.txt"
+      ]
+    },
+    {
+      "file": "hunman.v2i.yolov8.zip",
+      "sha256": "a47bd1bae664ac8ce2947c1f4ef5dd86a88a799915cde2c6c1cbf7011d1f3822",
+      "matched_reference_files": 1194,
+      "different_files": [
+        "README.roboflow.txt"
+      ]
+    }
+  ],
+  "splits": {
+    "train": {
+      "images": 418,
+      "boxes": 418,
+      "empty_images": 0,
+      "image_sizes": {
+        "(512, 512)": 418
+      },
+      "width_px_min": 64.5,
+      "width_px_max": 340.0,
+      "height_px_min": 43.5,
+      "height_px_max": 315.5
+    },
+    "valid": {
+      "images": 120,
+      "boxes": 120,
+      "empty_images": 0,
+      "image_sizes": {
+        "(512, 512)": 120
+      },
+      "width_px_min": 40.0,
+      "width_px_max": 299.0,
+      "height_px_min": 44.5,
+      "height_px_max": 309.0
+    },
+    "test": {
+      "images": 59,
+      "boxes": 59,
+      "empty_images": 0,
+      "image_sizes": {
+        "(512, 512)": 59
+      },
+      "width_px_min": 70.0,
+      "width_px_max": 289.5,
+      "height_px_min": 50.0,
+      "height_px_max": 331.5
+    }
+  }
+}
