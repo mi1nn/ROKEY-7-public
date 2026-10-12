@@ -1,5 +1,6 @@
 """E2 synthetic preview tests; no ROS, camera, YOLO or GUI inference is claimed."""
 import hashlib
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
@@ -21,6 +22,8 @@ def config(**overrides):
 class PreviewTests(unittest.TestCase):
     def test_deployment_configs_select_gpu_and_half_confidence(self):
         config_dir = Path(__file__).resolve().parents[1] / 'src/rescue_perception/config'
+        if not config_dir.exists():
+            config_dir = Path(sys.prefix) / 'share/rescue_perception/config'
         for name in ('amr_camera_node.example.yaml', 'amr_target_node.example.yaml'):
             with self.subTest(config=name):
                 fields = {}

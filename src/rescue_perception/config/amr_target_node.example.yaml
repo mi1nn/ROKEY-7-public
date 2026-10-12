@@ -22,9 +22,9 @@ amr_target_node:
     model_sha256: 0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74
     model_label: survivor
     model_imgsz: 640
-    model_conf: 0.25
+    model_conf: 0.5                       # detection threshold [user setting, 2026-10-12]
     confirm_confidence_min: 0.8           # proposal; not accepted field threshold
-    device: cpu
+    device: '0'                       # first CUDA GPU [user setting, 2026-10-12]
     show: false
     no_frame_warn_s: 5.0
     log_every: 10
