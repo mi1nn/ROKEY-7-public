@@ -1,7 +1,7 @@
 """ROS-free validation and one-frame processing for the AMR YOLO preview.
 
 Preview only: no localization, tracking, observation admission or motion.
-All thresholds are supplied by the caller; example values are not acceptance limits.
+Settings are supplied by the nodes; hardware evidence is checked separately.
 """
 from copy import deepcopy
 import hashlib

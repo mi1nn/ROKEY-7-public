@@ -35,63 +35,49 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 
 ## AMR 단위 검증 노드 (2026-10-12)
 
-[사용자 요구] 기존 인식 코어에 AMR 알고리즘을 연결하고 amr_camera·amr_target을 각각 시험·보정한 뒤 기존 코드의 후속 수정·통합을 진행한다. 이번 PR은 Draft이며 실제 로봇 인수 완료를 뜻하지 않는다. 기존 웹캠·bag 코드는 유지한다.
+[사용자 요구] 기존 인식 코어에 AMR 알고리즘을 연결하고 amr_camera·amr_target을 각각 시험·보정한 뒤 기존 코드의 후속 수정·통합을 진행한다. 이번 PR은 Draft이며 실제 로봇 인수 완료를 뜻하지 않는다.
 
-- `amr_camera_node`: RGB raw/compressed → YOLO 1회 → 원 헤더를 보존한 annotated Image. GUI는 show=true에서만 사용한다.
-- `amr_target_node`: 동기화한 RGB·Depth + CameraInfo → 기존 PersonPipeline·adapter·core → TargetObservation. 충분한 신뢰도·위치·fresh clock/map/alignment·관측 시각 TF·공분산 근거를 만족할 때만 TargetLocation.
-- `amr_camera_support`: 설정·모델 SHA·단일 survivor 클래스 검사와 RGB 복호화/추론을 두 노드가 공유한다.
-- `amr_target_support`: YOLO 결과 변환·관측/위치 메시지 작성·map revision/TF/공분산 검사·compressedDepth PNG 복호화·robot6 보정 로드를 한 모듈에 모았다. ROS는 노드 경계에서, OpenCV/NumPy 복호화 의존성은 함수 안에서 import한다.
-
-### 설정 파일
-
-| 파일 | 담는 값 |
+| 파일 | 목적 |
 | --- | --- |
-| [amr_camera_node.example.yaml](config/amr_camera_node.example.yaml) | RGB 토픽·raw/compressed·출력 토픽, 모델 경로/SHA/class/imgsz/conf/device, GUI·단절 경고 |
-| [amr_target_node.example.yaml](config/amr_target_node.example.yaml) | RGB·Depth·CameraInfo·MapState/출력 토픽, 로봇/카메라/frame ID, 시각 의미·동기 허용치, 깊이·확정·최신성 정책, 좌표 발행·공분산·지도 정렬 조건 |
-| [amr_target_node.robot6-depth.yaml](config/amr_target_node.robot6-depth.yaml) | physical_robot_id=robot6와 package:robot6_depth.json을 선택하는 override. 보정계수 중복 없음 |
-| [amr_projection.template.json](config/amr_projection.template.json) | mapping 담당이 채울 map/mission frame·session/revision·authority·변환·유효기간·오차·공분산 근거. 기본 INVALID라 그대로 사용 불가 |
-| [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 보정계수·offset·원 측정값·날짜·PR #126 출처·사용자 승인·한계. 설치본에도 포함 |
+| [amr_camera.py](rescue_perception/amr_camera.py) | RGB raw/compressed → YOLO 1회 → 원 헤더를 보존한 annotated Image. 공통 실행 설정은 상단 SETTINGS에 둔다 |
+| [amr_target.py](rescue_perception/amr_target.py) | RGB·Depth·CameraInfo → 기존 PersonPipeline·adapter·core → TargetObservation. RGB 설정을 공유하고 Depth·관측 정책만 SETTINGS에 추가한다 |
+| [camera_utils.py](rescue_perception/camera_utils.py) | 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
+| [target_utils.py](rescue_perception/target_utils.py) | YOLO 관측/좌표 메시지, map revision/TF/공분산 검사, compressedDepth PNG 복호화, robot6 보정 로드 |
+| [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 보정계수·원 측정값·날짜·PR #126 출처·적용 한계. 설치본에도 포함 |
 
-[사용자 요구] 2026-10-12 “이것은 robot6_depth로 수정해서 한개의 파일로 합쳐주고”. 보정 데이터는 robot6_depth.json 한 곳에 둔다. 별도 assets manifest 참조는 제거했다. 파일은 저장소 안의 패키지 자산이며 출처·측정·적용 범위는 JSON 안에 보존한다.
+[사용자 요구, 2026-10-12] “환경별 설정하는거는 싹다 지워버리고 필수적인 부분은 코드에 넣어주는 식으로 코드를 줄여주고 node 와 support를 파일이름좀 바꿔봐 형식이 너무 길어”. AMR YAML 3개와 projection template JSON, 필수 ROS 파라미터 선언/읽기 코드를 제거했다. 위 두 노드의 SETTINGS를 직접 사용하며 환경별 override 파일은 없다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
 
-[계산, 2026-10-12] scale = 0.82 / mean(0.854, 0.853, 0.857), offset=0. RGB는 그대로 두고 Depth를 m로 변환한 뒤 원 0·음수·NaN·Inf를 제외한다. corrected_m = raw_m * scale + offset_m을 한 번 적용하고 보정된 범위·불연속 검사·중앙값으로 optical XYZ를 계산한다. 16UC1/mm·32FC1/m, raw·PNG compressedDepth 경로가 같은 계산을 사용한다. 원 Depth 토픽을 재발행하지 않는다.
+[설정/사용자 요구, 2026-10-12] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.8`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot6_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. clock/stamp/alignment는 UNKNOWN·미확인을 유지한다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
 
-보정 프로파일 physical_robot_id가 실행 설정과 다르면 기동을 거절한다. 다른 로봇의 보정 기본은 identity다. 이미 보정된 입력에 다시 적용하면 이중 보정이므로 raw 입력을 사용한다. 이 계수는 단일 82cm 측정에서 계산한 것이며 다거리 정확도·RGB-Depth 정렬·시간 동기를 증명하지 않는다.
-
-[사용자 요구, 2026-10-12] “실제 환경에 맞게 바꿔줘  일단 cpu 말고 gpu 쓰고 있고 confi도 탐지는 0.5이상으로 해주고”. 두 AMR 실행 YAML에 `device: '0'`(첫 번째 CUDA GPU)와 `model_conf: 0.5`를 적용했다. ROS 문자열 타입을 유지한다. CUDA 사용 가능 여부와 실제 GPU 추론은 실기에서 확인해야 한다. 탐지와 별개인 `confirm_confidence_min: 0.8`은 기존 확정 정책이다. 토픽·frame·정렬·시각 값은 확인 근거가 없으므로 실제 환경 검증이 필요하다.
+[사용자 요구, 2026-10-12] “이것은 robot6_depth로 수정해서 한개의 파일로 합쳐주고”. 보정 데이터는 JSON 한 곳에 둔다. [계산, 2026-10-12] PR #126의 단일 82cm 기록에서 scale = 0.82 / mean(0.854, 0.853, 0.857), offset=0. RGB는 유지하고 Depth를 m로 변환한 뒤 원 0·음수·NaN·Inf를 제외한다. raw_m * scale + offset_m을 한 번 적용하고 범위·불연속 검사·중앙값으로 optical XYZ를 계산한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m 모두 같은 보정을 사용한다. 다른 physical_robot_id는 보정 로드 시 거절하며 이미 보정된 입력은 사용하지 않는다.
 
 ### 빌드와 실행
 
-ROS·OpenCV·cv_bridge·Ultralytics는 실행 환경에서 준비해야 한다. 버전 목록 파일은 사용자 요청으로 제거했으며 자동 설치·로봇 패키지 변경은 하지 않는다. 저장소 루트에서:
+ROS·OpenCV·cv_bridge·Ultralytics와 CUDA 사용 가능한 추론 환경이 필요하다. 모델은 [선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)의 best.pt다. 저장소 루트에서:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 colcon build --packages-select rescue_contracts rescue_mapping rescue_interfaces rescue_perception \
   --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3 -DPYTHON_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
-ros2 run rescue_perception amr_camera_node --ros-args \
-  --params-file src/rescue_perception/config/amr_camera_node.example.yaml
-# camera 노드를 종료한 뒤 좌표 노드를 따로 시험한다.
-ros2 run rescue_perception amr_target_node --ros-args \
-  --params-file src/rescue_perception/config/amr_target_node.example.yaml \
-  --params-file src/rescue_perception/config/amr_target_node.robot6-depth.yaml
+ros2 run rescue_perception amr_camera
+# camera 노드를 종료한 뒤 target 노드를 따로 시험한다.
+ros2 run rescue_perception amr_target
 ```
 
-모델은 [선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)의 best.pt를 사용한다. 예시 토픽·frame·시간·정렬·공분산 값은 실제 입력과 근거로 별도 설정해야 한다. robot6 override는 거리 보정만 선택하고 locations_enabled:false·UNKNOWN·정렬 미확인 등의 관문을 해제하지 않는다. 유효 지도 좌표 발행에는 mapping 권한자의 fresh MapState·FrameAlignment snapshot·관측 시각 TF가 필요하다.
+YAML이나 `--params-file`은 필요 없다. ROS 표준 namespace/topic remap은 사용할 수 있다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
-RGB·Depth는 stamp로 동기화한다. sync_slop_ns=0은 exact synchronizer다. CameraInfo는 frame/해상도와 최신 stamp를 요구한다. Depth는 ConfigHeader+PNG만 지원하며 RVL·RGB JPEG·컬러화 depth는 거절한다. 32FC1은 전송 양자화로 원 float와 완전히 같지 않다. 최신 TF나 static-zero 결과로 원 관측 시각을 대체하지 않는다. 실패는 UNKNOWN 관측 또는 위치 발행 차단·이유 로그로 드러난다.
+RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. 위치 발행은 mapping 담당이 `create_node(projection_metadata=...)`로 검증된 ProjectionMetadata를 직접 연결했을 때만 시도한다. 독립 실행은 metadata가 없으므로 TargetLocation을 발행하지 않는다. 연결해도 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 모두 검사하며 최신 TF나 static-zero로 대체하지 않는다. 주행 명령은 보내지 않는다.
 
 ### 시험과 범위
 
-- tests/test_perception_amr_camera.py: 필수 설정·모델 SHA/class·RGB 형식·원 헤더 보존·빈 탐지/추론 실패.
-- tests/test_perception_amr_target.py: YOLO 결과·optical/mission 좌표·메시지 provenance·clock/map revision/TF·공분산 회전.
-- tests/test_perception_depth_calibration.py: mm/m 보정 XYZ·무효값 보존·로봇 불일치·단일 패키지 프로파일·설치 설정 연결.
+- tests/test_perception_amr_camera.py: 코드 설정·GPU/신뢰도 전달·모델 SHA/class·RGB 형식·원 헤더 보존·추론 실패.
+- tests/test_perception_amr_target.py: YOLO 관측·optical/mission 좌표·clock/map revision/TF·공분산 회전.
+- tests/test_perception_depth_calibration.py: 코드 기본값과 robot6 프로파일 연결·mm/m XYZ·무효값·로봇 불일치·설치 리소스.
 
 ```bash
 PYTHONPATH=src/rescue_contracts:src/rescue_mapping:src/rescue_perception \
   python3 -m unittest discover -s tests -p 'test_perception*.py' -v
 ```
 
-[사용자 요구, 2026-10-12] 작은 helper를 amr_target_support로 합치고 두 AMR smoke 도구·이미지 파일 infer 도구·버전 목록은 제거한다. 단위시험과 실제 실행 노드는 유지한다. 제거한 도구의 실행 명령은 현재 인터페이스가 아니다.
-
-현재 head의 실제 robot6 RGB-D·GUI·다거리 보정·시간/정렬·센서 공분산·TF/SLAM·조정기/DB·중요 사건 receipt·2 AMR/4 PC 인수는 NOT_RUN이다. covariance 근거는 보정 후 좌표의 분산을 설명해야 한다. TargetLocation 발행은 저장 보장·자동 접근 승인이 아니다. 기존 full-frame Python Depth 검사의 실기 처리량은 측정이 필요하다.
+실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. TargetLocation 발행은 저장 보장·자동 접근 승인이 아니다.

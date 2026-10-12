@@ -1,6 +1,6 @@
 """ROS boundary: compressed-first AMR RGB -> local YOLO -> annotated Image.
 
-Following PR #113: explicit typed parameters, local model hash, startup/failure
+Following PR #113: local model hash, startup/failure
 logs, lazy ROS/model imports, ROS-free helpers. This is a diagnostic preview,
 not a PersonPipeline/Observation producer. No robot control or sensor restart.
 """
@@ -9,33 +9,38 @@ import os
 import sys
 import time
 
-from .amr_camera_support import (PARAMS, PreviewProcessor, git_sha, validate_config,
+from .camera_utils import (PreviewProcessor, git_sha, validate_config,
                                  validate_labels, verify_model)
 
+
+# User settings, 2026-10-12: one robot6/GPU deployment, no external YAML.
+# Topic/frame names still require live verification; no sensor settings are changed.
+SETTINGS = {
+    'image_topic': 'camera/image_raw/compressed',
+    'image_type': 'compressed',
+    'annotated_topic': 'perception/annotated',
+    'model_path': 'assets/models/best.pt',
+    'model_sha256': '0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74',
+    'model_label': 'survivor',
+    'model_imgsz': 640,
+    'model_conf': 0.5,
+    'device': '0',
+    'show': False,
+    'no_frame_warn_s': 5.0,
+    'log_every': 10,
+}
 
 def create_node(*, model_factory=None):
     """Create the ROS node. model_factory is an injection point for synthetic tests."""
     import cv2
     from cv_bridge import CvBridge
-    from rcl_interfaces.msg import ParameterDescriptor, ParameterType
     from rclpy.node import Node
-    from rclpy.parameter import Parameter
-    from rclpy.exceptions import ParameterUninitializedException
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from sensor_msgs.msg import CompressedImage, Image
 
-    node = Node('amr_camera_node')
+    node = Node('amr_camera')
     try:
-        values = {}
-        for key, kind in PARAMS.items():
-            node.declare_parameter(key, getattr(Parameter.Type, kind),
-                ParameterDescriptor(type=getattr(ParameterType, 'PARAMETER_' + kind), read_only=True,
-                                    description='Required AMR YOLO preview startup parameter'))
-            try:
-                values[key] = node.get_parameter(key).value
-            except ParameterUninitializedException:
-                values[key] = None
-        v = validate_config(values)
+        v = validate_config(SETTINGS)
         source = node.resolve_topic_name(v['image_topic'])
         output = node.resolve_topic_name(v['annotated_topic'])
         if source == output:

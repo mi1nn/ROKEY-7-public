@@ -1,7 +1,0 @@
-# User-authorized robot6 correction, 2026-10-12, PR #126.
-# Overlay AFTER amr_target_node.example.yaml and the actual sensor/topic settings.
-# Use raw, previously uncorrected depth; applying this to corrected input doubles the correction.
-amr_target_node:
-  ros__parameters:
-    physical_robot_id: robot6
-    depth_calibration_path: package:robot6_depth.json

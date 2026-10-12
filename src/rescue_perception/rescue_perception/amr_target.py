@@ -11,46 +11,74 @@ import os
 import sys
 import time
 from dataclasses import replace
-from pathlib import Path
 from uuid import uuid4
 
-from .amr_camera_support import PARAMS as PREVIEW_PARAMS, PreviewProcessor, git_sha, validate_labels, verify_model
-from .amr_target_support import (MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
+from .amr_camera import SETTINGS as CAMERA_SETTINGS
+from .camera_utils import PreviewProcessor, git_sha, validate_config, validate_labels, verify_model
+from .target_utils import (MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
     fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform, load_depth_calibration, decode_depth_png)
 from .adapter import ObservationPolicy, SourceBinding, stamp_ns
 from .core import AlignmentEvidence, DepthPolicy, ModelManifest, TimePolicy
 from .person_pipeline import ConfirmationPolicy, PersonPipeline
 
-PARAMS = dict(PREVIEW_PARAMS, **{
-    'physical_robot_id': 'STRING', 'depth_calibration_path': 'STRING',
-    'depth_topic': 'STRING', 'depth_transport': 'STRING', 'depth_byte_order': 'STRING',
-    'camera_info_topic': 'STRING', 'observations_topic': 'STRING', 'locations_topic': 'STRING',
-    'map_state_topic': 'STRING', 'robot_id': 'STRING', 'camera_id': 'STRING', 'model_id': 'STRING',
-    'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING', 'calibration_id': 'STRING',
-    'rgb_stamp_semantics': 'STRING', 'depth_stamp_semantics': 'STRING', 'clock_domain_id': 'STRING',
-    'clock_state': 'STRING', 'alignment_evidence_id': 'STRING', 'projection_metadata_path': 'STRING',
-    'publisher_id': 'STRING', 'envelope_version': 'STRING', 'alignment_authority': 'STRING',
-    'rgb_rectified': 'BOOL', 'rgb_depth_alignment_verified': 'BOOL', 'locations_enabled': 'BOOL',
-    'clock_error_bound_ns': 'INTEGER', 'receiver_clock_error_ns': 'INTEGER', 'sync_queue_size': 'INTEGER',
-    'sync_slop_ns': 'INTEGER', 'camera_info_max_age_ns': 'INTEGER', 'observation_validity_ns': 'INTEGER',
-    'max_map_age_ns': 'INTEGER', 'max_age_ns': 'INTEGER', 'max_future_ns': 'INTEGER',
-    'max_clock_error_ns': 'INTEGER', 'stamp_delay_bound_ns': 'INTEGER', 'min_valid_pixels': 'INTEGER',
-    'confirm_confidence_min': 'DOUBLE', 'min_depth_m': 'DOUBLE', 'max_depth_m': 'DOUBLE',
-    'min_valid_fraction': 'DOUBLE', 'max_depth_spread_m': 'DOUBLE',
-    'max_alignment_position_error_m': 'DOUBLE', 'max_alignment_rotation_error_rad': 'DOUBLE',
-    'sensor_variance_xyz': 'DOUBLE_ARRAY',
-})
-
+# User settings, 2026-10-12: share RGB settings and always select robot6 correction.
+# UNKNOWN clock/alignment values are deliberate until measured; locations stay blocked.
+SETTINGS = {
+    **CAMERA_SETTINGS,
+    'depth_topic': 'camera/depth/image_raw/compressedDepth',
+    'depth_transport': 'compressedDepth',
+    'depth_byte_order': 'little',
+    'camera_info_topic': 'camera/camera_info',
+    'observations_topic': '/rescue/observations',
+    'locations_topic': '/rescue/target_locations',
+    'map_state_topic': 'mapping/map_state',
+    'robot_id': 'robot_a',
+    'physical_robot_id': 'robot6',
+    'depth_calibration_path': 'package:robot6_depth.json',
+    'camera_id': 'amr_rgbd',
+    'model_id': 'survivor_yolo26n_640',
+    'confirm_confidence_min': 0.8,
+    'rgb_optical_frame': 'camera_rgb_optical',
+    'depth_optical_frame': 'camera_rgb_optical',
+    'calibration_id': 'UNCONFIGURED',
+    'alignment_evidence_id': 'UNCONFIGURED',
+    'rgb_rectified': False,
+    'rgb_depth_alignment_verified': False,
+    'rgb_stamp_semantics': 'UNKNOWN',
+    'depth_stamp_semantics': 'UNKNOWN',
+    'clock_domain_id': 'UNCONFIGURED',
+    'clock_state': 'UNKNOWN',
+    'clock_error_bound_ns': -1,
+    'receiver_clock_error_ns': 0,
+    'publisher_id': 'amr.perception',
+    'envelope_version': '0.1',
+    'sync_queue_size': 3,
+    'sync_slop_ns': 20000000,
+    'camera_info_max_age_ns': 1000000000,
+    'observation_validity_ns': 2000000000,
+    'max_map_age_ns': 1000000000,
+    'max_age_ns': 1000000000,
+    'max_future_ns': 0,
+    'max_clock_error_ns': 20000000,
+    'stamp_delay_bound_ns': 0,
+    'min_depth_m': 0.2,
+    'max_depth_m': 5.0,
+    'min_valid_pixels': 10,
+    'min_valid_fraction': 0.5,
+    'max_depth_spread_m': 0.5,
+    'sensor_variance_xyz': [0.04, 0.04, 0.04],
+    'alignment_authority': 'UNCONFIGURED',
+    'max_alignment_position_error_m': 0.1,
+    'max_alignment_rotation_error_rad': 0.1,
+}
 
 def target_config(v, boot_id):
-    from .amr_camera_support import validate_config
     validate_config(v)
-    for key, kind in PARAMS.items():
-        expected = {'STRING': str, 'INTEGER': int, 'DOUBLE': float, 'BOOL': bool, 'DOUBLE_ARRAY': (list, tuple)}[kind]
-        if key not in v or not isinstance(v[key], expected) or (kind == 'INTEGER' and type(v[key]) is not int):
-            raise ValueError(f'missing/invalid parameter: {key} ({kind})')
-        if kind == 'STRING' and not v[key].strip():
-            raise ValueError(f'empty parameter: {key}')
+    for key, default in SETTINGS.items():
+        if key not in v or type(v[key]) is not type(default):
+            raise ValueError(f'missing/invalid setting: {key}')
+        if isinstance(v[key], str) and not v[key].strip():
+            raise ValueError(f'empty setting: {key}')
     if v['depth_transport'] not in ('raw', 'compressedDepth') or v['depth_byte_order'] not in ('little', 'big'):
         raise ValueError('depth_transport must be raw/compressedDepth; specify publisher byte order')
     for key in ('sync_queue_size', 'camera_info_max_age_ns', 'observation_validity_ns', 'max_map_age_ns'):
@@ -89,33 +117,20 @@ def target_config(v, boot_id):
     return binding, alignment, depth, expiry, confirmation, freshness, covariance
 
 
-def create_node(*, model_factory=None, transform_lookup=None):
+def create_node(*, model_factory=None, transform_lookup=None, projection_metadata: ProjectionMetadata | None = None):
+    """Mapping owner may inject verified ProjectionMetadata; no file/template is loaded."""
     import cv2
     import message_filters
     from cv_bridge import CvBridge
-    from rcl_interfaces.msg import ParameterDescriptor, ParameterType
-    from rclpy.exceptions import ParameterUninitializedException
     from rclpy.node import Node
-    from rclpy.parameter import Parameter
     from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
     from rclpy.time import Time
     from sensor_msgs.msg import CameraInfo, CompressedImage, Image
     from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
 
-    node = Node('amr_target_node')
+    node = Node('amr_target')
     try:
-        v = {}
-        for key, kind in PARAMS.items():
-            node.declare_parameter(key, getattr(Parameter.Type, kind),
-                ParameterDescriptor(type=getattr(ParameterType, 'PARAMETER_' + kind), read_only=True))
-            try:
-                value = node.get_parameter(key).value
-                v[key] = list(value) if kind == 'DOUBLE_ARRAY' else value
-            except ParameterUninitializedException:
-                v[key] = None
-        missing = [k for k, value in v.items() if value is None]
-        if missing:
-            raise ValueError(f'missing required parameters: {missing}')
+        v = dict(SETTINGS)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, freshness, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
@@ -123,9 +138,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
         topics = {key: node.resolve_topic_name(v[key]) for key in topic_keys}
         if len(set(topics.values())) != len(topics):
             raise ValueError('remapped input/output topics must differ')
-        metadata = None
-        if v['locations_enabled']:
-            metadata = ProjectionMetadata.from_dict(json.loads(Path(v['projection_metadata_path']).read_text()))
+        metadata = projection_metadata
+        if metadata is not None:
             a = metadata.alignment
             if (a.source_robot != binding.source_robot or a.clock_domain_id != binding.clock_domain_id
                     or a.authority_id != v['alignment_authority']):
@@ -271,7 +285,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 state['warning'] = now
                 node.get_logger().warning('No successful synchronized RGB-D frame; check both topics, QoS, CameraInfo and frame errors')
         node.create_timer(v['no_frame_warn_s'], warn_stalled)
-        node.get_logger().info(f'amr_target_node git={git_sha()} boot={boot_id} model_sha256={model_hash} '
+        node.get_logger().info(f'amr_target git={git_sha()} boot={boot_id} model_sha256={model_hash} '
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '
             f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id} mapping_snapshot={metadata}')
         return node

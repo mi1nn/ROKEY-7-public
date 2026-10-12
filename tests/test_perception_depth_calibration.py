@@ -2,7 +2,6 @@
 import json
 from pathlib import Path
 from importlib.resources import files
-import sys
 from tempfile import TemporaryDirectory
 import unittest
 
