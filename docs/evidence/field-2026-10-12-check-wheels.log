@@ -1,4 +1,4 @@
-# 2026-10-12, head 5dd0d93
+# 2026-10-12, head 10d4e9e
 + /usr/bin/python3 -m pip wheel --no-index --no-deps --no-build-isolation --no-cache-dir --wheel-dir <TMP>/wheels <TMP>/source/rescue_bringup <TMP>/source/rescue_console <TMP>/source/rescue_contracts <TMP>/source/rescue_coordination <TMP>/source/rescue_mapping <TMP>/source/rescue_operations <TMP>/source/rescue_perception <TMP>/source/rescue_robot
 Processing <TMP>/source/rescue_bringup
   Preparing metadata (setup.py): started
@@ -27,36 +27,36 @@ Processing <TMP>/source/rescue_robot
 Building wheels for collected packages: rescue-bringup, rescue-console, rescue-contracts, rescue-coordination, rescue-mapping, rescue-operations, rescue-perception, rescue-robot
   Building wheel for rescue-bringup (setup.py): started
   Building wheel for rescue-bringup (setup.py): finished with status 'done'
-  Created wheel for rescue-bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=20993 sha256=fbefbf5158781ff20daf87ad0e5b70b539634165c4fd59c929de23561255a6da
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/1e/3e/a9/f3d5d3ff347783acf8c51f71b7774c0ff538342dcb3774ed86
+  Created wheel for rescue-bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=23545 sha256=a2491e90297269e035bebc3244274119023555e70adf4740e564e309ea24143d
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/aa/d0/23/07825d483053eaba81794e5797af69605f8acb4ec086b31c34
   Building wheel for rescue-console (setup.py): started
   Building wheel for rescue-console (setup.py): finished with status 'done'
-  Created wheel for rescue-console: filename=rescue_console-0.0.0-py3-none-any.whl size=51397 sha256=3f24700ec6cf7eaa55b6a3d4de01e4cad402d5c8a87d9cc9fa5d66b53d7f2019
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/04/85/a1/a145462af906cac9fc0cb569824f36b0c4ee4ad9cd73e50a86
+  Created wheel for rescue-console: filename=rescue_console-0.0.0-py3-none-any.whl size=63862 sha256=60ca825eaf9f21909e8044466248b2197aa33d8cade762ceeeb45111bef05f36
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/2a/2a/e4/250977c92f00fdfbfdc2eb0d29521070855048ed74a05893f0
   Building wheel for rescue-contracts (setup.py): started
   Building wheel for rescue-contracts (setup.py): finished with status 'done'
-  Created wheel for rescue-contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=8516 sha256=47b52234cc284672c470d67ed646d46d521b1a354be5782c585b6d2b04ace4f7
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/4d/93/2e/74a0371280af15b7a617b206e554a2715014056aea287ba170
+  Created wheel for rescue-contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=8516 sha256=3906bed78abec057f2b37009a74480843b8ce7e67fe05318786a8f310e6c2931
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/0a/79/6a/8e1c63d9e9b5fc2937b5a842f15217d764848d79878cdbf6c0
   Building wheel for rescue-coordination (setup.py): started
   Building wheel for rescue-coordination (setup.py): finished with status 'done'
-  Created wheel for rescue-coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=40262 sha256=61f6806fb7096b13c28fdb8650195b878f2fd83c133af3f2f3e87442b4adc557
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/22/1b/96/41a3bed2eadd4d6411730fa3a5efdb52696688c1eac677e6b7
+  Created wheel for rescue-coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=40262 sha256=89fe3afa553257acc2ce2082f02c70e4c86d1b223a5b5dea78eaecb07c0fa317
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/55/d6/26/9a13dd5c1b61a3fc64b565bac0f17b5e90cbe064a8a00f46cf
   Building wheel for rescue-mapping (setup.py): started
   Building wheel for rescue-mapping (setup.py): finished with status 'done'
-  Created wheel for rescue-mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13248 sha256=b4abd5cbec7b3c976dd08ef0da9b8cd47fbe18801933de159e7dfb944e3c08f4
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/db/35/da/ed3febe2906551beabdf9f8cde66d889691017b34083a15d77
+  Created wheel for rescue-mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13248 sha256=7cbf80c3553309632bff1be020aafe89c5ce61f09365501c6d2a328d4492a3bb
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/da/64/3a/c8a1d8b0a56e3a41b3f243f90a1199f2cef0991b1c04a5ee99
   Building wheel for rescue-operations (setup.py): started
   Building wheel for rescue-operations (setup.py): finished with status 'done'
-  Created wheel for rescue-operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=26035 sha256=5ccb927621791b6b2e1feb8ff29b24331dbba360f6d96ff0735b03a2c2d975a7
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/d9/3c/c2/b4f8d3c7f5d11cabf71ba6782ccb45b2400a725ce5599ae393
+  Created wheel for rescue-operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=27364 sha256=5eecb35d37ab5236b62701cfdace88b5b33de9e31f0de114104ea495b672cf98
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/fa/80/c8/9b3b5012d423988a30a4ef8c36a41a6b724ca01ec76dc8935d
   Building wheel for rescue-perception (setup.py): started
   Building wheel for rescue-perception (setup.py): finished with status 'done'
-  Created wheel for rescue-perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=34293 sha256=844e0e073e7c1d853753853e9f5ebf81f1f3cca374d47394d02add069aa6ab52
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/3e/0a/af/7ecbde21cb80a4fd121207e257bf4dfd4170a99c090c1276d9
+  Created wheel for rescue-perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=49791 sha256=60acee93f103a96660b5e02ac606b4749584218f69945bc5db61a99bb6dfb1ce
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/64/57/68/5c949d8d3ba0af0e813486e26686d02d282218d5028dbf6b23
   Building wheel for rescue-robot (setup.py): started
   Building wheel for rescue-robot (setup.py): finished with status 'done'
-  Created wheel for rescue-robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=72565 sha256=7ffaa9ff5a975202488e71f8d3f2e16a5c4e2de3a4267c822c1f7f66e770f85d
-  Stored in directory: /tmp/pip-ephem-wheel-cache-5jdbddpu/wheels/18/42/94/f078fb8ac5bd737d368065ab5858ee456a6d0adb6f01808f24
+  Created wheel for rescue-robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=72565 sha256=8ffafa3ec16ea013867a335722d980a773a48b31dd48487ca5289f14f0d79d47
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/34/ee/98/8e422a299efdf0775f944637f03e04026f40dbd470a57f2bd0
 Successfully built rescue-bringup rescue-console rescue-contracts rescue-coordination rescue-mapping rescue-operations rescue-perception rescue-robot
 + /usr/bin/python3 -m venv <TMP>/venv
 + <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_console-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
@@ -96,7 +96,7 @@ print('Installed suite:',suite.countTestCases(),flush=True)
 raise SystemExit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
  <TMP>/check/tests
 SOURCELESS_CHECKOUT
-Installed suite: 827
+Installed suite: 913
 test_allows_tokens_robot_user_and_system_paths (test_check_docs_paths.PersonalPathTests.test_allows_tokens_robot_user_and_system_paths) ... skipped 'installed-wheel checkout has no scripts/'
 test_flags_personal_paths_with_line_numbers (test_check_docs_paths.PersonalPathTests.test_flags_personal_paths_with_line_numbers) ... skipped 'installed-wheel checkout has no scripts/'
 test_ubuntu_prefix_alone_is_not_an_exemption (test_check_docs_paths.PersonalPathTests.test_ubuntu_prefix_alone_is_not_an_exemption) ... skipped 'installed-wheel checkout has no scripts/'
@@ -123,6 +123,47 @@ test_open_refuses_missing_or_foreign_database (test_console_accounts.AccountStor
 test_passwords_are_salted_hashes_and_authenticate_is_strict (test_console_accounts.AccountStoreTests.test_passwords_are_salted_hashes_and_authenticate_is_strict) ... ok
 test_unknown_and_inactive_names_cost_a_password_check_too (test_console_accounts.AccountStoreTests.test_unknown_and_inactive_names_cost_a_password_check_too) ... ok
 test_vocabularies (test_console_accounts.AccountStoreTests.test_vocabularies) ... ok
+test_bad_or_extra_values_are_refused (test_console_commands.CommandRequestTests.test_bad_or_extra_values_are_refused) ... ok
+test_each_kind_carries_exactly_the_fields_the_coordinator_reads (test_console_commands.CommandRequestTests.test_each_kind_carries_exactly_the_fields_the_coordinator_reads) ... ok
+test_every_value_the_operator_saw_must_be_there (test_console_commands.CommandRequestTests.test_every_value_the_operator_saw_must_be_there) ... ok
+test_fields_match_the_coordinator_gate (test_console_commands.CommandRequestTests.test_fields_match_the_coordinator_gate) ... ok
+test_held_and_unknown_kinds_are_refused_before_anything_is_sent (test_console_commands.CommandRequestTests.test_held_and_unknown_kinds_are_refused_before_anything_is_sent) ... ok
+test_operations_url_is_http_only_and_has_no_default (test_console_commands.CommandRequestTests.test_operations_url_is_http_only_and_has_no_default) ... ok
+test_a_failed_send_is_shown_and_not_retried (test_console_commands.CommandRouteTests.test_a_failed_send_is_shown_and_not_retried) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_admin_sends_once_and_gets_the_answer (test_console_commands.CommandRouteTests.test_admin_sends_once_and_gets_the_answer) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_commands_is_the_only_new_write_route (test_console_commands.CommandRouteTests.test_commands_is_the_only_new_write_route) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_customer_cannot_send (test_console_commands.CommandRouteTests.test_customer_cannot_send) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_held_or_malformed_commands_are_refused_here (test_console_commands.CommandRouteTests.test_held_or_malformed_commands_are_refused_here) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_login_and_csrf_are_required (test_console_commands.CommandRouteTests.test_login_and_csrf_are_required) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_rejection_is_shown_as_given (test_console_commands.CommandRouteTests.test_rejection_is_shown_as_given) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_without_an_operations_address_nothing_is_sent (test_console_commands.CommandRouteTests.test_without_an_operations_address_nothing_is_sent) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_an_error_status_body_is_still_read (test_console_commands.FakeOperationsTests.test_an_error_status_body_is_still_read) ... ok
+test_nothing_listening_is_unreachable_and_not_sent (test_console_commands.FakeOperationsTests.test_nothing_listening_is_unreachable_and_not_sent) ... ok
+test_one_json_post_and_the_answer_is_read (test_console_commands.FakeOperationsTests.test_one_json_post_and_the_answer_is_read) ... ok
+test_slow_operations_times_out_once_and_delivery_is_unknown (test_console_commands.FakeOperationsTests.test_slow_operations_times_out_once_and_delivery_is_unknown) ... ok
+test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger (test_console_commands.GateTests.test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger) ... ok
+test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows (test_console_commands.GateTests.test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows) ... ok
+test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet (test_console_commands.GateTests.test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet) ... ok
+test_dispatch_waits_for_the_report_receipt (test_console_commands.GateTests.test_dispatch_waits_for_the_report_receipt) ... ok
+test_held_commands_stay_off_whatever_the_state (test_console_commands.GateTests.test_held_commands_stay_off_whatever_the_state) ... ok
+test_malformed_revision_or_receipt_fails_the_poll (test_console_commands.GateTests.test_malformed_revision_or_receipt_fails_the_poll) ... ok
+test_outside_disaster_mode_nothing_is_enabled (test_console_commands.GateTests.test_outside_disaster_mode_nothing_is_enabled) ... ok
+test_panel_lists_every_command_with_the_flow_gates_first (test_console_commands.GateTests.test_panel_lists_every_command_with_the_flow_gates_first) ... ok
+test_recheck_leaves_out_rescued_targets (test_console_commands.GateTests.test_recheck_leaves_out_rescued_targets) ... ok
+test_return_home_only_after_a_verdict (test_console_commands.GateTests.test_return_home_only_after_a_verdict) ... ok
+test_start_search_only_before_the_search (test_console_commands.GateTests.test_start_search_only_before_the_search) ... ok
+test_without_a_mission_row_nothing_is_enabled (test_console_commands.GateTests.test_without_a_mission_row_nothing_is_enabled) ... ok
+test_badge_reads_the_mission_state_row (test_console_commands.MissionBadgeTests.test_badge_reads_the_mission_state_row) ... ok
+test_every_mission_mode_has_a_word (test_console_commands.MissionBadgeTests.test_every_mission_mode_has_a_word) ... ok
+test_no_mission_row_yet_falls_back_to_the_signs_and_says_so (test_console_commands.MissionBadgeTests.test_no_mission_row_yet_falls_back_to_the_signs_and_says_so) ... ok
+test_buttons_need_both_the_access_and_the_gate (test_console_commands.PanelRenderTests.test_buttons_need_both_the_access_and_the_gate) ... ok
+test_fragment_carries_the_gates_for_the_buttons (test_console_commands.PanelRenderTests.test_fragment_carries_the_gates_for_the_buttons) ... ok
+test_the_site_stop_stays_on_the_panel (test_console_commands.PanelRenderTests.test_the_site_stop_stays_on_the_panel) ... ok
+test_an_error_status_that_carries_an_answer_is_still_an_answer (test_console_commands.ReplyTests.test_an_error_status_that_carries_an_answer_is_still_an_answer) ... ok
+test_answer_is_passed_on_as_given (test_console_commands.ReplyTests.test_answer_is_passed_on_as_given) ... ok
+test_what_is_not_an_answer_is_a_failure_not_a_rejection (test_console_commands.ReplyTests.test_what_is_not_an_answer_is_a_failure_not_a_rejection) ... ok
+test_a_failure_is_reported_and_never_retried (test_console_commands.SendTests.test_a_failure_is_reported_and_never_retried) ... ok
+test_one_post_and_the_answer_comes_back (test_console_commands.SendTests.test_one_post_and_the_answer_comes_back) ... ok
 test_every_upstream_value_has_a_korean_word (test_console_labels.LabelTests.test_every_upstream_value_has_a_korean_word) ... ok
 test_unknown_code_is_shown_unchanged_and_none_stays_none (test_console_labels.LabelTests.test_unknown_code_is_shown_unchanged_and_none_stays_none) ... ok
 test_words_are_nonempty_and_differ_from_the_code (test_console_labels.LabelTests.test_words_are_nonempty_and_differ_from_the_code) ... ok
@@ -179,12 +220,11 @@ test_ledger_file_is_not_a_site_state_db (test_console_view.SiteStateSourceTests.
 test_site_state_and_fixture_together_are_refused (test_console_view.SiteStateSourceTests.test_site_state_and_fixture_together_are_refused) ... ok
 test_site_state_db_gives_the_fixture_shapes (test_console_view.SiteStateSourceTests.test_site_state_db_gives_the_fixture_shapes) ... ok
 test_site_state_read_changes_nothing_and_missing_db_is_not_created (test_console_view.SiteStateSourceTests.test_site_state_read_changes_nothing_and_missing_db_is_not_created) ... ok
-test_dashboard_header_names_the_user_and_hides_admin_link_from_customers (test_console_web.CommandPlaceholderTests.test_dashboard_header_names_the_user_and_hides_admin_link_from_customers) ... ok
-test_every_command_is_disabled_in_the_model (test_console_web.CommandPlaceholderTests.test_every_command_is_disabled_in_the_model) ... ok
-test_logged_in_page_has_only_the_logout_form (test_console_web.CommandPlaceholderTests.test_logged_in_page_has_only_the_logout_form) ... ok
-test_login_and_accounts_pages_carry_csrf_and_escape_values (test_console_web.CommandPlaceholderTests.test_login_and_accounts_pages_carry_csrf_and_escape_values) ... ok
-test_page_buttons_are_disabled_and_page_has_no_write_path (test_console_web.CommandPlaceholderTests.test_page_buttons_are_disabled_and_page_has_no_write_path) ... ok
-test_requesting_a_command_sends_nothing_and_changes_nothing (test_console_web.CommandPlaceholderTests.test_requesting_a_command_sends_nothing_and_changes_nothing) ... ok
+test_dashboard_header_names_the_user_and_hides_admin_link_from_customers (test_console_web.CommandPanelTests.test_dashboard_header_names_the_user_and_hides_admin_link_from_customers) ... ok
+test_logged_in_page_has_only_the_logout_form (test_console_web.CommandPanelTests.test_logged_in_page_has_only_the_logout_form) ... ok
+test_login_and_accounts_pages_carry_csrf_and_escape_values (test_console_web.CommandPanelTests.test_login_and_accounts_pages_carry_csrf_and_escape_values) ... ok
+test_page_without_command_access_disables_every_button (test_console_web.CommandPanelTests.test_page_without_command_access_disables_every_button) ... ok
+test_without_a_mission_state_every_command_is_disabled_in_the_model (test_console_web.CommandPanelTests.test_without_a_mission_state_every_command_is_disabled_in_the_model) ... ok
 test_broken_ledger_is_a_visible_failure (test_console_web.FlaskBoundaryTests.test_broken_ledger_is_a_visible_failure) ... skipped 'Flask not installed: web routes NOT_RUN'
 test_customer_views_only_and_admin_manages_accounts (test_console_web.FlaskBoundaryTests.test_customer_views_only_and_admin_manages_accounts) ... skipped 'Flask not installed: web routes NOT_RUN'
 test_everything_needs_login_and_data_routes_stay_get_only (test_console_web.FlaskBoundaryTests.test_everything_needs_login_and_data_routes_stay_get_only) ... skipped 'Flask not installed: web routes NOT_RUN'
@@ -570,6 +610,11 @@ C-10: ROS -> Python refuses every visibility other than VALID, the empty string 
 test_refused_message_is_not_stored_and_lands_in_the_error_log (test_operations_ros_ingest.SiteEventIngest.test_refused_message_is_not_stored_and_lands_in_the_error_log) ... ok
 test_same_id_with_other_content_is_logged_as_a_conflict (test_operations_ros_ingest.SiteEventIngest.test_same_id_with_other_content_is_logged_as_a_conflict) ... ok
 test_valid_event_is_stored_and_a_resend_is_not_an_error (test_operations_ros_ingest.SiteEventIngest.test_valid_event_is_stored_and_a_resend_is_not_an_error) ... ok
+test_dispatching_state_becomes_the_mission_row (test_operations_ros_ingest.SystemStateConversion.test_dispatching_state_becomes_the_mission_row) ... ok
+test_has_flags_false_give_none_not_zeroes (test_operations_ros_ingest.SystemStateConversion.test_has_flags_false_give_none_not_zeroes) ... ok
+test_reason_code_is_kept_and_empty_is_none (test_operations_ros_ingest.SystemStateConversion.test_reason_code_is_kept_and_empty_is_none) ... ok
+test_refused_state_lands_in_the_error_log (test_operations_ros_ingest.SystemStateIngest.test_refused_state_lands_in_the_error_log) ... ok
+test_states_are_stored_in_change_order_and_a_coordinator_restart_is_not_mistaken (test_operations_ros_ingest.SystemStateIngest.test_states_are_stored_in_change_order_and_a_coordinator_restart_is_not_mistaken) ... ok
 test_inconsistent_configuration_is_refused_before_anything_starts (test_operations_ros_node.NodeConfig.test_inconsistent_configuration_is_refused_before_anything_starts) ... ok
 test_module_imports_without_rclpy (test_operations_ros_node.NodeConfig.test_module_imports_without_rclpy) ... ok
 test_parallel_lists_become_one_entry_per_robot (test_operations_ros_node.NodeConfig.test_parallel_lists_become_one_entry_per_robot) ... ok
@@ -596,10 +641,17 @@ The console forwards SubmitOperatorCommand (1차 IDL, #77·#98); a refused recor
 test_exit_count_is_over_all_events_not_the_page (test_operations_site_state.SiteStateTests.test_exit_count_is_over_all_events_not_the_page) ... ok
 test_map_snapshot_rejects_bad_input (test_operations_site_state.SiteStateTests.test_map_snapshot_rejects_bad_input) ... ok
 test_map_snapshots_append_and_resends_are_idempotent (test_operations_site_state.SiteStateTests.test_map_snapshots_append_and_resends_are_idempotent) ... ok
+test_mission_dispatch_and_finished_rules_are_checked (test_operations_site_state.SiteStateTests.test_mission_dispatch_and_finished_rules_are_checked) ... ok
+test_mission_dispatch_fields_and_finished_mode_round_trip (test_operations_site_state.SiteStateTests.test_mission_dispatch_fields_and_finished_mode_round_trip)
+schema 1.2: SystemState (C-10, contracts 207행) carries the AMR2 dispatch and MISSION_FINISHED. ... ok
+test_mission_reason_code_is_kept_and_optional (test_operations_site_state.SiteStateTests.test_mission_reason_code_is_kept_and_optional)
+#91 (CLA-02): a blocked approach keeps the phase and puts the cause code in SystemState.reason. ... ok
 test_mission_state_is_one_row_and_only_newer_replaces (test_operations_site_state.SiteStateTests.test_mission_state_is_one_row_and_only_newer_replaces) ... ok
 test_mission_state_rejects_bad_input (test_operations_site_state.SiteStateTests.test_mission_state_rejects_bad_input) ... ok
 test_new_robot_keys_are_checked (test_operations_site_state.SiteStateTests.test_new_robot_keys_are_checked) ... ok
 test_opening_schema_1_0_db_upgrades_tables_without_dropping_data (test_operations_site_state.SiteStateTests.test_opening_schema_1_0_db_upgrades_tables_without_dropping_data) ... ok
+test_opening_schema_1_1_db_rebuilds_mission_state_and_keeps_its_row (test_operations_site_state.SiteStateTests.test_opening_schema_1_1_db_rebuilds_mission_state_and_keeps_its_row)
+A 1.1 file (main at #87) has mission_state without the dispatch columns and generation NOT NULL. ... ok
 test_operator_command_rejects_bad_input (test_operations_site_state.SiteStateTests.test_operator_command_rejects_bad_input) ... ok
 test_operator_commands_keep_rejections_and_resends_are_idempotent (test_operations_site_state.SiteStateTests.test_operator_commands_keep_rejections_and_resends_are_idempotent) ... ok
 test_policy_cannot_change_on_reopen (test_operations_site_state.SiteStateTests.test_policy_cannot_change_on_reopen) ... ok
@@ -670,10 +722,19 @@ test_rectified_stream_uses_projection_not_raw_k (test_perception_adapter.Adapter
 test_secondary_stereo_binning_and_roi_are_rejected (test_perception_adapter.AdapterTests.test_secondary_stereo_binning_and_roi_are_rejected) ... ok
 test_unsupported_encoding_and_bad_length_are_rejected (test_perception_adapter.AdapterTests.test_unsupported_encoding_and_bad_length_are_rejected) ... ok
 test_vision_msgs_detection_requires_explicit_tracking_mode (test_perception_adapter.AdapterTests.test_vision_msgs_detection_requires_explicit_tracking_mode) ... ok
+test_cli_exit_distinguishes_clean_replay_gaps_and_empty_input (test_perception_bag_replay.BagReplayCliTests.test_cli_exit_distinguishes_clean_replay_gaps_and_empty_input) ... ok
+test_cli_reports_input_error_without_traceback (test_perception_bag_replay.BagReplayCliTests.test_cli_reports_input_error_without_traceback) ... ok
+test_missing_bag_is_explicit_before_ros_import (test_perception_bag_replay.BagReplayCliTests.test_missing_bag_is_explicit_before_ros_import) ... ok
 test_config_is_strict (test_perception_bag_replay.BagReplayTests.test_config_is_strict) ... ok
+test_depth_skew_boundary_and_gap_report (test_perception_bag_replay.BagReplayTests.test_depth_skew_boundary_and_gap_report) ... ok
 test_detection_array_pairs_exact_rgb_and_nearest_depth (test_perception_bag_replay.BagReplayTests.test_detection_array_pairs_exact_rgb_and_nearest_depth) ... ok
+test_detection_with_unusable_stamp_is_a_rejection (test_perception_bag_replay.BagReplayTests.test_detection_with_unusable_stamp_is_a_rejection) ... ok
+test_empty_detection_array_is_reported (test_perception_bag_replay.BagReplayTests.test_empty_detection_array_is_reported) ... ok
 test_localization_failure_and_rejection_are_rows (test_perception_bag_replay.BagReplayTests.test_localization_failure_and_rejection_are_rows) ... ok
+test_missing_stamp_fields_reported_without_aborting (test_perception_bag_replay.BagReplayTests.test_missing_stamp_fields_reported_without_aborting) ... ok
+test_topic_mapping_must_be_nonempty_and_distinct (test_perception_bag_replay.BagReplayTests.test_topic_mapping_must_be_nonempty_and_distinct) ... ok
 test_unpaired_arrays_are_reported_not_dropped (test_perception_bag_replay.BagReplayTests.test_unpaired_arrays_are_reported_not_dropped) ... ok
+test_unusable_stamps_are_reported_and_valid_records_continue (test_perception_bag_replay.BagReplayTests.test_unusable_stamps_are_reported_and_valid_records_continue) ... ok
 test_brightness_offset_alone_raises_nothing (test_perception_disaster_sign.DisasterSignTests.test_brightness_offset_alone_raises_nothing) ... ok
 test_camera_moved_to_a_new_spot_becomes_the_new_scene (test_perception_disaster_sign.DisasterSignTests.test_camera_moved_to_a_new_spot_becomes_the_new_scene) ... ok
 test_channel_order_matters (test_perception_disaster_sign.DisasterSignTests.test_channel_order_matters) ... ok
@@ -731,6 +792,25 @@ test_one_candidate_per_watch (test_perception_target_watch.TargetWatchTests.test
 test_partial_overlap_uses_box_fraction_inside_roi (test_perception_target_watch.TargetWatchTests.test_partial_overlap_uses_box_fraction_inside_roi) ... ok
 test_replay_yields_identical_results (test_perception_target_watch.TargetWatchTests.test_replay_yields_identical_results) ... ok
 test_unknown_stream_is_unknown (test_perception_target_watch.TargetWatchTests.test_unknown_stream_is_unknown) ... ok
+test_length_mismatch_or_nan_is_rejected (test_perception_webcam_service.BoxTests.test_length_mismatch_or_nan_is_rejected) ... ok
+test_no_detections_is_empty_tuple (test_perception_webcam_service.BoxTests.test_no_detections_is_empty_tuple) ... ok
+test_rows_become_boxes (test_perception_webcam_service.BoxTests.test_rows_become_boxes) ... ok
+test_slight_overflow_is_clipped_and_empty_boxes_dropped (test_perception_webcam_service.BoxTests.test_slight_overflow_is_clipped_and_empty_boxes_dropped) ... ok
+test_example_yaml_matches_node_params (test_perception_webcam_service.NodeParamsExampleTests.test_example_yaml_matches_node_params) ... ok
+test_duplicate_or_unknown_status_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_duplicate_or_unknown_status_is_unknown) ... ok
+test_match_failed_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_match_failed_is_unknown) ... ok
+test_normal_view_is_valid (test_perception_webcam_service.SceneVisibilityTests.test_normal_view_is_valid) ... ok
+test_offline_stream_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_offline_stream_is_unknown) ... ok
+test_whole_view_cover_is_occluded (test_perception_webcam_service.SceneVisibilityTests.test_whole_view_cover_is_occluded) ... ok
+test_disable_must_match_active_watch (test_perception_webcam_service.WatchSlotTests.test_disable_must_match_active_watch) ... ok
+test_disable_without_active_watch_is_rejected (test_perception_webcam_service.WatchSlotTests.test_disable_without_active_watch_is_rejected) ... ok
+test_empty_slot_has_no_detector (test_perception_webcam_service.WatchSlotTests.test_empty_slot_has_no_detector) ... ok
+test_enable_accepts_and_bumps_revision (test_perception_webcam_service.WatchSlotTests.test_enable_accepts_and_bumps_revision) ... ok
+test_image_size_change_clears_watch (test_perception_webcam_service.WatchSlotTests.test_image_size_change_clears_watch) ... ok
+test_invalid_input_reply_says_which_field (test_perception_webcam_service.WatchSlotTests.test_invalid_input_reply_says_which_field) ... ok
+test_rejections_leave_slot_unchanged (test_perception_webcam_service.WatchSlotTests.test_rejections_leave_slot_unchanged) ... ok
+test_replace_needs_current_revision (test_perception_webcam_service.WatchSlotTests.test_replace_needs_current_revision) ... ok
+test_same_command_is_idempotent (test_perception_webcam_service.WatchSlotTests.test_same_command_is_idempotent) ... ok
 test_cli_distinguishes_static_validation_from_runtime (test_profile.DeploymentProfileTests.test_cli_distinguishes_static_validation_from_runtime) ... ok
 test_cli_rejects_nul_input_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_input_path_without_traceback) ... ok
 test_cli_rejects_nul_parameter_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_parameter_path_without_traceback) ... ok
@@ -774,6 +854,15 @@ test_v1_example_still_loads_without_mission (test_profile_v2.MissionProfileTests
 test_v1_profile_cannot_carry_mission_and_v2_must (test_profile_v2.MissionProfileTests.test_v1_profile_cannot_carry_mission_and_v2_must) ... ok
 test_v2_deployment_rejects_v1_parameter_files_and_vice_versa (test_profile_v2.MissionProfileTests.test_v2_deployment_rejects_v1_parameter_files_and_vice_versa) ... ok
 test_v2_example_loads_with_roles_areas_holds_and_names (test_profile_v2.MissionProfileTests.test_v2_example_loads_with_roles_areas_holds_and_names) ... ok
+test_blocks_are_optional_and_absent_means_none (test_profile_v21.V21ProfileTests.test_blocks_are_optional_and_absent_means_none) ... ok
+test_camera_only_host_counts_as_used (test_profile_v21.V21ProfileTests.test_camera_only_host_counts_as_used) ... ok
+test_cli_reports_cameras_and_networks (test_profile_v21.V21ProfileTests.test_cli_reports_cameras_and_networks) ... ok
+test_entry_yaw_must_be_finite_number (test_profile_v21.V21ProfileTests.test_entry_yaw_must_be_finite_number) ... ok
+test_example_loads_readiness_network_cameras_and_entry_yaw (test_profile_v21.V21ProfileTests.test_example_loads_readiness_network_cameras_and_entry_yaw) ... ok
+test_network_rejections (test_profile_v21.V21ProfileTests.test_network_rejections) ... ok
+test_null_is_not_absent_and_server_id_is_global (test_profile_v21.V21ProfileTests.test_null_is_not_absent_and_server_id_is_global) ... ok
+test_readiness_rejections (test_profile_v21.V21ProfileTests.test_readiness_rejections) ... ok
+test_site_camera_rejections (test_profile_v21.V21ProfileTests.test_site_camera_rejections) ... ok
 test_all_sources_fresh_then_one_ages_out (test_readiness_monitor.ReadinessMonitorTests.test_all_sources_fresh_then_one_ages_out) ... ok
 test_every_source_of_a_flag_is_required (test_readiness_monitor.ReadinessMonitorTests.test_every_source_of_a_flag_is_required) ... ok
 test_out_of_order_or_future_arrival_is_not_fresh (test_readiness_monitor.ReadinessMonitorTests.test_out_of_order_or_future_arrival_is_not_fresh) ... ok
@@ -940,9 +1029,9 @@ test_stop_unconfirmed_result_aborts_action (test_task_server.TaskServerTests.tes
 test_untrusted_goal_is_rejected_with_admission_reason (test_task_server.TaskServerTests.test_untrusted_goal_is_rejected_with_admission_reason) ... ok
 
 ----------------------------------------------------------------------
-Ran 827 tests in 45.868s
+Ran 913 tests in 52.379s
 
-OK (skipped=28)
-WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "fbefbf5158781ff20daf87ad0e5b70b539634165c4fd59c929de23561255a6da", "rescue_console-0.0.0-py3-none-any.whl": "3f24700ec6cf7eaa55b6a3d4de01e4cad402d5c8a87d9cc9fa5d66b53d7f2019", "rescue_contracts-0.0.0-py3-none-any.whl": "47b52234cc284672c470d67ed646d46d521b1a354be5782c585b6d2b04ace4f7", "rescue_coordination-0.0.0-py3-none-any.whl": "61f6806fb7096b13c28fdb8650195b878f2fd83c133af3f2f3e87442b4adc557", "rescue_mapping-0.0.0-py3-none-any.whl": "b4abd5cbec7b3c976dd08ef0da9b8cd47fbe18801933de159e7dfb944e3c08f4", "rescue_operations-0.0.0-py3-none-any.whl": "5ccb927621791b6b2e1feb8ff29b24331dbba360f6d96ff0735b03a2c2d975a7", "rescue_perception-0.0.0-py3-none-any.whl": "844e0e073e7c1d853753853e9f5ebf81f1f3cca374d47394d02add069aa6ab52", "rescue_robot-0.0.0-py3-none-any.whl": "7ffaa9ff5a975202488e71f8d3f2e16a5c4e2de3a4267c822c1f7f66e770f85d"}
+OK (skipped=36)
+WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "a2491e90297269e035bebc3244274119023555e70adf4740e564e309ea24143d", "rescue_console-0.0.0-py3-none-any.whl": "60ca825eaf9f21909e8044466248b2197aa33d8cade762ceeeb45111bef05f36", "rescue_contracts-0.0.0-py3-none-any.whl": "3906bed78abec057f2b37009a74480843b8ce7e67fe05318786a8f310e6c2931", "rescue_coordination-0.0.0-py3-none-any.whl": "89fe3afa553257acc2ce2082f02c70e4c86d1b223a5b5dea78eaecb07c0fa317", "rescue_mapping-0.0.0-py3-none-any.whl": "7cbf80c3553309632bff1be020aafe89c5ce61f09365501c6d2a328d4492a3bb", "rescue_operations-0.0.0-py3-none-any.whl": "5eecb35d37ab5236b62701cfdace88b5b33de9e31f0de114104ea495b672cf98", "rescue_perception-0.0.0-py3-none-any.whl": "60acee93f103a96660b5e02ac606b4749584218f69945bc5db61a99bb6dfb1ce", "rescue_robot-0.0.0-py3-none-any.whl": "8ffafa3ec16ea013867a335722d980a773a48b31dd48487ca5289f14f0d79d47"}
 PASS 8 installed wheels, dependency check, isolated imports and nonempty tests
 exit=0
