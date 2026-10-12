@@ -94,6 +94,19 @@ class DepthCalibrationTests(unittest.TestCase):
                 other=Path(d)/'bad.json'; other.write_text(json.dumps(data))
                 with self.assertRaises(ValueError): load_depth_calibration(other,physical_robot_id='robot6')
 
+    def test_runtime_only_profile_loads_without_provenance(self):
+        from rescue_perception.target_utils import load_depth_calibration
+        runtime=dict(calibration_id='robot6_depth',physical_robot_id='robot6',
+                     input_unit='m',input_state='raw_uncorrected',scale=SCALE,offset_m=0.)
+        with TemporaryDirectory() as directory:
+            path=Path(directory)/'depth.json';path.write_text(json.dumps(runtime))
+            calibration=load_depth_calibration(path,physical_robot_id='robot6')
+            self.assertAlmostEqual(calibration.scale,SCALE)
+            self.assertEqual(calibration.calibration_id,'robot6_depth')
+        packaged=json.loads(files('rescue_perception').joinpath('config/robot6_depth.json').read_text())
+        self.assertEqual(set(packaged),set(runtime))
+        self.assertEqual(packaged['calibration_id'],'robot6_depth')
+
     def test_node_configuration_connects_profile_to_depth_policy(self):
         from rescue_perception.target_utils import target_config
         from rescue_perception.target_utils import SETTINGS
