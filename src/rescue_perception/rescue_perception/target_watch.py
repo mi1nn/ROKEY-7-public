@@ -181,6 +181,11 @@ class TargetWatchDetector:
         self._emitted = False       # watch 하나에 후보 하나
         self._track = None          # 감시 중인 인형의 마지막 중심
 
+    @property
+    def track(self):
+        """따라가는 인형의 마지막 중심(정규화 x, y). 아직 못 봤으면 None."""
+        return self._track
+
     def update(self, rgb, boxes, *, visibility):
         """``boxes``: 이 프레임의 인형 상자 튜플, 탐지기가 결과를 못 냈으면 None.
         ``visibility``: VALID / OCCLUDED / UNKNOWN (웹캠 노드가 정함).

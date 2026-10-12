@@ -51,6 +51,7 @@ PARAMS = {
     'watch_score_min': 'DOUBLE', 'watch_roi_overlap_min': 'DOUBLE', 'watch_present_confirm_frames': 'INTEGER',
     'watch_absent_hold_s': 'DOUBLE', 'watch_absent_min_frames': 'INTEGER', 'watch_max_gap_s': 'DOUBLE',
     'watch_exit_roi': 'DOUBLE_ARRAY', 'watch_track_max_jump': 'DOUBLE',
+    'debug_image_topic': 'STRING',
 }
 
 
@@ -109,6 +110,7 @@ def main(args=None):
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import CameraStatus, SiteEvent, TargetPresence
+    from sensor_msgs.msg import CompressedImage
     from rescue_interfaces.srv import SetCameraWatch
     from ultralytics import YOLO
 
@@ -156,6 +158,60 @@ def main(args=None):
     presence_pub = node.create_publisher(TargetPresence, v['presence_topic'],
                                          QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, **reliable))
     seq = {'status': 0, 'event': 0, 'presence': 0, 'frame': 0, 'srv': 0}
+    # 판정 화면용 영상(시험·관제 확인용). 빈 문자열이면 끈다. 판정에는 쓰지 않는다.
+    debug_pub = (node.create_publisher(CompressedImage, v['debug_image_topic'],
+                                       QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+                 if v['debug_image_topic'] else None)
+    trail = {'detector': None, 'points': []}
+
+    def publish_debug(frame, stamp, boxes, presence):
+        """출구 영역·감시 영역·인형 상자·추적 선·상태 한 줄을 그린 JPEG 을 debug_image_topic 으로."""
+        if debug_pub is None:
+            return
+        img = frame.copy()
+        height, width = img.shape[:2]
+
+        def px(x, y):
+            return int(x * width), int(y * height)
+        ex = watch_policy.exit_roi_xyxy_normalized
+        tint = img.copy()
+        cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
+        img = cv2.addWeighted(tint, 0.2, img, 0.8, 0)
+        cv2.rectangle(img, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), 2)
+        watch = slot.watch
+        if watch is not None and tuple(watch.roi_xyxy_normalized) != (0.0, 0.0, 1.0, 1.0):
+            r = watch.roi_xyxy_normalized
+            cv2.rectangle(img, px(r[0], r[1]), px(r[2], r[3]), (89, 199, 52), 2)
+        if trail['detector'] is not slot.detector:
+            trail['detector'], trail['points'] = slot.detector, []
+        track = slot.detector.track if slot.detector is not None else None
+        if track is not None and (not trail['points'] or trail['points'][-1] != track):
+            trail['points'] = (trail['points'] + [track])[-25:]
+        for a, b in zip(trail['points'], trail['points'][1:]):
+            cv2.line(img, px(*a), px(*b), (10, 214, 255), 2, cv2.LINE_AA)
+        for box in boxes or ():
+            color = (255, 132, 10) if box.score >= watch_policy.score_min else (147, 142, 142)
+            cv2.rectangle(img, px(box.x0, box.y0), px(box.x1, box.y1), color, 2, cv2.LINE_AA)
+            cv2.putText(img, f'{box.score:.2f}', px(box.x0, box.y0 - 0.01), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        if track is not None:
+            cv2.circle(img, px(*track), 8, (10, 214, 255), -1, cv2.LINE_AA)
+        if presence is not None:
+            text = (f'{presence.state} {presence.reason or ""} absent={presence.absent_ns / 1e9:.1f}s '
+                    f'rev={watch.watch_revision if watch else 0}')
+        else:
+            text = 'NO WATCH'
+        cv2.putText(img, text, (8, height - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 4)
+        cv2.putText(img, text, (8, height - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ok:
+            log.error('debug image encode failed')
+            return
+        msg = CompressedImage()
+        msg.header.stamp.sec, msg.header.stamp.nanosec = stamp // 10**9, stamp % 10**9
+        msg.header.frame_id = v['frame_id']
+        msg.format = 'jpeg'
+        msg.data = jpeg.tobytes()
+        debug_pub.publish(msg)
 
     def envelope(env, key):
         seq[key] += 1
@@ -302,6 +358,7 @@ def main(args=None):
         if sign.event is not None:
             publish_event(sign.event)
         if slot.detector is None:
+            publish_debug(frame, stamp, None, None)
             return
         try:
             result = model.predict(frame, imgsz=v['model_imgsz'], conf=v['model_conf'], verbose=False)[0]
@@ -318,6 +375,7 @@ def main(args=None):
             return
         if presence.status != 'PROCESSED':
             return
+        publish_debug(frame, stamp, boxes, presence)
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
         if presence.event is not None:
