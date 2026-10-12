@@ -39,7 +39,8 @@ class WatchSlotTests(unittest.TestCase):
         binding = SourceBinding(None, "cam_fixed", str(UUID(int=300)), "site-clock", "DRIVER_RECEIVE", "UNKNOWN",
                                 "cam-fixed-cal", "UNKNOWN", None)
         policy = TargetWatchPolicy(score_min=0.5, roi_overlap_min=0.5, present_confirm_frames=2,
-                                   absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150)
+                                   absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150,
+                                   exit_roi_xyxy_normalized=(0.0, 0.0, 1.0, 1.0), track_max_jump=0.3)
         self.slot = WatchSlot(binding, policy)
 
     def test_empty_slot_has_no_detector(self):
@@ -174,7 +175,9 @@ class NodeParamsExampleTests(unittest.TestCase):
             m = re.match(r"\s{4}(\w+):\s*([^#]+?)\s*(#.*)?$", line)
             if m:
                 kind, raw = PARAMS.get(m.group(1)), m.group(2)
-                values[m.group(1)] = int(raw) if kind == "INTEGER" else float(raw) if kind == "DOUBLE" else raw
+                values[m.group(1)] = (int(raw) if kind == "INTEGER" else float(raw) if kind == "DOUBLE"
+                                      else [float(x) for x in raw.strip("[]").split(",")] if kind == "DOUBLE_ARRAY"
+                                      else raw)
         self.assertEqual(set(values), set(PARAMS))
         policies(values)  # 값 검사는 각 정책이 한다
 

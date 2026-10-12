@@ -50,6 +50,7 @@ PARAMS = {
     'quake_release_s': 'DOUBLE', 'quake_max_gap_s': 'DOUBLE',
     'watch_score_min': 'DOUBLE', 'watch_roi_overlap_min': 'DOUBLE', 'watch_present_confirm_frames': 'INTEGER',
     'watch_absent_hold_s': 'DOUBLE', 'watch_absent_min_frames': 'INTEGER', 'watch_max_gap_s': 'DOUBLE',
+    'watch_exit_roi': 'DOUBLE_ARRAY', 'watch_track_max_jump': 'DOUBLE',
 }
 
 
@@ -86,7 +87,9 @@ def policies(v):
     watch = TargetWatchPolicy(
         score_min=v['watch_score_min'], roi_overlap_min=v['watch_roi_overlap_min'],
         present_confirm_frames=v['watch_present_confirm_frames'], absent_hold_ns=_ns(v['watch_absent_hold_s']),
-        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']))
+        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']),
+        exit_roi_xyxy_normalized=tuple(float(x) for x in v['watch_exit_roi']),
+        track_max_jump=v['watch_track_max_jump'])
     return quake, watch
 
 
