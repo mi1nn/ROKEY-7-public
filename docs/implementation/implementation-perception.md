@@ -170,7 +170,7 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
   - CPU(코어 1개 기준 `top`): 감시 없음 약 33%(지진 판정만), 감시 중 약 42%(+ yolo26n). RSS 약 600 MB. 감시를 건 직후 첫 10초 구간만 4.1 fps(첫 추론 준비), 이후 5.00.
   - 감시 걸기(OPERATOR_ROI, 인형 둘레 ROI) → ACCEPTED·revision 1, presence PRESENT/VALID. 인형을 치우자 마지막으로 본 뒤 약 3.3 초(17 프레임)에 `TARGET_DISAPPEARED_CANDIDATE` 1건, presence ABSENT_CANDIDATE. 웹캠을 흔들자 `DISASTER_SIGN` 1건(방향 전환 4/4).
   - 고친 것: `watch_id` 가 UUID 가 아닌 요청이 INVALID_INPUT 으로만 남고 이유가 로그에 없었다 → 거절 이유를 로그에 붙인다(`detail=watch_id: canonical nonzero UUID required`).
-  - 주의: `device_index` 는 꽂는 순서로 바뀐다(이 PC 는 내장 카메라가 0, USB 웹캠이 2). 현장에서 다른 카메라를 열 수 있다.
+  - 카메라 번호는 꽂는 순서로 바뀌었다(이 PC 는 내장 카메라가 0, USB 웹캠이 2) → 파라미터를 `device_index`(번호) 대신 `device_path`(`/dev/v4l/by-id/...` 고정 경로)로 바꿨다(2026-10-12). 기동 로그에 실제 장치(`/dev/videoN`)를 함께 남긴다.
 - NOT_RUN: PC3 에서의 실행, 장시간·오탐률 측정, coordinator 의 SetCameraWatch 호출과 연결, 실기.
 
 ## 공개 API와 E2 실행

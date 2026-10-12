@@ -178,6 +178,12 @@ class NodeParamsExampleTests(unittest.TestCase):
         self.assertEqual(set(values), set(PARAMS))
         policies(values)  # 값 검사는 각 정책이 한다
 
+    def test_camera_is_opened_by_stable_device_path(self):
+        # 2026-10-12 실기: 카메라 번호(device_index)는 꽂는 순서로 바뀌었다(USB 웹캠이 0 이 아니라 2).
+        from rescue_perception.webcam_node import PARAMS
+        self.assertNotIn("device_index", PARAMS)
+        self.assertEqual(PARAMS.get("device_path"), "STRING")
+
 
 
 class SpinShutdownTests(unittest.TestCase):
