@@ -18,7 +18,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. ROS 경계는 고정 웹캠·AMR 미리보기·RGB-D 좌표 시험 노드다.',
+    description='기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. ROS 경계는 고정 웹캠·AMR 미리보기·RGB-D 관측 시험 노드다.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": ["webcam_node = rescue_perception.webcam_node:main",
         "amr_camera = rescue_perception.amr_camera:main",

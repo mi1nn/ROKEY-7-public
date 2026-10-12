@@ -1,13 +1,9 @@
-"""AMR RGB-D detection node, following existing ROS boundary patterns.
+"""AMR RGB-D observation node: detection, depth correction and TargetObservation.
 
-Compressed RGB + aligned depth + CameraInfo -> PersonPipeline -> TargetObservation.
-Optional local projection adapter composes mapping-owned metadata/TF and emits
-TargetLocation. It does not invent sessions, revisions, alignments or clock facts.
-This composition is a field-test bridge; deployment can move projection to the
-mapping owner's node without changing message contracts. No robot commands.
+Map projection is separate code for later connection to existing rescue_mapping.
+This node does not subscribe to maps, query TF or publish TargetLocation.
 """
 import json
-import math
 import os
 import sys
 import time
@@ -19,46 +15,32 @@ import message_filters
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-from rclpy.time import Time
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
-from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
+from rescue_interfaces.msg import TargetObservation
 from ultralytics import YOLO
-from tf2_ros import Buffer, TransformListener
 from rclpy.executors import ExternalShutdownException
 
 from .camera_utils import PreviewProcessor, git_sha, validate_labels, verify_model
-from .target_utils import (SETTINGS, target_config, MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs, covariance_matrix,
-    fill_envelope, fill_location, fill_observation, inference_from_result, stamped_transform, decode_depth_png)
+from .target_utils import (SETTINGS, target_config, PreparedDetector, fill_envelope,
+    fill_observation, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
 
 
-def create_node(*, model_factory=None, transform_lookup=None, projection_metadata: ProjectionMetadata | None = None):
-    """Mapping owner may inject verified ProjectionMetadata; no file/template is loaded."""
+def create_node(*, model_factory=None):
+    """Create the RGB-D observation node; mapping integration is a later step."""
 
     node = Node('amr_target')
     try:
         v = dict(SETTINGS)
         boot_id = str(uuid4())
-        binding, alignment, depth_policy, expiry, confirmation, freshness, covariance = target_config(v, boot_id)
+        binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
-                      'observations_topic', 'locations_topic', 'map_state_topic')
+                      'observations_topic')
         topics = {key: node.resolve_topic_name(v[key]) for key in topic_keys}
         if len(set(topics.values())) != len(topics):
             raise ValueError('remapped input/output topics must differ')
-        metadata = projection_metadata
-        if metadata is not None:
-            a = metadata.alignment
-            if (a.source_robot != binding.source_robot or a.clock_domain_id != binding.clock_domain_id
-                    or a.authority_id != v['alignment_authority']):
-                raise ValueError('mapping metadata robot/clock domain mismatch')
-            if covariance_matrix(metadata.sensor_variance_xyz) != covariance:
-                raise ValueError('configured sensor variances differ from mapping covariance evidence')
-            for value, limit in ((a.position_error_m, v['max_alignment_position_error_m']),
-                                 (a.rotation_error_rad, v['max_alignment_rotation_error_rad'])):
-                if not math.isfinite(limit) or limit < 0 or value > limit:
-                    raise ValueError('mapping alignment error exceeds configured limit')
         path, model_hash = verify_model(v['model_path'], v['model_sha256'])
         if model_factory is None:
             model_factory = YOLO
@@ -74,41 +56,22 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
             if not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
                 raise ValueError('show=true requires a desktop display')
             cv2.namedWindow('AMR YOLO target', cv2.WINDOW_NORMAL)
-        if metadata is not None and transform_lookup is None:
-            buffer = Buffer(node=node)
-            listener = TransformListener(buffer, node, spin_thread=False)
-            node.target_tf_listener = listener
-            transform_lookup = lambda target, source, stamp: buffer.lookup_transform(
-                target, source, Time(nanoseconds=stamp))  # never Time() / latest fallback
         sensor_qos = QoSProfile(depth=v['sync_queue_size'], reliability=ReliabilityPolicy.BEST_EFFORT,
                                 durability=DurabilityPolicy.VOLATILE)
         observation_pub = node.create_publisher(TargetObservation, topics['observations_topic'],
             QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        location_pub = node.create_publisher(TargetLocation, topics['locations_topic'],
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE))
         image_pub = node.create_publisher(Image, topics['annotated_topic'], 1)
-        state = {'info': None, 'map': None, 'map_received': 0., 'last_success': time.monotonic(),
-                 'warning': 0., 'frames': 0, 'observation_seq': 0, 'location_seq': 0}
+        state = {'info': None, 'last_success': time.monotonic(),
+                 'warning': 0., 'frames': 0, 'observation_seq': 0}
 
         def envelope(message, key, now):
             state[key] += 1
             fill_envelope(message, version=v['envelope_version'], publisher_id=v['publisher_id'],
                           boot_id=boot_id, sequence=state[key], now_ns=now)
 
-        map_tracker = MapStateTracker(binding.source_robot)
-        def receive_map(message):
-            if message.robot_id != binding.source_robot:
-                return
-            try:
-                state['map'] = map_tracker.update(message)
-                state['map_received'] = time.monotonic()
-            except Exception as exc:
-                node.get_logger().warning(f'MapState discarded: {exc}')
-
         node.create_subscription(CameraInfo, topics['camera_info_topic'],
                                  lambda message: state.update(info=message), sensor_qos)
-        node.create_subscription(MapState, topics['map_state_topic'], receive_map,
-                                 QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE))
+
 
         def on_pair(rgb_message, depth_message):
             try:
@@ -142,37 +105,12 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
                     envelope(observation.envelope, 'observation_seq', now)
                     observation_pub.publish(observation)
                     if candidate.status != 'CONFIRMED':
-                        node.get_logger().warning(f'location blocked: {candidate.reasons}')
-                        continue
-                    if metadata is None:
-                        node.get_logger().warning('location blocked: mapping projection disabled/not configured')
-                        continue
-                    try:
-                        if time.monotonic() - state['map_received'] > v['max_map_age_ns'] / 1e9:
-                            raise ValueError('MapState receive timeout')
-                        check_projection_inputs(o, metadata, state['map'], now_ns=now,
-                            max_map_age_ns=v['max_map_age_ns'], receiver_clock_error_ns=v['receiver_clock_error_ns'],
-                            time_policy=freshness)
-                        transform = stamped_transform(transform_lookup(metadata.alignment.map_frame, o.frame.frame_id,
-                            o.observed_at_ns), source_frame=o.frame.frame_id, target_frame=metadata.alignment.map_frame,
-                            observed_at_ns=o.observed_at_ns)
-                        # Recheck age/version at emission. A slow inference/lookup cannot extend source lifetime.
-                        now = node.get_clock().now().nanoseconds
-                        check_projection_inputs(o, metadata, state['map'], now_ns=now,
-                            max_map_age_ns=v['max_map_age_ns'], receiver_clock_error_ns=v['receiver_clock_error_ns'],
-                            time_policy=freshness)
-                        location = fill_location(TargetLocation(), observation, o, metadata, transform, covariance)
-                        envelope(location.envelope, 'location_seq', now)
-                        location_pub.publish(location)
-                        node.get_logger().info(f'TargetLocation id={location.location_id} '
-                            f'frame={location.frame_ref.mission_frame} xyz={location.mission_position}')
-                    except Exception as exc:
-                        node.get_logger().warning(f'location blocked: {type(exc).__name__}: {exc}')
+                        node.get_logger().warning(f'target unconfirmed: {candidate.reasons}')
                 state['frames'] += 1
                 state['last_success'] = time.monotonic()
                 if state['frames'] % v['log_every'] == 0:
                     node.get_logger().info(f'frames={state["frames"]} observations={state["observation_seq"]} '
-                                          f'locations={state["location_seq"]} last_stamp={stamp}')
+                                          f'last_stamp={stamp}')
             except Exception as exc:
                 node.get_logger().error(f'AMR target frame failed (no fabricated coordinates): {type(exc).__name__}: {exc}')
 
@@ -193,7 +131,7 @@ def create_node(*, model_factory=None, transform_lookup=None, projection_metadat
         node.create_timer(v['no_frame_warn_s'], warn_stalled)
         node.get_logger().info(f'amr_target git={git_sha()} boot={boot_id} model_sha256={model_hash} '
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '
-            f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id} mapping_snapshot={metadata}')
+            f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id}')
         return node
     except Exception:
         node.destroy_node()

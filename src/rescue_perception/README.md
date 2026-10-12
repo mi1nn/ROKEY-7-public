@@ -42,7 +42,8 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [amr_camera.py](rescue_perception/amr_camera.py) | RGB raw/compressed → YOLO 1회 → 원 헤더를 보존한 annotated Image. ROS·영상·모델 의존성은 파일 상단에서 import한다 |
 | [amr_target.py](rescue_perception/amr_target.py) | RGB·Depth·CameraInfo → 기존 PersonPipeline·adapter·core → TargetObservation. ROS·영상·모델 의존성은 파일 상단에서 import한다 |
 | [camera_utils.py](rescue_perception/camera_utils.py) | 공통 SETTINGS, 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
-| [target_utils.py](rescue_perception/target_utils.py) | RGB-D SETTINGS·target_config, YOLO 관측/좌표 메시지, map revision/TF/공분산 검사, Depth 복호화·보정 |
+| [target_utils.py](rescue_perception/target_utils.py) | RGB-D SETTINGS·target_config, YOLO 관측 메시지, Depth 복호화·robot6 보정 |
+| [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
 | [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 보정계수·원 측정값·날짜·PR #126 출처·적용 한계. 설치본에도 포함 |
 
 [사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
@@ -69,12 +70,12 @@ ros2 run rescue_perception amr_target
 
 YAML이나 `--params-file`은 필요 없다. ROS 표준 namespace/topic remap은 사용할 수 있다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
-RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. 위치 발행은 mapping 담당이 `create_node(projection_metadata=...)`로 검증된 ProjectionMetadata를 직접 연결했을 때만 시도한다. 독립 실행은 metadata가 없으므로 TargetLocation을 발행하지 않는다. 연결해도 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 모두 검사하며 최신 TF나 static-zero로 대체하지 않는다. 주행 명령은 보내지 않는다.
+RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 TargetObservation과 annotated Image만 발행하며 MapState 구독·TF 조회·TargetLocation publisher가 없다. 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
 ### 시험과 범위
 
 - tests/test_perception_amr_camera.py: 코드 설정·GPU/신뢰도 전달·모델 SHA/class·RGB 형식·원 헤더 보존·추론 실패.
-- tests/test_perception_amr_target.py: YOLO 관측·optical/mission 좌표·clock/map revision/TF·공분산 회전.
+- tests/test_perception_amr_target.py: YOLO 관측·optical 좌표, 분리된 지도 변환 함수의 합성 mission 좌표·clock/map revision/TF·공분산 회전.
 - tests/test_perception_depth_calibration.py: 코드 기본값과 robot6 프로파일 연결·mm/m XYZ·무효값·로봇 불일치·설치 리소스.
 
 ```bash
@@ -82,4 +83,4 @@ PYTHONPATH=src/rescue_contracts:src/rescue_mapping:src/rescue_perception \
   python3 -m unittest discover -s tests -p 'test_perception*.py' -v
 ```
 
-실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. TargetLocation 발행은 저장 보장·자동 접근 승인이 아니다.
+실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. 지도 변환 모듈은 아직 실제 mapping 경로에 연결되지 않았다.

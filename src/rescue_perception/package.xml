@@ -2,7 +2,7 @@
 <package format="3">
   <name>rescue_perception</name>
   <version>0.0.0</version>
-  <description>기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. ROS 경계는 고정 웹캠·AMR 미리보기·RGB-D 좌표 시험 노드다.</description>
+  <description>기록 RGB-D 정합·광학 위치·관측 최신성·잠정 사건을 검증하는 순수 Python 코어. ROS 경계는 고정 웹캠·AMR 미리보기·RGB-D 관측 시험 노드다.</description>
   <maintainer email="maintainer@example.invalid">Maintainer not yet assigned</maintainer>
   <license>LicenseRef-Unspecified</license>
   <buildtool_depend>ament_python</buildtool_depend>
@@ -17,6 +17,5 @@
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>rescue_mapping</exec_depend>
   <exec_depend>message_filters</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
