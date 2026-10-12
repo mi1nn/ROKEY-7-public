@@ -4,7 +4,12 @@ Messages are SYNTHETIC plain objects with ROS field names. Reading a real rosbag
 file (tools/perception_bag_replay.py) needs ROS 2 and is run locally (PR
 evidence), not here. The config mirrors tools/perception_bag_replay.synthetic.json.
 """
+import copy
+import contextlib
+import io
 import json
+from pathlib import Path
+from unittest.mock import patch
 import struct
 import tempfile
 from types import SimpleNamespace as NS
@@ -125,12 +130,100 @@ class BagReplayTests(unittest.TestCase):
         self.assertEqual((rows[1]["result"], rows[1]["reason"]),
                          ("REJECTED", "rescue_perception.MODEL_CLASS_MISMATCH"))
 
+    def test_unusable_stamps_are_reported_and_valid_records_continue(self):
+        for role, factory in (("rgb", rgb), ("depth", depth),
+                              ("detections", detections), ("camera_info", lambda ns: copy.deepcopy(INFO))):
+            for sec, ns in ((0, 0), (-1, 0), (SEC, 1000000000),
+                            (float(SEC), 1), (True, 1), (2**63, 1)):
+                with self.subTest(role=role, sec=sec, ns=ns):
+                    invalid = factory(ns)
+                    invalid.header.stamp.sec = sec
+                    invalid.header.stamp.nanosec = ns
+                    rows = self.run_records([(role, invalid), ("camera_info", INFO),
+                                             ("rgb", rgb(123456789)), ("depth", depth(123456789)),
+                                             ("detections", detections(123456789))])
+                    self.assertEqual(rows[0]["result"], "REJECTED")
+                    self.assertEqual(rows[0]["reason"], "UNUSABLE_TIMESTAMP")
+                    self.assertEqual(rows[0]["role"], role)
+                    self.assertIsNone(rows[0]["stamp_ns"])
+                    self.assertEqual(rows[-1]["observed_at_ns"], 1700000000123456789)
+
+    def test_missing_stamp_fields_reported_without_aborting(self):
+        rows = self.run_records([("rgb", NS(header=NS()))])
+        self.assertEqual(rows[0]["reason"], "UNUSABLE_TIMESTAMP")
+
+    def test_depth_skew_boundary_and_gap_report(self):
+        stamp = 123456789
+        skew = self.cfg["depth_policy"].max_stamp_skew_ns
+        for delta in (skew, skew + 1):
+            rows = self.run_records([("camera_info", INFO), ("rgb", rgb(stamp)),
+                                     ("depth", depth(stamp + delta)), ("detections", detections(stamp))])
+            if delta == skew:
+                self.assertEqual(rows[0]["reason"], "LOCATED")
+            else:
+                self.assertEqual(rows[0]["reason"], "NO_DEPTH_WITHIN_SKEW")
+                self.assertEqual(rows[0]["nearest_depth_stamp_ns"], 1700000000143456790)
+                self.assertEqual(rows[0]["depth_skew_ns"], delta)
+                self.assertEqual(rows[0]["max_stamp_skew_ns"], skew)
+
+    def test_detection_with_unusable_stamp_is_a_rejection(self):
+        array = detections(1000)
+        array.detections[0].header.stamp.sec = 0
+        array.detections[0].header.stamp.nanosec = 0
+        rows = self.run_records([("camera_info", INFO), ("rgb", rgb(1000)),
+                                 ("depth", depth(1000)), ("detections", array)])
+        self.assertEqual(rows[0]["reason"], "UNUSABLE_TIMESTAMP")
+        self.assertEqual(rows[0]["role"], "detection")
+
+    def test_empty_detection_array_is_reported(self):
+        array = detections(1000)
+        array.detections = []
+        rows = self.run_records([("camera_info", INFO), ("rgb", rgb(1000)),
+                                 ("depth", depth(1000)), ("detections", array)])
+        self.assertEqual(rows[0]["result"], "EMPTY_DETECTIONS")
+
+    def test_topic_mapping_must_be_nonempty_and_distinct(self):
+        for topics in ({**RAW_CONFIG["topics"], "depth": "/synthetic/rgb"},
+                       {**RAW_CONFIG["topics"], "rgb": ""}):
+            with self.assertRaises(ValueError):
+                self.load({**RAW_CONFIG, "topics": topics})
+
     def test_config_is_strict(self):
         raw = RAW_CONFIG
         for broken in ({**raw, "extra": 1}, {k: v for k, v in raw.items() if k != "depth_policy"},
                        {**raw, "topics": {**raw["topics"], "imu": "/imu"}}):
             with self.assertRaises(ValueError):
                 self.load(broken)
+
+
+class BagReplayCliTests(unittest.TestCase):
+    def setUp(self):
+        # The same CLI must work with installed wheels and no source/tools tree.
+        from rescue_perception import bag_replay_cli
+        self.cli = bag_replay_cli
+
+    def test_missing_bag_is_explicit_before_ros_import(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(self.cli, "_ros") as ros:
+            with self.assertRaises(FileNotFoundError):
+                list(self.cli.read_bag(Path(folder) / "missing", RAW_CONFIG["topics"]))
+            ros.assert_not_called()
+
+    def test_cli_reports_input_error_without_traceback(self):
+        with patch.object(self.cli, "load_config", return_value={"topics": {}}), \
+             patch.object(self.cli, "read_bag", side_effect=FileNotFoundError("missing bag")), \
+             contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(self.cli.main(["replay", "missing", "--config", "cfg"]), 2)
+        self.assertEqual(json.loads(err.getvalue())["result"], "INPUT_ERROR")
+
+    def test_cli_exit_distinguishes_clean_replay_gaps_and_empty_input(self):
+        for rows, expected in (([{"result": "OBSERVATION", "reason": "LOCATED"}], 0),
+                               ([{"result": "UNPAIRED", "reason": "NO_DEPTH_WITHIN_SKEW"}], 1),
+                               ([], 1)):
+            with patch.object(self.cli, "load_config", return_value={"topics": {}}), \
+                 patch.object(self.cli, "read_bag", return_value=[]), \
+                 patch.object(self.cli, "replay_records", return_value=iter(rows)), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(self.cli.main(["replay", "bag", "--config", "cfg"]), expected)
 
 
 if __name__ == "__main__":
