@@ -34,7 +34,7 @@ EVIDENCE_MIME = 'application/octet-stream'  # 원 픽셀 바이트(bgr8)의 해�
 
 # (이름, 타입). 모두 필수이고 기본값이 없다.
 PARAMS = {
-    'camera_id': 'STRING', 'frame_id': 'STRING', 'device_index': 'INTEGER', 'width': 'INTEGER',
+    'camera_id': 'STRING', 'frame_id': 'STRING', 'device_path': 'STRING', 'width': 'INTEGER',
     'height': 'INTEGER', 'frame_period_s': 'DOUBLE', 'reopen_period_s': 'DOUBLE',
     'clock_domain_id': 'STRING', 'clock_state': 'STRING', 'clock_error_bound_ns': 'INTEGER',
     'calibration_id': 'STRING', 'observation_validity_s': 'DOUBLE',
@@ -142,7 +142,7 @@ def main(args=None):
     slot = WatchSlot(binding, watch_policy)
     validity_ns = _ns(v['observation_validity_s'])
     log.info(f'webcam_node git={git_sha()} boot={boot_id} model={v["model_path"]} sha256={model_sha} '
-             f'camera={v["camera_id"]} device={v["device_index"]} {v["width"]}x{v["height"]} '
+             f'camera={v["camera_id"]} device={v["device_path"]}->{Path(v["device_path"]).resolve()} {v["width"]}x{v["height"]} '
              f'period={v["frame_period_s"]}s policy={v["policy_version"]} quake={quake_policy} watch={watch_policy}')
 
     reliable = dict(reliability=ReliabilityPolicy.RELIABLE)
@@ -252,7 +252,7 @@ def main(args=None):
     camera = {'cap': None, 'next_open_ns': 0}
 
     def open_camera():
-        cap = cv2.VideoCapture(v['device_index'])
+        cap = cv2.VideoCapture(v['device_path'], cv2.CAP_V4L2)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, v['width'])
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, v['height'])
         # 주기 읽기(frame_period_s)라 버퍼에 쌓인 예전 프레임이 나오지 않게 1장만 둔다(#113 재범 제안).
@@ -272,7 +272,7 @@ def main(args=None):
             if camera['cap'] is None:
                 camera['next_open_ns'] = now + _ns(v['reopen_period_s'])
                 publish_status('OFFLINE', now, reason='OPEN_FAILED')
-                log.warning(f'camera {v["device_index"]} open failed; retry in {v["reopen_period_s"]}s')
+                log.warning(f'camera {v["device_path"]} open failed; retry in {v["reopen_period_s"]}s')
                 return
         ok, frame = camera['cap'].read()
         stamp = time.time_ns()
