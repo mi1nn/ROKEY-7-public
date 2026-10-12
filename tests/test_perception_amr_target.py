@@ -151,4 +151,48 @@ class TargetTests(unittest.TestCase):
             with self.assertRaises(ValueError): covariance_matrix(values)
 
 
+class BasePointTests(unittest.TestCase):
+    def transform(self, *, stamp=T, source=FRAME, target='base_link'):
+        # optical right/down/forward -> base forward/left/up, with camera offset.
+        return NS(header=header(stamp,target),child_frame_id=source,
+                  transform=NS(translation=NS(x=.2,y=0.,z=.3),
+                               rotation=NS(x=-.5,y=.5,z=-.5,w=.5)))
+
+    def test_base_point_rotates_translates_and_preserves_capture_stamp(self):
+        from unittest.mock import Mock
+        from rescue_perception.target_utils import fill_base_point
+        lookup=Mock(return_value=self.transform())
+        o=fixture().observation
+        point=fill_base_point(NS(header=header(),point=NS()),o,lookup,base_frame='base_link')
+        lookup.assert_called_once_with('base_link',FRAME,T)
+        self.assertEqual(point.header.frame_id,'base_link')
+        self.assertEqual((point.header.stamp.sec,point.header.stamp.nanosec),(T//10**9,T%10**9))
+        self.assertAlmostEqual(point.point.x,2.2)
+        self.assertAlmostEqual(point.point.y,0.)
+        self.assertAlmostEqual(point.point.z,.3)
+        self.assertEqual(o.frame.frame_id,FRAME)
+        self.assertEqual(o.localization.point_optical,(0.,0.,2.))
+
+    def test_static_mount_transform_is_valid_after_capture_time_lookup(self):
+        from rescue_perception.target_utils import fill_base_point
+        point=fill_base_point(NS(header=header(),point=NS()),fixture().observation,
+                              lambda *args:self.transform(stamp=0),base_frame='base_link')
+        self.assertAlmostEqual(point.point.x,2.2)
+        self.assertEqual(point.header.stamp.nanosec,T%10**9)
+
+    def test_missing_tf_unknown_depth_wrong_frames_and_wrong_time_produce_no_point(self):
+        from unittest.mock import Mock
+        from rescue_perception.target_utils import fill_base_point
+        for transform in (self.transform(source='wrong_camera'),self.transform(target='odom'),self.transform(stamp=T+1)):
+            with self.subTest(transform=transform),self.assertRaises(ValueError):
+                fill_base_point(NS(header=header(),point=NS()),fixture().observation,lambda *args:transform,base_frame='base_link')
+        lookup=Mock(side_effect=RuntimeError('TF unavailable'))
+        with self.assertRaises(RuntimeError):
+            fill_base_point(NS(header=header(),point=NS()),fixture().observation,lookup,base_frame='base_link')
+        lookup.reset_mock()
+        with self.assertRaises(ValueError):
+            fill_base_point(NS(header=header(),point=NS()),fixture(depth_value=0).observation,lookup,base_frame='base_link')
+        lookup.assert_not_called()
+
+
 if __name__=='__main__': unittest.main()
