@@ -195,4 +195,48 @@ class BasePointTests(unittest.TestCase):
         lookup.assert_not_called()
 
 
+class OneShotTests(unittest.TestCase):
+    def candidate(self, *, confidence=.9, depth=2000, bbox=(.5,.5,3.5,3.5)):
+        c=fixture(confidence=confidence,depth_value=depth)
+        return replace(c,observation=replace(c.observation,
+            detection=replace(c.observation.detection,bbox=bbox)))
+
+    def test_first_confirmed_interior_target_is_sent_once_for_entire_run(self):
+        from unittest.mock import Mock
+        from rescue_perception.target_utils import OneShotTarget
+        sender=OneShotTarget();publish=Mock();candidate=self.candidate(confidence=.8)
+        self.assertEqual(sender.state,'SEARCHING')
+        self.assertTrue(sender.send(candidate,publish))
+        self.assertEqual(sender.state,'SENT')
+        self.assertEqual(sender.observation_id,candidate.observation.observation_id)
+        self.assertFalse(sender.send(candidate,publish))
+        self.assertFalse(sender.send(self.candidate(),publish))
+        publish.assert_called_once_with(candidate.observation)
+        self.assertEqual(OneShotTarget().state,'SEARCHING')
+
+    def test_low_confidence_invalid_depth_and_all_four_image_edges_wait(self):
+        from unittest.mock import Mock
+        from rescue_perception.target_utils import OneShotTarget
+        sender=OneShotTarget();publish=Mock()
+        for candidate in (self.candidate(confidence=.79),self.candidate(depth=0),
+                          *(self.candidate(bbox=b) for b in ((0.,.5,3.5,3.5),(.5,0.,3.5,3.5),
+                                                            (.5,.5,4.,3.5),(.5,.5,3.5,4.)))):
+            with self.subTest(candidate=candidate):
+                self.assertFalse(sender.send(candidate,publish))
+                self.assertEqual(sender.state,'SEARCHING')
+        publish.assert_not_called()
+        self.assertTrue(sender.send(self.candidate(),publish))
+        publish.assert_called_once()
+
+    def test_publisher_failure_does_not_latch_sent(self):
+        from unittest.mock import Mock
+        from rescue_perception.target_utils import OneShotTarget
+        sender=OneShotTarget();publish=Mock(side_effect=RuntimeError('publish failed'))
+        with self.assertRaises(RuntimeError):sender.send(self.candidate(),publish)
+        self.assertEqual(sender.state,'SEARCHING')
+        self.assertIsNone(sender.observation_id)
+        publish.side_effect=None
+        self.assertTrue(sender.send(self.candidate(),publish))
+
+
 if __name__=='__main__': unittest.main()
