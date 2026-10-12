@@ -12,7 +12,8 @@ def params(**changes):
               'status_topics': ['/rescue/robots/robot_a/status', '/rescue/robots/robot_b/status'],
               'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
               'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state',
-              'targets_topic': '/rescue/targets'}
+              'targets_topic': '/rescue/targets', 'api_host': '127.0.0.1', 'api_port': 8090,
+              'operator_command_service': '/rescue/operator_command', 'command_timeout_s': 3.0}
     return values | changes
 
 
@@ -43,6 +44,14 @@ class NodeConfig(unittest.TestCase):
                          (config['db_path'], config['site_events_topic'], config['system_state_topic'],
                           config['targets_topic']))
 
+    def test_command_api_settings_are_kept(self):
+        """#115: the console posts to this address; the API waits command_timeout_s (< console 5 s)."""
+        from rescue_operations.ros_node import node_config
+        config = node_config(params())
+        self.assertEqual(('127.0.0.1', 8090, '/rescue/operator_command', 3_000_000_000),
+                         (config['api_host'], config['api_port'], config['operator_command_service'],
+                          config['command_timeout_ns']))
+
     def test_inconsistent_configuration_is_refused_before_anything_starts(self):
         from rescue_operations.ros_node import node_config
         bad = [dict(robot_roles=['SCOUT']), dict(status_topics=['/a']), dict(pose_topics=[]),
@@ -50,7 +59,9 @@ class NodeConfig(unittest.TestCase):
                dict(status_topics=['/same', '/same']), dict(allowed_robot_ids=['robot_a', 'robot_a']),
                dict(site_events_topic=''), dict(db_path=''), dict(system_state_topic=''),
                dict(system_state_topic='/rescue/site_events'), dict(targets_topic=''),
-               dict(targets_topic='/rescue/system_state')]
+               dict(targets_topic='/rescue/system_state'), dict(api_host=''), dict(api_port=0),
+               dict(api_port=70000), dict(operator_command_service=''), dict(command_timeout_s=0.0),
+               dict(command_timeout_s=5.0)]
         for change in bad:
             with self.subTest(change=change), self.assertRaises(OperationsError) as caught:
                 node_config(params(**change))
