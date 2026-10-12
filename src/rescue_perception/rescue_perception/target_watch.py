@@ -197,6 +197,11 @@ class TargetWatchDetector:
         self._last_ns = stamp
         if gap:
             self._restart_absence()
+        roi = self.watch.roi_xyxy_normalized
+        scored = [b for b in boxes or () if b.score >= self.policy.score_min]
+        in_roi = [b for b in scored if _inside_fraction(b, roi) >= self.policy.roi_overlap_min]
+        # 가림 중에도 모델이 낸 상자로 따라간다: 옮기는 사람이 화면을 가린 채 인형을 들고 나간다(2026-10-12 실기).
+        seen = self._follow(in_roi, scored)
 
         if visibility != "VALID" or boxes is None:
             # 판정 불가: 후보를 만들지 않고 소실 시간을 다시 잰다(운영자 판단 대상).
@@ -208,11 +213,7 @@ class TargetWatchDetector:
             return self._result("UNKNOWN", visibility, reason, stamp, None)
 
         self._valid_run += 1
-        roi = self.watch.roi_xyxy_normalized
-        scored = [b for b in boxes if b.score >= self.policy.score_min]
-        in_roi = [b for b in scored if _inside_fraction(b, roi) >= self.policy.roi_overlap_min]
         present = bool(in_roi)
-        seen = self._follow(in_roi, scored)
         if present:
             self._present_run += 1
             if self._present_run >= self.policy.present_confirm_frames:
