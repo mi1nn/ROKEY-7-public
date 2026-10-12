@@ -11,6 +11,7 @@ the number of distinct EXIT_PASS events stored here; recognition removes track
 duplicates before it publishes, and nothing here removes them again (TS-04).
 """
 
+from collections.abc import Mapping
 from dataclasses import MISSING, asdict, fields
 import json
 import math
@@ -46,6 +47,9 @@ OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINU
                                     "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
+# Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.
+ROBOT_DEFAULTS = {"dock_state": None, "segment_index": None}
+DOCK_STATES = frozenset({"DOCKED", "UNDOCKED", "UNKNOWN"})  # RobotStatus.DOCK_STATE_*
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
@@ -98,17 +102,23 @@ def _pair(first, second, label):
     require((first is None) == (second is None), label + " must be both present or both None")
 
 
+def _pose(value):
+    if value is None:
+        return None
+    pose = exact(value, POSE_KEYS, "pose")
+    return {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
+            "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+
+
 def _robot_status(value, allowed):
-    status = dict(exact(value, ROBOT_KEYS, "robot status"))
+    require(isinstance(value, Mapping), "robot status must be an object")
+    status = dict(exact(ROBOT_DEFAULTS | dict(value), ROBOT_KEYS | ROBOT_DEFAULTS.keys(), "robot status"))
     _member(status["robot_id"], allowed, "robot_id")
     uid(status["robot_boot_id"], "robot_boot_id")
     uint(status["state_sequence"], "state_sequence")
     require(status["role"] == UNKNOWN or status["role"] in ROBOT_ROLES, "role must be SCOUT, SUPPORT or UNKNOWN")
     timestamp(status["stamp_ns"], "stamp_ns")
-    if status["pose"] is not None:
-        pose = exact(status["pose"], POSE_KEYS, "pose")
-        status["pose"] = {"x": _finite(pose["x"], "pose.x"), "y": _finite(pose["y"], "pose.y"),
-                          "yaw": _finite(pose["yaw"], "pose.yaw"), "frame_id": text(pose["frame_id"], "pose.frame_id")}
+    status["pose"] = _pose(status["pose"])
     text(status["motion_state"], "motion_state", 64)
     text(status["readiness"], "readiness", 64)
     _pair(status["battery_percent"], status["battery_stamp_ns"], "battery_percent/battery_stamp_ns")
@@ -120,7 +130,16 @@ def _robot_status(value, allowed):
     if status["active_task_id"] is not None:
         uid(status["active_task_id"], "active_task_id")
         uint(status["generation"], "generation")
+    require(status["dock_state"] is None or status["dock_state"] in DOCK_STATES,
+            "dock_state must be DOCKED, UNDOCKED, UNKNOWN or None")
+    if status["segment_index"] is not None:
+        uint(status["segment_index"], "segment_index")
     return status
+
+
+def _stored_status(status_json):
+    """A stored robot snapshot with every current key; keys added later read as None."""
+    return ROBOT_DEFAULTS | json.loads(status_json)
 
 
 # SiteEvent fields added after rows were stored (target_id/watch_id, #48) read back as their defaults.
@@ -237,8 +256,10 @@ class SiteStateLedger(_Database):
             if row is not None:
                 if row["robot_boot_id"] == status["robot_boot_id"]:
                     if status["state_sequence"] == row["state_sequence"]:
-                        require(row["status_json"] == encoded, "same boot and sequence with different content",
-                                "ID_CONTENT_CONFLICT")
+                        # The pose comes on its own topic (record_robot_pose); it is not this status's content.
+                        require(canonical(_stored_status(row["status_json"]) | {"pose": None})
+                                == canonical(status | {"pose": None}),
+                                "same boot and sequence with different content", "ID_CONTENT_CONFLICT")
                         return False
                     if status["state_sequence"] < row["state_sequence"]:
                         return False
@@ -247,6 +268,25 @@ class SiteStateLedger(_Database):
             db.execute("INSERT OR REPLACE INTO robot_status VALUES (?, ?, ?, ?, ?, ?)",
                        (status["robot_id"], status["robot_boot_id"], status["state_sequence"], status["stamp_ns"],
                         encoded, timestamp(time.time_ns(), "received_at_ns")))
+        return True
+
+    def record_robot_pose(self, robot_id, pose):
+        """Replace only the pose of the robot's current snapshot (None hides it).
+
+        False when there is no snapshot yet or the pose is unchanged. received_at_ns is kept: it
+        is when the status arrived, and a newer pose must not make an old status look fresh.
+        """
+        _member(robot_id, self.allowed_robot_ids, "robot_id")
+        pose = _pose(pose)
+        with self._transaction() as db:
+            row = db.execute("SELECT status_json FROM robot_status WHERE robot_id = ?", (robot_id,)).fetchone()
+            if row is None:
+                return False
+            stored = _stored_status(row["status_json"])
+            if stored["pose"] == pose:
+                return False
+            db.execute("UPDATE robot_status SET status_json = ? WHERE robot_id = ?",
+                       (canonical(stored | {"pose": pose}), robot_id))
         return True
 
     def record_site_event(self, event):
@@ -366,7 +406,7 @@ def _read(db_path, query):
 def read_robot_status(db_path):
     def query(db):
         rows = db.execute("SELECT status_json, received_at_ns FROM robot_status ORDER BY robot_id").fetchall()
-        return {"robots": [json.loads(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
+        return {"robots": [_stored_status(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
                            for row in rows]}
     return _read(db_path, query)
 
