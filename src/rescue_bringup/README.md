@@ -76,3 +76,25 @@ RViz에서 `2D Pose Estimate`로 실제 초기 위치와 방향을 지정하고 
 | `nav2_params_file` | 두 모드 | TurtleBot4 `config/nav2.yaml` |
 
 `--show-args`는 실행 인자와 launch 읽기만 확인하며 ROS 노드를 시작하지 않는다. 이 검사나 빌드 성공을 실제 map/TF·초기 위치·주행 성공으로 해석하지 않는다. 실제 지도 작성·저장·재위치 추정·장애물 회피와 두 로봇/프로젝트 인터페이스 통합은 E3/E4 NOT_RUN이며 현장 증거를 추가해야 한다.
+
+## 운영 PC launch (`operations.launch.py`, 2026-10-12)
+
+운영 PC(프로파일 `operations` 호스트)에서 db_writer(현장 상태 DB 쓰기 + 운영자 명령 API)와, 원하면 고정 웹캠 노드를 띄운다. 로봇 ID·역할·토픽은 배치 프로파일 v2.1(`mission.roles`)에서 계산하므로, 실기 로봇이 바뀌면 프로파일 파일만 바꾼다. 실기 값(로봇 ID·주소)은 저장소 밖 프로파일에 두고 경로로 넘긴다. 변환은 `rescue_bringup/operations_launch.py`(ROS 없음, `tests/test_bringup_operations_launch.py`)이고, 토픽·서비스 이름은 조정기 상수와 같은지 시험이 대조한다.
+
+```bash
+ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json> \
+  db_path:=<site_state.sqlite3> api_port:=<포트> command_timeout_s:=3.0 \
+  webcam_params_file:=<webcam_node.yaml>   # 빼면 웹캠 없이
+```
+
+- `db_path` 는 로봇 묶음마다 새 파일이다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않는다.
+- 운영자 명령 API 는 `127.0.0.1` 에서만 받는다(API 자체에 로그인 확인 없음). 관제 웹은 이 launch 밖의 웹 서비스로, `--site-state <db_path> --operations http://127.0.0.1:<api_port>` 로 같은 DB·API 를 가리킨다.
+- `command_timeout_s` 는 관제 웹의 5초보다 짧아야 한다.
+- 프로파일에 `mission.roles` 가 없으면(v1) 시작하지 않는다.
+
+| 검증 | 결과 |
+| --- | --- |
+| E2: `tests/test_bringup_operations_launch.py` | 통과 |
+| 로컬 ROS(jazzy, `ROS_DOMAIN_ID=77`, LOCALHOST, Discovery Server 해제, 한 PC, 2026-10-12, 스크래치 colcon 설치본): 예시 프로파일로 이 launch + 조정기 노드, 가짜 로봇 상태·DISASTER_SIGN | db_writer 기동(`allowed_robot_ids` = robot_a·robot_b), 조정기 전 API 503, 재난 전 START_SEARCH 거절 `NOT_AUTHORIZED`, 재난 뒤 접수, 명령 2행·임무 DISASTER/SEARCHING·로봇 2행(SCOUT·SUPPORT) 저장, 종료 코드 0. v1 프로파일은 launch 오류로 시작하지 않음 |
+
+NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요), 운영 PC·실기 프로파일, 조정기·로봇 PC launch.
