@@ -84,6 +84,31 @@ def robot_status_from_msg(msg, *, role, pose):
         raise _invalid(exc, "robot status") from exc
 
 
+def mission_from_msg(msg):
+    """rescue_interfaces/SystemState (#88, C-10) -> site_state mission row (validated when recorded).
+
+    has_trigger/has_dispatch false -> those fields are None (the message carries 0 / '' there).
+    The change time orders the rows: state_sequence restarts at 1 when the coordinator restarts.
+    SystemState has no mission generation, so generation is None. reason (the coordinator's cause
+    code, #91) is kept; empty means none. Dropped: cause_event_ids, active_task_ids, policy_version,
+    state_sequence and the envelope.
+    """
+    try:
+        trigger, dispatch = msg.has_trigger, msg.has_dispatch
+        return dict(mode=msg.mode, phase=msg.phase,
+                    trigger_event_id=msg.trigger_event_id if trigger else None,
+                    started_at_ns=msg.trigger_observed_at_ns if trigger else None,
+                    generation=None, updated_at_ns=msg.changed_at_ns,
+                    target_id=msg.target_id if dispatch else None,
+                    target_revision=msg.target_revision if dispatch else None,
+                    route_revision=msg.route_revision if dispatch else None,
+                    segment_index=msg.segment_index if dispatch else None,
+                    segment_count=msg.segment_count if dispatch else None,
+                    segment_phase=msg.segment_phase if dispatch else None, reason=_optional(msg.reason))
+    except (AttributeError, TypeError) as exc:
+        raise _invalid(exc, "system state") from exc
+
+
 class SiteStateIngest:
     """Writes converted messages through one SiteStateLedger; failures go to error_log."""
 
@@ -122,6 +147,14 @@ class SiteStateIngest:
             return self.ledger.record_site_event(site_event_from_msg(msg))
         except OperationsError as exc:
             self._log(exc, received_at_ns, f"site_event {getattr(msg, 'event_id', None)!r}")
+            return None
+
+    def on_system_state(self, msg, *, received_at_ns):
+        """True stored, False older or identical resend, None refused (and logged)."""
+        try:
+            return self.ledger.record_mission_state(mission_from_msg(msg))
+        except OperationsError as exc:
+            self._log(exc, received_at_ns, f"system_state seq {getattr(msg, 'state_sequence', None)!r}")
             return None
 
     def _log(self, exc, received_at_ns, what, robot_id=None, task_id=None):
