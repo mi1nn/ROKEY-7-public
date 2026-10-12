@@ -19,6 +19,25 @@ def config(**overrides):
 
 
 class PreviewTests(unittest.TestCase):
+    def test_deployment_configs_select_gpu_and_half_confidence(self):
+        config_dir = Path(__file__).resolve().parents[1] / 'src/rescue_perception/config'
+        for name in ('amr_camera_node.example.yaml', 'amr_target_node.example.yaml'):
+            with self.subTest(config=name):
+                fields = {}
+                for line in (config_dir / name).read_text().splitlines():
+                    key, sep, value = line.partition(':')
+                    if sep and key.strip() in ('model_conf', 'device'):
+                        fields[key.strip()] = value.split('#', 1)[0].strip()
+                self.assertEqual(float(fields['model_conf']), 0.5)
+                self.assertEqual(fields['device'], "'0'")  # ROS parameter must remain a string.
+
+    def test_gpu_and_confidence_are_forwarded_to_detector(self):
+        processor, model, bridge, _ = self.processor()
+        processor = PreviewProcessor(model, bridge, config(model_conf=0.5, device='0'))
+        processor.process(NS(format='jpeg', header=NS()))
+        model.predict.assert_called_once_with(bridge.compressed_imgmsg_to_cv2.return_value,
+                                              imgsz=640, conf=0.5, device='0', verbose=False)
+
     def test_required_and_invalid_parameters(self):
         for key in config():
             values = config()
