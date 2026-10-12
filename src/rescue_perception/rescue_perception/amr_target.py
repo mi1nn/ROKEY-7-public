@@ -25,7 +25,7 @@ from ultralytics import YOLO
 from rclpy.executors import ExternalShutdownException
 
 from .camera_utils import PreviewProcessor, git_sha, validate_labels, verify_model
-from .target_utils import (SETTINGS, target_config, PreparedDetector, fill_envelope,
+from .target_utils import (SETTINGS, target_config, PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
 from .core import ModelManifest
@@ -63,9 +63,11 @@ def create_node(*, model_factory=None, transform_lookup=None):
         sensor_qos = QoSProfile(depth=v['sync_queue_size'], reliability=ReliabilityPolicy.BEST_EFFORT,
                                 durability=DurabilityPolicy.VOLATILE)
         observation_pub = node.create_publisher(TargetObservation, topics['observations_topic'],
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                       durability=DurabilityPolicy.TRANSIENT_LOCAL))
         base_point_pub = node.create_publisher(PointStamped, topics['base_point_topic'],
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                       durability=DurabilityPolicy.TRANSIENT_LOCAL))
         if transform_lookup is None:
             buffer = Buffer(node=node)
             node.relative_tf_listener = TransformListener(buffer, node, spin_thread=False)
@@ -75,6 +77,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
         state = {'info': None, 'last_success': time.monotonic(),
                  'warning': 0., 'frames': 0, 'observation_seq': 0}
 
+        sender = OneShotTarget()
+
         def envelope(message, key, now):
             state[key] += 1
             fill_envelope(message, version=v['envelope_version'], publisher_id=v['publisher_id'],
@@ -83,6 +87,20 @@ def create_node(*, model_factory=None, transform_lookup=None):
         node.create_subscription(CameraInfo, topics['camera_info_topic'],
                                  lambda message: state.update(info=message), sensor_qos)
 
+
+        def publish_target(o):
+            observation = fill_observation(TargetObservation(), o, covariance)
+            now = node.get_clock().now().nanoseconds
+            envelope(observation.envelope, 'observation_seq', now)
+            observation_pub.publish(observation)
+            try:
+                base_point = fill_base_point(PointStamped(), o, transform_lookup,
+                                             base_frame=v['base_frame'])
+                base_point_pub.publish(base_point)
+            except Exception as exc:
+                node.get_logger().warning(
+                    f'base point unavailable; camera observation {o.observation_id} retained: '
+                    f'{type(exc).__name__}: {exc}')
 
         def on_pair(rgb_message, depth_message):
             try:
@@ -110,27 +128,19 @@ def create_node(*, model_factory=None, transform_lookup=None):
                     cv2.imshow('AMR YOLO target', canvas)
                     cv2.waitKey(1)
                 for candidate in findings.candidates:
-                    o = candidate.observation
-                    observation = fill_observation(TargetObservation(), o, covariance)
-                    now = node.get_clock().now().nanoseconds
-                    envelope(observation.envelope, 'observation_seq', now)
-                    observation_pub.publish(observation)
-                    if o.localization.point_optical is not None:
-                        try:
-                            base_point = fill_base_point(PointStamped(), o, transform_lookup,
-                                                         base_frame=v['base_frame'])
-                            base_point_pub.publish(base_point)
-                        except Exception as exc:
-                            node.get_logger().warning(
-                                f'base point unavailable; camera observation {o.observation_id} retained: '
-                                f'{type(exc).__name__}: {exc}')
-                    if candidate.status != 'CONFIRMED':
-                        node.get_logger().warning(f'target unconfirmed: {candidate.reasons}')
+                    if sender.state == 'SENT':
+                        break
+                    if sender.send(candidate, publish_target):
+                        node.get_logger().info(
+                            f'target state=SENT observation_id={sender.observation_id}; '
+                            'coordinate publication disabled for this run')
+                        break
+                    node.get_logger().warning(f'target not sent: {sender.reason(candidate)}')
                 state['frames'] += 1
                 state['last_success'] = time.monotonic()
                 if state['frames'] % v['log_every'] == 0:
                     node.get_logger().info(f'frames={state["frames"]} observations={state["observation_seq"]} '
-                                          f'last_stamp={stamp}')
+                                          f'target_state={sender.state} last_stamp={stamp}')
             except Exception as exc:
                 node.get_logger().error(f'AMR target frame failed (no fabricated coordinates): {type(exc).__name__}: {exc}')
 

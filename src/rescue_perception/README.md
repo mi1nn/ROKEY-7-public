@@ -80,10 +80,22 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 
 카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 이유와 observation_id를 로그에 남기고 원 카메라 관측만 유지한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
 
+### 단일 인형·회차별 1회 전송
+
+[사용자 요구, 2026-10-12] 한 회차에는 인형 하나만 사용한다. 화면 표시는 탐지 confidence 0.5부터 유지하지만, 관측/좌표 전송은 첫 CONFIRMED(현재 confidence 0.8 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.
+
+상태는 SEARCHING→SENT다. 최초 카메라 관측의 로컬 publish 성공 뒤 SENT로 고정하며 같은 회차의 카메라 관측·base 점을 다시 발행하지 않는다. TF 실패 시에는 카메라 관측만 한 번 남기고 base 점 실패를 로그로 드러낸다. publish 자체가 예외로 실패하면 SEARCHING을 유지한다. 영상 추론·annotated Image는 계속 처리하고 AMR1의 auto SLAM이나 주행을 변경하지 않는다. 인형이 사라졌다 다시 보여도 재무장하지 않는다. 현재 회차 경계는 amr_target의 기동이며 다시 기동하면 새 회차로 시작한다.
+
+두 좌표/관측 publisher는 RELIABLE·TRANSIENT_LOCAL·depth=1로 마지막 출력을 보존한다. 이후 구독자가 캐시를 받으려면 맞는 QoS가 필요하다. 한 번 발행은 AMR2 수신·저장·주행 수락을 뜻하지 않으며, 재전달 시 소비자는 observation_id로 중복을 처리해야 한다. 캐시 전달은 원 관측 시각·유효기간을 연장하지 않는다.
+
+위치는 bbox 중심 픽셀과 bbox 내부 유효 Depth 중앙값으로 구한 인형 위치의 기준점이다. 인형 형상의 정확한 중심·무게중심이나 AMR2의 주행 목표가 아니다. 실제 접근점·이격 거리·장애물/도달 가능성은 기존 mapping·협업·로봇 제어의 후속 연동에서 결정한다. AMR1 기준 좌표를 AMR2 기준 목표로 그대로 사용하지 않는다.
+
+후속 AMR 단위별 연동 시험에는 후보 탐지→기존 제어 측 정지 요청→실제 정지 확인→새 RGB-D 관측→좌표 전달/수신 확인→주행 재개를 포함한다. 인식 노드에서 직접 cmd_vel·Nav2 cancel/goal을 발행하지 않는다. 정지·수신·AMR2 접근 연결은 현재 구현하지 않았으며 자동 SLAM의 지도 갱신과 주행 정지를 구분한다.
+
 ### 시험과 범위
 
 - tests/test_perception_amr_camera.py: 코드 설정·GPU/신뢰도 전달·모델 SHA/class·RGB 형식·원 헤더 보존·추론 실패.
-- tests/test_perception_amr_target.py: YOLO 관측·optical 좌표, 카메라→base 회전/이동·원 시각·static TF·실패 검사, 분리된 지도 변환 함수의 합성 mission 좌표·clock/map revision/TF·공분산 회전.
+- tests/test_perception_amr_target.py: YOLO 관측·optical 좌표, 카메라→base 회전/이동·원 시각·static TF·실패 검사, 단일 전송 상태·네 화면 경계·실패 후 재시도, 분리된 지도 변환 함수의 합성 mission 좌표·clock/map revision/TF·공분산 회전.
 - tests/test_perception_depth_calibration.py: 코드 기본값과 robot6 프로파일 연결·mm/m XYZ·무효값·로봇 불일치·설치 리소스.
 
 ```bash

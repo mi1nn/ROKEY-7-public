@@ -129,6 +129,39 @@ class PreparedDetector:
         return self.inference if observed_at_ns == self.stamp else None
 
 
+class OneShotTarget:
+    """Single-doll run: publish one confirmed interior observation, then latch SENT.
+
+    User policy, 2026-10-12. A successful local publish is not an AMR2 receipt.
+    A new node/run creates a fresh SEARCHING state; disappearance never resets it.
+    """
+    def __init__(self):
+        self.state = 'SEARCHING'
+        self.observation_id = None
+
+    def reason(self, candidate):
+        if self.state == 'SENT':
+            return 'ALREADY_SENT'
+        if candidate.status != 'CONFIRMED':
+            return 'UNCONFIRMED'
+        o = candidate.observation
+        point = o.localization.point_optical
+        if point is None or not all(math.isfinite(x) for x in point):
+            return 'INVALID_POSITION'
+        x0, y0, x1, y1 = o.detection.bbox
+        if not (0 < x0 < x1 < o.frame.width and 0 < y0 < y1 < o.frame.height):
+            return 'BBOX_AT_IMAGE_EDGE'
+        return None
+
+    def send(self, candidate, publish):
+        if self.reason(candidate) is not None:
+            return False
+        publish(candidate.observation)
+        self.observation_id = candidate.observation.observation_id
+        self.state = 'SENT'
+        return True
+
+
 def covariance_matrix(diagonal):
     if len(diagonal) != 3 or any(type(x) not in (int, float) or not math.isfinite(x) or x <= 0 for x in diagonal):
         raise ValueError('three finite positive variances required (m^2)')
