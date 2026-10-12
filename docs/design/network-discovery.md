@@ -61,7 +61,7 @@ updated: 2026-10-08
 
 ### 3.1 재측정 (2026-10-08, 실기·배포 PC, 로봇 없음)
 
-이 PC 에는 ROS 가 설치돼 있지 않다 [측정: Ubuntu 26.04, `/opt/ros` 없음]. 그래서 `ros:jazzy-ros-base` 컨테이너(Fast DDS 2.14.6, `rmw_fastrtps_cpp` 기본값 [측정])를 `--network none` 으로 띄워 **loopback 밖으로는 패킷이 못 나가게** 하고 쟀다. 도메인 42, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 서버 `127.0.0.1:11899`(ID 0). 탐침은 시작할 때 `ROS_DISCOVERY_SERVER` 가 남아 있으면 거절한다. 원문 로그: [hosts-discovery-probe](../evidence/field-2026-10-08-hosts-discovery-probe.log).
+이 PC 에는 ROS 가 설치돼 있지 않다 [측정: Ubuntu 26.04, `/opt/ros` 없음]. 그래서 `ros:jazzy-ros-base` 컨테이너(Fast DDS 2.14.6, `rmw_fastrtps_cpp` 기본값 [측정])를 `--network none` 으로 띄워 **loopback 밖으로는 패킷이 못 나가게** 하고 쟀다. 도메인 42, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 서버 `127.0.0.1:11899`(ID 0). 탐침은 시작할 때 `ROS_DISCOVERY_SERVER` 가 남아 있으면 거절한다. 원문 로그: [hosts-discovery-probe](../evidence/field-2026-10-08-hosts-discovery-probe.log). 2026-10-12 에 Jazzy 가 설치된 개발 PC(현장 PC 아님)의 호스트 셸에서 같은 탐침을 다시 돌려 9/9 PASSED 였다([hosts-discovery-probe 10-12](../evidence/field-2026-10-12-hosts-discovery-probe.log)).
 
 ```sh
 docker run --rm --network none -v <REPO>:/repo:ro -w /repo \
@@ -171,7 +171,7 @@ ros2 daemon stop; ros2 daemon start             # 낡은 목록을 버린다 (4�
 
 결과는 표준 출력 JSON, 사람이 읽는 표는 표준 오류. JSON 의 `host_facts` 에 OS 이름·Python 버전·`/opt/ros/<distro>` 목록을 판정 없이 남긴다(현장 PC 를 고를 때의 입력, Q-02·Q-15). 종료 코드 0 = 전부 `PASSED`, 2 = `FAILED` 하나 이상, 3 = 실패는 없고 `NOT_RUN` 이 있음. 아직 없는 것: 최근 수신 시각(생존 판정), 서버 CPU, 참가자 수 — 다음 PR(4-PC 기동 탐침, AC-01).
 
-이 PC 에서 잰 값 [측정 2026-10-08]: 호스트 셸(Ubuntu 26.04.1, Python 3.14, `/opt/ros` 없음)은 ROS 미설치로 종료 코드 2([preflight-host](../evidence/field-2026-10-08-preflight-host.log)), Jazzy 컨테이너(`--network none`)는 `nav2_msgs`·`irobot_create_msgs` 미설치로 종료 코드 2([preflight-container](../evidence/field-2026-10-08-preflight-container.log)). 둘 다 서버·그래프는 `NOT_RUN`(로봇 없음).
+이 PC 에서 잰 값 [측정 2026-10-08]: 호스트 셸(Ubuntu 26.04.1, Python 3.14, `/opt/ros` 없음)은 ROS 미설치로 종료 코드 2([preflight-host](../evidence/field-2026-10-08-preflight-host.log)), Jazzy 컨테이너(`--network none`)는 `nav2_msgs`·`irobot_create_msgs` 미설치로 종료 코드 2([preflight-container](../evidence/field-2026-10-08-preflight-container.log)). 둘 다 서버·그래프는 `NOT_RUN`(로봇 없음). [측정 2026-10-12] Jazzy 가 설치된 개발 PC(현장 PC 아님, 격리 도메인·LOCALHOST)에서 예시 파일로 다시 돌린 결과: `operations` 는 종료 코드 3(배포판·RMW·패키지·fastdds 통과, 서버·도메인·그래프 `NOT_RUN`), `central` 은 종료 코드 2(`irobot_create_msgs` 미설치)([preflight-host 10-12](../evidence/field-2026-10-12-preflight-host.log)).
 
 ## 출처
 
