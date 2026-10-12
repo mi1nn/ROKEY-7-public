@@ -6,10 +6,12 @@ setup(
     name=package_name,
     version="0.0.0",
     packages=[package_name],
+    # 예시 파라미터는 패키지 안에도 둔다: 설치본 시험이 importlib.resources 로 읽는다.
+    package_data={package_name: ["config/webcam_node.example.yaml"]},
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml", "README.md"]),
-        ("share/" + package_name + "/config", ["config/webcam_node.example.yaml"]),
+        ("share/" + package_name + "/config", [package_name + "/config/webcam_node.example.yaml"]),
     ],
     install_requires=["rescue_contracts==0.0.0"],
     zip_safe=True,

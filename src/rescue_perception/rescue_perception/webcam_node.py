@@ -255,6 +255,9 @@ def main(args=None):
         cap = cv2.VideoCapture(v['device_index'])
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, v['width'])
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, v['height'])
+        # 주기 읽기(frame_period_s)라 버퍼에 쌓인 예전 프레임이 나오지 않게 1장만 둔다(#113 재범 제안).
+        # 백엔드가 지원하지 않으면 무시된다.
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if not cap.isOpened():
             cap.release()
             return None
