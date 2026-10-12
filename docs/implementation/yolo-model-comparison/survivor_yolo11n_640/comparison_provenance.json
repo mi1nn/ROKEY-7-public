@@ -1,0 +1,34 @@
+{
+  "source_repo": "mi1nn/amr-mini-project",
+  "source_file": "runs/car_dummy_26n/args.yaml",
+  "initial_weights": "yolo11n.pt",
+  "best_sha256": "d1cbd255b30b8029e8f92a7ede63aa72a77b14c2078f4bd5a59cc4b5ac3ffd76",
+  "wall_time_s": 279.60967540740967,
+  "actual_optimizer": "AdamW",
+  "optimizer_groups": [
+    {
+      "initial_lr": 0.002,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.0005
+    },
+    {
+      "initial_lr": 0.002,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.0
+    },
+    {
+      "initial_lr": 0.002,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.0
+    }
+  ]
+}

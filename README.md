@@ -26,6 +26,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
 | [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
 | [OAK-D survivor 학습 계획](docs/implementation/oakd-survivor-training-plan.md) | oakd/image_raw 영상 수집, 1초 간격 추출·전처리, survivor 단일 클래스 학습·파라미터 비교와 결과 문서화 (실행 예정) |
+| [YOLO26n·11n·v8n 모델 비교](docs/implementation/yolo-model-comparison/README.md) | 같은 v2 데이터·100 epoch 설정의 지표·추론 시간·곡선 비교 |
 | [Survivor v2 재학습 결과](docs/implementation/yolo26n-v2-results.md) | 별도 amr-mini-project 설정, 100/최대200 epoch 평가와 최종 채택 best.pt(100 epoch), 사람 오탐 재평가는 남음 |
 | [YOLO26n 학습 결과·비교](docs/implementation/yolo26n-training-results.md) | 무증강·scale_light 결과, 원거리 현장 관측(재학습 전 기록, 최종 모델은 v2) |
 | [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |

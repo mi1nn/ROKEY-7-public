@@ -85,3 +85,7 @@ optimizer auto는 args.yaml의 lr0=0.01·momentum=0.937을 무시한다. 실제 
 ### 실측 거리와 근거리 confidence
 
 [사용자 실측 보고, 2026-10-11] 위 결과 이미지에서 robot5와 인형의 거리는 **2.2m**이며, 해당 프레임 confidence는 **0.9814 (화면 0.98)**였다. 사용자는 **2.2m보다 가까운 거리에서도 관측 중 confidence가 항상 0.8 이상 표시됐다**고 보고했다. 모델은 위 100 epoch best.pt다. 근거리의 개별 거리·프레임 수·연속 로그는 제공되지 않아 정량 성공률이나 모든 조건의 보장으로 확대하지 않는다. 실제 사람 오탐 여부는 별도 평가 대상이다.
+
+## YOLO 계열 간 비교
+
+[측정, 2026-10-12] YOLO26n·YOLO11n·YOLOv8n의 같은 데이터·100 epoch 조건 학습 및 val/test 재평가가 완료됐다. [비교 표·그래프·원자료](yolo-model-comparison/README.md)를 첨부한다. YOLO26n의 test mAP50–95는 99.3847%, YOLO11n은 99.2593%, YOLOv8n은 99.1966%다. 단일 seed의 작은 차이를 통계적 우월성으로 확대하지 않는다. 기존 100 epoch YOLO26n 최종 채택을 유지한다.
