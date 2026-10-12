@@ -193,7 +193,7 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 - `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다. 빈 탐지 배열은 `EMPTY_DETECTIONS`로 출력해 탐지가 없는 프레임과 입력 누락을 구별한다.
 - `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
 - `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
-- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`로 시험한다. `rescue_perception.bag_replay_cli`가 rclpy 역직렬화와 CLI만 맡고 `tools/perception_bag_replay.py`는 source checkout의 진입 wrapper다. 설치본은 `python3 -m rescue_perception.bag_replay_cli replay BAG --config CFG`로 같은 경로를 실행한다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
 
 실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
 
@@ -217,6 +217,8 @@ PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discov
 **검증 불가 / NOT_RUN:** 실제 녹화 bag의 유무·내용·출처, 캡처/드라이버 stamp 의미와 시계 오차, 실제 RGB–Depth 공간 정렬·보정, TF·지도 revision·공통 좌표, 모델 가중치/성능·신원 동일성, 현재 wall 시각에 대한 freshness/admission, DDS·QoS·네트워크 누락·실시간 처리, 물리 접근·정지와 2 AMR·4 PC 인수. 그래프 구독·발행·`rclpy.init`·`ros2 bag play`는 호출하지 않는다. ROS 라이브러리는 파일 역직렬화 경계에만 사용하며 E3/E4 통과를 주장하지 않는다.
 
 **검증 기록 [측정, 2026-10-12]:** ROS 없는 replay 시험 13개 PASSED(exit 0). 수정 전 회귀시험은 FAILED(9 failures, 23 errors, exit 1)였고 시험을 수정 코드보다 먼저 커밋했다. 임시 디렉터리에 기존 `write-synthetic`으로 만든 bag을 역직렬화해 원 ns와 optical point 2개, `DEPTH_INSUFFICIENT` 1개를 확인했다. replay exit 1은 주입한 깊이 결측의 예상 결과다. 합성 bag은 실행 뒤 제거했으며 실제 녹화의 증거가 아니다. `python3 -I scripts/run_tests.py`의 전체 단위시험 835개 PASSED(exit 0). 문서 검사 PASSED(exit 0); 원본 객체/줄 상한 검사는 `--sources` 미제공으로 SKIP이다.
+
+**설치본 CI 오류 수정 [측정, 2026-10-12]:** 최초 head `36f31e4`에서 docs·Python 3.10~3.12 CI는 PASSED였지만 `installed-wheels`는 FAILED였다. CLI 시험이 checkout의 `tools/perception_bag_replay.py`를 직접 읽어, tools가 없는 설치본에서 `FileNotFoundError` 3건이 발생했다. CLI 로직을 패키지 모듈 `bag_replay_cli.py`로 옮기고 시험도 그 모듈을 import하게 했다. 기존 tools 명령은 wrapper로 유지한다. 설치본 CI를 우회하거나 시험을 skip하지 않는다. 변경 시험의 수정 전 결과는 13개 중 errors=3, exit 1이며 시험 커밋 뒤에 구현을 둔다. 수정 후 source 시험 835개는 skip 없이 OK(exit 0), `python3 -I scripts/check_wheels.py`는 8개 설치 wheel·835개 시험 OK(exit 0, Flask 미설치 웹 시험 27개 SKIP/NOT_RUN)였다. replay 시험 13개는 설치본에서도 skip 없이 실행했다. 합성 bag에서 기존 tools 명령과 패키지 모듈 명령의 JSON 출력은 같았고, 깊이 결측의 exit 1·없는 bag의 exit 2를 확인했다.
 
 **처리 한계:** 짝짓기는 녹화 전체를 메모리에 보관하고 Depth 최근접 검색을 하며, 메시지가 탐지 배열 뒤에 저장돼도 헤더로 매칭할 수 있다. 실제 도착 지연/온라인 queue·메모리/처리 예산을 검증하지 않는다. Depth 한 장을 여러 배열이 쓸 수 있고 같은 RGB stamp의 반복은 마지막 기록을 쓴다. CameraInfo는 배열 전에 본 마지막 유효 기록이며 보정 변경의 시간적 유효성/실물 정합을 인증하지 않는다. 탐지 배열이 없는 RGB/Depth 기록은 `EMPTY_REPLAY`이며 미사용 프레임의 누락률이나 탐지 성능은 계산하지 않는다. timestamp 역순·시계 되감김의 세션 분할, 원본 bag 해시·영속 observation dedup·transport 손실률은 제공하지 않는다. 재생 namespace·binding은 입력마다 출처에 맞게 제공하고 재생 결과를 주행 허가로 쓰지 않는다.
 
