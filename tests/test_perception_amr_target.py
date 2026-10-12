@@ -9,8 +9,9 @@ from uuid import UUID
 from rescue_mapping import FrameAlignment, RigidTransform
 from rescue_perception import AlignmentEvidence, DepthPolicy, ModelManifest, ObservationPolicy, SourceBinding, TimePolicy
 from rescue_perception.person_pipeline import ConfirmationPolicy, PersonPipeline
-from rescue_perception.target_utils import (MapStateTracker, PreparedDetector, ProjectionMetadata, check_projection_inputs,
-    covariance_matrix, fill_location, fill_observation, inference_from_result, rotate_covariance, stamped_transform)
+from rescue_perception.target_utils import (PreparedDetector, covariance_matrix, fill_observation, inference_from_result)
+from rescue_perception.map_projection import (MapStateTracker, ProjectionMetadata, check_projection_inputs,
+    fill_location, rotate_covariance, stamped_transform)
 
 T = 1700000000123456789
 FRAME = 'camera_optical'

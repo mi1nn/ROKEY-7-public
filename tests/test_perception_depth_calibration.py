@@ -7,7 +7,8 @@ import unittest
 
 from rescue_perception import DepthPolicy, PerceptionError
 from test_perception_amr_target import fixture, metadata, wire_observation
-from rescue_perception.target_utils import covariance_matrix, fill_location, fill_observation
+from rescue_perception.target_utils import covariance_matrix, fill_observation
+from rescue_perception.map_projection import fill_location
 
 SCALE = 0.82 / ((0.854 + 0.853 + 0.857) / 3)
 
