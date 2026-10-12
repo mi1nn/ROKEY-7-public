@@ -94,8 +94,8 @@ class DepthCalibrationTests(unittest.TestCase):
                 with self.assertRaises(ValueError): load_depth_calibration(other,physical_robot_id='robot6')
 
     def test_node_configuration_connects_profile_to_depth_policy(self):
-        from rescue_perception.amr_target import target_config
-        from rescue_perception.amr_target import SETTINGS
+        from rescue_perception.target_utils import target_config
+        from rescue_perception.target_utils import SETTINGS
         values=dict(SETTINGS)
         self.assertEqual(values['physical_robot_id'],'robot6')
         self.assertEqual(values['depth_calibration_path'],'package:robot6_depth.json')

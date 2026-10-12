@@ -20,8 +20,8 @@ def config(**overrides):
 
 class PreviewTests(unittest.TestCase):
     def test_code_settings_select_gpu_and_half_confidence(self):
-        from rescue_perception.amr_camera import SETTINGS as camera
-        from rescue_perception.amr_target import SETTINGS as target
+        from rescue_perception.camera_utils import SETTINGS as camera
+        from rescue_perception.target_utils import SETTINGS as target
         for values in (camera, target):
             self.assertEqual(values['model_conf'], 0.5)
             self.assertEqual(values['device'], '0')
