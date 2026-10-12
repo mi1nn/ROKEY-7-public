@@ -30,3 +30,7 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 원본 코드를 복사하지 않고 선별한 원리를 새 계약에 맞춰 구현했다. 버전 `0.0.0`, `LicenseRef-Unspecified`, 임시 maintainer는 기존 초기 구조의 미결정 메타데이터다. 이는 사용 허가나 실제 담당자를 뜻하지 않으며 배포 전에 확정해야 한다.
 
 [OAK-D 학습 계획](../../docs/implementation/oakd-survivor-training-plan.md): 사용자 결정(2026-10-11)에 따라 이번 학습은 `oakd/image_raw` 영상의 1초 간격 프레임을 전처리해 단일 클래스 `survivor`(ID 0)를 사용한다. 후속 연동의 모델 class metadata·manifest·`ConfirmationPolicy.person_labels`·Detector 출력 label을 맞춘다. 기존 API 이름과 과거 person 합성 시험은 유지한다. 학습·실제 카메라 시험은 아직 NOT_RUN이다.
+
+## YOLO 영상 미리보기 기반 작업
+
+[사용자 요구, 2026-10-12] “그럼 이제 내가 기반 코드를 만들어보자”. 적용 범위는 인식 레인의 RGB 영상 구독 → YOLO 추론 → 박스·클래스·신뢰도 표시다. 토픽·모델 경로는 실행 시 지정한다. 영상 미리보기는 위치·관측 사건·주행 승인과 연결하지 않는다. 실행 구현과 검증 결과는 이 절에 기록한다.
