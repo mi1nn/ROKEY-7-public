@@ -1,8 +1,9 @@
 """Installed robot input runtime; watchdog is an independent readiness input.
 
-The explicit local input file is a trusted IPC snapshot from the deployment's
-authority, calibration and route-protection adapters. It must be atomically
-replaced with original observation times. Reading never extends its validity.
+Local measured records retain their original observation times. Live boot IDs
+come directly from the Executor and configured coordinator's SystemState;
+they are held in memory, never written back to the measured records.
+Legacy configurations may still read a complete local IPC snapshot.
 This file trust model assumes its writer and directory are controlled; it is
 not DDS cryptographic authentication. Missing/stale input rejects commands
 while the ROS action/status endpoints remain available.
@@ -16,7 +17,7 @@ import tempfile
 import time
 from types import SimpleNamespace
 
-from rescue_contracts import RescueError, TARGET_TASK_KINDS
+from rescue_contracts import RescueError
 from rescue_robot.executor import ContractError, GoalPose, generation, identifier, number, wall_time
 from rescue_robot.phase1_route import Phase1RouteGate, phase1_endpoint
 from rescue_robot.task_policy import ClockBasis, LeasePolicy, validate_clock_basis
@@ -43,6 +44,28 @@ def positive_ns(value,name):
     return value
 
 
+def load_json(path):
+    """Reject ambiguous keys and nonfinite values at the local file boundary."""
+    def pairs(items):
+        value={}
+        for key,item in items:
+            if key in value: raise ContractError('duplicate JSON key: '+key)
+            value[key]=item
+        return value
+    def constant(value):
+        raise ContractError('nonfinite JSON value: '+value)
+    def floating(value):
+        result=float(value)
+        if not math.isfinite(result): raise ContractError('nonfinite JSON number: '+value)
+        return result
+    try:
+        return json.loads(Path(path).read_text(encoding='utf-8'),
+                          object_pairs_hook=pairs,parse_constant=constant,parse_float=floating)
+    except (OSError,ValueError) as exc:
+        if isinstance(exc,RescueError): raise
+        raise ContractError('JSON input unreadable: '+str(exc)) from exc
+
+
 class InputStore:
     """Freshness-checked facade used by both phase-one gate and goal binder."""
     def __init__(self,config,*,wall_clock_ns=time.time_ns,read=None):
@@ -56,12 +79,22 @@ class InputStore:
         if self.bound>self.lease_policy.max_error_ns: raise ContractError('task bound exceeds lease policy')
         self.max_age=positive_ns(c['input_max_age_ns'],'input_max_age_ns')
         for k in ('max_position_error_m','max_rotation_error_rad'): number(c[k],k,positive=True)
-        if not isinstance(c['input_file'],str) or not Path(c['input_file']).is_absolute():
-            raise ContractError('explicit absolute local input_file required')
-        self.read=read or (lambda: json.loads(Path(c['input_file']).read_text(encoding='utf-8')))
+        path=c.get('input_source_file',c.get('input_file'))
+        if 'saved_maps' not in c and (not isinstance(path,str) or not Path(path).is_absolute()):
+            raise ContractError('explicit absolute local input path required')
+        clock_path=c.get('clock_basis_file')
+        if 'saved_maps' in c and ((clock_path is None and 'live_clock' not in c)
+                or not isinstance(c.get('coordinator_authority'),dict)):
+            raise ContractError('saved_maps requires measured clock provider and coordinator_authority')
+        if clock_path is not None and (not isinstance(clock_path,str) or not Path(clock_path).is_absolute()):
+            raise ContractError('clock_basis_file must be an absolute path')
+        if not isinstance(c.get('configured_destinations',{}),dict):
+            raise ContractError('configured_destinations must be an object')
+        self.read=read or (lambda: load_json(path))
         self._last_time=None
         self._map_versions={}; self._retired_sessions=set()
         self._transform_meanings={}
+        self.live_clock_provider=None
 
     def _window(self,start,until,now):
         positive_ns(start,'input observation time'); positive_ns(until,'input expiry')
@@ -74,15 +107,26 @@ class InputStore:
             raise ContractError('input clock regressed','CLOCK_UNCERTAIN')
         self._last_time=now
         try: data=self.read()
+        except RescueError: raise
         except (OSError,ValueError) as exc: raise ContractError('trusted input unavailable','NOT_AUTHORIZED') from exc
-        if not isinstance(data,dict) or data.get('format')!='rescue-robot-inputs/1':
+        live='input_source_file' in self.config or 'saved_maps' in self.config
+        expected='rescue-robot-sources/1' if live else 'rescue-robot-inputs/1'
+        if not isinstance(data,dict) or data.get('format')!=expected:
             raise ContractError('input snapshot format')
-        self._window(data['generated_at_ns'],data['valid_until_ns'],now)
+        if not live: self._window(data['generated_at_ns'],data['valid_until_ns'],now)
         return data
 
-    def clock_basis(self):
-        data=self.current()
-        basis=ClockBasis(**data['clock'])
+    def clock_basis(self,data=None):
+        # clock_capture combine already publishes this exact ClockBasis shape.
+        # An explicit provider must fail on error, never fall back to stale data.
+        path=self.config.get('clock_basis_file')
+        if self.live_clock_provider is not None:
+            basis=self.live_clock_provider()
+        elif 'live_clock' in self.config:
+            raise ContractError('live clock provider not attached','CLOCK_UNCERTAIN')
+        else:
+            record=load_json(path) if path is not None else (self.current() if data is None else data)['clock']
+            basis=ClockBasis(**record)
         error=validate_clock_basis(basis,policy=self.lease_policy,now_ns=self.wall_clock_ns())
         if error>self.bound: raise ContractError('measured error exceeds task bound','CLOCK_UNCERTAIN')
         return basis
@@ -111,8 +155,8 @@ class InputStore:
                 state.map_frame,state.map_session_id,state.map_revision):
             raise ContractError('mapping changed while reading input','FRAME_REVISION_MISMATCH')
         if (m['authority_id']!=self.config['mapping_authority']
-                or m['clock_domain_id']!=self.lease_policy.clock_domain_id or not m['evidence_id']):
-            raise ContractError('calibration authority/evidence missing','NOT_AUTHORIZED')
+                or m['clock_domain_id']!=self.lease_policy.clock_domain_id):
+            raise ContractError('calibration authority/clock differs','NOT_AUTHORIZED')
         if not (m['valid_from_ns']<=now_ns-self.bound and now_ns+self.bound<m['transform_valid_until_ns']):
             raise ContractError('alignment expired','FRAME_REVISION_MISMATCH')
         if (m['position_error_m']>self.config['max_position_error_m']
@@ -123,7 +167,7 @@ class InputStore:
             RigidTransform.planar(*m['transform_xy_yaw']),m['valid_from_ns'],m['transform_valid_until_ns'],
             m['position_error_m'],m['rotation_error_rad'])
         key=(robot,state.map_session_id,state.map_revision,alignment.transform_revision)
-        meaning=(alignment.map_frame,alignment.transform,alignment.authority_id,m['evidence_id'])
+        meaning=(alignment.map_frame,alignment.transform,alignment.authority_id)
         old=self._transform_meanings.get(key)
         if old is not None and old!=meaning:
             raise ContractError('same transform revision changed meaning','ID_CONTENT_CONFLICT')
@@ -152,15 +196,35 @@ class InputStore:
             endpoint=[pose.x,pose.y,pose.yaw],map_session_id=f.map_session_id,
             map_revision=f.map_revision,transform_revision=f.transform_revision)
         return (all(record.get(k)==v for k,v in expected.items())
-            and record.get('protection_loaded') is True and record.get('passage_free') is True
-            and isinstance(record.get('evidence_id'),str) and bool(record['evidence_id']))
+            and record.get('protection_loaded') is True and record.get('passage_free') is True)
 
 
 class SiteRuntime:
     def __init__(self,node,adapter,config,inputs,*,bindings=None):
         self.node,self.adapter,self.inputs=node,adapter,inputs
         self.config=deepcopy(config); self.leases={}; self.closed=False
+        unsupported={'nav2_protection','operator_report_topic','operator_receipt_topic','request_stop_service'} & config.keys()
+        if unsupported:
+            raise ContractError('optional non-SEARCH live extensions not installed: '+', '.join(sorted(unsupported)))
         self.last_lease_rejection=''
+        self.input_handles=[]; self._coordinator=None
+        self._retired_coordinators=set(); self._input_error=''
+        self.saved_maps=None
+        self.live_clock=None
+        if 'live_clock' in config:
+            from rescue_robot.live_clock import LiveClock
+            self.live_clock=LiveClock(self,config['live_clock'])
+            inputs.live_clock_provider=self.live_clock.basis
+        if 'saved_maps' in config:
+            from rescue_robot.live_sources import SavedMapSources
+            if adapter.robot_id not in config['saved_maps']:
+                raise ContractError('saved_maps requires this robot')
+            self.saved_maps=SavedMapSources(self,config['saved_maps'])
+        self._targets={}; self._target_versions={}; self._target_sequence=-1; self._pending_targets=None
+        if 'coordinator_targets_topic' in config:
+            if not ('input_source_file' in config or 'saved_maps' in config):
+                raise ContractError('live targets require coordinator session input')
+            inputs.current_target_revision=self._target_revision
         if config['robot_id']!=adapter.robot_id: raise ContractError('runtime robot differs','WRONG_ROBOT')
         self.gate=Phase1RouteGate(adapter,registry=inputs,authorize_operator=inputs.authorize_operator,
             current_target_revision=inputs.current_target_revision,passage_guard=inputs.passage_guard,
@@ -177,8 +241,16 @@ class SiteRuntime:
         self.services=[]
         self.install_live_authority_guard()
 
+    def _authority(self):
+        a=self.inputs.current()['authority']
+        if not ('input_source_file' in self.config or 'saved_maps' in self.config): return a
+        return dict(a,robot_boot_id=self.adapter.executor.robot_boot_id,
+                    publisher_id=self._coordinator[0],publisher_boot_id=self._coordinator[1])
+
     def _issuer_rejection(self,message,*,boot_field):
-        a=self.inputs.current()['authority']; e=message.envelope
+        if self.config.get('input_mode')=='LIVE_ROS' and getattr(message,'kind','SEARCH_AREA')!='SEARCH_AREA':
+            return 'LIVE_SEARCH_ONLY'
+        a=self._authority(); e=message.envelope
         checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
             (getattr(message,boot_field)==a['robot_boot_id']==self.adapter.executor.robot_boot_id,
              'ROBOT_BOOT_ID_MISMATCH'),
@@ -217,8 +289,14 @@ class SiteRuntime:
         if goal.kind not in ('SEARCH_AREA','RETURN_HOME'):
             raise ContractError('target movement requires phase-one route; automatic approach unavailable','NOT_AUTHORIZED')
         ref=goal.search_area_ref if goal.kind=='SEARCH_AREA' else goal.home_ref
-        data=self.inputs.current(); p=data['destinations'][ref]
-        self.inputs._window(p['observed_at_ns'],p['valid_until_ns'],self.adapter.wall_clock_ns())
+        configured=self.inputs.config.get('configured_destinations',{})
+        if ref in configured:
+            p=configured[ref]
+            if p['frame_id']!=self.inputs.mission_frame:
+                raise ContractError('configured destination frame differs','FRAME_REVISION_MISMATCH')
+        else:
+            p=self.inputs.current()['destinations'][ref]
+            self.inputs._window(p['observed_at_ns'],p['valid_until_ns'],self.adapter.wall_clock_ns())
         a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
         if (p['robot_id'],p['map_session_id'],p['map_revision'],p['transform_revision'])!=(
                 goal.robot_id,a.map_session_id,a.map_revision,a.transform_revision):
@@ -226,9 +304,11 @@ class SiteRuntime:
         return GoalPose(self.inputs.mission_frame,*p['xy_yaw'],a.map_session_id,a.map_revision,a.transform_revision)
 
     def target_gate(self,task):
+        # attach_task_runtime runs ingress.check (the live Phase1RouteGate)
+        # before the binder. Do not run that same gate a second time here.
         request=self.server.ingress.requests.get(task.command_id)
         return bool(request and task.kind in ('MOVE_SEGMENT','REOBSERVE_TARGET')
-                    and self.gate.check(task.command_id))
+                    and task.command_id in self.gate.requests)
 
     def encode_result(self,report,goal):
         response=self.server.bindings.ExecuteTask.Result(); result=response.result
@@ -253,7 +333,8 @@ class SiteRuntime:
         if request is None: return False
         try:
             if not self.authorize(request[0],None): return False
-            if task.kind in ('SEARCH_AREA','RETURN_HOME') and self.resolve_goal(request[0])!=task.goal_pose:
+            # RETURN_HOME is resolved continuously by TaskIngress.check.
+            if task.kind=='SEARCH_AREA' and self.resolve_goal(request[0])!=task.goal_pose:
                 raise ContractError('destination changed; require a new command','FRAME_REVISION_MISMATCH')
             return self._base_guard(task)
         except Exception as exc:
@@ -266,7 +347,7 @@ class SiteRuntime:
 
     def arm(self):
         with self.adapter.lock:
-            a=self.inputs.current()['authority']
+            a=self._authority()
             if (a['robot_boot_id'],a['authority_epoch'])!=(
                     self.adapter.executor.robot_boot_id,self.adapter.executor.authority_epoch): return False
             self.inputs.clock_basis()
@@ -286,22 +367,223 @@ class SiteRuntime:
         self.services=[self.node.create_service(Trigger,'~/task_arm',arm),
                        self.node.create_service(Trigger,'~/task_stop',stop)]
 
+    def _input_source(self):
+        data=(dict(format='rescue-robot-sources/1',maps=self.saved_maps.records())
+              if self.saved_maps is not None else load_json(self.config['input_source_file']))
+        if not isinstance(data,dict) or data.get('format')!='rescue-robot-sources/1':
+            raise ContractError('input source format')
+        # Control identity is deployment configuration, not an observation or
+        # an identity claimed by an arriving goal. Keep legacy source support.
+        if 'coordinator_authority' in self.config:
+            data['authority']=deepcopy(self.config['coordinator_authority'])
+        a=data['authority']
+        identifier(a['coordinator_id'])
+        if a['authority_epoch']!=self.adapter.executor.authority_epoch:
+            raise ContractError('source authority differs from configured executor','NOT_AUTHORIZED')
+        self.inputs.clock_basis(data)
+        return data
+
+    def _central_envelope(self,envelope):
+        a=self._authority(); now=self.adapter.wall_clock_ns(); stamp=wall_time(envelope.published_at_ns)
+        if ((envelope.schema_version,envelope.publisher_id,envelope.publisher_boot_id)!=
+                (self.config['schema_version'],a['publisher_id'],a['publisher_boot_id'])
+                or stamp<=0 or stamp>now+self.inputs.bound
+                or now-stamp+self.inputs.bound>self.inputs.lease_policy.max_age_ns):
+            raise ContractError('unregistered or stale central record','NOT_AUTHORIZED')
+        generation(envelope.sequence)
+
+
+
+
+
+    def _target_revision(self,target):
+        self._live_inputs()
+        record=self._targets[target]
+        self.inputs._window(record['observed_at_ns'],record['valid_until_ns'],self.adapter.wall_clock_ns())
+        return record['revision']
+
+    def _receive_targets(self,message):
+        """Consume IF-070 full snapshots; never create approval/path evidence."""
+        with self.adapter.lock:
+            e=message.envelope; key=(e.publisher_id,e.publisher_boot_id)
+            registered=False
+            try:
+                data=self._input_source(); now=self.adapter.wall_clock_ns()
+                if (e.schema_version!=self.config['schema_version']
+                        or e.publisher_id!=data['authority']['coordinator_id']):
+                    raise ContractError('unregistered target publisher','NOT_AUTHORIZED')
+                identifier(e.publisher_boot_id); identifier(message.snapshot_id); generation(e.sequence)
+                stamp=wall_time(e.published_at_ns)
+                if stamp<=0 or stamp>now+self.inputs.bound or key in self._retired_coordinators:
+                    raise ContractError('invalid target snapshot session/time','NOT_AUTHORIZED')
+                registered=True
+                if self._coordinator is not None and key==self._coordinator[:2] and e.sequence<=self._target_sequence:
+                    return
+                if self._pending_targets is not None and key==self._pending_targets[0] and e.sequence<=self._pending_targets[1]:
+                    return
+                targets={}; seen=set()
+                for item in message.targets:
+                    identifier(item.target_id); generation(item.estimate_revision)
+                    start=positive_ns(item.latest_observed_at_ns,'target observation')
+                    until=positive_ns(item.valid_until_ns,'target expiry')
+                    if start>now+self.inputs.bound or until<=start or item.target_id in seen:
+                        raise ContractError('invalid target snapshot record')
+                    if item.confirmation_state not in ('CANDIDATE','CONFIRMED','NEEDS_REOBSERVATION','DISMISSED'):
+                        raise ContractError('invalid target confirmation state')
+                    seen.add(item.target_id)
+                    record=dict(revision=item.estimate_revision,observed_at_ns=start,valid_until_ns=until)
+                    old=self._target_versions.get(item.target_id) if self._coordinator is not None and key==self._coordinator[:2] else None
+                    if old is not None and (record['revision']<old['revision']
+                            or record['revision']==old['revision'] and record!=old):
+                        raise ContractError('target revision regressed or changed meaning','ID_CONTENT_CONFLICT')
+                    if item.confirmation_state=='DISMISSED': continue
+                    targets[item.target_id]=record
+                snapshot=(key,e.sequence,targets)
+                if self._coordinator is None or key!=self._coordinator[:2]:
+                    self._pending_targets=snapshot
+                else:
+                    self._targets=targets; self._target_sequence=e.sequence
+                    self._target_versions.update(targets)
+            except (RescueError,OSError,ValueError,TypeError,KeyError) as exc:
+                # An invalid new snapshot from the registered session cannot
+                # leave obsolete target authorization usable. Foreign packets
+                # do not revoke the current session.
+                if (registered and self._coordinator is not None and key==self._coordinator[:2]
+                        and e.sequence>self._target_sequence):
+                    self._targets={}
+                    self._target_sequence=e.sequence
+                self.node.get_logger().warning('target snapshot rejected: '+str(exc))
+
+    def _live_inputs(self):
+        data=self._input_source()
+        if self._coordinator is None or self._coordinator[0]!=data['authority']['coordinator_id']:
+            raise ContractError('waiting for fresh configured coordinator SystemState','NOT_AUTHORIZED')
+        if self.live_clock is not None and (self.live_clock.peer is None
+                or self.live_clock.peer['publisher_boot_id']!=self._coordinator[1]):
+            raise ContractError('waiting for matching clock/coordinator session','CLOCK_UNCERTAIN')
+        return data
+
+    def _stop_input_session(self):
+        if self.adapter.executor.active is not None:
+            self.adapter.request_stop('GUARD_INVALID','FAILED')
+        elif self.adapter.executor.latch!='FAULT_LATCHED':
+            self.adapter.executor.latch='DISARMED'
+
+    def _check_input_session(self):
+        with self.adapter.lock:
+            try:
+                self.inputs.current()
+                if self._input_error:
+                    self.node.get_logger().info('input session ready; explicit arm required')
+                self._input_error=''
+                return True
+            except (RescueError,OSError,ValueError,TypeError,KeyError) as exc:
+                self._stop_input_session()
+                if str(exc)!=self._input_error:
+                    self.node.get_logger().error('input session blocked: '+str(exc))
+                self._input_error=str(exc)
+                return False
+
+    def _receive_coordinator(self,message):
+        with self.adapter.lock:
+            registered=False
+            try:
+                data=self._input_source(); e=message.envelope; now=self.adapter.wall_clock_ns()
+                if (e.schema_version!=self.config['schema_version']
+                        or e.publisher_id!=data['authority']['coordinator_id']):
+                    raise ContractError('unregistered coordinator SystemState','NOT_AUTHORIZED')
+                identifier(e.publisher_boot_id); generation(e.sequence); stamp=wall_time(e.published_at_ns)
+                if (stamp<=0 or stamp>now+self.inputs.bound
+                        or now-stamp+self.inputs.bound>self.inputs.lease_policy.max_age_ns):
+                    raise ContractError('coordinator SystemState is future or stale','CLOCK_UNCERTAIN')
+                key=(e.publisher_id,e.publisher_boot_id)
+                if key in self._retired_coordinators:
+                    raise ContractError('retired coordinator boot','NOT_AUTHORIZED')
+                if self._coordinator is not None and key==self._coordinator[:2] and e.sequence<=self._coordinator[2]: return
+                registered=True
+                if self._coordinator is not None:
+                    if key==self._coordinator[:2] and e.sequence<=self._coordinator[2]: return
+                    if key!=self._coordinator[:2]:
+                        self._retired_coordinators.add(self._coordinator[:2])
+                        self.leases.clear(); self._stop_input_session()
+                        self._targets={}; self._target_versions={}; self._target_sequence=-1
+                self._coordinator=(*key,e.sequence)
+                if self._pending_targets is not None and self._pending_targets[0]==key:
+                    _,self._target_sequence,self._targets=self._pending_targets
+                    self._target_versions.update(self._targets)
+                    self._pending_targets=None
+                self._check_input_session()
+            except (RescueError,OSError,ValueError,TypeError,KeyError) as exc:
+                if registered:
+                    self._stop_input_session()
+                self.node.get_logger().warning('coordinator session rejected: '+str(exc))
+
+    def attach_input_updates(self):
+        """Observe the coordinator session; measured records remain read-only."""
+        if not ('input_source_file' in self.config or 'saved_maps' in self.config): return
+        if self.live_clock is not None: self.live_clock.attach()
+        topic=self.config['coordinator_state_topic']
+        if not isinstance(topic,str) or not topic.startswith('/'):
+            raise ContractError('explicit absolute coordinator_state_topic required')
+        from rescue_interfaces.msg import SystemState
+        from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+        qos=QoSProfile(depth=1,reliability=ReliabilityPolicy.RELIABLE,
+                       durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.inputs.read=self._live_inputs
+        self._check_input_session()
+        subscription=self.node.create_subscription(SystemState,topic,self._receive_coordinator,qos)
+        self.input_handles.append(('destroy_subscription',subscription))
+        if 'coordinator_targets_topic' in self.config:
+            from rescue_interfaces.msg import TargetSnapshot
+            topic=self.config['coordinator_targets_topic']
+            if not isinstance(topic,str) or not topic.startswith('/'):
+                raise ContractError('explicit absolute coordinator_targets_topic required')
+            subscription=self.node.create_subscription(TargetSnapshot,topic,self._receive_targets,qos)
+            self.input_handles.append(('destroy_subscription',subscription))
+        if self.saved_maps is not None:
+            from rescue_robot.live_sources import attach_sources
+            attach_sources(self)
+        timer=self.node.create_timer(self.config['poll_period_s'],self._check_input_session)
+        self.input_handles.append(('destroy_timer',timer))
+
     def destroy(self):
         if self.closed: return
         self.closed=True
+        if self.live_clock is not None: self.live_clock.close()
+        for method,handle in reversed(self.input_handles): getattr(self.node,method)(handle)
         self.server.destroy()
         for service in self.services: self.node.destroy_service(service)
 
 
 def create_runtime(node,adapter):
-    from rcl_interfaces.msg import ParameterType
+    from rcl_interfaces.msg import ParameterType, ParameterDescriptor
     from rescue_robot.ros_node import declare_required
-    values,missing=declare_required(node,{'task.runtime_config':ParameterType.PARAMETER_STRING})
-    if missing: raise ContractError('task.runtime_config required')
-    path=Path(values['task.runtime_config'])
-    config=json.loads(path.read_text(encoding='utf-8'))
-    inputs=InputStore(config,wall_clock_ns=adapter.wall_clock_ns)
-    runtime=SiteRuntime(node,adapter,config,inputs)
-    runtime.attach_services()
-    node.get_logger().info('installed task runtime; input_file='+config['input_file']+'; explicit arm required')
+    node.declare_parameter('task.input_mode','FILES',descriptor=ParameterDescriptor(
+        type=ParameterType.PARAMETER_STRING,read_only=True))
+    mode=node.get_parameter('task.input_mode').value
+    if mode=='LIVE_ROS':
+        from rescue_robot.live_parameters import read_config
+        config=read_config(node,adapter)
+    elif mode=='FILES':
+        values,missing=declare_required(node,{'task.runtime_config':ParameterType.PARAMETER_STRING})
+        if missing: raise ContractError('task.runtime_config required')
+        path=Path(values['task.runtime_config'])
+        if not path.is_absolute(): raise ContractError('task.runtime_config must be an explicit absolute path')
+        config=load_json(path)
+    else:
+        raise ContractError('task.input_mode must be LIVE_ROS or FILES')
+    if not isinstance(config,dict): raise ContractError('runtime configuration must be an object')
+    try:
+        inputs=InputStore(config,wall_clock_ns=adapter.wall_clock_ns)
+        runtime=SiteRuntime(node,adapter,config,inputs)
+    except (KeyError,TypeError) as exc:
+        raise ContractError('runtime configuration missing or malformed: '+str(exc)) from exc
+    try:
+        runtime.attach_services()
+        runtime.attach_input_updates()
+    except Exception:
+        runtime.destroy()
+        raise
+    node.get_logger().info('task runtime configuration='+json.dumps(config,sort_keys=True,allow_nan=False))
+    node.get_logger().info('installed task runtime; input_mode='+mode+'; explicit arm required')
     return runtime

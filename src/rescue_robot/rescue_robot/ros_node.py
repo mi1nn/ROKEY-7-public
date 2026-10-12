@@ -184,9 +184,11 @@ def declare_required(node, names, optional=()):
     """
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.parameter import Parameter
+    from rcl_interfaces.msg import ParameterDescriptor
     values = {}
     for name, kind in names.items():  # kind: rcl_interfaces ParameterType value
-        node.declare_parameter(name, Parameter.Type(kind))
+        node.declare_parameter(name, Parameter.Type(kind), descriptor=ParameterDescriptor(
+            type=kind,read_only=True,description='Explicit startup setting; no deployment default'))
         try:
             values[name] = node.get_parameter(name).value
         except ParameterUninitializedException:
@@ -205,79 +207,89 @@ def main(args=None, *, task_runtime_factory=None):
     from rcl_interfaces.msg import ParameterType
 
     rclpy.init(args=args)
-    node = Node('rescue_command_adapter')
-    log = node.get_logger()
-    string, double = ParameterType.PARAMETER_STRING, ParameterType.PARAMETER_DOUBLE
-    names = {'allowed_robot_ids': ParameterType.PARAMETER_STRING_ARRAY,
-             'robot_id': string, 'namespace': string, 'authority_epoch': string,
-             'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
-             'policy_version': string, 'step_period': double, 'clock_error_bound_s': double,
-             'scan_topic': string, 'tf_topic': string, 'map_frame': string, 'odom_frame': string,
-             'readiness.version': string, 'executor_heartbeat_topic': string}
-    names.update({'policy.' + field: double for field in POLICY_FIELDS})
-    names.update({'readiness.max_age_s.' + source: double
-                  for source in READINESS_SOURCES})
-    # May be empty on purpose: no camera / no wheel_status / no command watchdog
-    # (empty watchdog_heartbeat_topic = no watchdog flag = never ready to move).
-    optional = {'camera_topics': ParameterType.PARAMETER_STRING_ARRAY,
-                'wheel_status_topic': string, 'watchdog_heartbeat_topic': string}
-    names.update(optional)
-    # No defaults: every value comes from launch/profile.
-    value, missing = declare_required(node, names, optional)
-    if missing:
-        log.fatal(f'missing parameters: {missing}')
-        raise SystemExit(2)
-    # Profile values (config/deployment.*.json) arrive as parameters from bringup;
-    # this package does not import rescue_bringup (dependency points the other way).
-    if node.get_namespace() != value['namespace']:
-        log.fatal(f'namespace mismatch: node {node.get_namespace()} != profile {value["namespace"]}')
-        raise SystemExit(2)
-    policy = Policy(value['policy_version'], *(value['policy.' + field] for field in POLICY_FIELDS))
-    executor = Executor(value['robot_id'], str(uuid4()), value['authority_epoch'], policy,
-                        allowed_robot_ids=tuple(value['allowed_robot_ids']))
-    port = Nav2Port(node, value['nav_action'])
-
-    def guards(task):
-        # MissionGoalBinder needs an alignment source in this process (mapping ROS
-        # adapter, not built yet); until then every dispatch is refused.
-        log.warn(f'guard rejects {task.command_id}: mapping alignment input not connected')
-        return False
-    adapter = CommandAdapter(executor, port, guards=guards, clock_error_bound_s=value['clock_error_bound_s'])
-    port.bind(adapter)
-    cameras = tuple(value['camera_topics'])
-    ages = {source: value['readiness.max_age_s.' + source]
-            for source in READINESS_SOURCES}
-    monitor = ReadinessMonitor(readiness_policy(value['readiness.version'], ages, cameras,
-                                                value['wheel_status_topic'],
-                                                value['watchdog_heartbeat_topic']))
-    bind_odometry(node, adapter, value['odom_topic'], monitor)
-    bind_dock_status(node, adapter, value['dock_status_topic'])
-    bind_readiness(node, monitor, adapter, scan_topic=value['scan_topic'], camera_topics=cameras,
-                   wheel_status_topic=value['wheel_status_topic'], tf_topic=value['tf_topic'],
-                   map_frame=value['map_frame'], odom_frame=value['odom_frame'],
-                   watchdog_heartbeat_topic=value['watchdog_heartbeat_topic'])
-    # A site integration supplies authenticated lease/goal records, mapping
-    # authority and a result encoder. The ordinary CLI stays fail-closed.
+    node = None
     task_runtime = None
-    if task_runtime_factory is not None:
-        if not callable(task_runtime_factory):
-            raise ValueError('task_runtime_factory must be callable')
-        task_runtime = task_runtime_factory(node, adapter)
-    from std_msgs.msg import Header
-    # Executor liveness for the command watchdog (C-01): one Header per step.
-    heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
-
-    def step():
-        adapter.observe_status(nav2=port.server_ready())
-        monitor.publish(adapter)
-        adapter.step()
-        heartbeat.publish(Header(stamp=node.get_clock().now().to_msg()))
-    node.create_timer(value['step_period'], step)
-    log.info(f'git_sha={git_sha()} boot={executor.robot_boot_id} parameters={value}')
     try:
+        node = Node('rescue_command_adapter')
+        log = node.get_logger()
+        string, double = ParameterType.PARAMETER_STRING, ParameterType.PARAMETER_DOUBLE
+        names = {'allowed_robot_ids': ParameterType.PARAMETER_STRING_ARRAY,
+                 'robot_id': string, 'namespace': string, 'authority_epoch': string,
+                 'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
+                 'policy_version': string, 'step_period': double, 'clock_error_bound_s': double,
+                 'scan_topic': string, 'tf_topic': string, 'map_frame': string, 'odom_frame': string,
+                 'readiness.version': string, 'executor_heartbeat_topic': string}
+        names.update({'policy.' + field: double for field in POLICY_FIELDS})
+        names.update({'readiness.max_age_s.' + source: double
+                      for source in READINESS_SOURCES})
+        # May be empty on purpose: no camera / no wheel_status / no command watchdog
+        # (empty watchdog_heartbeat_topic = no watchdog flag = never ready to move).
+        optional = {'camera_topics': ParameterType.PARAMETER_STRING_ARRAY,
+                    'wheel_status_topic': string, 'watchdog_heartbeat_topic': string}
+        names.update(optional)
+        # No defaults: every value comes from launch/profile.
+        value, missing = declare_required(node, names, optional)
+        if missing:
+            log.fatal(f'missing parameters: {missing}')
+            raise SystemExit(2)
+        # Profile values (config/deployment.*.json) arrive as parameters from bringup;
+        # this package does not import rescue_bringup (dependency points the other way).
+        if node.get_namespace() != value['namespace']:
+            log.fatal(f'namespace mismatch: node {node.get_namespace()} != profile {value["namespace"]}')
+            raise SystemExit(2)
+        policy = Policy(value['policy_version'], *(value['policy.' + field] for field in POLICY_FIELDS))
+        executor = Executor(value['robot_id'], str(uuid4()), value['authority_epoch'], policy,
+                            allowed_robot_ids=tuple(value['allowed_robot_ids']))
+        port = Nav2Port(node, value['nav_action'])
+
+        def guards(task):
+            # MissionGoalBinder needs an alignment source in this process (mapping ROS
+            # adapter, not built yet); until then every dispatch is refused.
+            log.warn(f'guard rejects {task.command_id}: mapping alignment input not connected')
+            return False
+        adapter = CommandAdapter(executor, port, guards=guards, clock_error_bound_s=value['clock_error_bound_s'])
+        port.bind(adapter)
+        cameras = tuple(value['camera_topics'])
+        ages = {source: value['readiness.max_age_s.' + source]
+                for source in READINESS_SOURCES}
+        monitor = ReadinessMonitor(readiness_policy(value['readiness.version'], ages, cameras,
+                                                    value['wheel_status_topic'],
+                                                    value['watchdog_heartbeat_topic']))
+        bind_odometry(node, adapter, value['odom_topic'], monitor)
+        bind_dock_status(node, adapter, value['dock_status_topic'])
+        bind_readiness(node, monitor, adapter, scan_topic=value['scan_topic'], camera_topics=cameras,
+                       wheel_status_topic=value['wheel_status_topic'], tf_topic=value['tf_topic'],
+                       map_frame=value['map_frame'], odom_frame=value['odom_frame'],
+                       watchdog_heartbeat_topic=value['watchdog_heartbeat_topic'])
+        # A site integration supplies authenticated lease/goal records, mapping
+        # authority and a result encoder. The ordinary CLI stays fail-closed.
+        if task_runtime_factory is not None:
+            if not callable(task_runtime_factory):
+                raise ValueError('task_runtime_factory must be callable')
+            task_runtime = task_runtime_factory(node, adapter)
+        from std_msgs.msg import Header
+        # Executor liveness for the command watchdog (C-01): one Header per step.
+        heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
+
+        def step():
+            adapter.observe_status(nav2=port.server_ready())
+            monitor.publish(adapter)
+            adapter.step()
+            heartbeat.publish(Header(stamp=node.get_clock().now().to_msg()))
+        node.create_timer(value['step_period'], step)
+        log.info(f'git_sha={git_sha()} boot={executor.robot_boot_id} parameters={value}')
         rclpy.spin(node)
+    except (RescueError, ValueError, OSError) as exc:
+        if node is not None:
+            node.get_logger().fatal('command adapter failed: '+str(exc))
+        raise SystemExit(2) from exc
     finally:
-        if task_runtime is not None:
-            task_runtime.destroy()
-        node.destroy_node()
-        rclpy.try_shutdown()
+        try:
+            if task_runtime is not None:
+                task_runtime.destroy()
+        finally:
+            try:
+                if node is not None:
+                    node.destroy_node()
+            finally:
+                rclpy.try_shutdown()

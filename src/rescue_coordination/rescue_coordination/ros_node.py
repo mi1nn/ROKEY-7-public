@@ -800,6 +800,7 @@ def main(args=None):
     rclpy.init(args=args)
     node = Node('mission_coordinator')
     log = node.get_logger()
+    live_task_source = None
     try:
         values, missing = declare_required(
             node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()},
@@ -813,6 +814,8 @@ def main(args=None):
             log.fatal(f'configuration rejected: {exc}')
             raise SystemExit(2)
         boot_id, sequence = str(uuid4()), iter(range(1, 2 ** 63))
+        from rescue_coordination.live_task_inputs import attach as attach_live_task_inputs
+        live_task_source = attach_live_task_inputs(node,core,values,boot_id)
         log.info(f'git_sha={git_sha()} boot_id={boot_id} parameters={values} roles={core.roles}')
 
         def now_ns():
@@ -860,6 +863,26 @@ def main(args=None):
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
         state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
+        from rescue_coordination.live_task_inputs import StatePublication
+        state_channel = StatePublication(core, SystemState, envelope, state_pub.publish)
+        if live_task_source is not None:
+            from std_srvs.srv import Trigger
+            def refresh_state(_request, response):
+                measured = live_task_source[0].record
+                now = now_ns()
+                if (measured.get('state') != 'SYNCED'
+                        or measured.get('valid_until_ns', 0) <= now + measured.get('error_bound_ns', 0)):
+                    response.success = False
+                    response.message = 'CURRENT_COORDINATOR_CLOCK_UNAVAILABLE'
+                    return response
+                fields = state_channel.send(now, refresh=True)
+                response.success = fields is not None
+                response.message = ('SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved'
+                    if response.success else 'NO_PUBLISHED_SYSTEM_STATE')
+                if response.success:
+                    log.info('explicit SystemState refresh for session registration')
+                return response
+            node.create_service(Trigger, '~/refresh_state', refresh_state)
         targets_pub = node.create_publisher(TargetSnapshot, TARGETS_TOPIC, snapshot)  # IF-070 latest snapshot
         report_pub = node.create_publisher(RescueReport, REPORT_TOPIC, 10)
         lease_pubs = {robot: node.create_publisher(CommandLease, ROBOT_PREFIX + robot + '/command_lease', 1)
@@ -900,11 +923,8 @@ def main(args=None):
                 summary = [(t['target_id'], t['estimate_revision'], t['approach_state'], t['rescue_state'])
                            for t in targets['targets']]
                 log.info(f'TARGETS {targets["snapshot_id"]} {summary}')
-            state = core.system_state_change(now)
+            state = state_channel.send(now)
             if state is not None:
-                msg = SystemState(**state)
-                envelope(msg)
-                state_pub.publish(msg)
                 log.info(f'SYSTEM_STATE {state}')
 
         def on_site_event(msg):
@@ -912,7 +932,12 @@ def main(args=None):
             tick()
 
         def on_command(req, res):
-            reply = core.on_command(req, now_ns=now_ns())
+            selector = live_task_source[3] if live_task_source is not None else None
+            if req.operation == 'START_SEARCH' and selector is not None and not selector.selected:
+                core.last_reason = 'SEARCH_GOAL_NOT_SELECTED'
+                reply = core._reply(False, 'REJECTED', 'PENDING_EVIDENCE')
+            else:
+                reply = core.on_command(req, now_ns=now_ns())
             envelope(res.envelope)
             res.command_id = req.command_id
             for name, value in reply.items():
@@ -938,5 +963,7 @@ def main(args=None):
         if isinstance(exc, SystemExit) and exc.code not in (None, 0):
             raise
     finally:
+        if live_task_source is not None:
+            live_task_source[0].close()
         node.destroy_node()
         rclpy.try_shutdown()

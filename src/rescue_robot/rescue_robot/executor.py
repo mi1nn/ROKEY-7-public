@@ -6,7 +6,7 @@ must be provided by a future authenticated, single-owner robot adapter.
 from dataclasses import dataclass
 import math
 from uuid import UUID
-from rescue_contracts import (RescueError, TaskAdmission, CANONICAL_CODES, canonical_code,
+from rescue_contracts import (RescueError, TaskAdmission, canonical_code,
                               robot_id as validate_robot_id, robot_ids, timestamp_ns, TASK_KINDS, TARGET_TASK_KINDS)
 
 

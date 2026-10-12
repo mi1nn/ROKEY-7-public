@@ -4,7 +4,6 @@ Runtime integration must supply authenticated lease storage and a result
 encoder with actual observation/evidence records. Nothing here arms the robot,
 provides an alignment, or chooses a production endpoint/policy.
 """
-from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
 
