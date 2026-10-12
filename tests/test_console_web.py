@@ -8,7 +8,7 @@ from unittest import mock
 from rescue_console.accounts import AccountStore
 from rescue_console.render import (_age, _elapsed, failure_text, render_accounts, render_failure, render_fragment,
                                    render_login, render_page)
-from rescue_console.view import COMMANDS, ConsoleError, request_command
+from rescue_console.view import COMMANDS, ConsoleError
 from test_console_view import LedgerFixture, digest_dir, site_event, write_site_state
 
 HAS_FLASK = importlib.util.find_spec('flask') is not None
@@ -38,24 +38,16 @@ class AccountsFixture(LedgerFixture):
         return re.search(r'name="csrf" value="([^"]+)"', client.get(path).get_data(as_text=True)).group(1)
 
 
-class CommandPlaceholderTests(LedgerFixture):
-    def test_every_command_is_disabled_in_the_model(self):
+class CommandPanelTests(LedgerFixture):
+    """Without a mission state row and without command access, no button can be pressed
+    (sending and the gate mirror: test_console_commands.py)."""
+
+    def test_without_a_mission_state_every_command_is_disabled_in_the_model(self):
         commands = self.view()['commands']
         self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS])
         self.assertEqual({c['enabled'] for c in commands}, {False})
 
-    def test_requesting_a_command_sends_nothing_and_changes_nothing(self):
-        before = digest_dir(self.dir)
-        for name, _ in COMMANDS:
-            with self.subTest(command=name), self.assertRaises(ConsoleError) as caught:
-                request_command(name)
-            self.assertEqual(caught.exception.detail_code, 'NOT_CONNECTED')
-        with self.assertRaises(ConsoleError) as caught:
-            request_command('EMERGENCY_STOP')
-        self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
-        self.assertEqual(digest_dir(self.dir), before)
-
-    def test_page_buttons_are_disabled_and_page_has_no_write_path(self):
+    def test_page_without_command_access_disables_every_button(self):
         html = render_page(self.view())
         buttons = re.findall(r'<button[^>]*>', html)
         commands = [b for b in buttons if 'data-command=' in b]
@@ -63,12 +55,13 @@ class CommandPlaceholderTests(LedgerFixture):
         for button in commands:
             self.assertIn(' disabled', button)
             self.assertNotIn('onclick', button)
-        # The only other button saves the KPI-04 records in the browser.
-        self.assertEqual([b for b in buttons if 'data-command=' not in b],
-                         ['<button type="button" id="kpi-save" class="mini">'])
+        # The other buttons save the KPI-04 records in the browser and answer the confirm step.
+        self.assertEqual([re.search(r'id="([^"]+)"', b).group(1) for b in buttons if 'data-command=' not in b],
+                         ['kpi-save', 'cmd-send', 'cmd-cancel'])
         self.assertNotIn('<form', html)
-        self.assertNotRegex(html, r"(?i)method\s*[:=]\s*['\"]?(post|put|delete)")
-        self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment'])
+        # The page reads the fragment and posts commands to its own server; nothing else is fetched.
+        self.assertEqual(sorted(re.findall(r"fetch\('([^']*)'", html)), ['commands', 'fragment'])
+        self.assertEqual(re.findall(r"method: '([A-Z]+)'", html), ['POST'])
 
     def test_logged_in_page_has_only_the_logout_form(self):
         html = render_page(self.view(), {'username': 'jane', 'display_name': 'Jane', 'role': 'CUSTOMER'}, csrf='tok')
@@ -290,8 +283,9 @@ class FlaskBoundaryTests(AccountsFixture):
     @unittest.skipUnless(HAS_FLASK, 'Flask not installed: web routes NOT_RUN')
     def test_everything_needs_login_and_data_routes_stay_get_only(self):
         app = self.app()
+        # POST /commands is the operator command path (test_console_commands.py).
         data_rules = {rule.rule: rule.methods - {'HEAD', 'OPTIONS'} for rule in app.url_map.iter_rules()
-                      if not rule.rule.startswith(('/login', '/logout', '/admin', '/static'))}
+                      if not rule.rule.startswith(('/login', '/logout', '/admin', '/static', '/commands'))}
         self.assertEqual({frozenset(methods) for methods in data_rules.values()}, {frozenset({'GET'})})
         client = app.test_client()
         self.assertEqual(client.get('/').status_code, 302)
