@@ -8,6 +8,10 @@ SDD 검토안 v0.1 중 1차로 채택한 ROS 메시지 25·서비스 5·액션 2
 - `TargetPresence`·`CameraStatus`·`SetCameraWatch` 는 Python DTO 가 아직 없다(첫 소비자 PR 에서 `rescue_contracts` 에 넣는다). 감시의 경계 검사와 낡은 값 처리는 [C-10](../../docs/design/contracts.md) IDL 규칙에 있다.
 - 빌드: `colcon build --packages-select rescue_interfaces` (ROS 2 Jazzy). CI 에는 ROS 가 없어 이 빌드는 돌지 않는다.
 
+AMR2의 새 동행 요구(2026-10-11)는 출동 승인 후 탑재 카메라 다리 스켈레톤으로 구조대원 뒤를 목적지까지 연속 추종하는 것이다([RQ-10·Q-27](../../docs/requirements/scope.md), [C-12](../../docs/design/contracts.md#c-12)). 아래 `MOVE_SEGMENT`·`CONTINUE_SEGMENT`·`ONE_SEGMENT`는 기존 구간 이동 정의이며 연속 추종 타입/구현이 아니다. 추종 입력·액션은 아직 미정이고, 고정 웹캠의 `TargetPresence`·`SetCameraWatch`는 요구조자 인형 감시에만 쓴다.
+
+AMR1 최초 정찰은 관제 출동 버튼 명령으로 시작한다([RQ-11·Q-28](../../docs/requirements/scope.md), [C-13](../../docs/design/contracts.md#c-13)). 재난 이벤트는 표시·근거 저장만 한다. `START_SEARCH`는 #98에서 SubmitOperatorCommand IDL에 추가됐고 coordinator 처리도 main에 반영됐다. 다만 콘솔 버튼은 비활성 placeholder이며 operations API 경로는 연결되지 않았다. 따라서 IDL/조정기 명령 지원과 실제 관제 버튼 출동은 구분한다.
+
 ## 통신별 입력과 출력
 
 [SDD 명세](../../docs/design/sdd-node-interface-spec-v0.1.md)「토픽·서비스·액션 연결 정의」를 흐름별로 줄인 표다. 연결의 원본(endpoint·발행자·구독자·QoS)은 그 명세이고, 여기와 다르면 명세가 이긴다. `{r}` 은 로봇(`amr1`/`amr2`, 실제 이름은 배포 프로파일). `1차` 는 이 패키지에 정의가 있음, `2차` 는 아직 없음([C-10](../../docs/design/contracts.md)). 정의가 있다는 것이지 그 통신을 하는 노드가 구현됐다는 뜻은 아니다(2026-10-10 기준 노드 연결 0개).
