@@ -4,6 +4,7 @@ ROS·카메라·모델을 쓰지 않는다. 노드(`webcam_node`)는 이 모듈�
 숫자는 시험용이며 정책 확정값이 아니다.
 """
 from dataclasses import replace
+from types import SimpleNamespace
 import unittest
 from uuid import UUID
 
@@ -180,6 +181,30 @@ class NodeParamsExampleTests(unittest.TestCase):
                                       else raw)
         self.assertEqual(set(values), set(PARAMS))
         policies(values)  # 값 검사는 각 정책이 한다
+
+
+
+class DebugImageTests(unittest.TestCase):
+    """2026-10-12 사용자 요청: 노드로 시험할 때도 판정을 화면으로 본다(웹캠 -> 노드 -> 토픽 -> 대시보드)."""
+
+    def test_node_has_debug_image_topic_param(self):
+        from rescue_perception.webcam_node import PARAMS
+        self.assertEqual(PARAMS.get("debug_image_topic"), "STRING")
+
+    def test_detector_exposes_tracked_position(self):
+        from rescue_perception.target_watch import WatchSpec
+        binding = SourceBinding(None, "cam_fixed", str(UUID(int=300)), "site-clock", "DRIVER_RECEIVE", "UNKNOWN",
+                                "cam-fixed-cal", "UNKNOWN", None)
+        policy = TargetWatchPolicy(score_min=0.5, roi_overlap_min=0.5, present_confirm_frames=2, absent_hold_ns=300,
+                                   absent_min_frames=3, max_gap_ns=150, exit_roi_xyxy_normalized=(0.0, 0.0, 1.0, 1.0),
+                                   track_max_jump=0.3)
+        from rescue_perception.target_watch import TargetWatchDetector
+        det = TargetWatchDetector(binding, policy, WatchSpec("cam_fixed", WATCH, TARGET, ROI, 1))
+        self.assertIsNone(det.track)
+        image = SimpleNamespace(header=SimpleNamespace(stamp=SimpleNamespace(sec=1700000000, nanosec=0), frame_id="x"),
+                                width=8, height=8, encoding="mono8", is_bigendian=0, step=8, data=bytes(64))
+        det.update(image, boxes_from_xyxyn([[0.45, 0.45, 0.55, 0.55]], [0.9]), visibility="VALID")
+        self.assertEqual(det.track, (0.5, 0.5))
 
 
 if __name__ == "__main__":
