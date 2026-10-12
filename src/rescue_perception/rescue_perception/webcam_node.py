@@ -236,14 +236,15 @@ def main(args=None):
         except (PerceptionError, TypeError, ValueError) as exc:
             log.error(f'SetCameraWatch rejected (bad request): {exc}')
             reply = NS(accepted=False, watch_id=request.watch_id, watch_revision=slot.revision,
-                       reason_code='INVALID_INPUT')
+                       reason_code='INVALID_INPUT', detail=str(exc))
         envelope(response.envelope, 'srv')
         response.accepted = reply.accepted
         response.watch_id = reply.watch_id
         response.watch_revision = reply.watch_revision
         response.reason_code = reply.reason_code
         log.info(f'SetCameraWatch command={request.command_id} enable={request.enable} '
-                 f'watch={request.watch_id} -> {reply.reason_code} revision={reply.watch_revision}')
+                 f'watch={request.watch_id} -> {reply.reason_code} revision={reply.watch_revision}'
+                 + (f' detail={reply.detail}' if reply.detail else ''))
         return response
 
     node.create_service(SetCameraWatch, v['set_watch_service'], on_set_watch)

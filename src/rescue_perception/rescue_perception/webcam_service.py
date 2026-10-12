@@ -52,6 +52,7 @@ class WatchReply:
     watch_id: str
     watch_revision: int
     reason_code: str
+    detail: str = ""  # 거절 이유(로그용). 서비스 응답 필드는 아니다
 
 
 class WatchSlot:
@@ -74,8 +75,8 @@ class WatchSlot:
             self._replies[req.command_id] = reply
         return reply
 
-    def _reject(self, req, code):
-        return WatchReply(False, req.watch_id, self.revision, code)
+    def _reject(self, req, code, detail=""):
+        return WatchReply(False, req.watch_id, self.revision, code, detail)
 
     def _decide(self, req, now_ns):
         if req.camera_id != self._binding.source_camera:
@@ -83,7 +84,7 @@ class WatchSlot:
         if type(req.deadline_ns) is not int or req.deadline_ns <= now_ns:
             return self._reject(req, "EXPIRED")
         if not req.command_id or req.association_method not in ASSOCIATION_METHODS:
-            return self._reject(req, "INVALID_INPUT")
+            return self._reject(req, "INVALID_INPUT", "command_id empty or unknown association_method")
         if req.expected_watch_revision != self.revision:
             return self._reject(req, "REVISION_MISMATCH")
         roi = tuple(req.roi_xyxy_normalized)
@@ -95,8 +96,8 @@ class WatchSlot:
         try:
             watch = WatchSpec(camera_id=req.camera_id, watch_id=req.watch_id, target_id=req.target_id,
                               roi_xyxy_normalized=roi, watch_revision=self.revision + 1)
-        except PerceptionError:
-            return self._reject(req, "INVALID_INPUT")
+        except PerceptionError as exc:
+            return self._reject(req, "INVALID_INPUT", exc.detail)
         self.revision += 1
         self.watch = watch
         self.detector = TargetWatchDetector(self._binding, self._policy, watch)
