@@ -1,0 +1,122 @@
+[
+  {
+    "model": "26n",
+    "weights": "runs/v2_amr_mini/survivor_yolo26n_640/weights/best.pt",
+    "sha256": "0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74",
+    "params_M": 2.50419,
+    "size_MB": 5.393477,
+    "val": {
+      "metrics/precision(B)": 0.9996371727172811,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9949999999999999
+    },
+    "val_speed_ms": {
+      "preprocess": 0.8758127499959301,
+      "inference": 2.992339574999884,
+      "loss": 0.00028936667604284594,
+      "postprocess": 0.5490493750054762
+    },
+    "val_class_map": [
+      0.9949999999999999
+    ],
+    "test": {
+      "metrics/precision(B)": 0.9990324236821821,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9938474576271187
+    },
+    "test_speed_ms": {
+      "preprocess": 2.1007843050768824,
+      "inference": 2.9008162542379714,
+      "loss": 0.00026603390586511154,
+      "postprocess": 0.9848794067801141
+    },
+    "test_class_map": [
+      0.9938474576271187
+    ],
+    "epochs": 100,
+    "csv_best_epoch": 84,
+    "training_time_s": 403.155
+  },
+  {
+    "model": "11n",
+    "weights": "runs/v2_amr_mini/survivor_yolo11n_640/weights/best.pt",
+    "sha256": "d1cbd255b30b8029e8f92a7ede63aa72a77b14c2078f4bd5a59cc4b5ac3ffd76",
+    "params_M": 2.590035,
+    "size_MB": 5.478426,
+    "val": {
+      "metrics/precision(B)": 0.9998718864973077,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9949999999999999
+    },
+    "val_speed_ms": {
+      "preprocess": 1.1392818000028153,
+      "inference": 2.70679508334221,
+      "loss": 0.0002794916629985285,
+      "postprocess": 0.4707320250114814
+    },
+    "val_class_map": [
+      0.9949999999999999
+    ],
+    "test": {
+      "metrics/precision(B)": 0.9991345112529294,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9925932203389831
+    },
+    "test_speed_ms": {
+      "preprocess": 0.9165531694834808,
+      "inference": 3.728214593215622,
+      "loss": 0.006147661039549502,
+      "postprocess": 0.321293220344992
+    },
+    "test_class_map": [
+      0.9925932203389831
+    ],
+    "epochs": 100,
+    "csv_best_epoch": 100,
+    "training_time_s": 272.529
+  },
+  {
+    "model": "v8n",
+    "weights": "runs/v2_amr_mini/survivor_yolov8n_640/weights/best.pt",
+    "sha256": "e26432926021d9629d193c9d88655986b9409c62cd99c83975100506a550da54",
+    "params_M": 3.011043,
+    "size_MB": 6.255914,
+    "val": {
+      "metrics/precision(B)": 0.9997379685548027,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9949999999999999
+    },
+    "val_speed_ms": {
+      "preprocess": 0.9718297666722719,
+      "inference": 2.9846181250074246,
+      "loss": 0.00030674167040463846,
+      "postprocess": 0.7687798500076799
+    },
+    "val_class_map": [
+      0.9949999999999999
+    ],
+    "test": {
+      "metrics/precision(B)": 0.9990926284010445,
+      "metrics/recall(B)": 1.0,
+      "metrics/mAP50(B)": 0.995,
+      "metrics/mAP50-95(B)": 0.9919655172413794
+    },
+    "test_speed_ms": {
+      "preprocess": 1.8316483050881998,
+      "inference": 3.4418427118399157,
+      "loss": 0.0004512881263261819,
+      "postprocess": 0.8165523389896222
+    },
+    "test_class_map": [
+      0.9919655172413794
+    ],
+    "epochs": 100,
+    "csv_best_epoch": 85,
+    "training_time_s": 321.463
+  }
+]

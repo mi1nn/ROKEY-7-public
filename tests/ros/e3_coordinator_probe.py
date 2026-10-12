@@ -13,18 +13,22 @@ Run on an isolated graph, never a robot's domain, with no Discovery Server:
 The node runs as a child process with config/deployment.v2.example.json (robot_a SCOUT,
 robot_b SUPPORT). This probe is the fake executor of robot_a: it accepts ExecuteTask,
 publishes TaskAdmission and returns COMPLETED with a confirmed stop. Checks:
-1. no goal before DISASTER_SIGN; 2. DISASTER_SIGN + READY status -> SEARCH_AREA for the
-first area; 3. admission + completed result -> SEARCH_AREA for the second area;
-4. REQUEST_RECHECK of an unknown target -> REJECTED/NOT_FOUND, replay -> DUPLICATE;
-5. the node refuses to start without parameters (exit 2); 6. a VALID TargetLocation ->
-RescueReport, PERSISTED receipt -> SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one
-MOVE_SEGMENT to robot_b with route (UNKNOWN assessment, no planner values) and a
-ONE_SEGMENT approval; its completed result -> AWAITING_CONTINUE and no next segment
-without CONTINUE_SEGMENT; 8. CommandLease for the first SEARCH_AREA: same lease_id and
-generation as the goal, renewal_sequence strictly rising, none after its result; 9. a
-RobotStatus with a stop reason for the running MOVE_SEGMENT -> no further renewals; 10. a
-REOBSERVE_TARGET the executor never admits: renewals stop after admission_timeout_s and,
-once a STOPPED status arrives, it is issued again as a new task.
+1. no goal before DISASTER_SIGN, nor after it until START_SEARCH (owner decision
+2026-10-11, #85); START_SEARCH while the SCOUT is NOT_READY -> REJECTED/NAV_NOT_READY and
+no goal (#98); 2. START_SEARCH (new command_id) + READY status -> SEARCH_AREA for the
+first area, while the idle robot reports lease_valid=false (#100); 3. admission +
+completed result -> SEARCH_AREA for the second area; 4. REQUEST_RECHECK of an unknown
+target -> REJECTED/NOT_FOUND, replay -> DUPLICATE; 5. the node refuses to start without
+parameters (exit 2); 6. a VALID TargetLocation -> RescueReport, PERSISTED receipt ->
+SystemState TARGET_FOUND; 7. DISPATCH_SUPPORT -> one MOVE_SEGMENT to robot_b with route
+(UNKNOWN assessment, no planner values) and a ONE_SEGMENT approval; its completed result
+-> AWAITING_CONTINUE and no next segment without CONTINUE_SEGMENT; its
+route.generated_at_ns is set, not after the goal; 8. CommandLease for the first
+SEARCH_AREA: same lease_id and generation as the goal, renewal_sequence strictly rising,
+none after its result; 9. a RobotStatus with a stop reason for the running MOVE_SEGMENT ->
+no further renewals; 10. a REOBSERVE_TARGET the executor never admits: renewals stop after
+admission_timeout_s and, once a STOPPED status arrives, it is issued again as a new task;
+11. a TargetSnapshot names the target with its saved report.
 Exit code 0 = all held.
 """
 import os
@@ -40,7 +44,7 @@ from rclpy.node import Node
 from rescue_interfaces.action import ExecuteTask
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus, SiteEvent, SystemState,
-                                   TargetLocation, TaskAdmission)
+                                   TargetLocation, TargetSnapshot, TaskAdmission)
 from rescue_interfaces.srv import SubmitOperatorCommand
 
 SCOUT, SUPPORT = 'robot_a', 'robot_b'
@@ -54,7 +58,8 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'route_revision:=1', '-p', 'observe_goal:=[3.0, 1.0, 0.0]',
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
              '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0',
-             '-p', 'lease_renew_period_s:=0.2', '-p', 'admission_timeout_s:=1.0']
+             '-p', 'lease_renew_period_s:=0.2', '-p', 'admission_timeout_s:=1.0', '-p', 'lease_message_ttl_s:=1.0',
+             '-p', 'route_segment_passage_free:=[true, true]']
 
 
 def node_command(repo, extra):
@@ -68,6 +73,7 @@ class FakeExecutor(Node):
     def __init__(self):
         super().__init__('e3_fake_executor')
         self.goals, self.support_goals, self.reports, self.states, self.leases = [], [], [], [], []
+        self.snapshots = []
         self.admission = {r: self.create_publisher(TaskAdmission, f'/rescue/robots/{r}/task_admission', 10)
                           for r in (SCOUT, SUPPORT)}
         self.status = {r: self.create_publisher(RobotStatus, f'/rescue/robots/{r}/status', 1) for r in (SCOUT, SUPPORT)}
@@ -79,9 +85,11 @@ class FakeExecutor(Node):
         self.create_subscription(CommandLease, f'/rescue/robots/{SCOUT}/command_lease', self.leases.append, 10)
         self.create_subscription(CommandLease, f'/rescue/robots/{SUPPORT}/command_lease', self.leases.append, 10)
         self.active, self.stop_reason = {SCOUT: '', SUPPORT: ''}, {SCOUT: '', SUPPORT: ''}
+        self.readiness = {SCOUT: 'READY', SUPPORT: 'READY'}
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(SystemState, '/rescue/system_state', self.states.append, snapshot)
+        self.create_subscription(TargetSnapshot, '/rescue/targets', self.snapshots.append, snapshot)
         self.boot = {r: str(uuid4()) for r in (SCOUT, SUPPORT)}
         ActionServer(self, ExecuteTask, f'/rescue/robots/{SCOUT}/execute_task',
                      lambda handle: self.execute(handle, self.goals))
@@ -109,7 +117,9 @@ class FakeExecutor(Node):
 
     def publish_status(self):
         for robot, pub in self.status.items():
-            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness='READY', lease_valid=True,
+            # Like the executor (#100): a lease belongs to a task, so an idle robot reports lease_valid=false.
+            pub.publish(RobotStatus(robot_id=robot, robot_boot_id=self.boot[robot], readiness=self.readiness[robot],
+                                    lease_valid=bool(self.active[robot]),
                                     observed_at_ns=self.get_clock().now().nanoseconds,
                                     active_task_id=self.active[robot], stop_reason=self.stop_reason[robot],
                                     motion_state='MOVING' if self.active[robot] else 'STOPPED'))
@@ -175,10 +185,26 @@ def main():
         wait(executor, lambda: False, 2, probe.publish_status)
         checks['no goal before DISASTER_SIGN'] = not probe.goals
         probe.publish_disaster()
+        wait(executor, lambda: False, 2, probe.publish_status)
+        checks['DISASTER_SIGN alone -> no goal'] = not probe.goals
+        probe.readiness[SCOUT] = 'NOT_READY'
+        wait(executor, lambda: False, 1, probe.publish_status)
+        early = call(executor, probe, SubmitOperatorCommand.Request(
+            command_id=str(uuid4()), operation='START_SEARCH', operator_id='e3',
+            issued_at_ns=probe.get_clock().now().nanoseconds))
+        wait(executor, lambda: False, 1, probe.publish_status)
+        checks['START_SEARCH before ready -> REJECTED NAV_NOT_READY, no goal'] = (
+            early.accepted, early.request_state, early.reason_code, len(probe.goals)) == (
+            False, 'REJECTED', 'NAV_NOT_READY', 0)
+        probe.readiness[SCOUT] = 'READY'
+        wait(executor, lambda: False, 1, probe.publish_status)
+        start = call(executor, probe, SubmitOperatorCommand.Request(
+            command_id=str(uuid4()), operation='START_SEARCH', operator_id='e3',
+            issued_at_ns=probe.get_clock().now().nanoseconds))
         got_first = wait(executor, lambda: len(probe.goals) >= 1, 10, probe.publish_status)
-        checks['DISASTER_SIGN -> SEARCH_AREA first area'] = got_first and (
-            probe.goals[0].kind, probe.goals[0].robot_id, probe.goals[0].search_area_ref) == (
-            'SEARCH_AREA', SCOUT, AREAS[0])
+        checks['START_SEARCH -> SEARCH_AREA first area'] = got_first and (
+            start.accepted, start.created_task_id, probe.goals[0].kind, probe.goals[0].robot_id,
+            probe.goals[0].search_area_ref) == (True, probe.goals[0].task_id, 'SEARCH_AREA', SCOUT, AREAS[0])
         got_second = wait(executor, lambda: len(probe.goals) >= 2, 10, probe.publish_status)
         checks['completed + admission -> second area'] = got_second and probe.goals[1].search_area_ref == AREAS[1]
         wait(executor, lambda: False, 1.5)  # let the second goal finish before teardown
@@ -210,6 +236,11 @@ def main():
         found = wait(executor, lambda: probe.states and probe.states[-1].phase == 'TARGET_FOUND', 10,
                      probe.publish_status)
         checks['PERSISTED -> SystemState TARGET_FOUND'] = found
+        saved = wait(executor, lambda: probe.snapshots and probe.snapshots[-1].targets
+                     and probe.snapshots[-1].targets[0].persisted_report_id, 10, probe.publish_status)
+        checks['TargetSnapshot names the saved target'] = bool(saved and report) and (
+            probe.snapshots[-1].targets[0].target_id, probe.snapshots[-1].targets[0].persisted_report_id,
+            probe.snapshots[-1].targets[0].mission_position.x) == (report.target_id, report.report_id, 2.5)
         if report:
             dispatch = call(executor, probe, SubmitOperatorCommand.Request(
                 command_id=str(uuid4()), operation='DISPATCH_SUPPORT', operator_id='e3', target_id=report.target_id,
@@ -221,6 +252,8 @@ def main():
                 g.approval.scope, g.route.assessment.status, g.route.planner_evidence_id, len(g.route.planned_path.poses),
                 g.route.approach_goal.pose.position.x, g.route.frame_ref.alignment_status) == (
                 True, g.task_id, 'MOVE_SEGMENT', SUPPORT, True, True, 'ONE_SEGMENT', 'UNKNOWN', '', 0, 1.0, 'VALID')
+            checks['MOVE_SEGMENT route carries the time it was made'] = bool(g) and (
+                0 < g.route.generated_at_ns <= g.issued_at_ns < g.route.valid_until_ns)
             if g:
                 wait(executor, lambda: False, 1.0, probe.publish_status)
                 renewed = [l for l in probe.leases if l.lease_id == g.lease_id]

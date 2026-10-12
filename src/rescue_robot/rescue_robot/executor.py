@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import math
 from uuid import UUID
 from rescue_contracts import (RescueError, TaskAdmission, CANONICAL_CODES, canonical_code,
-                              robot_id as validate_robot_id, robot_ids, timestamp_ns)
+                              robot_id as validate_robot_id, robot_ids, timestamp_ns, TASK_KINDS, TARGET_TASK_KINDS)
 
 
 class ContractError(RescueError):
@@ -159,18 +159,18 @@ class Task:
             validate_robot_id(self.robot_id)
         except RescueError as exc:
             raise ContractError(exc.detail, exc.code) from exc
-        if self.kind not in ('SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD'):
+        if self.kind not in TASK_KINDS:
             raise ContractError('task kind')
         wall_time(self.issued_at_ns)
         wall_time(self.deadline_ns)
         number(self.lease_duration, 'lease_duration', positive=True)
         if self.deadline_ns <= self.issued_at_ns or not isinstance(self.policy_version, str) or not self.policy_version:
             raise ContractError('deadline or policy')
-        if self.kind in ('REOBSERVE_TARGET', 'APPROACH_TARGET'):
+        if self.kind in TARGET_TASK_KINDS:
             identifier(self.target_id)
             generation(self.target_revision)
         elif self.target_id is not None or self.target_revision is not None:
-            raise ContractError('search/hold has no target')
+            raise ContractError('non-target task has no target')
         if self.kind == 'SEARCH_AREA':
             identifier(self.search_area_ref)
         elif self.search_area_ref is not None:
@@ -428,7 +428,7 @@ class Executor:
             self.request_stop(reason, now=now, outcome=outcome)
         return True
 
-    def renew(self, command_id, authority_epoch, generation_value, sequence, *, now):
+    def renew(self, command_id, authority_epoch, generation_value, sequence, *, now, lease_duration=None):
         now = self._time(now)
         generation(sequence)
         generation(generation_value)
@@ -436,7 +436,9 @@ class Executor:
                 or authority_epoch != self.authority_epoch or generation_value != self.active.generation
                 or now >= self.lease_until or self.state == 'STOPPING' or sequence <= self.lease_sequence):
             return False
-        lease_until = future_deadline(now, self.active.lease_duration)
+        duration = self.active.lease_duration if lease_duration is None else number(
+            lease_duration, 'lease_duration', positive=True)
+        lease_until = future_deadline(now, duration)
         self.lease_sequence, self.lease_until = sequence, lease_until
         return True
 

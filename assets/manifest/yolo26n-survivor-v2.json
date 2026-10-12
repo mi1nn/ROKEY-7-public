@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-11",
+  "source_repo": "mi1nn/amr-mini-project",
+  "source_sha": "ee355d0b5896ea58bccac73ce1a7857f62e96024",
+  "source_file": "runs/car_dummy_26n/args.yaml",
+  "experiments": {
+    "survivor_yolo26n_640": {
+      "source_repo": "mi1nn/amr-mini-project",
+      "source_sha": "ee355d0b5896ea58bccac73ce1a7857f62e96024",
+      "source_file": "runs/car_dummy_26n/args.yaml",
+      "dataset_zip_sha256": "adca41a6dc5ba112932af7065f04a45d71f45ea40675981ced9c79a9469206af",
+      "initial_weights_sha256": "9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef",
+      "best_pt_sha256": "0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74",
+      "wall_time_s": 410.3326539993286,
+      "epochs_completed": 100,
+      "best_csv_map_epoch": "84"
+    },
+    "survivor_yolo26n_640_e200": {
+      "source_repo": "mi1nn/amr-mini-project",
+      "source_sha": "ee355d0b5896ea58bccac73ce1a7857f62e96024",
+      "source_file": "runs/car_dummy_26n/args.yaml",
+      "dataset_zip_sha256": "adca41a6dc5ba112932af7065f04a45d71f45ea40675981ced9c79a9469206af",
+      "initial_weights_sha256": "9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef",
+      "best_pt_sha256": "05df523cfbb3d9a6511187d4951316145aaea534a199ebf529f67fc2de527c46",
+      "wall_time_s": 238.7957673072815,
+      "epochs_completed": 58,
+      "best_csv_map_epoch": "38"
+    }
+  },
+  "uploaded_model": {
+    "path": "assets/models/best.pt",
+    "sha256": "0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74",
+    "size_bytes": 5393477,
+    "class_names": [
+      "survivor"
+    ],
+    "imgsz": 640
+  },
+  "selection": {
+    "date": "2026-10-11",
+    "experiment": "survivor_yolo26n_640",
+    "purpose": "AMR camera vision survivor detection",
+    "authority": "User explicitly selected 100 epoch model and requested merge; prior merge hold lifted",
+    "limitations": [
+      "Actual person false positives remain to be evaluated for selected model",
+      "2.2m capture and near-range confidence are observations, not all-condition guarantees"
+    ]
+  }
+}

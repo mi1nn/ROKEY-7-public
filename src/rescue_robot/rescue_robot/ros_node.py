@@ -1,10 +1,10 @@
 """ROS 2 boundary for CommandAdapter: NavigateToPose client, odometry, dock status.
 
 ROS packages are imported inside functions so `rescue_robot` stays importable
-and testable without ROS. This node has no task ingress yet (the ExecuteTask IDL
-exists in rescue_interfaces, #62, but no ExecuteTask input node is implemented)
-and its guard rejects every dispatch until the mapping revision guard is
-connected, so it cannot start a motion on its own. It observes odometry, dock status and Nav2 availability.
+and testable without ROS. ExecuteTask IDL exists in rescue_interfaces, but this
+default CLI has no task runtime attached, and its guard rejects every dispatch
+until the mapping revision guard is connected, so it cannot start a motion on
+its own. It observes odometry, dock status and Nav2 availability.
 """
 import math
 import subprocess
@@ -199,7 +199,7 @@ def declare_required(node, names, optional=()):
 READINESS_SOURCES = ('odom', 'scan', 'camera', 'wheel_status', 'map_to_odom_tf', 'watchdog_heartbeat')
 
 
-def main(args=None):
+def main(args=None, *, task_runtime_factory=None):
     import rclpy
     from rclpy.node import Node
     from rcl_interfaces.msg import ParameterType
@@ -256,6 +256,13 @@ def main(args=None):
                    wheel_status_topic=value['wheel_status_topic'], tf_topic=value['tf_topic'],
                    map_frame=value['map_frame'], odom_frame=value['odom_frame'],
                    watchdog_heartbeat_topic=value['watchdog_heartbeat_topic'])
+    # A site integration supplies authenticated lease/goal records, mapping
+    # authority and a result encoder. The ordinary CLI stays fail-closed.
+    task_runtime = None
+    if task_runtime_factory is not None:
+        if not callable(task_runtime_factory):
+            raise ValueError('task_runtime_factory must be callable')
+        task_runtime = task_runtime_factory(node, adapter)
     from std_msgs.msg import Header
     # Executor liveness for the command watchdog (C-01): one Header per step.
     heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
@@ -270,5 +277,7 @@ def main(args=None):
     try:
         rclpy.spin(node)
     finally:
+        if task_runtime is not None:
+            task_runtime.destroy()
         node.destroy_node()
         rclpy.try_shutdown()

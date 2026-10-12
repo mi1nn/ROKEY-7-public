@@ -3,8 +3,9 @@
 ROS packages are imported inside functions, so this module stays importable and
 ``CoordinatorCore`` is testable without ROS. Thin version for the 10-13 run:
 
-- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate; once in
-  DISASTER a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` with no operator approval.
+- ``/rescue/site_events`` DISASTER_SIGN -> ``MissionCoordinator`` mode gate (shown and
+  stored); a ready SCOUT gets ``ExecuteTask(SEARCH_AREA)`` only after the operator's
+  START_SEARCH (owner decision 2026-10-11, #85).
 - ``/rescue/robots/{r}/task_admission`` is the only path to ACTIVE; the action
   result releases the reservation only with a confirmed stop.
 - ``/rescue/operator_command`` (SubmitOperatorCommand) is judged by
@@ -32,6 +33,7 @@ TARGET_LOCATION_TOPIC = '/rescue/target_locations'
 REPORT_TOPIC = '/rescue/reports'
 REPORT_RECEIPT_TOPIC = '/rescue/report_receipts'
 SYSTEM_STATE_TOPIC = '/rescue/system_state'
+TARGETS_TOPIC = '/rescue/targets'
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
 ROBOT_PREFIX = '/rescue/robots/'  # + robot_id + '/execute_task' etc. (rescue_interfaces README)
 # Mission refusal -> C-09 common code for SubmitOperatorCommand.reason_code (OPS-58, 2026-10-11).
@@ -41,19 +43,23 @@ REASON_CODES = {
     'UNKNOWN_TARGET': 'NOT_FOUND', 'NO_HOME_POSITION': 'NOT_FOUND',
     'TARGET_NOT_CONFIRMED': 'PENDING_EVIDENCE', 'NO_ROUTE': 'PENDING_EVIDENCE', 'NO_VERDICT': 'PENDING_EVIDENCE',
     'ALREADY_DISPATCHED': 'TASK_BUSY', 'NOT_AWAITING_APPROVAL': 'TASK_BUSY', 'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY',
-    'ALREADY_RETURNING': 'TASK_BUSY',
+    'ALREADY_RETURNING': 'TASK_BUSY', 'SEARCH_ALREADY_STARTED': 'TASK_BUSY',
     'TARGET_REVISION_STALE': 'INVALID_INPUT', 'ROUTE_REVISION_STALE': 'INVALID_INPUT',
     'SEGMENT_INDEX_MISMATCH': 'INVALID_INPUT', 'NOT_DISPATCHED_TARGET': 'INVALID_INPUT',
     'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
     'HOME_BASIS_MISMATCH': 'FRAME_REVISION_MISMATCH',
 }
 # The robot that a command may name (empty = not named).
-COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT'}
+COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT',
+                 'START_SEARCH': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
                         'ARRIVED': 'STOPPED'}
+# Internal segment phase -> TargetEstimate.approach_state for the dispatched target [제안].
+APPROACH_STATES = {'APPROVED': 'ASSIGNED', 'MOVING': 'IN_PROGRESS', 'AWAITING_APPROVAL': 'IN_PROGRESS',
+                   'ARRIVED': 'APPROACH_COMPLETE'}
 
 
 def system_mode(mode, phase):
@@ -139,7 +145,7 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
         for name in ('route_id', 'route_revision', 'robot_id', 'target_id', 'segment_index'):
             setattr(r, name, route[name])
         r.policy_version = fields['policy_version']
-        r.valid_until_ns = route['valid_until_ns']
+        r.generated_at_ns, r.valid_until_ns = route['generated_at_ns'], route['valid_until_ns']
         # frame_ref is the target's current one (alignment from mapping, never set here); the
         # top-level frame_ref carries the same basis for target tasks.
         for ref in (r.frame_ref, frame):
@@ -188,7 +194,8 @@ class CoordinatorCore:
     """
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
-                 report_retry_ns, lease_renew_period_ns, admission_timeout_ns, new_id=None):
+                 report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
+                 lease_message_ttl_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -202,8 +209,12 @@ class CoordinatorCore:
         if not 0 < lease_renew_period_ns <= lease_ns // 2:
             raise CoordinationError('INVALID_POLICY', 'lease renewal period must be at most half the lease')
         contract_value(duration_ns, admission_timeout_ns)
-        if admission_timeout_ns <= 0:
-            raise CoordinationError('INVALID_POLICY', 'admission timeout must be positive')
+        contract_value(duration_ns, lease_message_ttl_ns)
+        if admission_timeout_ns <= 0 or lease_message_ttl_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'admission timeout and lease message TTL must be positive')
+        segment_passage_free = tuple(segment_passage_free)
+        if not all(type(value) is bool for value in segment_passage_free):
+            raise CoordinationError('INVALID_POLICY', 'segment passage values must be booleans')
         segment_goals = tuple(segment_goals)
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
@@ -220,16 +231,22 @@ class CoordinatorCore:
         self.locations = {}      # location_id -> (target_id, TargetLocation msg, content key)
         self.target_geo = {}     # target_id -> (basis, (x, y), [location msgs]) of the latest merge
         self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
-        self.issue_block = None  # why the last approved/open task could not be issued (for the log)
+        self.issue_block = None  # why an approved/open task is held right now; recomputed every tick
         self.state_sequence, self.last_state = 0, None
+        self.last_targets = None
         self.lease_ns, self.lease_renew_period_ns = lease_ns, lease_renew_period_ns
         self.leases = {}         # task_id -> lease dict; removed for good when renewal stops
         self.status_arrivals = 0
         self.admission_timeout_ns = admission_timeout_ns
+        # AST88-01 (OPS-60): field-checked "no passage assessment needed" per segment end. A
+        # list of another length marks nothing passage-free.
+        self.segment_passage_free = segment_passage_free
+        self.lease_message_ttl_ns = lease_message_ttl_ns  # AST88-02: CommandLease receive deadline
         self.issued_at = {}      # task_id -> issued_at_ns, for the admission timeout
         self.timed_out = {}      # task_id -> status arrival count when its admission timed out
         self.status_detail = {}  # robot_id -> (arrival, stop_reason, motion_state, lease_valid, active_task_id)
         self.status = {}         # robot_id -> latest RobotStatus fields used here
+        self.route_made_at = {}  # target_id -> wall time its routes were made (target creation), resent as is
         self.replies = {}        # command_id -> (OperatorCommand, reply dict)
         self.accepted_at = {}    # command_id -> acceptance time (approval approved_at_ns)
         self.segment_tasks = {}  # approval command_id -> task_id (one approval, one task)
@@ -272,6 +289,10 @@ class CoordinatorCore:
         stop = bool(result.stop_confirmed)
         if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
             return False
+        if item.robot_id == self.roles['SCOUT'] and result.outcome == 'CANCELED':
+            # The executor ends a stop (operator, lease, deadline) as CANCELED; a FAILED/UNREACHABLE
+            # task is not a stop and leaves the waiting search in place.
+            self._cancel_queued_search('SCOUT_TASK_CANCELED')
         meta = self.task_meta.get(task_id)
         if meta and meta[0] == 'MOVE_SEGMENT':
             approval = meta[1]
@@ -319,6 +340,7 @@ class CoordinatorCore:
         if not near:
             self.mission.record_route(target_id, route_revision=self.route_revision,
                                       segment_count=len(self.segment_goals))
+            self.route_made_at[target_id] = now_ns
         self.target_geo[target_id] = (basis, xy, locations)
         self.locations[msg.location_id] = (target_id, msg, key)
         report_id = self.new_id()
@@ -346,7 +368,7 @@ class CoordinatorCore:
             return False
         if msg.state != 'PERSISTED' or not set(report['record_ids']) <= set(msg.included_record_ids):
             return False
-        report['done'] = True
+        report['done'] = report['persisted'] = True
         self.mission.record_target(report['target_id'], report['target_revision'], detection_confirmed=True,
                                    report_persisted=True)
         return True
@@ -359,7 +381,8 @@ class CoordinatorCore:
             mode=system_mode(view.mode, view.phase), phase=view.phase,
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
-            policy_version=self.search.policy.version, reason='',
+            policy_version=self.search.policy.version,
+            reason=self.issue_block or ('SEARCH_QUEUED' if self.search_queued() else ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -372,20 +395,62 @@ class CoordinatorCore:
         self.state_sequence += 1
         return state | dict(state_sequence=self.state_sequence, changed_at_ns=now_ns)
 
+    def target_snapshot_change(self):
+        """TargetSnapshot fields (IF-070) when the targets changed since the last call, else None.
+
+        One TargetEstimate per target, ordered by target_id. ``persisted_report_id`` is
+        the saved report of the current revision only (a newer revision is unsaved until
+        its own receipt). Confirmation is CONFIRMED: the thin version takes confirmed
+        detections only (작전 decision 3).
+        """
+        mission = self.mission
+        saved = {(r['target_id'], r['target_revision']): r['report_id'] for r in self.reports.values()
+                 if r['done'] and r.get('persisted')}
+        targets = []
+        for target_id in sorted(self.target_geo):
+            basis, xy, locations = self.target_geo[target_id]
+            target_revision = mission.targets[target_id][0]
+            dispatched = target_id == mission.dispatch_target
+            latest = locations[-1]
+            targets.append(dict(
+                target_id=target_id, estimate_revision=target_revision, locations=list(locations),
+                latest_observed_at_ns=max(loc.observation.time.observed_at_ns for loc in locations),
+                valid_until_ns=latest.observation.time.valid_until_ns, mission_position=xy,
+                covariance=list(latest.covariance), confirmation_state='CONFIRMED',
+                approach_state=APPROACH_STATES[mission.segment_phase] if dispatched else 'UNASSIGNED',
+                segment_phase=SEGMENT_PHASE_STATES[mission.segment_phase] if dispatched else 'IDLE',
+                rescue_state=mission.verdicts.get(target_id, 'NOT_CHECKED'),
+                persisted_report_id=saved.get((target_id, target_revision), '')))
+        if targets == self.last_targets:
+            return None
+        self.last_targets = targets
+        return dict(snapshot_id=self.new_id(), targets=targets)
+
     def ready(self, robot_id, now_ns):
-        """(robot_boot_id, ready) from the latest RobotStatus, or None before any status."""
+        """(robot_boot_id, ready) from the latest RobotStatus, or None before any status.
+
+        Ready to take a new task: READY and fresh. lease_valid is not asked here: a
+        lease belongs to a task, so an idle robot never has one (#100). It is watched
+        only while a task runs (``_robot_stopped``).
+        """
         status = self.status.get(robot_id)
         if status is None:
             return None
-        boot, readiness, lease_valid, observed_at_ns = status
+        boot, readiness, _, observed_at_ns = status
         fresh = observed_at_ns <= now_ns and now_ns - observed_at_ns <= self.status_max_age_ns
-        return boot, readiness == 'READY' and lease_valid and fresh
+        return boot, readiness == 'READY' and fresh
 
     # -- decisions -------------------------------------------------------------
     def tick(self, now_ns):
-        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search (Q-12)."""
+        """Task fields to send now: approved segment, open rechecks, then the SCOUT's search once started."""
         contract_value(timestamp_ns, now_ns)
+        self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
         self._expire_unadmitted(now_ns)
+        detail = self.status_detail.get(self.roles['SCOUT'])
+        if self.mission.mode != 'DISASTER':
+            self._cancel_queued_search('MODE_NOT_DISASTER')
+        elif detail is not None and detail[2] in STOPPING_MOTION:
+            self._cancel_queued_search('SCOUT_STOPPING')
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
         self._issue_segment(now_ns)
@@ -409,6 +474,14 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if (command.kind == 'START_SEARCH' and self.mission.mode == 'DISASTER' and not self.mission.search_authorized
+                and not (self.ready(self.roles['SCOUT'], now_ns) or (None, False))[1]):
+            # #98: a SCOUT of unknown or not-ready state refuses the start; it does not count as started,
+            # so no robot leaves at an unknown moment after the button. The operator presses again when ready.
+            self.last_reason = 'SCOUT_NOT_READY'
+            reply = self._reply(False, 'REJECTED', 'NAV_NOT_READY')
+            self.replies[command.command_id] = (command, reply)
+            return reply
         result = self.mission.handle_command(command, now_ns=now_ns)
         self.last_reason = result.reason
         if result.accepted:
@@ -419,6 +492,10 @@ class CoordinatorCore:
             elif command.kind == 'REQUEST_RECHECK':
                 self._issue_rechecks(now_ns)
                 task_id = self.recheck_tasks.get(command.command_id, '')
+            elif command.kind == 'START_SEARCH':
+                queued = len(self.outbox)
+                self._issue_search(now_ns)
+                task_id = next((f['task_id'] for f in self.outbox[queued:] if f['kind'] == 'SEARCH_AREA'), '')
             # Empty created_task_id: accepted, the task follows when the robot is free and known.
             reply = self._reply(True, 'ACCEPTED', '', task_id)
         else:
@@ -434,6 +511,10 @@ class CoordinatorCore:
         if state is None or not state[1] or self.search.assignment(robot_id) is not None:
             return None
         return state[0]
+
+    def _passage_free(self, segment_index):
+        flags = self.segment_passage_free
+        return len(flags) == len(self.segment_goals) and flags[segment_index] is True
 
     def _route_frame(self, target_id, goal):
         """The target's current frame_ref when the goal shares its basis and alignment is VALID (#88)."""
@@ -456,13 +537,17 @@ class CoordinatorCore:
     def _route(self, fields, goal, frame, route_id, segment_index):
         return dict(route_id=route_id, route_revision=self.route_revision, robot_id=fields['robot_id'],
                     target_id=fields['target_id'], segment_index=segment_index, approach_goal=goal,
-                    frame_ref=frame, valid_until_ns=fields['deadline_ns'])
+                    frame_ref=frame, generated_at_ns=self.route_made_at[fields['target_id']],
+                    valid_until_ns=fields['deadline_ns'])
 
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
         if (approval is None or self.mission.segment_phase != 'APPROVED'
                 or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
             return self.segment_tasks.get(approval.command_id) if approval else None
+        if not self._passage_free(approval.segment_index):
+            self.issue_block = 'PASSAGE_ASSESSMENT_REQUIRED'  # Q-25 default: hold, never guess
+            return None
         boot = self._free('SUPPORT', now_ns)
         if boot is None:
             return None
@@ -559,7 +644,7 @@ class CoordinatorCore:
             due.append(dict(lease_id=lease['lease_id'], robot_id=lease['robot_id'],
                             robot_boot_id=lease['robot_boot_id'], authority_epoch=lease['authority_epoch'],
                             generation=lease['generation'], renewal_sequence=lease['renewal_sequence'],
-                            issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_ns))
+                            issued_at_ns=now_ns, valid_until_ns=now_ns + self.lease_message_ttl_ns))
         return due
 
     def _expire_unadmitted(self, now_ns):
@@ -578,13 +663,24 @@ class CoordinatorCore:
             if task_id not in self.timed_out:
                 self.timed_out[task_id] = self.status_arrivals
                 self.leases.pop(task_id, None)
-                self.issue_block = 'ADMISSION_TIMEOUT'
             detail = self.status_detail.get(item.robot_id)
             if (detail is not None and detail[0] > self.timed_out[task_id] and detail[2] == 'STOPPED'
                     and detail[4] != task_id and self.search.finish(item, outcome='FAILED', stop_confirmed=True)):
                 del self.timed_out[task_id]
                 if task_id in self.task_meta:
                     self._forget(task_id)
+        if self.timed_out:
+            self.issue_block = 'ADMISSION_TIMEOUT'  # held until stop evidence releases the task
+
+    def search_queued(self):
+        """START_SEARCH accepted but the first area not reserved yet (the SCOUT is busy); shown as SEARCH_QUEUED."""
+        mission = self.mission
+        return mission.mode == 'DISASTER' and mission.search_authorized and not mission.search_started
+
+    def _cancel_queued_search(self, why):
+        """A stop or the end of disaster mode withdraws a waiting search (작전 2026-10-11, #99)."""
+        if self.mission.cancel_search_start():
+            self.last_reason = f'SEARCH_START_CANCELED:{why}'
 
     def _robot_stopped(self, task_id, lease):
         """Supporting rule (작전 2026-10-11): never extend a stopped robot's lease; the stop is the executor latch.
@@ -663,7 +759,9 @@ def build_core(values):
                            observe_goal=GoalPoint((x, y), yaw, *basis), merge_distance_m=values['merge_distance_m'],
                            report_retry_ns=seconds_to_ns(str(values['report_retry_s'])),
                            lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])),
-                           admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])))
+                           admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])),
+                           segment_passage_free=tuple(values['route_segment_passage_free']),
+                           lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])))
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -679,7 +777,11 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # CommandLease renewal period; at most half of lease_duration_s, which must equal the executor's
     # lease_duration (C-10 「명령 lease」, #88). Checked at start: otherwise FATAL exit 2.
     'lease_renew_period_s': 'DOUBLE',
-    'admission_timeout_s': 'DOUBLE'}  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
+    'admission_timeout_s': 'DOUBLE',  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
+    'lease_message_ttl_s': 'DOUBLE',  # CommandLease.valid_until_ns = issued_at_ns + this (AST88-02)
+    # AST88-01: one field-checked bool per segment end; may be empty (= nothing passage-free, hold).
+    'route_segment_passage_free': 'BOOL_ARRAY'}
+OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 
 
 def main(args=None):
@@ -691,8 +793,8 @@ def main(args=None):
     from rescue_interfaces.action import ExecuteTask
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
-                                       SiteEvent as SiteEventMsg, SystemState, TargetLocation,
-                                       TaskAdmission as AdmissionMsg)
+                                       SiteEvent as SiteEventMsg, SystemState, TargetEstimate, TargetLocation,
+                                       TargetSnapshot, TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     rclpy.init(args=args)
@@ -700,7 +802,8 @@ def main(args=None):
     log = node.get_logger()
     try:
         values, missing = declare_required(
-            node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()})
+            node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()},
+            optional=OPTIONAL_PARAMETERS)
         if missing:
             log.fatal(f'missing parameters: {missing}')
             raise SystemExit(2)
@@ -757,6 +860,7 @@ def main(args=None):
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
         state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
+        targets_pub = node.create_publisher(TargetSnapshot, TARGETS_TOPIC, snapshot)  # IF-070 latest snapshot
         report_pub = node.create_publisher(RescueReport, REPORT_TOPIC, 10)
         lease_pubs = {robot: node.create_publisher(CommandLease, ROBOT_PREFIX + robot + '/command_lease', 1)
                       for robot in core.roles.values()}  # IF-014: RELIABLE / VOLATILE / KEEP_LAST 1
@@ -785,6 +889,17 @@ def main(args=None):
                 last_block[0] = core.issue_block
                 if core.issue_block:
                     log.error(f'task not issued: {core.issue_block}')
+            targets = core.target_snapshot_change()
+            if targets is not None:
+                estimates = []
+                for item in targets['targets']:
+                    estimate = TargetEstimate(**{k: v for k, v in item.items() if k != 'mission_position'})
+                    estimate.mission_position.x, estimate.mission_position.y = map(float, item['mission_position'])
+                    estimates.append(estimate)
+                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=targets['snapshot_id'], targets=estimates)))
+                summary = [(t['target_id'], t['estimate_revision'], t['approach_state'], t['rescue_state'])
+                           for t in targets['targets']]
+                log.info(f'TARGETS {targets["snapshot_id"]} {summary}')
             state = core.system_state_change(now)
             if state is not None:
                 msg = SystemState(**state)

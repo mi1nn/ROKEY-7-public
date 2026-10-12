@@ -43,10 +43,13 @@ SEGMENT_PHASES = frozenset({"IDLE", "EVALUATING", "AWAITING_APPROVAL", "EXECUTIN
 MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DISPATCH_APPROVED", "SEGMENT_MOVING",
                             "AWAITING_CONTINUE", "ARRIVED", "CANDIDATE", "RECHECKING", "RESCUE_CONFIRMED",
                             "RECHECK_NEEDED", "RETURNING", "FINISHED"})
-# Commands the console may send [제안, console-and-db-plan 4절 2026-10-10]. The gate that accepts or
-# rejects them is in the operations API; this table only keeps what was asked and what was answered.
+# Commands the console may send. Every operation of the 1차 IDL service SubmitOperatorCommand (#77·#98:
+# START_SEARCH … SET_CAMERA_WATCH) plus the console plan's other buttons (PAUSE·RESUME·CANCEL·STOP_ROBOT,
+# console-and-db-plan 4절 [제안], STOP goes through RequestStop). The gate that accepts or rejects them
+# is elsewhere; this table only keeps what was asked and what was answered.
 OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
-                                    "RETURN_HOME", "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
+                                    "RETURN_HOME", "FINISH_MISSION", "RESET_STOP", "SET_CAMERA_WATCH",
+                                    "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 # Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.
