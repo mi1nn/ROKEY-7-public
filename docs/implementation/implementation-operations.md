@@ -165,7 +165,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `.record_target_state(dict)` | 저장했으면 `True` | 대상당 최신 1행. `updated_at_ns`가 더 큰 것만 받는다. 보류 사유는 `RECHECK_NEEDED`일 때만 있다. `support_robot_id`는 `support_state=NONE`일 때만 None |
 | `.record_error(dict)` | 새 행의 `seq` | 오류 이력(3.7.4), 추가 전용. 키 `at_ns, robot_id, task_id, code, detail`. `code` 는 C-09 `CANONICAL_CODES` 만, 세부 원인은 `detail`. `robot_id`·`task_id` 는 None 가능 |
 | `.record_mission_state(dict)` | 저장했으면 `True` | 1행. 키 `mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns`. `updated_at_ns` 가 큰 것만 받는다. `mode` 는 계약 `SYSTEM_MODES`(CLEARING 포함), `MISSION_PHASES` 는 [제안] |
-| `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`([제안]), 거절이면 `reason` 필수. 재전송 멱등 |
+| `.record_operator_command(dict)` | 저장했으면 `True` | 명령 ID별 추가만, 거절도 기록. `kind` ∈ `OPERATOR_COMMAND_KINDS`(1차 IDL `SubmitOperatorCommand` operation 8개 + 콘솔 계획 4개 [제안]), 거절이면 `reason` 필수. 재전송 멱등 |
 | `.record_map_snapshot(dict)` | 저장했으면 `True` | 스냅샷 ID별 추가만. 키 `snapshot_id, robot_id, revision, path, sha256, at_ns`. bytes 는 DB 밖 |
 | `read_robot_status(path)` | `{schema_version, robots:[{robot_id, robot_boot_id, state_sequence, role, stamp_ns, pose, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, received_at_ns}]}` | 표시용 스냅샷이다. live readiness 증거가 아니다(C-05). frame이 다른 pose끼리 거리를 비교하지 않는다 |
 | `read_site_events(path, *, limit=100)` | `{schema_version, exit_pass_count, site_events:[SiteEvent 필드]}` | `exit_pass_count`는 저장된 `EXIT_PASS`의 서로 다른 사건 ID 수이고 `limit`과 무관하다. 트랙 중복 제거는 인식이 하고 여기서 다시 하지 않는다(TS-04). 구출 판정의 `TargetBasis.exit_pass_count`도 이 값을 쓴다. 사건마다 `SiteEvent` 필드를 모두 담는다: #48 전에 저장된 행의 `target_id`·`watch_id` 는 None 으로 채우고, 그런 사건의 같은 내용 재전송은 멱등이다 |
@@ -193,7 +193,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 리허설이 드러낸 빈 곳 (결정 대기, 코드 변경 없음):
 
-1. 카메라 감시 설정 `SET_CAMERA_WATCH`(C-11 2행)를 명령 이력에 남길 수 없다. `OPERATOR_COMMAND_KINDS` 와 1차 IDL 의 차이(#81 검토 ①)이며, 시험은 `expectedFailure` 로 둔다. 작전이 목록을 정하면 지운다.
+1. ~~카메라 감시 설정 `SET_CAMERA_WATCH`(C-11 2행)를 명령 이력에 남길 수 없다~~ — #77·#98 로 IDL 이 정해져 `OPERATOR_COMMAND_KINDS` 에 FINISH_MISSION·RESET_STOP·SET_CAMERA_WATCH 를 더했다(2026-10-11). 시험은 IDL 파일과 대조한다.
 2. 화면의 「구간 i/N」: 로봇의 구간 번호는 아래 「DB 쓰기 어댑터」 에서 `robot_status.segment_index` 로 담았다. 구간 수(N)는 `SystemState.segment_count` 에 있어 임무 상태를 받는 다음 단계에서 담는다.
 3. 도킹 상태: 아래 「DB 쓰기 어댑터」 에서 `robot_status.dock_state` 로 담았다.
 4. 후보와 대상의 연결은 `site_events` 의 후보 `target_id` 로 이미 읽을 수 있다. 보류한 `target_states.state_json.candidate_event_id` 는 이 연결만을 위해서라면 필요 없을 수 있다 [제안].

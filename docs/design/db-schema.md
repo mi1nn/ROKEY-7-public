@@ -55,13 +55,13 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 ## 4. 현장 상태 1.1 (구현됨, 2026-10-11) — 2절 표에 더하는 표
 
-[console-and-db-plan](console-and-db-plan.md) 3절의 추가분을 `rescue_operations/site_state.py` 에 구현했다. 2절 표는 그대로 두고 아래 네 표를 더한다. 어휘(`MISSION_PHASES`·`OPERATOR_COMMAND_KINDS`)는 계획 문서에서 옮긴 **[제안]** 이고, 바꿀 때는 이 표와 코드 상수를 같은 PR 에서 바꾼다.
+[console-and-db-plan](console-and-db-plan.md) 3절의 추가분을 `rescue_operations/site_state.py` 에 구현했다. 2절 표는 그대로 두고 아래 네 표를 더한다. 어휘 중 `MISSION_PHASES` 와 콘솔 전용 명령(PAUSE·RESUME·CANCEL·STOP_ROBOT)은 계획 문서에서 옮긴 **[제안]** 이고, 명령 종류는 1차 IDL `SubmitOperatorCommand` 의 operation 을 모두 포함한다(시험이 IDL 파일과 대조). 어휘를 바꿀 때는 이 표와 코드 상수를 같은 PR 에서 바꾼다.
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
 | `error_log` | `seq INTEGER PK`, `at_ns`, `robot_id NULL`, `task_id NULL`, `code`, `detail` | 실패 경로마다 한 행(3.7.4). **추가 전용**이고 같은 실패가 반복되면 새 행이다. `code` 는 C-09 공통 코드(`rescue_contracts.CANONICAL_CODES`)만 받고, `rescue_robot.NAV2_INACTIVE` 같은 세부 원인은 `detail`(1~1024자)에 쓴다. `robot_id` 는 배치 허용 로봇 또는 None(시스템 오류), `task_id` 는 UUID 또는 None |
 | `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation`, `updated_at_ns` | `mode` ∈ 계약 `SYSTEM_MODES`(S-00: NORMAL / DISASTER / CLEARING — 오탐 해제 중), `phase` ∈ 계획 1절의 표시용 상태 14개. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
-| `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 계획 4절의 9종. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
+| `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 1차 IDL `SubmitOperatorCommand` 의 operation 8개와 콘솔 계획의 PAUSE·RESUME·CANCEL·STOP_ROBOT. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
 | `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | 지도 이미지 한 장(IF-084). 이미지 bytes 는 DB 에 넣지 않고 `path`·`sha256`(소문자 64자)만 둔다. 같은 ID 같은 내용은 멱등 |
 
 올리기 규칙: `metadata.schema` 는 `1.1` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고 schema 를 `1.1` 로 올린다. 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 1.1 파일만 받으므로, 1.0 파일은 operations 가 한 번 연 뒤에 읽힌다.

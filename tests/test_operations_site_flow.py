@@ -223,12 +223,8 @@ class SiteFlowRehearsal(unittest.TestCase):
         self.assertEqual(['NORMAL', 'DISASTER', 'DISASTER', 'CLEARING', 'NORMAL'], modes)
         self.assertLessEqual(set(modes), SYSTEM_MODES)
 
-    @unittest.expectedFailure
     def test_operator_arms_the_camera_watch_before_a_candidate_can_exist(self):
-        """Known gap (#81 review ①): C-11 2행 needs SET_CAMERA_WATCH, which OPERATOR_COMMAND_KINDS lacks.
-
-        Remove expectedFailure when 작전 settles the command list and site_state follows it.
-        """
+        """C-11 2행: the operator's SET_CAMERA_WATCH (1차 IDL since #77) is kept in the command history."""
         with self.ledger() as ledger:
             self.assertTrue(ledger.record_operator_command(command('watch', 'SET_CAMERA_WATCH', 390, True,
                                                                    robot_id=None)))
