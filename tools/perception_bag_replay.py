@@ -22,6 +22,7 @@ for package in ("rescue_contracts", "rescue_perception"):
     sys.path.insert(0, str(ROOT / "src" / package))
 
 from rescue_perception.bag_replay import load_config, replay_records  # noqa: E402
+from rescue_contracts import RescueError  # noqa: E402
 
 def _ros():
     try:
@@ -29,11 +30,14 @@ def _ros():
         from rclpy.serialization import deserialize_message, serialize_message
         from rosidl_runtime_py.utilities import get_message
     except ImportError as exc:  # pragma: no cover - depends on the host
-        raise SystemExit(f"ROS 2 Python packages are required: {exc}") from exc
+        raise RuntimeError(f"ROS 2 Python packages are required: {exc}") from exc
     return rosbag2_py, serialize_message, deserialize_message, get_message
 
 
 def read_bag(path, topics):
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"bag path does not exist: {path}")
     rosbag2_py, _, deserialize_message, get_message = _ros()
     reader = rosbag2_py.SequentialReader()
     reader.open(rosbag2_py.StorageOptions(uri=str(path)), rosbag2_py.ConverterOptions("", ""))
@@ -41,7 +45,7 @@ def read_bag(path, topics):
     role_of = {topic: role for role, topic in topics.items()}
     missing = [topic for topic in role_of if topic not in types]
     if missing:
-        raise SystemExit(f"topics missing from bag: {missing}")
+        raise ValueError(f"topics missing from bag: {missing}")
     while reader.has_next():
         topic, data, _ = reader.read_next()
         if topic in role_of:
@@ -106,11 +110,20 @@ def main(argv=None):
     if args.command == "write-synthetic":
         print(json.dumps({"written": args.out_dir, "topics": write_synthetic(args.out_dir), "synthetic": True}))
         return 0
-    cfg = load_config(args.config)
-    rows = list(replay_records(read_bag(args.bag, cfg["topics"]), cfg))
-    for row in rows:
-        print(json.dumps(row, ensure_ascii=False))
-    return 0 if rows else 1
+    try:
+        cfg = load_config(args.config)
+        seen, failed = False, False
+        for row in replay_records(read_bag(args.bag, cfg["topics"]), cfg):
+            seen = True
+            failed |= row["result"] not in ("OBSERVATION", "EMPTY_DETECTIONS") or row["reason"] not in (
+                "LOCATED", "NO_DETECTIONS")
+            print(json.dumps(row, ensure_ascii=False))
+        if not seen:
+            print(json.dumps({"result": "EMPTY_REPLAY", "reason": "NO_REPLAY_ROWS"}))
+        return 0 if seen and not failed else 1
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, RescueError) as exc:
+        print(json.dumps({"result": "INPUT_ERROR", "reason": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

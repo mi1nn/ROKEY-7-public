@@ -1,7 +1,7 @@
 ---
 title: 기록 입력 기반 인식 코어 구현
 status: draft-implementation-e2
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # 기록 입력 기반 인식 코어
@@ -190,12 +190,36 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 `tools/perception_bag_replay.py`는 rosbag2 녹화를 위 입력 어댑터에 그대로 넣는다. 로봇·ROS 그래프·모델 없이 돈다. bag을 읽으려면 ROS 2 Python 패키지(`rosbag2_py`, `rclpy`, `rosidl_runtime_py`, `vision_msgs`)가 필요하다.
 
-- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다.
+- `replay BAG --config CFG`: 네 토픽(RGB·Depth `Image`, `CameraInfo`, `vision_msgs/Detection2DArray`)을 rclpy로 역직렬화한다. 탐지 배열마다 **같은 stamp의 RGB**와 **가장 가까운 Depth**(차이가 `max_stamp_skew_ns` 이하)를 짝짓고, 그 전에 받은 마지막 `CameraInfo`를 쓴다. 탐지마다 JSON 한 줄을 출력한다(`OBSERVATION`/`LOCALIZATION_ONLY`/`REJECTED`/`UNPAIRED`와 이유). 짝을 못 찾은 배열도 버리지 않고 이유와 함께 출력한다. 빈 탐지 배열은 `EMPTY_DETECTIONS`로 출력해 탐지가 없는 프레임과 입력 누락을 구별한다.
 - `CFG`는 바인딩·정렬·모델·정책 값을 모두 가진 JSON이다. 키가 하나라도 빠지거나 더 있으면 거절한다. 기본값은 없다. `tools/perception_bag_replay.synthetic.json`은 아래 합성 bag 전용이다(모델 SHA는 0으로 채운 자리 표시이고, 실제 가중치 해시가 아니다).
 - `write-synthetic OUT`: 4×4 프레임 3개짜리 합성 bag을 쓴다(두 번째 프레임은 깊이 구멍, Depth stamp는 RGB보다 1 µs 늦음). 실제 녹화가 아니라 메시지 형식·직렬화 경로의 확인용이다.
-- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`(4개)로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
+- 짝짓기·설정 로직은 ROS를 import하지 않는 `rescue_perception.bag_replay`에 있고, `tests/test_perception_bag_replay.py`로 시험한다. 도구는 rclpy 역직렬화와 CLI만 맡는다. 실제 bag 읽기는 CI에서 돌지 않는다(PR 본문에 로컬 실행 기록).
 
 실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
+
+### 오프라인 시각·동기화 진단 (2026-10-12, E2)
+
+[사용자 요구] 2026-10-12 원문: “add the smallest offline rosbag replay adapter … reports unusable timestamps or synchronization gaps. Keep it E2-only … Do not assume a bag is present; make the input path configurable.” 적용 범위는 인식 레인의 기존 `bag_replay.py`와 CLI·해당 시험·이 구현 기록이다. 최신 `main`에 이미 있는 재생 경로를 재사용하며 공통 계약·운용 정책을 바꾸지 않는다.
+
+```bash
+# BAG_PATH와 CFG_PATH는 사용자가 지정한다. 기본 bag 위치·자동 탐색 없음.
+python3 tools/perception_bag_replay.py replay "$BAG_PATH" --config "$CFG_PATH"
+# ROS 없는 합성 기록 시험
+PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discover -s tests -p test_perception_bag_replay.py -v
+```
+
+- RGB·Depth·CameraInfo·탐지 배열 및 개별 탐지의 헤더를 공통 정수 ns 변환으로 검사한다. 0·음수·float·bool·잘못된 nanosec·int64 범위 초과·필드 누락은 `REJECTED / UNUSABLE_TIMESTAMP`와 role·상세 이유를 출력한다. 기록 단계 오류에는 `record_index`(선택된 토픽의 입력 순번)가 있으며 `stamp_ns=null`이다. 개별 탐지 오류의 `stamp_ns`는 배열의 유효 시각이고 `index`는 배열 안의 순번이다. 오류 입력만 제외하고 뒤의 유효 기록을 처리한다. bag 수신 시각이나 실행 PC의 현재 시각으로 헤더를 채우지 않는다.
+- RGB 헤더는 탐지 배열과 같은 stamp여야 한다. Depth 차이가 `DepthPolicy.max_stamp_skew_ns`와 같으면 허용하고 초과하면 `UNPAIRED / NO_DEPTH_WITHIN_SKEW`로 보고한다. 가장 가까운 Depth의 원 시각·절대 차이 `depth_skew_ns`·설정 상한을 함께 출력하며 Depth가 없으면 시각·차이는 `null`이다. RGB·CameraInfo 누락도 기존 이유로 보고한다. `UNKNOWN` 또는 서로 다른 stamp 의미, 검증되지 않은 정렬과 깊이 결측은 기존 코어의 위치 실패 이유로 남는다.
+- 설정 토픽은 각 역할마다 비어 있지 않은 서로 다른 문자열이어야 한다. bag 경로가 없으면 ROS import 전에 명시적으로 실패한다. CLI 종료코드는 결과가 있고 위치 실패·거절·공백이 없을 때 `0`(빈 탐지 배열은 정상 결과), 거절·위치 실패·공백 또는 재생 결과가 전혀 없을 때 `1`, 경로·설정·ROS 의존성·읽기 오류는 stderr의 `INPUT_ERROR`와 `2`다. 결과가 없으면 stdout에 `EMPTY_REPLAY`를 출력한다. 읽기 오류 전에 출력된 진단은 남을 수 있으므로 종료코드까지 확인한다.
+
+**검증 가능:** 합성 기록의 exact ns 보존, 헤더 형식 오류, 탐지 stamp에 따른 RGB 매칭, 설정된 RGB–Depth 차이 경계와 미매칭, 기존 코어의 optical 위치/위치 거절 경로. 새로운 운용 임계값은 없다. 이 진단은 recorded stamp 사이의 차이이며 센서 캡처 동기화의 실측이 아니다.
+
+**검증 불가 / NOT_RUN:** 실제 녹화 bag의 유무·내용·출처, 캡처/드라이버 stamp 의미와 시계 오차, 실제 RGB–Depth 공간 정렬·보정, TF·지도 revision·공통 좌표, 모델 가중치/성능·신원 동일성, 현재 wall 시각에 대한 freshness/admission, DDS·QoS·네트워크 누락·실시간 처리, 물리 접근·정지와 2 AMR·4 PC 인수. 그래프 구독·발행·`rclpy.init`·`ros2 bag play`는 호출하지 않는다. ROS 라이브러리는 파일 역직렬화 경계에만 사용하며 E3/E4 통과를 주장하지 않는다.
+
+**검증 기록 [측정, 2026-10-12]:** ROS 없는 replay 시험 13개 PASSED(exit 0). 수정 전 회귀시험은 FAILED(9 failures, 23 errors, exit 1)였고 시험을 수정 코드보다 먼저 커밋했다. 임시 디렉터리에 기존 `write-synthetic`으로 만든 bag을 역직렬화해 원 ns와 optical point 2개, `DEPTH_INSUFFICIENT` 1개를 확인했다. replay exit 1은 주입한 깊이 결측의 예상 결과다. 합성 bag은 실행 뒤 제거했으며 실제 녹화의 증거가 아니다. `python3 -I scripts/run_tests.py`의 전체 단위시험 835개 PASSED(exit 0). 문서 검사 PASSED(exit 0); 원본 객체/줄 상한 검사는 `--sources` 미제공으로 SKIP이다.
+
+**처리 한계:** 짝짓기는 녹화 전체를 메모리에 보관하고 Depth 최근접 검색을 하며, 메시지가 탐지 배열 뒤에 저장돼도 헤더로 매칭할 수 있다. 실제 도착 지연/온라인 queue·메모리/처리 예산을 검증하지 않는다. Depth 한 장을 여러 배열이 쓸 수 있고 같은 RGB stamp의 반복은 마지막 기록을 쓴다. CameraInfo는 배열 전에 본 마지막 유효 기록이며 보정 변경의 시간적 유효성/실물 정합을 인증하지 않는다. 탐지 배열이 없는 RGB/Depth 기록은 `EMPTY_REPLAY`이며 미사용 프레임의 누락률이나 탐지 성능은 계산하지 않는다. timestamp 역순·시계 되감김의 세션 분할, 원본 bag 해시·영속 observation dedup·transport 손실률은 제공하지 않는다. 재생 namespace·binding은 입력마다 출처에 맞게 제공하고 재생 결과를 주행 허가로 쓰지 않는다.
+
 
 ## 실제 카메라 연결 조건
 
