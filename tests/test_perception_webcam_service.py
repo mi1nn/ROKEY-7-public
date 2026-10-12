@@ -179,5 +179,44 @@ class NodeParamsExampleTests(unittest.TestCase):
         policies(values)  # 값 검사는 각 정책이 한다
 
 
+
+class SpinShutdownTests(unittest.TestCase):
+    """2026-10-12 실기: 감시 중 SIGINT 가 프레임 처리 도중에 오면 발행이 RCLError 를 내 exit 1 로 끝났다."""
+
+    class FakeRclpy:
+        def __init__(self, exc, ok):
+            self.exc, self._ok = exc, ok
+
+        def spin(self, node):
+            raise self.exc
+
+        def ok(self):
+            return self._ok
+
+    class Log:
+        def __init__(self):
+            self.lines = []
+
+        def info(self, msg):
+            self.lines.append(msg)
+
+    def test_error_after_shutdown_is_a_normal_stop(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        log = self.Log()
+        spin_until_shutdown(self.FakeRclpy(RuntimeError("publisher's context is invalid"), ok=False), None, log)
+        self.assertEqual(log.lines, ["webcam_node stopping"])
+
+    def test_error_while_running_still_raises(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        with self.assertRaises(RuntimeError):
+            spin_until_shutdown(self.FakeRclpy(RuntimeError("bug"), ok=True), None, self.Log())
+
+    def test_ctrl_c_is_a_normal_stop(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        log = self.Log()
+        spin_until_shutdown(self.FakeRclpy(KeyboardInterrupt(), ok=True), None, log)
+        self.assertEqual(log.lines, ["webcam_node stopping"])
+
+
 if __name__ == "__main__":
     unittest.main()
