@@ -184,6 +184,21 @@ class NodeParamsExampleTests(unittest.TestCase):
 
 
 
+
+class StreamStateTests(unittest.TestCase):
+    """CameraStatus 계약(SDD): 정지 영상·끊김·가림은 UNKNOWN. 2026-10-12 실기: 렌즈를 손으로 가려도 ONLINE 이었다."""
+
+    def test_covered_scene_is_unknown_with_reason(self):
+        from rescue_perception.webcam_service import stream_state
+        for reason in ("OCCLUDED", "SCENE_CHANGED", "QUADRANT_COVERED"):
+            self.assertEqual(stream_state(sign("UNKNOWN", reason), (640, 480), (640, 480)), ("UNKNOWN", reason))
+
+    def test_normal_and_size_mismatch(self):
+        from rescue_perception.webcam_service import stream_state
+        self.assertEqual(stream_state(sign(), (640, 480), (640, 480)), ("ONLINE", ""))
+        self.assertEqual(stream_state(sign("UNKNOWN", "MATCH_FAILED"), (640, 480), (640, 480)), ("ONLINE", ""))
+        self.assertEqual(stream_state(sign(), (320, 240), (640, 480)), ("DEGRADED", "SIZE_MISMATCH"))
+
 class DebugImageTests(unittest.TestCase):
     """2026-10-12 사용자 요청: 노드로 시험할 때도 판정을 화면으로 본다(웹캠 -> 노드 -> 토픽 -> 대시보드)."""
 
