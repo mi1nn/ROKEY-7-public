@@ -81,10 +81,8 @@ class DepthCalibrationTests(unittest.TestCase):
         self.assertEqual(wire.time.observed_at_ns,o.observed_at_ns)
 
     def test_robot6_profile_and_physical_robot_guard(self):
-        from rescue_perception.depth_calibration import load_depth_calibration
-        path=Path(__file__).resolve().parents[1]/'assets/manifest/robot6-depth-pr126.json'
-        if not path.exists():
-            path='package:robot6-depth-pr126.json'  # Actual installed resource, not a substitute fixture.
+        from rescue_perception.amr_target_support import load_depth_calibration
+        path='package:robot6_depth.json'  # Same single profile in source and installed package.
         calibration=load_depth_calibration(path,physical_robot_id='robot6')
         self.assertAlmostEqual(calibration.scale,SCALE)
         self.assertEqual(calibration.offset_m,0.)
@@ -92,7 +90,7 @@ class DepthCalibrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'robot'): load_depth_calibration(path,physical_robot_id='robot5')
         for bad in (float('nan'),0.,-1.):
             with TemporaryDirectory() as d:
-                data=json.loads(files('rescue_perception').joinpath('config').joinpath('robot6-depth-pr126.json').read_text()); data['scale']=bad
+                data=json.loads(files('rescue_perception').joinpath('config').joinpath('robot6_depth.json').read_text()); data['scale']=bad
                 other=Path(d)/'bad.json'; other.write_text(json.dumps(data))
                 with self.assertRaises(ValueError): load_depth_calibration(other,physical_robot_id='robot6')
 
@@ -119,7 +117,7 @@ class DepthCalibrationTests(unittest.TestCase):
         values=dict(base,**overlay)
         binding,alignment,depth,*_=target_config(values,fixture().observation.source_boot_id)
         self.assertAlmostEqual(depth.scale,SCALE)
-        self.assertIn('robot6-depth-pr126',binding.calibration_id)
+        self.assertIn('robot6_depth',binding.calibration_id)
         self.assertEqual(binding.calibration_id,alignment.calibration_id)
 
 
