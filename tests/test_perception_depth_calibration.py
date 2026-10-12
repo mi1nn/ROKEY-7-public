@@ -8,7 +8,7 @@ import unittest
 
 from rescue_perception import DepthPolicy, PerceptionError
 from test_perception_amr_target import fixture, metadata, wire_observation
-from rescue_perception.amr_target_support import covariance_matrix, fill_location, fill_observation
+from rescue_perception.target_utils import covariance_matrix, fill_location, fill_observation
 
 SCALE = 0.82 / ((0.854 + 0.853 + 0.857) / 3)
 
@@ -23,7 +23,7 @@ class DepthCalibrationTests(unittest.TestCase):
         import struct
         from rescue_perception import AlignmentEvidence, ObservationPolicy, SourceBinding
         from rescue_perception.person_pipeline import ConfirmationPolicy, PersonPipeline
-        from rescue_perception.amr_target_support import PreparedDetector, inference_from_result
+        from rescue_perception.target_utils import PreparedDetector, inference_from_result
         detector = PreparedDetector()
         boxes = NS(xyxy=NS(tolist=lambda:[[2., 0., 4., 4.]]), conf=NS(tolist=lambda:[.9]), cls=NS(tolist=lambda:[0.]))
         detector.prepare(T, inference_from_result(NS(boxes=boxes), MODEL))
@@ -81,7 +81,7 @@ class DepthCalibrationTests(unittest.TestCase):
         self.assertEqual(wire.time.observed_at_ns,o.observed_at_ns)
 
     def test_robot6_profile_and_physical_robot_guard(self):
-        from rescue_perception.amr_target_support import load_depth_calibration
+        from rescue_perception.target_utils import load_depth_calibration
         path='package:robot6_depth.json'  # Same single profile in source and installed package.
         calibration=load_depth_calibration(path,physical_robot_id='robot6')
         self.assertAlmostEqual(calibration.scale,SCALE)
@@ -95,26 +95,11 @@ class DepthCalibrationTests(unittest.TestCase):
                 with self.assertRaises(ValueError): load_depth_calibration(other,physical_robot_id='robot6')
 
     def test_node_configuration_connects_profile_to_depth_policy(self):
-        from rescue_perception.amr_target_node import target_config
-        # The examples contain scalar JSON values or bare strings. Keep this
-        # source-configuration check stdlib-only, like the repository E2 suite.
-        def parameters(path):
-            result={}
-            for line in path.read_text().splitlines():
-                if not line.startswith('    ') or ':' not in line:
-                    continue
-                key,value=line.strip().split(':',1)
-                value=value.split('#',1)[0].strip()
-                try: result[key]=json.loads(value)
-                except json.JSONDecodeError: result[key]=value.strip("'")
-            return result
-        root=Path(__file__).resolve().parents[1]
-        config_root=root/'src/rescue_perception/config'
-        if not config_root.exists():
-            config_root=Path(sys.prefix)/'share/rescue_perception/config'
-        base=parameters(config_root/'amr_target_node.example.yaml')
-        overlay=parameters(config_root/'amr_target_node.robot6-depth.yaml')
-        values=dict(base,**overlay)
+        from rescue_perception.amr_target import target_config
+        from rescue_perception.amr_target import SETTINGS
+        values=dict(SETTINGS)
+        self.assertEqual(values['physical_robot_id'],'robot6')
+        self.assertEqual(values['depth_calibration_path'],'package:robot6_depth.json')
         binding,alignment,depth,*_=target_config(values,fixture().observation.source_boot_id)
         self.assertAlmostEqual(depth.scale,SCALE)
         self.assertIn('robot6_depth',binding.calibration_id)

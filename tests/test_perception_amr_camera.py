@@ -1,13 +1,12 @@
 """E2 synthetic preview tests; no ROS, camera, YOLO or GUI inference is claimed."""
 import hashlib
-import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
 import unittest
 from unittest.mock import Mock
 
-from rescue_perception.amr_camera_support import (
+from rescue_perception.camera_utils import (
     PreviewProcessor, validate_config, validate_labels, validate_rgb_compressed_format, verify_model)
 
 
@@ -20,19 +19,13 @@ def config(**overrides):
 
 
 class PreviewTests(unittest.TestCase):
-    def test_deployment_configs_select_gpu_and_half_confidence(self):
-        config_dir = Path(__file__).resolve().parents[1] / 'src/rescue_perception/config'
-        if not config_dir.exists():
-            config_dir = Path(sys.prefix) / 'share/rescue_perception/config'
-        for name in ('amr_camera_node.example.yaml', 'amr_target_node.example.yaml'):
-            with self.subTest(config=name):
-                fields = {}
-                for line in (config_dir / name).read_text().splitlines():
-                    key, sep, value = line.partition(':')
-                    if sep and key.strip() in ('model_conf', 'device'):
-                        fields[key.strip()] = value.split('#', 1)[0].strip()
-                self.assertEqual(float(fields['model_conf']), 0.5)
-                self.assertEqual(fields['device'], "'0'")  # ROS parameter must remain a string.
+    def test_code_settings_select_gpu_and_half_confidence(self):
+        from rescue_perception.amr_camera import SETTINGS as camera
+        from rescue_perception.amr_target import SETTINGS as target
+        for values in (camera, target):
+            self.assertEqual(values['model_conf'], 0.5)
+            self.assertEqual(values['device'], '0')
+            validate_config(values)
 
     def test_gpu_and_confidence_are_forwarded_to_detector(self):
         processor, model, bridge, _ = self.processor()
