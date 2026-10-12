@@ -221,5 +221,6 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | E2: `tests/test_operations_ros_ingest.py`, `tests/test_operations_ros_node.py`, `tests/test_operations_site_state.py` | 통과 |
 | 로컬 ROS 실행(jazzy, `ROS_DOMAIN_ID=77`, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 한 PC, 2026-10-11): 합성 발행기가 상태·위치·사건(VALID 1, OCCLUDED 1)을 4초간 되풀이 | 첫 실행에서 결함 둘(상태 뒤 위치가 오면 재전송이 `ID_CONTENT_CONFLICT`, SIGINT 에 종료 코드 1)을 찾아 고침. 고친 뒤: 로봇 행에 역할·위치(yaw 0.5)·도킹·구간·배터리, VALID 사건 1건, `error_log` 는 OCCLUDED 8건뿐, 종료 코드 0 |
 | 같은 조건에서 1.1 파일(위 실행이 남긴 DB 의 복사본)을 열고, #90 과 같은 토픽·QoS 로 `SystemState` 4단계(정찰 → 구간 이동 → 승인 대기 → 조정기 내부 어휘 MOVING) 를 발행 | 파일이 1.2 로 올라가고(`mission_state` 열 7 → 13) 기존 로봇 행·사건·오류 이력 8건이 남음. 임무 = AWAITING_CONTINUE, 구간 1/3, AWAITING_APPROVAL. MOVING 은 거절되어 `error_log` 3건. 종료 코드 0 |
+| 같은 조건(2026-10-12)에서 `tests/ros/e3_coordinator_probe.py`(실제 조정기 노드, #96 `TargetSnapshot` 발행 포함)와 db_writer 를 함께 실행 | probe PASS 19·FAIL 0, 두 프로세스 종료 코드 0. `target_states` 1행: 확인됨, NOT_CHECKED, 지원 ASSIGNED·robot_b, 지도 기준은 마지막 관측의 `frame_ref`. 같은 때 `mission_state` = DISASTER/RECHECKING/구간 1/2/AWAITING_APPROVAL. `error_log` 는 probe 의 가짜 로봇 상태(`state_sequence` 0 고정) 충돌 400건뿐이고 대상 거절은 0건 |
 
 E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 운영자 명령·지도는 아직 받지 않는다. 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).
