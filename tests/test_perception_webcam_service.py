@@ -76,6 +76,12 @@ class WatchSlotTests(unittest.TestCase):
             self.assertEqual((reply.accepted, reply.reason_code), (False, "INVALID_INPUT"), bad)
         self.assertEqual((self.slot.revision, self.slot.detector), (0, None))
 
+    def test_invalid_input_reply_says_which_field(self):
+        # 2026-10-12 실기: watch_id 를 UUID 가 아닌 값으로 보냈더니 노드 로그에 INVALID_INPUT 만 남았다.
+        reply = self.slot.handle(request(watch_id="w-doll-1"), now_ns=NOW)
+        self.assertEqual(reply.reason_code, "INVALID_INPUT")
+        self.assertIn("watch_id", reply.detail)
+
     def test_replace_needs_current_revision(self):
         self.slot.handle(request(), now_ns=NOW)
         stale = self.slot.handle(request(command_id=str(UUID(int=2)), expected_watch_revision=0,
