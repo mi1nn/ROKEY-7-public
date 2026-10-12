@@ -41,7 +41,7 @@ def target_state(**changes):
                   position=dict(x=3.0, y=4.0, frame_id='mission', map_session_id=uid(5), map_revision=2),
                   detection_confirmed=True, rescue_state='RECHECK_NEEDED',
                   rescue_reasons=['EXIT_NOT_LINKED'], verdict_id=uid(600), support_state='ASSIGNED',
-                  support_robot_id='robot_b', updated_at_ns=3_000)
+                  support_robot_id='robot_b', updated_at_ns=3_000, target_revision=None)
     return values | changes
 
 
@@ -303,6 +303,7 @@ class SiteStateTests(unittest.TestCase):
             self.assertTrue(ledger.record_target_state(target_state(target_id=uid(501))))
         with sqlite3.connect(self.path) as db:  # a row written before the key existed
             stored = target_state(target_id=uid(502))
+            del stored['target_revision']
             db.execute("INSERT INTO target_states VALUES (?, ?, ?)",
                        (stored["target_id"], stored["updated_at_ns"], site_state.canonical(stored)))
         with self.ledger() as ledger:

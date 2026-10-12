@@ -119,7 +119,8 @@ def target_from_msg(msg, *, published_at_ns, support_robot_id):
     Defaults asked on #96 [제안]: the snapshot's publish time orders the rows (latest_observed_at_ns
     stays put when only the approach changes, estimate_revision restarts with the coordinator); the
     map basis is the last location's frame_ref; the SUPPORT robot of the profile is the support
-    robot. Not in the message, so empty: rescue_reasons, verdict_id. Dropped: estimate_revision,
+    robot. estimate_revision is kept as target_revision (#115: the console sends it back with
+    DISPATCH_SUPPORT). Not in the message, so empty: rescue_reasons, verdict_id. Dropped:
     locations beyond the last frame_ref, latest_observed_at_ns, valid_until_ns, covariance,
     segment_phase (in mission_state) and persisted_report_id (the operations ledger keeps reports).
     """
@@ -135,7 +136,8 @@ def target_from_msg(msg, *, published_at_ns, support_robot_id):
         return dict(target_id=msg.target_id, position=position,
                     detection_confirmed=msg.confirmation_state == CONFIRMED, rescue_state=msg.rescue_state,
                     rescue_reasons=[], verdict_id=None, support_state=support,
-                    support_robot_id=None if support == "NONE" else support_robot_id, updated_at_ns=published_at_ns)
+                    support_robot_id=None if support == "NONE" else support_robot_id, updated_at_ns=published_at_ns,
+                    target_revision=msg.estimate_revision)
     except (OperationsError, AttributeError, TypeError, ValueError) as exc:
         raise _invalid(exc, "target") from exc
 

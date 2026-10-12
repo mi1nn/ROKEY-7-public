@@ -58,6 +58,9 @@ DOCK_STATES = frozenset({"DOCKED", "UNDOCKED", "UNKNOWN"})  # RobotStatus.DOCK_S
 POSE_KEYS = {"x", "y", "yaw", "frame_id"}
 TARGET_KEYS = {"target_id", "position", "detection_confirmed", "rescue_state", "rescue_reasons", "verdict_id",
                "support_state", "support_robot_id", "updated_at_ns"}
+# Optional target key (#115): the estimate revision the console shows and sends back with DISPATCH_SUPPORT.
+# A row stored before it, or a writer without it, reads as None.
+TARGET_DEFAULTS = {"target_revision": None}
 TARGET_POSITION_KEYS = {"x", "y", "frame_id", "map_session_id", "map_revision"}
 ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
@@ -166,7 +169,8 @@ def _stored_event(event_json):
 
 
 def _target_state(value, allowed):
-    state = dict(exact(value, TARGET_KEYS, "target state"))
+    require(isinstance(value, Mapping), "target state must be an object")
+    state = dict(exact(TARGET_DEFAULTS | dict(value), TARGET_KEYS | TARGET_DEFAULTS.keys(), "target state"))
     uid(state["target_id"], "target_id")
     if state["position"] is not None:
         position = exact(state["position"], TARGET_POSITION_KEYS, "position")
@@ -191,7 +195,14 @@ def _target_state(value, allowed):
     if state["support_robot_id"] is not None:
         _member(state["support_robot_id"], allowed, "support_robot_id")
     timestamp(state["updated_at_ns"], "updated_at_ns")
+    if state["target_revision"] is not None:
+        uint(state["target_revision"], "target_revision")
     return state
+
+
+def _stored_target(state_json):
+    """A stored target state with every current key; keys added later read as None."""
+    return TARGET_DEFAULTS | json.loads(state_json)
 
 
 def _error_entry(value, allowed):
@@ -353,7 +364,8 @@ class SiteStateLedger(_Database):
             row = db.execute("SELECT * FROM target_states WHERE target_id = ?", (state["target_id"],)).fetchone()
             if row is not None:
                 if state["updated_at_ns"] == row["updated_at_ns"]:
-                    require(row["state_json"] == encoded, "same target and time with different content",
+                    require(canonical(_stored_target(row["state_json"])) == encoded,
+                            "same target and time with different content",
                             "ID_CONTENT_CONFLICT")
                     return False
                 if state["updated_at_ns"] < row["updated_at_ns"]:
@@ -464,7 +476,7 @@ def read_site_events(db_path, *, limit=100):
 def read_target_states(db_path):
     def query(db):
         rows = db.execute("SELECT state_json FROM target_states ORDER BY target_id").fetchall()
-        return {"targets": [json.loads(row["state_json"]) for row in rows]}
+        return {"targets": [_stored_target(row["state_json"]) for row in rows]}
     return _read(db_path, query)
 
 
