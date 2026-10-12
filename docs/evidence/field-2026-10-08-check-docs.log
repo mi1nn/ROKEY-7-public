@@ -1,0 +1,4 @@
+PASS markdown: files=30, local_links=166, pinned_source_links=198, line_ranges=194
+SKIP source objects, line bounds and inventory: supply --sources P4_DIR AMR_DIR
+NOT CHECKED: prose meaning, local heading anchors, external web availability
+NOT RUN: source tests, colcon, ROS, model inference, bag replay, robot/4-PC acceptance

@@ -1,0 +1,118 @@
+# 실기·배포 2026-10-08. 실행 위치: 컨테이너 ros:jazzy-ros-base, --network none (loopback 만). 로봇·호스트 네트워크에 닿지 않음.
+$ docker run --rm --network none -v <REPO>:/repo:ro -w /repo ros:jazzy-ros-base bash -c "source /opt/ros/jazzy/setup.bash && python3 -I scripts/field/preflight.py --host-config config/hosts/central.example.json"
+--- stderr
+PASSED   env.ros_distro                     jazzy
+PASSED   env.rmw                            rmw_fastrtps_cpp (미설정, Jazzy 기본값)
+NOT_RUN  env.discovery_server               호스트 설정이 예시 값(<...> 또는 server_id null)이라 비교하지 않음
+NOT_RUN  env.domain_id                      기대값 없음. 실제 미설정(0) — Discovery Server 는 도메인을 보지 않음
+FAILED   pkg.irobot_create_msgs             설치 안 됨 (설치는 sudo, 사람이 한다)
+FAILED   pkg.nav2_msgs                      설치 안 됨 (설치는 sudo, 사람이 한다)
+PASSED   pkg.rmw_fastrtps_cpp               rmw_fastrtps_cpp
+PASSED   tool.fastdds                       fastdds CLI 있음
+NOT_RUN  server.reach                       ROS_DISCOVERY_SERVER 없음
+NOT_RUN  graph./robot_a                     /robot_a 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)
+NOT_RUN  graph./robot_b                     /robot_b 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)
+preflight exit=2 (FAILED)
+exit=2
+--- stdout (JSON)
+{
+  "tool": "scripts/field/preflight.py",
+  "started": "2026-10-08T10:48:32+00:00",
+  "host_config": "config/hosts/central.example.json",
+  "role": "central",
+  "host_facts": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "python": "3.12.3",
+    "ros_installs": [
+      "jazzy"
+    ]
+  },
+  "environment": {
+    "ROS_DISTRO": "jazzy",
+    "RMW_IMPLEMENTATION": null,
+    "ROS_DISCOVERY_SERVER": null,
+    "ROS_SUPER_CLIENT": null,
+    "ROS_DOMAIN_ID": null,
+    "ROS_AUTOMATIC_DISCOVERY_RANGE": "SUBNET"
+  },
+  "super_client_runtime_note": "launch 는 ROS_SUPER_CLIENT=False 로 시작한다 (docs/design/network-discovery.md)",
+  "checks": [
+    {
+      "id": "env.ros_distro",
+      "status": "PASSED",
+      "detail": "jazzy",
+      "measured": {}
+    },
+    {
+      "id": "env.rmw",
+      "status": "PASSED",
+      "detail": "rmw_fastrtps_cpp (미설정, Jazzy 기본값)",
+      "measured": {}
+    },
+    {
+      "id": "env.discovery_server",
+      "status": "NOT_RUN",
+      "detail": "호스트 설정이 예시 값(<...> 또는 server_id null)이라 비교하지 않음",
+      "measured": {
+        "actual": []
+      }
+    },
+    {
+      "id": "env.domain_id",
+      "status": "NOT_RUN",
+      "detail": "기대값 없음. 실제 미설정(0) — Discovery Server 는 도메인을 보지 않음",
+      "measured": {}
+    },
+    {
+      "id": "pkg.irobot_create_msgs",
+      "status": "FAILED",
+      "detail": "설치 안 됨 (설치는 sudo, 사람이 한다)",
+      "measured": {
+        "found": []
+      }
+    },
+    {
+      "id": "pkg.nav2_msgs",
+      "status": "FAILED",
+      "detail": "설치 안 됨 (설치는 sudo, 사람이 한다)",
+      "measured": {
+        "found": []
+      }
+    },
+    {
+      "id": "pkg.rmw_fastrtps_cpp",
+      "status": "PASSED",
+      "detail": "rmw_fastrtps_cpp",
+      "measured": {
+        "found": [
+          "rmw_fastrtps_cpp"
+        ]
+      }
+    },
+    {
+      "id": "tool.fastdds",
+      "status": "PASSED",
+      "detail": "fastdds CLI 있음",
+      "measured": {}
+    },
+    {
+      "id": "server.reach",
+      "status": "NOT_RUN",
+      "detail": "ROS_DISCOVERY_SERVER 없음",
+      "measured": {}
+    },
+    {
+      "id": "graph./robot_a",
+      "status": "NOT_RUN",
+      "detail": "/robot_a 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)",
+      "measured": {}
+    },
+    {
+      "id": "graph./robot_b",
+      "status": "NOT_RUN",
+      "detail": "/robot_b 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)",
+      "measured": {}
+    }
+  ],
+  "exit_code": 2
+}
