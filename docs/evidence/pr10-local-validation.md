@@ -9,7 +9,7 @@
 | 파일 동일성 | src/tests/config/scripts/CI 설정의 SHA-256, 실행 당시 상위 base | [hash manifest](pr10-artifact-hashes.json) |
 | 원본/문서 | `python3 -I scripts/check_docs.py --sources ../ROKEY_P4 ../amr-mini-project`, 고정 객체/줄 범위·집계·로컬 링크 PASS | 각 구현 문서의 고정 URL, source-audit.json |
 | whitespace | `git diff --check`, PASS | PR diff |
-| 물리 실행 | ROS/TF backend/Nav2/센서 모델/장비 watchdog/2 AMR/4 PC, NOT_RUN | [현장 관문](../field-runbook.md) |
+| 물리 실행 | ROS/TF backend/Nav2/센서 모델/장비 watchdog/2 AMR/4 PC, NOT_RUN | [현장 관문](../process/field-runbook.md) |
 
 source 시험 구성: profile 29 + executor 19 + mapping 30 + perception 24 + coordination 14 + operations 23 + offline integration 8 = 147. 통합 모듈은 이 중 8개 시험에서 11개의 합성 시나리오 검사와 실패 입력을 확인한다.
 

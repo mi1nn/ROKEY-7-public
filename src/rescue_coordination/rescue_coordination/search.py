@@ -14,12 +14,13 @@ from dataclasses import dataclass, field
 import math
 from uuid import uuid4
 
-from rescue_contracts import timestamp_ns, duration_ns
+from rescue_contracts import ROBOT_ROLES as ROLES, TARGET_TASK_KINDS, timestamp_ns, duration_ns
 
+# APPROACH_PROJECTION_STATUS: mapping projection status that may feed an approach (defined in dispatch).
+from .dispatch import APPROACH_PROJECTION_STATUS, select_dispatch_target
 from .planning import (Allocator, CoordinationError, PathCandidate, Reservation,
                        contract_value, finite, point, revision, robot, uid)
 
-ROLES = ('SCOUT', 'SUPPORT')  # BRD v0.1 names: TB1 정찰 / TB2 구조 지원
 ACTIONS = frozenset({'RESERVED', 'KEEP', 'WAIT', 'RELEASE_REQUIRED'})
 # Closed set of decision reasons; no free text is returned (작전 Q5, 2026-10-08).
 SEARCH_REJECT_REASONS = frozenset({
@@ -29,8 +30,6 @@ SEARCH_REJECT_REASONS = frozenset({
     'EVENT_ALREADY_HAS_APPROACH'})
 DECISION_REASONS = SEARCH_REJECT_REASONS | {'PENDING', 'ACTIVE', 'PENDING_EXECUTOR_ADMISSION'}
 EXCLUSION_REASONS = frozenset({'BASIS_NOT_EXECUTABLE', 'NO_MAP_REVISION', 'WITHDRAWN'})
-# mapping.MappingRegistry.projection(...).status that may feed an approach.
-APPROACH_PROJECTION_STATUS = 'VALID'
 
 
 @dataclass(frozen=True)
@@ -65,6 +64,27 @@ class MissionSite:
 
     def bound_to_map(self):
         return None not in (self.map_session_id, self.map_revision, self.transform_revision)
+
+
+def mission_sites(areas, *, entry_yaws):
+    """Profile v2 ``mission.search_areas`` -> ``MissionSite`` tuple, order kept.
+
+    ``areas`` are ``rescue_bringup.profile.SearchArea`` values (read by attribute,
+    so coordination does not import bringup). ``entry_yaws`` maps every area id to
+    its arrival heading until profile v2.1 carries ``search_areas[].entry_yaw``;
+    a missing, extra or non-finite heading is rejected, never defaulted. The
+    basis kind is copied as is: whether it may run is ``SearchPolicy``'s call.
+    """
+    areas = tuple(areas)
+    ids = [area.id for area in areas]
+    if not areas or len(set(ids)) != len(ids):
+        raise CoordinationError('INVALID_INPUT', 'search areas must be non-empty and unique')
+    if not isinstance(entry_yaws, dict) or set(entry_yaws) != set(ids):
+        raise CoordinationError('INVALID_INPUT', 'entry_yaws must name exactly the search areas')
+    return tuple(MissionSite(area.id, tuple(area.mission_xy), area.basis.kind,
+                             area.basis.map_session_id, area.basis.map_revision,
+                             area.basis.transform_revision, entry_yaw=entry_yaws[area.id])
+                 for area in areas)
 
 
 @dataclass(frozen=True)
@@ -270,6 +290,31 @@ class SearchCoordinator:
             self.approach_tasks[event_id] = decision.reservation.task_id
         return decision
 
+    def select_approach_target(self, targets, *, policy, origin, now_ns):
+        """Rank confirmed targets for the SUPPORT robot (``dispatch.select_dispatch_target``).
+
+        Events that already have an approach reservation here are skipped, so one
+        target never gets a second dispatch. The result is only a choice; pass it
+        to ``request_approach`` to reserve.
+        """
+        return select_dispatch_target(targets, policy=policy, support_robot_id=self.policy.role_of('SUPPORT'),
+                                      assigned_events=frozenset(self.approach_tasks), origin=origin, now_ns=now_ns)
+
+    def reserve_goal_task(self, robot_id, *, robot_boot_id, kind, target_id, target_revision, goal,
+                          approval_id=None, now_ns):
+        """Reserve a MOVE_SEGMENT/REOBSERVE_TARGET at a configured goal (Phase 1 rule, #88).
+
+        The caller checks the robot is free and that the approval exists; the
+        Reservation enforces which kind may go without a candidate.
+        """
+        robot(robot_id)
+        uid(robot_boot_id)
+        contract_value(timestamp_ns, now_ns)
+        if self.assignment(robot_id) is not None:
+            raise CoordinationError('INVALID_INPUT', 'robot already has a task')
+        return self._reserve(robot_id, robot_boot_id, kind, target_id, target_revision, None, now_ns, goal=goal,
+                             approval_id=approval_id)
+
     def withdraw_area(self, area_id):
         """Stop proposing an area (e.g. its map basis became invalid)."""
         uid(area_id)
@@ -305,7 +350,7 @@ class SearchCoordinator:
             self.held.pop(item.robot_id, None)
         return True
 
-    def _goal_pose(self, kind, area, candidate):
+    def _goal_pose(self, kind, area, candidate, goal=None):
         """Goal for the robot lane; no heading literal (CUR-14).
 
         SEARCH_AREA uses the area's configured ``entry_yaw``. APPROACH_TARGET faces
@@ -314,7 +359,9 @@ class SearchCoordinator:
         """
         if kind == 'HOLD':
             return None
-        if kind == 'SEARCH_AREA':
+        if goal is not None:  # configured segment end / observation point (Phase 1 rule)
+            source, xy, yaw = goal, goal.mission_xy, goal.yaw
+        elif kind == 'SEARCH_AREA':
             source, xy, yaw = area, area.mission_xy, area.entry_yaw
         else:
             source, xy = candidate, candidate.goal_xy
@@ -324,17 +371,17 @@ class SearchCoordinator:
                     transform_revision=source.transform_revision)
 
     def _reserve(self, robot_id, robot_boot_id, kind, target_id, target_revision, candidate, now_ns,
-                 *, area=None):
+                 *, area=None, goal=None, approval_id=None):
         deadline = now_ns + self.policy.task_duration_ns
         contract_value(timestamp_ns, deadline)
         generation = self.allocator.issue_generation(robot_id)
         item = Reservation(self.new_id(), target_id, target_revision, robot_id, generation,
                            self.allocator.authority_epoch, candidate, command_id=self.new_id(),
-                           robot_boot_id=robot_boot_id, task_kind=kind)
+                           robot_boot_id=robot_boot_id, task_kind=kind, goal=goal, approval_id=approval_id)
         if not self.allocator.reserve(item):
             # The issued generation is burned, never reused (Allocator rule).
             return Decision('WAIT', 'ALLOCATOR_REJECTED')
-        is_target = kind in ('APPROACH_TARGET', 'REOBSERVE_TARGET')
+        is_target = kind in TARGET_TASK_KINDS
         fields = dict(command_id=item.command_id, task_id=item.task_id, robot_id=robot_id,
                       robot_boot_id=robot_boot_id, authority_epoch=item.authority_epoch,
                       generation=generation, kind=kind, issued_at_ns=now_ns, deadline_ns=deadline,
@@ -343,5 +390,5 @@ class SearchCoordinator:
                       target_id=target_id if is_target else None,
                       target_revision=target_revision if is_target else None,
                       search_area_ref=area.site_id if kind == 'SEARCH_AREA' else None,
-                      goal_pose=self._goal_pose(kind, area, candidate))
+                      goal_pose=self._goal_pose(kind, area, candidate, goal))
         return Decision('RESERVED', 'PENDING_EXECUTOR_ADMISSION', item, fields)

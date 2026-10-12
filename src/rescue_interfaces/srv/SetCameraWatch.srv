@@ -1,0 +1,22 @@
+# SDD v0.1 services.SetCameraWatch (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string command_id
+string camera_id
+string watch_id
+string target_id
+uint64 expected_watch_revision
+float64[4] roi_xyxy_normalized
+string ASSOCIATION_METHOD_CALIBRATED_PROJECTION="CALIBRATED_PROJECTION"
+string ASSOCIATION_METHOD_OPERATOR_ROI="OPERATOR_ROI"
+string association_method
+string association_evidence_id
+bool enable
+int64 issued_at_ns
+int64 deadline_ns
+---
+Envelope envelope
+bool accepted
+string watch_id
+uint64 watch_revision
+string reason_code

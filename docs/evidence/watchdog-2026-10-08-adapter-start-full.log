@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<REPO>/src/rescue_robot/rescue_robot/ros_node.py", line 238, in main
+    port = Nav2Port(node, value['nav_action'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<REPO>/src/rescue_robot/rescue_robot/ros_node.py", line 43, in __init__
+    from nav2_msgs.action import NavigateToPose
+ModuleNotFoundError: No module named 'nav2_msgs'

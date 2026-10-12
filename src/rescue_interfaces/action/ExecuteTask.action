@@ -1,0 +1,49 @@
+# SDD v0.1 actions.ExecuteTask (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string command_id
+string task_id
+string robot_id
+string expected_robot_boot_id
+string coordinator_id
+string authority_epoch
+uint64 generation
+string KIND_SEARCH_AREA="SEARCH_AREA"
+string KIND_APPROACH_TARGET="APPROACH_TARGET"
+string KIND_REOBSERVE_TARGET="REOBSERVE_TARGET"
+string KIND_HOLD="HOLD"
+string KIND_MOVE_SEGMENT="MOVE_SEGMENT"
+string KIND_RETURN_HOME="RETURN_HOME"
+string kind
+int64 issued_at_ns
+int64 deadline_ns
+string lease_id
+string target_id
+uint64 target_estimate_revision
+string search_area_ref
+string home_ref
+FrameRef frame_ref
+RouteCandidate route
+bool has_route
+OperatorApproval approval
+bool has_approval
+string policy_version
+---
+Envelope envelope
+TaskResult result
+---
+# UNKNOWN pose/distance는 status/known=false로 명시하고 숫자 사용 금지.
+Envelope envelope
+string task_id
+uint64 generation
+string STATE_VALIDATING="VALIDATING"
+string STATE_PLANNING="PLANNING"
+string STATE_NAVIGATING="NAVIGATING"
+string STATE_VERIFYING="VERIFYING"
+string STATE_STOPPING="STOPPING"
+string state
+uint32 segment_index
+RobotPose current_pose
+bool distance_remaining_known
+float64 distance_remaining_m
+string reason_code

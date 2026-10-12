@@ -1,0 +1,16 @@
+# SDD v0.1 services.ResetStop (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+Envelope envelope
+string reset_command_id
+string robot_id
+string expected_robot_boot_id
+string authority_epoch
+string expected_latch_id
+string resolved_reason_code
+int64 issued_at_ns
+int64 deadline_ns
+---
+Envelope envelope
+bool accepted
+bool latch_released
+string reason_code

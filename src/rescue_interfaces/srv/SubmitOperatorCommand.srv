@@ -1,0 +1,39 @@
+# SDD v0.1 services.SubmitOperatorCommand (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+# operation별 필수 필드는 검증; 나머지는 명시적 비적용.
+Envelope envelope
+string command_id
+string OPERATION_START_SEARCH="START_SEARCH"
+string OPERATION_DISPATCH_SUPPORT="DISPATCH_SUPPORT"
+string OPERATION_CONTINUE_SEGMENT="CONTINUE_SEGMENT"
+string OPERATION_REQUEST_RECHECK="REQUEST_RECHECK"
+string OPERATION_RETURN_HOME="RETURN_HOME"
+string OPERATION_FINISH_MISSION="FINISH_MISSION"
+string OPERATION_RESET_STOP="RESET_STOP"
+string OPERATION_SET_CAMERA_WATCH="SET_CAMERA_WATCH"
+string operation
+string operator_id
+string robot_id
+string target_id
+string expected_task_id
+uint64 expected_generation
+uint64 expected_target_revision
+string route_id
+uint64 route_revision
+uint32 segment_index
+int64 issued_at_ns
+int64 deadline_ns
+float64[4] roi_xyxy_normalized
+string association_evidence_id
+---
+# accepted는 접수이며 이동·구조·저장 완료가 아님.
+Envelope envelope
+bool accepted
+string command_id
+string REQUEST_STATE_ACCEPTED="ACCEPTED"
+string REQUEST_STATE_REJECTED="REJECTED"
+string REQUEST_STATE_DUPLICATE="DUPLICATE"
+string request_state
+string reason_code
+string created_task_id
+string approval_id

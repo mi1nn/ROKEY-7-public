@@ -75,10 +75,10 @@ class ReadinessPolicyBuilderTests(unittest.TestCase):
     def test_ros_node_policy_builder_without_ros(self):
         from rescue_robot.ros_node import readiness_policy
         ages = {'odom': .5, 'scan': .5, 'camera': 1., 'wheel_status': .5, 'map_to_odom_tf': 1.}
-        bare = readiness_policy('test-only', ages, (), '')
+        bare = readiness_policy('test-only', ages, (), '', '')
         self.assertEqual(bare.flag_sources, {'driver': ('odom',), 'sensors': ('scan',),
                                              'slam': ('map_to_odom_tf',)})
-        full = readiness_policy('test-only', ages, ('camera/image',), 'wheel_status')
+        full = readiness_policy('test-only', ages, ('camera/image',), 'wheel_status', '')
         self.assertEqual(full.flag_sources['driver'], ('odom', 'wheel_status'))
         self.assertEqual(full.flag_sources['sensors'], ('scan', 'camera:camera/image'))
         self.assertNotIn('watchdog', full.flag_sources)

@@ -55,10 +55,10 @@ def main():
                             allowed_robot_ids=[r for r, _ in ROBOTS])
         node = Node('rescue_command_adapter', namespace=namespace)
         adapter = CommandAdapter(executor, FakePort(), guards=lambda task: False, clock_error_bound_s=.5)
-        monitor = ReadinessMonitor(readiness_policy('e3-probe', AGES, CAMERAS, ''))
+        monitor = ReadinessMonitor(readiness_policy('e3-probe', AGES, CAMERAS, '', ''))
         bind_odometry(node, adapter, 'odom', monitor)
         bind_readiness(node, monitor, adapter, scan_topic='scan', camera_topics=CAMERAS, wheel_status_topic='',
-                       tf_topic='tf', map_frame='map', odom_frame='odom')
+                       tf_topic='tf', map_frame='map', odom_frame='odom', watchdog_heartbeat_topic='')
         nodes.append(node)
         spin.add_node(node)
         monitors[robot_id], adapters[robot_id] = monitor, adapter
