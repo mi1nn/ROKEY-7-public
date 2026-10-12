@@ -160,13 +160,15 @@ class BoxTests(unittest.TestCase):
 
 
 class NodeParamsExampleTests(unittest.TestCase):
-    """예시 파라미터 파일이 노드가 요구하는 키와 정확히 같고, 그 값으로 두 정책이 만들어지는지."""
+    """예시 파라미터 파일이 노드가 요구하는 키와 정확히 같고, 그 값으로 두 정책이 만들어지는지.
+
+    파일은 설치된 패키지에서 읽는다(설치본 시험에는 src 가 없다, installed-wheels CI)."""
 
     def test_example_yaml_matches_node_params(self):
+        from importlib.resources import files
         import re
-        from pathlib import Path
         from rescue_perception.webcam_node import PARAMS, policies
-        path = Path(__file__).resolve().parents[1] / "src/rescue_perception/config/webcam_node.example.yaml"
+        path = files("rescue_perception").joinpath("config/webcam_node.example.yaml")
         values = {}
         for line in path.read_text().splitlines():
             m = re.match(r"\s{4}(\w+):\s*([^#]+?)\s*(#.*)?$", line)
