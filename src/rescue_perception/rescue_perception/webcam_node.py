@@ -164,8 +164,16 @@ def main(args=None):
                  if v['debug_image_topic'] else None)
     trail = {'detector': None, 'points': []}
 
-    def publish_debug(frame, stamp, boxes, presence):
-        """출구 영역·감시 영역·인형 상자·추적 선·상태 한 줄을 그린 JPEG 을 debug_image_topic 으로."""
+    def label(img, text, org, color):
+        """어두운 바탕 상자 위에 글자(작은 글씨도 읽히게)."""
+        (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        x, y = org
+        cv2.rectangle(img, (x - 4, y - th - 5), (x + tw + 4, y + base + 2), (20, 20, 20), -1)
+        cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+    def publish_debug(frame, stamp, sign, boxes, presence):
+        """지진 판정(블록 격자·이동 화살표·방향 전환 횟수)과 출구 영역·감시 영역·인형 상자·추적 선·상태를
+        그린 JPEG 을 debug_image_topic 으로."""
         if debug_pub is None:
             return
         img = frame.copy()
@@ -173,6 +181,20 @@ def main(args=None):
 
         def px(x, y):
             return int(x * width), int(y * height)
+        grid = img.copy()   # 지진 판정 블록 격자(사분면 경계는 굵게), tools/webcam_quake_probe.py 와 같은 그림
+        bx, by = v['quake_blocks_x'], v['quake_blocks_y']
+        for i in range(1, bx):
+            cv2.line(grid, (width * i // bx, 0), (width * i // bx, height), (255, 255, 255), 2 if i * 2 == bx else 1)
+        for j in range(1, by):
+            cv2.line(grid, (0, height * j // by), (width, height * j // by), (255, 255, 255), 2 if j * 2 == by else 1)
+        img = cv2.addWeighted(grid, 0.22, img, 0.78, 0)
+        if sign.shift is not None and any(sign.shift):
+            scale = v['quake_sample_stride'] * 6   # 화면에서 잘 보이게 키운 이동 화살표
+            centre = (width // 2, height // 2)
+            end = (int(centre[0] + sign.shift[0] * scale), int(centre[1] + sign.shift[1] * scale))
+            cv2.arrowedLine(img, centre, end, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.3)
+            cv2.arrowedLine(img, centre, end, (10, 214, 255), 5, cv2.LINE_AA, tipLength=0.3)
+        quake = f'QUAKE turns {sign.reversals}/{v["quake_shakes_min"]}' + (f' {sign.reason}' if sign.reason else '')
         ex = watch_policy.exit_roi_xyxy_normalized
         tint = img.copy()
         cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
@@ -200,8 +222,8 @@ def main(args=None):
                     f'rev={watch.watch_revision if watch else 0}')
         else:
             text = 'NO WATCH'
-        cv2.putText(img, text, (8, height - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 4)
-        cv2.putText(img, text, (8, height - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        label(img, quake, (10, 22), (242, 90, 191) if sign.condition else (255, 255, 255))
+        label(img, text, (10, height - 10), (255, 255, 255))
         ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         if not ok:
             log.error('debug image encode failed')
@@ -358,7 +380,7 @@ def main(args=None):
         if sign.event is not None:
             publish_event(sign.event)
         if slot.detector is None:
-            publish_debug(frame, stamp, None, None)
+            publish_debug(frame, stamp, sign, None, None)
             return
         try:
             result = model.predict(frame, imgsz=v['model_imgsz'], conf=v['model_conf'], verbose=False)[0]
@@ -375,7 +397,7 @@ def main(args=None):
             return
         if presence.status != 'PROCESSED':
             return
-        publish_debug(frame, stamp, boxes, presence)
+        publish_debug(frame, stamp, sign, boxes, presence)
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
         if presence.event is not None:
