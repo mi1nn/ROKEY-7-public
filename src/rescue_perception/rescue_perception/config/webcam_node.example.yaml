@@ -1,0 +1,55 @@
+# webcam_node 파라미터 예시 (고정 웹캠 1대, PC3).
+# 노드는 기본값이 없다: 여기 있는 키가 하나라도 빠지면 기동하지 않는다.
+# 값은 시작값이다 [제안, 2026-10-12]. 지진 값은 tools/webcam_quake_probe.py 기본값(2026-10-10 녹화 분석),
+# 소실 값은 실물 웹캠 시험 전 시작값이다. 확정은 PC3 실측 뒤 배포 프로파일(Q-11)로 옮긴다.
+webcam_node:
+  ros__parameters:
+    camera_id: cam_fixed                 # SDD IF-074 ~ IF-078 의 cam_fixed
+    frame_id: cam_fixed/optical
+    device_index: 0                      # OpenCV 카메라 번호. PC3 에서 확인
+    width: 640
+    height: 480
+    frame_period_s: 0.2                  # 5 fps 목표. 실측 처리 시간보다 짧으면 밀린다
+    reopen_period_s: 2.0
+    clock_domain_id: site-clock
+    clock_state: UNKNOWN                 # 시계 동기 확인 전에는 UNKNOWN
+    clock_error_bound_ns: -1             # -1 = 오차 상한 모름
+    calibration_id: cam-fixed-uncalibrated
+    observation_validity_s: 1.0
+    # 웹캠 survivor yolo26n (보고서 implementation-perception.md 「고정 웹캠 인형 탐지 모델 비교」)
+    model_path: /path/to/webcam-yolo26n-best.pt   # PC3 의 실제 경로로 바꾼다
+    model_sha256: 8b61f691f17a538410c80d6d8ef7aad7ad80b77365f76a9963e6164e797f18d5
+    model_imgsz: 640
+    model_conf: 0.1                      # 모델 출력 하한. 인형 판정은 watch_score_min 이 한다
+    envelope_schema_version: '0.1'
+    publisher_id: cam.presence
+    policy_version: webcam-start-2026-10-12
+    status_topic: /rescue/cameras/cam_fixed/status
+    site_events_topic: /rescue/site_events
+    presence_topic: /rescue/cameras/cam_fixed/presence
+    set_watch_service: /rescue/cameras/cam_fixed/set_watch
+    # 지진 징후 (DisasterSignPolicy)
+    quake_sample_stride: 8
+    quake_blocks_x: 4
+    quake_blocks_y: 4
+    quake_search_cells: 3
+    quake_texture_min: 4.0
+    quake_match_min: 0.6
+    quake_valid_ratio_min: 0.5
+    quake_agree_tol: 1.0
+    quake_shift_min: 1.0
+    quake_scene_match_min: 0.6
+    quake_visible_min: 0.3
+    quake_rebase_s: 10.0
+    quake_shakes_min: 4
+    quake_window_s: 3.0
+    quake_hold_s: 0.2
+    quake_release_s: 2.0
+    quake_max_gap_s: 0.5
+    # 구조 지점 소실 (TargetWatchPolicy)
+    watch_score_min: 0.25                # 모델 비교의 오탐·미탐 기준과 같은 신뢰도
+    watch_roi_overlap_min: 0.5
+    watch_present_confirm_frames: 3
+    watch_absent_hold_s: 3.0
+    watch_absent_min_frames: 10
+    watch_max_gap_s: 1.0

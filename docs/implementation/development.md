@@ -45,7 +45,7 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 | `robots[].command_host` | 해당 로봇의 명령 소유 호스트 ID 하나. 중복 제어 프로세스가 실제로 없는지는 ROS 그래프로 별도 검증해야 함 |
 | `robots[].slam_host`, `perception_host` | 등록된 호스트를 가리키는 배치 후보. 명령 소유권을 추가로 부여하지 않음 |
 | `robots[].parameters_file` | 실제 프로파일 파일의 디렉터리 안의 상대 `.json` 파일. 절대 경로·상위 경로·그 디렉터리 밖 symlink 거절 |
-| `services.coordination_host`, `operations_host` | 등록된 호스트 참조. 현재 `REQUIRE_ALL_HOSTS_USED` 기준안에서는 모든 호스트가 적어도 하나의 역할에 사용되어야 함 |
+| `services.coordination_host`, `operations_host` | 등록된 호스트 참조. 현재 `REQUIRE_ALL_HOSTS_USED` 기준안에서는 모든 호스트가 적어도 하나의 역할에 사용되어야 함. 고정 카메라 호스트(`site_cameras[].host`)도 역할로 센다 |
 
 두 로봇의 `command_host`는 같은 호스트일 수 있다. 이는 로봇마다 하나인 논리적 명령 소유자를 한 PC에서 실행할 수 있다는 뜻이며, 같은 로봇을 여러 제어기가 동시에 지휘해도 된다는 뜻은 아니다. 협업 조정(`coordination_host`)과 관제·기록(`operations_host`)도 한 호스트에 둘 수 있다. 현재 기준안에서는 그 결과 다른 등록 호스트가 미사용이 되면 거절되므로, 해당 호스트는 SLAM·인식 등 다른 역할에 배정되어야 한다. 실제 프로세스 수·발행자·부하·장애 격리는 이후 실행 전 점검의 대상이다.
 
@@ -69,6 +69,19 @@ pytest가 설치된 환경에서는 `python3 -m pytest`도 같은 시험을 실�
 | 로봇 파라미터 v2 `nav_action`·`odom_topic`·`dock_status_topic` | `/<namespace>/…` 아래의 ROS 이름, 서로 다름. 두 로봇의 명령·관측 경로가 섞이지 않게 네임스페이스 밖 이름을 거절한다 |
 
 `profile.py` 의 `ROBOT_ROLES`·`AREA_BASIS_KINDS` 는 `rescue_contracts` 의 값을 복제한다(프로파일 CLI 는 `rescue_bringup` 만으로 돌아야 해 contracts 를 import 하지 않음). 두 값의 일치는 `tests/test_profile_v2.py` 가 검사한다. `python -m rescue_bringup <v2 프로파일>` 은 역할과 구역 수를 함께 출력한다. v2 역시 정적 검사이며 ROS 를 켜거나 로봇을 움직이지 않는다. `runtime_enabled` 는 여전히 `false` 여야 한다.
+
+### v2.1 — 추가 블록 (2026-10-08, 선택·엄격)
+
+`schema_version` 은 그대로 `2` 이고 아래 블록은 **없어도 되지만 있으면 엄격히 검사**한다(기본값 없음). 예시 파일에 전부 들어 있다. 값은 예시이며 실측값이 아니다(`max_age_s` 는 [미확인], 주소는 RFC 5737 문서용, 서버 ID 0·1 은 실제 로봇 번호와 무관). 선택 블록에 JSON `null` 을 쓰면 거절한다(없음 ≠ null). 같은 `address:port` 는 모든 호스트에서 같은 `server_id` 여야 한다.
+
+| 블록 | 위치 | 규칙 |
+| --- | --- | --- |
+| `readiness` | 로봇 파라미터 v2 | `version`, `max_age_s{odom,scan,camera,wheel_status,map_to_odom_tf}`(양의 유한수, 다섯 키 정확히), `scan_topic`·`tf_topic`·`camera_topics[]`·`wheel_status_topic`(`""` 허용)은 `/<namespace>/…` 아래 서로 다른 이름, `map_frame`·`odom_frame` 은 TF frame 규칙, `watchdog_heartbeat_topic` 은 로봇 측 watchdog 이 생기기 전까지 **반드시 `""`**. 이름은 `rescue_robot.ros_node` 의 파라미터와 같다(#22) |
+| `hosts[].network` | 배포 파일 | `domain_id` 0..232, `discovery_servers[]` 1..8 개의 `{server_id 0..255, address, port 1..65535}`(ID·주소:포트 고유, ID = `ROS_DISCOVERY_SERVER` 의 자리), `super_client` 는 **false 만**(조회 도구용 설정은 운영 노드 값이 아님). 적용하지 않고 실행 전 점검이 실제 환경과 비교한다(네트워크 조사 문서(`docs/design/network-discovery.md`, PR #31)) |
+| `site_cameras[]` | 배포 파일 | 0..8 개의 `{id: cam_<id>, host(배포 호스트), roles: [DISASTER_SIGN · TARGET_WATCH · EXIT_PASS 중 1개 이상, 중복 없음], source(문자열)}`, id 고유. 2026-10-09 결정대로 고정 카메라 1대가 두 역할(징후 감지 + 대상 감시)을 겸한다. 카메라 어댑터(인식)와 관제 화면이 식별자로 쓴다 |
+| `mission.search_areas[].entry_yaw` | 배포 파일 | 유한수(rad). 협업·관제 `mission_sites(areas, entry_yaws=)` 의 입력. 없으면 `None` 이며 coordination 이 거절한다(기본값 없음) |
+
+`python -m rescue_bringup <v2 프로파일>` 은 "v2.1 blocks: N site cameras; M hosts with network; readiness for …" 한 줄을 더 찍는다. 역시 정적 검사다.
 
 ### v2 입력 후보와 실행 전 점검 — 미구현
 

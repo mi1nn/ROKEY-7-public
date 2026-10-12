@@ -16,8 +16,13 @@ Where each vocabulary comes from (2026-10-10, main 7a940e9):
 - receipt: `rescue_operations.ledger` receipt states (RECEIVED / PENDING_EVIDENCE / PERSISTED).
 - event: `rescue_contracts.SITE_EVENT_KINDS` (TARGET_DISAPPEARED_CANDIDATE from #48, labelled ahead
   of its merge) + `REPORT`, the console's own row kind for ledger reports (`view._events`).
-- mode: `rescue_contracts.SYSTEM_MODES` (`docs/design/state-machines.md` S-01).
-The Korean words are [제안] 관제·화면, 2026-10-10.
+- mode: `rescue_operations.site_state.MISSION_MODES` (`rescue_contracts.SYSTEM_MODES`, S-01, plus
+  SystemState MISSION_FINISHED).
+- phase / segment: `rescue_operations.site_state.MISSION_PHASES` / `SEGMENT_PHASES` (SystemState, #88·#111).
+- reply: the C-09 common codes that the coordinator puts in `SubmitOperatorCommand.reason_code`
+  (`rescue_coordination.ros_node.REASON_CODES`, OPS-58) and NAV_NOT_READY for START_SEARCH (#98).
+  The code is shown next to the word; operations may answer with other codes, shown as they come.
+The Korean words are [제안] 관제·화면, 2026-10-10 (phase / segment / reply 2026-10-12).
 """
 
 LABELS = {
@@ -33,7 +38,18 @@ LABELS = {
     'receipt': {'RECEIVED': '수신', 'PENDING_EVIDENCE': '증거 대기', 'PERSISTED': '저장 완료'},
     'event': {'REPORT': '구조 보고', 'DISASTER_SIGN': '진동 감지', 'EXIT_PASS': '출구 통과',
               'TARGET_DISAPPEARED_CANDIDATE': '대상 소실 후보'},
-    'mode': {'NORMAL': '평시', 'DISASTER': '재난', 'CLEARING': '해제 중'},
+    'mode': {'NORMAL': '평시', 'DISASTER': '재난', 'CLEARING': '해제 중', 'MISSION_FINISHED': '임무 종료'},
+    'phase': {'IDLE': '대기', 'DISASTER': '재난 감지', 'SEARCHING': '수색 중', 'TARGET_FOUND': '요구조자 발견',
+              'DISPATCH_APPROVED': '출동 승인됨', 'SEGMENT_MOVING': '구간 이동 중', 'AWAITING_CONTINUE': '계속 승인 대기',
+              'ARRIVED': '도착', 'CANDIDATE': '구조 완료 후보', 'RECHECKING': '재확인 중',
+              'RESCUE_CONFIRMED': '구출 확인', 'RECHECK_NEEDED': '재확인 필요', 'RETURNING': '복귀 중',
+              'FINISHED': '종료'},
+    'segment': {'IDLE': '대기', 'EVALUATING': '판단 중', 'AWAITING_APPROVAL': '승인 대기', 'EXECUTING': '이동 중',
+                'STOPPING': '정지 중', 'STOPPED': '정지', 'UNKNOWN': '모름'},
+    'reply': {'NOT_AUTHORIZED': '재난 모드가 아님', 'NOT_FOUND': '대상이나 복귀 위치를 모름',
+              'PENDING_EVIDENCE': '확정·경로·판정이 아직 없음', 'TASK_BUSY': '이미 진행 중',
+              'INVALID_INPUT': '화면의 값이 지금 상태와 다름', 'FRAME_REVISION_MISMATCH': '지도 기준이 다름',
+              'NAV_NOT_READY': '로봇 준비 안 됨 — 준비 뒤 다시 누르세요', 'ID_CONTENT_CONFLICT': '같은 ID 에 다른 내용'},
 }
 
 
