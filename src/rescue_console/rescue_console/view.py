@@ -162,6 +162,11 @@ def _targets(ledger, target_states):
         # target state once operations stores it; until then None, and the dispatch button stays off.
         revision = None if state is None else state.get('target_revision')
         _require(revision is None or (type(revision) is int and revision >= 0), 'target_revision')
+        # The report of that revision the coordinator holds a PERSISTED receipt for (TargetEstimate
+        # persisted_report_id, #118 선택 키). Without it the coordinator refuses the dispatch; a row written
+        # before the key existed reads None too. Never guessed from the ledger receipt below.
+        persisted = None if state is None else state.get('persisted_report_id')
+        _require(persisted is None or (type(persisted) is str and persisted != ''), 'persisted_report_id')
         support_state = None if state is None else state['support_state']
         approach = None if payload is None else payload['approach_result']
         stage, rule, rule_warnings = compose_stage(confirmed, rescue_state, support_state, approach)
@@ -170,6 +175,7 @@ def _targets(ledger, target_states):
         rows.append({
             'target_id': target_id,
             'target_revision': revision,
+            'persisted_report_id': persisted,
             'stage': stage,
             'stage_label': STAGES[stage],
             'rule': rule,
@@ -341,10 +347,16 @@ def _gate(name, mission, targets):
         if not confirmed:
             return off('확정 대상 없음')
         # The operator approves the revision on screen; a target without one is not offered (never sent as null).
-        choices = [_choice(t) for t in confirmed if t['target_revision'] is not None]
-        if not choices:
+        revised = [t for t in confirmed if t['target_revision'] is not None]
+        if not revised:
             return off('대상 revision 없음 — 대상 상태에 revision 이 기록되면 켜짐')
-        return True, f'확정 대상 {len(choices)}명 중 고름', {}, choices
+        # mission.py: confirmed AND report_persisted, else TARGET_NOT_CONFIRMED.
+        choices = [_choice(t) for t in revised if t['persisted_report_id'] is not None]
+        if not choices:
+            return off('보고 저장 대기 — 조정기가 저장 영수증을 받으면 켜짐')
+        waiting = len(revised) - len(choices)
+        return (True, f'확정 대상 {len(choices)}명 중 고름' + (f' (보고 저장 대기 {waiting}명 빠짐)' if waiting else ''),
+                {}, choices)
     if name == 'CONTINUE_SEGMENT':
         if dispatch is None:
             return off('출동 전')

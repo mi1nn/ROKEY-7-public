@@ -176,12 +176,13 @@ python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <�
   | 명령 | 켜짐 | 보내는 값 |
   | --- | --- | --- |
   | 수색 시작 | 단계 `DISASTER`(아직 수색 전) | 없음 |
-  | AMR2 출동 승인 | 출동 없음, 확정·미구출 대상 중 대상 revision 이 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
+  | AMR2 출동 승인 | 출동 없음, 확정·미구출 대상 중 대상 revision 과 저장된 보고(`persisted_report_id`)가 둘 다 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
   | 다음 구간 계속 | `segment_phase == AWAITING_APPROVAL` | `mission_state` 의 `target_id`·`target_revision`·`route_revision`·`segment_index` |
   | 재확인 지시 | 구출 확인 전 대상이 있음(운영자가 고름) | 고른 대상의 `target_id` |
   | 복귀 | 단계 `RESCUE_CONFIRMED`·`RECHECK_NEEDED`(판정 뒤) | 없음 |
 
   보내는 값은 **운영자가 화면에서 본 값**이다. revision·구간을 모르면 `null` 로 보내지 않고 버튼을 끈다(대상 revision 은 대상 상태에 기록되면 켜짐). 종류별 필드는 조정기 `rescue_coordination.mission.COMMAND_FIELDS` 와 같다(시험이 대조).
+  출동 승인은 조정기가 그 revision 의 보고 저장 영수증(`ReportReceipt` PERSISTED)을 받은 대상만 고를 수 있다. 조정기는 확인됨과 저장 영수증을 둘 다 요구하는데(`mission.py` `_dispatch_support`), thin 버전 `TargetSnapshot` 은 모든 대상을 확인됨으로 보낸다. 저장 여부는 대상 상태의 선택 키 `persisted_report_id`(#118)로 읽고, 키가 없는 옛 행은 저장 전으로 본다(「보고 저장 대기」). 장부의 영수증 상태로 대신 추정하지 않는다 — 장부에 PERSISTED 로 있어도 조정기가 그 영수증을 받았다는 뜻은 아니다.
 - **누르기:** ADMIN 만 누를 수 있다. 버튼을 누르면 아래에 확인 칸이 열려 무엇을 보내는지(대상·revision·「n번째 구간」) 보인다. 「보내기」를 눌러야 보낸다. 확인 칸이 열린 동안 관문 값이 바뀌면(1초 폴링) 확인을 취소하고 「상태가 바뀌어 … 다시 누르세요」를 남긴다. 갱신이 끊기면 모든 버튼을 끈다(최신이 아닌 화면으로 승인하지 않음). 한 번에 한 명령만 보낸다.
 - **보내기:** 브라우저 → 콘솔 `POST /commands`(로그인·CSRF·ADMIN 확인, 폼에 없는 키는 거절) → operations `POST /api/operator-commands` 로 **한 번** 보낸다(`commands.py`, 대기 `COMMAND_TIMEOUT_S = 5` 초 [제안]). 콘솔은 `command_id`(UUID4) 를 새로 만들고 `operator_id` 에 로그인 아이디를 넣는다. 콘솔은 어떤 DB 에도 쓰지 않는다 — 명령 기록(`operator_commands`)은 operations 몫이다.
 - **답 보이기:** 패널 아래 기록(최근 6건)에 「접수됨 (실행 완료 아님)」 또는 「거절 <사유 코드> (한국어 풀이)」와 `request_id` 를 그대로 보인다. 사유 풀이는 `labels.py` 의 `reply`, 모르는 코드는 코드 그대로.
