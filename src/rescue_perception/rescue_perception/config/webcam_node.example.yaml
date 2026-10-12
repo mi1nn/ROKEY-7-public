@@ -17,7 +17,7 @@ webcam_node:
     calibration_id: cam-fixed-uncalibrated
     observation_validity_s: 1.0
     # 웹캠 survivor yolo26n (보고서 implementation-perception.md 「고정 웹캠 인형 탐지 모델 비교」)
-    model_path: /path/to/webcam-yolo26n-best.pt   # PC3 의 실제 경로로 바꾼다
+    model_path: assets/models/webcam-yolo26n-best.pt   # 저장소 루트에서 실행할 때의 상대 경로. 다른 곳에서 실행하면 절대 경로로
     model_sha256: 8b61f691f17a538410c80d6d8ef7aad7ad80b77365f76a9963e6164e797f18d5
     model_imgsz: 640
     model_conf: 0.1                      # 모델 출력 하한. 인형 판정은 watch_score_min 이 한다
