@@ -251,7 +251,7 @@ def load_depth_calibration(path, *, physical_robot_id):
     path = str(path)
     payload = resource_bytes(path[len('package:'):]) if path.startswith('package:') else Path(path).read_bytes()
     raw = json.loads(payload)
-    for key in ('calibration_id', 'physical_robot_id', 'source_url', 'date'):
+    for key in ('calibration_id', 'physical_robot_id'):
         if not isinstance(raw.get(key), str) or not raw[key].strip():
             raise ValueError(f'depth calibration requires {key}')
     if raw['physical_robot_id'] != physical_robot_id:

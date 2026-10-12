@@ -1,29 +1,8 @@
 {
-  "calibration_id": "robot6_depth-20261012",
+  "calibration_id": "robot6_depth",
   "physical_robot_id": "robot6",
-  "date": "2026-10-12",
-  "source_url": "https://github.com/jaebeom/ROKEY-7/pull/126",
-  "source_commit": "6bf2e66ddc15944da6846276a186e8f784268f78",
   "input_unit": "m",
   "input_state": "raw_uncorrected",
   "scale": 0.9594383775351013,
-  "offset_m": 0.0,
-  "formula": "corrected_depth_m = raw_depth_m * scale + offset_m",
-  "reference_depth_m": 0.82,
-  "raw_samples_m": [
-    0.854,
-    0.853,
-    0.857
-  ],
-  "authorization": {
-    "date": "2026-10-12",
-    "source": "direct user request",
-    "statement": "126의 보정이 robot6에서의 depth 보정값이거든 이거와 연결해서 RBGD를 보정해서 코드를 수정해줘",
-    "scope": "Apply robot6 PR126 depth correction locally before RGB-D XYZ; no hardware reconfiguration"
-  },
-  "limitations": [
-    "Single 0.82 m measurement; multirange validation NOT_RUN",
-    "Distance correction does not establish RGB-depth spatial registration or capture synchronization",
-    "Sensor variance evidence for projection must describe the corrected coordinate output"
-  ]
+  "offset_m": 0.0
 }
