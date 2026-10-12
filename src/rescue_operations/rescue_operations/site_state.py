@@ -180,8 +180,8 @@ def _target_state(value, allowed):
     # The closed reason set belongs to the coordination policy; here only its shape is checked.
     require(isinstance(reasons, list) and all(isinstance(r, str) and r.isidentifier() for r in reasons)
             and len(set(reasons)) == len(reasons), "rescue_reasons must be unique identifiers")
-    require(bool(reasons) == (state["rescue_state"] == "RECHECK_NEEDED"),
-            "rescue_reasons are present exactly when RECHECK_NEEDED")
+    # TargetEstimate (#96) has no reason field, so a RECHECK_NEEDED target may come without one.
+    require(not reasons or state["rescue_state"] == "RECHECK_NEEDED", "rescue_reasons are only for RECHECK_NEEDED")
     state["rescue_reasons"] = sorted(reasons)
     if state["verdict_id"] is not None:
         uid(state["verdict_id"], "verdict_id")
