@@ -290,8 +290,14 @@ class SiteStateTests(unittest.TestCase):
                                                   support_state='NONE', support_robot_id=None)],
                          result['targets'])
 
+    def test_recheck_without_a_reason_is_stored_while_the_source_has_none(self):
+        """TargetEstimate (#96) carries rescue_state but no reason; reasons stay only for RECHECK_NEEDED."""
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_target_state(target_state(rescue_reasons=[])))
+        self.assertEqual([], site_state.read_target_states(self.path)['targets'][0]['rescue_reasons'])
+
     def test_target_state_rejects_inconsistent_input(self):
-        bad = [dict(rescue_state='DONE'), dict(rescue_reasons=[]), dict(rescue_state='RESCUE_CONFIRMED'),
+        bad = [dict(rescue_state='DONE'), dict(rescue_state='RESCUE_CONFIRMED'),
                dict(rescue_reasons=['A', 'A']), dict(rescue_reasons=['not an id']), dict(support_state='MOVING'),
                dict(support_state='NONE'), dict(support_robot_id=None), dict(support_robot_id='robot_x'),
                dict(detection_confirmed=1), dict(position=dict(x=1.0, y=2.0)), dict(updated_at_ns=0),
