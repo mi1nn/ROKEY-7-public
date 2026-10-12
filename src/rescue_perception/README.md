@@ -92,15 +92,8 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 
 후속 AMR 단위별 연동 시험에는 후보 탐지→기존 제어 측 정지 요청→실제 정지 확인→새 RGB-D 관측→좌표 전달/수신 확인→주행 재개를 포함한다. 인식 노드에서 직접 cmd_vel·Nav2 cancel/goal을 발행하지 않는다. 정지·수신·AMR2 접근 연결은 현재 구현하지 않았으며 자동 SLAM의 지도 갱신과 주행 정지를 구분한다.
 
-### 시험과 범위
+### 검증과 범위
 
-- tests/test_perception_amr_camera.py: 코드 설정·GPU/신뢰도 전달·모델 SHA/class·RGB 형식·원 헤더 보존·추론 실패.
-- tests/test_perception_amr_target.py: YOLO 관측·optical 좌표, 카메라→base 회전/이동·원 시각·static TF·실패 검사, 단일 전송 상태·네 화면 경계·실패 후 재시도, 분리된 지도 변환 함수의 합성 mission 좌표·clock/map revision/TF·공분산 회전.
-- tests/test_perception_depth_calibration.py: 코드 기본값과 robot6 프로파일 연결·mm/m XYZ·무효값·로봇 불일치·설치 리소스.
-
-```bash
-PYTHONPATH=src/rescue_contracts:src/rescue_mapping:src/rescue_perception \
-  python3 -m unittest discover -s tests -p 'test_perception*.py' -v
-```
+[사용자 요구, 2026-10-12] 이번 AMR 합성 입력 시험 3개는 작성 환경의 로컬 검사 전용으로 보관하고 PR에는 포함하지 않는다. 기존 main의 단위시험·CI는 유지한다. 로컬 검사 결과는 코드 규칙의 검증이며 실제 탐지 성능이나 ROS·GPU·로봇 실행을 증명하지 않는다. 실제 영상·Depth·TF를 이용한 검증은 제어용 컴퓨터에서 AMR 단위별 연동 시험으로 진행한다.
 
 실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. 지도 변환 모듈은 아직 실제 mapping 경로에 연결되지 않았다.
