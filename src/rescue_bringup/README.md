@@ -87,7 +87,7 @@ ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json
   webcam_params_file:=<webcam_node.yaml>   # 빼면 웹캠 없이
 ```
 
-- `db_path` 는 로봇 묶음마다 새 파일이다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않는다.
+- `db_path` 는 프로파일의 로봇 ID 구성(지금은 `robot_a`·`robot_b`)이 같으면 같은 파일을 계속 쓴다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않으므로, ID 구성을 바꿀 때만 새 파일을 쓴다. 더 낮은 schema 파일은 처음 열 때 올라가므로 그 전에 복사본을 남긴다.
 - 운영자 명령 API 는 `127.0.0.1` 에서만 받는다(API 자체에 로그인 확인 없음). 관제 웹은 이 launch 밖의 웹 서비스로, `--site-state <db_path> --operations http://127.0.0.1:<api_port>` 로 같은 DB·API 를 가리킨다.
 - `command_timeout_s` 는 관제 웹의 5초보다 짧아야 한다.
 - 프로파일에 `mission.roles` 가 없으면(v1) 시작하지 않는다.
