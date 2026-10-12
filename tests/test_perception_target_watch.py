@@ -196,6 +196,15 @@ class TargetWatchTests(unittest.TestCase):
         frames = [(b + (other,)) for b in (at(0.5), at(0.5), at(0.7), at(0.9))] + [(other,)] * 4
         self.assertEqual(len(self.events(self.run_frames(self.exit_detector(), self.seq(0, frames)))), 1)
 
+    def test_doll_carried_out_while_scene_is_occluded_is_candidate(self):
+        # 2026-10-12 실기: 옮기는 사람 때문에 화면 전체가 OCCLUDED 였지만 모델은 인형을 계속 잡았다.
+        # 가림 중에도 상자로 추적하고, 후보는 가림이 끝난 뒤 VALID 프레임에서만 낸다.
+        frames = (self.seq(0, [at(0.5), at(0.5)]) + self.seq(200, [at(0.7), at(0.9)], "OCCLUDED")
+                  + self.seq(400, [NONE] * 4))
+        events = self.events(self.run_frames(self.exit_detector(), frames))
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].observed_at_ns, T0 + 700)  # 가림 뒤 400 부터 300ns
+
     def test_vanishing_in_place_is_not_a_candidate(self):
         # 출구가 아닌 곳에서 갑자기 안 보이면(탐지 실패·사람이 가림) 후보 없이 운영자 판단으로 넘긴다
         results = self.run_frames(self.exit_detector(), self.seq(0, [at(0.5), at(0.5)] + [NONE] * 6))
