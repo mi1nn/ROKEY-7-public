@@ -169,7 +169,7 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
 - 판정 화면용 영상: `debug_image_topic`(빈 문자열이면 끔)에 지진 판정(4×4 블록 격자·화면 이동 화살표·방향 전환 횟수)과 출구 영역·인형 상자·추적 선·상태를 그린 JPEG(`sensor_msgs/CompressedImage`, BEST_EFFORT)을 낸다. 판정에는 쓰지 않는다. 약 6 Hz, 640×480 한 장 35 kB [측정, 2026-10-12].
 - 카메라 상태: SDD `CameraStatus` 계약("정지 영상·끊김·가림은 UNKNOWN")대로, 지진 판정이 화면 가림(`OCCLUDED`·`SCENE_CHANGED`·`QUADRANT_COVERED`)을 보면 `UNKNOWN` 과 그 이유(`quality_reason`)를 낸다. 전에는 가려도 `ONLINE` 이라 감시가 없는 평상시 가림이 드러나지 않았다(2026-10-12 실기).
 - 파이프라인 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠]: 시험용 대시보드(저장소 밖)가 조정기 대신 `DISASTER_SIGN` 을 받자마자 `SetCameraWatch`(화면 전체 ROI)를 걸었다. 흔들기 → 지진 감지 → 자동 감시 → 인형 있음 → 출구로 나감 → 구출 후보 1건, 반대쪽으로 나감 → 후보 없음. 손으로 렌즈를 가리거나 사람이 카메라 바로 앞을 지나가면 카메라 상태 `UNKNOWN`·판정 보류로 지진 사건 없음, 감시 중 사람이 인형 뒤로 지나가면 PRESENT 유지.
-- USB 끊김: 웹캠을 손으로 흔들다 USB 연결이 끊긴 기록이 있다(커널 로그 2026-10-12 20:26:43). 돌던 중 끊기면 노드가 OFFLINE 을 내지 못하고 멈췄다(원인 미확인, 후속). 기동 때부터 카메라가 없으면 2초마다 OFFLINE 을 낸다.
+- USB 끊김: 웹캠을 손으로 흔들다 USB 연결이 끊긴 기록이 있다(커널 로그 2026-10-12 20:26:43). 이 PR 의 노드(장치 경로 #119·종료 처리 #121 포함)로 USB 를 소프트웨어로 끊었다가(`/sys/bus/usb/devices/<포트>/authorized` 0→1) 10초 뒤 다시 붙이면, 감시가 없을 때와 있을 때 모두 `OFFLINE`(READ_FAILED → 2초마다 OPEN_FAILED)을 내고 다시 붙은 지 1초 안에 `ONLINE` 으로 돌아왔다. 감시도 그대로 이어졌다 [측정, 2026-10-12]. 그 전 빌드(장치 번호로 열던 때)에서 손으로 뽑았을 때는 OFFLINE 없이 멈춘 적이 두 번 있다 — 물리적으로 뽑는 경우는 이 빌드로 다시 확인해야 한다(NOT_RUN).
 - ROS 실행 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인]: `ROS_DOMAIN_ID` 를 로봇과 다른 값으로, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 설정 해제. USB 웹캠(640×480), 모델 sha256 `8b61f691…` 일치.
   - 기동 로그: git SHA·boot id·모델 경로·sha256·카메라·해상도·주기·정책 값 전부 한 줄. SIGINT 종료 로그 남음.
   - status·site_events·presence 토픽과 set_watch 서비스가 뜬다. status ONLINE, 5.00 fps(목표 5).
