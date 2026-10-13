@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); support_dispatch AUTO (user decision 1B), approach_standoff_m 0.8 and support_pose_max_age_s 2.0 proposed by coordination (2026-10-13)",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -25,7 +25,10 @@
     "live_inputs.clock_drift_ppm": 100.0,
     "live_inputs.poll_period_s": 1.0,
     "live_inputs.search_goal_topic": "/rescue/search_goal",
-    "camera_watch_timeout_s": 2.0
+    "camera_watch_timeout_s": 2.0,
+    "support_dispatch": "AUTO",
+    "approach_standoff_m": 0.8,
+    "support_pose_max_age_s": 2.0
   },
   "robot": {
     "authority_epoch": "66666666-6666-4666-8666-666666666666",
