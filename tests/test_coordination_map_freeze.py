@@ -308,6 +308,24 @@ class FreeCellTests(Base):
                           for h in self.core.mission.homes.values()})
 
 
+class TaskInputsDestinationsTests(Base):
+    """~/task_inputs carries the coordinator's home/<id> destinations next to the search areas (robot #232 accepts
+    its own 'home/<id>' key; OPS-144)."""
+
+    def test_tb5_exit_and_tb6_dock_go_to_the_robots(self):
+        from rescue_coordination.live_task_inputs import destinations
+        self.assertNotIn(f'home/{SUPPORT}', destinations(self.core))  # nothing before the freeze
+        self.freeze()
+        self.core.on_target_location(location(2, (4.2, 4.), frame_ref=frame(map_revision=FROZEN_REV)), now_ns=NOW)
+        self.save()
+        self.core.on_map_state(map_state(SUPPORT))
+        self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
+        self.tick(kind='APPROACH_TARGET')
+        record = destinations(self.core)
+        self.assertEqual({f'home/{SCOUT}', f'home/{SUPPORT}'}, {k for k in record if k.startswith('home/')})
+        self.assertEqual(self.core.live_destinations()[f'home/{SUPPORT}'], record[f'home/{SUPPORT}'])
+
+
 class DockStartPoseTests(Base):
     """OPS-141: the TB-6 docking approach point is measured from TB-6's start pose, not the SLAM map origin."""
     START = (1., 1., 0.)
