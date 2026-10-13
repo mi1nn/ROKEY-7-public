@@ -53,7 +53,7 @@ updated: 2026-10-13
 | `--camera-stale-s` | float | s | [미확인] | `--camera` 가 있으면 필수, 기본값 없음 | 없으면 `CONFIG_MISSING`, float 이 아니거나 유한·양수가 아니면 `INVALID_INPUT`(`render.py:1126-1134`, 호출 `app.py:135`). 카메라가 없으면 값을 보지 않음 | 새 프레임 없이 이 시간이 지나면 「영상 끊김」·재연결 |
 | `--robot-name ID=NAME`(반복) | 문자열 | — | `robot_a=TB-6`, `robot_b=TB-5` [사용자 결정 2026-10-13, `README:48`] | 선택 | `=` 가 있고 앞뒤 공백을 뺀 ID·이름이 비지 않음(`app.py:87-92`), 같은 ID 두 번이면 `INVALID_INPUT`(`app.py:95-102`) | 화면 표시 이름. 없으면 robot_id |
 | `--support-dispatch` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, `rescue_coordination/ros_node.py:20`] — 조정기의 같은 이름 값과 같아야 함 | 선택, 없음(= 버튼) | argparse choices(`__main__.py:35-37`), 요청마다 `view.py:707-708` 가 다시 검사 | AUTO 면 출동 승인 버튼 대신 「자동 출동」 상태 |
-| `--search-start` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, OPS-136, `config/field/search_area.field.json:3`, `:44`] — 조정기의 `search_start` 와 같아야 함(`README:50`) | 선택, 없음(= 버튼) | argparse choices(`__main__.py:38-40`), 요청마다 `view.py:709` 가 다시 검사 | AUTO 면 수색 시작 버튼 대신 「{정찰 이름} 자동 출발」 상태(7.5) |
+| `--search-start` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, OPS-136, `config/field/search_area.field.json:3`, `:52`] — 조정기의 `search_start` 와 같아야 함(`README:50`) | 선택, 없음(= 버튼) | argparse choices(`__main__.py:38-40`), 요청마다 `view.py:709` 가 다시 검사 | AUTO 면 수색 시작 버튼 대신 「{정찰 이름} 자동 출발」 상태(7.5) |
 | `--map` | 경로 | — | `assets/maps/pre_quake/map.yaml`(`README:159`) | 선택 | 기동 때 한 번 `load_map`, 실패하면 기동 실패(`app.py:145`) | 고정 지도 |
 | `--live-map` | 경로 | — | `<map_dir>/live_map.yaml`(`launch/operations.launch.py:76`) | 선택. `--map` 과 배타(`app.py:146-147`), `--live-map-stale-s` 와 짝(`__main__.py:78-79`) | 파일이 아직 없어도 됨 | 실시간 SLAM 지도 |
 | `--live-map-stale-s` | float | s | [미확인]. map_snapshot 의 alive 주기 2 s 보다 커야 함(`rescue_operations/map_snapshot.py:24`) | `--live-map` 과 짝, 기본값 없음 | 유한·양수(`mapimage.py:226-227`), 아니면 `INVALID_INPUT` | 지도 낡음 기준 |
@@ -895,7 +895,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 ### I-2. 현장 상태 DB — 웹이 읽는 표와 열
 
 - 파일: launch `db_path`(`launch/operations.launch.py:19`). 쓰는 쪽은 db_writer 하나. 쓰는 쪽 설정: `journal_mode=WAL`, `synchronous=FULL`, `busy_timeout=1000`, 쓰기마다 `BEGIN IMMEDIATE`(`rescue_operations/ledger.py:78-82`, `:104-115`). 그래서 읽는 쪽은 쓰는 쪽을 막지 않고 커밋된 행만 본다.
-- 열기 규칙(`rescue_operations/site_state.py:572-592`, 경로 규칙 `rescue_operations/ledger.py:39-48`): 경로가 빈 값·`:memory:`·NUL 포함이면 거절, 절대 경로로 풀어 폴더가 있고 경로가 폴더가 아니어야 함 → `file:{절대 경로}?mode=ro` URI, 대기 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` = `operations-site-state` 이고 `schema` = `1.3` 이 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 JSON 이고 프로파일 로봇 ID 2개(서로 다름)가 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.3"` 을 붙여 반환 → 늘 닫음. sqlite 오류는 `STORAGE_ERROR`. 파일을 만들지 않는다. 1.0·1.1·1.2 파일은 db_writer 가 한 번 열어 1.3 으로 올리기 전에는 읽히지 않는다(`rescue_operations/site_state.py:28-31`; 1.2 → 1.3 은 `exit_locations` 표만 더함).
+- 열기 규칙(`rescue_operations/site_state.py:572-592`, 경로 규칙 `rescue_operations/ledger.py:39-48`): 경로가 빈 값·`:memory:`·NUL 포함이면 거절, 절대 경로로 풀어 폴더가 있고 경로가 폴더가 아니어야 함 → `file:{절대 경로}?mode=ro` URI, 대기 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` = `operations-site-state` 이고 `schema` = `1.4` 가 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 JSON 이고 프로파일 로봇 ID 2개(서로 다름)가 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.4"` 를 붙여 반환 → 늘 닫음. sqlite 오류는 `STORAGE_ERROR`. 파일을 만들지 않는다. 1.0~1.3 파일은 db_writer 가 한 번 열어 1.4 로 올리기 전에는 읽히지 않는다(`rescue_operations/site_state.py:28-31`; 1.2 → 1.3 은 `exit_locations` 표를, 1.3 → 1.4 는 터널 표 셋 `overhead_passage_lists`·`overhead_passages`·`current_map` 을 더함).
 - 그래서 콘솔과 db_writer 는 같은 판의 `rescue_operations` 를 써야 한다. 콘솔만 1.4 코드로 올리고 옛 db_writer 가 1.3 파일을 계속 쓰면, 또는 그 반대면, 모든 폴링이 `STORAGE_ERROR` 503 이다 [관찰, 코드 읽기].
 
 | 표(읽기 함수) | 정렬·한도 | 웹이 쓰는 열·키 | 쓰지 않는 열·키 |
@@ -974,21 +974,21 @@ operations HTTP 서버(명령 API 와 같은 주소)가 db_writer 의 `webcam_no
 
 ## 문서와 코드의 차이 (bd4bfa5 에서 찾고 32e8ee1 에서 다시 봄)
 
-「고침(이 PR)」은 이 브랜치에서 문서를 고쳐 차이가 없어진 줄이고, 그 줄의 「문서 내용」은 고치기 전 글이다.
+「고침(#224)」·「고침(#265)」은 그 PR 에서 문서를 고쳐 차이가 없어진 줄이고, 그 줄의 「문서 내용」은 고치기 전 글이다.
 
 | 문서:줄 | 문서 내용 | 코드 | 비고 |
 | --- | --- | --- | --- |
 | `docs/design/console-and-db-plan.md:13`, `:20` | 콘솔 버튼은 비활성 placeholder, operations POST 미연결 | 버튼이 켜지고 operations API 로 보냄(`view.py:530-623`, `app.py:377-409`, `rescue_operations/command_api.py`) | 문서가 낡음(updated 2026-10-11) |
 | `docs/design/console-and-db-plan.md:66`, `:69` | 웹은 operations `GET /api/snapshot` 으로 읽고, 지도는 `PUT /api/maps/{id}` | 웹이 현장 상태 DB 를 직접 읽기 전용으로 읽고(`sources.py:75-99`), 지도는 map_snapshot 파일(`mapimage.py:210-270`). 두 API 는 없음 | 계획 [제안] 과 구현이 다름 |
 | `docs/design/console-and-db-plan.md:82`, `:85` | 웹캠은 화면 위, 버튼에 일시정지·재개·취소·정지 | 웹캠은 오른쪽 옆 칸(`render.py:572-575`), 넷은 늘 꺼짐(`view.py:58-63`) | — |
-| `docs/process/ops-db-tables.md:41`, `:129-131` | 현장 상태는 표 3개, 1.1 표 넷은 아직 코드에 없음 | schema 1.3, `metadata` 말고 표 8개(`rescue_operations/site_state.py:28`, `:95-138`) | 문서 updated 2026-10-10 로 낡음 |
+| `docs/process/ops-db-tables.md:41`, `:129-131` | 현장 상태는 표 3개, 1.1 표 넷은 아직 코드에 없음 | schema 1.4, `metadata` 말고 표 11개(`rescue_operations/site_state.py:28`, `:95-138`) | 문서 updated 2026-10-10 로 낡음 |
 | `docs/design/db-schema.md:11-16`, `docs/process/ops-db-tables.md:37-42` | SQLite 역할 4가지 | report_node 의 `rescue-report-store` 파일이 다섯째(`rescue_operations/report_store.py:29`) | 콘솔은 그 파일을 읽지 않음 |
 | `docs/design/db-schema.md:20` | `metadata(key TEXT PRIMARY KEY, value TEXT)` | `value TEXT NOT NULL`(`rescue_operations/ledger.py:84`, `accounts.py:140`) | 사소 |
-| `README:14` | 현장 상태 「읽기 함수 넷」 | 읽기 함수 8개(배치 로봇·명령·오류·출구 포함, `sources.py:84-95`) | **고침(이 PR)**: 「여덟」(merge 로 들어온 `read_exit_locations`, `sources.py:93` 포함) |
+| `README:14` | 현장 상태 「읽기 함수 넷」 | 읽기 함수 8개(배치 로봇·명령·오류·출구 포함, `sources.py:84-95`) | **고침(#224)**: 「여덟」(merge 로 들어온 `read_exit_locations`, `sources.py:93` 포함) |
 | `README:77-85`, `:87`, `:89` | 입력 표 5행, 「픽스처의 네 칸」, 「네 읽기는 한 트랜잭션이 아니다」 | 읽기 9개(`sources.py:84-95`), 픽스처 키 9개(`sources.py:22-23`) | 그대로 |
-| `README:14`(2026-10-13 main `ede7f8b`) | 현장 상태 「읽기 함수 여덟」 | 읽기 함수 9개(터널 판정 `read_overhead_passages`, `sources.py:94` 가 더해짐) | **고침(이 PR)**: 「아홉」 |
-| `README:213` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:885-886`) | **고침(이 PR)** |
-| `README:95` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:577-580`), 높이는 고정 여부만 정함(`render.py:576`) | **고침(이 PR)** |
-| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:377-409`) | **고침(이 PR)**: 「sends operator commands to operations once」 |
+| `README:14`(2026-10-13 main `ede7f8b`) | 현장 상태 「읽기 함수 여덟」 | 읽기 함수 9개(터널 판정 `read_overhead_passages`, `sources.py:94` 가 더해짐) | **고침(#265)**: 「아홉」 |
+| `README:213` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:885-886`) | **고침(#224)** |
+| `README:95` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:577-580`), 높이는 고정 여부만 정함(`render.py:576`) | **고침(#224)** |
+| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:377-409`) | **고침(#224)**: 「sends operator commands to operations once」 |
 | `docs/process/ops-host-record.md:54` | 콘솔이 기동 때 git SHA 를 로그에 남김 | 콘솔 코드에 그런 줄이 없음(검색은 6.5 끝). 서비스 래퍼가 하는지는 [미확인] | AGENTS 8절 「기동 로그에 git SHA」 |
-| `labels.py:8-14` | motion·readiness 는 「no producer yet」 | operations 가 RobotStatus 에서 씀(`rescue_operations/ros_ingest.py:70-87`) | **고침(이 PR)**: 「copied by operations from RobotStatus」 |
+| `labels.py:8-14` | motion·readiness 는 「no producer yet」 | operations 가 RobotStatus 에서 씀(`rescue_operations/ros_ingest.py:70-87`) | **고침(#224)**: 「copied by operations from RobotStatus」 |

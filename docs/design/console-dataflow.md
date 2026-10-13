@@ -13,7 +13,7 @@ updated: 2026-10-13
 
 관제 웹(`rescue_console`)은 **ROS 노드가 아니다.** 토픽을 구독하지도 발행하지도 않는다. ROS 쪽 값은 운영 PC 의 노드들이 **파일·SQLite·HTTP** 로 바꿔 두고, 웹은 그것을 **요청마다 읽기만** 한다. 웹이 밖으로 내보내는 것은 넷이다: 브라우저에 주는 HTTP 응답, operations HTTP API 로 보내는 요청(운영자 명령 POST, 웹캠 목록 GET·바꾸기 POST), 로봇 카메라 중계(`robot_view_relay`)의 `/select` 요청(GET·POST), 자기 계정 DB 쓰기.
 
-- 확인한 방법: `grep -rn -E "import rclpy|from rclpy" src/rescue_console` → 0건. 밖으로 나가는 HTTP 는 모두 `post_json`(`commands.py:116-139`) 안의 `urllib.request.urlopen` 한 곳(`commands.py:123`)을 지나고 재시도가 없다. 쓰는 SQL 은 계정 DB(`accounts.py:150`, `:152`, `:242`, `:282`)뿐이다.
+- 확인한 방법: `grep -rn -E "import rclpy|from rclpy" src/rescue_console` → 0건. 밖으로 나가는 HTTP 는 모두 `post_json`(`commands.py:116-139`) 안의 `urllib.request.urlopen` 한 곳(`commands.py:123`)을 지나고 재시도가 없다. 쓰는 SQL 은 계정 DB(`accounts.py:150`, `:152`, `:242`, `:282`, `:297`)뿐이다.
 
 ## 1. 전체 그림
 

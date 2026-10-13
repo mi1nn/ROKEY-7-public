@@ -62,7 +62,7 @@ updated: 2026-10-13
 
 | 그림 | 실제 코드 | 근거 |
 | --- | --- | --- |
-| 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:486-547` |
+| 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:572-592`(`_read`) |
 | 정지 버튼 | 늘 꺼져 있다. `RequestStop` 경로는 아직 어디에도 없고, 위험하면 현장 비상 정지 장치를 쓴다 | `view.py:58-63`, AGENTS.md 2절 「현장 정지 수단을 웹 연결에만 의존시키지 않는다」 |
 | ⑤ 계속(구간 승인) | 현장 설정이 `support_dispatch: AUTO` 라 출동 승인·계속 단계가 없다. AUTO 면 출동 승인 버튼 대신 「TB-5 자동 출동」 상태만 보인다 | `config/field/search_area.field.json:29`, `view.py:605-611`, 결정 1B(PR #187) |
 | 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:154-155` |
