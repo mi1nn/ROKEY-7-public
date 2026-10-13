@@ -82,7 +82,16 @@ ROBOT_KEYS = {
     # both robots, OPS-135). robot.launch.py adds it to the Nav2 collision_monitor (nav2_with_passage).
     'passage.min_height_m': F, 'passage.max_height_m': F, 'passage.front_m': FL, 'passage.half_width_m': F,
     'passage.min_points': I,
+    # Slow down before anything above the lidar plane (OPS-189): depth band = passage.overhead.lidar_plane_m..top_m
+    # (keys of #259 below), front zone, ratio
+    'passage.slow.front_m': FL, 'passage.slow.ratio': F,
     'task.live.passage.polygon_name': S, 'task.live.passage.result_window_ns': I,
+    # Overhead structures marked on the map (OPS-185/186): rescue_perception overhead_passage on the same
+    # depth points and box; the heights above are its clearance and floor noise.
+    **{'passage.overhead.' + name: kind for name, kind in (
+        ('lidar_plane_m', F), ('top_m', F), ('floor_min_points', I), ('confirm_frames', I),
+        ('position_tolerance_m', F), ('merge_radius_m', F), ('process_period_s', F), ('max_cloud_age_s', F),
+        ('stride', I))},
 }
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
 # Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
@@ -262,8 +271,20 @@ def load_field(path):
         raise FieldLaunchError('robot.passage.front_m must be [near, far] with 0 <= near < far')
     if robot['passage.half_width_m'] <= 0 or robot['passage.min_points'] < 1:
         raise FieldLaunchError('robot.passage.half_width_m must be positive and passage.min_points at least 1')
+    slow = robot['passage.slow.front_m']
+    if len(slow) != 2 or not 0 <= slow[0] < slow[1]:
+        raise FieldLaunchError('robot.passage.slow.front_m must be [near, far] with 0 <= near < far')
+    if not 0 < robot['passage.slow.ratio'] < 1:
+        raise FieldLaunchError('robot.passage.slow.ratio must be between 0 and 1 (exclusive)')
     if robot['task.live.passage.result_window_ns'] <= 0:
         raise FieldLaunchError('robot.task.live.passage.result_window_ns must be positive')
+    o = {k[len('passage.overhead.'):]: v for k, v in robot.items() if k.startswith('passage.overhead.')}
+    if not robot['passage.min_height_m'] < o['lidar_plane_m'] < robot['passage.max_height_m'] < o['top_m']:
+        raise FieldLaunchError('robot.passage heights must be min_height_m < overhead.lidar_plane_m < max_height_m '
+                               '< overhead.top_m')
+    if min(o['floor_min_points'], o['confirm_frames'], o['stride']) < 1 or min(
+            o['position_tolerance_m'], o['merge_radius_m'], o['process_period_s'], o['max_cloud_age_s']) <= 0:
+        raise FieldLaunchError('robot.passage.overhead counts must be at least 1 and distances and times positive')
     return FieldRun(raw)
 
 
@@ -586,10 +607,15 @@ def _passage(field, robot_id, ns):
     return {'min_height_m': r['passage.min_height_m'], 'max_height_m': r['passage.max_height_m'],
             'front_m': list(r['passage.front_m']), 'half_width_m': r['passage.half_width_m'],
             'min_points': r['passage.min_points'], 'polygon_name': r['task.live.passage.polygon_name'],
+            'overhead_lidar_plane_m': r['passage.overhead.lidar_plane_m'], 'overhead_top_m': r['passage.overhead.top_m'],
+            'slow_front_m': list(r['passage.slow.front_m']), 'slow_ratio': r['passage.slow.ratio'],
             'depth_topic': section['passage.depth_topic'], 'camera_info_topic': section['passage.camera_info_topic'],
             'depth_transport': section['passage.depth_transport'], 'points_topic': ns + PASSAGE_POINTS,
             'readiness_topic': section['passage.depth_topic'] + (
                 '/compressedDepth' if section['passage.depth_transport'] == 'compressedDepth' else '')}
+
+
+SLOW_POLYGON = 'PassageSlow'
 
 
 def nav2_with_passage(params, passage):
@@ -606,8 +632,9 @@ def nav2_with_passage(params, passage):
         raise ValueError('Nav2 parameters need collision_monitor polygons, observation_sources and state_topic '
                          '(the executor reads collision_monitor_state)') from None
     name, source = passage['polygon_name'], 'passage_depth'
-    if name in polygons or name in cm or source in sources or source in cm:
-        raise ValueError(f'Nav2 parameters already define {name} or {source}')
+    slow_name, slow_source = SLOW_POLYGON, 'passage_overhead'
+    if any(key in polygons + sources or key in cm for key in (name, source, slow_name, slow_source)):
+        raise ValueError(f'Nav2 parameters already define {name}, {source}, {slow_name} or {slow_source}')
     for polygon in polygons:
         cm[polygon] = dict(cm[polygon], sources_names=list(sources))
     near, far = passage['front_m']
@@ -619,8 +646,35 @@ def nav2_with_passage(params, passage):
                 'enabled': True, 'sources_names': [source]}
     cm[source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'), 'min_height': passage['min_height_m'],
                   'max_height': passage['max_height_m'], 'enabled': True}
-    cm['polygons'], cm['observation_sources'] = polygons + [name], sources + [source]
+    # PassageSlow (OPS-189): anything above the lidar plane ahead slows the robot so the height can be judged
+    near, far = passage['slow_front_m']
+    cm[slow_name] = {'type': 'polygon', 'action_type': 'slowdown', 'slowdown_ratio': passage['slow_ratio'],
+                     'points': json.dumps([[far, half], [far, -half], [near, -half], [near, half]]),
+                     'min_points': passage['min_points'], 'visualize': True,
+                     'polygon_pub_topic': 'passage_slow_polygon', 'enabled': True, 'sources_names': [slow_source]}
+    cm[slow_source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'),
+                       'min_height': passage['overhead_lidar_plane_m'], 'max_height': passage['overhead_top_m'],
+                       'enabled': True}
+    cm['polygons'] = polygons + [name, slow_name]
+    cm['observation_sources'] = sources + [source, slow_source]
     return params
+
+
+def overhead_passage_launch_values(deployment, *, field, robot_id):
+    """rescue_perception overhead_passage for this robot: its passage points, the passage.* box and heights,
+    the SLAM robot's map revision (TB-5 sits on the TB-6 map) and this robot's Pi clock bound (OPS-185/186)."""
+    basis, robot, section = _robot(deployment, field, robot_id)
+    p, r, ns = _passage(field, robot_id, robot.namespace), field.robot, robot.namespace
+    map_robot = _slam_robot(field)
+    parameters = {
+        'points_topic': p['points_topic'], 'base_frame': SLAM_BASE_FRAME, 'map_frame': basis.frame_id,
+        'robot_id': robot_id, 'map_robot_id': map_robot, 'map_state_topic': f'/rescue/robots/{map_robot}/map_state',
+        'clock_error_bound_ns': section['task.live.sensor_host_clock_error_bound_ns'],
+        'clearance_m': p['max_height_m'], 'floor_noise_m': p['min_height_m'], 'front_near_m': float(p['front_m'][0]),
+        'front_far_m': float(p['front_m'][1]), 'half_width_m': p['half_width_m'], 'min_points': p['min_points'],
+        **{k[len('passage.overhead.'):]: v for k, v in r.items() if k.startswith('passage.overhead.')}}
+    return {'namespace': ns, 'tf_topic': robot.readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
+            'parameters': parameters}
 
 
 def passage_points_launch_values(deployment, *, field, robot_id):

@@ -12,6 +12,14 @@
 
 이 구성은 사람이 RViz에서 목표를 지정하는 단일 로봇 실습용이다. 기존 오프라인 CLI나 `runtime_enabled`를 활성화하지 않으며, 프로젝트 임무 명령·정지/권한·watchdog 및 `RobotPose`/`MapState` 연결은 포함하지 않는다. SLAM은 목표 없이 스스로 탐색하지 않는다. 복사해 둔 `rescue_perception` 내부 실습 파일은 이 launch에서 사용하지 않는다.
 
+> **⚠ 이 경로(mapping_navigation·localization_navigation·explore_lite)에는 머리 위 통로 정지(46 cm)가 없다.** 통로 정지는 `robot.launch.py`(Nav2 `collision_monitor` 에 넣음)와 `passage_points.launch.py` 를 **둘 다** 띄울 때만 켜진다(현장 실행 순서 2단계). 켜졌는지 확인:
+> - `robot.launch.py` 로그에 `+ passage stop 0.05..0.46 m` 가 있다.
+> - `ros2 topic hz <ns>/passage_points` 가 나온다(깊이 점, 없으면 `collision_monitor` 가 1 s 뒤 멈춘다).
+>
+> **⚠ 정지:** 이 경로에는 실행기·watchdog 이 없다. 멈추려면 `bash scripts/field/stop_robot.sh <ns>`(Nav2 목표 전부 취소 + cmd_vel 0, 아래 3단계 정지 상자). explore_lite 를 Ctrl+C 로 끄면 노드가 끝나면서 목표 취소를 보내지만, 종료 중이라 그 요청이 Nav2 에 닿는지 보장되지 않는다[추정: upstream `Explore::~Explore()` → `stop()` → `async_cancel_all_goals()`]. Nav2 가 다른 터미널에서 계속 떠 있으면 **마지막 목표로 계속 간다.** explore 를 끈 뒤에는 반드시 정지 스크립트를 돌리거나 Nav2 launch 도 끈다.
+>
+> **SLAM 지도 새로 시작:** `mapping_navigation.launch.py`·`tb6_slam.launch.py` 는 `<ns>/map` 에 이미 발행자(앞의 SLAM)가 있으면 그 노드 이름을 내고 기동하지 않는다(옛 지도를 이어 쓰지 않음, OPS-184). 앞 SLAM 은 정지 스크립트가 보여 주는 PID 로 끈다. slam_toolbox 의 지도 리셋 서비스(Jazzy 판)는 **미확인**이다(이 PC 에 slam_toolbox 가 없어 확인 못 함). 실기에서 `ros2 service list --no-daemon | grep slam_toolbox` 로 본다. 확인 전에는 SLAM 노드를 끄고 다시 띄우는 것만 쓴다.
+
 ### 빌드와 준비
 
 ROS 2 Jazzy, `turtlebot4_navigation`, `turtlebot4_viz`가 설치된 작업 PC에서 저장소 루트 기준으로 실행한다. 별도 TurtleBot 작업공간으로 설치했다면 그 작업공간의 `install/setup.bash`도 먼저 source한다.
@@ -203,12 +211,14 @@ F=$PWD/config/field/search_area.field.json
 # compute_a: TB-6 SLAM(탐색 중만) → 로봇 launch → 지도 고정 노드
 ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
 ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<회차마다 새 절대 경로>
 
 # compute_b: TB-5 는 고정 지도를 기다린다(그 전에는 지도 없음, MapState UNKNOWN)
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
   robot_id:=robot_b frozen_pose_wait_s:=10.0
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
@@ -218,7 +228,9 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 **머리 위 통로 정지(두 로봇, OPS-135):**
 - 기준은 현장 실행 파일 `robot` 공통 절의 `passage.*` 한 곳에만 있다. 깊이 점이 높이 0.05~`passage.max_height_m` 0.46 m(재범 결정 46 cm, scope Q-25) 띠 안에 있고, 로봇 앞 `passage.front_m` [0.4, 1.0] m 안에 `passage.min_points` 개 이상이면 멈춘다.
 - `robot.launch.py` 가 이 값을 Nav2 `collision_monitor` 에 넣는다(통로 다각형 `PassageStop`, 깊이 원 `passage_depth`). 그래서 저장소의 Nav2 yaml 에는 이 숫자를 쓰지 않는다. 로그: `+ passage stop 0.05..0.46 m`.
+- **감속(OPS-189):** 같은 깊이 점 중 라이다 평면 위(`passage.overhead.lidar_plane_m` 0.23 m [측정]~`passage.overhead.top_m` 1.0 m)에 있는 것이 앞 `passage.slow.front_m` [0.4, 1.2] m 안에 `passage.min_points` 개 이상이면 `PassageSlow` 가 속도를 `passage.slow.ratio` 0.3 배로 줄인다([제안]). 라이다가 못 보는 터널 천장 앞에서 높이 판정(약 1.5 s)이 나올 시간을 주려는 것이다. 0.46 m 이하는 `PassageStop` 이 그대로 멈춘다. 로그: `+ passage slow x0.3 0.23..1.0 m`. **벽 앞에서도 감속한다**: collision_monitor 는 벽과 터널을 구분하지 못해, 라이다 위 높이까지 올라온 벽이 앞 1.2 m 안에 있으면 똑같이 0.3 배로 줄인다. 그래서 감속 사유 코드는 두지 않는다(「측정 중」이 아님, 웹 「판정 중」은 터널 노드 UNKNOWN 으로 본다, OPS-193). 실기에서 벽 앞 감속 때문에 탐색이 너무 느리면 현장 파일 `robot` 절의 `passage.slow.ratio`(크게) 또는 `passage.slow.front_m`(먼 끝을 가깝게)을 고친다.
 - 깊이 점은 `passage_points.launch.py` 가 만든다. 깊이 영상 이름은 현장 실행 파일 `robots.<id>.passage.*` 에 있다. 이 노드가 없으면 깊이 점이 오지 않으므로 `collision_monitor` 가 1 s 뒤 로봇을 세운다. 깊이 영상은 준비 신호에도 들어가서, 끊기면 NOT_READY 다. 준비 신호도 깊이 점과 같은 transport 로 받는다(compressedDepth 이면 `<depth_topic>/compressedDepth`). 그래서 원본 깊이를 Wi-Fi 로 따로 끌어오지 않는다.
+- **지도에 터널 표시(OPS-185/186):** `overhead_passage.launch.py` 가 같은 깊이 점, 같은 상자와 높이(`passage.*`)로 머리 위 구조물을 판정한다. 결과는 `/rescue/robots/<id>/overhead_passages`(JSON, contracts C-04b)로 나간다. 추가 값은 `passage.overhead.*` 에 있다. 라이다 높이 `lidar_plane_m` 0.23 m 는 TB-5 줄자 실측이고 TB-6 은 같다고 본 추정이다. 판정 규칙은 `src/rescue_perception/README.md` 「지도의 머리 위 구조물」 절에 있다.
 - 멈춘 동안 실행기 feedback 이 `PASSAGE_BLOCKED` 다. 그 뒤 Nav2 가 포기하면 결과도 `PASSAGE_BLOCKED` 다(#219).
 - **`robots.<id>.passage.*` 가 없는 로봇은 `robot.launch.py` 가 띄우지 않는다**(OPS-137 A). 두 로봇 모두 OAK-D 깊이 `/<ns>/oakd/stereo/image_raw` + `camera_info`, 전송 `compressedDepth` 다.
   - TB-5 측정(2026-10-13 20:19~20:21, OPS-165~167): raw 5.1~5.5 Hz(최대 간격 0.449 s), compressedDepth 6.9~9.2 Hz(최대 간격 0.302 s), camera_info 10.0 Hz. 그래서 compressedDepth. `collision_monitor` 의 source_timeout 1 s 안이다.
@@ -254,6 +266,13 @@ compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). �
 저장 지도로 하는 시험(로봇 없는 시험, #132)은 현장 실행 파일을 조정기 `map_mode` `SAVED_MAP` + 두 로봇 `SAVED_MAP_AMCL` 로 바꾸고, 예전처럼 `turtlebot4_navigation localization.launch.py` → `occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)` 로 띄운다.
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
+
+> **정지 방법 (먼저 읽기)**
+> 1. `bash scripts/field/stop_robot.sh /robot6` (TB-5 는 `/robot5`). 실행기 `task_stop` → Nav2 목표 전부 취소(`navigate_to_pose`·`navigate_through_poses`·`follow_waypoints`) → `cmd_vel` 0 을 보내고, 단계마다 `[보냄]`/`[없음]`/`[실패]` 한 줄을 낸다. 끝에 아직 떠 있는 `<ns>` 노드와 이 PC 의 SLAM·Nav2·explore 프로세스 PID 를 보여 준다.
+> 2. 스크립트가 없거나 실패하면 수동으로: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}`, `ros2 service call <ns>/navigate_to_pose/_action/cancel_goal action_msgs/srv/CancelGoal {}`, 남은 프로세스는 PID 로 `kill -INT <PID>`(이름으로 넓게 잡아 죽이지 않는다).
+> 3. 그래도 움직이면 **사람이 로봇을 들어 올린다.**
+>
+> `robot.launch.py` 를 Ctrl+C 하면 Nav2 도 같이 꺼지고, watchdog 이 꺼지기 전에 `<ns>/cmd_vel` 에 0 을 3번 낸다(로그 `watchdog stopped: 3 zero commands`).
 
 ```bash
 # 각 로봇: 정지 상태에서 AMCL 갱신 한 번 → 조정기 상태 재발행 → 실행기 arm(#132 start_search.py 순서)
