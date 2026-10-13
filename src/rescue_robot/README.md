@@ -11,7 +11,6 @@
 | 무엇 | 왜 / 어디 |
 | --- | --- |
 | LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절, #166)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET 은 PR #179 머지 뒤, RETURN_HOME 은 다음 PR(C1-c). MOVE_SEGMENT 는 FILES 경로만 |
-| TB-5(robot_b, /robot5) 실행 | 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority` 등)가 없다. #132 에 값이 없어 지어내지 않았다. 없으면 `robot.launch.py robot_id:=robot_b` 가 멈춘다. TB-5 실행 값 PR 에서 넣는다 |
 | 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
 | watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
 

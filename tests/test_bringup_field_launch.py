@@ -262,11 +262,23 @@ class RobotParameters(FieldCase):
         for name in ('executor_heartbeat_topic', 'watchdog_heartbeat_topic'):
             self.assertEqual(values['task_input'][name], values['watchdog'][name])
 
+    def test_tb5_values_in_the_repository_field_file(self):
+        """TB-5 (robot_b, SUPPORT): its own publisher, the same mapping authority as TB-6, approach and return
+        only, Pi clock measured (150 ms). Decided 2026-10-13; #132 had no robot_b values."""
+        b, a = self.robot(robot_id='robot_b')['task_input'], self.robot()['task_input']
+        self.assertEqual('/robot5/navigate_to_pose', b['nav_action'])
+        self.assertNotEqual(a['task.publisher_id'], b['task.publisher_id'])
+        self.assertEqual(a['task.mapping_authority'], b['task.mapping_authority'])
+        self.assertTrue(b['task.live.auto_target.enabled'])
+        self.assertEqual(['APPROACH_TARGET', 'RETURN_HOME'], b['task.live.auto_target.kinds'])
+        # TB-5 Pi measured 2026-10-13 (chronyc tracking, about 107 ms by the parse_chrony bound) -> 150 ms
+        self.assertEqual(150_000_000, b['task.live.sensor_host_clock_error_bound_ns'])
+
     def test_robot_b_needs_its_own_identity_in_the_field_file(self):
-        """No publisher_id / mapping_authority is made up for robot_b (none was set in #132)."""
+        """No publisher_id / mapping_authority is made up for a robot the field file does not name."""
         from rescue_bringup.field_launch import FieldLaunchError
         with self.assertRaisesRegex(FieldLaunchError, 'robot_b'):
-            self.robot(robot_id='robot_b')
+            self.robot(field=self.field(lambda raw: raw['robots'].pop('robot_b')), robot_id='robot_b')
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
