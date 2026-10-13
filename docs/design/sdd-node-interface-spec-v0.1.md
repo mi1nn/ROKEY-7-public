@@ -1,16 +1,74 @@
 ---
-title: 단일 웹캠·구간 승인 SDD 노드 및 인터페이스 검토안 v0.1
+title: 공유 지도·자동 구조 지원 SDD 00 통합도 검토안
 status: draft-proposal
-updated: 2026-10-11
+updated: 2026-10-13
 ---
 
 # ROKEY-7 SDD 노드·인터페이스 정의 v0.1
 
 상태: **[제안, 2026-10-09] 논리 계약 초안**. 실제 `.msg/.srv/.action` 생성·컴파일 또는 ROS 연결 검증 결과가 아니다.
 
-이 문서는 PM 측 Codex 세션에서 정의한 **웹캠 1대·관리자 구간 승인 시나리오의 검토안**이다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
+이 문서의 새 **00 통합도**는 E2E 이후 PM 요구안(지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료)이다. **01~11쪽도 「00 통합 시스템 설계도_PC3대」에 맞춘 상세 설계**다. 이전 상세도는 Git 이력에 보존한다. 현재 ROS IDL 필드·enum·실행 코드·프로파일은 변경하지 않는다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
 
-## 기존 팀 설계와의 적용 경계
+## 00 통합도 적용 시나리오 (PM 요구안, 2026-10-13)
+
+발화자와 적용 시점을 구분한다. PM의 2026-10-12 요구는 [#133의 RQ-12/13·Q-29](https://github.com/jaebeom/ROKEY-7/pull/133), 2026-10-13 Codex 사용자 대화의 최신 정정 원문은 **“AMR1의 현장 재확인이 있어야 구조 완료 판정으로 이어져서 해당 로직은 필요함”**이다. 같은 날 앞선 재확인 제외 방향은 이 최신 지시로 대체한다. [OPS-87](https://github.com/jaebeom/ROKEY-7/pull/131#issuecomment-6121905954)의 소유자 운영 결정은 **10-13 E2E: main의 출동 버튼→탐지·보고 저장→출동 승인→구간 승인**, 이후 자동 출동 적용이다. 새 00은 이후 요구안이며 기존 실행 계약의 소유자 채택·실기 완료를 주장하지 않는다.
+
+1. PC3 웹캠은 지진 징후를 보고하고 관제는 저장·표시한다. AMR1 최초 정찰은 운영자 `START_SEARCH` 버튼 뒤에만 요청한다.
+2. AMR1은 사전 지도를 모른 채 SLAM 지도를 생성·갱신하고 AMR2와 중앙에 직접 전달한다(IF-008). AMR2는 지도를 생성·발행하지 않는다(IF-040은 퇴역, 번호 재사용 금지).
+3. AMR1 인형 관측→지도 좌표→확정 대상·유효 위치·DB 저장 receipt→coordinator 자동 배정→AMR2 executor/ExecuteTask(IF-053)→Nav2 접근이다. 지도·대상 수신 자체는 이동 명령이 아니다. 기존 MOVE_SEGMENT 승인을 위조/생략하는 구현은 허용하지 않고 자동 admission/task mapping 검토 전 실행하지 않는다.
+4. AMR2는 구급상자를 싣고 앞서며 실제 구조대원이 뒤따른다. 다리 스켈레톤 인식·사람 추종·구간별 ‘계속’은 새 시나리오에 사용하지 않는다. 두 로봇은 같은 필드에서 자기 LiDAR·local costmap·Nav2로 회피/정지하는 요구다. 상대 pose 공유는 회피 실행 자체가 아니다.
+5. AMR2 도착·실제 정지와 인형 재탐지는 유지한다(IF-055). 웹캠의 유효한 출구 소실 후보(IF-076/077)를 coordinator가 target/watch/boot/revision·시각·영상·출구 근거로 검증하고 AMR1 REOBSERVE_TARGET(IF-021)을 요청한다. AMR1은 대상 위치로 이동·정지하고 ObserveTarget(IF-023)로 후보 또는 수락된 재확인 요청 이후 새 관측을 취득한다. **camera ABSENT·LiDAR CLEAR·coverage VALID와 task/target/frame/시각 연결이 모두 유효할 때만** coordinator가 완료 보고를 만들고 operations가 저장한다(IF-072/085/073). 후보만으로 완료하지 않으며 가림·끊김·대상 존재·시각/관측 불확실은 UNKNOWN/미구조/재확인 필요다. REQUEST_RECHECK도 재확인 계기이지 완료 증거를 대신하지 않는다.
+6. 완료 뒤 AMR1은 도킹 접근 위치 도착·정지→native Dock(IF-087)→fresh DockStatus(IF-088)·실제 정지로 도킹 완료를 확인한다. AMR2는 설정된 출구 위치에 도착·정지한 뒤 종료한다. 두 로봇 초기 위치 복귀가 아니다. 역할별 terminal reference와 task kind/home_ref 매핑은 계약 검토 전이며 새 enum을 임의로 추가하지 않는다.
+
+### 공통 지도·위치·TF 관문
+
+- IF-008의 단일 지도 발행자는 AMR1 SLAM이다. AMR2 localization/global costmap/mapping과 중앙 operations가 직접 받는다. 중앙 수신은 지도 보관/관제 연결용 제안이며 live grid 웹 렌더 완료를 뜻하지 않는다. IF-084 지도 파일 업로드 계획의 발행자도 AMR1 mapping만이다.
+- IF-010/042는 두 로봇의 공통 지도 frame 위치를 상대 mapping에도 전달한다. 원점이 다른 raw odom을 같은 좌표처럼 사용하지 않는다. IF-066은 인형 위치를 AMR2 mapping에도 직접 공유하며 shared topic의 source_robot/역할·target/frame/revision 필터가 필요하다.
+- AMR2 위치는 **A: 실측 출발 위치의 초기 고정 정렬 → B: 공유 지도에 대한 LiDAR 위치 보정(AMCL 후보)**이다. PC2 `amr2.slam`을 `amr2.localization` 역할로 교체한다. IF-089 initialpose·IF-090 amcl_pose는 native 바인딩 제안이며 동적 지도 수용·위치 오차·공분산은 실측 전이다.
+- map→AMR2 odom의 TF 소유자는 한 곳이다. A와 B의 동시 발행 금지, 기존 발행 정지/fence·새 발행·정렬 검증이 필요하다. loop closure/session/revision 변화로 좌표 근거가 깨지면 이동 보류/취소→실제 정지→정렬 재검증이다. 초기/보정 TF·map 전달 주기·대역폭·AMR2 대기 구역 지도화·교차 통로 양보/교착은 미정이다.
+
+### 인터페이스·역사 페이지의 적용 범위
+
+새 00/JSON/CSV는 논리 노드 **44개**, 활성 인터페이스 **89개**, source×target 관계 **266개**다. IF-040은 `retired_interfaces`에 보존하고 새 00/CSV의 활성 연결에 넣지 않는다. IF-023은 새 00의 AMR1 구조 완료 재확인 필수 경로다. 01~11쪽은 이 활성 연결과 `three_pc` 배치를 적용한다. 과거 정적 증거와 Git 이전 상세도는 예전 44/86/255 및 승인/추종 계약의 기록이다.
+
+IF-079의 DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK 등 기존 enum, 모든 1차 msg/srv/action의 필드·순서는 호환 보존한다. 새 00에서는 AMR2 초기 승인·구간 ‘계속’의 필수 관문으로 쓰지 않는다. AMR1 완료 재확인과 REQUEST_RECHECK는 유지한다. C-06/C-11/C-12·상태 전이·관제 명령·IDL 의미의 소비자 변경은 담당 검토 후 별도 구현이다. 배포 QoS/주소/임계값은 이 PR에서 확정하지 않는다.
+
+도킹 표준 타입은 [iRobot Jazzy republisher 정의](https://github.com/iRobotEducation/create3_examples/blob/jazzy/create3_republisher/bringup/params.yaml)를 근거로 한다. 설치된 native endpoint·타입·QoS·운영 어댑터와 실제 도킹은 NOT_RUN이다. AMR2 localization의 AMCL은 후보이며 설치/실시간 공유 지도 실험 전이다.
+
+### 관제 웹 데이터 출처
+
+브라우저는 ROS·DB에 직접 접속하지 않는다. operations가 DB에 쓰고 웹 서버가 SQLite를 읽기 전용으로 조회한 뒤 브라우저가 GET /fragment를 1초 폴링하는 기존 경로를 유지한다. IF-081 snapshot/SSE는 계획으로 점선 표시한다. 현재 웹의 승인·재확인 버튼과 기준 지도 PNG는 기존 코드이며, 새 자동 출동·출구 후보/완료·역할별 종료·live 공유 지도 화면은 검토/구현 전 제안으로 분리 표시한다. STOP·현장 정지·lease·readiness·실제 정지 관문은 유지한다.
+
+### 응용 PC 3대 + 전용 Discovery PC 1대 (PM 정정, 2026-10-13)
+
+PM 최신 정정 원문: “PC1은 AMR1, PC2는 AMR2, PC3은 웹캠 및 웹, PC4는 discovery server 역할이다.” 같은 날 앞선 PC3 Discovery 동거·총 PC 3대 설명은 이 정정으로 대체한다. 적용 범위는 **`00 통합 시스템 설계도_PC3대` 및 이를 기준으로 한 01~11 상세도의 하드웨어 배치**다. 페이지 이름은 유지하며, 물리 PC는 **총 4대(응용 PC 3대 + 전용 Discovery PC 1대)**다. 이번 상세도 정합 작업에서 두 00 페이지는 바이트 보존한다. 01~11쪽은 최신 PM 요청으로 수정한다.
+
+| 물리 PC | 함께 실행하는 역할 |
+| --- | --- |
+| PC1 | AMR1 센서·지도·수색/현장 재확인·명령/주행 계산 |
+| PC2 | AMR2 공유 지도 위치 추정·자동 지원 접근·명령/주행 계산 |
+| PC3 | 고정 웹캠 취득·지진/소실 후보·영상 gateway, coordinator·frame registry·operations·DB·web, 관제 모니터의 로컬 브라우저 |
+| PC4 | TurtleBot4 Discovery Server 전용. SDD의 `central.discovery`(Fast DDS Discovery Server), IF-086 발견 정보만 처리 |
+
+PC3 큰 박스 안에 웹캠 처리·관제 처리·로컬 브라우저를 함께 배치하고 PC4는 별도 swimlane에 둔다. 브라우저 박스는 별도 PC가 아닌 PC3의 화면 역할이며 AMR1/AMR2 온보드 장치는 위 PC 4대와 별도다. 노드 44개·활성 IF 89개·관계 266개·웹 8칸·AMR1 현장 재확인 관문은 유지한다.
+
+JSON `metadata.placement_variants.three_pc.node_host_overrides`가 기존 PC4의 `central.*` 중 Discovery를 제외한 5개 노드를 PC3로 옮긴다. `central.discovery`는 PC4다. `three_pc` 키와 페이지 이름은 응용 PC 3대의 복제본이라는 의미이며 `physical_pc_count=4`, `application_pc_count=3`, `dedicated_discovery_pc_count=1`로 총수를 구분한다. 기본 `nodes.host`와 CSV/노드 표는 원본 4-PC 배치다. variant를 적용해도 논리 ID·타입·endpoint·발행/수신자는 바꾸지 않는다.
+
+IF-074~078(웹캠↔관제), IF-080~085(웹·운영·영상·DB)는 PC3 내부 연결을 포함한다. IF-082 영상은 PC3 gateway→PC3 브라우저의 HTTP 응답이며 ROS/DB 직접 연결이 아니다. IF-081은 기존대로 계획·미구현이다. IF-086은 PC1/PC2/PC3/로봇의 ROS 참여자가 PC4 서버와 교환하는 **발견 정보**다. Topic/Service/Action의 영상·지도·명령·상태 payload를 PC4가 중앙 중계한다는 뜻이 아니다.
+
+web은 SQLite 읽기 전용 조회, operations만 DB 쓰기, 로컬 브라우저는 HTTP 영상과 1초 폴링을 동시에 받는다. 이는 배치 제안이며 실제 launch·주소/포트/remap·DB 경로·서버/client ID·네트워크/Discovery 설정 채택이나 실행 코드 변경이 아니다. PC3 동시 부하, PC4 발견 연결·서버 장애/재시작 및 E3/E4는 **NOT_RUN**이다.
+
+### 상세도 기준 통일 (PM 요청, 2026-10-13)
+
+최신 원문: “나머지 01~11페이지의 sdd도 00 통합 시스템 설계도_PC3대를 베이스로 수정해줘.” 이 요청으로 이전 01~11 바이트 보존 범위를 해제한다. 두 00은 그대로 두고 01~11의 배치·노드/endpoint/type·발행/수신·자동 지원·필수 재확인·종료 로직을 맞춘다. 기본 nodes.host/CSV의 원본 00 배치는 유지하며 상세도는 `three_pc` override를 적용한다.
+
+페이지별 인터페이스 범위와 요구 상태는 JSON `metadata.detail_pages`에 기록한다. `check_sdd_unified.py`는 두 00 보존, 모든 상세도의 IF 범위·정확한 source/target 관계·노드 호스트·89IF 전체 포함·선 geometry·11 재확인 관문을 검사한다. 02~07·09의 반복 박스는 인터페이스별 동일한 논리 노드다. 01/08/10은 기준 페이지의 검증된 geometry를 복제·선별해 사용한다. 11의 요구 단계 박스는 추가 ROS 노드가 아니다.
+
+Discovery 최종 구성과 시험 중 구성 (재범 결정, 2026-10-13): **최종은 PC4 Discovery 전용**(이 문서의 배치)이고, **시험 중에는 권고안 A**(각 PC가 로봇 Pi 서버에 직접 연결)를 쓴다. 실습 1회가 성공하면 바로 PC4로 바꾼다. 로봇 노드가 PC4 서버에 보이게 하는 방법(로봇 Pi에 외부 서버 추가 = 등급 4, 또는 서버끼리 연결)은 결정 대기다. 근거: [network-discovery.md](network-discovery.md) 0절·11절(#197·#201). 로봇 이름: AMR1 = TB-6(robot_a, SCOUT), AMR2 = TB-5(robot_b, SUPPORT)(재범 결정 2026-10-13). 노드 ID `amr1.*`·`amr2.*`는 그대로 둔다.
+
+## 기존 팀 설계와의 적용 경계 (과거 v0.1 기록)
+
 
 **이 문서 등록은 기존 팀 BRD·실행 계약의 채택 결정을 바꾸지 않는다.** 이 PR의 base `d03b6c8`에 머지된 팀 문서 기준은 [범위 RQ-08·RQ-09와 Q](../requirements/scope.md), [BRD Part I](../requirements/brd-part1-v0.1.md), [계약 C-01~C-09](contracts.md), [상태 전이](state-machines.md), [네트워크 채택안](network-discovery.md)이다. 아래 차이는 단일 웹캠 시연을 검토하기 위한 별도 제안이며, 기존 Python 계약에 바로 넣을 수 있는 호환 타입이라고 주장하지 않는다.
 
@@ -19,7 +77,7 @@ updated: 2026-10-11
 | 고정 카메라·구출 조건 | 카메라 A 재난 징후 + B 출구 카운트 + AMR1 재관측, 부재만으로 완료 금지(Q-10·Q-15) | 구조 지점을 계속 촬영하는 웹캠 하나의 소실 후보 + fresh AMR1 관측. 사람 이송을 증명하지 않는 **시연 판정** | 카메라 1대 결정에 맞춘 scope·SiteEvent·완료 상태/정책·인수 시험 개정은 소유자의 SoT PR과 연결. 이 PR은 기존 실행 코드를 직접 바꾸지 않음 |
 | AMR2 출동·이동 | 자동 출동을 기본 후보로 두고 승인 버튼은 선택(Q-12), 기존 task kind 집합(C-06) | 관리자 출동 승인 + `MOVE_SEGMENT`마다 “계속” 승인, `RETURN_HOME` 추가 | 명령/승인·TaskResult·상태 전이·프로파일 및 실행기/관제 소비자 개정 |
 | 중앙 배치 | 로봇 담당 PC 둘 + coordination/operations 분리 후보 | PC3 웹캠, PC4 coordination·operations·웹·DB 동거 | 4-PC 부하·장애 검증과 프로파일 개정. PC1~4는 도면의 논리 배치이며 실제 호스트 이름이 아님 |
-| Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 온보드/오프보드 연결·서버 목록·고유 ID를 별도 결정. 이 도면으로 네트워크 채택안을 덮어쓰지 않음. domain ID만으로 격리된다고 가정하지 않음 |
+| Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 최종 = PC4 전용, 시험 중 = 토폴로지 A(재범 결정 2026-10-13). 로봇 Pi 쪽 연결 방법·서버 목록·고유 ID는 결정 대기. domain ID만으로 격리된다고 가정하지 않음 |
 | watchdog 위치 | 로봇 담당 PC에서 실행하는 Phase 1 방향([#35 OPS-17 결정](https://github.com/jaebeom/ROKEY-7/pull/35#issuecomment-6058147235)) | 도면의 AMR1·AMR2 온보드 watchdog(`PROPOSED_NOT_INSTALLED`) | 온보드 배치는 채택·설치 검증이 필요한 별도 제안. PC↔로봇 링크 단절을 처리하는 Create 3 timeout은 실측 전이며 TR-11·T-05에서 확인. 도면으로 Phase 1 배치 결정을 변경하지 않음 |
 | ROS 타입·HTTP | C-08의 토픽/API 제안과 현재 Python DTO 의미 | 필드·서비스·액션·HTTP 경로의 상세 초안 | IDL 생성/컴파일, Python DTO 변환과 인증·배선·QoS 검증. 경로 이름을 곧바로 실제 서버의 주소로 사용하지 않음 |
 
@@ -27,7 +85,7 @@ updated: 2026-10-11
 
 PM 측 Codex 세션의 문서 등록 요청(2026-10-09): “해당 인터페이스 명세에 대한 내용이 https://github.com/jaebeom/ROKEY-7/tree/main 여기에 없다면 PR 넣어줘.” 적용 범위는 명세의 저장소 등록·PR 검토이며, Q-10·Q-12·Q-15·Q-22의 채택이나 실기 실행 승인이 아니다. 앞선 PM 측 세션의 시나리오 확인 원문은 “인형이 보이는 구조 지점을 계속 촬영”이고, PC별 배치 요청 원문은 “PC1에 AMR1에 대한 내용이 있고, PC2에 AMR2가 있고, PC3에 CAM, PC4에 웹”이다(이 세션의 기록일 2026-10-09).
 
-## 2026-10-11 변경 범위
+## 2026-10-11 변경 범위 (과거 기록, 새 00 적용 아님)
 
 `CameraStatus`·`TargetPresence`·`SetCameraWatch`는 [#77](https://github.com/jaebeom/ROKEY-7/pull/77)의 1차 IDL 정의를 재사용한다. 필드 정의·순서와 CMake 등록은 그대로이며 아래 표·JSON Rules·draw.io 표시를 정합시켰다. 노드 연결·변환기·ROS 실행 완료를 뜻하지 않는다.
 
@@ -37,11 +95,7 @@ AMR1 최초 정찰은 [RQ-11·Q-28](../requirements/scope.md)의 관제 출동 �
 
 ## 적용 시나리오와 현재 증거
 
-- [PM 요구, 2026-10-09] PC1=AMR1 정찰·재확인, PC2=AMR2 구급상자·구간 이동, PC3=웹캠 1대, PC4=웹·API·DB·임무 조정·Discovery. 실제 호스트 이름/IP/로봇 ID는 profile로 대응한다.
-- [PM 요구, 2026-10-09] 고정 웹캠은 인형이 보이는 구조 지점을 계속 촬영한다. 인형 소실은 완료 후보이며 가림·stream failure는 UNKNOWN.
-- [사용자 요구, 2026-10-11] AMR2는 출동 승인 후 앞서 걷는 구조대원의 다리 스켈레톤을 탑재 카메라로 추적해 목적지까지 연속으로 뒤따른다. 구간별 “계속” 승인은 제외한다. 실현할 추종 입력·액션·모델은 Q-27에서 정의한다.
-- [문서 확인, 2026-10-09] 확인 기준은 `origin/main` SHA `d03b6c8d70db49e098818b4d8463b22c258d9065`. `git ls-tree -r --name-only origin/main docs`와 `git grep -n -E 'SubmitOperatorCommand|SetCameraWatch|EvaluatePassage|MOVE_SEGMENT|ABSENT_CANDIDATE|PrepareMapping|ExecuteTask|sdd-node|rokey7-sdd' origin/main -- docs README.md`로 검사했다. 기존 ExecuteTask/RequestStop 의미는 contracts에 있으나, 이 상세 명세·JSON·CSV·draw.io는 해당 main의 docs에 없었다. 이 검색은 런타임 구현 유무나 열린 PR의 구현 완료를 판정하지 않는다.
-- [기존 계약] 명령 소유·원 관측 시각·좌표 revision·실제 정지·영속 receipt 원칙은 유지한다. 새 타입과 완료/승인 시나리오의 차이는 위 적용 경계 및 아래 확장 목록을 따른다. 저장소 실행 코드·실물 설정은 변경하지 않는다.
+새 00의 요구·미구현 관문은 앞의 2026-10-13 절을 따른다. 기존 코드·1차 IDL 필드와 실제 배포는 별도이며 E3/E4 자동 출동·완료·동시 주행·종료 검증은 NOT_RUN이다. 현재 01~11쪽은 새 00_PC3대 요구를 설명하며 이전 상세도는 Git의 과거 기록으로 구분한다.
 
 ## 이름과 통신 원칙
 
@@ -73,7 +127,7 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | amr1.rgbd | AMR1 | rgbd_driver | ROS_NODE | RGB·정렬 Depth·CameraInfo 취득. RGB-D 장착/정합 확인 필요 | NATIVE_BINDING_UNVERIFIED |
 | amr1.static_tf | AMR1 | static_tf_publisher | ROS_NODE | 실측한 base↔센서 고정 변환; 장비 robot_state_publisher 등에 대응 | NATIVE_BINDING_UNVERIFIED |
 | amr1.watchdog | AMR1 | command_watchdog_node | ROS_NODE | PC 연결과 독립된 최종 명령 만료·stop fence·장치 출력 억제. 설치/지원은 미확인 | PROPOSED_NOT_INSTALLED |
-| amr1.slam | PC1 | slam_toolbox | ROS_NODE | scan·TF로 local map 및 map→odom 제공. backend 채택 제안 | STANDARD_CANDIDATE |
+| amr1.slam | PC1 | slam_toolbox | ROS_NODE | 사전 지도 없이 scan·TF로 SLAM 지도를 생성·갱신하고 AMR2와 중앙에 직접 제공. 갱신 주기/지도 보정 실측 전 | STANDARD_CANDIDATE |
 | amr1.perception | PC1 | target_perception_node | ROS_NODE | 인형 탐지·sensor-frame 위치·증거·관측 창 기반 재확인. 주행 권한 없음 | PROPOSED |
 | amr1.mapping | PC1 | mapping_adapter_node | ROS_NODE | SLAM 준비 요청·원 관측 시각 TF·mission 위치·지도 revision·지도 변화 표시 자료·pose snapshot | PROPOSED |
 | amr1.executor | PC1 | task_executor_node | ROS_NODE | 임무/승인/lease 검증·readiness·Nav2 호출·취소·실제 정지 판정 | PARTIAL_ADAPTER_EXISTS_NEW_ENDPOINTS_PROPOSED |
@@ -89,9 +143,9 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | amr2.rgbd | AMR2 | rgbd_driver | ROS_NODE | RGB·정렬 Depth·CameraInfo 취득. RGB-D 장착/정합 확인 필요 | NATIVE_BINDING_UNVERIFIED |
 | amr2.static_tf | AMR2 | static_tf_publisher | ROS_NODE | 실측한 base↔센서 고정 변환; 장비 robot_state_publisher 등에 대응 | NATIVE_BINDING_UNVERIFIED |
 | amr2.watchdog | AMR2 | command_watchdog_node | ROS_NODE | PC 연결과 독립된 최종 명령 만료·stop fence·장치 출력 억제. 설치/지원은 미확인 | PROPOSED_NOT_INSTALLED |
-| amr2.slam | PC2 | slam_toolbox | ROS_NODE | scan·TF로 local map 및 map→odom 제공. backend 채택 제안 | STANDARD_CANDIDATE |
+| amr2.localization | PC2 | shared_map_localization_adapter | ROS_NODE | AMR1 지도 수신, 실측 초기 정렬 A 후 LiDAR 보정 B(AMCL 후보). 지도 발행 없음; map→AMR2 odom 단일 TF 권한; lifecycle/공유 갱신 지도 동작 검증 전 | POST_E2E_LOCALIZATION_PROPOSAL_UNVERIFIED |
 | amr2.perception | PC2 | target_perception_node | ROS_NODE | 인형 탐지·sensor-frame 위치·증거·관측 창 기반 재확인. 주행 권한 없음 | PROPOSED |
-| amr2.mapping | PC2 | mapping_adapter_node | ROS_NODE | SLAM 준비 요청·원 관측 시각 TF·mission 위치·지도 revision·지도 변화 표시 자료·pose snapshot | PROPOSED |
+| amr2.mapping | PC2 | mapping_adapter_node | ROS_NODE | 수신한 AMR1 지도 session/revision 검증, 관측 좌표 변환, 공통 frame RobotPose 보고. 자기 지도 생성/발행 없음 | PROPOSED |
 | amr2.executor | PC2 | task_executor_node | ROS_NODE | 임무/승인/lease 검증·readiness·Nav2 호출·취소·실제 정지 판정 | PARTIAL_ADAPTER_EXISTS_NEW_ENDPOINTS_PROPOSED |
 | amr2.bt | PC2 | bt_navigator | ROS_NODE | NavigateToPose 서버; 지정한 BT가 planner/controller를 호출 | STANDARD_CANDIDATE |
 | amr2.planner | PC2 | planner_server | ROS_NODE | ComputePathToPose 서버; global costmap 기반 경로 계산 | STANDARD_CANDIDATE |
@@ -104,10 +158,10 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | amr2.passage | PC2 | passage_evaluator_node | ROS_NODE | RGB-D로 평가 경로의 폭·바닥·천장 여유 측정; PASSABLE/BLOCKED/UNKNOWN | PROPOSED |
 | cam.capture | PC3 | webcam_capture_node | ROS_NODE | USB 웹캠 원 영상·관측 시각·카메라 상태 | PROPOSED |
 | cam.quake | PC3 | quake_detector_node | ROS_NODE | 영상 엣지 흔들림을 DISASTER_SIGN 증거로 발행 | PROPOSED |
-| cam.presence | PC3 | target_presence_node | ROS_NODE | 연결된 target/ROI 감시; 가림·유효 시야를 검사해 소실 후보 발행 | PROPOSED |
+| cam.presence | PC3 | target_presence_node | ROS_NODE | target/watch 감시·인형 추적·출구 ROI에서 마지막으로 본 뒤 유효 소실 후보 발행. 가림/끊김 UNKNOWN; 완료 권한 없음 | PROPOSED |
 | cam.video | PC3 | video_gateway | PROCESS | 웹캠 HTTP 영상 스트림; 영상 인코딩/서빙 | PROPOSED |
-| central.frames | PC4 | frame_registry_node | ROS_NODE | 공통 mission 정렬의 단일 authority. 로봇별 map session/revision 변화에 정렬 무효화 | PROPOSED |
-| central.coordinator | PC4 | mission_coordinator_node | ROS_NODE | 사건 연결·대상 ID·출동/구간 승인·임무 세대·완료 시연 판정 | PROPOSED |
+| central.frames | PC4 | frame_registry_node | ROS_NODE | AMR1 공유 지도 frame/session/revision과 로봇별 위치 정렬 유효성 관리. AMR2 초기 정렬/보정 TF 발행 소유권 전환 검증 전 | PROPOSED |
+| central.coordinator | PC4 | mission_coordinator_node | ROS_NODE | AMR1 버튼 출동, 유효 대상 저장 receipt 뒤 AMR2 자동 배정, 출구 소실 후보 뒤 AMR1 현장 재확인(camera ABSENT·LiDAR CLEAR·coverage VALID)을 확인해 완료 판정, 역할별 종료. 실행 계약 검토 전 | PROPOSED |
 | central.operations | PC4 | operations_node | ROS_NODE | HTTP API·ROS 어댑터·보고/증거 수신·DB 단일 쓰기·조회·SSE | PROPOSED |
 | central.web | PC4 | web_console | WEB_FRONTEND | 영상·지도·상태·승인/계속/정지 UI. ROS 직접 연결 없음 | PROPOSED |
 | central.db | PC4 | DB / evidence store | STORE | operations만 쓰는 장부·증거 저장 | PROPOSED |
@@ -126,9 +180,9 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-005 | /amr1/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr1.rgbd | amr1.perception, amr1.executor | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-006 | /amr1/tf | tf2_msgs/msg/TFMessage | amr1.base, amr1.slam | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-007 | /amr1/tf_static | tf2_msgs/msg/TFMessage | amr1.static_tf | amr1.slam, amr1.mapping, amr1.executor, amr1.perception, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.collision | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED | 표준 |
-| IF-008 | /amr1/map | nav_msgs/msg/OccupancyGrid | amr1.slam | amr1.global_costmap, amr1.mapping, amr1.search | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-008 | /amr1/map | nav_msgs/msg/OccupancyGrid | amr1.slam | amr1.global_costmap, amr1.mapping, amr1.search, amr2.localization, amr2.global_costmap, amr2.mapping, central.operations | AMR1 갱신 SLAM OccupancyGrid를 AMR2와 중앙에 직접 전달. 공통 frame·fresh map/revision 확인 전 주행 금지; 주기 미정. AMR2는 지도 발행 안 함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-009 | /rescue/robots/amr1/map_state | rescue_interfaces/msg/MapState | amr1.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
-| IF-010 | /rescue/robots/amr1/pose | rescue_interfaces/msg/RobotPose | amr1.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-010 | /rescue/robots/amr1/pose | rescue_interfaces/msg/RobotPose | amr1.mapping | central.coordinator, central.operations, amr2.mapping | AMR1 공통 지도 frame pose를 중앙과 AMR2에 전달. raw odom과 공통 pose를 혼동하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
 | IF-011 | /rescue/robots/amr1/status | rescue_interfaces/msg/RobotStatus | amr1.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
 | IF-012 | /rescue/robots/amr1/heartbeat | rescue_interfaces/msg/Heartbeat | amr1.executor | central.coordinator, central.operations, amr1.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
 | IF-013 | /rescue/robots/amr1/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr1.watchdog | amr1.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
@@ -139,16 +193,15 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-028 | /amr1/cmd_vel_smoothed | geometry_msgs/msg/Twist | amr1.smoother | amr1.collision | 평활화 속도 → Collision Monitor | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-029 | /amr1/cmd_vel_safe | geometry_msgs/msg/Twist | amr1.collision | amr1.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
 | IF-030 | /amr1/cmd_vel | geometry_msgs/msg/Twist | amr1.watchdog | amr1.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
-| IF-033 | /amr2/scan | sensor_msgs/msg/LaserScan | amr2.lidar | amr2.slam, amr2.executor, amr2.perception, amr2.global_costmap, amr2.local_costmap, amr2.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-033 | /amr2/scan | sensor_msgs/msg/LaserScan | amr2.lidar | amr2.localization, amr2.executor, amr2.perception, amr2.global_costmap, amr2.local_costmap, amr2.collision | 장애물·SLAM·readiness·재확인 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-034 | /amr2/odom | nav_msgs/msg/Odometry | amr2.base | amr2.executor, amr2.controller, amr2.mapping, amr2.smoother | 속도·pose·정지 증거 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-035 | /amr2/rgb/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-036 | /amr2/depth/image_raw | sensor_msgs/msg/Image | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
 | IF-037 | /amr2/rgb/camera_info | sensor_msgs/msg/CameraInfo | amr2.rgbd | amr2.perception, amr2.executor, amr2.passage | RGB/Depth/CameraInfo 정합; 실제 native 이름 remap | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; STANDARD_BINDING_PROPOSED | 표준 |
-| IF-038 | /amr2/tf | tf2_msgs/msg/TFMessage | amr2.base, amr2.slam | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 각 로봇 전용 TF buffer; edge authority 중복 금지 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED | 표준 |
-| IF-039 | /amr2/tf_static | tf2_msgs/msg/TFMessage | amr2.static_tf | amr2.slam, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED | 표준 |
-| IF-040 | /amr2/map | nav_msgs/msg/OccupancyGrid | amr2.slam | amr2.global_costmap, amr2.mapping | 자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; STANDARD_BINDING_PROPOSED | 표준 |
-| IF-041 | /rescue/robots/amr2/map_state | rescue_interfaces/msg/MapState | amr2.mapping | central.frames, central.coordinator, central.operations | session/revision/quality; map 단독 stamp와 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
-| IF-042 | /rescue/robots/amr2/pose | rescue_interfaces/msg/RobotPose | amr2.mapping | central.coordinator, central.operations | mission pose + native pose + 정렬/시각/불확실성 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
+| IF-038 | /amr2/tf | tf2_msgs/msg/TFMessage | amr2.base, amr2.localization | amr2.localization, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | AMR2 odom→base TF와 공유 map→AMR2 odom 정렬. 초기 A/보정 B의 TF 중복 발행 금지; 실제 전환 검증 전 | 표준 TF QoS; 설치 확인; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-039 | /amr2/tf_static | tf2_msgs/msg/TFMessage | amr2.static_tf | amr2.localization, amr2.mapping, amr2.executor, amr2.perception, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.collision, amr2.passage | 고정 센서 TF; 두 로봇 접두 없는 frame 혼합 금지 | 표준 static TF QoS; STANDARD_BINDING_PROPOSED | 표준 |
+| IF-041 | /rescue/robots/amr2/map_state | rescue_interfaces/msg/MapState | amr2.mapping | central.frames, central.coordinator, central.operations | AMR2가 사용 중인 AMR1 공유 지도 revision 및 자기 위치 추정 품질. MapState는 새 지도 발행이 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-042 | /rescue/robots/amr2/pose | rescue_interfaces/msg/RobotPose | amr2.mapping | central.coordinator, central.operations, amr1.mapping | AMR2 공통 지도 frame pose를 중앙과 AMR1에 전달. 교차 로봇 공유의 stale/revision 검증 필요 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
 | IF-043 | /rescue/robots/amr2/status | rescue_interfaces/msg/RobotStatus | amr2.executor | central.coordinator, central.operations | task/readiness/motion/segment 상태; retained는 live 증거 아님 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
 | IF-044 | /rescue/robots/amr2/heartbeat | rescue_interfaces/msg/Heartbeat | amr2.executor | central.coordinator, central.operations, amr2.watchdog | live executor heartbeat | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
 | IF-045 | /rescue/robots/amr2/watchdog_heartbeat | rescue_interfaces/msg/Heartbeat | amr2.watchdog | amr2.executor, central.coordinator, central.operations | 장치 최종 감시 생존·fence 상태 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
@@ -160,7 +213,7 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-061 | /amr2/cmd_vel_safe | geometry_msgs/msg/Twist | amr2.collision | amr2.watchdog | Nav2 보호 이후 장치 watchdog으로 전달 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
 | IF-062 | /amr2/cmd_vel | geometry_msgs/msg/Twist | amr2.watchdog | amr2.base | 실제 구동 최종 입력. 다른 publish 경로는 허용하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; BINDING_PROPOSED_NOT_INSTALLED | 표준 |
 | IF-065 | /rescue/observations | rescue_interfaces/msg/TargetObservation | amr1.perception, amr2.perception | amr1.mapping, amr2.mapping | 연속 원 관측; 각 mapping은 자기 source_robot만 소비 | BEST_EFFORT / VOLATILE / KEEP_LAST 10; PROPOSED | 1차 |
-| IF-066 | /rescue/target_locations | rescue_interfaces/msg/TargetLocation | amr1.mapping, amr2.mapping | central.coordinator | 첫 발견·중요 좌표 변화·원 관측/근거; 저장 receipt까지 outbox 재전송 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-066 | /rescue/target_locations | rescue_interfaces/msg/TargetLocation | amr1.mapping, amr2.mapping | central.coordinator, amr2.mapping | AMR1 탐지 위치를 중앙과 AMR2에 직접 공유. shared topic은 source_robot/역할·target/frame/revision으로 필터. 수신 자체는 이동 명령 아님; coordinator의 저장 확인·자동 배정이 실행 계기 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
 | IF-067 | /rescue/frame_alignments | rescue_interfaces/msg/FrameAlignmentSnapshot | central.frames | amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, central.coordinator, central.operations | 두 로봇 mission 정렬의 전체 snapshot | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 2차 |
 | IF-068 | /rescue/robots/amr1/search_candidates | rescue_interfaces/msg/SearchCandidates | amr1.search | amr1.executor | frontier/waypoint 후보; search task 없이 스스로 이동시키지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 2차 |
 | IF-070 | /rescue/targets | rescue_interfaces/msg/TargetSnapshot | central.coordinator | central.operations | target 전체 snapshot; target 좌표와 approach/segment goal 구분 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
@@ -169,8 +222,8 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-073 | /rescue/report_receipts | rescue_interfaces/msg/ReportReceipt | central.operations | central.coordinator, amr1.mapping, amr2.mapping, amr1.executor, amr2.executor, cam.quake, cam.presence | DB commit·필수 증거 저장 뒤 PERSISTED; included_record_ids로 outbox 정리 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
 | IF-074 | /rescue/cameras/cam_fixed/image_raw | sensor_msgs/msg/Image | cam.capture | cam.quake, cam.presence, cam.video | 인형이 있는 고정 시야의 웹캠 원 영상 | BEST_EFFORT / VOLATILE / KEEP_LAST 1; native publisher QoS 확인; PROPOSED | 표준 |
 | IF-075 | /rescue/cameras/cam_fixed/status | rescue_interfaces/msg/CameraStatus | cam.capture | cam.quake, cam.presence, central.coordinator, central.operations | stream/clock/frame 품질; 오프라인을 인형 소실로 처리하지 않음 | RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사; PROPOSED | 1차 |
-| IF-076 | /rescue/site_events | rescue_interfaces/msg/SiteEvent | cam.quake, cam.presence | central.coordinator | DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
-| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
+| IF-076 | /rescue/site_events | rescue_interfaces/msg/SiteEvent | cam.quake, cam.presence | central.coordinator | 지진 징후 또는 출구를 통한 대상 소실 후보. 후보만으로 완료하지 않고 연결된 AMR1 현장 재확인 후 coordinator가 완료를 기록 | RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt; PROPOSED | 1차 |
+| IF-077 | /rescue/cameras/cam_fixed/presence | rescue_interfaces/msg/TargetPresence | cam.presence | central.coordinator, central.operations | target/watch별 PRESENT/ABSENT_CANDIDATE/UNKNOWN과 시각·유효성. 출구 영역 소실 근거·가림/끊김 검증; 완료 수락 정책 미정 | RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot; PROPOSED | 1차 |
 
 ## 서비스 연결 정의
 
@@ -183,21 +236,21 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 | IF-050 | /rescue/robots/amr2/request_stop | rescue_interfaces/srv/RequestStop | central.coordinator, central.operations | amr2.executor | 빠른 정지 접수; 실제 STOPPED는 후속 status/관측으로 확인 | N/A; PROPOSED | 1차 |
 | IF-051 | /rescue/robots/amr2/reset_stop | rescue_interfaces/srv/ResetStop | central.coordinator | amr2.executor | 원인 해결·실제 정지·새 권한 검증 뒤 software latch 해제 | N/A; PROPOSED | 1차 |
 | IF-078 | /rescue/cameras/cam_fixed/set_watch | rescue_interfaces/srv/SetCameraWatch | central.coordinator | cam.presence | target_id와 ROI 연결을 설정; 확인된 보정 또는 운영자 ROI 연결 필요 | N/A; PROPOSED | 1차 |
-| IF-079 | /rescue/operator_command | rescue_interfaces/srv/SubmitOperatorCommand | central.operations | central.coordinator | 출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결 | N/A; PROPOSED | 1차 |
+| IF-079 | /rescue/operator_command | rescue_interfaces/srv/SubmitOperatorCommand | central.operations | central.coordinator | AMR1 START_SEARCH·REQUEST_RECHECK·정지해제·복귀/종료·감시 설정 운영자 요청. 새 00 AMR2 초기 출동은 DISPATCH_SUPPORT/CONTINUE_SEGMENT에 의존하지 않음. REQUEST_RECHECK는 UNKNOWN 시 영상 판단 기록/재확인 요청이며 완료 승인 자체 아님 | N/A; PROPOSED | 1차 |
 
 ## 액션 연결 정의
 
 | ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 | IDL |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | IF-020 | /rescue/robots/amr1/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr1.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED | 2차 |
-| IF-021 | /rescue/robots/amr1/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr1.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED | 1차 |
+| IF-021 | /rescue/robots/amr1/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr1.executor | AMR1 수색·출구 소실 후보 이후 REOBSERVE_TARGET·도킹 접근 복귀의 Goal→Feedback→Result. 재확인 임무와 후보/target/frame 연결 검증 | N/A; PROPOSED | 1차 |
 | IF-022 | /rescue/robots/amr1/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr1.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED | 2차 |
-| IF-023 | /rescue/robots/amr1/observe_target | rescue_interfaces/action/ObserveTarget | amr1.executor | amr1.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED | 1차 |
+| IF-023 | /rescue/robots/amr1/observe_target | rescue_interfaces/action/ObserveTarget | amr1.executor | amr1.perception | 출구 소실 후보 이후 AMR1 현장 정지·새 관측 창에서 camera ABSENT·LiDAR CLEAR·coverage VALID 보고. 새 00 구조 완료 필수 관문 | N/A; PROPOSED | 1차 |
 | IF-024 | /amr1/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr1.executor | amr1.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY | 표준 |
 | IF-025 | /amr1/compute_path_to_pose | nav2_msgs/action/ComputePathToPose | amr1.executor, amr1.bt | amr1.planner | 경로 조회; 결과만으로 주행/통로 통과 성공 아님 | N/A; STANDARD_JAZZY | 표준 |
 | IF-026 | /amr1/follow_path | nav2_msgs/action/FollowPath | amr1.bt | amr1.controller | Nav2 내부 경로 제어 | N/A; STANDARD_JAZZY | 표준 |
-| IF-052 | /rescue/robots/amr2/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr2.mapping | baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음 | N/A; PROPOSED | 2차 |
-| IF-053 | /rescue/robots/amr2/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr2.executor | 수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result | N/A; PROPOSED | 1차 |
+| IF-052 | /rescue/robots/amr2/prepare_mapping | rescue_interfaces/action/PrepareMapping | central.coordinator | amr2.mapping | AMR2 수신 지도·TF·위치 추정 준비 [제안]; legacy PrepareMapping START를 자기 SLAM 시작으로 해석하지 않음. backend binding 검토 전 | N/A; PROPOSED | 2차 |
+| IF-053 | /rescue/robots/amr2/execute_task | rescue_interfaces/action/ExecuteTask | central.coordinator | amr2.executor | AMR2 자동 접근/도착 관측/역할별 종료 요청 [제안]. 자동 발급 kind·approval·exit terminal 참조 계약 검토 전; 기존 승인 값 위조 금지 | N/A; PROPOSED | 1차 |
 | IF-054 | /rescue/robots/amr2/evaluate_route | rescue_interfaces/action/EvaluateRoute | central.coordinator | amr2.executor | 주행 없이 접근·다음 구간의 planner 경로와 승인용 RouteCandidate 생성 | N/A; PROPOSED | 2차 |
 | IF-055 | /rescue/robots/amr2/observe_target | rescue_interfaces/action/ObserveTarget | amr2.executor | amr2.perception | 관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환 | N/A; PROPOSED | 1차 |
 | IF-056 | /amr2/navigate_to_pose | nav2_msgs/action/NavigateToPose | amr2.executor | amr2.bt | 표준 Nav2 주행; 프로젝트 호출자는 executor 한 곳 | N/A; STANDARD_JAZZY | 표준 |
@@ -209,27 +262,27 @@ Topic은 연속 관측·상태, Service는 짧은 요청/접수, Action은 종�
 
 | ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| IF-080 | POST /api/operator-commands | JSON OperatorCommand + accepted/request_id | central.web | central.operations | 세션 인증된 운영 요청; STOP_ROBOT는 operations가 RequestStop로 우선 전달, 나머지는 coordinator 서비스로 전달 | N/A; PROPOSED |
-| IF-081 | GET /api/snapshot + GET /api/events (SSE) | JSON ConsoleSnapshot / EventStream | central.operations | central.web | DB에 저장된 대상 좌표·보고 상태와 수신 시각이 있는 live 로봇 상태 | N/A; PROPOSED |
-| IF-082 | GET /video/cam_fixed.mjpg | multipart/x-mixed-replace | cam.video | central.web | PC3의 HTTP 영상 gateway를 PC4 브라우저가 조회 | N/A; PROPOSED |
-| IF-083 | PUT /api/evidence/{evidence_id} | bytes + sha256 -> PERSISTED/REJECTED | amr1.perception, amr2.perception, cam.quake, cam.presence, amr2.passage | central.operations | 증거 원 bytes와 hash; ROS event는 EvidenceRef만 사용 | N/A; PROPOSED |
-| IF-084 | PUT /api/maps/{snapshot_id} | MapSnapshot: grid + MapState + baseline-diff + sha256 | amr1.mapping, amr2.mapping | central.operations | 지도 내용/metadata/변화 표시 자료를 같은 snapshot ID로 원자적으로 저장 | N/A; PROPOSED |
+| IF-080 | POST /api/operator-commands | JSON OperatorCommand + accepted/request_id | central.web | central.operations | 세션 인증된 운영 요청; STOP_ROBOT는 operations가 RequestStop로 우선 전달, 나머지는 coordinator 서비스로 전달 | N/A; PROPOSED | N/A; PROPOSED |
+| IF-081 | GET /api/snapshot + GET /api/events (SSE) | JSON ConsoleSnapshot / EventStream | central.operations | central.web | DB에 저장된 대상 좌표·보고 상태와 수신 시각이 있는 live 로봇 상태 | N/A; PROPOSED | N/A; PROPOSED |
+| IF-082 | GET /video/cam_fixed.mjpg | multipart/x-mixed-replace | cam.video | central.web | PC3의 HTTP 영상 gateway를 PC4 브라우저가 조회 | N/A; PROPOSED | N/A; PROPOSED |
+| IF-083 | PUT /api/evidence/{evidence_id} | bytes + sha256 -> PERSISTED/REJECTED | amr1.perception, amr2.perception, cam.quake, cam.presence, amr2.passage | central.operations | 증거 원 bytes와 hash; ROS event는 EvidenceRef만 사용 | N/A; PROPOSED | N/A; PROPOSED |
+| IF-084 | PUT /api/maps/{snapshot_id} | MapSnapshot: grid + MapState + baseline-diff + sha256 | amr1.mapping | central.operations | AMR1 공유 지도의 snapshot/metadata/hash를 중앙에 저장하는 HTTP 계획. AMR2의 자기 지도 업로드 없음; 브라우저 live map 렌더는 미구현 | N/A; PROPOSED | N/A; PROPOSED |
 
 ## 내부 호출 연결 정의
 
 | ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| IF-031 | global_costmap access | nav2_costmap_2d internal API | amr1.global_costmap | amr1.planner | planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음 | N/A; STANDARD_CANDIDATE |
-| IF-032 | local_costmap access | nav2_costmap_2d internal API | amr1.local_costmap | amr1.controller | controller가 자기 Costmap2DROS 객체를 사용 | N/A; STANDARD_CANDIDATE |
-| IF-063 | global_costmap access | nav2_costmap_2d internal API | amr2.global_costmap | amr2.planner | planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음 | N/A; STANDARD_CANDIDATE |
-| IF-064 | local_costmap access | nav2_costmap_2d internal API | amr2.local_costmap | amr2.controller | controller가 자기 Costmap2DROS 객체를 사용 | N/A; STANDARD_CANDIDATE |
-| IF-085 | ledger / evidence store transaction | SQL + file store | central.operations | central.db | DB 단일 writer 및 보고/증거 commit | N/A; PROPOSED |
+| IF-031 | global_costmap access | nav2_costmap_2d internal API | amr1.global_costmap | amr1.planner | planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음 | N/A; STANDARD_CANDIDATE | N/A; STANDARD_CANDIDATE |
+| IF-032 | local_costmap access | nav2_costmap_2d internal API | amr1.local_costmap | amr1.controller | controller가 자기 Costmap2DROS 객체를 사용 | N/A; STANDARD_CANDIDATE | N/A; STANDARD_CANDIDATE |
+| IF-063 | global_costmap access | nav2_costmap_2d internal API | amr2.global_costmap | amr2.planner | planner가 자기 Costmap2DROS 객체를 사용; ROS topic으로 꾸미지 않음 | N/A; STANDARD_CANDIDATE | N/A; STANDARD_CANDIDATE |
+| IF-064 | local_costmap access | nav2_costmap_2d internal API | amr2.local_costmap | amr2.controller | controller가 자기 Costmap2DROS 객체를 사용 | N/A; STANDARD_CANDIDATE | N/A; STANDARD_CANDIDATE |
+| IF-085 | ledger / evidence store transaction | SQL + file store | central.operations | central.db | DB 단일 writer 및 보고/증거 commit | N/A; PROPOSED | N/A; PROPOSED |
 
 ## Discovery 연결 정의
 
 | ID | endpoint | 타입 | 발행자/Client | 구독자/Server | 전달 의미 | QoS/상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| IF-086 | DDS discovery metadata | Fast DDS discovery protocol | amr1.base, amr1.lidar, amr1.rgbd, amr1.static_tf, amr1.watchdog, amr1.slam, amr1.perception, amr1.mapping, amr1.executor, amr1.bt, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.smoother, amr1.collision, amr2.base, amr2.lidar, amr2.rgbd, amr2.static_tf, amr2.watchdog, amr2.slam, amr2.perception, amr2.mapping, amr2.executor, amr2.bt, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.smoother, amr2.collision, amr1.search, amr2.passage, cam.capture, cam.quake, cam.presence, central.frames, central.coordinator, central.operations | central.discovery | 참여자 ↔ 서버 발견 정보. Topic/Service/Action 데이터 흐름과 분리 | N/A; DEPLOYMENT_PROPOSED |
+| IF-086 | DDS discovery metadata | Fast DDS discovery protocol | amr1.base, amr1.lidar, amr1.rgbd, amr1.static_tf, amr1.watchdog, amr1.slam, amr1.perception, amr1.mapping, amr1.executor, amr1.bt, amr1.planner, amr1.controller, amr1.global_costmap, amr1.local_costmap, amr1.smoother, amr1.collision, amr2.base, amr2.lidar, amr2.rgbd, amr2.static_tf, amr2.watchdog, amr2.localization, amr2.perception, amr2.mapping, amr2.executor, amr2.bt, amr2.planner, amr2.controller, amr2.global_costmap, amr2.local_costmap, amr2.smoother, amr2.collision, amr1.search, amr2.passage, cam.capture, cam.quake, cam.presence, central.frames, central.coordinator, central.operations | central.discovery | 참여자 ↔ 서버 발견 정보. Topic/Service/Action 데이터 흐름과 분리 | N/A; DEPLOYMENT_PROPOSED | N/A; DEPLOYMENT_PROPOSED |
 
 ## 사용자 정의 메시지 필수 필드
 
@@ -330,7 +383,7 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 | Goal | envelope:Envelope, request_id:UUID, robot_id:string, operation:string(PREPARE/START), baseline_map_ref:string, mapping_profile_id:string, expected_map_session_id:string, issued_at_ns:int64, deadline_ns:int64. |
 | Result | envelope:Envelope, outcome:string(READY/FAILED/UNKNOWN), map_state:MapState, reason_code:string. |
 | Feedback | envelope:Envelope, request_id:UUID, phase:string(CHECKING_PROFILE/STARTING_BACKEND/WAITING_FRESH_MAP_TF), reason_code:string. |
-| Rules | mapping 소유 adapter가 bringup의 지정 backend 기동/activation 절차를 요청하고 fresh map/scan/TF로 준비 결과를 확인. 단순 process 시작을 READY로 표시하지 않음. 실제 slam_toolbox lifecycle/process API는 설치 버전 확인 후 binding을 고정하며 임의의 표준 service 이름을 가정하지 않음. 활성 이동 중 session reset/기준 지도 교체 금지. PREPARE는 사전 점검, START는 지진 이후 SLAM 시작 요청. Nav2 이동은 별도 executor guard. |
+| Rules | AMR1은 사전 지도 없이 scan·TF 기반 SLAM 준비/시작. AMR2는 AMR1의 fresh map/session/revision과 자기 정렬 TF·LiDAR 위치 추정 준비를 확인하고 지도를 발행하지 않는다 [POST_E2E 제안]. 기존 PREPARE/START fields는 호환 보존; 로봇 역할별 backend binding 계약 확정 전 적용 불가. 단순 process/토픽 수신을 READY로 표시하지 않음. |
 
 ### ExecuteTask
 
@@ -341,7 +394,7 @@ IDL: 1차 ([contracts C-10](contracts.md)).
 | Goal | envelope:Envelope, command_id:UUID, task_id:UUID, robot_id:string, expected_robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, kind:string(SEARCH_AREA/APPROACH_TARGET/REOBSERVE_TARGET/HOLD/MOVE_SEGMENT/RETURN_HOME), issued_at_ns:int64, deadline_ns:int64, lease_id:UUID, target_id:string, target_estimate_revision:uint64, search_area_ref:string, home_ref:string, frame_ref:FrameRef, route:RouteCandidate, has_route:bool, approval:OperatorApproval, has_approval:bool, policy_version:string. |
 | Result | envelope:Envelope, result:TaskResult. |
 | Feedback | envelope:Envelope, task_id:UUID, generation:uint64, state:string(VALIDATING/PLANNING/NAVIGATING/VERIFYING/STOPPING), segment_index:uint32, current_pose:RobotPose, distance_remaining_known:bool, distance_remaining_m:float64, reason_code:string. UNKNOWN pose/distance는 status/known=false로 명시하고 숫자 사용 금지. |
-| Rules | 로봇당 활성 이동 task 1개. MOVE_SEGMENT는 APPROACH와 별도 새 kind: 한 구간 도착·실제 정지 뒤 Result(COMPLETED, scope=SEGMENT). coordinator는 다음 구간을 자동 발급하지 않음. 최종 구간 뒤 REOBSERVE_TARGET로 AMR2 카메라 재확인. RETURN_HOME은 현재 유효 home_ref를 재해석하며 초기 pose를 stale goal로 재사용하지 않음. 수락 전 거절은 action Result가 아니라 accepted=false + TaskAdmission. 이동 출력이 있었던 모든 종료 경로는 stop 관문. |
+| Rules | 로봇당 활성 이동 1개와 권한/lease·준비·취소→실제 정지 관문 유지. POST_E2E PM 요구안은 AMR2 자동 접근이며 kind/approval admission 계약 개정 전 실행 불가. 기존 MOVE_SEGMENT·ONE_SEGMENT/CONTINUE_SEGMENT는 10-13 E2E/과거 wire 정의로 보존하고 무승인 의미로 재해석하지 않음. AMR1 RETURN_HOME은 도킹 접근, 실제 Dock는 별도 운영 절차; AMR2 출구 종료는 역할별 terminal reference/task mapping 계약 미정. 목표 좌표/종료 참조/정지 허용치 불명은 거절·보류. |
 
 ### EvaluateRoute
 
@@ -363,7 +416,7 @@ IDL: 1차 ([contracts C-10](contracts.md)).
 | Goal | envelope:Envelope, request_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, watched_native_point:geometry_msgs/Point, frame_ref:FrameRef, requested_window_ns:uint64, policy_version:string, deadline_ns:int64. |
 | Result | envelope:Envelope, outcome:string(OBSERVED/UNKNOWN/FAILED), observation:RecheckObservation, reason_code:string. |
 | Feedback | envelope:Envelope, request_id:UUID, phase:string(COLLECTING/CHECKING_COVERAGE/FINALIZING), camera_state:string, lidar_state:string. |
-| Rules | perception은 센서 취득·판정만 수행. target point의 실제 시야/거리/검출기/TF 유효성이 충족돼야 ABSENT 또는 CLEAR를 발행. 고정 카메라 소실 이후 완료 판정용 AMR1 관측 창이 새로 확보돼야 함. 취소/timeout은 UNKNOWN이며 부재 성공으로 만들지 않음. |
+| Rules | AMR1 완료 재확인과 AMR2 도착 인형 재탐지에 재사용. 완료용 AMR1 관측은 연결된 출구 소실 후보 또는 수락된 REQUEST_RECHECK 이후에 현장 이동·정지한 뒤 새 관측 창에서 취득한다. target/frame/task/시각·시야 유효성 확인 뒤 camera ABSENT·LiDAR CLEAR·coverage VALID를 각각 보고하며 coordinator가 이 세 조건과 후보 연결을 검증한다. 취소/timeout/가림/불확실은 UNKNOWN, 부재 성공으로 위조하지 않음. |
 
 ### EvaluatePassage
 
@@ -426,19 +479,21 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 
 | 페이지 | 내용 |
 | --- | --- |
-| 01 | 하드웨어·노드 전체도 |
+| 00_PC3대 | 동일 시나리오의 응용 PC 3 + 전용 Discovery PC 1 배치: PC3 웹캠·중앙·로컬 브라우저, PC4 Discovery. `placement_variants.three_pc` 적용 |
+| 00 | E2E 이후 PM 요구안: 공유 지도·자동 출동·사람 후행·현장 재확인 필수·역할별 종료. 새 JSON/CSV와 연결 대조 |
+| 01 | 00_PC3대와 동일한 44노드·89IF 하드웨어 전체 연결 |
 | 02 / 03 | PC1 센서·지도 / 명령·주행 |
-| 04 / 05 | PC2 센서·지도 / 명령·주행 |
+| 04 / 05 | PC2 공유 지도·위치 추정 / 자동 지원·명령·주행 |
 | 06 | PC3 CAM·지진·소실 |
-| 07 | PC4 좌표·상태·수신확인 |
-| 08 | PC4 웹·DB·HTTP |
-| 09 | DDS 발견·데이터 경계 |
-| 10 | `rescue_interfaces` 통신 흐름: [패키지 README](../../src/rescue_interfaces/README.md) 「통신별 입력과 출력」 표의 그림(2026-10-10 추가) |
-| 11 | AMR2 카메라 다리 스켈레톤 연속 추종 요구(C-12): 출동 승인·목적지 정지·대상 소실 시 정지. ROS 입력/액션 미정 |
+| 07 | PC3 좌표·상태·수신확인 |
+| 08 | PC3 웹·DB·HTTP 및 웹 8칸 데이터 출처 |
+| 09 | PC4 전용 DDS 발견·데이터 경계(실제 권고안 A와 별도 제안) |
+| 10 | 최신 활성 `rescue_interfaces` 관측·요청·상태·저장 receipt 흐름. 패키지 README의 과거 승인/구간 정책과 구분 |
+| 11 | AMR2 자동 출동·사람 후행·공유 지도·도착 관측·소실 후보→AMR1 새 재확인→완료 저장·역할별 종료 |
 
 포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01~09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 2026-10-11 변경은 감시 3종의 1차 표시와 별도 11쪽 요구 흐름을 추가한다. XML/연결 정합 검사와 화면 검증은 이번 PR 검증 기록에 별도로 남긴다.
 
-모든 상세 연결은 `IF-001`~`IF-086`과 endpoint/type을 표시한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
+새 00은 IF-001~090 중 퇴역 IF-040을 제외한 89개 활성 연결을 표시한다. 상세 01~10도 같은 89개 활성 연결을 페이지별 범위에 맞춰 표시하고, 11쪽은 실제 IF 번호를 참조하는 요구 상태 흐름을 설명한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
 
 Nav2 내부 action은 [NavigateToPose Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/NavigateToPose.action), [ComputePathToPose Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/ComputePathToPose.action), [FollowPath Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/FollowPath.action)를 사용한다. endpoint는 native namespace에 remap한 제안이며 설치된 action 이름을 조회해 확인한다. Context7의 rolling/main 결과에 있는 새 필드를 Jazzy 계약에 추가하지 않았다. Collision Monitor 연결은 [Jazzy 공식 지침](https://docs.nav2.org/jazzy/tutorials/general_tutorials/using_collision_monitor/using_collision_monitor/)을 따르고, 별도 장치 watchdog은 프로젝트의 미설치 설계다.
 
@@ -450,6 +505,15 @@ Nav2 내부 action은 [NavigateToPose Jazzy](https://github.com/ros-navigation/n
 
 등록 산출물의 노드 참조, ID·endpoint/type, CSV와 draw.io 발행·수신 연결의 일치, XML 참조 무결성과 파일 해시는 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)에 남긴다. 2026-10-09 정적 집계는 논리 노드 44개, 배포 인터페이스 그룹 86개, source×target 관계 255개다. 그룹에는 로봇별 중복 배치 endpoint가 포함되므로 86개를 서로 다른 메시지 타입 수로 해석하지 않는다.
 
-같은 draw.io 바이트는 앞선 작업(2026-10-09)에서 실제 draw.io 화면의 9페이지·86개 interface ID를 확인했다. 이번 문서 등록에서는 도면을 수정하지 않고 원본과 SHA-256 일치를 확인한다. 이 GUI 기록은 ROS 연결이나 실제 센서의 통신 증거가 아니다.
+같은 draw.io 바이트는 앞선 작업(2026-10-09)에서 실제 draw.io 화면의 9페이지·86개 interface ID를 확인했다. 그 기록은 당시 파일에만 해당한다. 2026-10-13 상세도는 새로 수정·검증한 산출물이며 동일 해시라고 주장하지 않는다. 이 GUI 기록은 ROS 연결이나 실제 센서의 통신 증거가 아니다.
 
 ROS IDL 생성·컴파일, 실제 ROS 그래프·QoS 통신, 카메라/깊이/TF·정지·주행·다중 PC 장애 시험은 **NOT_RUN**. 현 파일의 계약은 검토 가능한 제안이다.
+
+## 00 신규 표준 연결 (바인딩 검증 전)
+
+| ID | 종류 | endpoint 예시 | 타입 | source → target | 검증 상태 |
+| --- | --- | --- | --- | --- | --- |
+| IF-087 | ACTION | /amr1/dock | irobot_create_msgs/action/Dock | amr1.executor → amr1.base | 표준 타입 / native 바인딩·QoS·설정 NOT_RUN |
+| IF-088 | TOPIC | /amr1/dock_status | irobot_create_msgs/msg/DockStatus | amr1.base → amr1.executor, central.coordinator, central.operations | 표준 타입 / native 바인딩·QoS·설정 NOT_RUN |
+| IF-089 | TOPIC | /amr2/initialpose | geometry_msgs/msg/PoseWithCovarianceStamped | amr2.mapping → amr2.localization | 표준 타입 / native 바인딩·QoS·설정 NOT_RUN |
+| IF-090 | TOPIC | /amr2/amcl_pose | geometry_msgs/msg/PoseWithCovarianceStamped | amr2.localization → amr2.mapping | 표준 타입 / native 바인딩·QoS·설정 NOT_RUN |

@@ -24,7 +24,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [AMR1 자율 탐색 후보](docs/implementation/amr1-exploration-candidates.md) | 무지도 환경의 탐색 알고리즘 5개, 구현·논문 근거, 비교 순서와 미검증 관문 |
 | [AMR1 explore_lite 단독 시험](docs/implementation/amr1-explore-lite-field-test.md) | robot6 단독 탐색의 실행·중단 절차, 미실행 관문과 PR 결과 댓글 양식 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
-| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 도면 00쪽 통합 시스템 설계도와 기존 01~11쪽 상세도, 관제 웹 데이터 출처. 기존 팀 BRD·실행 계약과의 차이를 명시 |
+| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 00 통합도: AMR1 지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료 위치의 E2E 이후 PM 요구안. PC3대 복제 00은 웹캠·관제·DB·로컬 브라우저를 PC3에 통합하고 전용 Discovery PC4를 추가(응용 PC 3 + 서버 PC 1). JSON·CSV·그림 정합 검사, 두 00은 보존, 01~11 상세도는 PC3대 기준으로 통일 |
 | [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
 | [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
