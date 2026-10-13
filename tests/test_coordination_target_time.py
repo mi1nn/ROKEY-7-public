@@ -34,9 +34,14 @@ class TargetTimeGateTests(unittest.TestCase):
 
     def test_a_usable_time_makes_a_target(self):
         self.assertIsNotNone(self.core.on_target_location(timed(1), now_ns=NOW))
+        self.setUp()
+        self.assertIsNotNone(self.core.on_target_location(timed(2, stamp_semantics='DRIVER_RECEIVE'), now_ns=NOW))
 
     def test_undeclared_time_basis_is_refused(self):
-        for n, changes in enumerate((dict(stamp_semantics='UNKNOWN'), dict(clock_state='UNKNOWN'),
+        # Only the two declared meanings count (C-03 STAMP_SEMANTICS minus UNKNOWN); anything else is no basis.
+        for n, changes in enumerate((dict(stamp_semantics='UNKNOWN'), dict(stamp_semantics=''),
+                                     dict(stamp_semantics='INVALID'), dict(stamp_semantics='capture'),
+                                     dict(clock_state='UNKNOWN'), dict(clock_state=''),
                                      dict(has_clock_error_bound=False)), 1):
             with self.subTest(changes=changes):
                 self.setUp()
