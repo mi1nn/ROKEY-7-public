@@ -24,10 +24,35 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def check_graph(data, xml):
+def normalized_root(page):
+    """draw.io page duplication changes cell IDs but preserves SDD identities."""
+    root = copy.deepcopy(page.find('./mxGraphModel/root'))
+    aliases = {root[0].get('id'): '0', root[1].get('id'): '1'}
+    queries = {'read_mission_state': 'mission', 'read_robot_status': 'robot',
+               'read_target_states': 'targets', 'read_reports': 'reports', 'read_site_events': 'events'}
+    for obj in root.findall('object'):
+        for attr, prefix in [('sddNodeId', 'node-'), ('sddInterfaceId', 'if-'),
+                             ('webPanel', 'panel-'), ('hostId', 'host-')]:
+            if obj.get(attr):
+                aliases[obj.get('id')] = prefix + obj.get(attr)
+        if obj.get('queryFunction'):
+            aliases[obj.get('id')] = 'query-' + queries[obj.get('queryFunction')]
+    require(len(set(aliases.values())) == len(aliases), 'duplicate semantic cell ID')
+    for entry in root:
+        entry.set('id', aliases.get(entry.get('id'), entry.get('id')))
+        cell = entry if entry.tag == 'mxCell' else entry.find('mxCell')
+        for attr in ('parent', 'source', 'target'):
+            if cell.get(attr) in aliases:
+                cell.set(attr, aliases[cell.get(attr)])
+    return root
+
+
+def check_graph(data, xml, page_index=0):
     pages = ET.fromstring(xml)
-    require(len(pages) == 12 and pages[0].get('name') == '00 통합 시스템 설계도', 'page count/name')
-    root = pages[0].find('./mxGraphModel/root')
+    variant = data['metadata']['placement_variants']['three_pc']
+    require(len(pages) == 13 and pages[0].get('name') == '00 통합 시스템 설계도'
+            and pages[1].get('name') == variant['page_name'], 'page count/name')
+    root = normalized_root(pages[page_index])
     objects = root.findall('object')
     actual_nodes = [o.get('sddNodeId') for o in objects if o.get('sddNodeId')]
     expected_nodes = {n['id'] for n in data['nodes']}
@@ -66,7 +91,32 @@ def check_graph(data, xml):
         for a, b in zip(path, path[1:]):
             require(b in adjacency[a], 'web provenance: ' + a + ' -> ' + b)
     require(len([o for o in objects if o.get('webPanel')]) == 8, 'web panels')
-    require(len([o for o in objects if o.get('hostId')]) == 7, 'host swimlanes')
+    hosts = {o.get('hostId'): o.get('id') for o in objects if o.get('hostId')}
+    expected_hosts = {'BROWSER', 'PC1', 'PC2', 'PC3', 'AMR1', 'AMR2'}
+    if page_index == 0:
+        expected_hosts.add('PC4')
+    require(set(hosts) == expected_hosts, 'host swimlanes')
+    entries = {e.get('id'): e for e in root}
+
+    def physical_host(iid):
+        seen = set()
+        while iid not in ('0', '1'):
+            require(iid not in seen, 'cyclic container parent')
+            seen.add(iid)
+            entry = entries[iid]
+            if entry.get('hostId') in expected_hosts - {'BROWSER'}:
+                return entry.get('hostId')
+            cell = entry if entry.tag == 'mxCell' else entry.find('mxCell')
+            iid = cell.get('parent')
+        return None
+
+    overrides = variant['node_host_overrides'] if page_index else {}
+    for node in data['nodes']:
+        require(physical_host('node-' + node['id']) == overrides.get(node['id'], node['host']),
+                'node placement: ' + node['id'])
+    if page_index:
+        require(variant['physical_pc_count'] == 3 and pages[1].get('physicalPCCount') == '3', 'physical PC count')
+        require(variant['browser_host'] == 'PC3' and physical_host(hosts['BROWSER']) == 'PC3', 'local browser host')
     # The existing ExecuteTask/ObserveTarget wires are the mandatory recheck path.
     for a, b in [('node-central.coordinator', 'if-IF-021'), ('if-IF-021', 'node-amr1.executor'),
                  ('node-amr1.executor', 'if-IF-023'), ('if-IF-023', 'node-amr1.perception')]:
@@ -135,8 +185,9 @@ def main():
     args = parser.parse_args()
     data = json.loads((DESIGN / 'sdd-node-contracts-v0.1.json').read_text())
     xml = (DESIGN / 'rokey7-sdd.drawio').read_bytes()
-    root, edges = check_graph(data, xml)
-    check_geometry(root, edges)
+    for page_index in (0, 1):
+        root, edges = check_graph(data, xml, page_index)
+        check_geometry(root, edges)
     expected = {(i['id'], a, b, i['endpoint'], i['type']) for i in data['interfaces'] for a in i['sources'] for b in i['targets']}
     rows = list(csv.DictReader((DESIGN / 'sdd-node-connections-v0.1.csv').open(encoding='utf-8-sig')))
     got = {(r['interface_id'], r['source_node_id'], r['target_node_id'], r['endpoint'], r['type']) for r in rows}
@@ -147,26 +198,31 @@ def main():
         require('| ' + node['id'] + ' | ' + node['host'] + ' | ' + node['name'] + ' |' in md, 'Markdown node metadata')
     base = args.base or data['metadata']['repository_head']
     original = subprocess.check_output(['git', 'show', base + ':docs/design/rokey7-sdd.drawio'], cwd=ROOT)
-    require(CHUNKS.findall(xml)[1:] == CHUNKS.findall(original)[1:], '01-11 not byte-identical to base')
+    require(CHUNKS.findall(xml)[2:] == CHUNKS.findall(original)[1:], '01-11 not byte-identical to base')
     if args.self_test:
         # These mutations exercise coverage and latest-decision checks, not runtime behavior.
-        for mutation in ('node', 'interface', 'edge', 'completion'):
+        for mutation in ('node', 'interface', 'edge', 'completion', 'placement', 'browser'):
             tree = ET.fromstring(xml)
-            entry_root = tree[0].find('./mxGraphModel/root')
+            page_index = 1 if mutation in ('placement', 'browser') else 0
+            entry_root = tree[page_index].find('./mxGraphModel/root')
             changed = copy.deepcopy(data)
             if mutation == 'completion':
                 changed['metadata']['completion_requirement']['mode'] = 'NO_RECHECK'
+            elif mutation in ('placement', 'browser'):
+                key = 'sddNodeId' if mutation == 'placement' else 'hostId'
+                value = 'central.operations' if mutation == 'placement' else 'BROWSER'
+                next(o for o in entry_root.findall('object') if o.get(key) == value).find('mxCell').set('parent', entry_root[1].get('id'))
             else:
                 key = {'node': 'sddNodeId', 'interface': 'sddInterfaceId', 'edge': 'interfaceRef'}[mutation]
                 entry_root.remove(next(o for o in entry_root.findall('object') if o.get(key)))
             try:
-                check_graph(changed, ET.tostring(tree))
+                check_graph(changed, ET.tostring(tree), page_index)
             except ValueError:
                 pass
             else:
                 raise ValueError('negative case accepted: ' + mutation)
-        print('PASS self-test: missing node/interface/edge and wrong completion mode rejected')
-    print(f'PASS XML/JSON/CSV/Markdown; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8; hosts=7; original_pages=11; unrelated_overlap=0')
+        print('PASS self-test: missing node/interface/edge, wrong completion mode and detached PC3 node/browser rejected')
+    print(f'PASS XML/JSON/CSV/Markdown; pages=13; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8/page; hosts=7/6; physical_PC=4/3; original_pages=11; unrelated_overlap=0')
 
 
 if __name__ == '__main__':

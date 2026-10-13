@@ -40,6 +40,22 @@ IF-079의 DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK 등 기존 enum, 모
 
 브라우저는 ROS·DB에 직접 접속하지 않는다. operations가 DB에 쓰고 웹 서버가 SQLite를 읽기 전용으로 조회한 뒤 브라우저가 GET /fragment를 1초 폴링하는 기존 경로를 유지한다. IF-081 snapshot/SSE는 계획으로 점선 표시한다. 현재 웹의 승인·재확인 버튼과 기준 지도 PNG는 기존 코드이며, 새 자동 출동·출구 후보/완료·역할별 종료·live 공유 지도 화면은 검토/구현 전 제안으로 분리 표시한다. STOP·현장 정지·lease·readiness·실제 정지 관문은 유지한다.
 
+### 3-PC 배치 복제본 (PM 요구, 2026-10-13)
+
+PM 원문: “웹캠과 관제 웹을 PC3에 동시에 띄우는 로직으로 변경하는 내용이야. 여기에는 총 사용하는 PC가 3대로 AMR1, AMR2, 웹캠 및 관제 모니터 이렇게 3개야.” 적용 범위는 **`00 통합 시스템 설계도_PC3대` 한 페이지의 하드웨어 배치**다. 기존 4-PC 00·01~11쪽은 보존한다.
+
+| 물리 PC | 함께 실행하는 역할 |
+| --- | --- |
+| PC1 | AMR1 센서·지도·수색/현장 재확인·명령/주행 계산 |
+| PC2 | AMR2 공유 지도 위치 추정·자동 지원 접근·명령/주행 계산 |
+| PC3 | 고정 웹캠 취득·지진/소실 후보·영상 gateway, coordinator·frame registry·operations·DB·web·Discovery, 관제 모니터의 로컬 브라우저 |
+
+PC3 큰 박스 안에 웹캠 처리·관제 처리·로컬 브라우저를 함께 배치한다. 브라우저 박스는 별도 PC가 아닌 PC3의 화면 역할이며 AMR1/AMR2 온보드 장치는 위 PC 3대와 별도다. 노드 44개·활성 IF 89개·관계 266개·웹 8칸·AMR1 현장 재확인 관문은 유지한다.
+
+JSON `metadata.placement_variants.three_pc.node_host_overrides`가 이 페이지에서 기존 PC4의 `central.*` 노드를 PC3로 옮긴다. 기본 `nodes.host`와 CSV/노드 표는 4-PC 원본의 배치다. variant를 적용해도 논리 ID·타입·endpoint·발행/수신자는 바꾸지 않는다. IF-074~078(웹캠↔관제), IF-080~086(웹·운영·영상·DB), Discovery의 일부 선이 PC3 내부 연결로 바뀐다. IF-082 영상은 PC3 gateway→PC3 브라우저의 HTTP 응답이며 ROS/DB 직접 연결이 아니다. IF-081은 기존대로 계획·미구현이다.
+
+web은 SQLite 읽기 전용 조회, operations만 DB 쓰기, 로컬 브라우저는 HTTP 영상과 1초 폴링을 동시에 받는다. PC1/PC2와 PC3의 로봇 명령·보고는 기존 논리 ROS 경로를 유지한다. 이는 프로세스 배치 제안이며 실제 launch·주소/포트/remap·DB 경로·네트워크/Discovery 설정 채택이나 실행 코드 변경이 아니다. PC3 카메라 추론/영상/웹/DB/DDS 동시 부하, 장애 전파·재시작 및 E3/E4는 **NOT_RUN**이다.
+
 ## 기존 팀 설계와의 적용 경계 (과거 v0.1 기록)
 
 
@@ -452,6 +468,7 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 
 | 페이지 | 내용 |
 | --- | --- |
+| 00_PC3대 | 동일 시나리오의 3-PC 배치 복제본: 웹캠·중앙·로컬 브라우저를 PC3에 동거. `placement_variants.three_pc` 적용 |
 | 00 | E2E 이후 PM 요구안: 공유 지도·자동 출동·사람 후행·현장 재확인 필수·역할별 종료. 새 JSON/CSV와 연결 대조 |
 | 01 | 과거 v0.1 하드웨어·노드 전체도(원문 보존) |
 | 02 / 03 | PC1 센서·지도 / 명령·주행 |

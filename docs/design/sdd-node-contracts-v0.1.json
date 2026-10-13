@@ -8,7 +8,7 @@
     "diagram_stage": "NATIVE_EDITABLE_DIAGRAM_DEFINED",
     "qos_values": "PROPOSAL",
     "physical_validation": "NOT_RUN",
-    "applicability": "00 is post-E2E PM proposal. OPS-87 keeps main approval/segment/recheck execution for 10-13 E2E. 01-11 pages preserve historical 0.1 snapshot; active JSON/CSV describe 00 only. No runtime/IDL/config change.",
+    "applicability": "00 is post-E2E PM proposal. OPS-87 keeps main approval/segment/recheck execution for 10-13 E2E. 01-11 pages preserve historical 0.1 snapshot; active JSON/CSV describe 00 only. No runtime/IDL/config change. three_pc placement overrides apply only to the duplicated 00 page; canonical nodes.host and CSV keep original 4-PC placement.",
     "baseline_documents": [
       "docs/requirements/scope.md",
       "docs/design/contracts.md",
@@ -79,7 +79,28 @@
     "retired_interface_ids": [
       "IF-040"
     ],
-    "external_reference": "Dock/DockStatus type: https://github.com/iRobotEducation/create3_examples/blob/jazzy/create3_republisher/bringup/params.yaml; native installed version/QoS/namespace NOT_RUN"
+    "external_reference": "Dock/DockStatus type: https://github.com/iRobotEducation/create3_examples/blob/jazzy/create3_republisher/bringup/params.yaml; native installed version/QoS/namespace NOT_RUN",
+    "placement_variants": {
+      "three_pc": {
+        "page_name": "00 통합 시스템 설계도_PC3대",
+        "date": "2026-10-13",
+        "speaker": "PM (Codex user conversation)",
+        "source_quote": "웹캠과 관제 웹을 PC3에 동시에 띄우는 로직으로 변경하는 내용이야. 여기에는 총 사용하는 PC가 3대로 AMR1, AMR2, 웹캠 및 관제 모니터 이렇게 3개야.",
+        "physical_pc_count": 3,
+        "browser_host": "PC3",
+        "node_host_overrides": {
+          "central.frames": "PC3",
+          "central.coordinator": "PC3",
+          "central.operations": "PC3",
+          "central.web": "PC3",
+          "central.db": "PC3",
+          "central.discovery": "PC3"
+        },
+        "status": "PLACEMENT_PROPOSAL_NOT_DEPLOYED",
+        "transport_rule": "Logical IF IDs/types/endpoints/source-target stay unchanged; camera and central processes now communicate within PC3. Browser receives HTTP only; web reads SQLite read-only; operations is sole DB writer. Discovery only discovers peers.",
+        "validation": "Concurrent camera/web/DB/DDS load, process isolation, failure recovery and deployment/network bindings NOT_RUN"
+      }
+    }
   },
   "nodes": [
     {
