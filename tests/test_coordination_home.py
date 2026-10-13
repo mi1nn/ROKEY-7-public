@@ -5,6 +5,7 @@ same map basis as the other configured goals (goal_map_*). Left out = no home: R
 NO_HOME_POSITION, never a made-up pose. A wrong length is refused at start.
 """
 from pathlib import Path
+from types import SimpleNamespace as NS
 import unittest
 
 from rescue_contracts import RescueError
@@ -45,6 +46,39 @@ class HomePoseTests(unittest.TestCase):
         for flat in ([0.5, -1.0, 0.0], [0.5, -1.0, 0.0, 1.5, -1.0], [0.] * 9, [float('nan'), 0., 0., 0., 0., 0.]):
             with self.subTest(flat=flat), self.assertRaises(RescueError):
                 ros_node.home_positions(flat, ROLES, BASIS)
+
+
+class MapStateTests(unittest.TestCase):
+    """#176: each robot publishes MapState; a VALID localization on a session/revision is the current basis.
+
+    transform_revision is not in MapState: it is the profile map_basis value, the coordinator's goal basis.
+    """
+    def setUp(self):
+        from test_coordination_ros_core import make_core
+        self.core = make_core()
+
+    def map_state(self, robot, quality='VALID', **changes):
+        from test_coordination_search import MAP
+        values = dict(robot_id=robot, map_session_id=MAP, map_revision=3, localization_quality=quality)
+        return NS(**(values | changes))
+
+    def test_valid_localization_records_the_basis_with_the_goal_transform_revision(self):
+        from test_coordination_ros_core import SCOUT, SUPPORT
+        from test_coordination_search import MAP
+        self.assertTrue(self.core.on_map_state(self.map_state(SCOUT)))
+        self.assertEqual({SCOUT: (MAP, 3, 1)}, self.core.mission.map_basis)
+        self.core.on_map_state(self.map_state(SUPPORT, map_revision=4))
+        self.assertEqual((MAP, 4, 1), self.core.mission.map_basis[SUPPORT])
+
+    def test_unknown_localization_withdraws_the_basis(self):
+        from test_coordination_ros_core import SCOUT
+        self.core.on_map_state(self.map_state(SCOUT))
+        self.assertFalse(self.core.on_map_state(self.map_state(SCOUT, quality='UNKNOWN')))
+        self.assertNotIn(SCOUT, self.core.mission.map_basis)  # never kept as if still valid
+
+    def test_a_robot_outside_the_policy_is_refused(self):
+        with self.assertRaises(RescueError):
+            self.core.on_map_state(self.map_state('unit_9'))
 
 
 class BuildCoreTests(unittest.TestCase):
