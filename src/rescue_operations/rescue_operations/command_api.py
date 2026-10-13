@@ -23,7 +23,7 @@ from .site_state import OPERATOR_COMMAND_KINDS
 
 COMMAND_PATH = "/api/operator-commands"
 MAX_BODY_BYTES = 8192
-# Per-kind request fields = rescue_coordination mission.COMMAND_FIELDS (the coordinator's gate).
+# Per-kind request fields = rescue_coordination mission.ALL_COMMAND_FIELDS (the coordinator's gate).
 # Phase 1 takes these six; PAUSE/RESUME/CANCEL/STOP_ROBOT and the other IDL operations are refused.
 # SET_CAMERA_WATCH carries no ROI: the console has no ROI picker, so roi_xyxy_normalized goes as zeros
 # ("not given") and the coordinator uses its deployment ROI or refuses (C-11 row 2).

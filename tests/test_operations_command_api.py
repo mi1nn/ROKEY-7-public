@@ -49,7 +49,7 @@ class ParseCommand(unittest.TestCase):
                 self.assertEqual(request(kind), self.parse(body(request(kind))))
 
     def test_fields_match_the_coordinator_gate(self):
-        from rescue_coordination.mission import COMMAND_FIELDS as GATE
+        from rescue_coordination.mission import ALL_COMMAND_FIELDS as GATE
         from rescue_operations.command_api import COMMAND_FIELDS
         self.assertEqual({kind: set(fields) for kind, fields in GATE.items()},
                          {kind: set(fields) for kind, fields in COMMAND_FIELDS.items()})

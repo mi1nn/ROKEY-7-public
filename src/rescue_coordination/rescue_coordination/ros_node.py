@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
 
-from .mission import COMMAND_FIELDS, MissionCoordinator, OperatorCommand
+from .mission import ALL_COMMAND_FIELDS, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
 from .watch import CameraWatchBook, roi_value
@@ -171,11 +171,11 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
 
 def operator_command_from_request(req, roles):
     """SubmitOperatorCommand request -> OperatorCommand. Fields the operation does not use are not read."""
-    if req.operation not in COMMAND_FIELDS:
+    if req.operation not in ALL_COMMAND_FIELDS:
         raise _invalid('operation not handled by the mission gate')
     if req.robot_id and req.robot_id != roles.get(COMMAND_ROLES.get(req.operation)):
         raise _invalid('robot_id must be empty or the role robot of this operation')
-    used = COMMAND_FIELDS[req.operation]
+    used = ALL_COMMAND_FIELDS[req.operation]
     values = {'target_id': req.target_id or None, 'target_revision': req.expected_target_revision,
               'route_revision': req.route_revision, 'segment_index': req.segment_index}
     return OperatorCommand(command_id=req.command_id, kind=req.operation, operator_id=req.operator_id,

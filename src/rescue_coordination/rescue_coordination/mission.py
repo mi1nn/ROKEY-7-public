@@ -32,8 +32,11 @@ COMMAND_FIELDS = {
     'CONTINUE_SEGMENT': ('target_id', 'target_revision', 'route_revision', 'segment_index'),
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
-    'SET_CAMERA_WATCH': ('target_id',),  # C-11 row 2; the ROI and camera are bound by the node core
 }
+# Commands the console has no button for yet (its tests mirror COMMAND_FIELDS, which drives its buttons).
+# SET_CAMERA_WATCH: C-11 row 2; the ROI and camera are bound by the node core.
+CAMERA_COMMAND_FIELDS = {'SET_CAMERA_WATCH': ('target_id',)}
+ALL_COMMAND_FIELDS = COMMAND_FIELDS | CAMERA_COMMAND_FIELDS
 OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_index')
 COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
@@ -144,7 +147,7 @@ class OperatorCommand:
         contract_value(timestamp_ns, self.requested_at_ns)
         if not isinstance(self.operator_id, str) or not self.operator_id:
             raise CoordinationError('INVALID_INPUT', 'operator_id')
-        required = COMMAND_FIELDS.get(self.kind) if isinstance(self.kind, str) else None
+        required = ALL_COMMAND_FIELDS.get(self.kind) if isinstance(self.kind, str) else None
         if required is None:
             raise CoordinationError('INVALID_INPUT', 'command kind')
         for name in OPTIONAL_FIELDS:
