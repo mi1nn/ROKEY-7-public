@@ -2149,7 +2149,7 @@ def main(args=None):
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
         # QR exit (안 「나」, OPS-136·138): same message as targets, class_label exit_qr only.
         node.create_subscription(TargetLocation, EXIT_LOCATION_TOPIC, guarded('exit_location', lambda msg: log.info(
-            f'EXIT_LOCATION {msg.location_id} -> {core.on_exit_location(msg, now_ns=now_ns())} exit={core.exit}')), 10)
+            f'EXIT_LOCATION {msg.location_id} -> {core.on_exit_location(msg, now_ns=now_ns())} exits={[(e["exit_id"], e["xy"]) for e in core.exits]}')), 10)
         from geometry_msgs.msg import PoseWithCovarianceStamped
         start_topic = START_POSE_TOPIC + core.roles['SCOUT']  # OPS-142: once per map session, latched
         node.create_subscription(PoseWithCovarianceStamped, start_topic, guarded('start_pose', lambda msg: log.info(
