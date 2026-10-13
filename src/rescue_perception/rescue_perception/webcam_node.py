@@ -22,10 +22,13 @@ from pathlib import Path
 from types import SimpleNamespace as NS
 from uuid import uuid4
 
+from rescue_contracts.clock_measurement import ClockSampler
+
 from .adapter import SourceBinding
 from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
 from .target_watch import TargetWatchPolicy
+from .webcam_clock import clock_settings, observation_clock
 from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, stream_state
 
 ENCODING = 'bgr8'  # OpenCV 프레임 채널 순서
@@ -36,7 +39,10 @@ EVIDENCE_MIME = 'application/octet-stream'  # 원 픽셀 바이트(bgr8)의 해�
 PARAMS = {
     'camera_id': 'STRING', 'frame_id': 'STRING', 'device_path': 'STRING', 'width': 'INTEGER',
     'height': 'INTEGER', 'frame_period_s': 'DOUBLE', 'reopen_period_s': 'DOUBLE',
-    'clock_domain_id': 'STRING', 'clock_state': 'STRING', 'clock_error_bound_ns': 'INTEGER',
+    'clock_domain_id': 'STRING',
+    # 시계는 측정한다(webcam_clock). 고정 SYNCED 파라미터는 없다(A2, 2026-10-13).
+    'clock_backend': 'STRING', 'clock_max_age_ns': 'INTEGER', 'clock_drift_ppm': 'DOUBLE',
+    'clock_poll_period_s': 'DOUBLE',
     'calibration_id': 'STRING', 'observation_validity_s': 'DOUBLE',
     'model_path': 'STRING', 'model_sha256': 'STRING', 'model_imgsz': 'INTEGER', 'model_conf': 'DOUBLE',
     'envelope_schema_version': 'STRING', 'publisher_id': 'STRING', 'policy_version': 'STRING',
@@ -147,11 +153,18 @@ def main(args=None):
     boot_id = str(uuid4())
     try:
         quake_policy, watch_policy = policies(v)
-        error_bound = v['clock_error_bound_ns'] if v['clock_error_bound_ns'] >= 0 else None  # -1 = 모름
+        # 판정기 안의 binding 시계는 쓰지 않는다. 발행 메시지의 시계는 obs_time 이 측정값으로 채운다.
         binding = SourceBinding(None, v['camera_id'], boot_id, v['clock_domain_id'], STAMP_SEMANTICS, 'UNKNOWN',
-                                v['calibration_id'], v['clock_state'], error_bound)
+                                v['calibration_id'], 'UNKNOWN', None)
     except PerceptionError as exc:
         log.fatal(f'invalid parameters: {exc.detail_code}: {exc.detail}')
+        raise SystemExit(2) from exc
+    try:
+        clock_backend, clock_max_age_ns, clock_drift_ppm = clock_settings(v)
+        if not v['clock_poll_period_s'] > 0:
+            raise ValueError('clock_poll_period_s must be positive')
+    except ValueError as exc:
+        log.fatal(f'invalid parameters: {exc}')
         raise SystemExit(2) from exc
     model_sha = file_sha256(v['model_path'])
     if model_sha != v['model_sha256']:
@@ -161,9 +174,26 @@ def main(args=None):
     quake = DisasterSignDetector(binding, quake_policy)
     slot = WatchSlot(binding, watch_policy)
     validity_ns = _ns(v['observation_validity_s'])
+    sampler = (ClockSampler(clock_backend, clock_max_age_ns, clock_drift_ppm) if clock_backend != 'NONE' else None)
+    clock = {'record': dict(state='UNKNOWN', reason='clock_backend NONE' if sampler is None else 'waiting'),
+             'logged': None}
+
+    def poll_clock():
+        clock['record'] = sampler.poll()
+        record = clock['record']
+        shown = (record.get('state'), record.get('reason'))
+        if shown != clock['logged']:
+            clock['logged'] = shown
+            if record.get('state') == 'SYNCED':
+                log.info(f'clock SYNCED backend={clock_backend} error_bound_ns={record["error_bound_ns"]} '
+                         f'measured_at_ns={record["measured_at_ns"]}')
+            else:
+                log.warning(f'clock UNKNOWN backend={clock_backend}: {record.get("reason")}')
     log.info(f'webcam_node git={git_sha()} boot={boot_id} model={v["model_path"]} sha256={model_sha} '
              f'camera={v["camera_id"]} device={v["device_path"]}->{Path(v["device_path"]).resolve()} {v["width"]}x{v["height"]} '
-             f'period={v["frame_period_s"]}s policy={v["policy_version"]} quake={quake_policy} watch={watch_policy}')
+             f'period={v["frame_period_s"]}s policy={v["policy_version"]} quake={quake_policy} watch={watch_policy} '
+             f'clock={clock_backend} domain={v["clock_domain_id"]} max_age_ns={clock_max_age_ns} '
+             f'drift_ppm={clock_drift_ppm} poll={v["clock_poll_period_s"]}s')
 
     reliable = dict(reliability=ReliabilityPolicy.RELIABLE)
     status_pub = node.create_publisher(CameraStatus, v['status_topic'],
@@ -263,7 +293,7 @@ def main(args=None):
         t.valid_until_ns = observed_ns + validity_ns
         t.stamp_semantics = STAMP_SEMANTICS
         t.clock_domain_id = v['clock_domain_id']
-        t.clock_state = v['clock_state']
+        t.clock_state, error_bound = observation_clock(clock['record'], observed_ns)
         t.has_clock_error_bound = error_bound is not None
         t.clock_error_bound_ns = error_bound or 0
 
@@ -418,9 +448,16 @@ def main(args=None):
             publish_event(presence.event)
 
     node.create_timer(v['frame_period_s'], step)
+    if sampler is not None:
+        poll_clock()
+        node.create_timer(v['clock_poll_period_s'], poll_clock)
+    else:
+        log.warning('clock_backend NONE: every message is clock_state UNKNOWN')
     try:
         spin_until_shutdown(rclpy, node, log)
     finally:
+        if sampler is not None:
+            sampler.close()
         if camera['cap'] is not None:
             camera['cap'].release()
         node.destroy_node()

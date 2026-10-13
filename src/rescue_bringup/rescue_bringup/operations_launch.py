@@ -95,6 +95,8 @@ def read_webcam_parameters(path):
             values = yaml.safe_load(handle)['webcam_node']['ros__parameters']
     except (ImportError, OSError, KeyError, TypeError, ValueError) as exc:
         raise LaunchSettingError(f'cannot read webcam parameters {path}: {type(exc).__name__}: {exc}') from exc
+    except yaml.YAMLError as exc:
+        raise LaunchSettingError(f'cannot read webcam parameters {path}: invalid YAML: {exc}') from exc
     if not isinstance(values, dict):
         raise LaunchSettingError(f'{path}: webcam_node.ros__parameters must be a mapping')
     return values

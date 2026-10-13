@@ -18,8 +18,8 @@ from sensor_msgs.msg import CompressedImage, Image
 from ultralytics import YOLO
 from rclpy.executors import ExternalShutdownException
 
-from .camera_utils import (SETTINGS, PreviewProcessor, git_sha, validate_config,
-    validate_labels, verify_model)
+from .camera_utils import (FIELD_PARAMS, SETTINGS, PreviewProcessor, field_values, git_sha,
+    read_field_parameters, validate_config, validate_labels, verify_model)
 
 
 def create_node(*, model_factory=None):
@@ -27,7 +27,7 @@ def create_node(*, model_factory=None):
 
     node = Node('amr_camera')
     try:
-        v = validate_config(SETTINGS)
+        v = validate_config(field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS))
         source = node.resolve_topic_name(v['image_topic'])
         output = node.resolve_topic_name(v['annotated_topic'])
         if source == output:

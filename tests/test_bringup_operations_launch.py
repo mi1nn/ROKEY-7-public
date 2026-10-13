@@ -116,12 +116,13 @@ class ReportNodeParameters(unittest.TestCase):
                 build_report(**change)
 
 
-WEBCAM_EXAMPLE = REPO / 'src' / 'rescue_perception' / 'rescue_perception' / 'config' / 'webcam_node.example.yaml'
+WEBCAM_SETTINGS = {'debug_image_topic': '/rescue/cameras/cam_fixed/debug_image/compressed',
+                   'camera_id': 'cam_fixed'}
 
 
 def relay(**changes):
-    from rescue_bringup.operations_launch import mjpeg_relay_parameters, read_webcam_parameters
-    values = dict(webcam=read_webcam_parameters(WEBCAM_EXAMPLE), bind_host='127.0.0.1', port='8091', stale_s='2.0')
+    from rescue_bringup.operations_launch import mjpeg_relay_parameters
+    values = dict(webcam=dict(WEBCAM_SETTINGS), bind_host='127.0.0.1', port='8091', stale_s='2.0')
     return mjpeg_relay_parameters(**(values | changes))
 
 
@@ -153,9 +154,17 @@ class MjpegRelayParameters(unittest.TestCase):
             with self.assertRaises(LaunchSettingError):
                 read_webcam_parameters(path)
 
+    @unittest.skipUnless(importlib.util.find_spec('yaml'), 'PyYAML is a ROS launch dependency')
+    def test_packaged_webcam_yaml_matches_the_parameter_fixture(self):
+        from importlib.resources import files
+        from rescue_bringup.operations_launch import read_webcam_parameters
+        example = files('rescue_perception').joinpath('config/webcam_node.example.yaml')
+        values = read_webcam_parameters(example)
+        self.assertEqual(WEBCAM_SETTINGS, {key: values[key] for key in WEBCAM_SETTINGS})
+
     def test_bad_values_are_refused(self):
-        from rescue_bringup.operations_launch import LaunchSettingError, read_webcam_parameters
-        webcam = read_webcam_parameters(WEBCAM_EXAMPLE)
+        from rescue_bringup.operations_launch import LaunchSettingError
+        webcam = dict(WEBCAM_SETTINGS)
         for change in (dict(bind_host=''), dict(port='0'), dict(port='70000'), dict(port='80.5'),
                        dict(stale_s='0'), dict(stale_s='nan'), dict(stale_s=''),
                        dict(webcam=webcam | {'debug_image_topic': ''}), dict(webcam=webcam | {'camera_id': ''}),

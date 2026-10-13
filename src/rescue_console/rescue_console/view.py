@@ -141,7 +141,20 @@ def _position(position, source):
             'map_revision': position['map_revision'], 'source': source}
 
 
-def _targets(ledger, target_states):
+def _latest_candidates(site_events):
+    """target_id -> the newest TARGET_DISAPPEARED_CANDIDATE naming it (a candidate only; the robot rechecks)."""
+    latest = {}
+    for event in site_events:
+        if event.kind != 'TARGET_DISAPPEARED_CANDIDATE':
+            continue
+        key = (event.observed_at_ns, event.event_id)
+        if event.target_id not in latest or key > latest[event.target_id][0]:
+            latest[event.target_id] = (key, {'event_id': event.event_id, 'observed_at_ns': event.observed_at_ns,
+                                             'camera_id': event.camera_id})
+    return {target: entry[1] for target, entry in latest.items()}
+
+
+def _targets(ledger, target_states, candidates):
     """``ledger`` None: no report ledger was given; report fields stay None (not 0, not 'no report')."""
     reports = {} if ledger is None else _latest_reports(ledger['reports'])
     rows = []
@@ -193,6 +206,7 @@ def _targets(ledger, target_states):
             'report_count': None if ledger is None else report_count,
             'receipt_status': None if item is None else item['receipt']['status'],
             'observed_at_ns': None if payload is None else payload['observed_at_ns'],
+            'disappeared_candidate': candidates.get(target_id),
             'warnings': rule_warnings + warnings,
         })
     return rows
@@ -274,7 +288,7 @@ def _events(ledger, site_events):
             'received_at_ns': None,
             'kind': event.kind,
             'source': event.camera_id,
-            'subject': None,
+            'subject': event.target_id,
             'detail': f'confidence {event.confidence:.2f}' + (f' / {event.detail}' if event.detail else ''),
             'confirmation': None,
             'approach': None,
@@ -425,8 +439,13 @@ def build_view(ledger, status, *, built_at_ns):
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
-    if ledger is None:
-        # The robot policy lives in the ledger metadata; the site-state read API does not return it.
+    allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
+    if ledger is None and allowed_section is not None:
+        # The site-state DB fixes the deployment's robots (read_allowed_robot_ids, #149).
+        warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음')
+        allowed = tuple(allowed_section['allowed_robot_ids'])
+    elif ledger is None:
+        # A fixture without the robot list: only robots that sent a status can be drawn.
         warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음, 로봇 목록은 상태가 들어온 로봇만')
         allowed = tuple(sorted({r.get('robot_id') for r in ([] if robot_section is None else robot_section['robots'])}))
     else:
@@ -442,8 +461,11 @@ def build_view(ledger, status, *, built_at_ns):
     for state in [] if target_section is None else target_section['targets']:
         _require(state.get('target_id') not in target_states, f"duplicate target state {state.get('target_id')}")
         target_states[state['target_id']] = state
-    targets = _targets(ledger, target_states)
     site_events = [] if site_section is None else _site_events(site_section['site_events'])
+    candidates = _latest_candidates(site_events)
+    targets = _targets(ledger, target_states, candidates)
+    for target_id in sorted(set(candidates) - {row['target_id'] for row in targets}):
+        warnings.append(f'소실 후보의 대상이 목록에 없음: {target_id}')
     # Kept in the API model, not drawn: with one fixed camera there is no EXIT_PASS producer and the
     # count stays 0 (2026-10-09 decision; console-and-db-plan 3절, db-schema 2절). The 3.5.5
     # "rescued <= exit count" warning went with it; the rescue trigger is the camera's candidate event.

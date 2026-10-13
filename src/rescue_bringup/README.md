@@ -107,6 +107,17 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 
 ## SEARCH_AREA 현장 실행: 운영 · 조정기 · 로봇 launch (2026-10-13)
 
+| 무엇 | 상태 (2026-10-13) |
+| --- | --- |
+| 운영 `operations.launch.py`: db_writer + 구조 보고 저장(report_node) + 웹캠 | 있음(#134·#144) |
+| 운영 launch 의 웹캠 판정 영상 중계(mjpeg_relay, `video_port`) | 있음(#158) |
+| 조정기 `coordinator.launch.py`, 로봇 `robot.launch.py`, 지도 해시 `scripts/field/map_occupancy_sha256.py` | 있음(#152) |
+| 지도 기준 값 `map_basis`(프로파일, 조정기·로봇·탐지 launch 공용) | 있음(#145). 현장 프로파일에 넣어야 한다(frame `map`) |
+| PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | PR #156 머지 뒤 |
+| robot_b(robot5) 로봇 launch | 안 됨: 현장 실행 파일에 `robots.robot_b` 값 없음(AMR2 시나리오 #131·#133 결정 대기) |
+| 구간 이동·재관측·복귀(MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: LIVE_ROS 는 SEARCH_AREA 만([rescue_robot README](../rescue_robot/README.md)) |
+| watchdog 현장 값 | #132 임시값, 확정은 #94. 영구 정지(STOP_LATCHED)와 리셋은 [rescue_robot README](../rescue_robot/README.md) 「2026-10-13 현재」 절 |
+
 세 launch 로 웹캠 → 재난 판정 → 관제 출동(START_SEARCH) → AMR1 SEARCH_AREA(Nav2) 를 띄운다. 값은 세 곳에서만 온다.
 
 | 어디서 | 무엇 |
