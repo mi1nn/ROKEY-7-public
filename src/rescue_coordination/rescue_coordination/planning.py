@@ -176,7 +176,7 @@ class Reservation:
     task_kind: str = 'APPROACH_TARGET'
     # Phase 1 rule (#88): without a candidate, MOVE_SEGMENT needs a ONE_SEGMENT approval and its
     # segment-end goal; REOBSERVE_TARGET needs a fixed observation goal; APPROACH_TARGET needs its
-    # standoff goal and no approval (AMR2 automatic dispatch, owner decision 2026-10-13). Nowhere else.
+    # standoff goal and no approval (TB-5 (SUPPORT) automatic dispatch, owner decision 2026-10-13). Nowhere else.
     goal: GoalPoint | None = None
     approval_id: str | None = None
 

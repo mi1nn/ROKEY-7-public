@@ -46,7 +46,7 @@ COMMAND_REJECT_REASONS = frozenset({
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
 SEGMENT_PHASES = frozenset({'APPROVED', 'MOVING', 'AWAITING_APPROVAL', 'ARRIVED'})
-# AMR2 automatic dispatch (owner decision 2026-10-13, 1B): ISSUED = the coordinator dispatched the
+# TB-5 (SUPPORT) automatic dispatch (owner decision 2026-10-13, 1B): ISSUED = the coordinator dispatched the
 # saved target; MOVING = the executor admitted the APPROACH_TARGET; ARRIVED = completed with a confirmed
 # stop; FAILED = ended otherwise with a confirmed stop (not retried).
 APPROACH_PHASES = frozenset({'ISSUED', 'MOVING', 'ARRIVED', 'FAILED'})

@@ -1,4 +1,4 @@
-"""AMR2 automatic dispatch: APPROACH_TARGET to a standoff point once the target is saved (E2).
+"""TB-5 (SUPPORT) automatic dispatch: APPROACH_TARGET to a standoff point once the target is saved (E2).
 
 Owner decision 2026-10-13 (1B·2B): with ``support_dispatch=AUTO`` the coordinator sends the SUPPORT one
 APPROACH_TARGET without operator approval, once the target is CONFIRMED and the ReportReceipt of its

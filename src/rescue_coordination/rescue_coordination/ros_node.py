@@ -1080,7 +1080,7 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # SetCameraWatch (C-11 row 2) request deadline. The deployment ROI camera_watch_roi [x0, y0, x1, y1]
     # (normalized, used when the operator's request carries none; never the full frame) is in UNSET_OK_PARAMETERS.
     'camera_watch_timeout_s': 'DOUBLE',
-    # AMR2 dispatch (owner decision 2026-10-13, 1B·2B): AUTO | OPERATOR; standoff from the target; max age of
+    # TB-5 (SUPPORT) dispatch (owner decision 2026-10-13, 1B·2B): AUTO | OPERATOR; standoff from the target; max age of
     # the SUPPORT RobotPose used for the approach direction.
     'support_dispatch': 'STRING', 'approach_standoff_m': 'DOUBLE', 'support_pose_max_age_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
