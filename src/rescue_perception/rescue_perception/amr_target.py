@@ -217,7 +217,7 @@ def main(args=None):
         return 2
     finally:
         if node is not None:
-            if getattr(node, 'recheck_clock_sampler', None) is not None:
+            if getattr(node, 'clock_sampler', None) is not None:
                 node.clock_sampler.close()
             node.destroy_node()
         cv2.destroyAllWindows()
