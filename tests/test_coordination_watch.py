@@ -299,6 +299,14 @@ class ValueTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(RescueError):
                 roi_value(bad)
 
+    def test_parameters_that_may_be_left_out_are_not_in_the_required_set(self):
+        # PARAMETERS is "every one is required" (launch passes all of it, tests/test_bringup_field_launch.py);
+        # a parameter that may be left out is declared beside it with its type.
+        self.assertNotIn('camera_watch_roi', ros_node.PARAMETERS)
+        self.assertEqual('DOUBLE_ARRAY', ros_node.UNSET_OK_PARAMETERS['camera_watch_roi'])
+        self.assertEqual('DOUBLE', ros_node.PARAMETERS['camera_watch_timeout_s'])
+        self.assertFalse(set(ros_node.PARAMETERS) & set(ros_node.UNSET_OK_PARAMETERS))
+
     def test_build_core_takes_the_single_target_watch_camera(self):
         self.assertEqual('/rescue/cameras/cam_fixed/set_watch', ros_node.camera_watch_service('cam_fixed'))
 
