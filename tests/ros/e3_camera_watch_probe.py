@@ -37,7 +37,7 @@ from rescue_perception import SourceBinding
 from rescue_perception.target_watch import TargetWatchPolicy
 from rescue_perception.webcam_service import WatchRequest, WatchSlot
 
-from e3_coordinator_probe import MAP, NODE_ARGS, SCOUT, call, node_command, wait
+from e3_coordinator_probe import MAP, NODE_ARGS, SCOUT, call, fill_observation_time, node_command, wait
 
 ROI = [0.2, 0.3, 0.6, 0.9]
 
@@ -85,6 +85,7 @@ class Field(Node):
         f.robot_id, f.native_frame, f.mission_frame, f.map_session_id = SCOUT, 'map', 'mission', MAP
         f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
         msg.mission_position.x, msg.mission_position.y = 2.5, 0.5
+        fill_observation_time(msg.observation.time, self.get_clock().now().nanoseconds)  # OPS-103 gate
         self.location.publish(msg)
 
     def watch(self, executor, target_id, roi):

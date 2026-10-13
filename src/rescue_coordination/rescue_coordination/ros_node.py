@@ -26,7 +26,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
+from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
@@ -200,7 +200,8 @@ class CoordinatorCore:
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
                  report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
-                 lease_message_ttl_ns, camera_watch, new_id=None):
+                 lease_message_ttl_ns, camera_watch, target_clock_domain_id, target_max_age_ns,
+                 target_max_future_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -229,6 +230,15 @@ class CoordinatorCore:
         self.camera_watch = camera_watch  # None: the profile has no TARGET_WATCH camera
         self.candidate_results = {}  # candidate event_id -> its first reason, None = a row-3 conflict (replay = same)
         self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
+        if not isinstance(target_clock_domain_id, str) or not target_clock_domain_id:
+            raise CoordinationError('INVALID_POLICY', 'target_clock_domain_id required')
+        contract_value(duration_ns, target_max_age_ns)
+        contract_value(duration_ns, target_max_future_ns)
+        if target_max_age_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'target_max_age must be positive')
+        self.target_clock_domain_id = target_clock_domain_id
+        self.target_max_age_ns, self.target_max_future_ns = target_max_age_ns, target_max_future_ns
+        self.location_refusal = None  # why the latest location made no target; cleared by the next accepted one
         self.mission = mission
         self.search = mission.search
         self.roles = {role: robot_id for robot_id, role in self.search.policy.roles}
@@ -365,6 +375,7 @@ class CoordinatorCore:
             if seen[2] != key:
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'location content differs for the same location_id')
             return seen[0]
+        self._check_observation_time(msg.observation.time, now_ns)
         if any(geo[0] != basis for geo in self.target_geo.values()):
             raise CoordinationError('FRAME_REVISION_MISMATCH', 'location map basis differs from the known targets')
         near = sorted((math.dist(geo[1], xy), target_id) for target_id, geo in self.target_geo.items()
@@ -396,6 +407,30 @@ class CoordinatorCore:
                                        record_ids=[loc.location_id for loc in unsaved], locations=unsaved,
                                        first_issued_at_ns=now_ns, next_send_ns=now_ns, done=False)
         return target_id
+
+    def _check_observation_time(self, t, now_ns):
+        """OPS-103 (#142): only an observation with a usable time becomes a target (C-03).
+
+        Declared basis (stamp semantics known, SYNCED, an error bound), this coordinator's clock domain, not
+        ahead of now by more than ``target_max_future_ns`` plus the observation's own declared error bound (PC
+        clocks differ by hundreds of ms under timesyncd, measured 2026-10-13), not older than
+        ``target_max_age_ns`` and before its own ``valid_until_ns``. The reason stays in SystemState.reason
+        until a location is accepted.
+        """
+        checks = (
+            (t.stamp_semantics in STAMP_SEMANTICS - {'UNKNOWN'} and t.clock_state == 'SYNCED'
+             and bool(t.has_clock_error_bound),
+             'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE'),
+            (t.clock_domain_id == self.target_clock_domain_id, 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH'),
+            (t.observed_at_ns - now_ns <= self.target_max_future_ns + int(t.clock_error_bound_ns),
+             'STALE_OBSERVATION', 'TARGET_OBSERVATION_FUTURE'),
+            (now_ns - t.observed_at_ns <= self.target_max_age_ns and now_ns < t.valid_until_ns,
+             'STALE_OBSERVATION', 'TARGET_OBSERVATION_STALE'))
+        for ok, code, reason in checks:
+            if not ok:
+                self.location_refusal = reason
+                raise CoordinationError(code, reason)
+        self.location_refusal = None
 
     def reports_due(self, now_ns):
         """RescueReports to (re)send now; resent every ``report_retry_ns`` until PERSISTED or REJECTED."""
@@ -432,7 +467,8 @@ class CoordinatorCore:
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
             reason=self.issue_block or ('SEARCH_QUEUED' if self.search_queued() else '') or (
-                self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else ''),
+                self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
+                self.location_refusal or ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -881,7 +917,10 @@ def build_core(values):
                            admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])),
                            segment_passage_free=tuple(values['route_segment_passage_free']),
                            lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])),
-                           camera_watch=camera_watch)
+                           camera_watch=camera_watch,
+                           target_clock_domain_id=values['target_clock_domain_id'],
+                           target_max_age_ns=seconds_to_ns(str(values['target_max_age_s'])),
+                           target_max_future_ns=seconds_to_ns(str(values['target_max_future_s'])))
 
 
 def camera_watch_service(camera_id):
@@ -909,7 +948,10 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'route_segment_passage_free': 'BOOL_ARRAY',
     # SetCameraWatch (C-11 row 2) request deadline. The deployment ROI camera_watch_roi [x0, y0, x1, y1]
     # (normalized, used when the operator's request carries none; never the full frame) is in UNSET_OK_PARAMETERS.
-    'camera_watch_timeout_s': 'DOUBLE'}
+    'camera_watch_timeout_s': 'DOUBLE',
+    # OPS-103 (#142): a TargetLocation counts only on this clock domain, at most this old, and at most this far
+    # ahead beyond its own declared clock error bound.
+    'target_clock_domain_id': 'STRING', 'target_max_age_s': 'DOUBLE', 'target_max_future_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's.

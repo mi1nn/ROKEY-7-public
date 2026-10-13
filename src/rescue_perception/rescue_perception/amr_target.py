@@ -168,7 +168,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
                         break
                     if sender.send(candidate, publish_target):
                         node.get_logger().info(
-                            f'target state=SENT observation_id={sender.observation_id}; '
+                            f'target state=SENT observation_id={sender.observation_id} '
+                            f'undistortion={candidate.observation.localization.undistortion_id}; '
                             'coordinate publication disabled for this run')
                         break
                     node.get_logger().warning(f'target not sent: {sender.reason(candidate)}')

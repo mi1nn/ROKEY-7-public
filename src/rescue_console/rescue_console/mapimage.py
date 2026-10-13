@@ -208,7 +208,7 @@ def map_overlay(meta, robots, targets):
                    note=f'기준 지도 {meta["source"]} ({meta["width_px"]}×{meta["height_px"]} px, '
                         f'{meta["resolution"]} m/px) — 좌표 map_session 일치는 확인하지 않음(Q-09)')
     entries = [('robot', row['robot_id'], row.get('pose'), {'yaw': (row.get('pose') or {}).get('yaw'),
-                                                            'role': row.get('role')}) for row in robots]
+                                                            'role': row.get('role'), 'name': row.get('name')}) for row in robots]
     entries += [('target', row['target_id'], row.get('position'), {'stage': row['stage']}) for row in targets]
     for kind, ident, pose, extra in entries:
         if pose is None:
