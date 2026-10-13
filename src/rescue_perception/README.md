@@ -270,7 +270,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 인정되면 `/rescue/exit_observations` 에 TargetObservation 하나를 낸다(새 IDL 없음). `class_label` 은 `exit_qr` 이다. `confidence` 1.0 은 확률이 아니라 내용 일치를 뜻한다. `model_id` 는 `opencv.QRCodeDetector/<cv2 버전>`, `model_sha256` 은 설치된 cv2 바이너리의 sha256 이고, 둘 다 기동 로그에 남는다. `tracking_mode` 는 `DETECTION_ONLY` 다. TB-6 지도(session, revision)마다 한 번만 내고, revision 이 바뀌면 같은 QR 도 다시 낸다. launch 의 두 번째 target_locator(`exit_locator`)가 이것을 `/rescue/exit_location` TargetLocation 으로 바꾼다. 지도 기준은 대상과 같다(MapRevisionTracker). 조정기는 `class_label == 'exit_qr'` 만 출구로 쓴다. 지도 고정 때 이전 revision 의 위치를 재기준하는 일과 출구 앞 접근점 계산은 조정기 몫이다.
 
-필수 파라미터(기본값 없음): `exit_qr_payload`, `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
+필수 파라미터(기본값 없음): `exit_qr_payload`, `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_qr_every_n_frames`([제안] 6: 30 Hz 에서 5 Hz 검사, 704×704 프레임당 약 35 ms 라서(OPS-141). 연속 횟수는 검사한 프레임 기준이고 건너뛴 프레임은 연속을 끊지 않는다), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
 
 시험: `tests/test_perception_exit_qr.py`(판정·위치·메시지·송신), `tests/ros/e3_amr_target_probe.py` 5–7번(합성 RGB-D 의 QR → 출구 관측). 실제 TB-6 영상의 QR, exit_locator → `/rescue/exit_location` 연결, 검출 처리 시간은 NOT_RUN 이다.
 

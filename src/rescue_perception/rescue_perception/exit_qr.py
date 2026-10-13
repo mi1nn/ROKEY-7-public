@@ -23,6 +23,7 @@ EXIT_OBSERVATIONS_TOPIC = '/rescue/exit_observations'
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'
 EXIT_PARAMS = {'exit_qr_payload': 'STRING', 'exit_qr_required_frames': 'INTEGER',
                'exit_qr_position_tolerance_m': 'DOUBLE', 'exit_qr_min_valid_depth_ratio': 'DOUBLE',
+               'exit_qr_every_n_frames': 'INTEGER',
                'exit_map_state_topic': 'STRING'}
 
 
@@ -32,6 +33,7 @@ class ExitQrPolicy:
     required_frames: int          # consecutive matching frames [proposal 5]
     position_tolerance_m: float   # spread allowed within one run [proposal 0.2]
     min_valid_depth_ratio: float  # share of depth samples that must be valid [proposal 0.5]
+    every_n_frames: int           # check one frame in n: about 35 ms per 704x704 frame (OPS-141) [proposal 6]
 
     def __post_init__(self):
         if type(self.payload) is not str or not self.payload.strip():
@@ -43,14 +45,22 @@ class ExitQrPolicy:
             raise ValueError('position_tolerance_m must be a finite float > 0')
         if type(self.min_valid_depth_ratio) is not float or not 0 < self.min_valid_depth_ratio <= 1:
             raise ValueError('min_valid_depth_ratio must be in (0, 1]')
+        if type(self.every_n_frames) is not int or self.every_n_frames < 1:
+            raise ValueError('every_n_frames must be an integer >= 1')
 
 
 class ExitQrConfirmer:
-    """Counts consecutive frames that read the exit QR at one place."""
+    """Counts consecutive checked frames that read the exit QR at one place."""
 
     def __init__(self, policy):
         self.policy = policy
         self.run = []
+        self.frames = 0
+
+    def due(self):
+        """True for the frames to check (one in every_n_frames); the others are not seen and keep the run."""
+        self.frames += 1
+        return (self.frames - 1) % self.policy.every_n_frames == 0
 
     def add(self, payload, point):
         """One frame: decoded content (or None) and its sensor point (or None). True on the confirming frame."""
@@ -109,7 +119,8 @@ def exit_values(values):
     if type(topic) is not str or not topic.strip():
         raise ValueError('exit_map_state_topic must be a non-empty STRING')
     return ExitQrPolicy(values['exit_qr_payload'], values['exit_qr_required_frames'],
-                        values['exit_qr_position_tolerance_m'], values['exit_qr_min_valid_depth_ratio']), topic
+                        values['exit_qr_position_tolerance_m'], values['exit_qr_min_valid_depth_ratio'],
+                        values['exit_qr_every_n_frames']), topic
 
 
 def detector_identity():

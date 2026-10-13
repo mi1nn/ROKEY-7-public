@@ -17,7 +17,7 @@ and target_locator (capture-time TF -> TargetLocation on /rescue/target_location
         recheck_action_name:=<ObserveTarget action> recheck_map_frame:=<map frame> recheck_scan_topic:=<robot scan> \
         recheck_*:=<recheck window policy, see rescue_perception.recheck_feed.RECHECK_PARAMS> \
         exit_qr_payload:=<exit QR content> exit_qr_required_frames:=<n> exit_qr_position_tolerance_m:=<m> \
-        exit_qr_min_valid_depth_ratio:=<0..1>
+        exit_qr_min_valid_depth_ratio:=<0..1> exit_qr_every_n_frames:=<n>
 
 The exit QR (OPS-136/138) is read by amr_target on the same RGB-D frames; a second target_locator
 (exit_locator) turns its observations into a TargetLocation on /rescue/exit_location.
@@ -44,6 +44,7 @@ EXIT_ARGUMENTS = {
     'exit_qr_required_frames': 'consecutive frames reading it at one place before it is the exit',
     'exit_qr_position_tolerance_m': 'largest spread of those frames positions, m',
     'exit_qr_min_valid_depth_ratio': 'share of depth samples inside the code that must be valid (0..1]',
+    'exit_qr_every_n_frames': 'check one RGB-D frame in n (about 35 ms per 704x704 frame); required_frames counts checked ones',
 }
 
 FIELD_ARGUMENTS = {
@@ -128,7 +129,8 @@ def _nodes(context):
         except ValueError as exc:
             raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
     parameters['exit_qr_payload'] = arg('exit_qr_payload')
-    parameters['exit_qr_required_frames'] = _integer('exit_qr_required_frames', arg('exit_qr_required_frames'))
+    for name in ('exit_qr_required_frames', 'exit_qr_every_n_frames'):
+        parameters[name] = _integer(name, arg(name))
     for name in ('exit_qr_position_tolerance_m', 'exit_qr_min_valid_depth_ratio'):
         try:
             parameters[name] = float(arg(name))

@@ -73,7 +73,7 @@ def amr_args(with_recheck=True):
                   'recheck_image_margin_px': '5', 'recheck_min_depth_m': '0.2', 'recheck_max_depth_m': '5.0',
                   'recheck_occlusion_tolerance_m': '0.3', 'recheck_depth_window_px': '2'})
         p.update({'exit_qr_payload': EXIT_PAYLOAD, 'exit_qr_required_frames': '5',
-                  'exit_qr_position_tolerance_m': '0.2', 'exit_qr_min_valid_depth_ratio': '0.5',
+                  'exit_qr_position_tolerance_m': '0.2', 'exit_qr_min_valid_depth_ratio': '0.5', 'exit_qr_every_n_frames': '2',
                   'exit_map_state_topic': MAP_STATE})
     flags = []
     for name, value in p.items():

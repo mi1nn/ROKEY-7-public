@@ -218,6 +218,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
 
         def feed_exit(frame, rgb, stamp, info, depth):
             """One frame for the exit QR run; a confirmed run publishes once per map revision."""
+            if not exit_confirmer.due():   # one frame in exit_qr_every_n_frames (CPU, OPS-141)
+                return
             try:
                 found = detect_qr(frame)
                 point = None
@@ -315,6 +317,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '
             f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id} '
             f'exit_qr model_id={exit_model_id} model_sha256={exit_model_sha256} '
+            f'every_n_frames={exit_policy.every_n_frames} required_frames={exit_policy.required_frames} '
             f'exit_blockers={",".join(exit_blockers) or "none"}')
         return node
     except Exception:
