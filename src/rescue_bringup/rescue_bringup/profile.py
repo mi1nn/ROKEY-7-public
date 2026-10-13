@@ -131,6 +131,15 @@ class HoldPose:
 
 
 @dataclass(frozen=True)
+class MapBasis:
+    """The one map basis of a run: coordinator goals and target locations must use it (v2 ``map_basis``)."""
+    frame_id: str
+    map_session_id: str
+    map_revision: int
+    transform_revision: int
+
+
+@dataclass(frozen=True)
 class Mission:
     roles: tuple[tuple[str, str], ...]          # (robot_id, role) sorted by robot_id
     search_areas: tuple[SearchArea, ...]
@@ -172,6 +181,12 @@ class Deployment:
     schema_version: int = 1
     mission: Mission | None = None
     site_cameras: tuple[SiteCamera, ...] = ()
+    map_basis: MapBasis | None = None   # v2 optional block; require_map_basis() where it is needed
+    # v2 optional: (robot_id, (x, y, yaw)) on the map_basis — where each robot returns (decision 5A)
+    home_positions: tuple[tuple[str, tuple[float, float, float]], ...] = ()
+
+    def home_of(self, robot_id: str) -> tuple[float, float, float] | None:
+        return dict(self.home_positions).get(robot_id)
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -437,6 +452,49 @@ def _mission(value: Any, robot_ids: list[str]) -> Mission:
     return Mission(tuple(sorted(roles.items())), tuple(areas), tuple(sorted(holds.items())))
 
 
+def _map_basis(value: Any, mission: Mission) -> MapBasis:
+    label = "map_basis"
+    data = _fields(value, {"frame_id", "map_session_id", "map_revision", "transform_revision"}, label)
+    basis = MapBasis(_frame_id(data["frame_id"], label + ".frame_id"),
+                     _uuid(data["map_session_id"], label + ".map_session_id"),
+                     _uint64(data["map_revision"], label + ".map_revision"),
+                     _uint64(data["transform_revision"], label + ".transform_revision"))
+    for index, area in enumerate(mission.search_areas):
+        if area.basis.kind == "PRIOR_MAP" and (area.basis.map_session_id, area.basis.map_revision,
+                                               area.basis.transform_revision) != (
+                basis.map_session_id, basis.map_revision, basis.transform_revision):
+            raise ProfileError(f"search_areas[{index}].basis must be the map_basis (session, revision, "
+                               f"transform revision) for a PRIOR_MAP area")
+    # A hold pose may name a robot-scoped TF frame (robot_b/map), so only the map is compared.
+    for robot_id, hold in mission.hold_positions:
+        if (hold.map_session_id, hold.map_revision) != (basis.map_session_id, basis.map_revision):
+            raise ProfileError(f"hold_positions[{robot_id}] must be on the map_basis map (session, revision)")
+    return basis
+
+
+def _home_positions(value: Any, robot_ids: list[str], basis: MapBasis | None) -> tuple:
+    """home_positions: {robot_id: [x, y, yaw]} in the map_basis frame (TB-6 dock approach, TB-5 exit)."""
+    if basis is None:
+        raise ProfileError("home_positions needs map_basis (the homes are on that map)")
+    if not isinstance(value, dict) or not value or not set(value) <= set(robot_ids):
+        raise ProfileError("home_positions must map deployment robot IDs to [x, y, yaw]")
+    homes = []
+    for robot_id in sorted(value):
+        pose = value[robot_id]
+        if not isinstance(pose, list) or len(pose) != 3:
+            raise ProfileError(f"home_positions[{robot_id}] must be [x, y, yaw]")
+        homes.append((robot_id, tuple(_finite(v, f"home_positions[{robot_id}]") for v in pose)))
+    return tuple(homes)
+
+
+def require_map_basis(deployment: Deployment) -> MapBasis:
+    """The profile's map basis, or ProfileError: launches that need it have no default."""
+    if deployment.map_basis is None:
+        raise ProfileError("profile map_basis is required (frame_id, map_session_id, map_revision, "
+                           "transform_revision; profile v2)")
+    return deployment.map_basis
+
+
 def load_deployment(path: str | Path) -> Deployment:
     """Read a bounded profile against the module's current proposed baseline.
 
@@ -453,6 +511,8 @@ def load_deployment(path: str | Path) -> Deployment:
     schema_version = _version(raw["schema_version"] if isinstance(raw, dict) and "schema_version" in raw else None,
                               "deployment")
     cameras_raw = raw.pop("site_cameras", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
+    basis_raw = raw.pop("map_basis", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
+    homes_raw = raw.pop("home_positions", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
     data = _fields(raw, {
         "schema_version", "deployment_id", "hosts", "robots", "services"
     } | ({"mission"} if schema_version == 2 else set()), "deployment")
@@ -508,6 +568,8 @@ def load_deployment(path: str | Path) -> Deployment:
     if len({robot.parameters.use_sim_time for robot in robots}) != 1:
         raise ProfileError("all robots must use the same use_sim_time setting")
     mission = _mission(data["mission"], [robot.id for robot in robots]) if schema_version == 2 else None
+    map_basis = _map_basis(basis_raw, mission) if basis_raw is not _ABSENT else None
+    homes = _home_positions(homes_raw, [robot.id for robot in robots], map_basis) if homes_raw is not _ABSENT else ()
     cameras: list[SiteCamera] = []
     if cameras_raw is not _ABSENT:
         if not isinstance(cameras_raw, list) or len(cameras_raw) > MAX_SITE_CAMERAS:
@@ -529,4 +591,4 @@ def load_deployment(path: str | Path) -> Deployment:
     if REQUIRE_ALL_HOSTS_USED and known_hosts != used_hosts:
         raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host,
-                      schema_version, mission, tuple(cameras))
+                      schema_version, mission, tuple(cameras), map_basis, homes)

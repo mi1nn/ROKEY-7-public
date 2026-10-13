@@ -12,13 +12,16 @@ webcam_node:
     height: 480
     frame_period_s: 0.2                  # 5 fps 목표. 실측 처리 시간보다 짧으면 밀린다
     reopen_period_s: 2.0
-    clock_domain_id: site-clock
-    clock_state: UNKNOWN                 # 시계 동기 확인 전에는 UNKNOWN
-    clock_error_bound_ns: -1             # -1 = 오차 상한 모름
+    clock_domain_id: rokey7-utc-field    # #132 현장 시계 영역과 같은 이름
+    # 시계는 이 PC 의 OS 시계 서비스를 읽어 측정한다. 측정이 안 되면 메시지는 UNKNOWN 이다.
+    clock_backend: timesyncd             # timesyncd | chrony | NONE(측정 안 함 = 항상 UNKNOWN). `systemctl is-active systemd-timesyncd`
+    clock_max_age_ns: 3600000000000      # NTP 응답이 이보다 오래되면 UNKNOWN (#132 task.live.clock_max_age_ns 와 같음)
+    clock_drift_ppm: 100.0               # 응답 뒤 시계가 벌어질 수 있는 상한 (#132 와 같음)
+    clock_poll_period_s: 5.0             # 측정 읽기 주기. 읽기는 별도 스레드라 프레임 처리를 막지 않는다
     calibration_id: cam-fixed-uncalibrated
     observation_validity_s: 1.0
     # 웹캠 survivor yolo26n (보고서 implementation-perception.md 「고정 웹캠 인형 탐지 모델 비교」)
-    model_path: /path/to/webcam-yolo26n-best.pt   # PC3 의 실제 경로로 바꾼다
+    model_path: assets/models/webcam-yolo26n-best.pt   # 저장소 루트에서 실행할 때의 상대 경로. 다른 곳에서 실행하면 절대 경로로
     model_sha256: 8b61f691f17a538410c80d6d8ef7aad7ad80b77365f76a9963e6164e797f18d5
     model_imgsz: 640
     model_conf: 0.1                      # 모델 출력 하한. 인형 판정은 watch_score_min 이 한다
@@ -54,3 +57,9 @@ webcam_node:
     watch_absent_hold_s: 3.0
     watch_absent_min_frames: 10
     watch_max_gap_s: 1.0
+    # 출구 쪽으로 사라질 때만 소실 후보(사용자 결정 2026-10-12). 화면에서 출구 쪽 영역 [x0, y0, x1, y1].
+    # 시험 현장은 프레임 왼쪽이 출구(사용자 지정 2026-10-12). [0.0, 0.0, 1.0, 1.0] 이면 방향을 보지 않는다
+    watch_exit_roi: [0.0, 0.0, 0.2, 1.0]
+    # 판정 화면용 JPEG 영상 토픽(출구·인형 상자·추적 선). 빈 문자열 '' 이면 끈다
+    debug_image_topic: /rescue/cameras/cam_fixed/debug_image/compressed
+    watch_track_max_jump: 0.3            # 한 프레임(0.2 s) 사이 같은 인형으로 볼 최대 중심 이동(정규화)

@@ -110,35 +110,33 @@ class RuntimeIntegrationTests(unittest.TestCase):
         self.adapter.step()
         self.assertEqual(self.f.port.cancels, [self.goal.command_id])
 
-    def test_return_resolves_home_record_without_target_or_approval(self):
+    def return_goal(self):
         g = self.goal
         g.kind, g.target_id, g.target_estimate_revision = 'RETURN_HOME', '', 0
         g.home_ref, g.has_route, g.has_approval = mapping.uid(999), False, False
+        return g
+
+    def test_return_resolves_home_record_without_target_or_approval(self):
+        self.return_goal()
         self.accept(); self.adapter.step()
         self.assertEqual(len(self.f.port.goals), 1)
         self.assertIsNone(self.adapter.executor.active.target_id)
 
     def test_return_cannot_infer_missing_home_pose(self):
-        self.goal.kind, self.goal.target_id = 'RETURN_HOME', ''
-        self.goal.home_ref = mapping.uid(999)
-        self.goal.has_route = self.goal.has_approval = False
+        self.return_goal()
         self.server.ingress.resolve_goal = lambda goal: None
         self.assertEqual(self.server.on_goal(self.goal), 'reject')
         self.assertIsNone(self.adapter.executor.active)
 
     def test_changed_home_record_during_movement_cancels(self):
-        g = self.goal
-        g.kind, g.target_id, g.target_estimate_revision = 'RETURN_HOME', '', 0
-        g.home_ref, g.has_route, g.has_approval = mapping.uid(999), False, False
+        g = self.return_goal()
         self.accept(); self.adapter.step(); self.adapter.on_goal_response(g.command_id, True)
         self.pose = GoalPose('mission', 4., 0., 0., mapping.SESSION, 0, 1)
         self.adapter.step()
         self.assertEqual(self.f.port.cancels, [g.command_id])
 
     def test_home_lookup_failure_blocks_dispatch_without_inventing_pose(self):
-        g = self.goal
-        g.kind, g.target_id, g.target_estimate_revision = 'RETURN_HOME', '', 0
-        g.home_ref, g.has_route, g.has_approval = mapping.uid(999), False, False
+        self.return_goal()
         self.accept()
         def unavailable(goal): raise RuntimeError('home cache unavailable')
         self.server.ingress.resolve_goal = unavailable

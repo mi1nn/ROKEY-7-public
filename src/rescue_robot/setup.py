@@ -21,8 +21,6 @@ setup(
                                        "task_input = rescue_robot.task_input_node:main",
                                        "robot_task_input = rescue_robot.task_input_node:main",
                                        "command_watchdog = rescue_robot.watchdog_node:main",
-                                       "task_server_probe = rescue_robot.task_server_probe:main",
-                                       "task_runtime_demo = rescue_robot.task_runtime_demo:main",
                                        "task_prepare = rescue_robot.task_prepare:main",
                                        "clock_capture = rescue_robot.clock_capture:main"]},
 )

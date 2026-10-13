@@ -11,20 +11,14 @@ from rescue_robot.task_input_node import resolve_factory, main, attach_configure
 
 
 class EntryPointTests(unittest.TestCase):
-    def test_source_alias_check_has_no_build_tool_dependency(self):
-        setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
-        if not setup.is_file():
-            self.skipTest('source-only check; installed aliases are checked through distribution metadata')
-        with patch.dict(sys.modules, {'setuptools': None}):
-            self.test_existing_launch_alias_and_new_entrypoint_share_one_runtime()
-
     def test_existing_launch_alias_and_new_entrypoint_share_one_runtime(self):
         setup = Path(__file__).resolve().parents[1] / 'src/rescue_robot/setup.py'
         if setup.is_file():
             # The source suite has no build-tool dependency (notably on Python
             # 3.12). Check the declared aliases with stdlib only; the wheel
             # suite below checks the real installed distribution metadata.
-            tree = ast.parse(setup.read_text(encoding='utf-8'))
+            with patch.dict(sys.modules, {'setuptools': None}):
+                tree = ast.parse(setup.read_text(encoding='utf-8'))
             calls = [node for node in tree.body if isinstance(node, ast.Expr)
                      and isinstance(node.value, ast.Call)
                      and isinstance(node.value.func, ast.Name)
@@ -40,18 +34,17 @@ class EntryPointTests(unittest.TestCase):
             entries = {e.name: e.value for e in distribution('rescue_robot').entry_points}
         self.assertEqual(entries['robot_task_input'], 'rescue_robot.task_input_node:main')
         self.assertEqual(entries['task_input'], entries['robot_task_input'])
+        self.assertFalse({'task_runtime_demo','task_server_probe'} & entries.keys())
 
     def test_requires_explicit_installed_factory_reference(self):
         for value in (None,'','file.py','module:factory:extra','../module:factory','module:a.b'):
             with self.assertRaises(ContractError):resolve_factory(value)
 
-    def test_factory_must_be_callable(self):
-        with patch('rescue_robot.task_input_node.importlib.import_module',return_value=SimpleNamespace(factory=1)):
-            with self.assertRaises(ContractError):resolve_factory('module:factory')
-
-    def test_missing_factory_is_visible(self):
-        with patch('rescue_robot.task_input_node.importlib.import_module',return_value=SimpleNamespace()):
-            with self.assertRaises(AttributeError):resolve_factory('module:factory')
+    def test_unusable_factory_is_visible(self):
+        for module,error in ((SimpleNamespace(factory=1),ContractError),(SimpleNamespace(),AttributeError)):
+            with self.subTest(module=module), patch(
+                    'rescue_robot.task_input_node.importlib.import_module',return_value=module):
+                with self.assertRaises(error):resolve_factory('module:factory')
 
     def test_entrypoint_shares_adapter_instead_of_creating_second_node(self):
         calls=[]

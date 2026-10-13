@@ -1,8 +1,6 @@
 """Which confirmed target the SUPPORT robot goes to next (Part I 3.4.3/3.4.5, Q-19) (E2)."""
-from dataclasses import replace
 import itertools
 import unittest
-from uuid import UUID
 
 from rescue_coordination.planning import Allocator, CoordinationError, PathCandidate
 from rescue_coordination import dispatch

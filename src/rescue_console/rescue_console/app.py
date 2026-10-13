@@ -13,7 +13,7 @@ import uuid
 from .accounts import AccountStore
 from .commands import build_request, command_access, parse_operations_url, post_json, send_command
 from .mapimage import load_map, map_overlay
-from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, failure_text, render_accounts, render_failure,
+from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
 from .sources import load_ledger, load_site_state, load_status
 from .throttle import LoginThrottle
@@ -33,12 +33,22 @@ SECURITY_HEADERS = {
 }
 
 
-def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None):
-    """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
+def _check_sources(ledger_path, status_path, site_state_path):
     if site_state_path is not None and status_path is not None:
         raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
+    # The old ReportLedger is optional with the site-state DB (no operations code writes it yet,
+    # 2026-10-13); the fixture (E2) still comes with its ledger. A given ledger must open.
+    if ledger_path is None and site_state_path is None:
+        raise ConsoleError('INVALID_INPUT', 'a ledger is required unless --site-state is given')
+
+
+def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
+                 robot_names=None, support_dispatch=None):
+    """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
+    _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
-    view = build_view(load_ledger(ledger_path), status, built_at_ns=clock())
+    ledger = None if ledger_path is None else load_ledger(ledger_path)
+    view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch)
     if map_image is not None:
         view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
         for where in view['map']['frame_mismatch']:
@@ -46,6 +56,23 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
         for where in view['map']['off_map']:
             view['warnings'].append(f"지도 밖 좌표: {where['kind']} {where['id']} ({where['x']:.2f}, {where['y']:.2f})")
     return view
+
+
+def parse_robot_name(text):
+    """'robot_a=TB-6' -> ('robot_a', 'TB-6'): the robot ID and the name shown for it (owner 2026-10-13)."""
+    robot_id, sep, name = text.partition('=')
+    if not sep or not robot_id.strip() or not name.strip():
+        raise ConsoleError('INVALID_INPUT', f'robot name must be ROBOT_ID=NAME: {text!r}')
+    return robot_id.strip(), name.strip()
+
+
+def robot_name_map(pairs):
+    names = {}
+    for robot_id, name in pairs:
+        if robot_id in names:
+            raise ConsoleError('INVALID_INPUT', f'robot name given twice for {robot_id!r}')
+        names[robot_id] = name
+    return names
 
 
 def parse_camera(text):
@@ -57,9 +84,12 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, login_throttle=None, operations_url=None, command_transport=None):
+               map_path=None, login_throttle=None, robot_names=None, support_dispatch=None, operations_url=None,
+               command_transport=None, camera_stale_s=None):
     """`operations_url`: base URL of operations' HTTP API. Without it the command buttons stay off
     (no default address). `command_transport` replaces the HTTP POST in tests."""
+    cameras = tuple(cameras)
+    camera_stale_ms(cameras, camera_stale_s)   # validate configuration before optional Flask import
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -67,9 +97,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
                            'Flask is required for the web console: python3 -m pip install flask') from exc
     if not isinstance(secret_key, str) or len(secret_key) < 16:
         raise ConsoleError('CONFIG_MISSING', 'secret_key (>= 16 chars) is required to sign login sessions')
-    if site_state_path is not None and status_path is not None:
-        raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
-    cameras = tuple(cameras)
+    _check_sources(ledger_path, status_path, site_state_path)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup
     operations = None if operations_url is None else parse_operations_url(operations_url)
@@ -88,7 +116,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         return response
 
     def view():
-        return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image)
+        return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
+                            robot_names=robot_names, support_dispatch=support_dispatch)
 
     def user():
         """The account behind this session, or None.
@@ -186,7 +215,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @app.get('/')
     @login_required
     def page(account):
-        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras,
+        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras, camera_stale_s=camera_stale_s,
                                     command_access=command_access(account['role'], operations is not None)),
                         mimetype='text/html')
 

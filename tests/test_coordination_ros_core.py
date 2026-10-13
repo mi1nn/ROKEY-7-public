@@ -21,6 +21,9 @@ ACCEPT = 3_000_000_000   # admission timeout
 TTL = 1_500_000_000      # CommandLease message time-to-live (AST88-02)
 SEGMENTS = tuple(GoalPoint((float(i), 1.), .25 * i, MAP, 3, 1) for i in (1, 2))
 OBSERVE = GoalPoint((5., 5.), 1., MAP, 3, 1)
+CLOCK_DOMAIN = 'site-clock'
+TARGET_AGE = 2_000_000_000     # target_max_age_s 2.0
+TARGET_FUTURE = 50_000_000     # target_max_future_s 0.05
 
 
 def make_core(**changes):
@@ -30,7 +33,10 @@ def make_core(**changes):
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
                   admission_timeout_ns=ACCEPT, segment_passage_free=(True,) * len(SEGMENTS),
-                  lease_message_ttl_ns=TTL, new_id=lambda: uid(next(ids)))
+                  lease_message_ttl_ns=TTL, camera_watch=None, target_clock_domain_id=CLOCK_DOMAIN,
+                  target_max_age_ns=TARGET_AGE, target_max_future_ns=TARGET_FUTURE, support_dispatch='OPERATOR',
+                  approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
+                  recheck_max_clock_error_ns=20_000_000, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -40,10 +46,18 @@ def frame(**changes):
     return NS(**(values | changes))
 
 
+def obs_time(**changes):
+    """A TargetObservation time with a declared basis on the coordinator's domain (OPS-103 gate)."""
+    values = dict(observed_at_ns=NOW - 10**8, valid_until_ns=NOW + 10**9, stamp_semantics='CAPTURE',
+                  clock_domain_id=CLOCK_DOMAIN, clock_state='SYNCED', has_clock_error_bound=True,
+                  clock_error_bound_ns=5_000_000)
+    return NS(**(values | changes))
+
+
 def location(n, xy=(4., 4.), **changes):
     values = dict(location_id=uid(800 + n), frame_ref=frame(), projection_status='VALID',
                   mission_position=NS(x=xy[0], y=xy[1], z=0.), covariance=[.01 * n] * 9,
-                  observation=NS(time=NS(observed_at_ns=NOW - 10**8 + n, valid_until_ns=NOW + 10**9 + n)))
+                  observation=NS(time=obs_time(observed_at_ns=NOW - 10**8 + n, valid_until_ns=NOW + 10**9 + n)))
     return NS(**(values | changes))
 
 
@@ -80,7 +94,8 @@ def admission_msg(fields, accepted=True):
 
 def request(operation, **changes):
     values = dict(command_id=uid(700), operation=operation, operator_id='admin', robot_id='', target_id='',
-                  expected_target_revision=0, route_revision=0, segment_index=0, issued_at_ns=NOW)
+                  expected_target_revision=0, route_revision=0, segment_index=0, issued_at_ns=NOW,
+                  roi_xyxy_normalized=[0.] * 4)
     return NS(**(values | changes))
 
 
@@ -211,7 +226,8 @@ class ScoutDispatchTests(CoreTestCase):
         self.finish(recheck)
         (search,) = self.core.tick(NOW)
         self.assertEqual('SEARCH_AREA', search['kind'])
-        self.assertEqual('', self.core.system_state_change(NOW)['reason'])
+        # The recheck completed without an observation: judged RECHECK_NEEDED (C-11 row 5), shown in place of the queue.
+        self.assertEqual('RECHECK_NEEDED_RECHECK_OBSERVATION_MISSING', self.core.system_state_change(NOW)['reason'])
 
     def test_stop_cancels_the_waiting_search(self):
         for stop in ('status', 'canceled', 'mode'):

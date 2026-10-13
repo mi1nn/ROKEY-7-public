@@ -76,3 +76,148 @@ RViz에서 `2D Pose Estimate`로 실제 초기 위치와 방향을 지정하고 
 | `nav2_params_file` | 두 모드 | TurtleBot4 `config/nav2.yaml` |
 
 `--show-args`는 실행 인자와 launch 읽기만 확인하며 ROS 노드를 시작하지 않는다. 이 검사나 빌드 성공을 실제 map/TF·초기 위치·주행 성공으로 해석하지 않는다. 실제 지도 작성·저장·재위치 추정·장애물 회피와 두 로봇/프로젝트 인터페이스 통합은 E3/E4 NOT_RUN이며 현장 증거를 추가해야 한다.
+
+## 운영 PC launch (`operations.launch.py`, 2026-10-12)
+
+운영 PC(프로파일 `operations` 호스트)에서 db_writer(현장 상태 DB 쓰기 + 운영자 명령 API)와, 원하면 고정 웹캠 노드를 띄운다. 로봇 ID·역할·토픽은 배치 프로파일 v2.1(`mission.roles`)에서 계산하므로, 실기 로봇이 바뀌면 프로파일 파일만 바꾼다. 실기 값(로봇 ID·주소)은 저장소 밖 프로파일에 두고 경로로 넘긴다. 변환은 `rescue_bringup/operations_launch.py`(ROS 없음, `tests/test_bringup_operations_launch.py`)이고, 토픽·서비스 이름은 조정기 상수와 같은지 시험이 대조한다.
+
+```bash
+ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json> \
+  db_path:=<site_state.sqlite3> api_port:=<포트> command_timeout_s:=3.0 \
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  webcam_params_file:=<webcam_node.yaml> \
+  video_port:=<포트> video_bind_host:=<주소> video_stale_s:=2.0
+```
+
+`webcam_params_file` 을 빼면 웹캠 없이, `video_*` 를 빼면 판정 영상 중계 없이 뜬다.
+
+- 판정 영상 중계(`mjpeg_relay`, #153): `video_port` 를 주면 켠다. 웹캠을 이 PC 에서 띄울 때만 가능하고(`webcam_params_file` 없이 주면 launch 가 멈춤), 입력 토픽은 웹캠 설정의 `debug_image_topic`, 주소 경로는 `/<camera_id>.mjpg` 다. `video_bind_host`·`video_stale_s` 는 켤 때 필수다. launch 가 관제 웹에 줄 값을 로그로 남긴다: `console --camera cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`. 관제 웹을 보는 브라우저가 이 주소에 닿아야 하므로, 다른 기기에서 볼 때는 `video_bind_host` 를 그 기기가 닿는 주소로 준다.
+
+- `db_path` 는 프로파일의 로봇 ID 구성(지금은 `robot_a`·`robot_b`)이 같으면 같은 파일을 계속 쓴다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않으므로, ID 구성을 바꿀 때만 새 파일을 쓴다. 더 낮은 schema 파일은 처음 열 때 올라가므로 그 전에 복사본을 남긴다.
+- 운영자 명령 API 는 `127.0.0.1` 에서만 받는다(API 자체에 로그인 확인 없음). 관제 웹은 이 launch 밖의 웹 서비스로, `--site-state <db_path> --operations http://127.0.0.1:<api_port>` 로 같은 DB·API 를 가리킨다.
+- `command_timeout_s` 는 관제 웹의 5초보다 짧아야 한다.
+- 프로파일에 `mission.roles` 가 없으면(v1) 시작하지 않는다.
+
+| 검증 | 결과 |
+| --- | --- |
+| E2: `tests/test_bringup_operations_launch.py` | 통과 |
+| 로컬 ROS(jazzy, `ROS_DOMAIN_ID=77`, LOCALHOST, Discovery Server 해제, 한 PC, 2026-10-12, 스크래치 colcon 설치본): 예시 프로파일로 이 launch + 조정기 노드, 가짜 로봇 상태·DISASTER_SIGN | db_writer 기동(`allowed_robot_ids` = robot_a·robot_b), 조정기 전 API 503, 재난 전 START_SEARCH 거절 `NOT_AUTHORIZED`, 재난 뒤 접수, 명령 2행·임무 DISASTER/SEARCHING·로봇 2행(SCOUT·SUPPORT) 저장, 종료 코드 0. v1 프로파일은 launch 오류로 시작하지 않음 |
+
+NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요), 운영 PC·실기 프로파일, 조정기·로봇 PC launch.
+
+## 현장 실행 순서: PC 역할별 (2026-10-13, main 기준)
+
+PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇다.
+
+| 호스트 id | 물리 PC | 띄우는 것 |
+| --- | --- | --- |
+| `operations` + `coordination` | 같은 PC(웹·DB·웹캠·조정기) | `operations.launch.py`(db_writer·report_node·webcam_node·mjpeg_relay), 관제 웹, `coordinator.launch.py` |
+| `compute_a` | TB-6(robot_a, `/robot6`, SCOUT) 담당 PC | 위치 추정, `robot.launch.py robot_id:=robot_a`, 탐지·대상 위치·재확인 서버(통합-인식) |
+| `compute_b` | TB-5(robot_b, `/robot5`, SUPPORT) 담당 PC | 위치 추정, `robot.launch.py robot_id:=robot_b` |
+
+값은 세 곳에서만 온다. 첫째는 배포 프로파일 v2.1(저장소 밖)로, 로봇·역할·namespace·readiness·검색 영역·`map_basis`·`home_positions` 를 준다. 둘째는 현장 실행 파일 `config/field/search_area.field.json` 으로, 정책·로봇별 값을 준다. 셋째는 launch 인자로, 현장에서 재는 값이다. 이 launch 들은 arm·임무·이동 명령을 보내지 않는다. 로봇이 움직이는 단계는 사람이 지켜본다.
+
+| 기능 | 상태 |
+| --- | --- |
+| 운영 launch(db_writer·보고 저장·웹캠·영상 중계), 조정기·로봇 launch, 지도 해시, 준비 점검 | 있음(#144·#152·#156·#158) |
+| TB-5 자동 접근(APPROACH_TARGET), TB-6 재관측(REOBSERVE_TARGET)+재확인 관측, 로봇 위치·지도 상태 발행 | 있음(#166·#179·#176). 재확인 서버는 통합-인식 #165 머지 뒤 |
+| 복귀(RETURN_HOME) | PR #192 머지 뒤 |
+| TB-5 로봇 launch | TB-5 실행 값 PR 머지 뒤(현장 실행 파일 `robots.robot_b`). 그 전에는 `robot_id:=robot_b` 가 멈춘다 |
+| watchdog 현장 값 | #132 임시값(#94 미확정). 영구 정지와 리셋은 [rescue_robot README](../rescue_robot/README.md) |
+
+### 0단계 — 모든 PC, 그리고 로봇 Pi
+
+로봇 Pi 두 대(재범이 Pi 에서 본다. 근거 [Pi 설정 기록](../../docs/evidence/field-2026-10-13-pi-settings.md)):
+
+| 확인 | 명령 | 맞는 값 | 메모 |
+| --- | --- | --- | --- |
+| 무선 절전 | `iw dev wlan0 get power_save` | `Power save: off` | 일시 설정이다. 재부팅하면 켜지므로 켤 때마다 `sudo iw dev wlan0 set power_save off` |
+| 자동 업데이트 | `systemctl is-enabled apt-daily.timer apt-daily-upgrade.timer unattended-upgrades` | 셋 다 `disabled` | 재부팅해도 유지 |
+| Pi 시계 | `chronyc tracking` | — | 실기 당일 다시 잰다. `rescue_contracts/clock_measurement.py` 의 `parse_chrony` 식(차이 + root delay/2 + root dispersion + 갱신 간격 × 100 ppm)으로 계산한다. 현장 실행 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 의 2026-10-13 측정값은 150 ms 다(TB-6 약 109 ms, TB-5 약 107 ms). 계산값이 150 ms 를 넘으면 값을 바꾼다. -1 이면 로봇 위치가 UNKNOWN 이고 TB-5 자동 출동이 보류된다 |
+| 카메라(TB-6) | 언도킹 뒤 `ros2 topic hz /robot6/oakd/rgb/image_raw/compressed` | 약 30 Hz(2026-10-13 측정 28.7 Hz) | 도킹 중에는 카메라가 꺼져 있다. 언도킹한 뒤에 확인한다([OAK-D 기록](../../docs/evidence/field-2026-10-13-oakd-robot6.md)) |
+
+모든 PC(같은 로봇망 SSID 여야 한다. 2026-10-13 운영 PC 가 다른 SSID 라 TB-5 Pi ping 이 100% 실패했다 — [운영 PC 기록](../../docs/evidence/field-2026-10-13-operations-host.md)):
+
+```bash
+ping -c 20 <TB-5 Pi 주소>; ping -c 20 <TB-6 Pi 주소>      # 손실 0% 인지(로봇 담당 PC 는 자기 로봇만)
+iw dev <무선 장치> get power_save                         # PC 쪽 무선 절전(끌지는 재범이 정함)
+# Discovery: 권고안 A(최종). 전용 서버 없음. 세미콜론 자리 번호 = 서버 ID(TB-5 Pi = 5, TB-6 Pi = 6)
+#   compute_a: ';;;;;;<TB-6 Pi>:11811'   compute_b: ';;;;;<TB-5 Pi>:11811'
+#   operations·coordination: ';;;;;<TB-5 Pi>:11811;<TB-6 Pi>:11811'
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<위 값, 프로파일 hosts[<host id>].network 와 같게>'
+ros2 daemon stop && ros2 daemon start
+ROS_SUPER_CLIENT=True ros2 topic list --no-daemon | grep -E '^/robot[56]/' | cut -d/ -f2 | sort | uniq -c
+python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json> \
+  --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
+```
+
+현장 프로파일에는 `map_basis`(frame `map`)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; 현장에서 잼, PR #192 머지 뒤)가 있어야 한다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
+
+### 1단계 — operations + coordination PC
+
+```bash
+# 운영: 현장 상태 DB·명령 API·구조 보고 저장·웹캠·판정 영상 중계
+ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
+  db_path:=<site_state.sqlite3> api_port:=<api 포트> command_timeout_s:=3.0 \
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  webcam_params_file:=<webcam_node.yaml> video_port:=<영상 포트> video_bind_host:=<브라우저가 닿는 주소> video_stale_s:=2.0
+# → 로그 "console --camera cam_fixed=http://..." 를 아래 --camera 에 그대로
+
+# 관제 웹(계정 DB·비밀키 준비는 rescue_console README)
+python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
+  --operations http://127.0.0.1:<api 포트> --camera <launch 로그의 값> --camera-stale-s 2.0 \
+  --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 --map <map.yaml> --port 8080
+#   PR #185 머지 뒤: --support-dispatch AUTO 를 더한다(없으면 관제 웹이 TB-5 출동 승인 버튼을 켠다. 조정기 support_dispatch 와 같게)
+
+# 조정기(live 입력). 경로·관측 목표는 아직 자리표시, 웹캠 감시 ROI 는 현장에서 잰 값(재범 결정 6A)
+ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
+  field_path:=$PWD/config/field/search_area.field.json \
+  route_segment_goals:='[0.0, 0.0, 0.0]' observe_goal:='[0.0, 0.0, 0.0]' route_segment_passage_free:='[false]' \
+  camera_watch_roi:='<현장에서 잰 값, 예: [0.1, 0.2, 0.6, 0.9]>'
+# ↑ 자리표시다. '[x0, y0, x1, y1]' 글자를 그대로 붙이면 JSON 이 아니라 launch 가 exit 1
+```
+
+성공 로그: `rescue_db_writer git=... api=http://127.0.0.1:<port>`, `rescue_report_node ... receipts=/rescue/report_receipts`, `webcam_node git=... model=...`, `mjpeg_relay ...`, 조정기 `live task source enabled` · `central live clock: SYNCED` · `awaiting RViz search goal on /rescue/search_goal`. 조정기는 `central live clock: SYNCED` 전에 `central live clock: waiting for clock measurement` 를 한 번 내는 것이 정상이다(첫 측정 전).
+
+TB-5 가 대상에서 출구로 떠나기 전 기다리는 시간 `support_exit_wait_s`(15 s, 재범 결정 2026-10-13)는 launch 인자가 아니라 현장 실행 파일 coordinator 절의 값이다. 리허설 중에 바꾸면 조정기 launch 를 다시 띄운다.
+
+### 2단계 — compute_a (TB-6), compute_b (TB-5)
+
+두 로봇은 같은 지도 파일 하나를 쓴다(`map_basis` 하나). 언도킹은 기존 감독 절차로 한다.
+
+```bash
+# <ns> = /robot6 (compute_a) 또는 /robot5 (compute_b), <id> = robot_a 또는 robot_b
+ros2 launch turtlebot4_navigation localization.launch.py namespace:=<ns> map:=<map.yaml> use_sim_time:=false
+python3 scripts/field/map_occupancy_sha256.py <ns>/map map        # stdout 64자리 해시, 실패면 exit 2
+FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> \
+  field_path:=$PWD/config/field/search_area.field.json robot_id:=<id> \
+  occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)
+```
+
+성공 로그: `robot <id> ns=<ns> ... map_sha256=...`, `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`, `MAP_STATE <id> ... quality=VALID`(AMCL 이 자리를 잡은 뒤).
+
+compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 통합-인식 #165 머지 뒤에 띄운다.
+
+### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
+
+```bash
+# 각 로봇: 정지 상태에서 AMCL 갱신 한 번 → 조정기 상태 재발행 → 실행기 arm(#132 start_search.py 순서)
+ros2 service call <ns>/request_nomotion_update std_srvs/srv/Empty {}
+ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}
+ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}      # success=True
+```
+
+1. RViz(2D Goal Pose)로 `/rescue/search_goal` 에 TB-6 수색 목표를 고른다. 조정기 로그 `SEARCH_GOAL_SELECTED`.
+2. TB-6 과 TB-5 를 모두 arm 한다. TB-5 는 자동 출동이라 대상이 나오기 전에 arm 돼 있어야 한다. 실행기는 arm(latch ARMED)일 때만 READY 를 내고(`task_status.py`), 조정기는 READY·최신 상태인 SUPPORT 에만 task 를 낸다(통합-조정 확인 2026-10-13). arm 하지 않으면 조정기는 기다리기만 한다. PR #196 머지 뒤에는 SystemState `reason=SUPPORT_NOT_READY` 로 보이고, 관제 웹에는 「TB-5 준비 안 됨 — arm 필요」로 보인다(PR #185 머지 뒤).
+3. 웹캠 앞 흔들림 → 관제 화면 모드 DISASTER → 관제 웹 출동 버튼(START_SEARCH).
+4. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
+5. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다.
+
+### 참고
+
+- 정렬 유효 구간은 #132 처럼 launch 시각 기준 `now - alignment.backdate_s` ~ `now + alignment.window_s` 로 선언한다(관측값이 아님).
+- ROS 파라미터로 빈 배열을 넘길 수 없다. 그래서 `route_segment_passage_free:='[]'` 와 빈 `camera_topics` 는 launch 가 거절하고, 표시 개수는 구간 수와 같아야 한다(#163).
+- 문자열 값은 `ParameterValue(str)` 로 넘긴다(`ros_parameters.typed`).
+- 시험: `tests/test_bringup_field_launch.py`(#132 현장 스크립트와 같은 파라미터인지).

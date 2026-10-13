@@ -1,5 +1,7 @@
 """DB writer node: the parts that run without ROS (configuration check, import without rclpy)."""
 import importlib
+import os
+import signal
 import sys
 import unittest
 
@@ -18,19 +20,34 @@ def params(**changes):
 
 
 class NodeConfig(unittest.TestCase):
+    def test_import_probe_preserves_loaded_node_references(self):
+        import rescue_operations
+        original = importlib.import_module('rescue_operations.ros_node')
+        self.test_module_imports_without_rclpy()
+        self.assertIs(original, sys.modules['rescue_operations.ros_node'])
+        self.assertIs(original, rescue_operations.ros_node)
+
     def test_module_imports_without_rclpy(self):
+        import rescue_operations
+        absent = object()
+        original_node = getattr(rescue_operations, 'ros_node', absent)
         blocked = {name: None for name in ('rclpy', 'rescue_interfaces', 'rescue_interfaces.msg')}
-        saved = {name: sys.modules.get(name) for name in blocked}
+        saved = {name: sys.modules.get(name, absent)
+                 for name in (*blocked, 'rescue_operations.ros_node')}
         sys.modules.update(blocked)  # a None entry makes `import name` fail
         try:
             sys.modules.pop('rescue_operations.ros_node', None)
             importlib.import_module('rescue_operations.ros_node')
         finally:
             for name, module in saved.items():
-                if module is None:
+                if module is absent:
                     sys.modules.pop(name, None)
                 else:
                     sys.modules[name] = module
+            if original_node is absent:
+                del rescue_operations.ros_node
+            else:
+                rescue_operations.ros_node = original_node
 
     def test_parallel_lists_become_one_entry_per_robot(self):
         from rescue_operations.ros_node import node_config
@@ -79,6 +96,46 @@ class NodeConfig(unittest.TestCase):
                 self.assertEqual('VOLATILE', durability[kind])
         self.assertEqual('TRANSIENT_LOCAL', durability['system_state'])  # #90 latches it
         self.assertEqual('TRANSIENT_LOCAL', durability['targets'])  # #96 latches TargetSnapshot too
+
+
+class Teardown(unittest.TestCase):
+    """A second SIGINT (launch + terminal Ctrl-C) during cleanup must not abort it (measured 2026-10-13:
+    KeyboardInterrupt inside ThreadingHTTPServer.shutdown, traceback, exit -2)."""
+
+    def setUp(self):
+        self.addCleanup(signal.signal, signal.SIGINT, signal.getsignal(signal.SIGINT))
+
+    def test_repeated_sigint_does_not_abort_the_remaining_steps(self):
+        from rescue_operations.ros_node import teardown
+        done = []
+
+        def interrupted():
+            os.kill(os.getpid(), signal.SIGINT)  # what the second Ctrl-C does during server.shutdown()
+            done.append('server')
+
+        teardown(interrupted, lambda: done.append('ledger'), lambda: done.append('node'))
+        self.assertEqual(['server', 'ledger', 'node'], done)
+
+    def test_sigint_stays_ignored_while_the_process_ends(self):
+        from rescue_operations.ros_node import teardown
+        teardown(lambda: None)
+        self.assertIs(signal.SIG_IGN, signal.getsignal(signal.SIGINT))
+
+    def test_report_node_cleans_up_with_the_same_teardown(self):
+        # report_node (#137) had the same finally block and died with exit -2 on a second SIGINT (measured 2026-10-13).
+        from rescue_operations import report_node, ros_node
+        self.assertIs(ros_node.teardown, report_node.teardown)
+
+    def test_a_failing_step_does_not_skip_the_rest_and_is_raised(self):
+        from rescue_operations.ros_node import teardown
+        done = []
+
+        def broken():
+            raise OSError('socket already closed')
+
+        with self.assertRaises(OSError):
+            teardown(broken, lambda: done.append('ledger'))
+        self.assertEqual(['ledger'], done)
 
 
 if __name__ == '__main__':

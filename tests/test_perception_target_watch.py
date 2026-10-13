@@ -34,12 +34,18 @@ OUTSIDE = (DetectionBox(0.0, 0.0, 0.1, 0.1, 0.9),)        # ROI 밖
 NONE = ()
 
 
+def at(cx):
+    """가로 중심이 cx 인 인형 상자(세로는 ROI 가운데)."""
+    return (DetectionBox(round(cx - 0.05, 3), 0.45, round(cx + 0.05, 3), 0.55, 0.9),)
+
+
 class TargetWatchTests(unittest.TestCase):
     def setUp(self):
         self.binding = SourceBinding(None, "cam_a", str(UUID(int=300)), "site-clock", "CAPTURE", "CAPTURE",
                                      "cam-a-cal", "SYNCED", 5000000)
         self.policy = TargetWatchPolicy(score_min=0.5, roi_overlap_min=0.5, present_confirm_frames=2,
-                                        absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150)
+                                        absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150,
+                                        exit_roi_xyxy_normalized=(0.0, 0.0, 1.0, 1.0), track_max_jump=0.3)
         self.watch = WatchSpec(camera_id="cam_a", watch_id=WATCH, target_id=TARGET,
                                roi_xyxy_normalized=(0.4, 0.4, 0.6, 0.6), watch_revision=1)
 
@@ -161,6 +167,50 @@ class TargetWatchTests(unittest.TestCase):
         frames = self.seq(0, [DOLL, DOLL, NONE]) + [(300, NONE, "OCCLUDED")] + self.seq(400, [NONE] * 5)
         self.assertEqual(self.run_frames(self.detector(), frames), self.run_frames(self.detector(), frames))
 
+    # -- 출구 방향 (Q-26 추가 항목, 사용자 결정 2026-10-12: 출구 쪽으로 사라질 때만 후보) --------------
+    # 출구 영역은 화면 오른쪽 띠. 위 시험들의 출구는 화면 전체(어느 방향이든 출구)다.
+
+    def exit_detector(self):
+        return self.detector(exit_roi_xyxy_normalized=(0.8, 0.0, 1.0, 1.0))
+
+    def test_doll_carried_out_through_exit_is_candidate(self):
+        results = self.run_frames(self.exit_detector(), self.seq(0, [at(0.5), at(0.5), at(0.7), at(0.9)] + [NONE] * 4))
+        events = self.events(results)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].observed_at_ns, T0 + 500)
+        self.assertIn("last_seen_center=(0.9", events[0].detail)
+
+    def test_doll_carried_out_the_other_way_is_not_a_candidate(self):
+        results = self.run_frames(self.exit_detector(), self.seq(0, [at(0.5), at(0.5), at(0.3), at(0.1)] + [NONE] * 4))
+        self.assertEqual(self.events(results), [])
+        self.assertEqual((results[-1].state, results[-1].reason), ("UNKNOWN", "NOT_VIA_EXIT"))
+
+    def test_doll_moved_within_frame_is_not_a_candidate(self):
+        # 출구 영역 안으로 옮겨 놓아도 화면에 보이는 동안은 사라진 것이 아니다
+        results = self.run_frames(self.exit_detector(), self.seq(0, [at(0.5), at(0.5), at(0.7)] + [at(0.9)] * 6))
+        self.assertEqual(self.events(results), [])
+        self.assertEqual((results[-1].state, results[-1].reason), ("UNKNOWN", "NOT_VIA_EXIT"))
+
+    def test_other_doll_does_not_hide_the_watched_doll_leaving(self):
+        other = DetectionBox(0.05, 0.45, 0.15, 0.55, 0.9)
+        frames = [(b + (other,)) for b in (at(0.5), at(0.5), at(0.7), at(0.9))] + [(other,)] * 4
+        self.assertEqual(len(self.events(self.run_frames(self.exit_detector(), self.seq(0, frames)))), 1)
+
+    def test_doll_carried_out_while_scene_is_occluded_is_candidate(self):
+        # 2026-10-12 실기: 옮기는 사람 때문에 화면 전체가 OCCLUDED 였지만 모델은 인형을 계속 잡았다.
+        # 가림 중에도 상자로 추적하고, 후보는 가림이 끝난 뒤 VALID 프레임에서만 낸다.
+        frames = (self.seq(0, [at(0.5), at(0.5)]) + self.seq(200, [at(0.7), at(0.9)], "OCCLUDED")
+                  + self.seq(400, [NONE] * 4))
+        events = self.events(self.run_frames(self.exit_detector(), frames))
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].observed_at_ns, T0 + 700)  # 가림 뒤 400 부터 300ns
+
+    def test_vanishing_in_place_is_not_a_candidate(self):
+        # 출구가 아닌 곳에서 갑자기 안 보이면(탐지 실패·사람이 가림) 후보 없이 운영자 판단으로 넘긴다
+        results = self.run_frames(self.exit_detector(), self.seq(0, [at(0.5), at(0.5)] + [NONE] * 6))
+        self.assertEqual(self.events(results), [])
+        self.assertEqual(results[-1].reason, "NOT_VIA_EXIT")
+
     def test_invalid_inputs_are_rejected(self):
         self.assertCode("INVALID_INPUT", lambda: TargetWatchDetector(
             replace(self.binding, source_robot="robot_a"), self.policy, self.watch))
@@ -172,6 +222,9 @@ class TargetWatchTests(unittest.TestCase):
             self.assertCode("INVALID_INPUT", lambda bad=bad: replace(self.watch, **bad))
         for bad in (dict(score_min=1.5), dict(roi_overlap_min=0.0), dict(present_confirm_frames=0),
                     dict(absent_hold_ns=0), dict(absent_min_frames=0), dict(max_gap_ns=0), dict(absent_hold_ns=1.0)):
+            self.assertCode("INVALID_INPUT", lambda bad=bad: replace(self.policy, **bad))
+        for bad in (dict(exit_roi_xyxy_normalized=(0.8, 0.0, 0.7, 1.0)), dict(exit_roi_xyxy_normalized=[0.8, 0.0, 1.0, 1.0]),
+                    dict(track_max_jump=0.0), dict(track_max_jump=2.0)):
             self.assertCode("INVALID_INPUT", lambda bad=bad: replace(self.policy, **bad))
         for bad in (dict(x0=0.6), dict(y1=1.5), dict(score=-0.1), dict(x0=float("nan"))):
             box = dict(x0=0.4, y0=0.4, x1=0.5, y1=0.5, score=0.9)

@@ -15,7 +15,7 @@ ALLOWED = ('robot_a', 'robot_b')
 # 1차 IDL of the operator command service; every operation it names must be recordable.
 OPERATOR_SRV = Path(__file__).resolve().parents[1] / 'src' / 'rescue_interfaces' / 'srv' / 'SubmitOperatorCommand.srv'
 READERS = ('read_robot_status', 'read_site_events', 'read_target_states', 'read_error_log',
-           'read_mission_state', 'read_operator_commands', 'read_map_snapshots')
+           'read_mission_state', 'read_operator_commands', 'read_map_snapshots', 'read_allowed_robot_ids')
 
 
 def uid(n):
@@ -526,7 +526,15 @@ class SiteStateTests(unittest.TestCase):
         site_state.read_robot_status(self.path)
         site_state.read_site_events(self.path)
         site_state.read_target_states(self.path)
+        site_state.read_allowed_robot_ids(self.path)
         self.assertEqual(before, self.path.read_bytes())
+
+    def test_allowed_robot_ids_are_the_deployment_robots_before_any_status(self):
+        # #147: the console draws one card per deployed robot even when no status arrived yet.
+        self.ledger().close()
+        self.assertEqual({'schema_version': site_state.SCHEMA_VERSION, 'allowed_robot_ids': sorted(ALLOWED)},
+                         site_state.read_allowed_robot_ids(self.path))
+        self.assertEqual([], site_state.read_robot_status(self.path)['robots'])
 
     def test_policy_cannot_change_on_reopen(self):
         self.ledger().close()

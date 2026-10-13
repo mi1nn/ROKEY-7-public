@@ -53,12 +53,12 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 항목 | 규칙 |
 | --- | --- |
 | 모델 | `Detector` 인터페이스(`infer(rgb, observed_at_ns) -> Inference | None`) 뒤에 둔다. 가중치·런타임은 Q-18로 열려 있어 이 PR에 추론 구현이 없다. `RecordedDetections`는 프레임 stamp(int ns)별로 녹화된 탐지를 돌려주는 재생용 구현이다. 그 stamp에 기록이 없으면 `None`(모델이 돌지 않음)이고 빈 결과와 구별한다 |
-| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
+| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `person_labels`가 모델 manifest에 없거나 출력 label이 manifest 밖이면 `MODEL_CLASS_MISMATCH`로 프레임 전체를 거절한다. 그래야 「돌았지만 사람 없음」이 「이 모델은 사람을 못 봄」과 섞여 재관측의 부재 근거로 새지 않는다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
 | 확정 | `CONFIRMED`는 `confidence ≥ confirm_confidence_min`이면서 위치가 `LOCATED`일 때만이다. 아니면 `UNCONFIRMED`이고 이유(`LOW_CONFIDENCE`, 위치 실패 이유)를 붙인다. 값은 Q-21이며 기본값이 없다. 미확정도 관측으로 남는다 |
 | 후보 표시 | `new_candidate`: 같은 track은 처음 한 번, 그리고 CONFIRMED로 오를 때 한 번 더 참이다. 내려가는 변화는 새 후보가 아니다. track이 없는 탐지는 프레임 사이를 이을 수 없어 매번 새 후보다(보수적 과분리) |
 | 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
 
-관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(14개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
 
 ## 탐지 클래스 이름: `survivor` (2026-10-11)
 
@@ -103,7 +103,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 ## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
 
-웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 가중치·영상·데이터셋은 저장소에 넣지 않는다(선정 뒤 `assets/manifest/` 에 출처·해시 기록). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
+웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 영상·데이터셋은 저장소에 넣지 않는다. 선정한 yolo26n 가중치는 `assets/models/webcam-yolo26n-best.pt`, 출처·해시는 [`assets/manifest/webcam-yolo26n-survivor.json`](../../assets/manifest/webcam-yolo26n-survivor.json) 이다(2026-10-12 사용자 승인, AGENTS 8절 예외). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
 
 - #95 와의 관계: #95 는 **AMR 카메라(OAK-D)** 용 yolo26n 이고, 이 절은 **고정 웹캠** 용이다. 같은 모델 구조지만 학습 데이터(카메라·화각·장면)가 달라 가중치를 서로 바꿔 쓰지 않는다.
 - 노트북: `tools/colab/survivor_model_compare.ipynb` — Colab 한 번 실행으로 학습·평가·속도·오탐/미탐·bootstrap 95% 구간·요약. 끝난 모델은 건너뛰고, 한 모델이 실패해도 나머지를 계속하며 실패를 기록한다.
@@ -142,10 +142,11 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 있음 | 점수 ≥ `score_min` 이고 상자 면적 중 ROI 안 비율 ≥ `roi_overlap_min` 인 상자가 하나라도 있으면 PRESENT |
 | 무장 | `present_confirm_frames` 연속 있음 뒤에만 소실을 잰다. 한 번도 못 보면 UNKNOWN(`NOT_YET_SEEN`) — ROI 오류를 드러낸다 |
 | 소실 | 무장 뒤 VALID 프레임에서 "없음"이 `absent_hold_ns` 이상·`absent_min_frames` 이상 이어지면 ABSENT_CANDIDATE. 사건은 watch 하나에 하나(같은 watch → 같은 event_id) |
+| 출구 방향 | 소실 시간을 채워도 **감시 중인 인형이 출구 쪽으로 사라졌을 때만** 후보(사용자 결정 2026-10-12, Q-26 추가 항목). 인형은 직전 위치에서 `track_max_jump` 이내의 가장 가까운 상자로 따라가고, 화면 가림 중에도 모델 상자로 따라간다. 사라질 때 마지막 중심이 `exit_roi_xyxy_normalized` 안이면 후보, 아니면(반대쪽·제자리에서 사라짐, 화면 안 다른 곳) UNKNOWN(`NOT_VIA_EXIT`) — 운영자 판단 |
 | 판정 불가 | 가림(OCCLUDED)·영상 상태 불명·탐지기 결과 없음은 UNKNOWN, 소실 시간을 다시 잰다. 후보를 만들지 않고 관제 웹의 운영자 판단(REQUEST_RECHECK, C-11 10행)으로 넘긴다. 간격 > `max_gap_ns` 도 다시 잰다 |
 | 순서 | 중복·역순 프레임은 상태를 바꾸지 않는다. 재생하면 같은 결과·같은 ID |
 
-`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
+`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(21개, 합성 상자. 출구 방향 6개 추가 2026-10-12)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
 
 ## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
 
@@ -161,9 +162,14 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
 - 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(19개).
 - **국소 가림 한계(OPS-74-02):** 사람이 ROI 만 가리면 화면 전체 가림이 아니라 VALID 로 들어가 소실 시간이 흐른다. 후보는 재확인 트리거일 뿐이고 AMR1 재관측이 확정한다(KPI-06).
 - 탐지기: 웹캠 survivor yolo26n(위 절). 기동 때 모델 파일 sha256 이 `model_sha256` 과 다르면 기동하지 않는다. 탐지 실패 프레임은 탐지 결과 없음(UNKNOWN)으로 넣고 소실로 세지 않는다.
-- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
+- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`)이다. 시계 상태는 파라미터로 고정하지 않고 측정한다(2026-10-13): `clock_backend`(timesyncd·chrony)를 `rescue_contracts.clock_measurement.ClockSampler` 로 `clock_poll_period_s` 마다 읽는다. 마지막 기록이 SYNCED 이고 메시지 관측 시각이 측정 시각 이후·`clock_max_age_ns` 안이면 `SYNCED` 이고, 오차 상한은 측정값에 표본 뒤 `clock_drift_ppm` 만큼을 더한다. 그 밖은 모두 `UNKNOWN`(상한 없음)이며, `clock_backend: NONE` 이면 항상 `UNKNOWN` 이다. 조정기는 `SYNCED`+상한이 있어야 DISASTER 로 넘어간다(`TIME_BASIS_UNUSABLE`). [측정, 2026-10-13] 개발 PC 의 timesyncd 1회 측정은 SYNCED, 오차 상한 약 365 ms 였다. 웹캠 PC 값은 NOT_RUN 이다. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
 - 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/rescue_perception/config/webcam_node.example.yaml`(설치하면 `share/rescue_perception/config/` 에도 있다) [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
 - 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
+- 출구 방향 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠, 출구 = 프레임 왼쪽 `[0.0, 0.0, 0.2, 1.0]`]: 왼쪽으로 들고 나감 → 후보 1건(`last_seen_center=(0.030,0.707)`), 오른쪽으로 들고 나감 → 후보 없음·UNKNOWN, 화면 안 다른 곳으로 옮김 → 후보 없음·UNKNOWN. 처음엔 옮기는 사람 때문에 화면 전체가 OCCLUDED 인 동안 추적이 멈춰 출구로 나가도 NOT_VIA_EXIT 였다 → 가림 중에도 상자로 추적(기록 470 프레임 재생으로 확인). 감시는 인형이 ROI 안에서 3 프레임 연속 보여야 시작하므로, 시험 때는 PRESENT 확인 뒤 옮긴다.
+- 판정 화면용 영상: `debug_image_topic`(빈 문자열이면 끔)에 지진 판정(4×4 블록 격자·화면 이동 화살표·방향 전환 횟수)과 출구 영역·인형 상자·추적 선·상태를 그린 JPEG(`sensor_msgs/CompressedImage`, BEST_EFFORT)을 낸다. 판정에는 쓰지 않는다. 약 6 Hz, 640×480 한 장 35 kB [측정, 2026-10-12].
+- 카메라 상태: SDD `CameraStatus` 계약("정지 영상·끊김·가림은 UNKNOWN")대로, 지진 판정이 화면 가림(`OCCLUDED`·`SCENE_CHANGED`·`QUADRANT_COVERED`)을 보면 `UNKNOWN` 과 그 이유(`quality_reason`)를 낸다. 전에는 가려도 `ONLINE` 이라 감시가 없는 평상시 가림이 드러나지 않았다(2026-10-12 실기).
+- 파이프라인 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠]: 시험용 대시보드(저장소 밖)가 조정기 대신 `DISASTER_SIGN` 을 받자마자 `SetCameraWatch`(화면 전체 ROI)를 걸었다. 흔들기 → 지진 감지 → 자동 감시 → 인형 있음 → 출구로 나감 → 구출 후보 1건, 반대쪽으로 나감 → 후보 없음. 손으로 렌즈를 가리거나 사람이 카메라 바로 앞을 지나가면 카메라 상태 `UNKNOWN`·판정 보류로 지진 사건 없음, 감시 중 사람이 인형 뒤로 지나가면 PRESENT 유지.
+- USB 끊김: 웹캠을 손으로 흔들다 USB 연결이 끊긴 기록이 있다(커널 로그 2026-10-12 20:26:43). 이 PR 의 노드(장치 경로 #119·종료 처리 #121 포함)로 USB 를 소프트웨어로 끊었다가(`/sys/bus/usb/devices/<포트>/authorized` 0→1) 10초 뒤 다시 붙이면, 감시가 없을 때와 있을 때 모두 `OFFLINE`(READ_FAILED → 2초마다 OPEN_FAILED)을 내고 다시 붙은 지 1초 안에 `ONLINE` 으로 돌아왔다. 감시도 그대로 이어졌다 [측정, 2026-10-12]. 그 전 빌드(장치 번호로 열던 때)에서 손으로 뽑았을 때는 OFFLINE 없이 멈춘 적이 두 번 있다 — 물리적으로 뽑는 경우는 이 빌드로 다시 확인해야 한다(NOT_RUN).
 - ROS 실행 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인]: `ROS_DOMAIN_ID` 를 로봇과 다른 값으로, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 설정 해제. USB 웹캠(640×480), 모델 sha256 `8b61f691…` 일치.
   - 기동 로그: git SHA·boot id·모델 경로·sha256·카메라·해상도·주기·정책 값 전부 한 줄. SIGINT 종료 로그 남음.
   - status·site_events·presence 토픽과 set_watch 서비스가 뜬다. status ONLINE, 5.00 fps(목표 5).
