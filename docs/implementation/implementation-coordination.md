@@ -11,7 +11,11 @@
   - 조건: `ROS_DOMAIN_ID` 47·LOCALHOST. 코드는 main `a578d23` + #142 `c2fb926` + #147 `6762a2e` 를 로컬에서만 합쳤다.
   - 실제로 돈 노드: `mission_coordinator`, `target_locator`, `db_writer`(+HTTP API), `report_node`. 관제 웹 화면은 같은 DB 로 만들었다.
   - **가짜였던 것**: 웹캠 DISASTER_SIGN(SYNCED·오차 5 ms 는 시험값), 두 로봇의 실행기와 RobotStatus, AMR 카메라 TargetObservation 과 TF. 영수증·TargetLocation·SystemState 는 가짜가 아니라 실제 노드가 냈다.
-  - 스크립트 `tests/ros/e3_rehearsal_ab.py` 는 #142 머지 뒤 PR 로 올린다.
+  - 스크립트 `tests/ros/e3_rehearsal_abc.py`(A·B·C 와 지도 고정 F 단계). 아래 결과는 main `782371d` 위에서 잰 것이다 [측정 2026-10-13, 3회]:
+    - SAVED_MAP A1~C5 11단계: 3회 모두 PASS, 단계마다 2.5 s 안쪽. 재난 신호부터 임무 FINISHED 까지 실제 조정기·target_locator·db_writer·report_node 가 이어진다.
+    - SLAM_FREEZE F1~F3: 3회 모두 PASS. 대상 저장 → 고정 호출 1회 → 고정 grid·TB-6 MapState R0+1 → R0 대상 보류(`TARGET_NOT_ON_FROZEN_MAP`) → R0+1 관측 다시 저장 → `SUPPORT_NOT_LOCALIZED` → TB-5 `APPROACH_TARGET`(map_revision 1).
+    - 가짜: 웹캠(DISASTER_SIGN·소실 후보·감시 슬롯은 실제 WatchSlot 규칙), 두 로봇 실행기·상태·TB-5 RobotPose, TB-6 카메라 관측·TF·MapState, 고정 서비스·고정 grid. 시계는 시험값(SYNCED, 5 ms).
+    - 3회 중 1회 SLAM_FREEZE 실행 끝에 target_locator 가 SIGTERM 때 RCLError(context 무효)로 exit 1 이었다. 조정기 #154 와 같은 종류의 종료 경합이다(통합-인식 레인).
 - 출동 승인 관문: 확정(CONFIRMED)이고, 지금 revision 의 보고가 PERSISTED 이고, 운영자가 그 revision 으로 누를 때만 열린다.
   - 단위 시험: `tests/test_coordination_ros_targets.py` `DispatchGateTests`(#139).
   - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 `tests/ros/e3_report_gate_probe.py`(#151, 머지됨).
@@ -248,4 +252,4 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `tests/ros/e3_report_gate_probe.py` (#151) | 실제 조정기 + 실제 report_node: PERSISTED → `persisted_report_id` → DISPATCH_SUPPORT 수락, 보고 크기 |
 | `tests/ros/e3_target_locator_probe.py` (#142) | 가짜 관측 + TF → target_locator → 조정기 대상 |
 | `tests/ros/e3_camera_watch_probe.py` (#148) | 실제 조정기 + 웹캠 `WatchSlot` 그대로: 재난 모드에서만, ROI 없으면 거절, 후보 → 해제 |
-| `tests/ros/e3_rehearsal_ab.py` (#142 머지 뒤 PR) | A·B 전체(위 「지금 상태」) |
+| `tests/ros/e3_rehearsal_abc.py` | A·B·C 전체(SAVED_MAP)와 지도 고정 F1~F3(SLAM_FREEZE), 위 「지금 상태」 |
