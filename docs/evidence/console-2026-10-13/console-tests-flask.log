@@ -1,0 +1,224 @@
+# command: PYTHONPATH=<src/rescue_* folders> <venv>/bin/python -m unittest discover -s tests -p 'test_console_*.py' -v
+# commit: 5b3b153 (src/ identical to main bd4bfa5) · Python 3.13.16 · Flask 3.1.3 · run 2026-10-13T09:29Z
+test_account_identity_and_auth_version (test_console_accounts.AccountStoreTests.test_account_identity_and_auth_version)
+Sessions bind to (account_id, auth_version): names can be reused, credentials can change. ... ok
+test_admin_creates_updates_and_deletes_customers (test_console_accounts.AccountStoreTests.test_admin_creates_updates_and_deletes_customers) ... ok
+test_create_bootstraps_one_active_admin_and_refuses_to_overwrite (test_console_accounts.AccountStoreTests.test_create_bootstraps_one_active_admin_and_refuses_to_overwrite) ... ok
+test_invalid_inputs_are_rejected_with_the_contract_error (test_console_accounts.AccountStoreTests.test_invalid_inputs_are_rejected_with_the_contract_error) ... ok
+test_last_active_admin_is_protected (test_console_accounts.AccountStoreTests.test_last_active_admin_is_protected) ... ok
+test_open_refuses_missing_or_foreign_database (test_console_accounts.AccountStoreTests.test_open_refuses_missing_or_foreign_database) ... ok
+test_passwords_are_salted_hashes_and_authenticate_is_strict (test_console_accounts.AccountStoreTests.test_passwords_are_salted_hashes_and_authenticate_is_strict) ... ok
+test_unknown_and_inactive_names_cost_a_password_check_too (test_console_accounts.AccountStoreTests.test_unknown_and_inactive_names_cost_a_password_check_too) ... ok
+test_vocabularies (test_console_accounts.AccountStoreTests.test_vocabularies) ... ok
+test_bad_or_extra_values_are_refused (test_console_commands.CommandRequestTests.test_bad_or_extra_values_are_refused) ... ok
+test_each_kind_carries_exactly_the_fields_the_coordinator_reads (test_console_commands.CommandRequestTests.test_each_kind_carries_exactly_the_fields_the_coordinator_reads) ... ok
+test_every_value_the_operator_saw_must_be_there (test_console_commands.CommandRequestTests.test_every_value_the_operator_saw_must_be_there) ... ok
+test_fields_match_the_coordinator_gate (test_console_commands.CommandRequestTests.test_fields_match_the_coordinator_gate) ... ok
+test_held_and_unknown_kinds_are_refused_before_anything_is_sent (test_console_commands.CommandRequestTests.test_held_and_unknown_kinds_are_refused_before_anything_is_sent) ... ok
+test_operations_url_is_http_only_and_has_no_default (test_console_commands.CommandRequestTests.test_operations_url_is_http_only_and_has_no_default) ... ok
+test_a_failed_send_is_shown_and_not_retried (test_console_commands.CommandRouteTests.test_a_failed_send_is_shown_and_not_retried) ... /usr/lib/python3.13/re/_parser.py:112: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fd4da95e890>
+  def __init__(self, state, data=None):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/re/_parser.py:112: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fd4da95e980>
+  def __init__(self, state, data=None):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[2026-10-13 09:29:19,575] WARNING in app: operator command RETURN_HOME eb08bf7f-41f7-46b6-a3c9-e9dd4e598939 by admin -> {'sent': False, 'error': 'TIMEOUT', 'message': 'timed out', 'delivery': 'UNKNOWN'}
+ok
+test_admin_sends_once_and_gets_the_answer (test_console_commands.CommandRouteTests.test_admin_sends_once_and_gets_the_answer) ... ok
+test_commands_is_the_only_new_write_route (test_console_commands.CommandRouteTests.test_commands_is_the_only_new_write_route) ... ok
+test_customer_cannot_send (test_console_commands.CommandRouteTests.test_customer_cannot_send) ... [2026-10-13 09:29:20,275] WARNING in app: command refused before sending: NOT_AUTHORIZED 보기 전용 계정 — 명령은 ADMIN 만 보냅니다 (jane)
+ok
+test_held_or_malformed_commands_are_refused_here (test_console_commands.CommandRouteTests.test_held_or_malformed_commands_are_refused_here) ... [2026-10-13 09:29:20,526] WARNING in app: command refused before sending: INVALID_INPUT command 'PAUSE' is not sendable from the console (admin)
+[2026-10-13 09:29:20,532] WARNING in app: command refused before sending: INVALID_INPUT command 'STOP_ROBOT' is not sendable from the console (admin)
+[2026-10-13 09:29:20,537] WARNING in app: command refused before sending: INVALID_INPUT target_revision must be a non-negative integer (admin)
+ok
+test_login_and_csrf_are_required (test_console_commands.CommandRouteTests.test_login_and_csrf_are_required) ... [2026-10-13 09:29:20,873] WARNING in app: command refused before sending: CSRF csrf token mismatch — reload the page (admin)
+ok
+test_rejection_is_shown_as_given (test_console_commands.CommandRouteTests.test_rejection_is_shown_as_given) ... ok
+test_without_an_operations_address_nothing_is_sent (test_console_commands.CommandRouteTests.test_without_an_operations_address_nothing_is_sent) ... [2026-10-13 09:29:21,376] WARNING in app: command refused before sending: NOT_CONNECTED operations 주소 없음 — 실행할 때 --operations 로 주면 켜집니다 (admin)
+ok
+test_an_error_status_body_is_still_read (test_console_commands.FakeOperationsTests.test_an_error_status_body_is_still_read) ... ok
+test_nothing_listening_is_unreachable_and_not_sent (test_console_commands.FakeOperationsTests.test_nothing_listening_is_unreachable_and_not_sent) ... ok
+test_one_json_post_and_the_answer_is_read (test_console_commands.FakeOperationsTests.test_one_json_post_and_the_answer_is_read) ... ok
+test_slow_operations_times_out_once_and_delivery_is_unknown (test_console_commands.FakeOperationsTests.test_slow_operations_times_out_once_and_delivery_is_unknown) ... ok
+test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger (test_console_commands.GateTests.test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger) ... ok
+test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows (test_console_commands.GateTests.test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows) ... ok
+test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet (test_console_commands.GateTests.test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet) ... ok
+test_dispatch_waits_for_the_report_receipt (test_console_commands.GateTests.test_dispatch_waits_for_the_report_receipt) ... ok
+test_held_commands_stay_off_whatever_the_state (test_console_commands.GateTests.test_held_commands_stay_off_whatever_the_state) ... ok
+test_malformed_revision_or_receipt_fails_the_poll (test_console_commands.GateTests.test_malformed_revision_or_receipt_fails_the_poll) ... ok
+test_outside_disaster_mode_nothing_is_enabled (test_console_commands.GateTests.test_outside_disaster_mode_nothing_is_enabled) ... ok
+test_panel_lists_every_command_with_the_flow_gates_first (test_console_commands.GateTests.test_panel_lists_every_command_with_the_flow_gates_first) ... ok
+test_recheck_leaves_out_rescued_targets (test_console_commands.GateTests.test_recheck_leaves_out_rescued_targets) ... ok
+test_return_home_only_after_a_verdict (test_console_commands.GateTests.test_return_home_only_after_a_verdict) ... ok
+test_start_search_only_before_the_search (test_console_commands.GateTests.test_start_search_only_before_the_search) ... ok
+test_without_a_mission_row_nothing_is_enabled (test_console_commands.GateTests.test_without_a_mission_row_nothing_is_enabled) ... ok
+test_badge_reads_the_mission_state_row (test_console_commands.MissionBadgeTests.test_badge_reads_the_mission_state_row) ... ok
+test_every_mission_mode_has_a_word (test_console_commands.MissionBadgeTests.test_every_mission_mode_has_a_word) ... ok
+test_no_mission_row_yet_falls_back_to_the_signs_and_says_so (test_console_commands.MissionBadgeTests.test_no_mission_row_yet_falls_back_to_the_signs_and_says_so) ... ok
+test_buttons_need_both_the_access_and_the_gate (test_console_commands.PanelRenderTests.test_buttons_need_both_the_access_and_the_gate) ... ok
+test_fragment_carries_the_gates_for_the_buttons (test_console_commands.PanelRenderTests.test_fragment_carries_the_gates_for_the_buttons) ... ok
+test_the_site_stop_stays_on_the_panel (test_console_commands.PanelRenderTests.test_the_site_stop_stays_on_the_panel) ... ok
+test_an_error_status_that_carries_an_answer_is_still_an_answer (test_console_commands.ReplyTests.test_an_error_status_that_carries_an_answer_is_still_an_answer) ... ok
+test_answer_is_passed_on_as_given (test_console_commands.ReplyTests.test_answer_is_passed_on_as_given) ... ok
+test_what_is_not_an_answer_is_a_failure_not_a_rejection (test_console_commands.ReplyTests.test_what_is_not_an_answer_is_a_failure_not_a_rejection) ... ok
+test_a_failure_is_reported_and_never_retried (test_console_commands.SendTests.test_a_failure_is_reported_and_never_retried) ... ok
+test_one_post_and_the_answer_comes_back (test_console_commands.SendTests.test_one_post_and_the_answer_comes_back) ... ok
+test_error_detail_is_escaped (test_console_history.HistoryPageTests.test_error_detail_is_escaped) ... ok
+test_history_rows_stay_out_of_the_kpi04_event_rows (test_console_history.HistoryPageTests.test_history_rows_stay_out_of_the_kpi04_event_rows) ... ok
+test_missing_history_says_so (test_console_history.HistoryPageTests.test_missing_history_says_so) ... ok
+test_refused_command_shows_its_reason_in_korean_and_code (test_console_history.HistoryPageTests.test_refused_command_shows_its_reason_in_korean_and_code) ... ok
+test_site_state_read_includes_commands_and_errors_newest_first (test_console_history.HistorySourceTests.test_site_state_read_includes_commands_and_errors_newest_first) ... ok
+test_commands_and_errors_merge_newest_first_with_their_answer (test_console_history.HistoryViewTests.test_commands_and_errors_merge_newest_first_with_their_answer) ... ok
+test_rows_are_capped_newest_kept (test_console_history.HistoryViewTests.test_rows_are_capped_newest_kept) ... ok
+test_without_the_inputs_history_is_missing_not_empty (test_console_history.HistoryViewTests.test_without_the_inputs_history_is_missing_not_empty) ... ok
+test_every_upstream_value_has_a_korean_word (test_console_labels.LabelTests.test_every_upstream_value_has_a_korean_word) ... ok
+test_unknown_code_is_shown_unchanged_and_none_stays_none (test_console_labels.LabelTests.test_unknown_code_is_shown_unchanged_and_none_stays_none) ... ok
+test_words_are_nonempty_and_differ_from_the_code (test_console_labels.LabelTests.test_words_are_nonempty_and_differ_from_the_code) ... ok
+test_a_gone_publisher_is_stale (test_console_live_map.FrozenMapTests.test_a_gone_publisher_is_stale) ... ok
+test_an_unchanged_map_with_a_live_publisher_is_not_stale (test_console_live_map.FrozenMapTests.test_an_unchanged_map_with_a_live_publisher_is_not_stale) ... ok
+test_touch_alive_creates_then_refreshes (test_console_live_map.FrozenMapTests.test_touch_alive_creates_then_refreshes) ... ok
+test_a_new_map_is_read_and_shows_its_version (test_console_live_map.LiveMapTests.test_a_new_map_is_read_and_shows_its_version) ... ok
+test_a_stale_map_is_flagged (test_console_live_map.LiveMapTests.test_a_stale_map_is_flagged) ... ok
+test_an_unreadable_new_map_keeps_the_old_one_and_says_so (test_console_live_map.LiveMapTests.test_an_unreadable_new_map_keeps_the_old_one_and_says_so) ... ok
+test_no_map_yet_is_said_not_an_error (test_console_live_map.LiveMapTests.test_no_map_yet_is_said_not_an_error) ... ok
+test_a_robot_without_a_pose_is_listed_not_placed (test_console_live_map.UnplacedRobotTests.test_a_robot_without_a_pose_is_listed_not_placed)
+TB-5 has no pose before the map is fixed (owner 2026-10-13): say so, do not invent one. ... ok
+test_example_poses_land_on_free_cells_of_the_pre_quake_map (test_console_map.ExampleFixtureOnMapTests.test_example_poses_land_on_free_cells_of_the_pre_quake_map) ... ok
+test_offline_ledger_with_example_and_map_has_nothing_off_the_map (test_console_map.ExampleFixtureOnMapTests.test_offline_ledger_with_example_and_map_has_nothing_off_the_map) ... ok
+test_map_png_needs_login_and_is_get_only (test_console_map.MapRouteTests.test_map_png_needs_login_and_is_get_only) ... ok
+test_no_map_is_404_and_bad_map_fails_at_startup (test_console_map.MapRouteTests.test_no_map_is_404_and_bad_map_fails_at_startup) ... ok
+test_page_draws_robots_and_targets_on_the_map (test_console_map.MapScreenTests.test_page_draws_robots_and_targets_on_the_map) ... ok
+test_robot_heading_and_off_map_warning (test_console_map.MapScreenTests.test_robot_heading_and_off_map_warning) ... ok
+test_untrusted_ids_are_escaped_in_the_overlay (test_console_map.MapScreenTests.test_untrusted_ids_are_escaped_in_the_overlay) ... ok
+test_without_map_the_placeholder_stays (test_console_map.MapScreenTests.test_without_map_the_placeholder_stays) ... ok
+test_bad_pgm_is_refused (test_console_map.PgmPngTests.test_bad_pgm_is_refused) ... ok
+test_bad_yaml_is_refused_not_defaulted (test_console_map.PgmPngTests.test_bad_yaml_is_refused_not_defaulted) ... ok
+test_flat_yaml_subset (test_console_map.PgmPngTests.test_flat_yaml_subset) ... ok
+test_loaded_map_png_is_the_pgm_as_saved (test_console_map.PgmPngTests.test_loaded_map_png_is_the_pgm_as_saved) ... ok
+test_missing_files_are_storage_errors_and_nothing_is_created (test_console_map.PgmPngTests.test_missing_files_are_storage_errors_and_nothing_is_created) ... ok
+test_negate_flips_so_dark_stays_occupied (test_console_map.PgmPngTests.test_negate_flips_so_dark_stays_occupied) ... ok
+test_pgm_header_with_comment_is_read_exactly (test_console_map.PgmPngTests.test_pgm_header_with_comment_is_read_exactly) ... ok
+test_png_round_trips_the_pixels (test_console_map.PgmPngTests.test_png_round_trips_the_pixels) ... ok
+test_pre_quake_map_matches_its_manifest (test_console_map.PreQuakeMapAssetTests.test_pre_quake_map_matches_its_manifest) ... ok
+test_origin_is_bottom_left_and_y_is_flipped (test_console_map.ProjectionTests.test_origin_is_bottom_left_and_y_is_flipped) ... ok
+test_overlay_plots_map_frame_only_and_lists_the_rest (test_console_map.ProjectionTests.test_overlay_plots_map_frame_only_and_lists_the_rest) ... ok
+test_points_off_the_image_are_none_not_clamped (test_console_map.ProjectionTests.test_points_off_the_image_are_none_not_clamped) ... ok
+test_band_support_card_and_dispatched_target_show_the_exit_countdown (test_console_reasons.ReasonScreenTests.test_band_support_card_and_dispatched_target_show_the_exit_countdown) ... ok
+test_failed_exit_is_red (test_console_reasons.ReasonScreenTests.test_failed_exit_is_red) ... ok
+test_recheck_needed_goes_on_the_dispatched_target_row (test_console_reasons.ReasonScreenTests.test_recheck_needed_goes_on_the_dispatched_target_row) ... ok
+test_rescued_target_is_green (test_console_reasons.ReasonScreenTests.test_rescued_target_is_green) ... ok
+test_scout_return_goes_on_the_scout_card (test_console_reasons.ReasonScreenTests.test_scout_return_goes_on_the_scout_card) ... ok
+test_target_refusal_stays_on_the_band_only (test_console_reasons.ReasonScreenTests.test_target_refusal_stays_on_the_band_only) ... ok
+test_approach_failed_with_a_reason_of_216 (test_console_reasons.ReasonWordTests.test_approach_failed_with_a_reason_of_216) ... ok
+test_automatic_approach_codes_of_187 (test_console_reasons.ReasonWordTests.test_automatic_approach_codes_of_187) ... ok
+test_map_freeze_gates_of_214 (test_console_reasons.ReasonWordTests.test_map_freeze_gates_of_214) ... ok
+test_recheck_needed_reasons (test_console_reasons.ReasonWordTests.test_recheck_needed_reasons) ... ok
+test_rescue_and_finish_words (test_console_reasons.ReasonWordTests.test_rescue_and_finish_words) ... ok
+test_scout_return (test_console_reasons.ReasonWordTests.test_scout_return) ... ok
+test_support_exit_states (test_console_reasons.ReasonWordTests.test_support_exit_states) ... ok
+test_target_time_refusals_and_unknown_codes (test_console_reasons.ReasonWordTests.test_target_time_refusals_and_unknown_codes) ... ok
+test_without_a_support_name (test_console_reasons.ReasonWordTests.test_without_a_support_name) ... ok
+test_auto_reason_goes_on_the_targets_waiting_for_support (test_console_reasons.SupportDispatchModeTests.test_auto_reason_goes_on_the_targets_waiting_for_support) ... ok
+test_auto_shows_the_state_instead_of_the_button (test_console_reasons.SupportDispatchModeTests.test_auto_shows_the_state_instead_of_the_button) ... ok
+test_mode_value_is_checked (test_console_reasons.SupportDispatchModeTests.test_mode_value_is_checked) ... ok
+test_operator_or_unset_keeps_the_button (test_console_reasons.SupportDispatchModeTests.test_operator_or_unset_keeps_the_button) ... ok
+test_locks_after_the_limit_and_opens_again_after_the_lock (test_console_throttle.LoginThrottleTests.test_locks_after_the_limit_and_opens_again_after_the_lock) ... ok
+test_memory_is_bounded_under_a_flood_of_names (test_console_throttle.LoginThrottleTests.test_memory_is_bounded_under_a_flood_of_names) ... ok
+test_name_is_case_insensitive_and_clients_are_separate (test_console_throttle.LoginThrottleTests.test_name_is_case_insensitive_and_clients_are_separate) ... ok
+test_old_failures_fall_out_of_the_window (test_console_throttle.LoginThrottleTests.test_old_failures_fall_out_of_the_window) ... ok
+test_success_clears_the_count (test_console_throttle.LoginThrottleTests.test_success_clears_the_count) ... ok
+test_concurrent_failures_of_one_pair_still_lock_it (test_console_throttle.LoginThrottleThreadTests.test_concurrent_failures_of_one_pair_still_lock_it) ... ok
+test_concurrent_flood_evicts_without_errors (test_console_throttle.LoginThrottleThreadTests.test_concurrent_flood_evicts_without_errors) ... ok
+test_fixture_without_the_robot_list_still_says_so (test_console_view.AllowedRobotsTests.test_fixture_without_the_robot_list_still_says_so) ... ok
+test_silent_robot_still_has_a_card_without_the_ledger (test_console_view.AllowedRobotsTests.test_silent_robot_still_has_a_card_without_the_ledger) ... ok
+test_site_state_gives_the_allowed_robots (test_console_view.AllowedRobotsTests.test_site_state_gives_the_allowed_robots) ... ok
+test_every_contract_rescue_state_maps_without_extending_vocabulary (test_console_view.ComposeStageTests.test_every_contract_rescue_state_maps_without_extending_vocabulary) ... ok
+test_known_support_state_overrides_report_approach (test_console_view.ComposeStageTests.test_known_support_state_overrides_report_approach) ... ok
+test_rule_table_rows_are_each_reachable (test_console_view.ComposeStageTests.test_rule_table_rows_are_each_reachable) ... ok
+test_unconfirmed_wins_and_flags_inconsistent_inputs (test_console_view.ComposeStageTests.test_unconfirmed_wins_and_flags_inconsistent_inputs) ... ok
+test_values_outside_vocabulary_are_rejected (test_console_view.ComposeStageTests.test_values_outside_vocabulary_are_rejected) ... ok
+test_candidate_for_an_unknown_target_is_a_warning (test_console_view.DisappearedCandidateTests.test_candidate_for_an_unknown_target_is_a_warning) ... ok
+test_candidate_names_its_target_row_and_event_subject (test_console_view.DisappearedCandidateTests.test_candidate_names_its_target_row_and_event_subject) ... ok
+test_latest_candidate_wins (test_console_view.DisappearedCandidateTests.test_latest_candidate_wins) ... ok
+test_events_carry_source_time_and_ledger_time_for_kpi04 (test_console_view.LedgerViewTests.test_events_carry_source_time_and_ledger_time_for_kpi04) ... ok
+test_exit_count_is_taken_from_read_api_not_recounted (test_console_view.LedgerViewTests.test_exit_count_is_taken_from_read_api_not_recounted) ... ok
+test_exit_count_zero_with_rescues_is_not_a_warning (test_console_view.LedgerViewTests.test_exit_count_zero_with_rescues_is_not_a_warning) ... ok
+test_four_stages_are_composed_from_ledger_and_states (test_console_view.LedgerViewTests.test_four_stages_are_composed_from_ledger_and_states) ... ok
+test_missing_ledger_fails_without_creating_it (test_console_view.LedgerViewTests.test_missing_ledger_fails_without_creating_it) ... ok
+test_missing_status_inputs_are_visible_not_defaulted (test_console_view.LedgerViewTests.test_missing_status_inputs_are_visible_not_defaulted) ... ok
+test_mission_mode_comes_from_the_first_disaster_sign (test_console_view.LedgerViewTests.test_mission_mode_comes_from_the_first_disaster_sign) ... ok
+test_mission_mode_is_normal_without_signs_and_unknown_without_input (test_console_view.LedgerViewTests.test_mission_mode_is_normal_without_signs_and_unknown_without_input) ... ok
+test_position_source_is_labelled (test_console_view.LedgerViewTests.test_position_source_is_labelled) ... ok
+test_reading_never_changes_or_creates_ledger_files (test_console_view.LedgerViewTests.test_reading_never_changes_or_creates_ledger_files) ... ok
+test_robot_outside_deployment_is_not_shown (test_console_view.LedgerViewTests.test_robot_outside_deployment_is_not_shown) ... ok
+test_robot_rows_are_stale_past_the_display_limit (test_console_view.LedgerViewTests.test_robot_rows_are_stale_past_the_display_limit) ... ok
+test_robots_follow_ledger_deployment_and_unknowns_stay_none (test_console_view.LedgerViewTests.test_robots_follow_ledger_deployment_and_unknowns_stay_none) ... ok
+test_status_fixture_rejects_unknown_sections (test_console_view.LedgerViewTests.test_status_fixture_rejects_unknown_sections) ... ok
+test_targets_match_latest_ledger_report_one_to_one (test_console_view.LedgerViewTests.test_targets_match_latest_ledger_report_one_to_one) ... ok
+test_a_given_ledger_that_cannot_be_read_is_still_an_error (test_console_view.NoLedgerTests.test_a_given_ledger_that_cannot_be_read_is_still_an_error) ... ok
+test_command_line_needs_a_ledger_only_without_site_state (test_console_view.NoLedgerTests.test_command_line_needs_a_ledger_only_without_site_state) ... ok
+test_dispatch_gate_still_follows_site_state (test_console_view.NoLedgerTests.test_dispatch_gate_still_follows_site_state) ... ok
+test_fixture_without_ledger_is_refused (test_console_view.NoLedgerTests.test_fixture_without_ledger_is_refused) ... ok
+test_site_state_alone_gives_a_page_that_names_the_missing_ledger (test_console_view.NoLedgerTests.test_site_state_alone_gives_a_page_that_names_the_missing_ledger) ... ok
+test_example_status_fixture_matches_offline_ledger (test_console_view.OfflineRehearsalLedgerTests.test_example_status_fixture_matches_offline_ledger) ... ok
+test_offline_demo_ledger_renders (test_console_view.OfflineRehearsalLedgerTests.test_offline_demo_ledger_renders) ... ok
+test_given_names_label_the_robots_and_the_dispatch_command (test_console_view.RobotNameTests.test_given_names_label_the_robots_and_the_dispatch_command) ... ok
+test_name_argument (test_console_view.RobotNameTests.test_name_argument) ... ok
+test_without_a_support_status_the_label_uses_the_role_code (test_console_view.RobotNameTests.test_without_a_support_status_the_label_uses_the_role_code) ... ok
+test_without_names_the_robot_id_is_shown (test_console_view.RobotNameTests.test_without_names_the_robot_id_is_shown) ... ok
+test_ledger_file_is_not_a_site_state_db (test_console_view.SiteStateSourceTests.test_ledger_file_is_not_a_site_state_db) ... ok
+test_site_state_and_fixture_together_are_refused (test_console_view.SiteStateSourceTests.test_site_state_and_fixture_together_are_refused) ... ok
+test_site_state_db_gives_the_fixture_shapes (test_console_view.SiteStateSourceTests.test_site_state_db_gives_the_fixture_shapes) ... ok
+test_site_state_read_changes_nothing_and_missing_db_is_not_created (test_console_view.SiteStateSourceTests.test_site_state_read_changes_nothing_and_missing_db_is_not_created) ... ok
+test_dashboard_header_names_the_user_and_hides_admin_link_from_customers (test_console_web.CommandPanelTests.test_dashboard_header_names_the_user_and_hides_admin_link_from_customers) ... ok
+test_logged_in_page_has_only_the_logout_form (test_console_web.CommandPanelTests.test_logged_in_page_has_only_the_logout_form) ... ok
+test_login_and_accounts_pages_carry_csrf_and_escape_values (test_console_web.CommandPanelTests.test_login_and_accounts_pages_carry_csrf_and_escape_values) ... ok
+test_page_without_command_access_disables_every_button (test_console_web.CommandPanelTests.test_page_without_command_access_disables_every_button) ... ok
+test_without_a_mission_state_every_command_is_disabled_in_the_model (test_console_web.CommandPanelTests.test_without_a_mission_state_every_command_is_disabled_in_the_model) ... ok
+test_broken_ledger_is_a_visible_failure (test_console_web.FlaskBoundaryTests.test_broken_ledger_is_a_visible_failure) ... ok
+test_customer_views_only_and_admin_manages_accounts (test_console_web.FlaskBoundaryTests.test_customer_views_only_and_admin_manages_accounts) ... ok
+test_everything_needs_login_and_data_routes_stay_get_only (test_console_web.FlaskBoundaryTests.test_everything_needs_login_and_data_routes_stay_get_only) ... ok
+test_fragment_polling_gets_401_not_a_login_document (test_console_web.FlaskBoundaryTests.test_fragment_polling_gets_401_not_a_login_document)
+AST-50-02: the poller must never receive the login page as a fragment. ... ok
+test_login_logout_and_wrong_password (test_console_web.FlaskBoundaryTests.test_login_logout_and_wrong_password) ... ok
+test_logout_is_a_post_with_csrf (test_console_web.FlaskBoundaryTests.test_logout_is_a_post_with_csrf)
+AST-50-03: a link click must not end the session. ... ok
+test_missing_flask_is_a_clear_error_not_a_fallback (test_console_web.FlaskBoundaryTests.test_missing_flask_is_a_clear_error_not_a_fallback) ... ok
+test_missing_secret_or_accounts_fail_at_startup (test_console_web.FlaskBoundaryTests.test_missing_secret_or_accounts_fail_at_startup) ... ok
+test_old_sessions_die_with_the_account_they_came_from (test_console_web.FlaskBoundaryTests.test_old_sessions_die_with_the_account_they_came_from)
+AST-50-01: a session is bound to the account row and its auth version, not to the name. ... ok
+test_repeated_wrong_passwords_lock_that_name_for_a_while (test_console_web.FlaskBoundaryTests.test_repeated_wrong_passwords_lock_that_name_for_a_while) ... ok
+test_responses_carry_security_headers_and_data_is_not_cached (test_console_web.FlaskBoundaryTests.test_responses_carry_security_headers_and_data_is_not_cached) ... ok
+test_event_log_row_fits_its_content (test_console_web.LayoutTests.test_event_log_row_fits_its_content) ... ok
+test_robot_cards_scroll_instead_of_squeezing_the_victims (test_console_web.LayoutTests.test_robot_cards_scroll_instead_of_squeezing_the_victims) ... ok
+test_victims_panel_keeps_room_for_its_list (test_console_web.LayoutTests.test_victims_panel_keeps_room_for_its_list) ... ok
+test_ages_read_at_a_glance (test_console_web.PageTests.test_ages_read_at_a_glance) ... ok
+test_camera_argument_needs_an_id_and_http_url (test_console_web.PageTests.test_camera_argument_needs_an_id_and_http_url) ... ok
+test_camera_streams_sit_outside_the_polled_fragment (test_console_web.PageTests.test_camera_streams_sit_outside_the_polled_fragment) ... ok
+test_cameras_need_an_explicit_stale_time (test_console_web.PageTests.test_cameras_need_an_explicit_stale_time) ... ok
+test_codes_are_shown_as_korean_words_and_unknown_codes_stay_visible (test_console_web.PageTests.test_codes_are_shown_as_korean_words_and_unknown_codes_stay_visible) ... ok
+test_command_line_camera_needs_stale_seconds (test_console_web.PageTests.test_command_line_camera_needs_stale_seconds) ... ok
+test_command_panel_puts_approvals_first_and_stop_apart (test_console_web.PageTests.test_command_panel_puts_approvals_first_and_stop_apart) ... ok
+test_elapsed_time_switches_to_days (test_console_web.PageTests.test_elapsed_time_switches_to_days) ... ok
+test_event_rows_carry_event_time_for_render_latency (test_console_web.PageTests.test_event_rows_carry_event_time_for_render_latency) ... ok
+test_event_rows_carry_what_the_kpi04_file_needs (test_console_web.PageTests.test_event_rows_carry_what_the_kpi04_file_needs) ... ok
+test_failure_page_says_what_to_check_and_retries (test_console_web.PageTests.test_failure_page_says_what_to_check_and_retries) ... ok
+test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing (test_console_web.PageTests.test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing) ... ok
+test_mode_badge_shows_disaster_with_trigger_time (test_console_web.PageTests.test_mode_badge_shows_disaster_with_trigger_time) ... ok
+test_one_screen_has_mode_map_slot_robots_targets_and_events (test_console_web.PageTests.test_one_screen_has_mode_map_slot_robots_targets_and_events) ... ok
+test_page_loads_nothing_from_outside (test_console_web.PageTests.test_page_loads_nothing_from_outside) ... ok
+test_rescued_victim_is_struck_through_on_the_map_legend (test_console_web.PageTests.test_rescued_victim_is_struck_through_on_the_map_legend) ... ok
+test_stale_robot_rows_are_marked (test_console_web.PageTests.test_stale_robot_rows_are_marked) ... ok
+test_stalled_stream_is_marked_lost_and_reconnected (test_console_web.PageTests.test_stalled_stream_is_marked_lost_and_reconnected) ... ok
+test_tab_title_carries_the_disaster_mode (test_console_web.PageTests.test_tab_title_carries_the_disaster_mode) ... ok
+test_untrusted_text_is_escaped (test_console_web.PageTests.test_untrusted_text_is_escaped) ... ok
+test_console_serves_the_site_state_db_and_camera_streams (test_console_web.SiteStateWebTests.test_console_serves_the_site_state_db_and_camera_streams) ... ok
+test_console_serves_the_site_state_db_without_a_report_ledger (test_console_web.SiteStateWebTests.test_console_serves_the_site_state_db_without_a_report_ledger) ... ok
+test_site_state_and_fixture_together_fail_at_startup (test_console_web.SiteStateWebTests.test_site_state_and_fixture_together_fail_at_startup) ... ok
+
+----------------------------------------------------------------------
+Ran 198 tests in 13.538s
+
+OK
+# exit=0
