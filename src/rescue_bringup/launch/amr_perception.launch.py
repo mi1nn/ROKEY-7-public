@@ -16,10 +16,10 @@ and target_locator (capture-time TF -> TargetLocation on /rescue/target_location
         alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns> \
         recheck_action_name:=<ObserveTarget action> recheck_map_frame:=<map frame> recheck_scan_topic:=<robot scan> \
         recheck_*:=<recheck window policy, see rescue_perception.recheck_feed.RECHECK_PARAMS> \
-        exit_qr_payload:=<exit QR content> exit_qr_required_frames:=<n> exit_qr_position_tolerance_m:=<m> \
+        exit_qr_payloads:=<EXIT-1,EXIT-2 exact exit QR contents> exit_qr_required_frames:=<n> exit_qr_position_tolerance_m:=<m> \
         exit_qr_min_valid_depth_ratio:=<0..1> exit_qr_every_n_frames:=<n>
 
-The exit QR (OPS-136/138) is read by amr_target on the same RGB-D frames; a second target_locator
+The exit QRs (OPS-136/138, several exits OPS-154) are read by amr_target on the same RGB-D frames; a second target_locator
 (exit_locator) turns its observations into a TargetLocation on /rescue/exit_location.
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
@@ -36,11 +36,11 @@ from launch_ros.actions import Node
 from rescue_bringup.profile import load_deployment, require_map_basis
 from rescue_perception.target_locator import profile_parameters
 from rescue_perception.recheck_feed import RECHECK_PARAMS
-from rescue_perception.exit_qr import EXIT_LOCATION_TOPIC, EXIT_OBSERVATIONS_TOPIC
+from rescue_perception.exit_qr import EXIT_LOCATION_TOPIC, EXIT_OBSERVATIONS_TOPIC, payloads_argument
 
 # Exit QR field values (exit_qr.EXIT_PARAMS); exit_map_state_topic comes from the profile like target_locator's.
 EXIT_ARGUMENTS = {
-    'exit_qr_payload': 'exact content of the exit QR (field file)',
+    'exit_qr_payloads': 'exact contents of the exit QRs, comma-separated (e.g. EXIT-1,EXIT-2; field file)',
     'exit_qr_required_frames': 'consecutive frames reading it at one place before it is the exit',
     'exit_qr_position_tolerance_m': 'largest spread of those frames positions, m',
     'exit_qr_min_valid_depth_ratio': 'share of depth samples inside the code that must be valid (0..1]',
@@ -128,7 +128,7 @@ def _nodes(context):
             parameters[name] = kind(arg(name))
         except ValueError as exc:
             raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
-    parameters['exit_qr_payload'] = arg('exit_qr_payload')
+    parameters['exit_qr_payloads'] = list(payloads_argument(arg('exit_qr_payloads')))
     for name in ('exit_qr_required_frames', 'exit_qr_every_n_frames'):
         parameters[name] = _integer(name, arg(name))
     for name in ('exit_qr_position_tolerance_m', 'exit_qr_min_valid_depth_ratio'):
