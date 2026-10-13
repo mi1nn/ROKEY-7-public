@@ -84,6 +84,7 @@ SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshne
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
+START_POSE_TOPIC = '/rescue/map/start_pose/'            # + SLAM robot id: origin of coordinates measured in advance
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
@@ -429,11 +430,22 @@ def frozen_localization_values(deployment, *, field, robot_id):
         if 'initial_pose_xy_yaw' not in section:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw is not measured yet: click the start on '
                                    f'the TB-6 map in a trial run, then python3 scripts/field/capture_initial_pose.py '
-                                   f'{ns}/amcl_pose map and add its line to the field run file')
+                                   f'{ns}/amcl_pose map and add its line (relative to the TB-6 start pose) to the '
+                                   f'field run file')
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
             'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
-            'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None}
+            'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
+            # initial_pose_xy_yaw is relative to the TB-6 start pose (OPS-141); the launch places it on the map
+            'start_pose_topic': START_POSE_TOPIC + _slam_robot(field) if mode == 'FROZEN_MAP_AMCL' else None}
+
+
+def _slam_robot(field):
+    slam = [robot_id for robot_id, section in field.robots.items()
+            if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
+    if len(slam) != 1:
+        raise FieldLaunchError('one SLAM_THEN_FROZEN robot is needed for the start pose')
+    return slam[0]
 
 
 def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):

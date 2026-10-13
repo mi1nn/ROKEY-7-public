@@ -247,6 +247,12 @@ class CaptureInitialPose(unittest.TestCase):
         self.addCleanup(sys.path.remove, str(REPO / 'scripts' / 'field'))
         return runpy.run_path(str(CAPTURE))
 
+    def origin(self):
+        """TB-6 start pose at the map origin: relative values equal map values."""
+        from types import SimpleNamespace as NS
+        return NS(header=NS(frame_id='map'), pose=NS(pose=NS(position=NS(x=0.0, y=0.0, z=0.0),
+                  orientation=NS(x=0.0, y=0.0, z=0.0, w=1.0)), covariance=[0.0] * 36))
+
     def message(self, frame='map', yaw=0.1, covariance=None):
         from types import SimpleNamespace as NS
         cov = covariance or [0.0] * 36
@@ -255,18 +261,19 @@ class CaptureInitialPose(unittest.TestCase):
 
     def test_prints_the_field_file_line_for_the_robot(self):
         snippet = self.tool()['snippet']
-        text = snippet(self.message(), map_frame='map')
+        # TB-6 start at the map origin (0, 0, 0): the relative value is the map value (OPS-141)
+        text = snippet(self.message(), start=self.origin(), map_frame='map')
         self.assertEqual({'initial_pose_xy_yaw': [0.4, -0.3, 0.1]},
                          {k: [round(v, 6) for v in vals] for k, vals in json.loads('{' + text + '}').items()})
 
     def test_refuses_another_frame_or_a_non_planar_pose(self):
         tool = self.tool()
         with self.assertRaises(tool['CaptureError']):
-            tool['snippet'](self.message(frame='odom'), map_frame='map')
+            tool['snippet'](self.message(frame='odom'), start=self.origin(), map_frame='map')
         bad = self.message()
         bad.pose.pose.orientation.x = 0.3
         with self.assertRaises(tool['CaptureError']):
-            tool['snippet'](bad, map_frame='map')
+            tool['snippet'](bad, start=self.origin(), map_frame='map')
 
 
 if __name__ == '__main__':

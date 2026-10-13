@@ -9,6 +9,12 @@ captured, hashed (live_sources.Grid, the robots' hash) and written to ``output_d
 - ``.pgm``/``.yaml``: the same map for people and RViz (trinary 0.25/0.65). Loading it into
   map_server does not give the same hash; robots use the republished grid, not this image.
 
+TB-6 start pose (OPS-141/142): the first valid TB-6 SLAM pose after this node starts is saved once
+per run (output_dir/start_pose.json) and published latched on /rescue/map/start_pose/robot_a.
+Coordinates measured in advance (patrol points, TB-6 docking approach, TB-5 AMCL start) are
+relative to it. A restarted node republishes the saved one; a new run needs a new output_dir.
+Start this node before TB-6 moves.
+
 Then /rescue/map/frozen (nav_msgs/OccupancyGrid) and /rescue/map/frozen_pose/robot_a
 (PoseWithCovarianceStamped, TB-6 AMCL start) are published TRANSIENT_LOCAL. Once per run:
 a second request fails. Without a valid map in the map frame and a fresh SLAM pose on it
@@ -27,6 +33,9 @@ from rescue_robot.live_sources import Grid, planar
 FORMAT = 'rescue-map-freeze/1'
 FROZEN_TOPIC = '/rescue/map/frozen'
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/robot_a'
+START_POSE_TOPIC = '/rescue/map/start_pose/robot_a'   # TB-6 start pose: origin of coordinates measured in advance
+START_FORMAT = 'rescue-start-pose/1'
+START_FILE = 'start_pose.json'
 SERVICE = '/rescue/map/freeze'
 
 
@@ -102,6 +111,8 @@ def load_record(path, *, map_frame, map_session_id, map_revision):
         if record.get('format') != FORMAT:
             raise FreezeError('not a map freeze record')
         record['grid'], record['pose'] = _grid_fields(record['grid']), _pose_fields(record['pose'])
+        if record.get('start_pose') is not None:
+            record['start_pose'] = _pose_fields(record['start_pose'])
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise FreezeError(f'freeze record unreadable: {exc}') from None
     if (record['map_frame'], record['map_session_id'], record['map_revision']) != (
@@ -122,12 +133,42 @@ class MapFreeze:
         self.pose_max_age_ns, self.output_dir = pose_max_age_ns, Path(output_dir)
         self.wall_clock_ns, self.git_sha = wall_clock_ns, git_sha
         self.latest_map = self.latest_pose = self.frozen = None
+        self.start_pose = self._load_start()
+
+    def _load_start(self):
+        """The start pose this run already recorded (a restarted node keeps it, never re-captures)."""
+        path = self.output_dir / START_FILE
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text())
+            if (data['format'], data['map_frame'], data['map_session_id'], data['map_revision']) != (
+                    START_FORMAT, self.map_frame, self.map_session_id, self.map_revision):
+                raise FreezeError(f'{path} is the start pose of another run; use a new output_dir for a new run')
+            return _pose_fields(data['pose'])
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise FreezeError(f'start pose unreadable: {exc}') from None
 
     def on_map(self, g):
         self.latest_map = _grid_fields(g)
 
     def on_pose(self, p):
+        """Latest SLAM pose; the first valid one of the run becomes the start pose (returned once, saved)."""
         self.latest_pose = _pose_fields(p)
+        if self.start_pose is not None:
+            return None
+        try:
+            _check_pose(self.latest_pose, map_frame=self.map_frame, now_ns=self.wall_clock_ns(),
+                        max_age_ns=self.pose_max_age_ns)
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            _write(self.output_dir / START_FILE, json.dumps(dict(
+                format=START_FORMAT, map_frame=self.map_frame, map_session_id=self.map_session_id,
+                map_revision=self.map_revision, captured_at_ns=self.wall_clock_ns(), git_sha=self.git_sha,
+                pose=self.latest_pose), allow_nan=False).encode())
+        except (FreezeError, OSError, ValueError):
+            return None
+        self.start_pose = self.latest_pose
+        return self.start_pose
 
     def restore(self, record):
         self.frozen = record
@@ -137,12 +178,14 @@ class MapFreeze:
             raise FreezeError(f'already frozen ({self.frozen["occupancy_sha256"]}); one freeze per run')
         if self.latest_map is None:
             raise FreezeError('no SLAM map received')
+        if self.start_pose is None:
+            raise FreezeError('no TB-6 start pose recorded: coordinates measured from the start cannot be placed')
         g, p, now = self.latest_map, self.latest_pose, self.wall_clock_ns()
         grid = grid_hash(g, self.map_frame)
         _check_pose(p, map_frame=self.map_frame, now_ns=now, max_age_ns=self.pose_max_age_ns)
         record = dict(format=FORMAT, map_frame=self.map_frame, map_session_id=self.map_session_id,
                       map_revision=self.map_revision + 1, occupancy_sha256=grid.sha256, frozen_at_ns=now,
-                      git_sha=self.git_sha, grid=g, pose=p)
+                      git_sha=self.git_sha, grid=g, pose=p, start_pose=self.start_pose)
         base = self.output_dir / f'frozen-{grid.sha256[:12]}-{now}'
         x, y, yaw = grid.origin
         try:
@@ -175,9 +218,9 @@ def _grid_message(record, stamp):
     return msg
 
 
-def _pose_message(record):
+def _pose_message(record, key='pose'):
     from geometry_msgs.msg import PoseWithCovarianceStamped
-    p, msg = record['pose'], PoseWithCovarianceStamped()
+    p, msg = record[key], PoseWithCovarianceStamped()
     msg.header.frame_id = p['frame']
     msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(p['stamp_ns'], 1_000_000_000)
     position, orientation = msg.pose.pose.position, msg.pose.pose.orientation
@@ -216,12 +259,23 @@ def main(args=None):
     except ParameterUninitializedException:
         record_path = None
     sha = git_sha()
-    core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
-                     map_revision=values['map_revision'], pose_max_age_ns=values['pose_max_age_ns'],
-                     output_dir=values['output_dir'], wall_clock_ns=time.time_ns, git_sha=sha)
+    try:
+        core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
+                         map_revision=values['map_revision'], pose_max_age_ns=values['pose_max_age_ns'],
+                         output_dir=values['output_dir'], wall_clock_ns=time.time_ns, git_sha=sha)
+    except FreezeError as exc:
+        log.error(f'START_POSE_RESTORE_FAILED {exc}')
+        raise SystemExit(2)
     latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
     frozen_pub = node.create_publisher(OccupancyGrid, FROZEN_TOPIC, latched)
     pose_pub = node.create_publisher(PoseWithCovarianceStamped, FROZEN_POSE_TOPIC, latched)
+    start_pub = node.create_publisher(PoseWithCovarianceStamped, START_POSE_TOPIC, latched)
+
+    def publish_start(start, how):
+        start_pub.publish(_pose_message({'pose': start}))
+        x, y, yaw = planar(_ns_pose(start['position'], start['orientation']))
+        log.info(f'START_POSE {how} robot_a map=({x:.3f}, {y:.3f}, {yaw:.3f}) session={values["map_session_id"]} '
+                 f'rev={values["map_revision"]} -> {START_POSE_TOPIC} (origin of coordinates measured in advance)')
 
     def publish(record):
         frozen_pub.publish(_grid_message(record, node.get_clock().now().to_msg()))
@@ -239,10 +293,12 @@ def main(args=None):
 
     def on_pose(msg):
         p, q = msg.pose.pose.position, msg.pose.pose.orientation
-        core.on_pose(dict(frame=msg.header.frame_id, stamp_ns=ros_time_to_ns(msg.header.stamp.sec,
-                                                                             msg.header.stamp.nanosec),
-                          position=(p.x, p.y, p.z), orientation=(q.x, q.y, q.z, q.w),
-                          covariance=[float(v) for v in msg.pose.covariance]))
+        start = core.on_pose(dict(frame=msg.header.frame_id, stamp_ns=ros_time_to_ns(msg.header.stamp.sec,
+                                                                                     msg.header.stamp.nanosec),
+                                  position=(p.x, p.y, p.z), orientation=(q.x, q.y, q.z, q.w),
+                                  covariance=[float(v) for v in msg.pose.covariance]))
+        if start is not None:
+            publish_start(start, 'captured')
 
     def freeze(_request, response):
         try:
@@ -256,6 +312,8 @@ def main(args=None):
         return response
 
     log.info(f'git_sha={sha} parameters={values} record_path={record_path}')
+    if core.start_pose is not None:   # same run restarted: the saved start, never a new one
+        publish_start(core.start_pose, 'restored')
     if record_path is not None:
         try:
             record = load_record(record_path, map_frame=values['map_frame'], map_session_id=values['map_session_id'],
@@ -264,6 +322,9 @@ def main(args=None):
             log.error(f'MAP_FREEZE_RESTORE_FAILED {exc}')
             raise SystemExit(2)
         core.restore(record)
+        if core.start_pose is None and record.get('start_pose') is not None:
+            core.start_pose = record['start_pose']
+            publish_start(core.start_pose, 'restored from the freeze record')
         publish(record)
     else:
         node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
