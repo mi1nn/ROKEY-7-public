@@ -25,7 +25,7 @@ class GapStatsTests(unittest.TestCase):
     def test_pauses_are_counted_by_threshold(self):
         arrivals = [0, S // 10, S // 10 + 7 * S // 10, S // 10 + 7 * S // 10 + 12 * S // 10]  # gaps 0.1, 0.7, 1.2
         stats = link.gap_stats(arrivals, 0, arrivals[-1])
-        self.assertEqual((4, 1, 1), (stats['count'], stats['gaps_over_0_5_s'], stats['gaps_over_1_0_s']))
+        self.assertEqual((4, 2, 1), (stats['count'], stats['gaps_over_0_5_s'], stats['gaps_over_1_0_s']))  # 0.7 and 1.2 > 0.5
         self.assertAlmostEqual(1.2, stats['max_gap_s'])
         self.assertAlmostEqual(2.0 / 3, stats['mean_period_s'])
 
@@ -41,7 +41,7 @@ class GapStatsTests(unittest.TestCase):
 
     def test_exactly_on_a_threshold_is_not_over_it(self):
         stats = link.gap_stats([0, S // 2, S // 2 + S], 0, S // 2 + S)
-        self.assertEqual((0, 0), (stats['gaps_over_0_5_s'] - 1, stats['gaps_over_1_0_s']))  # only 1.0 > 0.5
+        self.assertEqual((1, 0), (stats['gaps_over_0_5_s'], stats['gaps_over_1_0_s']))  # 0.5 is not over 0.5; 1.0 is, but not over 1.0
 
     def test_stamp_delay_is_reference_only(self):
         delay = link.stamp_delay([(10 * S, 10 * S - S // 10), (11 * S, 11 * S - S // 5)])
@@ -57,7 +57,8 @@ class TopicChoiceTests(unittest.TestCase):
         self.deployment = load_deployment(str(REPO / 'config' / 'deployment.v2.example.json'))
 
     def topics(self, robot='robot_a', overrides=()):
-        return {t.role: t for t in link.select_topics(self.deployment, robot, dict(overrides))}
+        return {t.role: t for t in link.select_topics(self.deployment, robot, dict(overrides),
+                                                      heartbeat_max_age_s=0.5)}
 
     def test_robot_topics_come_from_the_profile(self):
         t = self.topics()
@@ -73,6 +74,7 @@ class TopicChoiceTests(unittest.TestCase):
                          (t['executor_heartbeat'].topic, t['executor_heartbeat'].type, t['executor_heartbeat'].limit_s))
         self.assertEqual('/robot_a/rescue/watchdog_heartbeat', t['watchdog_heartbeat'].topic)
         self.assertIn('nav2_watchdog.launch.py', t['executor_heartbeat'].source)
+        self.assertIn('--heartbeat-max-age-s', t['executor_heartbeat'].source)
 
     def test_overrides_replace_a_topic_name_and_say_so(self):
         t = self.topics(overrides={'executor_heartbeat': '/robot6/rescue/executor_heartbeat'})
