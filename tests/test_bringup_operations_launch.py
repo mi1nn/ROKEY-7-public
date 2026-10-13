@@ -1,4 +1,4 @@
-"""operations PC launch: deployment profile v2.1 -> db_writer parameters (E2, no ROS).
+"""operations PC launch: deployment profile v2.1 -> db_writer and report_node parameters (E2, no ROS).
 
 The launch file (src/rescue_bringup/launch/operations.launch.py) only wraps this. Topic
 names must be the ones the coordinator uses, so this checks them against its constants.
@@ -67,6 +67,49 @@ class DbWriterParameters(unittest.TestCase):
         with self.assertRaises(LaunchSettingError):
             db_writer_parameters(load_deployment(V1_PROFILE), db_path='/x.sqlite3', api_port=8090,
                                  command_timeout_s=3.0)
+
+
+def build_report(**changes):
+    from rescue_bringup.operations_launch import report_node_parameters
+    values = dict(db_path='/var/lib/rescue/site_state.sqlite3', report_db_path='/var/lib/rescue/reports.sqlite3',
+                  envelope_schema_version='0.1', publisher_id='report-ops')
+    return report_node_parameters(**(values | changes))
+
+
+class ReportNodeParameters(unittest.TestCase):
+    """#137 report_node: coordinator RescueReport -> ReportReceipt, on the operations PC."""
+
+    def test_launch_values_become_every_report_node_parameter(self):
+        from rescue_operations.report_node import PARAMS
+        params = build_report()
+        self.assertEqual(set(PARAMS), set(params))
+        self.assertEqual({
+            'db_path': '/var/lib/rescue/reports.sqlite3',
+            'reports_topic': '/rescue/reports',
+            'receipts_topic': '/rescue/report_receipts',
+            'envelope_schema_version': '0.1',
+            'publisher_id': 'report-ops',
+        }, params)
+
+    def test_topics_are_the_coordinators(self):
+        from rescue_coordination import ros_node as coordinator
+        params = build_report()
+        self.assertEqual((coordinator.REPORT_TOPIC, coordinator.REPORT_RECEIPT_TOPIC),
+                         (params['reports_topic'], params['receipts_topic']))
+
+    def test_values_stay_text(self):
+        """A number-like text such as '0.1' must reach the STRING parameter as text."""
+        params = build_report()
+        self.assertTrue(all(isinstance(value, str) for value in params.values()))
+
+    def test_report_db_must_be_another_file_than_the_site_state_db(self):
+        """One writing process per SQLite file (#137)."""
+        from rescue_bringup.operations_launch import LaunchSettingError
+        for change in (dict(report_db_path='/var/lib/rescue/site_state.sqlite3'),
+                       dict(report_db_path='/var/lib/rescue/../rescue/site_state.sqlite3'),
+                       dict(report_db_path=''), dict(envelope_schema_version=''), dict(publisher_id='')):
+            with self.subTest(change=change), self.assertRaises(LaunchSettingError):
+                build_report(**change)
 
 
 class LaunchArguments(unittest.TestCase):
