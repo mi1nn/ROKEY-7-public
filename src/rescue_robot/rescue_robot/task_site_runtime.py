@@ -154,9 +154,13 @@ class InputStore:
         if (m['map_frame'],m['map_session_id'],m['map_revision'])!=(
                 state.map_frame,state.map_session_id,state.map_revision):
             raise ContractError('mapping changed while reading input','FRAME_REVISION_MISMATCH')
+        # File inputs carry a calibration record and must name its evidence (C-04). Live saved maps
+        # declare their alignment in the runtime configuration and have no such record.
+        evidence=m.get('evidence_id')
         if (m['authority_id']!=self.config['mapping_authority']
-                or m['clock_domain_id']!=self.lease_policy.clock_domain_id):
-            raise ContractError('calibration authority/clock differs','NOT_AUTHORIZED')
+                or m['clock_domain_id']!=self.lease_policy.clock_domain_id
+                or ('saved_maps' not in self.config and not (isinstance(evidence,str) and evidence))):
+            raise ContractError('calibration authority/clock/evidence missing','NOT_AUTHORIZED')
         if not (m['valid_from_ns']<=now_ns-self.bound and now_ns+self.bound<m['transform_valid_until_ns']):
             raise ContractError('alignment expired','FRAME_REVISION_MISMATCH')
         if (m['position_error_m']>self.config['max_position_error_m']
@@ -167,7 +171,7 @@ class InputStore:
             RigidTransform.planar(*m['transform_xy_yaw']),m['valid_from_ns'],m['transform_valid_until_ns'],
             m['position_error_m'],m['rotation_error_rad'])
         key=(robot,state.map_session_id,state.map_revision,alignment.transform_revision)
-        meaning=(alignment.map_frame,alignment.transform,alignment.authority_id)
+        meaning=(alignment.map_frame,alignment.transform,alignment.authority_id,evidence)
         old=self._transform_meanings.get(key)
         if old is not None and old!=meaning:
             raise ContractError('same transform revision changed meaning','ID_CONTENT_CONFLICT')
@@ -196,7 +200,8 @@ class InputStore:
             endpoint=[pose.x,pose.y,pose.yaw],map_session_id=f.map_session_id,
             map_revision=f.map_revision,transform_revision=f.transform_revision)
         return (all(record.get(k)==v for k,v in expected.items())
-            and record.get('protection_loaded') is True and record.get('passage_free') is True)
+            and record.get('protection_loaded') is True and record.get('passage_free') is True
+            and isinstance(record.get('evidence_id'),str) and bool(record['evidence_id']))
 
 
 class SiteRuntime:
