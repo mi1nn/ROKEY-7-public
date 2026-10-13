@@ -2,7 +2,8 @@
 
 The only process that writes the site-state DB (db-schema: one writer per file). It
 subscribes to RobotStatus and RobotPose per robot, the fixed camera's SiteEvent and the
-coordinator's SystemState and TargetSnapshot (1차 IDL). It also serves the operator command API
+coordinator's SystemState and TargetSnapshot (1차 IDL), each robot's overhead passage list (C-04b) and the SLAM
+robot's MapState (the current map the web compares passages to, OPS-194). It also serves the operator command API
 (command_api.py, #115): the console posts a command, this calls the coordinator's
 SubmitOperatorCommand service and records the answer. It publishes nothing. ROS packages are imported inside
 main() so this module imports without ROS. Topic names, roles and the DB path come
@@ -33,8 +34,10 @@ QOS = {'status': ('RELIABLE', 'VOLATILE', 1), 'pose': ('RELIABLE', 'VOLATILE', 1
        'site_events': ('RELIABLE', 'VOLATILE', 10), 'system_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
        'targets': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
        # QR exit observations: VOLATILE matches a latched or a plain publisher, every one is kept
-       'exit_location': ('RELIABLE', 'VOLATILE', 10)}
-ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics')
+       'exit_location': ('RELIABLE', 'VOLATILE', 10),
+       # C-04b and IF-009 publishers latch the latest; a late start still gets each robot's list and the map state
+       'overhead_passages': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'map_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
+ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics', 'overhead_passages_topics')
 # The console gives up after 5 s (#115 COMMAND_TIMEOUT_S); this must answer before that.
 CONSOLE_TIMEOUT_S = 5.0
 
@@ -76,7 +79,9 @@ def node_config(values):
     roles = list(values['robot_roles'])
     require(all(role in ROBOT_ROLES for role in roles) and len(set(roles)) == len(roles),
             'robot_roles must be SCOUT and SUPPORT, one each')
-    topics = [text(topic, name) for name in ('status_topics', 'pose_topics') for topic in values[name]]
+    topics = [text(topic, name) for name in ('status_topics', 'pose_topics', 'overhead_passages_topics')
+              for topic in values[name]]
+    topics.append(text(values['map_state_topic'], 'map_state_topic'))  # the SLAM robot's (OPS-194)
     topics.append(text(values['site_events_topic'], 'site_events_topic'))
     topics.append(text(values['system_state_topic'], 'system_state_topic'))
     topics.append(text(values['targets_topic'], 'targets_topic'))
@@ -90,6 +95,8 @@ def node_config(values):
     return {'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
             'system_state_topic': values['system_state_topic'], 'targets_topic': values['targets_topic'],
             'exit_location_topic': values['exit_location_topic'],
+            'overhead_passages_topics': dict(zip(ids, values['overhead_passages_topics'])),
+            'map_state_topic': values['map_state_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
             'operator_command_service': text(values['operator_command_service'], 'operator_command_service'),
             'command_timeout_ns': round(timeout_s * 1e9),
@@ -126,8 +133,9 @@ def main(args=None):
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import (RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
+    from rescue_interfaces.msg import (MapState, RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
                                        TargetSnapshot)
+    from std_msgs.msg import String
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     from .command_api import CommandGate, CommandTimeout, CommandUnavailable, make_server
@@ -143,6 +151,7 @@ def main(args=None):
              'pose_topics': Parameter.Type.STRING_ARRAY, 'site_events_topic': Parameter.Type.STRING,
              'system_state_topic': Parameter.Type.STRING, 'targets_topic': Parameter.Type.STRING,
              'exit_location_topic': Parameter.Type.STRING,
+             'overhead_passages_topics': Parameter.Type.STRING_ARRAY, 'map_state_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
              'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE}
     values = {}
@@ -168,6 +177,7 @@ def main(args=None):
              f'robots={config["robots"]} roles={config["roles"]} site_events={config["site_events_topic"]} '
              f'system_state={config["system_state_topic"]} targets={config["targets_topic"]} '
              f'exit_location={config["exit_location_topic"]} '
+             f'overhead_passages={config["overhead_passages_topics"]} map_state={config["map_state_topic"]} '
              f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]}')
 
     def qos(kind):
@@ -194,7 +204,13 @@ def main(args=None):
                                               handler(ingest.on_target_snapshot, 'targets'), qos('targets')),
                      node.create_subscription(TargetLocation, config['exit_location_topic'],
                                               handler(ingest.on_exit_location, 'exit_location'),
-                                              qos('exit_location'))]
+                                              qos('exit_location')),
+                     node.create_subscription(MapState, config['map_state_topic'],
+                                              handler(ingest.on_map_state, 'map_state'), qos('map_state'))]
+    for robot, topic in config['overhead_passages_topics'].items():
+        on_list = handler(lambda msg, received_at_ns, robot=robot: ingest.on_overhead_passages(
+            msg, robot_id=robot, received_at_ns=received_at_ns), robot + ' overhead_passages')
+        subscriptions.append(node.create_subscription(String, topic, on_list, qos('overhead_passages')))
     for robot, status_topic, pose_topic in config['robots']:
         subscriptions.append(node.create_subscription(
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))
