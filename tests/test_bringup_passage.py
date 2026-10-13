@@ -40,6 +40,15 @@ class FieldValues(FieldCase):
             self.assertFalse({k for k in robot if k.startswith('passage.') and 'height' in k},
                              'heights are only in the shared robot section')
         self.assertEqual('/robot6/oakd/stereo/image_raw', raw['robots']['robot_a']['passage.depth_topic'])
+        # TB-5 measured 2026-10-13 20:19-20:20 (OPS-165/166): depth image is published; compressedDepth
+        # 6.9-9.2 Hz (max gap 0.30 s) beats raw 5.1-5.5 Hz (max gap 0.45 s) over Wi-Fi
+        self.assertEqual(TB5_DEPTH, {k: v for k, v in raw['robots']['robot_b'].items() if k.startswith('passage.')})
+
+    def test_both_robots_start_from_the_repository_field_file(self):
+        for robot_id in ('robot_a', 'robot_b'):
+            with self.subTest(robot_id=robot_id):
+                self.assertEqual('PassageStop', self.robot(field=self.field(), robot_id=robot_id,
+                                                           occupancy_sha256='')['passage']['polygon_name'])
 
     def test_bad_passage_values_are_refused(self):
         from rescue_bringup.field_launch import FieldLaunchError
@@ -88,8 +97,12 @@ class RobotLaunch(FieldCase):
 
     def test_a_robot_without_its_depth_image_does_not_start(self):
         from rescue_bringup.field_launch import FieldLaunchError
+
+        def no_depth(raw):
+            for key in TB5_DEPTH:
+                raw['robots']['robot_b'].pop(key, None)
         with self.assertRaisesRegex(FieldLaunchError, 'passage'):
-            self.values('robot_b')
+            self.values('robot_b', no_depth)
 
     def test_depth_topics_belong_to_this_robot(self):
         from rescue_bringup.field_launch import FieldLaunchError
