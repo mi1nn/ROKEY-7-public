@@ -219,6 +219,21 @@ class CandidateTests(WatchTestCase):
 
 
 class ReleaseTests(WatchTestCase):
+    def test_rejected_release_keeps_watch_until_camera_confirms_it_is_gone(self):
+        for reason in ('EXPIRED', 'INVALID_INPUT', 'CAMERA_MISMATCH'):
+            with self.subTest(reason=reason):
+                self.setUp()
+                self.armed()
+                active = self.core.camera_watch.active
+                self.core.mission.mode = 'NORMAL'
+                (release,) = self.released()
+                self.core.on_watch_reply(**reply(release, accepted=False, revision=1, reason=reason))
+                self.assertIs(active, self.core.camera_watch.active)
+                self.assertEqual(reason, self.core.camera_watch.last_detail)
+                (again,) = self.released()
+                self.assertEqual(active.watch_id, again['watch_id'])
+                self.assertFalse(again['enable'])
+
     def released(self, now=NOW):
         self.core.tick(now)
         return self.core.watch_requests(now)
