@@ -30,6 +30,23 @@ class ReasonWordTests(unittest.TestCase):
                 self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': 'support'},
                                  mission_reason(code, 'TB-5', 'TB-6'))
 
+    def test_automatic_approach_codes_of_187(self):   # TB-5 automatic dispatch (#187, head 4528226)
+        cases = {
+            'SUPPORT_POSE_BASIS_MISMATCH': ('TB-5 위치의 지도 기준이 다름 — 자동 출동 보류', 'caution'),
+            'SUPPORT_AT_TARGET': ('TB-5 가 이미 대상 바로 옆 — 접근 지점을 정할 수 없음', 'caution'),
+            'APPROACH_FAILED': ('TB-5 대상 접근 실패 — 다시 보내지 않음', 'alert'),
+            'MODE_NOT_DISASTER': ('재난 모드가 아님 — TB-5 출동 안 함', 'info'),
+            'ALREADY_DISPATCHED': ('TB-5 이미 출동함', 'info'),
+            'UNKNOWN_TARGET': ('모르는 대상 — TB-5 출동 안 함', 'caution'),
+            'TARGET_NOT_CONFIRMED': ('대상 미확정 — TB-5 출동 대기', 'caution'),
+            'TARGET_REVISION_STALE': ('대상 정보가 바뀜 — TB-5 출동 다시 판단', 'caution'),
+            'TARGET_ALREADY_JUDGED': ('이미 판정한 대상 — TB-5 출동 안 함', 'info'),
+        }
+        for code, (text, level) in cases.items():
+            with self.subTest(code):
+                r = mission_reason(code, 'TB-5', 'TB-6')
+                self.assertEqual((text, level, 'support'), (r['text'], r['level'], r['scope']))
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
