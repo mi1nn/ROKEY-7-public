@@ -376,5 +376,59 @@ class SiteStateSourceTests(LedgerFixture):
         self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
 
 
+class NoLedgerTests(LedgerFixture):
+    """--site-state without the old ReportLedger (2026-10-13): no operations code writes that file,
+    so the page must still come up, and say plainly that report rows are missing."""
+
+    def setUp(self):
+        super().setUp()
+        self.site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(self.site_db, self.status)
+
+    def test_site_state_alone_gives_a_page_that_names_the_missing_ledger(self):
+        view = current_view(None, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
+        self.assertIn('보고 장부 입력 없음', ' '.join(view['warnings']))
+        self.assertEqual([r['robot_id'] for r in view['robots']], list(ROBOTS))
+        self.assertEqual(len(view['targets']), len(self.status['target_states']['targets']))
+        for row in view['targets']:
+            self.assertIsNone(row['report_count'])
+            self.assertNotIn('장부에 보고가 없는 대상', row['warnings'])
+        self.assertFalse([e for e in view['events'] if e['kind'] == 'REPORT'])
+        html = render_page(view)
+        self.assertIn('보고 장부 입력 없음', html)
+        self.assertNotIn('보고 None건', html)
+
+    def test_dispatch_gate_still_follows_site_state(self):
+        with_ledger = current_view(self.db, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
+        without = current_view(None, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
+        self.assertEqual(with_ledger['mission'], without['mission'])
+        self.assertEqual([(r['target_id'], r['persisted_report_id'], r['target_revision']) for r in with_ledger['targets']],
+                         [(r['target_id'], r['persisted_report_id'], r['target_revision']) for r in without['targets']])
+
+    def test_a_given_ledger_that_cannot_be_read_is_still_an_error(self):
+        with self.assertRaises(ConsoleError) as caught:
+            current_view(self.dir / 'absent.sqlite3', site_state_path=self.site_db)
+        self.assertEqual(caught.exception.detail_code, 'STORAGE_ERROR')
+
+    def test_fixture_without_ledger_is_refused(self):
+        with self.assertRaises(ConsoleError) as caught:
+            current_view(None, 'status.json')
+        self.assertEqual(caught.exception.detail_code, 'INVALID_INPUT')
+
+    def test_command_line_needs_a_ledger_only_without_site_state(self):
+        import contextlib
+        import io
+        import os
+        from rescue_console.__main__ import main
+        os.environ['RESCUE_CONSOLE_TEST_SECRET'] = 'x' * 16
+        self.addCleanup(os.environ.pop, 'RESCUE_CONSOLE_TEST_SECRET', None)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = main(['--accounts', str(self.dir / 'accounts.sqlite3'), '--status', 'status.json',
+                         '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
+        self.assertEqual(2, code)
+        self.assertIn('INVALID_INPUT', err.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()
