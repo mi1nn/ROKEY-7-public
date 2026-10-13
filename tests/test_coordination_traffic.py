@@ -115,6 +115,20 @@ class StepAsideTests(TrafficBase):
         self.assertEqual('TRAFFIC_SCOUT_POSE_UNKNOWN', self.core.traffic_hold.get('SUPPORT'))
 
 
+class UnmeasuredTb5StartTests(TrafficBase):
+    CORE = TrafficBase.CORE | dict(support_start_pose=None)
+
+    def test_tb6_still_explores_before_tb5_ever_moved_and_says_the_check_is_off(self):
+        # The field file has no robots.<TB-5>.initial_pose_xy_yaw until it is measured; holding TB-6 then would
+        # also hold the doll's freeze and so TB-5 itself. TB-5 has not moved and has no path: only the separation
+        # check is off, and the log says so once.
+        self.scout_at((1., 4.2))
+        self.assertIn((SCOUT, 'SEARCH_AREA'), self.sent(NOW))
+        self.assertEqual(1, ' '.join(self.core.drain_notes()).count('TRAFFIC_SEPARATION_UNCHECKED'))
+        self.sent(NOW + 1)
+        self.assertNotIn('TRAFFIC_SEPARATION_UNCHECKED', ' '.join(self.core.drain_notes()))
+
+
 class StopThenStepAsideTests(TrafficBase):
     def test_tb6_moving_near_tb5_s_path_is_canceled_then_sent_aside(self):
         self.scout_at((1., 4.2))  # TB-5 not localized yet: TB-6 explores (TB-5 at its start spot)
