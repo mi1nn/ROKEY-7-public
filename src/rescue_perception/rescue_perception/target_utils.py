@@ -40,9 +40,6 @@ SETTINGS = {
     'rgb_depth_alignment_verified': False,
     'rgb_stamp_semantics': 'UNKNOWN',
     'depth_stamp_semantics': 'UNKNOWN',
-    'clock_domain_id': 'UNCONFIGURED',
-    'clock_state': 'UNKNOWN',
-    'clock_error_bound_ns': -1,
     'publisher_id': 'amr.perception',
     'envelope_version': '0.1',
     'sync_queue_size': 3,
@@ -62,6 +59,34 @@ FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_top
                 'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING'}
 
 
+# The observation clock is measured on this host like the webcam's (#146, OPS-103 decision 1):
+# typed parameters without defaults; the state is decided per frame by clock_binding.
+CLOCK_PARAMS = {'clock_domain_id': 'STRING', 'clock_backend': 'STRING', 'clock_max_age_ns': 'INTEGER',
+                'clock_drift_ppm': 'DOUBLE', 'clock_poll_period_s': 'DOUBLE'}
+
+
+def clock_values(values):
+    """The clock parameters checked: missing, empty or out-of-range -> ValueError."""
+    from .webcam_clock import clock_settings
+    missing = sorted(name for name in CLOCK_PARAMS if values.get(name) is None)
+    if missing:
+        raise ValueError(f'missing parameters: {missing}')
+    if type(values['clock_domain_id']) is not str or not values['clock_domain_id'].strip():
+        raise ValueError('clock_domain_id must be a non-empty STRING')
+    clock_settings(values)
+    period = values['clock_poll_period_s']
+    if type(period) is not float or not math.isfinite(period) or period <= 0:
+        raise ValueError('clock_poll_period_s must be finite and positive')
+    return {name: values[name] for name in CLOCK_PARAMS}
+
+
+def clock_binding(binding, record, observed_ns):
+    """The source binding with the clock of the frame captured at ``observed_ns`` (SYNCED or UNKNOWN)."""
+    from .webcam_clock import observation_clock
+    state, bound = observation_clock(record, observed_ns)
+    return replace(binding, clock_state=state, clock_error_bound_ns=bound)
+
+
 def target_config(v, boot_id):
     validate_config(v)
     for key, default in SETTINGS.items():
@@ -78,12 +103,8 @@ def target_config(v, boot_id):
                                  'observations_topic', 'base_point_topic')]
     if len(topics) != len(set(topics)):
         raise ValueError('all input/output topics must differ')
-    bound = v['clock_error_bound_ns']
-    if bound < -1:
-        raise ValueError('clock_error_bound_ns must be >=0 or -1 (UNKNOWN)')
     binding = SourceBinding(v['robot_id'], v['camera_id'], boot_id, v['clock_domain_id'],
-        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], v['clock_state'],
-        bound if bound >= 0 else None)
+        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], 'UNKNOWN', None)
     alignment = AlignmentEvidence(v['alignment_evidence_id'], v['calibration_id'],
         v['rgb_optical_frame'], v['depth_optical_frame'], v['rgb_depth_alignment_verified'])
     depth = DepthPolicy(v['sync_slop_ns'], v['min_depth_m'], v['max_depth_m'],
