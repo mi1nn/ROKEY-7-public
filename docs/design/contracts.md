@@ -1,7 +1,7 @@
 ---
 title: 구조 수색 시스템의 인터페이스 계약 초안
 status: draft-proposal
-updated: 2026-10-11
+updated: 2026-10-14
 ---
 
 # 인터페이스 계약 초안
@@ -9,6 +9,51 @@ updated: 2026-10-11
 이 문서는 계획 PR 3의 계약과 후속 Python 코어 구현의 공통 의미를 관리한다. C-02/C-03/C-09의 실행 가능한 Python 계약은 `rescue_contracts`에 두며 ROS IDL `rescue_interfaces`는 C-10의 1차 범위만 정의했다(2026-10-10). PR 2의 책임·배포 구조를 전제로 검토하되, 실제 `.msg/.srv/.action`, 패키지 코드, ROS 설정을 이식하지 않는다. 장비·OS·ROS 배포판·센서 시각 의미·네트워크는 아직 확정되지 않았다. 아래 타입 이름과 토픽·QoS는 **계약 제안**이며 구현·실기 검증 완료를 뜻하지 않는다. 수치의 확정 절차는 [시험 계획](../process/acceptance-plan.md), 사건·임무 전이는 [상태 전이](state-machines.md)에 둔다.
 
 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
+
+## 한눈에 — 조정기 기준 (2026-10-14, main `4163a25`)
+
+이 절이 답하는 질문은 하나다. **이 문서의 계약 중 임무 조정기가 지금 실제로 쓰는 것은 무엇인가?** 아래 C-01~C-11 본문은 여러 패키지가 함께 쓰는 계약이라 그대로 두었다. 조정기 칸은 `rescue_coordination` 코드를 읽고 채웠다. 다른 패키지 칸은 그 담당의 확인이 필요하다.
+
+| 계약 | 조정기에서 지금 | 조정기 근거 | 다른 패키지 |
+| --- | --- | --- | --- |
+| C-01 책임과 명령 권한 | 사용. 조정기는 임무(`ExecuteTask`)만 보내고 `cmd_vel`·Nav2 액션을 직접 호출하지 않는다 | `ros_node.py` `main` | 확인 필요: 통합-로봇, 통합-인식 |
+| C-02 ID·envelope | 사용. 모든 발행 메시지에 envelope 을 채운다 | `main` 안 `envelope` | 확인 필요: 각 담당 |
+| C-03 시각·최신성 | 사용. 위치 관측의 시계 기준·나이·미래 시각, 로봇 상태의 나이를 검사한다 | `_check_observation_time`, `ready` | 확인 필요: 통합-인식, 통합-로봇 |
+| C-04 좌표·지도 revision | 사용. 관측·목표마다 지도 기준(session·revision·transform)을 맞춘다 | `on_target_location`, `_route_frame`, `_lineage` | 확인 필요: 통합-로봇 |
+| C-04a 고정 지도 revision 짝 | 사용. hash 가 맞는 revision 글만 받는다 | `on_frozen_revision`, `_try_freeze` | 통합-로봇(만드는 쪽) |
+| C-04b 터널 목록 | 쓰지 않음. 탐색 경계 선택에 쓰는 것은 후속이다 | `rescue_coordination/` grep `overhead` 결과 없음 | 인식(만드는 쪽), 운영(DB 기록, #262) |
+| C-05 관측·사건·보고 스키마 | 일부 사용. `TargetLocation`, `SiteEvent`, `RobotStatus`, `RescueReport`, `ReportReceipt` 를 쓴다. `TargetObservation` 은 직접 받지 않는다(인식의 `target_locator` 가 `TargetLocation` 으로 바꿈) | `main` 의 구독·발행 목록 | 확인 필요: 통합-인식, 운영 |
+| C-06 임무 action·lease·정지 | 일부 사용. `ExecuteTask`·`CommandLease`·`TaskAdmission` 을 쓴다. `RequestStop` 은 쓰지 않는다. 노드가 발급하는 종류는 `SEARCH_AREA`, `APPROACH_TARGET`, `RETURN_HOME`, `REOBSERVE_TARGET`(RECHECK 전용), `MOVE_SEGMENT`(운영자 구간 승인 전용)다. `HOLD` 는 코어(`search.py`)에만 있고 노드가 발급하지 않는다 | `_issue_*`, `leases_due` | 확인 필요: 통합-로봇 |
+| C-07 안전 접근·통로 자원 | 일부 사용. 접근점은 대상에서 `approach_standoff_m` 떨어진 점이고, 고정 지도에서 빈 자리(`footprint_clear`)인지 확인한다. 통로 점유 코어(`planning.py` `confirm_vacant`)는 노드에 연결되지 않았다 | `approach_point`, `_free_cell` | 확인 필요: 통합-로봇 |
+| C-08 토픽·QoS 제안 | 제안과 다르다. 실제 토픽은 아래 「조정기가 실제로 쓰는 토픽」 표다. `/rescue/observations`, heartbeat, `/rescue/frame_alignments` 는 조정기가 쓰지 않는다 | `ros_node.py` `*_TOPIC` 상수 | 확인 필요: 각 담당 |
+| C-09 오류 코드 | 사용. 조정기 오류(`CoordinationError`)는 `RescueError` 의 공통 코드를 쓴다 | `planning.py` `CoordinationError` | 공통(`rescue_contracts`) |
+| C-10 ROS IDL 1차 | 일부 사용. msg 12개, srv 2개(`SubmitOperatorCommand`, `SetCameraWatch`), action 1개(`ExecuteTask`) | `main` 의 import | 확인 필요: 각 담당 |
+| C-11 소실 후보 → 재관측 → 판정 | `completion_mode=RECHECK` 에서만 사용. 현장 설정(`EXIT_ARRIVAL`)은 TB-5 출구 도착을 구출 완료로 본다(2026-10-13 밤 결정) | `_open_camera_recheck`, `_judge`, `_confirm_by_exit_arrival` | 확인 필요: 웹캠 담당 |
+| C-12 TB-5 다리 추종 | 쓰지 않음. 2026-10-13 결정으로 다리 스켈레톤 추종을 뺐다(scope Q-29 ⑤). 본문은 맨 아래 「기록」으로 옮겼다 | — | — |
+| C-13 TB-6 관제 버튼 출동 | 바뀜. 현장은 재난 신호로 탐색을 자동 시작한다(`search_start=AUTO`, OPS-136). 버튼 방식(`OPERATOR`)도 코드에 남아 있다. 본문은 「기록」으로 옮겼다 | `tick`, `on_command` | — |
+
+### 조정기가 실제로 쓰는 토픽·서비스
+
+`ros_node.py` 의 상수와 `main` 을 읽어서 적었다. 로봇별 이름의 `<id>` 는 프로파일의 로봇 ID(`robot_a`, `robot_b`)다.
+
+| 이름 | 타입 | 방향 |
+| --- | --- | --- |
+| `/rescue/site_events` | `SiteEvent` | 받음(웹캠) |
+| `/rescue/target_locations` | `TargetLocation` | 받음(인형 위치) |
+| `/rescue/exit_location` | `TargetLocation`(`exit_qr`) | 받음(QR 출구) |
+| `/rescue/robots/<id>/status`, `.../pose`, `.../map_state`, `.../task_admission` | `RobotStatus`, `RobotPose`, `MapState`, `TaskAdmission` | 받음(로봇) |
+| `/rescue/robots/<id>/execute_task` | `ExecuteTask`(action) | 보냄 |
+| `/rescue/robots/<id>/command_lease` | `CommandLease` | 보냄 |
+| `/rescue/reports` / `/rescue/report_receipts` | `RescueReport` / `ReportReceipt` | 보냄 / 받음 |
+| `/rescue/system_state`, `/rescue/targets` | `SystemState`, `TargetSnapshot` | 보냄(latched) |
+| `/rescue/operator_command` | `SubmitOperatorCommand`(srv) | 받음(운영) |
+| 웹캠 `SetCameraWatch` 서비스 | `SetCameraWatch`(srv) | 보냄 |
+| `/rescue/map/freeze` | `std_srvs/Trigger` | 보냄(지도 고정 요청) |
+| `/rescue/map/frozen`, `/rescue/map/frozen_revision` | `OccupancyGrid`, `std_msgs/String` | 받음 |
+| `/rescue/map/start_pose/<TB-6 id>` | `PoseWithCovarianceStamped` | 받음(TB-6 출발 자세) |
+| `/robot6/map` | `OccupancyGrid` | 받음(TB-6 실시간 지도) [추정: 실기 미확인] |
+| `~/task_inputs`, `~/refresh_state` | 파라미터 조회, `std_srvs/Trigger` | 로봇이 조회 |
+
 
 ## C-01. 책임과 명령 권한
 
@@ -282,6 +327,25 @@ IDL 규칙:
 - coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 #77 로 1차가 됐다(2026-10-11). 남은 것은 ROI 출처(#76·Q-13)와 카메라 노드 재시작 감지다. 조정기 쪽 watch 생명주기는 #148 로 생겼다.
 - 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
 
+## 고정 원본에서 가져온 계약 근거
+
+- 관측 재발행·수신 시각 혼동: [AMR webcam publish](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L109-L159), [follower 수신](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304).
+- 대상 자체 goal·만료 후 기존 goal 유지: [go_near](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L388-L446), [approach](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528).
+- AMCL 준비·직접 lifecycle 복구: [기동](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L109-L123), [복구](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L263-L288).
+- 원 관측 시각 TF의 재사용 후보: [P4 target_locator](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/target_locator.py#L74-L107). stamp의 유효성/지도 보정 처리까지 검증 완료됐다는 뜻은 아니다.
+- 도메인 A/B는 [P4 DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)의 당시 후보/기록이며 새 배포 선택이 아니다. native frame의 접두사 없는 예시는 [adapters.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/adapters.py#L20), [follow_nav.launch.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L49-L60)에서 확인된다.
+- 도킹·센서의 조건부 관계는 [로봇 3번 baseline](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L40-L63), 운영자 전용 준비 action은 [Task.msg](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_interfaces/msg/Task.msg#L15-L17)에 있다. 접수 뒤 무동작은 [실습 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L26-L27)의 관찰이며 [원인은 미확인으로 기록됐다](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L66).
+- 늦은 action 수락·취소 관리 후보: [P4 goal_timer](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173).
+
+원본 링크는 근거일 뿐 이 초안 계약의 기존 구현이 아니다. 원본 접근이 안 되면 확인하지 못한 근거를 명시하고, 출처 검토가 끝났다고 처리하지 않는다.
+
+## 기록 (2026-10-14 옮김)
+
+아래 C-12·C-13 은 지금 조정기 코드와 현장 설정에 맞지 않는다. 지우지 않고 옮겼으며, 이력 확인용으로만 남긴다. 2026-10-14 에 확인한 차이는 아래와 같다.
+
+- C-12 다리 스켈레톤 추종은 2026-10-13 결정으로 뺐다(scope Q-29 ⑤, OPS-102). TB-5 가 앞서고 사람이 따라간다.
+- C-13 버튼 출동은 2026-10-13 저녁 결정(OPS-136)으로 바뀌었다. 지금 현장은 재난 신호로 TB-6 탐색을 자동 시작한다. 「콘솔 버튼은 비활성 placeholder」라는 설명도 지금과 다르다. 관제 웹의 출동 버튼은 운영 명령 API 와 연결돼 있다(로봇 없는 리허설 A2·A3 PASS, 2026-10-14).
+
 <a id="c-12"></a>
 
 ## C-12. AMR2 카메라 다리 스켈레톤 연속 추종 요구 (2026-10-11)
@@ -305,15 +369,3 @@ IDL 규칙:
 - `START_SEARCH`는 #98에서 `SubmitOperatorCommand` 1차 IDL에 추가됐고 main의 coordinator 명령 처리에도 연결됐다. 콘솔 화면에는 출동 버튼 항목이 있으나 비활성 placeholder이며 operations POST 경로와 ROS 왕복은 Q-28 후속이다. 미연결 UI 요청을 수락된 출동으로 표시하지 않는다. 이 PR은 최신 계약을 문서에 반영하며 실행 코드·필드를 추가하지 않는다.
 - Q-12의 2026-10-10 저장소 소유자 결정(AMR1 자동 출동·AMR2 구간 승인)은 과거 근거로 보존한다. 2026-10-11 소유자 결정에 따라 현재 AMR1 출동은 `START_SEARCH` 버튼 명령으로 게이트하며, main의 coordinator 처리도 이를 따른다. UI/API 연결·종단 간 시험과 E3/E4 실제 출동은 미검증이다.
 - AMR1 재관측·복귀 정책과 AMR2 RQ-10은 이 요구의 적용 범위가 아니다. E3 버튼 왕복·명령 발급과 E4 실제 출동은 NOT_RUN이다.
-
-## 고정 원본에서 가져온 계약 근거
-
-- 관측 재발행·수신 시각 혼동: [AMR webcam publish](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L109-L159), [follower 수신](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304).
-- 대상 자체 goal·만료 후 기존 goal 유지: [go_near](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L388-L446), [approach](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528).
-- AMCL 준비·직접 lifecycle 복구: [기동](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L109-L123), [복구](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L263-L288).
-- 원 관측 시각 TF의 재사용 후보: [P4 target_locator](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/target_locator.py#L74-L107). stamp의 유효성/지도 보정 처리까지 검증 완료됐다는 뜻은 아니다.
-- 도메인 A/B는 [P4 DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)의 당시 후보/기록이며 새 배포 선택이 아니다. native frame의 접두사 없는 예시는 [adapters.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/adapters.py#L20), [follow_nav.launch.py](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L49-L60)에서 확인된다.
-- 도킹·센서의 조건부 관계는 [로봇 3번 baseline](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/reference/2026-10-01-lab-environment-baseline.md#L40-L63), 운영자 전용 준비 action은 [Task.msg](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_interfaces/msg/Task.msg#L15-L17)에 있다. 접수 뒤 무동작은 [실습 기록](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L26-L27)의 관찰이며 [원인은 미확인으로 기록됐다](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L66).
-- 늦은 action 수락·취소 관리 후보: [P4 goal_timer](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173).
-
-원본 링크는 근거일 뿐 이 초안 계약의 기존 구현이 아니다. 원본 접근이 안 되면 확인하지 못한 근거를 명시하고, 출처 검토가 끝났다고 처리하지 않는다.
