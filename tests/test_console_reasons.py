@@ -232,7 +232,7 @@ class SearchStartModeTests(LedgerFixture):
         status = dict(self.status, mission_state={'schema_version': '1.2', 'mission': mission_state(
             'DISASTER', phase, reason=reason)})
         if commands:
-            status['operator_commands'] = {'commands': list(commands)}
+            status['operator_commands'] = {'schema_version': '1.0', 'commands': list(commands)}
         return build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND, robot_names=NAMES,
                           search_start=mode)
 
