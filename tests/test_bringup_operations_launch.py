@@ -34,6 +34,7 @@ class DbWriterParameters(unittest.TestCase):
             'site_events_topic': '/rescue/site_events',
             'system_state_topic': '/rescue/system_state',
             'targets_topic': '/rescue/targets',
+            'exit_location_topic': '/rescue/exit_location',
             'api_host': '127.0.0.1',
             'api_port': 8090,
             'operator_command_service': '/rescue/operator_command',
