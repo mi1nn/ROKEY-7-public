@@ -48,6 +48,14 @@ from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, Ro
 from rescue_interfaces.srv import SubmitOperatorCommand
 
 SCOUT, SUPPORT = 'robot_a', 'robot_b'
+CLOCK_DOMAIN = 'e3-clock'
+
+
+def fill_observation_time(t, now_ns):
+    """A declared time basis on CLOCK_DOMAIN (a test value, not a measured clock)."""
+    t.observed_at_ns, t.valid_until_ns = now_ns, now_ns + 10**10
+    t.stamp_semantics, t.clock_domain_id, t.clock_state = 'CAPTURE', CLOCK_DOMAIN, 'SYNCED'
+    t.has_clock_error_bound, t.clock_error_bound_ns = True, 5_000_000
 MAP = '22222222-2222-4222-8222-222222222222'
 AREAS = ('11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111112')
 NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '-p', 'executable_bases:=[PRIOR_MAP]',
@@ -59,7 +67,10 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
              '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0',
              '-p', 'lease_renew_period_s:=0.2', '-p', 'admission_timeout_s:=1.0', '-p', 'lease_message_ttl_s:=1.0',
-             '-p', 'route_segment_passage_free:=[true, true]']
+             '-p', 'route_segment_passage_free:=[true, true]',
+             # OPS-103: TargetLocation time gate (the probe's observations use this domain, SYNCED, 5 ms bound).
+             '-p', f'target_clock_domain_id:={CLOCK_DOMAIN}', '-p', 'target_max_age_s:=5.0',
+             '-p', 'target_max_future_s:=0.05']
 
 
 def node_command(repo, extra):
@@ -130,6 +141,7 @@ class FakeExecutor(Node):
         f.robot_id, f.native_frame, f.mission_frame, f.map_session_id = SCOUT, 'map', 'mission', MAP
         f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
         msg.mission_position.x, msg.mission_position.y = 2.5, 0.5
+        fill_observation_time(msg.observation.time, self.get_clock().now().nanoseconds)
         self.location.publish(msg)
         return msg.location_id
 
