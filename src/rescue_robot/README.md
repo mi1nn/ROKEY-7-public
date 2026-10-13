@@ -22,7 +22,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | 파라미터(기본값 없음) | 뜻 |
 | --- | --- |
 | `task.live.auto_target.enabled` (bool) | false 면 자동 대상 이동을 모두 거절 |
-| `task.live.auto_target.kinds` (string[]) | 받을 종류: `APPROACH_TARGET`·`REOBSERVE_TARGET` 중 |
+| `task.live.auto_target.kinds` (string[]) | 받을 종류: `APPROACH_TARGET`·`REOBSERVE_TARGET`·`RETURN_HOME` 중(RETURN_HOME 은 권한만, 해석은 configured destination) |
 | `task.live.auto_target.goal_clear_radius_m` (double) | 저장 지도에서 목표 중심 이 반경 안이 모두 비어 있어야 한다(현장 실행 파일 0.2 m [제안]) |
 | `task.live.auto_target.policy_version` (string) | 결정 기록용 버전 |
 
@@ -42,6 +42,13 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 - 도착하고 정지가 확인(stop_confirmed)된 뒤에만 `/rescue/robots/<robot_id>/observe_target`(#165)에 관측을 묻는다. 볼 지점은 TargetSnapshot 의 대상 `mission_position` 을 native 좌표로 바꾼 값이다. 창은 `task.live.recheck.window_ns`, 호출 전체 마감은 `task.live.recheck.deadline_ns` 다(현장 실행 파일 3 s / 10 s [제안]).
 - 서버의 답(OBSERVED·UNKNOWN·FAILED)은 그대로 `TaskResult.recheck` 에 싣는다(`has_recheck=true`). 묻지 못했으면 `has_recheck=false` 다(대상 위치 없음, 서버 없음, 마감까지 답 없음 → 취소 요청). 작업 결과(outcome)는 바꾸지 않는다.
 - 호출은 ExecuteTask 의 `execute` 코루틴에서 `await` 한다(실행기 잠금 밖). 단일 스레드 executor 에서도 멈추지 않는다.
+
+**복귀(RETURN_HOME), TB-5·TB-6(2026-10-13)**
+
+재범 결정 5A: TB-6 은 도킹 접근 지점으로, TB-5 는 출구로 돌아간다. 복귀 위치는 배포 프로파일 한 곳(`home_positions: {robot_id: [x, y, yaw]}`, `map_basis` 기준)에 둔다. 조정기 launch 는 이것을 `home_poses`(SCOUT → SUPPORT)로 넘긴다. 둘 중 하나만 있으면 거절하고, 블록이 없으면 넘기지 않는다(조정기 `NO_HOME_POSITION`). 로봇 launch 는 자기 위치를 `task.live.home_xy_yaw` 로 넘긴다.
+- 실행기는 이것을 `configured_destinations['home/<robot_id>']` 로 두고, 기존 RETURN_HOME 해석(지도 기준 일치·실행 중 계속 재확인)을 쓴다. 조정기는 `home_ref = "home/<robot_id>"` 로 보낸다.
+- 로봇별 정책 `kinds` 에 `RETURN_HOME` 이 있을 때만 받는다(TB-6 `[REOBSERVE_TARGET, RETURN_HOME]`, TB-5 `[APPROACH_TARGET, RETURN_HOME]`). home 이 없으면 거절한다.
+- 자동 도킹은 하지 않는다. TurtleBot4 Dock 액션은 Nav2·watchdog 속도 경로 밖에서 Create3 를 직접 움직여 watchdog 관문을 거치지 않는다. 도킹은 지금처럼 사람이 감독하는 절차로 한다.
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 

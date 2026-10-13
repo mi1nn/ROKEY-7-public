@@ -182,6 +182,11 @@ class Deployment:
     mission: Mission | None = None
     site_cameras: tuple[SiteCamera, ...] = ()
     map_basis: MapBasis | None = None   # v2 optional block; require_map_basis() where it is needed
+    # v2 optional: (robot_id, (x, y, yaw)) on the map_basis — where each robot returns (decision 5A)
+    home_positions: tuple[tuple[str, tuple[float, float, float]], ...] = ()
+
+    def home_of(self, robot_id: str) -> tuple[float, float, float] | None:
+        return dict(self.home_positions).get(robot_id)
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -467,6 +472,21 @@ def _map_basis(value: Any, mission: Mission) -> MapBasis:
     return basis
 
 
+def _home_positions(value: Any, robot_ids: list[str], basis: MapBasis | None) -> tuple:
+    """home_positions: {robot_id: [x, y, yaw]} in the map_basis frame (TB-6 dock approach, TB-5 exit)."""
+    if basis is None:
+        raise ProfileError("home_positions needs map_basis (the homes are on that map)")
+    if not isinstance(value, dict) or not value or not set(value) <= set(robot_ids):
+        raise ProfileError("home_positions must map deployment robot IDs to [x, y, yaw]")
+    homes = []
+    for robot_id in sorted(value):
+        pose = value[robot_id]
+        if not isinstance(pose, list) or len(pose) != 3:
+            raise ProfileError(f"home_positions[{robot_id}] must be [x, y, yaw]")
+        homes.append((robot_id, tuple(_finite(v, f"home_positions[{robot_id}]") for v in pose)))
+    return tuple(homes)
+
+
 def require_map_basis(deployment: Deployment) -> MapBasis:
     """The profile's map basis, or ProfileError: launches that need it have no default."""
     if deployment.map_basis is None:
@@ -492,6 +512,7 @@ def load_deployment(path: str | Path) -> Deployment:
                               "deployment")
     cameras_raw = raw.pop("site_cameras", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
     basis_raw = raw.pop("map_basis", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
+    homes_raw = raw.pop("home_positions", _ABSENT) if isinstance(raw, dict) and schema_version == 2 else _ABSENT
     data = _fields(raw, {
         "schema_version", "deployment_id", "hosts", "robots", "services"
     } | ({"mission"} if schema_version == 2 else set()), "deployment")
@@ -548,6 +569,7 @@ def load_deployment(path: str | Path) -> Deployment:
         raise ProfileError("all robots must use the same use_sim_time setting")
     mission = _mission(data["mission"], [robot.id for robot in robots]) if schema_version == 2 else None
     map_basis = _map_basis(basis_raw, mission) if basis_raw is not _ABSENT else None
+    homes = _home_positions(homes_raw, [robot.id for robot in robots], map_basis) if homes_raw is not _ABSENT else ()
     cameras: list[SiteCamera] = []
     if cameras_raw is not _ABSENT:
         if not isinstance(cameras_raw, list) or len(cameras_raw) > MAX_SITE_CAMERAS:
@@ -569,4 +591,4 @@ def load_deployment(path: str | Path) -> Deployment:
     if REQUIRE_ALL_HOSTS_USED and known_hosts != used_hosts:
         raise ProfileError(f"hosts without an assigned role: {sorted(known_hosts - used_hosts)}")
     return Deployment(deployment_id, tuple(hosts), tuple(robots), coordination_host, operations_host,
-                      schema_version, mission, tuple(cameras), map_basis)
+                      schema_version, mission, tuple(cameras), map_basis, homes)

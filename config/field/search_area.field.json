@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege, 2026-10-13): TB-6 (robot_a) takes only REOBSERVE_TARGET (C1-b), recheck window 3 s / deadline 10 s proposed; radius 0.2 m proposed",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege, 2026-10-13): TB-6 (robot_a) takes REOBSERVE_TARGET (C1-b) and RETURN_HOME (C1-c), recheck window 3 s / deadline 10 s proposed; radius 0.2 m proposed",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -71,7 +71,7 @@
       "task.publisher_id": "99999999-9999-4999-8999-999999999999",
       "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
       "task.live.auto_target.enabled": true,
-      "task.live.auto_target.kinds": ["REOBSERVE_TARGET"],
+      "task.live.auto_target.kinds": ["REOBSERVE_TARGET", "RETURN_HOME"],
       "task.live.auto_target.goal_clear_radius_m": 0.2,
       "task.live.auto_target.policy_version": "auto-target-20261013"
     }

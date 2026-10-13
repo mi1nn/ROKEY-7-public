@@ -3,7 +3,19 @@
 These are deployment settings, not observed maps/poses/clock records. No
 production threshold, calibration or identity is inferred from a goal.
 """
+import math
+
 from rescue_robot.executor import ContractError
+
+
+def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revision, transform_revision):
+    """This robot's RETURN_HOME destination as a configured destination (home_ref 'home/<robot_id>')."""
+    if (not isinstance(xy_yaw, (list, tuple)) or len(xy_yaw) != 3
+            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in xy_yaw)):
+        raise ContractError('home [x, y, yaw] must be three finite numbers')
+    return {'home/' + robot_id: dict(frame_id=frame_id, robot_id=robot_id, map_session_id=map_session_id,
+                                      map_revision=map_revision, transform_revision=transform_revision,
+                                      xy_yaw=[float(v) for v in xy_yaw])}
 
 
 def read_config(node, adapter):
@@ -68,6 +80,18 @@ def read_config(node, adapter):
     c['recheck'] = {key:get('live.recheck.'+key) for key in ('window_ns','deadline_ns')}
     # The coordinator's TargetSnapshot: target revision and position for REOBSERVE (IF-070)
     c['coordinator_targets_topic'] = '/rescue/targets'
+    # Optional: this robot's home (profile home_positions). Not given = no home; RETURN_HOME is refused.
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    node.declare_parameter('task.live.home_xy_yaw', Parameter.Type.DOUBLE_ARRAY)
+    try:
+        home = node.get_parameter('task.live.home_xy_yaw').value
+    except ParameterUninitializedException:
+        home = None
+    if home is not None:
+        c['configured_destinations'] = home_destinations(adapter.robot_id, list(home), frame_id=c['mission_frame'],
+            map_session_id=m['map_session_id'], map_revision=m['map_revision'],
+            transform_revision=m['transform_revision'])
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:
