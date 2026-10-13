@@ -136,6 +136,21 @@ def mjpeg_relay_parameters(*, webcam, bind_host, port, stale_s):
             'stale_s': stale}
 
 
+def map_snapshot_parameters(*, map_topic, map_dir):
+    """map_topic + map_dir -> rescue_operations map_snapshot parameters, or None when both are empty.
+
+    The SLAM map (owner 2026-10-13: TB-6) is written under map_dir for the console --live-map.
+    The topic is an argument, not fixed: after the map is frozen it may come from another topic.
+    """
+    if map_topic == '' and map_dir == '':
+        return None
+    if map_topic == '' or map_dir == '':
+        raise LaunchSettingError('map_topic and map_dir go together (the SLAM map for the console --live-map)')
+    if not map_topic.startswith('/'):
+        raise LaunchSettingError(f'map_topic must be an absolute topic name, got {map_topic!r}')
+    return {'map_topic': map_topic, 'out_dir': map_dir}
+
+
 def console_camera_argument(relay, *, camera_id):
     """The console --camera value for this relay."""
     return f'{camera_id}=http://{relay["bind_host"]}:{relay["port"]}{relay["path"]}'

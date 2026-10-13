@@ -9,6 +9,8 @@ import hashlib
 import math
 from pathlib import Path
 import struct
+import threading
+import time
 import zlib
 
 from .view import ConsoleError
@@ -182,6 +184,51 @@ def load_map(yaml_path):
     return MapImage(meta=meta, png=encode_png(width, height, pixels))
 
 
+class LiveMap:
+    """--live-map: the SLAM map file (rescue_operations map_snapshot) re-read whenever it changes.
+
+    The YAML's modification time is when the map was received; older than ``stale_s`` is STALE.
+    A missing map is MISSING and a map that fails to load is ERROR, keeping the last good image
+    with the error said on screen: an old picture is never shown as if it were current.
+    """
+
+    def __init__(self, yaml_path, *, stale_s, clock=time.time_ns):
+        if type(stale_s) not in (int, float) or not math.isfinite(stale_s) or stale_s <= 0:
+            raise _invalid('live map stale seconds must be a positive number')
+        self.path, self.stale_ns, self.clock = Path(yaml_path), int(stale_s * 1e9), clock
+        self.image, self._key, self._error = None, None, None
+        self._lock = threading.Lock()
+
+    def current(self):
+        """(MapImage or None, {'state': OK|STALE|ERROR|MISSING, 'received_at_ns', 'age_s', 'message'})."""
+        with self._lock:
+            try:
+                stat = self.path.stat()
+            except OSError as exc:
+                if self.image is None:
+                    return None, {'state': 'MISSING', 'received_at_ns': None, 'age_s': None,
+                                  'message': f'실시간 지도 없음 — {self.path.name} 를 아직 받지 못함'}
+                return self.image, {'state': 'ERROR', 'received_at_ns': None, 'age_s': None,
+                                    'message': f'지도 읽기 실패: {exc.strerror} — 마지막으로 읽은 지도를 보임'}
+            key = (stat.st_mtime_ns, stat.st_size)
+            if key != self._key:
+                self._key = key
+                try:
+                    self.image, self._error = load_map(self.path), None
+                except ConsoleError as exc:
+                    self._error = exc.detail
+            received = stat.st_mtime_ns
+            age_s = round((self.clock() - received) / 1e9, 1)
+            if self._error is not None:
+                kept = ' — 마지막으로 읽은 지도를 보임' if self.image is not None else ''
+                return self.image, {'state': 'ERROR', 'received_at_ns': received, 'age_s': age_s,
+                                    'message': f'지도 읽기 실패: {self._error}{kept}'}
+            if self.clock() - received > self.stale_ns:
+                return self.image, {'state': 'STALE', 'received_at_ns': received, 'age_s': age_s,
+                                    'message': f'지도 낡음: {age_s:g}초 동안 새 지도 없음'}
+            return self.image, {'state': 'OK', 'received_at_ns': received, 'age_s': age_s, 'message': ''}
+
+
 def world_to_pixel(meta, x, y):
     """Map-frame metres -> image coordinates (column from the left, row from the top), continuous.
 
@@ -204,7 +251,7 @@ def map_overlay(meta, robots, targets):
     frame are listed in `frame_mismatch` and never projected; on-frame poses outside the image are
     listed in `off_map`, not clamped to the edge.
     """
-    overlay = dict(meta, available=True, robots=[], targets=[], off_map=[], frame_mismatch=[],
+    overlay = dict(meta, available=True, robots=[], targets=[], off_map=[], frame_mismatch=[], no_pose=[],
                    note=f'기준 지도 {meta["source"]} ({meta["width_px"]}×{meta["height_px"]} px, '
                         f'{meta["resolution"]} m/px) — 좌표 map_session 일치는 확인하지 않음(Q-09)')
     entries = [('robot', row['robot_id'], row.get('pose'), {'yaw': (row.get('pose') or {}).get('yaw'),
@@ -212,6 +259,8 @@ def map_overlay(meta, robots, targets):
     entries += [('target', row['target_id'], row.get('position'), {'stage': row['stage']}) for row in targets]
     for kind, ident, pose, extra in entries:
         if pose is None:
+            if kind == 'robot':   # listed, not placed: no pose is ever made up (TB-5 before the map is fixed)
+                overlay['no_pose'].append({'id': ident, 'name': extra['name'] or ident})
             continue
         where = {'kind': kind, 'id': ident, 'x': pose['x'], 'y': pose['y'], 'frame_id': pose['frame_id']}
         if pose['frame_id'] != MAP_FRAME:

@@ -139,7 +139,17 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - **읽기:** 기동할 때 한 번 읽어 PNG 로 바꿔 메모리에 둔다. YAML 은 map_server 키 7개(`image` `mode` `resolution` `origin` `negate` `occupied_thresh` `free_thresh`)의 평평한 `키: 값` 만 받고, 모르는 키·중첩·`origin` 회전(yaw ≠ 0)·크기가 안 맞는 PGM 은 `INVALID_INPUT`, 파일이 없으면 `STORAGE_ERROR` 로 **기동이 실패**한다. 지도를 지어내거나 빈 지도로 대신 뜨지 않는다. PyYAML·Pillow 없이 표준 라이브러리만 쓴다.
 - **그리기:** `GET /map.png`(로그인 필요, GET 만, URL 에 PGM 해시 `?v=` 를 붙여 캐시) 위에 SVG 를 겹친다. SVG 좌표는 지도 픽셀이고, `origin` 은 왼쪽 아래 칸의 왼쪽 아래 모서리다(열 = (x − origin_x) / resolution, 행 = 높이 − (y − origin_y) / resolution). 지도 PNG 는 그 SVG 의 `<image>` 라서 표식과 같이 늘고 준다. 로봇은 진행 방향(yaw)을 가리키는 화살촉 + 표시 이름(예: 「TB-6」·「TB-5」, yaw 가 없으면 원), 요구조자는 위 「V」 표식, 1m 격자·축 숫자·축척 막대가 같이 그려진다. SVG 는 조각(`fragment`)에 들어 있어 1초 폴링마다 바뀌고 PNG 는 다시 받지 않는다.
 - **frame 규칙:** `frame_id == "map"` 인 좌표만 그린다. 다른 frame 은 투영하지 않고 「지도에 안 그림」 경고와 지도 아래 목록으로 보인다. 지도 밖 좌표는 가장자리로 끌어오지 않고 「지도 밖 좌표」로 보인다. 위치가 없는 로봇·대상은 그리지 않는다(표에 「—」).
-- **확인하지 않는 것:** 좌표의 `map_session_id`·`map_revision` 이 이 기준 지도와 같은 지도에서 나왔는지는 모른다(Q-09, 지도 아래 문구로 표시). 재난 뒤 SLAM 지도 실시간 표시, IF-084 `PUT /api/maps/{id}`, `map_snapshots` 표(site_state 1.1) 연결은 후속이다.
+- **확인하지 않는 것:** 좌표의 `map_session_id`·`map_revision` 이 이 기준 지도와 같은 지도에서 나왔는지는 모른다(Q-09, 지도 아래 문구로 표시). IF-084 `PUT /api/maps/{id}`, `map_snapshots` 표(site_state 1.1) 연결은 후속이다.
+
+## 실시간 SLAM 지도 (`--live-map`, 2026-10-13)
+
+TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운영 launch 의 `map_topic`·`map_dir` 가 지도를 받아 `<map_dir>/live_map.yaml` 로 쓰고(`rescue_operations` `map_snapshot`), 관제 웹은 `--live-map <map_dir>/live_map.yaml --live-map-stale-s <초>` 로 그 파일을 본다. `--map` 과 같이 줄 수 없다.
+
+- **다시 읽기:** YAML 이 바뀔 때마다(수정 시각·크기) 다시 읽고 PNG URL 의 해시가 바뀐다. 기동 때 파일이 아직 없어도 뜬다.
+- **지도 판 표시:** 지도 아래에 받은 시각(YAML 수정 시각)·몇 초 전·크기·해당도·PGM 해시 앞 12자.
+- **없음·낡음·실패를 숨기지 않음:** 파일이 없으면 「실시간 지도 없음」 칸, `--live-map-stale-s` 보다 오래 새 지도가 없으면 「지도 낡음」 경고와 흐린 지도, 새 파일을 못 읽으면 「지도 읽기 실패 — 마지막으로 읽은 지도를 보임」 경고. 기본 낡음 시간은 없다(현장 값).
+- **위치 없는 로봇:** 위치가 없는 로봇은 지도에 그리지 않고 「지도에 그리지 못한 위치」 목록에 「TB-5: 위치 미확정」처럼 보인다(지어내지 않음). `--map` 에도 같다.
+- 고정 지도는 한 번만 발행되므로 낡음 시간을 지나면 「지도 낡음」이 된다. 고정 뒤에는 `--map` 으로 그 파일을 주는 편이 맞다.
 
 ## 구조 상태 4단계 (Q-20: 표시층 합성)
 

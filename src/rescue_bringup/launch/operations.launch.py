@@ -5,7 +5,11 @@ ReportReceipt) and, optionally, the fixed webcam and its judge video relay (MJPE
         db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
         report_db_path:=<reports.sqlite3> envelope_schema_version:=<text> report_publisher_id:=<text> \
         [webcam_params_file:=<webcam_node.yaml> \
-         [video_port:=<port> video_bind_host:=<address> video_stale_s:=<s>]]
+         [video_port:=<port> video_bind_host:=<address> video_stale_s:=<s>]] \
+        [map_topic:=/robot6/map map_dir:=<folder>]
+
+map_topic/map_dir write the SLAM map (owner 2026-10-13: TB-6) for the console --live-map; the
+launch logs the console value.
 
 Robot IDs, roles and topics come from the deployment profile (v2.1, mission roles); nothing
 here has a default except the optional webcam and video relay. The console is not started here:
@@ -18,7 +22,8 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
-from rescue_bringup.operations_launch import (console_camera_argument, db_writer_parameters, mjpeg_relay_parameters,
+from rescue_bringup.operations_launch import (console_camera_argument, db_writer_parameters, map_snapshot_parameters,
+                                              mjpeg_relay_parameters,
                                               parse_launch_arguments, read_webcam_parameters, relay_requested,
                                               report_node_parameters)
 from rescue_bringup.profile import load_deployment
@@ -56,6 +61,11 @@ def _nodes(context):
         nodes += [Node(package='rescue_perception', executable='mjpeg_relay', name='mjpeg_relay', output='screen',
                        parameters=[_text_as_text(params)]),
                   LogInfo(msg='console --camera ' + console_camera_argument(params, camera_id=settings['camera_id']))]
+    snapshot = map_snapshot_parameters(map_topic=arg('map_topic'), map_dir=arg('map_dir'))
+    if snapshot:
+        nodes += [Node(package='rescue_operations', executable='map_snapshot', name='rescue_map_snapshot',
+                       output='screen', parameters=[_text_as_text(snapshot)]),
+                  LogInfo(msg=f'console --live-map {snapshot["out_dir"]}/live_map.yaml --live-map-stale-s <s>')]
     return nodes
 
 
@@ -77,5 +87,10 @@ def generate_launch_description():
                                           'must reach it)'),
         DeclareLaunchArgument('video_stale_s', default_value='',
                               description='Relay: no new frame for this long closes the stream; required with video_port'),
+        DeclareLaunchArgument('map_topic', default_value='',
+                              description='SLAM map topic (OccupancyGrid) for the console, e.g. /robot6/map; '
+                                          'empty = no map relay (needs map_dir)'),
+        DeclareLaunchArgument('map_dir', default_value='',
+                              description='Folder the map relay writes live_map.yaml into (console --live-map)'),
         OpaqueFunction(function=_nodes),
     ])

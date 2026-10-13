@@ -19,5 +19,6 @@ setup(
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": ["rescue-report-export = rescue_operations.__main__:main",
                                     "db_writer = rescue_operations.ros_node:main",
-                                    "report_node = rescue_operations.report_node:main"]},
+                                    "report_node = rescue_operations.report_node:main",
+                                    "map_snapshot = rescue_operations.map_snapshot:main"]},
 )
