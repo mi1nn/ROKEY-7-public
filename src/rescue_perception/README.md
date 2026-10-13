@@ -100,6 +100,21 @@ ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/camera
 
 시험: `tests/test_perception_mjpeg_relay.py`(localhost HTTP, E2). 판정 화면 영상은 판정에 쓰지 않는 확인용이다.
 
+### TB-6 재확인 관측 (ObserveTarget)
+
+[재범 결정 2026-10-13] 구출 완료는 「웹캠 출구 소실 후보 + TB-6 현장 재확인」이다. `recheck.py`(판정, ROS 없음)와 `recheck_server.py`(`ObserveTarget` action 서버)가 재확인 관측을 맡는다. 로봇 실행기가 REOBSERVE_TARGET 지점에 도착·정지한 뒤 goal 을 보내고(SDD IF-023), 결과의 `RecheckObservation` 을 TaskResult `recheck` 에 실어 조정기로 보낸다(그 연결은 로봇·조정기 쪽).
+
+| 항목 | 규칙 |
+| --- | --- |
+| 관측 창 | goal 을 받은 시각부터 `requested_window_ns` 동안이다. 그 뒤에 이 호스트가 받은 프레임·스캔만 센다(C-11 8·11행). 취소·마감 초과는 outcome UNKNOWN, 세 상태 모두 UNKNOWN 이고 부재로 만들지 않는다 |
+| 카메라 | 확정 탐지가 지점 반경 `presence_radius_m` 안에 있으면 PRESENT. 지점이 화면 안·깊이 범위 안이고 가려지지 않은 프레임(`frame_coverage` VALID)이 `min_frames` 이상이면서 탐지가 없을 때만 ABSENT. 그 지점에 미확정 탐지가 있었거나 프레임이 모자라면 UNKNOWN |
+| LiDAR | 지점 둘레 원(`lidar_radius_m`)으로 향한 빔이 원 안에서 돌아오면 BLOCKED, 원을 지나가면 CLEAR, 앞에서 막히거나 범위 밖이면 UNKNOWN. 창 안에 BLOCKED 가 하나라도 있으면 BLOCKED, CLEAR 스캔이 `min_scans` 이상이면 CLEAR |
+| 범위 | 카메라 VALID 프레임이 충분하고 LiDAR 가 UNKNOWN 이 아니면 VALID, 지점이 계속 화면·깊이 밖이면 INVALID, 그 밖은 UNKNOWN |
+| 시각 | 표본 시각은 이 호스트가 받은 시각(`DRIVER_RECEIVE`)이다. 시계 상태·오차는 웹캠과 같은 측정(`webcam_clock`, ClockSampler)이다. 측정이 안 되면 UNKNOWN |
+| goal 검사 | robot_id·`frame_ref.native_frame`·유한한 지점·창 길이(0 초과, 상한 이하)·마감이 맞지 않으면 FAILED 와 이유 코드. 열린 창이 있으면 새 goal 은 거절 |
+
+센서 입력을 넣는 일(amr_target 의 프레임·TB-6 LiDAR 스캔 → `add_frame`/`add_scan`)은 다음 PR 이다. 시험: `tests/test_perception_recheck.py`(E2), `tests/ros/e3_recheck_probe.py`(LOCALHOST action, 합성 입력). 실제 카메라·LiDAR·로봇은 NOT_RUN 이다.
+
 ### 단일 인형·회차별 1회 전송
 
 [사용자 요구, 2026-10-12] 한 회차에는 인형 하나만 사용한다. 화면 표시는 탐지 confidence 0.5부터 유지하지만, 관측/좌표 전송은 첫 CONFIRMED(현재 confidence 0.8 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.

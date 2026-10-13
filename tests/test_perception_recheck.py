@@ -69,8 +69,8 @@ class ScanStateTests(unittest.TestCase):
                          scan_state(scan([1.0] * 101), MAP_FROM_LASER, (2.0, 0.0, 0.0), POLICY))
 
     def test_disc_beyond_range_or_outside_the_scan_is_unknown(self):
-        self.assertEqual('UNKNOWN', scan_state(scan([math.inf] * 101, range_max=2.0), MAP_FROM_LASER,
-                                               (2.0, 0.0, 0.0), POLICY)[0])
+        self.assertEqual(('UNKNOWN', 'OUT_OF_RANGE'), scan_state(scan([math.inf] * 101, range_max=2.0), MAP_FROM_LASER,
+                                                                 (2.0, 0.0, 0.0), POLICY))
         self.assertEqual(('UNKNOWN', 'NOT_IN_SCAN'),
                          scan_state(scan([6.0] * 101), MAP_FROM_LASER, (-2.0, 0.0, 0.0), POLICY))
 
