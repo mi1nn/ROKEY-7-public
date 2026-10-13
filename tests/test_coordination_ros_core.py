@@ -32,7 +32,7 @@ def make_core(**changes):
                   admission_timeout_ns=ACCEPT, segment_passage_free=(True,) * len(SEGMENTS),
                   lease_message_ttl_ns=TTL, camera_watch=None, support_dispatch='OPERATOR',
                   approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
-                  new_id=lambda: uid(next(ids)))
+                  recheck_max_clock_error_ns=20_000_000, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
