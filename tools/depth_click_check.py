@@ -3,7 +3,7 @@
 
 Ported from the user's tested standalone viewer on 2026-10-12. The scale and offset
 come from the same calibration file the perception core reads
-(``rescue_perception/config/robot6_depth.json`` by default, via
+(``rescue_perception/config/robot_depth.json`` by default, via
 ``target_utils.load_depth_calibration``) so the click display and the core cannot
 disagree. ``--depth-scale``/``--depth-offset-m`` override it for an experiment only.
 It does not calibrate or republish the ROS image topic.
@@ -24,7 +24,7 @@ import time
 NORMALIZE_DEPTH_RANGE = 3.0            # 시각화 정규화 범위 (m)
 WINDOW_NAME = 'Depth Image (Click to get distance)'
 MEDIAN_KERNEL_SIZE = 5                 # 클릭 지점 주변 NxN 픽셀 중앙값 사용 (홀수)
-DEFAULT_CALIBRATION = 'package:robot6_depth.json'  # perception 코어와 같은 보정 파일
+DEFAULT_CALIBRATION = 'package:robot_depth.json'  # perception 코어와 같은 보정 파일
 DEFAULT_PHYSICAL_ROBOT_ID = 'robot6'   # 위 보정 파일의 physical_robot_id
 STALE_FRAME_SECONDS = 2.0  # Existing viewer receive-silence guard; not capture age.
 WAIT_LOG_SECONDS = 10.0
@@ -70,7 +70,7 @@ def parse_args(argv):
     parser.add_argument('--calibration', default=DEFAULT_CALIBRATION,
                         help='depth calibration JSON: package:<file name> or a path (default: %(default)s)')
     parser.add_argument('--physical-robot-id', default=DEFAULT_PHYSICAL_ROBOT_ID,
-                        help='must match physical_robot_id in the calibration file (default: %(default)s)')
+                        help='must be allowed by physical_robot_ids in the calibration file (default: %(default)s)')
     parser.add_argument('--depth-scale', type=positive_finite, default=None,
                         help='experiment only: override the calibration file scale')
     parser.add_argument('--depth-offset-m', type=finite, default=None,

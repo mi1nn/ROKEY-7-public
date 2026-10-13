@@ -19,21 +19,22 @@ from .adapter import ObservationPolicy, SourceBinding
 from .camera_utils import FIELD_PARAMS as CAMERA_FIELD_PARAMS, SETTINGS as CAMERA_SETTINGS, validate_config
 
 
-# User settings, 2026-10-12: share RGB settings and always select robot6 correction.
+# User settings, 2026-10-13: shared robot5/robot6 correction; preserve actual robot identity.
 # UNKNOWN clock/alignment values remain deliberate until measured.
 SETTINGS = {
     **CAMERA_SETTINGS,
     'depth_byte_order': 'little',
-    'depth_wait_s': 0.5,  # local selective node bound; field value remains proposed
+    'depth_wait_s': 1.5,  # bound exceeds documented TB-6 late-depth delay (~0.78 s)
     'observations_topic': '/rescue/observations',
     'base_point_topic': 'perception/target_base_point',
     'base_frame': 'base_link',
     'robot_id': 'robot_a',
     'physical_robot_id': 'robot6',
-    'depth_calibration_path': 'package:robot6_depth.json',
+    'depth_calibration_path': 'package:robot_depth.json',
     'camera_id': 'amr_rgbd',
     'model_id': 'survivor_yolo26n_640',
-    'confirm_confidence_min': 0.8,
+    'confirm_confidence_min': 0.9,  # user field decision, 2026-10-13
+    'depth_roi_radius_px': 5,
     'publisher_id': 'amr.perception',
     'envelope_version': '0.1',
     'observation_validity_ns': 2000000000,
@@ -140,6 +141,8 @@ def target_config(v, boot_id):
     for key in ('sync_queue_size', 'camera_info_max_age_ns', 'observation_validity_ns'):
         if v[key] <= 0:
             raise ValueError(f'{key} must be positive')
+    if type(v['depth_roi_radius_px']) is not int or v['depth_roi_radius_px'] < 0:
+        raise ValueError('depth_roi_radius_px must be non-negative INTEGER')
     topics = [v[key] for key in ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
                                  'observations_topic', 'base_point_topic')]
     if len(topics) != len(set(topics)):
@@ -315,10 +318,14 @@ def load_depth_calibration(path, *, physical_robot_id):
     path = str(path)
     payload = resource_bytes(path[len('package:'):]) if path.startswith('package:') else Path(path).read_bytes()
     raw = json.loads(payload)
-    for key in ('calibration_id', 'physical_robot_id'):
+    for key in ('calibration_id',):
         if not isinstance(raw.get(key), str) or not raw[key].strip():
             raise ValueError(f'depth calibration requires {key}')
-    if raw['physical_robot_id'] != physical_robot_id:
+    robots = raw.get('physical_robot_ids', [raw.get('physical_robot_id')])
+    if (not isinstance(robots, list) or not robots or
+            any(not isinstance(r, str) or not r.strip() for r in robots) or len(set(robots)) != len(robots)):
+        raise ValueError('depth calibration requires physical robot IDs')
+    if physical_robot_id not in robots:
         raise ValueError('depth calibration physical robot mismatch')
     scale, offset = raw.get('scale'), raw.get('offset_m')
     if type(scale) not in (float, int) or not math.isfinite(scale) or scale <= 0:

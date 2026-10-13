@@ -10,9 +10,9 @@ Run on an isolated graph, never a robot's domain, with no Discovery Server:
       python3 tests/ros/e3_amr_target_probe.py <REPO>
 
 amr_target runs as a child with tests/ros/stub_ultralytics first on its path (a red square is the
-only "survivor"; no model). The probe publishes compressed RGB + raw 16UC1 Depth + CameraInfo with
+only "survivor"; no model). Pass --compressed-depth to also test PNG transport. The probe publishes compressed RGB + raw 16UC1 Depth + CameraInfo with
 the same stamp (unrectified, plumb_bob zero distortion -> the box-point undistortion path), static
-TF map -> camera optical / laser, and LaserScan. All values are synthetic test values. Checks:
+TF map -> base_link -> camera optical, map -> laser, and LaserScan. All values are synthetic test values. Checks:
 1. without recheck values the node refuses to start (exit 2); 2. the doll is sent once as a
 TargetObservation with a located camera point and the host's measured clock (SYNCED when timesyncd
 answers); 3. ObserveTarget with the doll at the point -> PRESENT, LiDAR BLOCKED, coverage VALID;
@@ -22,6 +22,7 @@ while it stays in view; 7. a new TB-6 map revision -> one more. Exit code 0 = al
 """
 import math
 import os
+import struct
 import subprocess
 import sys
 import time
@@ -37,6 +38,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.action import ObserveTarget
 from rescue_interfaces.msg import MapState, TargetObservation
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
+from geometry_msgs.msg import PointStamped
 from tf2_msgs.msg import TFMessage
 
 W, H, F = 160, 120, 100.0              # synthetic camera: 160x120, f = 100 px, centre (80, 60)
@@ -44,10 +46,11 @@ OPTICAL, LASER = 'e3_camera_optical', 'e3_laser'
 DOLL = (70, 50, 90, 70)                # red square (x0, y0, x1, y1) around the image centre
 FAR_MM, DOLL_MM = 4000, 2000
 ACTION = '/rescue/robots/robot_a/observe_target'
-SCALE = 0.9594383775351013             # robot6_depth.json, applied by amr_target
+SCALE = 0.9594383775351013             # robot_depth.json, applied by amr_target
 POINT = (DOLL_MM / 1000 * SCALE, 0.0, 0.3)   # doll centre in the map: straight ahead of the camera
 EXIT_PAYLOAD, QR_MM = 'ROKEY7-EXIT', 1500
 MAP_STATE = '/rescue/robots/robot_a/map_state'
+COMPRESSED_DEPTH = '--compressed-depth' in sys.argv
 
 
 def qr_image(text):
@@ -58,10 +61,11 @@ def qr_image(text):
 
 def amr_args(with_recheck=True):
     p = {'image_topic': '/e3robot/rgb/compressed', 'image_type': 'compressed', 'depth_topic': '/e3robot/depth',
-         'depth_transport': 'raw', 'camera_info_topic': '/e3robot/camera_info', 'rgb_optical_frame': OPTICAL,
+         'depth_transport': 'compressedDepth' if COMPRESSED_DEPTH else 'raw', 'base_point_topic': '/e3robot/perception/target_base_point', 'camera_info_topic': '/e3robot/camera_info', 'rgb_optical_frame': OPTICAL,
          'depth_optical_frame': OPTICAL, 'rgb_stamp_semantics': 'CAPTURE', 'depth_stamp_semantics': 'CAPTURE',
          'rgb_depth_alignment_verified': 'true', 'rgb_rectified': 'false', 'calibration_id': 'e3-cal',
          'alignment_evidence_id': 'e3-align', 'sync_queue_size': '10', 'sync_slop_ns': '20000000',
+         'physical_robot_id': 'robot5', 'depth_calibration_path': 'package:robot_depth.json',
          'camera_info_max_age_ns': '1500000000', 'clock_domain_id': 'e3-clock', 'clock_backend': 'timesyncd',
          'clock_max_age_ns': '3600000000000', 'clock_drift_ppm': '100.0', 'clock_poll_period_s': '0.5',
          'sensor_host_clock_error_bound_ns': '0', 'sensor_host_clock_domain_id': 'e3-clock'}
@@ -121,10 +125,13 @@ def main():
     node = rclpy.create_node('e3_amr_target_probe')
     sensor = QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.VOLATILE)
     rgb_pub = node.create_publisher(CompressedImage, '/e3robot/rgb/compressed', sensor)
-    depth_pub = node.create_publisher(Image, '/e3robot/depth', sensor)
+    depth_pub = node.create_publisher(CompressedImage if COMPRESSED_DEPTH else Image, '/e3robot/depth', sensor)
     info_pub = node.create_publisher(CameraInfo, '/e3robot/camera_info', sensor)
     scan_pub = node.create_publisher(LaserScan, '/e3robot/scan', sensor)
     static_pub = node.create_publisher(TFMessage, '/e3robot/tf_static', QoSProfile(
+        depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    base_points = []
+    node.create_subscription(PointStamped, '/e3robot/perception/target_base_point', base_points.append, QoSProfile(
         depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     observations = []
     node.create_subscription(TargetObservation, '/rescue/observations', observations.append, QoSProfile(
@@ -152,7 +159,10 @@ def main():
             image[y:y + code.shape[0], x:x + code.shape[1]] = cv2.cvtColor(code, cv2.COLOR_GRAY2BGR)
             depth[y:y + code.shape[0], x:x + code.shape[1]] = QR_MM
         rgb = CompressedImage(format='jpeg', data=cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])[1].tobytes())
-        d = Image(height=H, width=W, encoding='16UC1', is_bigendian=0, step=W * 2, data=depth.tobytes())
+        d = (CompressedImage(format='16UC1; compressedDepth png',
+             data=struct.pack('<iff', 0, 0.0, 0.0)+cv2.imencode('.png',depth)[1].tobytes())
+             if COMPRESSED_DEPTH else
+             Image(height=H, width=W, encoding='16UC1', is_bigendian=0, step=W * 2, data=depth.tobytes()))
         info = CameraInfo(width=W, height=H, distortion_model='plumb_bob', d=[0.0] * 5,
                           k=[F, 0.0, W / 2, 0.0, F, H / 2, 0.0, 0.0, 1.0],
                           p=[F, 0.0, W / 2, 0.0, 0.0, F, H / 2, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -196,16 +206,28 @@ def main():
         return result.result().result
 
     try:
-        static_pub.publish(TFMessage(transforms=[
-            static_tf('map', OPTICAL, (0.0, 0.0, 0.3), (-0.5, 0.5, -0.5, 0.5)),   # looking along map +x
-            static_tf('map', LASER, (0.0, 0.0, 0.2), (0.0, 0.0, 0.0, 1.0))]))
         end = time.monotonic() + 30
         while not client.server_is_ready() and time.monotonic() < end:
             pump(0.2)
+        pump(0.5)
+        checks['missing base TF -> no success publication; retry stays enabled'] = not observations and not base_points
+        static_pub.publish(TFMessage(transforms=[
+            static_tf('map', 'base_link', (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)),
+            static_tf('base_link', OPTICAL, (0.0, 0.0, 0.3), (-0.5, 0.5, -0.5, 0.5)),   # looking along map +x
+            static_tf('map', LASER, (0.0, 0.0, 0.2), (0.0, 0.0, 0.0, 1.0))]))
         pump(3.0)   # frames with the doll; the first measured clock arrives within the poll period
         o = observations[0] if observations else None
         checks['doll -> one TargetObservation with a located point'] = bool(o) and o.localization_status == 'VALID' \
             and abs(o.sensor_position.z - POINT[0]) < 0.05 and abs(o.sensor_position.x) < 0.05
+        bp = base_points[0] if base_points else None
+        checks['capture-time base_link XYZ matches camera point transformed by TF'] = bool(bp and o) and \
+            bp.header.frame_id == 'base_link' and \
+            bp.header.stamp.sec * 10**9 + bp.header.stamp.nanosec == o.time.observed_at_ns and \
+            abs(bp.point.x - o.sensor_position.z) < 1e-6 and \
+            abs(bp.point.y + o.sensor_position.x) < 1e-6 and \
+            abs(bp.point.z - (0.3 - o.sensor_position.y)) < 1e-6
+        if bp:
+            print(f'  base_link: ({bp.point.x:.3f}, {bp.point.y:.3f}, {bp.point.z:.3f})')
         if o:
             print(f'  observation: point=({o.sensor_position.x:.3f}, {o.sensor_position.y:.3f}, '
                   f'{o.sensor_position.z:.3f}) clock={o.time.clock_state} bound={o.time.clock_error_bound_ns} '
