@@ -1,5 +1,7 @@
 # 탐색 알고리즘 선정안 — 2026-10-13
 
+> **기록 (2026-10-13).** 탐색 알고리즘 선정안 기록이다. 지금 현장 탐색은 explore_lite 가 아니다. 조정기가 `search_mode` FRONTIER 로 TB-6 의 다음 목표를 직접 고른다(`rescue_coordination/ros_node.py`, `rescue_contracts.grid_search`, 현장 파일 [search_area.field.json](../../config/field/search_area.field.json)). 현장 실행은 [rescue_bringup README](../../src/rescue_bringup/README.md)를 본다.
+
 **권고: explore_lite를 기본 탐색기로 우선 채택한다.** 사용자의 최종 확인 전에는 [제안]이며, 실기 인수 완료나 정확도 최고라는 결정이 아니다. 주행 수치는 [실기 기록](exploration-field-results-2026-10-13.md)을 단일 출처로 사용한다.
 
 ## 판단 근거

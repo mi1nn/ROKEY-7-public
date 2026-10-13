@@ -1,16 +1,18 @@
-"""Clock fields of webcam messages from an OS clock measurement (A2, 2026-10-13). No ROS.
+"""웹캠 메시지의 시계 칸을 OS 시계 측정값으로 채운다(A2, 2026-10-13). ROS 없음.
 
-The measurement is rescue_contracts.clock_measurement (ClockSampler: timesyncd or chrony,
-read-only). A message is SYNCED only while the latest record is SYNCED and fresh at the
-message's observed time; its bound then grows with the agreed drift since the sample.
-Otherwise UNKNOWN with no bound. Nothing here writes SYNCED from configuration.
+측정은 rescue_contracts.clock_measurement(ClockSampler: timesyncd 또는 chrony, 읽기만 함)가 한다.
+최신 측정 기록이 SYNCED 이고 메시지의 관측 시각에 아직 유효할 때만 그 메시지는 SYNCED 다.
+이때 오차 상한은 측정값을 읽은 뒤(sampled_at) 흐른 시간만큼 합의한 drift 로 늘린다. 아니면 상한 없이 UNKNOWN 이다.
+설정값만으로 SYNCED 를 쓰는 곳은 없다.
 """
 import math
 
-BACKENDS = ('timesyncd', 'chrony', 'NONE')  # NONE: no measurement on this PC -> always UNKNOWN
+# 시계 측정 방식. timesyncd·chrony 는 OS 시계 서비스 상태를 읽기만 한다.
+BACKENDS = ('timesyncd', 'chrony', 'NONE')  # NONE: 이 PC 에서 측정하지 않음 → 항상 UNKNOWN
 
 
 def clock_settings(v):
+    """YAML 시계 설정 검사. 틀리면 ValueError(노드 기동 거부)."""
     backend, max_age, drift = v['clock_backend'], v['clock_max_age_ns'], v['clock_drift_ppm']
     if backend not in BACKENDS:
         raise ValueError(f'clock_backend must be one of {BACKENDS}')
@@ -22,7 +24,7 @@ def clock_settings(v):
 
 
 def observation_clock(record, observed_ns):
-    """(clock_state, error_bound_ns or None) for a message observed at ``observed_ns``."""
+    """``observed_ns`` 에 찍은 메시지의 (clock_state, 오차 상한 ns 또는 None)."""
     unknown = ('UNKNOWN', None)
     if record.get('state') != 'SYNCED':
         return unknown
@@ -31,6 +33,8 @@ def observation_clock(record, observed_ns):
     if (any(type(x) is not int for x in (bound, measured, sampled, until)) or bound < 0
             or type(drift) is not float or not math.isfinite(drift) or drift <= 0):
         return unknown
+    # 측정 시각 이후이고 유효 기간 안에 찍은 프레임만 SYNCED.
     if not measured <= observed_ns < until:
         return unknown
+    # 오차 상한 = 읽을 때의 상한 + (읽은 뒤(sampled_at) 흐른 시간 × drift ppm / 1e6). 오래 전에 읽었을수록 넓어진다.
     return 'SYNCED', bound + math.ceil(max(0, observed_ns - sampled) * drift / 1e6)

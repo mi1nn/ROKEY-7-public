@@ -82,7 +82,18 @@ ROBOT_KEYS = {
     # both robots, OPS-135). robot.launch.py adds it to the Nav2 collision_monitor (nav2_with_passage).
     'passage.min_height_m': F, 'passage.max_height_m': F, 'passage.front_m': FL, 'passage.half_width_m': F,
     'passage.min_points': I,
+    # Slow down before anything above the lidar plane (OPS-189): depth band = passage.overhead.lidar_plane_m..top_m
+    # (keys of #259 below), front zone, ratio
+    'passage.slow.front_m': FL, 'passage.slow.ratio': F,
     'task.live.passage.polygon_name': S, 'task.live.passage.result_window_ns': I,
+    # Overhead structures marked on the map (OPS-185/186): rescue_perception overhead_passage on the same
+    # depth points and box; the heights above are its clearance and floor noise.
+    **{'passage.overhead.' + name: kind for name, kind in (
+        ('lidar_plane_m', F), ('top_m', F), ('floor_min_points', I), ('confirm_frames', I),
+        ('position_tolerance_m', F), ('merge_radius_m', F), ('process_period_s', F), ('max_cloud_age_s', F),
+        ('stride', I))},
+    # the judgement drawn on the robot camera (OPS-189): small JPEG, RGB frame within slop_ns of the cloud
+    'passage.view.width': I, 'passage.view.quality': I, 'passage.view.slop_ns': I, 'passage.view.font_path': S,
 }
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
 # Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
@@ -94,10 +105,16 @@ ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
 # also the freeze pose age, a FROZEN_MAP_AMCL robot its measured AMCL start (once measured).
 ROBOT_IDENTITY_KEYS['task.saved_map.mode'] = S
 ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
-SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshness at the freeze
+SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I,     # TB-6 SLAM pose freshness at the freeze
+                   # searching pose = TF map -> base_link; its covariance from a SLAM pose at most this old (OPS-177)
+                   'task.saved_map.slam_covariance_max_age_ns': I}
+SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom -> base_link
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
 PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
+# This robot's RGB preview (the camera the depth is aligned to) and its CameraInfo for the camera view
+# (OPS-189/198); both or neither: without them that robot has no view
+PASSAGE_VIEW_KEYS = {'passage.view_image_topic': S, 'passage.view_camera_info_topic': S}
 DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
 PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
@@ -259,8 +276,24 @@ def load_field(path):
         raise FieldLaunchError('robot.passage.front_m must be [near, far] with 0 <= near < far')
     if robot['passage.half_width_m'] <= 0 or robot['passage.min_points'] < 1:
         raise FieldLaunchError('robot.passage.half_width_m must be positive and passage.min_points at least 1')
+    slow = robot['passage.slow.front_m']
+    if len(slow) != 2 or not 0 <= slow[0] < slow[1]:
+        raise FieldLaunchError('robot.passage.slow.front_m must be [near, far] with 0 <= near < far')
+    if not 0 < robot['passage.slow.ratio'] < 1:
+        raise FieldLaunchError('robot.passage.slow.ratio must be between 0 and 1 (exclusive)')
     if robot['task.live.passage.result_window_ns'] <= 0:
         raise FieldLaunchError('robot.task.live.passage.result_window_ns must be positive')
+    o = {k[len('passage.overhead.'):]: v for k, v in robot.items() if k.startswith('passage.overhead.')}
+    if not robot['passage.min_height_m'] < o['lidar_plane_m'] < robot['passage.max_height_m'] < o['top_m']:
+        raise FieldLaunchError('robot.passage heights must be min_height_m < overhead.lidar_plane_m < max_height_m '
+                               '< overhead.top_m')
+    if not 16 <= robot['passage.view.width'] or not 1 <= robot['passage.view.quality'] <= 100 or (
+            robot['passage.view.slop_ns'] < 0 or not robot['passage.view.font_path'].startswith('/')):
+        raise FieldLaunchError('robot.passage.view needs width >= 16, quality 1..100, slop_ns >= 0 and an absolute '
+                               'font_path')
+    if min(o['floor_min_points'], o['confirm_frames'], o['stride']) < 1 or min(
+            o['position_tolerance_m'], o['merge_radius_m'], o['process_period_s'], o['max_cloud_age_s']) <= 0:
+        raise FieldLaunchError('robot.passage.overhead counts must be at least 1 and distances and times positive')
     return FieldRun(raw)
 
 
@@ -278,9 +311,12 @@ def _robot_map_modes(robots):
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
+        if any(key in section for key in PASSAGE_VIEW_KEYS):
+            keys.update(PASSAGE_VIEW_KEYS)
         _section(robots, robot_id, keys)
-        if mode == 'SLAM_THEN_FROZEN' and section['map_freeze.pose_max_age_ns'] <= 0:
-            raise FieldLaunchError(f'robots.{robot_id}.map_freeze.pose_max_age_ns must be positive')
+        for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
+            if section[key] <= 0:
+                raise FieldLaunchError(f'robots.{robot_id}.{key} must be positive')
         if 'initial_pose_xy_yaw' in section and len(section['initial_pose_xy_yaw']) != 3:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw must be [x, y, yaw]')
         if 'passage.depth_transport' in section and section['passage.depth_transport'] not in DEPTH_TRANSPORTS:
@@ -453,7 +489,11 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         'task.saved_map.transform_valid_until_ns': now_ns + window_ns,
     }
     if mode == 'SLAM_THEN_FROZEN':
-        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
+        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose: covariance
+        # searching pose = TF map -> base_link on this robot's TF topic (OPS-177)
+        task_input.update({'task.saved_map.slam_tf_topic': readiness.tf_topic,
+                           'task.saved_map.slam_odom_frame': readiness.odom_frame,
+                           'task.saved_map.slam_base_frame': SLAM_BASE_FRAME})
     if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
         task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
@@ -556,7 +596,11 @@ def map_freeze_parameters(deployment, *, field, output_dir):
     params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
               'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
               'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
-              'output_dir': output_dir}
+              'output_dir': output_dir,
+              # TB-6 pose = TF map -> base_link like the executor; covariance from <ns>/pose (OPS-179)
+              'tf_topic': robot.readiness.tf_topic, 'odom_frame': robot.readiness.odom_frame,
+              'base_frame': SLAM_BASE_FRAME,
+              'covariance_max_age_ns': section['task.saved_map.slam_covariance_max_age_ns']}
     return params
 
 
@@ -574,10 +618,15 @@ def _passage(field, robot_id, ns):
     return {'min_height_m': r['passage.min_height_m'], 'max_height_m': r['passage.max_height_m'],
             'front_m': list(r['passage.front_m']), 'half_width_m': r['passage.half_width_m'],
             'min_points': r['passage.min_points'], 'polygon_name': r['task.live.passage.polygon_name'],
+            'overhead_lidar_plane_m': r['passage.overhead.lidar_plane_m'], 'overhead_top_m': r['passage.overhead.top_m'],
+            'slow_front_m': list(r['passage.slow.front_m']), 'slow_ratio': r['passage.slow.ratio'],
             'depth_topic': section['passage.depth_topic'], 'camera_info_topic': section['passage.camera_info_topic'],
             'depth_transport': section['passage.depth_transport'], 'points_topic': ns + PASSAGE_POINTS,
             'readiness_topic': section['passage.depth_topic'] + (
                 '/compressedDepth' if section['passage.depth_transport'] == 'compressedDepth' else '')}
+
+
+SLOW_POLYGON = 'PassageSlow'
 
 
 def nav2_with_passage(params, passage):
@@ -594,8 +643,9 @@ def nav2_with_passage(params, passage):
         raise ValueError('Nav2 parameters need collision_monitor polygons, observation_sources and state_topic '
                          '(the executor reads collision_monitor_state)') from None
     name, source = passage['polygon_name'], 'passage_depth'
-    if name in polygons or name in cm or source in sources or source in cm:
-        raise ValueError(f'Nav2 parameters already define {name} or {source}')
+    slow_name, slow_source = SLOW_POLYGON, 'passage_overhead'
+    if any(key in polygons + sources or key in cm for key in (name, source, slow_name, slow_source)):
+        raise ValueError(f'Nav2 parameters already define {name}, {source}, {slow_name} or {slow_source}')
     for polygon in polygons:
         cm[polygon] = dict(cm[polygon], sources_names=list(sources))
     near, far = passage['front_m']
@@ -607,8 +657,41 @@ def nav2_with_passage(params, passage):
                 'enabled': True, 'sources_names': [source]}
     cm[source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'), 'min_height': passage['min_height_m'],
                   'max_height': passage['max_height_m'], 'enabled': True}
-    cm['polygons'], cm['observation_sources'] = polygons + [name], sources + [source]
+    # PassageSlow (OPS-189): anything above the lidar plane ahead slows the robot so the height can be judged
+    near, far = passage['slow_front_m']
+    cm[slow_name] = {'type': 'polygon', 'action_type': 'slowdown', 'slowdown_ratio': passage['slow_ratio'],
+                     'points': json.dumps([[far, half], [far, -half], [near, -half], [near, half]]),
+                     'min_points': passage['min_points'], 'visualize': True,
+                     'polygon_pub_topic': 'passage_slow_polygon', 'enabled': True, 'sources_names': [slow_source]}
+    cm[slow_source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'),
+                       'min_height': passage['overhead_lidar_plane_m'], 'max_height': passage['overhead_top_m'],
+                       'enabled': True}
+    cm['polygons'] = polygons + [name, slow_name]
+    cm['observation_sources'] = sources + [source, slow_source]
     return params
+
+
+def overhead_passage_launch_values(deployment, *, field, robot_id):
+    """rescue_perception overhead_passage for this robot: its passage points, the passage.* box and heights,
+    the SLAM robot's map revision (TB-5 sits on the TB-6 map) and this robot's Pi clock bound (OPS-185/186)."""
+    basis, robot, section = _robot(deployment, field, robot_id)
+    p, r, ns = _passage(field, robot_id, robot.namespace), field.robot, robot.namespace
+    map_robot = _slam_robot(field)
+    parameters = {
+        'points_topic': p['points_topic'], 'base_frame': SLAM_BASE_FRAME, 'map_frame': basis.frame_id,
+        'robot_id': robot_id, 'map_robot_id': map_robot, 'map_state_topic': f'/rescue/robots/{map_robot}/map_state',
+        'clock_error_bound_ns': section['task.live.sensor_host_clock_error_bound_ns'],
+        'clearance_m': p['max_height_m'], 'floor_noise_m': p['min_height_m'], 'front_near_m': float(p['front_m'][0]),
+        'front_far_m': float(p['front_m'][1]), 'half_width_m': p['half_width_m'], 'min_points': p['min_points'],
+        **{k[len('passage.overhead.'):]: v for k, v in r.items() if k.startswith('passage.overhead.')},
+        **{'view_' + k[len('passage.view.'):]: v for k, v in r.items() if k.startswith('passage.view.')},
+        # '' = not in the field file: the node says view off
+        **{k[len('passage.'):]: section.get(k, '') for k in PASSAGE_VIEW_KEYS}}
+    for key in PASSAGE_VIEW_KEYS:
+        if section.get(key) is not None and not section[key].startswith(ns + '/'):
+            raise FieldLaunchError(f'robots.{robot_id}.{key} must be a topic of this robot ({ns}/...)')
+    return {'namespace': ns, 'tf_topic': robot.readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
+            'parameters': parameters}
 
 
 def passage_points_launch_values(deployment, *, field, robot_id):

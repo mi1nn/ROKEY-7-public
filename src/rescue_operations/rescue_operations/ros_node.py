@@ -2,7 +2,8 @@
 
 The only process that writes the site-state DB (db-schema: one writer per file). It
 subscribes to RobotStatus and RobotPose per robot, the fixed camera's SiteEvent and the
-coordinator's SystemState and TargetSnapshot (1차 IDL). It also serves the operator command API
+coordinator's SystemState and TargetSnapshot (1차 IDL), each robot's overhead passage list (C-04b) and the SLAM
+robot's MapState (the current map the web compares passages to, OPS-194). It also serves the operator command API
 (command_api.py, #115): the console posts a command, this calls the coordinator's
 SubmitOperatorCommand service and records the answer. It publishes nothing. ROS packages are imported inside
 main() so this module imports without ROS. Topic names, roles and the DB path come
@@ -33,8 +34,10 @@ QOS = {'status': ('RELIABLE', 'VOLATILE', 1), 'pose': ('RELIABLE', 'VOLATILE', 1
        'site_events': ('RELIABLE', 'VOLATILE', 10), 'system_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
        'targets': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
        # QR exit observations: VOLATILE matches a latched or a plain publisher, every one is kept
-       'exit_location': ('RELIABLE', 'VOLATILE', 10)}
-ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics')
+       'exit_location': ('RELIABLE', 'VOLATILE', 10),
+       # C-04b and IF-009 publishers latch the latest; a late start still gets each robot's list and the map state
+       'overhead_passages': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'map_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
+ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics', 'overhead_passages_topics')
 # The console gives up after 5 s (#115 COMMAND_TIMEOUT_S); this must answer before that.
 CONSOLE_TIMEOUT_S = 5.0
 
@@ -67,6 +70,14 @@ def git_sha():
         return 'UNKNOWN'
 
 
+CAMERA_BY_ID_DIR = '/dev/v4l/by-id'   # same naming as the launch webcam_device (#204)
+
+
+def plugged_cameras(by_id_dir):
+    """Plugged camera names: the capture node of each (``*-video-index0``), as #204 lists them."""
+    return sorted(p.name for p in Path(by_id_dir).glob('*-video-index0'))
+
+
 def node_config(values):
     """Parameter values -> checked config. Raises OperationsError(INVALID_INPUT) before anything starts."""
     ids = list(values['allowed_robot_ids'])
@@ -76,7 +87,9 @@ def node_config(values):
     roles = list(values['robot_roles'])
     require(all(role in ROBOT_ROLES for role in roles) and len(set(roles)) == len(roles),
             'robot_roles must be SCOUT and SUPPORT, one each')
-    topics = [text(topic, name) for name in ('status_topics', 'pose_topics') for topic in values[name]]
+    topics = [text(topic, name) for name in ('status_topics', 'pose_topics', 'overhead_passages_topics')
+              for topic in values[name]]
+    topics.append(text(values['map_state_topic'], 'map_state_topic'))  # the SLAM robot's (OPS-194)
     topics.append(text(values['site_events_topic'], 'site_events_topic'))
     topics.append(text(values['system_state_topic'], 'system_state_topic'))
     topics.append(text(values['targets_topic'], 'targets_topic'))
@@ -86,10 +99,15 @@ def node_config(values):
     require(type(port) is int and 1 <= port <= 65535, 'api_port must be 1..65535')
     require(isinstance(timeout_s, float) and 0.0 < timeout_s < CONSOLE_TIMEOUT_S,
             f'command_timeout_s must be over 0 and under the console {CONSOLE_TIMEOUT_S:g} s')
+    webcam_node = values['webcam_node']
+    require(isinstance(webcam_node, str) and (webcam_node == '' or webcam_node.startswith('/')),
+            "webcam_node must be the webcam_node's absolute name, or '' for no console camera pick")
     # The path itself (parent exists, not a directory) is checked when the ledger opens it.
-    return {'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
+    return {'webcam_node': webcam_node, 'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
             'system_state_topic': values['system_state_topic'], 'targets_topic': values['targets_topic'],
             'exit_location_topic': values['exit_location_topic'],
+            'overhead_passages_topics': dict(zip(ids, values['overhead_passages_topics'])),
+            'map_state_topic': values['map_state_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
             'operator_command_service': text(values['operator_command_service'], 'operator_command_service'),
             'command_timeout_ns': round(timeout_s * 1e9),
@@ -126,11 +144,12 @@ def main(args=None):
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import (RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
+    from rescue_interfaces.msg import (MapState, RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
                                        TargetSnapshot)
+    from std_msgs.msg import String
     from rescue_interfaces.srv import SubmitOperatorCommand
 
-    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, make_server
+    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, WebcamSwitch, make_server
 
     from .ros_ingest import SiteStateIngest
     from .site_state import SiteStateLedger
@@ -143,8 +162,10 @@ def main(args=None):
              'pose_topics': Parameter.Type.STRING_ARRAY, 'site_events_topic': Parameter.Type.STRING,
              'system_state_topic': Parameter.Type.STRING, 'targets_topic': Parameter.Type.STRING,
              'exit_location_topic': Parameter.Type.STRING,
+             'overhead_passages_topics': Parameter.Type.STRING_ARRAY, 'map_state_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
-             'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE}
+             'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE,
+             'webcam_node': Parameter.Type.STRING}
     values = {}
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, kind)
@@ -168,6 +189,7 @@ def main(args=None):
              f'robots={config["robots"]} roles={config["roles"]} site_events={config["site_events_topic"]} '
              f'system_state={config["system_state_topic"]} targets={config["targets_topic"]} '
              f'exit_location={config["exit_location_topic"]} '
+             f'overhead_passages={config["overhead_passages_topics"]} map_state={config["map_state_topic"]} '
              f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]}')
 
     def qos(kind):
@@ -194,7 +216,13 @@ def main(args=None):
                                               handler(ingest.on_target_snapshot, 'targets'), qos('targets')),
                      node.create_subscription(TargetLocation, config['exit_location_topic'],
                                               handler(ingest.on_exit_location, 'exit_location'),
-                                              qos('exit_location'))]
+                                              qos('exit_location')),
+                     node.create_subscription(MapState, config['map_state_topic'],
+                                              handler(ingest.on_map_state, 'map_state'), qos('map_state'))]
+    for robot, topic in config['overhead_passages_topics'].items():
+        on_list = handler(lambda msg, received_at_ns, robot=robot: ingest.on_overhead_passages(
+            msg, robot_id=robot, received_at_ns=received_at_ns), robot + ' overhead_passages')
+        subscriptions.append(node.create_subscription(String, topic, on_list, qos('overhead_passages')))
     for robot, status_topic, pose_topic in config['robots']:
         subscriptions.append(node.create_subscription(
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))
@@ -223,8 +251,37 @@ def main(args=None):
                     created_task_id=res.created_task_id)
 
     gate = CommandGate(ledger, send, timeout_ns=config['command_timeout_ns'])
+    webcam = None
+    if config['webcam_node']:   # the console's camera pick (OPS-183): webcam_node's own parameter services
+        from rcl_interfaces.msg import Parameter as ParameterMsg, ParameterType, ParameterValue
+        from rcl_interfaces.srv import GetParameters, SetParameters
+        get_client = node.create_client(GetParameters, config['webcam_node'] + '/get_parameters')
+        set_client = node.create_client(SetParameters, config['webcam_node'] + '/set_parameters')
+
+        def call(client, req):
+            if not client.service_is_ready():
+                raise CommandUnavailable(f'{client.srv_name} not available')
+            done = threading.Event()
+            future = client.call_async(req)
+            future.add_done_callback(lambda _: done.set())
+            if not done.wait(config['command_timeout_ns'] / 1e9):
+                client.remove_pending_request(future)
+                raise CommandTimeout(f'no answer within {config["command_timeout_ns"] / 1e9:g} s')
+            return future.result()
+
+        def get_device():
+            return call(get_client, GetParameters.Request(names=['device_path'])).values[0].string_value
+
+        def set_device(path):
+            value = ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=path)
+            result = call(set_client, SetParameters.Request(
+                parameters=[ParameterMsg(name='device_path', value=value)])).results[0]
+            return result.successful, result.reason
+
+        webcam = WebcamSwitch(ledger, list_cameras=lambda: plugged_cameras(CAMERA_BY_ID_DIR), get_device=get_device,
+                              set_device=set_device, by_id_dir=CAMERA_BY_ID_DIR + '/')
     try:
-        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug)
+        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam)
     except OSError as exc:
         log.fatal(f'cannot serve the command API on {config["api_host"]}:{config["api_port"]}: {exc}')
         ledger.close()

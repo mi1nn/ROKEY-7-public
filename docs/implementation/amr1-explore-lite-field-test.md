@@ -6,6 +6,8 @@ updated: 2026-10-12
 
 # AMR1 explore_lite 단독 시험 절차와 결과 기록
 
+> **기록 (2026-10-12).** 탐색 알고리즘 단독 시험 기록이다. 지금 현장 탐색은 explore_lite 가 아니다. 조정기가 `search_mode` FRONTIER 로 TB-6 의 다음 목표를 직접 고른다(`rescue_coordination/ros_node.py`, `rescue_contracts.grid_search`, 현장 파일 [search_area.field.json](../../config/field/search_area.field.json)). 현장 실행은 [rescue_bringup README](../../src/rescue_bringup/README.md)를 본다. 아래의 AMR1 은 지금의 TB-6 이다.
+
 [사용자 요구, 2026-10-12] “지금 테스트 하는거에 대해서 git에 먼저 올리고 테스트 해보고 그거에 대한 피드백을 올린 pr밑에다 달면 어때?”에 따라 실행 절차를 먼저 저장하고, 실행한 커밋의 결과를 이 문서를 추가한 PR 댓글에 남긴다. [AMR1 자율 탐색 후보](amr1-exploration-candidates.md)([PR #116](https://github.com/jaebeom/ROKEY-7/pull/116))의 첫 기준 후보 `explore_lite`를 대상으로 한다. 최종 알고리즘 채택이나 프로젝트 주행 adapter 구현을 뜻하지 않는다.
 
 [사용자 설정, 2026-10-12] 이번 시험 대상은 `robot6`, `ROS_DOMAIN_ID=6`이며 SLAM/Nav2는 아직 시작하지 않았다고 보고했다. 이는 이번 회차의 설정이며 논리 AMR1의 영구 배치나 팀 공통 프로파일을 확정하지 않는다.

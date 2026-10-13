@@ -1,7 +1,7 @@
 ---
 title: DB 스키마 — 운영 장부·현장 상태·콘솔 계정
-status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2·1.3)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
-updated: 2026-10-11
+status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2·1.3·1.4)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
+updated: 2026-10-13
 ---
 
 # DB 스키마
@@ -11,7 +11,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 파일 (역할 값 `metadata.role`) | 쓰는 쪽 | 읽는 쪽 | 코드 | 상태 |
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
-| 현장 상태 `operations-site-state` (schema 1.3, 1.0·1.1·1.2 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
+| 현장 상태 `operations-site-state` (schema 1.4, 1.0~1.3 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
 | 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 송신 대기열 `report-outbox` (생산자 쪽 별도 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
@@ -33,7 +33,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 ## 2. 현장 상태 (`operations-site-state`, schema 1.0 의 표, main)
 
-1.1·1.2·1.3 에서도 이 세 표는 그대로이고 4절의 표가 더해진다. `metadata`: `schema=1.3`(1.0·1.1·1.2 파일은 4절대로 올림), `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
+1.1·1.2·1.3 에서도 이 세 표는 그대로이고 4절의 표가 더해진다. `metadata`: `schema=1.4`(1.0~1.3 파일은 4절대로 올림), `role=operations-site-state`, `allowed_robot_ids`. 보고 장부와 **다른 파일**이다(재오픈 정책이 달라 한 파일에 섞지 않음, #34).
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
@@ -64,10 +64,13 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 1차 IDL `SubmitOperatorCommand` 의 operation 8개와 콘솔 계획의 PAUSE·RESUME·CANCEL·STOP_ROBOT. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
 | `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | 지도 이미지 한 장(IF-084). 이미지 bytes 는 DB 에 넣지 않고 `path`·`sha256`(소문자 64자)만 둔다. 같은 ID 같은 내용은 멱등 |
 | `exit_locations` (1.3) | `location_id TEXT PK`, `observed_at_ns`, `received_at_ns`, `map_session_id`, `map_revision`, `transform_revision`, `mission_frame`, `x REAL`, `y REAL`, `class_label` | 출구(QR) 관측 하나(`/rescue/exit_location`, 통합-인식 안 「나」, 작전 OPS-144·150). **VALID 만** 기록하고(아니면 거절해 `error_log`), `class_label` 은 늘 `exit_qr`. 관측 원본이지 조정기가 등록·재기준한 출구가 아니다(관제 웹은 「관측」으로 표시). 같은 ID 같은 관측은 멱등이고 처음 받은 `received_at_ns` 를 유지, 관측 내용이 다르면 `ID_CONTENT_CONFLICT` |
+| `overhead_passage_lists` (1.4) | `robot_id TEXT PK`, `generated_at_ns`, `received_at_ns`, `map_frame`, `clearance_m REAL`, `floor_noise_m REAL`, `lidar_plane_m REAL` | 로봇별 머리 위 구조물(터널) 목록의 머리(C-04b, `/rescue/robots/<id>/overhead_passages`, 작전 OPS-194). 해석은 `rescue_contracts.overhead.parse_overhead_passages` 하나로만 하고 기록 때 계약 검사를 다시 거친다. 잘못된 형식, 토픽과 다른 `robot_id` 는 거절해 `error_log`. 빈 목록도 한 행이다(받은 적 없는 로봇은 행이 없음) |
+| `overhead_passages` (1.4) | `robot_id`, `id`(PK 는 둘), `state`, `lowest_m REAL NULL`, `x REAL`, `y REAL`, `map_session_id`, `map_revision`, `frames`, `first_seen_ns`, `last_seen_ns`, `reason` | 그 목록의 항목, C-04b 필드 그대로(UNKNOWN 이면 `lowest_m` None). **목록이 기록이다**: `generated_at_ns` 가 더 큰 목록이 오면 그 로봇의 머리·항목을 한 트랜잭션에서 통째로 바꾸고, 새 목록에 없는 항목은 지운다(이전 revision 항목은 로봇이 목록에 남겨 보내므로 그대로 남는다). 같은 시각 같은 목록은 멱등(처음 받은 `received_at_ns` 유지), 같은 시각 다른 내용은 `ID_CONTENT_CONFLICT`, 더 오래된 목록은 버린다 |
+| `current_map` (1행, 1.4) | `singleton INTEGER PK (=1)`, `robot_id`, `map_session_id`, `map_revision`, `generated_at_ns`, `received_at_ns` | SLAM 로봇(SCOUT, TB-6)의 최신 `MapState`. 두 로봇의 터널 항목은 모두 이 지도 위에서 잰다. 관제 웹이 이 revision 항목은 진하게, 다른 revision 은 흐리게 그린다(hv-06). `generated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함 |
 
-올리기 규칙: `metadata.schema` 는 `1.3` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고, 1.1 파일을 열면 `mission_state`(1행)를 1.2 모양으로 다시 만들어 기존 행을 옮긴 뒤(SQLite 는 NOT NULL 을 그 자리에서 풀 수 없음), 1.2 파일은 `exit_locations` 표만 더한 뒤 schema 를 `1.3` 으로 올린다. 다른 표와 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 최신 schema 파일만 받으므로, 이전 파일은 operations 가 한 번 연 뒤에 읽힌다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
+올리기 규칙: `metadata.schema` 는 `1.4` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고, 1.1 파일을 열면 `mission_state`(1행)를 1.2 모양으로 다시 만들어 기존 행을 옮긴 뒤(SQLite 는 NOT NULL 을 그 자리에서 풀 수 없음), 1.2 파일은 `exit_locations` 표를, 1.3 파일은 1.4 의 세 표만 더한 뒤 schema 를 `1.4` 로 올린다. 다른 표와 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 최신 schema 파일만 받으므로, 이전 파일은 operations 가 한 번 연 뒤에 읽힌다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
 
-읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_exit_locations(limit)` 는 `observed_at_ns` 최신 순·같으면 `location_id` 오름차순(관제 웹은 맨 위 하나를 지도에), `read_mission_state` 는 `mission` 하나(기록 전에는 None). `read_allowed_robot_ids` 는 metadata 의 배치 로봇 목록(정렬)이다.
+읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_exit_locations(limit)` 는 `observed_at_ns` 최신 순·같으면 `location_id` 오름차순(관제 웹은 맨 위 하나를 지도에), `read_mission_state` 는 `mission` 하나(기록 전에는 None). `read_overhead_passages` 는 `robots`(로봇 ID → 머리 필드 + `items`, 항목은 `last_seen_ns` 최신 순·같으면 `id` 오름차순, 받은 적 없는 로봇은 키 없음)와 `current_map`(기록 전에는 None). `read_allowed_robot_ids` 는 metadata 의 배치 로봇 목록(정렬)이다.
 
 보류 — JSON 키 추가: `robot_status.status_json` 의 `dock_state`·`segment_index` 는 1차 IDL `RobotStatus` 에 맞춰 선택 키로 넣었다(2절, 2026-10-11). `target_states.state_json` 의 `segment_phase`·`candidate_event_id` 는 아직 넣지 않았다. 지금 검증(`schema.exact`)은 키 집합이 정확히 맞아야 해서, 키를 더하면 발행 쪽(operations ROS 어댑터)과 읽는 쪽(콘솔)이 같이 바뀌어야 한다. 넣을 때는 5절대로 읽는 쪽이 없는 키를 기본값으로 읽게 한다.
 
