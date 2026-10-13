@@ -107,7 +107,8 @@ class PairingFieldValueTests(unittest.TestCase):
     def test_integer_values_are_checked(self):
         supplied = {name: 'x' for name, kind in FIELD_PARAMS.items() if kind == 'STRING'}
         supplied.update({name: False for name, kind in FIELD_PARAMS.items() if kind == 'BOOL'})
-        supplied.update(rgb_stamp_semantics='CAPTURE', depth_stamp_semantics='CAPTURE',
+        supplied.update(rgb_stamp_semantics='CAPTURE', depth_stamp_semantics='CAPTURE', image_type='raw',
+                        depth_transport='raw',
                         sync_queue_size=40, sync_slop_ns=20_000_000, camera_info_max_age_ns=1_500_000_000)
         self.assertEqual(40, field_values(SETTINGS, supplied, FIELD_PARAMS)['sync_queue_size'])
         for bad in (dict(sync_queue_size=0), dict(sync_queue_size=True), dict(sync_slop_ns=-1),
