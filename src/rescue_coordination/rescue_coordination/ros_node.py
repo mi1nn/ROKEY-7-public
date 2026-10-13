@@ -37,7 +37,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts.grid_search import clear_mask, find_frontiers, grid_path, path_lengths
+from rescue_contracts.grid_search import clear_mask, find_frontiers, grid_path, nearest_clear_outside, path_lengths
 from rescue_contracts.occupancy import compose_planar, parse_frozen_revision, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
@@ -98,6 +98,18 @@ PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_po
 FRONTIER_BASIS = 'FRONTIER'    # MissionSite.basis of a frontier goal; must be in executable_bases
 FRONTIER_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/frontier')
 COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')
+# Traffic control, stage 1 (owner decision 2026-10-14, scope Q-29 ⑤; 작전 OPS-204·205): TB-5 always goes first,
+# because TB-5 leads the rescuer, who follows it on foot. OFF is for robot-less fixtures only; the field launch
+# refuses it with SLAM_FREEZE (two robots on one live map).
+TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'OFF')
+TRAFFIC_REASONS = ('TRAFFIC_SUPPORT_WAITING_SCOUT_STOP',   # TB-6 canceled for TB-5; waiting for its stop
+                   'TRAFFIC_SCOUT_STOP_TIMEOUT',           # ... longer than traffic_stop_timeout_s
+                   'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD',  # TB-6 sent aside; TB-5 waits until it is off the path
+                   'TRAFFIC_SCOUT_YIELD_NO_SPACE',         # no spot to step aside: TB-6 stays stopped, TB-5 waits
+                   'TRAFFIC_SCOUT_HELD_FOR_SUPPORT',       # a new TB-6 goal near TB-5's path while TB-5 goes
+                   'TRAFFIC_ROBOTS_TOO_CLOSE',             # under traffic_min_separation_m (now, or at the goal)
+                   'TRAFFIC_SUPPORT_PATH_UNKNOWN',         # no clear grid path for TB-5 on the frozen map
+                   'TRAFFIC_SCOUT_POSE_UNKNOWN', 'TRAFFIC_SUPPORT_POSE_UNKNOWN')  # cannot tell where the other is
 SCOUT_MAP_TOPIC = '/robot6/map'  # TB-6 live SLAM OccupancyGrid (통합-로봇 OPS-159 ④) [추정: 실기 미확인]
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
@@ -313,7 +325,8 @@ class CoordinatorCore:
                  map_freeze_timeout_ns, search_start, search_mode, patrol_points,
                  patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
                  frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
-                 completion_mode, support_start_pose, new_id=None):
+                 completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
+                 traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -435,6 +448,36 @@ class CoordinatorCore:
         self.support_start_pose = support_start_pose  # TB-5's start spot, the exit when no QR was seen (OPS-155 ①)
         self.support_exit_goal = None  # (x, y, yaw) TB-5 leads out to, chosen on the final map (FRONTIER)
         self.last_tick_ns = None
+        # Traffic control (OPS-204·205): TB-5 first, it leads the rescuer.
+        if traffic_control not in TRAFFIC_CONTROLS:
+            raise CoordinationError('INVALID_POLICY', f'traffic_control must be one of {list(TRAFFIC_CONTROLS)}')
+        for name, value in (('traffic_min_separation_m', traffic_min_separation_m),
+                            ('traffic_path_clearance_m', traffic_path_clearance_m),
+                            ('traffic_yield_max_m', traffic_yield_max_m)):
+            if not (type(value) in (int, float) and math.isfinite(value) and value > 0):
+                raise CoordinationError('INVALID_POLICY', f'{name} must be a positive number')
+        if traffic_path_clearance_m < traffic_min_separation_m:
+            # a step-aside spot is this far from TB-5's path and from TB-5 itself
+            raise CoordinationError('INVALID_POLICY', 'traffic_path_clearance_m must be at least '
+                                                      'traffic_min_separation_m')
+        contract_value(duration_ns, traffic_stop_timeout_ns)
+        if traffic_stop_timeout_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'traffic_stop_timeout_s must be positive')
+        if traffic_control == 'TB5_PRIORITY' and search_mode != 'FRONTIER':
+            raise CoordinationError('INVALID_POLICY', 'traffic_control TB5_PRIORITY needs search_mode FRONTIER '
+                                                      '(TB-6 steps aside through a FRONTIER site)')
+        self.traffic_control = traffic_control
+        self.traffic_min_separation_m = traffic_min_separation_m
+        self.traffic_path_clearance_m = traffic_path_clearance_m
+        self.traffic_yield_max_m, self.traffic_stop_timeout_ns = traffic_yield_max_m, traffic_stop_timeout_ns
+        self.support_path = None       # grid points TB-5 moves on while its task is open
+        self.traffic_wait_path = None  # TB-5's path while it waits to go, this tick only
+        self.traffic_cancel = None     # (task_id, requested_at_ns) of the TB-6 task stopped for TB-5
+        self.traffic_canceled = set()  # task ids stopped for TB-5: their end is no try
+        self.cancels = []              # task ids the node cancels (ExecuteTask goal cancel)
+        self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
+        self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
+        self.yield_count = 0
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -696,7 +739,7 @@ class CoordinatorCore:
         self.frontier_count += 1
         site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
         self.search.policy = replace(self.search.policy, areas=(site,))
-        self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid)
+        self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y))
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
                           f'path_m={path.length_m:.2f} start_moved_m={path.start_moved_m:.2f} '
@@ -1083,9 +1126,23 @@ class CoordinatorCore:
         stop = bool(result.stop_confirmed)
         if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
             return False
+        stopped_for_tb5 = task_id in self.traffic_canceled
+        self.traffic_canceled.discard(task_id)
+        self.task_goal.pop(task_id, None)
+        if self.traffic_cancel is not None and self.traffic_cancel[0] == task_id:
+            self.traffic_cancel = None
+        if item.robot_id == self.roles['SUPPORT']:
+            self.support_path = None
         if self.search_mode == 'FRONTIER' and self.search.kind_of(item) == 'SEARCH_AREA' and self.frontier:
-            self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome}')
-            self._frontier_done()
+            if self.frontier.get('step_aside') or stopped_for_tb5:
+                # neither is a tried frontier: a step aside is no frontier, a stopped one was not tried
+                done = 'TRAFFIC_YIELD_DONE' if self.frontier.get('step_aside') else 'FRONTIER_STOPPED_FOR_TB5'
+                self.notes.append(f'{done} {item.target_id} outcome={result.outcome}')
+                self.frontier = None
+                self.search.policy = replace(self.search.policy, areas=())
+            else:
+                self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome}')
+                self._frontier_done()
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):
             self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
@@ -1107,6 +1164,9 @@ class CoordinatorCore:
                 if self.completion_mode == 'EXIT_ARRIVAL':
                     self._confirm_by_exit_arrival()
                 self.note_support_at_exit()
+        elif meta and meta[0] == 'RETURN_HOME' and stopped_for_tb5:
+            self.scout_return = None  # stopped for TB-5 (OPS-205): issued again once TB-5 is past
+            self.notes.append(f'SCOUT_RETURN_STOPPED_FOR_TB5 {task_id}')
         elif meta and meta[0] == 'RETURN_HOME':
             # TB-6 stops at the docking approach point; docking itself is done by hand (supervised, 5A).
             self.scout_return = 'AT_DOCK_APPROACH' if result.outcome == 'COMPLETED' else 'FAILED'
@@ -1330,6 +1390,7 @@ class CoordinatorCore:
         contract_value(timestamp_ns, now_ns)
         self.last_tick_ns = now_ns
         self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
+        held_before, self.traffic_hold, self.traffic_wait_path = self.traffic_hold, {}, None
         self._expire_unadmitted(now_ns)
         self._watch_tick(now_ns)
         detail = self.status_detail.get(self.roles['SCOUT'])
@@ -1353,8 +1414,17 @@ class CoordinatorCore:
         self._patrol_tick()
         self._frontier_tick(now_ns)
         self._issue_search(now_ns)
+        for role in ('SUPPORT', 'SCOUT'):  # logged when a hold starts, changes or ends (not every tick)
+            if self.traffic_hold.get(role) != held_before.get(role):
+                self.notes.append(f'TRAFFIC_HOLD {role} {self.traffic_hold[role]}' if role in self.traffic_hold
+                                  else f'TRAFFIC_RELEASE {role}')
         sent, self.outbox = self.outbox, []
         return sent
+
+    def take_cancels(self):
+        """Task ids whose ExecuteTask goal the node cancels now (TB-6 stopped for TB-5, OPS-205); each once."""
+        out, self.cancels = self.cancels, []
+        return out
 
     def on_command(self, req, *, now_ns):
         """SubmitOperatorCommand -> reply fields (accepted, request_state, reason_code, created_task_id)."""
@@ -1542,6 +1612,9 @@ class CoordinatorCore:
         boot = self._free('SUPPORT', now_ns)
         if boot is None:
             return None
+        exit_xy = self._home_xy('SUPPORT')
+        if not self._traffic_support(exit_xy, now_ns):
+            return None
         robot_id = self.roles['SUPPORT']
         decision = self.search.reserve_goal_task(robot_id, robot_boot_id=boot, kind='RETURN_HOME',
                                                  target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
@@ -1549,6 +1622,7 @@ class CoordinatorCore:
             return None
         fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
         self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SUPPORT_EXIT')
+        self._moving('SUPPORT', fields['task_id'], exit_xy)
         self.support_exit = 'ISSUED'
         self._send(fields)
         return fields['task_id']
@@ -1608,6 +1682,9 @@ class CoordinatorCore:
         boot = self._free('SCOUT', now_ns)
         if boot is None:
             return None
+        home_xy = self._home_xy('SCOUT')
+        if not self._traffic_scout(home_xy, now_ns):
+            return None
         robot_id = self.roles['SCOUT']
         decision = self.search.reserve_goal_task(robot_id, robot_boot_id=boot, kind='RETURN_HOME',
                                                  target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
@@ -1615,6 +1692,7 @@ class CoordinatorCore:
             return None
         fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
         self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SCOUT_RETURN')
+        self._moving('SCOUT', fields['task_id'], home_xy)
         self.scout_return = 'ISSUED'
         mission.returning = True
         if self._no_survivor():
@@ -1659,6 +1737,161 @@ class CoordinatorCore:
         return {'ISSUED': 'SUPPORT_EXITING', 'MOVING': 'SUPPORT_EXITING', 'AT_EXIT': 'SUPPORT_AT_EXIT',
                 'CANCELED': 'SUPPORT_EXIT_CANCELED', 'FAILED': 'SUPPORT_EXIT_FAILED'}.get(self.support_exit, '')
 
+    # -- traffic control, stage 1 (owner decision 2026-10-14, scope Q-29 ⑤; 작전 OPS-204·205) -----------------
+    # TB-5 always goes first: it leads the rescuer, who follows it on foot. No reversing anywhere: a step-aside
+    # goal faces the way TB-6 goes (turn in place, then forward).
+    def _traffic_on(self):
+        return self.traffic_control == 'TB5_PRIORITY' and self.map_mode == 'SLAM_FREEZE'
+
+    def _hold(self, role, reason):
+        """Hold the role's new command for traffic (False). TB-5's reason is shown over TB-6's."""
+        self.traffic_hold.setdefault(role, reason)
+        if role == 'SUPPORT' or not (self.issue_block or '').startswith('TRAFFIC_'):
+            self.issue_block = reason
+        return False
+
+    def _moving(self, role, task_id, goal_xy):
+        self.task_goal[task_id] = goal_xy
+        if role == 'SUPPORT' and self._traffic_on():
+            self.support_path, self.traffic_wait_path = self.traffic_wait_path, None
+
+    def _home_xy(self, role):
+        """The role robot's RETURN_HOME destination xy (live_destinations), or None (traffic control only)."""
+        if not self._traffic_on():
+            return None
+        home = self.live_destinations().get(f'home/{self.roles[role]}')
+        return None if home is None else tuple(home['xy_yaw'][:2])
+
+    def _fresh_xy(self, pose, now_ns):
+        """A pose's mission xy when fresh, VALID and on this run's one map (any of its revisions, OPS-156 ④)."""
+        if (pose is None or pose[3] != 'VALID' or not pose[4] <= now_ns
+                or now_ns - pose[4] > self.support_pose_max_age_ns or pose[1] not in self._lineage()
+                or pose[2] != self.search.policy.mission_frame_id):
+            return None
+        return pose[0]
+
+    def _tb5_xy(self, now_ns):
+        """TB-5's xy: its fresh pose; before its first task its start spot (it does not move before, and it is
+        localized only on the frozen map, Q-29 ⑦); else None."""
+        xy = self._fresh_xy(self.support_pose, now_ns)
+        if xy is not None:
+            return xy
+        never_sent = self.mission.dispatch_kind is None and self.support_exit is None and not self.segment_tasks
+        if never_sent and self.start_pose is not None and self.support_start_pose is not None:
+            return tuple(compose_planar(self.start_pose, self.support_start_pose)[:2])
+        return None
+
+    def _tb5_path(self):
+        """The path TB-6 keeps off: the one TB-5 waits to go on this tick, else the one it moves on."""
+        if self.traffic_wait_path is not None:
+            return self.traffic_wait_path
+        if self.support_path is not None and self.search.assignment(self.roles['SUPPORT']) is not None:
+            return self.support_path
+        return None
+
+    def _near(self, xy, points):
+        return any(math.dist(xy, p) < self.traffic_path_clearance_m for p in points)
+
+    def _step_aside(self, scout_xy, avoid, now_ns, role, reason):
+        """Send TB-6 aside, then hold ``role`` with ``reason``: to the clear cell of TB-6's live map farther than
+        traffic_path_clearance_m from every ``avoid`` point (TB-5's path, TB-5) with the shortest clear path, at
+        most traffic_yield_max_m, as a FRONTIER site (how TB-6's goals go). A pending frontier is dropped untried.
+        No such cell: TB-6 is sent nowhere and ``role`` is held with TRAFFIC_SCOUT_YIELD_NO_SPACE."""
+        spot = None
+        if self.scout_grid is not None:
+            fields, radius = self.scout_grid.fields, self.freeze_clearance_m
+            mask = clear_mask(**fields, radius=radius)
+            spot = nearest_clear_outside(**fields, radius=radius, from_xy=scout_xy, path_points=avoid,
+                                         distance_m=self.traffic_path_clearance_m, mask=mask)
+            length = None if spot is None else path_lengths(**fields, radius=radius, start=scout_xy, goals=[spot],
+                                                            mask=mask)[0]
+            if length is None or length > self.traffic_yield_max_m:
+                spot = None
+        if spot is None:
+            return self._hold(role, 'TRAFFIC_SCOUT_YIELD_NO_SPACE')  # both stand; the operator must see it
+        x, y = spot
+        yaw = math.atan2(y - scout_xy[1], x - scout_xy[0])  # turn in place, then forward (no reversing)
+        session, rev, transform = self.scout_basis()
+        site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/step-aside/{self.yield_count}'))
+        self.yield_count += 1
+        self.search.policy = replace(self.search.policy, areas=(
+            MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw),))
+        self.frontier = dict(site_id=site_id, goal=(x, y), centroid=(x, y), site_xy=(x, y), step_aside=reason)
+        self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
+        self.notes.append(f'TRAFFIC_YIELD {site_id} from=({scout_xy[0]:.2f}, {scout_xy[1]:.2f}) '
+                          f'to=({x:.2f}, {y:.2f}, {yaw:.2f}) path_m={length:.2f} why={reason}')
+        return self._hold(role, reason)
+
+    def _traffic_support(self, goal_xy, now_ns):
+        """True when TB-5 may get a new command to ``goal_xy`` now. TB-6 near its path is stopped (a moving task is
+        canceled, OPS-205) and sent aside first; TB-5 waits only for that."""
+        if not self._traffic_on():
+            return True
+        support_xy = self._support_xy(now_ns)
+        if support_xy is None:
+            return self._hold('SUPPORT', self.issue_block)  # SUPPORT_POSE_UNKNOWN / ..._BASIS_MISMATCH
+        fields = getattr(self.frozen_grid, 'fields', None)
+        path = None if fields is None or goal_xy is None else grid_path(
+            **fields, radius=self.freeze_clearance_m, start=support_xy, goal=goal_xy)
+        if path is None:
+            return self._hold('SUPPORT', 'TRAFFIC_SUPPORT_PATH_UNKNOWN')
+        points = [tuple(p) for p in path.points]
+        self.traffic_wait_path = points  # TB-6 keeps off it from now on
+        scout_xy = self._fresh_xy(self.scout_pose, now_ns)
+        if scout_xy is None:
+            return self._hold('SUPPORT', 'TRAFFIC_SCOUT_POSE_UNKNOWN')
+        if self.frontier is not None and self.frontier.get('step_aside'):
+            return self._hold('SUPPORT', 'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD')
+        held = self.search.assignment(self.roles['SCOUT'])
+        if held is not None:
+            task_id = held[1].task_id
+            goal = self.task_goal.get(task_id)
+            if self._near(scout_xy, points) or goal is None or self._near(goal, points):
+                return self._stop_scout(task_id, now_ns)
+        elif self._near(scout_xy, points) or math.dist(scout_xy, support_xy) < self.traffic_min_separation_m:
+            return self._step_aside(scout_xy, points, now_ns, 'SUPPORT', 'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD')
+        if math.dist(goal_xy, scout_xy) < self.traffic_min_separation_m:
+            return self._hold('SUPPORT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
+        return True
+
+    def _stop_scout(self, task_id, now_ns):
+        """Cancel TB-6's task near TB-5's path once (the robot stops, the safe side) and hold TB-5 for the stop."""
+        if self.traffic_cancel is None or self.traffic_cancel[0] != task_id:
+            self.traffic_cancel = (task_id, now_ns)
+            self.traffic_canceled.add(task_id)
+            self.cancels.append(task_id)
+            self.notes.append(f'TRAFFIC_SCOUT_CANCELED task={task_id} (TB-5 goes first)')
+        if now_ns - self.traffic_cancel[1] > self.traffic_stop_timeout_ns:
+            return self._hold('SUPPORT', 'TRAFFIC_SCOUT_STOP_TIMEOUT')
+        return self._hold('SUPPORT', 'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP')
+
+    def _traffic_scout(self, goal_xy, now_ns):
+        """True when TB-6 may get a new command to ``goal_xy`` now: off TB-5's path while TB-5 goes or waits to,
+        and at least traffic_min_separation_m from TB-5 (now and at the goal). Too close, or on the path, an idle
+        TB-6 steps aside instead (away from TB-5, the one move these never hold)."""
+        if not self._traffic_on():
+            return True
+        if self.frontier is not None and self.frontier.get('step_aside'):
+            return self._hold('SCOUT', self.frontier['step_aside'])  # stepping aside first
+        support_xy = self._tb5_xy(now_ns)
+        if support_xy is None:
+            return self._hold('SCOUT', 'TRAFFIC_SUPPORT_POSE_UNKNOWN')
+        scout_xy = self._fresh_xy(self.scout_pose, now_ns)
+        if scout_xy is None:
+            return self._hold('SCOUT', 'TRAFFIC_SCOUT_POSE_UNKNOWN')
+        if goal_xy is None:
+            return self._hold('SCOUT', 'NO_HOME_POSITION')
+        path = self._tb5_path()
+        if path is not None and self._near(scout_xy, path):
+            return self._step_aside(scout_xy, [*path, support_xy], now_ns, 'SCOUT', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT')
+        if path is not None and self._near(goal_xy, path):
+            return self._hold('SCOUT', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT')
+        if math.dist(scout_xy, support_xy) < self.traffic_min_separation_m:
+            return self._step_aside(scout_xy, [*(path or ()), support_xy], now_ns, 'SCOUT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
+        if math.dist(goal_xy, support_xy) < self.traffic_min_separation_m:
+            return self._hold('SCOUT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
+        return True
+
     def _support_xy(self, now_ns):
         """The SUPPORT's mission xy when its pose is fresh, VALID and on the coordinator's basis, else None."""
         pose = self.support_pose
@@ -1700,6 +1933,8 @@ class CoordinatorCore:
             return None
         if not self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE'):
             return None
+        if not self._traffic_support(point[0], now_ns):
+            return None
         goal = GoalPoint(point[0], point[1], *self.basis())
         frame = self._route_frame(target_id, goal)
         if frame is None:
@@ -1720,6 +1955,7 @@ class CoordinatorCore:
                                approval=None)
         self.approach_task = fields['task_id']
         self.task_meta[fields['task_id']] = ('APPROACH_TARGET', target_id)
+        self._moving('SUPPORT', fields['task_id'], point[0])
         self._send(fields)
         return fields['task_id']
 
@@ -1749,6 +1985,8 @@ class CoordinatorCore:
         if boot is None:
             return None
         goal = self._on_basis(self.segment_goals[approval.segment_index], self.basis())
+        if not self._traffic_support(goal.mission_xy, now_ns):
+            return None
         frame = self._route_frame(approval.target_id, goal)
         if frame is None:
             return None
@@ -1770,6 +2008,7 @@ class CoordinatorCore:
                           valid_until_ns=fields['deadline_ns']))
         self.segment_tasks[approval.command_id] = fields['task_id']
         self.task_meta[fields['task_id']] = ('MOVE_SEGMENT', approval)
+        self._moving('SUPPORT', fields['task_id'], goal.mission_xy)
         self._send(fields)
         return fields['task_id']
 
@@ -1780,7 +2019,7 @@ class CoordinatorCore:
             boot = self._free('SCOUT', now_ns)
             goal = self._on_basis(self.observe_goal, self.scout_basis())
             frame = self._route_frame(target_id, goal)
-            if boot is None or frame is None:
+            if boot is None or frame is None or not self._traffic_scout(goal.mission_xy, now_ns):
                 return
             decision = self.search.reserve_goal_task(
                 self.roles['SCOUT'], robot_boot_id=boot, kind='REOBSERVE_TARGET', target_id=target_id,
@@ -1793,6 +2032,7 @@ class CoordinatorCore:
                                    approval=None)
             self.recheck_tasks[recheck.link_id] = fields['task_id']
             self.task_meta[fields['task_id']] = ('REOBSERVE_TARGET', recheck.link_id)
+            self._moving('SCOUT', fields['task_id'], goal.mission_xy)
             self._send(fields)
 
     def _issue_search(self, now_ns):
@@ -1807,9 +2047,18 @@ class CoordinatorCore:
         state = self.ready(scout, now_ns)
         if state is None:
             return
+        frontier = self.frontier if self.search_mode == 'FRONTIER' else None
+        if frontier is not None and not frontier.get('step_aside') and self.search.assignment(scout) is None and (
+                not self._traffic_scout(frontier['site_xy'], now_ns)):
+            # held; or the frontier became a step aside, TB-6 getting out of TB-5's way (never held by it)
+            if not (self.frontier or {}).get('step_aside') or now_ns < self.frontier_hold_until:
+                return
         gate = self.mission.plan(scout, robot_boot_id=state[0], ready=state[1], now_ns=now_ns)
         if gate.decision is not None and gate.decision.action == 'RESERVED':
-            self._send(gate.decision.task_fields | dict(route=None, approval=None))
+            fields = gate.decision.task_fields
+            if self.frontier is not None:
+                self._moving('SCOUT', fields['task_id'], self.frontier['site_xy'])
+            self._send(fields | dict(route=None, approval=None))
 
     def _send(self, fields):
         """Queue task fields with a fresh lease_id and start renewing that lease."""
@@ -1963,7 +2212,10 @@ def node_tick(core, now_ns, out):
     the approach states those goals changed; ``target_snapshot_change`` is None when nothing changed.
     """
     _send_targets(core, out)
-    for fields in core.tick(now_ns):
+    sent = core.tick(now_ns)
+    for task_id in core.take_cancels():  # TB-6 stopped for TB-5 before anything new goes out (OPS-205)
+        out.cancel(task_id)
+    for fields in sent:
         out.task(fields)
     if core.take_freeze_request():
         out.freeze()
@@ -2089,7 +2341,12 @@ def build_core(values):
                            exploration_timeout_ns=seconds_to_ns(str(values['exploration_timeout_s'])),
                            completion_mode=values['completion_mode'],
                            support_start_pose=list(values['support_start_pose']) if values['support_start_pose']
-                           else None)
+                           else None,
+                           traffic_control=values['traffic_control'],
+                           traffic_min_separation_m=values['traffic_min_separation_m'],
+                           traffic_path_clearance_m=values['traffic_path_clearance_m'],
+                           traffic_yield_max_m=values['traffic_yield_max_m'],
+                           traffic_stop_timeout_ns=seconds_to_ns(str(values['traffic_stop_timeout_s'])))
 
 
 def patrol_points(flat):
@@ -2166,7 +2423,11 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
     'exploration_timeout_s': 'DOUBLE',
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).
-    'completion_mode': 'STRING'}
+    'completion_mode': 'STRING',
+    # Traffic control (OPS-204·205): TB5_PRIORITY | OFF; robots this close get no new command; TB-6 keeps this far
+    # from TB-5's path (and TB-5); the farthest step aside; how long TB-5 waits for a canceled TB-6 to stop.
+    'traffic_control': 'STRING', 'traffic_min_separation_m': 'DOUBLE', 'traffic_path_clearance_m': 'DOUBLE',
+    'traffic_yield_max_m': 'DOUBLE', 'traffic_stop_timeout_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
@@ -2272,14 +2533,31 @@ def main(args=None):
                      f'generation={fields["generation"]}')
             client.send_goal_async(goal).add_done_callback(lambda done: on_goal_response(fields['task_id'], done))
 
+        goal_handles, cancel_on_arrival = {}, set()
+
+        def cancel_task(task_id):
+            """Cancel one ExecuteTask goal (the executor stops the robot and ends it CANCELED)."""
+            handle = goal_handles.get(task_id)
+            if handle is None:
+                cancel_on_arrival.add(task_id)  # the goal handle is not back yet
+                log.info(f'CANCEL task={task_id} queued until its goal handle arrives')
+                return
+            log.info(f'CANCEL task={task_id}')
+            handle.cancel_goal_async()
+
         def on_goal_response(task_id, future):
             handle = future.result()
             log.info(f'GOAL task={task_id} accepted={handle.accepted} (ACTIVE only from task_admission)')
             if handle.accepted:
+                goal_handles[task_id] = handle
+                if task_id in cancel_on_arrival:
+                    cancel_on_arrival.discard(task_id)
+                    cancel_task(task_id)
                 handle.get_result_async().add_done_callback(guarded('result', lambda done: on_task_result(
                     task_id, done.result().result.result)))
 
         def on_task_result(task_id, result):
+            goal_handles.pop(task_id, None)
             log.info(f'RESULT task={task_id} outcome={result.outcome} released={core.on_result(task_id, result)}')
             for note in core.drain_notes():
                 log.info(note)
@@ -2358,6 +2636,10 @@ def main(args=None):
             @staticmethod
             def watch(fields):
                 send_watch(fields)
+
+            @staticmethod
+            def cancel(task_id):
+                cancel_task(task_id)
 
             @staticmethod
             def report(report):

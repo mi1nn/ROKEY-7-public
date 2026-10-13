@@ -183,7 +183,7 @@ class SeparationTests(TrafficBase):
 
     def test_too_close_tb6_steps_away_from_tb5(self):
         self.arrived()
-        self.scout_at((3.3, 4.45), NOW + 1)  # 0.54 m from TB-5 waiting at the doll
+        self.scout_at((3.3, 4.45), NOW + 1, grid=scout_grid(unknown=lambda x, y: y < 1.))  # 0.54 m from TB-5
         sent = self.sent(NOW + 1)
         self.assertEqual({(SCOUT, 'SEARCH_AREA')}, set(sent))
         self.assertGreaterEqual(math.dist(self.destination(sent[(SCOUT, 'SEARCH_AREA')])[:2], (3., 4.)), MIN_SEP)
