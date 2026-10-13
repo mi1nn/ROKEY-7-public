@@ -1,7 +1,7 @@
-"""화면에 보이는 코드의 한국어 표시 낱말이다. 순수 데이터이고 입출력은 없다.
+"""화면에 표시할 상태 코드의 한국어 명칭 매핑 모듈이다. I/O 작업 없는 순수 데이터 모듈이다.
 
-코드 자체는 감추지 않는다: `label` 은 모르는 코드를 그대로 돌려주므로, 상류에서 새로 더한
-값은 사라지거나 다른 이름으로 바뀌지 않고 원래 코드 그대로 화면에 나온다.
+원래 코드를 숨기지 않는다: `label`은 정의되지 않은 코드를 그대로 반환하므로, 상위 계층에서 새로 추가된
+값도 누락이나 변형 없이 원본 코드 문자열 형태로 UI에 노출된다.
 
 각 어휘의 출처(2026-10-10, main 7a940e9):
 - role: `rescue_contracts.ROBOT_ROLES` 에 `UNKNOWN` 을 더한 것(`rescue_operations.site_state._robot_status`).
@@ -11,7 +11,7 @@
   `UNKNOWN` 은 `tests/test_operations_site_state.py` 에서 왔다.
 - readiness: site_state 의 자유 문자열이고, 같은 방식으로 RobotStatus.readiness 에서 옮겨 쓴다. READY / NOT_READY /
   UNKNOWN 은 `tests/test_operations_site_state.py` 와 `examples/status.example.json` 에서 왔다. RobotStatus 는
-  DEGRADED 도 정의한다(`src/rescue_interfaces/msg/RobotStatus.msg`). 여기에는 아직 낱말이 없어 코드 그대로 보인다.
+  DEGRADED 도 정의한다(`src/rescue_interfaces/msg/RobotStatus.msg`). 여기에는 아직 낱말이 없어 원본 코드 그대로 표시된다.
 - rescue: `rescue_contracts.RESCUE_STATES`.
 - support: `rescue_operations.site_state.SUPPORT_STATES`.
 - approach / confirmation: `rescue_operations.schema` 의 보고 스키마 검사(코드 안에 적은 튜플).
@@ -23,11 +23,11 @@
 - phase / segment: `rescue_operations.site_state.MISSION_PHASES` / `SEGMENT_PHASES` (SystemState, #88·#111).
 - reply: 조정기가 `SubmitOperatorCommand.reason_code` 에 넣는 C-09 공통 코드
   (`rescue_coordination.ros_node.REASON_CODES`, OPS-58)와 START_SEARCH 의 NAV_NOT_READY(#98).
-  화면은 낱말 옆에 코드를 같이 보인다. operations 가 다른 코드로 답할 수도 있고, 그때는 온 그대로 보인다.
-한국어 낱말은 [제안] 관제·화면, 2026-10-10 이다(phase / segment / reply 는 2026-10-12).
+  화면에는 한국어 명칭과 원본 코드가 함께 표기된다. operations가 미정의 코드로 응답하면 수신된 코드를 그대로 표시한다.
+한국어 명칭 정의: [제안] 관제·화면, 2026-10-10 (phase / segment / reply는 2026-10-12).
 """
 
-# kind -> {코드: 한국어 낱말}. kind 하나가 위에 적은 어휘 하나다.
+# kind -> {코드: 한국어 명칭}. 각 kind는 상단에 명시된 도메인별 어휘 범주를 나타낸다.
 LABELS = {
     'role': {'SCOUT': '정찰', 'SUPPORT': '지원', 'UNKNOWN': '모름'},
     'motion': {'MOVING': '이동 중', 'STOPPING': '정지 중', 'STOPPED': '정지',
@@ -57,9 +57,9 @@ LABELS = {
 
 
 def label(kind, code):
-    """`code` 의 한국어 낱말을 돌려준다. 모르는 코드는 그대로, None 은 None 그대로다(화면에는 값 없음으로 보인다).
+    """`code`에 대응하는 한국어 명칭을 반환한다. 미정의 코드는 원본 유지, None은 None 반환(UI상 빈 값 처리).
 
-    모르는 `kind` 는 프로그램 오류이고 KeyError 를 낸다.
+    지원하지 않는 `kind` 전달은 프로그램 오류로 간주하여 KeyError를 발생시킨다.
     """
     table = LABELS[kind]
     if code is None:

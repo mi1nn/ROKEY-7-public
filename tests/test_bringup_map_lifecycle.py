@@ -64,6 +64,7 @@ class MapMode(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
+                robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         field = self.field(saved)
         self.assertEqual('SAVED_MAP_AMCL', self.robot(field=field)['task_input']['task.saved_map.mode'])
         with self.assertRaises(FieldLaunchError):
@@ -128,6 +129,7 @@ class CoordinatorRobotPairing(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
+                robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         self.field(saved)
 
     def test_mismatches_are_refused(self):
@@ -140,6 +142,7 @@ class CoordinatorRobotPairing(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
+                robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
 
         def no_frozen_robot(raw):
             raw['robots'].pop('robot_b')
@@ -181,6 +184,7 @@ class LocalizationLaunch(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
+                robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         with self.assertRaises(FieldLaunchError):
             self.values('robot_a', field=self.field(saved))
 
@@ -216,7 +220,10 @@ class FreezeLaunch(FieldCase):
         basis = self.deployment.map_basis
         self.assertEqual({'map_topic': '/robot6/map', 'pose_topic': '/robot6/pose', 'map_frame': 'map',
                           'map_session_id': basis.map_session_id, 'map_revision': basis.map_revision,
-                          'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze'}, p)
+                          'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze',
+                          # TB-6 pose from TF map -> base_link like the executor (OPS-179)
+                          'tf_topic': '/robot6/tf', 'odom_frame': 'odom', 'base_frame': 'base_link',
+                          'covariance_max_age_ns': 30_000_000_000}, p)
 
     def test_output_dir_is_absolute_and_a_restart_reads_it(self):
         # two freezes per run (OPS-154): a restart reloads every record of the run from output_dir
@@ -280,6 +287,27 @@ class CaptureInitialPose(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SlamPoseFromTf(FieldCase):
+    """TB-6 SLAM-phase pose from TF map -> base_link (OPS-177): what the launch hands the executor."""
+
+    def test_tb6_task_input_names_its_tf_and_frames_and_the_covariance_age(self):
+        task = self.robot(field=self.field(), occupancy_sha256='')['task_input']
+        self.assertEqual(task['tf_topic'], task['task.saved_map.slam_tf_topic'])
+        self.assertEqual(task['odom_frame'], task['task.saved_map.slam_odom_frame'])
+        self.assertEqual('base_link', task['task.saved_map.slam_base_frame'])
+        self.assertEqual(30_000_000_000, task['task.saved_map.slam_covariance_max_age_ns'])   # [proposal] OPS-177
+
+    def test_only_the_slam_robot_and_a_positive_age(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        self.assertFalse([k for k in b if k.startswith('task.saved_map.slam_')])
+        key = 'task.saved_map.slam_covariance_max_age_ns'
+        for change in (lambda raw: raw['robots']['robot_a'].pop(key), lambda raw: raw['robots']['robot_a'].update({key: 0}),
+                       lambda raw: raw['robots']['robot_b'].update({key: 1})):
+            with self.assertRaises(FieldLaunchError):
+                self.field(change)
 
 
 class TwoFreezes(FieldCase):

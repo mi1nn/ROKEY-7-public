@@ -199,11 +199,11 @@ behavior_server:
     local_footprint_topic: local_costmap/published_footprint
     global_footprint_topic: global_costmap/published_footprint
     cycle_frequency: 10.0
-    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    # OPS-207 (owner approval 2026-10-14): no "backup" recovery. rescue_bringup launches remove it
+    # from the TurtleBot4 nav2.yaml and point bt_navigator at trees without BackUp (nav2_recovery.py).
+    behavior_plugins: ["spin", "drive_on_heading", "assisted_teleop", "wait"]
     spin:
       plugin: "nav2_behaviors::Spin"
-    backup:
-      plugin: "nav2_behaviors::BackUp"
     drive_on_heading:
       plugin: "nav2_behaviors::DriveOnHeading"
     wait:

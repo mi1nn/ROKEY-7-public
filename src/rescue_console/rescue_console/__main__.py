@@ -1,9 +1,9 @@
 """관제 웹을 띄운다: python -m rescue_console [LEDGER] --accounts ACCOUNTS
 [--site-state DB | --status FIXTURE] [--camera ID=URL ... --camera-stale-s S] [--map MAP_YAML | --live-map LIVE_YAML --live-map-stale-s S] [--operations URL] [--port N].
 
-LEDGER(옛 ReportLedger)는 --site-state 가 있으면 선택이다. 없으면 페이지가 보고 행이 없다고
-알린다. 세션 비밀값은 환경 변수(기본 RESCUE_CONSOLE_SECRET)에서 온다. 계정 파일은
-`python -m rescue_console.accounts init` 으로 한 번 만든다.
+LEDGER(옛 ReportLedger)는 --site-state가 있으면 선택 사항이다. 미지정 시 페이지에 보고 내역 부재를
+표시한다. 세션 비밀키는 환경 변수(기본 RESCUE_CONSOLE_SECRET)를 통해 주입받는다. 계정 파일은
+`python -m rescue_console.accounts init` 서브커맨드로 사전에 생성한다.
 """
 
 import argparse
@@ -15,10 +15,10 @@ from .view import ConsoleError
 
 
 def main(argv=None):
-    """명령줄을 해석하고 `create_app` 으로 앱을 만든 뒤 Flask 개발 서버를 띄운다.
+    """커맨드라인 인자를 파싱하고 `create_app`으로 앱을 생성한 뒤 Flask 개발 서버를 실행한다.
 
-    모든 검사는 서버가 뜨기 전에 돈다: ConsoleError 가 나면 `CONSOLE FAILED: ...` 를 stderr 에
-    찍고 서비스하지 않은 채 2 를 돌려준다. 서버가 멈추면 0 을 돌려준다.
+    모든 유효성 검증은 서버 기동 전에 수행된다: ConsoleError 발생 시 stderr에 `CONSOLE FAILED: ...`를
+    출력하고 서비스를 개시하지 않은 채 종료 코드 2를 반환한다. 서버 정상 종료 시에는 0을 반환한다.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('ledger', nargs='?', default=None,
@@ -46,6 +46,13 @@ def main(argv=None):
                                            're-read when it changes; may not exist yet at startup')
     parser.add_argument('--live-map-stale-s', type=float,
                         help='with --live-map: no new map for this long shows the map as stale. No default')
+    parser.add_argument('--robot-camera', metavar='URL',
+                        help='robot camera panel: robot_view_relay MJPEG URL from the operations launch (robot_views), '
+                             'e.g. http://<operations host>:<video_port+1>/robot_view.mjpg; needs --camera-stale-s')
+    parser.add_argument('--robot-watch', help='robot watch file written by the operations launch '
+                                              '(robot_namespaces/robot_watch_path): robot base topics seen directly')
+    parser.add_argument('--robot-watch-stale-s', type=float,
+                        help='with --robot-watch: nothing from a robot for this long shows it as stale. No default')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
                              'operator commands go to URL/api/operator-commands. No default: without it the '
@@ -57,15 +64,17 @@ def main(argv=None):
     parser.add_argument('--port', type=int, default=8080)
     args = parser.parse_args(argv)
     try:
-        # 세션 비밀값은 인자가 아니라 환경 변수에서 오므로 명령줄에 드러나지 않는다.
-        # 길이는 create_app 이 검사한다.
+        # 세션 비밀키는 인자가 아닌 환경 변수로 전달받아 프로세스 목록 등에 노출되지 않는다.
+        # 키 최소 길이는 create_app에서 검증한다.
         secret = os.environ.get(args.secret_env)
         if not secret:
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
-        # create_app 도 같은 규칙을 검사한다(app._check_sources). 이 메시지는 명령줄 인자 이름을 댄다.
+        # create_app에서도 동일한 규칙을 검증하지만(app._check_sources), 여기서는 커맨드라인 인자명을 명시한다.
         if args.ledger is None and args.site_state is None:
             raise ConsoleError('INVALID_INPUT', 'LEDGER is required unless --site-state is given')
-        # 둘 중 하나만 주면 거부한다: 낡음 기준에는 기본값이 없다.
+        # 둘 중 하나만 전달되면 거부한다: 만료(stale) 기준 시간은 기본값이 없다.
+        if (args.robot_watch is None) != (args.robot_watch_stale_s is None):
+            raise ConsoleError('INVALID_INPUT', '--robot-watch and --robot-watch-stale-s go together')
         if (args.live_map is None) != (args.live_map_stale_s is None):
             raise ConsoleError('INVALID_INPUT', '--live-map and --live-map-stale-s go together')
         cameras = [parse_camera(text) for text in args.camera]
@@ -73,6 +82,8 @@ def main(argv=None):
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
                          live_map_path=args.live_map, live_map_stale_s=args.live_map_stale_s,
+                         robot_watch_path=args.robot_watch, robot_watch_stale_s=args.robot_watch_stale_s,
+                         robot_camera=args.robot_camera,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch,
                          search_start=args.search_start, camera_stale_s=args.camera_stale_s)
@@ -80,9 +91,9 @@ def main(argv=None):
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2
     if args.operations is None:
-        # 오류가 아니다: 보기 전용 실행(E2 픽스처, 오프라인 시연)도 정상이다. 이 줄은 버튼이 꺼진 이유를 알린다.
+        # 정상 동작: 조회 전용 실행(E2 픽스처, 오프라인 시연)을 지원하며, 안내 로그로 버튼 비활성화 이유를 출력한다.
         print('operations 주소 없음: 명령 비활성 (--operations URL 로 켬)', file=sys.stderr)
-    # Werkzeug 개발 서버. debug=False 로 대화형 디버거를 끈 채 둔다.
+    # Werkzeug 개발 서버 실행. 보안을 위해 debug=False로 대화형 디버거를 비활성화한다.
     app.run(host=args.host, port=args.port, debug=False)
     return 0
 

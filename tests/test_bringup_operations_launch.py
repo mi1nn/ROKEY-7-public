@@ -19,7 +19,8 @@ V1_PROFILE = REPO / 'config' / 'deployment.example.json'
 
 def build(**changes):
     from rescue_bringup.operations_launch import db_writer_parameters
-    values = dict(db_path='/var/lib/rescue/site_state.sqlite3', api_port=8090, command_timeout_s=3.0)
+    values = dict(db_path='/var/lib/rescue/site_state.sqlite3', api_port=8090, command_timeout_s=3.0,
+                  webcam_node='/webcam_node')
     return db_writer_parameters(load_deployment(PROFILE), **(values | changes))
 
 
@@ -31,6 +32,9 @@ class DbWriterParameters(unittest.TestCase):
             'robot_roles': ['SCOUT', 'SUPPORT'],
             'status_topics': ['/rescue/robots/robot_a/status', '/rescue/robots/robot_b/status'],
             'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
+            'overhead_passages_topics': ['/rescue/robots/robot_a/overhead_passages',
+                                         '/rescue/robots/robot_b/overhead_passages'],
+            'map_state_topic': '/rescue/robots/robot_a/map_state',
             'site_events_topic': '/rescue/site_events',
             'system_state_topic': '/rescue/system_state',
             'targets_topic': '/rescue/targets',
@@ -39,6 +43,7 @@ class DbWriterParameters(unittest.TestCase):
             'api_port': 8090,
             'operator_command_service': '/rescue/operator_command',
             'command_timeout_s': 3.0,
+            'webcam_node': '/webcam_node',
         }, build())
 
     def test_every_parameter_db_writer_requires_is_given_and_accepted(self):
@@ -56,6 +61,12 @@ class DbWriterParameters(unittest.TestCase):
                           params['operator_command_service']))
         self.assertTrue(all(t.startswith(coordinator.ROBOT_PREFIX) for t in params['status_topics']))
 
+    def test_tunnel_topics_are_the_contract_s(self):
+        from rescue_contracts.overhead import overhead_passages_topic
+        params = build()
+        self.assertEqual([overhead_passages_topic(r) for r in params['allowed_robot_ids']],
+                         params['overhead_passages_topics'])
+
     def test_api_listens_on_loopback_only(self):
         """The API has no login of its own; the console on the same PC does that (#125)."""
         self.assertEqual('127.0.0.1', build()['api_host'])
@@ -71,7 +82,7 @@ class DbWriterParameters(unittest.TestCase):
         from rescue_bringup.operations_launch import LaunchSettingError, db_writer_parameters
         with self.assertRaises(LaunchSettingError):
             db_writer_parameters(load_deployment(V1_PROFILE), db_path='/x.sqlite3', api_port=8090,
-                                 command_timeout_s=3.0)
+                                 command_timeout_s=3.0, webcam_node='')
 
 
 def build_report(**changes):
@@ -207,6 +218,62 @@ class MapSnapshotParameters(unittest.TestCase):
                     dict(map_topic='robot6/map', map_dir='/srv/live')):
             with self.subTest(bad=bad), self.assertRaises(LaunchSettingError):
                 map_snapshot_parameters(**bad)
+
+
+class RobotViewRelay(unittest.TestCase):
+    """robot_views: 로봇 카메라 칸(OPS-191) — 고른 로봇 하나의 판정 영상 중계, 기본은 SCOUT(TB-6)."""
+
+    def test_off_when_empty(self):
+        from rescue_bringup.operations_launch import robot_view_relay_parameters
+        self.assertIsNone(robot_view_relay_parameters(robot_views='', bind_host='', port='', stale_s='',
+                                                      robot_ids=['robot_a'], default_robot='robot_a'))
+
+    def test_one_relay_on_the_next_port(self):
+        from rescue_bringup.operations_launch import robot_view_relay_parameters
+        self.assertEqual({'sources': ['robot_a=/robot6/rescue/passage_view/compressed',
+                                      'robot_b=/robot5/rescue/passage_view/compressed'],
+                          'default_source': 'robot_a', 'bind_host': '0.0.0.0', 'port': 18083,
+                          'path': '/robot_view.mjpg', 'stale_s': 2.0},
+                         robot_view_relay_parameters(robot_views='robot_a=/robot6,robot_b=/robot5', bind_host='0.0.0.0',
+                                                     port='18082', stale_s='2.0', robot_ids=['robot_a', 'robot_b'],
+                                                     default_robot='robot_a'))
+
+    def test_bad_values_are_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, robot_view_relay_parameters
+        for views, port, default in (('robot_a=/robot6', '', 'robot_a'), ('robot_x=/robot6', '18082', 'robot_a'),
+                                     ('robot_a=robot6', '18082', 'robot_a'), ('robot_a=/robot6', '65535', 'robot_a'),
+                                     ('robot_b=/robot5', '18082', 'robot_a')):
+            with self.subTest(views=views, port=port), self.assertRaises(LaunchSettingError):
+                robot_view_relay_parameters(robot_views=views, bind_host='0.0.0.0', port=port, stale_s='2.0',
+                                            robot_ids=['robot_a', 'robot_b'], default_robot=default)
+
+
+class RobotWatchParameters(unittest.TestCase):
+    """robot_namespaces/robot_watch_path: 로봇 기본 토픽 직접 관측(구독만, 재범 허용 2026-10-13)."""
+
+    def test_off_without_both(self):
+        from rescue_bringup.operations_launch import robot_watch_parameters
+        self.assertIsNone(robot_watch_parameters(robot_namespaces='', robot_watch_path='', robot_ids=['robot_a']))
+
+    def test_on_with_both(self):
+        from rescue_bringup.operations_launch import robot_watch_parameters
+        self.assertEqual({'robot_ids': ['robot_a', 'robot_b'], 'namespaces': ['/robot6', '/robot5'],
+                          'out_path': '/srv/robot_watch.json', 'map_frame': 'map', 'base_frame': 'base_link'},
+                         robot_watch_parameters(robot_namespaces='robot_a=/robot6,robot_b=/robot5',
+                                                robot_watch_path='/srv/robot_watch.json',
+                                                robot_ids=['robot_a', 'robot_b']))
+
+    def test_bad_values_are_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, robot_watch_parameters
+        for ns, path in (('robot_a=/robot6', ''), ('', '/srv/w.json'), ('robot_a=robot6', '/srv/w.json'),
+                         ('robot_x=/robot6', '/srv/w.json'), ('robot_a', '/srv/w.json'),
+                         ('robot_a=/robot6,robot_a=/robot5', '/srv/w.json'),
+                         # not a usable ROS namespace, or one namespace for two robots (REV-251-04)
+                         ('robot_a=/', '/srv/w.json'), ('robot_a=/robot6/', '/srv/w.json'),
+                         ('robot_a=/robot 6', '/srv/w.json'), ('robot_a=//robot6', '/srv/w.json'),
+                         ('robot_a=/robot6,robot_b=/robot6', '/srv/w.json')):
+            with self.subTest(ns=ns, path=path), self.assertRaises(LaunchSettingError):
+                robot_watch_parameters(robot_namespaces=ns, robot_watch_path=path, robot_ids=['robot_a', 'robot_b'])
 
 
 class WebcamDevice(unittest.TestCase):

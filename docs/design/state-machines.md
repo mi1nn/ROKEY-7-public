@@ -1,16 +1,137 @@
 ---
-title: 두 로봇의 임무·대상·정지 상태 전이 초안
-status: draft-proposal
-updated: 2026-10-11
+title: 임무 상태 전이 — 조정기 코드 기준
+status: current   # 본문은 main 4163a25 의 조정기 코드 기준. 아래 「기록」 절은 2026-10-11 초안
+updated: 2026-10-14
 ---
 
-# 상태 전이 초안
+# 임무 상태 전이
+
+## 한눈에 (2026-10-14, main `4163a25`)
+
+이 문서가 답하는 질문은 하나다. **조정기는 임무를 어떤 순서로 진행하고, 어디서 왜 멈추는가?**
+
+현장 설정은 지도 고정(`map_mode=SLAM_FREEZE`), 지도 전체 탐색(`search_mode=FRONTIER`), 출구 도착으로 구출 완료(`completion_mode=EXIT_ARRIVAL`)다. 아래 그림은 이 설정에서 임무 단계(`SystemState.phase`)가 바뀌는 순서다. 단계 판정은 `rescue_coordination/mission.py` 의 `MissionCoordinator.phase()` 한 곳에서 한다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> DISASTER: 웹캠 재난 신호(DISASTER_SIGN)
+    DISASTER --> SEARCHING: TB-6 첫 탐색 임무 예약
+    SEARCHING --> TARGET_FOUND: 인형 확정 + 보고 저장(PERSISTED)
+    TARGET_FOUND --> DISPATCH_APPROVED: 1차 지도 고정 뒤 TB-5 접근 임무 발급
+    DISPATCH_APPROVED --> SEGMENT_MOVING: TB-5 실행기가 임무 수락
+    SEGMENT_MOVING --> ARRIVED: TB-5 도착(정지 확인)
+    SEGMENT_MOVING --> TARGET_FOUND: TB-5 접근 실패(재시도 없음)
+    ARRIVED --> RETURNING: 탐색 완료 + 2차 지도 고정 뒤 TB-6 복귀 발급
+    SEARCHING --> RETURNING: 탐색 완료 + 인형 없음(NO_SURVIVOR_FOUND)
+    RETURNING --> FINISHED: TB-5 출구 도착 + TB-6 도킹 접근점 도착
+    FINISHED --> [*]
+```
+
+- `FINISHED` 단계이면 `SystemState.mode` 를 `MISSION_FINISHED` 로 보낸다(`ros_node.py` `system_mode`).
+- TB-5 출구 도착 때 판정을 `RESCUE_CONFIRMED` 로 기록한다(`_confirm_by_exit_arrival`). 이때 단계는 이미 `RETURNING` 이라 그림에 따로 그리지 않았다.
+- 인형이 없으면 TB-5 는 출발 자리에서 움직이지 않는다. 그래서 TB-6 이 도착하면 바로 `FINISHED` 다.
+- 시나리오 원문과 결정은 [scope.md](../requirements/scope.md) Q-29(2026-10-13 밤 시나리오 변경)에 있다. 현장 값은 [현장 파일](../../config/field/search_area.field.json) `coordinator` 절에 있다.
+
+## 임무 단계 (`SystemState.phase`)
+
+`phase()` 는 위에서부터 차례로 검사하고 처음 맞는 값을 돌려준다.
+
+| 순서 | 단계 | 조건 | 현장 설정에서 |
+| --- | --- | --- | --- |
+| 1 | `IDLE` | 재난 모드가 아님 | 시작 상태 |
+| 2 | `FINISHED` / `RETURNING` | 복귀가 시작됨. 두 역할이 모두 도착했으면 `FINISHED` | 2차 고정 뒤 TB-6 복귀 발급부터 |
+| 3 | `RECHECKING` | 열린 재확인이 있음 | 쓰지 않음(`completion_mode=RECHECK` 전용) |
+| 4 | 판정 값(`RESCUE_CONFIRMED` 등) | 판정이 있음 | 복귀가 먼저라 보이지 않음 |
+| 5 | `DISPATCH_APPROVED` / `SEGMENT_MOVING` / `ARRIVED` / `TARGET_FOUND` | 자동 접근 단계 = 발급 / 수락 / 도착 / 실패 | TB-5 출동부터 |
+| 6 | `AWAITING_CONTINUE` 등 | 운영자 구간 승인 방식(`support_dispatch=OPERATOR`) | 쓰지 않음 |
+| 7 | `TARGET_FOUND` | 확정·저장된 인형이 있음 | 인형 확정 뒤 |
+| 8 | `SEARCHING` / `DISASTER` | 첫 탐색 임무를 예약했는지 | 재난 신호 뒤 |
+
+시스템 모드는 `NORMAL` 에서 `DISASTER` 로 한 번 바뀌고 되돌아가지 않는다. `CLEARING`(오탐 해제)은 계약 어휘(`rescue_contracts.SYSTEM_MODES`)에만 있다. 조정기 코드에서는 쓰는 곳을 찾지 못했다(`rescue_coordination/` grep `CLEARING`).
+
+## 지도 고정 단계
+
+단계 값은 `CoordinatorCore.frozen_stage` 다. 지도 revision 은 탐색 revision(R0)에서 시작한다.
+
+| 단계 | 들어가는 조건 | TB-6 | TB-5 | 코드 |
+| --- | --- | --- | --- | --- |
+| 0 (고정 전) | 시작 | R0 에서 SLAM 으로 지도를 만들며 탐색 | 출발 자리에서 대기 | — |
+| 1 (1차 고정, R0+1) | 인형 저장 + TB-6 정지 | R0 에서 탐색 계속 | R0+1 로 위치를 잡고 인형 앞 접근점으로 이동 | `_freeze_tick`, `_try_freeze`, `_rebase_on_freeze` |
+| 2 (2차 고정, R0+2) | 탐색 완료 + TB-6 정지 | R0+2 로 바꾼 뒤 도킹 접근점으로 | R0+2 에서 가장 가까운 출구로 | `_freeze_tick`, `_final_exit_ready` |
+
+- 인형이 없을 때도 두 고정을 모두 한다. TB-6 이 최종 지도로 바꿔야 복귀할 수 있기 때문이다.
+- 고정 지도는 `/rescue/map/frozen_revision` 글의 hash 가 맞을 때만 받는다(#242).
+- 1차 고정에서는 인형 위치를 새 revision 으로 다시 보고한다. 2차 고정에서는 다시 보고하지 않는다.
+
+## 로봇별 진행
+
+| 로봇 | 상태 변수 | 값의 순서 | 막힐 때 |
+| --- | --- | --- | --- |
+| TB-5 접근 | `mission.approach_phase` | `ISSUED` → `MOVING` → `ARRIVED` 또는 `FAILED` | `FAILED` 는 다시 시도하지 않고 `APPROACH_FAILED_<사유>` 를 보인다 |
+| TB-5 출구 | `support_exit` | (없음) → `WAITING` → `ISSUED` → `AT_EXIT` 또는 `FAILED` | `WAITING` 동안 `SUPPORT_EXIT_IN_<n>S`, `MAP_NOT_FINAL` |
+| TB-6 복귀 | `scout_return` | (없음) → `ISSUED` → `AT_DOCK_APPROACH` 또는 `FAILED` | `MAP_NOT_FINAL`, `SCOUT_HOME_NOT_FREE` |
+
+TB-5 가 출구 대기(`WAITING`)에 들어가려면 도착 뒤 `support_exit_wait_s` 가 지나야 한다. FRONTIER 에서는 2차 고정까지 함께 기다린다.
+
+## 이유 코드 (`SystemState.reason`)
+
+이유 칸에는 값 하나만 들어간다. 우선순위는 아래 순서다(`system_state_change`).
+
+1. 이번 tick 에 임무 발급을 막은 이유(`issue_block`)
+2. 재기준한 인형의 재보고 대기(`TARGET_REBASED_ON_FREEZE`)
+3. 임무 끝 단계(`mission_reason`: 생존자 없음, TB-6 복귀, 판정, TB-5 출구)
+4. 탐색 상태(`_search_reason`)
+5. 웹캠 감시 재설정, 위치 관측 거절
+
+| 단계 | 이유 코드 | 뜻 | 풀리는 조건 |
+| --- | --- | --- | --- |
+| 탐색 | `EXPLORATION_MAP_UNKNOWN` | TB-6 실시간 지도를 아직 받지 못함 | `/robot6/map` 수신 |
+| 탐색 | `SCOUT_POSE_UNKNOWN` | TB-6 위치가 없거나 오래됨 | 새 TB-6 위치 |
+| 탐색 | `EXPLORATION_COMPLETE` / `EXPLORATION_TIMEOUT` | 탐색 끝(갈 경계 없음 / 시간 상한) | — (2차 고정으로 진행) |
+| 고정 | `MAP_FREEZE_WAITING_SCOUT_STOP` | TB-6 정지를 기다림 | TB-6 정지 |
+| 고정 | `MAP_FREEZE_REQUESTED` / `MAP_NOT_FROZEN` | 고정 요청 뒤 고정 지도를 기다림 | 고정 지도와 revision 글 수신 |
+| 고정 | `MAP_FREEZE_FAILED` | 고정 실패 또는 시간 초과 | — (다시 시도하지 않음. 사람이 확인) |
+| 고정 | `TARGET_REBASED_ON_FREEZE` | 재기준한 인형 위치의 저장을 기다림 | 보고 저장(PERSISTED) |
+| TB-5 출동 | `SUPPORT_NOT_LOCALIZED` | TB-5 가 고정 지도에서 위치를 못 잡음 | TB-5 MapState 가 고정 revision |
+| TB-5 출동 | `SUPPORT_NOT_READY` | TB-5 가 READY 가 아님(arm 필요) | TB-5 arm |
+| TB-5 출동 | `SUPPORT_POSE_UNKNOWN` / `SUPPORT_POSE_BASIS_MISMATCH` | TB-5 위치가 없거나 다른 지도 기준 | 새 TB-5 위치 |
+| TB-5 출동 | `SUPPORT_APPROACH_NOT_FREE` | 접근점이 고정 지도에서 비어 있지 않음 | — (사람이 확인) |
+| TB-5 출동 | `APPROACH_FAILED_<사유>` | 접근 실패. 다시 시도하지 않음 | — |
+| 출구 | `MAP_NOT_FINAL` | 2차 고정 전 | 2차 고정 |
+| 출구 | `SUPPORT_EXIT_IN_<n>S` | TB-5 출구 출발까지 남은 초 | 시간 경과 |
+| 출구 | `SUPPORT_EXIT_UNREACHABLE` | 출구가 있으나 격자 경로가 없음 | — |
+| 출구 | `SUPPORT_START_UNKNOWN` | QR 출구가 없고 TB-5 출발 자리도 모름 | 현장 파일에 TB-5 출발 자리 측정값 |
+| 출구 | `SUPPORT_EXITING` / `SUPPORT_AT_EXIT` / `SUPPORT_EXIT_FAILED` | TB-5 출구 이동 경과 | — |
+| 복귀 | `START_POSE_UNKNOWN` | TB-6 출발 자세를 모름(도킹 접근점의 기준) | 출발 자세 수신 |
+| 복귀 | `SCOUT_HOME_NOT_FREE` | 도킹 접근점이 비어 있지 않음 | — |
+| 복귀 | `SCOUT_RETURNING` / `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND` / `SCOUT_RETURN_FAILED` | TB-6 복귀 경과. 도킹은 사람이 함 | — |
+| 종료 | `NO_SURVIVOR_FOUND` | 탐색을 끝냈는데 인형이 없음 | — |
+| 공통 | `TASK_REFUSED` | 실행기가 임무를 거절해 잠시 대기 | `admission_timeout_s` 뒤 새 임무 |
+
+교통 관제 보류 코드(`TRAFFIC_*`)는 PR #272 에 있다. 머지되면 이 표에 더한다.
+
+## 로봇 실행기 상태 (확인 필요: 통합-로봇)
+
+로봇 쪽 준비·임무·정지 상태(arm, `STOP_LATCHED`, `STOP_UNCONFIRMED` 등)는 `rescue_robot` 실행기의 상태다. 이 문서는 조정기 쪽만 코드로 다시 확인했다. 로봇 쪽 설명은 아래 「기록」의 S-01~S-04, S-07 에 있는 2026-10-11 초안 그대로이며, 지금 코드와 맞는지는 통합-로봇의 확인이 필요하다.
+
+## 기록 (2026-10-14 옮김)
+
+아래는 2026-10-11 초안(계획 PR 3의 논리 제안) 전문이다. 위 본문으로 대체했고, 이력 확인용으로만 남긴다. 2026-10-14 에 확인한 차이는 아래와 같다.
+
+- S-00 의 `CLEARING` 전이는 조정기 코드에 없다.
+- S-06 의 SUPPORT `HOLD`, 운영자 구간 승인(`MOVE_SEGMENT`), SCOUT 재확인 흐름은 현장 설정에서 쓰지 않는다. 현장은 자동 출동(`APPROACH_TARGET`), 출구 도착 완료(`EXIT_ARRIVAL`), 두 번의 지도 고정이다.
+- S-06 의 「설정 구역을 순서대로 `SEARCH_AREA`」는 지금 「지도 전체 탐색(FRONTIER)」이다.
+- S-05 구출 축의 「재확인으로만 `RESCUE_CONFIRMED`」는 `completion_mode=RECHECK` 에서만 맞다.
+
+### 2026-10-11 초안 원문
+
 
 계획 PR 3의 논리 제안이며 실행 코드·실기 결과가 아니다. 두 로봇 각각의 실행기는 [인터페이스 계약](contracts.md)의 시간·좌표·권한 관문을 적용한다. 협업 coordinator는 임무를 배정하고 operations는 요청과 결과를 표시/기록한다. 화면의 버튼 상태와 실제 로봇 상태를 같은 변수로 취급하지 않는다.
 
 두 AMR은 확정 요구이며, 발견→안전 접근→보고와 네 PC 전체 배치는 현재 검증할 설계 기준안이다. 후자의 최종 인수 확정을 이 문서가 대신하지 않는다.
 
-## S-00. 시스템 모드 (BRD v0.1, 2026-10-08)
+#### S-00. 시스템 모드 (BRD v0.1, 2026-10-08)
 
 전체 시스템의 모드는 로봇·사건 상태와 별도 축이다. 실행 가능한 어휘는 `rescue_contracts.SYSTEM_MODES`.
 
@@ -23,7 +144,7 @@ updated: 2026-10-11
 
 모드가 `NORMAL` 이면 자동 수색·접근 임무를 발급하지 않는다. 모드 전이는 운영 기록이며 로봇 측 정지 latch 를 대신하지 않는다.
 
-## S-01. 동시에 유지할 상태와 우선순위
+#### S-01. 동시에 유지할 상태와 우선순위
 
 로봇마다 다음 상태를 별도로 가진다.
 
@@ -36,7 +157,7 @@ updated: 2026-10-11
 
 충돌하는 이벤트의 우선순위는 **현장/운영자 정지·장비 fault → 권한/lease/필수 센서·시간·좌표 유효성 상실 → deadline/취소 → 정상 결과 → 새 목표/탐지**다. 같은 시점의 모든 원인은 기록하되, 낮은 우선순위 이벤트가 정지/실패를 성공으로 덮어쓰지 않는다. 실제 물리 정지를 확인할 수 없으면 어떤 상위 임무 상태에서도 `STOP_UNCONFIRMED`를 숨기지 않는다.
 
-## S-02. 준비·재시작·제어권
+#### S-02. 준비·재시작·제어권
 
 | 현재 | 이벤트/관문 | 다음 상태·조치 |
 | --- | --- | --- |
@@ -54,7 +175,7 @@ updated: 2026-10-11
 
 SLAM에서 AMCL active를 필수로 기다리지 않는다. 준비 상태는 실제 선택한 위치 추정 backend의 관측 가능한 품질과 TF 계약으로 정의한다. 임무 노드가 Nav2 lifecycle 복구를 직접 시작하지 않고 소유 관리자에게 복구 요청을 보낸다. 복구 중에는 새 이동 임무를 받지 않는다.
 
-## S-03. 로봇별 임무 상태 머신
+#### S-03. 로봇별 임무 상태 머신
 
 | 현재 | 이벤트/필수 guard | 다음 상태·효과 |
 | --- | --- | --- |
@@ -81,7 +202,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 
 `REOBSERVE_TARGET`는 대상의 위치/동일성을 새 관측으로 확인하는 별도 임무다. 마지막 알려진 위치를 표시하는 것과 자동 접근에 쓸 fresh 목표는 다르다. 오래된 위치에 대한 재관측 이동을 허용할지는 제한된 수색 영역·현재 장애물/위치 품질·접근 금지 영역을 갖춘 별도 정책으로 사전 결정해야 한다. 그 정책이 없으면 이동을 보류한다.
 
-## S-04. 취소·정지·늦은 응답
+#### S-04. 취소·정지·늦은 응답
 
 1. 중단 원인과 활성 task/generation/goal UUID를 먼저 기록하고 새 goal 수락·재발급을 막는다.
 2. 실행기는 해당 goal의 cancel과 최종 명령 억제를 요청한다. `STOP_REQUESTED`/`STOPPING`으로 표시한다.
@@ -94,7 +215,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 
 최종 watchdog은 master PC의 추론·executor callback 지연과 독립적으로 로컬 만료를 감시하는 구조를 제안한다. 이 독립성이 실제 장비에서 확인되지 않으면 시험 계획의 정지 관문을 통과할 수 없다.
 
-## S-05. 대상 사건 상태와 보고 상태
+#### S-05. 대상 사건 상태와 보고 상태
 
 대상 사건은 **확인 상태**, **접근 상태**, **보고 상태**를 분리한다. 한 enum에 모두 넣으면 “보고했으나 접근 불가” 같은 정상 결과를 표현하기 어렵다.
 
@@ -109,7 +230,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 
 새 관측으로 대상 위치가 바뀌어도 기존 report를 덮어쓰지 않고 report revision 또는 새 report_id로 연결한다. 같은 사람으로 병합한 근거·별개로 유지한 이유·운영자 정정 이력도 보존한다. 인물 탐지 confidence로 건강/생존 상태를 생성하지 않는다.
 
-## S-06. 두 로봇 협업 전이 (2026-10-08 개정: 프로파일 역할 SCOUT / SUPPORT)
+#### S-06. 두 로봇 협업 전이 (2026-10-08 개정: 프로파일 역할 SCOUT / SUPPORT)
 
 역할은 배포 프로파일 v2 `mission.roles` 의 데이터다(C-02). 아래 SCOUT/SUPPORT 는 그 값이며 코드 상수가 아니다. 이전의 대칭 A/B 안은 [scope](../requirements/scope.md) 「첫 통합 시나리오」의 「이전」 열에 보존한다.
 
@@ -128,7 +249,7 @@ SCOUT 가 수색을 계속하느라 대상이 관측에서 사라진 경우에�
 
 coordinator가 SUPPORT 의 정지/위치를 확인하지 못하면 접근 성공이나 통로 이탈을 추정하지 않는다. 다른 로봇으로 재배정할 때도 이전 로봇의 점유/이동 상태를 확인하거나 해당 영역을 차단한 대체 계획을 써야 한다. 단순 lease 만료로 두 로봇이 같은 좁은 통로에 진입하지 않게 한다.
 
-## S-07. 주요 실패 전이
+#### S-07. 주요 실패 전이
 
 | 실패 | 즉시 처리 | 재개 조건·보고 |
 | --- | --- | --- |
@@ -146,7 +267,7 @@ coordinator가 SUPPORT 의 정지/위치를 확인하지 못하면 접근 성공
 
 실패 후 자동 회복을 넣는 경우에도 권한·시간·좌표·정지 조건을 생략하지 않는다. 운영자 reset은 근거 없는 성공 판정을 대신하지 않는다.
 
-## S-08. 상태 전이 시험의 최소 불변식
+#### S-08. 상태 전이 시험의 최소 불변식
 
 - 로봇당 활성 이동 권한/goal의 소유자는 하나이며 다른 로봇 ID가 상태를 바꾸지 않는다.
 - 원 관측의 observed_at과 최초 deadline은 중계·재시도로 증가하지 않는다.
@@ -156,6 +277,6 @@ coordinator가 SUPPORT 의 정지/위치를 확인하지 못하면 접근 성공
 - Nav2 성공, cancel 응답, 0 속도 발행, DB 수신 ACK를 각각 접근 완료·정지 완료·보고 저장 완료로 과장하지 않는다.
 - 보고 실패·접근 불가·통신 단절도 사건과 원인을 보존하며, 성공률 계산의 분모에서 임의로 빼지 않는다.
 
-## 원본 근거와 한계
+#### 원본 근거와 한계
 
 이 계약은 [P4의 임무 입력 관문](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/controller.py#L175-L210), [늦은 action 수락 처리 후보](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/goal_timer.py#L83-L173), [AMR의 목표/만료 경로](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L388-L446), [접근 정보 만료](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528)를 참고해 새 요구를 분리한 것이다. 원본의 상태 이름/상수·실기 성능을 승계하지 않았으며 테스트를 실행하지 않았다.

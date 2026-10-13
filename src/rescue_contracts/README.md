@@ -1,5 +1,17 @@
 # rescue_contracts
 
+## 현재 상태 (2026-10-14, main `4163a25`)
+
+여러 패키지가 같은 규칙을 쓰도록 공통 함수만 모은 패키지다. ROS 를 쓰지 않는다. 아래 「쓰는 곳」은 `src/` 에서 시험을 뺀 import 를 grep 해서 찾았다.
+
+| 모듈 | 내용 | 쓰는 곳 |
+| --- | --- | --- |
+| `rescue_contracts`(`__init__`) | 공통 오류(`RescueError`), 로봇 ID, 정수 나노초 시각, 임무 수락 결과(`TaskAdmission`), `SiteEvent` | 거의 모든 패키지 |
+| `occupancy` | 지도 격자 hash, 빈 자리 규칙(`footprint_clear`), 평면 자세 변환, 고정 revision 글(`rescue-map-frozen/1`) | 조정기, 로봇(`rescue_robot`), 고정 지도 위치 추정 launch |
+| `grid_search` | 격자 경로·탐색 경계·비켜설 자리 | 조정기 |
+| `overhead` | 터널 목록 글(`rescue-overhead-passages/1`, C-04b) | 인식(만드는 쪽), 운영(DB 기록), 운영 launch |
+| `clock_measurement` | OS 시계 측정(읽기 전용) | 조정기 `live_task_inputs`, 웹캠·TB-6 인식, 로봇 `live_clock` |
+
 Python 코어 사이의 공통 오류·논리 로봇 ID·정수 나노초·임무 수락 receipt를 소유한다. 실제 중복된 계약 책임을 추출한 패키지이며 ROS `.msg/.srv/.action`을 생성하지 않는다. 예정된 `rescue_interfaces`와 구별한다.
 
 `RescueError`의 `code`는 공통 C-09 분기 코드, `detail_code`는 원인 패키지를 포함한 세부 진단, `detail`은 설명이다. 진단→공통 코드 대응은 이 패키지의 `DETAIL_CATEGORIES` 한 곳에 둔다.
@@ -7,6 +19,22 @@ Python 코어 사이의 공통 오류·논리 로봇 ID·정수 나노초·임�
 관측·TF·명령 발급·만료의 절대 시각은 int64 ns다. ROS 헤더는 `ros_time_to_ns(sec, nanosec)`와 `ns_to_ros_time`으로 정수 왕복한다. `seconds_to_ns`는 정확한 십진 fixture/정책 수치용이며 이미 정밀도를 잃은 epoch float를 복원하는 API가 아니다. 프로세스 내부 monotonic 시간과 timeout 정책은 로컬 float 초로 유지할 수 있다.
 
 `robot_ids`는 프로파일에서 읽은 정확히 두 개의 ID를 요구한다. 단일 `robot_id`는 형식만 검사한다. 소속·명령 권한은 실행기/수신기 생성자에 주입한 allowlist와 authority로 검증한다. `TaskAdmission`은 해당 command/task/robot/boot/authority/generation의 수락 결과다. 순수 값 객체는 원격 인증·직렬화 검증을 대신하지 않는다.
+
+## 지도 격자 공용 규칙 (`occupancy`, OPS-117)
+
+로봇과 조정기가 같은 격자에서 같은 답을 내도록 한 곳에 둔 함수다. 격자 인자는 frame, width, height, resolution, origin=(x, y, yaw), data 다. 잘못된 격자는 ValueError 로 거절한다.
+
+- `planar_origin(px, py, pz, qx, qy, qz, qw)`: 평면 자세를 (x, y, yaw) 로 변환한다. z 가 0 이 아니거나 z 축 밖 회전이 있으면 거절한다.
+- `occupancy_sha256(...)`: 격자 내용의 hash 다. 로봇이 낸 고정 지도와 조정기가 받은 고정 지도가 같은지 이 값으로 확인한다.
+- `map_snapshot_id(occupancy_sha256, map_session_id, map_revision, transform_revision)`: 같은 지도에 같은 `MapState.snapshot_id` 를 준다.
+- `footprint_clear(..., x, y, radius)`: 반지름 radius 원 안에 점유·미탐색 칸이 없으면 True 다. 조정기의 접근점·복귀점 검사와 로봇의 목표 검사가 이 함수를 같이 쓴다.
+- `compose_planar(start, relative)`, `relative_planar(start, pose)`: TB-6 출발 자세 기준 값과 지도 좌표를 서로 변환한다(도킹 접근점, TB-5 출발 자리).
+- `frozen_revision_text(...)`, `parse_frozen_revision(text)`, `paired_revision(info, occupancy_sha256)`: `/rescue/map/frozen_revision` 글을 만들고 읽는다. 고정 지도의 hash 와 맞을 때만 그 revision 을 받는다(#242).
+
+## 터널 목록 (`overhead`, C-04b)
+
+- `overhead_passages_topic(robot_id)`: `/rescue/robots/<robot_id>/overhead_passages` 를 만든다.
+- `overhead_passages_text(...)`, `parse_overhead_passages(text)`: 로봇별 목록 글을 만들고 읽는다. 다른 형식, 빠진 필드, 남는 필드, 어긋난 값은 ValueError 로 거절한다. 규칙은 [contracts.md](../../docs/design/contracts.md) C-04b 에 있다.
 
 ## 격자 탐색 (`grid_search`, OPS-154/157)
 
