@@ -8,7 +8,7 @@ updated: 2026-10-14
 
 ## 한눈에 (2026-10-14, main 4163a25)
 
-**이 문서가 답하는 질문:** 웹캠과 로봇 카메라로 무엇을 판정하고, 그 결과는 어디로 가나?
+**이 문서가 답하는 질문:** 웹캠과 로봇 카메라로 무엇을 판정하고, 판정 결과는 어디로 가나?
 
 ```mermaid
 flowchart LR
@@ -51,7 +51,7 @@ flowchart LR
 
 시나리오 단계는 [scope.md](../requirements/scope.md)의 「지금 시나리오」 절(#268)이 정한다. 현장 값은 [현장 파일](../../config/field/search_area.field.json) 하나에만 있다. 이 문서는 값을 다시 적지 않는다. 노드 실행 인자와 로그 읽는 법은 [인식 README](../../src/rescue_perception/README.md)에 있다.
 
-로봇 이름: TB-6 = 탐색 로봇(코드 값 `robot_a`, 네임스페이스 `/robot6`). TB-5 = 지원 로봇(`robot_b`, `/robot5`).
+로봇 이름. TB-6 = 탐색 로봇(코드 값 `robot_a`, 네임스페이스 `/robot6`). TB-5 = 지원 로봇(`robot_b`, `/robot5`).
 
 ## 1. 웹캠 (고정 카메라 1대)
 
@@ -59,7 +59,7 @@ flowchart LR
 
 | 판정 | 규칙 (한 줄) | 코드 |
 | --- | --- | --- |
-| 지진 징후 | 화면을 블록으로 나눠 직전 프레임과 맞춰 본다(ZNCC). 화면 **전체**가 같은 방향으로 움직이고, 정해진 시간 안에 방향이 여러 번 바뀌면 사건 1개 | `disaster_sign.py:DisasterSignDetector` |
+| 지진 징후 | 화면을 블록으로 나눠 직전 프레임과 비교한다(정규화 상호상관, ZNCC). 화면 **전체**가 같은 방향으로 움직이고, 정해진 시간 안에 방향이 여러 번 바뀌면 사건 1개 | `disaster_sign.py:DisasterSignDetector` |
 | 가림 | 화면 대부분이 가려지면 판정 불가(UNKNOWN). 판정 불가는 흔들림 횟수를 더하지도 지우지도 않는다 | 같은 파일 |
 | 인형 소실 후보 | 감시 영역에서 인형이 몇 프레임 보인 뒤에만 잰다. 사라진 시간이 충분하고, 마지막 위치가 출구 영역이면 후보 1개 | `target_watch.py:TargetWatchDetector` |
 | 감시 설정 | 조정기가 감시 영역을 건다(SetCameraWatch). 수락·거절과 이유를 돌려준다 | `webcam_service.py:WatchSlot` |
@@ -80,7 +80,7 @@ flowchart LR
 | --- | --- | --- |
 | 탐지 | RGB 마다 YOLO 1회. 클래스는 `survivor` 하나 | `amr_target.py:create_node`, `camera_utils.py` |
 | 고르기 | 신뢰도가 기준 이상이고 상자가 화면 안에 완전히 들어온 탐지 중 가장 높은 것 하나 | `amr_target.py` |
-| 깊이 | 그 RGB 와 시각이 가장 가까운 깊이 한 장만 푼다. 상자 중심 작은 영역의 깊이 중앙값을 쓴다 | `selective_depth.py`, `target_utils.py` |
+| 깊이 | 선택한 RGB 프레임과 시각이 가장 가까운 깊이 영상 한 장만 디코딩한다. 상자 중심 작은 영역의 깊이 중앙값을 쓴다 | `selective_depth.py`, `target_utils.py` |
 | 왜곡 | RGB 가 보정 안 된 영상이면 상자 점만 CameraInfo 로 보정한다 | `amr_target.py` |
 | 확정 | 신뢰도 충족 + 위치 성공이면 확정(CONFIRMED). 아니면 이유와 함께 미확정 | `person_pipeline.PersonPipeline` |
 | 내보내기 | 첫 확정 관측 1개를 `/rescue/observations` 로 낸다. 같은 회차에 다시 내지 않는다 | `amr_target.py` |
@@ -88,7 +88,7 @@ flowchart LR
 - 모델: 로봇 카메라용 100 epoch best.pt([manifest](../../assets/manifest/yolo26n-survivor-v2.json), 2026-10-11 선택). 웹캠 모델과 바꿔 쓰지 않는다.
 - 시계·정렬 근거·토픽 이름은 기본값 없는 실행 인자다. 하나라도 빠지면 노드가 시작하지 않는다.
 - 시각·정렬·깊이 품질 검사는 기록 입력 코어(`core.py`, `adapter.py`)의 규칙을 그대로 쓴다(`person_pipeline` 경유). 코어의 자세한 계약은 기록 절에 있다.
-- 위치를 못 내면 좌표를 지어내지 않고 이유를 로그에 남긴다(원인 표는 [인식 README](../../src/rescue_perception/README.md) 「원인 가르기」).
+- 위치 계산에 실패하면 좌표를 임의로 만들지 않고 실패 이유를 로그에 남긴다(원인 표는 [인식 README](../../src/rescue_perception/README.md) 「원인 가르기」).
 - 확인: robot5 에서 깊이 약 1.350 m 를 사용자가 확인했다 [사용자 실기, 2026-10-13].
 - NOT_RUN: 고친 노드 전체를 TB-6 에서 돌린 시험(E4).
 
@@ -98,9 +98,9 @@ flowchart LR
 | --- | --- |
 | 입력 | 확정 관측(위치 VALID) |
 | 변환 | 촬영 시각의 TF(map ← 카메라)를 쓴다. 최신 TF 로 바꾸지 않는다 |
-| 지도 판 | TB-6 MapState 의 session·revision 을 붙인다. 그 판보다 먼저 찍힌 관측은 거절 |
+| 지도 판 | TB-6 MapState 의 session·revision 을 붙인다. 해당 지도 판보다 먼저 촬영한 관측은 거절한다 |
 | 시계 | 관측 시계가 SYNCED 이고 오차 상한이 있어야 한다 |
-| 출력 | `/rescue/target_locations` 에 VALID 하나. 거절하면 아무것도 내지 않는다 |
+| 출력 | `/rescue/target_locations` 에 VALID 위치 하나를 발행한다. 거절한 관측은 발행하지 않는다 |
 
 같은 노드를 출구용으로 한 번 더 띄운다(exit_locator → `/rescue/exit_location`). 코드: `target_locator.py:main`, `target_location.py`. 실기 NOT_RUN.
 
@@ -122,7 +122,7 @@ flowchart LR
 | 판정 | 뜻 |
 | --- | --- |
 | 통과 가능 (PASSABLE) | 가장 낮은 높이 ≥ 0.46 m(재범 결정) |
-| 통과 불가 (BLOCKED) | 그보다 낮음 |
+| 통과 불가 (BLOCKED) | 가장 낮은 높이 < 0.46 m |
 | 판정 불가 (UNKNOWN) | 구조물 아래 바닥을 못 봄. 높이를 내지 않는다 |
 
 - 라이다 평면보다 낮은 물체는 보통 장애물이라 내지 않는다.
@@ -136,7 +136,7 @@ flowchart LR
 
 TB-5 앞 상자 안에서 낮은 깊이 점을 세어 STOP·PASS 를 JSON 으로 기록만 한다. 로봇을 멈추지 않는다.
 
-**주의: 빈 관측도 PASS 다.** `headroom.judge` 는 점 목록이 `None` 일 때만 UNKNOWN 이다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 점만 있는 목록은 `PASS`, `lowest_m None` 이 나온다 [외부 검토 재현, 2026-10-14 다시 확인]. 이 PASS 는 통과 근거가 아니다. 고칠 후보이고, 고칠지는 재범이 정한다.
+**주의.** 빈 관측도 PASS 로 처리한다. `headroom.judge` 는 점 목록이 `None` 일 때만 UNKNOWN 이다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 점만 있는 목록은 `PASS`, `lowest_m None` 이 나온다 [외부 검토 재현, 2026-10-14 다시 확인]. 이 PASS 는 통과 근거가 아니다. 고칠 후보이고, 고칠지는 재범이 정한다.
 
 실기 NOT_RUN.
 
@@ -158,7 +158,7 @@ TB-5 앞 상자 안에서 낮은 깊이 점을 세어 STOP·PASS 를 JSON 으로
 
 ## 기록 (2026-10-08 ~ 2026-10-13)
 
-아래는 2026-10-14 전까지 이 문서의 본문이다. 지우지 않고 그대로 옮겼다(제목 단계만 한 칸 내림). 그때의 이름을 그대로 둔다: AMR1 = TB-6, AMR2 = TB-5, PC3 = 웹캠을 맡는 운영 PC.
+아래는 2026-10-14 전까지 이 문서의 본문이다. 지우지 않고 그대로 옮겼다(제목 단계만 한 칸 내림). 그때의 이름을 그대로 둔다: AMR1 = TB-6, AMR2 = TB-5, PC3 = 웹캠 PC.
 
 **지금과 다른 점** — 아래 글이 이렇게 말하면, 지금은 화살표 뒤가 맞다.
 
