@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege, 2026-10-13): TB-6 (robot_a) takes no automatic approach; radius 0.2 m proposed; support_dispatch AUTO (user decision 1B), approach_standoff_m 0.8 and support_pose_max_age_s 2.0 proposed by coordination (2026-10-13); target_max_age_s 2.0 and target_max_future_s 0.05 proposed by coordination (OPS-103, 2026-10-13)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege): TB-6 takes no automatic approach; radius 0.2 m proposed; task.live.pose_valid_ns 2 s (coordinator age proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock, -1 until measured and RobotPose stays UNKNOWN (2026-10-13); support_dispatch AUTO (user decision 1B), approach_standoff_m 0.8 and support_pose_max_age_s 2.0 proposed by coordination (2026-10-13); target_max_age_s 2.0 and target_max_future_s 0.05 proposed by coordination (OPS-103, 2026-10-13)",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -68,7 +68,8 @@
     "task.saved_map.position_error_m": 0.0,
     "task.saved_map.rotation_error_rad": 0.0,
     "task.saved_map.max_position_variance_m2": 0.25,
-    "task.saved_map.max_yaw_variance_rad2": 0.25
+    "task.saved_map.max_yaw_variance_rad2": 0.25,
+    "task.live.pose_valid_ns": 2000000000
   },
   "robots": {
     "robot_a": {
@@ -77,7 +78,9 @@
       "task.live.auto_target.enabled": false,
       "task.live.auto_target.kinds": ["APPROACH_TARGET"],
       "task.live.auto_target.goal_clear_radius_m": 0.2,
-      "task.live.auto_target.policy_version": "auto-target-20261013"
+      "task.live.auto_target.policy_version": "auto-target-20261013",
+      "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
+      "task.live.sensor_host_clock_error_bound_ns": -1
     }
   },
   "alignment": {
