@@ -20,6 +20,18 @@ EXPECTED_PACKAGES = ('rescue_bringup', 'rescue_console', 'rescue_contracts', 're
 PACKAGES = sorted(p for p in (ROOT / 'src').glob('rescue_*') if (p / 'setup.py').is_file())
 
 
+def copy_test_inputs(check):
+    """Copy tests and their input fixtures without adding package source code."""
+    for name in ('tests', 'config'):
+        shutil.copytree(ROOT/name, check/name, ignore=shutil.ignore_patterns('__pycache__'))
+    source = ROOT/'scripts'/'field'/'search-area'
+    target = check/'scripts'/'field'/'search-area'
+    target.mkdir(parents=True)
+    for name in ('start_coordinator.sh', 'start_robot.sh', 'start_navigation.sh',
+                 'nav2_watchdog.launch.py'):
+        shutil.copy2(source/name, target/name)
+
+
 def main():
     if tuple(p.name for p in PACKAGES) != EXPECTED_PACKAGES:
         raise RuntimeError(f'source package set does not match the {len(EXPECTED_PACKAGES)} reviewed packages')
@@ -53,10 +65,9 @@ for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordin
  print('INSTALLED IMPORT',name)
 '''
         run([python, '-I', '-c', code])
-        # Copy tests/config only: no source tree exists in the test checkout.
+        # Copy test inputs only: package imports must still come from installed wheels.
         check = scratch/'check'
-        for name in ('tests', 'config'):
-            shutil.copytree(ROOT/name, check/name, ignore=shutil.ignore_patterns('__pycache__'))
+        copy_test_inputs(check)
         test_code = '''import sys,unittest
 from pathlib import Path
 assert not (Path.cwd()/'src').exists(), 'installed test checkout must not contain source'
