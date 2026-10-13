@@ -584,8 +584,8 @@ class CoordinatorCore:
 
     def live_destinations(self):
         """RETURN_HOME destinations this coordinator computes (SLAM_FREEZE, after the freeze): TB-5's exit approach
-        and TB-6's docking approach in the map. Not yet sent in ~/task_inputs: the robot accepts only UUID refs
-        there (rescue_robot live_clock identifier), so 'home/<id>' needs the robot lane first."""
+        and TB-6's docking approach in the map, sent in ~/task_inputs (live_task_inputs.destinations; the robot
+        takes its own 'home/<id>' key, #232)."""
         if self.map_mode != 'SLAM_FREEZE' or self.frozen is None:
             return {}
         out, frame_id = {}, self.search.policy.mission_frame_id
