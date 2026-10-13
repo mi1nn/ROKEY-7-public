@@ -215,7 +215,7 @@ class RobotParameters(FieldCase):
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
-        # The robot Pi clock (sensor host of the AMCL stamps): -1 until measured on the Pi (2026-10-13)
+        # The robot Pi clock (sensor host of the AMCL stamps), per robot: -1 until measured on the Pi (2026-10-13)
         expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
         expected['task.live.sensor_host_clock_error_bound_ns'] = -1
         values = self.robot()
@@ -253,8 +253,13 @@ class RobotParameters(FieldCase):
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}
+                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                        'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
+                                        'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        # Each robot Pi has its own measured clock bound (decision 2026-10-13)
+        self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
+        self.assertEqual(-1, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
@@ -341,6 +346,8 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'pi clock shared, not per robot': lambda r: r['robot'].update(
+                {'task.live.sensor_host_clock_error_bound_ns': 5}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),
