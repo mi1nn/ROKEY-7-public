@@ -1,6 +1,29 @@
 # rescue_perception
 
-기록된 탐지 결과와 RGB/Depth 메타데이터·Depth 배열을 검증하는 순수 Python 코어다. 표준 라이브러리와 저장소 내부 `rescue_contracts`에 의존한다. `adapter`가 ROS 메시지 모양의 입력(비압축 Image·CameraInfo·Detection2D)을 이 코어로 잇는다. 모델 추론, ROS 노드, 카메라 구독, 압축 영상 해제, TF, 주행 명령은 구현하지 않았다.
+## 현재 상태 (2026-10-14, main 4163a25)
+
+main 4163a25 의 코드를 읽고 적었다(작전 OPS-210). 「구현됨」은 코드와 합성·격리 시험이 있다는 뜻이다. 실제 로봇·카메라에서 확인했다는 뜻이 아니다. 실기 결과는 따로 적었고, 실기 기록이 없는 기능은 「실기 NOT_RUN」이다. 실기 기록은 이 README 와 [구현 문서](../../docs/implementation/implementation-perception.md)에서 찾았다.
+
+| 기능 | 상태 | 근거 |
+| --- | --- | --- |
+| 웹캠 지진 판정 (`DISASTER_SIGN`) | 구현됨. 실기는 한 번 확인했다: 실물 USB 웹캠을 한 번 흔들어 사건 1건이 나왔다 [측정, 2026-10-12, 구현 문서]. 오탐률과 장시간 동작은 NOT_RUN | `disaster_sign.py:DisasterSignDetector`, `webcam_node` |
+| 지진 판정 → TB-6 자동 출발 | 구현됨(조정기 쪽, 현장 파일 `search_start` AUTO). 실기 NOT_RUN: 위 두 문서와 조정 구현 문서에 실기 기록이 없다 | #228, `rescue_coordination/ros_node.py` `tick`(`search_start == 'AUTO'`) |
+| 웹캠 인형 소실 후보 | 구현됨. 실물 웹캠으로 인형 탐지 신뢰도 0.96·소실 후보 정상 [측정, 2026-10-12, 구현 문서]. 현장 PC 와 조건별 측정은 NOT_RUN | `target_watch.py:TargetWatchDetector` |
+| 로봇 인형 탐지와 RGB-D 위치 (amr_camera·amr_target) | 구현됨. robot5 에서 깊이 약 1.350 m·base XYZ 를 사용자가 확인했다(아래 「AMR 통합 전 최종 인식 파일」). 고친 노드 전체를 로봇에서 다시 돌린 시험(E4)은 NOT_RUN | `amr_target.py:create_node`, `person_pipeline.PersonPipeline` |
+| 지도 좌표 TargetLocation (target_locator) | 구현됨. 실기 NOT_RUN | `target_locator.py:main`, `target_location.py` |
+| TB-6 재확인 관측 (ObserveTarget) | 구현됨. 실기 NOT_RUN | `recheck_server.py:RecheckServer`, `recheck.py` |
+| 출구 QR (여러 출구, 정확히 같은 내용만) | 구현됨. 실기 NOT_RUN | #245, `exit_qr.py:detect_qrs`·`ExitQrConfirmer` |
+| 머리 위 구조물(터널) 판정 overhead_passage | 구현됨. 실기 NOT_RUN. 높이 기준을 먼저 확인해야 한다(아래 절) | #259, `overhead.py:judge`·`PassageRegistry` |
+| 터널 판정 영상 passage_view | 구현됨. 실기 NOT_RUN(미리보기 해상도·속도, 각 PC 글꼴) | #264, `overhead.py:render_view` |
+| TB-5 머리 위 여유 기록 headroom_record | 구현됨. 실기 NOT_RUN. **빈 관측도 PASS 가 나온다. PASS 를 통과해도 된다는 근거로 읽으면 안 된다. 고칠 후보다**(아래) | `headroom.py:judge` |
+| 관측이 모자랄 때 UNKNOWN (headroom) | 미구현 | `headroom.py:judge` 에 그 분기가 없다 |
+| 판정 영상 중계 (mjpeg_relay, robot_view_relay) | 구현됨. 실기 NOT_RUN | `mjpeg_relay.py`, #261 `robot_view_relay.py` |
+
+**headroom `judge` 의 빈 관측 PASS** [외부 검토 재현, 이 PR 에서 다시 확인]: `headroom.judge(points, policy)` 는 `points` 가 `None` 일 때만 UNKNOWN 이다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 잡음(`floor_noise_m`) 아래 점만 있는 목록을 주면 `{'decision': 'PASS', 'points_below': 0, 'lowest_m': None}` 이 나온다. 즉 PASS 는 「낮은 점을 `min_points` 개 못 셌다」는 뜻일 뿐이다. 아래가 비어 있다는 것을 본 것이 아니다. `lowest_m=None` 인 PASS 는 통과 근거가 아니다. 코드를 고칠지는 재범이 정한다. 이 PR 은 문서만 고친다.
+
+## 패키지 개요
+
+기록된 탐지 결과와 RGB/Depth 메타데이터·Depth 배열을 검증하는 순수 Python 코어가 바탕이다. 표준 라이브러리와 저장소 내부 `rescue_contracts`에 의존한다. `adapter`가 ROS 메시지 모양의 입력(비압축 Image·CameraInfo·Detection2D)을 이 코어로 잇는다. 그 위의 ROS 노드(`setup.py` 진입점: webcam_node, amr_camera, amr_target, target_locator, mjpeg_relay, robot_view_relay, headroom_record, overhead_passage)는 아래 절에 있다. 주행 명령은 어느 노드도 내지 않는다.
 
 - `locate_detection`: 같은 시간 기준·시각 의미·해상도·보정/정렬 근거를 확인하고, bbox ROI의 유효 깊이 중앙값을 rectified RGB optical frame의 XYZ(m)로 역투영한다. `16UC1/mm`, `32FC1/m`만 지원한다. 깊이 부족/불연속/정합 불명은 이유와 함께 위치 없는 결과다.
 - `make_observation`: source/boot/원 stamp·모델 ID/SHA/class·탐지·위치 결과·증거 참조·최초 만료를 불변 객체로 만든다. 탐지 성공과 위치 성공을 분리한다. 모델 가중치와 원본 증거 파일의 해시는 caller가 계산·검증해야 한다.
@@ -30,12 +53,12 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 
 원본 코드를 복사하지 않고 선별한 원리를 새 계약에 맞춰 구현했다. 버전 `0.0.0`, `LicenseRef-Unspecified`, 임시 maintainer는 기존 초기 구조의 미결정 메타데이터다. 이는 사용 허가나 실제 담당자를 뜻하지 않으며 배포 전에 확정해야 한다.
 
-[OAK-D 학습 계획](../../docs/implementation/oakd-survivor-training-plan.md): 사용자 결정(2026-10-11)에 따라 이번 학습은 `oakd/image_raw` 영상의 1초 간격 프레임을 전처리해 단일 클래스 `survivor`(ID 0)를 사용한다. 후속 연동의 모델 class metadata·manifest·`ConfirmationPolicy.person_labels`·Detector 출력 label을 맞춘다. 기존 API 이름과 과거 person 합성 시험은 유지한다. 학습·실제 카메라 시험은 아직 NOT_RUN이다.
+[OAK-D 학습 계획](../../docs/implementation/oakd-survivor-training-plan.md): 사용자 결정(2026-10-11)에 따라 이번 학습은 `oakd/image_raw` 영상의 1초 간격 프레임을 전처리해 단일 클래스 `survivor`(ID 0)를 사용한다. 후속 연동의 모델 class metadata·manifest·`ConfirmationPolicy.person_labels`·Detector 출력 label을 맞춘다. 기존 API 이름과 과거 person 합성 시험은 유지한다. 학습은 끝났고 2026-10-11 에 100 epoch best.pt 를 골랐다([선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)). 실기 결과는 맨 위 「현재 상태」 표에 있다.
 
 
 ## AMR 단위 검증 노드 (2026-10-12)
 
-[사용자 요구] 기존 인식 코어에 AMR 알고리즘을 연결하고 amr_camera·amr_target을 각각 시험·보정한 뒤 기존 코드의 후속 수정·통합을 진행한다. 이번 PR은 Draft이며 실제 로봇 인수 완료를 뜻하지 않는다.
+[사용자 요구] 기존 인식 코어에 AMR 알고리즘을 연결하고 amr_camera·amr_target을 각각 시험·보정한 뒤 기존 코드의 후속 수정·통합을 진행한다.
 
 | 파일 | 목적 |
 | --- | --- |
@@ -50,11 +73,9 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [headroom.py](rescue_perception/headroom.py) | TB-5 머리 위 여유 실기 반복 판정 기록 도구 `headroom_record`(OPS-115). 판정·발행·정지 명령 없음 |
 | [robot_depth.json](rescue_perception/config/robot_depth.json) | robot5·robot6 공통 보정계수·offset·허용 로봇 ID·입력 단위/상태. 설치본에도 포함 |
 
-[사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
+실제 실행 대상은 로봇 제어용 컴퓨터다(Ubuntu 24.04·ROS 2 Jazzy, 아래 「사용자 요구, 2026-10-13」 문단).
 
-[사용자 요구, 2026-10-12] 실제 실행 대상은 README 시나리오의 로봇 제어용 컴퓨터다. 기준 환경은 MSI RTX 4070 노트북·Ubuntu 24.04·ROS 2 Jazzy다. 이 저장소에서는 베이스와 테스트 코드를 작성하며 작성 환경에서 ROS 노드를 실행하는 것을 전제하지 않는다. ROS가 없는 환경에서 노드 import를 허용하기 위한 함수 내부 import와 의존성 오류 호환 분기를 제거했다. 순수 설정·보정·검사 시험은 utils를 직접 import한다.
-
-[설정/사용자 요구, 2026-10-13] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.9`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. clock/stamp/alignment는 UNKNOWN·미확인을 유지한다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
+[설정/사용자 요구, 2026-10-13] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.9`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
 
 [사용자 요구, 2026-10-13] “robot 5랑 6은 depth보정도 같으니 로봇용 보정으로 통합해줘”. 공통 robot_depth.json의 physical_robot_ids는 robot5·robot6만 허용한다. 실제 physical_robot_id는 실행 로봇에 맞춰 유지한다. m 단위 raw 입력·유효한 scale/offset을 검사하고 raw_m * scale + offset_m을 한 번만 적용한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m에 같은 보정을 쓰며 이미 보정된 입력은 사용하지 않는다. 거리 scale 공유는 공간 정합이나 시계 검증을 대신하지 않는다.
 
@@ -190,7 +211,7 @@ RGB 추론·annotated 화면을 독립 처리하고 Depth 수신/해제 수·sta
 
 로봇 기준 점은 `perception/target_base_point`에 geometry_msgs/PointStamped로 발행한다. header.frame_id는 SETTINGS의 base_frame(현재 base_link), stamp는 원 RGB 관측 시각, point는 m 단위 XYZ다. camera→base 변환은 실제 TF를 관측 시각으로 조회하며 위치 이동과 회전을 모두 적용한다. 최신 TF 조회나 임의 장착값으로 대체하지 않는다. 고정 장착 static TF의 반환 stamp=0은 관측 시각으로 조회한 결과일 때 허용한다.
 
-카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 오류를 기록하고 관측/좌표 전송과 SENT 전환을 보류한다. 다음 탐지 프레임에서 재시도한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
+카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 오류를 기록하고 관측/좌표 전송과 SENT 전환을 보류한다. 다음 탐지 프레임에서 재시도한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다.
 
 ### 지도 좌표 TargetLocation (target_locator)
 
@@ -286,6 +307,8 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 필수 파라미터(기본값 없음)는 `rescue_perception.overhead.OVERHEAD_PARAMS` 이고, launch 가 현장 실행 파일 `passage.*` 와 `passage.overhead.*` 에서 채운다. 시험: `tests/test_perception_overhead.py`, `tests/test_contracts_overhead.py`, `tests/test_bringup_passage.py`, `tests/ros/e3_overhead_probe.py`(격리 도메인, 실제 노드). 실제 OAK-D 점구름, 현장 PC 의 수신·처리 시간, TB-6 라이다 높이는 NOT_RUN 이다.
 
+실기 NOT_RUN: 높이 기준을 먼저 확인해야 한다(작전 OPS-203). 판정 높이는 `base_frame`(base_link) 점의 z 이고, `lidar_plane_m` 0.23 m 는 바닥에서 잰 값이다. 열린 PR #254 의 측정대로 바닥 점이 base_link 기준 약 −0.2 m 라면, 높이가 실제보다 약 0.2 m 낮게 나오고 바닥 근처 물체가 바닥으로 세어진다 [계산, 측정 아님].
+
 ### 출구 QR (OPS-136/138, 여러 출구 OPS-154/157)
 
 [저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-138 설계 승인. 여러 출구는 OPS-154, 정확 일치는 재범 확정 OPS-155] TB-6 가 지도를 탐색하다 출구 QR 을 보면 그 위치가 그 출구다. 출구는 여러 개일 수 있다(예 EXIT-1, EXIT-2). amr_target 이 대상과 같은 RGB-D 프레임에서 OpenCV `QRCodeDetector.detectAndDecodeMulti` 로 한 프레임의 QR 을 모두 읽는다. 같은 시계·CameraInfo·왜곡 보정(#164)·깊이 보정을 쓴다.
@@ -300,7 +323,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 ### 검증과 범위
 
-[사용자 요구, 2026-10-12] 이번 AMR 합성 입력 시험 3개는 작성 환경의 로컬 검사 전용으로 보관하고 PR에는 포함하지 않는다. 기존 main의 단위시험·CI는 유지한다. 로컬 검사 결과는 코드 규칙의 검증이며 실제 탐지 성능이나 ROS·GPU·로봇 실행을 증명하지 않는다. 실제 영상·Depth·TF를 이용한 검증은 제어용 컴퓨터에서 AMR 단위별 연동 시험으로 진행한다.
+합성 입력 시험(`tests/test_perception_center_depth.py`, `tests/test_perception_base_point.py`, `tests/ros/e3_amr_target_probe.py`)은 저장소에 있다. 로컬 검사 결과는 코드 규칙의 검증이며 실제 탐지 성능이나 ROS·GPU·로봇 실행을 증명하지 않는다. 실제 영상·Depth·TF를 이용한 검증은 제어용 컴퓨터에서 AMR 단위별 연동 시험으로 진행한다.
 
 실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. 지도 변환 모듈은 아직 실제 mapping 경로에 연결되지 않았다.
 
@@ -331,3 +354,24 @@ map 통합 시에는 촬영 시각의 map←base_link TF와 지도 session/revis
 검사를 연결해야 한다. 현재 TargetObservation은 원 camera 좌표와 ID·confidence·공분산을
 보존하므로 기존 target_locator의 map←camera 경로도 그대로 사용할 수 있다.
 base PointStamped만으로는 관측 ID·confidence·공분산을 전달할 수 없다.
+
+## 기록 (2026-10-14 에 옮김, OPS-210)
+
+아래는 위 본문에 있던 옛 설명이다. 지금 코드(main 4163a25)와 맞지 않아 이곳으로 옮겼다. 괄호 안은 그 설명을 쓴 날과 옮기기 전 자리다. 화살표 뒤가 지금 상태다.
+
+- (2026-10-08, 맨 위 소개 문단) 원문: 모델 추론, ROS 노드, 카메라 구독, 압축 영상 해제, TF, 주행 명령은 구현하지 않았다.
+  → 지금: 주행 명령만 그대로 없다. 나머지는 「패키지 개요」의 ROS 노드들이 한다(amr_camera 의 YOLO 추론, amr_target 의 카메라 구독·압축 해제·촬영 시각 TF 등).
+- (2026-10-11, OAK-D 학습 계획 문단) 원문: 학습·실제 카메라 시험은 아직 NOT_RUN이다.
+  → 지금: [선택 manifest](../../assets/manifest/yolo26n-survivor-v2.json)(2026-10-11)로 학습과 모델 선택이 끝났다.
+- (2026-10-12, AMR 단위 검증 노드 절) 원문: 이번 PR은 Draft이며 실제 로봇 인수 완료를 뜻하지 않는다.
+  → 지금: 그 PR 은 이미 머지됐다. 실제 로봇 인수는 여전히 끝나지 않았다(「현재 상태」 표).
+- (2026-10-12) 원문: [사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
+  → 지금: 지금 amr_target 은 토픽·frame·시계·정렬·짝 맞추기 값을 기본값 없는 ROS 파라미터로 받는다(위 「작전 B1」 문단, `FIELD_PARAMS`·`CLOCK_PARAMS`·`RECHECK_PARAMS`·`EXIT_PARAMS`). SETTINGS 는 나머지 값에만 쓴다.
+- (2026-10-12) 원문: [사용자 요구, 2026-10-12] 실제 실행 대상은 README 시나리오의 로봇 제어용 컴퓨터다. 기준 환경은 MSI RTX 4070 노트북·Ubuntu 24.04·ROS 2 Jazzy다. 이 저장소에서는 베이스와 테스트 코드를 작성하며 작성 환경에서 ROS 노드를 실행하는 것을 전제하지 않는다. ROS가 없는 환경에서 노드 import를 허용하기 위한 함수 내부 import와 의존성 오류 호환 분기를 제거했다. 순수 설정·보정·검사 시험은 utils를 직접 import한다.
+  → 지금: 지금은 작성 환경에서도 격리 도메인 ROS 시험(`tests/ros/e3_*`)으로 실제 노드를 띄운다. 일부 모듈은 함수 안에서 import 한다(예: `exit_qr.py:detect_qrs` 의 cv2, `headroom.py:depth_points` 의 numpy).
+- (2026-10-13, 설정 문단) 원문: clock/stamp/alignment는 UNKNOWN·미확인을 유지한다.
+  → 지금: 시계는 이 호스트의 측정값을 쓴다(위 「관측 시계 (OPS-103)」). stamp 의미와 정렬 근거는 기본값 없는 실행 인자다(「작전 B1」 문단).
+- (2026-10-12, 상대 좌표 출력 절) 원문: 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
+  → 지금: 시계·정렬은 위와 같이 바뀌었다. 실제 입력의 근거를 확인한 뒤 써야 한다는 점은 그대로다(「작전 B1」 문단).
+- (2026-10-12, 검증과 범위 절) 원문: [사용자 요구, 2026-10-12] 이번 AMR 합성 입력 시험 3개는 작성 환경의 로컬 검사 전용으로 보관하고 PR에는 포함하지 않는다. 기존 main의 단위시험·CI는 유지한다.
+  → 지금: 세 시험은 지금 저장소에 있다(위 「AMR 통합 전 최종 인식 파일」).
