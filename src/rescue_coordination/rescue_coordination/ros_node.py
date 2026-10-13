@@ -302,6 +302,9 @@ class CoordinatorCore:
         self.task_meta = {}      # task_id -> ('MOVE_SEGMENT', SegmentApproval) | ('REOBSERVE_TARGET', link_id)
         self.outbox = []         # task fields reserved and not yet handed to the node
         self.last_reason = None  # mission reason behind the latest reply, for the node log
+        # Refused before moving: approval command_id / recheck link_id -> hold-until ns (None until the next
+        # tick sets it). The same approval or recheck goes again as a new task after admission_timeout_ns.
+        self.refused = {}
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
@@ -366,8 +369,11 @@ class CoordinatorCore:
         if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
             self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
                                          route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
-        elif admitted and not admission.accepted and meta:
-            self._forget(admission.task_id)  # refused before moving: issue again on the next tick
+        elif not admission.accepted and meta and self.search.allocator.admissions.get(admission.task_id) == admission:
+            # A refusal the Allocator recorded (it returns False for it, so ``admitted`` is never True here):
+            # the task is released; its approval or recheck goes again after a hold.
+            self.refused[meta[1].command_id if meta[0] == 'MOVE_SEGMENT' else meta[1]] = None
+            self._forget(admission.task_id)
         return admitted
 
     def on_result(self, task_id, result):
@@ -744,6 +750,8 @@ class CoordinatorCore:
         if chosen is None:
             return None
         target_id, target_revision = chosen
+        if self._held_after_refusal(target_id, now_ns):  # refused before moving: wait, then a new task
+            return None
         boot = self._free('SUPPORT', now_ns)
         if boot is None:
             return None
@@ -778,11 +786,25 @@ class CoordinatorCore:
         self._send(fields)
         return fields['task_id']
 
+    def _held_after_refusal(self, key, now_ns):
+        """True while a refused approval/recheck waits admission_timeout_ns before it is issued again."""
+        if key not in self.refused:
+            return False
+        if self.refused[key] is None:
+            self.refused[key] = now_ns + self.admission_timeout_ns
+        if now_ns <= self.refused[key]:
+            self.issue_block = 'TASK_REFUSED'
+            return True
+        del self.refused[key]
+        return False
+
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
         if (approval is None or self.mission.segment_phase != 'APPROVED'
                 or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
             return self.segment_tasks.get(approval.command_id) if approval else None
+        if self._held_after_refusal(approval.command_id, now_ns):
+            return None
         if not self._passage_free(approval.segment_index):
             self.issue_block = 'PASSAGE_ASSESSMENT_REQUIRED'  # Q-25 default: hold, never guess
             return None
@@ -816,7 +838,7 @@ class CoordinatorCore:
 
     def _issue_rechecks(self, now_ns):
         for target_id, recheck in self.mission.open_rechecks.items():
-            if recheck.link_id in self.recheck_tasks:
+            if recheck.link_id in self.recheck_tasks or self._held_after_refusal(recheck.link_id, now_ns):
                 continue
             boot = self._free('SCOUT', now_ns)
             frame = self._route_frame(target_id, self.observe_goal)
@@ -950,6 +972,21 @@ class CoordinatorCore:
                     created_task_id=created_task_id)
 
 
+def spin_until_shutdown(spin, context_ok, shutdown_error):
+    """Run ``spin``; a ``shutdown_error`` raised after the context closed is the shutdown race, a normal stop.
+
+    On SIGTERM rclpy shuts the context down, and a spin caught between callbacks raises
+    RCLError("the given context is not valid") instead of ExternalShutdownException (A·B rehearsal
+    2026-10-13: 2 of 3 runs ended with a traceback and exit 1). The same error while the context
+    is valid, and every other error, is raised.
+    """
+    try:
+        spin()
+    except shutdown_error:
+        if context_ok():
+            raise
+
+
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
 def declare_required(node, names, optional=(), unset_ok=()):
     """Typed parameters without defaults -> (values, missing). Jazzy rejects a typed
@@ -1054,6 +1091,7 @@ UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY'}
 
 def main(args=None):
     import rclpy
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.action import ActionClient
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
@@ -1254,7 +1292,7 @@ def main(args=None):
             f'RECEIPT {msg.report_id} {msg.state} -> saved={core.on_receipt(msg)}')), 10)
         node.create_service(SubmitOperatorCommand, OPERATOR_COMMAND_SERVICE, on_command)
         node.create_timer(values['tick_period_s'], guarded('tick', tick))
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException, SystemExit) as exc:
         if isinstance(exc, SystemExit) and exc.code not in (None, 0):
             raise

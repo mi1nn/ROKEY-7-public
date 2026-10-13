@@ -14,7 +14,7 @@ import unittest
 from rescue_contracts import RescueError
 from rescue_coordination import ros_node
 from rescue_coordination.planning import GoalPoint, Reservation
-from test_coordination_ros_core import (SUPPORT, admission_msg, frame, goal_template, location, make_core, receipt,
+from test_coordination_ros_core import (ACCEPT, SUPPORT, admission_msg, frame, goal_template, location, make_core, receipt,
                                         request, site_msg, status_msg)
 from test_coordination_search import MAP, NOW, uid
 
@@ -105,6 +105,7 @@ class AutoDispatchTests(unittest.TestCase):
     def test_no_pose_stale_pose_other_basis_or_not_valid_holds_with_a_reason(self):
         self.save()
         self.assertEqual(([], 'SUPPORT_POSE_UNKNOWN'), (self.approaches(), self.core.issue_block))
+        self.assertEqual('SUPPORT_POSE_UNKNOWN', self.core.system_state_change(NOW)['reason'])
         for msg, reason in ((pose_msg(age_ns=POSE_AGE + 1), 'SUPPORT_POSE_UNKNOWN'),
                             (pose_msg(status='UNKNOWN'), 'SUPPORT_POSE_UNKNOWN'),
                             (pose_msg(map_revision=4), 'SUPPORT_POSE_BASIS_MISMATCH'),
@@ -113,7 +114,6 @@ class AutoDispatchTests(unittest.TestCase):
             with self.subTest(reason=reason):
                 self.core.on_pose(msg)
                 self.assertEqual(([], reason), (self.approaches(), self.core.issue_block))
-                self.assertEqual(reason, self.core.system_state_change(NOW)['reason'] or reason)
 
     def test_target_frame_not_valid_holds(self):
         core = auto_core()
@@ -154,12 +154,17 @@ class AutoDispatchTests(unittest.TestCase):
         (estimate,) = self.core.target_snapshot_change()['targets']
         self.assertEqual('FAILED', estimate['approach_state'])
 
-    def test_refused_admission_is_issued_again_as_a_new_task(self):
+    def test_refused_admission_waits_then_goes_again_as_a_new_task(self):
+        # Same hold as a refused MOVE_SEGMENT/REOBSERVE (#167): admission_timeout_ns, TASK_REFUSED meanwhile.
         self.core.on_pose(pose_msg())
         self.save()
         (first,) = self.approaches()
         self.core.on_admission(admission_msg(first, accepted=False))
-        (second,) = self.approaches()
+        self.assertEqual(([], 'TASK_REFUSED'), (self.approaches(), self.core.issue_block))
+        later = NOW + ACCEPT + 1
+        self.core.on_status(status_msg(SUPPORT, observed_at_ns=later - 10**8))
+        self.core.on_pose(pose_msg(age_ns=10**8 - (later - NOW)))
+        (second,) = [f for f in self.core.tick(later) if f['kind'] == 'APPROACH_TARGET']
         self.assertNotEqual(first['task_id'], second['task_id'])
 
 
