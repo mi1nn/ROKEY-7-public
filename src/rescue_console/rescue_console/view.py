@@ -348,6 +348,27 @@ MISSION_REASONS = {
     'TARGET_CLOCK_DOMAIN_MISMATCH': ('대상 위치 관측의 시계 영역이 다름', 'caution'),
     'TARGET_OBSERVATION_FUTURE': ('대상 위치 관측 시각이 미래', 'caution'),
     'TARGET_OBSERVATION_STALE': ('대상 위치 관측이 오래됨', 'caution'),
+    # #214 gates (OPS-127/129): each holds only the move it guards — TB-5 dispatch, TB-5 exit or TB-6 return.
+    # The blocked points are never moved elsewhere.
+    'MAP_FREEZE_WAITING_SCOUT_STOP': ('{scout} 이 멈추기를 기다림 — 멈추면 지도 고정', 'info'),
+    'MAP_FREEZE_REQUESTED': ('지도 고정 요청함 — 고정 지도 확인 중', 'info'),
+    'MAP_NOT_FROZEN': ('지도가 아직 고정되지 않음 — {support} 출동 대기', 'caution'),
+    'MAP_FREEZE_FAILED': ('지도 고정 실패 — 다시 요청하지 않음', 'alert'),
+    'TARGET_NOT_ON_FROZEN_MAP': ('고정 지도 기준 대상 위치가 아직 없음 — {support} 출동 대기', 'caution'),
+    'SCOUT_NOT_LOCALIZED': ('{scout} 이 고정 지도에서 위치를 못 잡음 — {support} 출동 대기', 'caution'),
+    'SUPPORT_NOT_LOCALIZED': ('{support} 가 고정 지도에서 위치를 못 잡음 — 출동 대기', 'caution'),
+    'SUPPORT_APPROACH_NOT_FREE': ('{support} 접근 지점이 막힘 — 출동 보류', 'caution'),
+    'SUPPORT_EXIT_NOT_FREE': ('{support} 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)', 'caution'),
+    'SCOUT_HOME_NOT_FREE': ('{scout} 도킹 접근 지점이 막힘 — {scout} 복귀 보류', 'caution'),
+    'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
+}
+# APPROACH_FAILED_<why> (#216): the executor's terminal reason, or its outcome when there is none.
+# An unknown why is shown as its code (OPS-127: never hidden).
+APPROACH_WHY = {
+    'PASSAGE_BLOCKED': '통로 막힘', 'UNREACHABLE': '갈 수 없는 위치', 'FAILED': '실행 실패',
+    'CANCELED': '취소됨', 'EXPIRED': '시간 초과', 'NAV_NOT_READY': '주행 준비 안 됨',
+    'DEADLINE_EXPIRED': '시간 초과', 'STOP_LATCHED': '정지 유지 중', 'LOCAL_LEASE_EXPIRED': '명령 유효 시간 지남',
+    'CLOCK_UNCERTAIN': '시계 불확실',
 }
 EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
 # RECHECK_NEEDED_<why>: the recheck did not confirm the rescue (C-11 rows 7-11).
@@ -369,11 +390,15 @@ def mission_reason(code, support_name, scout_name):
         return None
     # Without a status naming the role's robot its robot_id is not known: the role code, never a generic word.
     names = {'support': support_name or 'SUPPORT', 'scout': scout_name or 'SCOUT'}
-    scope = 'support' if code in SUPPORT_CODES else next((where for prefix, where in SCOPES if code.startswith(prefix)),
+    support_code = code in SUPPORT_CODES or code.startswith('APPROACH_FAILED_')
+    scope = 'support' if support_code else next((where for prefix, where in SCOPES if code.startswith(prefix)),
                                                            None)
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
         text, level = f'{names["support"]} 출구 출발까지 {int(countdown.group(1))}초', 'info'
+    elif code.startswith('APPROACH_FAILED_'):
+        why = code[len('APPROACH_FAILED_'):]
+        text, level = f'{names["support"]} 접근 실패: {APPROACH_WHY.get(why, why)} — 다시 보내지 않음', 'alert'
     elif code.startswith('RECHECK_NEEDED_'):
         why = code[len('RECHECK_NEEDED_'):]
         text, level = f'재확인 필요: {RECHECK_WHY.get(why, why)}', 'caution'
