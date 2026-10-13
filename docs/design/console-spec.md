@@ -15,7 +15,7 @@ updated: 2026-10-13
 ### 1. 책임과 경계
 
 하는 일
-- 요청이 올 때마다 operations 의 현장 상태 DB(`operations-site-state` schema 1.3)를 **읽기 전용**으로 읽고, 주어졌으면 옛 보고 장부(`operations-ledger` 1.0)도 읽어, 화면 모델 하나로 합성해 HTML·JSON 으로 낸다(`app.py:50-79`, `sources.py:56-79`, `view.py:626-730`).
+- 요청이 올 때마다 operations 의 현장 상태 DB(`operations-site-state` schema 1.3)를 **읽기 전용**으로 읽고, 주어졌으면 옛 보고 장부(`operations-ledger` 1.0)도 읽어, 화면 모델 하나로 합성해 HTML·JSON 으로 낸다(`app.py:50-79`, `sources.py:56-79`, `view.py:636-730`).
 - 표시층에서 구조 상태 4단계(Q-20), 임무 띠, 조정기 사유 문구, 명령 버튼의 **관문 거울**을 계산한다. 거울은 관문이 아니다: 켜진 버튼도 조정기가 거절할 수 있고 그 답을 그대로 보인다(`view.py:598-601`).
 - ADMIN 이 누른 명령 한 건을 operations `POST /api/operator-commands` 로 **한 번** 보내고 답(또는 실패)을 그대로 돌려준다(`app.py:320-352`, `commands.py:168-175`).
 - 로그인·세션·CSRF·계정 관리. 콘솔이 쓰는 파일은 콘솔 소유 계정 DB 하나뿐이다(`accounts.py:1-12`).
@@ -350,7 +350,7 @@ updated: 2026-10-13
 - `load_site_state` 는 8개 읽기를 차례로 따로 열어 읽는다(5.3). 한 번의 폴링에서 표끼리 한 행씩 어긋날 수 있다(다음 폴링에서 맞춰짐, `sources.py:59-63`). 어느 하나라도 `OperationsError` 면 전체가 `STORAGE_ERROR` 다. 역할·스키마가 다른 DB(`POLICY_MISMATCH`)도 화면에는 `STORAGE_ERROR` 로 보인다.
 - 한 폴링의 비용: 현장 상태 DB 연결 8번 + (장부 1번) + 계정 DB 연결 1번(`user()`) + 실시간 지도 stat 1~2번.
 
-#### 7.4 `build_view` (`view.py:626-730`) — 입력 → 화면 모델
+#### 7.4 `build_view` (`view.py:636-730`) — 입력 → 화면 모델
 
 1. `built_at_ns` 가 0 이상 정수가 아니면 `INVALID_INPUT`. `support_dispatch`·`search_start` 가 각각 None·AUTO·OPERATOR 밖이면 `INVALID_INPUT`(`view.py:648-652`).
 2. 각 절 모양 검사(`_section`, `view.py:122-133`): 절이 있으면 객체여야 하고 `schema_version` 이 문자열, 목록 키가 배열이어야 한다. 아니면 `INVALID_INPUT` 「{키} must be a read API result」. 없는 절은 None.
@@ -395,7 +395,7 @@ updated: 2026-10-13
 | R1 | 확정 여부 거짓 | UNCONFIRMED | 미확정 |
 | R2 | `rescue_state` = RESCUE_CONFIRMED | RESCUED | 구출 완료 |
 | R3 | `support_state` ∈ {ASSIGNED, ARRIVED} | SUPPORTING | 지원 중 |
-| R4 | `support_state` 가 None(상태 없음)이고 최신 보고 `approach_result` = APPROACH_COMPLETE | SUPPORTING | 지원 중 |
+| R4 | `support_state` 가 None(대상 상태가 없거나, 있어도 값이 null)이고 최신 보고 `approach_result` = APPROACH_COMPLETE | SUPPORTING | 지원 중 |
 | R5 | 그 밖 | NOT_RESCUED | 미구조 |
 
 8. 행 값: `report_count` 는 장부가 없으면 None(0 이 아님), `receipt_status` = 최신 보고 영수증 상태, `rescue_reasons` = 상태의 목록(없으면 빈 목록), `warnings` = 규칙 경고 + 위 경고.
@@ -423,7 +423,7 @@ updated: 2026-10-13
 2. 이름: {S} = 지원 이름, 없으면 「SUPPORT」. {C} = 정찰 이름, 없으면 「SCOUT」(일반 명칭을 쓰지 않음).
 3. 범위(scope): 코드가 아래 「지원 코드 7개」이거나 `APPROACH_FAILED_` 로 시작하면 `support`, 아니면 `SUPPORT_` 로 시작 → `support`, `SCOUT_` → `scout`, `RECHECK_NEEDED_` → `target`, 그 밖 None. 지원 코드 7개 = APPROACH_FAILED, MODE_NOT_DISASTER, ALREADY_DISPATCHED, UNKNOWN_TARGET, TARGET_NOT_CONFIRMED, TARGET_REVISION_STALE, TARGET_ALREADY_JUDGED(`view.py:434-435`). 그래서 아래 표 끝의 코드 9개와 `PATROL_ROUND_{n}` 중 범위가 있는 것은 `SUPPORT_` 접두어인 SUPPORT_EXIT_UNREGISTERED(`support`) 하나뿐이다. 나머지는 None 이라, {C} 를 부르는 SEARCH_GOAL_NOT_SELECTED·START_POSE_*·PATROL_* 도 정찰 카드에는 붙지 않는다.
 4. 문구(첫 번째로 맞는 것):
-   - 전체가 `SUPPORT_EXIT_IN_{정수}S` → 「{S} 출구 출발까지 {정수}초」, info.
+   - 전체가 `SUPPORT_EXIT_IN_{정수}S` → 「{S} 출구 출발까지 {정수}초」, info(정수는 int 로 읽어 앞자리 0 이 빠짐, `view.py:423`, `:447-449`).
    - 전체가 `PATROL_ROUND_{정수}` → 「{C} 순찰 {정수}바퀴째」, info(정수는 int 로 읽어 앞자리 0 이 빠짐, `view.py:424`, `:450-451`).
    - `APPROACH_FAILED_{이유}` → 「{S} 접근 실패: {이유 낱말} — 다시 보내지 않음」, alert. 이유 낱말 표에 없으면 이유 코드 그대로.
    - `RECHECK_NEEDED_{이유}` → 「재확인 필요: {이유 낱말}」, caution. 없으면 코드 그대로.
@@ -715,7 +715,7 @@ flowchart TD
   M --> N["applyGates - 버튼 켜짐과 확인 칸 유지 판단"]
 ```
 
-상자 ↔ 코드: A `render.py:1066` · B `render.py:865`, `app.py:294-298` · C `app.py:165-179`, `app.py:194-210` · D `app.py:206-207`, `render.py:866-872` · E `app.py:50-59` · F `sources.py:56-79` · I `view.py:626-730` · G `app.py:225-239` · H `app.py:239`, `render.py:873-884` · J `app.py:65-69` · K `mapimage.py:233-270`, `mapimage.py:288-321` · L `render.py:480-483` · M `render.py:878-881` · N `render.py:924-939`
+상자 ↔ 코드: A `render.py:1066` · B `render.py:865`, `app.py:294-298` · C `app.py:165-179`, `app.py:194-210` · D `app.py:206-207`, `render.py:866-872` · E `app.py:50-59` · F `sources.py:56-79` · I `view.py:636-730` · G `app.py:225-239` · H `app.py:239`, `render.py:873-884` · J `app.py:65-69` · K `mapimage.py:233-270`, `mapimage.py:288-321` · L `render.py:480-483` · M `render.py:878-881` · N `render.py:924-939`
 
 8.2 명령 한 번
 
