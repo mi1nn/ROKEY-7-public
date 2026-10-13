@@ -202,7 +202,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `home_poses` | double[] | 복귀 위치 `[x, y, yaw]` 를 SCOUT(TB-6, 도킹 접근 지점), SUPPORT(TB-5, 출구) 순으로(임무 frame, `goal_map_*` 기준). launch 가 프로파일에서 넣는다. 넘기지 않으면 복귀 위치 없음 → `NO_HOME_POSITION`. 길이가 6 이 아니면 기동 거절(exit 2) |
 | `support_dispatch` | string | `AUTO`·`OPERATOR`. AUTO(저장소 소유자 결정 2026-10-13, 1B)면 확정·저장된 대상에 TB-5 를 승인 없이 `APPROACH_TARGET` 으로 한 번 보낸다. 운영자 `DISPATCH_SUPPORT` 는 `NOT_AUTHORIZED`(로그 `AUTO_DISPATCH_ENABLED`). OPERATOR 면 기존 DISPATCH_SUPPORT → MOVE_SEGMENT |
 | `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
-| `support_pose_max_age_s` | double | TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
+| `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
