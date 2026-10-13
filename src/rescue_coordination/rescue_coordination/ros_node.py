@@ -857,6 +857,11 @@ class CoordinatorCore:
         target_id, target_revision = chosen
         if self._held_after_refusal(target_id, now_ns):  # refused before moving: wait, then a new task
             return None
+        state = self.ready(self.roles['SUPPORT'], now_ns)
+        if state is None or not state[1]:
+            # No fresh READY status: TB-5 reports READY only when armed (rescue_robot task_status.py:17).
+            self.issue_block = 'SUPPORT_NOT_READY'
+            return None
         boot = self._free('SUPPORT', now_ns)
         if boot is None:
             return None

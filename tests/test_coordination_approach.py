@@ -115,6 +115,18 @@ class AutoDispatchTests(unittest.TestCase):
                 self.core.on_pose(msg)
                 self.assertEqual(([], reason), (self.approaches(), self.core.issue_block))
 
+    def test_tb5_not_ready_holds_with_a_reason(self):
+        # Field check 2026-10-13: TB-5 reports READY only when armed (rescue_robot task_status.py:17). Before arm
+        # the dispatch waited with no SystemState reason, so the operator could not see why TB-5 did not go.
+        self.core.on_pose(pose_msg())
+        self.core.on_status(status_msg(SUPPORT, readiness='NOT_READY'))
+        self.save()
+        self.assertEqual(([], 'SUPPORT_NOT_READY'), (self.approaches(), self.core.issue_block))
+        self.assertEqual('SUPPORT_NOT_READY', self.core.system_state_change(NOW)['reason'])
+        self.core.on_status(status_msg(SUPPORT))  # armed
+        (fields,) = self.approaches()
+        self.assertEqual(SUPPORT, fields['robot_id'])
+
     def test_target_frame_not_valid_holds(self):
         core = auto_core()
         core.on_site_event(site_msg())
