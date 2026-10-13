@@ -15,21 +15,21 @@
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
 | TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | 없음(현장 파일 `robots.robot_b` 에서 찾음). 시험 회차에 잰다 | 아래 2단계 「TB-5 출발값 재기」 |
-| Nav2 복구에서 후진 빼기 | 미구현(main 은 turtlebot4 기본: 제자리 회전·후진). PR #267 머지 대기 | #267(재범 승인 2026-10-14) |
+| Nav2 복구에서 후진 빼기 | 미구현. main 은 turtlebot4 기본 복구(제자리 회전·후진)를 쓴다. PR #267 머지 대기 | #267(재범 승인 2026-10-14) |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |
 | 정적 프로파일 검사(`check_deployment`)·합성 리허설(`offline_demo`) | 구현됨. ROS·로봇 이동 없음 | `rescue_bringup/cli.py`, `offline_demo.py` |
 
 ## 지금 현장 실행 순서 (짧게)
 
-필요한 것: 현장 파일 `config/field/search_area.field.json`(저장소), 배포 프로파일 v2.1(저장소 밖, `map_basis`·`home_positions` 포함). 명령·로그는 아래 「현장 실행 순서: PC 역할별」에 있다.
+준비물은 현장 파일 `config/field/search_area.field.json`(저장소), 배포 프로파일 v2.1(저장소 밖, `map_basis`·`home_positions` 포함)이다. 명령·로그는 아래 「현장 실행 순서: PC 역할별」에 있다.
 
-1. 모든 PC: Discovery 설정, `scripts/field/preflight_role.py --role <host id>` 가 모두 PASSED(0단계).
-2. operations + coordination PC: `operations.launch.py` → 관제 웹 → `coordinator.launch.py`(1단계).
-3. compute_a(TB-6): `tb6_slam.launch.py` → `passage_points.launch.py` → `overhead_passage.launch.py` → `robot.launch.py` → `map_freeze.launch.py`(TB-6 이 움직이기 전에)(2단계).
-4. compute_b(TB-5): `passage_points.launch.py` → `overhead_passage.launch.py` → `frozen_localization.launch.py robot_id:=robot_b` → `robot.launch.py`(2단계).
+1. 모든 PC 에서 Discovery 를 설정하고 `scripts/field/preflight_role.py --role <host id>` 결과가 모두 PASSED 인지 본다(0단계).
+2. 운영 PC(`operations` + `coordination`)에서 `operations.launch.py` → 관제 웹 → `coordinator.launch.py`(1단계).
+3. TB-6 담당 PC(`compute_a`)에서 `tb6_slam.launch.py` → `passage_points.launch.py` → `overhead_passage.launch.py` → `robot.launch.py` → `map_freeze.launch.py`(TB-6 이 움직이기 전에)(2단계).
+4. TB-5 담당 PC(`compute_b`)에서 `passage_points.launch.py` → `overhead_passage.launch.py` → `frozen_localization.launch.py robot_id:=robot_b` → `robot.launch.py`(2단계).
 5. 두 로봇 arm → 웹캠 앞 흔들림(DISASTER) → TB-6 탐색이 저절로 시작된다(현장 파일 `search_start` AUTO, `search_mode` FRONTIER).
 6. 인형 발견 → 1차 고정(R0+1), TB-5 자동 출동. 탐색 완료 → 2차 고정(R0+2), TB-6 은 `tb6_slam` 을 끄고 `frozen_localization.launch.py robot_id:=robot_a`(3단계).
-7. 끝: TB-5 가 출구에 도착(`completion_mode` EXIT_ARRIVAL).
+7. TB-5 가 출구에 도착하면 끝난다(`completion_mode` EXIT_ARRIVAL).
 
 **정지:** `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`). 그래도 움직이면 사람이 로봇을 들어 올린다(3단계 「정지 방법」 상자).
 
@@ -352,9 +352,9 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 - Jazzy collision_monitor 의 `slowdown`·`sources_names` 동작(#260), 깊이 점이 실제로 `PassageStop`·`PassageSlow` 를 켜는지.
 - TB-6 라이다 높이 0.23 m(TB-5 줄자 실측을 같은 모델로 본 [추정]).
 - **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22~−0.19 m 였다. 정지 띠(0.05~0.46 m)·감속 띠(0.23~1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25~0.66 m 다. 바닥 위 약 0.05~0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
-- Nav2 후진 복구: main 은 아직 turtlebot4 기본(후진 있음)이다. #267 이 머지된 뒤에도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
+- Nav2 후진 복구. main 은 아직 turtlebot4 기본(후진 있음)이다. #267 이 머지된 뒤에도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
 - slam_toolbox 지도 리셋 서비스(Jazzy 판)가 있는지(위 「SLAM 지도 새로 시작」).
-- **임무마다 다시 arm:** 임무가 끝나면 실행기는 `STOP_LATCHED` 이고 `task_arm` 전까지 READY 가 아니다(`rescue_robot/executor.py:_finish`, `task_status.py`). 그런데 3단계는 arm 을 한 번만 한다. FRONTIER 의 짧은 목표마다(TB-6), 접근 뒤 출구 이동 전(TB-5) 다시 arm 해야 하는지 실기로 본다[코드 읽기]. 이슈 #233 3번, 결정 대기.
+- **임무마다 다시 arm.** 임무가 끝나면 실행기는 `STOP_LATCHED` 이고 `task_arm` 전까지 READY 가 아니다(`rescue_robot/executor.py:_finish`, `task_status.py`). 그런데 3단계는 arm 을 한 번만 한다. FRONTIER 의 짧은 목표마다(TB-6), 접근 뒤 출구 이동 전(TB-5) 다시 arm 해야 하는지 실기로 본다[코드 읽기]. 이슈 #233 3번, 결정 대기.
 
 ## 기록
 

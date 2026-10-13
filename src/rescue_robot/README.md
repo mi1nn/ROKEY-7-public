@@ -17,7 +17,7 @@
 | 지도 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·짝 토픽 `frozen_revision`·TB-5 재정합 | 구현됨, 실기 NOT_RUN | `map_freeze.py`, `live_sources.py:SavedMapSources`, `frozen_map_relay.py`, #242·#255 |
 | 통로 정지 알림 `PASSAGE_BLOCKED` | 구현됨, 실기 NOT_RUN | `live_passage.py:PassageMonitor`, `task_site_runtime.py:feedback_reason`, #219 |
 | watchdog 영구 정지·리셋, 끝날 때 `cmd_vel` 0 세 번 | 구현됨 | `watchdog.py`, `watchdog_node.py:zero_commands`, #256 |
-| 임무가 끝난 뒤 다시 READY | 미구현: 임무마다 `~/task_arm` 이 필요하다(자동 재arm 없음, 결정 대기, 이슈 #233 3번) | `executor.py:_finish`·`arm`, `task_status.py` |
+| 임무가 끝난 뒤 다시 READY | 미구현. 임무마다 `~/task_arm` 이 필요하다(자동 재arm 없음, 결정 대기, 이슈 #233 3번) | `executor.py:_finish`·`arm`, `task_status.py` |
 | watchdog 현장 값 | 임시값(#132), 확정 안 됨(#94) | `config/field/search_area.field.json` `watchdog` 절 |
 | `command_adapter` 단독 실행 | 임무 입력이 없어 로봇을 움직이지 않는다. 현장은 `task_input` | `setup.py` console_scripts, `task_input_node.py:main` |
 | 빈 배열 ROS 파라미터 | 넘길 수 없다(launch 가 거절) | launch_ros. 아래 「실행」 |
@@ -153,7 +153,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 
 - `bind(task)`(dispatch 직전): 버전이 현재와 같으면 정렬의 역변환으로 mission → 로봇 map 좌표·방향을 만들어 SEND 에만 쓴다. 실패하면 아무것도 보내지 않고 guard 실패(`GUARD_INVALID`)다.
 - `check(task)`(매 `step`): goal 의 frame 이 mission 이 아님, 버전 불일치(지도 보정·세션 교체·정렬 변경), 정렬 없음·만료·오차 초과 중 하나면 False → 취소 → 정지 관문. 주행 중 정렬이 바뀐 경우도 여기서 잡힌다(C-04).
-- `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 현장 runtime 의 `task_site_runtime.target_gate`: 로봇별 자동 대상 정책이 그 종류를 받으면 True 이고 매 step `_resolve_auto_target` 로 다시 확인한다. 정책이 없으면 Phase 1 보호 경로 관문을 통과한 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 만 True 다. 정책 없는 `APPROACH_TARGET` 은 SEND 하지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
+- `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 현장 runtime 은 `task_site_runtime.target_gate` 로 판단한다. 로봇별 자동 대상 정책이 그 종류를 받으면 True 이고 매 step `_resolve_auto_target` 로 다시 확인한다. 정책이 없으면 Phase 1 보호 경로 관문을 통과한 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 만 True 다. 정책 없는 `APPROACH_TARGET` 은 SEND 하지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
 
 ## 준비 신호 (`readiness.ReadinessMonitor`)
 

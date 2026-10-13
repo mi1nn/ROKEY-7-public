@@ -6,9 +6,9 @@
 
 | 기능 | 상태 | 근거 |
 | --- | --- | --- |
-| 3D 강체 변환·지도→임무 정렬(`RigidTransform`·`FrameAlignment`) | 구현됨. 현장 코드가 씀 | `geometry.py`·`models.py`. 사용처: `rescue_robot/task_site_runtime.py`, `rescue_perception` `map_projection.py`·`target_location.py`·`recheck.py` 등 |
+| 3D 강체 변환·지도→임무 정렬(`RigidTransform`·`FrameAlignment`) | 구현됨. 현장 코드가 씀 | `geometry.py`·`models.py`. 쓰는 곳은 `rescue_robot/task_site_runtime.py`, `rescue_perception` `map_projection.py`·`target_location.py`·`recheck.py` 등 |
 | 관측 보존·목표 snapshot 검사(`MappingRegistry`) | 구현됨. 현장 실행 경로에서는 안 씀(합성 리허설 `rescue_bringup/offline_demo.py` 만) | `registry.py`. `rescue_robot`·`rescue_coordination` 에서 import 없음 |
-| `auto_approach_eligible` | 이 패키지 출력은 항상 `False`. TB-5 자동 접근은 이것이 아니라 로봇별 정책(`task.live.auto_target.*`)으로 받는다 | `registry.py`, `rescue_robot/task_site_runtime.py:target_gate` |
+| `auto_approach_eligible` | 이 패키지 출력은 항상 `False`. TB-5 자동 접근은 이 값이 아니라 로봇별 정책(`task.live.auto_target.*`)으로 받는다 | `registry.py`, `rescue_robot/task_site_runtime.py:target_gate` |
 | 조정기 지도 방식 `SLAM_FREEZE`(기준 지도 없음) | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_coordination/ros_node.py`(`MAP_MODES`), 현장 파일 coordinator `map_mode` |
 | 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·고정 기록 | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_robot/map_freeze.py`, #242·#255 |
 | 짝 토픽 `/rescue/map/frozen_revision`(고정 지도가 몇 번째 revision 인지) | 구현됨. 이 패키지 밖 | `rescue_contracts/occupancy.py:frozen_revision_text`·`parse_frozen_revision`, `docs/design/contracts.md` C-04a, #242 |
