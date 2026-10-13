@@ -348,18 +348,19 @@ MISSION_REASONS = {
     'TARGET_CLOCK_DOMAIN_MISMATCH': ('대상 위치 관측의 시계 영역이 다름', 'caution'),
     'TARGET_OBSERVATION_FUTURE': ('대상 위치 관측 시각이 미래', 'caution'),
     'TARGET_OBSERVATION_STALE': ('대상 위치 관측이 오래됨', 'caution'),
-    # TB-5 dispatch gates on the frozen map (#214, OPS-127). The blocked points are never moved elsewhere.
+    # #214 gates (OPS-127/129): each holds only the move it guards — TB-5 dispatch, TB-5 exit or TB-6 return.
+    # The blocked points are never moved elsewhere.
     'MAP_FREEZE_WAITING_SCOUT_STOP': ('{scout} 이 멈추기를 기다림 — 멈추면 지도 고정', 'info'),
     'MAP_FREEZE_REQUESTED': ('지도 고정 요청함 — 고정 지도 확인 중', 'info'),
     'MAP_NOT_FROZEN': ('지도가 아직 고정되지 않음 — {support} 출동 대기', 'caution'),
     'MAP_FREEZE_FAILED': ('지도 고정 실패 — 다시 요청하지 않음', 'alert'),
     'TARGET_NOT_ON_FROZEN_MAP': ('고정 지도 기준 대상 위치가 아직 없음 — {support} 출동 대기', 'caution'),
-    'SCOUT_NOT_LOCALIZED': ('{scout} 이 고정 지도에서 위치를 못 잡음', 'caution'),
+    'SCOUT_NOT_LOCALIZED': ('{scout} 이 고정 지도에서 위치를 못 잡음 — {support} 출동 대기', 'caution'),
     'SUPPORT_NOT_LOCALIZED': ('{support} 가 고정 지도에서 위치를 못 잡음 — 출동 대기', 'caution'),
     'SUPPORT_APPROACH_NOT_FREE': ('{support} 접근 지점이 막힘 — 출동 보류', 'caution'),
-    'SUPPORT_EXIT_NOT_FREE': ('{support} 출구 지점이 막힘 — 출동 보류', 'caution'),
-    'SCOUT_HOME_NOT_FREE': ('{scout} 복귀 지점이 막힘 — {support} 출동 보류', 'caution'),
-    'NO_HOME_POSITION': ('복귀 위치 없음 — {support} 출동 안 함', 'caution'),
+    'SUPPORT_EXIT_NOT_FREE': ('{support} 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)', 'caution'),
+    'SCOUT_HOME_NOT_FREE': ('{scout} 도킹 접근 지점이 막힘 — {scout} 복귀 보류', 'caution'),
+    'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
 }
 # APPROACH_FAILED_<why> (#216): the executor's terminal reason, or its outcome when there is none.
 # An unknown why is shown as its code (OPS-127: never hidden).

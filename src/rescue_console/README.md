@@ -224,8 +224,9 @@ TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운�
 | `RECHECK_NEEDED_<이유>` | 「재확인 필요: <이유>」(주의색). 이유: 후보 연결 안 됨·지도 기준 다름·시각 기준 못 씀·시각 순서 틀림·인형이 아직 보임·자리가 막힘·관측 범위 부족·재확인 관측 없음(「재확인 지시」 버튼 안내). 모르는 이유는 코드 그대로 | 임무 띠, 출동 중인 대상 줄 |
 | `SCOUT_RETURNING` · `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND` | 「TB-6 도킹 접근 지점으로 이동 중」·「TB-6 도킹 접근 지점 도착 — 도킹은 사람이 합니다」 | 임무 띠, TB-6(SCOUT) 카드 |
 | `SCOUT_RETURN_FAILED` | 「TB-6 도킹 접근 지점 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
-| 지도 고정 관문(#214): `MAP_FREEZE_WAITING_SCOUT_STOP`·`MAP_FREEZE_REQUESTED`·`MAP_NOT_FROZEN`·`MAP_FREEZE_FAILED`·`TARGET_NOT_ON_FROZEN_MAP`·`NO_HOME_POSITION` | 「TB-6 이 멈추기를 기다림 — 멈추면 지도 고정」·「지도 고정 요청함 — 고정 지도 확인 중」·「지도가 아직 고정되지 않음 — TB-5 출동 대기」(주의색)·「지도 고정 실패 — 다시 요청하지 않음」(빨간색)·「고정 지도 기준 대상 위치가 아직 없음 — TB-5 출동 대기」·「복귀 위치 없음 — TB-5 출동 안 함」 | 임무 띠 |
-| `SCOUT_NOT_LOCALIZED`·`SUPPORT_NOT_LOCALIZED`·`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`(#214) | 「TB-6 이 고정 지도에서 위치를 못 잡음」·「TB-5 가 고정 지도에서 위치를 못 잡음 — 출동 대기」·「TB-5 접근 지점이 막힘 — 출동 보류」·「TB-5 출구 지점이 막힘 — 출동 보류」·「TB-6 복귀 지점이 막힘 — TB-5 출동 보류」(주의색) | 임무 띠와 그 로봇 카드 |
+| 지도 고정 관문(#214): `MAP_FREEZE_WAITING_SCOUT_STOP`·`MAP_FREEZE_REQUESTED`·`MAP_NOT_FROZEN`·`MAP_FREEZE_FAILED`·`TARGET_NOT_ON_FROZEN_MAP` | 「TB-6 이 멈추기를 기다림 — 멈추면 지도 고정」·「지도 고정 요청함 — 고정 지도 확인 중」·「지도가 아직 고정되지 않음 — TB-5 출동 대기」(주의색)·「지도 고정 실패 — 다시 요청하지 않음」(빨간색)·「고정 지도 기준 대상 위치가 아직 없음 — TB-5 출동 대기」 | 임무 띠 |
+| `SCOUT_NOT_LOCALIZED`·`SUPPORT_NOT_LOCALIZED`·`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`(#214) | 「TB-6 이 고정 지도에서 위치를 못 잡음 — TB-5 출동 대기」·「TB-5 가 고정 지도에서 위치를 못 잡음 — 출동 대기」·「TB-5 접근 지점이 막힘 — 출동 보류」·「TB-5 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)」·「TB-6 도킹 접근 지점이 막힘 — TB-6 복귀 보류」(주의색). 각 사유는 그 사유가 지키는 이동만 보류한다(TB-5 출동·TB-5 출구 이동·TB-6 복귀, #218 검토) | 임무 띠와 그 로봇 카드 |
+| `NO_HOME_POSITION`(#214) | 「복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함」(주의색). 운영자 RETURN_HOME 거절 답에도 같은 코드 | 임무 띠 |
 
 SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드는 #194(head 1fc7770)와 대조했다. 위에 없는 코드는 코드 그대로 보인다.
 
