@@ -1,8 +1,8 @@
-"""로그인 반복 실패 잠금: (아이디, 접속 주소) 쌍 하나로 비밀번호를 거듭 틀리면 한동안 거절한다.
+"""로그인 반복 실패 제어: 동일 (계정명, 접속 IP) 쌍에서 비밀번호 오류 누적 시 일정 시간 요청을 차단한다.
 
-관제 웹 프로세스마다 메모리에만 두며, 다시 시작하면 지워진다. 한 곳에서 하는 비밀번호 추측을 늦춘다.
-계정 잠금이 아니다: 계정 DB 에는 아무것도 쓰지 않고, 같은 아이디도 다른 접속 주소에서는
-그대로 쓸 수 있다. 개발 서버는 요청을 스레드로 처리하므로 모든 메서드가 같은 스레드 잠금 하나를 잡는다
+관제 웹 프로세스별 인메모리로 관리되며 프로세스 재시작 시 초기화된다. 무차별 대입 공격을 효과적으로 지연시킨다.
+계정 자체 잠금이 아니다: 계정 DB를 변경하지 않으며, 동일 계정이라도 다른 접속 주소에서는 정상 로그인이
+가능하다. 개발 서버의 멀티스레드 요청 처리에 대응하여 모든 메서드는 단일 스레드 락(Lock)으로 동기화된다
 (OPS-51-01).
 """
 
@@ -10,26 +10,26 @@ import math
 import threading
 import time
 
-# [제안] 관제·화면, 2026-10-10: 5분 안에 비밀번호를 5번 틀리면 그 접속 주소에서 그 아이디를 60 s 동안 잠근다.
+# [제안] 관제·화면, 2026-10-10: 5분 내 5회 비밀번호 오류 시 해당 접속 주소의 계정 시도를 60초간 차단한다.
 LOGIN_MAX_FAILURES = 5
 LOGIN_WINDOW_S = 300
 LOGIN_LOCK_S = 60
-# 기억하는 쌍의 최대 수. 지어낸 아이디를 쏟아부어도 메모리가 끝없이 늘지 않게 한다.
+# 추적할 최대 키 쌍 개수. 임의 계정명의 대량 시도로 인한 무제한 메모리 증가를 방지한다.
 LOGIN_MAX_KEYS = 10_000
 
 
 class LoginThrottle:
-    """(아이디, 접속 주소) 쌍마다 틀린 비밀번호를 세고, 너무 많으면 그 쌍을 한동안 거절한다.
+    """(계정명, 접속 IP) 쌍별로 비밀번호 오류 횟수를 추적하고, 임계치 초과 시 해당 요청을 일시 차단한다.
 
-    상태: `_entries`(쌍마다 최근 실패 시각과 잠금 끝 시각). 요청 스레드가 함께 쓰는 스레드 잠금 하나로 지킨다.
-    `clock` 은 기본이 time.monotonic 이라 벽시계를 바꿔도 잠금이 짧아지거나 길어지지 않는다. 시험은
-    가짜 시계를 넘긴다. 로그인 라우트는 비밀번호를 확인하기 전에 locked_for() 를 부르고, 결과에 따라
-    failed() 나 succeeded() 를 부른다.
+    내부 상태: `_entries`(키별 최근 실패 시각 목록 및 차단 해제 시각). 공유 스레드 락으로 보호된다.
+    `clock`은 기본값으로 time.monotonic을 사용하여 시스템 시계 변경 시에도 차단 시간에 영향을 주지 않는다.
+    테스트 시에는 모의(mock) 시계를 주입할 수 있다. 로그인 라우트는 비밀번호 검증 전 locked_for()를 호출하고,
+    검증 결과에 따라 failed() 또는 succeeded()를 호출한다.
     """
 
     def __init__(self, clock=time.monotonic):
         self._clock = clock
-        self._entries = {}      # (아이디, 접속 주소) -> {'failures': [t, ...], 'locked_until': t}
+        self._entries = {}      # (계정명, 접속 IP) -> {'failures': [t, ...], 'locked_until': t}
         self._lock = threading.Lock()
 
     def __len__(self):
@@ -38,11 +38,11 @@ class LoginThrottle:
 
     @staticmethod
     def _key(name, client):
-        # 앞뒤 공백을 자르고 소문자로 바꿔, 대소문자나 공백만 다른 같은 아이디가 실패 수를 함께 센다.
+        # 공백 제거 및 소문자 정규화를 통해 대소문자나 공백 차이 계정을 동일 키로 묶어 집계한다.
         return (str(name).strip().lower(), str(client or ''))
 
     def locked_for(self, name, client):
-        """이 쌍이 더 기다려야 하는 초(올림한 정수). 시도해도 되면 0."""
+        """해당 키 쌍의 차단 잔여 시간(올림 정수 초)을 반환한다. 시도 가능한 상태면 0."""
         with self._lock:
             entry = self._entries.get(self._key(name, client))
             if entry is None:
@@ -50,11 +50,11 @@ class LoginThrottle:
             return max(0, math.ceil(entry['locked_until'] - self._clock()))
 
     def failed(self, name, client):
-        """이 쌍의 틀린 비밀번호 한 번을 기록한다. 시간 창 안에서 LOGIN_MAX_FAILURES 에 이르면 잠금을 건다.
+        """해당 키 쌍의 인증 실패 1회를 기록한다. 윈도우 시간 내 실패 횟수가 LOGIN_MAX_FAILURES에 도달하면 차단한다.
 
-        LOGIN_WINDOW_S 보다 오래된 실패는 먼저 버린다. 잠글 때는 locked_until = now + LOGIN_LOCK_S 로 두고
-        목록을 비우므로, 잠금이 끝나면 0 부터 다시 센다. 쌍이 LOGIN_MAX_KEYS 개를 넘으면
-        마지막 실패가 가장 오래된 쌍부터 잊는다.
+        LOGIN_WINDOW_S보다 오래된 실패 기록은 먼저 만료 제거한다. 차단 시에는 locked_until = now + LOGIN_LOCK_S로
+        설정하고 목록을 비워 차단 해제 후 0부터 재집계한다. 엔트리가 LOGIN_MAX_KEYS를 초과하면
+        가장 오래된 항목부터 순서대로 제거한다.
         """
         key = self._key(name, client)
         with self._lock:
@@ -64,7 +64,7 @@ class LoginThrottle:
             if len(entry['failures']) >= LOGIN_MAX_FAILURES:
                 entry['locked_until'] = now + LOGIN_LOCK_S
                 entry['failures'] = []
-            self._entries[key] = entry          # 맨 뒤에 다시 넣는다: dict 순서는 활동이 오래된 것부터다
+            self._entries[key] = entry          # dict 끝에 재삽입하여 최근 활동 순서로 갱신한다
             while len(self._entries) > LOGIN_MAX_KEYS:
                 del self._entries[next(iter(self._entries))]
 
