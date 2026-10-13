@@ -1,4 +1,4 @@
-"""AMR RGB-D observation node: detection, depth correction and TargetObservation.
+"""PC-side RGB inference with detection-triggered Depth and TargetObservation.
 
 Map projection is separate code for later connection to existing rescue_mapping.
 Camera-to-base TF produces auxiliary relative points; no map/odom lookup
@@ -12,7 +12,6 @@ from uuid import uuid4
 
 import cv2
 import rclpy
-import message_filters
 from cv_bridge import CvBridge
 from geometry_msgs.msg import PointStamped
 from tf2_ros import Buffer, TransformListener
@@ -31,7 +30,8 @@ from .target_utils import (FIELD_PARAMS, SETTINGS, target_config, PreparedDetect
     localization_blockers, target_diagnostic)
 from .adapter import stamp_ns
 from .core import ModelManifest
-from .person_pipeline import PersonPipeline
+from .person_pipeline import PersonPipeline, Inference
+from .selective_depth import SelectiveDepth
 
 
 def create_node(*, model_factory=None, transform_lookup=None):
@@ -84,9 +84,13 @@ def create_node(*, model_factory=None, transform_lookup=None):
         image_pub = node.create_publisher(Image, topics['annotated_topic'], 1)
         state = {'info': None, 'last_success': time.monotonic(),
                  'warning': 0., 'frames': 0, 'observation_seq': 0,
-                 'last_target_reason': None, 'target_warning': 0.}
+                 'last_target_reason': None, 'target_warning': 0.,
+                 'depth_received': 0, 'depth_attempts': 0, 'last_depth': None,
+                 'last_rgb_stamp': None, 'started': time.monotonic()}
 
         sender = OneShotTarget()
+        depth_gate = SelectiveDepth(capacity=v['sync_queue_size'], slop_ns=v['sync_slop_ns'],
+            wait_s=v['depth_wait_s'], confidence=v['confirm_confidence_min'], label=v['model_label'])
 
         def envelope(message, key, now):
             state[key] += 1
@@ -111,75 +115,118 @@ def create_node(*, model_factory=None, transform_lookup=None):
                     f'base point unavailable; camera observation {o.observation_id} retained: '
                     f'{type(exc).__name__}: {exc}')
 
-        def on_pair(rgb_message, depth_message):
+        def warn_target(key, detail):
+            now = time.monotonic()
+            if key != state['last_target_reason'] or now - state['target_warning'] >= v['no_frame_warn_s']:
+                node.get_logger().warning(detail)
+                state['last_target_reason'], state['target_warning'] = key, now
+
+        def try_depth():
+            matched = depth_gate.take(time.monotonic())
+            if matched is None:
+                return
+            payload, selected, depth_message, delta_ns = matched
+            rgb_message, frame, inference, info = payload
             try:
-                info = state['info']
                 stamp = stamp_ns(rgb_message.header, 'rgb')
                 if info is None or abs(stamp - stamp_ns(info.header, 'camera_info')) > v['camera_info_max_age_ns']:
                     raise ValueError('fresh matching CameraInfo required')
                 if rgb_message.header.frame_id != v['rgb_optical_frame'] or depth_message.header.frame_id != v['depth_optical_frame']:
                     raise ValueError('RGB/Depth optical frames differ from configured alignment evidence')
-                frame, result = preview.infer(rgb_message)
-                rgb = bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-                rgb.header = rgb_message.header
+                state['depth_attempts'] += 1
                 depth = (decode_depth_png(depth_message, byte_order=v['depth_byte_order'], bridge=bridge)
                          if v['depth_transport'] == 'compressedDepth' else depth_message)
-                detector.prepare(stamp, inference_from_result(result, manifest))
+                rgb = bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+                rgb.header = rgb_message.header
+                # Only the best eligible doll reaches localization; reuse its RGB inference.
+                detector.prepare(stamp, Inference(inference.model, inference.tracking_mode, (selected,)))
                 findings = pipeline.process(rgb, depth, info)
+                node.get_logger().info(f'Depth attempt={state["depth_attempts"]} rgb_stamp={stamp} '
+                                       f'depth_stamp={stamp_ns(depth_message.header, "depth")} delta_ms={delta_ns / 1e6:.3f}')
                 if findings.status != 'PROCESSED':
-                    node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
+                    warn_target(findings.status, f'RGB-D frame skipped: {findings.status}')
                     return
+                for candidate in findings.candidates:
+                    if sender.send(candidate, publish_target):
+                        depth_gate.mark_sent()
+                        node.destroy_subscription(node.selective_depth_subscription)
+                        node.selective_depth_subscription = None
+                        node.get_logger().info(f'target state=SENT observation_id={sender.observation_id}; '
+                                               'depth computation disabled for this run')
+                        break
+                    key = (sender.reason(candidate), candidate.reasons)
+                    warn_target(key, f'target not sent: {sender.reason(candidate)}; {target_diagnostic(candidate)}')
+            except Exception as exc:
+                node.get_logger().error(f'Depth/localization attempt failed; retry on next eligible RGB: '
+                                        f'{type(exc).__name__}: {exc}')
+
+        def on_rgb(rgb_message):
+            try:
+                stamp = stamp_ns(rgb_message.header, 'rgb')
+                if state['last_rgb_stamp'] is not None and stamp <= state['last_rgb_stamp']:
+                    return
+                state['last_rgb_stamp'] = stamp
+                frame, result = preview.infer(rgb_message)
+                inference = inference_from_result(result, manifest)
+                height, width = frame.shape[:2]
                 canvas = result.plot(labels=True, conf=True)
-                diagnostics = [target_diagnostic(c) for c in findings.candidates]
-                if not diagnostics and blockers:
-                    diagnostics = ['coordinates blocked: ' + ','.join(blockers)]
-                for index, text in enumerate(diagnostics):
-                    cv2.putText(canvas, text, (8, 24 + index * 24),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
+                status = ('SENT: depth computation stopped' if sender.state == 'SENT' else
+                          'coordinates blocked: ' + ','.join(blockers) if blockers else 'SEARCHING')
+                cv2.putText(canvas, status, (8, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
                 annotated = bridge.cv2_to_imgmsg(canvas, encoding='bgr8')
-                annotated.header = rgb.header
+                annotated.header = rgb_message.header
                 image_pub.publish(annotated)
                 if v['show']:
                     cv2.imshow('AMR YOLO target', canvas)
                     cv2.waitKey(1)
-                for candidate in findings.candidates:
-                    if sender.state == 'SENT':
-                        break
-                    if sender.send(candidate, publish_target):
-                        node.get_logger().info(
-                            f'target state=SENT observation_id={sender.observation_id}; '
-                            'coordinate publication disabled for this run')
-                        break
-                    detail = f'target not sent: {sender.reason(candidate)}; {target_diagnostic(candidate)}'
-                    now = time.monotonic()
-                    reason_key = (sender.reason(candidate), candidate.reasons)
-                    if (reason_key != state['last_target_reason']
-                            or now - state['target_warning'] >= v['no_frame_warn_s']):
-                        node.get_logger().warning(detail)
-                        state['last_target_reason'] = reason_key
-                        state['target_warning'] = now
                 state['frames'] += 1
                 state['last_success'] = time.monotonic()
+                # RGB preview never waits for Depth or CameraInfo.
+                if blockers:
+                    for output in inference.outputs:
+                        if output.confidence >= v['confirm_confidence_min']:
+                            warn_target(tuple(blockers), f'target not sent: detected confidence={output.confidence:.3f}; '
+                                        f'localization={",".join(blockers)} (no depth decoding)')
+                else:
+                    depth_gate.offer_rgb(stamp, width, height, inference.outputs,
+                        (rgb_message, frame, inference, state['info']), time.monotonic())
+                    try_depth()
                 if state['frames'] % v['log_every'] == 0:
-                    node.get_logger().info(f'frames={state["frames"]} observations={state["observation_seq"]} '
-                                          f'target_state={sender.state} last_stamp={stamp}')
+                    elapsed = time.monotonic() - state['started']
+                    node.get_logger().info(f'RGB frames={state["frames"]} processed_fps={state["frames"] / elapsed:.2f} '
+                        f'depth_received={state["depth_received"]} depth_attempts={state["depth_attempts"]} '
+                        f'depth_wait_expired={depth_gate.expired_requests} observations={state["observation_seq"]} '
+                        f'target_state={sender.state} last_stamp={stamp}')
             except Exception as exc:
-                node.get_logger().error(f'AMR target frame failed (no fabricated coordinates): {type(exc).__name__}: {exc}')
+                node.get_logger().error(f'RGB preview failed: {type(exc).__name__}: {exc}')
 
-        rgb_sub = message_filters.Subscriber(node, Image if v['image_type'] == 'raw' else CompressedImage,
-                                             topics['image_topic'], qos_profile=sensor_qos)
-        depth_sub = message_filters.Subscriber(node, Image if v['depth_transport'] == 'raw' else CompressedImage,
-                                               topics['depth_topic'], qos_profile=sensor_qos)
-        synchronizer = (message_filters.TimeSynchronizer([rgb_sub, depth_sub], v['sync_queue_size'])
-            if v['sync_slop_ns'] == 0 else message_filters.ApproximateTimeSynchronizer(
-                [rgb_sub, depth_sub], v['sync_queue_size'], v['sync_slop_ns'] / 1e9))
-        synchronizer.registerCallback(on_pair)
-        node.target_synchronizer = synchronizer
+        def on_depth(message):
+            if sender.state == 'SENT':
+                return
+            state['depth_received'] += 1
+            state['last_depth'] = time.monotonic()
+            try:
+                # Keep compressed bytes bounded; do not decode in idle scenes.
+                depth_gate.offer_depth(stamp_ns(message.header, 'depth'), message, time.monotonic())
+                try_depth()
+            except Exception as exc:
+                node.get_logger().error(f'Depth input rejected: {type(exc).__name__}: {exc}')
+
+        node.create_subscription(Image if v['image_type'] == 'raw' else CompressedImage,
+                                 topics['image_topic'], on_rgb,
+                                 QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        node.selective_depth_subscription = node.create_subscription(
+            Image if v['depth_transport'] == 'raw' else CompressedImage,
+            topics['depth_topic'], on_depth, sensor_qos)
+
         def warn_stalled():
             now = time.monotonic()
             if now - state['last_success'] >= v['no_frame_warn_s'] and now - state['warning'] >= v['no_frame_warn_s']:
                 state['warning'] = now
-                node.get_logger().warning('No successful synchronized RGB-D frame; check both topics, QoS, CameraInfo and frame errors')
+                node.get_logger().warning(f'No successful RGB preview; RGB frames={state["frames"]}, '
+                    f'Depth received={state["depth_received"]}, depth attempts={state["depth_attempts"]}. '
+                    'Check RGB input and inference errors; Depth does not gate preview.')
+        node.create_timer(v['depth_wait_s'], lambda: depth_gate.expire(time.monotonic()))
         node.create_timer(v['no_frame_warn_s'], warn_stalled)
         node.get_logger().info(f'amr_target git={git_sha()} boot={boot_id} model_sha256={model_hash} '
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '

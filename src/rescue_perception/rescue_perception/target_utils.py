@@ -33,7 +33,7 @@ SETTINGS = {
     'depth_calibration_path': 'package:robot6_depth.json',
     'camera_id': 'amr_rgbd',
     'model_id': 'survivor_yolo26n_640',
-    'confirm_confidence_min': 0.8,
+    'confirm_confidence_min': 0.9,  # user field decision, 2026-10-13
     'calibration_id': 'UNCONFIGURED',
     'alignment_evidence_id': 'UNCONFIGURED',
     'rgb_rectified': False,
@@ -47,6 +47,7 @@ SETTINGS = {
     'envelope_version': '0.1',
     'sync_queue_size': 3,
     'sync_slop_ns': 20000000,
+    'depth_wait_s': 0.5,  # bounded local wait, proposed for field measurement (2026-10-13)
     'camera_info_max_age_ns': 1000000000,
     'observation_validity_ns': 2000000000,
     'min_depth_m': 0.2,
@@ -92,6 +93,8 @@ def target_config(v, boot_id):
     for key in ('sync_queue_size', 'camera_info_max_age_ns', 'observation_validity_ns'):
         if v[key] <= 0:
             raise ValueError(f'{key} must be positive')
+    if not math.isfinite(v['depth_wait_s']) or v['depth_wait_s'] <= 0:
+        raise ValueError('depth_wait_s must be positive and finite')
     topics = [v[key] for key in ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
                                  'observations_topic', 'base_point_topic')]
     if len(topics) != len(set(topics)):
