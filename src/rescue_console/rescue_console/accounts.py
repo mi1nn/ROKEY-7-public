@@ -28,13 +28,19 @@ from .view import ConsoleError
 ACCOUNT_ROLES = ('ADMIN', 'CUSTOMER')
 ACCOUNT_STATUSES = ('ACTIVE', 'INACTIVE')
 USERNAME = re.compile(r'[a-z][a-z0-9_.-]{2,31}')
+# Shape check only (one '@', a dot in the host part); no mail is ever sent to it.
 EMAIL = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
 MIN_PASSWORD = 8
+# Written into `metadata`; open() refuses any SQLite file without this pair (e.g. the operations ledger).
 _ROLE_KEY, _ROLE = 'role', 'console-accounts'
 _SCHEMA = '1.0'
+# PBKDF2 rounds for new hashes (src/rescue_console/README.md: 200,000). Each stored hash carries its own
+# count, so raising this later keeps old passwords valid. The cost per guess also slows password guessing.
 _ITERATIONS = 200_000
+# The only columns that leave the store: password_hash is never returned to a caller.
 _PUBLIC = ('account_id', 'username', 'display_name', 'email', 'role', 'status', 'auth_version',
            'created_at_ns', 'updated_at_ns')
+# Sentinel for update(): "argument not given", distinct from every real value including ''.
 _KEEP = object()
 
 
@@ -43,6 +49,7 @@ def _require(ok, message, code='INVALID_INPUT'):
         raise ConsoleError(code, message)
 
 
+# Cache for _dummy_hash(): filled on first use, not at import, so importing this module costs no hash.
 _DUMMY = []
 
 
@@ -54,6 +61,11 @@ def _dummy_hash():
 
 
 def hash_password(password):
+    """Salted PBKDF2-HMAC-SHA256 of `password` as `pbkdf2_sha256$<iterations>$<salt hex>$<digest hex>`.
+
+    Raises ConsoleError INVALID_INPUT unless it is a string of at least MIN_PASSWORD characters.
+    A new random 16-byte salt per call means two accounts with one password never share a stored value.
+    """
     _require(isinstance(password, str) and len(password) >= MIN_PASSWORD,
              f'password must be at least {MIN_PASSWORD} characters')
     salt = secrets.token_bytes(16)
@@ -62,11 +74,17 @@ def hash_password(password):
 
 
 def verify_password(stored, password):
+    """True when `password` hashes to the digest in `stored` (a hash_password() string), else False.
+
+    Salt and iteration count are taken from `stored`, not from the current constants. A stored value that
+    is malformed, of another scheme or not a string gives False instead of raising.
+    """
     try:
         scheme, iterations, salt_hex, digest_hex = stored.split('$')
         if scheme != 'pbkdf2_sha256' or not isinstance(password, str):
             return False
         digest = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt_hex), int(iterations))
+        # Constant-time compare: the response time does not reveal how much of the digest matched.
         return hmac.compare_digest(digest.hex(), digest_hex)
     except (ValueError, AttributeError):
         return False
@@ -107,6 +125,11 @@ class AccountStore:
     # ---- lifecycle -------------------------------------------------------------------
     @classmethod
     def create(cls, path, admin_username, admin_password):
+        """Make a new accounts file with its two tables and one ACTIVE ADMIN; return the store.
+
+        An existing path is refused (ALREADY_EXISTS), so a second `init` never overwrites live accounts.
+        A bad name or password raises INVALID_INPUT before any file is made; sqlite errors raise STORAGE_ERROR.
+        """
         path = Path(path)
         _require(not path.exists(), f'{path.name} already exists; refusing to overwrite', 'ALREADY_EXISTS')
         admin_username = _username(admin_username)
@@ -136,7 +159,13 @@ class AccountStore:
 
     @classmethod
     def open(cls, path):
+        """Open an existing accounts file after checking that it is one; never creates a file.
+
+        Missing file -> STORAGE_ERROR; a file that is not SQLite at all fails at BEGIN, also STORAGE_ERROR.
+        No readable `metadata`, or a role / schema_version other than this module's -> POLICY_MISMATCH.
+        """
         store = cls(path)
+        # Checked first: sqlite3.connect would silently create an empty file at a mistyped path.
         _require(store.path.exists(), f'accounts database not found: {store.path.name}', 'STORAGE_ERROR')
         with store._connect() as db:
             try:
@@ -148,6 +177,12 @@ class AccountStore:
         return store
 
     def _connect(self):
+        """A new connection wrapped in _Transaction, used for one `with` block; STORAGE_ERROR if it cannot open.
+
+        A new connection per call means request threads never share one. isolation_level=None turns off the
+        sqlite3 module's implicit transactions, so _Transaction's BEGIN IMMEDIATE / COMMIT are the only ones.
+        Rows come back as sqlite3.Row, read by column name.
+        """
         try:
             db = sqlite3.connect(self.path, isolation_level=None)
         except sqlite3.Error as exc:
@@ -189,11 +224,18 @@ class AccountStore:
 
     # ---- writes (ADMIN only; the web layer enforces who calls these) ------------------
     def add(self, username, password, *, role, display_name='', email='', status='ACTIVE'):
+        """Insert a new account and return its public row.
+
+        Every field is checked, and the slow password hash made, before the write transaction opens, so the
+        lock is held only for the check and the insert. Raises INVALID_INPUT for a bad field, ALREADY_EXISTS for a
+        taken name. An empty display_name becomes the username; a new account starts at auth_version 1.
+        """
         username = _username(username)
         record = (username, str(uuid.uuid4()), _text(display_name, 'display_name') or username, _email(email),
                   _choice(role, ACCOUNT_ROLES, 'role'), _choice(status, ACCOUNT_STATUSES, 'status'),
                   hash_password(password), 1)
         with self._connect() as db:
+            # Checked inside BEGIN IMMEDIATE: no other writer can add the same name between check and insert.
             _require(db.execute('SELECT 1 FROM accounts WHERE username = ?', (username,)).fetchone() is None,
                      f'account {username} already exists', 'ALREADY_EXISTS')
             now = time.time_ns()
@@ -201,6 +243,13 @@ class AccountStore:
         return self.get(username)
 
     def update(self, username, *, display_name=_KEEP, email=_KEEP, role=_KEEP, status=_KEEP, password=None):
+        """Change the given fields of one account and return its public row.
+
+        Only arguments actually passed change (_KEEP = not given; password=None keeps the password).
+        Raises INVALID_INPUT (bad value, or nothing to change), NOT_FOUND, or LAST_ADMIN when the change
+        would leave no ACTIVE ADMIN. A real change of password, role or status raises auth_version by one,
+        which ends every session issued before it (sessions carry account_id and auth_version).
+        """
         changes = {}
         if display_name is not _KEEP:
             changes['display_name'] = _text(display_name, 'display_name')
@@ -218,19 +267,27 @@ class AccountStore:
             _require(row is not None, f'account {username!r} not found', 'NOT_FOUND')
             after_role = changes.get('role', row['role'])
             after_status = changes.get('status', row['status'])
+            # Only demoting or deactivating an ACTIVE ADMIN can remove the last one.
             if (row['role'], row['status']) == ('ADMIN', 'ACTIVE') and (after_role, after_status) != ('ADMIN', 'ACTIVE'):
                 self._guard_last_admin(db, username)
             if 'display_name' in changes and changes['display_name'] == '':
                 changes['display_name'] = username
-            credential_changed = ('password_hash' in changes or after_role != row['role'] or after_status != row['status'])
+            # Compared with the stored row: re-sending the same role or status does not end any session.
+            credential_changed =('password_hash' in changes or after_role != row['role'] or after_status != row['status'])
             if credential_changed:
                 changes['auth_version'] = row['auth_version'] + 1   # every earlier session stops matching
             changes['updated_at_ns'] = time.time_ns()
-            assignments = ', '.join(f'{key} = ?' for key in changes)
+            # Column names come only from the fixed keys set above; every value is a bound parameter.
+            assignments =', '.join(f'{key} = ?' for key in changes)
             db.execute(f'UPDATE accounts SET {assignments} WHERE username = ?', (*changes.values(), username))
         return self.get(username)
 
     def delete(self, username, *, by):
+        """Remove one account. `by` is the username of the logged-in ADMIN making the request.
+
+        Raises SELF_DELETE when `by` is that same account, NOT_FOUND, or LAST_ADMIN for the last ACTIVE
+        ADMIN. A later account with the same name gets a new account_id, so this one's sessions never match it.
+        """
         _require(username != by, 'an admin cannot delete the account it is logged in with', 'SELF_DELETE')
         with self._connect() as db:
             row = db.execute('SELECT * FROM accounts WHERE username = ?', (username,)).fetchone()
@@ -241,7 +298,8 @@ class AccountStore:
 
     @staticmethod
     def _guard_last_admin(db, excluding):
-        others = db.execute("SELECT COUNT(*) FROM accounts WHERE role = 'ADMIN' AND status = 'ACTIVE' AND username != ?",
+        # Runs on the caller's connection inside its BEGIN IMMEDIATE, so the count holds until its write.
+        others =db.execute("SELECT COUNT(*) FROM accounts WHERE role = 'ADMIN' AND status = 'ACTIVE' AND username != ?",
                             (excluding,)).fetchone()[0]
         _require(others > 0, 'at least one ACTIVE ADMIN must remain', 'LAST_ADMIN')
 
@@ -253,6 +311,12 @@ class _Transaction:
         self.db = db
 
     def __enter__(self):
+        """Start the transaction and hand the connection to the block.
+
+        IMMEDIATE takes the write lock at the start (reads too), so a check-then-write in the block (name taken,
+        last ADMIN) cannot interleave with another writer; a second caller's BEGIN waits up to sqlite3's busy
+        timeout. If BEGIN fails (busy, or not a database) the connection is closed and STORAGE_ERROR raised.
+        """
         try:
             self.db.execute('BEGIN IMMEDIATE')
         except sqlite3.Error as exc:
@@ -261,6 +325,13 @@ class _Transaction:
         return self.db
 
     def __exit__(self, exc_type, exc, tb):
+        """COMMIT when the block ended normally, ROLLBACK when it raised; always close the connection.
+
+        A failed COMMIT raises STORAGE_ERROR. A failed ROLLBACK is dropped, so the block's own exception is
+        the one reported. Only an exception whose type is exactly sqlite3.Error (an `is` test) is re-raised as
+        STORAGE_ERROR; any other exception, including sqlite3 subclasses such as sqlite3.OperationalError and
+        ConsoleError from the block's checks, propagates unchanged (returns False).
+        """
         try:
             if exc_type is None:
                 self.db.execute('COMMIT')
@@ -277,7 +348,12 @@ class _Transaction:
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Create the console accounts database with one ADMIN.')
+    """`init` command: create the accounts file with one ACTIVE ADMIN; return the process exit code.
+
+    The password comes from the environment variable named by --password-env, or from a prompt when that is
+    unset or empty, so it is never typed on the command line. Returns 0, or 2 after `ACCOUNTS FAILED: ...`.
+    """
+    parser =argparse.ArgumentParser(description='Create the console accounts database with one ADMIN.')
     sub = parser.add_subparsers(dest='command', required=True)
     init = sub.add_parser('init', help='create ACCOUNTS with one active admin')
     init.add_argument('accounts', help='path of the new accounts SQLite file (must not exist)')
