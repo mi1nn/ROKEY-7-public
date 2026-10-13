@@ -1,5 +1,44 @@
 # rescue_robot
 
+## 2026-10-13 현재: 실행 방법과 안 되는 것
+
+**실행.** 로봇 쪽은 `rescue_bringup` 의 `robot.launch.py`(#152)로 띄운다. TurtleBot4 Nav2(최종 `cmd_vel` 을 watchdog 입력으로 remap) + `command_watchdog` + `task_input` 을 한 번에 띄운다. 값은 배포 프로파일, 현장 실행 파일 `config/field/search_area.field.json`(#132 값), 현장에서 잰 지도 해시(`scripts/field/map_occupancy_sha256.py`)에서 온다. 명령·순서는 [rescue_bringup README](../rescue_bringup/README.md) 「SEARCH_AREA 현장 실행」 절에 있다. #132 의 `scripts/field/search-area/start_*.sh` 는 같은 값의 원본으로 남아 있고, 시험(`tests/test_bringup_field_launch.py`)이 launch 값과 대조한다.
+
+**실행 전 점검.** PR #156 머지 뒤: `scripts/field/preflight_role.py --role <host id>` 가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
+
+**지금 안 되는 것**
+
+| 무엇 | 왜 / 어디 |
+| --- | --- |
+| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 만 받는다(`task_site_runtime.py` LIVE_SEARCH_ONLY). 나머지는 FILES 경로에만 있다. AMR2 시나리오(#131·#133) 결정 뒤 |
+| robot_b(robot5) 실행 | 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority`)가 없다. #132 에 값이 없어 지어내지 않았다. 없으면 `robot.launch.py robot_id:=robot_b` 가 멈춘다 |
+| 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
+| watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
+
+**watchdog 영구 정지(STOP_LATCHED)와 리셋**
+
+로봇이 멈췄는데 Nav2 는 목표를 계속 보내고 있다면 watchdog 을 먼저 본다. 로그에 이 줄이 있으면 watchdog 이 세운 것이다(WARN):
+
+```text
+[<ns>.rescue_command_watchdog]: watchdog STOP_LATCHED reason=<이유> t=<초>
+```
+
+| 이유 | 뜻 | 먼저 볼 것 |
+| --- | --- | --- |
+| `EXECUTOR_HEARTBEAT_STALE` | `task_input` 의 heartbeat(`<ns>/rescue/executor_heartbeat`, `step_period` 마다 1개)가 `heartbeat_max_age_s` 넘게 안 옴 | `ros2 topic hz <ns>/rescue/executor_heartbeat -w 200` 의 max 간격. `task_input` 이 죽었거나 같은 스레드의 다른 콜백이 오래 걸린 경우 [추정] |
+| `COMMAND_OUT_OF_LIMIT` | Nav2(또는 docking_server) 출력의 직진·회전 속도가 `max_linear_mps`·`max_angular_rps` 를 한 번이라도 넘음. 잘라 내지 않고 세운다 | `ros2 topic echo <ns>/cmd_vel_watchdog_in --field twist` 최대값과 Nav2 설정의 최대 속도 |
+| `COMMAND_NOT_FINITE` | NaN·inf 속도 | Nav2 출력 |
+| `CLOCK_REGRESSION` | watchdog 의 단조 시계가 뒤로 감 | — |
+
+- 정지된 동안에는 들어오는 모든 명령이 0 이 되고 watchdog 자기 heartbeat 도 멈춘다. 그래서 `task_input` 의 `watchdog` 준비 flag 가 꺼지고 새 목표가 나가지 않는다.
+- heartbeat 가 돌아와도 저절로 풀리지 않는다(C-06). 푸는 방법은 리셋 서비스 하나다. 리셋은 executor heartbeat 가 살아 있을 때만 성공한다:
+  ```bash
+  ros2 service call /<ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}   # 예: /robot6/...
+  # 응답 success=True, message='ARMED' 이면 풀림. False 면 heartbeat 가 없다(task_input 확인)
+  ```
+- 리셋은 로봇을 다시 움직일 수 있게 하는 조작이다. 원인을 확인하고 로봇이 멈춘 것을 눈으로 본 뒤 사람이 판단해서 한다. 실행기 쪽 STOP latch·새 generation 규칙은 따로다. 같은 임무를 이어 가는 대신, #132 규칙대로 조정기·로봇 launch 를 다시 켜고 새 목표를 고르는 것이 확인된 절차다.
+- 입력 명령이 `command_max_age_s` 넘게 끊기면 0 을 한 번 보낼 뿐 래치하지 않는다(로그 없음). 이것으로는 영구 정지가 생기지 않는다.
+
 ## 2026-10-12 현장 수정: 파일 없는 SEARCH_AREA 입력
 
 현재 권장 실행 경로는 `task.input_mode=LIVE_ROS`다. 아래의 FILES/task_prepare 설명은
@@ -125,7 +164,7 @@ missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정
 | `namespace` | 노드 namespace 와 다르면 기동 거부 |
 | `cmd_vel_in_topic`, `cmd_vel_out_topic`, `cmd_vel_stamped`(bool) | 마지막 속도 경로. 둘이 같으면 기동 거부. `Twist`/`TwistStamped` 선택은 설치 Nav2·Create 3 설정 확인 뒤 [미확인] |
 | `executor_heartbeat_topic`, `watchdog_heartbeat_topic` | 어댑터 노드의 같은 이름 파라미터와 맞춘다 |
-| `step_period`, `watchdog.version`, `watchdog.{heartbeat_max_age_s,command_max_age_s,max_linear_mps,max_angular_rps}` | 정책. 값 미정 [미확인](T-05) |
+| `step_period`, `watchdog.version`, `watchdog.{heartbeat_max_age_s,command_max_age_s,max_linear_mps,max_angular_rps}` | 정책. 현장 임시값은 `config/field/search_area.field.json` 의 `watchdog` 절(#132: 0.05 s, 0.5 s, 0.5 s, 0.30 m/s, 1.20 rad/s). 확정은 #94·T-05 [미확인] |
 
 ## 검사
 
@@ -249,4 +288,5 @@ revision과 관측 만료를 확인한다. 기존 파일 입력은 호환 경로
 
 현장 실행 순서·명시적 시험 설정은
 [실행 안내](../../scripts/field/search-area/START_HERE.txt)에 있다. 스크립트는
-단일 로봇 시험 fixture이며 일반 배포 기본값이 아니다.
+단일 로봇 시험 fixture이며 일반 배포 기본값이 아니다. 같은 값을 launch 로 띄우는
+방법(#152)은 맨 위 「2026-10-13 현재」 절을 본다.
