@@ -276,7 +276,7 @@ class TargetWatchDetector:
             via_exit = not seen and self._track is not None and x0 <= self._track[0] <= x1 and y0 <= self._track[1] <= y1
             if not via_exit:
                 return self._result("UNKNOWN", visibility, "NOT_VIA_EXIT", stamp, None)
-            # 감시 하나당 후보는 한 번만 낸다. 다음 프레임부터는 ABSENT_CANDIDATE 상태만 이어진다.
+            # 감시 하나당 사건(후보)은 한 번만 낸다. 인형이 다시 보이면 PRESENT 로 돌아가지만 사건은 다시 내지 않는다.
             self._emitted = True
             event = self._event(frame, evidence_sha256, absent_ns)
         return self._result("ABSENT_CANDIDATE", visibility, None, stamp, event)
@@ -294,7 +294,7 @@ class TargetWatchDetector:
         # ROI 안에 없으면 직전 위치에서 가장 가까운 상자를 찾는다(사람이 들고 옮기는 중일 수 있다).
         tx, ty = self._track
         nearest = min(scored, key=lambda b: math.dist(_center(b), (tx, ty)))
-        # 한 프레임(0.2 s)에 화면의 30%(track_max_jump) 넘게 떨어져 있으면 다른 물체로 본다.
+        # 마지막 추적 위치에서 정규화 거리 0.3(track_max_jump) 넘게 떨어져 있으면 다른 물체로 본다.
         if math.dist(_center(nearest), (tx, ty)) > self.policy.track_max_jump:
             return False
         self._track = _center(nearest)

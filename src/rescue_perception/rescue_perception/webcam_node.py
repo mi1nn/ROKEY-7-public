@@ -203,7 +203,7 @@ def main(args=None):
     slot = WatchSlot(binding, watch_policy)
     # 메시지 유효 시간: valid_until = 관측 시각 + 이 값(예시 1 s). 지난 메시지는 받는 쪽이 쓰지 않는다.
     validity_ns = _ns(v['observation_validity_s'])
-    # 시계 상태 측정(webcam_clock): OS 시계 서비스(timesyncd·chrony)를 주기적으로 읽어 기록해 둔다.
+    # 시계 상태 측정(ClockSampler): OS 시계 서비스(timesyncd·chrony)를 주기적으로 읽어 기록해 둔다.
     # 메시지를 보낼 때 이 기록이 유효하면 SYNCED, 아니면 UNKNOWN 을 싣는다. 판정 결과에는 영향이 없다.
     sampler = (ClockSampler(clock_backend, clock_max_age_ns, clock_drift_ppm) if clock_backend != 'NONE' else None)
     clock = {'record': dict(state='UNKNOWN', reason='clock_backend NONE' if sampler is None else 'waiting'),
@@ -257,7 +257,7 @@ def main(args=None):
 
     # 판정 화면 색: 흰 격자 = 지진 판정 블록(굵은 선 = 사분면 경계), 노란 화살표 = 화면 이동,
     #   빨간 영역 = 출구, 초록 상자 = 감시 ROI(화면 전체면 안 그림), 파란 상자 = 인형(점수 통과),
-    #   회색 상자 = 점수 미달, 노란 선·점 = 추적 경로. 왼쪽 위 글자는 지진 조건이 참이면 분홍색.
+    #   회색 상자 = 점수 미달, 노란 선·점 = 추적 경로. 왼쪽 위 글자는 지진 조건이 참이면 보라색.
     def publish_debug(frame, stamp, sign, boxes, presence):
         """지진 판정(블록 격자·이동 화살표·방향 전환 횟수)과 출구 영역·감시 영역·인형 상자·추적 선·상태를
         그린 JPEG 을 debug_image_topic 으로."""

@@ -480,7 +480,7 @@ class DisasterSignDetector:
                   f"onset_ns={self._true_since} hold_ns={p.hold_ns} stride={p.sample_stride} "
                   f"blocks={p.blocks_x}x{p.blocks_y} search={p.search_cells}")
         # 규칙 기반 사건이라 확률이 아니다: 1.0 은 "정책 조건 충족" (#33 작전 결정, C-05).
-        # 사건 ID = uuid5(카메라/시각). 같은 영상을 다시 돌리면 같은 ID 가 나온다(재현 가능).
+        # 사건 ID = uuid5(카메라/시각). 시각까지 같은 입력(시험·원래 시각을 담은 녹화)이면 같은 ID 가 나온다.
         return SiteEvent(str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/disaster")), self.camera_id,
                          "DISASTER_SIGN", stamp, str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/frame")),
                          evidence_sha256, 1.0, frame.clock_domain_id, frame.stamp_semantics,

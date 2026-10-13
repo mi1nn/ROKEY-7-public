@@ -2,7 +2,7 @@
 
 측정은 rescue_contracts.clock_measurement(ClockSampler: timesyncd 또는 chrony, 읽기만 함)가 한다.
 최신 측정 기록이 SYNCED 이고 메시지의 관측 시각에 아직 유효할 때만 그 메시지는 SYNCED 다.
-이때 오차 상한은 측정 뒤 흐른 시간만큼 합의한 drift 로 늘린다. 아니면 오차 상한 없이 UNKNOWN 이다.
+이때 오차 상한은 측정값을 읽은 뒤(sampled_at) 흐른 시간만큼 합의한 drift 로 늘린다. 아니면 상한 없이 UNKNOWN 이다.
 설정값만으로 SYNCED 를 쓰는 곳은 없다.
 """
 import math
@@ -36,5 +36,5 @@ def observation_clock(record, observed_ns):
     # 측정 시각 이후이고 유효 기간 안에 찍은 프레임만 SYNCED.
     if not measured <= observed_ns < until:
         return unknown
-    # 오차 상한 = 측정 당시 상한 + (측정 뒤 흐른 시간 × drift ppm / 1e6). 측정이 오래될수록 넓어진다.
+    # 오차 상한 = 읽을 때의 상한 + (읽은 뒤(sampled_at) 흐른 시간 × drift ppm / 1e6). 오래 전에 읽었을수록 넓어진다.
     return 'SYNCED', bound + math.ceil(max(0, observed_ns - sampled) * drift / 1e6)
