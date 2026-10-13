@@ -52,7 +52,8 @@ class FrameHub:
         """The first frame after ``seq`` within stale_s, or None (camera stopped or hub closed)."""
         with self._cond:
             self._cond.wait_for(lambda: self._closed or self._seq > seq, timeout=self.stale_s)
-            if self._closed or self._seq <= seq:
+            if (self._closed or self._seq <= seq
+                    or self._clock() - self._at >= self.stale_s):
                 return None
             return self._seq, self._jpeg
 
