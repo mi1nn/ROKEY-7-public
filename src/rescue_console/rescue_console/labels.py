@@ -1,33 +1,33 @@
-"""Korean display words for the codes the screen shows. Pure data; no I/O.
+"""화면에 보이는 코드의 한국어 표시 낱말이다. 순수 데이터이고 입출력은 없다.
 
-The code itself is never hidden: `label` returns an unknown code unchanged, so a value
-added upstream shows up as its raw code instead of disappearing or being renamed.
+코드 자체는 감추지 않는다: `label` 은 모르는 코드를 그대로 돌려주므로, 상류에서 새로 더한
+값은 사라지거나 다른 이름으로 바뀌지 않고 원래 코드 그대로 화면에 나온다.
 
-Where each vocabulary comes from (2026-10-10, main 7a940e9):
-- role: `rescue_contracts.ROBOT_ROLES` + `UNKNOWN` (`rescue_operations.site_state._robot_status`).
-- motion: free text in site_state (<= 64 chars), copied by operations from RobotStatus.motion_state
-  (`rescue_operations.ros_ingest.robot_status_from_msg`). Values from the SDD robot
-  status (`docs/design/sdd-node-interface-spec-v0.1.md`: STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED)
-  and `UNKNOWN` (`tests/test_operations_site_state.py`).
-- readiness: free text in site_state, copied the same way from RobotStatus.readiness. READY / NOT_READY /
-  UNKNOWN from `tests/test_operations_site_state.py` and `examples/status.example.json`. RobotStatus also
-  defines DEGRADED (`src/rescue_interfaces/msg/RobotStatus.msg`); it has no word here yet and shows as its code.
+각 어휘의 출처(2026-10-10, main 7a940e9):
+- role: `rescue_contracts.ROBOT_ROLES` 에 `UNKNOWN` 을 더한 것(`rescue_operations.site_state._robot_status`).
+- motion: site_state 의 자유 문자열(<= 64자)이고, operations 가 RobotStatus.motion_state 에서 옮겨 쓴다
+  (`rescue_operations.ros_ingest.robot_status_from_msg`). 값은 SDD 로봇 상태 명세
+  (`docs/design/sdd-node-interface-spec-v0.1.md`: STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED)에서 왔고,
+  `UNKNOWN` 은 `tests/test_operations_site_state.py` 에서 왔다.
+- readiness: site_state 의 자유 문자열이고, 같은 방식으로 RobotStatus.readiness 에서 옮겨 쓴다. READY / NOT_READY /
+  UNKNOWN 은 `tests/test_operations_site_state.py` 와 `examples/status.example.json` 에서 왔다. RobotStatus 는
+  DEGRADED 도 정의한다(`src/rescue_interfaces/msg/RobotStatus.msg`). 여기에는 아직 낱말이 없어 코드 그대로 보인다.
 - rescue: `rescue_contracts.RESCUE_STATES`.
 - support: `rescue_operations.site_state.SUPPORT_STATES`.
-- approach / confirmation: report schema checks in `rescue_operations.schema` (inline tuples).
-- receipt: `rescue_operations.ledger` receipt states (RECEIVED / PENDING_EVIDENCE / PERSISTED).
-- event: `rescue_contracts.SITE_EVENT_KINDS` (TARGET_DISAPPEARED_CANDIDATE from #48, labelled ahead
-  of its merge) + `REPORT`, the console's own row kind for ledger reports (`view._events`).
-- mode: `rescue_operations.site_state.MISSION_MODES` (`rescue_contracts.SYSTEM_MODES`, S-01, plus
-  SystemState MISSION_FINISHED).
+- approach / confirmation: `rescue_operations.schema` 의 보고 스키마 검사(코드 안에 적은 튜플).
+- receipt: `rescue_operations.ledger` 의 영수증 상태(RECEIVED / PENDING_EVIDENCE / PERSISTED).
+- event: `rescue_contracts.SITE_EVENT_KINDS`(TARGET_DISAPPEARED_CANDIDATE 는 #48 에서 왔고, 머지 전에
+  낱말을 먼저 붙였다)에 `REPORT` 를 더한 것. `REPORT` 는 장부 보고에 쓰는 관제 웹 자체의 행 종류다(`view._events`).
+- mode: `rescue_operations.site_state.MISSION_MODES`(`rescue_contracts.SYSTEM_MODES`, S-01 에
+  SystemState 의 MISSION_FINISHED 를 더한 것).
 - phase / segment: `rescue_operations.site_state.MISSION_PHASES` / `SEGMENT_PHASES` (SystemState, #88·#111).
-- reply: the C-09 common codes that the coordinator puts in `SubmitOperatorCommand.reason_code`
-  (`rescue_coordination.ros_node.REASON_CODES`, OPS-58) and NAV_NOT_READY for START_SEARCH (#98).
-  The code is shown next to the word; operations may answer with other codes, shown as they come.
-The Korean words are [제안] 관제·화면, 2026-10-10 (phase / segment / reply 2026-10-12).
+- reply: 조정기가 `SubmitOperatorCommand.reason_code` 에 넣는 C-09 공통 코드
+  (`rescue_coordination.ros_node.REASON_CODES`, OPS-58)와 START_SEARCH 의 NAV_NOT_READY(#98).
+  화면은 낱말 옆에 코드를 같이 보인다. operations 가 다른 코드로 답할 수도 있고, 그때는 온 그대로 보인다.
+한국어 낱말은 [제안] 관제·화면, 2026-10-10 이다(phase / segment / reply 는 2026-10-12).
 """
 
-# kind -> {code: Korean word}. Each kind is one vocabulary listed above.
+# kind -> {코드: 한국어 낱말}. kind 하나가 위에 적은 어휘 하나다.
 LABELS = {
     'role': {'SCOUT': '정찰', 'SUPPORT': '지원', 'UNKNOWN': '모름'},
     'motion': {'MOVING': '이동 중', 'STOPPING': '정지 중', 'STOPPED': '정지',
@@ -57,9 +57,9 @@ LABELS = {
 
 
 def label(kind, code):
-    """Korean word for `code`; the code unchanged when unknown; None stays None (shown as missing).
+    """`code` 의 한국어 낱말을 돌려준다. 모르는 코드는 그대로, None 은 None 그대로다(화면에는 값 없음으로 보인다).
 
-    An unknown `kind` is a programming error and raises KeyError.
+    모르는 `kind` 는 프로그램 오류이고 KeyError 를 낸다.
     """
     table = LABELS[kind]
     if code is None:

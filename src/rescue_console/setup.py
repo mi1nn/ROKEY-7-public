@@ -11,7 +11,7 @@ setup(
         ("share/" + package_name, ["package.xml", "README.md"]),
     ],
     install_requires=["rescue_contracts==0.0.0", "rescue_operations==0.0.0"],
-    # Flask is optional: aggregation and HTML rendering need only the standard library.
+    # Flask 는 선택 의존성이다: 집계와 HTML 렌더링은 표준 라이브러리만으로 된다.
     extras_require={"web": ["flask"]},
     zip_safe=True,
     python_requires=">=3.10",
