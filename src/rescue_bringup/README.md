@@ -107,7 +107,7 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 
 ## 현장 실행 순서: PC 역할별 (2026-10-13, main 기준)
 
-PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇다.
+PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇다. 최종 구성에는 이 넷과 별도로 전용 Discovery PC 1대(서버만, 프로파일 호스트 아님)가 있다. 시험 중에는 그 PC 없이 권고안 A 로 돈다(0단계).
 
 | 호스트 id | 물리 PC | 띄우는 것 |
 | --- | --- | --- |
@@ -141,9 +141,13 @@ PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇�
 ```bash
 ping -c 20 <TB-5 Pi 주소>; ping -c 20 <TB-6 Pi 주소>      # 손실 0% 인지(로봇 담당 PC 는 자기 로봇만)
 iw dev <무선 장치> get power_save                         # PC 쪽 무선 절전(끌지는 재범이 정함)
-# Discovery: 권고안 A(최종). 전용 서버 없음. 세미콜론 자리 번호 = 서버 ID(TB-5 Pi = 5, TB-6 Pi = 6)
+# Discovery — 세미콜론 자리 번호 = 서버 ID. 지금 어느 구성인지 먼저 정하고 그 줄을 쓴다(재범 확인 2026-10-13 15:40).
+# [시험 중] 권고안 A: 각 PC 가 로봇 Pi 서버에 직접(TB-5 Pi = ID 5, TB-6 Pi = ID 6)
 #   compute_a: ';;;;;;<TB-6 Pi>:11811'   compute_b: ';;;;;<TB-5 Pi>:11811'
 #   operations·coordination: ';;;;;<TB-5 Pi>:11811;<TB-6 Pi>:11811'
+# [최종] 전용 Discovery PC 1대(옛 중앙 서버 PC, 서버 ID 0): 모든 PC 가 '<전용 PC>:11811'(자리 0)
+#   로봇이 전용 서버에 보이게 하는 방법은 결정 대기 — 로봇 Pi 에 외부 서버 추가(로봇 설정, 등급 4) 또는 서버끼리 연결.
+#   정해지기 전에는 최종 구성으로 바꾸지 않는다(로봇 토픽이 안 보인다).
 export ROS_DOMAIN_ID=<프로파일 domain_id>
 export ROS_DISCOVERY_SERVER='<위 값, 프로파일 hosts[<host id>].network 와 같게>'
 ros2 daemon stop && ros2 daemon start
