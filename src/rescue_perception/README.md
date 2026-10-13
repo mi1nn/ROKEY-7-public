@@ -11,7 +11,7 @@ main 4163a25 의 코드를 읽고 적었다(작전 OPS-210). 「구현됨」은 
 | 웹캠 인형 소실 후보 | 구현됨. 실물 웹캠으로 인형 탐지 신뢰도 0.96·소실 후보 정상 [측정, 2026-10-12, 구현 문서]. 현장 PC 와 조건별 측정은 NOT_RUN | `target_watch.py:TargetWatchDetector` |
 | 로봇 인형 탐지와 RGB-D 위치 (amr_camera·amr_target) | 구현됨. robot5 에서 깊이 약 1.350 m·base XYZ 를 사용자가 확인했다(아래 「AMR 통합 전 최종 인식 파일」). 고친 노드 전체를 로봇에서 다시 돌린 시험(E4)은 NOT_RUN | `amr_target.py:create_node`, `person_pipeline.PersonPipeline` |
 | 지도 좌표 TargetLocation (target_locator) | 구현됨. 실기 NOT_RUN | `target_locator.py:main`, `target_location.py` |
-| TB-6 재확인 관측 (ObserveTarget) | 구현됨. 실기 NOT_RUN | `recheck_server.py:RecheckServer`, `recheck.py` |
+| TB-6 재확인 관측 (ObserveTarget) | 구현됨, 지금 시나리오에서는 쓰지 않음(scope Q-10, completion_mode EXIT_ARRIVAL). 실기 NOT_RUN | `recheck_server.py:RecheckServer`, `recheck.py` |
 | 출구 QR (여러 출구, 정확히 같은 내용만) | 구현됨. 실기 NOT_RUN | #245, `exit_qr.py:detect_qrs`·`ExitQrConfirmer` |
 | 머리 위 구조물(터널) 판정 overhead_passage | 구현됨. 실기 NOT_RUN. 높이 기준을 먼저 확인해야 한다(아래 절) | #259, `overhead.py:judge`·`PassageRegistry` |
 | 터널 판정 영상 passage_view | 구현됨. 실기 NOT_RUN(미리보기 해상도·속도, 각 PC 글꼴) | #264, `overhead.py:render_view` |
@@ -307,7 +307,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 필수 파라미터(기본값 없음)는 `rescue_perception.overhead.OVERHEAD_PARAMS` 이고, launch 가 현장 실행 파일 `passage.*` 와 `passage.overhead.*` 에서 채운다. 시험: `tests/test_perception_overhead.py`, `tests/test_contracts_overhead.py`, `tests/test_bringup_passage.py`, `tests/ros/e3_overhead_probe.py`(격리 도메인, 실제 노드). 실제 OAK-D 점구름, 현장 PC 의 수신·처리 시간, TB-6 라이다 높이는 NOT_RUN 이다.
 
-실기 NOT_RUN: 높이 기준을 먼저 확인해야 한다(작전 OPS-203). 판정 높이는 `base_frame`(base_link) 점의 z 이고, `lidar_plane_m` 0.23 m 는 바닥에서 잰 값이다. 열린 PR #254 의 측정대로 바닥 점이 base_link 기준 약 −0.2 m 라면, 높이가 실제보다 약 0.2 m 낮게 나오고 바닥 근처 물체가 바닥으로 세어진다 [계산, 측정 아님].
+실기 NOT_RUN: 높이 기준을 먼저 확인해야 한다(작전 OPS-203). 판정 높이는 `base_frame`(base_link) 점의 z 이고, `lidar_plane_m` 0.23 m 는 TB-5 에서 바닥부터 줄자로 잰 값이다 [측정, 2026-10-13]. TB-6 은 같은 모델이라 같은 값으로 본 것이다 [추정]. 열린 PR #254 의 측정대로 바닥 점이 base_link 기준 약 −0.2 m 라면, 높이가 실제보다 약 0.2 m 낮게 나오고 바닥 근처 물체가 바닥으로 세어진다 [계산, 측정 아님].
 
 ### 출구 QR (OPS-136/138, 여러 출구 OPS-154/157)
 
