@@ -37,7 +37,7 @@ STAGE_RULES = (
 # (rescue_console.commands); the rest stay off here whatever the state.
 COMMANDS = (
     ('START_SEARCH', '수색 시작'),
-    ('DISPATCH_SUPPORT', '지원 로봇 출동 승인'),   # named after the SUPPORT robot when known (_command_words)
+    ('DISPATCH_SUPPORT', 'SUPPORT 출동 승인'),   # the SUPPORT robot's name once a status names it (_command_words)
     ('CONTINUE_SEGMENT', '다음 구간 계속'),
     ('REQUEST_RECHECK', '재확인 지시'),
     ('RETURN_HOME', '복귀'),
