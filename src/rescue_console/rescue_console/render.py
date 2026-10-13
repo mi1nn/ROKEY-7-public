@@ -21,6 +21,7 @@ ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.6, 4.8, 2.0
 
 
 def _text(value):
+    """Any value as escaped text; None shows MISSING."""
     return MISSING if value is None else escape(str(value))
 
 
@@ -69,6 +70,10 @@ FAILURE_RETRY_S = 5
 
 
 def _short(ident):
+    """Short ID for tables: up to SHORT_ID + 1 characters shown whole, longer ones cut to SHORT_ID.
+
+    The full ID stays in the title tooltip; None shows MISSING. The page script's shortId uses the same rule.
+    """
     if ident is None:
         return MISSING
     text = str(ident)
@@ -77,10 +82,15 @@ def _short(ident):
 
 
 def _word(kind, code):
+    """A code as its Korean word (labels.label), escaped; an unknown code shows as itself, None as MISSING."""
     return _text(label(kind, code))
 
 
 def _elapsed(seconds):
+    """Mission elapsed time in whole seconds: 분/초 under an hour, 시간/분 under a day, then 일/시간.
+
+    Unlike `_age`, None or a negative value (trigger later than the build time) shows MISSING.
+    """
     if seconds is None or seconds < 0:
         return MISSING
     seconds = int(seconds)
@@ -92,6 +102,10 @@ def _elapsed(seconds):
 
 
 def _pose(pose):
+    """Pose text `(x, y) m` with the yaw in whole degrees when known, escaped; None shows MISSING.
+
+    A frame other than MAP_FRAME is named in brackets, so the numbers are not read as map coordinates.
+    """
     if pose is None:
         return MISSING
     text = f"({pose['x']:.2f}, {pose['y']:.2f}) m"
@@ -125,6 +139,7 @@ def _reason(reason):
 
 
 def _scoped_reason(view, *scopes, tag='p'):
+    """The coordinator reason as one element, only when its scope is one of `scopes`; otherwise ''."""
     reason = view['mission'].get('reason_view')
     if reason is None or reason['scope'] not in scopes:
         return ''
@@ -266,6 +281,11 @@ def _map(view):
 # ---- units and victims (fragment) -----------------------------------------------------------
 
 def _battery(robot):
+    """Battery bar for a robot card: colour by BATTERY_LOW / BATTERY_WARN, the value and the reading's age.
+
+    No reading shows 「배터리 값 없음」, not an empty or 0 % bar. Only the bar width is clamped to 0-100;
+    the number shows the value as received.
+    """
     percent = robot['battery_percent']
     if percent is None:
         return '<div class="battery none"><span class="value">배터리 값 없음</span></div>'
@@ -277,6 +297,12 @@ def _battery(robot):
 
 
 def _robots(view):
+    """Robot cards in deployment order (view['robots']).
+
+    A robot with no status yet gets a warning card, not empty values. Otherwise: motion and readiness words,
+    battery, pose, active task, time since operations received the status, the coordinator reason scoped to
+    its role, and a stale note when that status is old (the last values stay, dimmed by the `stale` class).
+    """
     units = []
     for robot in view['robots']:
         role = robot['role']
@@ -305,6 +331,13 @@ def _robots(view):
 
 
 def _targets(view):
+    """Victims panel: a count per stage, then one row per target in the view's order.
+
+    A row shows the stage and its rule ID, position, rescue and approach words, support, a disappearance
+    candidate (a fixed-camera hint only; a robot re-check decides rescue) and the report count, which reads
+    「보고 장부 입력 없음」 without a ledger rather than 0. The coordinator reason goes on the dispatched target,
+    or, under AUTO dispatch with nothing dispatched yet, on every NOT_RESCUED target.
+    """
     counts = ''.join(
         f'<li class="{stage.lower()}">{_victim_icon(stage)}<span>{escape(STAGES[stage])}</span>'
         f'<b>{view["stage_counts"][stage]}</b></li>' for stage in STAGE_ORDER)
@@ -345,6 +378,11 @@ def _targets(view):
 # ---- event log (fragment) -------------------------------------------------------------------
 
 def _event_text(event):
+    """Content cell of an event row.
+
+    A REPORT reads its confirmation, approach and receipt words; a site event its confidence and note.
+    Nothing to show gives MISSING.
+    """
     if event['kind'] == 'REPORT':
         return (f'{_word("confirmation", event["confirmation"])}, {_word("approach", event["approach"])}, '
                 f'{_word("receipt", event["receipt"])}')
@@ -355,11 +393,17 @@ def _event_text(event):
 
 
 def _events(view):
+    """Event log table in the view's order (newest first); the header says when only the latest rows are shown.
+
+    Each row carries data-* attributes (ref, event and received ns, kind, clock domain) for the page script,
+    which fills the 화면 표시 and 지연 cells (KPI-04) and keeps them across polls; the server sends MISSING there.
+    """
     rows = []
     built = view['built_at_ns']
     for event in view['events']:
         rows.append(
             f'<tr class="event {event["kind"].lower()}" data-ref="{escape(event["ref_id"])}" '
+            # Site event rows have no ledger time (read_site_events does not return one), so it stays empty.
             f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
             f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}">'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
@@ -387,6 +431,12 @@ def _reply(code):
 
 
 def _history(view):
+    """Operator command and operations error history (operator_commands and error_log, from --site-state).
+
+    None (e.g. a --status fixture) shows how to get it instead of an empty table. A command row shows
+    접수/거절 with the reason word and code and the target; an error row shows its code and detail.
+    Inputs that are missing are listed by name.
+    """
     history = view['history']
     head = '<h2>명령·오류 기록</h2>'
     if history is None:
@@ -697,6 +747,9 @@ form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}
 # Stamps each event row with the browser time it first appeared (KPI-04), and runs the command panel.
 # GET for the fragment; the one POST is an operator command to this console's /commands.
 _SCRIPT = """
+// Page state: firstSeen maps an event ref_id to the browser time its row was first drawn; window.kpi04
+// holds one latency record per event (saved as CSV by saveKpi); loaded turns true after the first stamp();
+// lastOk is the time of the last good poll; FRESH_MS is how long a newly arrived row stays highlighted.
 const firstSeen = new Map();
 window.kpi04 = [];
 const FRESH_MS = 3000;
@@ -706,6 +759,7 @@ function clock(ms) {
   const d = new Date(ms), pad = (n, w) => String(n).padStart(w || 2, '0');
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
 }
+// Age text like render.py _age, except two decimals (not one) under a minute.
 function age(s) {
   const sign = s < 0 ? '-' : '', v = Math.abs(s);
   if (v < 60) return sign + v.toFixed(2) + 's';
@@ -713,6 +767,10 @@ function age(s) {
   if (v < 86400) return sign + Math.floor(v / 3600) + '시간 ' + Math.floor(v % 3600 / 60) + '분';
   return sign + Math.floor(v / 86400) + '일';
 }
+// Fills the 화면 표시 and 지연 cells of every event row; runs after each poll, because each new fragment
+// arrives with those cells unfilled (—). A ref_id seen for the first time gets the current browser time in firstSeen
+// and one KPI-04 record, so an event's latency is measured once, when its row first appears. The latency
+// is browser clock minus event clock, so it means something only when the two clocks agree (C-03).
 function stamp() {
   const now = Date.now();
   for (const row of document.querySelectorAll('tr.event')) {
@@ -735,6 +793,7 @@ function stamp() {
   loaded = true;
   kpiSummary();
 }
+// The #kpi line: over live records only, how many are within the KPI-04 budget and the worst latency.
 function kpiSummary() {
   const el = document.getElementById('kpi');
   if (!el) return;
@@ -749,6 +808,7 @@ function kpiSummary() {
   el.className = within === live.length ? 'ok' : 'over';
   el.textContent = 'KPI-04: 실시간 사건 ' + live.length + '건 중 ' + KPI_BUDGET_S + '초 이내 ' + within + '건, 최대 ' + age(worst);
 }
+// One CSV cell, quoted (with inner quotes doubled) when it holds a quote, a comma or a newline.
 function csvCell(value) {
   const text = String(value);
   return /[",\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
@@ -770,6 +830,8 @@ function title(lost) {
   const tag = lost ? '[갱신 끊김] ' : band && band.dataset.mode === 'DISASTER' ? '[재난] ' : '';
   document.title = tag + '구조 관제';
 }
+// Shows the result of a poll in the tab title and #poll. It also re-applies the command gates, since a
+// lost screen turns every command button off. On failure lastOk is kept, so the text says how old the view is.
 function pollStatus(ok, message) {
   title(!ok);
   screenLost = !ok;
@@ -785,6 +847,9 @@ function pollStatus(ok, message) {
   }
 }
 let timer = null;
+// One poll, started by setInterval at the bottom without waiting for the previous one to finish: GET the
+// fragment, swap #live, then stamp the event rows, read the new gates and mark the screen live. Any
+// failure only marks the screen lost; the last good fragment stays on screen.
 async function poll() {
   try {
     const response = await fetch('fragment', {cache: 'no-store'});
@@ -819,35 +884,52 @@ const allowed = panel.dataset.allowed === '1';
 const confirmBox = document.getElementById('cmd-confirm'), pick = document.getElementById('cmd-pick');
 const sendButton = document.getElementById('cmd-send'), cancelButton = document.getElementById('cmd-cancel');
 const LOG_ROWS = 6;
+// gates: the latest gate mirror; armed: the command whose confirm step is open ({kind, name, args as a
+// JSON string, choices}); sending: a POST is in flight; screenLost: the last poll failed.
 let gates = {}, armed = null, sending = false, screenLost = false;
+// Reads the gate JSON from the fragment's hidden #gates. A missing or unreadable mirror means no gates,
+// so every button goes off instead of keeping the previous gates.
 function readGates() {
   const el = document.getElementById('gates');
   try { gates = el ? JSON.parse(el.dataset.gates) : {}; } catch (error) { gates = {}; }
 }
+// Button label of a command kind, for the confirm step and the answer list; the kind itself without a button.
 function nameOf(kind) {
   const button = panel.querySelector('button[data-command="' + kind + '"] .cmd-label');
   return button ? button.textContent : kind;
 }
+// Same shortening as render.py _short.
 function shortId(id) { return String(id).length > 9 ? String(id).slice(0, 8) : String(id); }
+// The target picked in the confirm step, or null when the armed command has no choices.
 function chosen() { return armed && armed.choices.length ? armed.choices[pick.selectedIndex] : null; }
+// True while the open confirm step still matches the latest gate: the gate is on, its args are unchanged
+// and the picked target is still among its choices. Otherwise what the operator confirmed is out of date.
 function sameArmed(gate) {
   if (!gate || !gate.enabled || JSON.stringify(gate.args) !== armed.args) return false;
   const choice = chosen();
   return !choice || gate.choices.some(c => JSON.stringify(c) === JSON.stringify(choice));
 }
+// Sets every command button from its gate and writes the reason under it. A button is on only with this
+// page's access, its gate on, a live screen, nothing sending and no confirm step open.
 function applyGates() {
   for (const button of panel.querySelectorAll('button[data-command]')) {
     const gate = gates[button.dataset.command] || {enabled: false, reason: '관문 정보 없음'};
+    // While polls fail the gates may be old, so no command is offered from a screen that is not current.
     const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 꺼 둠' : gate.reason;
     button.disabled = !allowed || !gate.enabled || screenLost || sending || armed !== null;
     button.classList.toggle('armed', armed !== null && armed.kind === button.dataset.command);
     button.querySelector('.why').textContent = reason;
     button.title = reason;
   }
+  // An open confirm step is cancelled when its gate changed or the screen went stale, and the operator is
+  // told to press again. Never while sending: the POST is already out and cancelling would not stop it.
   if (armed && !sending && (screenLost || !sameArmed(gates[armed.kind]))) {
     disarm('상태가 바뀌어 ' + armed.name + ' 확인을 취소했습니다. 다시 누르세요.');
   }
 }
+// Lists in the confirm step what goes with the command besides the picked target: its revision for
+// DISPATCH_SUPPORT and each gate arg under a Korean label. Runs again when another target is picked.
+// Values are set with textContent, so nothing from the gates is parsed as HTML.
 function showArgs() {
   const rows = [], args = JSON.parse(armed.args), choice = chosen();
   const labels = {target_id: '대상', target_revision: '대상 revision', route_revision: '경로 revision',
@@ -868,6 +950,8 @@ function showArgs() {
     list.append(dt, dd);
   }
 }
+// First press: opens the confirm step for one command and turns every command button off. The gate's args and
+// choices are copied into armed now, so a later poll cannot change what is sent (sameArmed cancels instead).
 function arm(kind) {
   const gate = gates[kind];
   if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
@@ -885,6 +969,7 @@ function arm(kind) {
   applyGates();
   sendButton.focus();
 }
+// Closes the confirm step and resets its buttons; a message says in the answer list why it was closed.
 function disarm(message) {
   armed = null;
   confirmBox.hidden = true;
@@ -893,6 +978,8 @@ function disarm(message) {
   if (message) log('info', message);
   applyGates();
 }
+// Adds one timestamped line (class accepted, rejected, failed or info) on top of this page's answer list
+// and keeps the newest LOG_ROWS. It shows only this page's presses; the history table is the shared record.
 function log(kind, text) {
   const item = document.createElement('li'), time = document.createElement('time');
   item.className = kind;
@@ -902,6 +989,9 @@ function log(kind, text) {
   list.prepend(item);
   while (list.children.length > LOG_ROWS) list.lastChild.remove();
 }
+// Turns the console's answer into [class, text] for the answer list. sent === true: operations answered
+// (accepted means 접수, not done). sent === false: not delivered, or delivery unknown with the command_id to
+// look up. Anything else (an unexpected HTTP answer) is a failure whose delivery is unknown.
 function describe(name, status, result) {
   if (result && result.sent === true) {
     const id = ' — request_id ' + result.request_id + (result.request_state ? ' (' + result.request_state + ')' : '');
@@ -916,6 +1006,9 @@ function describe(name, status, result) {
   }
   return ['failed', name + ': 보내지 못함 — 콘솔 응답 HTTP ' + status + ', 전달됐는지 모름'];
 }
+// Second press (보내기): exactly one POST to this console's commands route with the CSRF token, kind, picked
+// target and args; the answer or the failure is logged and the confirm step closed. There is no retry
+// (AGENTS.md 7절): the console gives every POST a new command_id, so a resend would be a second command.
 async function send() {
   if (!armed || sending) return;
   const body = new URLSearchParams({csrf: panel.dataset.csrf, kind: armed.kind});
@@ -944,6 +1037,8 @@ async function send() {
   sending = false;
   disarm();
 }
+// One click listener on the panel (event delegation) for every command button; 취소 and Escape close the
+// confirm step, but Escape does nothing while a command is being sent.
 panel.addEventListener('click', event => {
   const button = event.target.closest('button[data-command]');
   if (button && !button.disabled) arm(button.dataset.command);
@@ -953,6 +1048,8 @@ sendButton.addEventListener('click', send);
 cancelButton.addEventListener('click', () => disarm());
 confirmBox.addEventListener('keydown', event => { if (event.key === 'Escape' && !sending) disarm(); });
 
+// Start: the page arrived with a server-drawn fragment, so stamp it (as history, not live) and apply its
+// gates, then poll on a fixed interval.
 stamp();
 readGates();
 pollStatus(true);
@@ -961,6 +1058,7 @@ timer = setInterval(poll, POLL_MS);
 
 
 def _head(title):
+    """Document start with the stylesheet inline: pages load nothing from outside (the field may have no internet)."""
     return ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{escape(title)}</title><style>{_STYLE}</style></head><body>')
@@ -1006,12 +1104,14 @@ function watchCameras() {
     const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
     const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
     let last = Date.now(), retried = Date.now();
+    // A frame's load event is the sign of life; it also clears the lost mark.
     img.addEventListener('load', () => {
       last = Date.now();
       if (figure.classList.contains('lost')) {
         figure.classList.remove('lost'); note.textContent = ''; note.className = '';
       }
     });
+    // Checked every stale / 2 ms, kept within 100-500 ms.
     setInterval(() => {
       const now = Date.now();
       if (now - last < stale) return;
@@ -1048,6 +1148,7 @@ def _cameras(cameras, stale_ms=None):
 
 
 def page_title(view):
+    """Tab title at load; the page script's title() keeps it current after each poll."""
     return ('[재난] ' if view['mission']['mode'] == 'DISASTER' else '') + '구조 관제'
 
 
