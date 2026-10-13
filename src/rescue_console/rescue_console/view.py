@@ -623,6 +623,30 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
     return rows
 
 
+PASSAGE_WORDS = {'PASSABLE': '통과 가능', 'BLOCKED': '통과 불가', 'UNKNOWN': '판정 불가'}   # OPS-196 지도·카메라 공통
+
+
+def _passages(section, warnings):
+    """터널 판정(#262 read_overhead_passages, OPS-189·196): 지도에 그릴 행. 지금 지도(current_map 의 session·revision)와
+    같은 항목은 current True(진하게), 다르면 False(흐리게). current_map 을 모르면 전부 진하게 그리고 그 사실을 적는다."""
+    if section is None:
+        return []
+    current = section.get('current_map')
+    rows = []
+    for listing in section['robots'].values():
+        for item in listing['items']:
+            word = PASSAGE_WORDS.get(item['state'], item['state'])
+            label = word if item['lowest_m'] is None or item['state'] == 'UNKNOWN' else f'{word} ↑{item["lowest_m"]:.2f} m'
+            rows.append({'id': item['id'], 'robot_id': listing['robot_id'], 'state': item['state'], 'label': label,
+                         'x': item['x'], 'y': item['y'], 'frame_id': listing['map_frame'],
+                         'map_revision': item['map_revision'], 'last_seen_ns': item['last_seen_ns'],
+                         'current': current is None or (item['map_session_id'], item['map_revision'])
+                         == (current['map_session_id'], current['map_revision'])})
+    if rows and current is None:
+        warnings.append('현재 지도 revision 모름 — 터널 판정을 모두 진하게 그림')
+    return rows
+
+
 def _exit(section):
     """최신 exit_qr 관측 정보(#237, 최신 순 정렬, VALID 판정만) 또는 None 반환. 단순 센서 관측치이며
     조정기에 등록 확정된 출구와는 구별된다(미등록 시 SUPPORT_EXIT_UNREGISTERED 사유로 노출됨)."""
@@ -742,9 +766,11 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         # 조정기는 search_start AUTO 모드로 동작 중이나, 콘솔은 수동 시작 버튼을 제시하는 불일치 상황 안내.
         warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
     exits = _section(status, 'exit_locations', 'exits')
+    passages = _passages(status.get('overhead_passages'), warnings)
     return {
         'built_at_ns': built_at_ns,
         'exit': _exit(exits),
+        'passages': passages,
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],
         'mission': mission,
         'robots': robots,
