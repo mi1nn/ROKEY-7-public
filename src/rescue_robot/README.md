@@ -43,6 +43,15 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 - 서버의 답(OBSERVED·UNKNOWN·FAILED)은 그대로 `TaskResult.recheck` 에 싣는다(`has_recheck=true`). 묻지 못했으면 `has_recheck=false` 다(대상 위치 없음, 서버 없음, 마감까지 답 없음 → 취소 요청). 작업 결과(outcome)는 바꾸지 않는다.
 - 호출은 ExecuteTask 의 `execute` 코루틴에서 `await` 한다(실행기 잠금 밖). 단일 스레드 executor 에서도 멈추지 않는다.
 
+**로봇 위치(RobotPose)와 지도 상태(MapState) 발행(2026-10-13)**
+
+`task_input`(LIVE_ROS)은 자기 로봇의 위치와 지도 상태를 낸다. 조정기는 TB-5 위치로 자동 출동을 판단하고 지도 상태로 복귀 위치를 비교한다. db_writer 는 이 위치를 관제 지도에 그린다.
+
+| 토픽 | QoS | 언제 | 내용 |
+| --- | --- | --- | --- |
+| `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN` |
+| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 을 스스로 올리지 않는다 |
+
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 
 로봇이 멈췄는데 Nav2 는 목표를 계속 보내고 있다면 watchdog 을 먼저 본다. 로그에 이 줄이 있으면 watchdog 이 세운 것이다(WARN):

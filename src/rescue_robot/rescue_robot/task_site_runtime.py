@@ -683,6 +683,10 @@ class SiteRuntime:
             self.observe=RecheckClient(self,action_name=f'/rescue/robots/{self.adapter.robot_id}/observe_target')
         if self.saved_maps is not None:
             from rescue_robot.live_sources import attach_sources
+            if 'pose_valid_ns' in self.config:
+                from rescue_robot.live_pose import LivePosePublisher
+                self.saved_maps.publisher=LivePosePublisher(self,pose_valid_ns=self.config['pose_valid_ns'],
+                                                            sensor_clock=self.config['sensor_host_clock'])
             attach_sources(self)
         timer=self.node.create_timer(self.config['poll_period_s'],self._check_input_session)
         self.input_handles.append(('destroy_timer',timer))

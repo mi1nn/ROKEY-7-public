@@ -31,7 +31,11 @@ def read_config(node, adapter):
         'task.live.auto_target.enabled': T.PARAMETER_BOOL, 'task.live.auto_target.kinds': T.PARAMETER_STRING_ARRAY,
         'task.live.auto_target.goal_clear_radius_m': D, 'task.live.auto_target.policy_version': S,
         # ObserveTarget after a REOBSERVE_TARGET stop (C1-b): observation window and whole-call deadline
-        'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I}
+        'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I,
+        # RobotPose time.valid_until_ns = AMCL stamp + this (live_pose; coordinator applies its own age limit)
+        'task.live.pose_valid_ns': I,
+        # The robot Pi clock that stamps the scans (AMCL pose time): domain and bound measured on the Pi, -1 = not
+        'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
     values, missing = declare_required(node, fields)
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
@@ -68,6 +72,9 @@ def read_config(node, adapter):
     c['recheck'] = {key:get('live.recheck.'+key) for key in ('window_ns','deadline_ns')}
     # The coordinator's TargetSnapshot: target revision and position for REOBSERVE (IF-070)
     c['coordinator_targets_topic'] = '/rescue/targets'
+    c['pose_valid_ns'] = get('live.pose_valid_ns')
+    c['sensor_host_clock'] = dict(domain_id=get('live.sensor_host_clock_domain_id'),
+                                  error_bound_ns=get('live.sensor_host_clock_error_bound_ns'))
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:
