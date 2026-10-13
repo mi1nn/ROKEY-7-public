@@ -85,8 +85,8 @@
         "page_name": "00 통합 시스템 설계도_PC3대",
         "date": "2026-10-13",
         "speaker": "PM (Codex user conversation)",
-        "source_quote": "웹캠과 관제 웹을 PC3에 동시에 띄우는 로직으로 변경하는 내용이야. 여기에는 총 사용하는 PC가 3대로 AMR1, AMR2, 웹캠 및 관제 모니터 이렇게 3개야.",
-        "physical_pc_count": 3,
+        "source_quote": "PC1은 AMR1, PC2는 AMR2, PC3은 웹캠 및 웹, PC4는 discovery server 역할이다.",
+        "physical_pc_count": 4,
         "browser_host": "PC3",
         "node_host_overrides": {
           "central.frames": "PC3",
@@ -94,11 +94,16 @@
           "central.operations": "PC3",
           "central.web": "PC3",
           "central.db": "PC3",
-          "central.discovery": "PC3"
+          "central.discovery": "PC4"
         },
         "status": "PLACEMENT_PROPOSAL_NOT_DEPLOYED",
-        "transport_rule": "Logical IF IDs/types/endpoints/source-target stay unchanged; camera and central processes now communicate within PC3. Browser receives HTTP only; web reads SQLite read-only; operations is sole DB writer. Discovery only discovers peers.",
-        "validation": "Concurrent camera/web/DB/DDS load, process isolation, failure recovery and deployment/network bindings NOT_RUN"
+        "transport_rule": "Logical IF IDs/types/endpoints/source-target unchanged; central.discovery alone on dedicated PC4 (TurtleBot4/Fast DDS Discovery Server). PC3 camera/central/web/browser share one host. IF-086 discovery only; application Topic/Service/Action data are not centrally relayed by PC4. Browser HTTP only, web SQLite read-only, operations sole DB writer.",
+        "validation": "Concurrent camera/web/DB/DDS load, process isolation, failure recovery and deployment/network bindings NOT_RUN",
+        "application_pc_count": 3,
+        "dedicated_discovery_pc_count": 1,
+        "discovery_host": "PC4",
+        "supersedes": "Earlier same-day 3-total-PC proposal placed Discovery in PC3; superseded by explicit dedicated PC4 clarification.",
+        "page_name_note": "Keep user page name PC3대: three application PCs plus one dedicated Discovery PC, four physical PCs total."
       }
     }
   },

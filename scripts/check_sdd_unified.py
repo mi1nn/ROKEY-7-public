@@ -92,9 +92,7 @@ def check_graph(data, xml, page_index=0):
             require(b in adjacency[a], 'web provenance: ' + a + ' -> ' + b)
     require(len([o for o in objects if o.get('webPanel')]) == 8, 'web panels')
     hosts = {o.get('hostId'): o.get('id') for o in objects if o.get('hostId')}
-    expected_hosts = {'BROWSER', 'PC1', 'PC2', 'PC3', 'AMR1', 'AMR2'}
-    if page_index == 0:
-        expected_hosts.add('PC4')
+    expected_hosts = {'BROWSER', 'PC1', 'PC2', 'PC3', 'PC4', 'AMR1', 'AMR2'}
     require(set(hosts) == expected_hosts, 'host swimlanes')
     entries = {e.get('id'): e for e in root}
 
@@ -115,7 +113,10 @@ def check_graph(data, xml, page_index=0):
         require(physical_host('node-' + node['id']) == overrides.get(node['id'], node['host']),
                 'node placement: ' + node['id'])
     if page_index:
-        require(variant['physical_pc_count'] == 3 and pages[1].get('physicalPCCount') == '3', 'physical PC count')
+        require(variant['physical_pc_count'] == 4 and pages[1].get('physicalPCCount') == '4', 'physical PC count')
+        require(variant['application_pc_count'] == 3 and variant['dedicated_discovery_pc_count'] == 1
+                and pages[1].get('applicationPCCount') == '3' and pages[1].get('discoveryPCCount') == '1', 'application/discovery PC count')
+        require(variant['discovery_host'] == 'PC4' and physical_host('node-central.discovery') == 'PC4', 'dedicated discovery host')
         require(variant['browser_host'] == 'PC3' and physical_host(hosts['BROWSER']) == 'PC3', 'local browser host')
     # The existing ExecuteTask/ObserveTarget wires are the mandatory recheck path.
     for a, b in [('node-central.coordinator', 'if-IF-021'), ('if-IF-021', 'node-amr1.executor'),
@@ -201,13 +202,18 @@ def main():
     require(CHUNKS.findall(xml)[2:] == CHUNKS.findall(original)[1:], '01-11 not byte-identical to base')
     if args.self_test:
         # These mutations exercise coverage and latest-decision checks, not runtime behavior.
-        for mutation in ('node', 'interface', 'edge', 'completion', 'placement', 'browser'):
+        for mutation in ('node', 'interface', 'edge', 'completion', 'placement', 'browser', 'discovery', 'pc_count'):
             tree = ET.fromstring(xml)
-            page_index = 1 if mutation in ('placement', 'browser') else 0
+            page_index = 1 if mutation in ('placement', 'browser', 'discovery', 'pc_count') else 0
             entry_root = tree[page_index].find('./mxGraphModel/root')
             changed = copy.deepcopy(data)
             if mutation == 'completion':
                 changed['metadata']['completion_requirement']['mode'] = 'NO_RECHECK'
+            elif mutation == 'pc_count':
+                tree[1].set('physicalPCCount', '3')
+            elif mutation == 'discovery':
+                pc3 = next(o for o in entry_root.findall('object') if o.get('hostId') == 'PC3').get('id')
+                next(o for o in entry_root.findall('object') if o.get('sddNodeId') == 'central.discovery').find('mxCell').set('parent', pc3)
             elif mutation in ('placement', 'browser'):
                 key = 'sddNodeId' if mutation == 'placement' else 'hostId'
                 value = 'central.operations' if mutation == 'placement' else 'BROWSER'
@@ -221,8 +227,8 @@ def main():
                 pass
             else:
                 raise ValueError('negative case accepted: ' + mutation)
-        print('PASS self-test: missing node/interface/edge, wrong completion mode and detached PC3 node/browser rejected')
-    print(f'PASS XML/JSON/CSV/Markdown; pages=13; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8/page; hosts=7/6; physical_PC=4/3; original_pages=11; unrelated_overlap=0')
+        print('PASS self-test: missing node/interface/edge, wrong completion/count/PC3 placement and misplaced Discovery rejected')
+    print(f'PASS XML/JSON/CSV/Markdown; pages=13; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8/page; hosts=7/7; physical_PC=4; application_PC=3; dedicated_discovery_PC=1; original_pages=11; unrelated_overlap=0')
 
 
 if __name__ == '__main__':
