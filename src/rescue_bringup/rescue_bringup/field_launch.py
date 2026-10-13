@@ -36,7 +36,16 @@ COORDINATOR_KEYS = {
     'live_inputs.clock_domain_id': S, 'live_inputs.clock_max_age_ns': I, 'live_inputs.clock_drift_ppm': F,
     'live_inputs.poll_period_s': F, 'live_inputs.search_goal_topic': S,
     'camera_watch_timeout_s': F,  # SetCameraWatch answer wait (coordination C2)
+    # TB-5 automatic dispatch (user decision 1B, 2026-10-13; coordination)
+    'support_dispatch': S, 'approach_standoff_m': F, 'support_pose_max_age_s': F,
+    # TargetLocation time checks (coordination OPS-103, 2026-10-13)
+    'target_clock_domain_id': S, 'target_max_age_s': F, 'target_max_future_s': F,
+    # TB-5 waits at the target (APPROACH_TARGET completed, stop confirmed) before leaving for the exit
+    'support_exit_wait_s': F,
+    # Recheck -> rescue verdict: largest clock error of a recheck observation the coordinator accepts
+    'recheck_max_clock_error_s': F,
 }
+SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
     **{'policy.' + name: F for name in ('acceptance_timeout', 'stop_timeout', 'stop_window', 'max_sample_gap',
@@ -51,8 +60,14 @@ ROBOT_KEYS = {
     'task.saved_map.transform_xy_yaw': FL,
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
+    'task.live.pose_valid_ns': I,  # RobotPose validity after the AMCL stamp (live_pose, 2026-10-13)
 }
-ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S}
+# Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
+# Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
+ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
+                       'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
+                       'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S,
+                       'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
@@ -146,6 +161,18 @@ def load_field(path):
     if robot['task.live.coordinator_service'] != TASK_INPUTS_SERVICE:
         raise FieldLaunchError(f'robot.task.live.coordinator_service must be {TASK_INPUTS_SERVICE} '
                                f'(the coordinator node this launch starts)')
+    if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
+        raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
+    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s'):
+        if coordinator[key] <= 0:
+            raise FieldLaunchError(f'coordinator.{key} must be positive')
+    if coordinator['support_exit_wait_s'] < 0:
+        raise FieldLaunchError('coordinator.support_exit_wait_s must be zero or positive')
+    if coordinator['target_max_future_s'] < 0:
+        raise FieldLaunchError('coordinator.target_max_future_s must be zero or positive')
+    if coordinator['target_clock_domain_id'] != coordinator['live_inputs.clock_domain_id']:
+        raise FieldLaunchError('coordinator.target_clock_domain_id must be the coordinator clock domain '
+                               '(live_inputs.clock_domain_id)')
     if robot['task.coordinator_state_topic'] != SYSTEM_STATE_TOPIC:
         raise FieldLaunchError(f'robot.task.coordinator_state_topic must be {SYSTEM_STATE_TOPIC}')
     if len(robot['task.saved_map.transform_xy_yaw']) != 3:
@@ -202,6 +229,11 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
         # launch_ros refuses it and --params-file / -p leave it unset (measured 2026-10-13).
         raise FieldLaunchError('route_segment_passage_free cannot be [] through ROS parameters; '
                                'give one true/false per segment end')
+    if len(passage) != len(goals) // 3:
+        # The coordinator holds every segment on a length mismatch (PASSAGE_ASSESSMENT_REQUIRED);
+        # a mismatch is never meant, so refuse it here instead of at run time.
+        raise FieldLaunchError(f'route_segment_passage_free needs one true/false per segment end: '
+                               f'{len(goals) // 3} segments, {len(passage)} flags')
     if not profile_path:
         raise FieldLaunchError('profile_path is required')
     roi = {}

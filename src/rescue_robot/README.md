@@ -4,16 +4,45 @@
 
 **실행.** 로봇 쪽은 `rescue_bringup` 의 `robot.launch.py`(#152)로 띄운다. TurtleBot4 Nav2(최종 `cmd_vel` 을 watchdog 입력으로 remap) + `command_watchdog` + `task_input` 을 한 번에 띄운다. 값은 배포 프로파일, 현장 실행 파일 `config/field/search_area.field.json`(#132 값), 현장에서 잰 지도 해시(`scripts/field/map_occupancy_sha256.py`)에서 온다. 명령·순서는 [rescue_bringup README](../rescue_bringup/README.md) 「SEARCH_AREA 현장 실행」 절에 있다. #132 의 `scripts/field/search-area/start_*.sh` 는 같은 값의 원본으로 남아 있고, 시험(`tests/test_bringup_field_launch.py`)이 launch 값과 대조한다.
 
-**실행 전 점검.** PR #156 머지 뒤: `scripts/field/preflight_role.py --role <host id>` 가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
+**실행 전 점검.** `scripts/field/preflight_role.py --role <host id>`(#156)가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
 
 **지금 안 되는 것**
 
 | 무엇 | 왜 / 어디 |
 | --- | --- |
-| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 만 받는다(`task_site_runtime.py` LIVE_SEARCH_ONLY). 나머지는 FILES 경로에만 있다. AMR2 시나리오(#131·#133) 결정 뒤 |
+| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET·RETURN_HOME 은 다음 PR(C1-b·C1-c) |
 | robot_b(robot5) 실행 | 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority`)가 없다. #132 에 값이 없어 지어내지 않았다. 없으면 `robot.launch.py robot_id:=robot_b` 가 멈춘다 |
 | 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
 | watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
+
+**자동 대상 접근(APPROACH_TARGET, LIVE_ROS, 2026-10-13)**
+
+TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 받는다(재범 결정 1B·2B). 정책이 꺼져 있거나 없으면 지금까지처럼 `LIVE_SEARCH_ONLY` 로 거절한다.
+
+| 파라미터(기본값 없음) | 뜻 |
+| --- | --- |
+| `task.live.auto_target.enabled` (bool) | false 면 자동 대상 이동을 모두 거절 |
+| `task.live.auto_target.kinds` (string[]) | 받을 종류. 지금은 `APPROACH_TARGET` 만 |
+| `task.live.auto_target.goal_clear_radius_m` (double) | 저장 지도에서 목표 중심 이 반경 안이 모두 비어 있어야 한다(현장 실행 파일 0.2 m [제안]) |
+| `task.live.auto_target.policy_version` (string) | 결정 기록용 버전 |
+
+현장 실행 파일에서는 이 넷을 로봇별(`robots.<id>`)로 둔다. 각 로봇은 자기 역할 임무만 받는다(최소 권한, 2026-10-13). TB-5(robot_b) = `APPROACH_TARGET`, TB-6(robot_a) = 자동 접근 없음(`enabled: false`, REOBSERVE_TARGET 은 C1-b).
+
+받는 조건(하나라도 아니면 거절):
+- 목표 모양: 경로가 있고 운영자 승인이 없다. `route.approach_goal` 은 임무 frame 의 평면 자세다. 계획 증거(planned_path·path_sha256·planner_evidence_id)는 비어 있고, 통로 판정은 UNKNOWN 이다. 이 모양은 Phase 1 과 같다.
+- 지도 기준: 목표의 `frame_ref`(mission frame·map session·map revision·transform revision)가 이 로봇의 현재 선언 정합과 같아야 한다. 지도는 하나다(프로파일 `map_basis`). 대상 좌표를 낸 TB-6 의 실시간 지도는 읽지 않는다(Discovery 구성상 다른 PC 에서 안 보일 수 있다).
+- 경로 근거: 이 로봇이 받아 해시까지 맞춘 저장 지도에서 목표 발자국이 비어 있어야 한다(`Grid.clear`). 점유·미지(-1)·지도 밖이면 `UNREACHABLE`, 지도가 없으면 `LOCALIZATION_UNCERTAIN` 이다. 실제 경로는 Nav2 가 실시간 costmap 으로 계획한다. 그래서 지진 뒤 바뀐 장애물은 Nav2 가 본다. 계획이 안 되면 Nav2 ABORTED 로 끝나고 결과는 `UNREACHABLE` 이다.
+- 수락 중 Nav2 `ComputePathToPose` 를 부르지 않는 이유: 수락은 실행기 잠금 안에서 동기로 돌고, 노드는 단일 스레드 executor 다. 수락 중에 액션 응답을 기다리면 그 응답을 처리할 스레드가 없어 멈춘다(교착).
+- 실행 중에는 매 step 다시 확인한다. 저장 지도·정합이 바뀌거나 발자국이 막히면 취소하고, 새 명령이 필요하다. 운영자 승인 기록은 읽지도 만들지도 않는다. 정지·lease·watchdog 관문은 그대로다.
+
+**로봇 위치(RobotPose)와 지도 상태(MapState) 발행(2026-10-13)**
+
+`task_input`(LIVE_ROS)은 자기 로봇의 위치와 지도 상태를 낸다. 조정기는 TB-5 위치로 자동 출동을 판단하고 지도 상태로 복귀 위치를 비교한다. db_writer 는 이 위치를 관제 지도에 그린다.
+
+| 토픽 | QoS | 언제 | 내용 |
+| --- | --- | --- | --- |
+| `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN` |
+| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 을 스스로 올리지 않는다 |
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 
