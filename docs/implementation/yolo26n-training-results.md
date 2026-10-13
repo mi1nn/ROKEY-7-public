@@ -1,5 +1,7 @@
 # YOLO26n survivor 무증강·증강 학습 결과
 
+> **기록 (2026-10-11).** 첫 학습 실험 기록이다. 지금 로봇 카메라 모델은 v2 데이터의 100 epoch best.pt 다([manifest](../../assets/manifest/yolo26n-survivor-v2.json), [v2 결과](yolo26n-v2-results.md)).
+
 [사용자 요구, 2026-10-11] #82의 학습 계획 후속으로 두 실험과 비교 결과를 제출한다.
 
 ## 상태

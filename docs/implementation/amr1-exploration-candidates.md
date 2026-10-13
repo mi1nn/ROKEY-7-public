@@ -6,6 +6,8 @@ updated: 2026-10-12
 
 # AMR1 무지도 자율 탐색 알고리즘 후보와 비교 계획
 
+> **기록 (2026-10-12).** 탐색 알고리즘 후보 조사 기록이다. 지금 현장 탐색은 explore_lite 가 아니다. 조정기가 `search_mode` FRONTIER 로 TB-6 의 다음 목표를 직접 고른다(`rescue_coordination/ros_node.py`, `rescue_contracts.grid_search`, 현장 파일 [search_area.field.json](../../config/field/search_area.field.json)). 현장 실행은 [rescue_bringup README](../../src/rescue_bringup/README.md)를 본다. 아래의 AMR1 은 지금의 TB-6 이다.
+
 이 문서는 **사전 지도가 없을 때** AMR1이 SLAM으로 지도를 만들면서 다음 탐색 목표를 스스로 고르는 방법을 비교하기 위한 E1 문헌 검토다. [범위 RQ-03·첫 통합 시나리오](../requirements/scope.md)의 지속 지도 갱신과 [D-01·D-05](../design/algorithm-decisions.md)의 SLAM/Nav2·탐색 제안을 구체화한다. 알고리즘 채택 결정, ROS 통합 통과 또는 실기 성능 보고가 아니다. 후보 5개의 프로젝트 적용 시험 상태는 모두 `NOT_RUN`이다.
 
 ## 공통 구성과 비교 범위

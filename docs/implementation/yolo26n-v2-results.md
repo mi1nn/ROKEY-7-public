@@ -1,5 +1,7 @@
 # Survivor v2: amr-mini-project YOLO26n 학습 결과
 
+> **기록 (2026-10-11).** 학습 결과 기록이다. 여기서 고른 100 epoch best.pt 를 지금 로봇 카메라 모델로 쓴다([manifest](../../assets/manifest/yolo26n-survivor-v2.json)). 웹캠은 다른 모델이다([인식 구현 문서](implementation-perception.md) 1절).
+
 [사용자 요구, 2026-10-11] 새 v2 ZIP을 별도 amr-mini-project의 학습 방식으로 재학습하고, 설정·결과·best.pt를 PR로 제출한다. #82 학습 계획의 후속이다. 사용자의 최대 200 epoch 재학습 요청도 기록한다.
 
 ## 제출 모델과 상태
