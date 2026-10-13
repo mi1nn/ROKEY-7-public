@@ -125,6 +125,16 @@ class Twice(unittest.TestCase):
         s.receive_pose('robot_b', old)
         self.assertEqual(('UNKNOWN', R2), self.state())
 
+    def test_amcl_poses_between_adoption_and_the_new_grid_do_not_count(self):
+        """R2 taken, its grid not yet on <ns>/map: AMCL still localizes on R1 then, so that pose is not R2's."""
+        s = self.tb5_on_r1()
+        self.freeze(G2, R2)
+        self.pose()                               # stamped after the adoption, still on the R1 grid
+        s.receive_map('robot_b', G2)              # re-alignment starts here
+        self.assertEqual(('UNKNOWN', R2), self.state())
+        self.pose()
+        self.assertEqual(('VALID', R2), self.state())
+
     def test_tb5_moving_keeps_r1_says_why_and_takes_r2_when_stopped(self):
         s = self.tb5_on_r1()
         self.r.adapter.executor.motion = 'MOVING'
