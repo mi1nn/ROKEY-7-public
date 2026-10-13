@@ -184,6 +184,17 @@ class FreezeRequestTests(Base):
         self.core.on_map_state(map_state(SCOUT))
         self.assertEqual(FROZEN, self.core.frozen)
 
+    def test_a_new_unsaved_revision_does_not_step_the_phase_back(self):
+        # Same rule outside the freeze (OPS-147): a later observation raising the revision keeps TARGET_FOUND.
+        core = make_core()
+        core.on_site_event(site_msg())
+        core.on_target_location(location(1), now_ns=NOW)
+        (report,) = core.reports_due(NOW)
+        core.on_receipt(receipt(report))
+        self.assertEqual('TARGET_FOUND', core.mission.phase())
+        core.on_target_location(location(2, (4.2, 4.)), now_ns=NOW)
+        self.assertEqual('TARGET_FOUND', core.mission.phase())
+
     def test_saved_map_mode_asks_for_no_freeze(self):
         core = make_core(support_dispatch='AUTO')
         core.on_site_event(site_msg())
@@ -227,6 +238,14 @@ class AfterFreezeTests(Base):
         (fields,) = self.tick(kind='APPROACH_TARGET')
         goal = fields['route']['approach_goal']
         self.assertEqual(FROZEN, (goal.map_session_id, goal.map_revision, goal.transform_revision))
+
+    def test_the_phase_stays_target_found_while_the_rebased_revision_waits(self):
+        # 작전 OPS-147: the doll was found; the screen must not step back to DISASTER while the re-based revision
+        # waits for its receipt. The wait is the reason, not the phase.
+        self.tick()
+        self.core.system_state_change(NOW)
+        self.assertEqual(('TARGET_FOUND', 'TARGET_REBASED_ON_FREEZE'),
+                         (self.core.last_state['phase'], self.core.last_state['reason']))
 
     def test_a_frozen_map_observation_merges_and_needs_a_new_save(self):
         self.assertEqual(self.target, self.frozen_location())
