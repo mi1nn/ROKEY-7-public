@@ -24,6 +24,10 @@ pr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pr)
 
 SYNCED = {'state': 'SYNCED', 'error_bound_ns': 1_000_000}
+# A robot's own field values (robots.<id>): identity and its automatic target-move policy (#166).
+ROBOT_B = {'task.publisher_id': 'p', 'task.mapping_authority': 'm', 'task.live.auto_target.enabled': True,
+           'task.live.auto_target.kinds': ['APPROACH_TARGET'], 'task.live.auto_target.goal_clear_radius_m': 0.2,
+           'task.live.auto_target.policy_version': 'p'}
 ALL_MODULES = object()
 
 
@@ -106,7 +110,7 @@ class Duties(RoleCase):
         from rescue_perception.webcam_node import PARAMS
         servers = {'compute_a': '192.0.2.13:11811', 'compute_b': ';192.0.2.16:11811'}  # profile host network
         raw = json.loads(self.field.read_text())
-        raw['robots']['robot_b'] = {'task.publisher_id': 'p', 'task.mapping_authority': 'm'}  # not in #132
+        raw['robots']['robot_b'] = dict(ROBOT_B)  # not in #132
         field = self.dir / 'field.json'
         field.write_text(json.dumps(raw))
         for role in ('operations', 'coordination', 'compute_a', 'compute_b'):
@@ -213,7 +217,7 @@ class Failures(RoleCase):
     def test_field_file_without_this_robot(self):
         raw = json.loads(self.field.read_text())
         raw['robots'].pop('robot_a')
-        raw['robots']['robot_b'] = {'task.publisher_id': 'p', 'task.mapping_authority': 'm'}
+        raw['robots']['robot_b'] = dict(ROBOT_B)
         field = self.dir / 'field.json'
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_a', field_path=field), 'field.robot.robot_a', pr.FAILED)
