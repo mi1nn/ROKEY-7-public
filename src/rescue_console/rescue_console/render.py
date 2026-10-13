@@ -231,6 +231,14 @@ def _map(view):
             f'<path class="mark" d="{_victim_path(x, y, TARGET_MARK_PX)}"/>{strike}'
             f'<text class="label" x="{x + TARGET_MARK_PX + 0.5:.2f}" y="{y - TARGET_MARK_PX:.2f}">'
             f'{escape(target["id"][:4])}</text></g>')
+    for passage in layer.get('passages', ()):
+        x, y, h = passage['px'], passage['py'], TARGET_MARK_PX
+        marks.append(   # 터널 판정: 기둥 둘과 지붕(∏), 초록 통과 가능 / 빨강 통과 불가 / 회색 판정 불가
+            f'<g class="passage {passage["state"].lower()} {"current" if passage["current"] else "old"}">'
+            f'<title>{escape(passage["label"])} · {escape(passage["robot_id"])} · map_revision {passage["map_revision"]}'
+            f'{"" if passage["current"] else " (이전 지도)"}</title>'
+            f'<path class="mark" d="M{x - h:.2f},{y + h:.2f} V{y - h:.2f} H{x + h:.2f} V{y + h:.2f}"/>'
+            f'<text class="label" x="{x + h + 0.5:.2f}" y="{y + h:.2f}">{escape(passage["label"])}</text></g>')
     for exit_ in layer.get('exits', ()):
         x, y = exit_['px'], exit_['py']
         seen = f'{exit_["id"]} 관측 {datetime.fromtimestamp(exit_["observed_at_ns"] / 1e9):%H:%M:%S}'
@@ -258,7 +266,7 @@ def _map(view):
             f'<text class="label" x="{x + ROBOT_MARK_PX + 1:.2f}" y="{y + ROBOT_MARK_PX + 2.4:.2f}">'
             f'{escape(unit)}</text></g>')
     unplotted = [f'{w["id"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
-    unplotted += [f'{w["id"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
+    unplotted += [f'{w.get("label") or w["id"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
     unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
     notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
     legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
@@ -631,6 +639,10 @@ dl{margin:0}
 .victim.rescued .mark,.victim.rescued .strike{stroke:var(--safe)} .victim.rescued .label{fill:var(--safe)}
 .robot .heading,.robot .body{fill:var(--ink);stroke:#fff;stroke-width:.35}
 .exit .mark{fill:none;stroke:var(--safe);stroke-width:.75} .exit .label{fill:var(--safe)}
+.passage .mark{fill:none;stroke-width:.9;stroke-linejoin:round} .passage.old{opacity:.35}
+.passage.passable .mark{stroke:var(--safe)} .passage.passable .label{fill:var(--safe)}
+.passage.blocked .mark{stroke:var(--signal)} .passage.blocked .label{fill:var(--signal)}
+.passage.unknown .mark{stroke:var(--pending)} .passage.unknown .label{fill:var(--pending)}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
 .map-note{font-size:12px;color:var(--ink-2);margin-top:4px}

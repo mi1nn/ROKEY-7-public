@@ -8,7 +8,8 @@ from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
 from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_exit_locations, read_mission_state,
-                                          read_operator_commands, read_robot_status, read_site_events, read_target_states)
+                                          read_operator_commands, read_overhead_passages, read_robot_status, read_site_events,
+                                          read_target_states)
 
 from .view import HISTORY_ROWS, ConsoleError
 
@@ -19,7 +20,7 @@ LEDGER_READ_LIMIT = 1000
 SITE_EVENT_READ_LIMIT = 1000
 # 상태 픽스처 허용 최상위 키 목록: load_site_state 반환 키와 일치하여 build_view에서 동일하게 처리된다.
 STATUS_KEYS = frozenset({'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
-                         'error_log', 'exit_locations'})
+                         'error_log', 'exit_locations', 'overhead_passages'})
 
 
 def load_ledger(db_path):
@@ -90,6 +91,7 @@ def load_site_state(db_path):
             'operator_commands': read_operator_commands(db_path, limit=HISTORY_ROWS),
             'error_log': read_error_log(db_path, limit=HISTORY_ROWS),
             'exit_locations': read_exit_locations(db_path, limit=1),   # #237: 최신 exit_qr 관측치 1건 조회
+            'overhead_passages': read_overhead_passages(db_path),      # #262: 로봇별 터널 판정 + 지금 지도
         }
     except OperationsError as exc:
         # 단일 조회라도 실패하면 전체 폴링이 실패 처리된다(503 응답, 불완전하게 부분 채움된 UI는 제공하지 않음). 다른 용도나
