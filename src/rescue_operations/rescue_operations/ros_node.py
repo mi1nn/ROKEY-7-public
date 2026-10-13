@@ -20,6 +20,7 @@ from uuid import uuid4
 from rescue_contracts import ROBOT_ROLES
 
 from .schema import OperationsError, allowed_robots, require, text
+from .shutdown import spin_until_shutdown
 from .site_state import SCHEMA_VERSION
 
 # Subscriber QoS (reliability, durability, depth). Reliability/depth follow SDD v0.1 IF-010/011/071/076 [제안].
@@ -116,6 +117,7 @@ def teardown(*steps):
 def main(args=None):
     import rclpy
     from rclpy.exceptions import ParameterUninitializedException
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
@@ -219,7 +221,7 @@ def main(args=None):
         raise SystemExit(2) from exc
     threading.Thread(target=server.serve_forever, name='command-api', daemon=True).start()
     try:
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):  # jazzy: SIGINT shuts the context down
         pass
     finally:
