@@ -30,7 +30,7 @@ def make_core(**changes):
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
                   admission_timeout_ns=ACCEPT, segment_passage_free=(True,) * len(SEGMENTS),
-                  lease_message_ttl_ns=TTL, new_id=lambda: uid(next(ids)))
+                  lease_message_ttl_ns=TTL, camera_watch=None, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -80,7 +80,8 @@ def admission_msg(fields, accepted=True):
 
 def request(operation, **changes):
     values = dict(command_id=uid(700), operation=operation, operator_id='admin', robot_id='', target_id='',
-                  expected_target_revision=0, route_revision=0, segment_index=0, issued_at_ns=NOW)
+                  expected_target_revision=0, route_revision=0, segment_index=0, issued_at_ns=NOW,
+                  roi_xyxy_normalized=[0.] * 4)
     return NS(**(values | changes))
 
 
