@@ -189,6 +189,21 @@ class OverheadLaunch(FieldCase):
                     'merge_radius_m', 'process_period_s', 'max_cloud_age_s', 'stride'):
             self.assertEqual(raw['passage.overhead.' + key], p[key])
 
+    def test_camera_view_values(self):
+        """Judgement drawn on the robot camera (OPS-189): TB-6 RGB measured; TB-5 RGB not measured -> view off."""
+        from rescue_bringup.field_launch import overhead_passage_launch_values
+        raw = json.loads(FIELD.read_text())['robot']
+        a = overhead_passage_launch_values(self.deployment, field=self.field(), robot_id='robot_a')['parameters']
+        self.assertEqual(('/robot6/oakd/rgb/image_raw/compressed', '/robot6/oakd/stereo/camera_info'),
+                         (a['view_image_topic'], a['camera_info_topic']))
+        for key in ('width', 'quality', 'slop_ns', 'font_path'):
+            self.assertEqual(raw['passage.view.' + key], a['view_' + key])
+        b = overhead_passage_launch_values(self.deployment, field=self.field(with_tb5_depth), robot_id='robot_b')
+        self.assertEqual('', b['parameters']['view_image_topic'])   # not in the field file: the node says view off
+        with self.assertRaises(Exception):   # a view topic of another robot
+            overhead_passage_launch_values(self.deployment, field=self.field(lambda r: r['robots']['robot_a'].update(
+                {'passage.view_image_topic': '/robot5/oakd/rgb/image_raw/compressed'})), robot_id='robot_a')
+
     def test_a_missing_or_unusable_overhead_value_stops_the_launch(self):
         from rescue_bringup.field_launch import FieldLaunchError
         for change in (lambda raw: raw['robot'].pop('passage.overhead.lidar_plane_m'),
