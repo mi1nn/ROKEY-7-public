@@ -256,3 +256,19 @@ E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드�
 | 같은 조건에서 머지된 #115 콘솔의 전송 코드(`rescue_console.commands.build_request`·`send_command`, Flask 없이 도는 부분)로 같은 API 를 호출 | 재난 전 START_SEARCH 「거절 NOT_AUTHORIZED(재난 모드가 아님)」, 재난 뒤 「접수」, 같은 id 재전송 DUPLICATE, 출동 없는 CONTINUE_SEGMENT 「거절 INVALID_INPUT」, 조정기 종료 뒤 `BAD_RESPONSE`·전달 `UNKNOWN`(「전달됐는지 모름」), 틀린 포트 `UNREACHABLE`·전달 `NOT_SENT`. 명령 표 3행, db_writer 종료 코드 0 |
 
 E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.
+
+## 구조 보고 저장 노드 (조정기 RescueReport → ReportReceipt, 2026-10-13)
+
+조정기는 대상을 찾으면 `/rescue/reports`(IF-072)로 `RescueReport` 를 보내고, `/rescue/report_receipts`(IF-073)로 PERSISTED 영수증이 보고의 `record_ids` 를 전부 담아 올 때까지 `report_retry_s` 마다 다시 보낸다. 그 영수증을 받아야 대상의 `persisted_report_id` 가 채워지고 관제의 AMR2 출동 승인이 열린다("보고 저장 대기" 해제). 이 노드가 그 영수증을 낸다.
+
+| 파일 | 책임 |
+| --- | --- |
+| `report_store.py` | `RescueReportStore`: IDL 보고 장부(SQLite, `ledger._Database` 기반, 역할 `rescue-report-store`). `receipt_fields`: 영수증 필드 |
+| `report_node.py` | `report_node` 실행 파일. 구독 → `save` → 영수증 발행. QoS RELIABLE / VOLATILE / KEEP_LAST 10 |
+
+- 같은 `report_id`·같은 내용은 한 번만 저장하고 처음 영수증(같은 `receipt_id`)을 다시 보낸다. 전송 envelope 는 재전송마다 달라 내용 비교에서 뺀다. 노드를 다시 켜도 DB 에서 같은 영수증을 찾는다.
+- 거절은 REJECTED 와 이유: 같은 ID 다른 내용 `ID_CONTENT_CONFLICT`(원래 기록 유지), 형식 오류 `INVALID_INPUT`, DB 실패 `STORAGE_ERROR`. 거절 영수증은 `included_record_ids` 를 비우고 `has_persisted_at=false` 다. 조정기는 REJECTED 를 받으면 그 보고를 다시 보내지 않으므로 실패가 로그(ERROR)와 관제(대기 유지)에 남는다.
+- 기존 `ReportLedger`(schema 1.0 보고: observation_id·source_robot·model_sha256 등)는 조정기 IDL 보고와 필드가 달라 그대로 넣을 수 없다. 없는 필드를 지어내지 않으려고 장부를 따로 두었다. 증거 바이트 저장·`PENDING_EVIDENCE` 는 이 장부에 없다(조정기 보고의 `evidence_refs` 는 지금 비어 있음).
+- 파라미터(기본값 없음): `db_path`(site_state DB 와 **다른 파일**), `reports_topic`, `receipts_topic`, `envelope_schema_version`, `publisher_id`. 의존에 `rosidl_runtime_py`(메시지 → dict) 추가.
+- 시험: `tests/test_operations_report_store.py`(9개, 수정 전 실패 커밋 뒤 구현).
+- NOT_RUN: ROS 실행(노드 기동·조정기와 주고받기), `operations.launch.py` 에 넣기(실기·배포 담당 요청), 관제에서 "보고 저장 대기" 해제 확인(완료 기준), 실기.
