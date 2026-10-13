@@ -478,6 +478,7 @@ class CoordinatorCore:
         self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
         self.yield_count = 0
+        self.separation_unchecked_noted = False
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -1776,10 +1777,12 @@ class CoordinatorCore:
         xy = self._fresh_xy(self.support_pose, now_ns)
         if xy is not None:
             return xy
-        never_sent = self.mission.dispatch_kind is None and self.support_exit is None and not self.segment_tasks
-        if never_sent and self.start_pose is not None and self.support_start_pose is not None:
+        if self._tb5_never_sent() and self.start_pose is not None and self.support_start_pose is not None:
             return tuple(compose_planar(self.start_pose, self.support_start_pose)[:2])
         return None
+
+    def _tb5_never_sent(self):
+        return self.mission.dispatch_kind is None and self.support_exit is None and not self.segment_tasks
 
     def _tb5_path(self):
         """The path TB-6 keeps off: the one TB-5 waits to go on this tick, else the one it moves on."""
@@ -1874,6 +1877,14 @@ class CoordinatorCore:
         if self.frontier is not None and self.frontier.get('step_aside'):
             return self._hold('SCOUT', self.frontier['step_aside'])  # stepping aside first
         support_xy = self._tb5_xy(now_ns)
+        if support_xy is None and self._tb5_never_sent():
+            # TB-5 stands where it started and has no path. Its start spot is not measured yet (field file
+            # robots.<TB-5>.initial_pose_xy_yaw): holding TB-6 would hold the doll's freeze and so TB-5 itself.
+            if not self.separation_unchecked_noted:
+                self.separation_unchecked_noted = True
+                self.notes.append('TRAFFIC_SEPARATION_UNCHECKED TB-5 has not moved and its start spot is not measured '
+                                  '(support_start_pose); TB-6 is not kept traffic_min_separation_m from it')
+            return True
         if support_xy is None:
             return self._hold('SCOUT', 'TRAFFIC_SUPPORT_POSE_UNKNOWN')
         scout_xy = self._fresh_xy(self.scout_pose, now_ns)
