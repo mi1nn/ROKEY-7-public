@@ -42,6 +42,17 @@ class MissionPose(unittest.TestCase):
         self.assertAlmostEqual(0.04, cov[7])
         self.assertAlmostEqual(0.02, cov[35])
 
+    def test_alignment_rotates_position_yaw_cross_covariance(self):
+        covariance = list(COV)
+        covariance[5] = covariance[30] = 0.005  # x-yaw correlation
+        covariance[11] = covariance[31] = 0.003  # y-yaw correlation
+        *_, rotated = mission_from_native(RigidTransform.planar(0., 0., math.pi / 2),
+                                           1., 0., 0., covariance)
+        self.assertAlmostEqual(-0.003, rotated[5])
+        self.assertAlmostEqual(0.005, rotated[11])
+        self.assertAlmostEqual(rotated[5], rotated[30])
+        self.assertAlmostEqual(rotated[11], rotated[31])
+
 
 class PoseRecord(unittest.TestCase):
     def test_valid_pose_on_the_map_basis(self):
