@@ -12,9 +12,12 @@ webcam_node:
     height: 480
     frame_period_s: 0.2                  # 5 fps 목표. 실측 처리 시간보다 짧으면 밀린다
     reopen_period_s: 2.0
-    clock_domain_id: site-clock
-    clock_state: UNKNOWN                 # 시계 동기 확인 전에는 UNKNOWN
-    clock_error_bound_ns: -1             # -1 = 오차 상한 모름
+    clock_domain_id: rokey7-utc-field    # #132 현장 시계 영역과 같은 이름
+    # 시계는 이 PC 의 OS 시계 서비스를 읽어 측정한다. 측정이 안 되면 메시지는 UNKNOWN 이다.
+    clock_backend: timesyncd             # timesyncd | chrony | NONE(측정 안 함 = 항상 UNKNOWN). `systemctl is-active systemd-timesyncd`
+    clock_max_age_ns: 3600000000000      # NTP 응답이 이보다 오래되면 UNKNOWN (#132 task.live.clock_max_age_ns 와 같음)
+    clock_drift_ppm: 100.0               # 응답 뒤 시계가 벌어질 수 있는 상한 (#132 와 같음)
+    clock_poll_period_s: 5.0             # 측정 읽기 주기. 읽기는 별도 스레드라 프레임 처리를 막지 않는다
     calibration_id: cam-fixed-uncalibrated
     observation_validity_s: 1.0
     # 웹캠 survivor yolo26n (보고서 implementation-perception.md 「고정 웹캠 인형 탐지 모델 비교」)

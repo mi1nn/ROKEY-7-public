@@ -53,12 +53,12 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 항목 | 규칙 |
 | --- | --- |
 | 모델 | `Detector` 인터페이스(`infer(rgb, observed_at_ns) -> Inference | None`) 뒤에 둔다. 가중치·런타임은 Q-18로 열려 있어 이 PR에 추론 구현이 없다. `RecordedDetections`는 프레임 stamp(int ns)별로 녹화된 탐지를 돌려주는 재생용 구현이다. 그 stamp에 기록이 없으면 `None`(모델이 돌지 않음)이고 빈 결과와 구별한다 |
-| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
+| 관측 | 설정된 대상 label(`ConfirmationPolicy.person_labels`; 이번 학습은 `survivor`) 탐지마다 [입력 어댑터](#입력-어댑터-기록-입력-e2)의 `observe`로 `Observation`을 만든다. 탐지 헤더는 그 RGB 헤더다. `person_labels`가 모델 manifest에 없거나 출력 label이 manifest 밖이면 `MODEL_CLASS_MISMATCH`로 프레임 전체를 거절한다. 그래야 「돌았지만 사람 없음」이 「이 모델은 사람을 못 봄」과 섞여 재관측의 부재 근거로 새지 않는다. `observation_id`·`evidence_id`는 (boot, stamp, 순번)의 uuid5라 재생해도 같다. 모든 프레임의 관측을 내므로 스트림 최신성(LL-06)은 registry가 그대로 판단한다 |
 | 확정 | `CONFIRMED`는 `confidence ≥ confirm_confidence_min`이면서 위치가 `LOCATED`일 때만이다. 아니면 `UNCONFIRMED`이고 이유(`LOW_CONFIDENCE`, 위치 실패 이유)를 붙인다. 값은 Q-21이며 기본값이 없다. 미확정도 관측으로 남는다 |
 | 후보 표시 | `new_candidate`: 같은 track은 처음 한 번, 그리고 CONFIRMED로 오를 때 한 번 더 참이다. 내려가는 변화는 새 후보가 아니다. track이 없는 탐지는 프레임 사이를 이을 수 없어 매번 새 후보다(보수적 과분리) |
 | 순서 | 마지막으로 처리한 stamp 이하 프레임은 `DUPLICATE`/`REORDERED`로 무시한다. 프레임의 모든 관측을 만든 뒤에만 상태를 바꾸므로, 거절된 프레임은 흔적을 남기지 않는다 |
 
-관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(12개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
+관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(14개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
 
 ## 탐지 클래스 이름: `survivor` (2026-10-11)
 
@@ -162,7 +162,7 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
 - 판정 경계 `webcam_service`(ROS 없이 시험): 감시 칸(같은 command_id 재전송 멱등, 수락마다 revision +1, 해제는 활성 watch_id·ROI 일치 필요, 영상 크기가 바뀌면 감시 해제), 시야(영상 끊김 → UNKNOWN, 지진 판정의 화면 가림 OCCLUDED·SCENE_CHANGED·QUADRANT_COVERED → OCCLUDED, MATCH_FAILED → UNKNOWN), 모델 상자 → `DetectionBox`(0~1 경계의 부동소수 오차만 자름, 면적 0 버림). 시험 `tests/test_perception_webcam_service.py`(19개).
 - **국소 가림 한계(OPS-74-02):** 사람이 ROI 만 가리면 화면 전체 가림이 아니라 VALID 로 들어가 소실 시간이 흐른다. 후보는 재확인 트리거일 뿐이고 AMR1 재관측이 확정한다(KPI-06).
 - 탐지기: 웹캠 survivor yolo26n(위 절). 기동 때 모델 파일 sha256 이 `model_sha256` 과 다르면 기동하지 않는다. 탐지 실패 프레임은 탐지 결과 없음(UNKNOWN)으로 넣고 소실로 세지 않는다.
-- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
+- 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`)이다. 시계 상태는 파라미터로 고정하지 않고 측정한다(2026-10-13): `clock_backend`(timesyncd·chrony)를 `rescue_contracts.clock_measurement.ClockSampler` 로 `clock_poll_period_s` 마다 읽는다. 마지막 기록이 SYNCED 이고 메시지 관측 시각이 측정 시각 이후·`clock_max_age_ns` 안이면 `SYNCED` 이고, 오차 상한은 측정값에 표본 뒤 `clock_drift_ppm` 만큼을 더한다. 그 밖은 모두 `UNKNOWN`(상한 없음)이며, `clock_backend: NONE` 이면 항상 `UNKNOWN` 이다. 조정기는 `SYNCED`+상한이 있어야 DISASTER 로 넘어간다(`TIME_BASIS_UNUSABLE`). [측정, 2026-10-13] 개발 PC 의 timesyncd 1회 측정은 SYNCED, 오차 상한 약 365 ms 였다. 웹캠 PC 값은 NOT_RUN 이다. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
 - 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/rescue_perception/config/webcam_node.example.yaml`(설치하면 `share/rescue_perception/config/` 에도 있다) [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
 - 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
 - 출구 방향 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠, 출구 = 프레임 왼쪽 `[0.0, 0.0, 0.2, 1.0]`]: 왼쪽으로 들고 나감 → 후보 1건(`last_seen_center=(0.030,0.707)`), 오른쪽으로 들고 나감 → 후보 없음·UNKNOWN, 화면 안 다른 곳으로 옮김 → 후보 없음·UNKNOWN. 처음엔 옮기는 사람 때문에 화면 전체가 OCCLUDED 인 동안 추적이 멈춰 출구로 나가도 NOT_VIA_EXIT 였다 → 가림 중에도 상자로 추적(기록 470 프레임 재생으로 확인). 감시는 인형이 ROI 안에서 3 프레임 연속 보여야 시작하므로, 시험 때는 PRESENT 확인 뒤 옮긴다.

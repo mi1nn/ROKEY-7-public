@@ -8,7 +8,7 @@ import argparse
 import json
 from pathlib import Path
 
-from rescue_robot.task_site_runtime import atomic_json, InputStore
+from rescue_robot.task_site_runtime import atomic_json, InputStore, load_json
 
 
 def prepare(directory,*,robot_id,namespace,settings=None):
@@ -19,14 +19,22 @@ def prepare(directory,*,robot_id,namespace,settings=None):
         publisher_id=None,clock_error_bound_ns=None,lease=dict(duration_s=None,max_age_ns=None,
         max_error_ns=None,clock_domain_id=None),mapping_authority=None,max_position_error_m=None,
         max_rotation_error_rad=None,input_max_age_ns=None,poll_period_s=None,
-        input_file=str(root/'inputs.json'),endpoints=dict(action_name=f'/rescue/robots/{robot_id}/execute_task',
+        input_source_file=str(root/'input-sources.json'),
+        coordinator_state_topic=None,endpoints=dict(action_name=f'/rescue/robots/{robot_id}/execute_task',
         lease_topic=f'/rescue/robots/{robot_id}/command_lease',admission_topic=f'/rescue/robots/{robot_id}/task_admission',
         status_topic=f'/rescue/robots/{robot_id}/status'))
     if settings:
+        unsupported={"nav2_protection","operator_report_topic","operator_receipt_topic","request_stop_service"} & settings.keys()
+        if unsupported: raise ValueError("non-SEARCH live extensions not installed: " + ", ".join(sorted(unsupported)))
         # Explicit supplied settings only. Keep identity/path/endpoints local to this robot.
         for k in ('mission_frame','schema_version','publisher_id','clock_error_bound_ns','lease',
-                  'mapping_authority','max_position_error_m','max_rotation_error_rad','input_max_age_ns','poll_period_s'):
+                  'mapping_authority','max_position_error_m','max_rotation_error_rad','input_max_age_ns','poll_period_s',
+                  'coordinator_state_topic','clock_basis_file','configured_destinations',
+                  'coordinator_authority','coordinator_targets_topic','saved_maps'):
             if k in settings: c[k]=settings[k]
+        if 'saved_maps' in settings:
+            c.pop('input_source_file')
+            c.setdefault('clock_basis_file',None); c.setdefault('coordinator_authority',None)
     missing=[]
     def visit(value,prefix=''):
         for key,v in value.items():
@@ -36,11 +44,17 @@ def prepare(directory,*,robot_id,namespace,settings=None):
     visit(c)
     if not missing: InputStore(c)  # structural policy/configuration check, not readiness
     atomic_json(root/'runtime.json',c)
-    # Preserve live inputs during regeneration; do not reset/refill them.
-    if not (root/'inputs.json').exists():
-        atomic_json(root/'inputs.json',dict(format='rescue-robot-inputs/1',generated_at_ns=0,valid_until_ns=0,
+    # Measured sources are read-only at runtime; never create a boot snapshot.
+    if 'input_source_file' in c and not (root/'input-sources.json').exists():
+        source=load_json(root/'inputs.json') if (root/'inputs.json').exists() else dict(
+            format='rescue-robot-sources/1',
             clock=dict(domain_id=None,state='UNKNOWN',error_bound_ns=None,epoch_id=None,valid_until_ns=0),
-            authority={},maps={},targets={},approvals={},protected_routes={},destinations={}))
+            authority={},maps={},targets={},approvals={},protected_routes={},destinations={})
+        source['format']='rescue-robot-sources/1'
+        for k in ('generated_at_ns','valid_until_ns'): source.pop(k,None)
+        for k in ('robot_boot_id','publisher_boot_id','publisher_id'): source['authority'].pop(k,None)
+        for k in ('coordinator_id','authority_epoch'): source['authority'].setdefault(k,None)
+        atomic_json(root/'input-sources.json',source)
     params={'task.runtime_factory':'rescue_robot.task_site_runtime:create_runtime',
             'task.runtime_config':str(root/'runtime.json')}
     # JSON is also valid YAML. This overlays existing adapter parameters without

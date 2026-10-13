@@ -1,10 +1,14 @@
-"""operations PC launch: deployment profile v2.1 -> db_writer parameters (E2, no ROS).
+"""operations PC launch: deployment profile v2.1 -> db_writer and report_node parameters (E2, no ROS).
 
 The launch file (src/rescue_bringup/launch/operations.launch.py) only wraps this. Topic
 names must be the ones the coordinator uses, so this checks them against its constants.
 """
 from pathlib import Path
+import importlib.util
+import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from rescue_bringup.profile import load_deployment
 
@@ -67,6 +71,121 @@ class DbWriterParameters(unittest.TestCase):
         with self.assertRaises(LaunchSettingError):
             db_writer_parameters(load_deployment(V1_PROFILE), db_path='/x.sqlite3', api_port=8090,
                                  command_timeout_s=3.0)
+
+
+def build_report(**changes):
+    from rescue_bringup.operations_launch import report_node_parameters
+    values = dict(db_path='/var/lib/rescue/site_state.sqlite3', report_db_path='/var/lib/rescue/reports.sqlite3',
+                  envelope_schema_version='0.1', publisher_id='report-ops')
+    return report_node_parameters(**(values | changes))
+
+
+class ReportNodeParameters(unittest.TestCase):
+    """#137 report_node: coordinator RescueReport -> ReportReceipt, on the operations PC."""
+
+    def test_launch_values_become_every_report_node_parameter(self):
+        from rescue_operations.report_node import PARAMS
+        params = build_report()
+        self.assertEqual(set(PARAMS), set(params))
+        self.assertEqual({
+            'db_path': '/var/lib/rescue/reports.sqlite3',
+            'reports_topic': '/rescue/reports',
+            'receipts_topic': '/rescue/report_receipts',
+            'envelope_schema_version': '0.1',
+            'publisher_id': 'report-ops',
+        }, params)
+
+    def test_topics_are_the_coordinators(self):
+        from rescue_coordination import ros_node as coordinator
+        params = build_report()
+        self.assertEqual((coordinator.REPORT_TOPIC, coordinator.REPORT_RECEIPT_TOPIC),
+                         (params['reports_topic'], params['receipts_topic']))
+
+    def test_values_stay_text(self):
+        """A number-like text such as '0.1' must reach the STRING parameter as text."""
+        params = build_report()
+        self.assertTrue(all(isinstance(value, str) for value in params.values()))
+
+    def test_report_db_must_be_another_file_than_the_site_state_db(self):
+        """One writing process per SQLite file (#137)."""
+        from rescue_bringup.operations_launch import LaunchSettingError
+        for change in (dict(report_db_path='/var/lib/rescue/site_state.sqlite3'),
+                       dict(report_db_path='/var/lib/rescue/../rescue/site_state.sqlite3'),
+                       dict(report_db_path=''), dict(envelope_schema_version=''), dict(publisher_id='')):
+            with self.subTest(change=change), self.assertRaises(LaunchSettingError):
+                build_report(**change)
+
+
+WEBCAM_SETTINGS = {'debug_image_topic': '/rescue/cameras/cam_fixed/debug_image/compressed',
+                   'camera_id': 'cam_fixed'}
+
+
+def relay(**changes):
+    from rescue_bringup.operations_launch import mjpeg_relay_parameters
+    values = dict(webcam=dict(WEBCAM_SETTINGS), bind_host='127.0.0.1', port='8091', stale_s='2.0')
+    return mjpeg_relay_parameters(**(values | changes))
+
+
+class MjpegRelayParameters(unittest.TestCase):
+    """#153 mjpeg_relay: the webcam judge video as MJPEG for the console, on with the webcam only."""
+
+    def test_webcam_settings_and_launch_values_become_every_relay_parameter(self):
+        from rescue_perception.mjpeg_relay import PARAMS
+        params = relay()
+        self.assertEqual(set(PARAMS), set(params))
+        self.assertEqual({'image_topic': '/rescue/cameras/cam_fixed/debug_image/compressed',
+                          'bind_host': '127.0.0.1', 'port': 8091, 'path': '/cam_fixed.mjpg', 'stale_s': 2.0}, params)
+
+    def test_console_camera_argument(self):
+        from rescue_bringup.operations_launch import console_camera_argument
+        self.assertEqual('cam_fixed=http://127.0.0.1:8091/cam_fixed.mjpg',
+                         console_camera_argument(relay(), camera_id='cam_fixed'))
+
+    def test_parameter_checks_run_without_yaml(self):
+        with patch.dict(sys.modules, {'yaml': None}):
+            self.assertEqual(8091, relay()['port'])
+
+    @unittest.skipUnless(importlib.util.find_spec('yaml'), 'PyYAML is a ROS launch dependency')
+    def test_malformed_yaml_is_a_launch_setting_error(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, read_webcam_parameters
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'broken.yaml'
+            path.write_text('webcam_node: [unterminated')
+            with self.assertRaises(LaunchSettingError):
+                read_webcam_parameters(path)
+
+    @unittest.skipUnless(importlib.util.find_spec('yaml'), 'PyYAML is a ROS launch dependency')
+    def test_packaged_webcam_yaml_matches_the_parameter_fixture(self):
+        from importlib.resources import files
+        from rescue_bringup.operations_launch import read_webcam_parameters
+        example = files('rescue_perception').joinpath('config/webcam_node.example.yaml')
+        values = read_webcam_parameters(example)
+        self.assertEqual(WEBCAM_SETTINGS, {key: values[key] for key in WEBCAM_SETTINGS})
+
+    def test_bad_values_are_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError
+        webcam = dict(WEBCAM_SETTINGS)
+        for change in (dict(bind_host=''), dict(port='0'), dict(port='70000'), dict(port='80.5'),
+                       dict(stale_s='0'), dict(stale_s='nan'), dict(stale_s=''),
+                       dict(webcam=webcam | {'debug_image_topic': ''}), dict(webcam=webcam | {'camera_id': ''}),
+                       dict(webcam={k: v for k, v in webcam.items() if k != 'debug_image_topic'})):
+            with self.subTest(change={k: v for k, v in change.items() if k != 'webcam'} or 'webcam'), \
+                    self.assertRaises(LaunchSettingError):
+                relay(**change)
+
+    def test_relay_needs_the_webcam_on_this_pc(self):
+        """video_port without webcam_params_file: nothing to relay, refuse instead of an empty stream."""
+        from rescue_bringup.operations_launch import LaunchSettingError, relay_requested
+        self.assertFalse(relay_requested(video_port='', webcam_params_file=''))
+        self.assertFalse(relay_requested(video_port='', webcam_params_file='/w.yaml'))
+        self.assertTrue(relay_requested(video_port='8091', webcam_params_file='/w.yaml'))
+        with self.assertRaises(LaunchSettingError):
+            relay_requested(video_port='8091', webcam_params_file='')
+
+    def test_unreadable_webcam_file_is_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, read_webcam_parameters
+        with self.assertRaises(LaunchSettingError):
+            read_webcam_parameters(REPO / 'absent.yaml')
 
 
 class LaunchArguments(unittest.TestCase):

@@ -478,6 +478,22 @@ class SiteStateWebTests(AccountsFixture):
         self.assertNotIn('camera.invalid', client.get('/fragment').get_data(as_text=True))
         self.assertEqual(digest_dir(self.dir), before)
 
+    def test_console_serves_the_site_state_db_without_a_report_ledger(self):
+        from rescue_console.app import create_app
+        site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(site_db, self.status)
+        app = create_app(None, accounts_path=self.accounts, secret_key=SECRET, site_state_path=site_db)
+        client = app.test_client()
+        self.login(client, *CUSTOMER)
+        page = client.get('/')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('보고 장부 입력 없음', page.get_data(as_text=True))
+        model = client.get('/api/view').get_json()
+        self.assertEqual(model['mission']['mode'], 'DISASTER')
+        self.assertNotIn('상태가 들어온 로봇만', ' '.join(model['warnings']))   # #149: the DB gives the robots
+        self.assertEqual(['robot_a', 'robot_b'], [r['robot_id'] for r in model['robots']])
+        self.assertEqual(client.get('/fragment').status_code, 200)
+
     def test_site_state_and_fixture_together_fail_at_startup(self):
         from rescue_console.app import create_app
         with self.assertRaises(ConsoleError) as caught:

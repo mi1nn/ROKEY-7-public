@@ -174,6 +174,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `read_mission_state(path)` | `{schema_version, mission}` | 기록 전에는 `mission=None`. 표시용이고 판정은 coordinator |
 | `read_operator_commands(path, *, limit=100)` | `{schema_version, commands:[명령 dict, accepted 는 bool]}` | `requested_at_ns` 최신 순 |
 | `read_map_snapshots(path, *, limit=100)` | `{schema_version, maps:[스냅샷 dict]}` | `at_ns` 최신 순. 이미지는 `path` 에서 읽고 `sha256` 으로 확인 |
+| `read_allowed_robot_ids(path)` | `{schema_version, allowed_robot_ids:[robot_id 정렬]}` | 기록 노드가 DB 를 처음 만들 때 고정한 배치 로봇 목록(metadata). 상태가 아직 오지 않은 로봇도 들어 있다(#147). 읽기 전용·오류 규칙은 다른 read_* 와 같다 |
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
@@ -256,3 +257,26 @@ E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드�
 | 같은 조건에서 머지된 #115 콘솔의 전송 코드(`rescue_console.commands.build_request`·`send_command`, Flask 없이 도는 부분)로 같은 API 를 호출 | 재난 전 START_SEARCH 「거절 NOT_AUTHORIZED(재난 모드가 아님)」, 재난 뒤 「접수」, 같은 id 재전송 DUPLICATE, 출동 없는 CONTINUE_SEGMENT 「거절 INVALID_INPUT」, 조정기 종료 뒤 `BAD_RESPONSE`·전달 `UNKNOWN`(「전달됐는지 모름」), 틀린 포트 `UNREACHABLE`·전달 `NOT_SENT`. 명령 표 3행, db_writer 종료 코드 0 |
 
 E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.
+
+## 구조 보고 저장 노드 (조정기 RescueReport → ReportReceipt, 2026-10-13)
+
+조정기는 대상을 찾으면 `/rescue/reports`(IF-072)로 `RescueReport` 를 보내고, `/rescue/report_receipts`(IF-073)로 PERSISTED 영수증이 보고의 `record_ids` 를 전부 담아 올 때까지 `report_retry_s` 마다 다시 보낸다. 그 영수증을 받아야 대상의 `persisted_report_id` 가 채워지고 관제의 AMR2 출동 승인이 열린다("보고 저장 대기" 해제). 이 노드가 그 영수증을 낸다.
+
+| 파일 | 책임 |
+| --- | --- |
+| `report_store.py` | `RescueReportStore`: IDL 보고 장부(SQLite, `ledger._Database` 기반, 역할 `rescue-report-store`). `receipt_fields`: 영수증 필드 |
+| `report_node.py` | `report_node` 실행 파일. 구독 → `save` → 영수증 발행. QoS RELIABLE / VOLATILE / KEEP_LAST 10 |
+
+- 같은 `report_id`·같은 내용은 한 번만 저장하고 처음 영수증(같은 `receipt_id`)을 다시 보낸다. 전송 envelope 는 재전송마다 달라 내용 비교에서 뺀다. 노드를 다시 켜도 DB 에서 같은 영수증을 찾는다.
+- 거절은 REJECTED 와 이유: 같은 ID 다른 내용 `ID_CONTENT_CONFLICT`(원래 기록 유지), 형식 오류 `INVALID_INPUT`, DB 실패 `STORAGE_ERROR`. 거절 영수증은 `included_record_ids` 를 비우고 `has_persisted_at=false` 다. 조정기는 REJECTED 를 받으면 그 보고를 다시 보내지 않으므로 실패가 로그(ERROR)와 관제(대기 유지)에 남는다.
+- 기존 `ReportLedger`(schema 1.0 보고: observation_id·source_robot·model_sha256 등)는 조정기 IDL 보고와 필드가 달라 그대로 넣을 수 없다. 없는 필드를 지어내지 않으려고 장부를 따로 두었다. 증거 바이트 저장·`PENDING_EVIDENCE` 는 이 장부에 없다(조정기 보고의 `evidence_refs` 는 지금 비어 있음).
+- 파라미터(기본값 없음): `db_path`(site_state DB 와 **다른 파일**), `reports_topic`, `receipts_topic`, `envelope_schema_version`, `publisher_id`. 의존에 `rosidl_runtime_py`(메시지 → dict) 추가.
+- 시험: `tests/test_operations_report_store.py`(9개, 수정 전 실패 커밋 뒤 구현).
+- 문자열 파라미터는 숫자처럼 보이면 따옴표로 감싼다: `-p "envelope_schema_version:='0.1'"`. 따옴표가 없으면 ROS 가 `0.1` 을 DOUBLE 로 읽어 노드가 기동하지 않는다(`InvalidParameterTypeException`) [측정, 2026-10-13].
+- ROS 실행 [측정, 2026-10-13, ROS 시험 PC, 로봇과 다른 도메인·LOCALHOST]:
+  - 조정기 `publish_report` 와 같은 모양의 보고(TargetLocation 2개) → PERSISTED, `included_record_ids` == `record_ids`. 다른 envelope 으로 재전송 → 같은 receipt_id, DB 1행. 노드 재시작 뒤 재전송 → 같은 receipt_id.
+  - `record_ids` 빔·`report_id` 형식 오류 → REJECTED INVALID_INPUT, 같은 report_id 다른 내용 → REJECTED ID_CONTENT_CONFLICT, 모두 ERROR 로그·`included_record_ids` 빔·`has_persisted_at=false`.
+  - `message_to_ordereddict` 는 고정 길이 배열(`float64[4]`·`float64[9]`)을 리스트로 바꿔 canonical JSON 이 된다.
+  - 실제 조정기(`e3_coordinator_probe.py` 파라미터, `deployment.v2.example.json`)와 함께: VALID TargetLocation 1개 → 조정기 REPORT → 영수증 PERSISTED(24 ms) → 조정기 로그 `RECEIPT ... PERSISTED -> saved=True`, `TargetSnapshot.persisted_report_id` 채워짐, 재전송 없음.
+- 보고 크기: 조정기는 같은 대상의 위치를 모두 담아 새 보고를 만든다. 공용 한도 64 KiB(`schema.MAX_JSON_BYTES`)로는 위치 1개 약 1.8 KB 기준 34개째부터 REJECTED INVALID_INPUT 이 돼 출동 승인이 열리지 않았다 → 보고 장부만 `REPORT_MAX_BYTES` = 1 MiB 로 둔다(사용자 결정 2026-10-13). 실제 값을 채운 위치 500개 보고까지 PERSISTED [측정, 2026-10-13].
+- NOT_RUN: `operations.launch.py` 에 넣기(실기·배포 담당 요청), 관제 웹에서 "보고 저장 대기" 해제와 출동 승인 버튼 활성(완료 기준 — 그 입력인 `TargetSnapshot.persisted_report_id` 까지만 확인), 실기.

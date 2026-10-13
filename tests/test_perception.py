@@ -6,8 +6,8 @@ from uuid import UUID
 from rescue_contracts import RescueError, canonical_code, ns_to_ros_time, ros_time_to_ns
 
 from rescue_perception import (
-    Admission, AlignmentEvidence, CameraIntrinsics, ConservativeEventRegistry,
-    DepthFrame, DepthPolicy, Detection, FrameMeta, LocalizationResult, ModelManifest,
+    AlignmentEvidence, CameraIntrinsics, ConservativeEventRegistry,
+    DepthFrame, DepthPolicy, Detection, FrameMeta, ModelManifest,
     ObservationRegistry, PerceptionError, Publication, TimePolicy, locate_detection,
     make_observation, validate_freshness,
 )

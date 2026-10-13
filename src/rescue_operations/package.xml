@@ -10,5 +10,6 @@
   <exec_depend>rescue_contracts</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rescue_interfaces</exec_depend>
+  <exec_depend>rosidl_runtime_py</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

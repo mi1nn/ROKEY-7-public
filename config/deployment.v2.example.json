@@ -141,6 +141,12 @@
       }
     }
   },
+  "map_basis": {
+    "frame_id": "mission",
+    "map_session_id": "22222222-2222-4222-8222-222222222222",
+    "map_revision": 0,
+    "transform_revision": 1
+  },
   "site_cameras": [
     {
       "id": "cam_fixed",

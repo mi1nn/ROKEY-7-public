@@ -1,4 +1,4 @@
-"""operations PC launch values: deployment profile v2.1 -> db_writer parameters (no ROS import).
+"""operations PC launch values: profile v2.1 -> db_writer, report_node, mjpeg_relay parameters (no ROS import).
 
 ``launch/operations.launch.py`` loads the profile, parses its text launch arguments with
 ``parse_launch_arguments`` and hands ``db_writer_parameters`` to the node. Robot IDs and
@@ -7,6 +7,7 @@ profile file only. Topic and service names are the coordinator's (rescue_coordin
 ros_node constants); a test keeps them equal without importing it here.
 """
 import math
+import os
 
 from .profile import Deployment
 
@@ -14,6 +15,8 @@ SITE_EVENTS_TOPIC = '/rescue/site_events'
 SYSTEM_STATE_TOPIC = '/rescue/system_state'
 TARGETS_TOPIC = '/rescue/targets'
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
+REPORTS_TOPIC = '/rescue/reports'  # IF-072, coordinator -> report_node
+REPORT_RECEIPTS_TOPIC = '/rescue/report_receipts'  # IF-073, report_node -> coordinator
 ROBOT_PREFIX = '/rescue/robots/'
 # The command API has no login of its own; the console on the same PC checks ADMIN (#125).
 API_HOST = '127.0.0.1'
@@ -61,3 +64,78 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s):
         'operator_command_service': OPERATOR_COMMAND_SERVICE,
         'command_timeout_s': command_timeout_s,
     }
+
+
+def report_node_parameters(*, db_path, report_db_path, envelope_schema_version, publisher_id):
+    """Launch values -> every parameter rescue_operations report_node (#137) requires.
+
+    The report store is its own SQLite file: one writing process per file, so it must not
+    be the db_writer site-state file. Every value is text (STRING parameters).
+    """
+    for name, value in (('report_db_path', report_db_path), ('envelope_schema_version', envelope_schema_version),
+                        ('publisher_id', publisher_id)):
+        if not isinstance(value, str) or not value:
+            raise LaunchSettingError(f'{name} is required')
+    if os.path.realpath(report_db_path) == os.path.realpath(db_path):
+        raise LaunchSettingError('report_db_path must be another file than the site-state db_path')
+    return {
+        'db_path': report_db_path,
+        'reports_topic': REPORTS_TOPIC,
+        'receipts_topic': REPORT_RECEIPTS_TOPIC,
+        'envelope_schema_version': envelope_schema_version,
+        'publisher_id': publisher_id,
+    }
+
+
+def read_webcam_parameters(path):
+    """The webcam_node parameters YAML (the file webcam_node itself reads) -> its ros__parameters."""
+    try:
+        import yaml
+        with open(path, encoding='utf-8') as handle:
+            values = yaml.safe_load(handle)['webcam_node']['ros__parameters']
+    except (ImportError, OSError, KeyError, TypeError, ValueError) as exc:
+        raise LaunchSettingError(f'cannot read webcam parameters {path}: {type(exc).__name__}: {exc}') from exc
+    except yaml.YAMLError as exc:
+        raise LaunchSettingError(f'cannot read webcam parameters {path}: invalid YAML: {exc}') from exc
+    if not isinstance(values, dict):
+        raise LaunchSettingError(f'{path}: webcam_node.ros__parameters must be a mapping')
+    return values
+
+
+def relay_requested(*, video_port, webcam_params_file):
+    """The video relay is on only with a video_port, and only with the webcam on this PC."""
+    if video_port == '':
+        return False
+    if webcam_params_file == '':
+        raise LaunchSettingError('video_port needs webcam_params_file: the relay forwards this PC\'s webcam video')
+    return True
+
+
+def mjpeg_relay_parameters(*, webcam, bind_host, port, stale_s):
+    """Webcam settings + text launch arguments -> every parameter rescue_perception mjpeg_relay (#153) requires.
+
+    The input is the webcam judge video (``debug_image_topic``); the URL path is
+    ``/<camera_id>.mjpg`` so the console ``--camera <camera_id>=<url>`` names the same camera.
+    """
+    topic, camera_id = webcam.get('debug_image_topic'), webcam.get('camera_id')
+    if not isinstance(topic, str) or not topic:
+        raise LaunchSettingError('webcam debug_image_topic is off or missing: no judge video to relay')
+    if not isinstance(camera_id, str) or not camera_id:
+        raise LaunchSettingError('webcam camera_id is required')
+    if not isinstance(bind_host, str) or not bind_host:
+        raise LaunchSettingError('video_bind_host is required with video_port')
+    try:
+        port, stale = int(port), float(stale_s)
+    except ValueError as exc:
+        raise LaunchSettingError(f'video_port must be an integer and video_stale_s a number: {exc}') from exc
+    if not 1 <= port <= 65535:
+        raise LaunchSettingError('video_port must be 1..65535')
+    if not math.isfinite(stale) or stale <= 0:
+        raise LaunchSettingError('video_stale_s must be finite and positive')
+    return {'image_topic': topic, 'bind_host': bind_host, 'port': port, 'path': f'/{camera_id}.mjpg',
+            'stale_s': stale}
+
+
+def console_camera_argument(relay, *, camera_id):
+    """The console --camera value for this relay."""
+    return f'{camera_id}=http://{relay["bind_host"]}:{relay["port"]}{relay["path"]}'

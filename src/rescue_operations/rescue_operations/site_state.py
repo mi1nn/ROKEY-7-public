@@ -458,6 +458,14 @@ def _read(db_path, query):
             db.close()
 
 
+def read_allowed_robot_ids(db_path):
+    """The deployment's robots as the writer fixed them in the DB (#147: a card per robot before any status)."""
+    def query(db):
+        metadata = dict(db.execute("SELECT key, value FROM metadata"))
+        return {"allowed_robot_ids": sorted(allowed_robots(json.loads(metadata["allowed_robot_ids"])))}
+    return _read(db_path, query)
+
+
 def read_robot_status(db_path):
     def query(db):
         rows = db.execute("SELECT status_json, received_at_ns FROM robot_status ORDER BY robot_id").fetchall()

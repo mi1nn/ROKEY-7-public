@@ -116,9 +116,11 @@ class TaskServerTests(unittest.TestCase):
         self.fixture.fixture.still(adapter)
 
     def test_accept_publishes_admission_without_dispatching_nav2(self):
+        self.server.lookup_lease = lambda goal: None  # central sends goal first
         self.assertEqual(self.server.on_goal(self.goal), 'accept')
         self.assertTrue(self.node.messages[-1].accepted)
         self.assertEqual(self.fixture.fixture.nav_b.goals, [])
+        self.assertTrue(self.server.on_lease(self.lease))
 
     def test_untrusted_goal_is_rejected_with_admission_reason(self):
         self.fixture.allowed = False
@@ -177,16 +179,6 @@ class TaskServerTests(unittest.TestCase):
         with self.assertRaises(StopIteration):
             coroutine.send(None)
         self.assertEqual(handle.state, 'canceled')
-
-    def test_lease_subscription_requires_external_authorization(self):
-        self.server.on_goal(self.goal)
-        from copy import deepcopy
-        renewal = deepcopy(self.lease)
-        renewal.renewal_sequence += 1
-        self.lease_allowed = False
-        until = self.fixture.adapter.executor.lease_until
-        self.server.on_lease(renewal)
-        self.assertEqual(self.fixture.adapter.executor.lease_until, until)
 
     def test_authentication_rejection_logs_without_extending_lease(self):
         self.server.on_goal(self.goal)
