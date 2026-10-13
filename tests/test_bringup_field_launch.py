@@ -146,6 +146,8 @@ class CoordinatorParameters(FieldCase):
         expected = script_parameters('start_coordinator.sh')
         expected['profile_path'] = str(self.profile_path)
         expected['camera_watch_timeout_s'] = 2.0  # added after #132 (SetCameraWatch, coordination C2)
+        # Added after #132: TB-5 automatic dispatch (user decision 1B, 2026-10-13)
+        expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
         self.assertEqual(expected, self.coordinator())
 
     def test_camera_watch_roi_is_an_optional_site_argument(self):
@@ -324,6 +326,9 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'dispatch mode': lambda r: r['coordinator'].update({'support_dispatch': 'auto'}),
+            'standoff not positive': lambda r: r['coordinator'].update({'approach_standoff_m': 0.0}),
+            'pose age not positive': lambda r: r['coordinator'].update({'support_pose_max_age_s': -1.0}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),
