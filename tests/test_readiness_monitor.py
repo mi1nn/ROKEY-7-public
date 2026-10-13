@@ -89,6 +89,8 @@ class ReadinessPolicyBuilderTests(unittest.TestCase):
         from rescue_robot.ros_node import camera_message_type
         self.assertEqual('CompressedImage', camera_message_type('oakd/rgb/preview/image_raw/compressed'))
         self.assertEqual('Image', camera_message_type('oakd/rgb/preview/image_raw'))
+        # image_transport compressedDepth is a CompressedImage too (passage depth, REV-226-01)
+        self.assertEqual('CompressedImage', camera_message_type('/robot5/oakd/stereo/image_raw/compressedDepth'))
         self.assertEqual('Image', camera_message_type('camera/compressed_view'))
 
 

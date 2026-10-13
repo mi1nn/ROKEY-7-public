@@ -81,13 +81,22 @@ class RobotLaunch(FieldCase):
         task = v['task_input']
         self.assertEqual(('PassageStop', 5_000_000_000), (task['task.live.passage.polygon_name'],
                                                           task['task.live.passage.result_window_ns']))
-        self.assertIn('/robot6/oakd/stereo/image_raw', task['camera_topics'])
+        # readiness watches the depth over the transport the points use: a raw Image subscription would pull
+        # the raw depth over Wi-Fi as well (REV-226-01)
+        self.assertIn('/robot6/oakd/stereo/image_raw/compressedDepth', task['camera_topics'])
+        self.assertNotIn('/robot6/oakd/stereo/image_raw', task['camera_topics'])
         self.assertFalse([k for k in task if k.startswith('passage.')])   # launch-only keys stay out
         p = v['passage']
         self.assertEqual((0.05, 0.46, [0.4, 1.0], 0.2, 5), (p['min_height_m'], p['max_height_m'], p['front_m'],
                                                              p['half_width_m'], p['min_points']))
         self.assertEqual(('/robot6/oakd/stereo/image_raw', '/robot6/oakd/stereo/camera_info', 'compressedDepth'),
                          (p['depth_topic'], p['camera_info_topic'], p['depth_transport']))
+
+    def test_raw_depth_transport_is_watched_on_the_raw_topic(self):
+        task = self.values(change=lambda raw: raw['robots']['robot_a'].__setitem__('passage.depth_transport', 'raw'))[
+            'task_input']
+        self.assertIn('/robot6/oakd/stereo/image_raw', task['camera_topics'])
+        self.assertNotIn('/robot6/oakd/stereo/image_raw/compressedDepth', task['camera_topics'])
 
     def test_both_robots_get_the_same_passage_numbers(self):
         a = self.values()['passage']

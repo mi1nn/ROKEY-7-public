@@ -261,7 +261,7 @@ class RobotParameters(FieldCase):
         # Overhead passage stop (OPS-128/135): reported by the executor; the depth image is a readiness camera
         expected.update({'task.live.passage.polygon_name': 'PassageStop',
                          'task.live.passage.result_window_ns': 5_000_000_000})
-        expected['camera_topics'] = expected['camera_topics'] + ['/robot6/oakd/stereo/image_raw']
+        expected['camera_topics'] = expected['camera_topics'] + ['/robot6/oakd/stereo/image_raw/compressedDepth']
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])

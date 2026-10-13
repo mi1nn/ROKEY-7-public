@@ -411,8 +411,9 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         'scan_topic': readiness.scan_topic, 'tf_topic': readiness.tf_topic, 'map_frame': readiness.map_frame,
         'odom_frame': readiness.odom_frame, 'readiness.version': readiness.version,
         **{'readiness.max_age_s.' + source: seconds for source, seconds in readiness.max_age_s},
-        # the passage depth image is a readiness camera too: lost depth = NOT_READY (OPS-115)
-        'camera_topics': list(dict.fromkeys([*readiness.camera_topics, passage['depth_topic']])),
+        # the passage depth image is a readiness camera too: lost depth = NOT_READY (OPS-115). Watched over the
+        # transport the points use, so readiness does not pull the raw depth over Wi-Fi as well (REV-226-01)
+        'camera_topics': list(dict.fromkeys([*readiness.camera_topics, passage['readiness_topic']])),
         'wheel_status_topic': readiness.wheel_status_topic or '',
         'executor_heartbeat_topic': executor_heartbeat, 'watchdog_heartbeat_topic': watchdog_heartbeat,
         **{k: v for k, v in field.robot.items() if not k.startswith('passage.')},
@@ -543,7 +544,9 @@ def _passage(field, robot_id, ns):
             'front_m': list(r['passage.front_m']), 'half_width_m': r['passage.half_width_m'],
             'min_points': r['passage.min_points'], 'polygon_name': r['task.live.passage.polygon_name'],
             'depth_topic': section['passage.depth_topic'], 'camera_info_topic': section['passage.camera_info_topic'],
-            'depth_transport': section['passage.depth_transport'], 'points_topic': ns + PASSAGE_POINTS}
+            'depth_transport': section['passage.depth_transport'], 'points_topic': ns + PASSAGE_POINTS,
+            'readiness_topic': section['passage.depth_topic'] + (
+                '/compressedDepth' if section['passage.depth_transport'] == 'compressedDepth' else '')}
 
 
 def nav2_with_passage(params, passage):
