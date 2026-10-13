@@ -329,6 +329,16 @@ MISSION_REASONS = {
     'SUPPORT_EXIT_CANCELED': ('{support} 출구 이동 취소(판정 종료·재난 해제)', 'info'),
     'SUPPORT_EXIT_FAILED': ('{support} 출구 이동 실패 — 다시 보내지 않음', 'alert'),
     'SUPPORT_POSE_UNKNOWN': ('{support} 위치 모름', 'caution'),
+    # Automatic approach (#187): why TB-5 has not been sent, or that it failed (never retried by itself).
+    'SUPPORT_POSE_BASIS_MISMATCH': ('{support} 위치의 지도 기준이 다름 — 자동 출동 보류', 'caution'),
+    'SUPPORT_AT_TARGET': ('{support} 가 이미 대상 바로 옆 — 접근 지점을 정할 수 없음', 'caution'),
+    'APPROACH_FAILED': ('{support} 대상 접근 실패 — 다시 보내지 않음', 'alert'),
+    'MODE_NOT_DISASTER': ('재난 모드가 아님 — {support} 출동 안 함', 'info'),
+    'ALREADY_DISPATCHED': ('{support} 이미 출동함', 'info'),
+    'UNKNOWN_TARGET': ('모르는 대상 — {support} 출동 안 함', 'caution'),
+    'TARGET_NOT_CONFIRMED': ('대상 미확정 — {support} 출동 대기', 'caution'),
+    'TARGET_REVISION_STALE': ('대상 정보가 바뀜 — {support} 출동 다시 판단', 'caution'),
+    'TARGET_ALREADY_JUDGED': ('이미 판정한 대상 — {support} 출동 안 함', 'info'),
     'SCOUT_RETURNING': ('{scout} 도킹 접근 지점으로 이동 중', 'info'),
     'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND': ('{scout} 도킹 접근 지점 도착 — 도킹은 사람이 합니다', 'info'),
     # TargetLocation time gate (#174, OPS-103): no target is made from these.
@@ -346,6 +356,9 @@ RECHECK_WHY = {
     'RECHECK_OBSERVATION_MISSING': '재확인 관측 없음 — 「재확인 지시」 버튼으로 다시 보낼 수 있음',
 }
 SCOPES = (('SUPPORT_', 'support'), ('SCOUT_', 'scout'), ('RECHECK_NEEDED_', 'target'))
+# Approach codes of #187 without the SUPPORT_ prefix that still belong to the support robot.
+SUPPORT_CODES = frozenset({'APPROACH_FAILED', 'MODE_NOT_DISASTER', 'ALREADY_DISPATCHED', 'UNKNOWN_TARGET',
+                           'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'TARGET_ALREADY_JUDGED'})
 
 
 def mission_reason(code, support_name, scout_name):
@@ -354,7 +367,8 @@ def mission_reason(code, support_name, scout_name):
         return None
     # Without a status naming the role's robot its robot_id is not known: the role code, never a generic word.
     names = {'support': support_name or 'SUPPORT', 'scout': scout_name or 'SCOUT'}
-    scope = next((where for prefix, where in SCOPES if code.startswith(prefix)), None)
+    scope = 'support' if code in SUPPORT_CODES else next((where for prefix, where in SCOPES if code.startswith(prefix)),
+                                                           None)
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
         text, level = f'{names["support"]} 출구 출발까지 {int(countdown.group(1))}초', 'info'
