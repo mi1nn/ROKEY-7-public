@@ -62,6 +62,8 @@ def _nodes(context):
     return [
         LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={base_params} + passage stop '
                     f'{passage["min_height_m"]}..{passage["max_height_m"]} m front {passage["front_m"]} '
+                    f'+ passage slow x{passage["slow_ratio"]} {passage["overhead_lidar_plane_m"]}..'
+                    f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
                     f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) -> {nav2_params} '
                     f'map_mode={task["task.saved_map.mode"]} '
                     f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(decided by the freeze)"} '
