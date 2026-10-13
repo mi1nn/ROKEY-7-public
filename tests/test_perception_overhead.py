@@ -17,7 +17,7 @@ except ImportError:   # installed-wheel runs without NumPy skip the point tests
 
 from rescue_perception.overhead import (OVERHEAD_PARAMS, OverheadConfirmer, OverheadPolicy, PassageRegistry, Reading,
                                         cloud_xyz, free_space_polygon, judge, nearest_image, overhead_values,
-                                        render_view, to_frame, view_label)
+                                        render_view, to_frame, view_label, view_size_checked)
 
 POLICY = OverheadPolicy(clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                         lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
@@ -203,6 +203,14 @@ class ViewTests(unittest.TestCase):
         half = free_space_polygon(r, POLICY, 0.244, self.BASE_TO_OPTICAL, self.K, scale=0.5)
         self.assertEqual((15, 35), (min(u for u, _ in half), max(u for u, _ in half)))
 
+    def test_the_view_image_must_be_its_camera_info_size(self):
+        # the small preview stream is projected with its own CameraInfo (OPS-198): another size is refused
+        info = NS(width=250, height=250)
+        self.assertIsNone(view_size_checked((250, 250, 3), info))
+        for shape in ((704, 704, 3), (250, 300, 3)):
+            with self.subTest(shape=shape), self.assertRaises(ValueError):
+                view_size_checked(shape, info)
+
     def test_labels_match_the_map_words(self):
         self.assertEqual(('통과 가능 ↑0.47 m', (0, 200, 0)), view_label('PASSABLE', 0.47, confirmed=True))
         self.assertEqual(('통과 불가 ↑0.40 m', (0, 0, 220)), view_label('BLOCKED', 0.4, confirmed=True))
@@ -240,8 +248,8 @@ class ParamsTests(unittest.TestCase):
         values = dict(points_topic='/robot6/passage_points', base_frame='base_link', map_frame='map',
                       map_robot_id='robot_a', map_state_topic='/rescue/robots/robot_a/map_state', robot_id='robot_a',
                       clock_error_bound_ns=150_000_000, process_period_s=0.5, max_cloud_age_s=0.5, stride=2,
-                      camera_info_topic='/robot6/oakd/stereo/camera_info',
-                      view_image_topic='/robot6/oakd/rgb/image_raw/compressed', view_width=352, view_quality=70,
+                      view_camera_info_topic='/robot6/oakd/rgb/preview/camera_info',
+                      view_image_topic='/robot6/oakd/rgb/preview/image_raw/compressed', view_width=352, view_quality=70,
                       view_slop_ns=20_000_000, view_font_path='/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
                       clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                       lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
@@ -250,8 +258,12 @@ class ParamsTests(unittest.TestCase):
         policy, node = overhead_values(values)
         self.assertEqual(POLICY, policy)
         self.assertEqual(('/robot6/passage_points', 2, 0.5), (node['points_topic'], node['stride'], node['process_period_s']))
-        self.assertEqual(('/robot6/oakd/rgb/image_raw/compressed', 352), (node['view_image_topic'], node['view_width']))
-        self.assertEqual('', overhead_values(dict(values, view_image_topic=''))[1]['view_image_topic'])   # view off
+        self.assertEqual(('/robot6/oakd/rgb/preview/image_raw/compressed', 352), (node['view_image_topic'], node['view_width']))
+        off = overhead_values(dict(values, view_image_topic='', view_camera_info_topic=''))[1]   # view off
+        self.assertEqual(('', ''), (off['view_image_topic'], off['view_camera_info_topic']))
+        for half in (dict(view_image_topic=''), dict(view_camera_info_topic='')):   # both or neither
+            with self.subTest(half=half), self.assertRaises(ValueError):
+                overhead_values(dict(values, **half))
         for name, bad in (('stride', 0), ('process_period_s', 0.0), ('max_cloud_age_s', -1.0),
                           ('clock_error_bound_ns', -1), ('points_topic', ' '), ('view_width', 0),
                           ('view_quality', 101), ('view_slop_ns', -1), ('view_font_path', '')):
