@@ -212,7 +212,7 @@ class LocalizationLaunch(FieldCase):
 class FreezeLaunch(FieldCase):
     def params(self, **changes):
         from rescue_bringup.field_launch import map_freeze_parameters
-        values = dict(output_dir='/srv/freeze', record_path='') | changes
+        values = dict(output_dir='/srv/freeze') | changes
         return map_freeze_parameters(self.deployment, field=self.field(), **values)
 
     def test_freeze_reads_the_slam_robot_map_and_pose_on_the_profile_basis(self):
@@ -222,10 +222,11 @@ class FreezeLaunch(FieldCase):
                           'map_session_id': basis.map_session_id, 'map_revision': basis.map_revision,
                           'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze'}, p)
 
-    def test_restart_record_is_optional_and_absolute(self):
+    def test_output_dir_is_absolute_and_a_restart_reads_it(self):
+        # two freezes per run (OPS-154): a restart reloads every record of the run from output_dir
         from rescue_bringup.field_launch import FieldLaunchError
-        self.assertEqual('/srv/freeze/frozen-x.json', self.params(record_path='/srv/freeze/frozen-x.json')['record_path'])
-        for bad in (dict(output_dir=''), dict(output_dir='freeze'), dict(record_path='frozen-x.json')):
+        self.assertNotIn('record_path', self.params())
+        for bad in (dict(output_dir=''), dict(output_dir='freeze')):
             with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
                 self.params(**bad)
 
@@ -304,3 +305,21 @@ class SlamPoseFromTf(FieldCase):
                        lambda raw: raw['robots']['robot_b'].update({key: 1})):
             with self.assertRaises(FieldLaunchError):
                 self.field(change)
+
+
+class TwoFreezes(FieldCase):
+    """Map frozen twice (OPS-154/159): what the launches hand the executor and the relay."""
+
+    def test_tb5_executor_gets_its_amcl_initialpose_topic_for_re_aligning(self):
+        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        self.assertEqual('/robot5/initialpose', b['task.saved_map.initial_pose_topic'])
+        a = self.robot(field=self.field(), occupancy_sha256='')['task_input']
+        self.assertNotIn('task.saved_map.initial_pose_topic', a)   # TB-6 starts AMCL from the frozen pose
+
+    def test_relay_follows_the_revision_pair_and_its_own_map_state(self):
+        from rescue_bringup.field_launch import frozen_localization_values
+        for robot_id in ('robot_a', 'robot_b'):
+            with self.subTest(robot_id=robot_id):
+                v = frozen_localization_values(self.deployment, field=self.field(frozen_field), robot_id=robot_id)
+                self.assertEqual('/rescue/map/frozen_revision', v['frozen_revision_topic'])
+                self.assertEqual(f'/rescue/robots/{robot_id}/map_state', v['map_state_topic'])

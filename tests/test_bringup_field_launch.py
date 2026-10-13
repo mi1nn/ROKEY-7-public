@@ -176,13 +176,27 @@ class CoordinatorParameters(FieldCase):
         expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
         # Added after #132: TB-6 search mode and TB-5's exit approach (OPS-136·139); patrol_points [] is left unset
         expected.update(search_mode='AREAS', patrol_rounds=1, exit_standoff_m=0.5)
+        # The whole map (OPS-154): FRONTIER executes FRONTIER sites; the coordinator then keeps the RViz goal pick
+        # (#132, live_inputs.search_goal_topic) off by itself (live_task_inputs.goal_pick_topic).
+        # SLAM_FREEZE needs it: the final map's freeze waits for EXPLORATION_COMPLETE (작전 OPS-174).
+        expected.update(search_mode='FRONTIER', executable_bases=['PRIOR_MAP', 'FRONTIER'])
         # Added after #132: frontier exploration values (OPS-154, proposed)
         expected.update(frontier_min_cells=10, frontier_reach_m=1.0, frontier_goal_max_m=1.5,
                         frontier_blacklist_m=0.5, frontier_issue_delay_s=2.0, exploration_empty_checks=3,
                         exploration_timeout_s=600.0)
+        expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
+
+    def test_tb5_start_spot_goes_to_the_coordinator_only_when_measured(self):
+        """OPS-155 ①·173: robots.<TB-5>.initial_pose_xy_yaw (TB-6 start pose frame) is also TB-5's exit when no QR
+        exit was seen; one source, passed on as support_start_pose, left unset while not measured."""
+        self.assertNotIn('support_start_pose', self.coordinator())
+
+        def measured(raw):
+            raw['robots']['robot_b']['initial_pose_xy_yaw'] = [1.5, -0.4, 3.14]
+        self.assertEqual([1.5, -0.4, 3.14], self.coordinator(field=self.field(measured))['support_start_pose'])
 
     def test_one_passage_flag_per_segment_end(self):
         """A length other than the segment count holds every segment (PASSAGE_ASSESSMENT_REQUIRED) at run time;
@@ -455,22 +469,20 @@ class FieldFile(FieldCase):
             'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'map mode unknown': lambda r: r['coordinator'].update({'map_mode': 'SLAM'}),
             'search mode unknown': lambda r: r['coordinator'].update({'search_mode': 'LOOP'}),
-            'frontier with the RViz goal pick': lambda r: r['coordinator'].update(
-                {'search_mode': 'FRONTIER', 'executable_bases': ['FRONTIER']}),
-            'frontier basis not executable': lambda r: r['coordinator'].update(
-                {'search_mode': 'FRONTIER', 'live_inputs.search_goal_topic': ''}),
+            # OPS-174: SLAM_FREEZE's final freeze waits for EXPLORATION_COMPLETE, which only FRONTIER gives; with
+            # AREAS TB-6 would wait MAP_NOT_FINAL forever and the run would never end.
+            'slam freeze without frontier': lambda r: r['coordinator'].update({'search_mode': 'AREAS'}),
+            'frontier basis not executable': lambda r: r['coordinator'].update({'executable_bases': ['PRIOR_MAP']}),
             'frontier issue before the robot reads it': lambda r: r['coordinator'].update(
                 {'frontier_issue_delay_s': 0.5}),
             'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
+            'completion mode unknown': lambda r: r['coordinator'].update({'completion_mode': 'ARRIVAL'}),
             'patrol without points': lambda r: r['coordinator'].update({'search_mode': 'PATROL'}),
             'patrol points not triples': lambda r: r['coordinator'].update({'patrol_points': [1.0, 2.0]}),
             'patrol rounds below one': lambda r: r['coordinator'].update({'patrol_rounds': 0}),
             'exit standoff not positive': lambda r: r['coordinator'].update({'exit_standoff_m': 0.0}),
-            # PATROL replaces the RViz goal pick (it would replace the areas) and needs PATROL_POINT executable
-            'patrol with the RViz goal pick': lambda r: r['coordinator'].update(
-                {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'executable_bases': ['PATROL_POINT']}),
             'patrol point basis not executable': lambda r: r['coordinator'].update(
-                {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'live_inputs.search_goal_topic': ''}),
+                {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'map_mode': 'SAVED_MAP'}),
             'search start unknown': lambda r: r['coordinator'].update({'search_start': 'auto'}),
             'freeze timeout not positive': lambda r: r['coordinator'].update({'map_freeze_timeout_s': 0.0}),
             # The coordinator checks the approach point and homes with the radius the robot checks its goal with.

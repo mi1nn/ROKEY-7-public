@@ -1,19 +1,20 @@
-"""Map lifecycle on the robot: TB-6 SLAM while searching, then one frozen map for both robots (no ROS).
+"""Map lifecycle on the robot: TB-6 SLAM while searching, then frozen maps (no ROS).
 
 User decision 2026-10-13 evening (scope Q-29 ⑦, OPS-113/114/117): no prior map. TB-6
-(robot_a) runs SLAM while searching; its map frame is the common frame. When the target is
-confirmed the TB-6 map is frozen once (/rescue/map/frozen) and both robots localize on it with
-AMCL. MapState basis: the run's session with revision R0 while searching, the same session
-with R0 + 1 once frozen. A robot loads the frozen map only when its own map topic carries
-exactly the frozen grid (same hash), and never goes back to SLAM. TB-5 (robot_b) has no map
-before the freeze. Nothing is made VALID that was not measured; a second, different frozen
-map blocks the map (a new run is needed).
+(robot_a) runs SLAM while searching; its map frame is the common frame. The TB-6 map is frozen
+twice (OPS-154, test_robot_live_map_twice): R0 + 1 for TB-5, R0 + 2 when TB-6 also changes to
+AMCL. MapState basis: the run's session with revision R0 while searching, the frozen revision
+after. A robot loads the frozen map only when its own map topic carries exactly the frozen grid
+(same hash), and never goes back to SLAM. TB-5 (robot_b) has no map before the first freeze.
+Nothing is made VALID that was not measured; a different grid for the same revision blocks the
+map (a new run is needed).
 """
 from copy import deepcopy
 import threading
 from types import SimpleNamespace as NS
 import unittest
 
+from rescue_contracts.occupancy import frozen_revision_text
 from rescue_robot.executor import ContractError
 from rescue_robot.live_parameters import frozen_revision, home_destinations
 from rescue_robot.live_sources import Grid, SavedMapSources
@@ -47,12 +48,14 @@ def settings(mode, robot='robot_a', **changes):
              transform_xy_yaw=[0., 0., 0.], valid_from_ns=1, transform_valid_until_ns=10 ** 18,
              position_error_m=0.05, rotation_error_rad=0.05, max_position_variance_m2=0.25,
              max_yaw_variance_rad2=0.25, authority_id='mapping', clock_domain_id='rokey7-utc-field',
-             frozen_topic='/rescue/map/frozen')
+             frozen_topic='/rescue/map/frozen', frozen_revision_topic='/rescue/map/frozen_revision')
     if mode == 'SLAM_THEN_FROZEN':
         c['slam_localization_topic'] = ns + '/pose'
         # SLAM-phase pose = TF map -> base_link, covariance from the last SLAM pose (OPS-177)
         c.update(slam_tf_topic=ns + '/tf', slam_odom_frame='odom', slam_base_frame='base_link',
                  slam_covariance_max_age_ns=30_000_000_000)
+    if mode == 'FROZEN_MAP_AMCL':
+        c['initial_pose_topic'] = ns + '/initialpose'
     c.update(changes)
     return {robot: c}
 
@@ -60,10 +63,11 @@ def settings(mode, robot='robot_a', **changes):
 class Runtime:
     def __init__(self):
         self.now = 5_000_000_000
-        self.errors = []
-        self.adapter = NS(lock=threading.RLock(), wall_clock_ns=lambda: self.now)
+        self.errors, self.infos = [], []
+        self.adapter = NS(lock=threading.RLock(), wall_clock_ns=lambda: self.now,
+                          executor=NS(active=None, motion='STOPPED'))   # no task, odometry says stopped
         self.inputs = NS(bound=1_000_000, max_age=2_000_000_000)
-        logger = NS(error=self.errors.append, warning=self.errors.append, info=lambda _m: None)
+        logger = NS(error=self.errors.append, warning=self.errors.append, info=self.infos.append)
         self.node = NS(get_logger=lambda: logger)
 
 
@@ -80,6 +84,12 @@ class Lifecycle(unittest.TestCase):
 
     def record(self):
         return self.s.records()[self.robot]
+
+    def freeze(self, message, revision=R0 + 1):
+        """map_freeze: the grid and its revision pair (/rescue/map/frozen_revision)."""
+        self.s.receive_frozen(message)
+        self.s.receive_frozen_revision(NS(data=frozen_revision_text(
+            map_session_id=SESSION, map_revision=revision, occupancy_sha256=Grid(message).sha256)))
 
     # --- TB-6 searching on its own SLAM map ---------------------------------------------------
 
@@ -116,21 +126,21 @@ class Lifecycle(unittest.TestCase):
 
     # --- freeze ---------------------------------------------------------------------------------
 
-    def test_frozen_map_moves_tb6_to_r0_plus_1_once_its_map_topic_carries_that_grid(self):
+    def test_final_frozen_map_moves_tb6_to_r0_plus_2_once_its_map_topic_carries_that_grid(self):
         s = self.make('SLAM_THEN_FROZEN')
         frozen = grid_message({5: 100})
         s.receive_map('robot_a', grid_message())
         self.pose(source='slam')
-        s.receive_frozen(frozen)
+        self.freeze(frozen, R0 + 2)
         # SLAM is still publishing the old map: not the frozen grid -> nothing loaded, UNKNOWN
-        self.assertEqual(('UNKNOWN', R0 + 1), (self.record()['localization_status'], self.record()['map_revision']))
+        self.assertEqual(('UNKNOWN', R0 + 2), (self.record()['localization_status'], self.record()['map_revision']))
         self.assertFalse(s.loaded('robot_a'))
         s.receive_map('robot_a', deepcopy(frozen))   # the frozen map republished on /robot6/map
         self.assertEqual(Grid(frozen).sha256, s.maps['robot_a'].sha256)
         self.pose(source='slam')                      # SLAM pose no longer counts
         self.assertEqual('UNKNOWN', self.record()['localization_status'])
         self.pose(source='localization')              # AMCL on the frozen map
-        self.assertEqual(('VALID', SESSION, R0 + 1), (self.record()['localization_status'],
+        self.assertEqual(('VALID', SESSION, R0 + 2), (self.record()['localization_status'],
                                                       self.record()['map_session_id'], self.record()['map_revision']))
         self.assertEqual(Grid(frozen).sha256, s.basis('robot_a')['occupancy_key'])
 
@@ -139,7 +149,7 @@ class Lifecycle(unittest.TestCase):
         frozen = grid_message({5: 100})
         s.receive_map('robot_b', deepcopy(frozen))
         self.assertFalse(s.loaded('robot_b'))
-        s.receive_frozen(frozen)
+        self.freeze(frozen)
         self.assertTrue(s.loaded('robot_b'))
 
     def test_tb5_has_no_map_and_no_valid_localization_before_the_freeze(self):
@@ -148,13 +158,13 @@ class Lifecycle(unittest.TestCase):
         self.pose()
         self.assertEqual(('UNKNOWN', R0), (self.record()['localization_status'], self.record()['map_revision']))
         self.assertEqual('unfrozen', s.basis('robot_b')['occupancy_key'])
-        s.receive_frozen(grid_message())
+        self.freeze(grid_message())
         self.pose()
         self.assertEqual(('VALID', R0 + 1), (self.record()['localization_status'], self.record()['map_revision']))
 
     def test_map_topic_with_another_grid_than_the_frozen_one_is_not_loaded(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
-        s.receive_frozen(grid_message({5: 100}))
+        self.freeze(grid_message({5: 100}))
         s.receive_map('robot_b', grid_message({6: 100}))
         self.pose()
         self.assertEqual('UNKNOWN', self.record()['localization_status'])
@@ -162,7 +172,7 @@ class Lifecycle(unittest.TestCase):
 
     def test_unconverged_amcl_is_not_valid(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
-        s.receive_frozen(grid_message())
+        self.freeze(grid_message())
         s.receive_map('robot_b', grid_message())
         wide = list(COV)
         wide[0] = wide[7] = 1.0
@@ -171,16 +181,16 @@ class Lifecycle(unittest.TestCase):
 
     def test_same_frozen_map_again_is_harmless(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
-        s.receive_frozen(grid_message())
+        self.freeze(grid_message())
         s.receive_map('robot_b', grid_message())
-        s.receive_frozen(grid_message())     # a restarted freeze node republishes the saved grid
+        self.freeze(grid_message())          # a restarted freeze node republishes the saved grid
         self.assertTrue(s.loaded('robot_b'))
 
-    def test_a_different_second_frozen_map_blocks_the_map(self):
+    def test_a_different_frozen_map_for_the_same_revision_blocks_the_map(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
-        s.receive_frozen(grid_message())
+        self.freeze(grid_message())
         s.receive_map('robot_b', grid_message())
-        s.receive_frozen(grid_message({5: 100}))
+        self.freeze(grid_message({5: 100}))
         self.assertFalse(s.loaded('robot_b'))
         s.receive_map('robot_b', grid_message({5: 100}))
         s.receive_map('robot_b', grid_message())
@@ -188,30 +198,30 @@ class Lifecycle(unittest.TestCase):
 
     def test_frozen_map_in_another_frame_is_refused(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
-        s.receive_frozen(grid_message(frame='odom'))
+        self.freeze(grid_message(frame='odom'))
         self.assertEqual('unfrozen', s.basis('robot_b')['occupancy_key'])
 
     def test_tb6_never_goes_back_to_slam(self):
         s = self.make('SLAM_THEN_FROZEN')
-        s.receive_frozen(grid_message())
+        self.freeze(grid_message(), R0 + 2)
         s.receive_map('robot_a', grid_message({7: 100}))   # a late SLAM map
         self.pose(source='slam')
-        self.assertEqual(('UNKNOWN', R0 + 1), (self.record()['localization_status'], self.record()['map_revision']))
+        self.assertEqual(('UNKNOWN', R0 + 2), (self.record()['localization_status'], self.record()['map_revision']))
 
     # --- saved maps (tests without robots) are unchanged ----------------------------------------
 
     def test_saved_map_mode_ignores_frozen_maps(self):
         g = grid_message()
         s = self.make('SAVED_MAP_AMCL', occupancy_sha256=Grid(g).sha256)
-        s.receive_frozen(grid_message({5: 100}))
+        self.freeze(grid_message({5: 100}))
         s.receive_map('robot_a', g)
         self.pose()
         self.assertEqual(('VALID', R0), (self.record()['localization_status'], self.record()['map_revision']))
         self.assertEqual(Grid(g).sha256, s.basis('robot_a')['occupancy_key'])
 
     def test_homes_are_on_the_frozen_revision(self):
-        """RETURN_HOME and the exit are TB-6 map points used after the freeze: revision R0 + 1."""
-        for mode, expected in (('SLAM_THEN_FROZEN', R0 + 1), ('FROZEN_MAP_AMCL', R0 + 1), ('SAVED_MAP_AMCL', R0)):
+        """RETURN_HOME (TB-6 docking approach) is used after the last freeze: R0 + 2 (OPS-154)."""
+        for mode, expected in (('SLAM_THEN_FROZEN', R0 + 2), ('SAVED_MAP_AMCL', R0)):
             with self.subTest(mode=mode):
                 m = settings(mode)['robot_a']
                 home = home_destinations('robot_a', [1., 2., 0.], frame_id='map', map_session_id=SESSION,
