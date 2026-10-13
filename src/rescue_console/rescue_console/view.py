@@ -341,6 +341,7 @@ MISSION_REASONS = {
     'TARGET_ALREADY_JUDGED': ('이미 판정한 대상 — {support} 출동 안 함', 'info'),
     'SCOUT_RETURNING': ('{scout} 도킹 접근 지점으로 이동 중', 'info'),
     'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND': ('{scout} 도킹 접근 지점 도착 — 도킹은 사람이 합니다', 'info'),
+    'SCOUT_RETURN_FAILED': ('{scout} 도킹 접근 지점 이동 실패 — 다시 보내지 않음', 'alert'),   # #194
     # TargetLocation time gate (#174, OPS-103): no target is made from these.
     'TARGET_TIME_BASIS_UNUSABLE': ('대상 위치의 관측 시각을 쓸 수 없음(시계 미측정·오차 상한 없음)', 'caution'),
     'TARGET_CLOCK_DOMAIN_MISMATCH': ('대상 위치 관측의 시계 영역이 다름', 'caution'),
