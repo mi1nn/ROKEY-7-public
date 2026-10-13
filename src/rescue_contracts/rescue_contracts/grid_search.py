@@ -117,7 +117,7 @@ def _start(g, mask, point, radius):
         for cx in range(ix - extent, ix + extent + 1):
             j = g.index(cx, cy)
             if j is not None and mask[j]:
-                d = math.dist((x, y), g.centre(j))
+                d = round(math.dist((x, y), g.centre(j)), 9)   # 1 nm: mirror cells tie exactly
                 if d <= radius + 1e-9 and (best is None or (d, cy, cx) < best[0]):
                     best = ((d, cy, cx), j)
     return None if best is None else (best[1], best[0][0])
@@ -243,7 +243,10 @@ def find_frontiers(*, frame, width, height, resolution, origin, data, radius, mi
             continue
         centres = [g.centre(c) for c in cluster]
         centroid = (sum(x for x, _ in centres) / len(centres), sum(y for _, y in centres) / len(centres))
-        best = min(((math.dist(centroid, g.centre(c)), c // g.w, c % g.w, c) for c in clear), default=None)
+        # distances rounded to 1 nm so a geometric tie stays a tie whatever float noise the sum carries
+        # (Python 3.12+ sums floats with compensation, 3.10/3.11 do not)
+        best = min(((round(math.dist(centroid, g.centre(c)), 9), c // g.w, c % g.w, c) for c in clear),
+                   default=None)
         goal = g.centre(best[3]) if best is not None and best[0] <= limit else None
         found.append(Frontier(len(cluster), centroid, goal))
     return tuple(sorted(found, key=lambda f: (-f.cells, f.centroid)))
