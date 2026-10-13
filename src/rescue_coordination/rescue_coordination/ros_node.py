@@ -474,6 +474,13 @@ class CoordinatorCore:
         self.map_grid = grid
         return self._try_freeze()
 
+    def on_frozen_map_invalid(self, detail):
+        """A grid on FROZEN_MAP_TOPIC the shared rule refuses (ValueError): fails a freeze being waited for."""
+        if self.freeze in ('REQUESTED', 'AWAITING_MAP'):
+            self._freeze_failed(f'invalid frozen map: {detail}')
+            return True
+        return False
+
     def _try_freeze(self):
         """FROZEN when TB-6's MapState on a revision other than the search one names this grid's snapshot.
 
@@ -1384,6 +1391,10 @@ def node_tick(core, now_ns, out):
     _send_targets(core, out)
     for fields in core.tick(now_ns):
         out.task(fields)
+    if core.take_freeze_request():
+        out.freeze()
+    for line in core.drain_notes():
+        out.note(line)
     for fields in core.watch_requests(now_ns):
         out.watch(fields)
     for report in core.reports_due(now_ns):
@@ -1393,6 +1404,26 @@ def node_tick(core, now_ns, out):
     out.block(core.issue_block)
     _send_targets(core, out)
     out.state(now_ns)
+
+
+class FrozenGrid:
+    """The frozen OccupancyGrid for the core: its occupancy hash and the shared free-footprint rule.
+
+    Both come from rescue_contracts.occupancy (통합-로봇 #208), the same functions the robot hashes and checks its
+    goals with; ``planar_origin`` reads the origin pose as the robot does. An invalid grid raises ValueError.
+    """
+
+    def __init__(self, msg):
+        from rescue_contracts.occupancy import occupancy_sha256, planar_origin
+        info = msg.info
+        self.fields = dict(frame=msg.header.frame_id, width=int(info.width), height=int(info.height),
+                           resolution=float(info.resolution), origin=planar_origin(info.origin),
+                           data=[int(v) for v in msg.data])
+        self.sha256 = occupancy_sha256(**self.fields)
+
+    def clear(self, x, y, radius):
+        from rescue_contracts.occupancy import footprint_clear
+        return footprint_clear(**self.fields, x=x, y=y, radius=radius)
 
 
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
@@ -1566,7 +1597,8 @@ def main(args=None):
             log.fatal(f'missing parameters: {missing}')
             raise SystemExit(2)
         try:
-            core = build_core(values)
+            from rescue_contracts.occupancy import map_snapshot_id
+            core = build_core(values, map_snapshot_id=map_snapshot_id)
         except (RescueError, OSError, ValueError) as exc:
             log.fatal(f'configuration rejected: {exc}')
             raise SystemExit(2)
@@ -1673,6 +1705,32 @@ def main(args=None):
         lease_pubs = {robot: node.create_publisher(CommandLease, ROBOT_PREFIX + robot + '/command_lease', 1)
                       for robot in core.roles.values()}  # IF-014: RELIABLE / VOLATILE / KEEP_LAST 1
         last_block = [None]
+        from std_srvs.srv import Trigger as FreezeTrigger
+        freeze_client = node.create_client(FreezeTrigger, MAP_FREEZE_SERVICE) if core.map_mode == 'SLAM_FREEZE' else None
+        log.info(f'map_mode={core.map_mode} freeze={MAP_FREEZE_SERVICE if freeze_client else "none"}')
+
+        def call_freeze():
+            if not freeze_client.service_is_ready():
+                log.error(f'{MAP_FREEZE_SERVICE} not ready; the freeze fails at map_freeze_timeout_s unless it answers')
+            log.info(f'MAP_FREEZE call {MAP_FREEZE_SERVICE}')
+            freeze_client.call_async(FreezeTrigger.Request()).add_done_callback(guarded('freeze_reply', on_freeze_reply))
+
+        def on_freeze_reply(future):
+            res = future.result()
+            recorded = core.on_freeze_reply(bool(res.success), res.message)
+            (log.info if res.success else log.error)(
+                f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}')
+            tick()
+
+        def on_frozen_map(msg):
+            try:
+                grid = FrozenGrid(msg)
+            except ValueError as exc:
+                log.error(f'FROZEN_MAP invalid: {exc} -> freeze failed={core.on_frozen_map_invalid(str(exc))}')
+                return
+            log.info(f'FROZEN_MAP {grid.fields["width"]}x{grid.fields["height"]} sha256={grid.sha256} '
+                     f'-> frozen={core.on_frozen_map(grid)} basis={core.frozen}')
+            tick()
 
         def publish_report(report):
             msg = RescueReport(report_id=report['report_id'], target_id=report['target_id'],
@@ -1728,6 +1786,14 @@ def main(args=None):
                 if state is not None:
                     log.info(f'SYSTEM_STATE {state}')
 
+            @staticmethod
+            def freeze():
+                call_freeze()
+
+            @staticmethod
+            def note(line):
+                log.info(line)
+
         def tick():
             node_tick(core, now_ns(), Out)
 
@@ -1761,7 +1827,10 @@ def main(args=None):
         for robot in core.roles.values():
             node.create_subscription(MapState, ROBOT_PREFIX + robot + '/map_state', guarded('map_state', lambda msg: log.info(
                 f'MAP_STATE {msg.robot_id} {msg.map_session_id}/{msg.map_revision} {msg.localization_quality} '
-                f'-> recorded={core.on_map_state(msg)}')), latched)
+                f'snapshot={msg.snapshot_id} -> recorded={core.on_map_state(msg)} frozen={core.frozen}')), latched)
+        if core.map_mode == 'SLAM_FREEZE':
+            from nav_msgs.msg import OccupancyGrid
+            node.create_subscription(OccupancyGrid, FROZEN_MAP_TOPIC, guarded('frozen_map', on_frozen_map), latched)
         node.create_subscription(RobotPose, ROBOT_PREFIX + core.roles['SUPPORT'] + '/pose',
                                  guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
