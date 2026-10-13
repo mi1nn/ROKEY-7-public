@@ -15,7 +15,7 @@ import runpy
 import sys
 import unittest
 
-from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase, HomePoses
+from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase, HomePoses, saved_maps, tb5_depth
 
 START = [0.4, -0.3, 0.1]
 LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py'
@@ -46,7 +46,7 @@ class MapMode(FieldCase):
         self.assertFalse({'initial_pose_xy_yaw', 'map_freeze.pose_max_age_ns'} & set(task))
 
     def test_tb5_task_input_waits_for_the_frozen_map(self):
-        task = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        task = self.robot(field=self.field(tb5_depth), robot_id='robot_b', occupancy_sha256='')['task_input']
         self.assertEqual('FROZEN_MAP_AMCL', task['task.saved_map.mode'])
         self.assertNotIn('task.saved_map.slam_localization_topic', task)
 
@@ -103,14 +103,15 @@ class TB5ExitFromTheCoordinator(FieldCase):
 
     def test_frozen_map_robot_has_no_launch_home_and_the_slam_robot_keeps_its_own(self):
         self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
-        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        b = self.robot(field=self.field(tb5_depth), robot_id='robot_b', occupancy_sha256='')['task_input']
         a = self.robot(field=self.field(), occupancy_sha256='')['task_input']
         self.assertNotIn('task.live.home_xy_yaw', b)
         self.assertEqual([1.0, 2.0, 0.5], a['task.live.home_xy_yaw'])
 
     def test_saved_maps_keep_both_launch_homes(self):
         self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
-        self.assertEqual([3.0, -4.0, 0.0], self.robot(robot_id='robot_b')['task_input']['task.live.home_xy_yaw'])
+        field = self.field(lambda raw: (saved_maps(raw), tb5_depth(raw)))
+        self.assertEqual([3.0, -4.0, 0.0], self.robot(field=field, robot_id='robot_b')['task_input']['task.live.home_xy_yaw'])
 
 
 class CoordinatorRobotPairing(FieldCase):
@@ -229,7 +230,7 @@ class OnePcTwoRoles(FieldCase):
     def test_both_robots_on_one_pc_use_separate_names(self):
         """Trial: compute_a and compute_b may be one PC (OPS-124 ③): every robot node is in its namespace."""
         a = self.robot(field=self.field(), occupancy_sha256='')
-        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')
+        b = self.robot(field=self.field(tb5_depth), robot_id='robot_b', occupancy_sha256='')
         self.assertNotEqual(a['namespace'], b['namespace'])
         for key in ('executor_heartbeat_topic', 'watchdog_heartbeat_topic', 'task.saved_map.map_topic',
                     'task.saved_map.localization_topic'):

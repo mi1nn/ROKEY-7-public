@@ -30,8 +30,21 @@ ROBOT_B = {'task.publisher_id': 'p', 'task.mapping_authority': 'm', 'task.live.a
            'task.live.auto_target.policy_version': 'p',
            'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
            'task.live.sensor_host_clock_error_bound_ns': -1,
-           'task.saved_map.mode': 'FROZEN_MAP_AMCL', 'initial_pose_xy_yaw': [0.4, -0.3, 0.1]}
+           'task.saved_map.mode': 'FROZEN_MAP_AMCL', 'initial_pose_xy_yaw': [0.4, -0.3, 0.1],
+           'passage.depth_topic': '/robot_b/oakd/stereo/image_raw',
+           'passage.camera_info_topic': '/robot_b/oakd/stereo/camera_info', 'passage.depth_transport': 'compressedDepth'}
 ALL_MODULES = object()
+
+
+def passage_field(field, profile):
+    """The repository field file with each robot's passage depth image in the example profile's namespace
+    (the example robots are /robot_a, /robot_b; TB-5 is not measured yet in the repository file)."""
+    for robot in profile['robots']:
+        ns = robot['namespace']
+        field['robots'][robot['id']].update({'passage.depth_topic': ns + '/oakd/stereo/image_raw',
+                                             'passage.camera_info_topic': ns + '/oakd/stereo/camera_info',
+                                             'passage.depth_transport': 'compressedDepth'})
+    return field
 
 
 class FakeSpecs:
@@ -63,7 +76,9 @@ class RoleCase(unittest.TestCase):
         self.env = {'ROS_DISTRO': 'jazzy', 'AMENT_PREFIX_PATH': str(self.prefix), 'ROS_DOMAIN_ID': '7',
                     'ROS_DISCOVERY_SERVER': '192.0.2.13:11811;192.0.2.16:11811',
                     'ROS_AUTOMATIC_DISCOVERY_RANGE': ''}
-        self.field = REPO / 'config' / 'field' / 'search_area.field.json'
+        self.field = self.dir / 'field.repo.json'
+        self.field.write_text(json.dumps(passage_field(json.loads(
+            (REPO / 'config' / 'field' / 'search_area.field.json').read_text()), raw)))
         self.model = self.dir / 'model.pt'
         self.model.write_bytes(b'model bytes')
         self.webcam = self.dir / 'webcam.yaml'
