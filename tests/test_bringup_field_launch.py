@@ -8,6 +8,8 @@ rescue_bringup.field_launch. The field run file config/field/search_area.field.j
 import json
 from pathlib import Path
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -67,6 +69,28 @@ def field_profile(directory, *, entry_yaws=(0.0, 0.0)):
     path = directory / 'profile.json'
     path.write_text(json.dumps(profile))
     return path
+
+
+class DependencyTests(unittest.TestCase):
+    def test_suite_imports_without_pyyaml(self):
+        code = """
+import importlib.abc
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+for package in sorted((root / 'src').glob('rescue_*')):
+    sys.path.insert(0, str(package))
+sys.path.insert(0, str(root / 'tests'))
+class NoYaml(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'yaml' or fullname.startswith('yaml.'):
+            raise ModuleNotFoundError('PyYAML unavailable in the stdlib CI environment')
+sys.meta_path.insert(0, NoYaml())
+import test_bringup_field_launch
+"""
+        result = subprocess.run([sys.executable, '-I', '-c', code, str(REPO)],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
 
 
 class FieldCase(unittest.TestCase):
