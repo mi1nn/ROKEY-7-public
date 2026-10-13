@@ -149,11 +149,11 @@ class CoordinatorParameters(FieldCase):
         # Added after #132: TB-5 automatic dispatch (user decision 1B, 2026-10-13)
         expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
         # Added after #132: TargetLocation time checks (coordination OPS-103, 2026-10-13)
-        expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=2.0, target_max_future_s=0.05)
+        expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=3.0, target_max_future_s=0.05)
         # Added after #132: TB-5 wait at the target before leaving for the exit (placeholder, user decision pending)
         expected['support_exit_wait_s'] = 5.0
-        # Added after #132: recheck -> verdict clock check (coordination; placeholder, value under review)
-        expected['recheck_max_clock_error_s'] = 0.5
+        # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
+        expected['recheck_max_clock_error_s'] = 2.0
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
