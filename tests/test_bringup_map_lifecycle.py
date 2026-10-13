@@ -207,7 +207,7 @@ class LocalizationLaunch(FieldCase):
 class FreezeLaunch(FieldCase):
     def params(self, **changes):
         from rescue_bringup.field_launch import map_freeze_parameters
-        values = dict(output_dir='/srv/freeze', record_path='') | changes
+        values = dict(output_dir='/srv/freeze') | changes
         return map_freeze_parameters(self.deployment, field=self.field(), **values)
 
     def test_freeze_reads_the_slam_robot_map_and_pose_on_the_profile_basis(self):
@@ -217,10 +217,11 @@ class FreezeLaunch(FieldCase):
                           'map_session_id': basis.map_session_id, 'map_revision': basis.map_revision,
                           'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze'}, p)
 
-    def test_restart_record_is_optional_and_absolute(self):
+    def test_output_dir_is_absolute_and_a_restart_reads_it(self):
+        # two freezes per run (OPS-154): a restart reloads every record of the run from output_dir
         from rescue_bringup.field_launch import FieldLaunchError
-        self.assertEqual('/srv/freeze/frozen-x.json', self.params(record_path='/srv/freeze/frozen-x.json')['record_path'])
-        for bad in (dict(output_dir=''), dict(output_dir='freeze'), dict(record_path='frozen-x.json')):
+        self.assertNotIn('record_path', self.params())
+        for bad in (dict(output_dir=''), dict(output_dir='freeze')):
             with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
                 self.params(**bad)
 
