@@ -259,9 +259,21 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 ### TB-5 머리 위 여유 반복 기록 (headroom_record)
 
-[작전 OPS-113/115, 2026-10-13] TB-5 를 실제로 세우는 것은 Nav2 collision_monitor 의 깊이 점구름 소스다(통합-로봇 담당). 이 도구는 그 소스가 볼 것을 같은 방식으로 세어 기록만 한다. 깊이 영상마다 base_link 앞 상자(`box_x_min_m`~`box_x_max_m`, 좌우 `box_half_width_m`) 안에서 바닥 잡음(`floor_noise_m`, 제안 0.05 m) 위·여유 높이(`clearance_m`) 아래 점 수가 `min_points` 이상이면 STOP 이고, 아니면 PASS 다. 46 cm 여유 높이는 저장소 소유자 결정(2026-10-13)이다. 깊이·CameraInfo 가 없거나 오래됐거나 base_frame TF 가 없으면 UNKNOWN 이고, PASS 로 세지 않는다. 결과 JSON 에는 git SHA·여유 높이 출처·적용 파라미터·회차별 판정(점 수·가장 낮은 높이·이유)·요약(판정 수, 가장 낮은 높이 최소/최대)이 들어간다. 파라미터는 모두 기본값이 없다. 쓰는 법은 [headroom.py](rescue_perception/headroom.py) 맨 위에 있다. 가로판 앞 한 자리에서 10회 돌려 분포를 보고한다.
+[작전 OPS-113/115, 2026-10-13] 실제 정지는 Nav2 collision_monitor 의 깊이 점구름 소스로 구현할 계획이다(통합-로봇 담당). 현재 이 도구는 깊이 영상을 판정·기록만 한다. 깊이 영상마다 base_link 앞 상자(`box_x_min_m`~`box_x_max_m`, 좌우 `box_half_width_m`) 안에서 바닥 잡음(`floor_noise_m`, 제안 0.05 m) 위·여유 높이(`clearance_m`) 아래 점 수가 `min_points` 이상이면 STOP 이고, 아니면 PASS 다. 46 cm 여유 높이는 저장소 소유자 결정(2026-10-13)이다. 깊이·CameraInfo 가 없거나 오래됐거나 base_frame TF 가 없으면 UNKNOWN 이고, PASS 로 세지 않는다. 결과 JSON 에는 git SHA·여유 높이 출처·적용 파라미터·회차별 판정(점 수·가장 낮은 높이·이유)·요약(판정 수, 가장 낮은 높이 최소/최대)이 들어간다. 파라미터는 모두 기본값이 없다. 쓰는 법은 [headroom.py](rescue_perception/headroom.py) 맨 위에 있다. 가로판 앞 한 자리에서 10회 돌려 분포를 보고한다.
 
 시험: `tests/test_perception_headroom.py`(판정·점 변환·요약), `tests/ros/e3_headroom_probe.py`(LOCALHOST ROS, 합성 깊이·정적 TF → 판정 기록, E3). 실제 TB-5 깊이·가로판·보이는 거리는 NOT_RUN 이다.
+
+#### robot6 적용 전 확인 (2026-10-13)
+
+[사용자 요구] 통과 높이 **0.46 m**는 정책 기준이다. 깊이 영상의 거리값을 높이로 쓰지 않는다. [headroom.py](rescue_perception/headroom.py)의 `depth_points`는 카메라 정보를 이용해 점을 만들고 촬영 시각 TF로 `base_link`에 변환한다. 그 `z`를 바닥 위 실제 높이로 해석하려면 바닥과 `base_link` 원점의 관계, 카메라 TF, 로봇과 적재물 최고 높이를 확인해야 한다.
+
+[원본 코드] `judge`는 검사 상자 안에서 `z > floor_noise_m`인 점만 사용한다. `z < clearance_m`인 점이 `min_points` 이상이면 STOP, 부족하면 PASS다. 따라서 **정확히 0.46 m인 점은 낮은 점에 포함되지 않는다**. 점이 하나도 없어도 `judge` 자체는 PASS를 돌려준다. `headroom_record`의 입력 누락·오래됨·TF 실패 UNKNOWN과, 관측 영역이 가려지거나 유효 점이 부족할 때의 UNKNOWN은 다른 조건이다. 후자는 현재 `judge`에 없다. 경계 비교 연산은 이번 문서에서 바꾸지 않는다.
+
+[설정] `tests/test_perception_headroom.py`의 0.46 m 이외 값(`floor_noise_m=0.05`, 전방 `0.3~1.2 m`, 좌우 반폭 `0.2 m`, `min_points=3`)과 예시 명령의 픽셀 `stride=4`는 시험값이다. 시야·로봇 및 적재물 치수·깊이 잡음으로 검증하기 전에는 robot6 운영 기본값으로 승계하지 않는다. 현재 robot6 현장 Nav2 설정의 `collision_monitor.observation_sources`는 `scan`뿐이며 [탐색 설정](rescue_perception/exploration/nav2.yaml)도 같다. 깊이 판정이 실제 속도 정지 경로에 연결됐다는 증거는 없다.
+
+[측정, 2026-10-13, 정지 상태 robot6] 언도킹 뒤 깊이 영상 `16UC1`과 CameraInfo를 수신했다. 시험값으로 `headroom_record`를 3회 실행하면 모두 PASS였지만 `lowest_m`은 모두 `None`이었다. 별도 한 프레임의 점 분포에서는 전방 `0.3~1.2 m`, 좌우 반폭 `0.2 m` 안의 2,287점이 `base_link` 기준 대략 `-0.22~-0.19 m`에 있었다. 이는 정책 높이를 바닥 높이로 곧바로 읽을 수 없고, 빈 관측 PASS를 통과 증거로 쓸 수 없음을 보여준다. 가로판·적재물 치수와 TF 정확도는 미측정이다. 주행 중 높이 정지 시험은 NOT_RUN이다.
+
+[제안] 운영 판정에서는 낮은 점이 충분하면 STOP, 깊이·CameraInfo·TF 누락 또는 오래됨과 유효 관측 부족·가림·시야 밖은 UNKNOWN으로 보류한다. PASS에 필요한 관측량과 46 cm 근처의 오차 보류 범위는 임의의 점 수로 확정하지 않는다. 먼저 가로판 아래와 로봇+적재물 최고 높이를 줄자로 재고, 46 cm 미만·근처·초과 높이를 가깝고 먼 거리에서 정지 상태로 반복 측정한다. 판정·유효 점 수·낮은 점 수·최저 높이·시각·TF·적용값을 기록하고 `headroom_record`와 실제 `collision_monitor`의 판정을 대조한다. 깊이 입력 연결과 정지 검증은 기반 레인의 후속 작업이다.
 
 ### 출구 QR (OPS-136/138, 여러 출구 OPS-154/157)
 
