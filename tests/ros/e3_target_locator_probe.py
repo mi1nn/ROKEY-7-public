@@ -37,6 +37,11 @@ from rescue_interfaces.msg import RescueReport, TargetLocation, TargetObservatio
 from tf2_msgs.msg import TFMessage
 
 from e3_coordinator_probe import MAP, NODE_ARGS, node_command
+try:   # #174 (OPS-103) gives the coordinator this domain as target_clock_domain_id
+    from e3_coordinator_probe import CLOCK_DOMAIN
+except ImportError:
+    CLOCK_DOMAIN = 'e3-clock'
+# Test values, not a measured clock: SYNCED with a 5 ms bound on CLOCK_DOMAIN (OPS-103).
 
 TF_TOPIC, TF_STATIC_TOPIC = '/e3robot/tf', '/e3robot/tf_static'
 CAMERA = 'oakd_rgb_camera_optical_frame'
@@ -46,7 +51,7 @@ LOCATOR_ARGS = ['-p', 'robot_id:=robot_a', '-p', 'observations_topic:=/rescue/ob
                 '-p', 'transform_revision:=1', '-p', 'alignment_xy_yaw:=[0.0, 0.0, 0.0]',
                 '-p', 'alignment_position_error_m:=0.0', '-p', 'alignment_rotation_error_rad:=0.0',
                 '-p', 'tf_wait_s:=1.0', '-p', 'publisher_id:=amr.target_locator',
-                '-p', "envelope_schema_version:='0.1'", '-p', 'clock_domain_id:=e3-clock',
+                '-p', "envelope_schema_version:='0.1'", '-p', f'clock_domain_id:={CLOCK_DOMAIN}',
                 '-p', 'alignment_authority_id:=e3-saved-map-identity',
                 '-r', f'/tf:={TF_TOPIC}', '-r', f'/tf_static:={TF_STATIC_TOPIC}']
 
@@ -106,7 +111,7 @@ class Probe(Node):
                                 model_id='e3', model_sha256='a' * 64, tracking_mode='DETECTION_ONLY',
                                 sensor_frame=CAMERA, localization_status=status, depth_status='LOCATED')
         msg.time.observed_at_ns, msg.time.valid_until_ns = stamp_ns, stamp_ns + 2_000_000_000
-        msg.time.stamp_semantics, msg.time.clock_state, msg.time.clock_domain_id = 'CAPTURE', clock_state, 'e3-clock'
+        msg.time.stamp_semantics, msg.time.clock_state, msg.time.clock_domain_id = 'CAPTURE', clock_state, CLOCK_DOMAIN
         msg.time.has_clock_error_bound, msg.time.clock_error_bound_ns = clock_state == 'SYNCED', 5_000_000
         msg.sensor_position.x, msg.sensor_position.y, msg.sensor_position.z = (
             (1.0, 0.0, 0.0) if status == 'VALID' else (math.nan,) * 3)
@@ -176,6 +181,8 @@ def main():
         wait(executor, lambda: False, 2.5)
         checks['no TF at capture / no camera point -> nothing published'] = len(probe.locations) == before
         checks['unmeasured clock (C-03) -> nothing published'] = len(probe.locations) == before
+        checks['unmeasured clock -> no new coordinator target'] = bool(probe.snapshots) and len(
+            probe.snapshots[-1].targets) == 1
     finally:
         executor.shutdown()
         probe.destroy_node()
