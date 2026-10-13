@@ -2,8 +2,8 @@
 
 After the SUPPORT's APPROACH_TARGET ends COMPLETED with a confirmed stop, the coordinator waits
 ``support_exit_wait_s`` and then sends the SUPPORT one RETURN_HOME (home_ref ``home/<robot_id>``: the robot
-holds its exit pose, 5A). SystemState.reason counts down meanwhile. A judged target or the end of disaster
-mode cancels it; a failed approach never sends the SUPPORT to the exit.
+holds its exit pose, 5A). SystemState.reason counts down meanwhile. The end of disaster
+mode cancels it (a RESCUE_CONFIRMED target does not, 5A); a failed approach never sends the SUPPORT to the exit.
 """
 from types import SimpleNamespace as NS
 import unittest
@@ -73,19 +73,21 @@ class SupportExitTests(unittest.TestCase):
         self.assertEqual([], self.tasks('RETURN_HOME', NOW + 10 * WAIT))
         self.assertEqual('APPROACH_FAILED', self.core.system_state_change(NOW + 10 * WAIT)['reason'])
 
-    def test_a_judged_target_or_the_end_of_disaster_cancels_the_exit(self):
-        for change in ('judged', 'normal'):
-            with self.subTest(change):
-                self.setUp()
-                self.arrive()
-                self.tasks('RETURN_HOME', NOW)
-                if change == 'judged':
-                    self.core.mission.open_rechecks[self.target] = None
-                    self.core.mission.record_rescue_verdict(self.target, 'RESCUE_CONFIRMED')
-                else:
-                    self.core.mission.mode = 'NORMAL'
-                self.assertEqual([], self.tasks('RETURN_HOME', NOW + WAIT))
-                self.assertEqual('SUPPORT_EXIT_CANCELED', self.core.exit_reason(NOW + WAIT))
+    def test_the_end_of_disaster_cancels_the_exit(self):
+        self.arrive()
+        self.tasks('RETURN_HOME', NOW)
+        self.core.mission.mode = 'NORMAL'
+        self.assertEqual([], self.tasks('RETURN_HOME', NOW + WAIT))
+        self.assertEqual('SUPPORT_EXIT_CANCELED', self.core.exit_reason(NOW + WAIT))
+
+    def test_a_rescue_confirmed_target_still_exits(self):
+        # 5A: TB-5 leads out and ends at the exit; the verdict (often while it waits) does not cancel that.
+        self.arrive()
+        self.tasks('RETURN_HOME', NOW)
+        self.core.mission.open_rechecks[self.target] = None
+        self.core.mission.record_rescue_verdict(self.target, 'RESCUE_CONFIRMED')
+        (fields,) = self.tasks('RETURN_HOME', NOW + WAIT)
+        self.assertEqual(f'home/{SUPPORT}', fields['home_ref'])
 
     def test_wait_is_a_typed_required_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['support_exit_wait_s'])

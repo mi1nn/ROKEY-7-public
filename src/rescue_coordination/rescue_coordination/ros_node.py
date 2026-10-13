@@ -741,14 +741,16 @@ class CoordinatorCore:
     def _issue_support_exit(self, now_ns):
         """Q1-b: support_exit_wait_ns after TB-5 arrived (COMPLETED, stop confirmed), one RETURN_HOME to its exit.
 
-        The robot holds the exit pose (home_ref ``home/<robot_id>``, 5A). A judged target or the end of disaster
-        mode cancels the exit; a failed approach never reaches here (ARRIVED only).
+        The robot holds the exit pose (home_ref ``home/<robot_id>``, 5A). Only the end of disaster mode cancels
+        the exit: a RESCUE_CONFIRMED target does not, TB-5 still leads out and ends at the exit (5A; 작전
+        2026-10-13: after the verdict the TB-6 return and the TB-5 exit both follow). A failed approach never
+        reaches here (ARRIVED only).
         """
         mission = self.mission
         if (mission.dispatch_kind != 'APPROACH' or mission.approach_phase != 'ARRIVED'
                 or self.support_exit not in (None, 'WAITING')):
             return None
-        if mission.mode != 'DISASTER' or mission.verdicts.get(mission.dispatch_target) == 'RESCUE_CONFIRMED':
+        if mission.mode != 'DISASTER':
             self.support_exit = 'CANCELED'
             return None
         if self.support_exit is None:
