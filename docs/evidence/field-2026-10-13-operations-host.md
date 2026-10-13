@@ -79,7 +79,7 @@ tailscale0       UNKNOWN        <TAILSCALE_IP>/32
 $ iw dev wlp5s0 get power_save
 /bin/bash: line 1: iw: command not found        # iw 미설치(설치하지 않음). 대신 iwconfig 로 읽음
 $ iwconfig wlp5s0 | grep -i "power\|ESSID"
-wlp5s0    IEEE 802.11  ESSID:"DT_Campus_2"
+wlp5s0    IEEE 802.11  ESSID:"<CAMPUS_SSID>"
           Power Management:on
 $ nmcli -f 802-11-wireless.powersave connection show <연결>
 802-11-wireless.powersave:              0 (default)
@@ -99,7 +99,7 @@ $ ping -c 5 -i 0.2 -W 1 <GW> | tail -2
 5 packets transmitted, 5 received, 0% packet loss, time 803ms
 ```
 
-해석: 이 PC 는 캠퍼스 SSID(<PC_IP> 대역)에 있고 로봇·Discovery 서버는 다른 대역(로봇망)이다. 그래서 `~/.bashrc` 의 Discovery 설정(도메인 6, 서버 1개)으로도 지금은 로봇 그래프에 붙지 못한다. 로봇망 SSID 로 옮길지는 재범 결정이다. 옮기면 ping·절전을 다시 잰다.
+해석: 이 PC 는 캠퍼스 SSID(`<CAMPUS_SSID>`, <PC_IP> 대역)에 있고 로봇·Discovery 서버는 다른 대역(로봇망 `<ROBOT_SSID>`)이다. 그래서 `~/.bashrc` 의 Discovery 설정(도메인 6, 서버 1개)으로도 지금은 로봇 그래프에 붙지 못한다. 로봇망 `<ROBOT_SSID>` 로 옮길지는 재범 결정이다. 옮기면 ping·절전을 다시 잰다.
 
 ## 4. 현장 웹캠 설정
 
