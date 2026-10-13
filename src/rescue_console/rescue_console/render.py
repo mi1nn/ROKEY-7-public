@@ -50,8 +50,6 @@ def _age(seconds):
     return sign + text
 
 
-# Role -> the unit name the team uses (console-and-db-plan 1절: AMR1 정찰, AMR2 지원 출동).
-ROLE_UNIT = {'SCOUT': 'AMR1', 'SUPPORT': 'AMR2'}
 # Characters of a UUID shown on screen; the full ID stays in the title tooltip.
 SHORT_ID = 8
 # Battery bar colours switch below these percentages ([제안] 관제·화면, 2026-10-10; display only).
@@ -203,7 +201,7 @@ def _map(view):
     for robot in layer['robots']:
         x, y = robot['px'], robot['py']
         role = robot.get('role') or 'UNKNOWN'
-        unit = ROLE_UNIT.get(role, robot['id'])
+        unit = robot.get('name') or robot['id']
         if robot['yaw'] is None:
             body = f'<circle class="body" cx="{x}" cy="{y}" r="{ROBOT_MARK_PX}"/>'
         else:
@@ -253,8 +251,7 @@ def _robots(view):
     units = []
     for robot in view['robots']:
         role = robot['role']
-        unit = ROLE_UNIT.get(role, '')
-        head = (f'<h3><span class="unit-name">{escape(unit or robot["robot_id"])}</span>'
+        head = (f'<h3><span class="unit-name">{escape(robot["name"])}</span>'
                 f'<span class="unit-role">{_word("role", role) if role else ""}</span>'
                 f'<span class="unit-id">{escape(robot["robot_id"])}</span></h3>')
         if not robot['has_status']:
