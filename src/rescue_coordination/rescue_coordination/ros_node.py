@@ -719,6 +719,21 @@ class CoordinatorCore:
                     created_task_id=created_task_id)
 
 
+def spin_until_shutdown(spin, context_ok, shutdown_error):
+    """Run ``spin``; a ``shutdown_error`` raised after the context closed is the shutdown race, a normal stop.
+
+    On SIGTERM rclpy shuts the context down, and a spin caught between callbacks raises
+    RCLError("the given context is not valid") instead of ExternalShutdownException (A·B rehearsal
+    2026-10-13: 2 of 3 runs ended with a traceback and exit 1). The same error while the context
+    is valid, and every other error, is raised.
+    """
+    try:
+        spin()
+    except shutdown_error:
+        if context_ok():
+            raise
+
+
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
 def declare_required(node, names, optional=()):
     """Typed parameters without defaults -> (values, missing). Jazzy rejects a typed
@@ -796,6 +811,7 @@ OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 
 def main(args=None):
     import rclpy
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.action import ActionClient
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
@@ -968,7 +984,7 @@ def main(args=None):
             f'RECEIPT {msg.report_id} {msg.state} -> saved={core.on_receipt(msg)}')), 10)
         node.create_service(SubmitOperatorCommand, OPERATOR_COMMAND_SERVICE, on_command)
         node.create_timer(values['tick_period_s'], guarded('tick', tick))
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException, SystemExit) as exc:
         if isinstance(exc, SystemExit) and exc.code not in (None, 0):
             raise
