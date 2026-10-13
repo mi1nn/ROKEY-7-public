@@ -5,6 +5,7 @@ rescue_bringup.field_launch. The field run file config/field/search_area.field.j
 #132 field values; these tests keep the generated parameters equal to the #132 field scripts
 (scripts/field/search-area/start_*.sh), which moved a robot on 2026-10-12.
 """
+import ast
 import json
 from pathlib import Path
 import re
@@ -12,8 +13,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-
-import yaml
 
 from rescue_bringup.profile import load_deployment
 
@@ -36,7 +35,13 @@ def script_parameters(name):
             raw = raw[1:-1]  # the outer shell quotes only
         key, value = raw.split(':=', 1)
         if '$' not in value:
-            values[key] = yaml.safe_load(value)
+            try:
+                values[key] = json.loads(value)
+            except json.JSONDecodeError:
+                try:
+                    values[key] = ast.literal_eval(value)
+                except (ValueError, SyntaxError):
+                    values[key] = value
     return values
 
 
