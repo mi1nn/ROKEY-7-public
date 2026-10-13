@@ -47,10 +47,11 @@ def depth_image(values=None, *, encoding="16UC1", big=False, pad=0, width=4, hei
               is_bigendian=int(big), step=width * size + pad, data=data)
 
 
-def camera_info(*, k=(2.0, 0, 1.5, 0, 2.0, 1.5, 0, 0, 1), p=None, frame_id=FRAME, binning=0, roi=None):
+def camera_info(*, k=(2.0, 0, 1.5, 0, 2.0, 1.5, 0, 0, 1), p=None, frame_id=FRAME, binning=0, roi=None,
+                model="plumb_bob", d=(0.0,) * 5):
     p = p if p is not None else (2.0, 0, 1.5, 0, 0, 2.0, 1.5, 0, 0, 0, 1, 0)
-    return NS(header=header(frame_id=frame_id), width=4, height=4, k=k, p=p, d=(0.0,) * 5,
-              distortion_model="plumb_bob", binning_x=binning, binning_y=binning,
+    return NS(header=header(frame_id=frame_id), width=4, height=4, k=k, p=p, d=d,
+              distortion_model=model, binning_x=binning, binning_y=binning,
               roi=roi or NS(x_offset=0, y_offset=0, width=0, height=0))
 
 
@@ -147,7 +148,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(self.run_adapter(depth=edge).localization.reason, "LOCATED")
         unverified = replace(self.alignment, verified=False)
         self.assertUnlocated("ALIGNMENT_UNVERIFIED", self.run_adapter(alignment=unverified))
-        self.assertUnlocated("ALIGNMENT_UNVERIFIED", self.run_adapter(rectified=False))
+        # Unrectified: refused only when the CameraInfo model cannot undistort the box points (2026-10-13).
+        fisheye = camera_info(model="equidistant", d=(0.0,) * 4)
+        self.assertUnlocated("ALIGNMENT_UNVERIFIED", self.run_adapter(rectified=False, info=fisheye))
         self.assertUnlocated("CALIBRATION_MISMATCH", self.run_adapter(info=camera_info(frame_id="other")))
         small = depth_image([[2000] * 2] * 2, width=2, height=2)
         self.assertUnlocated("DIMENSION_MISMATCH", self.run_adapter(depth=small))
@@ -161,8 +164,11 @@ class AdapterTests(unittest.TestCase):
         info = camera_info(k=(9.0, 0, 9.0, 0, 9.0, 9.0, 0, 0, 1))
         intrinsics = camera_intrinsics(info, self.binding, rectified=True)
         self.assertEqual((intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy), (2.0, 2.0, 1.5, 1.5))
-        raw = camera_intrinsics(info, self.binding, rectified=False)
-        self.assertEqual((raw.fx, raw.cx, raw.rectified), (9.0, 9.0, False))
+        fisheye = camera_info(k=(9.0, 0, 9.0, 0, 9.0, 9.0, 0, 0, 1), model="equidistant", d=(0.0,) * 4)
+        raw = camera_intrinsics(fisheye, self.binding, rectified=False)
+        self.assertEqual((raw.fx, raw.cx, raw.rectified, raw.undistort), (9.0, 9.0, False, None))
+        undistorted = camera_intrinsics(info, self.binding, rectified=False)   # plumb_bob: points go onto P
+        self.assertEqual((undistorted.fx, undistorted.cx, undistorted.rectified), (2.0, 1.5, False))
 
     def test_secondary_stereo_binning_and_roi_are_rejected(self):
         right = camera_info(p=(2.0, 0, 1.5, -0.1, 0, 2.0, 1.5, 0, 0, 0, 1, 0))

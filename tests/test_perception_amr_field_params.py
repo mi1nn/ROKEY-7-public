@@ -16,8 +16,10 @@ TARGET_NAMES = {'image_topic', 'depth_topic', 'camera_info_topic', 'rgb_optical_
                 # Localization evidence (2026-10-13): with the old code values UNKNOWN/False every detection
                 # was refused (core.locate_detection CLOCK_UNCERTAIN / ALIGNMENT_UNVERIFIED), so nothing was sent.
                 'rgb_stamp_semantics', 'depth_stamp_semantics', 'rgb_depth_alignment_verified', 'rgb_rectified',
-                'calibration_id', 'alignment_evidence_id'}
+                'calibration_id', 'alignment_evidence_id',
+                'sync_queue_size', 'sync_slop_ns', 'camera_info_max_age_ns'}
 BOOL_NAMES = {'rgb_depth_alignment_verified', 'rgb_rectified'}
+INTEGER_NAMES = {'sync_queue_size', 'sync_slop_ns', 'camera_info_max_age_ns'}
 
 
 def supplied(**override):
@@ -28,7 +30,8 @@ def supplied(**override):
               'depth_optical_frame': 'oakd_rgb_camera_optical_frame',
               'rgb_stamp_semantics': 'DRIVER_RECEIVE', 'depth_stamp_semantics': 'DRIVER_RECEIVE',
               'rgb_depth_alignment_verified': False, 'rgb_rectified': False,
-              'calibration_id': 'robot6-oakd-test', 'alignment_evidence_id': 'robot6-oakd-test-evidence'}
+              'calibration_id': 'robot6-oakd-test', 'alignment_evidence_id': 'robot6-oakd-test-evidence',
+              'sync_queue_size': 40, 'sync_slop_ns': 20_000_000, 'camera_info_max_age_ns': 1_500_000_000}
     values.update(override)
     return values
 
@@ -37,7 +40,8 @@ class AmrFieldParamsTests(unittest.TestCase):
     def test_no_topic_or_frame_default_in_code(self):
         self.assertEqual({'image_topic'}, set(CAMERA_FIELD_PARAMS))
         self.assertEqual(TARGET_NAMES, set(TARGET_FIELD_PARAMS))
-        self.assertEqual({name: 'BOOL' if name in BOOL_NAMES else 'STRING' for name in TARGET_NAMES},
+        self.assertEqual({name: 'BOOL' if name in BOOL_NAMES else 'INTEGER' if name in INTEGER_NAMES else 'STRING'
+                          for name in TARGET_NAMES},
                          dict(TARGET_FIELD_PARAMS))
         for name in TARGET_NAMES:
             self.assertNotIn(name, CAMERA_SETTINGS)

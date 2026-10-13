@@ -6,6 +6,7 @@
         rgb_stamp_semantics:=<CAPTURE|DRIVER_RECEIVE|UNKNOWN> depth_stamp_semantics:=<...> \
         rgb_depth_alignment_verified:=<true|false> rgb_rectified:=<true|false> \
         calibration_id:=<id> alignment_evidence_id:=<id> \
+        sync_queue_size:=<RGB frames kept for a late Depth> sync_slop_ns:=<ns> camera_info_max_age_ns:=<ns> \
         tf_topic:=<robot /tf> tf_static_topic:=<robot /tf_static>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
@@ -33,8 +34,19 @@ FIELD_ARGUMENTS = {
     'rgb_rectified': 'true only when the RGB image is rectified (CameraInfo D zero or a rect topic)',
     'calibration_id': 'ID of the camera calibration the alignment evidence refers to',
     'alignment_evidence_id': 'ID of the record that shows the RGB-Depth alignment',
+    # Pairing: Depth may arrive well after RGB (TB-6 measured about 0.78 s, RGB 29.7 Hz, 2026-10-13).
+    'sync_queue_size': 'RGB/Depth messages kept for pairing; must cover the Depth delay at the RGB rate',
+    'sync_slop_ns': 'largest RGB-Depth stamp difference paired (and the localization skew limit), ns',
+    'camera_info_max_age_ns': 'largest CameraInfo-RGB stamp difference when the pair is processed, ns',
 }
+INTEGERS = ('sync_queue_size', 'sync_slop_ns', 'camera_info_max_age_ns')
 FLAGS = ('rgb_depth_alignment_verified', 'rgb_rectified')
+
+
+def _integer(name, text):
+    if not text.isdigit():
+        raise ValueError(f'{name} must be a non-negative integer, got {text!r}')
+    return int(text)
 
 
 def _flag(name, text):
@@ -52,6 +64,7 @@ def _nodes(context):
                                                'rgb_stamp_semantics', 'depth_stamp_semantics',
                                                'calibration_id', 'alignment_evidence_id')}
     parameters.update({name: _flag(name, arg(name)) for name in FLAGS})
+    parameters.update({name: _integer(name, arg(name)) for name in INTEGERS})
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',
                  parameters=[parameters],
                  remappings=[('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))])]

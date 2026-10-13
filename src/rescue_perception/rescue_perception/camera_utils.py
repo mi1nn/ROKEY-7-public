@@ -31,6 +31,7 @@ SETTINGS = {
 # robot6 OAK-D topic was written three different ways and none is verified on the robot.
 FIELD_PARAMS = {'image_topic': 'STRING'}
 STAMP_SEMANTICS = ('CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN')   # ObservationTime vocabulary
+INTEGER_MINIMUM = {'sync_slop_ns': 0}   # other INTEGER field values must be >= 1
 
 PARAMS = {
     'image_topic': 'STRING', 'image_type': 'STRING', 'annotated_topic': 'STRING',
@@ -50,6 +51,9 @@ def field_values(settings, supplied, names):
         if kind == 'BOOL':
             if type(value) is not bool:
                 raise ValueError(f'{name} must be a BOOL')
+        elif kind == 'INTEGER':
+            if type(value) is not int or value < INTEGER_MINIMUM.get(name, 1):
+                raise ValueError(f'{name} must be an INTEGER >= {INTEGER_MINIMUM.get(name, 1)}')
         elif type(value) is not str or not value.strip():
             raise ValueError(f'{name} must be a non-empty {kind}')
     for name in ('rgb_stamp_semantics', 'depth_stamp_semantics'):
