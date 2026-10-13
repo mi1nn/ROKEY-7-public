@@ -220,7 +220,10 @@ class FreezeLaunch(FieldCase):
         basis = self.deployment.map_basis
         self.assertEqual({'map_topic': '/robot6/map', 'pose_topic': '/robot6/pose', 'map_frame': 'map',
                           'map_session_id': basis.map_session_id, 'map_revision': basis.map_revision,
-                          'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze'}, p)
+                          'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze',
+                          # TB-6 pose from TF map -> base_link like the executor (OPS-179)
+                          'tf_topic': '/robot6/tf', 'odom_frame': 'odom', 'base_frame': 'base_link',
+                          'covariance_max_age_ns': 30_000_000_000}, p)
 
     def test_output_dir_is_absolute_and_a_restart_reads_it(self):
         # two freezes per run (OPS-154): a restart reloads every record of the run from output_dir

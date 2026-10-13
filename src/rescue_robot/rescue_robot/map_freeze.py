@@ -8,7 +8,10 @@ On /rescue/map/freeze (std_srvs/Trigger) the latest TB-6 SLAM map is captured, h
 2. R0 + 2, when the search is done: also the fresh TB-6 SLAM pose (TB-6 stopped; the
    coordinator checks before asking), the AMCL start for TB-6 on /rescue/map/frozen_pose/robot_a.
 
-A third request fails. Files per freeze:
+A third request fails. TB-6's pose (start pose, last freeze) is TF map -> base_link read on a
+timer (slam_tf_pose, OPS-179): slam_toolbox publishes /robot6/pose only after enough movement, so
+a stopped TB-6 has no fresh one. The covariance is the last /robot6/pose's and must be younger than
+``covariance_max_age_ns``, else the pose does not count. Files per freeze:
 
 - ``frozen-r<revision>-<sha12>-<ns>.json``: the exact grid (origin quaternion as received), the pose (second
   only), the basis (session, revision) and the git SHA. A restarted node reloads every record of
@@ -37,10 +40,12 @@ from types import SimpleNamespace as NS
 from rescue_contracts.occupancy import frozen_revision_text
 from rescue_robot.executor import ContractError
 from rescue_robot.live_sources import Grid, planar
+from rescue_robot.slam_tf_pose import SlamTfPose
 
 FORMAT = 'rescue-map-freeze/1'
 FROZEN_TOPIC = '/rescue/map/frozen'
 FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # which revision /rescue/map/frozen is (OPS-159)
+TF_POSE_PERIOD_S = 0.2   # TB-6 TF pose read period: well inside pose_max_age_ns (2 s)
 FREEZES = 2   # per run: R0 + 1 (doll found), R0 + 2 (search done, TB-6 changes to AMCL)
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/robot_a'
 START_POSE_TOPIC = '/rescue/map/start_pose/robot_a'   # TB-6 start pose: origin of coordinates measured in advance
@@ -108,6 +113,13 @@ def _pgm(g):
     return f'P5\n{g["width"]} {g["height"]}\n255\n'.encode() + b''.join(rows)
 
 
+def tf_pose_fields(pose, frame):
+    """A slam_tf_pose.SlamTfPose.pose() result as this node's pose fields."""
+    return dict(frame=frame, stamp_ns=pose['stamp_ns'], position=(float(pose['x']), float(pose['y']), 0.0),
+                orientation=(0.0, 0.0, math.sin(pose['yaw'] / 2), math.cos(pose['yaw'] / 2)),
+                covariance=[float(v) for v in pose['covariance']])
+
+
 def _write(path, payload):
     tmp = path.with_name(path.name + '.tmp')
     tmp.write_bytes(payload)
@@ -163,6 +175,7 @@ class MapFreeze:
         self.pose_max_age_ns, self.output_dir = pose_max_age_ns, Path(output_dir)
         self.wall_clock_ns, self.git_sha = wall_clock_ns, git_sha
         self.latest_map = self.latest_pose = None
+        self.latest_covariance_fresh = False   # the latest pose's covariance is recent enough to count
         self.records = []   # this run's freezes, R0 + 1 first
         self.start_pose = self._load_start()
 
@@ -184,9 +197,16 @@ class MapFreeze:
         self.latest_map = _grid_fields(g)
 
     def on_pose(self, p):
-        """Latest SLAM pose; the first valid one of the run becomes the start pose (returned once, saved)."""
-        self.latest_pose = _pose_fields(p)
-        if self.start_pose is not None:
+        """A SLAM pose with its own covariance; see on_tf_pose."""
+        return self.on_tf_pose(p, covariance_fresh=True)
+
+    def on_tf_pose(self, p, *, covariance_fresh):
+        """Latest TB-6 pose; the first valid one of the run becomes the start pose (returned once, saved).
+
+        ``covariance_fresh`` False: its covariance (the last SLAM pose's) is too old; it counts for nothing.
+        """
+        self.latest_pose, self.latest_covariance_fresh = _pose_fields(p), covariance_fresh
+        if self.start_pose is not None or not covariance_fresh:
             return None
         try:
             _check_pose(self.latest_pose, map_frame=self.map_frame, now_ns=self.wall_clock_ns(),
@@ -221,6 +241,8 @@ class MapFreeze:
         if final:   # TB-6 changes to AMCL from this pose: fresh, on the map
             p = self.latest_pose
             _check_pose(p, map_frame=self.map_frame, now_ns=now, max_age_ns=self.pose_max_age_ns)
+            if not self.latest_covariance_fresh:
+                raise FreezeError('SLAM pose covariance is too old (no recent /pose from slam_toolbox)')
         record = dict(format=FORMAT, map_frame=self.map_frame, map_session_id=self.map_session_id,
                       map_revision=revision, occupancy_sha256=grid.sha256, frozen_at_ns=now,
                       git_sha=self.git_sha, grid=g, pose=p, start_pose=self.start_pose)
@@ -278,6 +300,7 @@ def main(args=None):
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
     from std_msgs.msg import String
     from std_srvs.srv import Trigger
+    from tf2_msgs.msg import TFMessage
     from rescue_contracts import ros_time_to_ns
     from rescue_robot.ros_node import declare_required, git_sha
 
@@ -286,15 +309,23 @@ def main(args=None):
     log = node.get_logger()
     S, I = T.PARAMETER_STRING, T.PARAMETER_INTEGER
     values, missing = declare_required(node, {'map_topic': S, 'pose_topic': S, 'map_frame': S, 'map_session_id': S,
-                                              'map_revision': I, 'pose_max_age_ns': I, 'output_dir': S})
+                                              'map_revision': I, 'pose_max_age_ns': I, 'output_dir': S,
+                                              'tf_topic': S, 'odom_frame': S, 'base_frame': S,
+                                              'covariance_max_age_ns': I})
     if missing:
         log.error('map_freeze missing parameters: ' + ', '.join(missing))
         raise SystemExit(2)
     sha = git_sha()
+    said = {'refused': False}
     try:
         core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
                          map_revision=values['map_revision'], pose_max_age_ns=values['pose_max_age_ns'],
                          output_dir=values['output_dir'], wall_clock_ns=time.time_ns, git_sha=sha)
+        slam = SlamTfPose(map_frame=values['map_frame'], odom_frame=values['odom_frame'],
+                          base_frame=values['base_frame'], covariance_max_age_ns=values['covariance_max_age_ns'])
+    except ContractError as exc:
+        log.error(f'map_freeze TF pose settings: {exc}')
+        raise SystemExit(2)
     except FreezeError as exc:
         log.error(f'START_POSE_RESTORE_FAILED {exc}')
         raise SystemExit(2)
@@ -328,12 +359,21 @@ def main(args=None):
                          orientation=(o.orientation.x, o.orientation.y, o.orientation.z, o.orientation.w),
                          data=list(msg.data)))
 
-    def on_pose(msg):
-        p, q = msg.pose.pose.position, msg.pose.pose.orientation
-        start = core.on_pose(dict(frame=msg.header.frame_id, stamp_ns=ros_time_to_ns(msg.header.stamp.sec,
-                                                                                     msg.header.stamp.nanosec),
-                                  position=(p.x, p.y, p.z), orientation=(q.x, q.y, q.z, q.w),
-                                  covariance=[float(v) for v in msg.pose.covariance]))
+    def on_pose(msg):   # slam_toolbox pose: only its covariance (TF gives the pose, OPS-179)
+        if msg.header.frame_id == values['map_frame'] and len(msg.pose.covariance) == 36:
+            slam.on_covariance(ros_time_to_ns(msg.header.stamp.sec, msg.header.stamp.nanosec),
+                               [float(v) for v in msg.pose.covariance])
+
+    def on_tf(msg):
+        if slam.on_tf(msg) and not said['refused']:
+            said['refused'] = True
+            log.warning('SLAM_TF_POSE a non-planar map/odom/base edge was not used')
+
+    def tf_tick():
+        pose = slam.pose(now_ns=time.time_ns())
+        if pose is None:
+            return   # no TF edge or no SLAM pose yet: no TB-6 pose
+        start = core.on_tf_pose(tf_pose_fields(pose, values['map_frame']), covariance_fresh=pose['covariance_fresh'])
         if start is not None:
             publish_start(start, 'captured')
 
@@ -366,6 +406,8 @@ def main(args=None):
     if len(records) < FREEZES:
         node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
         node.create_subscription(PoseWithCovarianceStamped, values['pose_topic'], on_pose, qos_profile_sensor_data)
+        node.create_subscription(TFMessage, values['tf_topic'], on_tf, 100)
+        node.create_timer(TF_POSE_PERIOD_S, tf_tick)
     node.create_service(Trigger, SERVICE, freeze)
     try:
         rclpy.spin(node)
