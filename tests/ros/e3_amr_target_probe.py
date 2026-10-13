@@ -10,16 +10,20 @@ Run on an isolated graph, never a robot's domain, with no Discovery Server:
       python3 tests/ros/e3_amr_target_probe.py <REPO>
 
 amr_target runs as a child with tests/ros/stub_ultralytics first on its path (a red square is the
-only "survivor"; no model). The probe publishes compressed RGB + raw 16UC1 Depth + CameraInfo with
+only "survivor"; no model). Pass --compressed-depth to also test PNG transport. The probe publishes compressed RGB + raw 16UC1 Depth + CameraInfo with
 the same stamp (unrectified, plumb_bob zero distortion -> the box-point undistortion path), static
-TF map -> camera optical / laser, and LaserScan. All values are synthetic test values. Checks:
+TF map -> base_link -> camera optical, map -> laser, and LaserScan. All values are synthetic test values. Checks:
 1. without recheck values the node refuses to start (exit 2); 2. the doll is sent once as a
 TargetObservation with a located camera point and the host's measured clock (SYNCED when timesyncd
 answers); 3. ObserveTarget with the doll at the point -> PRESENT, LiDAR BLOCKED, coverage VALID;
-4. doll gone -> ABSENT, CLEAR, VALID. Exit code 0 = all held.
+4. doll gone -> ABSENT, CLEAR, VALID; 5. a QR with other content -> no exit observation (OPS-136);
+6. the exit QR EXIT-1 -> one exit TargetObservation (class exit_qr, track_id EXIT-1, point at the QR
+depth), not repeated while it stays in view; 7. a new TB-6 map revision -> one more; 8. the second
+listed exit EXIT-2 -> one observation with track_id EXIT-2 (OPS-154/157). Exit code 0 = all held.
 """
 import math
 import os
+import struct
 import subprocess
 import sys
 import time
@@ -33,8 +37,9 @@ from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.action import ObserveTarget
-from rescue_interfaces.msg import TargetObservation
+from rescue_interfaces.msg import MapState, TargetObservation
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
+from geometry_msgs.msg import PointStamped
 from tf2_msgs.msg import TFMessage
 
 W, H, F = 160, 120, 100.0              # synthetic camera: 160x120, f = 100 px, centre (80, 60)
@@ -42,16 +47,26 @@ OPTICAL, LASER = 'e3_camera_optical', 'e3_laser'
 DOLL = (70, 50, 90, 70)                # red square (x0, y0, x1, y1) around the image centre
 FAR_MM, DOLL_MM = 4000, 2000
 ACTION = '/rescue/robots/robot_a/observe_target'
-SCALE = 0.9594383775351013             # robot6_depth.json, applied by amr_target
+SCALE = 0.9594383775351013             # robot_depth.json, applied by amr_target
 POINT = (DOLL_MM / 1000 * SCALE, 0.0, 0.3)   # doll centre in the map: straight ahead of the camera
+EXIT_PAYLOADS, QR_MM = ('EXIT-1', 'EXIT-2'), 1500
+MAP_STATE = '/rescue/robots/robot_a/map_state'
+COMPRESSED_DEPTH = '--compressed-depth' in sys.argv
+
+
+def qr_image(text):
+    """(code image (3 px per module, white quiet zone), placed at its top-left) for the 160x120 frame."""
+    code = cv2.resize(cv2.QRCodeEncoder.create().encode(text), None, fx=3, fy=3, interpolation=cv2.INTER_NEAREST)
+    return code, ((W - code.shape[1]) // 2, (H - code.shape[0]) // 2)
 
 
 def amr_args(with_recheck=True):
     p = {'image_topic': '/e3robot/rgb/compressed', 'image_type': 'compressed', 'depth_topic': '/e3robot/depth',
-         'depth_transport': 'raw', 'camera_info_topic': '/e3robot/camera_info', 'rgb_optical_frame': OPTICAL,
+         'depth_transport': 'compressedDepth' if COMPRESSED_DEPTH else 'raw', 'base_point_topic': '/e3robot/perception/target_base_point', 'camera_info_topic': '/e3robot/camera_info', 'rgb_optical_frame': OPTICAL,
          'depth_optical_frame': OPTICAL, 'rgb_stamp_semantics': 'CAPTURE', 'depth_stamp_semantics': 'CAPTURE',
          'rgb_depth_alignment_verified': 'true', 'rgb_rectified': 'false', 'calibration_id': 'e3-cal',
          'alignment_evidence_id': 'e3-align', 'sync_queue_size': '10', 'sync_slop_ns': '20000000',
+         'physical_robot_id': 'robot5', 'depth_calibration_path': 'package:robot_depth.json',
          'camera_info_max_age_ns': '1500000000', 'clock_domain_id': 'e3-clock', 'clock_backend': 'timesyncd',
          'clock_max_age_ns': '3600000000000', 'clock_drift_ppm': '100.0', 'clock_poll_period_s': '0.5',
          'sensor_host_clock_error_bound_ns': '0', 'sensor_host_clock_domain_id': 'e3-clock'}
@@ -62,6 +77,9 @@ def amr_args(with_recheck=True):
                   'recheck_min_scans': '3', 'recheck_min_lidar_rays': '3', 'recheck_min_lidar_hits': '2',
                   'recheck_image_margin_px': '5', 'recheck_min_depth_m': '0.2', 'recheck_max_depth_m': '5.0',
                   'recheck_occlusion_tolerance_m': '0.3', 'recheck_depth_window_px': '2'})
+        p.update({'exit_qr_payloads': list(EXIT_PAYLOADS), 'exit_qr_required_frames': '5',
+                  'exit_qr_position_tolerance_m': '0.2', 'exit_qr_min_valid_depth_ratio': '0.5', 'exit_qr_every_n_frames': '2',
+                  'exit_map_state_topic': MAP_STATE})
     flags = []
     for name, value in p.items():
         flags += ['-p', f'{name}:={value}']
@@ -108,18 +126,26 @@ def main():
     node = rclpy.create_node('e3_amr_target_probe')
     sensor = QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.VOLATILE)
     rgb_pub = node.create_publisher(CompressedImage, '/e3robot/rgb/compressed', sensor)
-    depth_pub = node.create_publisher(Image, '/e3robot/depth', sensor)
+    depth_pub = node.create_publisher(CompressedImage if COMPRESSED_DEPTH else Image, '/e3robot/depth', sensor)
     info_pub = node.create_publisher(CameraInfo, '/e3robot/camera_info', sensor)
     scan_pub = node.create_publisher(LaserScan, '/e3robot/scan', sensor)
     static_pub = node.create_publisher(TFMessage, '/e3robot/tf_static', QoSProfile(
         depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    base_points = []
+    node.create_subscription(PointStamped, '/e3robot/perception/target_base_point', base_points.append, QoSProfile(
+        depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     observations = []
     node.create_subscription(TargetObservation, '/rescue/observations', observations.append, QoSProfile(
+        depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    exits = []
+    node.create_subscription(TargetObservation, '/rescue/exit_observations', exits.append, QoSProfile(
+        depth=10, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    map_pub = node.create_publisher(MapState, MAP_STATE, QoSProfile(
         depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     client = ActionClient(node, ObserveTarget, ACTION)
     executor = SingleThreadedExecutor()
     executor.add_node(node)
-    scene = {'doll': True}
+    scene = {'doll': True, 'qr': None}
 
     def publish_frame():
         now, (sec, nsec) = stamp_of(node)
@@ -129,8 +155,15 @@ def main():
             x0, y0, x1, y1 = DOLL
             image[y0:y1, x0:x1] = (0, 0, 255)
             depth[y0:y1, x0:x1] = DOLL_MM
+        if scene['qr']:
+            code, (x, y) = qr_image(scene['qr'])
+            image[y:y + code.shape[0], x:x + code.shape[1]] = cv2.cvtColor(code, cv2.COLOR_GRAY2BGR)
+            depth[y:y + code.shape[0], x:x + code.shape[1]] = QR_MM
         rgb = CompressedImage(format='jpeg', data=cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])[1].tobytes())
-        d = Image(height=H, width=W, encoding='16UC1', is_bigendian=0, step=W * 2, data=depth.tobytes())
+        d = (CompressedImage(format='16UC1; compressedDepth png',
+             data=struct.pack('<iff', 0, 0.0, 0.0)+cv2.imencode('.png',depth)[1].tobytes())
+             if COMPRESSED_DEPTH else
+             Image(height=H, width=W, encoding='16UC1', is_bigendian=0, step=W * 2, data=depth.tobytes()))
         info = CameraInfo(width=W, height=H, distortion_model='plumb_bob', d=[0.0] * 5,
                           k=[F, 0.0, W / 2, 0.0, F, H / 2, 0.0, 0.0, 1.0],
                           p=[F, 0.0, W / 2, 0.0, 0.0, F, H / 2, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -174,16 +207,28 @@ def main():
         return result.result().result
 
     try:
-        static_pub.publish(TFMessage(transforms=[
-            static_tf('map', OPTICAL, (0.0, 0.0, 0.3), (-0.5, 0.5, -0.5, 0.5)),   # looking along map +x
-            static_tf('map', LASER, (0.0, 0.0, 0.2), (0.0, 0.0, 0.0, 1.0))]))
         end = time.monotonic() + 30
         while not client.server_is_ready() and time.monotonic() < end:
             pump(0.2)
+        pump(0.5)
+        checks['missing base TF -> no success publication; retry stays enabled'] = not observations and not base_points
+        static_pub.publish(TFMessage(transforms=[
+            static_tf('map', 'base_link', (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)),
+            static_tf('base_link', OPTICAL, (0.0, 0.0, 0.3), (-0.5, 0.5, -0.5, 0.5)),   # looking along map +x
+            static_tf('map', LASER, (0.0, 0.0, 0.2), (0.0, 0.0, 0.0, 1.0))]))
         pump(3.0)   # frames with the doll; the first measured clock arrives within the poll period
         o = observations[0] if observations else None
         checks['doll -> one TargetObservation with a located point'] = bool(o) and o.localization_status == 'VALID' \
             and abs(o.sensor_position.z - POINT[0]) < 0.05 and abs(o.sensor_position.x) < 0.05
+        bp = base_points[0] if base_points else None
+        checks['capture-time base_link XYZ matches camera point transformed by TF'] = bool(bp and o) and \
+            bp.header.frame_id == 'base_link' and \
+            bp.header.stamp.sec * 10**9 + bp.header.stamp.nanosec == o.time.observed_at_ns and \
+            abs(bp.point.x - o.sensor_position.z) < 1e-6 and \
+            abs(bp.point.y + o.sensor_position.x) < 1e-6 and \
+            abs(bp.point.z - (0.3 - o.sensor_position.y)) < 1e-6
+        if bp:
+            print(f'  base_link: ({bp.point.x:.3f}, {bp.point.y:.3f}, {bp.point.z:.3f})')
         if o:
             print(f'  observation: point=({o.sensor_position.x:.3f}, {o.sensor_position.y:.3f}, '
                   f'{o.sensor_position.z:.3f}) clock={o.time.clock_state} bound={o.time.clock_error_bound_ns} '
@@ -202,6 +247,29 @@ def main():
               f'coverage={p.coverage_state} {p.detector_health} clock={p.time.clock_state}')
         checks['doll gone -> ABSENT / CLEAR / VALID'] = (r.outcome, p.camera_state, p.lidar_state,
                                                          p.coverage_state) == ('OBSERVED', 'ABSENT', 'CLEAR', 'VALID')
+        scene['qr'] = 'exit-1'   # not exactly a listed exit
+        pump(2.0)
+        checks['other QR content -> no exit observation'] = not exits
+        scene['qr'] = EXIT_PAYLOADS[0]
+        pump(3.0)
+        e = exits[0] if exits else None
+        if e:
+            print(f'  exit: {e.class_label} {e.model_id} point=({e.sensor_position.x:.3f}, {e.sensor_position.y:.3f}, '
+                  f'{e.sensor_position.z:.3f}) clock={e.time.clock_state}')
+        checks['exit QR -> one exit_qr observation at the QR depth'] = len(exits) == 1 and e.class_label == 'exit_qr' \
+            and e.localization_status == 'VALID' and abs(e.sensor_position.z - QR_MM / 1000 * SCALE) < 0.05 \
+            and e.confidence == 1.0 and e.model_id.startswith('opencv.QRCodeDetector/') \
+            and (e.tracking_mode, e.has_track_id, e.track_id) == ('TRACKING', True, 'EXIT-1')
+        map_state = MapState(robot_id='robot_a', map_session_id='e3-session', map_revision=1,
+                             localization_quality='VALID', current_native_map_frame='map')
+        map_state.generated_at_ns = node.get_clock().now().nanoseconds
+        map_pub.publish(map_state)
+        pump(3.0)
+        checks['new map revision -> one more exit observation'] = len(exits) == 2 and exits[1].track_id == 'EXIT-1'
+        scene['qr'] = EXIT_PAYLOADS[1]
+        pump(3.0)
+        checks['second listed exit -> one observation with its own track_id'] = (
+            [x.track_id for x in exits] == ['EXIT-1', 'EXIT-1', 'EXIT-2'])
     finally:
         executor.shutdown()
         node.destroy_node()

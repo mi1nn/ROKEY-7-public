@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from .report_store import RescueReportStore, receipt_fields
 from .ros_node import git_sha, teardown
+from .shutdown import spin_until_shutdown
 from .schema import OperationsError
 
 PARAMS = {'db_path': 'STRING', 'reports_topic': 'STRING', 'receipts_topic': 'STRING',
@@ -22,6 +23,7 @@ QOS_DEPTH = 10
 def main(args=None):
     import rclpy
     from rclpy.exceptions import ParameterUninitializedException
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
@@ -79,7 +81,7 @@ def main(args=None):
 
     node.create_subscription(RescueReport, values['reports_topic'], on_report, qos)
     try:
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:  # a second SIGINT (launch + terminal) must not abort the cleanup (ros_node.teardown)

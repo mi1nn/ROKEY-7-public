@@ -346,7 +346,7 @@ class SiteStateSourceTests(LedgerFixture):
     def test_site_state_db_gives_the_fixture_shapes(self):
         status = load_site_state(self.site_db)
         self.assertEqual(set(status), {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
-                                       'operator_commands', 'error_log'})
+                                       'operator_commands', 'error_log', 'exit_locations'})
         self.assertEqual([r['robot_id'] for r in status['robot_status']['robots']], list(ROBOTS))
         self.assertEqual(status['site_events']['exit_pass_count'], 1)
         db_view = build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND)
@@ -354,6 +354,18 @@ class SiteStateSourceTests(LedgerFixture):
         for key in ('targets', 'stage_counts', 'exit_count', 'mission'):
             self.assertEqual(db_view[key], fixture_view[key], key)
         self.assertEqual([w for w in db_view['warnings'] if '입력 없음' in w], [])
+
+    def test_the_newest_exit_qr_observation_is_read(self):   # #237 exit_locations (OPS-150)
+        def exit_(label, observed):
+            return {'location_id': uid(label), 'observed_at_ns': observed, 'received_at_ns': observed + SECOND,
+                    'map_session_id': uid('session'), 'map_revision': 0, 'transform_revision': 0,
+                    'mission_frame': 'map', 'x': 1.5, 'y': -0.5, 'class_label': 'exit_qr'}
+        with SiteStateLedger(self.site_db, allowed_robot_ids=ROBOTS) as ledger:
+            ledger.record_exit_location(exit_('exit-old', T0 + SECOND))
+            ledger.record_exit_location(exit_('exit-new', T0 + 2 * SECOND))
+        view = build_view(load_ledger(self.db), load_site_state(self.site_db), built_at_ns=T0 + 30 * SECOND)
+        self.assertEqual({'location_id': uid('exit-new'), 'x': 1.5, 'y': -0.5, 'frame_id': 'map',
+                          'observed_at_ns': T0 + 2 * SECOND, 'map_revision': 0}, view['exit'])
 
     def test_site_state_read_changes_nothing_and_missing_db_is_not_created(self):
         before = digest_dir(self.dir)

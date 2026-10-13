@@ -1,0 +1,11 @@
+{
+  "calibration_id": "robot_depth",
+  "input_unit": "m",
+  "input_state": "raw_uncorrected",
+  "scale": 0.9594383775351013,
+  "offset_m": 0.0,
+  "physical_robot_ids": [
+    "robot5",
+    "robot6"
+  ]
+}

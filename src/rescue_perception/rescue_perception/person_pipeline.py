@@ -102,7 +102,7 @@ class PersonPipeline:
     """One robot camera stream in one process."""
 
     def __init__(self, *, binding, alignment, rectified, depth_policy, observation_policy,
-                 confirmation_policy, detector):
+                 confirmation_policy, detector, depth_roi_radius_px=None):
         _require(isinstance(binding, SourceBinding) and binding.source_robot is not None, "INVALID_INPUT",
                  "robot camera binding requires source_robot")
         for value, cls in ((alignment, AlignmentEvidence), (depth_policy, DepthPolicy),
@@ -113,6 +113,7 @@ class PersonPipeline:
         self.binding, self.alignment, self.rectified = binding, alignment, rectified
         self.depth_policy, self.observation_policy = depth_policy, observation_policy
         self.confirmation, self.detector = confirmation_policy, detector
+        self.depth_roi_radius_px = depth_roi_radius_px
         self._last_ns = None
         self._reported = {}  # track_id -> best status already reported as a candidate
 
@@ -146,6 +147,7 @@ class PersonPipeline:
             result = observe(rgb, depth, camera_info, detection, rgb.header, binding=self.binding,
                              alignment=self.alignment, rectified=self.rectified, model=inference.model,
                              depth_policy=self.depth_policy, observation_policy=self.observation_policy,
+                             depth_roi_radius_px=self.depth_roi_radius_px,
                              observation_id=str(uuid5(NAMESPACE, key)),
                              evidence_id=str(uuid5(NAMESPACE, f"{self.binding.source_boot_id}/{stamp}/frame")))
             reasons = []

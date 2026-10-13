@@ -36,9 +36,10 @@ C5 TB-6 RETURN_HOME home/robot_a (docking approach) -> both home -> DB mission F
 Then the same nodes again with fresh DBs and ``map_mode=SLAM_FREEZE`` (owner decision 2026-10-13, scope Q-29:
 no reference map, TB-6 maps while it searches, the map is frozen before TB-5 goes). Played here: the freeze
 service (/rescue/map/freeze), the frozen grid (/rescue/map/frozen) and both robots' MapState.
-F1 target on the search revision R0 -> PERSISTED -> one freeze call (TB-6 stopped, no task)
-F2 frozen grid + TB-6 MapState R0+1 with the grid's snapshot id -> frozen; the R0 target holds
-   (TARGET_NOT_ON_FROZEN_MAP)
+F1 the QR exit (/rescue/exit_location, exit_qr, EXIT-1) and the target on the search revision R0 -> PERSISTED ->
+   one freeze call (TB-6 stopped, no task; the freeze does not wait for an exit, OPS-156)
+F2 frozen grid + TB-6 MapState R0+1 with the grid's snapshot id -> frozen; the R0 target and exit are re-based
+   (TARGET_REBASED_ON_FREEZE until the re-based revision is saved, OPS-138)
 F3 the target seen again on R0+1 -> PERSISTED -> TB-5 localized on R0+1 -> APPROACH_TARGET on R0+1
 Each stage prints PASS/FAIL and its seconds. The fake executors are fakes: the real executor's acceptance
 of APPROACH_TARGET/REOBSERVE_TARGET/RETURN_HOME is the robot lane's (C1, #166·#179). Exit 0 = all held.
@@ -57,7 +58,8 @@ from rescue_interfaces.action import ExecuteTask
 from nav_msgs.msg import OccupancyGrid
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_contracts.occupancy import map_snapshot_id, occupancy_sha256
-from rescue_interfaces.msg import MapState, ReportReceipt, RobotPose, SiteEvent, SystemState, TaskAdmission
+from rescue_interfaces.msg import (MapState, ReportReceipt, RobotPose, SiteEvent, SystemState, TargetLocation,
+                                   TaskAdmission)
 from rescue_interfaces.srv import SetCameraWatch
 from std_srvs.srv import Trigger
 
@@ -218,6 +220,7 @@ class FrozenMap:
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.grid_pub = node.create_publisher(OccupancyGrid, '/rescue/map/frozen', latched)
+        self.exit_pub = node.create_publisher(TargetLocation, '/rescue/exit_location', 10)
         self.support_state = node.create_publisher(MapState, f'/rescue/robots/{SUPPORT}/map_state', latched)
         self.grid = dict(frame='map', width=self.WIDTH, height=self.HEIGHT, resolution=self.RESOLUTION, origin=(-10., -10., 0.),
                          data=[0] * (self.WIDTH * self.HEIGHT))
@@ -235,6 +238,18 @@ class FrozenMap:
         msg.info.origin.position.x, msg.info.origin.position.y, msg.info.origin.orientation.w = -10., -10., 1.
         msg.data = self.grid['data']
         self.grid_pub.publish(msg)
+
+    def publish_exit(self, xy=(-5.0, 0.0)):
+        """The QR exit seen by TB-6 on the search revision R0 (통합-인식 안 「나」; test values)."""
+        msg = TargetLocation(location_id=str(uuid4()), projection_status='VALID')
+        f = msg.frame_ref
+        f.robot_id, f.native_frame, f.mission_frame, f.map_session_id = SCOUT, 'map', 'map', MAP
+        f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
+        msg.mission_position.x, msg.mission_position.y = xy
+        msg.observation.class_label = 'exit_qr'
+        msg.observation.tracking_mode, msg.observation.has_track_id, msg.observation.track_id = 'TRACKING', True, 'EXIT-1'
+        declared_time(msg.observation.time, self.node.get_clock().now().nanoseconds)
+        self.exit_pub.publish(msg)
 
     def state(self, robot, revision, snapshot):
         return MapState(robot_id=robot, map_session_id=MAP, map_revision=revision, snapshot_id=snapshot,
@@ -410,6 +425,7 @@ def run(repo, scratch, map_mode):
         def f1():
             robots.publish_disaster()
             spin(lambda: mission().get('mode') == 'DISASTER', 10)
+            frozen_map.publish_exit()
             observe(0)
             if spin(lambda: tb6_camera.snapshots and tb6_camera.snapshots[-1].targets, 10):
                 found['target'] = tb6_camera.snapshots[-1].targets[0].target_id
@@ -422,8 +438,8 @@ def run(repo, scratch, map_mode):
         def f2():
             frozen_map.publish_grid()
             tb6_camera.map_state.publish(frozen_map.state(SCOUT, 1, frozen_map.frozen_snapshot(1)))
-            held = reason_seen('TARGET_NOT_ON_FROZEN_MAP', 10)
-            return held and not robots.support_goals, f'TARGET_NOT_ON_FROZEN_MAP seen={held} sha256={frozen_map.sha256[:12]}'
+            held = reason_seen('TARGET_REBASED_ON_FREEZE', 10)
+            return held and not robots.support_goals, f'TARGET_REBASED_ON_FREEZE seen={held} sha256={frozen_map.sha256[:12]}'
 
         def f3():
             persisted_before = (target_row() or {}).get('persisted_report_id')
@@ -450,8 +466,8 @@ def run(repo, scratch, map_mode):
                     ('C4 recheck ABSENT/CLEAR/VALID -> DB RESCUE_CONFIRMED', c4),
                     ('C5 TB-6 RETURN_HOME dock approach -> DB FINISHED', c5))
         else:
-            plan = (('F1 SLAM_FREEZE: target on R0 PERSISTED -> one freeze call', f1),
-                    ('F2 frozen grid + TB-6 MapState R0+1 -> frozen; R0 target holds', f2),
+            plan = (('F1 SLAM_FREEZE: QR exit + target on R0 PERSISTED -> one freeze call', f1),
+                    ('F2 frozen grid + TB-6 MapState R0+1 -> frozen; R0 target and exit re-based', f2),
                     ('F3 target seen on R0+1 PERSISTED, TB-5 localized -> APPROACH_TARGET on R0+1', f3))
         for name, check in plan:
             if not stage(name, check):

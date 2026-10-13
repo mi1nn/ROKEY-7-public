@@ -46,7 +46,7 @@ class DepthClickCheckTest(unittest.TestCase):
         self.assertEqual(self.tool.patch_median_mm(image(9, 9, 850), 0, 0), (850.0, 9, 9))
 
     def test_default_calibration_is_the_perception_robot6_file(self):
-        expected = load_depth_calibration('package:robot6_depth.json', physical_robot_id='robot6')
+        expected = load_depth_calibration('package:robot_depth.json', physical_robot_id='robot6')
         args = self.tool.parse_args(['--depth-topic', '/d', '--camera-info-topic', '/i'])
         scale, offset_m, label = self.tool.resolve_calibration(args, load_depth_calibration)
         self.assertEqual((scale, offset_m), (expected.scale, expected.offset_m))

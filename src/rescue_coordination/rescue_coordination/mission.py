@@ -215,6 +215,10 @@ class MissionCoordinator:
         self.routes = {}    # target_id -> (route_revision, segment_count)
         self.search_started = False
         self.search_authorized = False  # operator START_SEARCH accepted (#85)
+        # A confirmed target was saved once: the phase never steps back below TARGET_FOUND while a newer revision
+        # (a later observation, the re-basing at the freeze) waits for its receipt (작전 OPS-147). Dispatch still
+        # needs the current revision saved (S-00); only the display keeps the reached stage.
+        self.target_found = False
         self.dispatch_target = None
         self.dispatch_target_revision = None
         self.dispatch_kind = None    # 'SEGMENTS' (operator DISPATCH_SUPPORT) or 'APPROACH' (automatic)
@@ -297,6 +301,8 @@ class MissionCoordinator:
         if type(detection_confirmed) is not bool or type(report_persisted) is not bool:
             raise CoordinationError('INVALID_INPUT', 'target confirmation flags must be boolean')
         value = (target_revision, detection_confirmed, report_persisted)
+        if detection_confirmed and report_persisted:
+            self.target_found = True
         if self.targets.get(target_id) == (target_revision, detection_confirmed, False) and report_persisted:
             self.targets[target_id] = value  # the save receipt arrives after the revision; never the reverse
             return True
@@ -547,7 +553,7 @@ class MissionCoordinator:
             return {'ARRIVED': 'ARRIVED', 'AWAITING_APPROVAL': 'AWAITING_CONTINUE', 'MOVING': 'SEGMENT_MOVING',
                     'APPROVED': 'DISPATCH_APPROVED' if self.segment_index == 0 else 'SEGMENT_MOVING'
                     }[self.segment_phase]
-        if any(confirmed and persisted for _, confirmed, persisted in self.targets.values()):
+        if self.target_found:
             return 'TARGET_FOUND'
         return 'SEARCHING' if self.search_started else 'DISASTER'
 

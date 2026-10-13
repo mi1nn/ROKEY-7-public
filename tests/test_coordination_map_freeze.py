@@ -6,8 +6,10 @@ with no task; no new SEARCH_AREA goes after that. The frozen basis is TB-6's Map
 is the one computed from the frozen grid's occupancy hash, its session/revision and the profile transform
 revision, on a revision other than the search one. After the freeze:
 
-- every goal carries the frozen basis; a location on another basis is refused, and one within merge distance
-  of a target observed before the freeze re-bases that target (revision + 1, a new report to save);
+- every goal carries the frozen basis; a location on another basis is refused. At the freeze the latest target
+  and exit positions of the search revision in the same map session are re-based to the frozen revision (작전
+  OPS-138·139: TB-6 stands in front of whichever it found last); the target then needs a new revision saved
+  (TARGET_REBASED_ON_FREEZE until PERSISTED). A later frozen-map observation within merge distance merges;
 - TB-5 goes only with the target observed on the frozen map and saved again, and both robots localized (VALID)
   on the frozen revision; otherwise SystemState.reason says which;
 - the approach point, TB-5's exit and TB-6's docking approach point must be free on the frozen grid within
@@ -25,8 +27,8 @@ from rescue_contracts import RescueError
 from rescue_coordination import mission as mission_module, ros_node
 from rescue_coordination.mission import HomePosition
 from test_coordination_approach import POSE_AGE, pose_msg
-from test_coordination_ros_core import (SCOUT, SUPPORT, admission_msg, frame, location, make_core, receipt, site_msg,
-                                        status_msg)
+from test_coordination_ros_core import (SCOUT, SUPPORT, admission_msg, frame, location, make_core, obs_time, receipt,
+                                        site_msg, status_msg)
 from test_coordination_search import MAP, NOW
 
 S = 1_000_000_000
@@ -36,6 +38,19 @@ FROZEN = (MAP, FROZEN_REV, TRANSFORM)
 SHA = 'c' * 64
 CLEARANCE = 0.2
 EXIT_XY, DOCK_XY = (0., 6.), (1., 0.)
+EXIT_STANDOFF = 0.5
+
+
+def exit_msg(n, xy=EXIT_XY, revision=SEARCH_REV, session=MAP, label='exit_qr', track='EXIT-1'):
+    """A TargetLocation on /rescue/exit_location (통합-인식, class_label exit_qr, the QR id in track_id; OPS-157)."""
+    return location(900 + n, xy, frame_ref=frame(map_revision=revision, map_session_id=session),
+                    observation=NS(time=obs_time(), class_label=label, has_track_id=bool(track),
+                                   track_id=track or ''))
+
+
+def exit_point(target_xy=(4., 4.)):
+    """TB-5's exit approach: EXIT_STANDOFF before the exit on the side of the target it comes from."""
+    return ros_node.approach_point(EXIT_XY, target_xy, EXIT_STANDOFF)[0]
 
 
 def snapshot_id(sha256, session, revision, transform_revision):
@@ -62,7 +77,7 @@ def map_state(robot, revision=FROZEN_REV, quality='VALID', sha256=SHA, **changes
 def freeze_core(**changes):
     core = make_core(**(dict(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
                              map_mode='SLAM_FREEZE', freeze_clearance_m=CLEARANCE, map_freeze_timeout_ns=TIMEOUT,
-                             map_snapshot_id=snapshot_id) | changes))
+                             map_snapshot_id=snapshot_id, exit_standoff_m=EXIT_STANDOFF) | changes))
     homes = (HomePosition(SCOUT, DOCK_XY, 0., MAP, SEARCH_REV, TRANSFORM),
              HomePosition(SUPPORT, EXIT_XY, 0., MAP, SEARCH_REV, TRANSFORM))
     core.mission.homes = {h.robot_id: h for h in homes}
@@ -70,11 +85,17 @@ def freeze_core(**changes):
 
 
 class Base(unittest.TestCase):
+    START = (0., 0., 0.)  # TB-6 start pose in the map (OPS-141); the docking approach point is given in it
+
     def setUp(self):
         self.core = freeze_core()
+        if self.START is not None:
+            self.core.on_map_state(map_state(SCOUT, revision=SEARCH_REV))  # TB-6 SLAM on the search revision
+            self.core.on_start_pose(self.START)
         self.core.on_site_event(site_msg())
         self.statuses(NOW)
         self.target = self.core.on_target_location(location(1), now_ns=NOW)
+        self.core.on_exit_location(exit_msg(1), now_ns=NOW)  # the freeze needs a registered exit (OPS-136)
 
     def statuses(self, now, **scout):
         self.core.on_status(status_msg(SCOUT, observed_at_ns=now - 10**8, **scout))
@@ -164,6 +185,17 @@ class FreezeRequestTests(Base):
         self.core.on_map_state(map_state(SCOUT))
         self.assertEqual(FROZEN, self.core.frozen)
 
+    def test_a_new_unsaved_revision_does_not_step_the_phase_back(self):
+        # Same rule outside the freeze (OPS-147): a later observation raising the revision keeps TARGET_FOUND.
+        core = make_core()
+        core.on_site_event(site_msg())
+        core.on_target_location(location(1), now_ns=NOW)
+        (report,) = core.reports_due(NOW)
+        core.on_receipt(receipt(report))
+        self.assertEqual('TARGET_FOUND', core.mission.phase())
+        core.on_target_location(location(2, (4.2, 4.)), now_ns=NOW)
+        self.assertEqual('TARGET_FOUND', core.mission.phase())
+
     def test_saved_map_mode_asks_for_no_freeze(self):
         core = make_core(support_dispatch='AUTO')
         core.on_site_event(site_msg())
@@ -191,17 +223,38 @@ class AfterFreezeTests(Base):
         self.core.on_map_state(map_state(SUPPORT))
         self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
 
-    def test_target_seen_only_before_the_freeze_holds(self):
-        self.assertEqual([], self.tick(kind='APPROACH_TARGET'))
-        self.assertEqual('TARGET_NOT_ON_FROZEN_MAP', self.reason())
-
-    def test_a_frozen_map_observation_rebases_the_target_and_needs_a_new_save(self):
-        self.assertEqual(self.target, self.frozen_location())
+    def test_the_search_revision_target_and_exit_are_rebased_at_the_freeze(self):
+        self.assertEqual(FROZEN, self.core.target_geo[self.target][0])
         self.assertEqual((1, True, False), self.core.mission.targets[self.target])
+        self.assertEqual([FROZEN], [e['basis'] for e in self.core.exits])
+        (report,) = self.core.reports_due(NOW)  # the rebased revision is saved again, with its latest location
+        self.assertEqual((self.target, 1, [location(1).location_id]),
+                         (report['target_id'], report['target_revision'], report['record_ids']))
+        self.assertEqual([], self.tick(kind='APPROACH_TARGET'))
+        self.assertEqual('TARGET_REBASED_ON_FREEZE', self.reason())
+        self.assertIn('TARGET_REBASED_ON_FREEZE', ' '.join(self.core.drain_notes()))
+        self.core.on_receipt(receipt(report))
+        self.core.on_map_state(map_state(SUPPORT))
+        self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
+        (fields,) = self.tick(kind='APPROACH_TARGET')
+        goal = fields['route']['approach_goal']
+        self.assertEqual(FROZEN, (goal.map_session_id, goal.map_revision, goal.transform_revision))
+
+    def test_the_phase_stays_target_found_while_the_rebased_revision_waits(self):
+        # 작전 OPS-147: the doll was found; the screen must not step back to DISASTER while the re-based revision
+        # waits for its receipt. The wait is the reason, not the phase.
+        self.tick()
+        self.core.system_state_change(NOW)
+        self.assertEqual(('TARGET_FOUND', 'TARGET_REBASED_ON_FREEZE'),
+                         (self.core.last_state['phase'], self.core.last_state['reason']))
+
+    def test_a_frozen_map_observation_merges_and_needs_a_new_save(self):
+        self.assertEqual(self.target, self.frozen_location())
+        self.assertEqual((2, True, False), self.core.mission.targets[self.target])
         self.assertEqual(FROZEN, self.core.target_geo[self.target][0])
         self.core.on_map_state(map_state(SUPPORT))
         self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
-        self.assertEqual([], self.tick(kind='APPROACH_TARGET'))  # revision 1 not saved yet
+        self.assertEqual([], self.tick(kind='APPROACH_TARGET'))  # revision 2 not saved yet
 
     def test_a_location_on_another_basis_is_refused_after_the_freeze(self):
         with self.assertRaises(RescueError) as caught:
@@ -244,21 +297,46 @@ class FreeCellTests(Base):
         self.go(FakeGrid(blocked=[(3.25, 4.)]))
         self.assertEqual(([], 'SUPPORT_APPROACH_NOT_FREE'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
 
-    def test_exit_not_free_holds_tb5_at_the_target(self):
-        self.go(FakeGrid(blocked=[(EXIT_XY[0] + .1, EXIT_XY[1])]))
+    def arrive(self):
         (approach,) = self.tick(kind='APPROACH_TARGET')
         self.core.on_admission(admission_msg(approach))
-        self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True))
-        self.assertEqual([], self.tick(NOW, 'RETURN_HOME'))  # support_exit_wait 0
-        self.assertEqual('SUPPORT_EXIT_NOT_FREE', self.reason())
+        self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True, terminal_reason=''))
 
-    def test_no_exit_position_cannot_be_checked_and_holds(self):
+    def test_exit_approach_not_free_holds_only_the_exit_move(self):
+        # OPS-154·156: TB-5 leaves for the doll at once; a blocked exit holds its way out, not the dispatch.
+        self.go(FakeGrid(blocked=[exit_point((4.2, 4.))]))
+        self.arrive()
+        self.assertEqual(([], 'SUPPORT_EXIT_NOT_FREE'), (self.tick(NOW, 'RETURN_HOME'), self.reason()))
+
+    def test_no_exit_seen_tb5_still_goes_and_its_exit_move_waits(self):
+        self.core.exits = []
         self.go(FakeGrid())
-        del self.core.mission.homes[SUPPORT]
+        self.arrive()
+        self.assertEqual(([], 'SUPPORT_EXIT_UNREGISTERED'), (self.tick(NOW, 'RETURN_HOME'), self.reason()))
+
+    def test_tb5_takes_the_nearer_of_two_exits(self):
+        # Interim rule until the grid path length (OPS-154 3): straight-line distance from the doll.
+        self.go(FakeGrid())
+        self.core.on_exit_location(exit_msg(5, (5., 4.), revision=FROZEN_REV, track='EXIT-2'), now_ns=NOW)
+        self.arrive()
+        self.tick(NOW, 'RETURN_HOME')
+        home = self.core.live_destinations()[f'home/{SUPPORT}']
+        self.assertEqual([round(v, 9) for v in ros_node.approach_point((5., 4.), (4.2, 4.), EXIT_STANDOFF)[0]],
+                         [round(v, 9) for v in home['xy_yaw'][:2]])
+
+    def test_tb5_exit_is_the_registered_exit_on_the_frozen_map(self):
+        # OPS-136 4: home/<TB-5> is the registered exit approach in ~/task_inputs, not the profile home.
+        self.go(FakeGrid())
         (approach,) = self.tick(kind='APPROACH_TARGET')
         self.core.on_admission(admission_msg(approach))
-        self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True))
-        self.assertEqual(([], 'NO_HOME_POSITION'), (self.tick(NOW, 'RETURN_HOME'), self.reason()))
+        self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True, terminal_reason=''))
+        (fields,) = self.tick(NOW, 'RETURN_HOME')
+        self.assertEqual(f'home/{SUPPORT}', fields['home_ref'])
+        home = self.core.live_destinations()[f'home/{SUPPORT}']
+        xy = exit_point((4.2, 4.))
+        self.assertEqual((SUPPORT, MAP, FROZEN_REV, TRANSFORM), (home['robot_id'], home['map_session_id'],
+                                                                 home['map_revision'], home['transform_revision']))
+        self.assertEqual([round(v, 9) for v in xy], [round(v, 9) for v in home['xy_yaw'][:2]])
 
     def test_docking_approach_not_free_holds_tb6(self):
         self.freeze(grid=FakeGrid(blocked=[DOCK_XY]))
@@ -270,6 +348,45 @@ class FreeCellTests(Base):
         self.assertEqual({(MAP, FROZEN_REV, TRANSFORM)},
                          {(h.map_session_id, h.map_revision, h.transform_revision)
                           for h in self.core.mission.homes.values()})
+
+
+class TaskInputsDestinationsTests(Base):
+    """~/task_inputs carries the coordinator's home/<id> destinations next to the search areas (robot #232 accepts
+    its own 'home/<id>' key; OPS-144)."""
+
+    def test_tb5_exit_and_tb6_dock_go_to_the_robots(self):
+        from rescue_coordination.live_task_inputs import destinations
+        self.assertNotIn(f'home/{SUPPORT}', destinations(self.core))  # nothing before the freeze
+        self.freeze()
+        self.core.on_target_location(location(2, (4.2, 4.), frame_ref=frame(map_revision=FROZEN_REV)), now_ns=NOW)
+        self.save()
+        self.core.on_map_state(map_state(SUPPORT))
+        self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
+        self.tick(kind='APPROACH_TARGET')
+        record = destinations(self.core)
+        self.assertEqual({f'home/{SCOUT}', f'home/{SUPPORT}'}, {k for k in record if k.startswith('home/')})
+        self.assertEqual(self.core.live_destinations()[f'home/{SUPPORT}'], record[f'home/{SUPPORT}'])
+
+
+class DockStartPoseTests(Base):
+    """OPS-141: the TB-6 docking approach point is measured from TB-6's start pose, not the SLAM map origin."""
+    START = (1., 1., 0.)
+
+    def test_dock_approach_moves_with_the_start_pose(self):
+        self.freeze(grid=FakeGrid(blocked=[(DOCK_XY[0] + 1., DOCK_XY[1] + 1.)]))
+        self.core.mission.verdicts[self.target] = 'RESCUE_CONFIRMED'
+        self.assertEqual(([], 'SCOUT_HOME_NOT_FREE'), (self.tick(kind='RETURN_HOME'), self.reason()))
+        home = self.core.live_destinations()[f'home/{SCOUT}']
+        self.assertEqual(([2., 1.], FROZEN_REV), (home['xy_yaw'][:2], home['map_revision']))
+
+
+class NoStartPoseTests(Base):
+    START = None
+
+    def test_tb6_return_needs_the_start_pose(self):
+        self.freeze()
+        self.core.mission.verdicts[self.target] = 'RESCUE_CONFIRMED'
+        self.assertEqual(([], 'START_POSE_UNKNOWN'), (self.tick(kind='RETURN_HOME'), self.reason()))
 
 
 class NodeWiringTests(Base):
@@ -339,7 +456,9 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual({'MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', 'MAP_FREEZE_FAILED',
                           'MAP_NOT_FROZEN', 'TARGET_NOT_ON_FROZEN_MAP', 'SCOUT_NOT_LOCALIZED',
                           'SUPPORT_NOT_LOCALIZED', 'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE',
-                          'SCOUT_HOME_NOT_FREE'}, set(ros_node.MAP_FREEZE_REASONS))
+                          'SCOUT_HOME_NOT_FREE', 'TARGET_REBASED_ON_FREEZE',
+                          'EXIT_NOT_ON_FROZEN_MAP', 'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN',
+                          'START_POSE_CONFLICT'}, set(ros_node.MAP_FREEZE_REASONS))
 
 
 if __name__ == '__main__':

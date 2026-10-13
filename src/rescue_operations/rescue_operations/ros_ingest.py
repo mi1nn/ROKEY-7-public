@@ -143,6 +143,25 @@ def target_from_msg(msg, *, published_at_ns, support_robot_id):
         raise _invalid(exc, "target") from exc
 
 
+def exit_location_from_msg(msg, *, received_at_ns):
+    """rescue_interfaces/TargetLocation on /rescue/exit_location -> site_state exit row (validated when recorded).
+
+    VALID only: the console maps VALID exits only (hv-06, OPS-150). Kept: map position, map basis, observation
+    time. Dropped: covariance, the observation's other fields, the envelope.
+    """
+    try:
+        if msg.projection_status != "VALID":
+            raise OperationsError("INVALID_INPUT", "exit_location: projection_status must be VALID")
+        f = msg.frame_ref
+        return dict(location_id=msg.location_id, observed_at_ns=msg.observation.time.observed_at_ns,
+                    received_at_ns=received_at_ns, map_session_id=f.map_session_id, map_revision=f.map_revision,
+                    transform_revision=f.transform_revision, mission_frame=f.mission_frame,
+                    x=float(msg.mission_position.x), y=float(msg.mission_position.y),
+                    class_label=msg.observation.class_label)
+    except (OperationsError, AttributeError, TypeError, ValueError) as exc:
+        raise _invalid(exc, "exit_location") from exc
+
+
 class SiteStateIngest:
     """Writes converted messages through one SiteStateLedger; failures go to error_log."""
 
@@ -189,6 +208,14 @@ class SiteStateIngest:
             return self.ledger.record_mission_state(mission_from_msg(msg))
         except OperationsError as exc:
             self._log(exc, received_at_ns, f"system_state seq {getattr(msg, 'state_sequence', None)!r}")
+            return None
+
+    def on_exit_location(self, msg, *, received_at_ns):
+        """True stored, False identical resend, None refused (and logged)."""
+        try:
+            return self.ledger.record_exit_location(exit_location_from_msg(msg, received_at_ns=received_at_ns))
+        except OperationsError as exc:
+            self._log(exc, received_at_ns, f"exit_location {getattr(msg, 'location_id', None)!r}")
             return None
 
     def on_target_snapshot(self, msg, *, received_at_ns):

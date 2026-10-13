@@ -14,6 +14,7 @@ from .profile import Deployment
 SITE_EVENTS_TOPIC = '/rescue/site_events'
 SYSTEM_STATE_TOPIC = '/rescue/system_state'
 TARGETS_TOPIC = '/rescue/targets'
+EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # QR exit (통합-인식 안 「나」, OPS-144)
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
 REPORTS_TOPIC = '/rescue/reports'  # IF-072, coordinator -> report_node
 REPORT_RECEIPTS_TOPIC = '/rescue/report_receipts'  # IF-073, report_node -> coordinator
@@ -61,6 +62,7 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s):
         'site_events_topic': SITE_EVENTS_TOPIC,
         'system_state_topic': SYSTEM_STATE_TOPIC,
         'targets_topic': TARGETS_TOPIC,
+        'exit_location_topic': EXIT_LOCATION_TOPIC,
         'api_host': API_HOST,
         'api_port': api_port,
         'operator_command_service': OPERATOR_COMMAND_SERVICE,

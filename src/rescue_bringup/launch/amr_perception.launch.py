@@ -15,7 +15,12 @@ and target_locator (capture-time TF -> TargetLocation on /rescue/target_location
         profile_path:=<profile.json> tf_wait_s:=<seconds> \
         alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns> \
         recheck_action_name:=<ObserveTarget action> recheck_map_frame:=<map frame> recheck_scan_topic:=<robot scan> \
-        recheck_*:=<recheck window policy, see rescue_perception.recheck_feed.RECHECK_PARAMS>
+        recheck_*:=<recheck window policy, see rescue_perception.recheck_feed.RECHECK_PARAMS> \
+        exit_qr_payloads:=<EXIT-1,EXIT-2 exact exit QR contents> exit_qr_required_frames:=<n> exit_qr_position_tolerance_m:=<m> \
+        exit_qr_min_valid_depth_ratio:=<0..1> exit_qr_every_n_frames:=<n>
+
+The exit QRs (OPS-136/138, several exits OPS-154) are read by amr_target on the same RGB-D frames; a second target_locator
+(exit_locator) turns its observations into a TargetLocation on /rescue/exit_location.
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
@@ -31,6 +36,16 @@ from launch_ros.actions import Node
 from rescue_bringup.profile import load_deployment, require_map_basis
 from rescue_perception.target_locator import profile_parameters
 from rescue_perception.recheck_feed import RECHECK_PARAMS
+from rescue_perception.exit_qr import EXIT_LOCATION_TOPIC, EXIT_OBSERVATIONS_TOPIC, payloads_argument
+
+# Exit QR field values (exit_qr.EXIT_PARAMS); exit_map_state_topic comes from the profile like target_locator's.
+EXIT_ARGUMENTS = {
+    'exit_qr_payloads': 'exact contents of the exit QRs, comma-separated (e.g. EXIT-1,EXIT-2; field file)',
+    'exit_qr_required_frames': 'consecutive frames reading it at one place before it is the exit',
+    'exit_qr_position_tolerance_m': 'largest spread of those frames positions, m',
+    'exit_qr_min_valid_depth_ratio': 'share of depth samples inside the code that must be valid (0..1]',
+    'exit_qr_every_n_frames': 'check one RGB-D frame in n (about 35 ms per 704x704 frame); required_frames counts checked ones',
+}
 
 FIELD_ARGUMENTS = {
     'image_topic': 'RGB image topic, e.g. as listed on the robot',
@@ -113,6 +128,14 @@ def _nodes(context):
             parameters[name] = kind(arg(name))
         except ValueError as exc:
             raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
+    parameters['exit_qr_payloads'] = list(payloads_argument(arg('exit_qr_payloads')))
+    for name in ('exit_qr_required_frames', 'exit_qr_every_n_frames'):
+        parameters[name] = _integer(name, arg(name))
+    for name in ('exit_qr_position_tolerance_m', 'exit_qr_min_valid_depth_ratio'):
+        try:
+            parameters[name] = float(arg(name))
+        except ValueError as exc:
+            raise ValueError(f'{name} must be DOUBLE, got {arg(name)!r}') from exc
     deployment = load_deployment(arg('profile_path'))
     locator = profile_parameters(deployment, require_map_basis(deployment), tf_wait_s=float(arg('tf_wait_s')),
                                  clock_domain_id=arg('clock_domain_id'),   # the same measured domain as amr_target
@@ -121,15 +144,21 @@ def _nodes(context):
                                                                   arg('alignment_valid_from_ns')),
                                  alignment_valid_until_ns=_integer('alignment_valid_until_ns',
                                                                    arg('alignment_valid_until_ns')))
+    parameters['exit_map_state_topic'] = locator['map_state_topic']
+    exit_locator = locator | dict(observations_topic=EXIT_OBSERVATIONS_TOPIC, target_locations_topic=EXIT_LOCATION_TOPIC,
+                                  publisher_id='amr.exit_locator')
     tf = [('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))]
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',
                  parameters=[parameters], remappings=tf),
             Node(package='rescue_perception', executable='target_locator', name='target_locator', output='screen',
-                 parameters=[locator], remappings=tf)]
+                 parameters=[locator], remappings=tf),
+            Node(package='rescue_perception', executable='target_locator', name='exit_locator', output='screen',
+                 parameters=[exit_locator], remappings=tf)]
 
 
 def generate_launch_description():
     recheck = [DeclareLaunchArgument(name, description=f'TB-6 recheck: {kind} (recheck_feed.RECHECK_PARAMS)')
                for name, kind in RECHECK_PARAMS.items()]
     return LaunchDescription([DeclareLaunchArgument(name, description=text)
-                              for name, text in FIELD_ARGUMENTS.items()] + recheck + [OpaqueFunction(function=_nodes)])
+                              for name, text in {**FIELD_ARGUMENTS, **EXIT_ARGUMENTS}.items()] + recheck
+                             + [OpaqueFunction(function=_nodes)])
