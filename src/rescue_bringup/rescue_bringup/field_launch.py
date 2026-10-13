@@ -46,8 +46,11 @@ COORDINATOR_KEYS = {
     'recheck_max_clock_error_s': F,
     # SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; coordination OPS-119)
     'map_mode': S, 'freeze_clearance_m': F, 'map_freeze_timeout_s': F,
+    # TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
+    'search_start': S,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
+SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -175,6 +178,8 @@ def load_field(path):
                                f'(the coordinator node this launch starts)')
     if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
+    if coordinator['search_start'] not in SEARCH_START_MODES:
+        raise FieldLaunchError(f'coordinator.search_start must be one of {list(SEARCH_START_MODES)}')
     if coordinator['map_mode'] not in MAP_MODES:
         raise FieldLaunchError(f'coordinator.map_mode must be one of {list(MAP_MODES)}')
     _pair_map_modes(coordinator['map_mode'], robot_modes)

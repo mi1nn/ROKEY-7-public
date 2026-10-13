@@ -33,7 +33,8 @@ def values(**changes):
             'target_max_age_s': 2.0, 'target_max_future_s': 0.05,
             'support_dispatch': 'OPERATOR', 'approach_standoff_m': 0.8, 'support_pose_max_age_s': 2.0,
             'support_exit_wait_s': 1.0, 'recheck_max_clock_error_s': 2.0,
-            'map_mode': 'SAVED_MAP', 'freeze_clearance_m': 0.2, 'map_freeze_timeout_s': 5.0}
+            'map_mode': 'SAVED_MAP', 'freeze_clearance_m': 0.2, 'map_freeze_timeout_s': 5.0,
+            'search_start': 'OPERATOR'}
     return base | changes
 
 

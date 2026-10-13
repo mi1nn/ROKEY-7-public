@@ -218,6 +218,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
 | `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
+| `search_start` | string | `AUTO`(지진 감지 DISASTER 가 곧 수색 시작, 운영자 START_SEARCH 는 `NOT_AUTHORIZED`/`AUTO_SEARCH_ENABLED`) 또는 `OPERATOR`(버튼, #85). 관문(TB-6 READY·lease·시계·정지·재난 모드)은 같다. 정지·재난 해제로 철회되고 TB-6 이 다시 준비되면 다시 시작한다. RViz 목표 선택은 AUTO 에서 첫 구역이 나가기 전까지 열려 있고, 없으면 `SEARCH_GOAL_NOT_SELECTED`. 현장 `AUTO` [근거: 저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-136] |
 | `map_mode` | string | `SLAM_FREEZE`(탐색 SLAM → 대상 저장 뒤 지도 고정 → 고정 지도에서만 TB-5 출동) 또는 `SAVED_MAP`(launch `goal_map_*` 기준 하나). 현장 `SLAM_FREEZE` [근거: 저장소 소유자 결정 2026-10-13, scope Q-29] |
 | `freeze_clearance_m` | double | 고정 지도에서 접근 지점·출구·도킹 접근 지점이 비어 있어야 하는 반지름. 로봇 `task.live.auto_target.goal_clear_radius_m` 과 같아야 한다(현장 launch 가 검사). 현장 0.2 |
 | `map_freeze_timeout_s` | double | 고정 요청 뒤 응답·고정 지도·TB-6 MapState 가 맞기까지 기다리는 시간. 넘으면 `MAP_FREEZE_FAILED`. 현장 10.0 [제안: 통합-조정 2026-10-13, 미측정] |
