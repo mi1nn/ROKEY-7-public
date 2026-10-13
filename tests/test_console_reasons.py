@@ -68,12 +68,12 @@ class ReasonWordTests(unittest.TestCase):
             'MAP_NOT_FROZEN': ('지도가 아직 고정되지 않음 — TB-5 출동 대기', 'caution', None),
             'MAP_FREEZE_FAILED': ('지도 고정 실패 — 다시 요청하지 않음', 'alert', None),
             'TARGET_NOT_ON_FROZEN_MAP': ('고정 지도 기준 대상 위치가 아직 없음 — TB-5 출동 대기', 'caution', None),
-            'SCOUT_NOT_LOCALIZED': ('TB-6 이 고정 지도에서 위치를 못 잡음', 'caution', 'scout'),
+            'SCOUT_NOT_LOCALIZED': ('TB-6 이 고정 지도에서 위치를 못 잡음 — TB-5 출동 대기', 'caution', 'scout'),
             'SUPPORT_NOT_LOCALIZED': ('TB-5 가 고정 지도에서 위치를 못 잡음 — 출동 대기', 'caution', 'support'),
             'SUPPORT_APPROACH_NOT_FREE': ('TB-5 접근 지점이 막힘 — 출동 보류', 'caution', 'support'),
-            'SUPPORT_EXIT_NOT_FREE': ('TB-5 출구 지점이 막힘 — 출동 보류', 'caution', 'support'),
-            'SCOUT_HOME_NOT_FREE': ('TB-6 복귀 지점이 막힘 — TB-5 출동 보류', 'caution', 'scout'),
-            'NO_HOME_POSITION': ('복귀 위치 없음 — TB-5 출동 안 함', 'caution', None),
+            'SUPPORT_EXIT_NOT_FREE': ('TB-5 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)', 'caution', 'support'),
+            'SCOUT_HOME_NOT_FREE': ('TB-6 도킹 접근 지점이 막힘 — TB-6 복귀 보류', 'caution', 'scout'),
+            'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution', None),
         }
         for code, (text, level, scope) in cases.items():
             with self.subTest(code):
