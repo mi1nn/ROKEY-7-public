@@ -106,6 +106,11 @@ class Teardown(unittest.TestCase):
         teardown(lambda: None)
         self.assertIs(signal.SIG_IGN, signal.getsignal(signal.SIGINT))
 
+    def test_report_node_cleans_up_with_the_same_teardown(self):
+        # report_node (#137) had the same finally block and died with exit -2 on a second SIGINT (measured 2026-10-13).
+        from rescue_operations import report_node, ros_node
+        self.assertIs(ros_node.teardown, report_node.teardown)
+
     def test_a_failing_step_does_not_skip_the_rest_and_is_raised(self):
         from rescue_operations.ros_node import teardown
         done = []
