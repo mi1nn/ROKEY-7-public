@@ -3,25 +3,36 @@
 없는 장치는 거절하고(이전 장치로 조용히 두지 않음), 바꾼 것·거절된 것은 error_log 에 남는다(관제 웹 「명령·오류 기록」).
 """
 import json
+from pathlib import Path
+import tempfile
 import unittest
 
 from rescue_operations.command_api import WebcamSwitch
+from rescue_operations.site_state import SiteStateLedger, read_error_log
 
 BY_ID = '/dev/v4l/by-id/'
 HP, USB = 'usb-HP_Wide_Vision-video-index0', 'usb-Logitech_C920-video-index0'
 
 
-class FakeLedger:
+class RealLedger:
+    """실제 현장 상태 장부(error_log 는 C-09 공통 코드만 받는다). 가짜로는 그 검사가 빠진다(E3 에서 잡힘)."""
+
     def __init__(self):
-        self.errors = []
+        self.path = Path(tempfile.mkdtemp()) / 'site_state.sqlite3'
+        self.ledger = SiteStateLedger(self.path, allowed_robot_ids=('robot_a', 'robot_b'))
 
     def record_error(self, row):
-        self.errors.append(row)
+        return self.ledger.record_error(row)
+
+    @property
+    def errors(self):
+        return list(reversed(read_error_log(self.path)['errors']))
 
 
 class WebcamSwitchTests(unittest.TestCase):
     def setUp(self):
-        self.ledger, self.current, self.calls = FakeLedger(), BY_ID + HP, []
+        self.ledger, self.current, self.calls = RealLedger(), BY_ID + HP, []
+        self.addCleanup(self.ledger.ledger.close)
         self.answer = (True, '')
 
         def set_device(path):
@@ -43,7 +54,8 @@ class WebcamSwitchTests(unittest.TestCase):
         status, body = self.post(device=USB, operator_id='admin')
         self.assertEqual((200, True, USB), (status, body['switched'], body['current']))
         self.assertEqual([BY_ID + USB], self.calls)
-        self.assertEqual('CAMERA_SWITCHED', self.ledger.errors[0]['code'])
+        self.assertEqual('SENSOR_UNAVAILABLE', self.ledger.errors[0]['code'])   # 판정이 다시 시작되는 동안 비어 있음
+        self.assertTrue(self.ledger.errors[0]['detail'].startswith('CAMERA_SWITCHED'))
         self.assertIn('admin', self.ledger.errors[0]['detail'])
         self.assertIn('지진 판정 다시 시작', self.ledger.errors[0]['detail'])
 
@@ -52,14 +64,16 @@ class WebcamSwitchTests(unittest.TestCase):
         self.assertEqual((400, False, 'UNKNOWN_DEVICE'), (status, body['switched'], body['reason']))
         self.assertEqual([HP, USB], body['cameras'])
         self.assertEqual([], self.calls)
-        self.assertEqual('CAMERA_SWITCH_REFUSED', self.ledger.errors[0]['code'])
+        self.assertEqual('NOT_FOUND', self.ledger.errors[0]['code'])
+        self.assertTrue(self.ledger.errors[0]['detail'].startswith('CAMERA_SWITCH_REFUSED'))
 
     def test_node_refusal_is_said(self):
         self.answer = (False, 'no such camera device')
         status, body = self.post(device=USB, operator_id='admin')
         self.assertEqual((200, False, 'no such camera device', HP), (status, body['switched'], body['reason'],
                                                                      body['current']))
-        self.assertEqual('CAMERA_SWITCH_REFUSED', self.ledger.errors[0]['code'])
+        self.assertEqual('INVALID_INPUT', self.ledger.errors[0]['code'])
+        self.assertTrue(self.ledger.errors[0]['detail'].startswith('CAMERA_SWITCH_REFUSED'))
 
     def test_bad_body_is_refused(self):
         for raw in (b'not json', json.dumps({'device': HP}).encode(), json.dumps({'device': 3, 'operator_id': 'a'}).encode()):
@@ -75,6 +89,7 @@ class WebcamSwitchTests(unittest.TestCase):
         self.switch.set_device = gone
         status, body = self.post(device=USB, operator_id='admin')
         self.assertEqual((503, False), (status, body['switched']))
+        self.assertEqual('DRIVER_UNAVAILABLE', self.ledger.errors[0]['code'])
 
 
 if __name__ == '__main__':
