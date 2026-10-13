@@ -278,3 +278,18 @@ UNKNOWN을 유지하며 별도 로봇 제어 입력을 만들지 않는다. 실�
 clock_domain_id를 명시한다. rgb_rectified=False라도 지원되는 K/D/P 점 보정 모델이면 계산할
 수 있으며, 공간 정합 미검증은 계속 차단한다. 위 선택 처리 설명은 이 로컬 시험 모듈에 적용한다.
 보정 파일은 [robot5_depth.json](rescue_perception/config/robot5_depth.json)이다.
+
+[사용자 검증·설정 승인, 2026-10-13] 현장 시험 후 사용자는 “depth값은 매우 잘맞아”,
+“검증 됬으니 false 날려줘”라고 확인했다. robot5 로컬 실행 설정에
+rgb_depth_alignment_verified=true와 사용자 확인 근거 ID를 적용했다. 이는 사용자
+현장 검증 기록이며 이 PR에서 별도로 수집한 공간 정합 평가 데이터는 아니다.
+원본 RGB의 rgb_rectified=false는 유지하고 최신 main의 K/D/P 점 보정을 사용한다.
+이 값은 보정을 끄지 않으며, 지원 모델에서 보정된 bbox/중심으로 Depth를 읽는다.
+다른 로봇·토픽·해상도·보정값에 사용자 확인을 자동 승계하지 않는다.
+
+설치 후 `ros2 run rescue_perception amr_target_selective`로 실행할 수 있다.
+최신 FIELD_PARAMS와 clock_domain_id를 명시해야 한다. robot5 실행에서는
+physical_robot_id와 depth_calibration_path를 사용자 로컬 실행 설정으로 각각 robot5와
+package:robot5_depth.json에 맞춘다. 일반 main 노드의 clock/recheck 경로와 이 테스트
+노드는 동시에 실행하지 않는다. 정합 설정 변경 뒤 실제 노드의 좌표 전송은 아직
+재시험하지 않았으며, clock_state UNKNOWN은 운영 최신성 승인으로 사용할 수 없다.
