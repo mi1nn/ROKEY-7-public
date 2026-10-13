@@ -855,6 +855,33 @@ def spin_until_shutdown(spin, context_ok, shutdown_error):
             raise
 
 
+def _send_targets(core, out):
+    targets = core.target_snapshot_change()
+    if targets is not None:
+        out.targets(targets)
+
+
+def node_tick(core, now_ns, out):
+    """One timer tick of the node, in send order; ``out`` turns each item into a ROS message.
+
+    Changed targets go out before the goals (#179, 2026-10-13): a goal names its target revision, and the
+    robot looks that revision up in the latched /rescue/targets snapshot. They go again after the goals, for
+    the approach states those goals changed; ``target_snapshot_change`` is None when nothing changed.
+    """
+    _send_targets(core, out)
+    for fields in core.tick(now_ns):
+        out.task(fields)
+    for fields in core.watch_requests(now_ns):
+        out.watch(fields)
+    for report in core.reports_due(now_ns):
+        out.report(report)
+    for lease in core.leases_due(now_ns):
+        out.lease(lease)
+    out.block(core.issue_block)
+    _send_targets(core, out)
+    out.state(now_ns)
+
+
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
 def declare_required(node, names, optional=(), unset_ok=()):
     """Typed parameters without defaults -> (values, missing). Jazzy rejects a typed
@@ -1098,35 +1125,52 @@ def main(args=None):
             report_pub.publish(envelope(msg))
             log.info(f'REPORT {report["report_id"]} target={report["target_id"]} rev={report["target_revision"]}')
 
-        def tick():
-            now = now_ns()
-            for fields in core.tick(now):
+        class Out:
+            """node_tick's sinks: ROS messages and log lines."""
+            @staticmethod
+            def task(fields):
                 send(fields)
-            for fields in core.watch_requests(now):
+
+            @staticmethod
+            def watch(fields):
                 send_watch(fields)
-            for report in core.reports_due(now):
+
+            @staticmethod
+            def report(report):
                 publish_report(report)
-            for lease in core.leases_due(now):
+
+            @staticmethod
+            def lease(lease):
                 msg = CommandLease(coordinator_id=values['coordinator_id'], **lease)
                 lease_pubs[lease['robot_id']].publish(envelope(msg))
-            if core.issue_block != last_block[0]:
-                last_block[0] = core.issue_block
-                if core.issue_block:
-                    log.error(f'task not issued: {core.issue_block}')
-            targets = core.target_snapshot_change()
-            if targets is not None:
+
+            @staticmethod
+            def block(reason):
+                if reason != last_block[0]:
+                    last_block[0] = reason
+                    if reason:
+                        log.error(f'task not issued: {reason}')
+
+            @staticmethod
+            def targets(snapshot):
                 estimates = []
-                for item in targets['targets']:
+                for item in snapshot['targets']:
                     estimate = TargetEstimate(**{k: v for k, v in item.items() if k != 'mission_position'})
                     estimate.mission_position.x, estimate.mission_position.y = map(float, item['mission_position'])
                     estimates.append(estimate)
-                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=targets['snapshot_id'], targets=estimates)))
+                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=snapshot['snapshot_id'], targets=estimates)))
                 summary = [(t['target_id'], t['estimate_revision'], t['approach_state'], t['rescue_state'])
-                           for t in targets['targets']]
-                log.info(f'TARGETS {targets["snapshot_id"]} {summary}')
-            state = state_channel.send(now)
-            if state is not None:
-                log.info(f'SYSTEM_STATE {state}')
+                           for t in snapshot['targets']]
+                log.info(f'TARGETS {snapshot["snapshot_id"]} {summary}')
+
+            @staticmethod
+            def state(now):
+                state = state_channel.send(now)
+                if state is not None:
+                    log.info(f'SYSTEM_STATE {state}')
+
+        def tick():
+            node_tick(core, now_ns(), Out)
 
         def on_site_event(msg):
             log.info(f'SITE_EVENT {msg.event_id} {msg.kind} -> {core.on_site_event(msg)}')
