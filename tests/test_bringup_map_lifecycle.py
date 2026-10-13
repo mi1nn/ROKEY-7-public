@@ -1,0 +1,255 @@
+"""Field launch values for the map lifecycle: TB-6 SLAM -> frozen map -> both robots AMCL (no ROS).
+
+Decision 2026-10-13 evening (scope Q-29 ⑦, OPS-113/117/124): each robot's map source is in the
+field run file (robots.<id>.task.saved_map.mode); no default. TB-6 (robot_a) SLAM_THEN_FROZEN, TB-5
+(robot_b) FROZEN_MAP_AMCL. The TB-5 AMCL start comes from robots.robot_b.initial_pose_xy_yaw
+(clicked on the TB-6 map in a trial run and read back from /robot5/amcl_pose with
+scripts/field/capture_initial_pose.py); until it is measured the TB-5 localization launch
+refuses to start. The TB-6 AMCL start is the frozen pose (/rescue/map/frozen_pose/robot_a).
+Saved maps (SAVED_MAP_AMCL) stay for tests without robots and the #132 field script.
+"""
+import json
+import math
+from pathlib import Path
+import runpy
+import sys
+import unittest
+
+from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase
+
+START = [0.4, -0.3, 0.1]
+LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py'
+CAPTURE = REPO / 'scripts' / 'field' / 'capture_initial_pose.py'
+
+
+def frozen_field(raw):
+    raw['robots']['robot_b']['initial_pose_xy_yaw'] = list(START)
+
+
+class MapMode(FieldCase):
+    def test_repository_field_file_is_the_slam_freeze_flow(self):
+        raw = json.loads(FIELD.read_text())
+        self.assertEqual('SLAM_THEN_FROZEN', raw['robots']['robot_a']['task.saved_map.mode'])
+        self.assertEqual('FROZEN_MAP_AMCL', raw['robots']['robot_b']['task.saved_map.mode'])
+        # No TB-5 start is made up: it is measured in a trial run first.
+        self.assertNotIn('initial_pose_xy_yaw', raw['robots']['robot_b'])
+
+    def test_tb6_task_input_searches_on_slam_without_a_map_hash(self):
+        values = self.robot(field=self.field(), occupancy_sha256='')
+        task = values['task_input']
+        self.assertEqual('SLAM_THEN_FROZEN', task['task.saved_map.mode'])
+        self.assertEqual('', task['task.saved_map.occupancy_sha256'])
+        self.assertEqual('/robot6/pose', task['task.saved_map.slam_localization_topic'])
+        self.assertEqual('/robot6/amcl_pose', task['task.saved_map.localization_topic'])
+        self.assertEqual('/robot6/map', task['task.saved_map.map_topic'])
+        # only task_input parameters are passed: the field file's map keys stay in the launch
+        self.assertFalse({'initial_pose_xy_yaw', 'map_freeze.pose_max_age_ns'} & set(task))
+
+    def test_tb5_task_input_waits_for_the_frozen_map(self):
+        task = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        self.assertEqual('FROZEN_MAP_AMCL', task['task.saved_map.mode'])
+        self.assertNotIn('task.saved_map.slam_localization_topic', task)
+
+    def test_a_map_hash_is_refused_where_the_freeze_decides_it(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        for robot_id in ('robot_a', 'robot_b'):
+            with self.subTest(robot_id=robot_id), self.assertRaisesRegex(FieldLaunchError, 'freeze'):
+                self.robot(field=self.field(), robot_id=robot_id, occupancy_sha256=SHA)
+
+    def test_saved_map_source_still_needs_the_measured_hash(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+
+        def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+        field = self.field(saved)
+        self.assertEqual('SAVED_MAP_AMCL', self.robot(field=field)['task_input']['task.saved_map.mode'])
+        with self.assertRaises(FieldLaunchError):
+            self.robot(field=field, occupancy_sha256='')
+
+    def test_map_source_rules_in_the_field_file(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+
+        def drop(key, robot='robot_a'):
+            return lambda raw: raw['robots'][robot].pop(key)
+
+        def put(key, value, robot='robot_a'):
+            return lambda raw: raw['robots'][robot].__setitem__(key, value)
+        bad = {
+            'no map source': drop('task.saved_map.mode'),
+            'unknown map source': put('task.saved_map.mode', 'SLAM'),
+            'two SLAM robots': put('task.saved_map.mode', 'SLAM_THEN_FROZEN', 'robot_b'),
+            'frozen map without a SLAM robot': put('task.saved_map.mode', 'FROZEN_MAP_AMCL'),
+            'saved and frozen mixed': put('task.saved_map.mode', 'SAVED_MAP_AMCL', 'robot_b'),
+            'SLAM robot without freeze pose age': drop('map_freeze.pose_max_age_ns'),
+            'freeze pose age not positive': put('map_freeze.pose_max_age_ns', 0),
+            'freeze pose age on a non-SLAM robot': put('map_freeze.pose_max_age_ns', 1, 'robot_b'),
+            'start pose on the SLAM robot': put('initial_pose_xy_yaw', [0.0, 0.0, 0.0]),
+            'start pose not x, y, yaw': put('initial_pose_xy_yaw', [0.0, 0.0], 'robot_b'),
+            'start pose not finite numbers': put('initial_pose_xy_yaw', [0.0, 0.0, 'x'], 'robot_b'),
+        }
+        for name, change in bad.items():
+            with self.subTest(name), self.assertRaises(FieldLaunchError):
+                self.field(change)
+
+
+class CoordinatorRobotPairing(FieldCase):
+    """coordinator.map_mode and the robots' map modes are one decision (OPS-126): a mismatch starts nothing."""
+
+    def test_repository_field_file_pairs_slam_freeze_with_slam_then_frozen_robots(self):
+        raw = json.loads(FIELD.read_text())
+        self.assertEqual('SLAM_FREEZE', raw['coordinator']['map_mode'])
+        self.field()
+
+    def test_saved_map_pairs_with_saved_map_robots_only(self):
+        def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+        self.field(saved)
+
+    def test_mismatches_are_refused(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+
+        def coordinator_saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+
+        def robots_saved(raw):
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+
+        def no_frozen_robot(raw):
+            raw['robots'].pop('robot_b')
+        for name, change in (('SAVED_MAP coordinator, SLAM robots', coordinator_saved),
+                             ('SLAM_FREEZE coordinator, saved-map robots', robots_saved),
+                             ('SLAM_FREEZE without a robot on the frozen map', no_frozen_robot)):
+            with self.subTest(name), self.assertRaisesRegex(FieldLaunchError, 'map_mode'):
+                self.field(change)
+
+
+class LocalizationLaunch(FieldCase):
+    def values(self, robot_id, field=None):
+        from rescue_bringup.field_launch import frozen_localization_values
+        return frozen_localization_values(self.deployment, field=field or self.field(frozen_field), robot_id=robot_id)
+
+    def test_tb5_starts_amcl_from_the_measured_start_on_the_frozen_map(self):
+        v = self.values('robot_b')
+        self.assertEqual(('/robot5', '/robot5/map', '/rescue/map/frozen'),
+                         (v['namespace'], v['map_topic'], v['frozen_topic']))
+        self.assertEqual(START, v['initial_pose_xy_yaw'])
+        self.assertIsNone(v['initial_pose_topic'])
+
+    def test_tb6_starts_amcl_from_the_frozen_pose(self):
+        v = self.values('robot_a')
+        self.assertEqual('/robot6', v['namespace'])
+        self.assertIsNone(v['initial_pose_xy_yaw'])
+        self.assertEqual('/rescue/map/frozen_pose/robot_a', v['initial_pose_topic'])
+
+    def test_tb5_without_a_measured_start_does_not_start(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        with self.assertRaisesRegex(FieldLaunchError, 'capture_initial_pose'):
+            self.values('robot_b', field=self.field())
+
+    def test_saved_map_robots_have_no_frozen_localization(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+
+        def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+        with self.assertRaises(FieldLaunchError):
+            self.values('robot_a', field=self.field(saved))
+
+    def test_slam_launch_only_for_the_slam_robot(self):
+        from rescue_bringup.field_launch import FieldLaunchError, slam_launch_values
+        self.assertEqual('/robot6', slam_launch_values(self.deployment, field=self.field(), robot_id='robot_a')['namespace'])
+        with self.assertRaises(FieldLaunchError):
+            slam_launch_values(self.deployment, field=self.field(), robot_id='robot_b')
+
+    def test_amcl_parameters_keep_the_turtlebot4_values_and_set_the_start(self):
+        from rescue_bringup.field_launch import amcl_parameters
+        base = {'amcl': {'ros__parameters': {'alpha1': 0.2, 'scan_topic': 'scan', 'global_frame_id': 'map'}}}
+        p = amcl_parameters(base, initial_pose_xy_yaw=[0.4, -0.3, 0.1], use_sim_time=False)
+        self.assertEqual(0.2, p['alpha1'])
+        self.assertEqual('scan', p['scan_topic'])
+        self.assertIs(True, p['set_initial_pose'])
+        self.assertEqual({'x': 0.4, 'y': -0.3, 'z': 0.0, 'yaw': 0.1}, p['initial_pose'])
+        self.assertIs(False, p['use_sim_time'])
+        with self.assertRaises(ValueError):
+            amcl_parameters({}, initial_pose_xy_yaw=[0.0, 0.0, 0.0], use_sim_time=False)
+        with self.assertRaises(ValueError):
+            amcl_parameters(base, initial_pose_xy_yaw=[0.0, math.nan, 0.0], use_sim_time=False)
+
+
+class FreezeLaunch(FieldCase):
+    def params(self, **changes):
+        from rescue_bringup.field_launch import map_freeze_parameters
+        values = dict(output_dir='/srv/freeze', record_path='') | changes
+        return map_freeze_parameters(self.deployment, field=self.field(), **values)
+
+    def test_freeze_reads_the_slam_robot_map_and_pose_on_the_profile_basis(self):
+        p = self.params()
+        basis = self.deployment.map_basis
+        self.assertEqual({'map_topic': '/robot6/map', 'pose_topic': '/robot6/pose', 'map_frame': 'map',
+                          'map_session_id': basis.map_session_id, 'map_revision': basis.map_revision,
+                          'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze'}, p)
+
+    def test_restart_record_is_optional_and_absolute(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        self.assertEqual('/srv/freeze/frozen-x.json', self.params(record_path='/srv/freeze/frozen-x.json')['record_path'])
+        for bad in (dict(output_dir=''), dict(output_dir='freeze'), dict(record_path='frozen-x.json')):
+            with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
+                self.params(**bad)
+
+
+class OnePcTwoRoles(FieldCase):
+    def test_both_robots_on_one_pc_use_separate_names(self):
+        """Trial: compute_a and compute_b may be one PC (OPS-124 ③): every robot node is in its namespace."""
+        a = self.robot(field=self.field(), occupancy_sha256='')
+        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')
+        self.assertNotEqual(a['namespace'], b['namespace'])
+        for key in ('executor_heartbeat_topic', 'watchdog_heartbeat_topic', 'task.saved_map.map_topic',
+                    'task.saved_map.localization_topic'):
+            self.assertNotEqual(a['task_input'][key], b['task_input'][key])
+
+    @unittest.skipUnless(LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
+    def test_frozen_localization_nodes_are_in_the_robot_namespace(self):
+        self.assertIn('namespace=ns', LAUNCH.read_text())
+
+
+@unittest.skipUnless(CAPTURE.exists(), 'installed-wheel checkout has no scripts/')
+class CaptureInitialPose(unittest.TestCase):
+    def tool(self):
+        sys.path.insert(0, str(REPO / 'scripts' / 'field'))
+        self.addCleanup(sys.path.remove, str(REPO / 'scripts' / 'field'))
+        return runpy.run_path(str(CAPTURE))
+
+    def message(self, frame='map', yaw=0.1, covariance=None):
+        from types import SimpleNamespace as NS
+        cov = covariance or [0.0] * 36
+        return NS(header=NS(frame_id=frame), pose=NS(pose=NS(position=NS(x=0.4, y=-0.3, z=0.0),
+                  orientation=NS(x=0.0, y=0.0, z=math.sin(yaw / 2), w=math.cos(yaw / 2))), covariance=cov))
+
+    def test_prints_the_field_file_line_for_the_robot(self):
+        snippet = self.tool()['snippet']
+        text = snippet(self.message(), map_frame='map')
+        self.assertEqual({'initial_pose_xy_yaw': [0.4, -0.3, 0.1]},
+                         {k: [round(v, 6) for v in vals] for k, vals in json.loads('{' + text + '}').items()})
+
+    def test_refuses_another_frame_or_a_non_planar_pose(self):
+        tool = self.tool()
+        with self.assertRaises(tool['CaptureError']):
+            tool['snippet'](self.message(frame='odom'), map_frame='map')
+        bad = self.message()
+        bad.pose.pose.orientation.x = 0.3
+        with self.assertRaises(tool['CaptureError']):
+            tool['snippet'](bad, map_frame='map')
+
+
+if __name__ == '__main__':
+    unittest.main()

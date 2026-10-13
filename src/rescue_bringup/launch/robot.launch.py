@@ -1,12 +1,14 @@
 """Robot side: TurtleBot4 Nav2 + command_watchdog + task_input (SEARCH_AREA, live inputs).
 
     ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> \
-        field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_a \
-        occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py /robot6/map map)
+        field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_a
 
-robot_b is the same command with robot_id:=robot_b once the field run file has robots.robot_b.
-Localization (turtlebot4_navigation localization.launch.py with the prior map) runs before
-this, once, and the map hash is measured from its map topic. Nav2's final velocity writers
+The map mode is the field run file's robots.<id>.task.saved_map.mode (map lifecycle, OPS-126):
+SLAM_THEN_FROZEN (TB-6: tb6_slam.launch.py while searching, then frozen_localization.launch.py)
+or FROZEN_MAP_AMCL (TB-5: frozen_localization.launch.py) take no occupancy_sha256, the freeze
+decides the hash. SAVED_MAP_AMCL (tests without robots, #132) needs the measured hash:
+occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py /robot6/map map) after
+turtlebot4_navigation localization.launch.py with the saved map. Nav2's final velocity writers
 (collision_monitor, docking_server) are remapped to <ns>/cmd_vel_watchdog_in; only the
 watchdog writes <ns>/cmd_vel. Remove any other final cmd_vel writer (e.g. joystick) first.
 No arm, task or movement command is sent by this launch.
@@ -46,7 +48,9 @@ def _nodes(context):
     ])
     return [
         LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={nav2_params} '
-                    f'map_sha256={task["task.saved_map.occupancy_sha256"]} declared alignment window '
+                    f'map_mode={task["task.saved_map.mode"]} '
+                    f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(decided by the freeze)"} '
+                    f'declared alignment window '
                     f'{task["task.saved_map.valid_from_ns"]}..{task["task.saved_map.transform_valid_until_ns"]} ns'),
         nav2,
         Node(package='rescue_robot', executable='command_watchdog', name='rescue_command_watchdog', namespace=ns,
@@ -61,7 +65,9 @@ def generate_launch_description():
         DeclareLaunchArgument('profile_path', description='Deployment profile v2.1 JSON (field values, outside the repo)'),
         DeclareLaunchArgument('field_path', description='Field run file (config/field/*.field.json)'),
         DeclareLaunchArgument('robot_id', description='Logical robot ID in the profile (robot_a, robot_b)'),
-        DeclareLaunchArgument('occupancy_sha256', description='Measured hash of the map topic (map_occupancy_sha256.py)'),
+        DeclareLaunchArgument('occupancy_sha256', default_value='',
+                              description='SAVED_MAP_AMCL only: measured hash of the map topic (map_occupancy_sha256.py); '
+                                          'empty for the SLAM -> frozen map modes'),
         DeclareLaunchArgument('nav2_params_file', default_value='',
                               description='Nav2 parameters; empty = turtlebot4_navigation config/nav2.yaml (as #132)'),
         OpaqueFunction(function=_nodes),

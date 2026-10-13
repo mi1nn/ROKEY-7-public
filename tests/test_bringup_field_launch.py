@@ -136,9 +136,19 @@ class FieldCase(unittest.TestCase):
                                       field=field or self.field(), **(PLACEHOLDERS | changes))
 
     def robot(self, field=None, **changes):
+        """Robot launch values on saved maps (the #132 field scripts ran on a saved map); the SLAM ->
+        frozen map field values are tested in test_bringup_map_lifecycle."""
         from rescue_bringup.field_launch import robot_launch_values
         values = dict(robot_id='robot_a', occupancy_sha256=SHA, now_ns=NOW_NS) | changes
-        return robot_launch_values(self.deployment, field=field or self.field(), **values)
+        return robot_launch_values(self.deployment, field=field or self.field(saved_maps), **values)
+
+
+def saved_maps(raw):
+    """Both robots on a saved map with a measured hash (SAVED_MAP_AMCL), as the #132 field scripts."""
+    raw['coordinator']['map_mode'] = 'SAVED_MAP'
+    for robot in raw['robots'].values():
+        robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+        robot.pop('map_freeze.pose_max_age_ns', None)
 
 
 class CoordinatorParameters(FieldCase):
@@ -280,7 +290,7 @@ class RobotParameters(FieldCase):
         """No publisher_id / mapping_authority is made up for a robot the field file does not name."""
         from rescue_bringup.field_launch import FieldLaunchError
         with self.assertRaisesRegex(FieldLaunchError, 'robot_b'):
-            self.robot(field=self.field(lambda raw: raw['robots'].pop('robot_b')), robot_id='robot_b')
+            self.robot(field=self.field(lambda raw: (raw['robots'].pop('robot_b'), saved_maps(raw))), robot_id='robot_b')
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -291,7 +301,7 @@ class RobotParameters(FieldCase):
                                         'task.live.auto_target.policy_version': 'p',
                                         'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
                                         'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
-        values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        values = self.robot(field=self.field(lambda raw: (add_b(raw), saved_maps(raw))), robot_id='robot_b')
         # Both policy and sensor clock must stay local to this robot.
         self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
         self.assertEqual(['REOBSERVE_TARGET', 'RETURN_HOME'], self.robot()['task_input']['task.live.auto_target.kinds'])

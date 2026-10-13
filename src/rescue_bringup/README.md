@@ -115,8 +115,10 @@ PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇�
 | 호스트 id | 물리 PC | 띄우는 것 |
 | --- | --- | --- |
 | `operations` + `coordination` | 같은 PC(웹·DB·웹캠·조정기) | `operations.launch.py`(db_writer·report_node·webcam_node·mjpeg_relay), 관제 웹, `coordinator.launch.py` |
-| `compute_a` | TB-6(robot_a, `/robot6`, SCOUT) 담당 PC | 위치 추정, `robot.launch.py robot_id:=robot_a`, 탐지·대상 위치·재확인 서버(통합-인식) |
-| `compute_b` | TB-5(robot_b, `/robot5`, SUPPORT) 담당 PC | 위치 추정, `robot.launch.py robot_id:=robot_b` |
+| `compute_a` | TB-6(robot_a, `/robot6`, SCOUT) 담당 PC | 탐색 중 SLAM(`tb6_slam.launch.py`) → 고정 뒤 `frozen_localization.launch.py robot_id:=robot_a`, `robot.launch.py robot_id:=robot_a`, 지도 고정 노드(`map_freeze.launch.py`), 탐지·대상 위치·재확인 서버(통합-인식) |
+| `compute_b` | TB-5(robot_b, `/robot5`, SUPPORT) 담당 PC | `frozen_localization.launch.py robot_id:=robot_b`, `robot.launch.py robot_id:=robot_b` |
+
+시험 중에는 `compute_a` 와 `compute_b` 를 한 PC 에서 함께 띄워도 된다(재범 검토 중, OPS-124). 로봇 노드는 모두 로봇 namespace(`/robot6`, `/robot5`) 안에 있어 이름이 겹치지 않는다. 지도 고정 노드는 한 번만 띄우고, 저장 위치는 `output_dir` 인자로 정한다. ROS 명령은 `--no-daemon` 으로 쓴다.
 
 값은 세 곳에서만 온다. 첫째는 배포 프로파일 v2.1(저장소 밖)로, 로봇·역할·namespace·readiness·검색 영역·`map_basis`·`home_positions` 를 준다. 둘째는 현장 실행 파일 `config/field/search_area.field.json` 으로, 정책·로봇별 값을 준다. 셋째는 launch 인자로, 현장에서 재는 값이다. 이 launch 들은 arm·임무·이동 명령을 보내지 않는다. 로봇이 움직이는 단계는 사람이 지켜본다.
 
@@ -126,6 +128,7 @@ PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇�
 | TB-5 자동 접근(APPROACH_TARGET), TB-6 재관측(REOBSERVE_TARGET)+재확인 관측, 로봇 위치·지도 상태 발행 | 있음(#166·#179·#176). 재확인 서버: 판정·action 서버 코드는 있음(#165), 실행 노드와 센서 입력(프레임·스캔) 연결은 통합-인식 다음 PR 이다. 그 전에는 서버가 없어 재관측 결과가 `has_recheck=false` 다 |
 | 복귀(RETURN_HOME) | 있음(#192). 자동 도킹은 없다(도킹은 사람이 감독) |
 | TB-5 로봇 launch | 있음(현장 실행 파일 `robots.robot_b`: 접근·복귀만, Pi 시계 150 ms) |
+| 지도: 기준 지도 없이 TB-6 SLAM → 대상 확정 때 고정 → 두 로봇 AMCL(scope Q-29 ⑦) | 있음(#211 실행기, #213 고정 노드, #214 조정기, 이 launch 들). 현장 실행 파일: 조정기 `map_mode` `SLAM_FREEZE`, `robots.robot_a.task.saved_map.mode` `SLAM_THEN_FROZEN`, `robots.robot_b...` `FROZEN_MAP_AMCL`. 짝이 어긋나면 launch 가 거절한다. **TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` 는 아직 없다**(시험 회차에 잰다, 2단계). 그 전에는 TB-5 위치 추정 launch 가 거절하고 준비 점검 `field.initial_pose.robot_b` 가 FAILED 다 |
 | watchdog 현장 값 | #132 임시값(#94 미확정). 영구 정지와 리셋은 [rescue_robot README](../rescue_robot/README.md) |
 
 ### 0단계 — 모든 PC, 그리고 로봇 Pi
@@ -142,24 +145,26 @@ PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇�
 모든 PC(같은 로봇망 SSID 여야 한다. 2026-10-13 운영 PC 가 다른 SSID 라 TB-5 Pi ping 이 100% 실패했다 — [운영 PC 기록](../../docs/evidence/field-2026-10-13-operations-host.md)):
 
 ```bash
-ping -c 20 <TB-5 Pi 주소>; ping -c 20 <TB-6 Pi 주소>      # 손실 0% 인지(로봇 담당 PC 는 자기 로봇만)
+ping -c 20 <TB-5 Pi 주소>; ping -c 20 <TB-6 Pi 주소>      # 손실 0% 인지(로봇 담당 PC 도 두 Pi 모두)
 iw dev <무선 장치> get power_save                         # PC 쪽 무선 절전(끌지는 재범이 정함)
 # Discovery — 세미콜론 자리 번호 = 서버 ID. 지금 어느 구성인지 먼저 정하고 그 줄을 쓴다(재범 확인 2026-10-13 15:40).
 # [시험 중] 권고안 A: 각 PC 가 로봇 Pi 서버에 직접(TB-5 Pi = ID 5, TB-6 Pi = ID 6)
-#   compute_a: ';;;;;;<TB-6 Pi>:11811'   compute_b: ';;;;;<TB-5 Pi>:11811'
-#   operations·coordination: ';;;;;<TB-5 Pi>:11811;<TB-6 Pi>:11811'
+#   모든 PC(compute_a·compute_b 포함): ';;;;;<TB-5 Pi>:11811;<TB-6 Pi>:11811'
+#   고정 지도 흐름에서는 로봇 PC 도 두 서버를 다 적는다: compute_a 의 map_freeze 가 내는 /rescue/map/frozen 을
+#   compute_b 의 TB-5 위치 추정·실행기가 받아야 한다. 서버 하나만 적으면 서로 못 찾는다[추정, 실측 전] (OPS-124).
+#   (2026-10-13 낮까지는 compute_a: ';;;;;;<TB-6 Pi>:11811', compute_b: ';;;;;<TB-5 Pi>:11811' 였다)
 # [최종] 전용 Discovery PC 1대(옛 중앙 서버 PC, 서버 ID 0): 모든 PC 가 '<전용 PC>:11811'(자리 0)
 #   로봇이 전용 서버에 보이게 하는 방법은 결정 대기 — 로봇 Pi 에 외부 서버 추가(로봇 설정, 등급 4) 또는 서버끼리 연결.
 #   정해지기 전에는 최종 구성으로 바꾸지 않는다(로봇 토픽이 안 보인다).
 export ROS_DOMAIN_ID=<프로파일 domain_id>
 export ROS_DISCOVERY_SERVER='<위 값, 프로파일 hosts[<host id>].network 와 같게>'
 ros2 daemon stop && ros2 daemon start
-ROS_SUPER_CLIENT=True ros2 topic list --no-daemon | grep -E '^/robot[56]/' | cut -d/ -f2 | sort | uniq -c
+ROS_SUPER_CLIENT=True ros2 topic list --no-daemon | grep -E '^/robot[56]/|^/rescue/map/' | cut -d/ -f2-3 | sort | uniq -c
 python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json> \
   --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
 ```
 
-현장 프로파일에는 `map_basis`(frame `map`)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; 현장에서 잼)가 있어야 한다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
+현장 프로파일에는 `map_basis`(frame `map`, revision R0 = 탐색 중 revision; 고정 지도는 R0+1)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; TB-6 지도에서 잼)가 있어야 한다. 프로파일은 저장소 밖이라 **`hosts[compute_a]`·`hosts[compute_b]` 의 `network.discovery_servers` 를 두 Pi 서버(자리 5·6)로 직접 고쳐야** 준비 점검 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
 
 ### 1단계 — operations + coordination PC
 
@@ -191,21 +196,41 @@ TB-5 가 대상에서 출구로 떠나기 전 기다리는 시간 `support_exit_
 
 ### 2단계 — compute_a (TB-6), compute_b (TB-5)
 
-두 로봇은 같은 지도 파일 하나를 쓴다(`map_basis` 하나). 언도킹은 기존 감독 절차로 한다.
+기준 지도 없이 시작한다. 두 로봇은 바닥에 표시한 같은 출발 자리에서 출발한다(TB-6 SLAM 원점 = TB-6 출발 자세). 언도킹은 기존 감독 절차로 한다.
 
 ```bash
-# <ns> = /robot6 (compute_a) 또는 /robot5 (compute_b), <id> = robot_a 또는 robot_b
-ros2 launch turtlebot4_navigation localization.launch.py namespace:=<ns> map:=<map.yaml> use_sim_time:=false
-python3 scripts/field/map_occupancy_sha256.py <ns>/map map        # stdout 64자리 해시, 실패면 exit 2
+F=$PWD/config/field/search_area.field.json
+# compute_a: TB-6 SLAM(탐색 중만) → 로봇 launch → 지도 고정 노드
+ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
-ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> \
-  field_path:=$PWD/config/field/search_area.field.json robot_id:=<id> \
-  occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<절대 경로>
+
+# compute_b: TB-5 는 고정 지도를 기다린다(그 전에는 지도 없음, MapState UNKNOWN)
+ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
+  robot_id:=robot_b frozen_pose_wait_s:=10.0
+FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ```
 
-성공 로그: `robot <id> ns=<ns> ... map_sha256=...`, `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`, `MAP_STATE <id> ... quality=VALID`(AMCL 이 자리를 잡은 뒤).
+성공 로그:
+- `TB-6 SLAM robot_a ns=/robot6`
+- `robot <id> ns=<ns> ... map_mode=SLAM_THEN_FROZEN`(또는 `FROZEN_MAP_AMCL`) `map_sha256=(decided by the freeze)`
+- `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
+- `rescue_map_freeze`: `git_sha=... parameters=...`
+- TB-6 `MAP_STATE robot_a ... rev=<R0> quality=VALID`(SLAM 위치가 잡힌 뒤). TB-5 는 고정 전 `quality=UNKNOWN` 이 정상이다.
+
+`occupancy_sha256` 는 주지 않는다(고정이 해시를 정함). 탐색 중 TB-6 위치는 slam_toolbox 의 `/robot6/pose` 로 받는다[추정, 실기 확인 항목]. 안 나오면 TB-6 MapState 가 UNKNOWN 이고 수색 목표를 거절한다(다른 값으로 대체하지 않음).
+
+**TB-5 출발값 재기(시험 회차, 한 번):** 고정 지도가 나온 뒤에 한다.
+1. TB-5 를 출발 자리에 둔다.
+2. 출발값 없이는 위 TB-5 launch 가 거절하므로, 이 회차만 turtlebot4 기본 위치 추정을 쓴다. `ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot5 map:=<고정 지도 .yaml>` 을 띄우고, RViz `2D Pose Estimate` 로 TB-6 지도 위 자리를 찍는다. 고정 노드가 `output_dir` 에 남긴 `.yaml` 을 쓴다.
+3. AMCL 이 맞춘 뒤 `python3 scripts/field/capture_initial_pose.py /robot5/amcl_pose map` 을 돌린다. stdout 한 줄을 현장 실행 파일 `robots.robot_b` 에 넣는다(코드에 박지 않음).
+4. 출구(TB-5)·TB-6 도킹 접근 지점(프로파일 `home_positions`)도 같은 지도에서 같은 도구로 잰다.
 
 compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 실행 노드가 생긴 뒤(통합-인식 다음 PR) 띄운다. 코드(#165)만으로는 띄울 실행 파일이 없다.
+
+저장 지도로 하는 시험(로봇 없는 시험, #132)은 현장 실행 파일을 조정기 `map_mode` `SAVED_MAP` + 두 로봇 `SAVED_MAP_AMCL` 로 바꾸고, 예전처럼 `turtlebot4_navigation localization.launch.py` → `occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)` 로 띄운다.
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
 
@@ -216,11 +241,20 @@ ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}
 ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}      # success=True
 ```
 
-1. RViz(2D Goal Pose)로 `/rescue/search_goal` 에 TB-6 수색 목표를 고른다. 조정기 로그 `SEARCH_GOAL_SELECTED`.
+1. RViz(2D Goal Pose)로 `/rescue/search_goal` 에 TB-6 수색 목표를 고른다. 조정기 로그 `SEARCH_GOAL_SELECTED`. 탐색 중 목표는 revision R0 다.
 2. TB-6 과 TB-5 를 모두 arm 한다. TB-5 는 자동 출동이라 대상이 나오기 전에 arm 돼 있어야 한다. 실행기는 arm(latch ARMED)일 때만 READY 를 내고(`task_status.py`), 조정기는 READY·최신 상태인 SUPPORT 에만 task 를 낸다(통합-조정 확인 2026-10-13). arm 하지 않으면 조정기는 기다리기만 한다. PR #196 머지 뒤에는 SystemState `reason=SUPPORT_NOT_READY` 로 보이고, 관제 웹에는 「TB-5 준비 안 됨 — arm 필요」로 보인다(PR #185 머지 뒤).
 3. 웹캠 앞 흔들림 → 관제 화면 모드 DISASTER → 관제 웹 출동 버튼(START_SEARCH).
-4. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
-5. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다.
+4. **지도 고정과 TB-6 전환.** 대상이 확정·저장되면 조정기가 TB-6 정지를 확인한 뒤 `/rescue/map/freeze` 를 부른다(#214). compute_a 로그에 `MAP_FROZEN sha256=... rev=<R0+1> tb6_start=(...)` 가 나오면 TB-6 을 전환한다:
+   1. `tb6_slam.launch.py` 터미널에서 Ctrl-C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 의 발행자 수가 0 이 될 때까지 기다린다.
+   2. 아래 한 줄을 띄운다. 고정 위치에서 AMCL 이 시작한다(`/rescue/map/frozen_pose/robot_a`, 10 s 안에 없으면 launch 실패):
+      `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0`
+   3. 로그 `MAP_RELAYED /rescue/map/frozen -> /robot6/map sha256=<고정 해시>` 를 확인한다. SLAM 이 아직 떠 있으면 `MAP_RELAY_BLOCKED` 가 나오고 지도를 넘기지 않는다.
+   4. 두 로봇 모두 `MAP_STATE ... rev=<R0+1> quality=VALID` 가 나오는지 확인한다. `snapshot_id` 가 두 로봇에서 같아야 한다.
+   - TB-5 는 이미 떠 있는 `frozen_localization` 이 고정 지도를 받아 위치를 잡는다(`MAP_RELAYED /rescue/map/frozen -> /robot5/map`).
+   - AMCL 이 자리를 못 잡으면(공분산 초과) `quality=UNKNOWN` 이고 TB-5 는 출동하지 않는다.
+   - 고정이 실패하면(`MAP_FREEZE_FAILED`) 아무것도 바뀌지 않는다. TB-5 도 출동하지 않는다.
+5. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
+6. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다. 고정은 회차마다 한 번이다. 새 회차는 `tb6_slam` 부터 다시 띄우고, 고정 노드는 `record_path` 없이 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 `record_path:=<저장된 .json>` 로 같은 지도를 다시 낸다.
 
 ### 참고
 

@@ -23,5 +23,6 @@ setup(
                                        "command_watchdog = rescue_robot.watchdog_node:main",
                                        "task_prepare = rescue_robot.task_prepare:main",
                                        "clock_capture = rescue_robot.clock_capture:main",
-                                       "map_freeze = rescue_robot.map_freeze:main"]},
+                                       "map_freeze = rescue_robot.map_freeze:main",
+                                       "frozen_map_relay = rescue_robot.frozen_map_relay:main"]},
 )

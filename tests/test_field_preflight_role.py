@@ -29,7 +29,8 @@ ROBOT_B = {'task.publisher_id': 'p', 'task.mapping_authority': 'm', 'task.live.a
            'task.live.auto_target.kinds': ['APPROACH_TARGET'], 'task.live.auto_target.goal_clear_radius_m': 0.2,
            'task.live.auto_target.policy_version': 'p',
            'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
-           'task.live.sensor_host_clock_error_bound_ns': -1}
+           'task.live.sensor_host_clock_error_bound_ns': -1,
+           'task.saved_map.mode': 'FROZEN_MAP_AMCL', 'initial_pose_xy_yaw': [0.4, -0.3, 0.1]}
 ALL_MODULES = object()
 
 
@@ -129,6 +130,10 @@ class Duties(RoleCase):
     def test_robot_b_without_field_values_fails(self):
         raw = json.loads(self.field.read_text())
         raw['robots'].pop('robot_b')
+        # robot_a alone on a saved map: a SLAM run without the robot on the frozen map would not load at all
+        raw['coordinator']['map_mode'] = 'SAVED_MAP'
+        raw['robots']['robot_a']['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+        raw['robots']['robot_a'].pop('map_freeze.pose_max_age_ns')
         field = self.dir / 'field_no_b.json'
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_b', field_path=field), 'field.robot.robot_b', pr.FAILED)
@@ -223,10 +228,21 @@ class Failures(RoleCase):
     def test_field_file_without_this_robot(self):
         raw = json.loads(self.field.read_text())
         raw['robots'].pop('robot_a')
-        raw['robots']['robot_b'] = dict(ROBOT_B)
+        raw['robots']['robot_b'] = {k: v for k, v in ROBOT_B.items() if k != 'initial_pose_xy_yaw'} | {
+            'task.saved_map.mode': 'SAVED_MAP_AMCL'}   # without robot_a no robot makes the frozen map
+        raw['coordinator']['map_mode'] = 'SAVED_MAP'
         field = self.dir / 'field.json'
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_a', field_path=field), 'field.robot.robot_a', pr.FAILED)
+
+    def test_tb5_start_must_be_measured_before_its_localization(self):
+        """FROZEN_MAP_AMCL: no AMCL start is made up; the repository field file has none until measured."""
+        self.assertStatus(self.run_role('compute_b'), 'field.initial_pose.robot_b', pr.FAILED)
+        raw = json.loads(self.field.read_text())
+        raw['robots']['robot_b'] = dict(ROBOT_B)
+        field = self.dir / 'field.json'
+        field.write_text(json.dumps(raw))
+        self.assertStatus(self.run_role('compute_b', field_path=field), 'field.initial_pose.robot_b', pr.PASSED)
 
     def test_exit_code_and_report(self):
         checks = pr.run_role('coordination', env={}, profile_path=self.profile, field_path=None,
