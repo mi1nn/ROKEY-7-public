@@ -70,6 +70,8 @@ class WatchSlot:
         self._replies = {}
         self._image_size = None
 
+    # revision 흐름 예) 처음 0 → 걸기(expected 0) 수락 → 1 → 해제(expected 1) 수락 → 2 → 다시 걸기(expected 2) ...
+    #   이미 1 인데 expected 0 으로 걸려고 하면 REVISION_MISMATCH 로 거절된다.
     def handle(self, req, *, now_ns):
         # 같은 command_id 가 다시 오면(네트워크 재전송) 처음 응답을 그대로 돌려준다. 감시가 두 번 걸리지 않는다.
         if req.command_id in self._replies:
@@ -133,6 +135,7 @@ def stream_state(sign_frame, size, expected_size):
     해상도가 요청과 다르면 DEGRADED(SIZE_MISMATCH), 화면 대부분이 가려졌으면(지진 판정의 OCCLUDED·
     SCENE_CHANGED·QUADRANT_COVERED) UNKNOWN 과 그 이유, 아니면 ONLINE.
     """
+    # 예) 640×480 을 요청했는데 카메라가 1280×720 을 주면 DEGRADED / SIZE_MISMATCH
     if tuple(size) != tuple(expected_size):
         return "DEGRADED", "SIZE_MISMATCH"
     if sign_frame.reason in _COVERED:
@@ -163,6 +166,8 @@ def _coord(value):
     return min(1.0, max(0.0, v))
 
 
+# YOLO 출력 예) rows = [[0.10, 0.50, 0.25, 0.90]], scores = [0.93] → DetectionBox(0.10, 0.50, 0.25, 0.90, 0.93)
+#   xyxyn = (왼쪽 x, 위 y, 오른쪽 x, 아래 y) 를 화면 너비·높이로 나눈 값(0 ~ 1)
 def boxes_from_xyxyn(rows, scores):
     """모델 출력(정규화 xyxy 행, 점수) -> DetectionBox 튜플."""
     rows, scores = list(rows), list(scores)

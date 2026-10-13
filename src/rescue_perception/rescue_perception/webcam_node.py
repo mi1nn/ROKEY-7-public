@@ -339,6 +339,7 @@ def main(args=None):
         t.valid_until_ns = observed_ns + validity_ns
         t.stamp_semantics = STAMP_SEMANTICS
         t.clock_domain_id = v['clock_domain_id']
+        # 시계가 측정으로 확인됐으면 SYNCED + 오차 상한, 아니면 UNKNOWN. 받는 쪽이 이 시각을 얼마나 믿을지 정한다.
         t.clock_state, error_bound = observation_clock(clock['record'], observed_ns)
         t.has_clock_error_bound = error_bound is not None
         t.clock_error_bound_ns = error_bound or 0
@@ -478,6 +479,8 @@ def main(args=None):
         image = frame_image(frame, stamp, v['frame_id'])
         # (4) 지진 판정 → SignFrame. 판정 중 오류는 카메라 상태 UNKNOWN 으로 알리고 이번 프레임을 건너뛴다.
         try:
+            # SignFrame: status(PROCESSED·UNKNOWN 등), reason(보류·정상 이유), shift(화면 이동),
+            #            reversals(3초 안 전환 수), condition(지진 조건 참?), event(사건 또는 None)
             sign = quake.update(image)
         except PerceptionError as exc:
             publish_status('UNKNOWN', stamp, width, height, reason='QUAKE_JUDGE_FAILED')
@@ -507,6 +510,7 @@ def main(args=None):
         watch = slot.watch
         # (9) 출구 구조 판정 → PresenceFrame. 같은 시각·이전 시각 프레임(DUPLICATE·REORDERED)은 발행하지 않는다.
         try:
+            # PresenceFrame: state(PRESENT·ABSENT_CANDIDATE·UNKNOWN), reason, absent_ns(사라진 시간), event(후보 또는 None)
             presence = slot.detector.update(image, boxes, visibility=visibility)
         except PerceptionError as exc:
             log.error(f'watch judge failed: {exc.detail_code}: {exc.detail}')
