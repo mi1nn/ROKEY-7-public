@@ -43,10 +43,10 @@ updated: 2026-10-13
 | 9 | `src/rescue_console/rescue_console/accounts.py`, `src/rescue_console/rescue_console/throttle.py` | Function | 계정·비밀번호 해시·역할, 로그인 연속 실패 잠금 |
 | 10 | `src/rescue_console/rescue_console/labels.py` | 변수 | 코드 → 한국어 낱말 표 |
 
-- **시험(Test Code):** `tests/test_console_web.py`, `tests/test_console_commands.py`, `tests/test_console_view.py` 셋을 보여 준다. 나머지 7개(`tests/test_console_*.py`)는 질문이 나오면 4절 표로 답한다.
-- **설계·증거 문서:** `docs/design/console-spec.md`([관제 웹 설계 명세](../design/console-spec.md), 순서도는 8절), `docs/process/console-code-review.md`(이 문서), `docs/evidence/console-2026-10-13/README.md`([스크린샷·시험 로그](../evidence/console-2026-10-13/README.md)).
+- **시험(Test Code):** `tests/test_console_web.py`, `tests/test_console_commands.py`, `tests/test_console_view.py` 셋을 보여 준다. 나머지 9개(`tests/test_console_*.py`)는 질문이 나오면 4절 표로 답한다.
+- **설계·증거 문서:** `docs/design/console-dataflow.md`([관제 웹 데이터 흐름](../design/console-dataflow.md): 어느 노드·토픽이 어느 장부 표를 거쳐 웹의 어느 파일·화면 칸으로 오는지, 파일마다 받는 것·하는 것·내보내는 것), `docs/design/console-spec.md`([관제 웹 설계 명세](../design/console-spec.md), 순서도는 8절), `docs/process/console-code-review.md`(이 문서), `docs/evidence/console-2026-10-13/README.md`([스크린샷·시험 로그](../evidence/console-2026-10-13/README.md)).
 - **보지 않는 것:** `src/rescue_operations/`(operations API·DB 쓰기)는 다른 담당이다. 웹이 기대는 약속만 [설계 명세](../design/console-spec.md) 「웹이 기대는 인터페이스」로 설명한다. `src/rescue_console/rescue_console/__init__.py` 는 빈 파일이다.
-- 슬라이드의 말과 웹의 대응: 웹은 ROS 노드가 아니라서 「입력 Topic」은 HTTP 요청과 현장 상태 DB 표, 「출력 Topic」은 HTTP 응답과 operations 로 보내는 POST 다. 「Node/Class」 자리는 `app.py` 의 `create_app`(Flask 앱)이 맡는다.
+- 슬라이드의 말과 웹의 대응: 웹은 ROS 노드가 아니라서 「입력 Topic」은 HTTP 요청과 현장 상태 DB 표, 「출력 Topic」은 HTTP 응답과 operations 로 보내는 POST 다. 그 DB 표가 어느 노드의 어느 토픽에서 오는지는 [관제 웹 데이터 흐름](../design/console-dataflow.md) 2·3절 표에 있다. 「Node/Class」 자리는 `app.py` 의 `create_app`(Flask 앱)이 맡는다.
 
 ## 1. 설계도에서 관제 웹 찾기
 
@@ -62,10 +62,10 @@ updated: 2026-10-13
 
 | 그림 | 실제 코드 | 근거 |
 | --- | --- | --- |
-| 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:438-459` |
+| 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:486-547` |
 | 정지 버튼 | 늘 꺼져 있다. `RequestStop` 경로는 아직 어디에도 없고, 위험하면 현장 비상 정지 장치를 쓴다 | `view.py:58-63`, AGENTS.md 2절 「현장 정지 수단을 웹 연결에만 의존시키지 않는다」 |
 | ⑤ 계속(구간 승인) | 현장 설정이 `support_dispatch: AUTO` 라 출동 승인·계속 단계가 없다. AUTO 면 출동 승인 버튼 대신 「TB-5 자동 출동」 상태만 보인다 | `config/field/search_area.field.json:29`, `view.py:605-611`, 결정 1B(PR #187) |
-| 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:143-144` |
+| 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:152-153` |
 | 지도 | 기준 지도(`--map`) 또는 운영 PC 가 SLAM 지도를 파일로 쓴 실시간 지도(`--live-map`) 중 하나 | [관제 웹 README](../../src/rescue_console/README.md) 「지도」·「실시간 SLAM 지도」 |
 
 설계도는 main `c79097d` 기준이라 그 뒤의 자동 출동(#187)과 자동 수색 시작(#228)이 반영돼 있지 않다(그림 안 범례). 관제 웹을 `--search-start AUTO` 로 띄우면 지진 감지가 곧 TB-6 수색 시작이고, 「수색 시작」 버튼 대신 「TB-6 자동 출발」 상태가 보인다([README](../../src/rescue_console/README.md) `--search-start`). 같은 이유로 그림의 「② 출동」 화살표는 현장 설정(둘 다 AUTO)에서는 운영자가 누르지 않는다.
@@ -116,7 +116,7 @@ updated: 2026-10-13
 
 | 종류 | 무엇 | 결과 | 위치 |
 | --- | --- | --- | --- |
-| 시험 코드 | `tests/test_console_*.py` 10 파일 | Flask 3.1.3 설치 상태에서 `bd4bfa5` 198 OK(skip 0) [측정, 2026-10-13, Python 3.13, 로그]. 이 브랜치(`32e8ee1`, main merge 뒤) 209 OK [측정, 2026-10-13] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
+| 시험 코드 | `tests/test_console_*.py` 12 파일 | Flask 3.1.3 설치 상태에서 `bd4bfa5` 198 OK(skip 0) [측정, 2026-10-13, Python 3.13, 로그]. `32e8ee1`(main merge 뒤) 209 OK [측정, 2026-10-13]. main `ede7f8b`(직접 관측·터널 판정 시험 2 파일 추가 뒤) 223 OK(skip 0) [측정, 2026-10-13, Python 3.13, Flask 3.1.3] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
 | CI | `foundation`(Python 3.10 ~ 3.12) | 이 PR 전에는 CI 에 Flask 가 없어 웹 경로 시험 23건이 skip(NOT_RUN)이었다. 이 PR 이 `flask==3.1.3` 설치를 더했고, 커밋 `484c492` 의 3.10 작업에서 `Ran 1514 tests` · `OK (skipped=15)` [측정, 2026-10-13]. skip 15 는 로컬 Flask 환경의 skip 15(NumPy·OpenCV·PyYAML·ROS 없음)와 수가 같다. CI 쪽 이유별 내역은 로그에 없어 [미확인] | [.github/workflows/foundation.yml](../../.github/workflows/foundation.yml) |
 | 스크린샷 | 로그인, 관제 화면(합성 데이터, `bd4bfa5` 코드 — 출구 QR 표시 전) | 2장 | [console-2026-10-13](../evidence/console-2026-10-13/README.md) |
 | 현장 기록 | 운영 PC 에서 관제 웹 기동(장부 없이 #147), `--camera` 로 MJPEG 수신(#158) | PASS [측정, 2026-10-13 12:42·12:54] | [10-13 운영 PC 기록](../evidence/field-2026-10-13-operations-host.md) 25·27줄 |
@@ -136,8 +136,10 @@ updated: 2026-10-13
 | `test_console_live_map.py` | 11 | 실시간 지도 파일이 바뀌면 다시 읽음, 없음·낡음·읽기 실패를 숨기지 않음 |
 | `test_console_throttle.py` | 7 | 같은 이름·같은 클라이언트의 연속 로그인 실패를 잠시 막음 |
 | `test_console_labels.py` | 3 | 계약 값마다 한국어 표시가 있고 모르는 코드는 그대로 보임 |
+| `test_console_robot_watch.py` | 9 | `--robot-watch` 직접 관측: 상태 없는 로봇의 카드·위치를 채우고, 프로젝트 상태가 먼저, 낡음·파일 멈춤·배치 밖·파일 깨짐을 숨기지 않음 |
+| `test_console_tunnel_map.py` | 5 | 터널 판정 세 상태의 낱말·색, 옛 지도 revision 흐림, 지금 지도 모름 경고, 지도 밖은 목록 |
 
-개수는 `32e8ee1` 에서 `def test_` 를 센 값이다(합계 209) [계산].
+개수는 main `ede7f8b` 에서 `def test_` 를 센 값이다(합계 223, 실행 결과와 같음) [계산, 2026-10-13].
 
 ## 5. 예상 질문과 답
 
@@ -158,7 +160,7 @@ updated: 2026-10-13
 - [x] 이 PR 의 CI(`foundation`, Flask 포함) 초록, 3.10 에서 skip 15 로 줄어 웹 경로 시험이 실제로 돎(4절).
 - [ ] 코드를 읽다 찾은 문제 4개(코드 읽기, 시험 없음). 고치려면 코드 변경이라 이 PR 에 넣지 않았다. 리뷰에서 튜터가 먼저 찾기 전에 고치거나 「알려진 한계」로 말한다:
   - `accounts.py:348` `exc_type is sqlite3.Error` 는 하위 클래스(`OperationalError` 등)와 맞지 않아, 계정 DB 트랜잭션 중 sqlite 오류가 `STORAGE_ERROR`(503) 대신 Flask 500 이 된다. 중복 계정은 미리 검사하므로 DB 잠김·디스크 오류 때의 경로다.
-  - `render.py:1066` `setInterval(poll, 1000)` 은 앞 요청을 기다리지 않는다. 서버가 1초 넘게 늦으면 늦게 온 옛 조각이 새 조각을 덮을 수 있다(다음 폴링에서 바로잡힘).
+  - `render.py:1096` `setInterval(poll, 1000)` 은 앞 요청을 기다리지 않는다. 서버가 1초 넘게 늦으면 늦게 온 옛 조각이 새 조각을 덮을 수 있다(다음 폴링에서 바로잡힘).
   - `app.py` CSRF 비교가 `session.get('csrf', '-')` 라서 토큰이 없는 세션에서는 폼 `csrf=-` 가 통과한다. 로그인한 세션에는 늘 토큰이 있어 `POST /commands` 와 계정 관리에는 해당 없고, 로그인 전 `POST /login`·`/logout` 의 사이트 간 요청 위조 방어가 빈다.
   - `labels.py` 에 `RobotStatus` 의 `DEGRADED` 낱말이 없어 화면에 코드 그대로 보인다.
 - [ ] 기동 로그에 git SHA 가 없다(AGENTS.md 8절 「노드는 기동할 때 git SHA … 를 로그에 남긴다」, [명세](../design/console-spec.md) 6.5). 웹은 ROS 노드가 아니지만 같은 이유로 남길지 정한다.
