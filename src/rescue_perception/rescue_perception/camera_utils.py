@@ -14,7 +14,6 @@ import subprocess
 # Controller deployment: Ubuntu 24.04, ROS 2 Jazzy, RTX 4070.
 # Topic/frame names still require live verification; no sensor settings are changed.
 SETTINGS = {
-    'image_topic': 'camera/image_raw/compressed',
     'image_type': 'compressed',
     'annotated_topic': 'perception/annotated',
     'model_path': 'assets/models/best.pt',
@@ -28,12 +27,44 @@ SETTINGS = {
     'log_every': 10,
 }
 
+# Field-dependent names are typed ROS parameters with no default (B1, 2026-10-13): the
+# robot6 OAK-D topic was written three different ways and none is verified on the robot.
+FIELD_PARAMS = {'image_topic': 'STRING'}
+
 PARAMS = {
     'image_topic': 'STRING', 'image_type': 'STRING', 'annotated_topic': 'STRING',
     'model_path': 'STRING', 'model_sha256': 'STRING', 'model_label': 'STRING',
     'model_imgsz': 'INTEGER', 'model_conf': 'DOUBLE', 'device': 'STRING',
     'show': 'BOOL', 'no_frame_warn_s': 'DOUBLE', 'log_every': 'INTEGER',
 }
+
+
+def field_values(settings, supplied, names):
+    """settings + the required field parameters; missing, empty or mistyped -> ValueError."""
+    missing = sorted(name for name in names if supplied.get(name) is None)
+    if missing:
+        raise ValueError(f'missing parameters: {missing}')
+    for name, kind in names.items():
+        value = supplied[name]
+        if type(value) is not {'STRING': str}[kind] or not value.strip():
+            raise ValueError(f'{name} must be a non-empty {kind}')
+    return {**settings, **{name: supplied[name] for name in names}}
+
+
+def read_field_parameters(node, names):
+    """Declare typed parameters without a value; an unset one comes back as None."""
+    from rcl_interfaces.msg import ParameterDescriptor
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    supplied = {}
+    for name, kind in names.items():
+        node.declare_parameter(name, Parameter.Type[kind],
+                               ParameterDescriptor(description='field value; no default'))
+        try:
+            supplied[name] = node.get_parameter(name).value
+        except ParameterUninitializedException:
+            supplied[name] = None
+    return supplied
 
 
 def validate_config(values):
