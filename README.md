@@ -14,6 +14,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [원본 자산 선별](docs/process/source-selection.md) | 고정한 원본 커밋, 이식 후보, 바꿔야 할 전제, 제외 근거 |
 | [레슨런](docs/process/lessons-learned.md) | 원본 코드·기록의 교훈과 새 프로젝트에서 확인할 시험 |
 | [원본 목록 집계](docs/evidence/source-audit.json) | 고정 커밋의 추적 파일·패키지·시험 파일 집계 |
+| [10-13 오전 현장 원문](docs/evidence/field-2026-10-13-situation.log) | Discovery 연결·도킹 상태의 시각별 측정 기록 |
 | [PR 진행과 검토 지침](docs/process/review-workflow.md) | 현재 검토 담당·인계·머지 조건, 계획 PR의 과거 운영 기록과 원본 URL |
 | [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
