@@ -220,9 +220,11 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - `robot.launch.py` 가 이 값을 Nav2 `collision_monitor` 에 넣는다(통로 다각형 `PassageStop`, 깊이 원 `passage_depth`). 그래서 저장소의 Nav2 yaml 에는 이 숫자를 쓰지 않는다. 로그: `+ passage stop 0.05..0.46 m`.
 - 깊이 점은 `passage_points.launch.py` 가 만든다. 깊이 영상 이름은 현장 실행 파일 `robots.<id>.passage.*` 에 있다. 이 노드가 없으면 깊이 점이 오지 않으므로 `collision_monitor` 가 1 s 뒤 로봇을 세운다. 깊이 영상은 준비 신호에도 들어가서, 끊기면 NOT_READY 다.
 - 멈춘 동안 실행기 feedback 이 `PASSAGE_BLOCKED` 다. 그 뒤 Nav2 가 포기하면 결과도 `PASSAGE_BLOCKED` 다(#219).
-- **`robots.<id>.passage.*` 가 없는 로봇은 `robot.launch.py` 가 띄우지 않는다**(OPS-137 A). TB-5 값은 TB-5 PC 확인 뒤 넣는다.
-- 필요한 것: 로봇 PC 의 `depth_image_proc`. 설치는 재범 확인 뒤에 한다.
-- 복구 동작(제자리 회전·후진)은 turtlebot4 기본 그대로다(재범 결정 대기).
+- **`robots.<id>.passage.*` 가 없는 로봇은 `robot.launch.py` 가 띄우지 않는다**(OPS-137 A). 두 로봇 모두 OAK-D 깊이 `/<ns>/oakd/stereo/image_raw` + `camera_info`, 전송 `compressedDepth` 다.
+  - TB-5 측정(2026-10-13 20:19~20:21, OPS-165~167): raw 5.1~5.5 Hz(최대 간격 0.449 s), compressedDepth 6.9~9.2 Hz(최대 간격 0.302 s), camera_info 10.0 Hz. 그래서 compressedDepth. `collision_monitor` 의 source_timeout 1 s 안이다.
+  - 실기 확인 항목: 깊이 광학 frame 이름과 `base_link` 까지 TF(`ros2 run tf2_ros tf2_echo base_link <frame>`). TF 가 없으면 깊이 점이 `base_link` 로 바뀌지 않아 통로 정지가 동작하지 않는다.
+- 필요한 것: 로봇 PC 의 `depth_image_proc`. TB-5 PC 에는 설치돼 있다(`ros-jazzy-depth-image-proc` 5.0.13, 2026-10-13 확인). TB-6 PC 는 확인 전이다.
+- 복구 동작(제자리 회전·후진)은 turtlebot4 기본 그대로 둔다(작전 답 2026-10-13: 설정 변경 없음).
 
 성공 로그:
 - `TB-6 SLAM robot_a ns=/robot6`

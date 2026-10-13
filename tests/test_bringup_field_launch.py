@@ -144,7 +144,7 @@ class FieldCase(unittest.TestCase):
 
 
 def tb5_depth(raw):
-    """TB-5 passage depth image (not measured in the repository file yet: TB-5 does not start without it)."""
+    """TB-5 passage depth image, as in the repository file (measured 2026-10-13, OPS-165/166); for changed fixtures."""
     raw['robots']['robot_b'].update({'passage.depth_topic': '/robot5/oakd/stereo/image_raw',
                                      'passage.camera_info_topic': '/robot5/oakd/stereo/camera_info',
                                      'passage.depth_transport': 'compressedDepth'})
