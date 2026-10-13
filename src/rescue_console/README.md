@@ -229,6 +229,7 @@ TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운�
 | `SCOUT_NOT_LOCALIZED`·`SUPPORT_NOT_LOCALIZED`·`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`(#214) | 「TB-6 이 고정 지도에서 위치를 못 잡음 — TB-5 출동 대기」·「TB-5 가 고정 지도에서 위치를 못 잡음 — 출동 대기」·「TB-5 접근 지점이 막힘 — 출동 보류」·「TB-5 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)」·「TB-6 도킹 접근 지점이 막힘 — TB-6 복귀 보류」(주의색). 각 사유는 그 사유가 지키는 이동만 보류한다(TB-5 출동·TB-5 출구 이동·TB-6 복귀, #218 검토) | 임무 띠와 그 로봇 카드 |
 | `NO_HOME_POSITION`(#214) | 「복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함」(주의색). 운영자 RETURN_HOME 거절 답에도 같은 코드 | 임무 띠 |
 | 자동 수색 시작(#228): `SEARCH_GOAL_NOT_SELECTED`·`AUTO_SEARCH_ENABLED`, 출구 QR(OPS-136): `MAP_FREEZE_WAITING_EXIT` | 「TB-6 수색 목표 선택 대기」(주의색)·「자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음」·「출구 QR 찾는 중 — TB-5 출동 대기」 | 임무 띠 |
+| QR 출구·재기준·순찰·출발 자세(#234): `TARGET_REBASED_ON_FREEZE`·`EXIT_NOT_ON_FROZEN_MAP`·`SUPPORT_EXIT_UNREGISTERED`·`START_POSE_UNKNOWN`·`START_POSE_CONFLICT`·`PATROL_ROUND_<n>`·`PATROL_EXHAUSTED` | 「대상 위치를 고정 지도로 옮김 — 보고 저장 대기」·「출구(QR) 위치가 고정 지도 기준에 없음 — TB-5 출동·출구 이동 보류」(주의색)·「출구(QR) 미등록 — TB-5 출동·출구 이동 보류」(주의색)·「TB-6 출발 자세 모름 — 순찰·TB-6 복귀 보류」(주의색)·「TB-6 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요」(빨간색)·「TB-6 순찰 <n>바퀴째」·「TB-6 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음」(주의색) | 임무 띠(`SUPPORT_EXIT_UNREGISTERED` 는 TB-5 카드에도) |
 
 SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드는 #194(head 1fc7770)와 대조했다. 위에 없는 코드는 코드 그대로 보인다.
 

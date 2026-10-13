@@ -91,6 +91,22 @@ class ReasonWordTests(unittest.TestCase):
                 self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
                                  mission_reason(code, 'TB-5', 'TB-6'))
 
+    def test_exit_patrol_and_start_pose_of_234(self):   # QR exit, re-base at the freeze, patrol, start pose (OPS-147)
+        cases = {
+            'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info', None),
+            'EXIT_NOT_ON_FROZEN_MAP': ('출구(QR) 위치가 고정 지도 기준에 없음 — TB-5 출동·출구 이동 보류', 'caution', None),
+            'SUPPORT_EXIT_UNREGISTERED': ('출구(QR) 미등록 — TB-5 출동·출구 이동 보류', 'caution', 'support'),
+            'START_POSE_UNKNOWN': ('TB-6 출발 자세 모름 — 순찰·TB-6 복귀 보류', 'caution', None),
+            'START_POSE_CONFLICT': ('TB-6 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert', None),
+            'PATROL_ROUND_2': ('TB-6 순찰 2바퀴째', 'info', None),
+            'PATROL_EXHAUSTED': ('TB-6 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution', None),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+        self.assertEqual('PATROL_ROUND_X', mission_reason('PATROL_ROUND_X', 'TB-5', 'TB-6')['text'])   # unknown stays
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
