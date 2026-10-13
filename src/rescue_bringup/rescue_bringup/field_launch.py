@@ -38,6 +38,8 @@ COORDINATOR_KEYS = {
     'camera_watch_timeout_s': F,  # SetCameraWatch answer wait (coordination C2)
     # TB-5 automatic dispatch (user decision 1B, 2026-10-13; coordination)
     'support_dispatch': S, 'approach_standoff_m': F, 'support_pose_max_age_s': F,
+    # TargetLocation time checks (coordination OPS-103, 2026-10-13)
+    'target_clock_domain_id': S, 'target_max_age_s': F, 'target_max_future_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 ROBOT_KEYS = {
@@ -151,9 +153,14 @@ def load_field(path):
                                f'(the coordinator node this launch starts)')
     if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
-    for key in ('approach_standoff_m', 'support_pose_max_age_s'):
+    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
+    if coordinator['target_max_future_s'] < 0:
+        raise FieldLaunchError('coordinator.target_max_future_s must be zero or positive')
+    if coordinator['target_clock_domain_id'] != coordinator['live_inputs.clock_domain_id']:
+        raise FieldLaunchError('coordinator.target_clock_domain_id must be the coordinator clock domain '
+                               '(live_inputs.clock_domain_id)')
     if robot['task.coordinator_state_topic'] != SYSTEM_STATE_TOPIC:
         raise FieldLaunchError(f'robot.task.coordinator_state_topic must be {SYSTEM_STATE_TOPIC}')
     if len(robot['task.saved_map.transform_xy_yaw']) != 3:
