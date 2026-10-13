@@ -291,13 +291,18 @@ def _targets(view):
             support = (f'<span class="support">지원 {_word("support", target["support_state"])}'
                        + (f' {escape(target["support_robot_id"])}' if target['support_robot_id'] else '') + '</span>')
         notes = ''.join(f'<li>{escape(n)}</li>' for n in target['warnings'] + target['rescue_reasons'])
+        mark = target['disappeared_candidate']
+        candidate = ('' if mark is None else
+                     f'<span class="candidate" title="고정 웹캠 {escape(mark["camera_id"])} 사건 '
+                     f'{escape(mark["event_id"])} — 후보일 뿐, 로봇 재확인으로 구출을 판정">'
+                     f'소실 후보 {_time(mark["observed_at_ns"], view["built_at_ns"])}</span>')
         rows.append(
             f'<li class="victim-row {target["stage"].lower()}" data-stage="{target["stage"]}">'
             f'{_victim_icon(target["stage"])}'
             f'<div class="who">{_short(target["target_id"])}<span class="stage-word">{escape(target["stage_label"])}</span>'
             f'<span class="rule" title="표시 규칙 (README 구조 상태 4단계)">{target["rule"]}</span></div>'
             f'<div class="what"><span>{where}</span><span>구조 {_word("rescue", target["rescue_state"])}</span>'
-            f'<span>{_word("approach", target["approach_result"])}</span>{support}'
+            f'<span>{_word("approach", target["approach_result"])}</span>{support}{candidate}'
             f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span></div>'
             + (f'<ul class="notes">{notes}</ul>' if notes else '') + '</li>')
     body = ''.join(rows) or '<li class="none">아직 보고된 요구조자가 없습니다.</li>'
@@ -561,6 +566,7 @@ dl{margin:0}
 .victim-row.rescued .stage-word{color:var(--safe)} .victim-row.unconfirmed .stage-word{color:var(--pending)}
 .victim-row .what{display:flex;flex-wrap:wrap;column-gap:12px;font-size:13px;color:var(--ink-2)}
 .victim-row .support{color:var(--info);font-weight:500}
+.victim-row .candidate{color:var(--ink);background:var(--caution-tint);border:1px solid var(--caution);padding:0 6px;font-weight:600}
 .victim-row .notes{grid-column:2;margin:4px 0 0;padding:2px 8px;list-style:none;background:var(--caution-tint);font-size:12.5px}
 .victims .none{padding:12px 0;color:var(--ink-2)}
 
