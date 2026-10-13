@@ -255,6 +255,9 @@ class CoordinatorCore:
         self.task_meta = {}      # task_id -> ('MOVE_SEGMENT', SegmentApproval) | ('REOBSERVE_TARGET', link_id)
         self.outbox = []         # task fields reserved and not yet handed to the node
         self.last_reason = None  # mission reason behind the latest reply, for the node log
+        # Refused before moving: approval command_id / recheck link_id -> hold-until ns (None until the next
+        # tick sets it). The same approval or recheck goes again as a new task after admission_timeout_ns.
+        self.refused = {}
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
@@ -277,8 +280,11 @@ class CoordinatorCore:
         if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
             self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
                                          route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
-        elif admitted and not admission.accepted and meta:
-            self._forget(admission.task_id)  # refused before moving: issue again on the next tick
+        elif not admission.accepted and meta and self.search.allocator.admissions.get(admission.task_id) == admission:
+            # A refusal the Allocator recorded (it returns False for it, so ``admitted`` is never True here):
+            # the task is released; its approval or recheck goes again after a hold.
+            self.refused[meta[1].command_id if meta[0] == 'MOVE_SEGMENT' else meta[1]] = None
+            self._forget(admission.task_id)
         return admitted
 
     def on_result(self, task_id, result):
@@ -550,11 +556,25 @@ class CoordinatorCore:
                     frame_ref=frame, generated_at_ns=self.route_made_at[fields['target_id']],
                     valid_until_ns=fields['deadline_ns'])
 
+    def _held_after_refusal(self, key, now_ns):
+        """True while a refused approval/recheck waits admission_timeout_ns before it is issued again."""
+        if key not in self.refused:
+            return False
+        if self.refused[key] is None:
+            self.refused[key] = now_ns + self.admission_timeout_ns
+        if now_ns <= self.refused[key]:
+            self.issue_block = 'TASK_REFUSED'
+            return True
+        del self.refused[key]
+        return False
+
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
         if (approval is None or self.mission.segment_phase != 'APPROVED'
                 or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
             return self.segment_tasks.get(approval.command_id) if approval else None
+        if self._held_after_refusal(approval.command_id, now_ns):
+            return None
         if not self._passage_free(approval.segment_index):
             self.issue_block = 'PASSAGE_ASSESSMENT_REQUIRED'  # Q-25 default: hold, never guess
             return None
@@ -588,7 +608,7 @@ class CoordinatorCore:
 
     def _issue_rechecks(self, now_ns):
         for target_id, recheck in self.mission.open_rechecks.items():
-            if recheck.link_id in self.recheck_tasks:
+            if recheck.link_id in self.recheck_tasks or self._held_after_refusal(recheck.link_id, now_ns):
                 continue
             boot = self._free('SCOUT', now_ns)
             frame = self._route_frame(target_id, self.observe_goal)
