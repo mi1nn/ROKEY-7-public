@@ -44,6 +44,8 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [camera_utils.py](rescue_perception/camera_utils.py) | 공통 SETTINGS, 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
 | [target_utils.py](rescue_perception/target_utils.py) | RGB-D SETTINGS·target_config, YOLO 관측 메시지, Depth 복호화·robot6 보정, 카메라→base 상대 좌표 |
 | [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
+| [target_location.py](rescue_perception/target_location.py) | 확정 TargetObservation + 촬영 시각 TF map←camera → TargetLocation(VALID) 좌표·공분산·frame_ref. ROS 없음 |
+| [target_locator.py](rescue_perception/target_locator.py) | 위 변환의 ROS 노드: `/rescue/observations` 구독 → 촬영 시각 TF 조회 → `/rescue/target_locations` 발행 |
 | [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 실행용 보정계수·offset·로봇/보정 ID·입력 단위/상태. 설치본에도 포함 |
 
 [사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
@@ -70,7 +72,7 @@ ros2 run rescue_perception amr_target
 
 YAML이나 `--params-file`은 필요 없다. ROS 표준 namespace/topic remap은 사용할 수 있다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
-RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. MapState 구독·map/odom TF 조회·TargetLocation publisher는 없다. 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
+RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. amr_target 자신은 map/odom TF 를 조회하지 않고 TargetLocation 도 내지 않는다. 지도 좌표는 별도 노드 target_locator 가 만든다(아래 「지도 좌표 TargetLocation」). 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
 ### 상대 좌표 출력
 
@@ -79,6 +81,21 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 로봇 기준 점은 `perception/target_base_point`에 geometry_msgs/PointStamped로 발행한다. header.frame_id는 SETTINGS의 base_frame(현재 base_link), stamp는 원 RGB 관측 시각, point는 m 단위 XYZ다. camera→base 변환은 실제 TF를 관측 시각으로 조회하며 위치 이동과 회전을 모두 적용한다. 최신 TF 조회나 임의 장착값으로 대체하지 않는다. 고정 장착 static TF의 반환 stamp=0은 관측 시각으로 조회한 결과일 때 허용한다.
 
 카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 이유와 observation_id를 로그에 남기고 원 카메라 관측만 유지한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
+
+### 지도 좌표 TargetLocation (target_locator)
+
+[작전 B2, 2026-10-13] `target_locator` 는 amr_target 이 낸 확정 TargetObservation 을 받아 조정기가 받는 TargetLocation 을 만든다.
+
+| 항목 | 규칙 |
+| --- | --- |
+| 입력 | `observations_topic`(RELIABLE·TRANSIENT_LOCAL)의 TargetObservation. `source_robot` 이 `robot_id` 와 같고 `localization_status=VALID`·유한한 `sensor_position` 일 때만 쓴다 |
+| TF | `map_frame ← sensor_frame` 을 관측의 `observed_at_ns`(RGB stamp)로 조회한다. 최신 TF로 바꾸지 않는다. `tf_wait_s` 안에 그 시각 TF가 없으면 내지 않고 ERROR 로그를 남긴다. 로봇 TF는 namespace 아래라 launch 에서 `/tf`·`/tf_static` 을 remap 한다 |
+| 좌표 | 카메라 점에 TF를 적용한 뒤, 선언된 정렬 `alignment_xy_yaw`(mission ← map)를 적용한다. 공분산은 관측 공분산을 같은 회전으로 돌리고 선언된 정렬 오차(위치 + 회전 lever arm)를 더한다. AMCL 위치 불확실성은 들어가지 않는다 [미확인] |
+| frame_ref | `robot_id`·`map_frame`·`mission_frame`·`map_session_id`·`map_revision`·`transform_revision` 파라미터 그대로. 조정기의 `mission_frame_id`·`goal_map_session_id`·`goal_map_revision`·`goal_transform_revision` 과 같아야 조정기가 경로를 낸다(다르면 `ROUTE_BASIS_MISMATCH`). 이 노드는 그 값을 측정하지 않는다 |
+| 출력 | `target_locations_topic` 에 `projection_status=VALID` 하나. `location_id` 는 (observation_id, session, revision, transform revision)의 uuid5라 같은 관측은 같은 ID다. 거절된 입력은 VALID 아닌 상태로도 내지 않는다(조정기가 VALID 만 받는다) |
+| 파라미터 | 모두 기본값 없는 타입 명시 파라미터. 없거나 틀리면 exit 2. 기동 로그에 git SHA·적용 값 |
+
+시험: `tests/test_perception_target_location.py`(합성 TF·관측, E2), `tests/ros/e3_target_locator_probe.py`(LOCALHOST ROS, 가짜 관측·TF → target_locator → 조정기 대상, E3). 실제 로봇 TF·카메라는 NOT_RUN이다.
 
 ### 단일 인형·회차별 1회 전송
 
