@@ -8,11 +8,12 @@
 import functools
 import secrets
 import time
+import urllib.parse
 import uuid
 
 from .accounts import AccountStore
-from .commands import (build_request, command_access, parse_operations_url, post_json, send_command, switch_webcam,
-                       webcam_state)
+from .commands import (build_request, command_access, parse_operations_url, post_json, robot_camera_state,
+                       select_robot_camera, send_command, switch_webcam, webcam_state)
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
@@ -109,9 +110,18 @@ def parse_camera(text):
     return camera_id, url
 
 
+def parse_robot_camera(url):
+    """--robot-camera: robot_view_relay 의 MJPEG 주소(http(s)). 고르기는 같은 host:port 의 /select 로 한다."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme not in ('http', 'https') or not parts.netloc:
+        raise ConsoleError('INVALID_INPUT', f'robot camera must be http(s)://host:port/path : {url!r}')
+    return url
+
+
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
                map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
-               command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None):
+               command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None,
+               robot_camera=None):
     """설정 유효성을 사전에 검증한 후 로그인·관제·명령·계정 관리 라우트를 등록한 Flask 앱을 생성한다.
 
     모든 설정 오류는 이 단계에서 즉시 ConsoleError로 실패하여, 잘못된 옵션 지정 시 첫 요청이 아닌
@@ -139,6 +149,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     live_map = None if live_map_path is None else LiveMap(live_map_path, stale_s=live_map_stale_s)
     operations = None if operations_url is None else parse_operations_url(operations_url)
     transport = post_json if command_transport is None else command_transport
+    robot_select = (None if robot_camera is None else
+                    urllib.parse.urlsplit(parse_robot_camera(robot_camera))._replace(path='/select', query='').geturl())
     app = Flask(__name__)
     # Flask는 이 키로 쿠키를 암호화 서명하여 세션을 유지한다. 서버 측 별도 세션 저장소는 두지 않는다.
     app.secret_key = secret_key
@@ -296,10 +308,32 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         if cameras and operations is not None and account['role'] == 'ADMIN':   # 카메라 고르기(OPS-183): 관리자만
             picker = dict(zip(('cameras', 'current', 'problem'), webcam_state(operations, transport=transport)),
                           notices=get_flashed_messages(category_filter=['webcam']))
-        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras, camera_stale_s=camera_stale_s,
+        current_view_ = view()
+        robot_cam = None
+        if robot_camera is not None:   # 로봇 카메라 칸(OPS-191): 누구나 고름
+            robots, current, problem = robot_camera_state(robot_select, transport=transport)
+            names = {row['robot_id']: row['name'] for row in current_view_['robots']}
+            robot_cam = {'url': robot_camera, 'robots': [(rid, names.get(rid, rid)) for rid in robots],
+                         'current': current, 'problem': problem,
+                         'notices': get_flashed_messages(category_filter=['robot_camera'])}
+        return Response(render_page(current_view_, account, csrf=csrf_token(), cameras=cameras,
+                                    camera_stale_s=camera_stale_s,
                                     command_access=command_access(account['role'], operations is not None),
-                                    webcam=picker),
+                                    webcam=picker, robot_camera=robot_cam),
                         mimetype='text/html')
+
+    @app.post('/robot-camera')
+    @login_required
+    def robot_camera_pick(account):
+        """로봇 카메라 칸의 TB-6/TB-5 고르기(OPS-191). 운영 명령이 아니라 보기 설정이라 누구나, 확인 창 없음."""
+        check_csrf()
+        if robot_camera is None:
+            abort(404)
+        ok, message = select_robot_camera(robot_select, request.form.get('robot', ''), transport=transport)
+        if not ok:
+            app.logger.warning('robot camera pick by %s: %s', account['username'], message)
+            flash(message, 'robot_camera')
+        return redirect('/')
 
     @app.post('/webcam')
     @admin_required

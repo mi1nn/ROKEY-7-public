@@ -193,6 +193,32 @@ def webcam_state(base_url, *, transport=post_json):
     return [str(name) for name in data['cameras']], data.get('current'), None
 
 
+def robot_camera_state(select_url, *, transport=post_json):
+    """(robots, current, problem): robot_view_relay 의 고를 수 있는 로봇과 지금 로봇(OPS-191). 못 받으면 problem 만."""
+    try:
+        status, body = transport(select_url, None, WEBCAM_LIST_TIMEOUT_S)
+        data = json.loads(body)
+        if status != 200 or not isinstance(data.get('robots'), list):
+            raise ValueError(f'HTTP {status}')
+    except (CommandSendError, ValueError, TypeError, AttributeError) as exc:
+        return [], None, f'로봇 카메라 선택 상태를 못 받음: {getattr(exc, "message", exc)}'
+    return [str(robot) for robot in data['robots']], data.get('robot'), None
+
+
+def select_robot_camera(select_url, robot, *, transport=post_json):
+    """(ok, 문구): 로봇 카메라를 고른다(보기 설정, 재시도 없음)."""
+    try:
+        status, body = transport(select_url, {'robot': robot}, WEBCAM_LIST_TIMEOUT_S)
+        data = json.loads(body)
+    except CommandSendError as exc:
+        return False, f'로봇 카메라 바꾸기 실패({exc.code}): {exc.message}'
+    except (TypeError, ValueError):
+        return False, f'로봇 카메라 바꾸기 답을 못 읽음(HTTP {status})'
+    if status == 200 and isinstance(data, dict) and data.get('robot') == robot:
+        return True, None
+    return False, f'로봇 카메라 바꾸기 거절: {data.get("error") if isinstance(data, dict) else status}'
+
+
 def switch_webcam(base_url, device, *, operator_id, transport=post_json, timeout=COMMAND_TIMEOUT_S):
     """(ok, 문구): 고른 카메라를 operations 로 한 번 보낸다. 재시도하지 않고 답을 그대로 문구로 만든다."""
     try:

@@ -191,6 +191,33 @@ def robot_watch_parameters(*, robot_namespaces, robot_watch_path, robot_ids):
             'base_frame': 'base_link'}
 
 
+ROBOT_VIEW_TOPIC = '/rescue/passage_view/compressed'   # 통합-인식 판정 그린 영상, <ns> 아래(OPS-189)
+
+
+def robot_view_relay_parameters(*, robot_views, bind_host, port, stale_s, robot_ids, default_robot):
+    """robot_views('robot_a=/robot6,robot_b=/robot5') -> rescue_perception robot_view_relay parameters, or None
+    when empty. 고른 로봇 하나만 중계(OPS-191); 포트는 video_port + 1, 기본은 ``default_robot``(SCOUT, TB-6)."""
+    if robot_views == '':
+        return None
+    sources, ids = [], []
+    for pair in robot_views.split(','):
+        robot_id, sep, ns = pair.strip().partition('=')
+        if not sep or robot_id not in robot_ids or robot_id in ids or not ROS_NAMESPACE.fullmatch(ns):
+            raise LaunchSettingError(f'robot_views item {pair!r}: want <profile robot id>=/<namespace>, once per robot')
+        ids.append(robot_id)
+        sources.append(f'{robot_id}={ns}{ROBOT_VIEW_TOPIC}')
+    if default_robot not in ids:
+        raise LaunchSettingError(f'robot_views must include the default robot {default_robot!r} (SCOUT)')
+    try:
+        view_port, stale = int(port) + 1, float(stale_s)
+    except ValueError as exc:
+        raise LaunchSettingError(f'robot_views needs video_port and video_stale_s: {exc}') from exc
+    if not 1 <= view_port <= 65535 or not math.isfinite(stale) or stale <= 0 or not bind_host:
+        raise LaunchSettingError('robot_views needs video_bind_host, video_port below 65535 and a positive video_stale_s')
+    return {'sources': sources, 'default_source': default_robot, 'bind_host': bind_host, 'port': view_port,
+            'path': '/robot_view.mjpg', 'stale_s': stale}
+
+
 def map_snapshot_parameters(*, map_topic, map_dir):
     """map_topic + map_dir -> rescue_operations map_snapshot parameters, or None when both are empty.
 

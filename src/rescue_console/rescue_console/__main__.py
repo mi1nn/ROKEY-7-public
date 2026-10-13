@@ -46,6 +46,9 @@ def main(argv=None):
                                            're-read when it changes; may not exist yet at startup')
     parser.add_argument('--live-map-stale-s', type=float,
                         help='with --live-map: no new map for this long shows the map as stale. No default')
+    parser.add_argument('--robot-camera', metavar='URL',
+                        help='robot camera panel: robot_view_relay MJPEG URL from the operations launch (robot_views), '
+                             'e.g. http://<operations host>:<video_port+1>/robot_view.mjpg; needs --camera-stale-s')
     parser.add_argument('--robot-watch', help='robot watch file written by the operations launch '
                                               '(robot_namespaces/robot_watch_path): robot base topics seen directly')
     parser.add_argument('--robot-watch-stale-s', type=float,
@@ -80,6 +83,7 @@ def main(argv=None):
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
                          live_map_path=args.live_map, live_map_stale_s=args.live_map_stale_s,
                          robot_watch_path=args.robot_watch, robot_watch_stale_s=args.robot_watch_stale_s,
+                         robot_camera=args.robot_camera,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch,
                          search_start=args.search_start, camera_stale_s=args.camera_stale_s)
