@@ -14,8 +14,9 @@ from rescue_contracts import RescueError
 from rescue_coordination import live_task_inputs
 from test_coordination_approach import POSE_AGE, pose_msg
 from test_coordination_frontier import grid, scout_pose
-from test_coordination_map_freeze import (CLEARANCE, EXIT_STANDOFF, MAP, FakeGrid, exit_msg, map_state, revision_info,
-                                          TIMEOUT)
+from rescue_coordination.mission import HomePosition
+from test_coordination_map_freeze import (CLEARANCE, DOCK_XY, EXIT_STANDOFF, EXIT_XY, MAP, FakeGrid, exit_msg,
+                                          map_state, revision_info, TIMEOUT)
 from test_coordination_ros_core import SCOUT, SUPPORT, admission_msg, frame, location, make_core, receipt, request, \
     site_msg, status_msg
 from test_coordination_search import NOW, uid
@@ -26,15 +27,23 @@ B0, B1, B2 = (MAP, R0, TRANSFORM), (MAP, R1, TRANSFORM), (MAP, R2, TRANSFORM)
 
 
 def core_():
-    return make_core(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
+    core = make_core(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
                      map_mode='SLAM_FREEZE', freeze_clearance_m=CLEARANCE, map_freeze_timeout_ns=TIMEOUT,
                      exit_standoff_m=EXIT_STANDOFF, search_mode='FRONTIER', frontier_issue_delay_ns=0,
                      policy_changes=dict(executable_bases=frozenset({'FRONTIER'})))
+    core.mission.homes = {h.robot_id: h for h in (HomePosition(SCOUT, DOCK_XY, 0., MAP, R0, TRANSFORM),
+                                                  HomePosition(SUPPORT, EXIT_XY, 0., MAP, R0, TRANSFORM))}
+    return core
 
 
-class TwoFreezesTests(unittest.TestCase):
+class Base(unittest.TestCase):
+    START = (0., 0., 0.)  # TB-6 start pose in the map (OPS-141)
+
     def setUp(self):
         self.core = core_()
+        if self.START is not None:
+            self.core.on_map_state(map_state(SCOUT, revision=R0))
+            self.core.on_start_pose(self.START)
         self.core.on_site_event(site_msg())
         self.status(NOW)
         self.core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
@@ -80,6 +89,19 @@ class TwoFreezesTests(unittest.TestCase):
             self.tick(now + k)
         self.assertTrue(self.core.exploration_complete)
 
+    def final_map(self, grid=None):
+        self.dispatch()
+        self.explore_to_the_end(NOW)
+        self.tick(NOW + 2)
+        self.assertTrue(self.core.take_freeze_request())
+        self.core.on_freeze_reply(True, 'frozen')
+        grid = grid or FakeGrid(sha256='e' * 64)
+        self.core.on_frozen_map(grid)
+        self.core.on_frozen_revision(revision_info(R2, grid.sha256))
+        self.core.mission.verdicts[self.target] = 'RESCUE_CONFIRMED'
+
+
+class TwoFreezesTests(Base):
     def test_after_the_first_freeze_tb5_is_on_r1_and_tb6_explores_on_r0(self):
         approach = self.dispatch()
         goal = approach['route']['approach_goal']
@@ -142,6 +164,33 @@ class TwoFreezesTests(unittest.TestCase):
             self.core.on_exit_location(exit_msg(4, (5., 5.), track='EXIT-2'), now_ns=NOW)  # R0
         self.core.on_exit_location(exit_msg(5, (5., 5.), revision=R2, track='EXIT-2'), now_ns=NOW)
         self.assertEqual(B2, self.core.exits[-1]['basis'])
+
+
+    def test_tb6_s_home_joins_the_destinations_on_the_final_map(self):
+        self.final_map()
+        home = live_task_inputs.destinations(self.core)[f'home/{SCOUT}']
+        self.assertEqual((DOCK_XY, R2), (tuple(home['xy_yaw'][:2]), home['map_revision']))
+
+
+class DockStartPoseTests(Base):
+    """OPS-141: the TB-6 docking approach point is measured from TB-6's start pose, not the SLAM map origin."""
+    START = (1., 1., 0.)
+
+    def test_dock_approach_moves_with_the_start_pose(self):
+        self.final_map(FakeGrid(sha256='e' * 64, blocked=[(DOCK_XY[0] + 1., DOCK_XY[1] + 1.)]))
+        self.assertEqual([], self.tick(NOW + 3, 'RETURN_HOME'))
+        self.assertEqual('SCOUT_HOME_NOT_FREE', self.reason(NOW + 3))
+        home = self.core.live_destinations()[f'home/{SCOUT}']
+        self.assertEqual(([2., 1.], R2), (home['xy_yaw'][:2], home['map_revision']))
+
+
+class NoStartPoseTests(Base):
+    START = None
+
+    def test_tb6_return_needs_the_start_pose(self):
+        self.final_map()
+        self.assertEqual([], self.tick(NOW + 3, 'RETURN_HOME'))
+        self.assertEqual('START_POSE_UNKNOWN', self.reason(NOW + 3))
 
 
 if __name__ == '__main__':

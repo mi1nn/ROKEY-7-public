@@ -38,9 +38,10 @@ no reference map, TB-6 maps while it searches, the map is frozen before TB-5 goe
 service (/rescue/map/freeze), the frozen grid (/rescue/map/frozen) and both robots' MapState.
 F1 the QR exit (/rescue/exit_location, exit_qr, EXIT-1) and the target on the search revision R0 -> PERSISTED ->
    one freeze call (TB-6 stopped, no task; the freeze does not wait for an exit, OPS-156)
-F2 frozen grid + TB-6 MapState R0+1 with the grid's snapshot id -> frozen; the R0 target and exit are re-based
-   (TARGET_REBASED_ON_FREEZE until the re-based revision is saved, OPS-138)
-F3 the target seen again on R0+1 -> PERSISTED -> TB-5 localized on R0+1 -> APPROACH_TARGET on R0+1
+F2 frozen grid + /rescue/map/frozen_revision naming its hash as R0+1 (통합-로봇 #242) -> frozen; the R0 target and
+   exit are re-based (TARGET_REBASED_ON_FREEZE until the re-based revision is saved, OPS-138)
+F3 TB-6 (still SLAM on R0, OPS-159) sees the target again -> merged on R0+1 -> PERSISTED -> TB-5 localized on
+   R0+1 -> APPROACH_TARGET on R0+1
 Each stage prints PASS/FAIL and its seconds. The fake executors are fakes: the real executor's acceptance
 of APPROACH_TARGET/REOBSERVE_TARGET/RETURN_HOME is the robot lane's (C1, #166·#179). Exit 0 = all held.
 """
@@ -57,10 +58,11 @@ from rclpy.executors import MultiThreadedExecutor
 from rescue_interfaces.action import ExecuteTask
 from nav_msgs.msg import OccupancyGrid
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from rescue_contracts.occupancy import map_snapshot_id, occupancy_sha256
+from rescue_contracts.occupancy import frozen_revision_text, occupancy_sha256
 from rescue_interfaces.msg import (MapState, ReportReceipt, RobotPose, SiteEvent, SystemState, TargetLocation,
                                    TaskAdmission)
 from rescue_interfaces.srv import SetCameraWatch
+from std_msgs.msg import String
 from std_srvs.srv import Trigger
 
 from e3_coordinator_probe import CLOCK_DOMAIN, MAP, SCOUT, SUPPORT, FakeExecutor, node_command
@@ -220,6 +222,7 @@ class FrozenMap:
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.grid_pub = node.create_publisher(OccupancyGrid, '/rescue/map/frozen', latched)
+        self.revision_pub = node.create_publisher(String, '/rescue/map/frozen_revision', latched)
         self.exit_pub = node.create_publisher(TargetLocation, '/rescue/exit_location', 10)
         self.support_state = node.create_publisher(MapState, f'/rescue/robots/{SUPPORT}/map_state', latched)
         self.grid = dict(frame='map', width=self.WIDTH, height=self.HEIGHT, resolution=self.RESOLUTION, origin=(-10., -10., 0.),
@@ -239,6 +242,11 @@ class FrozenMap:
         msg.data = self.grid['data']
         self.grid_pub.publish(msg)
 
+    def publish_revision(self, revision):
+        """Which revision the frozen grid is, by its hash (#242)."""
+        self.revision_pub.publish(String(data=frozen_revision_text(map_session_id=MAP, map_revision=revision,
+                                                                   occupancy_sha256=self.sha256)))
+
     def publish_exit(self, xy=(-5.0, 0.0)):
         """The QR exit seen by TB-6 on the search revision R0 (통합-인식 안 「나」; test values)."""
         msg = TargetLocation(location_id=str(uuid4()), projection_status='VALID')
@@ -251,13 +259,10 @@ class FrozenMap:
         declared_time(msg.observation.time, self.node.get_clock().now().nanoseconds)
         self.exit_pub.publish(msg)
 
-    def state(self, robot, revision, snapshot):
-        return MapState(robot_id=robot, map_session_id=MAP, map_revision=revision, snapshot_id=snapshot,
+    def state(self, robot, revision):
+        return MapState(robot_id=robot, map_session_id=MAP, map_revision=revision, snapshot_id='',
                         generated_at_ns=self.node.get_clock().now().nanoseconds, localization_quality='VALID',
                         correction_detection_status='UNKNOWN', current_native_map_frame='map')
-
-    def frozen_snapshot(self, revision):
-        return map_snapshot_id(self.sha256, MAP, revision, 1)
 
 
 def run(repo, scratch, map_mode):
@@ -336,11 +341,8 @@ def run(repo, scratch, map_mode):
         return [g for g in goals if g.kind == kind]
 
     def observe(revision):
-        """TB-6 MapState on ``revision`` (the frozen one carries the grid's snapshot) and one camera observation."""
-        if frozen_map is not None and revision > 0:
-            tb6_camera.map_state.publish(frozen_map.state(SCOUT, revision, frozen_map.frozen_snapshot(revision)))
-        else:
-            tb6_camera.publish_map_state(MAP, revision, tb6_camera.get_clock().now().nanoseconds - 5_000_000_000)
+        """TB-6 MapState on ``revision`` and one camera observation."""
+        tb6_camera.publish_map_state(MAP, revision, tb6_camera.get_clock().now().nanoseconds - 5_000_000_000)
         # target_locator refuses a capture not after the revision by more than its clock bound (#207).
         spin(lambda: False, .5)
         tb6_camera.publish_static()
@@ -437,17 +439,17 @@ def run(repo, scratch, map_mode):
 
         def f2():
             frozen_map.publish_grid()
-            tb6_camera.map_state.publish(frozen_map.state(SCOUT, 1, frozen_map.frozen_snapshot(1)))
+            frozen_map.publish_revision(1)
             held = reason_seen('TARGET_REBASED_ON_FREEZE', 10)
             return held and not robots.support_goals, f'TARGET_REBASED_ON_FREEZE seen={held} sha256={frozen_map.sha256[:12]}'
 
         def f3():
             persisted_before = (target_row() or {}).get('persisted_report_id')
-            observe(1)
+            observe(0)  # TB-6 maps on with SLAM after the doll's freeze (OPS-159)
             resaved = spin(lambda: (target_row() or {}).get('persisted_report_id') not in (None, persisted_before), 15)
             unlocalized = reason_seen('SUPPORT_NOT_LOCALIZED', 10)
             robots.pose_revision = 1
-            frozen_map.support_state.publish(frozen_map.state(SUPPORT, 1, map_snapshot_id('unfrozen', MAP, 1, 1)))
+            frozen_map.support_state.publish(frozen_map.state(SUPPORT, 1))
             got = spin(lambda: kinds(robots.support_goals, 'APPROACH_TARGET'), 10)
             goal = kinds(robots.support_goals, 'APPROACH_TARGET')[0] if got else None
             revision = goal.route.frame_ref.map_revision if goal else None
