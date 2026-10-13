@@ -50,10 +50,13 @@ COORDINATOR_KEYS = {
     'search_start': S,
     # TB-6 search (OPS-136·139): PATROL (points in TB-6's start pose) | AREAS; TB-5 exit approach standoff
     'search_mode': S, 'patrol_points': FL, 'patrol_rounds': I, 'exit_standoff_m': F,
+    # FRONTIER exploration (owner decision 2026-10-13 night, OPS-154·156)
+    'frontier_min_cells': I, 'frontier_reach_m': F, 'frontier_goal_max_m': F, 'frontier_blacklist_m': F,
+    'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
-SEARCH_MODES = ('PATROL', 'AREAS')  # rescue_coordination.ros_node.SEARCH_MODES
+SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -203,6 +206,18 @@ def load_field(path):
                                    'live_inputs.search_goal_topic must be empty')
         if 'PATROL_POINT' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode PATROL needs PATROL_POINT in executable_bases')
+    if coordinator['search_mode'] == 'FRONTIER':
+        if coordinator['live_inputs.search_goal_topic']:
+            raise FieldLaunchError('coordinator.search_mode FRONTIER replaces the RViz search goal pick: '
+                                   'live_inputs.search_goal_topic must be empty')
+        if 'FRONTIER' not in coordinator['executable_bases']:
+            raise FieldLaunchError('coordinator.search_mode FRONTIER needs FRONTIER in executable_bases')
+    for key in ('frontier_min_cells', 'exploration_empty_checks'):
+        if coordinator[key] < 1:
+            raise FieldLaunchError(f'coordinator.{key} must be 1 or more')
+    if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
+        # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
+        raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
     if coordinator['patrol_rounds'] < 1:
         raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
     if coordinator['search_start'] not in SEARCH_START_MODES:
@@ -217,7 +232,8 @@ def load_field(path):
             raise FieldLaunchError(f'coordinator.freeze_clearance_m must equal robots.{robot_id}.'
                                    'task.live.auto_target.goal_clear_radius_m')
     for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s',
-                'freeze_clearance_m', 'map_freeze_timeout_s', 'exit_standoff_m'):
+                'freeze_clearance_m', 'map_freeze_timeout_s', 'exit_standoff_m', 'frontier_reach_m',
+                'frontier_goal_max_m', 'frontier_blacklist_m', 'exploration_timeout_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['support_exit_wait_s'] < 0:

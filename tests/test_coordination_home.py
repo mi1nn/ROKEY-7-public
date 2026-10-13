@@ -35,6 +35,8 @@ def values(**changes):
             'support_exit_wait_s': 1.0, 'recheck_max_clock_error_s': 2.0,
             'map_mode': 'SAVED_MAP', 'freeze_clearance_m': 0.2, 'map_freeze_timeout_s': 5.0,
             'search_mode': 'AREAS', 'patrol_points': None, 'patrol_rounds': 1, 'exit_standoff_m': 0.5,
+            'frontier_min_cells': 3, 'frontier_reach_m': 1.0, 'frontier_goal_max_m': 1.5, 'frontier_blacklist_m': 0.5,
+            'frontier_issue_delay_s': 2.0, 'exploration_empty_checks': 3, 'exploration_timeout_s': 600.0,
             'search_start': 'OPERATOR'}
     return base | changes
 
