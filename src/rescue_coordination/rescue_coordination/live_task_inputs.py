@@ -76,6 +76,27 @@ class SelectedSearchGoal:
         return area
 
 
+def live_destinations(core):
+    """Destinations the robots resolve by reference: the SCOUT's executable search areas (area ID) and every
+    role robot's home (``home/<robot_id>``, the RETURN_HOME ``home_ref``; TB-6 docking approach point, TB-5 exit).
+
+    Each carries the robot it belongs to and the map basis it was set on; the robot compares that basis with its
+    own live map basis before moving (rescue_robot task_site_runtime.resolve_goal). No home, no entry.
+    """
+    policy = core.search.policy
+    scout = core.roles['SCOUT']
+    destinations = {area.site_id: dict(robot_id=scout, frame_id=policy.mission_frame_id,
+        xy_yaw=[*area.mission_xy, area.entry_yaw], map_session_id=area.map_session_id,
+        map_revision=area.map_revision, transform_revision=area.transform_revision)
+        for area in policy.areas if policy.executable(area)}
+    for robot_id, home in core.mission.homes.items():
+        destinations[f'home/{robot_id}'] = dict(robot_id=robot_id, frame_id=policy.mission_frame_id,
+            xy_yaw=[float(home.mission_xy[0]), float(home.mission_xy[1]), float(home.yaw)],
+            map_session_id=home.map_session_id, map_revision=home.map_revision,
+            transform_revision=home.transform_revision)
+    return destinations
+
+
 def attach(node, core, values, boot_id):
     from rcl_interfaces.msg import ParameterType, ParameterValue
     from rcl_interfaces.msg import ParameterDescriptor
@@ -138,12 +159,7 @@ def attach(node, core, values, boot_id):
             last_reason[0] = reason
 
     def get(request, response):
-        policy = core.search.policy
-        scout = core.roles['SCOUT']
-        destinations = {area.site_id: dict(robot_id=scout, frame_id=policy.mission_frame_id,
-            xy_yaw=[*area.mission_xy, area.entry_yaw], map_session_id=area.map_session_id,
-            map_revision=area.map_revision, transform_revision=area.transform_revision)
-            for area in policy.areas if policy.executable(area)}
+        destinations = live_destinations(core)
         record = dict(format='rescue-live-task-source/1', coordinator_id=values['coordinator_id'],
             publisher_boot_id=boot_id, authority_epoch=values['authority_epoch'],
             schema_version=values['envelope_schema_version'], clock_domain_id=settings['live_inputs.clock_domain_id'],
