@@ -53,9 +53,9 @@ def exit_point(target_xy=(4., 4.)):
     return ros_node.approach_point(EXIT_XY, target_xy, EXIT_STANDOFF)[0]
 
 
-def snapshot_id(sha256, session, revision, transform_revision):
-    """Stand-in for rescue_contracts.map_snapshot_id: any injective function of its four inputs."""
-    return f'snap:{sha256}:{session}:{revision}:{transform_revision}'
+def revision_info(revision=FROZEN_REV, sha256=SHA, session=MAP):
+    """A parsed /rescue/map/frozen_revision (통합-로봇 #242: which revision the frozen grid is, by its hash)."""
+    return dict(map_session_id=session, map_revision=revision, occupancy_sha256=sha256)
 
 
 class FakeGrid:
@@ -68,16 +68,16 @@ class FakeGrid:
         return all(math.dist((x, y), b) > radius for b in self.blocked)
 
 
-def map_state(robot, revision=FROZEN_REV, quality='VALID', sha256=SHA, **changes):
+def map_state(robot, revision=FROZEN_REV, quality='VALID', **changes):
     values = dict(robot_id=robot, map_session_id=MAP, map_revision=revision, localization_quality=quality,
-                  snapshot_id=snapshot_id(sha256, MAP, revision, TRANSFORM))
+                  snapshot_id='')
     return NS(**(values | changes))
 
 
 def freeze_core(**changes):
     core = make_core(**(dict(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
                              map_mode='SLAM_FREEZE', freeze_clearance_m=CLEARANCE, map_freeze_timeout_ns=TIMEOUT,
-                             map_snapshot_id=snapshot_id, exit_standoff_m=EXIT_STANDOFF) | changes))
+                             exit_standoff_m=EXIT_STANDOFF) | changes))
     homes = (HomePosition(SCOUT, DOCK_XY, 0., MAP, SEARCH_REV, TRANSFORM),
              HomePosition(SUPPORT, EXIT_XY, 0., MAP, SEARCH_REV, TRANSFORM))
     core.mission.homes = {h.robot_id: h for h in homes}
@@ -120,8 +120,9 @@ class Base(unittest.TestCase):
         self.tick(now)
         self.assertTrue(self.core.take_freeze_request())
         self.core.on_freeze_reply(True, 'frozen')
-        self.core.on_frozen_map(grid or FakeGrid())
-        self.core.on_map_state(map_state(SCOUT))
+        grid = grid or FakeGrid()
+        self.core.on_frozen_map(grid)
+        self.core.on_frozen_revision(revision_info(sha256=grid.sha256))
         self.assertEqual(FROZEN, self.core.frozen)
 
 
@@ -168,21 +169,25 @@ class FreezeRequestTests(Base):
                 self.assertEqual('MAP_FREEZE_FAILED', self.reason(now))
                 self.assertIsNone(self.core.frozen)
 
-    def test_frozen_only_when_the_snapshot_matches_the_grid_on_a_new_revision(self):
+    def test_frozen_only_when_the_revision_text_pairs_the_grid(self):
+        # 통합-로봇 #242 (OPS-159): /rescue/map/frozen_revision names the grid by its hash; TB-6's MapState stays on
+        # the SLAM revision after the first freeze, so it no longer tells the frozen revision.
         self.save()
         self.tick()
         self.core.take_freeze_request()
         self.core.on_freeze_reply(True, 'frozen')
         self.core.on_frozen_map(FakeGrid())
-        for msg in (map_state(SCOUT, sha256='d' * 64),           # another grid (a latched old one)
-                    map_state(SCOUT, revision=SEARCH_REV),       # still the search revision
-                    map_state(SUPPORT)):                         # not TB-6
-            with self.subTest(msg=msg):
-                self.core.on_map_state(msg)
+        for info in (revision_info(sha256='d' * 64),              # another grid (a latched old one)
+                     revision_info(revision=SEARCH_REV + 2),      # not the next revision
+                     revision_info(session='33333333-3333-4333-8333-333333333333')):  # another run
+            with self.subTest(info=info):
+                self.core.on_frozen_revision(info)
                 self.assertIsNone(self.core.frozen)
+        self.core.on_map_state(map_state(SCOUT))  # a MapState never freezes
+        self.assertIsNone(self.core.frozen)
         self.tick()
         self.assertEqual('MAP_NOT_FROZEN', self.reason())
-        self.core.on_map_state(map_state(SCOUT))
+        self.core.on_frozen_revision(revision_info())
         self.assertEqual(FROZEN, self.core.frozen)
 
     def test_a_new_unsaved_revision_does_not_step_the_phase_back(self):
@@ -261,16 +266,16 @@ class AfterFreezeTests(Base):
             self.core.on_target_location(location(3, (4.1, 4.)), now_ns=NOW)
         self.assertEqual('FRAME_REVISION_MISMATCH', caught.exception.code)
 
-    def test_both_robots_must_be_localized_on_the_frozen_revision(self):
-        self.assertEqual(self.target, self.frozen_location())
+    def test_tb5_must_be_localized_on_the_frozen_revision_tb6_stays_on_slam(self):
+        # OPS-154·159: after the first freeze TB-6 keeps mapping (SLAM, search revision); only TB-5 moves to it.
         self.save()
         self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
-        self.core.on_map_state(map_state(SCOUT, quality='UNKNOWN'))
-        self.assertEqual(([], 'SCOUT_NOT_LOCALIZED'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
-        self.core.on_map_state(map_state(SCOUT))
+        self.core.on_map_state(map_state(SCOUT, revision=SEARCH_REV))
         self.assertEqual(([], 'SUPPORT_NOT_LOCALIZED'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
         self.core.on_map_state(map_state(SUPPORT, revision=SEARCH_REV))
         self.assertEqual(([], 'SUPPORT_NOT_LOCALIZED'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
+        self.core.on_map_state(map_state(SUPPORT))
+        self.assertEqual(1, len(self.tick(kind='APPROACH_TARGET')))
 
     def test_the_approach_goes_on_the_frozen_basis(self):
         self.ready_to_go()
@@ -448,7 +453,7 @@ class ParameterTests(unittest.TestCase):
 
     def test_bad_values_are_refused_at_start(self):
         for changes in (dict(map_mode='SLAM'), dict(freeze_clearance_m=0.), dict(freeze_clearance_m=math.nan),
-                        dict(map_freeze_timeout_ns=0), dict(map_snapshot_id=None)):
+                        dict(map_freeze_timeout_ns=0)):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
                 freeze_core(**changes)
 
