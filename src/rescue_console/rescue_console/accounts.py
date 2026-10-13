@@ -138,7 +138,7 @@ class AccountStore:
             db = sqlite3.connect(path)
             with db:
                 db.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
-                # account_id: 영구 식별자 — 계정을 삭제 후 동일한 이름으로 재생성해도 새로운 UUID를 부여받는다.
+                # account_id: 계정을 지우면 함께 사라진다 — 같은 이름으로 다시 만들면 새 UUID 를 받는다.
                 # auth_version: 비밀번호·역할·상태가 변경될 때마다 1씩 증가한다. 따라서 변경 이전에 발급된
                 # 기존 세션은 즉시 무효화된다(세션 쿠키가 account_id와 auth_version을 함께 검증함).
                 db.execute('''CREATE TABLE accounts (

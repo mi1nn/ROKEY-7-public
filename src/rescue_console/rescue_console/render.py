@@ -925,7 +925,7 @@ function applyGates() {
   for (const button of panel.querySelectorAll('button[data-command]')) {
     const gate = gates[button.dataset.command] || {enabled: false, reason: '관문 정보 없음'};
     // 통신 두절 중에는 게이트 정보가 지연될 수 있으므로, 비정상 화면에서의 오작동을 방지하기 위해 명령을 차단한다.
-    const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 비활성화됨' : gate.reason;
+    const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 꺼 둠' : gate.reason;
     button.disabled = !allowed || !gate.enabled || screenLost || sending || armed !== null;
     button.classList.toggle('armed', armed !== null && armed.kind === button.dataset.command);
     button.querySelector('.why').textContent = reason;
@@ -934,7 +934,7 @@ function applyGates() {
   // 확인 대화상자가 열린 상태에서 게이트 조건이 변경되거나 화면이 stale해지면 안전하게 취소한다.
   // 단, 이미 HTTP 요청이 전송된 상태에서는 취소하지 않는다(요청 취소가 불가능하기 때문).
   if (armed && !sending && (screenLost || !sameArmed(gates[armed.kind]))) {
-    disarm('상태가 변경되어 ' + armed.name + ' 승인 대화상자를 취소했습니다. 다시 시도해 주세요.');
+    disarm('상태가 바뀌어 ' + armed.name + ' 확인을 취소했습니다. 다시 누르세요.');
   }
 }
 // 확인 대화상자에 명령과 함께 전달될 인자 및 대상 정보를 나열한다.
