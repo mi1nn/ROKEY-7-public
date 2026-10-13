@@ -140,7 +140,7 @@ flowchart LR
 
 TB-5 앞 상자 안에서 낮은 깊이 점을 세어 STOP·PASS 를 JSON 으로 기록만 한다. 로봇을 멈추지 않는다.
 
-**판정.** 상자 안 바닥 위 점 중 `clearance_m`(0.46 m)보다 낮은 점이 `min_points` 개 이상이면 STOP 이다. 그렇지 않고 바닥 위 점이 `min_points` 개 이상이면 PASS, 그보다 적으면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다. 깊이·CameraInfo·TF 가 없거나 오래돼도 UNKNOWN 이다. 2026-10-13 까지는 빈 관측도 PASS 로 나왔다. 2026-10-14 재범 결정으로 고쳤다.
+**판정.** 상자 안 바닥 위 점 중 `clearance_m` 보다 낮은 점이 `min_points` 개 이상이면 STOP 이다. 그렇지 않고 바닥 위 점이 `min_points` 개 이상이면 PASS, 그보다 적으면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다. CameraInfo 가 없거나 깊이가 오래된 프레임은 UNKNOWN 으로 기록한다. TF 가 없는 프레임은 건너뛰고, 마감 시각까지 표본을 다 못 모으면 남은 회차를 UNKNOWN(`NO_TF`, `NO_DEPTH`)으로 채운다. 2026-10-13 까지는 빈 관측도 PASS 로 나왔다. 2026-10-14 재범 결정으로 고쳤다.
 
 실기 NOT_RUN.
 
