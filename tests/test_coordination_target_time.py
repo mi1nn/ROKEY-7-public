@@ -11,6 +11,8 @@ from rescue_contracts import RescueError
 from rescue_coordination import ros_node
 from test_coordination_ros_core import (TARGET_AGE, TARGET_FUTURE, location, make_core, obs_time, site_msg)
 from test_coordination_search import NOW, uid
+
+MS = 1_000_000
 from types import SimpleNamespace as NS
 
 
@@ -43,10 +45,15 @@ class TargetTimeGateTests(unittest.TestCase):
     def test_another_clock_domain_is_refused(self):
         self.refused(timed(1, clock_domain_id='robot-clock'), 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH')
 
-    def test_a_future_stamp_beyond_the_allowance_is_refused(self):
-        self.assertIsNotNone(self.core.on_target_location(timed(1, observed_at_ns=NOW + TARGET_FUTURE), now_ns=NOW))
+    def test_a_future_stamp_beyond_the_allowance_plus_its_own_error_bound_is_refused(self):
+        # PCs disagree by hundreds of ms (timesyncd, measured 2026-10-13): the observation's declared bound
+        # is allowed on top of target_max_future_s, or every fresh observation from a fast clock is refused.
+        bound = 400 * MS
+        ahead = NOW + TARGET_FUTURE + bound
+        self.assertIsNotNone(self.core.on_target_location(
+            timed(1, observed_at_ns=ahead, clock_error_bound_ns=bound), now_ns=NOW))
         self.setUp()
-        self.refused(timed(2, observed_at_ns=NOW + TARGET_FUTURE + 1), 'STALE_OBSERVATION',
+        self.refused(timed(2, observed_at_ns=ahead + 1, clock_error_bound_ns=bound), 'STALE_OBSERVATION',
                      'TARGET_OBSERVATION_FUTURE')
 
     def test_too_old_or_past_its_own_expiry_is_refused(self):
