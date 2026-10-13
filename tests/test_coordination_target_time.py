@@ -42,6 +42,15 @@ class TargetTimeGateTests(unittest.TestCase):
                 self.setUp()
                 self.refused(timed(n, **changes), 'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE')
 
+    def test_empty_and_invalid_stamp_semantics_never_make_a_target(self):
+        for stamp in ('', 'INVALID'):
+            with self.subTest(stamp=stamp):
+                self.setUp()
+                self.refused(timed(1, stamp_semantics=stamp), 'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE')
+
+    def test_driver_receive_is_a_declared_stamp(self):
+        self.assertIsNotNone(self.core.on_target_location(timed(1, stamp_semantics='DRIVER_RECEIVE'), now_ns=NOW))
+
     def test_another_clock_domain_is_refused(self):
         self.refused(timed(1, clock_domain_id='robot-clock'), 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH')
 
