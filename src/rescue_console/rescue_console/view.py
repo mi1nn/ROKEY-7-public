@@ -352,7 +352,8 @@ def mission_reason(code, support_name, scout_name):
     """{code, text, level, scope} for a SystemState.reason; an unknown code stays as it is."""
     if code is None:
         return None
-    names = {'support': support_name or '지원 로봇', 'scout': scout_name or '정찰 로봇'}
+    # Without a status naming the role's robot its robot_id is not known: the role code, never a generic word.
+    names = {'support': support_name or 'SUPPORT', 'scout': scout_name or 'SCOUT'}
     scope = next((where for prefix, where in SCOPES if code.startswith(prefix)), None)
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
