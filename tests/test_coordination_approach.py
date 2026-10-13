@@ -160,11 +160,22 @@ class AutoDispatchTests(unittest.TestCase):
         self.save()
         (fields,) = self.approaches()
         self.core.on_admission(admission_msg(fields))
-        self.core.on_result(fields['task_id'], NS(outcome='UNREACHABLE', stop_confirmed=True))
+        self.core.on_result(fields['task_id'], NS(outcome='UNREACHABLE', stop_confirmed=True,
+                                                  terminal_reason='PASSAGE_BLOCKED'))
         self.assertEqual([], self.approaches())
-        self.assertEqual('APPROACH_FAILED', self.core.system_state_change(NOW)['reason'])
+        # 작전 OPS-119: the executor's terminal reason is shown, so a blocked passage differs from other failures.
+        self.assertEqual('APPROACH_FAILED_PASSAGE_BLOCKED', self.core.system_state_change(NOW)['reason'])
         (estimate,) = self.core.target_snapshot_change()['targets']
         self.assertEqual('FAILED', estimate['approach_state'])
+
+    def test_failed_approach_without_a_terminal_reason_shows_the_outcome(self):
+        self.core.on_pose(pose_msg())
+        self.save()
+        (fields,) = self.approaches()
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason=''))
+        self.assertEqual([], self.approaches())
+        self.assertEqual('APPROACH_FAILED_FAILED', self.core.system_state_change(NOW)['reason'])
 
     def test_refused_admission_waits_then_goes_again_as_a_new_task(self):
         # Same hold as a refused MOVE_SEGMENT/REOBSERVE (#167): admission_timeout_ns, TASK_REFUSED meanwhile.

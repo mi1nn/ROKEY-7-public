@@ -37,7 +37,7 @@ class SupportExitTests(unittest.TestCase):
         return [f for f in self.core.tick(now) if f['kind'] == kind]
 
     def arrive(self, outcome='COMPLETED'):
-        self.core.on_result(self.approach['task_id'], NS(outcome=outcome, stop_confirmed=True))
+        self.core.on_result(self.approach['task_id'], NS(outcome=outcome, stop_confirmed=True, terminal_reason=''))
 
     def test_exit_after_the_wait_with_the_home_ref(self):
         self.arrive()
@@ -71,7 +71,7 @@ class SupportExitTests(unittest.TestCase):
     def test_a_failed_approach_never_goes_to_the_exit(self):
         self.arrive('UNREACHABLE')
         self.assertEqual([], self.tasks('RETURN_HOME', NOW + 10 * WAIT))
-        self.assertEqual('APPROACH_FAILED', self.core.system_state_change(NOW + 10 * WAIT)['reason'])
+        self.assertEqual('APPROACH_FAILED_UNREACHABLE', self.core.system_state_change(NOW + 10 * WAIT)['reason'])
 
     def test_the_end_of_disaster_cancels_the_exit(self):
         self.arrive()

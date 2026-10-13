@@ -280,6 +280,7 @@ class CoordinatorCore:
         self.support_pose_max_age_ns = support_pose_max_age_ns
         self.support_pose = None   # (mission_xy, (session, revision, transform), mission_frame, status, observed_at_ns)
         self.approach_task = None  # the open APPROACH_TARGET task_id
+        self.approach_failure = None  # executor terminal_reason (or outcome) of a failed approach, for the reason
         contract_value(duration_ns, support_exit_wait_ns)
         self.support_exit_wait_ns = support_exit_wait_ns
         # TB-5 to the exit after it reached the target (Q1-b): None, WAITING, ISSUED, MOVING, AT_EXIT, CANCELED, FAILED
@@ -611,6 +612,9 @@ class CoordinatorCore:
         elif meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_finished(completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
             self.approach_task = None  # ARRIVED or FAILED: never issued again
+            if result.outcome != 'COMPLETED':
+                # 작전 OPS-119: show why (e.g. PASSAGE_BLOCKED); an empty terminal reason shows the outcome.
+                self.approach_failure = result.terminal_reason or result.outcome
         elif meta and meta[0] == 'REOBSERVE_TARGET':
             if result.outcome == 'COMPLETED':
                 # Row 5: no new task after COMPLETED (only an operator REQUEST_RECHECK). Without an observation
@@ -966,7 +970,7 @@ class CoordinatorCore:
         mission = self.mission
         if mission.dispatch_kind == 'APPROACH':
             if mission.approach_phase == 'FAILED':
-                self.issue_block = 'APPROACH_FAILED'  # shown, never retried by itself
+                self.issue_block = f'APPROACH_FAILED_{self.approach_failure}'  # shown, never retried by itself
             if mission.approach_phase != 'ISSUED' or self.approach_task is not None:
                 return None
             return mission.dispatch_target, mission.dispatch_target_revision
