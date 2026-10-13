@@ -37,6 +37,10 @@ def candidate(n, watch_id, target_id, **changes):
     return site_msg(n, **(values | changes))
 
 
+def changed(msg, **changes):
+    return type(msg)(**(vars(msg) | changes))
+
+
 class WatchTestCase(unittest.TestCase):
     def setUp(self):
         self.core = make_core(camera_watch=book())
@@ -139,9 +143,9 @@ class ArmGateTests(WatchTestCase):
         self.assertEqual((.3, .3, .7, .9), fields['roi_xyxy_normalized'])
 
     def test_bad_roi_is_invalid_input(self):
-        for roi in ([.5, .2, .1, .6], [.1, .2, 1.5, .6], [float('nan'), 0., 1., 1.]):
+        for n, roi in enumerate(([.5, .2, .1, .6], [.1, .2, 1.5, .6], [float('nan'), 0., 1., 1.]), 1):
             with self.subTest(roi=roi):
-                answer, sent = self.arm(roi_xyxy_normalized=roi)
+                answer, sent = self.arm(n, roi_xyxy_normalized=roi)
                 self.assertEqual(('INVALID_INPUT', []), (answer['reason_code'], sent))
                 self.assertEqual('BAD_WATCH_ROI', self.core.last_reason)
 
@@ -199,7 +203,7 @@ class CandidateTests(WatchTestCase):
             with self.subTest(label):
                 self.setUp()
                 fields = self.armed()
-                msg = candidate(n, fields['watch_id'], self.target, **changes)
+                msg = changed(candidate(n, fields['watch_id'], self.target), **changes)
                 self.assertEqual(reason, self.core.on_site_event(msg))
                 self.assertNotIn(self.target, self.core.camera_watch.accepted)
                 self.core.tick(NOW)
@@ -260,6 +264,13 @@ class ValueTests(unittest.TestCase):
     def test_roi_value(self):
         self.assertEqual(ROI, roi_value(list(ROI)))
         self.assertIsNone(roi_value([0.] * 4))  # the IDL's "not given"
+
+        class Float64(float):  # what a ROS float64[4] field yields (numpy.float64 subclasses float)
+            pass
+        self.assertEqual(ROI, roi_value([Float64(v) for v in ROI]))
+        self.assertEqual(ROI, roi_value(tuple(Float64(v) for v in ROI)))
+        with self.assertRaises(RescueError):
+            roi_value([True, 0., 1., 1.])
         for bad in ([0., 0., 1.], [.5, .5, .5, .9], [-.1, 0., 1., 1.], ['a', 0., 1., 1.]):
             with self.subTest(bad=bad), self.assertRaises(RescueError):
                 roi_value(bad)

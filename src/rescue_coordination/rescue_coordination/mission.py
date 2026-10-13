@@ -32,6 +32,7 @@ COMMAND_FIELDS = {
     'CONTINUE_SEGMENT': ('target_id', 'target_revision', 'route_revision', 'segment_index'),
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
+    'SET_CAMERA_WATCH': ('target_id',),  # C-11 row 2; the ROI and camera are bound by the node core
 }
 OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_index')
 COMMAND_REJECT_REASONS = frozenset({
@@ -443,6 +444,17 @@ class MissionCoordinator:
             return 'RECHECK_ALREADY_REQUESTED'
         self.open_rechecks[command.target_id] = RecheckRequest(command.command_id, command.target_id, 'OPERATOR',
                                                                now_ns)
+        return 'ACCEPTED'
+
+    def _set_camera_watch(self, command, now_ns):
+        """C-11 row 2 / #124: a recorded, confirmed, not yet judged target, in DISASTER only."""
+        target = self.targets.get(command.target_id)
+        if target is None:
+            return 'UNKNOWN_TARGET'
+        if not target[1]:
+            return 'TARGET_NOT_CONFIRMED'
+        if self.verdicts.get(command.target_id) == 'RESCUE_CONFIRMED':
+            return 'TARGET_ALREADY_JUDGED'
         return 'ACCEPTED'
 
     def _return_home(self, command, now_ns):

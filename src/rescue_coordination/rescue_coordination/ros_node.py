@@ -12,8 +12,12 @@ ROS packages are imported inside functions, so this module stays importable and
   ``MissionCoordinator.handle_command``; a replayed command_id answers DUPLICATE
   with the first answer (C-11 row 10).
 
-Not yet (PR body): SetCameraWatch and candidate -> verdict linking, HomePosition
-and RETURN_HOME assignment (Q-22), TargetSnapshot publishing.
+- Operator SET_CAMERA_WATCH -> ``SetCameraWatch`` to the profile's one TARGET_WATCH camera
+  (``watch.CameraWatchBook``, C-11 rows 1-4); a TARGET_DISAPPEARED_CANDIDATE is judged against it
+  in DISASTER only (#124) and the watch is released when its mission ends.
+
+Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5) and verdict linking, HomePosition
+and RETURN_HOME assignment (Q-22).
 """
 import hashlib
 import json
@@ -27,6 +31,7 @@ from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns,
 from .mission import COMMAND_FIELDS, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
+from .watch import CameraWatchBook, roi_value
 
 SITE_EVENT_TOPIC = '/rescue/site_events'
 TARGET_LOCATION_TOPIC = '/rescue/target_locations'
@@ -195,7 +200,7 @@ class CoordinatorCore:
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
                  report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
-                 lease_message_ttl_ns, new_id=None):
+                 lease_message_ttl_ns, camera_watch, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -219,6 +224,11 @@ class CoordinatorCore:
         if not segment_goals or not all(isinstance(g, GoalPoint) for g in segment_goals + (observe_goal,)):
             raise CoordinationError('INVALID_POLICY', 'segment goals and observation goal must be GoalPoint')
         revision(route_revision)
+        if camera_watch is not None and not isinstance(camera_watch, CameraWatchBook):
+            raise CoordinationError('INVALID_POLICY', 'camera_watch must be a CameraWatchBook or None')
+        self.camera_watch = camera_watch  # None: the profile has no TARGET_WATCH camera
+        self.candidate_results = {}  # candidate event_id -> its first reason (replay answers the same)
+        self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
         self.mission = mission
         self.search = mission.search
         self.roles = {role: robot_id for robot_id, role in self.search.policy.roles}
@@ -257,7 +267,29 @@ class CoordinatorCore:
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
-        return self.mission.record_site_event(site_event_from_msg(msg))
+        """Mode gate for every event; a disappearance candidate is then judged against the watch (C-11 3-4)."""
+        event = site_event_from_msg(msg)
+        replay = event.event_id in self.mission.events
+        result = self.mission.record_site_event(event)  # event_id idempotency and conflict first (row 3)
+        if event.kind != 'TARGET_DISAPPEARED_CANDIDATE':
+            return result
+        if replay:
+            return self.candidate_results[event.event_id]
+        if self.mission.mode != 'DISASTER' or self.camera_watch is None:
+            reason = 'CANDIDATE_NOT_DISASTER' if self.mission.mode != 'DISASTER' else 'CANDIDATE_NOT_LINKED'
+        else:
+            reason = self.camera_watch.on_candidate(event)
+        self.candidate_results[event.event_id] = reason
+        return reason
+
+    def watch_requests(self, now_ns):
+        """SetCameraWatch request fields to send now (arm on command, release from ``tick``)."""
+        contract_value(timestamp_ns, now_ns)
+        return self.camera_watch.drain() if self.camera_watch is not None else []
+
+    def on_watch_reply(self, **reply):
+        """The camera's SetCameraWatch response (watch_id, accepted, watch_revision, reason_code)."""
+        return self.camera_watch is not None and self.camera_watch.on_reply(**reply)
 
     def on_status(self, msg):
         if msg.robot_id not in self.roles.values():
@@ -382,7 +414,8 @@ class CoordinatorCore:
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
-            reason=self.issue_block or ('SEARCH_QUEUED' if self.search_queued() else ''),
+            reason=self.issue_block or ('SEARCH_QUEUED' if self.search_queued() else '') or (
+                self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -446,6 +479,7 @@ class CoordinatorCore:
         contract_value(timestamp_ns, now_ns)
         self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
         self._expire_unadmitted(now_ns)
+        self._watch_tick(now_ns)
         detail = self.status_detail.get(self.roles['SCOUT'])
         if self.mission.mode != 'DISASTER':
             self._cancel_queued_search('MODE_NOT_DISASTER')
@@ -467,6 +501,11 @@ class CoordinatorCore:
             self.last_reason = exc.detail
             return self._reply(False, 'REJECTED', exc.code)
         seen = self.replies.get(command.command_id)
+        if command.kind == 'SET_CAMERA_WATCH':
+            roi = tuple(req.roi_xyxy_normalized)
+            if self.watch_rois.setdefault(command.command_id, roi) != roi:
+                self.last_reason = 'ID_CONTENT_CONFLICT'
+                return self._reply(False, 'REJECTED', 'ID_CONTENT_CONFLICT')
         if seen is not None:
             if seen[0] != command:
                 self.last_reason = 'ID_CONTENT_CONFLICT'
@@ -474,6 +513,13 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if command.kind == 'SET_CAMERA_WATCH':
+            refused = self._watch_precheck(req, command)
+            if refused is not None:
+                self.last_reason = refused[0]
+                reply = self._reply(False, 'REJECTED', refused[1])
+                self.replies[command.command_id] = (command, reply)
+                return reply
         if (command.kind == 'START_SEARCH' and self.mission.mode == 'DISASTER' and not self.mission.search_authorized
                 and not (self.ready(self.roles['SCOUT'], now_ns) or (None, False))[1]):
             # #98: a SCOUT of unknown or not-ready state refuses the start; it does not count as started,
@@ -492,6 +538,10 @@ class CoordinatorCore:
             elif command.kind == 'REQUEST_RECHECK':
                 self._issue_rechecks(now_ns)
                 task_id = self.recheck_tasks.get(command.command_id, '')
+            elif command.kind == 'SET_CAMERA_WATCH':
+                roi = roi_value(req.roi_xyxy_normalized) or self.camera_watch.roi
+                watch = self.camera_watch.arm(command.command_id, command.target_id, roi, now_ns)
+                self.last_reason = f'WATCH_REQUESTED:{watch.watch_id}'
             elif command.kind == 'START_SEARCH':
                 queued = len(self.outbox)
                 self._issue_search(now_ns)
@@ -502,6 +552,34 @@ class CoordinatorCore:
             reply = self._reply(False, 'REJECTED', REASON_CODES[result.reason])
         self.replies[command.command_id] = (command, reply)
         return reply
+
+    # -- camera watch --------------------------------------------------------------
+    def _watch_precheck(self, req, command):
+        """(mission-log reason, C-09 code) when the node itself cannot arm a watch, else None."""
+        book = self.camera_watch
+        if book is None:
+            return 'NO_WATCH_CAMERA', 'NOT_FOUND'  # profile: no TARGET_WATCH camera
+        try:
+            roi = roi_value(req.roi_xyxy_normalized)
+        except RescueError:
+            return 'BAD_WATCH_ROI', 'INVALID_INPUT'
+        if roi is None and book.roi is None:
+            return 'NO_WATCH_ROI', 'PENDING_EVIDENCE'  # no full-frame default (Q-13 / #76 ROI source open)
+        if book.pending is not None:
+            return 'WATCH_PENDING', 'TASK_BUSY'
+        return None
+
+    def _watch_tick(self, now_ns):
+        """Drop an unanswered request; release the active watch when its mission is over (#124, C-11 row 2)."""
+        book = self.camera_watch
+        if book is None:
+            return
+        book.expire(now_ns)
+        active, mission = book.active, self.mission
+        should_end = active is not None and (
+            mission.mode != 'DISASTER' or mission.returning
+            or mission.verdicts.get(active.target_id) == 'RESCUE_CONFIRMED')
+        book.release_due(should_end, now_ns)
 
     # -- issuing -----------------------------------------------------------------
     def _free(self, role, now_ns):
@@ -710,9 +788,10 @@ class CoordinatorCore:
 
 
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
-def declare_required(node, names, optional=()):
+def declare_required(node, names, optional=(), unset_ok=()):
     """Typed parameters without defaults -> (values, missing). Jazzy rejects a typed
-    ``declare_parameter`` with no value, so the type goes in as ``Parameter.Type`` (#35)."""
+    ``declare_parameter`` with no value, so the type goes in as ``Parameter.Type`` (#35).
+    ``optional`` may be empty; ``unset_ok`` may also be left out (None), e.g. an array a CLI cannot type empty."""
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.parameter import Parameter
     values = {}
@@ -723,7 +802,7 @@ def declare_required(node, names, optional=()):
         except ParameterUninitializedException:
             values[name] = None
     missing = sorted(name for name, item in values.items()
-                     if item is None or (name not in optional and item in ('', [])))
+                     if (item is None and name not in unset_ok) or (name not in optional and item in ('', [])))
     return values, missing
 
 
@@ -748,6 +827,14 @@ def build_core(values):
     search = SearchCoordinator(Allocator(values['authority_epoch'], allowed_robot_ids=robot_ids), policy)
     # No profile home positions yet: RETURN_HOME stays NO_HOME_POSITION (assignment is Q-22, later).
     mission = MissionCoordinator(search, home_positions=())
+    cameras = [c.id for c in deployment.site_cameras if 'TARGET_WATCH' in c.roles]
+    if len(cameras) > 1:
+        raise CoordinationError('INVALID_POLICY', 'SET_CAMERA_WATCH needs exactly one TARGET_WATCH camera')
+    roi = list(values['camera_watch_roi'] or [])
+    camera_watch = CameraWatchBook(
+        cameras[0], roi=tuple(roi) if roi else None,
+        request_timeout_ns=seconds_to_ns(str(values['camera_watch_timeout_s'])),
+        new_id=lambda: str(uuid4())) if cameras else None
     basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
     flat = list(values['route_segment_goals'])
     if len(flat) % 3 or len(values['observe_goal']) != 3:
@@ -761,7 +848,13 @@ def build_core(values):
                            lease_renew_period_ns=seconds_to_ns(str(values['lease_renew_period_s'])),
                            admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])),
                            segment_passage_free=tuple(values['route_segment_passage_free']),
-                           lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])))
+                           lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])),
+                           camera_watch=camera_watch)
+
+
+def camera_watch_service(camera_id):
+    """IF-078 service name of a fixed camera (rescue_interfaces README)."""
+    return f'/rescue/cameras/{camera_id}/set_watch'
 
 
 PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
@@ -780,8 +873,12 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'admission_timeout_s': 'DOUBLE',  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
     'lease_message_ttl_s': 'DOUBLE',  # CommandLease.valid_until_ns = issued_at_ns + this (AST88-02)
     # AST88-01: one field-checked bool per segment end; may be empty (= nothing passage-free, hold).
-    'route_segment_passage_free': 'BOOL_ARRAY'}
-OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
+    'route_segment_passage_free': 'BOOL_ARRAY',
+    # SetCameraWatch (C-11 row 2): the deployment ROI [x0, y0, x1, y1] normalized, used when the operator's
+    # request carries none; may be empty (= only the request's ROI; never the full frame). Request deadline.
+    'camera_watch_roi': 'DOUBLE_ARRAY', 'camera_watch_timeout_s': 'DOUBLE'}
+OPTIONAL_PARAMETERS = ('route_segment_passage_free', 'camera_watch_roi')
+UNSET_OK_PARAMETERS = ('camera_watch_roi',)  # left out = no deployment ROI (only the operator's)
 
 
 def main(args=None):
@@ -795,7 +892,7 @@ def main(args=None):
     from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
                                        SiteEvent as SiteEventMsg, SystemState, TargetEstimate, TargetLocation,
                                        TargetSnapshot, TaskAdmission as AdmissionMsg)
-    from rescue_interfaces.srv import SubmitOperatorCommand
+    from rescue_interfaces.srv import SetCameraWatch, SubmitOperatorCommand
 
     rclpy.init(args=args)
     node = Node('mission_coordinator')
@@ -803,7 +900,7 @@ def main(args=None):
     try:
         values, missing = declare_required(
             node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()},
-            optional=OPTIONAL_PARAMETERS)
+            optional=OPTIONAL_PARAMETERS, unset_ok=UNSET_OK_PARAMETERS)
         if missing:
             log.fatal(f'missing parameters: {missing}')
             raise SystemExit(2)
@@ -838,6 +935,29 @@ def main(args=None):
 
         clients = {robot: ActionClient(node, ExecuteTask, ROBOT_PREFIX + robot + '/execute_task')
                    for robot in core.roles.values()}
+        watch = core.camera_watch
+        watch_client = node.create_client(SetCameraWatch, camera_watch_service(watch.camera_id)) if watch else None
+        log.info(f'camera watch: {camera_watch_service(watch.camera_id) if watch else "none (no TARGET_WATCH camera)"}'
+                 f' roi={watch.roi if watch else None}')
+
+        def send_watch(fields):
+            req = SetCameraWatch.Request(**{k: (list(v) if k == 'roi_xyxy_normalized' else v)
+                                            for k, v in fields.items()})
+            envelope(req.envelope)
+            if not watch_client.service_is_ready():
+                log.error(f'{camera_watch_service(watch.camera_id)} not ready; watch {fields["watch_id"]} '
+                          'is dropped at its deadline unless the camera answers')
+            log.info(f'SET_WATCH enable={fields["enable"]} watch={fields["watch_id"]} target={fields["target_id"]} '
+                     f'roi={fields["roi_xyxy_normalized"]} expected_revision={fields["expected_watch_revision"]}')
+            watch_client.call_async(req).add_done_callback(guarded('watch_reply', on_watch_reply))
+
+        def on_watch_reply(future):
+            res = future.result()
+            recorded = core.on_watch_reply(watch_id=res.watch_id, accepted=bool(res.accepted),
+                                           watch_revision=int(res.watch_revision), reason_code=res.reason_code)
+            (log.info if res.accepted else log.error)(
+                f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
+                f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
 
         def send(fields):
             goal = fill_execute_task_goal(ExecuteTask.Goal(), fields, coordinator_id=values['coordinator_id'])
@@ -880,6 +1000,8 @@ def main(args=None):
             now = now_ns()
             for fields in core.tick(now):
                 send(fields)
+            for fields in core.watch_requests(now):
+                send_watch(fields)
             for report in core.reports_due(now):
                 publish_report(report)
             for lease in core.leases_due(now):
