@@ -12,6 +12,9 @@
 - 기존 ``ledger.ReportLedger`` 는 schema 1.0 보고 형식(observation_id·model_sha256 등)을 요구해서 IDL 보고를
   그대로 넣을 수 없다. 없는 필드를 지어내지 않고 장부를 따로 둔다. DB 기반(``_Database``)은 같다.
 - DB 파일은 site_state DB 와 다른 파일이어야 한다(파일당 쓰는 프로세스 하나, db-schema).
+- 보고 하나의 크기 한도는 ``REPORT_MAX_BYTES``(1 MiB)다. 공용 ``schema.canonical`` 의 64 KiB 는 쓰지 않는다:
+  조정기는 같은 대상의 위치를 모두 담아 새 보고를 보내서, 위치 1개 약 1.8 KB 기준 34개째부터 거절됐다
+  (2026-10-13 실측, 사용자 결정으로 1 MiB — 위치 약 550개).
 """
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -21,11 +24,23 @@ import time
 import uuid
 
 from .ledger import _Database
-from .schema import OperationsError, canonical, require, sha, timestamp, uid
+from .schema import OperationsError, require, sha, timestamp, uid
 
 _ROLE = "rescue-report-store"
 # 조정기가 채우는 필드 중 장부가 검사하는 것. 나머지 필드는 내용 그대로 저장한다.
 _REQUIRED = ("report_id", "target_id", "record_ids", "meaning_sha256", "first_issued_at_ns")
+# 보고 하나(envelope 포함)의 canonical JSON 한도. 사용자 결정 2026-10-13(PR 본문 「보고 크기 한계」).
+REPORT_MAX_BYTES = 1 << 20
+
+
+def canonical(value):
+    """schema.canonical 과 같은 규칙(정렬·유한 수)이고 한도만 REPORT_MAX_BYTES."""
+    try:
+        encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError, RecursionError, UnicodeError) as exc:
+        raise OperationsError("INVALID_INPUT", "not bounded finite JSON") from exc
+    require(len(encoded.encode("utf-8")) <= REPORT_MAX_BYTES, f"report JSON exceeds {REPORT_MAX_BYTES} bytes")
+    return encoded
 
 
 @dataclass(frozen=True)
