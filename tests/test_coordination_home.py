@@ -31,7 +31,7 @@ def values(**changes):
             'camera_watch_timeout_s': 2.0, 'home_poses': None, 'target_clock_domain_id': 'site-clock',
             'target_max_age_s': 2.0, 'target_max_future_s': 0.05,
             'support_dispatch': 'OPERATOR', 'approach_standoff_m': 0.8, 'support_pose_max_age_s': 2.0,
-            'support_exit_wait_s': 1.0}
+            'support_exit_wait_s': 1.0, 'recheck_max_clock_error_s': 2.0}
     return base | changes
 
 

@@ -29,7 +29,7 @@
 - RETURN_HOME: 복귀 위치는 `home_poses`(TB-6 도킹 접근 지점, TB-5 출구; 저장소 소유자 결정 2026-10-13 5A)로 받고, 로봇의 현재 지도 기준은 각 로봇의 MapState(#176)에서 받는다(이 PR 뒤).
   - 복귀 위치가 없으면 `NO_HOME_POSITION`, 로봇의 MapState 가 VALID 가 아니거나 지도 기준이 복귀 위치와 다르면 `HOME_BASIS_MISMATCH` 다. 다른 위치나 배치 기준으로 대신하지 않는다.
   - 수락돼도 task 는 아직 발급하지 않는다(C단계 판정 → 복귀 연결 뒤).
-- 웹캠 소실 후보 → AMR1 재확인 → 구출 판정 연결: `record_rescue_verdict` 를 부르는 실제 코드가 없다(C4 보류).
+- 웹캠 소실 후보 → TB-6 재확인 → 구출 판정 → TB-6 복귀(이 PR 뒤, 저장소 소유자 결정 2026-10-13 4A·5A): 수용된 후보가 그 대상의 CAMERA 재확인을 연다(C-11 5행, 운영자 재확인이 열려 있으면 기록만 10행). REOBSERVE_TARGET 이 COMPLETED 면 RecheckObservation 을 `verdict.judge` 로 판정한다(7~9행: 연결된 task·frame_ref·시각 기준과 순서(`recheck_max_clock_error_s`)·카메라 ABSENT·LiDAR CLEAR·범위 VALID). 관측이 없으면 `RECHECK_NEEDED`(`RECHECK_OBSERVATION_MISSING`)로 닫고, COMPLETED 가 아니면 새 task. 판정마다 노드 로그에 `VERDICT target=… state=… reason=… source=… link=… task=…` 한 줄, `SystemState.reason` 은 `RECHECK_NEEDED_<이유>`. RESCUE_CONFIRMED 뒤 TB-6 에 `RETURN_HOME`(`home/<robot_id>`, 도킹 접근 지점, 도킹은 사람이 함) 하나 → `SCOUT_RETURNING` → `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND`. TB-6 도착과 TB-5 출구 도착이 모두면 phase `FINISHED`·mode `MISSION_FINISHED`. 운영자 재확인(11행)은 조정기 자신의 시계를 이 경로에서 재지 않아 늘 `CANDIDATE_TIME_BASIS_UNUSABLE`(동결 뒤 후보: live_inputs 시계 사용).
 - `route_segment_passage_free` 는 ROS 파라미터로 빈 배열을 줄 수 없다(`-p`·`--params-file` 모두 값 없음 → 기동 거절) [측정, 통합-로봇 2026-10-13]. 모든 구간을 보류하려면 모두 `false` 로 준다. 아래 파라미터 표의 문구는 #148 머지 때 함께 고쳐진다.
 
 **열려 있는 PR (이 레인)**
@@ -204,6 +204,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
 | `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
+| `recheck_max_clock_error_s` | double | C-11 8행: 후보와 재확인 관측의 시계 오차 합 상한. 넘으면 `CANDIDATE_TIME_BASIS_UNUSABLE`. 현장 제안 2.0 [근거: 측정 웹캠 PC 271~365 ms + TB-6 탐지 PC 385~465 ms + Pi, 2026-10-13] |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
 | `merge_distance_m` | double | 대상 병합 거리(Q-21) |
