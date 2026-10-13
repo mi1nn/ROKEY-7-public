@@ -114,11 +114,13 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 조정기 `coordinator.launch.py`, 로봇 `robot.launch.py`, 지도 해시 `scripts/field/map_occupancy_sha256.py` | 있음(#152) |
 | 지도 기준 값 `map_basis`(프로파일, 조정기·로봇·탐지 launch 공용) | 있음(#145). 현장 프로파일에 넣어야 한다(frame `map`) |
 | PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | 있음(#156) |
-| robot_b(robot5) 로봇 launch | 안 됨: 현장 실행 파일에 `robots.robot_b` 값 없음(AMR2 시나리오 #131·#133 결정 대기) |
-| 구간 이동·재관측·복귀(MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: LIVE_ROS 는 SEARCH_AREA 만([rescue_robot README](../rescue_robot/README.md)) |
+| TB-5(robot_b, /robot5) 로봇 launch | 안 됨: 현장 실행 파일에 `robots.robot_b` 값이 없다. TB-5 실행 값 PR 에서 넣는다(재범 결정 2026-10-13: TB-5 자동 출동) |
+| TB-5 자동 대상 접근(APPROACH_TARGET)의 LIVE_ROS 입력 | PR #166 머지 뒤(로봇별 정책 `robots.<id>.task.live.auto_target.*`) |
+| 로봇 위치(RobotPose)·지도 상태(MapState) 발행 | PR #176 머지 뒤. 로봇 Pi 시계 값(`sensor_host_clock_*`)을 Pi 에서 재서 넣기 전에는 위치가 UNKNOWN 이다 |
+| 재관측(REOBSERVE_TARGET)·복귀(RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: 다음 PR(C1-b·C1-c). MOVE_SEGMENT 는 FILES 경로만 |
 | watchdog 현장 값 | #132 임시값, 확정은 #94. 영구 정지(STOP_LATCHED)와 리셋은 [rescue_robot README](../rescue_robot/README.md) 「2026-10-13 현재」 절 |
 
-세 launch 로 웹캠 → 재난 판정 → 관제 출동(START_SEARCH) → AMR1 SEARCH_AREA(Nav2) 를 띄운다. 값은 세 곳에서만 온다.
+세 launch 로 웹캠 → 재난 판정 → 관제 출동(START_SEARCH) → TB-6 SEARCH_AREA(Nav2) 를 띄운다. 값은 세 곳에서만 온다.
 
 | 어디서 | 무엇 |
 | --- | --- |
@@ -126,7 +128,11 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 현장 실행 파일 `config/field/search_area.field.json` | #132 현장 스크립트(`scripts/field/search-area/start_*.sh`)의 정책 값. 조정기와 로봇이 같아야 하는 값(lease·authority epoch·coordinator ID·envelope·시계)은 양쪽에 적고 launch 가 같은지 검사한다 |
 | launch 인자(기본값 없음) | 아직 정하지 않은 Phase 1 경로·관측 목표(#132 의 `[0, 0, 0]` 자리표시값), 현장에서 잰 지도 해시 |
 
-먼저 모든 PC 에서(0단계) Discovery 연결과 준비 상태를 본다. 각 PC 는 로봇 Pi 온보드 서버에 직접 붙는다([현장 결정 기록](../../docs/design/network-discovery.md#11-현장-적용-기록-2026-10-13), 권고안 A, 2026-10-13). 로봇 담당 PC 는 자기 로봇 서버 하나, 조정·운영 PC 는 두 서버 모두다. 로봇 설정은 바꾸지 않는다.
+먼저 모든 PC 에서(0단계) Discovery 연결과 준비 상태를 본다. 각 PC 는 로봇 Pi 온보드 서버에 직접 붙는다([현장 결정 기록](../../docs/design/network-discovery.md#11-현장-적용-기록-2026-10-13), 권고안 A, 2026-10-13 최종 확정). 전용 Discovery 서버 PC 는 없다. TB-6 담당 PC 는 TB-6 Pi 서버(ID 6) 하나, TB-5 담당 PC 는 TB-5 Pi 서버(ID 5) 하나, 조정·운영 PC 는 두 서버(ID 5·6) 모두다. 로봇 설정은 바꾸지 않는다.
+
+로봇 Pi 두 대에서는 실기 당일 이것부터 본다(Pi 설정은 재범이 다룬다):
+- 무선 절전이 꺼져 있는지: `iw dev wlan0 get power_save` 가 `Power save: off`. 끄는 설정은 일시 설정이라 재부팅하면 다시 켜진다.
+- Pi 시계 오차 상한을 다시 잰다(재부팅·재동기화 뒤 값이 바뀐다): `timedatectl show-timesync --all`, `chronyc tracking` 출력으로 계산해 현장 실행 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 에 넣는다(PR #176 머지 뒤). 재지 않으면 -1 이고, 그동안 로봇 위치는 UNKNOWN 이다.
 
 준비 점검은 JSON 형식 설정도 읽는다(YAML의 부분집합). 다른 YAML은 PyYAML이 필요하다. 파서가 없으면 해당 파일 검사는 `NOT_RUN`, 문법이 틀리면 `FAILED`이며 모두 `PASSED`가 되기 전에는 준비 완료가 아니다.
 
