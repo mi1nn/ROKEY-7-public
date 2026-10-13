@@ -279,3 +279,21 @@ class CaptureInitialPose(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TwoFreezes(FieldCase):
+    """Map frozen twice (OPS-154/159): what the launches hand the executor and the relay."""
+
+    def test_tb5_executor_gets_its_amcl_initialpose_topic_for_re_aligning(self):
+        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        self.assertEqual('/robot5/initialpose', b['task.saved_map.initial_pose_topic'])
+        a = self.robot(field=self.field(), occupancy_sha256='')['task_input']
+        self.assertNotIn('task.saved_map.initial_pose_topic', a)   # TB-6 starts AMCL from the frozen pose
+
+    def test_relay_follows_the_revision_pair_and_its_own_map_state(self):
+        from rescue_bringup.field_launch import frozen_localization_values
+        for robot_id in ('robot_a', 'robot_b'):
+            with self.subTest(robot_id=robot_id):
+                v = frozen_localization_values(self.deployment, field=self.field(frozen_field), robot_id=robot_id)
+                self.assertEqual('/rescue/map/frozen_revision', v['frozen_revision_topic'])
+                self.assertEqual(f'/rescue/robots/{robot_id}/map_state', v['map_state_topic'])
