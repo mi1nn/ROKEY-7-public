@@ -245,7 +245,14 @@ compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). �
 ros2 service call <ns>/request_nomotion_update std_srvs/srv/Empty {}
 ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}
 ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}      # success=True
+# (TB-6 은 탐색 중 SLAM 이라 AMCL 이 없다: request_nomotion_update 는 TB-5 만, 고정 R0+2 뒤에는 TB-6 도)
+
+# TB-6 탐색 중 위치(읽기 전용, 조정기 frontier 탐색이 받는 값). Discovery 서버 아래에서는 topic list 대신 hz/echo 로 본다.
+ros2 topic hz /robot6/pose        # slam_toolbox 위치. TB-6 을 세워 둔 채로도 2 s 안 간격으로 나오는지 본다
+ros2 topic echo --once /rescue/robots/robot_a/pose   # mission_pose_status: VALID, frame_ref.map_revision: <R0>
 ```
+
+TB-6 탐색 중 RobotPose 는 `/robot6/pose`(slam_toolbox, `task.saved_map.slam_localization_topic`) 한 개가 올 때마다 `/rescue/robots/robot_a/pose` 로 한 번 나간다(`live_sources.receive_pose(source='slam')` → `live_pose.LivePosePublisher.on_pose`). 유효 기간은 `task.live.pose_valid_ns` 2 s 다. 그래서 `/robot6/pose` 가 2 s 넘게 끊기면 조정기에는 오래된 위치가 된다. slam_toolbox 가 멈춰 있는 동안에도 위치를 내는지는 실기 확인 항목이다[추정: 스캔 처리 조건(최소 이동 거리)에 따라 정지 중에는 안 나올 수 있다]. `VALID` 가 되려면 `/robot6/map` 을 받았고, 위치 공분산이 한도(`max_position_variance_m2` 0.25) 안이며, 시계가 SYNCED 여야 한다. 하나라도 아니면 `UNKNOWN` 이다.
 
 1. RViz(2D Goal Pose)로 `/rescue/search_goal` 에 TB-6 수색 목표를 고른다. 조정기 로그 `SEARCH_GOAL_SELECTED`. 탐색 중 목표는 revision R0 다.
 2. TB-6 과 TB-5 를 모두 arm 한다. TB-5 는 자동 출동이라 대상이 나오기 전에 arm 돼 있어야 한다. 실행기는 arm(latch ARMED)일 때만 READY 를 내고(`task_status.py`), 조정기는 READY·최신 상태인 SUPPORT 에만 task 를 낸다(통합-조정 확인 2026-10-13). arm 하지 않으면 조정기는 기다리기만 한다. PR #196 머지 뒤에는 SystemState `reason=SUPPORT_NOT_READY` 로 보이고, 관제 웹에는 「TB-5 준비 안 됨 — arm 필요」로 보인다(PR #185 머지 뒤).
