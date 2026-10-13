@@ -12,6 +12,14 @@
 
 이 구성은 사람이 RViz에서 목표를 지정하는 단일 로봇 실습용이다. 기존 오프라인 CLI나 `runtime_enabled`를 활성화하지 않으며, 프로젝트 임무 명령·정지/권한·watchdog 및 `RobotPose`/`MapState` 연결은 포함하지 않는다. SLAM은 목표 없이 스스로 탐색하지 않는다. 복사해 둔 `rescue_perception` 내부 실습 파일은 이 launch에서 사용하지 않는다.
 
+> **⚠ 이 경로(mapping_navigation·localization_navigation·explore_lite)에는 머리 위 통로 정지(46 cm)가 없다.** 통로 정지는 `robot.launch.py`(Nav2 `collision_monitor` 에 넣음)와 `passage_points.launch.py` 를 **둘 다** 띄울 때만 켜진다(현장 실행 순서 2단계). 켜졌는지 확인:
+> - `robot.launch.py` 로그에 `+ passage stop 0.05..0.46 m` 가 있다.
+> - `ros2 topic hz <ns>/passage_points` 가 나온다(깊이 점, 없으면 `collision_monitor` 가 1 s 뒤 멈춘다).
+>
+> **⚠ 정지:** 이 경로에는 실행기·watchdog 이 없다. 멈추려면 `bash scripts/field/stop_robot.sh <ns>`(Nav2 목표 전부 취소 + cmd_vel 0, 아래 3단계 정지 상자). explore_lite 를 Ctrl+C 로 끄면 노드가 끝나면서 목표 취소를 보내지만, 종료 중이라 그 요청이 Nav2 에 닿는지 보장되지 않는다[추정: upstream `Explore::~Explore()` → `stop()` → `async_cancel_all_goals()`]. Nav2 가 다른 터미널에서 계속 떠 있으면 **마지막 목표로 계속 간다.** explore 를 끈 뒤에는 반드시 정지 스크립트를 돌리거나 Nav2 launch 도 끈다.
+>
+> **SLAM 지도 새로 시작:** `mapping_navigation.launch.py`·`tb6_slam.launch.py` 는 `<ns>/map` 에 이미 발행자(앞의 SLAM)가 있으면 그 노드 이름을 내고 기동하지 않는다(옛 지도를 이어 쓰지 않음, OPS-184). 앞 SLAM 은 정지 스크립트가 보여 주는 PID 로 끈다. slam_toolbox 의 지도 리셋 서비스(Jazzy 판)는 **미확인**이다(이 PC 에 slam_toolbox 가 없어 확인 못 함). 실기에서 `ros2 service list --no-daemon | grep slam_toolbox` 로 본다. 확인 전에는 SLAM 노드를 끄고 다시 띄우는 것만 쓴다.
+
 ### 빌드와 준비
 
 ROS 2 Jazzy, `turtlebot4_navigation`, `turtlebot4_viz`가 설치된 작업 PC에서 저장소 루트 기준으로 실행한다. 별도 TurtleBot 작업공간으로 설치했다면 그 작업공간의 `install/setup.bash`도 먼저 source한다.
@@ -254,6 +262,13 @@ compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). �
 저장 지도로 하는 시험(로봇 없는 시험, #132)은 현장 실행 파일을 조정기 `map_mode` `SAVED_MAP` + 두 로봇 `SAVED_MAP_AMCL` 로 바꾸고, 예전처럼 `turtlebot4_navigation localization.launch.py` → `occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)` 로 띄운다.
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
+
+> **정지 방법 (먼저 읽기)**
+> 1. `bash scripts/field/stop_robot.sh /robot6` (TB-5 는 `/robot5`). 실행기 `task_stop` → Nav2 목표 전부 취소(`navigate_to_pose`·`navigate_through_poses`·`follow_waypoints`) → `cmd_vel` 0 을 보내고, 단계마다 `[보냄]`/`[없음]`/`[실패]` 한 줄을 낸다. 끝에 아직 떠 있는 `<ns>` 노드와 이 PC 의 SLAM·Nav2·explore 프로세스 PID 를 보여 준다.
+> 2. 스크립트가 없거나 실패하면 수동으로: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}`, `ros2 service call <ns>/navigate_to_pose/_action/cancel_goal action_msgs/srv/CancelGoal {}`, 남은 프로세스는 PID 로 `kill -INT <PID>`(이름으로 넓게 잡아 죽이지 않는다).
+> 3. 그래도 움직이면 **사람이 로봇을 들어 올린다.**
+>
+> `robot.launch.py` 를 Ctrl+C 하면 Nav2 도 같이 꺼지고, watchdog 이 꺼지기 전에 `<ns>/cmd_vel` 에 0 을 3번 낸다(로그 `watchdog stopped: 3 zero commands`).
 
 ```bash
 # 각 로봇: 정지 상태에서 AMCL 갱신 한 번 → 조정기 상태 재발행 → 실행기 arm(#132 start_search.py 순서)
