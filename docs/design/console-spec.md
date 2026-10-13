@@ -271,7 +271,7 @@ updated: 2026-10-13
 | 명령 보냄 | 성공이면 info, 실패면 warning | `operator command {kind} {command_id} by {아이디} -> {나머지 결과}`(`app.py:348-350`) |
 | 계정 init | 표준 출력 또는 표준 오류(2) | `created {파일} with ADMIN {아이디}` 또는 `ACCOUNTS FAILED: …`(`accounts.py:368-374`) |
 
-기동 때 git SHA 를 남기는 코드는 없다(검색: `grep -n "git" src/rescue_console/rescue_console/*.py` 결과 없음).
+기동 때 git SHA 를 남기는 코드는 없다(검색: `grep -nwi "git" src/rescue_console/rescue_console/*.py`, `grep -n "rev-parse\|subprocess"` 같은 파일들 — 둘 다 결과 없음. 단어 경계 없는 `grep -n "git"` 은 `commands.py` 의 「digit」 주석에 걸린다).
 
 #### 6.6 화면 배치(칸 단위)
 
@@ -830,7 +830,8 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 ### I-2. 현장 상태 DB — 웹이 읽는 표와 열
 
 - 파일: launch `db_path`(`launch/operations.launch.py:19`). 쓰는 쪽은 db_writer 하나. 쓰는 쪽 설정: `journal_mode=WAL`, `synchronous=FULL`, `busy_timeout=1000`, 쓰기마다 `BEGIN IMMEDIATE`(`rescue_operations/ledger.py:78-82`, `:104-115`). 그래서 읽는 쪽은 쓰는 쪽을 막지 않고 커밋된 행만 본다.
-- 열기 규칙(`rescue_operations/site_state.py:438-459`, 경로 규칙 `rescue_operations/ledger.py:39-48`): 경로가 빈 값·`:memory:`·NUL 포함이면 거절, 절대 경로로 풀어 폴더가 있고 경로가 폴더가 아니어야 함 → `file:{절대 경로}?mode=ro` URI, 대기 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` = `operations-site-state` 이고 `schema` = `1.2` 가 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 JSON 이고 프로파일 로봇 ID 2개(서로 다름)가 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.2"` 를 붙여 반환 → 늘 닫음. sqlite 오류는 `STORAGE_ERROR`. 파일을 만들지 않는다. 1.0·1.1 파일은 db_writer 가 한 번 열어 1.2 로 올리기 전에는 읽히지 않는다.
+- 열기 규칙(`rescue_operations/site_state.py:479-499`, 경로 규칙 `rescue_operations/ledger.py:39-48`): 경로가 빈 값·`:memory:`·NUL 포함이면 거절, 절대 경로로 풀어 폴더가 있고 경로가 폴더가 아니어야 함 → `file:{절대 경로}?mode=ro` URI, 대기 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` = `operations-site-state` 이고 `schema` = `1.3` 이 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 JSON 이고 프로파일 로봇 ID 2개(서로 다름)가 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.3"` 을 붙여 반환 → 늘 닫음. sqlite 오류는 `STORAGE_ERROR`. 파일을 만들지 않는다. 1.0·1.1·1.2 파일은 db_writer 가 한 번 열어 1.3 으로 올리기 전에는 읽히지 않는다(`rescue_operations/site_state.py:27-29`; 1.2 → 1.3 은 `exit_locations` 표만 더함).
+- 그래서 콘솔과 db_writer 는 같은 판의 `rescue_operations` 를 써야 한다. 콘솔만 1.3 코드로 올리고 옛 db_writer 가 1.2 파일을 계속 쓰면, 또는 그 반대면, 모든 폴링이 `STORAGE_ERROR` 503 이다 [관찰, 코드 읽기].
 
 | 표(읽기 함수) | 정렬·한도 | 웹이 쓰는 열·키 | 쓰지 않는 열·키 |
 | --- | --- | --- | --- |
@@ -841,9 +842,12 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 | `mission_state`(`read_mission_state`) | 1행 또는 null | mode, phase, trigger_event_id, started_at_ns, updated_at_ns, reason, target_id, target_revision, route_revision, segment_index, segment_count, segment_phase | generation |
 | `operator_commands`(`read_operator_commands`, limit 30) | `requested_at_ns`, `command_id` 최신 순 | command_id, kind, operator_id, target_id, requested_at_ns, accepted(bool 로), result, reason | robot_id, segment_index, route_revision |
 | `error_log`(`read_error_log`, limit 30) | `at_ns`, `seq` 최신 순 | seq, at_ns, code, detail | robot_id, task_id |
+| `exit_locations`(`read_exit_locations`, limit 1, 1.3) | `observed_at_ns` 최신 순, 같으면 `location_id` 오름차순 — 맨 위 1행만 | location_id, x, y, mission_frame(→ 화면 `exit.frame_id`), observed_at_ns, map_revision(마우스 설명에만) | received_at_ns, map_session_id, transform_revision, class_label(늘 `exit_qr`) |
 | `map_snapshots` | — | 읽지 않음 | 전부 |
 
-근거: 표 정의 `rescue_operations/site_state.py:81-107`, 읽기 함수 `rescue_operations/site_state.py:461-533`, 키 정의 `rescue_operations/site_state.py:53-78`. 웹이 기대는 값 범위: `mission_state.mode` ∈ {NORMAL, DISASTER, CLEARING, MISSION_FINISHED}, `phase` ∈ 14개(7.11 phase 줄), `segment_phase` ∈ 7개(segment 줄), 출동 6칸은 모두 있거나 모두 null(`rescue_operations/site_state.py:36-45`, `:237-262`). 웹은 이 범위를 다시 검사하지 않고 낱말 표에 없으면 코드 그대로 보인다.
+- `exit_locations` 는 db_writer 가 `/rescue/exit_location` 의 `projection_status` VALID 관측만 넣고(아니면 거절, `rescue_operations/ros_ingest.py:146-162`), 같은 `location_id` 를 다시 받으면 처음 행을 지킨다(`rescue_operations/site_state.py:441-456`). 조정기가 등록·재기준한 출구가 아니라 인식의 관측 원본이다. 지도 고정 전·후 관측을 웹은 구분하지 않는다(`README:153`).
+
+근거: 표 정의 `rescue_operations/site_state.py:85-116`(`exit_locations` 는 `:112-115`), 읽기 함수 `rescue_operations/site_state.py:502-584`, 키 정의 `rescue_operations/site_state.py:53-82`. 웹이 기대는 값 범위: `mission_state.mode` ∈ {NORMAL, DISASTER, CLEARING, MISSION_FINISHED}, `phase` ∈ 14개(7.11 phase 줄), `segment_phase` ∈ 7개(segment 줄), 출동 6칸은 모두 있거나 모두 null(`rescue_operations/site_state.py:36-45`, `:246-271`). 웹은 이 범위를 다시 검사하지 않고 낱말 표에 없으면 코드 그대로 보인다.
 
 ### I-3. 실시간 지도 파일 — `live_map.yaml`
 
@@ -866,19 +870,22 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 - 옛 보고 장부(선택 `LEDGER`): `read_reports(limit=1000)`(`rescue_operations/ledger.py:350-380`), `metadata.role` = `operations-ledger`, `schema` = `1.0`. 웹이 쓰는 것: 최상위 `evidence_policy`·`allowed_robot_ids`, 보고마다 `payload` 의 report_id, target_id, source_robot, reported_at_ns, observed_at_ns, confirmation_result, approach_result, position{x,y,frame_id,map_revision}, clock_domain_id, `receipt.status`, `received_at_ns`. report_node 의 장부(`metadata.role` = `rescue-report-store`, `rescue_operations/report_store.py:29`)는 이 자리에 줄 수 없다(`POLICY_MISMATCH` → 화면 `STORAGE_ERROR`).
 - 웹캠 MJPEG: `http://{video_bind_host}:{video_port}/{camera_id}.mjpg`(`rescue_bringup/operations_launch.py:161`, `:180-182`). 브라우저가 직접 붙으므로 `video_bind_host` 는 브라우저 PC 에서 닿는 주소여야 한다(`launch/operations.launch.py:95-97`).
 
-## 문서와 코드의 차이 (HEAD bd4bfa5 기준)
+## 문서와 코드의 차이 (bd4bfa5 에서 찾고 32e8ee1 에서 다시 봄)
+
+「고침(이 PR)」은 이 브랜치에서 문서를 고쳐 차이가 없어진 줄이고, 그 줄의 「문서 내용」은 고치기 전 글이다.
 
 | 문서:줄 | 문서 내용 | 코드 | 비고 |
 | --- | --- | --- | --- |
 | `docs/design/console-and-db-plan.md:13`, `:20` | 콘솔 버튼은 비활성 placeholder, operations POST 미연결 | 버튼이 켜지고 operations API 로 보냄(`view.py:530-623`, `app.py:320-352`, `rescue_operations/command_api.py`) | 문서가 낡음(updated 2026-10-11) |
 | `docs/design/console-and-db-plan.md:66`, `:69` | 웹은 operations `GET /api/snapshot` 으로 읽고, 지도는 `PUT /api/maps/{id}` | 웹이 현장 상태 DB 를 직접 읽기 전용으로 읽고(`sources.py:56-79`), 지도는 map_snapshot 파일(`mapimage.py:210-270`). 두 API 는 없음 | 계획 [제안] 과 구현이 다름 |
 | `docs/design/console-and-db-plan.md:82`, `:85` | 웹캠은 화면 위, 버튼에 일시정지·재개·취소·정지 | 웹캠은 오른쪽 옆 칸(`render.py:546-549`), 넷은 늘 꺼짐(`view.py:58-63`) | — |
-| `docs/process/ops-db-tables.md:41`, `:129-131` | 현장 상태는 표 3개, 1.1 표 넷은 아직 코드에 없음 | schema 1.2, 표 7개(`rescue_operations/site_state.py:27`, `:87-107`) | 문서 updated 2026-10-10 로 낡음 |
+| `docs/process/ops-db-tables.md:41`, `:129-131` | 현장 상태는 표 3개, 1.1 표 넷은 아직 코드에 없음 | schema 1.3, `metadata` 말고 표 8개(`rescue_operations/site_state.py:27`, `:85-116`) | 문서 updated 2026-10-10 로 낡음 |
 | `docs/design/db-schema.md:11-16`, `docs/process/ops-db-tables.md:37-42` | SQLite 역할 4가지 | report_node 의 `rescue-report-store` 파일이 다섯째(`rescue_operations/report_store.py:29`) | 콘솔은 그 파일을 읽지 않음 |
 | `docs/design/db-schema.md:20` | `metadata(key TEXT PRIMARY KEY, value TEXT)` | `value TEXT NOT NULL`(`rescue_operations/ledger.py:84`, `accounts.py:140`) | 사소 |
-| `README:14`, `README:76-84` | 현장 상태 「읽기 함수 넷」, 입력 표 5행 | 읽기 함수 7개(배치 로봇·명령·오류 포함, `sources.py:65-75`) | — |
-| `README:177` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:855-856`) | — |
-| `README:94` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:551-554`), 높이는 고정 여부만 정함(`render.py:550`) | — |
-| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:320-352`) | 패키지 설명이 낡음 |
-| `docs/process/ops-host-record.md:54` | 콘솔이 기동 때 git SHA 를 로그에 남김 | 콘솔 코드에 그런 줄이 없음(검색 `grep -n "git" src/rescue_console/rescue_console/*.py`: 없음). 서비스 래퍼가 하는지는 [미확인] | AGENTS 8절 「기동 로그에 git SHA」 |
-| `labels.py:8-14` | motion·readiness 는 「no producer yet」 | operations 가 RobotStatus 에서 씀(`rescue_operations/ros_ingest.py:69-86`) | 주석이 낡음 |
+| `README:14` | 현장 상태 「읽기 함수 넷」 | 읽기 함수 8개(배치 로봇·명령·오류·출구 포함, `sources.py:65-75`) | **고침(이 PR)**: 「여덟」(merge 로 들어온 `read_exit_locations`, `sources.py:74` 포함) |
+| `README:76-84`, `:86`, `:88` | 입력 표 5행, 「픽스처의 네 칸」, 「네 읽기는 한 트랜잭션이 아니다」 | 읽기 8개(`sources.py:65-75`), 픽스처 키 8개(`sources.py:21-22`) | 그대로 |
+| `README:177` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:855-856`) | **고침(이 PR)** |
+| `README:94` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:551-554`), 높이는 고정 여부만 정함(`render.py:550`) | **고침(이 PR)** |
+| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:320-352`) | **고침(이 PR)**: 「sends operator commands to operations once」 |
+| `docs/process/ops-host-record.md:54` | 콘솔이 기동 때 git SHA 를 로그에 남김 | 콘솔 코드에 그런 줄이 없음(검색은 6.5 끝). 서비스 래퍼가 하는지는 [미확인] | AGENTS 8절 「기동 로그에 git SHA」 |
+| `labels.py:8-14` | motion·readiness 는 「no producer yet」 | operations 가 RobotStatus 에서 씀(`rescue_operations/ros_ingest.py:69-86`) | **고침(이 PR)**: 「copied by operations from RobotStatus」 |
