@@ -332,6 +332,7 @@ MISSION_REASONS = {
     # Automatic approach (#187): why TB-5 has not been sent, or that it failed (never retried by itself).
     'SUPPORT_POSE_BASIS_MISMATCH': ('{support} 위치의 지도 기준이 다름 — 자동 출동 보류', 'caution'),
     'SUPPORT_AT_TARGET': ('{support} 가 이미 대상 바로 옆 — 접근 지점을 정할 수 없음', 'caution'),
+    'SUPPORT_NOT_READY': ('{support} 준비 안 됨 — arm 필요', 'caution'),   # #196: no fresh READY status
     'APPROACH_FAILED': ('{support} 대상 접근 실패 — 다시 보내지 않음', 'alert'),
     'MODE_NOT_DISASTER': ('재난 모드가 아님 — {support} 출동 안 함', 'info'),
     'ALREADY_DISPATCHED': ('{support} 이미 출동함', 'info'),

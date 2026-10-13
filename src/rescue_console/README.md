@@ -206,6 +206,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 | `SUPPORT_EXIT_FAILED` | 「TB-5 출구 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
 | `SUPPORT_POSE_UNKNOWN` | 「TB-5 위치 모름」(주의색) | 같음 |
 | `SUPPORT_POSE_BASIS_MISMATCH` · `SUPPORT_AT_TARGET` | 「TB-5 위치의 지도 기준이 다름 — 자동 출동 보류」·「TB-5 가 이미 대상 바로 옆 — 접근 지점을 정할 수 없음」(주의색) | 같음 |
+| `SUPPORT_NOT_READY` | 「TB-5 준비 안 됨 — arm 필요」(주의색, #196: TB-5 상태가 없거나 READY·최신이 아님) | 같음 |
 | `APPROACH_FAILED` | 「TB-5 대상 접근 실패 — 다시 보내지 않음」(빨간색) | 같음 |
 | 자동 접근 판단(`MODE_NOT_DISASTER`·`ALREADY_DISPATCHED`·`UNKNOWN_TARGET`·`TARGET_NOT_CONFIRMED`·`TARGET_REVISION_STALE`·`TARGET_ALREADY_JUDGED`) | 「… — TB-5 출동 안 함/대기/다시 판단」 | 같음 |
 | `TARGET_TIME_BASIS_UNUSABLE` 등 대상 위치 시각 거절(#174) | 「대상 위치의 관측 시각을 쓸 수 없음(…)」 등(주의색) | 임무 띠 |
