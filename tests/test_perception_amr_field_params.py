@@ -87,7 +87,8 @@ class AmrPerceptionLaunchTests(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / 'src/rescue_bringup/launch/amr_perception.launch.py'
         description = runpy.run_path(str(path))['generate_launch_description']()
         arguments = {a.name: a for a in description.get_launch_arguments()}
-        self.assertTrue(TARGET_NAMES | {'tf_topic', 'tf_static_topic'} <= set(arguments))
+        from rescue_perception.target_utils import CLOCK_PARAMS
+        self.assertTrue(TARGET_NAMES | set(CLOCK_PARAMS) | {'tf_topic', 'tf_static_topic'} <= set(arguments))
         self.assertTrue(all(a.default_value is None for a in arguments.values()))
 
 

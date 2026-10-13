@@ -7,7 +7,10 @@
         rgb_depth_alignment_verified:=<true|false> rgb_rectified:=<true|false> \
         calibration_id:=<id> alignment_evidence_id:=<id> \
         sync_queue_size:=<RGB frames kept for a late Depth> sync_slop_ns:=<ns> camera_info_max_age_ns:=<ns> \
-        tf_topic:=<robot /tf> tf_static_topic:=<robot /tf_static>
+        tf_topic:=<robot /tf> tf_static_topic:=<robot /tf_static> \
+        clock_domain_id:=<domain> clock_backend:=<timesyncd|chrony|NONE> clock_max_age_ns:=<ns> \
+        clock_drift_ppm:=<ppm> clock_poll_period_s:=<s> \
+        sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
@@ -40,7 +43,20 @@ FIELD_ARGUMENTS = {
     'sync_queue_size': 'RGB/Depth messages kept for pairing; must cover the Depth delay at the RGB rate',
     'sync_slop_ns': 'largest RGB-Depth stamp difference paired (and the localization skew limit), ns',
     'camera_info_max_age_ns': 'largest CameraInfo-RGB stamp difference when the pair is processed, ns',
+    # Observation clock measured on this host, like the webcam (OPS-103 decision 1).
+    'clock_domain_id': 'Measured clock domain written into the observations (field value)',
+    'clock_backend': 'timesyncd, chrony or NONE (never measured: every observation UNKNOWN)',
+    'clock_max_age_ns': 'NTP reply older than this -> UNKNOWN',
+    'clock_drift_ppm': 'clock drift bound added after the measurement',
+    'clock_poll_period_s': 'clock measurement read period',
+    'sensor_host_clock_error_bound_ns': 'sync error bound of the host whose clock stamps the images (the camera '
+                                        'driver host, TB-6 Pi), measured there; 0 only when the driver runs here',
+    'sensor_host_clock_domain_id': 'clock domain of that host; the same value only when it is synced to the '
+                                   'same reference',
 }
+CLOCK_TYPES = {'clock_domain_id': str, 'clock_backend': str, 'clock_max_age_ns': int, 'clock_drift_ppm': float,
+               'clock_poll_period_s': float, 'sensor_host_clock_error_bound_ns': int,
+               'sensor_host_clock_domain_id': str}
 INTEGERS = ('sync_queue_size', 'sync_slop_ns', 'camera_info_max_age_ns')
 FLAGS = ('rgb_depth_alignment_verified', 'rgb_rectified')
 
@@ -68,6 +84,11 @@ def _nodes(context):
                                                'image_type', 'depth_transport')}
     parameters.update({name: _flag(name, arg(name)) for name in FLAGS})
     parameters.update({name: _integer(name, arg(name)) for name in INTEGERS})
+    for name, kind in CLOCK_TYPES.items():
+        try:
+            parameters[name] = kind(arg(name))
+        except ValueError as exc:
+            raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',
                  parameters=[parameters],
                  remappings=[('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))])]

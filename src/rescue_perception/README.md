@@ -76,6 +76,10 @@ ros2 launch rescue_bringup amr_perception.launch.py image_topic:=<RGB> depth_top
 
 RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. MapState 구독·map/odom TF 조회·TargetLocation publisher는 없다. 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
+### 관측 시계 (OPS-103)
+
+[작전 결정 2026-10-13] amr_target 관측의 시계는 코드 값(`clock_state='UNKNOWN'`·`clock_error_bound_ns=-1`)이 아니라 이 호스트의 측정값이다. 웹캠(#146)과 같은 방식이다(`rescue_contracts.clock_measurement.ClockSampler` + `webcam_clock`). `clock_domain_id`·`clock_backend`(timesyncd·chrony·NONE)·`clock_max_age_ns`·`clock_drift_ppm`·`clock_poll_period_s` 는 기본값 없는 파라미터이고, launch 인자로도 받는다. 프레임마다 그 촬영 시각(RGB stamp)에서 마지막 측정이 SYNCED 이고 유효하면 SYNCED·오차 상한(측정값 + 표본 뒤 drift)이고, 아니면 UNKNOWN 이다. 기동 직후 첫 측정 전과 `clock_backend: NONE` 은 UNKNOWN 이다. OAK-D stamp 는 카메라 드라이버가 도는 호스트(TB-6 Pi)의 시계라서, 그 호스트의 오차 상한과 시계 영역을 `sensor_host_clock_error_bound_ns`·`sensor_host_clock_domain_id`(기본값 없음, 로봇 쪽과 같은 이름)로 받는다. 오차 상한은 이 호스트 측정값 + 센서 호스트 값이다. 두 시계 영역이 다르면 SYNCED 가 아니다. 드라이버가 이 호스트에서 돌 때만 0 과 같은 영역을 쓰고, 그 근거가 기동 로그에 남는다. 하류(target_locator, 조정기)는 UNKNOWN 관측을 쓰지 않는다(C-03).
+
 ### 상대 좌표 출력
 
 [사용자 요구, 2026-10-12] 현재 좌표 계산 범위는 카메라 optical 기준과 로봇 base_link 기준까지다. 지도 좌표는 이후 mapping 연결에서 처리한다. 원 TargetObservation의 sensor_frame·sensor_position·관측 시각·ID·신뢰도·공분산은 카메라 기준으로 보존한다.

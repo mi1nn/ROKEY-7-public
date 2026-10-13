@@ -33,9 +33,6 @@ SETTINGS = {
     'camera_id': 'amr_rgbd',
     'model_id': 'survivor_yolo26n_640',
     'confirm_confidence_min': 0.8,
-    'clock_domain_id': 'UNCONFIGURED',
-    'clock_state': 'UNKNOWN',
-    'clock_error_bound_ns': -1,
     'publisher_id': 'amr.perception',
     'envelope_version': '0.1',
     'observation_validity_ns': 2000000000,
@@ -65,6 +62,53 @@ FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_top
                 'depth_transport': 'STRING'}
 
 
+# The observation clock is measured on this host like the webcam's (#146, OPS-103 decision 1):
+# typed parameters without defaults; the state is decided per frame by clock_binding.
+# The OAK-D stamp is the sensor host's clock (the camera driver host, TB-6 Pi), not this host's
+# (OPS-103 decision 1 addendum): its bound and domain are field values measured on that host (0 and the
+# same domain only when the driver runs here). Same names as the robot side (sensor_host_*).
+CLOCK_PARAMS = {'clock_domain_id': 'STRING', 'clock_backend': 'STRING', 'clock_max_age_ns': 'INTEGER',
+                'clock_drift_ppm': 'DOUBLE', 'clock_poll_period_s': 'DOUBLE',
+                'sensor_host_clock_error_bound_ns': 'INTEGER', 'sensor_host_clock_domain_id': 'STRING'}
+
+
+@dataclass(frozen=True)
+class SensorHostClock:
+    error_bound_ns: int
+    clock_domain_id: str
+
+
+def clock_values(values):
+    """The clock parameters checked: missing, empty or out-of-range -> ValueError."""
+    from .webcam_clock import clock_settings
+    missing = sorted(name for name in CLOCK_PARAMS if values.get(name) is None)
+    if missing:
+        raise ValueError(f'missing parameters: {missing}')
+    for name in ('clock_domain_id', 'sensor_host_clock_domain_id'):
+        if type(values[name]) is not str or not values[name].strip():
+            raise ValueError(f'{name} must be a non-empty STRING')
+    bound = values['sensor_host_clock_error_bound_ns']
+    if type(bound) is not int or bound < 0:
+        raise ValueError('sensor_host_clock_error_bound_ns must be an INTEGER >= 0')
+    clock_settings(values)
+    period = values['clock_poll_period_s']
+    if type(period) is not float or not math.isfinite(period) or period <= 0:
+        raise ValueError('clock_poll_period_s must be finite and positive')
+    return {name: values[name] for name in CLOCK_PARAMS}
+
+
+def clock_binding(binding, record, observed_ns, sensor_host):
+    """The source binding with the clock of the frame captured at ``observed_ns`` (SYNCED or UNKNOWN).
+
+    SYNCED needs this host's measurement fresh at the capture time and the sensor host in the same
+    clock domain; the bound is this host's plus the sensor host's."""
+    from .webcam_clock import observation_clock
+    state, bound = observation_clock(record, observed_ns)
+    if state != 'SYNCED' or sensor_host.clock_domain_id != binding.clock_domain_id:
+        return replace(binding, clock_state='UNKNOWN', clock_error_bound_ns=None)
+    return replace(binding, clock_state='SYNCED', clock_error_bound_ns=bound + sensor_host.error_bound_ns)
+
+
 def target_config(v, boot_id):
     validate_config(v)
     for key, default in SETTINGS.items():
@@ -81,12 +125,8 @@ def target_config(v, boot_id):
                                  'observations_topic', 'base_point_topic')]
     if len(topics) != len(set(topics)):
         raise ValueError('all input/output topics must differ')
-    bound = v['clock_error_bound_ns']
-    if bound < -1:
-        raise ValueError('clock_error_bound_ns must be >=0 or -1 (UNKNOWN)')
     binding = SourceBinding(v['robot_id'], v['camera_id'], boot_id, v['clock_domain_id'],
-        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], v['clock_state'],
-        bound if bound >= 0 else None)
+        v['rgb_stamp_semantics'], v['depth_stamp_semantics'], v['calibration_id'], 'UNKNOWN', None)
     alignment = AlignmentEvidence(v['alignment_evidence_id'], v['calibration_id'],
         v['rgb_optical_frame'], v['depth_optical_frame'], v['rgb_depth_alignment_verified'])
     depth = DepthPolicy(v['sync_slop_ns'], v['min_depth_m'], v['max_depth_m'],
