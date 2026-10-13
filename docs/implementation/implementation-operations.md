@@ -271,4 +271,11 @@ E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 �
 - 기존 `ReportLedger`(schema 1.0 보고: observation_id·source_robot·model_sha256 등)는 조정기 IDL 보고와 필드가 달라 그대로 넣을 수 없다. 없는 필드를 지어내지 않으려고 장부를 따로 두었다. 증거 바이트 저장·`PENDING_EVIDENCE` 는 이 장부에 없다(조정기 보고의 `evidence_refs` 는 지금 비어 있음).
 - 파라미터(기본값 없음): `db_path`(site_state DB 와 **다른 파일**), `reports_topic`, `receipts_topic`, `envelope_schema_version`, `publisher_id`. 의존에 `rosidl_runtime_py`(메시지 → dict) 추가.
 - 시험: `tests/test_operations_report_store.py`(9개, 수정 전 실패 커밋 뒤 구현).
-- NOT_RUN: ROS 실행(노드 기동·조정기와 주고받기), `operations.launch.py` 에 넣기(실기·배포 담당 요청), 관제에서 "보고 저장 대기" 해제 확인(완료 기준), 실기.
+- 문자열 파라미터는 숫자처럼 보이면 따옴표로 감싼다: `-p "envelope_schema_version:='0.1'"`. 따옴표가 없으면 ROS 가 `0.1` 을 DOUBLE 로 읽어 노드가 기동하지 않는다(`InvalidParameterTypeException`) [측정, 2026-10-13].
+- ROS 실행 [측정, 2026-10-13, ROS 시험 PC, 로봇과 다른 도메인·LOCALHOST]:
+  - 조정기 `publish_report` 와 같은 모양의 보고(TargetLocation 2개) → PERSISTED, `included_record_ids` == `record_ids`. 다른 envelope 으로 재전송 → 같은 receipt_id, DB 1행. 노드 재시작 뒤 재전송 → 같은 receipt_id.
+  - `record_ids` 빔·`report_id` 형식 오류 → REJECTED INVALID_INPUT, 같은 report_id 다른 내용 → REJECTED ID_CONTENT_CONFLICT, 모두 ERROR 로그·`included_record_ids` 빔·`has_persisted_at=false`.
+  - `message_to_ordereddict` 는 고정 길이 배열(`float64[4]`·`float64[9]`)을 리스트로 바꿔 canonical JSON 이 된다.
+  - 실제 조정기(`e3_coordinator_probe.py` 파라미터, `deployment.v2.example.json`)와 함께: VALID TargetLocation 1개 → 조정기 REPORT → 영수증 PERSISTED(24 ms) → 조정기 로그 `RECEIPT ... PERSISTED -> saved=True`, `TargetSnapshot.persisted_report_id` 채워짐, 재전송 없음.
+- 한계: 보고 하나는 canonical JSON 64 KiB(`schema.MAX_JSON_BYTES`) 안이어야 한다. 조정기는 같은 대상의 위치를 모두 담아 새 보고를 만들므로, 위치 1개 약 1.8 KB 기준 **34개째부터 REJECTED INVALID_INPUT** 이다 [측정, 2026-10-13].
+- NOT_RUN: `operations.launch.py` 에 넣기(실기·배포 담당 요청), 관제 웹에서 "보고 저장 대기" 해제와 출동 승인 버튼 활성(완료 기준 — 그 입력인 `TargetSnapshot.persisted_report_id` 까지만 확인), 실기.
