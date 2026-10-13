@@ -1,5 +1,33 @@
 # rescue_coordination
 
+임무 조정기(`mission_coordinator`)와 그 판단 코어다. 판단은 ROS 없이 시험하는 `CoordinatorCore`·`MissionCoordinator`·`SearchCoordinator` 가 하고, `ros_node.main()` 은 메시지만 옮긴다. 로봇을 움직이는 것은 로봇 실행기다. 조정기는 `cmd_vel`·Nav2 액션을 부르지 않는다.
+
+## 지금 하는 일 (2026-10-13)
+
+- **임무 상태**: 웹캠 `DISASTER_SIGN`(시각 기준이 선언된 것만)으로 NORMAL → DISASTER 가 된다. 바뀔 때마다 `SystemState` 를 낸다.
+- **로봇에 task 발급**(`ExecuteTask`) 과 `CommandLease` 갱신:
+  - 운영자 `START_SEARCH` 뒤 SCOUT 에 `SEARCH_AREA`.
+  - `DISPATCH_SUPPORT`·`CONTINUE_SEGMENT` 승인마다 SUPPORT 에 `MOVE_SEGMENT`.
+  - `REQUEST_RECHECK` 마다 SCOUT 에 `REOBSERVE_TARGET`.
+  - ACTIVE 는 실행기의 `TaskAdmission` 으로만 되고, 예약은 정지 확인이 있어야 푼다.
+- **대상과 보고**: `TargetLocation`(VALID 만)을 위치로 병합해 대상을 만든다. 바뀔 때 `TargetSnapshot` 을 내고, 대상 revision 마다 `RescueReport` 를 보낸다.
+  - 보고에는 아직 저장 확인이 안 된 위치만 싣는다(#139).
+  - report_node 의 `ReportReceipt` PERSISTED 가 와야 그 revision 의 `persisted_report_id` 가 생긴다. 그래야 AMR2 출동 승인(`DISPATCH_SUPPORT`)이 열린다.
+- **운영자 명령 관문**: `/rescue/operator_command`(SubmitOperatorCommand). 같은 command_id 는 첫 응답 그대로(`DUPLICATE`)다.
+- 확인 [측정 2026-10-13]: 로봇 없는 A·B 리허설에서 재난 신호부터 출동 승인 수락까지 7단계가 3회 모두 PASS 했다. 로봇 실행기·웹캠·AMR 카메라는 가짜였다. 자세한 것은 [구현 기록](../../docs/implementation/implementation-coordination.md)「지금 상태」에 있다.
+
+## 지금 안 되는 것
+
+- 실제 로봇은 `SEARCH_AREA` 만 받는다. 실행기 LIVE_ROS 가 그 외 종류를 거절하므로(`rescue_robot/task_site_runtime.py:256`) AMR2 출동과 AMR1 재확인은 실기에서 아직 움직이지 않는다(C1 보류).
+- `RETURN_HOME` 은 늘 거절된다. 복귀 위치가 없고, 로봇의 현재 지도 기준을 받는 곳도 없다.
+- 웹캠 감시 지정(SetCameraWatch)은 PR #148 머지 뒤에 생긴다. 그 전에는 `SET_CAMERA_WATCH` 가 `INVALID_INPUT` 이다.
+- 소실 후보 → 재관측 자동 예약 → 구출 판정 연결은 없다(C-11 5·7행, C4 보류).
+- 상태는 메모리 안에만 있다. 조정기를 다시 띄우면 발급 장부·대상·보고가 사라진다(영속 복구 없음).
+
+토픽·파라미터·`reason_code` 대응표는 [구현 기록](../../docs/implementation/implementation-coordination.md)「임무 조정기 ROS 노드」에, 정책 코어(후보 선택·배정·통로 점유)는 같은 문서 앞 절에 있다.
+
+## 현장 연동 (#132, 2026-10-12)
+
 ## 늦게 접속한 로봇의 세션 등록 (2026-10-12 현장 오류)
 
 [현장 관측] 중앙 NORMAL/IDLE 기동 후 로봇이 나중에 접속하면 초기 시계 미준비로
@@ -56,7 +84,9 @@ ExecuteTask, CommandLease의 IDL·토픽·의미를 변경하지 않았다. serv
 Python 회귀 확인만 실행했다. 실제 ROS 서비스/DDS·두 PC 시계·로봇 주행은 NOT_RUN이다.
 
 
-경로 증거 기반 후보 선택, 중복 임무 배정 방지, 대상 최신성/접근 확인, 통로 점유 상태의 Python 코어다. 현재 코드는 로봇을 움직이거나 실제 경로를 계산하지 않는다. 임무 조정기 ROS 노드(얇은 버전, `mission_coordinator`)는 `ExecuteTask` goal 을 보낼 뿐이고, 토픽·파라미터·`reason_code` 대응표는 [구현 기록](../../docs/implementation/implementation-coordination.md)「임무 조정기 ROS 노드」에 있다.
+## 정책 코어
+
+경로 증거 기반 후보 선택, 중복 임무 배정 방지, 대상 최신성/접근 확인, 통로 점유 상태의 Python 코어다. 코어 자체는 로봇을 움직이거나 실제 경로를 계산하지 않는다.
 
 API와 시험용 fixture는 [`tests/test_coordination.py`](../../tests/test_coordination.py), 출처·계약·미구현은 [구현 기록](../../docs/implementation/implementation-coordination.md)을 참고한다. 외부 증거를 생성하는 어댑터와 지도 자동 접근 허가가 연결되기 전에는 물리 로봇 실행 계층으로 사용하지 않는다.
 
