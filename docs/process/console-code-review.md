@@ -64,11 +64,11 @@ updated: 2026-10-13
 | --- | --- | --- |
 | 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:438-459` |
 | 정지 버튼 | 늘 꺼져 있다. `RequestStop` 경로는 아직 어디에도 없고, 위험하면 현장 비상 정지 장치를 쓴다 | `view.py:58-63`, AGENTS.md 2절 「현장 정지 수단을 웹 연결에만 의존시키지 않는다」 |
-| ⑤ 계속(구간 승인) | 현장 설정이 `support_dispatch: AUTO` 라 출동 승인·계속 단계가 없다. AUTO 면 출동 승인 버튼 대신 「TB-5 자동 출동」 상태만 보인다 | `config/field/search_area.field.json:29`, `view.py:533-538`, 결정 1B(PR #187) |
+| ⑤ 계속(구간 승인) | 현장 설정이 `support_dispatch: AUTO` 라 출동 승인·계속 단계가 없다. AUTO 면 출동 승인 버튼 대신 「TB-5 자동 출동」 상태만 보인다 | `config/field/search_area.field.json:29`, `view.py:605-611`, 결정 1B(PR #187) |
 | 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:143-144` |
 | 지도 | 기준 지도(`--map`) 또는 운영 PC 가 SLAM 지도를 파일로 쓴 실시간 지도(`--live-map`) 중 하나 | [관제 웹 README](../../src/rescue_console/README.md) 「지도」·「실시간 SLAM 지도」 |
 
-설계도는 main `c79097d` 기준이라 그 뒤의 자동 출동(#187)이 반영돼 있지 않다(그림 안 범례). #225(시나리오 결정: 지진 감지로 TB-6 자동 출발)가 머지되면 「수색 시작」 버튼의 뜻도 바뀔 수 있다 — 리뷰 전에 확인한다.
+설계도는 main `c79097d` 기준이라 그 뒤의 자동 출동(#187)과 자동 수색 시작(#228)이 반영돼 있지 않다(그림 안 범례). 관제 웹을 `--search-start AUTO` 로 띄우면 지진 감지가 곧 TB-6 수색 시작이고, 「수색 시작」 버튼 대신 「TB-6 자동 출발」 상태가 보인다([README](../../src/rescue_console/README.md) `--search-start`). 같은 이유로 그림의 「② 출동」 화살표는 현장 설정(둘 다 AUTO)에서는 운영자가 누르지 않는다.
 
 ## 2. 설계 (Design) — [관제 웹 설계 명세](../design/console-spec.md)
 
@@ -81,54 +81,44 @@ updated: 2026-10-13
 
 ## 3. 코드 주석과 README (Code)
 
-튜터 요구: Program·Node·Function·줄 단위 주석, README. 측정 도구 `scripts/check_comments.py`(이 PR)로 쟀다 [측정, 2026-10-13, `bd4bfa5`]. 함수는 본문 5줄 이상만 센다. 줄 단위 주석은 기계로 판단하지 않고 개수만 보인다.
+튜터 요구: Program·Node·Function·줄 단위 주석, README. 사용자 지시(2026-10-13): "코드를 보면서 리뷰를 할테니까 주석을 과하지 않은 수준으로 세세하게 작성을 해라." 그래서 이 PR 이 관제 웹 코드에 docstring 과 줄 주석을 더했다. **코드 글자는 바꾸지 않았다** — docstring·주석을 뺀 AST 와 줄 단위 비교가 `origin/main` 과 같다(PR 코멘트에 커밋별 확인).
 
-| 파일 | 프로그램(모듈 docstring) | 노드·클래스 | 함수 | `#` 주석 / 코드 줄 |
+측정 도구 `scripts/check_comments.py`(이 PR). 함수는 본문 5줄 이상만 센다. 줄 단위 주석은 기계로 판단하지 않고 개수만 보인다. 「전」은 `bd4bfa5`, 「후」는 이 브랜치(주석 + `origin/main` merge, `32e8ee1`)다 [측정, 2026-10-13].
+
+| 파일 | 프로그램 | 노드·클래스 전 → 후 | 함수 전 → 후 | `#` 주석 / 코드 줄 전 → 후 |
 | --- | --- | --- | --- | --- |
-| `__main__.py` | 있음 | — | 0/1 | 0 / 69 |
-| `accounts.py` | 있음 | 2/2 | 1/12 | 8 / 243 |
-| `app.py` | 있음 | — | 6/17 | 23 / 268 |
-| `commands.py` | 있음 | 1/1 | 6/6 | 10 / 127 |
-| `labels.py` | 있음 | — | 1/1 | 0 / 58 |
-| `mapimage.py` | 있음 | 1/2 | 7/9 | 10 / 241 |
-| `render.py` | 있음 | — | 14/23 | 25 / 942 |
-| `sources.py` | 있음 | — | 3/3 | 4 / 54 |
-| `throttle.py` | 있음 | 0/1 | 1/2 | 4 / 46 |
-| `view.py` | 있음 | 1/1 | 11/16 | 51 / 513 |
-| 합계 (11 파일, `__init__.py` 포함) | 11/11 | 5/7 | 50/90 | 135 / 2562 |
+| `__main__.py` | 있음 | — | 0/1 → 1/1 | 0/69 → 6/77 |
+| `accounts.py` | 있음 | 2/2 → 2/2 | 1/12 → 12/12 | 8/243 → 22/296 |
+| `app.py` | 있음 | — | 6/17 → 19/19 | 23/268 → 45/325 |
+| `commands.py` | 있음 | 1/1 → 1/1 | 6/6 → 6/6 | 10/127 → 23/127 |
+| `labels.py` | 있음 | — | 1/1 → 1/1 | 0/58 → 1/60 |
+| `mapimage.py` | 있음 | 1/2 → 2/2 | 7/9 → 9/9 | 10/241 → 32/255 |
+| `render.py` | 있음 | — | 14/23 → 24/24 | 25/942 → 26/1043 (그 밖에 JS 함수마다 `//` 한 줄) |
+| `sources.py` | 있음 | — | 3/3 → 3/3 | 4/54 → 12/58 |
+| `throttle.py` | 있음 | 0/1 → 1/1 | 1/2 → 2/2 | 4/46 → 5/57 |
+| `view.py` | 있음 | 1/1 → 1/1 | 11/16 → 18/18 | 51/513 → 86/583 |
+| 합계 | 11/11 | 5/7 → 7/7 | 50/90 → 95/95 | 135/2562 → 258/2882 (`__init__.py` 1줄 포함) |
 
-docstring 이 빠진 42곳(`파일:줄`):
+코드 줄 수가 늘어난 것은 `origin/main` 의 새 기능(출구 QR 표시, `--search-start`, 사유 문구)과 여러 줄 docstring 이다. 빠진 docstring 은 0곳이다: `python3 -I scripts/check_comments.py --strict src/rescue_console` exit 0.
 
-| 파일 | 함수·클래스 |
-| --- | --- |
-| `__main__.py` | `main`:17 |
-| `accounts.py` | `hash_password`:56, `verify_password`:64, `create`:109, `open`:138, `_connect`:150, `add`:191, `update`:203, `delete`:233, `__enter__`:255, `__exit__`:263, `main`:279 |
-| `app.py` | `_check_sources`:36, `robot_name_map`:76, `harden`:122, `login_required`:159, `wrapped`:161, `admin_required`:172, `failed`:182, `login`:200, `map_png`:246, `accounts_create`:294, `accounts_change`:308 |
-| `mapimage.py` | `MapImage`:128, `_scalar`:33, `__init__`:199 |
-| `render.py` | `_short`:71, `_elapsed`:83, `_pose`:94, `_battery`:268, `_robots`:279, `_targets`:307, `_event_text`:347, `_events`:357, `_history`:389 |
-| `throttle.py` | `LoginThrottle`:21, `failed`:43 |
-| `view.py` | `_section`:118, `_latest_reports`:127, `_robots`:217, `_site_events`:258, `_events`:268 |
+**주석을 쓴 기준.** 무엇을 하는지는 코드가 말한다. 주석은 **왜**와 **실패하면 무엇을 돌려주는가**를 적었다. 결정 번호·계약 ID 는 저장소에 이미 있는 것만 인용했다.
 
-다시 재는 법: `python3 -I scripts/check_comments.py src/rescue_console` (보고, exit 0). 다 채웠는지 확인: `--strict` (빠진 곳이 있으면 exit 1).
-
-**채우는 기준.** 무엇을 하는지는 코드가 말한다. 주석은 **왜**와 **실패하면 무엇을 돌려주는가**를 적는다.
-
-| 수준 | 적을 것 | 이미 잘 된 예 |
+| 수준 | 적은 것 | 리뷰에서 보여 줄 예 |
 | --- | --- | --- |
-| 프로그램 | 이 파일이 맡은 일, 입력·출력, 하지 않는 일 | `commands.py:1-8`, `app.py:1-6` |
-| 노드·클래스 | 책임과 내부 상태 | `view.py` `ConsoleError` |
-| 함수 | 입력 → 출력, 실패할 때의 반환·예외, 근거(결정 번호·계약 ID) | `commands.py` 함수 6개 모두 |
-| 줄 | 임계값·상수의 출처(누가 언제 정했나), 의외의 분기 이유 | `view.py:57`(`HELD_COMMANDS` 위 「작전 2026-10-12, #115」) |
+| 프로그램 | 이 파일이 맡은 일, 입력·출력, 하지 않는 일 | `commands.py`, `app.py`, `sources.py` 첫 docstring |
+| 노드·클래스 | 책임과 내부 상태 | `accounts.py` `_Transaction`, `throttle.py` `LoginThrottle`, `mapimage.py` `MapImage`·`LiveMap` |
+| 함수 | 입력 → 출력, 실패할 때의 반환·예외, 이유 | `view.py` `build_view`·`compose_stage`·`_gate`, `app.py` `current_view` |
+| 줄 | 임계값·상수의 출처, 보안 선택(CSRF 상수 시간 비교, 세션 무효화, 읽기 전용 열기), 의외의 분기 | `view.py` 관문 순서 1~4, `app.py` 세션 쿠키 설정, `render.py` JS `poll`·`send` 위 `//` |
 
-**README:** [`src/rescue_console/README.md`](../../src/rescue_console/README.md)(246줄)에 실행 명령, 인자, 화면 칸, 명령 패널, 지도·실시간 지도, 사유 문구 표가 있다. 리뷰에서는 「실행 (로봇 없이, E2)」 절을 그대로 보여 주면 된다.
+**README:** [`src/rescue_console/README.md`](../../src/rescue_console/README.md)에 실행 명령, 인자, 화면 칸, 명령 패널, 지도·실시간 지도, 사유 문구 표가 있다. 리뷰에서는 「실행 (로봇 없이, E2)」 절을 그대로 보여 주면 된다. 코드와 달랐던 3곳(읽기 함수 개수, 한 줄로 쌓이는 조건, 갱신 실패 문구)은 이 PR 에서 고쳤다.
 
 ## 4. 시험과 검증 (Test/Validation)
 
 | 종류 | 무엇 | 결과 | 위치 |
 | --- | --- | --- | --- |
-| 시험 코드 | `tests/test_console_*.py` 10 파일, 198개 | Flask 3.1.3 설치 상태에서 198 OK, skip 0, exit 0 [측정, 2026-10-13, Python 3.13] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
+| 시험 코드 | `tests/test_console_*.py` 10 파일 | Flask 3.1.3 설치 상태에서 `bd4bfa5` 198 OK(skip 0) [측정, 2026-10-13, Python 3.13, 로그]. 이 브랜치(`32e8ee1`, main merge 뒤) 209 OK [측정, 2026-10-13] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
 | CI | `foundation`(Python 3.10 ~ 3.12) | 이 PR 전에는 CI 에 Flask 가 없어 웹 경로 시험 23건이 skip(NOT_RUN)이었다. 이 PR 이 `flask==3.1.3` 설치를 더했고, 커밋 `484c492` 의 3.10 작업에서 `Ran 1514 tests` · `OK (skipped=15)` [측정, 2026-10-13]. skip 15 는 로컬 Flask 환경의 skip 15(NumPy·OpenCV·PyYAML·ROS 없음)와 수가 같다. CI 쪽 이유별 내역은 로그에 없어 [미확인] | [.github/workflows/foundation.yml](../../.github/workflows/foundation.yml) |
-| 스크린샷 | 로그인, 관제 화면(합성 데이터) | 2장 | [console-2026-10-13](../evidence/console-2026-10-13/README.md) |
+| 스크린샷 | 로그인, 관제 화면(합성 데이터, `bd4bfa5` 코드 — 출구 QR 표시 전) | 2장 | [console-2026-10-13](../evidence/console-2026-10-13/README.md) |
 | 현장 기록 | 운영 PC 에서 관제 웹 기동(장부 없이 #147), `--camera` 로 MJPEG 수신(#158) | PASS [측정, 2026-10-13 12:42·12:54] | [10-13 운영 PC 기록](../evidence/field-2026-10-13-operations-host.md) 25·27줄 |
 | 영상 | 화면 녹화 | 없음 | NOT_RUN |
 
@@ -138,21 +128,21 @@ docstring 이 빠진 42곳(`파일:줄`):
 | --- | --- | --- |
 | `test_console_web.py` | 42 | 모든 페이지에 로그인 필요, 계정 관리는 ADMIN 만, 데이터 경로는 읽기 전용(GET) |
 | `test_console_commands.py` | 41 | 버튼 5종만 operations 로 한 번 보냄, 요청 필드가 조정기 관문과 같음, 재시도 없음, 답을 그대로 보임 |
-| `test_console_view.py` | 41 | 장부 → 화면 모델이 1:1, 읽기 전용, Q-20 규칙표 |
+| `test_console_view.py` | 42 | 장부 → 화면 모델이 1:1, 읽기 전용, Q-20 규칙표 |
 | `test_console_map.py` | 20 | PGM → PNG 정확, 지도 좌표 → 픽셀, 위치를 지어내지 않음 |
-| `test_console_reasons.py` | 19 | `SystemState.reason` 코드를 쉬운 한국어로 |
+| `test_console_reasons.py` | 26 | `SystemState.reason` 코드를 쉬운 한국어로 |
 | `test_console_accounts.py` | 9 | admin/customer 계정, admin 이 customer 를 관리 |
 | `test_console_history.py` | 8 | 명령·오류 기록(거절 포함)을 operations 가 기록한 그대로 |
-| `test_console_live_map.py` | 8 | 실시간 지도 파일이 바뀌면 다시 읽음, 없음·낡음·읽기 실패를 숨기지 않음 |
+| `test_console_live_map.py` | 11 | 실시간 지도 파일이 바뀌면 다시 읽음, 없음·낡음·읽기 실패를 숨기지 않음 |
 | `test_console_throttle.py` | 7 | 같은 이름·같은 클라이언트의 연속 로그인 실패를 잠시 막음 |
 | `test_console_labels.py` | 3 | 계약 값마다 한국어 표시가 있고 모르는 코드는 그대로 보임 |
 
-개수는 `def test_` 를 센 값이다 [계산].
+개수는 `32e8ee1` 에서 `def test_` 를 센 값이다(합계 209) [계산].
 
 ## 5. 예상 질문과 답
 
 1. **웹은 왜 DB 에 쓰지 않나? 읽기는 왜 직접 하나?** SQLite 파일마다 쓰는 프로세스는 operations 하나다. 나머지는 읽기 전용으로만 연다([DB 스키마](../design/db-schema.md) 9줄). 그래서 명령 기록도 웹이 아니라 operations 가 남긴다. 읽기를 HTTP 로 감싸지 않은 것은 표시만 하는 데 프로세스를 하나 더 두지 않으려는 것이다. 계정 DB 만 웹이 소유한다.
-2. **버튼을 꺼 두면 안전한가?** 아니다. 버튼을 켜고 끄는 것은 조정기 관문을 화면에 비춘 것뿐이다. 진짜 관문은 조정기다(`view.py:526-529` `command_gates` docstring 「A mirror of the coordinator gate」, 버튼별 관문 `_gate` `:475`, [관제 웹·DB 계획](../design/console-and-db-plan.md) 4절). 그래서 버튼이 켜져 있어도 조정기가 거절할 수 있고, 그 거절 사유를 그대로 보인다.
+2. **버튼을 꺼 두면 안전한가?** 아니다. 버튼을 켜고 끄는 것은 조정기 관문을 화면에 비춘 것뿐이다. 진짜 관문은 조정기다(`view.py:597-601` `command_gates` docstring 「A mirror of the coordinator gate」, 버튼별 관문 `_gate` `:530`, [관제 웹·DB 계획](../design/console-and-db-plan.md) 4절). 그래서 버튼이 켜져 있어도 조정기가 거절할 수 있고, 그 거절 사유를 그대로 보인다.
 3. **명령 응답이 늦거나 끊기면?** 다시 보내지 않는다(`commands.py:1-7`, AGENTS.md 7절). operations 는 시간 초과 때 `accepted` 를 넣지 않고 503·504 를 준다. 조정기가 실제로 받았을 수 있기 때문이다. 웹은 「전달 여부 모름」으로 보이고, 같은 `command_id` 를 다시 보내면 조정기가 처음 답을 DUPLICATE 로 돌려준다.
 4. **정지 버튼은 왜 없나?** 현장 정지 수단을 웹 연결에 기대지 않는다(AGENTS.md 2절). 웹·Wi-Fi 가 끊기면 정지도 안 되기 때문이다. `RequestStop` 별도 경로는 아직 구현되지 않았고, 위험하면 현장 비상 정지 장치를 쓴다(`view.py:62`).
 5. **화면은 어떻게 갱신하나? 왜 WebSocket 이 아닌가?** 브라우저가 1초마다 `/fragment` 를 가져온다(`render.py:14`). 표준 라이브러리와 Flask 만으로 되고, 끊겨도 다음 폴링에서 복구된다. 영상 `<img>` 는 바뀌는 조각 밖에 있어서 폴링이 영상을 끊지 않는다. SSE(IF-081)는 계획만 있다.
@@ -163,14 +153,16 @@ docstring 이 빠진 42곳(`파일:줄`):
 
 ## 6. 리뷰 전 확인
 
-- [ ] docstring 42곳 채우기(관제·화면 레인 PR). `python3 -I scripts/check_comments.py --strict src/rescue_console` 가 exit 0.
-- [ ] 명세를 쓰며 찾은 코드 문제 2개(코드 읽기, 시험 없음) — 리뷰에서 튜터가 먼저 찾기 전에 고치거나 「알려진 한계」로 말한다:
-  - `accounts.py:274` `exc_type is sqlite3.Error` 는 하위 클래스(`OperationalError` 등)와 맞지 않아, 계정 DB 트랜잭션 중 sqlite 오류가 `STORAGE_ERROR`(503) 대신 Flask 500 이 된다. 중복 계정은 미리 검사하므로 DB 잠김·디스크 오류 때의 경로다.
-  - `render.py:959` `setInterval(poll, 1000)` 은 앞 요청을 기다리지 않는다. 서버가 1초 넘게 늦으면 늦게 온 옛 조각이 새 조각을 덮을 수 있다(다음 폴링에서 바로잡힘).
+- [x] docstring 채우기 — 42곳 모두, 줄 주석까지(이 PR). `python3 -I scripts/check_comments.py --strict src/rescue_console` exit 0.
+- [x] 관제 웹 README 낡은 3곳, `setup.py` 설명("no commands"), `labels.py` 의 "no producer yet" 주석 — 이 PR 에서 고침.
+- [x] 이 PR 의 CI(`foundation`, Flask 포함) 초록, 3.10 에서 skip 15 로 줄어 웹 경로 시험이 실제로 돎(4절).
+- [ ] 코드를 읽다 찾은 문제 4개(코드 읽기, 시험 없음). 고치려면 코드 변경이라 이 PR 에 넣지 않았다. 리뷰에서 튜터가 먼저 찾기 전에 고치거나 「알려진 한계」로 말한다:
+  - `accounts.py:348` `exc_type is sqlite3.Error` 는 하위 클래스(`OperationalError` 등)와 맞지 않아, 계정 DB 트랜잭션 중 sqlite 오류가 `STORAGE_ERROR`(503) 대신 Flask 500 이 된다. 중복 계정은 미리 검사하므로 DB 잠김·디스크 오류 때의 경로다.
+  - `render.py:1066` `setInterval(poll, 1000)` 은 앞 요청을 기다리지 않는다. 서버가 1초 넘게 늦으면 늦게 온 옛 조각이 새 조각을 덮을 수 있다(다음 폴링에서 바로잡힘).
+  - `app.py` CSRF 비교가 `session.get('csrf', '-')` 라서 토큰이 없는 세션에서는 폼 `csrf=-` 가 통과한다. 로그인한 세션에는 늘 토큰이 있어 `POST /commands` 와 계정 관리에는 해당 없고, 로그인 전 `POST /login`·`/logout` 의 사이트 간 요청 위조 방어가 빈다.
+  - `labels.py` 에 `RobotStatus` 의 `DEGRADED` 낱말이 없어 화면에 코드 그대로 보인다.
 - [ ] 기동 로그에 git SHA 가 없다(AGENTS.md 8절 「노드는 기동할 때 git SHA … 를 로그에 남긴다」, [명세](../design/console-spec.md) 6.5). 웹은 ROS 노드가 아니지만 같은 이유로 남길지 정한다.
-- [ ] 관제 웹 레인 문서의 낡은 곳 고치기([명세](../design/console-spec.md) 끝 「문서와 코드의 차이」): `src/rescue_console/README.md` 14·93·175줄, `setup.py` 20줄 설명("no commands"), `labels.py:8-12` 주석. `docs/design/console-and-db-plan.md`·`docs/process/ops-db-tables.md`·`docs/design/db-schema.md` 의 낡은 곳은 작전 레인에 요청.
-- [ ] 이 PR 의 CI(`foundation`, Flask 포함)가 초록인지. 웹 경로 시험 23건이 3.10 ~ 3.12 에서 실제로 돌았는지 로그로 확인.
-- [ ] 현장에서 찍을 것: 실제 operations·조정기에 연결해 명령 접수·거절이 보이는 화면, 웹캠 영상이 나오는 화면, `--live-map` 실시간 지도 화면. 날짜·커밋과 함께 `docs/evidence/` 에.
-- [ ] 화면 녹화 1개: 지진 표시 → 수색 시작 → 대상 표시 → 자동 출동 → 판정.
-- [ ] #225 머지 여부에 따라 「수색 시작」 버튼 설명 갱신.
-- [ ] 설명 순서 연습: 설계도(1절) → 명세 순서도 → 코드(VS Code) → 시험·스크린샷(4절).
+- [ ] 작전 레인 문서의 낡은 곳(`docs/design/console-and-db-plan.md`·`docs/process/ops-db-tables.md`·`docs/design/db-schema.md`, [명세](../design/console-spec.md) 끝 「문서와 코드의 차이」)은 작전 레인에 요청.
+- [ ] 스크린샷 다시 찍기: 지금 2장은 `bd4bfa5` 코드라 출구(QR) 표시와 「TB-6 자동 출발」 상태가 없다. 현장에서는 실제 operations·조정기에 연결해 명령 접수·거절이 보이는 화면, 웹캠 영상이 나오는 화면, `--live-map` 실시간 지도 화면을 날짜·커밋과 함께 `docs/evidence/` 에.
+- [ ] 화면 녹화 1개: 지진 표시 → 자동 수색 시작 → 대상 표시 → 자동 출동 → 판정.
+- [ ] 설명 순서 연습: 설계도(1절) → 명세 순서도 → 코드(VS Code, 0절 파일 순서) → 시험·스크린샷(4절).
