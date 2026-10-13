@@ -92,6 +92,8 @@ ROBOT_KEYS = {
         ('lidar_plane_m', F), ('top_m', F), ('floor_min_points', I), ('confirm_frames', I),
         ('position_tolerance_m', F), ('merge_radius_m', F), ('process_period_s', F), ('max_cloud_age_s', F),
         ('stride', I))},
+    # the judgement drawn on the robot camera (OPS-189): small JPEG, RGB frame within slop_ns of the cloud
+    'passage.view.width': I, 'passage.view.quality': I, 'passage.view.slop_ns': I, 'passage.view.font_path': S,
 }
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
 # Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
@@ -110,6 +112,9 @@ SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
 PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
+# This robot's RGB preview (the camera the depth is aligned to) and its CameraInfo for the camera view
+# (OPS-189/198); both or neither: without them that robot has no view
+PASSAGE_VIEW_KEYS = {'passage.view_image_topic': S, 'passage.view_camera_info_topic': S}
 DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
 PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
@@ -282,6 +287,10 @@ def load_field(path):
     if not robot['passage.min_height_m'] < o['lidar_plane_m'] < robot['passage.max_height_m'] < o['top_m']:
         raise FieldLaunchError('robot.passage heights must be min_height_m < overhead.lidar_plane_m < max_height_m '
                                '< overhead.top_m')
+    if not 16 <= robot['passage.view.width'] or not 1 <= robot['passage.view.quality'] <= 100 or (
+            robot['passage.view.slop_ns'] < 0 or not robot['passage.view.font_path'].startswith('/')):
+        raise FieldLaunchError('robot.passage.view needs width >= 16, quality 1..100, slop_ns >= 0 and an absolute '
+                               'font_path')
     if min(o['floor_min_points'], o['confirm_frames'], o['stride']) < 1 or min(
             o['position_tolerance_m'], o['merge_radius_m'], o['process_period_s'], o['max_cloud_age_s']) <= 0:
         raise FieldLaunchError('robot.passage.overhead counts must be at least 1 and distances and times positive')
@@ -302,6 +311,8 @@ def _robot_map_modes(robots):
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
+        if any(key in section for key in PASSAGE_VIEW_KEYS):
+            keys.update(PASSAGE_VIEW_KEYS)
         _section(robots, robot_id, keys)
         for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
             if section[key] <= 0:
@@ -672,7 +683,13 @@ def overhead_passage_launch_values(deployment, *, field, robot_id):
         'clock_error_bound_ns': section['task.live.sensor_host_clock_error_bound_ns'],
         'clearance_m': p['max_height_m'], 'floor_noise_m': p['min_height_m'], 'front_near_m': float(p['front_m'][0]),
         'front_far_m': float(p['front_m'][1]), 'half_width_m': p['half_width_m'], 'min_points': p['min_points'],
-        **{k[len('passage.overhead.'):]: v for k, v in r.items() if k.startswith('passage.overhead.')}}
+        **{k[len('passage.overhead.'):]: v for k, v in r.items() if k.startswith('passage.overhead.')},
+        **{'view_' + k[len('passage.view.'):]: v for k, v in r.items() if k.startswith('passage.view.')},
+        # '' = not in the field file: the node says view off
+        **{k[len('passage.'):]: section.get(k, '') for k in PASSAGE_VIEW_KEYS}}
+    for key in PASSAGE_VIEW_KEYS:
+        if section.get(key) is not None and not section[key].startswith(ns + '/'):
+            raise FieldLaunchError(f'robots.{robot_id}.{key} must be a topic of this robot ({ns}/...)')
     return {'namespace': ns, 'tf_topic': robot.readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
             'parameters': parameters}
 

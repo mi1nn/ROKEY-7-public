@@ -16,7 +16,8 @@ except ImportError:   # installed-wheel runs without NumPy skip the point tests
     np = None
 
 from rescue_perception.overhead import (OVERHEAD_PARAMS, OverheadConfirmer, OverheadPolicy, PassageRegistry, Reading,
-                                        cloud_xyz, judge, overhead_values, to_frame)
+                                        cloud_xyz, free_space_polygon, judge, nearest_image, overhead_values,
+                                        render_view, to_frame, view_label, view_size_checked)
 
 POLICY = OverheadPolicy(clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                         lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
@@ -60,6 +61,8 @@ class JudgeTests(unittest.TestCase):
     def test_tunnel_at_or_above_the_clearance_is_passable(self):
         r = judge(scene(self.floor, grid(0.6, 0.8, 0.47)), POLICY)
         self.assertEqual(('PASSABLE', 0.47), (r.state, round(r.lowest_m, 3)))
+        # the free space under it for the camera view (OPS-189): x span of the structure, lowest seen
+        self.assertEqual((0.6, 0.8, 0.47), (round(r.x0, 6), round(r.x1, 6), r.seen_m))
         self.assertAlmostEqual(0.7, r.x, places=6)
         self.assertAlmostEqual(0.0, r.y, places=6)
 
@@ -74,6 +77,7 @@ class JudgeTests(unittest.TestCase):
     def test_no_floor_seen_under_it_is_unknown_never_passable(self):
         r = judge(grid(0.6, 0.8, 0.47), POLICY)
         self.assertEqual(('UNKNOWN', None, 'NO_FLOOR_SEEN'), (r.state, r.lowest_m, r.reason))
+        self.assertEqual(0.47, r.seen_m)   # drawn grey up to what was seen; no height is claimed
         far_floor = grid(0.4, 0.5, 0.0)   # floor seen only nearer than the structure
         self.assertEqual('UNKNOWN', judge(scene(far_floor, grid(0.7, 0.9, 0.47)), POLICY).state)
 
@@ -177,11 +181,76 @@ class RegistryTests(unittest.TestCase):
                          sorted((i['map_revision'], i['x']) for i in reg.items()))
 
 
+class ViewTests(unittest.TestCase):
+    """Judgement drawn on the robot camera (owner decision OPS-189): the free space under the structure."""
+    K = (100.0, 0.0, 50.0, 0.0, 100.0, 50.0, 0.0, 0.0, 1.0)
+    BASE_TO_OPTICAL = ((0.0, 0.244, 0.0), (0.5, -0.5, 0.5, 0.5))   # inverse of camera 0.244 m up looking ahead
+
+    def test_nearest_image_within_the_slop(self):
+        images = [(1_000, 'a'), (1_030, 'b'), (1_070, 'c')]
+        self.assertEqual('b', nearest_image(images, 1_040, 20))
+        self.assertIsNone(nearest_image(images, 1_100, 20))
+        self.assertIsNone(nearest_image([], 1_000, 20))
+
+    @unittest.skipIf(np is None, 'NumPy not installed')
+    def test_free_space_polygon_projects_the_box_under_the_structure(self):
+        r = Reading('PASSABLE', 0.47, 0.7, 0.0, '', x0=1.0, x1=1.0, seen_m=0.47)
+        poly = free_space_polygon(r, POLICY, 0.244, self.BASE_TO_OPTICAL, self.K, scale=1.0)
+        # at 1 m ahead: floor 0.244 m below the camera -> v = 50 + 100*0.244 = 74.4; 0.47 m -> 0.226 up -> 27.4
+        us, vs = [u for u, _ in poly], [v for _, v in poly]
+        self.assertEqual((30, 70), (min(us), max(us)))   # half width 0.2 m -> 20 px
+        self.assertEqual((50 - 0, 74), (min(vs), max(vs)))   # drawn up to the given height (camera level here)
+        half = free_space_polygon(r, POLICY, 0.244, self.BASE_TO_OPTICAL, self.K, scale=0.5)
+        self.assertEqual((15, 35), (min(u for u, _ in half), max(u for u, _ in half)))
+
+    def test_the_view_image_must_be_its_camera_info_size(self):
+        # the small preview stream is projected with its own CameraInfo (OPS-198): another size is refused
+        info = NS(width=250, height=250)
+        self.assertIsNone(view_size_checked((250, 250, 3), info))
+        for shape in ((704, 704, 3), (250, 300, 3)):
+            with self.subTest(shape=shape), self.assertRaises(ValueError):
+                view_size_checked(shape, info)
+
+    def test_labels_match_the_map_words(self):
+        self.assertEqual(('통과 가능 ↑0.47 m', (0, 200, 0)), view_label('PASSABLE', 0.47, confirmed=True))
+        self.assertEqual(('통과 불가 ↑0.40 m', (0, 0, 220)), view_label('BLOCKED', 0.4, confirmed=True))
+        # one wording for the map and the camera (OPS-196): UNKNOWN 「판정 불가」; only the camera has
+        # 「판정 중」, a place still counting its agreeing frames
+        self.assertEqual(('판정 불가', (160, 160, 160)), view_label('UNKNOWN', None, confirmed=True))
+        for state, lowest in (('PASSABLE', 0.47), ('UNKNOWN', None), ('BLOCKED', 0.4)):
+            self.assertEqual(('판정 중', (160, 160, 160)), view_label(state, lowest, confirmed=False))
+
+    @unittest.skipIf(np is None, 'NumPy not installed')
+    def test_render_view_paints_the_polygon_and_writes_a_jpeg(self):
+        try:
+            import cv2
+        except ImportError:
+            self.skipTest('OpenCV not installed: view NOT_RUN')
+        from pathlib import Path
+        fonts = sorted(Path('/usr/share/fonts').glob('**/NotoSansCJK-*.ttc'))
+        if not fonts:
+            self.skipTest('no CJK font: view text NOT_RUN')
+        bgr = np.full((100, 100, 3), 255, dtype=np.uint8)
+        jpeg = render_view(bgr, [(30, 50), (70, 50), (70, 74), (30, 74)], '통과 가능 ↑0.47 m', (0, 200, 0),
+                           width=50, quality=90, font_path=str(fonts[0]))
+        image = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
+        self.assertEqual((50, 50, 3), image.shape)
+        b, g, r = (int(c) for c in image[31, 25])   # inside the polygon (scaled by half)
+        self.assertTrue(g > 200 and r < 200 and b < 200, (b, g, r))
+        self.assertTrue(all(int(c) > 240 for c in image[45, 5]))   # outside: untouched
+        plain = cv2.imdecode(np.frombuffer(render_view(bgr, None, None, None, width=50, quality=90,
+                                                       font_path=str(fonts[0])), np.uint8), cv2.IMREAD_COLOR)
+        self.assertTrue((plain > 240).all())   # no structure: nothing painted
+
+
 class ParamsTests(unittest.TestCase):
     def test_values_give_the_policy_and_the_node_settings(self):
         values = dict(points_topic='/robot6/passage_points', base_frame='base_link', map_frame='map',
                       map_robot_id='robot_a', map_state_topic='/rescue/robots/robot_a/map_state', robot_id='robot_a',
                       clock_error_bound_ns=150_000_000, process_period_s=0.5, max_cloud_age_s=0.5, stride=2,
+                      view_camera_info_topic='/robot6/oakd/rgb/preview/camera_info',
+                      view_image_topic='/robot6/oakd/rgb/preview/image_raw/compressed', view_width=352, view_quality=70,
+                      view_slop_ns=20_000_000, view_font_path='/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
                       clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                       lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
                       position_tolerance_m=0.3, merge_radius_m=0.5)
@@ -189,8 +258,15 @@ class ParamsTests(unittest.TestCase):
         policy, node = overhead_values(values)
         self.assertEqual(POLICY, policy)
         self.assertEqual(('/robot6/passage_points', 2, 0.5), (node['points_topic'], node['stride'], node['process_period_s']))
+        self.assertEqual(('/robot6/oakd/rgb/preview/image_raw/compressed', 352), (node['view_image_topic'], node['view_width']))
+        off = overhead_values(dict(values, view_image_topic='', view_camera_info_topic=''))[1]   # view off
+        self.assertEqual(('', ''), (off['view_image_topic'], off['view_camera_info_topic']))
+        for half in (dict(view_image_topic=''), dict(view_camera_info_topic='')):   # both or neither
+            with self.subTest(half=half), self.assertRaises(ValueError):
+                overhead_values(dict(values, **half))
         for name, bad in (('stride', 0), ('process_period_s', 0.0), ('max_cloud_age_s', -1.0),
-                          ('clock_error_bound_ns', -1), ('points_topic', ' ')):
+                          ('clock_error_bound_ns', -1), ('points_topic', ' '), ('view_width', 0),
+                          ('view_quality', 101), ('view_slop_ns', -1), ('view_font_path', '')):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 overhead_values(dict(values, **{name: bad}))
 

@@ -42,7 +42,7 @@ class FieldValues(FieldCase):
         self.assertEqual('/robot6/oakd/stereo/image_raw', raw['robots']['robot_a']['passage.depth_topic'])
         # TB-5 measured 2026-10-13 20:19-20:20 (OPS-165/166): depth image is published; compressedDepth
         # 6.9-9.2 Hz (max gap 0.30 s) beats raw 5.1-5.5 Hz (max gap 0.45 s) over Wi-Fi
-        self.assertEqual(TB5_DEPTH, {k: v for k, v in raw['robots']['robot_b'].items() if k.startswith('passage.')})
+        self.assertEqual(TB5_DEPTH, {k: v for k, v in raw['robots']['robot_b'].items() if k in TB5_DEPTH})
 
     def test_both_robots_start_from_the_repository_field_file(self):
         for robot_id in ('robot_a', 'robot_b'):
@@ -189,6 +189,31 @@ class OverheadLaunch(FieldCase):
         for key in ('lidar_plane_m', 'top_m', 'floor_min_points', 'confirm_frames', 'position_tolerance_m',
                     'merge_radius_m', 'process_period_s', 'max_cloud_age_s', 'stride'):
             self.assertEqual(raw['passage.overhead.' + key], p[key])
+
+    def test_camera_view_values(self):
+        """Judgement drawn on the robot camera (OPS-189) over the small RGB preview each Pi already publishes, projected
+        with the preview CameraInfo (OPS-198: no second subscription of the full RGB, the doll detector input)."""
+        from rescue_bringup.field_launch import overhead_passage_launch_values
+        raw = json.loads(FIELD.read_text())['robot']
+        a = overhead_passage_launch_values(self.deployment, field=self.field(), robot_id='robot_a')['parameters']
+        self.assertEqual(('/robot6/oakd/rgb/preview/image_raw/compressed', '/robot6/oakd/rgb/preview/camera_info'),
+                         (a['view_image_topic'], a['view_camera_info_topic']))
+        for key in ('width', 'quality', 'slop_ns', 'font_path'):
+            self.assertEqual(raw['passage.view.' + key], a['view_' + key])
+        b = overhead_passage_launch_values(self.deployment, field=self.field(with_tb5_depth), robot_id='robot_b')
+        self.assertEqual(('/robot5/oakd/rgb/preview/image_raw/compressed', '/robot5/oakd/rgb/preview/camera_info'),
+                         (b['parameters']['view_image_topic'], b['parameters']['view_camera_info_topic']))
+
+        def without(*keys):
+            return lambda r: [r['robots']['robot_b'].pop(k) for k in keys]
+        off = overhead_passage_launch_values(self.deployment, field=self.field(
+            without('passage.view_image_topic', 'passage.view_camera_info_topic')), robot_id='robot_b')['parameters']
+        self.assertEqual(('', ''), (off['view_image_topic'], off['view_camera_info_topic']))   # the node says view off
+        with self.assertRaises(Exception):   # both or neither
+            self.field(without('passage.view_camera_info_topic'))
+        with self.assertRaises(Exception):   # a view topic of another robot
+            overhead_passage_launch_values(self.deployment, field=self.field(lambda r: r['robots']['robot_a'].update(
+                {'passage.view_image_topic': '/robot5/oakd/rgb/image_raw/compressed'})), robot_id='robot_a')
 
     def test_a_missing_or_unusable_overhead_value_stops_the_launch(self):
         from rescue_bringup.field_launch import FieldLaunchError
