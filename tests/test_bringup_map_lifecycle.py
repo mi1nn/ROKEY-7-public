@@ -92,6 +92,42 @@ class MapMode(FieldCase):
                 self.field(change)
 
 
+class CoordinatorRobotPairing(FieldCase):
+    """coordinator.map_mode and the robots' map modes are one decision (OPS-126): a mismatch starts nothing."""
+
+    def test_repository_field_file_pairs_slam_freeze_with_slam_then_frozen_robots(self):
+        raw = json.loads(FIELD.read_text())
+        self.assertEqual('SLAM_FREEZE', raw['coordinator']['map_mode'])
+        self.field()
+
+    def test_saved_map_pairs_with_saved_map_robots_only(self):
+        def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+        self.field(saved)
+
+    def test_mismatches_are_refused(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+
+        def coordinator_saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
+
+        def robots_saved(raw):
+            for robot in raw['robots'].values():
+                robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
+                robot.pop('map_freeze.pose_max_age_ns', None)
+
+        def no_frozen_robot(raw):
+            raw['robots'].pop('robot_b')
+        for name, change in (('SAVED_MAP coordinator, SLAM robots', coordinator_saved),
+                             ('SLAM_FREEZE coordinator, saved-map robots', robots_saved),
+                             ('SLAM_FREEZE without a robot on the frozen map', no_frozen_robot)):
+            with self.subTest(name), self.assertRaisesRegex(FieldLaunchError, 'map_mode'):
+                self.field(change)
+
+
 class LocalizationLaunch(FieldCase):
     def values(self, robot_id, field=None):
         from rescue_bringup.field_launch import frozen_localization_values
