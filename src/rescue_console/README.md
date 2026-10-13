@@ -194,7 +194,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 조정기 사유 (SystemState.reason, 2026-10-13)
 
-조정기가 임무 상태의 사유(`SystemState.reason`, operations 의 mission 행 `reason`)에 넣은 코드를 쉬운 한국어로 보인다(`view.mission_reason`). 지원 로봇 이름은 `--robot-name` 대응(상태가 SUPPORT 인 로봇)에서 온다. 없으면 「지원 로봇」이다. 글 옆에 코드를 같이 둔다. 모르는 코드는 코드 그대로 보인다.
+조정기가 임무 상태의 사유(`SystemState.reason`, operations 의 mission 행 `reason`)에 넣은 코드를 쉬운 한국어로 보인다(`view.mission_reason`). 로봇 이름은 `--robot-name` 대응(상태가 SUPPORT·SCOUT 인 로봇)에서 온다. 없으면 「지원 로봇」·「정찰 로봇」이다. 판정 RESCUE_CONFIRMED 는 「구출 완료」(초록), 모드 MISSION_FINISHED 는 「임무 종료」다. 글 옆에 코드를 같이 둔다. 모르는 코드는 코드 그대로 보인다.
 
 | 코드 | 표시 | 어디에 |
 | --- | --- | --- |
@@ -204,6 +204,8 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 | `SUPPORT_EXIT_FAILED` | 「TB-5 출구 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
 | `SUPPORT_POSE_UNKNOWN` | 「TB-5 위치 모름」(주의색) | 같음 |
 | `TARGET_TIME_BASIS_UNUSABLE` 등 대상 위치 시각 거절(#174) | 「대상 위치의 관측 시각을 쓸 수 없음(…)」 등(주의색) | 임무 띠 |
+| `RECHECK_NEEDED_<이유>` | 「재확인 필요: <이유>」(주의색). 이유: 후보 연결 안 됨·지도 기준 다름·시각 기준 못 씀·시각 순서 틀림·인형이 아직 보임·자리가 막힘·관측 범위 부족·재확인 관측 없음(「재확인 지시」 버튼 안내). 모르는 이유는 코드 그대로 | 임무 띠, 출동 중인 대상 줄 |
+| `SCOUT_RETURNING` · `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND` | 「TB-6 도킹 접근 지점으로 이동 중」·「TB-6 도킹 접근 지점 도착 — 도킹은 사람이 합니다」 | 임무 띠, 정찰 로봇 카드 |
 
 자동 출동 사유 코드의 전체 목록은 조정기 PR 이 나오면 맞춘다. 그 전까지 위에 없는 코드는 코드 그대로 보인다.
 

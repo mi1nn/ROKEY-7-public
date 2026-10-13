@@ -320,14 +320,17 @@ def _mission_row(status):
     return True, row
 
 
-# SystemState.reason codes in plain Korean (2026-10-13). {name}: the SUPPORT robot's display name.
-# level: info (normal progress), caution (something held), alert (red: failed, not retried).
+# SystemState.reason codes in plain Korean (2026-10-13). {support}/{scout}: the display names of the
+# SUPPORT and SCOUT robots. level: info (normal progress), caution (held), alert (red: failed, not
+# retried). scope: where besides the mission band it is shown (support/scout card, the dispatched target).
 MISSION_REASONS = {
-    'SUPPORT_EXITING': ('{name} 출구로 이동 중', 'info'),
-    'SUPPORT_AT_EXIT': ('{name} 출구 도착', 'info'),
-    'SUPPORT_EXIT_CANCELED': ('{name} 출구 이동 취소(판정 종료·재난 해제)', 'info'),
-    'SUPPORT_EXIT_FAILED': ('{name} 출구 이동 실패 — 다시 보내지 않음', 'alert'),
-    'SUPPORT_POSE_UNKNOWN': ('{name} 위치 모름', 'caution'),
+    'SUPPORT_EXITING': ('{support} 출구로 이동 중', 'info'),
+    'SUPPORT_AT_EXIT': ('{support} 출구 도착', 'info'),
+    'SUPPORT_EXIT_CANCELED': ('{support} 출구 이동 취소(판정 종료·재난 해제)', 'info'),
+    'SUPPORT_EXIT_FAILED': ('{support} 출구 이동 실패 — 다시 보내지 않음', 'alert'),
+    'SUPPORT_POSE_UNKNOWN': ('{support} 위치 모름', 'caution'),
+    'SCOUT_RETURNING': ('{scout} 도킹 접근 지점으로 이동 중', 'info'),
+    'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND': ('{scout} 도킹 접근 지점 도착 — 도킹은 사람이 합니다', 'info'),
     # TargetLocation time gate (#174, OPS-103): no target is made from these.
     'TARGET_TIME_BASIS_UNUSABLE': ('대상 위치의 관측 시각을 쓸 수 없음(시계 미측정·오차 상한 없음)', 'caution'),
     'TARGET_CLOCK_DOMAIN_MISMATCH': ('대상 위치 관측의 시계 영역이 다름', 'caution'),
@@ -335,19 +338,34 @@ MISSION_REASONS = {
     'TARGET_OBSERVATION_STALE': ('대상 위치 관측이 오래됨', 'caution'),
 }
 EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
+# RECHECK_NEEDED_<why>: the recheck did not confirm the rescue (C-11 rows 7-11).
+RECHECK_WHY = {
+    'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
+    'CANDIDATE_TIME_BASIS_UNUSABLE': '시각 기준 못 씀', 'ORDER_VIOLATION': '시각 순서 틀림',
+    'CAMERA_NOT_ABSENT': '인형이 아직 보임', 'LIDAR_NOT_CLEAR': '자리가 막힘', 'COVERAGE_NOT_VALID': '관측 범위 부족',
+    'RECHECK_OBSERVATION_MISSING': '재확인 관측 없음 — 「재확인 지시」 버튼으로 다시 보낼 수 있음',
+}
+SCOPES = (('SUPPORT_', 'support'), ('SCOUT_', 'scout'), ('RECHECK_NEEDED_', 'target'))
 
 
-def mission_reason(code, support_name):
-    """{code, text, level, support} for a SystemState.reason; an unknown code stays as it is."""
+def mission_reason(code, support_name, scout_name):
+    """{code, text, level, scope} for a SystemState.reason; an unknown code stays as it is."""
     if code is None:
         return None
-    name = support_name or '지원 로봇'
+    names = {'support': support_name or '지원 로봇', 'scout': scout_name or '정찰 로봇'}
+    scope = next((where for prefix, where in SCOPES if code.startswith(prefix)), None)
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
-        return {'code': code, 'text': f'{name} 출구 출발까지 {int(countdown.group(1))}초', 'level': 'info',
-                'support': True}
-    text, level = MISSION_REASONS.get(code, (code, None))
-    return {'code': code, 'text': text.format(name=name), 'level': level, 'support': code.startswith('SUPPORT_')}
+        text, level = f'{names["support"]} 출구 출발까지 {int(countdown.group(1))}초', 'info'
+    elif code.startswith('RECHECK_NEEDED_'):
+        why = code[len('RECHECK_NEEDED_'):]
+        text, level = f'재확인 필요: {RECHECK_WHY.get(why, why)}', 'caution'
+    elif code in MISSION_REASONS:
+        text, level = MISSION_REASONS[code]
+        text = text.format(**names)
+    else:
+        text, level = code, None
+    return {'code': code, 'text': text, 'level': level, 'scope': scope}
 
 
 def _mission(site_events, row):
@@ -523,7 +541,9 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None):
         row['name'] = names.get(row['robot_id'], row['robot_id'])
     support = [row['name'] for row in robots if row['role'] == 'SUPPORT']
     words = _command_words(support[0] if len(support) == 1 else None)
-    mission['reason_view'] = mission_reason(mission['reason'], support[0] if len(support) == 1 else None)
+    scout = [row['name'] for row in robots if row['role'] == 'SCOUT']
+    mission['reason_view'] = mission_reason(mission['reason'], support[0] if len(support) == 1 else None,
+                                            scout[0] if len(scout) == 1 else None)
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],

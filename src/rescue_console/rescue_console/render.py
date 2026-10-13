@@ -124,9 +124,11 @@ def _reason(reason):
     return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
 
 
-def _support_reason(view):
+def _scoped_reason(view, *scopes, tag='p'):
     reason = view['mission'].get('reason_view')
-    return '' if reason is None or not reason['support'] else f'<p class="support-reason">{_reason(reason)}</p>'
+    if reason is None or reason['scope'] not in scopes:
+        return ''
+    return f'<{tag} class="scoped-reason">{_reason(reason)}</{tag}>'
 
 
 def _band(view):
@@ -283,7 +285,7 @@ def _robots(view):
             + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
             f'<div><dt>작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
             f'<div><dt>수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
-            + (_support_reason(view) if role == 'SUPPORT' else '') + stale + '</section>')
+            + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale + '</section>')
     return f'<section id="robots"><h2>로봇</h2>{"".join(units)}</section>'
 
 
@@ -302,8 +304,7 @@ def _targets(view):
         notes = ''.join(f'<li>{escape(n)}</li>' for n in target['warnings'] + target['rescue_reasons'])
         dispatched = view['mission'].get('dispatch') or {}
         if dispatched.get('target_id') == target['target_id']:
-            support += _support_reason(view).replace('<p class="support-reason">', '<span class="support-reason">'
-                                                     ).replace('</p>', '</span>')
+            support += _scoped_reason(view, 'support', 'target', tag='span')
         receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
                    f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         mark = target['disappeared_candidate']
@@ -503,7 +504,7 @@ dl{margin:0}
 
 /* ---- warnings ---- */
 .reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
-.support-reason{margin:4px 0 0;font-weight:600}
+.scoped-reason{margin:4px 0 0;font-weight:600}
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
 #warnings.empty{display:none}
 #warnings h2{display:inline;margin-right:12px;font-size:14px}
