@@ -39,8 +39,21 @@ def depth_median(rows, u, v, half):
     return median(values) if values else None
 
 
-def frame_evidence(point_map, map_from_optical, camera, depth_at, candidates, policy):
-    """(coverage, confirmed points in the map, unconfirmed detection on the point) for one frame."""
+def undistorted_box(bbox, undistort):
+    """Raw RGB box -> box on the undistorted (P) grid: corners and edge midpoints, pixel centres, as core.py."""
+    x0, y0, x1, y1 = bbox
+    xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
+    edges = [(x0, y0), (xm, y0), (x1, y0), (x1, ym), (x1, y1), (xm, y1), (x0, y1), (x0, ym)]
+    mapped = undistort([(x - 0.5, y - 0.5) for x, y in edges])
+    xs, ys = [p[0] + 0.5 for p in mapped], [p[1] + 0.5 for p in mapped]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def frame_evidence(point_map, map_from_optical, camera, depth_at, candidates, policy, undistort=None):
+    """(coverage, confirmed points in the map, unconfirmed detection on the point) for one frame.
+
+    ``undistort`` is the intrinsics' point undistorter when the RGB is not rectified: the detector's raw
+    box is then moved to the P grid the point is projected on (#200 review REV-200-01)."""
     coverage = frame_coverage(point_map, map_from_optical, camera, depth_at, policy)[0]
     confirmed, unconfirmed = [], False
     x, y, z = inverse(map_from_optical).apply(point_map)
@@ -51,7 +64,7 @@ def frame_evidence(point_map, map_from_optical, camera, depth_at, candidates, po
             confirmed.append(in_map)
             continue
         near = in_map is not None and math.dist(in_map, point_map) <= policy.presence_radius_m
-        x0, y0, x1, y1 = c.bbox
+        x0, y0, x1, y1 = c.bbox if undistort is None else undistorted_box(c.bbox, undistort)
         on_box = pixel is not None and x0 <= pixel[0] < x1 and y0 <= pixel[1] < y1
         unconfirmed = unconfirmed or near or on_box
     return coverage, confirmed, unconfirmed

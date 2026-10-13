@@ -141,7 +141,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
                               for c in findings.candidates]
                 coverage, points, unconfirmed = frame_evidence(point, optical, camera,
                                                                lambda u, w, k: depth_median(rows, u, w, k),
-                                                               candidates, recheck_policy)
+                                                               candidates, recheck_policy,
+                                                               undistort=intrinsics.undistort)
             except Exception as exc:   # no TF / bad input: the frame says nothing about the point
                 node.get_logger().warning(f'recheck frame {stamp} UNKNOWN: {type(exc).__name__}: {exc}')
                 coverage, points, unconfirmed = 'UNKNOWN', [], False
