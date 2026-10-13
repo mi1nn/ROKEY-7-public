@@ -24,13 +24,16 @@ from .site_state import OPERATOR_COMMAND_KINDS
 COMMAND_PATH = "/api/operator-commands"
 MAX_BODY_BYTES = 8192
 # Per-kind request fields = rescue_coordination mission.COMMAND_FIELDS (the coordinator's gate).
-# Phase 1 takes these five; PAUSE/RESUME/CANCEL/STOP_ROBOT and the other IDL operations are refused.
+# Phase 1 takes these six; PAUSE/RESUME/CANCEL/STOP_ROBOT and the other IDL operations are refused.
+# SET_CAMERA_WATCH carries no ROI: the console has no ROI picker, so roi_xyxy_normalized goes as zeros
+# ("not given") and the coordinator uses its deployment ROI or refuses (C-11 row 2).
 COMMAND_FIELDS = {
     "START_SEARCH": (),
     "DISPATCH_SUPPORT": ("target_id", "target_revision"),
     "CONTINUE_SEGMENT": ("target_id", "target_revision", "route_revision", "segment_index"),
     "REQUEST_RECHECK": ("target_id",),
     "RETURN_HOME": (),
+    "SET_CAMERA_WATCH": ("target_id",),
 }
 BASE_FIELDS = ("command_id", "kind", "operator_id")
 UINT32_MAX = (1 << 32) - 1
@@ -73,7 +76,7 @@ def parse_command(raw):
 def service_fields(command, *, issued_at_ns, timeout_ns):
     """Checked command -> SubmitOperatorCommand request fields (#115 「operations 가 채우는 것」).
 
-    Fields the five operations do not read stay empty; robot_id is empty because the
+    Fields the six operations do not read stay empty; robot_id is empty because the
     coordinator picks the robot by role. The envelope is filled by the node.
     """
     return dict(command_id=command["command_id"], operation=command["kind"], operator_id=command["operator_id"],
