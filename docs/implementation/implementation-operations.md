@@ -174,6 +174,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `read_mission_state(path)` | `{schema_version, mission}` | 기록 전에는 `mission=None`. 표시용이고 판정은 coordinator |
 | `read_operator_commands(path, *, limit=100)` | `{schema_version, commands:[명령 dict, accepted 는 bool]}` | `requested_at_ns` 최신 순 |
 | `read_map_snapshots(path, *, limit=100)` | `{schema_version, maps:[스냅샷 dict]}` | `at_ns` 최신 순. 이미지는 `path` 에서 읽고 `sha256` 으로 확인 |
+| `read_allowed_robot_ids(path)` | `{schema_version, allowed_robot_ids:[robot_id 정렬]}` | 기록 노드가 DB 를 처음 만들 때 고정한 배치 로봇 목록(metadata). 상태가 아직 오지 않은 로봇도 들어 있다(#147). 읽기 전용·오류 규칙은 다른 read_* 와 같다 |
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 
