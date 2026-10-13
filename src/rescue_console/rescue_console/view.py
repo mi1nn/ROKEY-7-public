@@ -4,6 +4,8 @@ The caller passes `built_at_ns`, so the same inputs always give the same model.
 Values that are missing stay None and are shown as missing; nothing is filled in.
 """
 
+import re
+
 from rescue_contracts import RESCUE_STATES, RescueError, SiteEvent
 
 from .labels import label
@@ -318,6 +320,36 @@ def _mission_row(status):
     return True, row
 
 
+# SystemState.reason codes in plain Korean (2026-10-13). {name}: the SUPPORT robot's display name.
+# level: info (normal progress), caution (something held), alert (red: failed, not retried).
+MISSION_REASONS = {
+    'SUPPORT_EXITING': ('{name} 출구로 이동 중', 'info'),
+    'SUPPORT_AT_EXIT': ('{name} 출구 도착', 'info'),
+    'SUPPORT_EXIT_CANCELED': ('{name} 출구 이동 취소(판정 종료·재난 해제)', 'info'),
+    'SUPPORT_EXIT_FAILED': ('{name} 출구 이동 실패 — 다시 보내지 않음', 'alert'),
+    'SUPPORT_POSE_UNKNOWN': ('{name} 위치 모름', 'caution'),
+    # TargetLocation time gate (#174, OPS-103): no target is made from these.
+    'TARGET_TIME_BASIS_UNUSABLE': ('대상 위치의 관측 시각을 쓸 수 없음(시계 미측정·오차 상한 없음)', 'caution'),
+    'TARGET_CLOCK_DOMAIN_MISMATCH': ('대상 위치 관측의 시계 영역이 다름', 'caution'),
+    'TARGET_OBSERVATION_FUTURE': ('대상 위치 관측 시각이 미래', 'caution'),
+    'TARGET_OBSERVATION_STALE': ('대상 위치 관측이 오래됨', 'caution'),
+}
+EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
+
+
+def mission_reason(code, support_name):
+    """{code, text, level, support} for a SystemState.reason; an unknown code stays as it is."""
+    if code is None:
+        return None
+    name = support_name or '지원 로봇'
+    countdown = EXIT_COUNTDOWN.fullmatch(code)
+    if countdown:
+        return {'code': code, 'text': f'{name} 출구 출발까지 {int(countdown.group(1))}초', 'level': 'info',
+                'support': True}
+    text, level = MISSION_REASONS.get(code, (code, None))
+    return {'code': code, 'text': text.format(name=name), 'level': level, 'support': code.startswith('SUPPORT_')}
+
+
 def _mission(site_events, row):
     """Badge input. The mission_state row (operations writes the coordinator's SystemState, #111) when
     there is one. Before the first row the mode is inferred from DISASTER_SIGN events and marked so
@@ -491,6 +523,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None):
         row['name'] = names.get(row['robot_id'], row['robot_id'])
     support = [row['name'] for row in robots if row['role'] == 'SUPPORT']
     words = _command_words(support[0] if len(support) == 1 else None)
+    mission['reason_view'] = mission_reason(mission['reason'], support[0] if len(support) == 1 else None)
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],

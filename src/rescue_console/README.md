@@ -192,6 +192,21 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - **실패:** 「보내지 못함」으로 드러내고 다시 보내지 않는다(팀 `AGENTS.md` 7절). 연결 거부는 「전달 안 됨」, 시간 초과·operations 오류·응답 모양이 틀림은 「전달됐는지 모름 — command_id … 로 명령 기록을 확인한 뒤 다시 누르세요」. 콘솔 터미널 로그에도 명령마다 한 줄씩 남는다.
 - 패널 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요」를 늘 둔다. 버튼은 1초 폴링 조각 밖에 있어 누르려는 순간 다시 그려지지 않고, 켜짐 상태는 조각에 실린 관문 값(`#gates`)으로 바뀐다.
 
+## 조정기 사유 (SystemState.reason, 2026-10-13)
+
+조정기가 임무 상태의 사유(`SystemState.reason`, operations 의 mission 행 `reason`)에 넣은 코드를 쉬운 한국어로 보인다(`view.mission_reason`). 지원 로봇 이름은 `--robot-name` 대응(상태가 SUPPORT 인 로봇)에서 온다. 없으면 「지원 로봇」이다. 글 옆에 코드를 같이 둔다. 모르는 코드는 코드 그대로 보인다.
+
+| 코드 | 표시 | 어디에 |
+| --- | --- | --- |
+| `SUPPORT_EXIT_IN_<n>S` | 「TB-5 출구 출발까지 n초」(폴링 1초마다 갱신) | 임무 띠, 지원 로봇 카드, 출동 중인 대상 줄 |
+| `SUPPORT_EXITING` · `SUPPORT_AT_EXIT` | 「TB-5 출구로 이동 중」·「TB-5 출구 도착」 | 같음 |
+| `SUPPORT_EXIT_CANCELED` | 「TB-5 출구 이동 취소(판정 종료·재난 해제)」 | 같음 |
+| `SUPPORT_EXIT_FAILED` | 「TB-5 출구 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
+| `SUPPORT_POSE_UNKNOWN` | 「TB-5 위치 모름」(주의색) | 같음 |
+| `TARGET_TIME_BASIS_UNUSABLE` 등 대상 위치 시각 거절(#174) | 「대상 위치의 관측 시각을 쓸 수 없음(…)」 등(주의색) | 임무 띠 |
+
+자동 출동 사유 코드의 전체 목록은 조정기 PR 이 나오면 맞춘다. 그 전까지 위에 없는 코드는 코드 그대로 보인다.
+
 ## 대상 소실 후보 (2026-10-13)
 
 고정 웹캠이 감시하던 대상을 놓치면 `SiteEvent` `TARGET_DISAPPEARED_CANDIDATE`(대상·감시 ID 포함)가 현장 상태 DB 에 들어온다. 관제 화면은 이를 두 곳에 보인다.
