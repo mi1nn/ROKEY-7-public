@@ -28,7 +28,8 @@ def values(**changes):
             'goal_map_session_id': MAP, 'goal_map_revision': 0, 'goal_transform_revision': 1,
             'merge_distance_m': .5, 'report_retry_s': 1.0, 'lease_renew_period_s': .2, 'admission_timeout_s': 1.0,
             'lease_message_ttl_s': 1.0, 'route_segment_passage_free': [True], 'camera_watch_roi': None,
-            'camera_watch_timeout_s': 2.0, 'home_poses': None}
+            'camera_watch_timeout_s': 2.0, 'home_poses': None, 'target_clock_domain_id': 'site-clock',
+            'target_max_age_s': 2.0, 'target_max_future_s': 0.05}
     return base | changes
 
 
