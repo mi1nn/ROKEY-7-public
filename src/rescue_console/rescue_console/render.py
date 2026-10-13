@@ -1271,7 +1271,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view['mission']['mode'])}'
+            + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view["mission"]["mode"])}'
             + f'{_robot_camera(robot_camera, csrf, stale_ms)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
