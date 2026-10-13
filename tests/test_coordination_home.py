@@ -15,6 +15,7 @@ from rescue_coordination.mission import HomePosition
 REPO = Path(__file__).resolve().parents[1]
 MAP = '22222222-2222-4222-8222-222222222222'
 ROLES = {'SCOUT': 'robot_a', 'SUPPORT': 'robot_b'}
+SNAPSHOT = lambda *basis: ':'.join(map(str, basis))  # noqa: E731  (rescue_contracts rule in the node)
 BASIS = (MAP, 0, 1)
 
 
@@ -31,7 +32,8 @@ def values(**changes):
             'camera_watch_timeout_s': 2.0, 'home_poses': None, 'target_clock_domain_id': 'site-clock',
             'target_max_age_s': 2.0, 'target_max_future_s': 0.05,
             'support_dispatch': 'OPERATOR', 'approach_standoff_m': 0.8, 'support_pose_max_age_s': 2.0,
-            'support_exit_wait_s': 1.0, 'recheck_max_clock_error_s': 2.0}
+            'support_exit_wait_s': 1.0, 'recheck_max_clock_error_s': 2.0,
+            'map_mode': 'SAVED_MAP', 'freeze_clearance_m': 0.2, 'map_freeze_timeout_s': 5.0}
     return base | changes
 
 
@@ -86,13 +88,13 @@ class MapStateTests(unittest.TestCase):
 
 class BuildCoreTests(unittest.TestCase):
     def test_build_core_passes_the_homes_to_the_mission(self):
-        core = ros_node.build_core(values(home_poses=[0.5, -1.0, 0.0, 1.5, -1.0, 0.0]))
+        core = ros_node.build_core(values(home_poses=[0.5, -1.0, 0.0, 1.5, -1.0, 0.0]), map_snapshot_id=SNAPSHOT)
         self.assertEqual({'robot_a': (0.5, -1.0), 'robot_b': (1.5, -1.0)},
                          {r: h.mission_xy for r, h in core.mission.homes.items()})
         self.assertEqual(BASIS, core.mission.homes['robot_a'].basis)
 
     def test_build_core_without_homes_keeps_return_home_refused(self):
-        self.assertEqual({}, ros_node.build_core(values()).mission.homes)
+        self.assertEqual({}, ros_node.build_core(values(), map_snapshot_id=SNAPSHOT).mission.homes)
 
     def test_home_poses_parameter_is_typed_and_may_be_left_out(self):
         # May be left out, so declared beside the required PARAMETERS (which launch passes in full).

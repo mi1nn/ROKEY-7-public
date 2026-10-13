@@ -44,8 +44,11 @@ COORDINATOR_KEYS = {
     'support_exit_wait_s': F,
     # Recheck -> rescue verdict: largest clock error of a recheck observation the coordinator accepts
     'recheck_max_clock_error_s': F,
+    # SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; coordination OPS-119)
+    'map_mode': S, 'freeze_clearance_m': F, 'map_freeze_timeout_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
+MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
     **{'policy.' + name: F for name in ('acceptance_timeout', 'stop_timeout', 'stop_window', 'max_sample_gap',
@@ -165,7 +168,16 @@ def load_field(path):
                                f'(the coordinator node this launch starts)')
     if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
-    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s'):
+    if coordinator['map_mode'] not in MAP_MODES:
+        raise FieldLaunchError(f'coordinator.map_mode must be one of {list(MAP_MODES)}')
+    for robot_id, identity in raw['robots'].items():
+        # The coordinator checks the approach point and homes on the frozen map with the radius each robot checks
+        # its goals with; a different one passes points the robot then refuses (작전 OPS-116).
+        if identity['task.live.auto_target.goal_clear_radius_m'] != coordinator['freeze_clearance_m']:
+            raise FieldLaunchError(f'coordinator.freeze_clearance_m must equal robots.{robot_id}.'
+                                   'task.live.auto_target.goal_clear_radius_m')
+    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s',
+                'freeze_clearance_m', 'map_freeze_timeout_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['support_exit_wait_s'] < 0:
