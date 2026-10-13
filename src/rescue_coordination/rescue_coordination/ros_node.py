@@ -872,10 +872,11 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'lease_renew_period_s': 'DOUBLE',
     'admission_timeout_s': 'DOUBLE',  # a task still PENDING after this stops its lease (ACCEPT_TIMEOUT)
     'lease_message_ttl_s': 'DOUBLE',  # CommandLease.valid_until_ns = issued_at_ns + this (AST88-02)
-    # AST88-01: one field-checked bool per segment end; may be empty (= nothing passage-free, hold).
+    # AST88-01: one field-checked bool per segment end. A ROS parameter cannot carry an empty array (-p and
+    # --params-file both arrive unset = missing, measured 2026-10-13); to hold every segment give all false.
     'route_segment_passage_free': 'BOOL_ARRAY',
     # SetCameraWatch (C-11 row 2): the deployment ROI [x0, y0, x1, y1] normalized, used when the operator's
-    # request carries none; may be empty (= only the request's ROI; never the full frame). Request deadline.
+    # request carries none; leave it out for none (= only the request's ROI; never the full frame). Request deadline.
     'camera_watch_roi': 'DOUBLE_ARRAY', 'camera_watch_timeout_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free', 'camera_watch_roi')
 UNSET_OK_PARAMETERS = ('camera_watch_roi',)  # left out = no deployment ROI (only the operator's)
