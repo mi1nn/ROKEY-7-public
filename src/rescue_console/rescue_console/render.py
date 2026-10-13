@@ -722,14 +722,14 @@ dl{margin:0}
 #history .missing,#history.empty p{color:var(--ink-2)}
 
 /* ---- 옆 칸: 웹캠과 명령 ---- */
-#cameras figure{margin:0;position:relative}
-#cameras img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#26343a;color:transparent}
-#cameras .nosignal{display:none;position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;align-items:center;
+#cameras figure,#robot-camera figure{margin:0;position:relative}
+#cameras img,#robot-camera img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#26343a;color:transparent}
+#cameras .nosignal,#robot-camera .nosignal{display:none;position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;align-items:center;
   justify-content:center;text-align:center;padding:0 24px;color:#e8eeee;font-size:14px}
-#cameras figure.lost .nosignal{display:flex}
-#cameras figure.lost img{visibility:hidden} #cameras figure{background:#26343a}
-#cameras figcaption{display:flex;justify-content:space-between;font-size:13px;padding-top:4px;background:var(--panel)}
-#cameras figcaption .lost{color:var(--signal);font-weight:700}
+#cameras figure.lost .nosignal,#robot-camera figure.lost .nosignal{display:flex}
+#cameras figure.lost img,#robot-camera figure.lost img{visibility:hidden} #cameras figure,#robot-camera figure{background:#26343a}
+#cameras figcaption,#robot-camera figcaption{display:flex;justify-content:space-between;font-size:13px;padding-top:4px;background:var(--panel)}
+#cameras figcaption .lost,#robot-camera figcaption .lost{color:var(--signal);font-weight:700}
 .camera-empty p{color:var(--ink-2);font-size:13px}
 #commands{overflow:auto;min-height:0}
 #commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
@@ -1140,7 +1140,7 @@ def camera_stale_ms(cameras, stale_s):
 # 화면에 「영상 끊김」을 표시하고 캐시 방지 쿼리를 붙여 재연결을 시도한다(stale 주기당 최대 1회). onerror는 즉시 반영된다.
 _CAMERA_SCRIPT = """
 function watchCameras() {
-  document.querySelectorAll('#cameras figure[data-stale-ms]').forEach(figure => {
+  document.querySelectorAll('#cameras figure[data-stale-ms], #robot-camera figure[data-stale-ms]').forEach(figure => {
     const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
     const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
     let last = Date.now(), retried = Date.now();
@@ -1155,7 +1155,7 @@ function watchCameras() {
     setInterval(() => {
       const now = Date.now();
       if (now - last < stale) return;
-      figure.classList.add('lost'); note.textContent = '영상 끊김'; note.className = 'lost';
+      figure.classList.add('lost'); note.textContent = figure.dataset.lostText || '영상 끊김'; note.className = 'lost';
       if (now - retried >= stale) {
         retried = now;
         img.src = base + (base.includes('?') ? '&' : '?') + '_r=' + now;
@@ -1167,7 +1167,7 @@ watchCameras();
 """
 
 
-def _cameras(cameras, stale_ms=None):
+def _cameras(cameras, stale_ms=None, webcam=None, csrf=None, mode=None):
     """카메라 PC의 MJPEG 게이트웨이(IF-082) 스트림을 직접 임베드한다.
 
     폴링 프래그먼트 외부에 배치되어 브라우저 갱신 시에도 영상 스트림이 재연결되지 않는다.
@@ -1184,7 +1184,51 @@ def _cameras(cameras, stale_ms=None):
         '<p class="nosignal">영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.</p>'
         f'<figcaption><span>{escape(camera_id)}</span><span></span></figcaption></figure>'
         for camera_id, url in cameras)
-    return f'<section id="cameras"><h2>웹캠</h2>{figures}</section>'
+    return f'<section id="cameras"><h2>웹캠</h2>{figures}{_webcam_picker(webcam, csrf, mode)}</section>'
+
+
+def _webcam_picker(webcam, csrf, mode):
+    """관리자의 카메라 고르기(OPS-183). 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀리므로 늘 확인을 받고,
+    재난 모드(임무 진행 중)에는 그 말을 더 크게 한다."""
+    if webcam is None:
+        return ''
+    notices = ''.join(f'<p class="webcam-notice">{escape(text)}</p>' for text in webcam['notices'])
+    if webcam['problem']:
+        return f'<div class="webcam-pick">{notices}<p class="alert">{escape(webcam["problem"])}</p></div>'
+    options = ''.join(f'<option value="{escape(name)}"{" selected" if name == webcam["current"] else ""}>'
+                      f'{escape(name)}</option>' for name in webcam['cameras'])
+    warn = ('임무 진행 중(재난 모드)입니다. 카메라를 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀립니다. 바꿀까요?'
+            if mode == 'DISASTER' else '카메라를 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀립니다. 바꿀까요?')
+    return (f'<form class="webcam-pick" method="post" action="/webcam" onsubmit="return confirm({escape(json.dumps(warn, ensure_ascii=False))})">'
+            f'{notices}<input type="hidden" name="csrf" value="{escape(csrf or "")}">'
+            f'<label>카메라 <select name="device">{options}</select></label>'
+            '<button type="submit">카메라 바꾸기</button></form>')
+
+
+def _robot_camera(camera, csrf, stale_ms):
+    """로봇 카메라 칸(OPS-191): 고른 로봇 하나의 판정 영상과 TB-6/TB-5 고르기. 보기 설정이라 누구나, 확인 창 없음.
+    끊기면 「카메라 영상 낡음」이고 마지막 화면을 감춘다(웹캠과 같은 감시 스크립트)."""
+    if camera is None:
+        return ''
+    notices = ''.join(f'<p class="alert">{escape(text)}</p>' for text in camera['notices'])
+    names = dict(camera['robots'])
+    title = f'{names.get(camera["current"], camera["current"] or "로봇")} 카메라'
+    if camera['problem']:
+        pick = f'<p class="alert">{escape(camera["problem"])}</p>'
+    else:
+        options = ''.join(f'<option value="{escape(rid)}"{" selected" if rid == camera["current"] else ""}>'
+                          f'{escape(name)}</option>' for rid, name in camera['robots'])
+        pick = (f'<form class="robot-cam-pick" method="post" action="/robot-camera">'
+                f'<input type="hidden" name="csrf" value="{escape(csrf or "")}">'
+                f'<label>로봇 <select name="robot" onchange="this.form.submit()">{options}</select></label>'
+                '<noscript><button type="submit">보기</button></noscript></form>')
+    return (f'<section id="robot-camera"><h2>로봇 카메라</h2>{notices}'
+            f'<figure data-stale-ms="{stale_ms}" data-lost-text="카메라 영상 낡음"><img src="{escape(camera["url"])}" '
+            f'alt="{escape(title)} 판정 영상" '
+            'onerror="var f=this.parentNode,s=f.querySelector(\'figcaption\').lastChild;'
+            'f.classList.add(\'lost\');s.textContent=\'카메라 영상 낡음\';s.className=\'lost\'">'
+            '<p class="nosignal">로봇 판정 영상이 들어오지 않습니다. 로봇 PC 의 판정 영상과 운영 PC 중계를 확인하세요.</p>'
+            f'<figcaption><span>{escape(title)}</span><span></span></figcaption></figure>{pick}</section>')
 
 
 def page_title(view):
@@ -1211,14 +1255,15 @@ def render_failure(code, message):
             '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
 
 
-def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
+def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None, webcam=None,
+                robot_camera=None):
     """`cameras`: CLI 인자로 전달된 ((camera_id, URL), ...). 설정 시 `camera_stale_s` 옵션도 필수이다
     (영상 두절 판정 대기 시간, 기본값 없음). `command_access`:
     commands.command_access의 (allowed, reason) 튜플이며, 미지정 시 명령 패널이 비활성화된다."""
     access = command_access or (False, '명령 연결 없음')
-    stale_ms = camera_stale_ms(cameras, camera_stale_s)
+    stale_ms = camera_stale_ms(list(cameras) + ([robot_camera] if robot_camera else []), camera_stale_s)
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
-    if cameras:
+    if cameras or robot_camera:
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
@@ -1226,7 +1271,8 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras, stale_ms)}{_commands(view, access, csrf)}</aside>'
+            + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view["mission"]["mode"])}'
+            + f'{_robot_camera(robot_camera, csrf, stale_ms)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
 
