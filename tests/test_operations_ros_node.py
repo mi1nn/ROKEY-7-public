@@ -1,5 +1,7 @@
 """DB writer node: the parts that run without ROS (configuration check, import without rclpy)."""
 import importlib
+import os
+import signal
 import sys
 import unittest
 
@@ -79,6 +81,41 @@ class NodeConfig(unittest.TestCase):
                 self.assertEqual('VOLATILE', durability[kind])
         self.assertEqual('TRANSIENT_LOCAL', durability['system_state'])  # #90 latches it
         self.assertEqual('TRANSIENT_LOCAL', durability['targets'])  # #96 latches TargetSnapshot too
+
+
+class Teardown(unittest.TestCase):
+    """A second SIGINT (launch + terminal Ctrl-C) during cleanup must not abort it (measured 2026-10-13:
+    KeyboardInterrupt inside ThreadingHTTPServer.shutdown, traceback, exit -2)."""
+
+    def setUp(self):
+        self.addCleanup(signal.signal, signal.SIGINT, signal.getsignal(signal.SIGINT))
+
+    def test_repeated_sigint_does_not_abort_the_remaining_steps(self):
+        from rescue_operations.ros_node import teardown
+        done = []
+
+        def interrupted():
+            os.kill(os.getpid(), signal.SIGINT)  # what the second Ctrl-C does during server.shutdown()
+            done.append('server')
+
+        teardown(interrupted, lambda: done.append('ledger'), lambda: done.append('node'))
+        self.assertEqual(['server', 'ledger', 'node'], done)
+
+    def test_sigint_stays_ignored_while_the_process_ends(self):
+        from rescue_operations.ros_node import teardown
+        teardown(lambda: None)
+        self.assertIs(signal.SIG_IGN, signal.getsignal(signal.SIGINT))
+
+    def test_a_failing_step_does_not_skip_the_rest_and_is_raised(self):
+        from rescue_operations.ros_node import teardown
+        done = []
+
+        def broken():
+            raise OSError('socket already closed')
+
+        with self.assertRaises(OSError):
+            teardown(broken, lambda: done.append('ledger'))
+        self.assertEqual(['ledger'], done)
 
 
 if __name__ == '__main__':
