@@ -70,7 +70,10 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'route_segment_passage_free:=[true, true]', '-p', 'camera_watch_timeout_s:=2.0',
              # OPS-103: TargetLocation time gate (the probe's observations use this domain, SYNCED, 5 ms bound).
              '-p', f'target_clock_domain_id:={CLOCK_DOMAIN}', '-p', 'target_max_age_s:=5.0',
-             '-p', 'target_max_future_s:=0.05']
+             '-p', 'target_max_future_s:=0.05',
+             # TB-5 dispatch: OPERATOR here (this probe drives DISPATCH_SUPPORT); the rehearsal overrides it to AUTO.
+             '-p', 'support_dispatch:=OPERATOR', '-p', 'approach_standoff_m:=0.8', '-p', 'support_pose_max_age_s:=2.0',
+             '-p', 'support_exit_wait_s:=1.0']
 
 
 def node_command(repo, extra):
