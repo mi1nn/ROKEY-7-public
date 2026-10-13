@@ -125,6 +125,22 @@ class ReasonWordTests(unittest.TestCase):
                 self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
                                  mission_reason(code, 'TB-5', 'TB-6'))
 
+    def test_frontier_exploration_and_final_map_of_248(self):   # #247/#248 (OPS-174)
+        cases = {
+            'MAP_NOT_FINAL': ('완성 지도(두 번째 고정) 대기 — TB-6 복귀·TB-5 출구 이동 보류', 'caution', None),
+            'SUPPORT_START_UNKNOWN': ('출구(QR) 없음·TB-5 시작점 모름 — TB-5 출구 이동 보류', 'caution', 'support'),
+            'SUPPORT_EXIT_UNREACHABLE': ('출구로 갈 길 없음 — TB-5 출구 이동 보류', 'caution', 'support'),
+            'NO_SURVIVOR_FOUND': ('생존자 없음 — 탐색 완료, TB-5 출동 안 함', 'info', None),
+            'EXPLORATION_COMPLETE': ('TB-6 지도 전체 탐색 완료', 'info', None),
+            'EXPLORATION_TIMEOUT': ('탐색 시간 초과 — 탐색 종료', 'caution', None),
+            'EXPLORATION_MAP_UNKNOWN': ('TB-6 탐색 지도 아직 없음 — 탐색 보류', 'caution', None),
+            'SCOUT_POSE_UNKNOWN': ('TB-6 위치 모름 — 탐색 보류', 'caution', 'scout'),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
