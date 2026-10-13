@@ -1,0 +1,1071 @@
+{
+  "algorithm": "frontier_toolbox",
+  "variant": "upstream naive distance + DBSCAN",
+  "completion_note": "No native completion event. Frontier-empty observation is distinct from ALGORITHM_REPORTED_COMPLETE",
+  "reason": "USER_REQUEST_STOPPED",
+  "elapsed_seconds": 136.15454626599967,
+  "path_length_m": 7.297809157373143,
+  "map_accuracy": null,
+  "coverage_percent": null,
+  "accuracy_note": "No independent reference map or measured geometry supplied",
+  "events": [
+    {
+      "epoch": 1791863736.7300417,
+      "event": "LIFECYCLE",
+      "value": {
+        "slam_toolbox": "active",
+        "controller_server": "active",
+        "planner_server": "active",
+        "bt_navigator": "active",
+        "behavior_server": "active",
+        "collision_monitor": "active"
+      }
+    },
+    {
+      "epoch": 1791863736.731321,
+      "event": "EXPLORER_STARTED",
+      "value": {
+        "pid": 314184,
+        "bridge_pid": 314183,
+        "budget_seconds": 180,
+        "command": [
+          "/opt/ros/jazzy/bin/ros2",
+          "run",
+          "frontier_exp_cpp",
+          "frontier_lc",
+          "--ros-args",
+          "--params-file",
+          "${FIELD_RUN}/frontier_toolbox_robot6.matched.yaml",
+          "-r",
+          "__ns:=/robot6",
+          "-r",
+          "/tf:=/robot6/tf",
+          "-r",
+          "/tf_static:=/robot6/tf_static",
+          "-r",
+          "jackal_nav_to_pose:=toolbox/nav_to_pose",
+          "-r",
+          "jackal_cancel_nav:=toolbox/cancel_nav",
+          "-r",
+          "jackal_goal:=toolbox/goal_status",
+          "-r",
+          "__node:=toolbox_frontier_explorer",
+          "-r",
+          "/map:=/robot6/map",
+          "-r",
+          "/goal_pose:=/robot6/toolbox/goal_pose",
+          "-r",
+          "/map_with_frontiers:=/robot6/toolbox/map_with_frontiers",
+          "-r",
+          "/vp:=/robot6/toolbox/viewpoint",
+          "-r",
+          "/clusters:=/robot6/toolbox/clusters"
+        ]
+      }
+    },
+    {
+      "epoch": 1791863736.7313392,
+      "event": "INITIAL_ODOM_POSE",
+      "value": {
+        "x": -8.716164588928223,
+        "y": 1.011414647102356,
+        "qz": 0.9985965490341187,
+        "qw": 0.05268581956624985
+      }
+    },
+    {
+      "epoch": 1791863739.7381814,
+      "event": "TOOLBOX_ACTIVATE",
+      "value": "lifecycle_msgs.srv.ChangeState_Response(success=True)"
+    },
+    {
+      "epoch": 1791863739.738705,
+      "event": "METRICS",
+      "value": [
+        3.007,
+        4.907500146254899,
+        4.535000135153533,
+        0.37250001110136516,
+        0.0
+      ]
+    },
+    {
+      "epoch": 1791863740.98143,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863741.9619923,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863742.9708261,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863743.951374,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863744.7437305,
+      "event": "METRICS",
+      "value": [
+        8.012,
+        7.570000225603582,
+        6.800000202655793,
+        0.7700000229477884,
+        1.0858239882281664
+      ]
+    },
+    {
+      "epoch": 1791863744.9812822,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863745.9621143,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863746.9708655,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863747.951067,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863748.9711137,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863749.745631,
+      "event": "METRICS",
+      "value": [
+        13.014,
+        8.230000245273114,
+        7.375000219792129,
+        0.8550000254809859,
+        2.15834483312506
+      ]
+    },
+    {
+      "epoch": 1791863749.9510655,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863750.9711092,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863751.981044,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863752.961478,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863753.9814456,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863754.7657702,
+      "event": "METRICS",
+      "value": [
+        18.034,
+        12.93750038556755,
+        11.600000345706942,
+        1.3375000398606065,
+        3.201229977682112
+      ]
+    },
+    {
+      "epoch": 1791863754.9614184,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863755.980946,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863756.9613383,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863757.9810522,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863758.9614735,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863759.7658625,
+      "event": "METRICS",
+      "value": [
+        23.034,
+        14.500000432133678,
+        12.885000384002927,
+        1.615000048130751,
+        4.440197585544647
+      ]
+    },
+    {
+      "epoch": 1791863759.9807317,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863760.961482,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863761.9812589,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863762.9613523,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863763.9811885,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863764.7814913,
+      "event": "METRICS",
+      "value": [
+        28.05,
+        16.86000050246716,
+        15.015000447481874,
+        1.8450000549852852,
+        5.21742804352038
+      ]
+    },
+    {
+      "epoch": 1791863764.9611402,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863765.9717479,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863766.9806836,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863767.9612234,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863768.9806502,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863769.785944,
+      "event": "METRICS",
+      "value": [
+        33.054,
+        18.770000559389594,
+        16.637500495836143,
+        2.132500063553453,
+        5.693502412000198
+      ]
+    },
+    {
+      "epoch": 1791863769.9715812,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863770.980662,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863771.9617934,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863772.9811342,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863773.961293,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863774.7935872,
+      "event": "METRICS",
+      "value": [
+        38.062,
+        19.795000589936976,
+        17.44500051990152,
+        2.350000070035458,
+        6.788079040930552
+      ]
+    },
+    {
+      "epoch": 1791863774.9811437,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863775.9612994,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863776.9811273,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863777.9612222,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863778.9807708,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863779.805869,
+      "event": "METRICS",
+      "value": [
+        43.074,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        6.953056150380176
+      ]
+    },
+    {
+      "epoch": 1791863779.9613385,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863780.981334,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863781.9611776,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863782.9808106,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863783.9610412,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863784.8062496,
+      "event": "METRICS",
+      "value": [
+        48.074,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        6.981880652912532
+      ]
+    },
+    {
+      "epoch": 1791863784.980785,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863785.9610593,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863786.9814477,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863787.9615924,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863788.9810004,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863789.8076613,
+      "event": "METRICS",
+      "value": [
+        53.076,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.040061966784553
+      ]
+    },
+    {
+      "epoch": 1791863789.9617064,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863790.9819942,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863791.962013,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863792.9814992,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863793.96142,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863794.8261573,
+      "event": "METRICS",
+      "value": [
+        58.095,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.059655667081045
+      ]
+    },
+    {
+      "epoch": 1791863794.9809213,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863795.9611099,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863796.980899,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863797.961706,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863798.980843,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863799.833833,
+      "event": "METRICS",
+      "value": [
+        63.102,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.075671184703087
+      ]
+    },
+    {
+      "epoch": 1791863799.9611685,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863800.9812963,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863801.9613717,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863802.981022,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863803.9612224,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863804.8390093,
+      "event": "METRICS",
+      "value": [
+        68.108,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.090434999731472
+      ]
+    },
+    {
+      "epoch": 1791863804.9811113,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863805.961447,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863806.9807463,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863807.961408,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863808.9813087,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863809.8457816,
+      "event": "METRICS",
+      "value": [
+        73.114,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.104781958062496
+      ]
+    },
+    {
+      "epoch": 1791863809.9616528,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863810.981164,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863811.9617684,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863812.9813254,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863813.9613564,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863814.845787,
+      "event": "METRICS",
+      "value": [
+        78.114,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.118848441683203
+      ]
+    },
+    {
+      "epoch": 1791863814.9808235,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863815.9613965,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863816.9809322,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863817.9609816,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863818.9808717,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863819.8460977,
+      "event": "METRICS",
+      "value": [
+        83.114,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.133628998574273
+      ]
+    },
+    {
+      "epoch": 1791863819.9611719,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863820.9809015,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863821.961115,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863822.9811184,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863823.9616427,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863824.8662555,
+      "event": "METRICS",
+      "value": [
+        88.134,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.151361457455025
+      ]
+    },
+    {
+      "epoch": 1791863824.981032,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863825.9615064,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863826.9808264,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863827.962019,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863828.980782,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863829.8863811,
+      "event": "METRICS",
+      "value": [
+        93.155,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.167375488069956
+      ]
+    },
+    {
+      "epoch": 1791863829.961536,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863830.9812212,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863831.9618316,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863832.9807408,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863833.9617085,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863834.8892877,
+      "event": "METRICS",
+      "value": [
+        98.158,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.180911168398913
+      ]
+    },
+    {
+      "epoch": 1791863834.980938,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863835.96116,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863836.9806092,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863837.9612627,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863838.980825,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863839.8899596,
+      "event": "METRICS",
+      "value": [
+        103.158,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.194587163050634
+      ]
+    },
+    {
+      "epoch": 1791863839.9611847,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863840.9810557,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863841.9613605,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863842.980913,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863843.961149,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863844.9060323,
+      "event": "METRICS",
+      "value": [
+        108.174,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.209184871614477
+      ]
+    },
+    {
+      "epoch": 1791863844.9811716,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863845.9616494,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863846.9809875,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863847.9612527,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863848.9809945,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863849.9258482,
+      "event": "METRICS",
+      "value": [
+        113.194,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.221462103382043
+      ]
+    },
+    {
+      "epoch": 1791863849.9616125,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863850.9809277,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863851.9613159,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863852.9810462,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863853.9611058,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863854.9260106,
+      "event": "METRICS",
+      "value": [
+        118.194,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.240113585667576
+      ]
+    },
+    {
+      "epoch": 1791863854.9808486,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863855.9843004,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863856.9614336,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863857.980911,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863858.9611633,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863859.9369595,
+      "event": "METRICS",
+      "value": [
+        123.206,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.257686657147234
+      ]
+    },
+    {
+      "epoch": 1791863859.9809296,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863860.9616287,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863861.9810305,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863862.961508,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863863.9809225,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863864.9375925,
+      "event": "METRICS",
+      "value": [
+        128.206,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.2724986453435685
+      ]
+    },
+    {
+      "epoch": 1791863864.961373,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863865.9808254,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863866.9616022,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863867.9810302,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863868.9614372,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863869.9378107,
+      "event": "METRICS",
+      "value": [
+        133.206,
+        19.812500590458516,
+        17.452500520125035,
+        2.3600000703334816,
+        7.288533731041161
+      ]
+    },
+    {
+      "epoch": 1791863869.981331,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863870.9612124,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863871.981117,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863872.8854666,
+      "event": "STOP_REASON",
+      "value": "USER_REQUEST_STOPPED"
+    },
+    {
+      "epoch": 1791863872.887889,
+      "event": "TOOLBOX_DEACTIVATE",
+      "value": "lifecycle_msgs.srv.ChangeState_Response(success=True)"
+    },
+    {
+      "epoch": 1791863872.8886924,
+      "event": "TOOLBOX_CANCEL",
+      "value": "std_srvs.srv.Empty_Response()"
+    },
+    {
+      "epoch": 1791863872.9108946,
+      "event": "TOOLBOX_GOAL_STATUS",
+      "value": "Canceled"
+    },
+    {
+      "epoch": 1791863877.9053783,
+      "event": "STOP_OBSERVATION",
+      "value": {
+        "confirmed": false,
+        "odom_age": 0.056771677047485314,
+        "linear_mps": 0.0,
+        "yaw_radps": 0.0,
+        "last_2sec_samples": 40,
+        "displacement_m": 8.649864165149563e-06
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-13",
+  "local_base_sha": "c6dfc8b8183ee314d1c972c3b1fd4f119ae1f0ab",
+  "scope": "isolated local worktree plus draft documents/evidence; remote PR not created",
+  "checks": [
+    {
+      "command": "python3 -I scripts/check_docs.py",
+      "exit_code": 0,
+      "markdown_files": 42,
+      "local_links": 304,
+      "source_objects_and_bounds": "SKIP; no --sources supplied"
+    },
+    {
+      "command": "python3 -I scripts/run_tests.py",
+      "exit_code": 0,
+      "test_count": 629,
+      "result": "OK (expected failures=1)",
+      "new_tests": 0,
+      "note": "Existing local baseline regression check; does not validate physical exploration accuracy"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  ],
+  "data_checks": [
+    "published hashes match manifest",
+    "map array size matches width * height",
+    "known areas recalculated from final maps",
+    "three original Nav2 config hashes identical",
+    "actual stop confirmations preserved"
+  ],
+  "upload": "NOT_RUN",
+  "algorithm_selection": "PROPOSED explore_lite; user confirmation pending"
+}

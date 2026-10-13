@@ -1,0 +1,8 @@
+[INFO] [1791862966.043049870] [robot6.explore_node]: Waiting for costmap to become available, topic: map
+[INFO] [1791862969.060173769] [robot6.explore_node]: Waiting to connect to move_base nav2 server
+[INFO] [1791862969.060599473] [robot6.explore_node]: Connected to move_base nav2 server
+[WARN] [1791862995.798082265] [robot6.explore_node]: No frontiers found, stopping.
+[INFO] [1791862995.798150838] [robot6.explore_node]: Exploration stopped.
+[INFO] [1791862995.798549393] [robot6.explore_node]: Exploration stopped.
+[INFO] [1791863103.222342729] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1791863103.222531810] [robot6.explore_node]: Exploration stopped.

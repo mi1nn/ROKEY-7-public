@@ -1,0 +1,35 @@
+[INFO] [1791862564.081420905] [robot6.frontier_explorer]: Control service ready: '/robot6/control_exploration'
+[INFO] [1791862564.081803071] [robot6.frontier_explorer]: Frontier explorer initialized with autostart=true, control_service_enabled=true, map '/robot6/map', global costmap '/robot6/global_costmap/costmap', local costmap '/robot6/local_costmap/costmap', frontier action 'navigate_to_pose'
+[INFO] [1791862564.081816753] [robot6.frontier_explorer]: Decision-map config: optimization=true, sigma_s=2.00, sigma_r=30.00, dilation_radius=1, occ_threshold=75, min_frontier_size_cells=5, frontier_candidate_min_goal_distance_m=0.80, debug_outputs=disabled
+[INFO] [1791862564.081822167] [robot6.frontier_explorer]: MRTSP config: solver='dp', dp_candidate_limit=12, dp_planning_horizon=8, sensor_effective_range_m=1.50, weight_distance_wd=1.00, weight_gain_ws=1.00, max_linear_speed_vmax=0.50, max_angular_speed_wmax=1.00
+[INFO] [1791862564.081825874] [robot6.frontier_explorer]: Using post-goal settle config: enabled=false, post_goal_min_settle=1.50s, map_processing_rate_hz=1.00, all_frontiers_suppressed_behavior=stay
+[INFO] [1791862564.081828705] [robot6.frontier_explorer]: QoS config: map=[durability=transient_local,reliability=reliable,depth=1], costmap=[durability=volatile,reliability=reliable,depth=10], local_costmap=[durability=volatile,reliability=reliable,depth=10 (inherit reliability) (inherit depth)]
+[INFO] [1791862564.081831733] [robot6.frontier_explorer]: Completion event enabled: topic='/robot6/exploration_complete'
+[WARN] [1791862567.887341617] [robot6.frontier_explorer]: Startup /map timing samples were unstable; using configured map_processing_rate_hz=1.00 Hz
+[INFO] [1791862568.887563739] [robot6.frontier_explorer]: Recorded exploration start pose: (-0.13, -0.00)
+[INFO] [1791862568.888816327] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-1.17, 1.26), dispatch=(-1.16, 1.32), size=33
+[INFO] [1791862568.889389562] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862571.913194474] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-2.04, 2.21), dispatch=(-2.03, 2.25), size=12
+[INFO] [1791862571.913503426] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862574.916104146] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-2.12, 2.24), dispatch=(-2.08, 2.25), size=18
+[INFO] [1791862574.916423951] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862577.918752089] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-2.38, 2.12), dispatch=(-2.35, 2.15), size=29
+[INFO] [1791862577.918957455] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862580.891790409] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-2.49, 1.45), dispatch=(-2.52, 1.50), size=16
+[INFO] [1791862580.892139577] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862583.906598306] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-4.26, 0.69), dispatch=(-4.28, 0.74), size=48
+[INFO] [1791862583.906788527] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862586.910343220] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-4.28, 0.68), dispatch=(-4.34, 0.69), size=47
+[INFO] [1791862586.910527238] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862590.913259564] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-2.78, 0.04), dispatch=(-2.74, 0.09), size=63
+[INFO] [1791862590.913803365] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862593.917047962] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-4.36, -0.34), dispatch=(-4.43, -0.36), size=8
+[INFO] [1791862593.917264198] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862596.919724844] [robot6.frontier_explorer]: Sending frontier goal (mrtsp): frontier reference=(-4.36, -0.34), dispatch=(-4.43, -0.36), size=8
+[INFO] [1791862596.919929471] [robot6.frontier_explorer]: Frontier goal accepted
+[INFO] [1791862599.893325472] [robot6.frontier_explorer]: Skipping blocked frontier goal before dispatch: Current frontier target is blocked in local costmap (cost=99); frontier reference=(-4.23, -0.33), dispatch=(-4.28, -0.51), size=6
+[INFO] [1791862599.893370631] [robot6.frontier_explorer]: All selected frontier goals are blocked before dispatch; waiting for updated costmap or frontier data
+[INFO] [1791862600.135316363] [robot6.frontier_explorer]: Skipping blocked frontier goal before dispatch: Current frontier target is blocked in local costmap (cost=99); frontier reference=(-4.23, -0.33), dispatch=(-4.28, -0.51), size=6
+[INFO] [1791862600.135377500] [robot6.frontier_explorer]: All selected frontier goals are blocked before dispatch; waiting for updated costmap or frontier data
+[INFO] [1791862600.510743127] [robot6.frontier_explorer]: No more frontiers found
+[INFO] [1791862600.510863040] [robot6.frontier_explorer]: Published exploration completion event on '/robot6/exploration_complete'

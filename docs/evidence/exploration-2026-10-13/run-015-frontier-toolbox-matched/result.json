@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-13",
+  "robot": "robot6",
+  "algorithm": "frontier_toolbox",
+  "variant": "upstream naive distance + DBSCAN",
+  "result": "BLOCKED",
+  "reason": "STALLED_REPEATED_IDENTICAL_GOAL",
+  "raw_recorder_reason": "USER_REQUEST_STOPPED",
+  "operator_stop": "Assistant stopped stalled supervised trial; raw USER_REQUEST_STOPPED denotes generic stop-file handling",
+  "elapsed_seconds": 136.15454626599967,
+  "path_length_m": 7.297809157373143,
+  "known_area_m2": 19.812500590458516,
+  "actual_stop": {
+    "checked_epoch": 1791863978.536828,
+    "robot": "robot6",
+    "samples": 40,
+    "odom_age": 0.04319510152478029,
+    "max_linear_mps": 0.0,
+    "max_yaw_radps": 8.949667972046882e-06,
+    "displacement_m": 0.0,
+    "confirmed": true
+  },
+  "inflation_radius": 0.25,
+  "max_linear_mps": 0.26,
+  "max_angular_radps": 1.0,
+  "remaining_frontiers_last_log": 21,
+  "remaining_clusters_last_log": 1,
+  "repeat_goal": [
+    -12.622326,
+    0.380069
+  ],
+  "republish_same_goal": true,
+  "completion_note": "No native overall completion event; observer did not see frontier exhaustion. Operator stopped plateau and repeated identical goal cancels.",
+  "mapping_complete_verified": false,
+  "accuracy_verified": false
+}
