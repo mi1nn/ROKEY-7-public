@@ -150,8 +150,8 @@ class CoordinatorParameters(FieldCase):
         expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
         # Added after #132: TargetLocation time checks (coordination OPS-103, 2026-10-13)
         expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=3.0, target_max_future_s=0.05)
-        # Added after #132: TB-5 wait at the target before leaving for the exit (placeholder, user decision pending)
-        expected['support_exit_wait_s'] = 5.0
+        # Added after #132: TB-5 waits at the target before leaving for the exit (user decision 2026-10-13: 15 s)
+        expected['support_exit_wait_s'] = 15.0
         # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
         expected['recheck_max_clock_error_s'] = 2.0
         self.assertEqual(expected, self.coordinator())
