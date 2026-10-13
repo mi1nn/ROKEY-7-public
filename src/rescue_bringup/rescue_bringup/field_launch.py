@@ -51,11 +51,12 @@ ROBOT_KEYS = {
     'task.saved_map.transform_xy_yaw': FL,
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
-    # Automatic target moves without an operator approval (C1-a, 2026-10-13); enabled false = rejected
-    'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
-    'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S,
 }
-ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S}
+# Per robot: identity, and the automatic target moves this robot's role may take without an
+# operator approval (C1, least privilege per robot, 2026-10-13; enabled false = rejected).
+ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
+                       'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
+                       'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S}
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}

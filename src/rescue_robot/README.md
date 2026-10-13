@@ -26,6 +26,8 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | `task.live.auto_target.goal_clear_radius_m` (double) | 저장 지도에서 목표 중심 이 반경 안이 모두 비어 있어야 한다(현장 실행 파일 0.2 m [제안]) |
 | `task.live.auto_target.policy_version` (string) | 결정 기록용 버전 |
 
+현장 실행 파일에서는 이 넷을 로봇별(`robots.<id>`)로 둔다. 각 로봇은 자기 역할 임무만 받는다(최소 권한, 2026-10-13). TB-5(robot_b) = `APPROACH_TARGET`, TB-6(robot_a) = 자동 접근 없음(`enabled: false`, REOBSERVE_TARGET 은 C1-b).
+
 받는 조건(하나라도 아니면 거절):
 - 목표 모양: 경로가 있고 운영자 승인이 없다. `route.approach_goal` 은 임무 frame 의 평면 자세다. 계획 증거(planned_path·path_sha256·planner_evidence_id)는 비어 있고, 통로 판정은 UNKNOWN 이다. 이 모양은 Phase 1 과 같다.
 - 지도 기준: 목표의 `frame_ref`(mission frame·map session·map revision·transform revision)가 이 로봇의 현재 선언 정합과 같아야 한다. 지도는 하나다(프로파일 `map_basis`). 대상 좌표를 낸 TB-6 의 실시간 지도는 읽지 않는다(Discovery 구성상 다른 PC 에서 안 보일 수 있다).
