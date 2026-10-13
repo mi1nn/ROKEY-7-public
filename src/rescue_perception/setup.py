@@ -22,5 +22,6 @@ setup(
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": ["webcam_node = rescue_perception.webcam_node:main",
         "amr_camera = rescue_perception.amr_camera:main",
-        "amr_target = rescue_perception.amr_target:main"]},
+        "amr_target = rescue_perception.amr_target:main",
+        "mjpeg_relay = rescue_perception.mjpeg_relay:main"]},
 )
