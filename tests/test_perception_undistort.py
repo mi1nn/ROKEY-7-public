@@ -64,6 +64,23 @@ def tb6_info(model='rational_polynomial', d=TB6_D):
               distortion_model=model, binning_x=0, binning_y=0, roi=NS(x_offset=0, y_offset=0, width=0, height=0))
 
 
+class WithoutOpenCVTests(unittest.TestCase):
+    """Building intrinsics must not need OpenCV (CI pure-python / installed-wheels have none, #164 CI,
+    2026-10-13); only undistorting a point does, and then it fails loudly (never a silent pinhole point)."""
+
+    def test_intrinsics_build_without_opencv_and_undistorting_fails_loudly(self):
+        import sys
+        from unittest import mock
+        binding = SourceBinding('robot_a', 'amr_rgbd', '00000000-0000-4000-8000-000000000100', 'clock',
+                                'CAPTURE', 'CAPTURE', 'cal', 'UNKNOWN', None)
+        with mock.patch.dict(sys.modules, {'cv2': None, 'numpy': None}):
+            intrinsics = camera_intrinsics(tb6_info(), binding, rectified=False)
+            self.assertIsNotNone(intrinsics.undistort)
+            self.assertRegex(intrinsics.undistortion_id, r'^rational_polynomial:[0-9a-f]{12}$')
+            self.assertEqual((500.0, 352.0), (intrinsics.fx, intrinsics.cx))    # P: the depth grid
+            with self.assertRaises(ImportError):
+                intrinsics.undistort([(1.0, 2.0)])
+
 class CameraInfoUndistortTests(unittest.TestCase):
     def setUp(self):
         try:
