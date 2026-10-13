@@ -529,10 +529,10 @@ class RobotNameTests(LedgerFixture):
         self.assertEqual('robot_b 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
         self.assertNotRegex(render_page(view), r'AMR ?[12]')
 
-    def test_without_a_support_status_the_label_says_support_robot(self):
+    def test_without_a_support_status_the_label_uses_the_role_code(self):   # no generic robot words (owner rule)
         status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})
         view = build_view(load_ledger(self.db), status, built_at_ns=T0, robot_names=self.NAMES)
-        self.assertEqual('지원 로봇 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
+        self.assertEqual('SUPPORT 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
 
     def test_name_argument(self):
         from rescue_console.app import parse_robot_name
