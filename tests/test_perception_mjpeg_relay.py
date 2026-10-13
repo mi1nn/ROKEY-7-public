@@ -85,6 +85,16 @@ class MjpegRelayTests(RelayFixture):
 
 
 class FormatTests(unittest.TestCase):
+    def test_next_after_does_not_send_a_frame_that_expired_during_a_slow_write(self):
+        now = [0.0]
+        hub = FrameHub(1.0, clock=lambda: now[0])
+        hub.put(b'first')
+        sequence, _ = hub.fresh()
+        hub.put(b'last')
+        now[0] = 2.0
+        self.assertIsNone(hub.fresh())
+        self.assertIsNone(hub.next_after(sequence))
+
     def test_only_jpeg_is_relayed(self):
         self.assertTrue(is_jpeg_format('jpeg'))
         self.assertTrue(is_jpeg_format('bgr8; jpeg compressed bgr8'))
