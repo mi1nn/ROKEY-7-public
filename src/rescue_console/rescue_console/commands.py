@@ -1,10 +1,10 @@
-"""운영자 명령: 관제 웹이 operations 로 보내는 것과 그 답을 알리는 방식.
+"""운영자 명령: 관제 웹에서 operations 서비스로의 명령 전송 및 응답 처리 모듈.
 
-관제 웹은 operations 의 `POST /api/operator-commands` 를 부르는 클라이언트다(console-and-db-plan 4절).
-버튼을 한 번 누를 때마다 요청 하나를 만들어 한 번 보내고, 답은 온 그대로 넘긴다.
-실패는 실패로 알린다. 다시 보내지 않고 추측한 값으로 바꾸지도 않는다(AGENTS.md 7절).
-명령을 받거나 거절하는 관문은 조정기의 것이다. 관제 웹은 아무것도 쓰지 않는다.
-표준 라이브러리만 쓴다.
+관제 웹은 operations의 `POST /api/operator-commands` 엔드포인트를 호출하는 HTTP 클라이언트다(console-and-db-plan 4절).
+버튼 클릭 1회당 1개의 요청을 생성해 1회 전송하며, 응답은 가공 없이 그대로 전달한다.
+전송 실패는 명시적으로 실패로 보고하며, 자동 재전송이나 임의 대체 값을 사용하지 않는다(AGENTS.md 7절).
+명령 수락 또는 거절 판정 권한은 coordinator(조정기)에 있으며, 관제 웹은 DB에 직접 쓰지 않는다.
+외부 종속성 없이 Python 표준 라이브러리만 사용한다.
 """
 
 import json
@@ -17,12 +17,12 @@ from .labels import label
 from .view import ConsoleError
 
 COMMAND_PATH = '/api/operator-commands'
-# 관제 웹이 operations 의 답을 기다리는 시간. operations 가 조정기 서비스를 부르는 시간까지
-# 덮어야 한다([제안] 관제·화면, 2026-10-12; PR 본문 「열린 것」).
+# 관제 웹이 operations의 응답을 대기하는 타임아웃. operations가 coordinator 서비스를 호출하는 시간까지
+# 감안하여 설정한다([제안] 관제·화면, 2026-10-12; PR 본문 「열린 것」).
 COMMAND_TIMEOUT_S = 5.0
-# 종류마다 싣는 필드. 조정기가 읽는 것과 같다(rescue_coordination.mission.COMMAND_FIELDS;
-# tests/test_console_commands.py 가 둘을 비교한다). PAUSE·RESUME·CANCEL 은 Q-22 재개 관문을 기다리고,
-# STOP_ROBOT 은 자기 RequestStop 경로가 따로 있어서, 여기서는 보낼 수 없다.
+# 명령 종류별 페이로드 필드 정의. coordinator 요구 규격과 일치한다(rescue_coordination.mission.COMMAND_FIELDS;
+# tests/test_console_commands.py에서 상호 검증). PAUSE·RESUME·CANCEL은 Q-22 재개 관문 결정을 대기하며,
+# STOP_ROBOT은 전용 RequestStop 경로를 사용하므로 본 모듈에서는 전송하지 않는다.
 COMMAND_FIELDS = {
     'START_SEARCH': (),
     'DISPATCH_SUPPORT': ('target_id', 'target_revision'),
@@ -31,20 +31,20 @@ COMMAND_FIELDS = {
     'RETURN_HOME': (),
 }
 SENDABLE = tuple(COMMAND_FIELDS)
-# revision 들과 segment 는 운영자가 화면에서 본 값이다. 그래서 승인이 그 뒤에 바뀐 대상이나 경로에
-# 붙지 못한다(SubmitOperatorCommand 의 expected_* 필드). 값을 모르면 None 을 보내지 않고
-# 버튼을 꺼 둔다(작전 #115, 2026-10-12).
+# revision 및 segment 값은 운영자가 화면에서 확인한 당시 기준값이다. 따라서 승인 직후 변경된 대상이나 경로에
+# 오적용되지 않도록 방지한다(SubmitOperatorCommand의 expected_* 필드). 값을 알 수 없으면 None을 전송하지 않고
+# 버튼 자체를 비활성화한다(작전 #115, 2026-10-12).
 INT_FIELDS = frozenset({'target_revision', 'route_revision', 'segment_index'})
-# 모든 종류가 자기 필드 말고도 실을 수 있는 폼 키. 그 밖의 키는 거부한다(build_request).
+# 모든 명령 종류에서 공통으로 허용되는 폼 필드 키. 정의되지 않은 키는 거부된다(build_request).
 FORM_KEYS = frozenset({'csrf', 'kind'})
-# 폼에서 받는 target_id 의 최대 길이. 상한일 뿐이다: 아는 대상 ID 인지는 operations 가 판단한다.
+# 폼에서 수신하는 target_id의 최대 길이 제한(상한 검증용이며 유효 대상 여부는 operations가 판정).
 MAX_ID = 128
-# 실패한 전송의 전달 여부: operations 에 아무것도 닿지 않았으면 NOT_SENT, 닿았을 수도 있으면 UNKNOWN.
+# 전송 실패 시 요청 전달 상태: operations에 도달하지 않았음이 확실하면 NOT_SENT, 전달 여부 불확실 시 UNKNOWN.
 DELIVERY = frozenset({'NOT_SENT', 'UNKNOWN'})
 
 
 class CommandSendError(Exception):
-    """전송 실패. `delivery` 는 operations 가 명령을 받았을 수도 있는지를 말한다."""
+    """명령 전송 실패 예외. `delivery`는 operations에 요청이 도달했을 가능성 여부를 나타낸다."""
 
     def __init__(self, code, message, *, delivery='UNKNOWN'):
         if delivery not in DELIVERY:
@@ -58,7 +58,7 @@ def _invalid(message):
 
 
 def parse_operations_url(text):
-    """'http://host:port[/base]' -> 끝 슬래시를 뗀 기본 URL. 기본값은 없고 아무것도 추측하지 않는다."""
+    """'http://host:port[/base]' URL에서 말미 슬래시를 제거한 기본 URL을 반환한다(추정 기본값 없음)."""
     parts = urllib.parse.urlsplit(text or '')
     if parts.scheme not in ('http', 'https') or not parts.hostname or parts.query or parts.fragment:
         raise _invalid(f'operations must be http(s)://host:port : {text!r}')
@@ -66,7 +66,7 @@ def parse_operations_url(text):
 
 
 def command_access(role, connected):
-    """로그인한 역할의 (allowed, reason). 누가 누를 수 있는지이지, 명령이 받아들여질지가 아니다."""
+    """로그인 계정 역할에 따른 명령 권한 (allowed, reason)을 반환한다(버튼 클릭 권한이며 수락 여부와 무관)."""
     if role != 'ADMIN':
         return False, '보기 전용 계정 — 명령은 ADMIN 만 보냅니다'
     if not connected:
@@ -81,18 +81,18 @@ def _target_id(text):
 
 
 def _count(name, text):
-    # isdigit 만으로는 '²' 같은 비 ASCII 숫자도 통과하는데 int() 는 이를 거부한다. isascii 로 0-9 만 남긴다.
-    # 부호도 소수점도 받지 않으므로 값은 음수가 되거나 반올림되지 않는다.
+    # isdigit만으로는 '²' 등의 비-ASCII 특수 숫자도 통과하지만 int()는 실패하므로 isascii로 0-9만 허용한다.
+    # 부호 및 소수점 기호를 불허하여 음수나 부동소수점 오차 입력을 원천 차단한다.
     if not (isinstance(text, str) and text.isascii() and text.isdigit()):
         raise _invalid(f'{name} must be a non-negative integer')
     return int(text)
 
 
 def build_request(form, *, operator_id, command_id):
-    """브라우저 폼 -> operations 로 보낼 JSON 본문. `operator_id` 는 로그인 세션에서 온다.
+    """브라우저 폼 데이터를 operations 전송용 JSON 페이로드로 변환한다(`operator_id`는 세션 기반).
 
-    그 종류의 필드만 받고 폼의 다른 것은 모두 거부한다. 그래서 페이지나 손으로 만든 요청이
-    로봇, 다른 운영자, 보류된 명령을 끼워 넣을 수 없다.
+    명령 종류에 정의된 필드만 추출하고 기타 폼 데이터는 엄격히 거부한다. 이를 통해 변조된 요청에서
+    로봇 ID, 타 운영자 ID, 임의 명령 파라미터가 비정상 주입되는 것을 차단한다.
     """
     kind = form.get('kind', '')
     if kind not in COMMAND_FIELDS:
@@ -101,7 +101,7 @@ def build_request(form, *, operator_id, command_id):
     extra = sorted(key for key in form if key not in FORM_KEYS | set(fields))
     if extra:
         raise _invalid(f'{kind} does not take {", ".join(extra)}')
-    # command_id 와 operator_id 는 서버(app.py)가 정하고, 폼에서 오지 않는다.
+    # command_id 및 operator_id는 서버(app.py)에서 직접 생성/부여하며 클라이언트 폼에서 주입받지 않는다.
     payload = {'command_id': command_id, 'kind': kind, 'operator_id': operator_id}
     for name in fields:
         text = form.get(name, '')
@@ -113,24 +113,24 @@ def build_request(form, *, operator_id, command_id):
 
 
 def post_json(url, payload, timeout):
-    """POST 한 번, 재시도 없음. HTTP 답이 오면 무엇이든 (status, body) 를 돌려주고, 아니면 CommandSendError 를 낸다."""
+    """재시도 없이 단일 HTTP POST를 수행한다. 응답 수신 시 (status, body)를 반환하고, 실패 시 CommandSendError를 발생시킨다."""
     request = urllib.request.Request(url, data=json.dumps(payload).encode(), method='POST',
                                      headers={'Content-Type': 'application/json', 'Accept': 'application/json'})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read()
-    except urllib.error.HTTPError as exc:          # 오류 상태의 답: 그래도 본문에 이유가 있을 수 있다
-        with exc:                                  # 이 오류는 응답이기도 하다: 본문을 읽은 뒤 닫는다
+    except urllib.error.HTTPError as exc:          # HTTP 오류 응답: 본문에 세부 오류 사유가 포함될 수 있음
+        with exc:                                  # HTTPError는 응답 스트림이므로 본문 판독 후 컨텍스트를 종료한다
             return exc.code, exc.read()
-    # HTTP 답이 없음. 연결 자체가 안 됐을 때(거부됐거나 호스트 이름을 풀지 못함)만 전달 여부가 NOT_SENT 이다.
-    # 그 밖의 모든 실패에서는 operations 가 요청을 받았을 수도 있다.
+    # HTTP 응답 수신 실패: 연결 자체가 성립되지 않은 경우(접속 거부, 호스트 DNS 해석 실패)만 NOT_SENT로 확정한다.
+    # 그 외 모든 전송 실패 상황에서는 operations가 이미 요청을 수신했을 가능성이 존재하므로 UNKNOWN으로 처리한다.
     except urllib.error.URLError as exc:
         if isinstance(exc.reason, (TimeoutError, socket.timeout)):
             raise CommandSendError('TIMEOUT', f'no answer within {timeout:g}s') from exc
         if isinstance(exc.reason, (ConnectionRefusedError, socket.gaierror)):
             raise CommandSendError('UNREACHABLE', str(exc.reason), delivery='NOT_SENT') from exc
         raise CommandSendError('UNREACHABLE', str(exc.reason)) from exc
-    except (TimeoutError, socket.timeout) as exc:  # 연결한 뒤 답을 기다리다 시간 초과
+    except (TimeoutError, socket.timeout) as exc:  # 연결 수립 후 응답 수신 대기 중 타임아웃 발생
         raise CommandSendError('TIMEOUT', f'no answer within {timeout:g}s') from exc
     except OSError as exc:
         raise CommandSendError('SEND_FAILED', str(exc)) from exc
@@ -141,24 +141,24 @@ def _optional_text(value):
 
 
 def read_reply(status, body):
-    """operations 의 답 -> {accepted, request_id, reason, request_state, created_task_id}.
+    """operations 응답 본문을 파싱하여 표준 딕셔너리로 반환한다.
 
-    상태 코드와 상관없이 읽는다. 오류 상태여도 답을 싣고 있으면 답이다.
-    그 밖의 것은 전달 여부를 모르는 실패다: 요청은 operations 에 닿았다.
+    HTTP 상태 코드와 무관하게 본문 구조를 검증한다. 에러 상태 코드여도 유효한 JSON 사유가 포함되면 정상 파싱한다.
+    규격에 맞지 않는 응답은 전송 후 결과 판독 불가 실패(요청은 이미 전달됨)로 간주한다.
     """
     try:
         data = json.loads(body)
     except (TypeError, ValueError):
         data = None
-    # 답의 조건: `accepted` 는 진짜 bool(1/0 이 아님), 다른 필드는 없거나 null 이거나 빈 문자열이 아닌 텍스트,
-    # 거절은 이유를 밝히고, 2xx 가 아닌 상태로는 어떤 것도 accepted 가 아니다.
+    # 응답 유효성 조건: accepted는 엄격한 bool(1/0 불허), 기타 필드는 생략/null/비공백 문자열이어야 함.
+    # 거절 시에는 reason 필드가 필수이며, 2xx 상태 코드가 아니면 accepted=True는 허용되지 않는다.
     ok = (isinstance(data, dict) and type(data.get('accepted')) is bool
           and all(_optional_text(data.get(key)) for key in ('request_id', 'reason', 'request_state', 'created_task_id'))
           and (data['accepted'] or data.get('reason') is not None)
           and not (data['accepted'] and not 200 <= status < 300))
     if not ok:
-        snippet = (body or b'')[:200].decode('utf-8', 'replace')   # 앞부분만 써서 메시지를 짧게 둔다
-        # 2xx 이거나 JSON 객체인데 올바른 답이 아니면 BAD_RESPONSE, 그 밖은 그냥 HTTP 오류다.
+        snippet = (body or b'')[:200].decode('utf-8', 'replace')   # 응답 앞부분 200바이트만 발췌하여 로그 간소화
+        # 2xx 응답이거나 JSON 객체임에도 규격 미달인 경우 BAD_RESPONSE, 그 외는 일반 HTTP_ERROR로 분류한다.
         if 200 <= status < 300 or isinstance(data, dict):
             raise CommandSendError('BAD_RESPONSE', f'HTTP {status}: not an operator-command answer: {snippet}')
         raise CommandSendError('HTTP_ERROR', f'HTTP {status}: {snippet}')
@@ -166,7 +166,7 @@ def read_reply(status, body):
 
 
 def send_command(base_url, payload, *, transport=post_json, timeout=COMMAND_TIMEOUT_S):
-    """한 번 보내고 무슨 일이 있었는지 알린다. 다시 보내지 않는다: 두 번째 누름은 운영자의 결정이다."""
+    """명령을 1회 전송하고 결과를 반환한다. 자동 재전송은 하지 않으며, 재시도 여부는 운영자가 직접 판단한다."""
     head = {'command_id': payload['command_id'], 'kind': payload['kind']}
     try:
         reply = read_reply(*transport(base_url + COMMAND_PATH, payload, timeout))

@@ -20,7 +20,7 @@ import unittest
 from rescue_contracts import RescueError
 from rescue_coordination import ros_node
 from test_coordination_map_freeze import (FROZEN, FROZEN_REV, MAP, SEARCH_REV, TRANSFORM, FakeGrid, exit_msg,
-                                          freeze_core, map_state, snapshot_id)
+                                          freeze_core, map_state, revision_info)
 from test_coordination_ros_core import (SCOUT, SUPPORT, admission_msg, location, make_core, receipt, request,
                                         site_msg, status_msg)
 from test_coordination_search import NOW, uid
@@ -83,32 +83,35 @@ class ExitRegistrationTests(unittest.TestCase):
         ticks(self.core)
         self.assertTrue(self.core.take_freeze_request())
 
-    def test_after_the_freeze_only_frozen_exits_count(self):
-        self.save_target()
-        self.core.on_exit_location(exit_msg(1), now_ns=NOW)
-        ticks(self.core)
+    def freeze(self):
         self.core.take_freeze_request()
         self.core.on_freeze_reply(True, 'frozen')
         self.core.on_frozen_map(FakeGrid())
-        self.core.on_map_state(map_state(SCOUT))
-        with self.assertRaises(RescueError):
-            self.core.on_exit_location(exit_msg(2, (0., 6.5)), now_ns=NOW)
-        self.core.on_exit_location(exit_msg(3, (0., 6.5), revision=FROZEN_REV), now_ns=NOW)
-        self.assertEqual([(FROZEN, (0., 6.5))], [(e['basis'], e['xy']) for e in self.core.exits])
+        self.core.on_frozen_revision(revision_info())
 
-    def test_a_frozen_map_of_another_session_rebases_nothing(self):
+    def test_between_the_freezes_exits_keep_coming_on_the_search_revision(self):
+        # OPS-154·159: after the doll's freeze TB-6 keeps mapping (SLAM, search revision); its exits stay there and
+        # move to the final map at the second freeze. TB-6 never sees the first frozen revision.
         self.save_target()
         self.core.on_exit_location(exit_msg(1), now_ns=NOW)
+        ticks(self.core)
+        self.freeze()
+        self.core.on_exit_location(exit_msg(2, (5., 5.), track='EXIT-2'), now_ns=NOW)
+        with self.assertRaises(RescueError):
+            self.core.on_exit_location(exit_msg(3, (0., 6.5), revision=FROZEN_REV), now_ns=NOW)
+        self.assertEqual([('EXIT-1', FROZEN), ('EXIT-2', (MAP, SEARCH_REV, TRANSFORM))],
+                         [(e['exit_id'], e['basis']) for e in self.core.exits])
+
+    def test_another_run_s_frozen_revision_is_no_freeze_of_this_one(self):
+        self.save_target()
         ticks(self.core)
         self.core.take_freeze_request()
         self.core.on_freeze_reply(True, 'frozen')
         self.core.on_frozen_map(FakeGrid())
-        self.core.on_map_state(map_state(SCOUT, map_session_id=OTHER_MAP,
-                                         snapshot_id=snapshot_id('c' * 64, OTHER_MAP, FROZEN_REV, TRANSFORM)))
-        self.assertEqual((OTHER_MAP, FROZEN_REV, TRANSFORM), self.core.frozen)
-        self.assertEqual([(MAP, SEARCH_REV, TRANSFORM)], [e['basis'] for e in self.core.exits])
+        self.core.on_frozen_revision(revision_info(session=OTHER_MAP))
+        self.assertIsNone(self.core.frozen)
         self.assertEqual([], ticks(self.core, 'APPROACH_TARGET'))
-        self.assertEqual('TARGET_NOT_ON_FROZEN_MAP', reason(self.core))
+        self.assertEqual('MAP_NOT_FROZEN', reason(self.core))
 
 
 class PatrolTests(unittest.TestCase):

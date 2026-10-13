@@ -142,6 +142,16 @@ class FrontierPickTests(Base):
         self.assertEqual(([], 'SCOUT_POSE_UNKNOWN'), (self.searches(), self.reason()))
 
 
+class GoalPickTests(unittest.TestCase):
+    """The RViz search goal pick (#132) replaces the areas: only AREAS uses it. FRONTIER/PATROL keep it off even
+    when the field gives the topic (a FRONTIER core has no area, the pick would refuse to start; OPS-174)."""
+
+    def test_only_areas_uses_the_rviz_goal_pick(self):
+        self.assertIsNone(live_task_inputs.goal_pick_topic(frontier_core(), '/rescue/search_goal'))
+        self.assertEqual('/rescue/search_goal', live_task_inputs.goal_pick_topic(make_core(), '/rescue/search_goal'))
+        self.assertIsNone(live_task_inputs.goal_pick_topic(make_core(), ''))
+
+
 class ParameterTests(unittest.TestCase):
     def test_typed_parameters(self):
         self.assertEqual(('INTEGER', 'DOUBLE', 'DOUBLE', 'DOUBLE', 'DOUBLE', 'INTEGER', 'DOUBLE'),

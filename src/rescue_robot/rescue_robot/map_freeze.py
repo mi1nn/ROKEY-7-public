@@ -1,11 +1,18 @@
-"""Freeze the TB-6 SLAM map once per run (map lifecycle, OPS-113/117; compute_a).
+"""Freeze the TB-6 SLAM map twice per run (map lifecycle, OPS-113/117/154; compute_a).
 
-On /rescue/map/freeze (std_srvs/Trigger) the latest TB-6 SLAM map and TB-6 SLAM pose are
-captured, hashed (live_sources.Grid, the robots' hash) and written to ``output_dir``:
+On /rescue/map/freeze (std_srvs/Trigger) the latest TB-6 SLAM map is captured, hashed
+(live_sources.Grid, the robots' hash) and written to ``output_dir``. Twice per run:
 
-- ``frozen-<sha12>-<ns>.json``: the exact grid (origin quaternion as received) and pose, the
-  basis (session, revision R0 + 1) and the git SHA. A restarted node reloads it
-  (``record_path``) and republishes the identical grid, so the robots see the same hash.
+1. R0 + 1, when the doll is found: TB-5 goes on this map; TB-6 keeps searching with SLAM, so no
+   TB-6 pose is captured (TB-6 may be moving).
+2. R0 + 2, when the search is done: also the fresh TB-6 SLAM pose (TB-6 stopped; the
+   coordinator checks before asking), the AMCL start for TB-6 on /rescue/map/frozen_pose/robot_a.
+
+A third request fails. Files per freeze:
+
+- ``frozen-r<revision>-<sha12>-<ns>.json``: the exact grid (origin quaternion as received), the pose (second
+  only), the basis (session, revision) and the git SHA. A restarted node reloads every record of
+  this run from ``output_dir`` and republishes them in order, so the robots see the same hashes.
 - ``.pgm``/``.yaml``: the same map for people and RViz (trinary 0.25/0.65). Loading it into
   map_server does not give the same hash; robots use the republished grid, not this image.
 
@@ -15,11 +22,11 @@ Coordinates measured in advance (patrol points, TB-6 docking approach, TB-5 AMCL
 relative to it. A restarted node republishes the saved one; a new run needs a new output_dir.
 Start this node before TB-6 moves.
 
-Then /rescue/map/frozen (nav_msgs/OccupancyGrid) and /rescue/map/frozen_pose/robot_a
-(PoseWithCovarianceStamped, TB-6 AMCL start) are published TRANSIENT_LOCAL. Once per run:
-a second request fails. Without a valid map in the map frame and a fresh SLAM pose on it
-nothing is frozen, written or published. The response's success is the result; the message
-is for people. The robot must be stopped first (the coordinator checks before asking).
+Then /rescue/map/frozen (nav_msgs/OccupancyGrid) and /rescue/map/frozen_revision (std_msgs/String,
+rescue_contracts.occupancy.frozen_revision_text: which revision that grid is; the grid has no
+field for it) are published TRANSIENT_LOCAL, depth 1 (the latest freeze). Without a valid map in
+the map frame (and, for the second, a fresh SLAM pose on it) nothing is frozen, written or
+published. The response's success is the result; the message is for people.
 """
 import json
 import math
@@ -27,11 +34,14 @@ import os
 from pathlib import Path
 from types import SimpleNamespace as NS
 
+from rescue_contracts.occupancy import frozen_revision_text
 from rescue_robot.executor import ContractError
 from rescue_robot.live_sources import Grid, planar
 
 FORMAT = 'rescue-map-freeze/1'
 FROZEN_TOPIC = '/rescue/map/frozen'
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # which revision /rescue/map/frozen is (OPS-159)
+FREEZES = 2   # per run: R0 + 1 (doll found), R0 + 2 (search done, TB-6 changes to AMCL)
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/robot_a'
 START_POSE_TOPIC = '/rescue/map/start_pose/robot_a'   # TB-6 start pose: origin of coordinates measured in advance
 START_FORMAT = 'rescue-start-pose/1'
@@ -104,24 +114,44 @@ def _write(path, payload):
     os.replace(tmp, path)
 
 
+def revision_text(record):
+    """/rescue/map/frozen_revision for this freeze record."""
+    return frozen_revision_text(map_session_id=record['map_session_id'], map_revision=record['map_revision'],
+                                occupancy_sha256=record['occupancy_sha256'])
+
+
 def load_record(path, *, map_frame, map_session_id, map_revision):
-    """A saved freeze of this run (same session, R0 + 1), with its hash re-checked."""
+    """A saved freeze of this run (same session, R0 + 1 or R0 + 2), with its hash re-checked."""
     try:
         record = json.loads(Path(path).read_text())
         if record.get('format') != FORMAT:
             raise FreezeError('not a map freeze record')
-        record['grid'], record['pose'] = _grid_fields(record['grid']), _pose_fields(record['pose'])
+        record['grid'] = _grid_fields(record['grid'])
+        record['pose'] = None if record['pose'] is None else _pose_fields(record['pose'])
         if record.get('start_pose') is not None:
             record['start_pose'] = _pose_fields(record['start_pose'])
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise FreezeError(f'freeze record unreadable: {exc}') from None
-    if (record['map_frame'], record['map_session_id'], record['map_revision']) != (
-            map_frame, map_session_id, map_revision + 1):
+    if (record['map_frame'], record['map_session_id']) != (map_frame, map_session_id) or record[
+            'map_revision'] not in range(map_revision + 1, map_revision + FREEZES + 1):
         raise FreezeError('freeze record is from another run (frame, session or revision differ)')
+    if (record['map_revision'] == map_revision + FREEZES) != (record['pose'] is not None):
+        raise FreezeError('only the last freeze carries the TB-6 pose')
     if grid_hash(record['grid'], map_frame).sha256 != record['occupancy_sha256']:
         raise FreezeError('freeze record grid does not match its hash')
+    record['final'] = record['map_revision'] == map_revision + FREEZES
     record['path'] = str(path)
     return record
+
+
+def load_records(output_dir, *, map_frame, map_session_id, map_revision):
+    """Every freeze of this run in output_dir, in revision order: [], [R0+1] or [R0+1, R0+2]."""
+    records = sorted((load_record(path, map_frame=map_frame, map_session_id=map_session_id, map_revision=map_revision)
+                      for path in sorted(Path(output_dir).glob('frozen-*.json'))), key=lambda r: r['map_revision'])
+    if [r['map_revision'] for r in records] != list(range(map_revision + 1, map_revision + 1 + len(records))):
+        raise FreezeError(f'{output_dir} freeze records are not one run (revisions '
+                          f'{[r["map_revision"] for r in records]}); use a new output_dir for a new run')
+    return records
 
 
 class MapFreeze:
@@ -132,7 +162,8 @@ class MapFreeze:
         self.map_frame, self.map_session_id, self.map_revision = map_frame, map_session_id, map_revision
         self.pose_max_age_ns, self.output_dir = pose_max_age_ns, Path(output_dir)
         self.wall_clock_ns, self.git_sha = wall_clock_ns, git_sha
-        self.latest_map = self.latest_pose = self.frozen = None
+        self.latest_map = self.latest_pose = None
+        self.records = []   # this run's freezes, R0 + 1 first
         self.start_pose = self._load_start()
 
     def _load_start(self):
@@ -170,23 +201,30 @@ class MapFreeze:
         self.start_pose = self.latest_pose
         return self.start_pose
 
-    def restore(self, record):
-        self.frozen = record
+    def restore(self, records):
+        """Freezes this run already made (load_records), R0 + 1 first."""
+        self.records = list(records)
 
     def freeze(self):
-        if self.frozen is not None:
-            raise FreezeError(f'already frozen ({self.frozen["occupancy_sha256"]}); one freeze per run')
+        if len(self.records) >= FREEZES:
+            raise FreezeError(f'already frozen two times ({self.records[-1]["occupancy_sha256"]}); '
+                              'two freezes per run')
         if self.latest_map is None:
             raise FreezeError('no SLAM map received')
         if self.start_pose is None:
             raise FreezeError('no TB-6 start pose recorded: coordinates measured from the start cannot be placed')
-        g, p, now = self.latest_map, self.latest_pose, self.wall_clock_ns()
+        g, now = self.latest_map, self.wall_clock_ns()
+        revision = self.map_revision + len(self.records) + 1
+        final = revision == self.map_revision + FREEZES
         grid = grid_hash(g, self.map_frame)
-        _check_pose(p, map_frame=self.map_frame, now_ns=now, max_age_ns=self.pose_max_age_ns)
+        p = None
+        if final:   # TB-6 changes to AMCL from this pose: fresh, on the map
+            p = self.latest_pose
+            _check_pose(p, map_frame=self.map_frame, now_ns=now, max_age_ns=self.pose_max_age_ns)
         record = dict(format=FORMAT, map_frame=self.map_frame, map_session_id=self.map_session_id,
-                      map_revision=self.map_revision + 1, occupancy_sha256=grid.sha256, frozen_at_ns=now,
+                      map_revision=revision, occupancy_sha256=grid.sha256, frozen_at_ns=now,
                       git_sha=self.git_sha, grid=g, pose=p, start_pose=self.start_pose)
-        base = self.output_dir / f'frozen-{grid.sha256[:12]}-{now}'
+        base = self.output_dir / f'frozen-r{revision}-{grid.sha256[:12]}-{now}'
         x, y, yaw = grid.origin
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -199,8 +237,8 @@ class MapFreeze:
             for suffix in ('.pgm', '.yaml', '.json'):
                 base.with_suffix(suffix).unlink(missing_ok=True)
             raise FreezeError(f'freeze not saved: {exc}') from None
-        record['path'] = str(base.with_suffix('.json'))
-        self.frozen = record
+        record['final'], record['path'] = final, str(base.with_suffix('.json'))
+        self.records.append(record)
         return record
 
 
@@ -237,9 +275,8 @@ def main(args=None):
     from geometry_msgs.msg import PoseWithCovarianceStamped
     from nav_msgs.msg import OccupancyGrid
     from rcl_interfaces.msg import ParameterType as T
-    from rclpy.exceptions import ParameterUninitializedException
-    from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+    from std_msgs.msg import String
     from std_srvs.srv import Trigger
     from rescue_contracts import ros_time_to_ns
     from rescue_robot.ros_node import declare_required, git_sha
@@ -253,11 +290,6 @@ def main(args=None):
     if missing:
         log.error('map_freeze missing parameters: ' + ', '.join(missing))
         raise SystemExit(2)
-    node.declare_parameter('record_path', Parameter.Type.STRING)   # optional: restart from a saved freeze
-    try:
-        record_path = node.get_parameter('record_path').value
-    except ParameterUninitializedException:
-        record_path = None
     sha = git_sha()
     try:
         core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
@@ -268,6 +300,7 @@ def main(args=None):
         raise SystemExit(2)
     latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
     frozen_pub = node.create_publisher(OccupancyGrid, FROZEN_TOPIC, latched)
+    revision_pub = node.create_publisher(String, FROZEN_REVISION_TOPIC, latched)
     pose_pub = node.create_publisher(PoseWithCovarianceStamped, FROZEN_POSE_TOPIC, latched)
     start_pub = node.create_publisher(PoseWithCovarianceStamped, START_POSE_TOPIC, latched)
 
@@ -279,10 +312,14 @@ def main(args=None):
 
     def publish(record):
         frozen_pub.publish(_grid_message(record, node.get_clock().now().to_msg()))
-        pose_pub.publish(_pose_message(record))
-        x, y, yaw = planar(_ns_pose(record['pose']['position'], record['pose']['orientation']))
+        revision_pub.publish(String(data=revision_text(record)))
+        tb6 = 'tb6 keeps SLAM'
+        if record['final']:
+            pose_pub.publish(_pose_message(record))
+            x, y, yaw = planar(_ns_pose(record['pose']['position'], record['pose']['orientation']))
+            tb6 = f'tb6 amcl start=({x:.3f}, {y:.3f}, {yaw:.3f})'
         log.info(f'MAP_FROZEN sha256={record["occupancy_sha256"]} session={record["map_session_id"]} '
-                 f'rev={record["map_revision"]} tb6_start=({x:.3f}, {y:.3f}, {yaw:.3f}) record={record["path"]}')
+                 f'rev={record["map_revision"]} final={record["final"]} {tb6} record={record["path"]}')
 
     def on_map(msg):
         o = msg.info.origin
@@ -311,22 +348,22 @@ def main(args=None):
         response.success, response.message = True, f'frozen sha256={record["occupancy_sha256"]}'
         return response
 
-    log.info(f'git_sha={sha} parameters={values} record_path={record_path}')
+    log.info(f'git_sha={sha} parameters={values}')
     if core.start_pose is not None:   # same run restarted: the saved start, never a new one
         publish_start(core.start_pose, 'restored')
-    if record_path is not None:
-        try:
-            record = load_record(record_path, map_frame=values['map_frame'], map_session_id=values['map_session_id'],
-                                 map_revision=values['map_revision'])
-        except FreezeError as exc:
-            log.error(f'MAP_FREEZE_RESTORE_FAILED {exc}')
-            raise SystemExit(2)
-        core.restore(record)
-        if core.start_pose is None and record.get('start_pose') is not None:
-            core.start_pose = record['start_pose']
-            publish_start(core.start_pose, 'restored from the freeze record')
+    try:   # same run restarted: every freeze it made, in order (the last stays latched)
+        records = load_records(values['output_dir'], map_frame=values['map_frame'],
+                               map_session_id=values['map_session_id'], map_revision=values['map_revision'])
+    except FreezeError as exc:
+        log.error(f'MAP_FREEZE_RESTORE_FAILED {exc}')
+        raise SystemExit(2)
+    core.restore(records)
+    if core.start_pose is None and records:
+        core.start_pose = records[0]['start_pose']
+        publish_start(core.start_pose, 'restored from the freeze record')
+    for record in records:
         publish(record)
-    else:
+    if len(records) < FREEZES:
         node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
         node.create_subscription(PoseWithCovarianceStamped, values['pose_topic'], on_pose, qos_profile_sensor_data)
     node.create_service(Trigger, SERVICE, freeze)

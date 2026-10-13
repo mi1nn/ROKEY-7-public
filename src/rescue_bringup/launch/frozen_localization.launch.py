@@ -3,8 +3,10 @@
     ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> \
         field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_b frozen_pose_wait_s:=10.0
 
-- frozen_map_relay copies /rescue/map/frozen to <ns>/map (only while no other node publishes
-  <ns>/map: stop TB-6 SLAM first).
+- frozen_map_relay copies to <ns>/map the frozen grid of the revision this robot's executor is on
+  (its MapState; pair /rescue/map/frozen_revision, OPS-154), only while no other node publishes
+  <ns>/map: stop TB-6 SLAM first. TB-6 gets the second (last) freeze; TB-5 the first, then the
+  second once its executor takes it (stopped, no task).
 - AMCL (nav2_amcl, turtlebot4_navigation localization.yaml values, map from <ns>/map, no
   map_server) starts at: robot_a = the frozen pose /rescue/map/frozen_pose/robot_a (this launch
   waits up to frozen_pose_wait_s for it, then fails); a FROZEN_MAP_AMCL robot = its measured
@@ -56,8 +58,8 @@ def _nodes(context):
         LogInfo(msg=f'frozen localization {arg("robot_id")} ns={ns} map={values["map_topic"]} <- '
                     f'{values["frozen_topic"]} amcl_start={start} from {source} params={params_file}'),
         Node(package='rescue_robot', executable='frozen_map_relay', name='rescue_frozen_map_relay', namespace=ns,
-             output='screen', parameters=[typed({'frozen_topic': values['frozen_topic'],
-                                                 'map_topic': values['map_topic']})]),
+             output='screen', parameters=[typed({key: values[key] for key in (
+                 'frozen_topic', 'frozen_revision_topic', 'map_state_topic', 'map_topic')})]),
         GroupAction([
             SetRemap('/tf', ns + '/tf'), SetRemap('/tf_static', ns + '/tf_static'),
             Node(package='nav2_amcl', executable='amcl', name='amcl', namespace=ns, output='screen',

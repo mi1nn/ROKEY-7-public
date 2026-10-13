@@ -1,11 +1,12 @@
-"""Freezing the TB-6 SLAM map once (map_freeze on compute_a, OPS-113/117), no ROS.
+"""Freezing the TB-6 SLAM map (map_freeze on compute_a, OPS-113/117/154), no ROS.
 
-On /rescue/map/freeze the latest TB-6 SLAM map and TB-6 SLAM pose are captured, hashed and
-written to disk; the node then publishes the exact grid on /rescue/map/frozen and the pose
-on /rescue/map/frozen_pose/robot_a (AMCL start for TB-6). Once per run: a second request
-fails. A restarted node reloads the saved record and republishes the identical grid (same
-hash, so the robots do not see a different frozen map). Nothing is frozen without a valid
-map in the map frame and a fresh SLAM pose.
+On /rescue/map/freeze the latest TB-6 SLAM map is captured, hashed and written to disk; the node
+then publishes the exact grid on /rescue/map/frozen with its revision. Twice per run
+(test_robot_map_freeze_twice): the first (R0+1) needs no TB-6 pose; the second (R0+2) captures
+the fresh TB-6 SLAM pose for /rescue/map/frozen_pose/robot_a (AMCL start for TB-6). A
+restarted node reloads the saved records and republishes the identical grids (same hash, so
+the robots do not see a different frozen map). Nothing is frozen without a valid map in the
+map frame.
 """
 import json
 import math
@@ -15,7 +16,7 @@ from types import SimpleNamespace as NS
 import unittest
 
 from rescue_robot.live_sources import Grid
-from rescue_robot.map_freeze import FreezeError, MapFreeze, load_record
+from rescue_robot.map_freeze import FreezeError, MapFreeze, load_record, load_records
 
 SESSION = '22222222-2222-4222-8222-222222222222'
 NOW = 50_000_000_000
@@ -56,7 +57,7 @@ class Freeze(unittest.TestCase):
         return MapFreeze(map_frame='map', map_session_id=SESSION, map_revision=0, pose_max_age_ns=2_000_000_000,
                          output_dir=Path(self.dir.name), wall_clock_ns=lambda: self.now, git_sha='abc123')
 
-    def test_freeze_captures_hashes_and_saves_the_latest_map_and_pose(self):
+    def test_freeze_captures_hashes_and_saves_the_latest_map(self):
         self.f.on_map(grid(data=[0] * 12))
         self.f.on_map(grid())                  # the latest map counts
         self.f.on_pose(pose())
@@ -64,19 +65,13 @@ class Freeze(unittest.TestCase):
         self.assertEqual(sha(grid()), record['occupancy_sha256'])
         self.assertEqual((SESSION, 1), (record['map_session_id'], record['map_revision']))
         self.assertEqual(grid(), record['grid'])
-        self.assertEqual(pose(), record['pose'])
+        self.assertIsNone(record['pose'])      # first freeze: TB-6 keeps SLAM, no AMCL start
         self.assertEqual('abc123', record['git_sha'])
         saved = Path(record['path'])
         self.assertEqual(Path(self.dir.name), saved.parent)
         self.assertEqual(record['occupancy_sha256'], json.loads(saved.read_text())['occupancy_sha256'])
         self.assertTrue(saved.with_suffix('.pgm').exists() and saved.with_suffix('.yaml').exists())
-        self.assertIs(record, self.f.frozen)
-
-    def test_freeze_happens_once(self):
-        self.f.on_map(grid()); self.f.on_pose(pose())
-        self.f.freeze()
-        with self.assertRaises(FreezeError):
-            self.f.freeze()
+        self.assertEqual([record], self.f.records)
 
     def test_nothing_is_frozen_without_a_valid_map_in_the_map_frame(self):
         for g in (None, grid(frame='odom'), grid(data=[0] * 11), grid(orientation=(0., 0.1, 0., 1.))):
@@ -87,31 +82,34 @@ class Freeze(unittest.TestCase):
                 f.on_pose(pose())
                 with self.assertRaises(FreezeError):
                     f.freeze()
-                self.assertIsNone(f.frozen)
+                self.assertEqual([], f.records)
                 # only the TB-6 start pose (OPS-141) may be there; no freeze file
                 self.assertEqual([], list(Path(self.dir.name).glob('frozen-*')))
 
-    def test_nothing_is_frozen_without_a_fresh_slam_pose_on_the_map(self):
-        for p in (None, pose(stamp_ns=NOW - 3_000_000_000), pose(frame='odom'), pose(stamp_ns=NOW + 3_000_000_000),
+    def test_no_second_freeze_without_a_fresh_slam_pose_on_the_map(self):
+        for p in (pose(stamp_ns=NOW - 3_000_000_000), pose(frame='odom'), pose(stamp_ns=NOW + 3_000_000_000),
                   pose(orientation=(0., 0., 0.5, 0.5))):
-            with self.subTest(p=p):
-                f = self.make()
+            with self.subTest(p=p), tempfile.TemporaryDirectory() as d:
+                f = MapFreeze(map_frame='map', map_session_id=SESSION, map_revision=0, pose_max_age_ns=2_000_000_000,
+                              output_dir=Path(d), wall_clock_ns=lambda: NOW, git_sha='abc123')
+                f.on_pose(pose())
                 f.on_map(grid())
-                if p is not None:
-                    f.on_pose(p)
+                f.freeze()
+                f.on_pose(p)
                 with self.assertRaises(FreezeError):
                     f.freeze()
-                self.assertIsNone(f.frozen)
+                self.assertEqual([1], [r['map_revision'] for r in f.records])
 
-    def test_a_restarted_node_republishes_the_identical_grid(self):
+    def test_a_restarted_node_republishes_the_identical_grids(self):
         self.f.on_map(grid()); self.f.on_pose(pose())
+        self.f.freeze()
         record = self.f.freeze()
-        again = load_record(record['path'], map_frame='map', map_session_id=SESSION, map_revision=0)
+        first, again = load_records(Path(self.dir.name), map_frame='map', map_session_id=SESSION, map_revision=0)
         self.assertEqual(record['grid'], again['grid'])
         self.assertEqual(record['occupancy_sha256'], sha(again['grid']))
         self.assertEqual(record['pose'], again['pose'])
         f = self.make()
-        f.restore(again)
+        f.restore([first, again])
         with self.assertRaises(FreezeError):
             f.freeze()
 

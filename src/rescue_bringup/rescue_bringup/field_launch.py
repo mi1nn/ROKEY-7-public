@@ -53,10 +53,13 @@ COORDINATOR_KEYS = {
     # FRONTIER exploration (owner decision 2026-10-13 night, OPS-154·156)
     'frontier_min_cells': I, 'frontier_reach_m': F, 'frontier_goal_max_m': F, 'frontier_blacklist_m': F,
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
+    # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
+    'completion_mode': S,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
+COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')  # rescue_coordination.ros_node.COMPLETION_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -98,6 +101,7 @@ PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 
 DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
 PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # which revision FROZEN_TOPIC is (OPS-159)
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
 START_POSE_TOPIC = '/rescue/map/start_pose/'            # + SLAM robot id: origin of coordinates measured in advance
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
@@ -201,15 +205,14 @@ def load_field(path):
     if coordinator['search_mode'] == 'PATROL':
         if not coordinator['patrol_points']:
             raise FieldLaunchError('coordinator.search_mode PATROL needs patrol_points')
-        if coordinator['live_inputs.search_goal_topic']:
-            raise FieldLaunchError('coordinator.search_mode PATROL replaces the RViz search goal pick: '
-                                   'live_inputs.search_goal_topic must be empty')
         if 'PATROL_POINT' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode PATROL needs PATROL_POINT in executable_bases')
+    if coordinator['map_mode'] == 'SLAM_FREEZE' and coordinator['search_mode'] != 'FRONTIER':
+        # The final map's freeze waits for EXPLORATION_COMPLETE, which only FRONTIER gives; otherwise TB-6 waits
+        # MAP_NOT_FINAL and TB-5 at the doll forever (작전 OPS-174).
+        raise FieldLaunchError('coordinator.map_mode SLAM_FREEZE needs search_mode FRONTIER (the whole map)')
     if coordinator['search_mode'] == 'FRONTIER':
-        if coordinator['live_inputs.search_goal_topic']:
-            raise FieldLaunchError('coordinator.search_mode FRONTIER replaces the RViz search goal pick: '
-                                   'live_inputs.search_goal_topic must be empty')
+        # the RViz goal pick (live_inputs.search_goal_topic) is the coordinator's to switch off (AREAS only)
         if 'FRONTIER' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode FRONTIER needs FRONTIER in executable_bases')
     for key in ('frontier_min_cells', 'exploration_empty_checks'):
@@ -218,6 +221,8 @@ def load_field(path):
     if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
         # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
+    if coordinator['completion_mode'] not in COMPLETION_MODES:
+        raise FieldLaunchError(f'coordinator.completion_mode must be one of {list(COMPLETION_MODES)}')
     if coordinator['patrol_rounds'] < 1:
         raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
     if coordinator['search_start'] not in SEARCH_START_MODES:
@@ -374,9 +379,15 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
             raise FieldLaunchError('profile home_positions needs both the SCOUT and the SUPPORT robot '
                                    '(home_poses = SCOUT [x, y, yaw] then SUPPORT); or leave the block out')
         homes['home_poses'] = [*deployment.home_of(scout), *deployment.home_of(support)]
+    # TB-5's start spot: the robot's own measured start value (robots.<TB-5>.initial_pose_xy_yaw, in TB-6's start
+    # pose) is also its exit when no QR exit was seen (OPS-155 ①·173). Not measured yet = left unset.
+    support_id = dict((role, robot) for robot, role in deployment.mission.roles)['SUPPORT']
+    start = {}
+    if 'initial_pose_xy_yaw' in field.robots.get(support_id, {}):
+        start['support_start_pose'] = [float(v) for v in field.robots[support_id]['initial_pose_xy_yaw']]
     # An empty array cannot go through ROS parameters (measured 2026-10-13): no patrol points = left unset.
     coordinator = {k: v for k, v in field.coordinator.items() if not (k == 'patrol_points' and not v)}
-    return {**roi, **homes, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
+    return {**roi, **homes, **start, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
             'mission_frame_id': basis.frame_id, 'goal_map_session_id': basis.map_session_id,
             'goal_map_revision': basis.map_revision, 'goal_transform_revision': basis.transform_revision,
             'route_segment_goals': goals, 'observe_goal': observe, 'route_segment_passage_free': passage}
@@ -443,6 +454,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     }
     if mode == 'SLAM_THEN_FROZEN':
         task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
+    if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
+        task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
     # (OPS-139); a profile home here would be used until the first coordinator record.
@@ -498,6 +511,8 @@ def frozen_localization_values(deployment, *, field, robot_id):
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
             'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
+            # the relay copies the frozen grid of the revision this robot's executor is on (OPS-154)
+            'frozen_revision_topic': FROZEN_REVISION_TOPIC, 'map_state_topic': f'/rescue/robots/{robot_id}/map_state',
             'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
             # initial_pose_xy_yaw is relative to the TB-6 start pose (OPS-141); the launch places it on the map
             'start_pose_topic': START_POSE_TOPIC + _slam_robot(field) if mode == 'FROZEN_MAP_AMCL' else None}
@@ -525,23 +540,23 @@ def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):
     return params
 
 
-def map_freeze_parameters(deployment, *, field, output_dir, record_path):
-    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0)."""
+def map_freeze_parameters(deployment, *, field, output_dir):
+    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0).
+
+    A restarted node reloads this run's freezes from output_dir (two per run, OPS-154).
+    """
     deployment, basis = _deployment(deployment)
     slam = [robot_id for robot_id, section in field.robots.items()
             if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
     if not slam:
         raise FieldLaunchError('no SLAM_THEN_FROZEN robot in the field run file; nothing to freeze')
     _, robot, section = _robot(deployment, field, slam[0])
-    for name, value in (('output_dir', output_dir), ('record_path', record_path)):
-        if not isinstance(value, str) or (value and not value.startswith('/')) or (name == 'output_dir' and not value):
-            raise FieldLaunchError(f'{name} must be an absolute path' + ('' if name == 'output_dir' else ' or empty'))
+    if not isinstance(output_dir, str) or not output_dir.startswith('/'):
+        raise FieldLaunchError('output_dir must be an absolute path')
     params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
               'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
               'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
               'output_dir': output_dir}
-    if record_path:
-        params['record_path'] = record_path   # restart: republish the saved freeze
     return params
 
 
