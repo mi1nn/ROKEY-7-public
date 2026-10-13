@@ -481,7 +481,7 @@ class FieldFile(FieldCase):
             'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
             'completion mode unknown': lambda r: r['coordinator'].update({'completion_mode': 'ARRIVAL'}),
             # OPS-204: two robots on one live map in the field cross; traffic control is not optional there
-            'slam freeze without traffic control': lambda r: r['coordinator'].update({'traffic_control': 'OFF'}),
+            'slam freeze without traffic control': lambda r: r['coordinator'].update({'traffic_control': 'DISABLED'}),
             'traffic control unknown': lambda r: r['coordinator'].update({'traffic_control': 'ON'}),
             'path clearance under separation': lambda r: r['coordinator'].update({'traffic_path_clearance_m': 0.5}),
             'yield distance not positive': lambda r: r['coordinator'].update({'traffic_yield_max_m': 0.0}),

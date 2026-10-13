@@ -63,7 +63,7 @@ SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
 COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')  # rescue_coordination.ros_node.COMPLETION_MODES
-TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'OFF')  # rescue_coordination.ros_node.TRAFFIC_CONTROLS
+TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'DISABLED')  # rescue_coordination.ros_node.TRAFFIC_CONTROLS
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,

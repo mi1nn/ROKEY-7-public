@@ -238,7 +238,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `search_mode` | string | `PATROL`(현장 파일 순찰 지점) 또는 `AREAS`(프로파일 search_areas). 둘 중 하나만. 현장 지금 `AREAS`(RViz 목표) [근거: 작전 OPS-139, 순찰 방식은 재범 확인 대기] |
 | `patrol_points` | double[] | 생략 가능. TB-6 출발 자세 기준 [x, y, yaw]*N. `PATROL` 이면 필요하고 `executable_bases` 에 `PATROL_POINT` 가 있어야 한다 |
 | `patrol_rounds` | int | 순찰 바퀴 수(1 이상). 다 돌면 `PATROL_EXHAUSTED` [근거: 작전 OPS-139] |
-| `traffic_control` | string | `TB5_PRIORITY`(교통 관제, TB-5 먼저) 또는 `OFF`(로봇 없는 시험 고정값). 현장 launch 는 SLAM_FREEZE 에서 `OFF` 를 거절한다. `TB5_PRIORITY` 는 `search_mode=FRONTIER` 가 필요하다(비켜서기가 FRONTIER 자리) [근거: 저장소 소유자 결정 2026-10-14, OPS-204] |
+| `traffic_control` | string | `TB5_PRIORITY`(교통 관제, TB-5 먼저) 또는 `DISABLED`(로봇 없는 시험 고정값; `OFF` 는 ROS 명령줄에서 YAML 참거짓이 돼 쓰지 않음). 현장 launch 는 SLAM_FREEZE 에서 `DISABLED` 를 거절한다. `TB5_PRIORITY` 는 `search_mode=FRONTIER` 가 필요하다(비켜서기가 FRONTIER 자리) [근거: 저장소 소유자 결정 2026-10-14, OPS-204] |
 | `traffic_min_separation_m` / `traffic_path_clearance_m` / `traffic_yield_max_m` / `traffic_stop_timeout_s` | double | 새 명령을 막는 두 로봇 중심 거리 / TB-6 이 TB-5 경로·TB-5 와 둘 거리(최소 간격 이상) / 가장 먼 비켜서기(격자 경로 길이) / 취소한 TB-6 정지 대기 상한. 현장 0.6 / 0.6 / 2.0 / 3.0 [추정, 실측 아님] |
 | `completion_mode` | string | `EXIT_ARRIVAL`(TB-5 출구 도착 = 구출 완료, TB-6 재확인 없음) 또는 `RECHECK`(C-11). 현장 `EXIT_ARRIVAL` [근거: 저장소 소유자 결정 2026-10-13 밤, OPS-155 ②] |
 | `support_start_pose` | double[] | 생략 가능. TB-5 시작점 [x, y, yaw](TB-6 출발 자세 기준) = 현장 파일 `robots.<TB-5>.initial_pose_xy_yaw`(현장 launch 가 넘김, 측정 전에는 없음). QR 출구가 없을 때의 출구 [OPS-155 ①·173] |

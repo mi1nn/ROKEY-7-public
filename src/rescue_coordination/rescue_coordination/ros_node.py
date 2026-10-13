@@ -99,9 +99,9 @@ FRONTIER_BASIS = 'FRONTIER'    # MissionSite.basis of a frontier goal; must be i
 FRONTIER_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/frontier')
 COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')
 # Traffic control, stage 1 (owner decision 2026-10-14, scope Q-29 ⑤; 작전 OPS-204·205): TB-5 always goes first,
-# because TB-5 leads the rescuer, who follows it on foot. OFF is for robot-less fixtures only; the field launch
-# refuses it with SLAM_FREEZE (two robots on one live map).
-TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'OFF')
+# because TB-5 leads the rescuer, who follows it on foot. DISABLED is for robot-less fixtures only (not OFF:
+# YAML reads it as false on the ROS command line); the field launch refuses it with SLAM_FREEZE (one live map).
+TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'DISABLED')
 TRAFFIC_REASONS = ('TRAFFIC_SUPPORT_WAITING_SCOUT_STOP',   # TB-6 canceled for TB-5; waiting for its stop
                    'TRAFFIC_SCOUT_STOP_TIMEOUT',           # ... longer than traffic_stop_timeout_s
                    'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD',  # TB-6 sent aside; TB-5 waits until it is off the path
@@ -2424,7 +2424,7 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'exploration_timeout_s': 'DOUBLE',
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).
     'completion_mode': 'STRING',
-    # Traffic control (OPS-204·205): TB5_PRIORITY | OFF; robots this close get no new command; TB-6 keeps this far
+    # Traffic control (OPS-204·205): TB5_PRIORITY | DISABLED; robots this close get no new command; TB-6 keeps this far
     # from TB-5's path (and TB-5); the farthest step aside; how long TB-5 waits for a canceled TB-6 to stop.
     'traffic_control': 'STRING', 'traffic_min_separation_m': 'DOUBLE', 'traffic_path_clearance_m': 'DOUBLE',
     'traffic_yield_max_m': 'DOUBLE', 'traffic_stop_timeout_s': 'DOUBLE'}
