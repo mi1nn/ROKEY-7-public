@@ -506,5 +506,41 @@ class AllowedRobotsTests(LedgerFixture):
         self.assertIn('상태가 들어온 로봇만', ' '.join(view['warnings']))
 
 
+class RobotNameTests(LedgerFixture):
+    """Robot display names come from the launch (owner 2026-10-13: TB-6 = robot_a SCOUT, TB-5 = robot_b
+    SUPPORT); nothing ties a name to a role and no AMR1/AMR2 wording is left on the screen."""
+    NAMES = {'robot_a': 'TB-6', 'robot_b': 'TB-5'}
+
+    def named(self):
+        return build_view(load_ledger(self.db), self.status, built_at_ns=T0 + 30 * SECOND, robot_names=self.NAMES)
+
+    def test_given_names_label_the_robots_and_the_dispatch_command(self):
+        view = self.named()
+        self.assertEqual([('robot_a', 'TB-6'), ('robot_b', 'TB-5')], [(r['robot_id'], r['name']) for r in view['robots']])
+        labels = {c['name']: c['label'] for c in view['commands']}
+        self.assertEqual('TB-5 출동 승인', labels['DISPATCH_SUPPORT'])
+        html = render_page(view)
+        self.assertIn('TB-6', html)
+        self.assertNotRegex(html, r'AMR ?[12]')
+
+    def test_without_names_the_robot_id_is_shown(self):
+        view = self.view()
+        self.assertEqual(['robot_a', 'robot_b'], [r['name'] for r in view['robots']])
+        self.assertEqual('robot_b 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
+        self.assertNotRegex(render_page(view), r'AMR ?[12]')
+
+    def test_without_a_support_status_the_label_says_support_robot(self):
+        status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})
+        view = build_view(load_ledger(self.db), status, built_at_ns=T0, robot_names=self.NAMES)
+        self.assertEqual('지원 로봇 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
+
+    def test_name_argument(self):
+        from rescue_console.app import parse_robot_name
+        self.assertEqual(('robot_a', 'TB-6'), parse_robot_name('robot_a=TB-6'))
+        for bad in ('robot_a', '=TB-6', 'robot_a=', 'robot_a= '):
+            with self.subTest(bad=bad), self.assertRaises(ConsoleError):
+                parse_robot_name(bad)
+
+
 if __name__ == '__main__':
     unittest.main()
