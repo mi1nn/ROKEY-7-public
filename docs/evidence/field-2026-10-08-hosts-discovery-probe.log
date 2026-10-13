@@ -1,0 +1,13 @@
+# 실기·배포 2026-10-08. 실행 위치: 컨테이너 ros:jazzy-ros-base (Fast DDS 2.14.6), --network none (loopback 만). 도메인 42, LOCALHOST, 서버 127.0.0.1:11899.
+$ docker run --rm --network none -v <REPO>:/repo:ro -w /repo -e ROS_DOMAIN_ID=42 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST ros:jazzy-ros-base bash -c "source /opt/ros/jazzy/setup.bash && unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT && python3 tests/ros/hosts_discovery_probe.py"
+{"case": "A", "expect": false, "got": false, "ok": true}
+{"case": "B", "expect": true, "got": true, "ok": true}
+{"case": "C", "expect": true, "got": true, "ok": true}
+{"case": "F", "expect": false, "got": false, "ok": true}
+{"case": "P", "expect": ["FAILED", 2], "got": ["FAILED", 2], "ok": true, "preflight_exit": 2}
+{"case": "R1", "expect": true, "got": true, "ok": true, "result": "no_reply"}
+{"case": "H", "expect": false, "got": false, "ok": true}
+{"case": "R2", "expect": "FAILED", "got": "FAILED", "ok": true, "result": "refused"}
+{"case": "S", "expect": true, "got": true, "ok": true}
+E3 hosts discovery probe: PASSED (9/9 cases, domain 42, server 127.0.0.1:11899)
+exit=0

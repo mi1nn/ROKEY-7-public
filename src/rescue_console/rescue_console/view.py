@@ -64,6 +64,8 @@ VERDICT_PHASES = frozenset({'RESCUE_CONFIRMED', 'RECHECK_NEEDED'})
 
 # Row cap for the event table; older rows stay in the ledger ([제안] 관제·화면, 2026-10-08).
 EVENT_ROWS = 50
+# Row cap for the command and error history; older rows stay in the site-state DB ([제안] 작전, 2026-10-12).
+HISTORY_ROWS = 30
 
 # A robot row whose last status reached operations longer ago than this is marked stale
 # ([제안] 관제·화면, 2026-10-10). Display only, not readiness (C-05); replace with the profile's
@@ -322,6 +324,31 @@ def _mission(site_events, row):
                    'trigger_ns': signs[0].observed_at_ns if signs else None}
 
 
+def _history(status):
+    """Operator commands as operations recorded them (answer and reason, rejections included) and
+    operations' error_log, newest first. None when neither input is there (the status fixture).
+    Kept apart from the event rows: those carry the KPI-04 display latency, these do not."""
+    commands = _section(status, 'operator_commands', 'commands')
+    errors = _section(status, 'error_log', 'errors')
+    if commands is None and errors is None:
+        return None
+    words = dict(COMMANDS)
+    rows = []
+    for item in [] if commands is None else commands['commands']:
+        rows.append({'at_ns': item['requested_at_ns'], 'kind': 'COMMAND', 'ref_id': item['command_id'],
+                     'what': item['kind'], 'what_label': words.get(item['kind'], item['kind']),
+                     'accepted': item['accepted'], 'result': item['result'], 'reason': item['reason'],
+                     'target_id': item['target_id'], 'operator_id': item['operator_id'], 'detail': None})
+    for item in [] if errors is None else errors['errors']:
+        rows.append({'at_ns': item['at_ns'], 'kind': 'ERROR', 'ref_id': str(item['seq']),
+                     'what': item['code'], 'what_label': item['code'], 'accepted': None, 'result': None,
+                     'reason': None, 'target_id': None, 'operator_id': None, 'detail': item['detail']})
+    rows.sort(key=lambda row: (row['at_ns'], row['kind'], row['ref_id']), reverse=True)
+    return {'rows': rows[:HISTORY_ROWS],
+            'missing': [key for key, section in (('operator_commands', commands), ('error_log', errors))
+                        if section is None]}
+
+
 def _choice(target):
     return {'target_id': target['target_id'], 'target_revision': target['target_revision'],
             'stage': target['stage'], 'stage_label': target['stage_label']}
@@ -391,8 +418,8 @@ def command_gates(mission, targets):
 
 
 def build_view(ledger, status, *, built_at_ns):
-    """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states', 'mission_state'},
-    each the matching operations read API result (or None when not available yet)."""
+    """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
+    'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     warnings = []
     allowed = tuple(ledger['allowed_robot_ids'])
@@ -433,5 +460,6 @@ def build_view(ledger, status, *, built_at_ns):
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
         'commands': command_gates(mission, targets),
+        'history': _history(status),
         'warnings': warnings,
     }

@@ -4,6 +4,7 @@ ROS·카메라·모델을 쓰지 않는다. 노드(`webcam_node`)는 이 모듈�
 숫자는 시험용이며 정책 확정값이 아니다.
 """
 from dataclasses import replace
+from types import SimpleNamespace
 import unittest
 from uuid import UUID
 
@@ -39,7 +40,8 @@ class WatchSlotTests(unittest.TestCase):
         binding = SourceBinding(None, "cam_fixed", str(UUID(int=300)), "site-clock", "DRIVER_RECEIVE", "UNKNOWN",
                                 "cam-fixed-cal", "UNKNOWN", None)
         policy = TargetWatchPolicy(score_min=0.5, roi_overlap_min=0.5, present_confirm_frames=2,
-                                   absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150)
+                                   absent_hold_ns=300, absent_min_frames=3, max_gap_ns=150,
+                                   exit_roi_xyxy_normalized=(0.0, 0.0, 1.0, 1.0), track_max_jump=0.3)
         self.slot = WatchSlot(binding, policy)
 
     def test_empty_slot_has_no_detector(self):
@@ -174,9 +176,95 @@ class NodeParamsExampleTests(unittest.TestCase):
             m = re.match(r"\s{4}(\w+):\s*([^#]+?)\s*(#.*)?$", line)
             if m:
                 kind, raw = PARAMS.get(m.group(1)), m.group(2)
-                values[m.group(1)] = int(raw) if kind == "INTEGER" else float(raw) if kind == "DOUBLE" else raw
+                values[m.group(1)] = (int(raw) if kind == "INTEGER" else float(raw) if kind == "DOUBLE"
+                                      else [float(x) for x in raw.strip("[]").split(",")] if kind == "DOUBLE_ARRAY"
+                                      else raw)
         self.assertEqual(set(values), set(PARAMS))
         policies(values)  # 값 검사는 각 정책이 한다
+
+    def test_camera_is_opened_by_stable_device_path(self):
+        # 2026-10-12 실기: 카메라 번호(device_index)는 꽂는 순서로 바뀌었다(USB 웹캠이 0 이 아니라 2).
+        from rescue_perception.webcam_node import PARAMS
+        self.assertNotIn("device_index", PARAMS)
+        self.assertEqual(PARAMS.get("device_path"), "STRING")
+
+
+
+class SpinShutdownTests(unittest.TestCase):
+    """2026-10-12 실기: 감시 중 SIGINT 가 프레임 처리 도중에 오면 발행이 RCLError 를 내 exit 1 로 끝났다."""
+
+    class FakeRclpy:
+        def __init__(self, exc, ok):
+            self.exc, self._ok = exc, ok
+
+        def spin(self, node):
+            raise self.exc
+
+        def ok(self):
+            return self._ok
+
+    class Log:
+        def __init__(self):
+            self.lines = []
+
+        def info(self, msg):
+            self.lines.append(msg)
+
+    def test_error_after_shutdown_is_a_normal_stop(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        log = self.Log()
+        spin_until_shutdown(self.FakeRclpy(RuntimeError("publisher's context is invalid"), ok=False), None, log)
+        self.assertEqual(log.lines, ["webcam_node stopping"])
+
+    def test_error_while_running_still_raises(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        with self.assertRaises(RuntimeError):
+            spin_until_shutdown(self.FakeRclpy(RuntimeError("bug"), ok=True), None, self.Log())
+
+    def test_ctrl_c_is_a_normal_stop(self):
+        from rescue_perception.webcam_node import spin_until_shutdown
+        log = self.Log()
+        spin_until_shutdown(self.FakeRclpy(KeyboardInterrupt(), ok=True), None, log)
+        self.assertEqual(log.lines, ["webcam_node stopping"])
+
+
+
+
+class StreamStateTests(unittest.TestCase):
+    """CameraStatus 계약(SDD): 정지 영상·끊김·가림은 UNKNOWN. 2026-10-12 실기: 렌즈를 손으로 가려도 ONLINE 이었다."""
+
+    def test_covered_scene_is_unknown_with_reason(self):
+        from rescue_perception.webcam_service import stream_state
+        for reason in ("OCCLUDED", "SCENE_CHANGED", "QUADRANT_COVERED"):
+            self.assertEqual(stream_state(sign("UNKNOWN", reason), (640, 480), (640, 480)), ("UNKNOWN", reason))
+
+    def test_normal_and_size_mismatch(self):
+        from rescue_perception.webcam_service import stream_state
+        self.assertEqual(stream_state(sign(), (640, 480), (640, 480)), ("ONLINE", ""))
+        self.assertEqual(stream_state(sign("UNKNOWN", "MATCH_FAILED"), (640, 480), (640, 480)), ("ONLINE", ""))
+        self.assertEqual(stream_state(sign(), (320, 240), (640, 480)), ("DEGRADED", "SIZE_MISMATCH"))
+
+class DebugImageTests(unittest.TestCase):
+    """2026-10-12 사용자 요청: 노드로 시험할 때도 판정을 화면으로 본다(웹캠 -> 노드 -> 토픽 -> 대시보드)."""
+
+    def test_node_has_debug_image_topic_param(self):
+        from rescue_perception.webcam_node import PARAMS
+        self.assertEqual(PARAMS.get("debug_image_topic"), "STRING")
+
+    def test_detector_exposes_tracked_position(self):
+        from rescue_perception.target_watch import WatchSpec
+        binding = SourceBinding(None, "cam_fixed", str(UUID(int=300)), "site-clock", "DRIVER_RECEIVE", "UNKNOWN",
+                                "cam-fixed-cal", "UNKNOWN", None)
+        policy = TargetWatchPolicy(score_min=0.5, roi_overlap_min=0.5, present_confirm_frames=2, absent_hold_ns=300,
+                                   absent_min_frames=3, max_gap_ns=150, exit_roi_xyxy_normalized=(0.0, 0.0, 1.0, 1.0),
+                                   track_max_jump=0.3)
+        from rescue_perception.target_watch import TargetWatchDetector
+        det = TargetWatchDetector(binding, policy, WatchSpec("cam_fixed", WATCH, TARGET, ROI, 1))
+        self.assertIsNone(det.track)
+        image = SimpleNamespace(header=SimpleNamespace(stamp=SimpleNamespace(sec=1700000000, nanosec=0), frame_id="x"),
+                                width=8, height=8, encoding="mono8", is_bigendian=0, step=8, data=bytes(64))
+        det.update(image, boxes_from_xyxyn([[0.45, 0.45, 0.55, 0.55]], [0.9]), visibility="VALID")
+        self.assertEqual(det.track, (0.5, 0.5))
 
 
 if __name__ == "__main__":

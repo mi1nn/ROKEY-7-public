@@ -1,0 +1,7 @@
+# 2026-10-12, head 10d4e9e
+PASS personal paths: tracked_files=442
+PASS markdown: files=43, local_links=370, pinned_source_links=199, line_ranges=194
+SKIP source objects, line bounds and inventory: supply --sources P4_DIR AMR_DIR
+NOT CHECKED: prose meaning, local heading anchors, external web availability, host names, IPs, tokens
+NOT RUN: source tests, colcon, ROS, model inference, bag replay, robot/4-PC acceptance
+exit=0
