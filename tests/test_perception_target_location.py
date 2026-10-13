@@ -107,6 +107,12 @@ class LocateTests(unittest.TestCase):
                 self.assertRefused(reason, **kw)
         run(now=OBSERVED - 5_000_000)   # within the error bound: not future
 
+    def test_invalid_stamp_semantics_and_expiry_boundary_are_refused(self):
+        for value in ('', 'INVALID'):
+            with self.subTest(value=value):
+                self.assertRefused('STAMP_SEMANTICS_UNKNOWN', obs=observation(stamp_semantics=value))
+        self.assertRefused('OBSERVATION_EXPIRED', now=OBSERVED + 2_000_000_000)
+
     def test_location_outside_the_alignment_authority_window_is_refused(self):   # C-04, decision 2
         self.assertRefused('ALIGNMENT_NOT_VALID_AT_CAPTURE', b=basis(alignment_valid_from_ns=OBSERVED + 1))
         self.assertRefused('ALIGNMENT_EXPIRED', b=basis(alignment_valid_until_ns=NOW))
