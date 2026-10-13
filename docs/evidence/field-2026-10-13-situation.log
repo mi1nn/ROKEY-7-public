@@ -39,42 +39,42 @@ preflight exit=3 (NOT_RUN 있음)
 3 packets transmitted, 0 received, +1 errors, 100% packet loss, time 2002ms
 
 == ip neigh (109 subnet)
-<ROBOT5_IP> dev wlo1 STALE 
-<ROBOT6_IP> dev wlo1 REACHABLE 
-<HOST_X> dev wlo1 REACHABLE 
-<GATEWAY> dev wlo1 REACHABLE 
-<OPS_HOST_IP> dev wlo1 INCOMPLETE 
+<ROBOT5_IP> dev wlo1 STALE
+<ROBOT6_IP> dev wlo1 REACHABLE
+<HOST_X> dev wlo1 REACHABLE
+<GATEWAY> dev wlo1 REACHABLE
+<OPS_HOST_IP> dev wlo1 INCOMPLETE
 == robot5 battery retry 15s
 # 2026-10-13 11:02:19 KST
-<ROBOT5_IP> 0% packet loss rtt min/avg/max/mdev = 4.559/5.838/7.118/1.279 ms 
-<ROBOT6_IP> 0% packet loss rtt min/avg/max/mdev = 7.178/7.525/7.873/0.347 ms 
-<HOST_X> 0% packet loss rtt min/avg/max/mdev = 1.448/2.777/4.106/1.329 ms 
-<OPS_HOST_IP> 100% packet loss 
+<ROBOT5_IP> 0% packet loss rtt min/avg/max/mdev = 4.559/5.838/7.118/1.279 ms
+<ROBOT6_IP> 0% packet loss rtt min/avg/max/mdev = 7.178/7.525/7.873/0.347 ms
+<HOST_X> 0% packet loss rtt min/avg/max/mdev = 1.448/2.777/4.106/1.329 ms
+<OPS_HOST_IP> 100% packet loss
 == UDP 11811 probe on Pis (one empty datagram)
 <ROBOT5_IP> sent
 <ROBOT6_IP> sent
 # 2026-10-13 11:02:34 KST  onboard server probe (env override in this process only, files unchanged)
 <ROBOT5_IP> id=0 -> none
-<ROBOT5_IP> id=5 ->      24 /robot5 
+<ROBOT5_IP> id=5 ->      24 /robot5
 <ROBOT5_IP> id=6 -> none
 <ROBOT6_IP> id=0 -> none
 <ROBOT6_IP> id=5 -> none
-<ROBOT6_IP> id=6 ->      43 /robot6 
+<ROBOT6_IP> id=6 ->      43 /robot6
 
 ## 5. 로봇 온보드 서버로 직접 읽기 (이 프로세스 환경변수만 바꿈)
 # 2026-10-13 11:03:27 KST  read via onboard servers: ;;;;;<ROBOT5_IP>:11811;<ROBOT6_IP>:11811; (process env only)
 == robot5 topics: 24
-/robot5/cmd_vel /robot5/cmd_vel_unstamped /robot5/odom /robot5/scan /robot5/tf /robot5/tf_static 
+/robot5/cmd_vel /robot5/cmd_vel_unstamped /robot5/odom /robot5/scan /robot5/tf /robot5/tf_static
 battery: 1.0
 docked: True
-odom: 
-scan: 
+odom:
+scan:
 == robot6 topics: 43
-/robot6/cmd_vel /robot6/cmd_vel_unstamped /robot6/oakd/imu/data /robot6/oakd/rgb/camera_info /robot6/oakd/rgb/image_raw /robot6/oakd/rgb/image_raw/compressed /robot6/oakd/rgb/image_raw/compressedDepth /robot6/oakd/rgb/image_raw/theora /robot6/oakd/rgb/image_raw/zstd /robot6/oakd/rgb/preview/camera_info /robot6/oakd/rgb/preview/image_raw /robot6/oakd/rgb/preview/image_raw/compressed /robot6/oakd/rgb/preview/image_raw/compressedDepth /robot6/oakd/rgb/preview/image_raw/theora /robot6/oakd/rgb/preview/image_raw/zstd /robot6/oakd/stereo/camera_info /robot6/oakd/stereo/image_raw /robot6/oakd/stereo/image_raw/compressed /robot6/oakd/stereo/image_raw/compressedDepth /robot6/oakd/stereo/image_raw/theora /robot6/oakd/stereo/image_raw/zstd /robot6/odom /robot6/scan /robot6/tf /robot6/tf_static 
+/robot6/cmd_vel /robot6/cmd_vel_unstamped /robot6/oakd/imu/data /robot6/oakd/rgb/camera_info /robot6/oakd/rgb/image_raw /robot6/oakd/rgb/image_raw/compressed /robot6/oakd/rgb/image_raw/compressedDepth /robot6/oakd/rgb/image_raw/theora /robot6/oakd/rgb/image_raw/zstd /robot6/oakd/rgb/preview/camera_info /robot6/oakd/rgb/preview/image_raw /robot6/oakd/rgb/preview/image_raw/compressed /robot6/oakd/rgb/preview/image_raw/compressedDepth /robot6/oakd/rgb/preview/image_raw/theora /robot6/oakd/rgb/preview/image_raw/zstd /robot6/oakd/stereo/camera_info /robot6/oakd/stereo/image_raw /robot6/oakd/stereo/image_raw/compressed /robot6/oakd/stereo/image_raw/compressedDepth /robot6/oakd/stereo/image_raw/theora /robot6/oakd/stereo/image_raw/zstd /robot6/odom /robot6/scan /robot6/tf /robot6/tf_static
 battery: 0.8199999928474426
 docked: False
-odom: 
-scan: 
+odom:
+scan:
 # 2026-10-13 11:03:54 KST  hz retry (no type arg, 10s)
 /robot5/odom: WARNING: topic [/robot5/odom] does not appear to be published yet
 
