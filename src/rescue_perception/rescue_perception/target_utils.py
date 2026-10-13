@@ -16,17 +16,15 @@ from rescue_mapping import RigidTransform
 from .core import AlignmentEvidence, DepthPolicy
 from .person_pipeline import ConfirmationPolicy, DetectorOutput, Inference
 from .adapter import ObservationPolicy, SourceBinding
-from .camera_utils import SETTINGS as CAMERA_SETTINGS, validate_config
+from .camera_utils import FIELD_PARAMS as CAMERA_FIELD_PARAMS, SETTINGS as CAMERA_SETTINGS, validate_config
 
 
 # User settings, 2026-10-12: share RGB settings and always select robot6 correction.
 # UNKNOWN clock/alignment values remain deliberate until measured.
 SETTINGS = {
     **CAMERA_SETTINGS,
-    'depth_topic': 'camera/depth/image_raw/compressedDepth',
     'depth_transport': 'compressedDepth',
     'depth_byte_order': 'little',
-    'camera_info_topic': 'camera/camera_info',
     'observations_topic': '/rescue/observations',
     'base_point_topic': 'perception/target_base_point',
     'base_frame': 'base_link',
@@ -36,8 +34,6 @@ SETTINGS = {
     'camera_id': 'amr_rgbd',
     'model_id': 'survivor_yolo26n_640',
     'confirm_confidence_min': 0.8,
-    'rgb_optical_frame': 'camera_rgb_optical',
-    'depth_optical_frame': 'camera_rgb_optical',
     'calibration_id': 'UNCONFIGURED',
     'alignment_evidence_id': 'UNCONFIGURED',
     'rgb_rectified': False,
@@ -60,6 +56,11 @@ SETTINGS = {
     'max_depth_spread_m': 0.5,
     'sensor_variance_xyz': [0.04, 0.04, 0.04],
 }
+
+# Topic and optical frame names come from the robot, not from code (B1, 2026-10-13).
+FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_topic': 'STRING',
+                'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING'}
+
 
 def target_config(v, boot_id):
     validate_config(v)

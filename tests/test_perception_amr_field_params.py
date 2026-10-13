@@ -50,5 +50,20 @@ class AmrFieldParamsTests(unittest.TestCase):
             field_values(TARGET_SETTINGS, partial, TARGET_FIELD_PARAMS)
 
 
+class AmrPerceptionLaunchTests(unittest.TestCase):
+    def test_launch_requires_every_field_parameter(self):
+        try:
+            from launch import LaunchDescription  # noqa: F401  (ROS only; a bare `launch` may be src/rescue_bringup/launch)
+        except ImportError:
+            self.skipTest('ROS launch not importable (NOT_RUN without a sourced ROS)')
+        import runpy
+        from pathlib import Path
+        path = Path(__file__).resolve().parents[1] / 'src/rescue_bringup/launch/amr_perception.launch.py'
+        description = runpy.run_path(str(path))['generate_launch_description']()
+        arguments = {a.name: a for a in description.get_launch_arguments()}
+        self.assertTrue(TARGET_NAMES | {'tf_topic', 'tf_static_topic'} <= set(arguments))
+        self.assertTrue(all(a.default_value is None for a in arguments.values()))
+
+
 if __name__ == '__main__':
     unittest.main()
