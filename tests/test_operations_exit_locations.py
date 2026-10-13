@@ -95,8 +95,10 @@ class ExitLocationIngestTests(Case):
         self.ingest = SiteStateIngest(self.db)
 
     def test_exit_message_is_stored_with_its_map_basis(self):
-        self.assertTrue(self.ingest.on_exit_location(exit_msg(1), received_at_ns=T0 + 50))
-        self.assertFalse(self.ingest.on_exit_location(exit_msg(1), received_at_ns=T0 + 51))
+        self.assertIs(True, self.ingest.on_exit_location(exit_msg(1), received_at_ns=T0 + 50))
+        # A resend arrives later: same observation, not a conflict (received_at_ns is the first arrival's).
+        self.assertIs(False, self.ingest.on_exit_location(exit_msg(1), received_at_ns=T0 + 51))
+        self.assertEqual([], site_state.read_error_log(self.path)['errors'])
         (row,) = site_state.read_exit_locations(self.path)['exits']
         self.assertEqual(exit_record(1, x=-4.0, received_at_ns=T0 + 50), row)
 

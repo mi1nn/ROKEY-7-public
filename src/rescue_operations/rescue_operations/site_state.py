@@ -24,9 +24,9 @@ from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 # A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
-UPGRADES_FROM = frozenset({"1.0", "1.1"})  # 1.1 -> 1.2 rebuilds mission_state
+UPGRADES_FROM = frozenset({"1.0", "1.1", "1.2"})  # 1.1 -> 1.2 rebuilds mission_state; 1.3 adds exit_locations
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
@@ -68,6 +68,10 @@ ERROR_KEYS = {"at_ns", "robot_id", "task_id", "code", "detail"}
 COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "segment_index", "route_revision",
                 "requested_at_ns", "accepted", "result", "reason"}
 MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
+# 1.3: one VALID QR exit observation (/rescue/exit_location, class_label exit_qr; 작전 OPS-144·150).
+EXIT_CLASS_LABEL = "exit_qr"
+EXIT_KEYS = {"location_id", "observed_at_ns", "received_at_ns", "map_session_id", "map_revision",
+             "transform_revision", "mission_frame", "x", "y", "class_label"}
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 # The AMR2 dispatch (schema 1.2): all None without a dispatch, all present with one.
 DISPATCH_DEFAULTS = {"target_id": None, "target_revision": None, "route_revision": None, "segment_index": None,
@@ -83,7 +87,8 @@ MISSION_DDL = """CREATE TABLE IF NOT EXISTS mission_state (
         trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER, updated_at_ns INTEGER NOT NULL,
         target_id TEXT, target_revision INTEGER, route_revision INTEGER, segment_index INTEGER,
         segment_count INTEGER, segment_phase TEXT, reason TEXT)"""
-# 1.0: robot_status, site_events, target_states. 1.1 adds the last four (db-schema 4절); 1.2 reshapes mission_state.
+# 1.0: robot_status, site_events, target_states. 1.1 adds four (db-schema 4절); 1.2 reshapes mission_state;
+# 1.3 adds exit_locations (a 1.2 file only gets the new table).
 TABLES = (
     """CREATE TABLE IF NOT EXISTS robot_status (
         robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
@@ -104,6 +109,10 @@ TABLES = (
     """CREATE TABLE IF NOT EXISTS map_snapshots (
         snapshot_id TEXT PRIMARY KEY, robot_id TEXT NOT NULL, revision INTEGER NOT NULL,
         path TEXT NOT NULL, sha256 TEXT NOT NULL, at_ns INTEGER NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS exit_locations (
+        location_id TEXT PRIMARY KEY, observed_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL,
+        map_session_id TEXT NOT NULL, map_revision INTEGER NOT NULL, transform_revision INTEGER NOT NULL,
+        mission_frame TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, class_label TEXT NOT NULL)""",
 )
 
 
@@ -295,6 +304,21 @@ def _map_snapshot(value, allowed):
     return snapshot
 
 
+def _exit_location(value):
+    exit_ = exact(value, EXIT_KEYS, "exit location")
+    uid(exit_["location_id"], "location_id")
+    timestamp(exit_["observed_at_ns"], "observed_at_ns")
+    timestamp(exit_["received_at_ns"], "received_at_ns")
+    uid(exit_["map_session_id"], "map_session_id")
+    uint(exit_["map_revision"], "map_revision")
+    uint(exit_["transform_revision"], "transform_revision")
+    text(exit_["mission_frame"], "mission_frame")
+    for key in ("x", "y"):
+        _finite(exit_[key], key)
+    require(exit_["class_label"] == EXIT_CLASS_LABEL, "class_label must be " + EXIT_CLASS_LABEL)
+    return exit_
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -414,6 +438,23 @@ class SiteStateLedger(_Database):
                         snapshot["sha256"], snapshot["at_ns"]))
         return True
 
+    def record_exit_location(self, value):
+        """Append one QR exit observation. Returns False for a resend; other content for the same id conflicts."""
+        exit_ = _exit_location(value)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM exit_locations WHERE location_id = ?", (exit_["location_id"],)).fetchone()
+            if row is not None:
+                # A later resend keeps the first arrival: only the observation itself must match.
+                same = {k: v for k, v in dict(row).items() if k != "received_at_ns"}
+                require(same == {k: v for k, v in exit_.items() if k != "received_at_ns"},
+                        "location_id has different content", "ID_CONTENT_CONFLICT")
+                return False
+            db.execute("INSERT INTO exit_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       tuple(exit_[k] for k in ("location_id", "observed_at_ns", "received_at_ns", "map_session_id",
+                                                "map_revision", "transform_revision", "mission_frame", "x", "y",
+                                                "class_label")))
+        return True
+
     def record_mission_state(self, mission):
         """Replace the single mission row. Only a newer ``updated_at_ns`` replaces it."""
         mission = _mission(mission)
@@ -530,4 +571,15 @@ def read_map_snapshots(db_path, *, limit=100):
         rows = db.execute("SELECT * FROM map_snapshots ORDER BY at_ns DESC, snapshot_id DESC LIMIT ?",
                           (limit,)).fetchall()
         return {"maps": [dict(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_exit_locations(db_path, *, limit=100):
+    """Newest ``observed_at_ns`` first, ties by ``location_id`` (console, OPS-150); ``received_at_ns`` is for display."""
+    limit = _limit(limit)
+
+    def query(db):
+        rows = db.execute("SELECT * FROM exit_locations ORDER BY observed_at_ns DESC, location_id ASC LIMIT ?",
+                          (limit,)).fetchall()
+        return {"exits": [dict(row) for row in rows]}
     return _read(db_path, query)
