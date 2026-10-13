@@ -1,4 +1,5 @@
 """--live-map: the SLAM map file is re-read when it changes; a missing, stale or unreadable map is said, never hidden."""
+from datetime import datetime
 import json
 import os
 import unittest
@@ -139,6 +140,47 @@ class UnplacedRobotTests(LiveMapFixture):
         self.assertEqual(['robot_a'], [r['id'] for r in view['map']['robots']])
         self.assertEqual(['robot_b'], [r['id'] for r in view['map']['no_pose']])
         self.assertIn('robot_b: 위치 미확정', render_fragment(view))
+
+
+class ExitMapTests(LiveMapFixture):
+    """The newest exit_qr observation (#237, OPS-150) on the map: 「출구(QR) 관측 HH:MM:SS」, said to be an
+    observation, not the exit the coordinator registered. Nothing is shown or warned without the table."""
+
+    def exits(self, x=0.5, y=-1.5, frame='map'):
+        self.status['exit_locations'] = {'schema_version': '1.3', 'exits': [
+            {'location_id': 'e0e0e0e0-0000-5000-8000-000000000001', 'observed_at_ns': 100 * SECOND,
+             'received_at_ns': 101 * SECOND, 'map_session_id': 'e0e0e0e0-0000-5000-8000-000000000002',
+             'map_revision': 1, 'transform_revision': 0, 'mission_frame': frame, 'x': x, 'y': y,
+             'class_label': 'exit_qr'}]}
+
+    def test_the_exit_is_drawn_with_its_observation_time(self):
+        self.exits()
+        write_snapshot(self.maps, **grid())
+        self.received(0)
+        view = self.view(self.live())
+        self.assertEqual(1, len(view['map']['exits']))
+        html = render_fragment(view)
+        stamp = datetime.fromtimestamp(100).strftime('%H:%M:%S')
+        self.assertIn(f'출구(QR) 관측 {stamp}', html)
+        self.assertIn('class="exit"', html)
+        self.assertIn('map_revision 1', html)          # in the hover title only
+
+    def test_an_exit_off_the_map_is_listed_not_placed(self):
+        self.exits(x=50.0)
+        write_snapshot(self.maps, **grid())
+        self.received(0)
+        view = self.view(self.live())
+        self.assertEqual([], view['map']['exits'])
+        self.assertIn('출구(QR): 지도 밖', render_fragment(view))
+
+    def test_no_exit_table_shows_nothing(self):
+        write_snapshot(self.maps, **grid())
+        self.received(0)
+        view = self.view(self.live())
+        self.assertIsNone(view['exit'])
+        self.assertEqual([], view['map']['exits'])
+        self.assertNotIn('출구(QR)', render_fragment(view))
+        self.assertFalse([w for w in view['warnings'] if 'exit' in w])
 
 
 if __name__ == '__main__':
