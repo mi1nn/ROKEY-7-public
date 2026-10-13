@@ -36,6 +36,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
+from rescue_contracts.occupancy import compose_planar
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand, RecheckRequest
@@ -96,13 +97,6 @@ def patrol_site_id(map_session_id, index):
     return str(uuid.uuid5(PATROL_NAMESPACE, f'{map_session_id}/{index}'))
 
 
-def from_start_pose(start, local):
-    """(x, y, yaw) given in TB-6's start pose -> map (x, y, yaw); ``start`` is that pose in the map."""
-    sx, sy, syaw = start
-    x, y, yaw = local
-    c, s_ = math.cos(syaw), math.sin(syaw)
-    heading = syaw + yaw
-    return sx + c * x - s_ * y, sy + s_ * x + c * y, math.atan2(math.sin(heading), math.cos(heading))
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
                         'ARRIVED': 'STOPPED'}
@@ -502,14 +496,14 @@ class CoordinatorCore:
         if self.search_mode == 'PATROL':
             sites = []
             for i, point_ in enumerate(self.patrol_points):
-                x, y, yaw = from_start_pose(self.start_pose, point_)
+                x, y, yaw = compose_planar(self.start_pose, point_)
                 sites.append(MissionSite(patrol_site_id(session, i), (x, y), PATROL_BASIS, session, rev, transform,
                                          entry_yaw=yaw))
             self.search.policy = replace(self.search.policy, areas=tuple(sites))
         if self.map_mode == 'SLAM_FREEZE' and scout in self.mission.homes:
             # The docking approach point is measured from TB-6's start pose, not the SLAM origin (OPS-141).
             home = self.mission.homes[scout]
-            x, y, yaw = from_start_pose(self.start_pose, (*home.mission_xy, home.yaw))
+            x, y, yaw = compose_planar(self.start_pose, (*home.mission_xy, home.yaw))
             self.mission.homes = self.mission.homes | {scout: replace(home, mission_xy=(x, y), yaw=yaw)}
         self.notes.append(f'START_POSE bound {self.start_pose} session={session} revision={rev}')
         return True
