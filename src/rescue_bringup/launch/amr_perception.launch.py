@@ -19,8 +19,10 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 FIELD_ARGUMENTS = {
-    'image_topic': 'RGB image topic (compressed), e.g. as listed on the robot',
-    'depth_topic': 'Depth topic (compressedDepth)',
+    'image_topic': 'RGB image topic, e.g. as listed on the robot',
+    'image_type': 'RGB message type: raw (sensor_msgs/Image) or compressed (CompressedImage)',
+    'depth_transport': 'Depth message: raw (16UC1/32FC1 Image) or compressedDepth (CompressedImage)',
+    'depth_topic': 'Depth topic (registered to RGB; its transport is depth_transport)',
     'camera_info_topic': 'RGB CameraInfo topic',
     'rgb_optical_frame': 'frame_id in the RGB message header',
     'depth_optical_frame': 'frame_id in the depth message header',
@@ -62,7 +64,8 @@ def _nodes(context):
     parameters = {name: arg(name) for name in ('image_topic', 'depth_topic', 'camera_info_topic',
                                                'rgb_optical_frame', 'depth_optical_frame',
                                                'rgb_stamp_semantics', 'depth_stamp_semantics',
-                                               'calibration_id', 'alignment_evidence_id')}
+                                               'calibration_id', 'alignment_evidence_id',
+                                               'image_type', 'depth_transport')}
     parameters.update({name: _flag(name, arg(name)) for name in FLAGS})
     parameters.update({name: _integer(name, arg(name)) for name in INTEGERS})
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',

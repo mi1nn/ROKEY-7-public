@@ -14,7 +14,6 @@ import subprocess
 # Controller deployment: Ubuntu 24.04, ROS 2 Jazzy, RTX 4070.
 # Topic/frame names still require live verification; no sensor settings are changed.
 SETTINGS = {
-    'image_type': 'compressed',
     'annotated_topic': 'perception/annotated',
     'model_path': 'assets/models/best.pt',
     'model_sha256': '0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74',
@@ -29,7 +28,7 @@ SETTINGS = {
 
 # Field-dependent names are typed ROS parameters with no default (B1, 2026-10-13): the
 # robot6 OAK-D topic was written three different ways and none is verified on the robot.
-FIELD_PARAMS = {'image_topic': 'STRING'}
+FIELD_PARAMS = {'image_topic': 'STRING', 'image_type': 'STRING'}   # image_type: raw or compressed
 STAMP_SEMANTICS = ('CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN')   # ObservationTime vocabulary
 INTEGER_MINIMUM = {'sync_slop_ns': 0}   # other INTEGER field values must be >= 1
 
