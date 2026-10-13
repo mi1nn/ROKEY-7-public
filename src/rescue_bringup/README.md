@@ -109,6 +109,23 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 현장 실행 파일 `config/field/search_area.field.json` | #132 현장 스크립트(`scripts/field/search-area/start_*.sh`)의 정책 값. 조정기와 로봇이 같아야 하는 값(lease·authority epoch·coordinator ID·envelope·시계)은 양쪽에 적고 launch 가 같은지 검사한다 |
 | launch 인자(기본값 없음) | 아직 정하지 않은 Phase 1 경로·관측 목표(#132 의 `[0, 0, 0]` 자리표시값), 현장에서 잰 지도 해시 |
 
+먼저 모든 PC 에서(0단계) Discovery 연결과 준비 상태를 본다. 각 PC 는 로봇 Pi 온보드 서버에 직접 붙는다(network-discovery.md 권고안 A, 2026-10-13). 로봇 담당 PC 는 자기 로봇 서버 하나, 조정·운영 PC 는 두 서버 모두다. 로봇 설정은 바꾸지 않는다.
+
+```bash
+# 이 PC 의 값 = 프로파일 hosts[<이 PC 의 host id>].network. 세미콜론 자리 번호가 서버 ID 다
+# (예: ID 6 하나면 ';;;;;;<주소>:11811', ID 5·6 이면 ';;;;;<주소5>:11811;<주소6>:11811')
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<위 규칙의 값>'
+ros2 daemon stop && ros2 daemon start          # 바뀐 서버 목록으로 CLI 데몬을 다시 띄운다
+# 확인만 super client 로: 조정·운영 PC 는 두 로봇, 로봇 담당 PC 는 자기 로봇 토픽이 보여야 한다
+ROS_SUPER_CLIENT=True ros2 topic list --no-daemon | grep -E '^/robot[56]/' | cut -d/ -f2 | sort | uniq -c
+# 노드는 super client 가 아니다(ROS_SUPER_CLIENT=False, 프로파일 super_client=false)
+python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json> \
+  --field config/field/search_area.field.json [--webcam-params <yaml>] [--map <map.yaml>]   # 모두 PASSED 인지
+```
+
+두 로봇의 온보드 서버 ID 는 서로 달라야 한다. 같으면 두 서버에 붙는 PC 가 한 자리에 두 서버를 적을 수 없고, 프로파일도 `server_id must be unique` 로 거절한다.
+
 순서(로봇을 움직이는 단계는 사람이 지켜본다. 이 launch 들은 arm·임무·이동 명령을 보내지 않는다):
 
 ```bash
