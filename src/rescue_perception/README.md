@@ -71,8 +71,11 @@ ros2 launch rescue_bringup amr_perception.launch.py image_topic:=<RGB> depth_top
   camera_info_topic:=<CameraInfo> rgb_optical_frame:=<RGB frame_id> depth_optical_frame:=<Depth frame_id> \
   tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static \
   rgb_stamp_semantics:=<…> depth_stamp_semantics:=<…> rgb_depth_alignment_verified:=<true|false> \
-  rgb_rectified:=<true|false> calibration_id:=<…> alignment_evidence_id:=<…>
+  rgb_rectified:=<true|false> calibration_id:=<…> alignment_evidence_id:=<…> \
+  profile_path:=<배포 프로파일.json> tf_wait_s:=1.0
 ```
+
+같은 launch 가 target_locator 도 띄운다. 지도 기준(map session·revision·transform revision·mission frame)과 SCOUT 로봇 ID·지도 frame 은 배포 프로파일의 `map_basis` 블록과 로봇 readiness 에서 읽는다. 조정기도 같은 블록을 읽는다(작전 결정 2026-10-13). 블록이 없으면 launch 가 멈춘다. 프로파일에 map → mission 변환이 없으므로, 로봇 지도 frame 과 `map_basis.frame_id` 가 같을 때만 identity 로 두고 다르면 멈춘다.
 
 [작전 B1, 2026-10-13] 카메라 토픽(`image_topic`·`depth_topic`·`camera_info_topic`)과 광학 frame(`rgb_optical_frame`·`depth_optical_frame`)은 코드 기본값이 없는 STRING 파라미터다. 전에는 코드 기본값 `camera/...`, readiness 설정 `oakd/rgb/preview/...`, #132 현장 스크립트 `/robot6/oakd/rgb/...` 세 가지가 서로 달랐다. 값이 없거나 비어 있으면 노드가 시작하지 않는다. 실제 robot6 토픽·frame 이름은 [미확인]이며 로봇에서 `ros2 topic list`와 메시지 header 로 확인해 넣는다. 위치 계산 근거도 같은 방식이다(2026-10-13). `rgb_stamp_semantics`·`depth_stamp_semantics`(CAPTURE·DRIVER_RECEIVE·UNKNOWN), `rgb_depth_alignment_verified`·`rgb_rectified`(bool), `calibration_id`·`alignment_evidence_id` 는 기본값이 없다. 전에는 코드 값 UNKNOWN·False 라서 `core.locate_detection` 이 모든 탐지의 위치를 거절했다(CLOCK_UNCERTAIN·ALIGNMENT_UNVERIFIED). 그래서 확정 관측이 한 번도 나가지 않았다. 두 stamp 의미가 알려져 있고(UNKNOWN 아님) 서로 같으며, 정렬이 검증됐고 RGB 가 rectified 일 때만 위치가 나온다. 값은 로봇 카메라 설정에서 확인해 넣는다 [미확인]. RGB 가 rectified 가 아니어도 CameraInfo 의 왜곡 모델이 plumb_bob(5)·rational_polynomial(8)이면 위치를 낸다. 이때 탐지 상자의 모서리·중심을 K·D 로 왜곡 보정해(cv2.undistortPoints, P 로 재투영) 정렬된 Depth 에서 읽는다. 이미지 전체는 보정하지 않는다. 근거(`<model>:<sha256(D) 앞 12자리>`)는 `LocalizationResult.undistortion_id` 와 SENT 로그에 남는다. 다른 모델이면 지금처럼 ALIGNMENT_UNVERIFIED 다. 입력 형식 `image_type`(raw·compressed)·`depth_transport`(raw·compressedDepth)도 현장 값이다(TB-6 Depth 는 raw 16UC1 로 측정, 옛 코드 값 compressedDepth). 짝 맞추기 `sync_queue_size`·`sync_slop_ns`·`camera_info_max_age_ns` 도 기본값 없는 현장 값이다. TB-6 은 Depth 가 약 0.78 s 늦게 와서, 옛 코드 값 큐 3 으로는 짝이 하나도 만들어지지 않았다(message_filters 재현, 2026-10-13). 나머지 설정은 SETTINGS 그대로이고 YAML은 필요 없다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
