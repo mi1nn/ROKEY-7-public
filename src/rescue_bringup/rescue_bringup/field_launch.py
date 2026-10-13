@@ -52,10 +52,11 @@ ROBOT_KEYS = {
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
     'task.live.pose_valid_ns': I,  # RobotPose validity after the AMCL stamp (live_pose, 2026-10-13)
-    # Robot Pi clock (stamps the scans behind AMCL poses): measured on the Pi, -1 = not measured yet
-    'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I,
 }
-ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S}
+# Per robot: identity, and its own Pi clock (stamps the scans behind AMCL poses; measured on that Pi,
+# -1 = not measured yet, then the robot pose stays UNKNOWN; decision 2026-10-13).
+ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
+                       'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
