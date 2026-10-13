@@ -203,12 +203,14 @@ F=$PWD/config/field/search_area.field.json
 # compute_a: TB-6 SLAM(탐색 중만) → 로봇 launch → 지도 고정 노드
 ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
 ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<회차마다 새 절대 경로>
 
 # compute_b: TB-5 는 고정 지도를 기다린다(그 전에는 지도 없음, MapState UNKNOWN)
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
   robot_id:=robot_b frozen_pose_wait_s:=10.0
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
@@ -219,6 +221,7 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - 기준은 현장 실행 파일 `robot` 공통 절의 `passage.*` 한 곳에만 있다. 깊이 점이 높이 0.05~`passage.max_height_m` 0.46 m(재범 결정 46 cm, scope Q-25) 띠 안에 있고, 로봇 앞 `passage.front_m` [0.4, 1.0] m 안에 `passage.min_points` 개 이상이면 멈춘다.
 - `robot.launch.py` 가 이 값을 Nav2 `collision_monitor` 에 넣는다(통로 다각형 `PassageStop`, 깊이 원 `passage_depth`). 그래서 저장소의 Nav2 yaml 에는 이 숫자를 쓰지 않는다. 로그: `+ passage stop 0.05..0.46 m`.
 - 깊이 점은 `passage_points.launch.py` 가 만든다. 깊이 영상 이름은 현장 실행 파일 `robots.<id>.passage.*` 에 있다. 이 노드가 없으면 깊이 점이 오지 않으므로 `collision_monitor` 가 1 s 뒤 로봇을 세운다. 깊이 영상은 준비 신호에도 들어가서, 끊기면 NOT_READY 다. 준비 신호도 깊이 점과 같은 transport 로 받는다(compressedDepth 이면 `<depth_topic>/compressedDepth`). 그래서 원본 깊이를 Wi-Fi 로 따로 끌어오지 않는다.
+- **지도에 터널 표시(OPS-185/186):** `overhead_passage.launch.py` 가 같은 깊이 점, 같은 상자와 높이(`passage.*`)로 머리 위 구조물을 판정한다. 결과는 `/rescue/robots/<id>/overhead_passages`(JSON, contracts C-04b)로 나간다. 추가 값은 `passage.overhead.*` 에 있다. 라이다 높이 `lidar_plane_m` 0.23 m 는 TB-5 줄자 실측이고 TB-6 은 같다고 본 추정이다. 판정 규칙은 `src/rescue_perception/README.md` 「지도의 머리 위 구조물」 절에 있다.
 - 멈춘 동안 실행기 feedback 이 `PASSAGE_BLOCKED` 다. 그 뒤 Nav2 가 포기하면 결과도 `PASSAGE_BLOCKED` 다(#219).
 - **`robots.<id>.passage.*` 가 없는 로봇은 `robot.launch.py` 가 띄우지 않는다**(OPS-137 A). 두 로봇 모두 OAK-D 깊이 `/<ns>/oakd/stereo/image_raw` + `camera_info`, 전송 `compressedDepth` 다.
   - TB-5 측정(2026-10-13 20:19~20:21, OPS-165~167): raw 5.1~5.5 Hz(최대 간격 0.449 s), compressedDepth 6.9~9.2 Hz(최대 간격 0.302 s), camera_info 10.0 Hz. 그래서 compressedDepth. `collision_monitor` 의 source_timeout 1 s 안이다.
