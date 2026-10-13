@@ -40,6 +40,8 @@ COORDINATOR_KEYS = {
     'support_dispatch': S, 'approach_standoff_m': F, 'support_pose_max_age_s': F,
     # TargetLocation time checks (coordination OPS-103, 2026-10-13)
     'target_clock_domain_id': S, 'target_max_age_s': F, 'target_max_future_s': F,
+    # TB-5 waits at the target (APPROACH_TARGET completed, stop confirmed) before leaving for the exit
+    'support_exit_wait_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 ROBOT_KEYS = {
@@ -162,6 +164,8 @@ def load_field(path):
     for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
+    if coordinator['support_exit_wait_s'] < 0:
+        raise FieldLaunchError('coordinator.support_exit_wait_s must be zero or positive')
     if coordinator['target_max_future_s'] < 0:
         raise FieldLaunchError('coordinator.target_max_future_s must be zero or positive')
     if coordinator['target_clock_domain_id'] != coordinator['live_inputs.clock_domain_id']:
