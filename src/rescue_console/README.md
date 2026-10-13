@@ -142,6 +142,21 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - **frame 규칙:** `frame_id == "map"` 인 좌표만 그린다. 다른 frame 은 투영하지 않고 「지도에 안 그림」 경고와 지도 아래 목록으로 보인다. 지도 밖 좌표는 가장자리로 끌어오지 않고 「지도 밖 좌표」로 보인다. 위치가 없는 로봇·대상은 그리지 않는다(표에 「—」).
 - **확인하지 않는 것:** 좌표의 `map_session_id`·`map_revision` 이 이 기준 지도와 같은 지도에서 나왔는지는 모른다(Q-09, 지도 아래 문구로 표시). IF-084 `PUT /api/maps/{id}`, `map_snapshots` 표(site_state 1.1) 연결은 후속이다.
 
+## 로봇 직접 관측 (`--robot-watch`, 2026-10-13)
+
+로봇 PC 의 `robot.launch.py`(`/rescue/robots/...`)가 아직 없어도 로봇 칸에 로봇이 보이게 한다(재범 2026-10-13). 운영 launch 에 `robot_namespaces:=robot_a=/robot6,robot_b=/robot5 robot_watch_path:=<파일>` 을 주면 `rescue_operations` `robot_watch` 노드(이름 `rescue_robot_watch`)가 아래 토픽을 **구독만** 하고(발행·서비스·액션 없음, 재범 허용) 1초마다 그 파일을 쓴다. 관제 웹은 `--robot-watch <파일> --robot-watch-stale-s <초>` 로 읽는다.
+
+| 토픽 | 타입 | QoS |
+|---|---|---|
+| `<ns>/battery_state` | `sensor_msgs/BatteryState` | sensor data(BEST_EFFORT) |
+| `<ns>/dock_status` | `irobot_create_msgs/DockStatus` | sensor data(BEST_EFFORT) |
+| `<ns>/tf` | `tf2_msgs/TFMessage` | RELIABLE, VOLATILE, 100 |
+| `<ns>/tf_static` | `tf2_msgs/TFMessage` | RELIABLE, TRANSIENT_LOCAL, 100 |
+
+- 카드에는 「직접 관측 · N초 전 · 배터리 N% · 도킹」이 나온다. 프로젝트 상태가 없는 로봇은 「프로젝트 상태 없음 — 로봇 기본 토픽 직접 관측만 보임」 카드를 받는다.
+- 위치는 tf 에 `map -> base_link` 가 있을 때만 쓴다(TB-6 SLAM 중). 없으면 지어내지 않고 「위치 미확정」이다. 프로젝트 상태의 위치가 있으면 그쪽이 먼저다.
+- `--robot-watch-stale-s` 보다 오래 받은 것이 없으면 「직접 관측 낡음」이고, 그 위치는 그리지 않는다. 파일이 갱신되지 않으면 경고 줄에 나온다. 낡음은 이 호스트 시계로 재므로 관측 노드와 관제 웹은 같은 PC 에서 돈다.
+
 ## 실시간 SLAM 지도 (`--live-map`, 2026-10-13)
 
 TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운영 launch 의 `map_topic`·`map_dir` 가 지도를 받아 `<map_dir>/live_map.yaml` 로 쓰고(`rescue_operations` `map_snapshot`), 관제 웹은 `--live-map <map_dir>/live_map.yaml --live-map-stale-s <초>` 로 그 파일을 본다. `--map` 과 같이 줄 수 없다.

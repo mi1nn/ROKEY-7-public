@@ -305,6 +305,17 @@ def _battery(robot):
             f'<span class="age">{_age(robot["battery_age_s"])} 전</span></div>')
 
 
+def _watch(robot):
+    """--robot-watch 한 줄: 로봇 기본 토픽 직접 관측(수신 경과, 배터리, 도킹)."""
+    w = robot['watch']
+    battery = '배터리 값 없음' if w['battery_percent'] is None else f'배터리 {w["battery_percent"]:.0f}%'
+    dock = {True: '도킹', False: '도킹 아님', None: '도킹 모름'}[w['docked']]
+    age = '수신 없음' if w['age_s'] is None else f'{_age(w["age_s"])} 전'
+    flag = '직접 관측 낡음' if w['stale'] else '직접 관측'
+    return (f'<p class="watch{" alert" if w["stale"] else ""}" title="{escape(w["namespace"] or "")} 구독만">'
+            f'{flag} · {age} · {battery} · {dock}</p>')
+
+
 def _robots(view):
     """배치 설정 순서(view['robots'])대로 로봇 상태 카드를 렌더링한다.
 
@@ -318,6 +329,12 @@ def _robots(view):
         head = (f'<h3><span class="unit-name">{escape(robot["name"])}</span>'
                 f'<span class="unit-role">{_word("role", role) if role else ""}</span>'
                 f'<span class="unit-id">{escape(robot["robot_id"])}</span></h3>')
+        if not robot['has_status'] and robot.get('watch'):
+            units.append(f'<section class="unit watch{" stale" if robot["watch"]["stale"] else ""}" '
+                         f'data-robot="{escape(robot["robot_id"])}">{head}'
+                         '<p class="note">프로젝트 상태 없음 — 로봇 기본 토픽 직접 관측만 보임</p>'
+                         + _watch(robot) + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div></dl></section>')
+            continue
         if not robot['has_status']:
             units.append(f'<section class="unit missing" data-robot="{escape(robot["robot_id"])}">{head}'
                          '<p class="alert">상태를 한 번도 받지 못했습니다. 로봇 상태 발행과 operations 연결을 확인하세요.</p>'
@@ -335,7 +352,8 @@ def _robots(view):
             + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
             f'<div><dt>작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
             f'<div><dt>수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
-            + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale + '</section>')
+            + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale
+            + (_watch(robot) if robot.get('watch') else '') + '</section>')
     return f'<section id="robots"><h2>로봇</h2>{"".join(units)}</section>'
 
 

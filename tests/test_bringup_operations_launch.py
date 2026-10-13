@@ -209,6 +209,34 @@ class MapSnapshotParameters(unittest.TestCase):
                 map_snapshot_parameters(**bad)
 
 
+class RobotWatchParameters(unittest.TestCase):
+    """robot_namespaces/robot_watch_path: 로봇 기본 토픽 직접 관측(구독만, 재범 허용 2026-10-13)."""
+
+    def test_off_without_both(self):
+        from rescue_bringup.operations_launch import robot_watch_parameters
+        self.assertIsNone(robot_watch_parameters(robot_namespaces='', robot_watch_path='', robot_ids=['robot_a']))
+
+    def test_on_with_both(self):
+        from rescue_bringup.operations_launch import robot_watch_parameters
+        self.assertEqual({'robot_ids': ['robot_a', 'robot_b'], 'namespaces': ['/robot6', '/robot5'],
+                          'out_path': '/srv/robot_watch.json', 'map_frame': 'map', 'base_frame': 'base_link'},
+                         robot_watch_parameters(robot_namespaces='robot_a=/robot6,robot_b=/robot5',
+                                                robot_watch_path='/srv/robot_watch.json',
+                                                robot_ids=['robot_a', 'robot_b']))
+
+    def test_bad_values_are_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, robot_watch_parameters
+        for ns, path in (('robot_a=/robot6', ''), ('', '/srv/w.json'), ('robot_a=robot6', '/srv/w.json'),
+                         ('robot_x=/robot6', '/srv/w.json'), ('robot_a', '/srv/w.json'),
+                         ('robot_a=/robot6,robot_a=/robot5', '/srv/w.json'),
+                         # not a usable ROS namespace, or one namespace for two robots (REV-251-04)
+                         ('robot_a=/', '/srv/w.json'), ('robot_a=/robot6/', '/srv/w.json'),
+                         ('robot_a=/robot 6', '/srv/w.json'), ('robot_a=//robot6', '/srv/w.json'),
+                         ('robot_a=/robot6,robot_b=/robot6', '/srv/w.json')):
+            with self.subTest(ns=ns, path=path), self.assertRaises(LaunchSettingError):
+                robot_watch_parameters(robot_namespaces=ns, robot_watch_path=path, robot_ids=['robot_a', 'robot_b'])
+
+
 class WebcamDevice(unittest.TestCase):
     """webcam_device:= picks which plugged camera the webcam_node opens, without editing its YAML."""
 
