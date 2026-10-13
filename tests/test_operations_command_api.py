@@ -28,7 +28,7 @@ def request(kind='START_SEARCH', **changes):
     extra = {'START_SEARCH': {}, 'RETURN_HOME': {},
              'DISPATCH_SUPPORT': dict(target_id=uid(500), target_revision=2),
              'CONTINUE_SEGMENT': dict(target_id=uid(500), target_revision=2, route_revision=1, segment_index=1),
-             'REQUEST_RECHECK': dict(target_id=uid(500))}.get(kind, {})
+             'REQUEST_RECHECK': dict(target_id=uid(500)), 'SET_CAMERA_WATCH': dict(target_id=uid(500))}.get(kind, {})
     return dict(command_id=uid(77), kind=kind, operator_id='admin') | extra | changes
 
 
@@ -43,9 +43,16 @@ class ParseCommand(unittest.TestCase):
 
     def test_each_kind_takes_exactly_its_fields(self):
         """Same per-kind fields as the coordinator's mission.COMMAND_FIELDS (#115 table)."""
-        for kind in ('START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT', 'REQUEST_RECHECK', 'RETURN_HOME'):
+        for kind in ('START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT', 'REQUEST_RECHECK', 'RETURN_HOME',
+                     'SET_CAMERA_WATCH'):
             with self.subTest(kind=kind):
                 self.assertEqual(request(kind), self.parse(body(request(kind))))
+
+    def test_fields_match_the_coordinator_gate(self):
+        from rescue_coordination.mission import COMMAND_FIELDS as GATE
+        from rescue_operations.command_api import COMMAND_FIELDS
+        self.assertEqual({kind: set(fields) for kind, fields in GATE.items()},
+                         {kind: set(fields) for kind, fields in COMMAND_FIELDS.items()})
 
     def test_malformed_requests_are_invalid_input(self):
         bad = [b'not json', b'[]', body(request(kind='PAUSE')), body(request(kind='STOP_ROBOT')),
@@ -65,6 +72,14 @@ class ParseCommand(unittest.TestCase):
 
 
 class ServiceFields(unittest.TestCase):
+    def test_set_camera_watch_sends_no_roi(self):
+        """The console has no ROI picker: zeros = "not given", the coordinator uses its deployment ROI (C-11 row 2)."""
+        from rescue_operations.command_api import service_fields
+        fields = service_fields(request('SET_CAMERA_WATCH'), issued_at_ns=T0, timeout_ns=1)
+        self.assertEqual(('SET_CAMERA_WATCH', uid(500), [0.0] * 4, 0),
+                         (fields['operation'], fields['target_id'], fields['roi_xyxy_normalized'],
+                          fields['expected_target_revision']))
+
     def test_request_maps_to_the_idl_fields_and_unused_ones_stay_empty(self):
         """#115 「operations 가 채우는 것」: target_revision -> expected_target_revision, the rest empty."""
         from rescue_operations.command_api import service_fields
