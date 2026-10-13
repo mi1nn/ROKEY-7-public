@@ -189,6 +189,25 @@ class StartPoseTests(unittest.TestCase):
         self.assertEqual((1., 0.), tuple(self.core.search.policy.areas[0].mission_xy))
 
 
+class StartPoseMessageTests(unittest.TestCase):
+    """/rescue/map/start_pose/<TB-6> is a PoseWithCovarianceStamped in the map (OPS-142); yaw by the shared
+    planar_origin rule (rescue_contracts.occupancy), never computed here."""
+
+    def msg(self, frame='map', z=0., qz=math.sin(math.pi / 8), qw=math.cos(math.pi / 8)):
+        pose = NS(position=NS(x=1., y=2., z=z), orientation=NS(x=0., y=0., z=qz, w=qw))
+        return NS(header=NS(frame_id=frame), pose=NS(pose=pose))
+
+    def test_planar_pose_in_the_mission_frame(self):
+        x, y, yaw = ros_node.start_pose_from_msg(self.msg(), 'map')
+        self.assertEqual((1., 2.), (x, y))
+        self.assertAlmostEqual(math.pi / 4, yaw)
+
+    def test_other_frame_or_not_planar_is_refused(self):
+        for msg in (self.msg(frame='odom'), self.msg(z=.1)):
+            with self.subTest(msg=msg), self.assertRaises(RescueError):
+                ros_node.start_pose_from_msg(msg, 'map')
+
+
 class ParameterTests(unittest.TestCase):
     def test_typed_parameters(self):
         self.assertEqual(('STRING', 'INTEGER', 'DOUBLE'),
