@@ -45,6 +45,25 @@ class FrameEvidenceTests(unittest.TestCase):
         self.assertEqual(('VALID', [], False), frame_evidence(POINT, MAP_FROM_OPTICAL, CAMERA, flat(4.0), [], POLICY))
 
 
+    def test_unrectified_box_is_compared_after_undistortion(self):
+        # #200 review REV-200-01: TB-6 RGB is not rectified, so the detector's box is in raw pixels while the
+        # point is projected with P (the undistorted grid). The box is moved to that grid first, as core.py does.
+        shift = lambda points: [(u + 30.0, v) for u, v in points]   # stand-in distortion: raw -> undistorted +30 px
+        raw_box = [Candidate('UNCONFIRMED', None, (270, 220, 310, 260))]   # raw; undistorted (300..340) holds 320
+        self.assertTrue(frame_evidence(POINT, MAP_FROM_OPTICAL, CAMERA, flat(4.0), raw_box, POLICY,
+                                       undistort=shift)[2])
+        self.assertFalse(frame_evidence(POINT, MAP_FROM_OPTICAL, CAMERA, flat(4.0), raw_box, POLICY)[2])  # rectified
+
+    def test_undistortion_uses_edges_and_pixel_centres_like_core(self):
+        seen = []
+        def record(points):
+            seen.extend(points)
+            return list(points)
+        frame_evidence(POINT, MAP_FROM_OPTICAL, CAMERA, flat(4.0), [Candidate('UNCONFIRMED', None, (300, 220, 340, 260))],
+                       POLICY, undistort=record)
+        self.assertEqual({(299.5, 219.5), (319.5, 219.5), (339.5, 219.5), (339.5, 239.5), (339.5, 259.5),
+                          (319.5, 259.5), (299.5, 259.5), (299.5, 239.5)}, set(seen))
+
 class HelperTests(unittest.TestCase):
     def test_depth_median_ignores_invalid_pixels(self):
         rows = [[0.0, math.nan, 2.0], [2.2, 0.0, 2.1], [math.inf, -1.0, 0.0]]
