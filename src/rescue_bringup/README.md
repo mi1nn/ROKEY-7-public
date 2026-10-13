@@ -120,9 +120,9 @@ PC 는 프로파일 호스트 id 로 적는다. 오늘 확정 배치는 이렇�
 | 기능 | 상태 |
 | --- | --- |
 | 운영 launch(db_writer·보고 저장·웹캠·영상 중계), 조정기·로봇 launch, 지도 해시, 준비 점검 | 있음(#144·#152·#156·#158) |
-| TB-5 자동 접근(APPROACH_TARGET), TB-6 재관측(REOBSERVE_TARGET)+재확인 관측, 로봇 위치·지도 상태 발행 | 있음(#166·#179·#176). 재확인 서버는 통합-인식 #165 머지 뒤 |
-| 복귀(RETURN_HOME) | PR #192 머지 뒤 |
-| TB-5 로봇 launch | TB-5 실행 값 PR 머지 뒤(현장 실행 파일 `robots.robot_b`). 그 전에는 `robot_id:=robot_b` 가 멈춘다 |
+| TB-5 자동 접근(APPROACH_TARGET), TB-6 재관측(REOBSERVE_TARGET)+재확인 관측, 로봇 위치·지도 상태 발행 | 있음(#166·#179·#176). 재확인 서버: 판정·action 서버 코드는 있음(#165), 실행 노드와 센서 입력(프레임·스캔) 연결은 통합-인식 다음 PR 이다. 그 전에는 서버가 없어 재관측 결과가 `has_recheck=false` 다 |
+| 복귀(RETURN_HOME) | 있음(#192). 자동 도킹은 없다(도킹은 사람이 감독) |
+| TB-5 로봇 launch | 있음(현장 실행 파일 `robots.robot_b`: 접근·복귀만, Pi 시계 150 ms) |
 | watchdog 현장 값 | #132 임시값(#94 미확정). 영구 정지와 리셋은 [rescue_robot README](../rescue_robot/README.md) |
 
 ### 0단계 — 모든 PC, 그리고 로봇 Pi
@@ -152,7 +152,7 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
   --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
 ```
 
-현장 프로파일에는 `map_basis`(frame `map`)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; 현장에서 잼, PR #192 머지 뒤)가 있어야 한다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
+현장 프로파일에는 `map_basis`(frame `map`)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; 현장에서 잼)가 있어야 한다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
 
 ### 1단계 — operations + coordination PC
 
@@ -198,7 +198,7 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> \
 
 성공 로그: `robot <id> ns=<ns> ... map_sha256=...`, `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`, `MAP_STATE <id> ... quality=VALID`(AMCL 이 자리를 잡은 뒤).
 
-compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 통합-인식 #165 머지 뒤에 띄운다.
+compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 실행 노드가 생긴 뒤(통합-인식 다음 PR) 띄운다. 코드(#165)만으로는 띄울 실행 파일이 없다.
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
 
