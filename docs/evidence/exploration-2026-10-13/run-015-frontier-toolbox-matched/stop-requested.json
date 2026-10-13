@@ -1,0 +1,7 @@
+{
+  "date": "2026-10-13",
+  "requested_by": "assistant supervising authorized trial",
+  "reason": "STALLED_REPEATED_IDENTICAL_GOAL",
+  "evidence": "Map plateau; one remaining cluster; same goal canceled and resent approximately once per second",
+  "recorder_label_note": "USER_REQUEST_STOPPED is the recorder's generic stop-file label; this was an assistant stop decision, not a new user stop instruction"
+}

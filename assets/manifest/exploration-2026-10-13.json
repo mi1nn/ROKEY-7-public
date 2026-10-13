@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-13",
+  "purpose": "robot6 exploration field observations; not accuracy acceptance",
+  "acquisition": "supervised field recorder and readonly final-map/odom checks; originals retained in local field archive",
+  "nav2_original_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+  "fixed_candidate_sources": {
+    "frontier_exploration_ros2": "0d611801cfe152dbd5000cf0b1936783b8977bde",
+    "frontier_toolbox": "ab9bbf3a86ad35e7f65d644e17580d838df4074d"
+  },
+  "explore_lite_source_note": "Copied vendor directory is not an independent Git checkout. Parent repository SHA must not be reported as upstream SHA. Source file hashes are measured after the trials.",
+  "files": [
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/result.json",
+      "source_sha256": "04c3d235c943fccd032d53830bf573657894a4f027844aa78c603aa09ebb863d",
+      "published_sha256": "04c3d235c943fccd032d53830bf573657894a4f027844aa78c603aa09ebb863d",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/summary.json",
+      "source_sha256": "f54ddaf54e5baaaef7c6d0f584cc672c474f031315918c6b48b37ef6652283a3",
+      "published_sha256": "dc779115eaffb1054321d105e44907cca91a99533a43f6b2ac44b895262eadcf",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/metrics.csv",
+      "source_sha256": "24eaf2336830c029f3146f1c801960849a2f8f8f19e4eb35fdcd44fb402ca002",
+      "published_sha256": "a1909de9c8fabe67587bd0e180d33575796fe186d230225de8888e266c459d8d",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/final-map.json",
+      "source_sha256": "7156faa9769c3a254e59e7f9d7af8001a0e9ccfd96b2a8a9cf1eaebe14e62ddd",
+      "published_sha256": "7156faa9769c3a254e59e7f9d7af8001a0e9ccfd96b2a8a9cf1eaebe14e62ddd",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/nav2.applied.yaml",
+      "source_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "published_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/algorithm.applied.yaml",
+      "source_sha256": "0093f3ffa4a6cd24dfb2d384cd92eaf6b12bc2d1be5f8419a886dc3b699eeeb9",
+      "published_sha256": "0093f3ffa4a6cd24dfb2d384cd92eaf6b12bc2d1be5f8419a886dc3b699eeeb9",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-014-explore-lite-matched/explore.log",
+      "source_sha256": "f45abb2a5cf4b74b742747e9012d20c45d8ac3751e07b90c162585b194260988",
+      "published_sha256": "f45abb2a5cf4b74b742747e9012d20c45d8ac3751e07b90c162585b194260988",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/result.json",
+      "source_sha256": "44cfe0e18cbbd01e3b2afb96c2c7b4921c55934101e28c8f69cfdd715e265458",
+      "published_sha256": "44cfe0e18cbbd01e3b2afb96c2c7b4921c55934101e28c8f69cfdd715e265458",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/summary.json",
+      "source_sha256": "56973765fc22df4080b3ffa8f38d7f0fa2ce18785e080691f8a7884cc932e1e4",
+      "published_sha256": "c34e321c683d34e6f2b57a092ba83fb3b62185a2e0f1560b43e04e5c3432e58b",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/metrics.csv",
+      "source_sha256": "f9dc0fe8e2dcd4b67c94145ea817738f91457a91c2dd0f5c769815741ac6dd12",
+      "published_sha256": "65c0274161a31644ad73f30b07f4774fcffb1cfac738ce2f025ed9aa3f0e13cf",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/final-map.json",
+      "source_sha256": "b83c5861601e248e303f128e89feb738c1ed1bc28d8a84af20cd21efad6abf57",
+      "published_sha256": "b83c5861601e248e303f128e89feb738c1ed1bc28d8a84af20cd21efad6abf57",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/nav2.applied.yaml",
+      "source_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "published_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/algorithm.applied.yaml",
+      "source_sha256": "a820a31a6746e366c8691465798219c87ae08029eb4372c1e97ebc6f7a9322eb",
+      "published_sha256": "a820a31a6746e366c8691465798219c87ae08029eb4372c1e97ebc6f7a9322eb",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/explore.log",
+      "source_sha256": "43500caf996cc166bbccfe2fbf82d3f37c5a636f4d7cefc2cf2b50d0a7ef9eff",
+      "published_sha256": "43500caf996cc166bbccfe2fbf82d3f37c5a636f4d7cefc2cf2b50d0a7ef9eff",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-013-frontier-exploration-ros2-onboard/fresh-stop-check.json",
+      "source_sha256": "e135b84c3638c2596ca0d322cba5215a14b56a14a84dfdad4caf9d65b0d71806",
+      "published_sha256": "e135b84c3638c2596ca0d322cba5215a14b56a14a84dfdad4caf9d65b0d71806",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/result.json",
+      "source_sha256": "068213810bbf3857de66767d42c7c3c75bbb691a97f787d41e35d46a801b0c5f",
+      "published_sha256": "068213810bbf3857de66767d42c7c3c75bbb691a97f787d41e35d46a801b0c5f",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/summary.json",
+      "source_sha256": "0dc60bc291ec50a215fe2bcd57aa6a85b43ad55d51fa85557349c72c117bc80d",
+      "published_sha256": "be618d161001a17e3ae4fae232283e52920b122a9f7d079f8c50a208aa410224",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/metrics.csv",
+      "source_sha256": "87177cdcc47ab89f3c1a3ea847438b0b96a273184012a543d19b94050bda7749",
+      "published_sha256": "a4a42b4a9544be31ef0a7087e69ca4d4c676ffec369d3f1c22407a3f72c89110",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/final-map.json",
+      "source_sha256": "a25462342e2948d867e5b5f9e4e5c1ad8bb53fda38d1b24a4f04c5268ba98510",
+      "published_sha256": "a25462342e2948d867e5b5f9e4e5c1ad8bb53fda38d1b24a4f04c5268ba98510",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/nav2.applied.yaml",
+      "source_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "published_sha256": "ce27caeaecf8b9471300b3b283b982265bb46446fe0360507f4cc541050426db",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/algorithm.applied.yaml",
+      "source_sha256": "d77affae6d4aba59251b7900034d1c9703a209e96bb39637ea356a20138b728f",
+      "published_sha256": "d77affae6d4aba59251b7900034d1c9703a209e96bb39637ea356a20138b728f",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/explore.log",
+      "source_sha256": "030dceefc44bc0b08b4cdf352ecf784b0f299e943d6ab78a5ae1ed0542e3246f",
+      "published_sha256": "573eae5a9c427321c398d42643d7411e7bbe12105df184178c9e6a81555b0d19",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/nav-bridge.log",
+      "source_sha256": "f78ad32b791b6b1185a222b3e6b6471f288c538af7b4303acb3c8fb98e574d2d",
+      "published_sha256": "f78ad32b791b6b1185a222b3e6b6471f288c538af7b4303acb3c8fb98e574d2d",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/fresh-stop-check.json",
+      "source_sha256": "a6e41916249ae7ee7bd02206b77ce148628eaf98a4f722373f1649e3e3e56fc1",
+      "published_sha256": "a6e41916249ae7ee7bd02206b77ce148628eaf98a4f722373f1649e3e3e56fc1",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/stop-requested.json",
+      "source_sha256": "39fe36ef62f9485a88b541dceb7376efdd3762ca54e2e32e090a9d32ba76c75b",
+      "published_sha256": "39fe36ef62f9485a88b541dceb7376efdd3762ca54e2e32e090a9d32ba76c75b",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/run-015-frontier-toolbox-matched/isolated-connection-check.json",
+      "source_sha256": "3af6edbcc1d3486d3d5d1031ceac31d68e38bd924e55c3b34237bdcbd2c04c8b",
+      "published_sha256": "3af6edbcc1d3486d3d5d1031ceac31d68e38bd924e55c3b34237bdcbd2c04c8b",
+      "normalization": "personal paths, host name and network addresses replaced by placeholders; line endings normalized to LF and trailing whitespace removed"
+    },
+    {
+      "path": "docs/evidence/exploration-2026-10-13/comparison.csv",
+      "source_sha256": "fb2fd07ef0a4f73d6018e13d4b8772a1d728474e106860363501503e2fe0a3e6",
+      "published_sha256": "ddca340c135c3c6c52bcdd404dced6dc43584e3a1833ab7304c18ca5f386a266",
+      "normalization": "CSV line endings normalized to LF and trailing whitespace removed; values unchanged"
+    }
+  ],
+  "explore_lite_source_file_sha256": {
+    "src/explore.cpp": "ac3342bc9962b81dbec697e5fbd4b8c621bbf0fd76601b5a1344677a04682e97",
+    "src/frontier_search.cpp": "d3ad7f7842ad3914157c35348ef7731549b6097910af51d3c447892a723b2213",
+    "src/costmap_client.cpp": "8bddccc29c4882fe7cc36b5a5f656506640718f332c31bdd36cd86ceeec0afeb",
+    "config/params.yaml": "7a50c73f988b4b22d9becb732fa250fd9efb2c7bad90a1b31f6e3eebc6bbb3dc"
+  }
+}

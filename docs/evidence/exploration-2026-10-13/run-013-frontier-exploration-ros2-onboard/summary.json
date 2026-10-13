@@ -1,0 +1,163 @@
+{
+  "algorithm": "frontier_exploration_ros2",
+  "reason": "ALGORITHM_REPORTED_COMPLETE",
+  "elapsed_seconds": 36.603924784998526,
+  "path_length_m": 7.274172455894789,
+  "map_accuracy": null,
+  "coverage_percent": null,
+  "accuracy_note": "No independent reference map or measured geometry supplied",
+  "events": [
+    {
+      "epoch": 1791862563.9068406,
+      "event": "LIFECYCLE",
+      "value": {
+        "slam_toolbox": "active",
+        "controller_server": "active",
+        "planner_server": "active",
+        "bt_navigator": "active",
+        "behavior_server": "active",
+        "collision_monitor": "active"
+      }
+    },
+    {
+      "epoch": 1791862563.907963,
+      "event": "EXPLORER_STARTED",
+      "value": {
+        "pid": 311558,
+        "budget_seconds": 180,
+        "command": [
+          "/opt/ros/jazzy/bin/ros2",
+          "run",
+          "frontier_exploration_ros2",
+          "frontier_explorer",
+          "--ros-args",
+          "--params-file",
+          "${FIELD_RUN}/frontier_exploration_robot6.test.yaml",
+          "-r",
+          "__ns:=/robot6",
+          "-r",
+          "/tf:=/robot6/tf",
+          "-r",
+          "/tf_static:=/robot6/tf_static",
+          "-p",
+          "use_sim_time:=false"
+        ]
+      }
+    },
+    {
+      "epoch": 1791862563.9275227,
+      "event": "METRICS",
+      "value": [
+        0.02,
+        4.662500138953329,
+        4.3175001286715275,
+        0.3450000102818013,
+        0.0
+      ]
+    },
+    {
+      "epoch": 1791862568.931857,
+      "event": "METRICS",
+      "value": [
+        5.024,
+        4.662500138953329,
+        4.3175001286715275,
+        0.3450000102818013,
+        0.0
+      ]
+    },
+    {
+      "epoch": 1791862573.9338448,
+      "event": "METRICS",
+      "value": [
+        10.026,
+        7.607500226721169,
+        6.747500201091172,
+        0.8600000256299974,
+        1.1085811458026846
+      ]
+    },
+    {
+      "epoch": 1791862578.935105,
+      "event": "METRICS",
+      "value": [
+        15.027,
+        9.245000275522473,
+        8.315000247806312,
+        0.93000002771616,
+        2.380217973408155
+      ]
+    },
+    {
+      "epoch": 1791862583.9372916,
+      "event": "METRICS",
+      "value": [
+        20.03,
+        13.977500416561965,
+        12.335000367611649,
+        1.642500048950315,
+        3.6288041549293952
+      ]
+    },
+    {
+      "epoch": 1791862588.9373264,
+      "event": "METRICS",
+      "value": [
+        25.03,
+        15.895000473707919,
+        13.972500416412952,
+        1.9225000572949653,
+        4.813187794590682
+      ]
+    },
+    {
+      "epoch": 1791862593.9573576,
+      "event": "METRICS",
+      "value": [
+        30.05,
+        19.730000587999825,
+        17.237500513717535,
+        2.492500074282289,
+        6.054245983578154
+      ]
+    },
+    {
+      "epoch": 1791862598.9772274,
+      "event": "METRICS",
+      "value": [
+        35.07,
+        19.75750058881939,
+        17.19250051237643,
+        2.5650000764429577,
+        6.975756831202759
+      ]
+    },
+    {
+      "epoch": 1791862600.5110383,
+      "event": "EXPLORATION_COMPLETE_EVENT",
+      "value": "/robot6/exploration_complete"
+    },
+    {
+      "epoch": 1791862600.5110846,
+      "event": "STOP_REASON",
+      "value": "ALGORITHM_REPORTED_COMPLETE"
+    },
+    {
+      "epoch": 1791862600.5140073,
+      "event": "STOP_SERVICE",
+      "value": "frontier_exploration_ros2.srv.ControlExploration_Response(accepted=True, scheduled=False, state=5, message='Stopping exploration and preparing node shutdown')"
+    },
+    {
+      "epoch": 1791862605.5327966,
+      "event": "STOP_OBSERVATION",
+      "value": {
+        "confirmed": true,
+        "odom_age": 0.0861701420209961,
+        "linear_mps": 0.0,
+        "yaw_radps": 0.0,
+        "last_2sec_samples": 40,
+        "displacement_m": 0.0
+      }
+    }
+  ]
+}

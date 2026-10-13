@@ -1,0 +1,165 @@
+{
+  "algorithm": "explore_lite",
+  "reason": "ALGORITHM_REPORTED_COMPLETE",
+  "elapsed_seconds": 29.927009001999977,
+  "path_length_m": 6.297878801116567,
+  "map_accuracy": null,
+  "coverage_percent": null,
+  "accuracy_note": "No independent reference map or measured geometry supplied",
+  "events": [
+    {
+      "epoch": 1791862965.8711383,
+      "event": "LIFECYCLE",
+      "value": {
+        "slam_toolbox": "active",
+        "controller_server": "active",
+        "planner_server": "active",
+        "bt_navigator": "active",
+        "behavior_server": "active",
+        "collision_monitor": "active"
+      }
+    },
+    {
+      "epoch": 1791862965.8714235,
+      "event": "INITIAL_ODOM_POSE",
+      "value": {
+        "x": -4.6185526847839355,
+        "y": 0.37593042850494385,
+        "qx": -0.002815712708979845,
+        "qy": -0.004635090008378029,
+        "qz": 0.9998834729194641,
+        "qw": 0.01427376177161932
+      }
+    },
+    {
+      "epoch": 1791862965.8722908,
+      "event": "EXPLORER_STARTED",
+      "value": {
+        "pid": 312529,
+        "budget_seconds": 180,
+        "command": [
+          "/opt/ros/jazzy/bin/ros2",
+          "run",
+          "explore_lite",
+          "explore",
+          "--ros-args",
+          "--params-file",
+          "${FIELD_RUN}/explore_lite_robot6.matched.yaml",
+          "-r",
+          "__ns:=/robot6",
+          "-r",
+          "/tf:=/robot6/tf",
+          "-r",
+          "/tf_static:=/robot6/tf_static",
+          "-p",
+          "use_sim_time:=false",
+          "-p",
+          "return_to_init:=false"
+        ]
+      }
+    },
+    {
+      "epoch": 1791862965.8854194,
+      "event": "METRICS",
+      "value": [
+        0.014,
+        4.627500137910248,
+        4.277500127479435,
+        0.3500000104308129,
+        0.0
+      ]
+    },
+    {
+      "epoch": 1791862969.1720054,
+      "event": "EXPLORE_STATUS",
+      "value": "exploration_started"
+    },
+    {
+      "epoch": 1791862970.8864903,
+      "event": "METRICS",
+      "value": [
+        5.015,
+        7.28500021710992,
+        6.5875001963228,
+        0.69750002078712,
+        0.2902262135181835
+      ]
+    },
+    {
+      "epoch": 1791862975.886888,
+      "event": "METRICS",
+      "value": [
+        10.015,
+        7.9200002360343955,
+        7.080000211000444,
+        0.840000025033951,
+        1.5665992369906983
+      ]
+    },
+    {
+      "epoch": 1791862980.896048,
+      "event": "METRICS",
+      "value": [
+        15.024,
+        11.707500348910692,
+        10.467500311955812,
+        1.24000003695488,
+        2.8067656433754595
+      ]
+    },
+    {
+      "epoch": 1791862985.9158936,
+      "event": "METRICS",
+      "value": [
+        20.044,
+        14.137500421330335,
+        12.515000372976067,
+        1.6225000483542684,
+        3.779895228776213
+      ]
+    },
+    {
+      "epoch": 1791862990.9283495,
+      "event": "METRICS",
+      "value": [
+        25.056,
+        16.352500487342482,
+        14.517500432655218,
+        1.835000054687262,
+        5.0401996012819765
+      ]
+    },
+    {
+      "epoch": 1791862995.7983792,
+      "event": "EXPLORE_STATUS",
+      "value": "exploration_complete"
+    },
+    {
+      "epoch": 1791862995.7984366,
+      "event": "STOP_REASON",
+      "value": "ALGORITHM_REPORTED_COMPLETE"
+    },
+    {
+      "epoch": 1791862995.7987676,
+      "event": "EXPLORE_STATUS",
+      "value": "exploration_paused"
+    },
+    {
+      "epoch": 1791863005.815442,
+      "event": "PROCESS_STOP",
+      "value": "UNCONFIRMED; no broad kill"
+    },
+    {
+      "epoch": 1791863008.8346262,
+      "event": "STOP_OBSERVATION",
+      "value": {
+        "confirmed": true,
+        "odom_age": 0.14581763667614744,
+        "linear_mps": 0.0,
+        "yaw_radps": 0.0,
+        "last_2sec_samples": 39,
+        "displacement_m": 0.0
+      }
+    }
+  ]
+}

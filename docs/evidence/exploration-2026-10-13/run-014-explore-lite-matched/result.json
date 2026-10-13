@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-13",
+  "robot": "robot6",
+  "algorithm": "explore_lite",
+  "reason": "ALGORITHM_REPORTED_COMPLETE",
+  "elapsed_seconds": 29.927009001999977,
+  "path_length_m": 6.297878801116567,
+  "known_area_m2": 19.622500584796075,
+  "unknown_cells": 1160,
+  "map_grid_cells": 9009,
+  "inflation_radius": 0.25,
+  "max_linear_mps": 0.26,
+  "max_angular_radps": 1.0,
+  "actual_stop": {
+    "confirmed": true,
+    "odom_age": 0.14581763667614744,
+    "linear_mps": 0.0,
+    "yaw_radps": 0.0,
+    "last_2sec_samples": 39,
+    "displacement_m": 0.0
+  },
+  "remaining_explorer_pids": [],
+  "process_cleanup": "paused and actual stop confirmed; exact owned PID SIGTERM after SIGINT timeout",
+  "mapping_complete_verified": false,
+  "accuracy_verified": false,
+  "comparison": "same robot6/Nav2 settings and user reported physical barrier; precise physical start-pose match not independently measured"
+}
