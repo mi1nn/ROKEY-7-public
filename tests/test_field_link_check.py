@@ -7,7 +7,12 @@ from pathlib import Path
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location('link_check', REPO / 'scripts' / 'field' / 'link_check.py')
+SCRIPT = REPO / 'scripts' / 'field' / 'link_check.py'
+if not SCRIPT.is_file():
+    # Same as tests/test_field_preflight.py: scripts/check_wheels.py copies only tests/ and config/ to test
+    # installed wheels; link_check is a repo script, not a wheel. scripts/run_tests.py runs these tests.
+    raise unittest.SkipTest('scripts/field/link_check.py absent (installed-wheel checkout)')
+SPEC = importlib.util.spec_from_file_location('link_check', SCRIPT)
 link = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(link)
 
