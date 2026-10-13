@@ -1,0 +1,623 @@
+# 2026-10-13 KST, main d2648ea. TB-5 담당 PC 호스트 셸, ROS Jazzy, rmw_fastrtps_cpp, ROS_DOMAIN_ID=6, ROS_SUPER_CLIENT=True.
+# Discovery: 이 프로세스 환경변수만 ';;;;;<TB5_PI>:11811;<TB6_PI>:11811;' 로 바꿈. /etc 파일·로봇·카메라 설정 변경 없음. 로봇 움직이지 않음.
+
+## A. 노드·토픽 목록
+# 2026-10-13 12:38:51 KST oakd probe, process env only: ;;;;;<TB5_PI>:11811;<TB6_PI>:11811;
+== node list (robot6)
+/robot6/behavior_server
+/robot6/bt_navigator
+/robot6/bt_navigator_navigate_through_poses_rclcpp_node
+/robot6/bt_navigator_navigate_to_pose_rclcpp_node
+/robot6/collision_monitor
+/robot6/controller_server
+/robot6/create3_repub
+/robot6/docking_server
+/robot6/global_costmap/global_costmap
+/robot6/joint_state_publisher
+/robot6/joy_linux_node
+/robot6/lifecycle_manager_navigation
+/robot6/local_costmap/local_costmap
+/robot6/oakd
+/robot6/oakd_container
+/robot6/planner_server
+/robot6/robot_state_publisher
+/robot6/route_server
+/robot6/rplidar_composition
+/robot6/rviz2
+/robot6/rviz2
+/robot6/rviz2
+/robot6/rviz_navigation_dialog_action_client
+/robot6/slam_toolbox
+/robot6/smoother_server
+/robot6/teleop_twist_joy_node
+/robot6/transform_listener_impl_56ae1d41fb10
+/robot6/transform_listener_impl_56ae1dbe2000
+/robot6/transform_listener_impl_5c7ae2495940
+/robot6/transform_listener_impl_5da82dc9c500
+/robot6/transform_listener_impl_5e20897e8d70
+/robot6/turtlebot4_base_node
+/robot6/turtlebot4_node
+/robot6/velocity_smoother
+/robot6/waypoint_follower
+== oakd/camera topics
+/robot6/oakd/imu/data [sensor_msgs/msg/Imu]
+/robot6/oakd/rgb/preview/image_raw [sensor_msgs/msg/Image]
+/robot6/oakd/stereo/image_raw [sensor_msgs/msg/Image]
+/robot6/oakd/stereo/image_raw/compressedDepth [sensor_msgs/msg/CompressedImage]
+/robot6/oakd/stereo/image_raw/theora [theora_image_transport/msg/Packet]
+
+## B. ros2 param dump /robot6/oakd (전체)
+# 2026-10-13 12:39:13 KST ros2 param dump /robot6/oakd
+/robot6/oakd:
+  ros__parameters:
+    ? ''
+    : oakd:
+        rgb:
+          image_raw:
+            compressed:
+              format: jpeg
+              jpeg_quality: 95
+              png_level: 3
+              tiff:
+                res_unit: inch
+                xdpi: -1
+                ydpi: -1
+            compressedDepth:
+              depth_max: 10.0
+              depth_quantization: 100.0
+              format: png
+              png_level: 3
+            depth_max: 10.0
+            depth_quantization: 100.0
+            format: jpeg
+            jpeg_quality: 95
+            keyframe_frequency: 64
+            optimize_for: true
+            png_level: 3
+            quality: 31
+            target_bitrate: 800000
+            theora:
+              keyframe_frequency: 64
+              optimize_for: true
+              quality: 31
+              target_bitrate: 800000
+            tiff:
+              res_unit: inch
+              xdpi: -1
+              ydpi: -1
+            zstd:
+              zstd_level: 3
+          preview:
+            image_raw:
+              compressed:
+                format: jpeg
+                jpeg_quality: 95
+                png_level: 3
+                tiff:
+                  res_unit: inch
+                  xdpi: -1
+                  ydpi: -1
+              compressedDepth:
+                depth_max: 10.0
+                depth_quantization: 100.0
+                format: png
+                png_level: 3
+              depth_max: 10.0
+              depth_quantization: 100.0
+              format: jpeg
+              jpeg_quality: 95
+              keyframe_frequency: 64
+              optimize_for: true
+              png_level: 3
+              quality: 31
+              target_bitrate: 800000
+              theora:
+                keyframe_frequency: 64
+                optimize_for: true
+                quality: 31
+                target_bitrate: 800000
+              tiff:
+                res_unit: inch
+                xdpi: -1
+                ydpi: -1
+              zstd:
+                zstd_level: 3
+        stereo:
+          image_raw:
+            compressed:
+              format: jpeg
+              jpeg_quality: 95
+              png_level: 3
+              tiff:
+                res_unit: inch
+                xdpi: -1
+                ydpi: -1
+            compressedDepth:
+              depth_max: 10.0
+              depth_quantization: 100.0
+              format: png
+              png_level: 3
+            depth_max: 10.0
+            depth_quantization: 100.0
+            format: jpeg
+            jpeg_quality: 95
+            keyframe_frequency: 64
+            optimize_for: true
+            png_level: 3
+            quality: 31
+            target_bitrate: 800000
+            theora:
+              keyframe_frequency: 64
+              optimize_for: true
+              quality: 31
+              target_bitrate: 800000
+            tiff:
+              res_unit: inch
+              xdpi: -1
+              ydpi: -1
+            zstd:
+              zstd_level: 3
+    camera:
+      i_calibration_dump: false
+      i_enable_diagnostics: true
+      i_enable_imu: false
+      i_enable_ir: false
+      i_enable_sync: true
+      i_external_calibration_path: ''
+      i_floodlight_brightness: 0
+      i_ip: ''
+      i_laser_dot_brightness: 100
+      i_mx_id: ''
+      i_nn_type: none
+      i_pipeline_dump: false
+      i_pipeline_type: RGBD
+      i_publish_tf_from_calibration: false
+      i_restart_on_diagnostics_error: false
+      i_rs_compat: false
+      i_tf_base_frame: oak
+      i_tf_cam_pitch: '0.0'
+      i_tf_cam_pos_x: '0.0'
+      i_tf_cam_pos_y: '0.0'
+      i_tf_cam_pos_z: '0.0'
+      i_tf_cam_roll: '0.0'
+      i_tf_cam_yaw: '0.0'
+      i_tf_camera_model: ''
+      i_tf_camera_name: oakd
+      i_tf_custom_urdf_location: ''
+      i_tf_custom_xacro_args: ''
+      i_tf_imu_from_descr: 'false'
+      i_tf_parent_frame: oak-d-base-frame
+      i_usb_port_id: ''
+      i_usb_speed: SUPER_PLUS
+    diagnostic_updater:
+      period: 1.0
+      use_fqn: false
+    imu:
+      i_acc_cov: 0.0
+      i_acc_freq: 400
+      i_acc_mode: ACCELEROMETER_RAW
+      i_batch_report_threshold: 5
+      i_enable_acc: true
+      i_enable_gyro: true
+      i_enable_mag: true
+      i_enable_rotation: true
+      i_get_base_device_timestamp: false
+      i_gyro_cov: 0.0
+      i_gyro_freq: 400
+      i_gyro_mode: GYROSCOPE_RAW
+      i_mag_cov: 0.0
+      i_mag_freq: 100
+      i_mag_mode: MAGNETOMETER_RAW
+      i_max_batch_reports: 10
+      i_max_q_size: 8
+      i_message_type: IMU
+      i_rot_cov: 0.0
+      i_rot_freq: 400
+      i_rot_mode: ROTATION_VECTOR
+      i_sync_method: LINEAR_INTERPOLATE_ACCEL
+      i_update_ros_base_time_on_ros_msg: false
+    left:
+      i_add_exposure_offset: false
+      i_board_socket_id: 1
+      i_calibration_file: ''
+      i_disable_node: false
+      i_enable_feature_tracker: false
+      i_enable_lazy_publisher: true
+      i_enable_nn: false
+      i_exposure_offset: 0
+      i_flip_published_image: false
+      i_fps: 10.0
+      i_fsync_continuous: false
+      i_fsync_trigger: false
+      i_get_base_device_timestamp: false
+      i_height: 720
+      i_low_bandwidth: false
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_frame_freq: 30
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 50
+      i_max_q_size: 30
+      i_publish_compressed: false
+      i_publish_topic: false
+      i_resolution: 720P
+      i_reverse_stereo_socket_order: false
+      i_sensor_img_orientation: AUTO
+      i_set_isp3a_fps: false
+      i_simulate_from_topic: false
+      i_simulated_topic_name: ''
+      i_synced: false
+      i_update_ros_base_time_on_ros_msg: false
+      i_width: 1280
+      r_auto_exp_region_height: 0
+      r_auto_exp_region_start_x: 0
+      r_auto_exp_region_start_y: 0
+      r_auto_exp_region_width: 0
+      r_auto_exposure_limit: 1000
+      r_chroma_denoise: 1
+      r_exposure: 1000
+      r_iso: 800
+      r_luma_denoise: 1
+      r_set_auto_exp_region: false
+      r_set_auto_exposure_limit: false
+      r_set_chroma_denoise: false
+      r_set_luma_denoise: false
+      r_set_man_exposure: false
+      r_set_sharpness: false
+      r_sharpness: 1
+    oakd:
+      rgb:
+        image_raw:
+          enable_pub_plugins:
+          - image_transport/compressedDepth
+          - image_transport/compressed
+          - image_transport/raw
+          - image_transport/theora
+          - image_transport/zstd
+        preview:
+          image_raw:
+            enable_pub_plugins:
+            - image_transport/compressedDepth
+            - image_transport/compressed
+            - image_transport/raw
+            - image_transport/theora
+            - image_transport/zstd
+      stereo:
+        image_raw:
+          enable_pub_plugins:
+          - image_transport/compressedDepth
+          - image_transport/compressed
+          - image_transport/raw
+          - image_transport/theora
+          - image_transport/zstd
+    pipeline_gen:
+      i_enable_diagnostics: true
+      i_enable_imu: true
+      i_enable_sync: false
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          durability: volatile
+          history: keep_last
+          reliability: reliable
+    rgb:
+      i_add_exposure_offset: false
+      i_board_socket_id: 0
+      i_calibration_file: ''
+      i_color_order: BGR
+      i_disable_node: false
+      i_enable_feature_tracker: false
+      i_enable_lazy_publisher: true
+      i_enable_nn: false
+      i_enable_preview: true
+      i_exposure_offset: 0
+      i_flip_published_image: false
+      i_fps: 30.0
+      i_fsync_continuous: false
+      i_fsync_trigger: false
+      i_get_base_device_timestamp: false
+      i_height: 704
+      i_interleaved: false
+      i_isp_den: 3
+      i_isp_num: 2
+      i_keep_preview_aspect_ratio: true
+      i_low_bandwidth: true
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_frame_freq: 30
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 50
+      i_max_q_size: 30
+      i_output_isp: true
+      i_preview_height: 300
+      i_preview_size: 300
+      i_preview_width: 300
+      i_publish_compressed: false
+      i_publish_topic: true
+      i_resolution: 1080P
+      i_reverse_stereo_socket_order: false
+      i_sensor_img_orientation: AUTO
+      i_set_isp3a_fps: false
+      i_set_isp_scale: true
+      i_simulate_from_topic: false
+      i_simulated_topic_name: ''
+      i_synced: false
+      i_update_ros_base_time_on_ros_msg: false
+      i_width: 704
+      r_auto_exp_region_height: 0
+      r_auto_exp_region_start_x: 0
+      r_auto_exp_region_start_y: 0
+      r_auto_exp_region_width: 0
+      r_auto_exposure_limit: 1000
+      r_chroma_denoise: 1
+      r_exposure: 20000
+      r_focus: 1
+      r_iso: 800
+      r_luma_denoise: 1
+      r_set_auto_exp_region: false
+      r_set_auto_exposure_limit: false
+      r_set_chroma_denoise: false
+      r_set_luma_denoise: false
+      r_set_man_exposure: false
+      r_set_man_focus: false
+      r_set_man_whitebalance: false
+      r_set_sharpness: false
+      r_sharpness: 1
+      r_whitebalance: 3300
+    right:
+      i_add_exposure_offset: false
+      i_board_socket_id: 2
+      i_calibration_file: ''
+      i_disable_node: false
+      i_enable_feature_tracker: false
+      i_enable_lazy_publisher: true
+      i_enable_nn: false
+      i_exposure_offset: 0
+      i_flip_published_image: false
+      i_fps: 10.0
+      i_fsync_continuous: false
+      i_fsync_trigger: false
+      i_get_base_device_timestamp: false
+      i_height: 720
+      i_low_bandwidth: false
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_frame_freq: 30
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 50
+      i_max_q_size: 30
+      i_publish_compressed: false
+      i_publish_topic: false
+      i_resolution: 720P
+      i_reverse_stereo_socket_order: false
+      i_sensor_img_orientation: AUTO
+      i_set_isp3a_fps: false
+      i_simulate_from_topic: false
+      i_simulated_topic_name: ''
+      i_synced: false
+      i_update_ros_base_time_on_ros_msg: false
+      i_width: 1280
+      r_auto_exp_region_height: 0
+      r_auto_exp_region_start_x: 0
+      r_auto_exp_region_start_y: 0
+      r_auto_exp_region_width: 0
+      r_auto_exposure_limit: 1000
+      r_chroma_denoise: 1
+      r_exposure: 1000
+      r_iso: 800
+      r_luma_denoise: 1
+      r_set_auto_exp_region: false
+      r_set_auto_exposure_limit: false
+      r_set_chroma_denoise: false
+      r_set_luma_denoise: false
+      r_set_man_exposure: false
+      r_set_sharpness: false
+      r_sharpness: 1
+    start_type_description_service: true
+    stereo:
+      i_add_exposure_offset: false
+      i_align_depth: true
+      i_bilateral_sigma: 0
+      i_board_socket_id: 0
+      i_calibration_file: ''
+      i_depth_filter_size: 5
+      i_depth_preset: HIGH_ACCURACY
+      i_disparity_width: DISPARITY_96
+      i_enable_alpha_scaling: false
+      i_enable_brightness_filter: false
+      i_enable_companding: false
+      i_enable_decimation_filter: false
+      i_enable_disparity_shift: false
+      i_enable_distortion_correction: false
+      i_enable_lazy_publisher: true
+      i_enable_spatial_filter: false
+      i_enable_spatial_nn: false
+      i_enable_speckle_filter: false
+      i_enable_temporal_filter: false
+      i_enable_threshold_filter: false
+      i_exposure_offset: 0
+      i_extended_disp: false
+      i_flip_published_image: false
+      i_get_base_device_timestamp: false
+      i_height: 704
+      i_left_rect_add_exposure_offset: false
+      i_left_rect_enable_feature_tracker: false
+      i_left_rect_exposure_offset: 0
+      i_left_rect_low_bandwidth: false
+      i_left_rect_low_bandwidth_bitrate: 0
+      i_left_rect_low_bandwidth_ffmpeg_encoder: libx264
+      i_left_rect_low_bandwidth_frame_freq: 30
+      i_left_rect_low_bandwidth_profile: 4
+      i_left_rect_low_bandwidth_quality: 50
+      i_left_rect_publish_compressed: false
+      i_left_rect_publish_topic: false
+      i_left_rect_synced: false
+      i_left_socket_id: 1
+      i_low_bandwidth: false
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_frame_freq: 30
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 50
+      i_lr_check: true
+      i_lrc_threshold: 10
+      i_max_q_size: 30
+      i_output_disparity: false
+      i_publish_compressed: false
+      i_publish_synced_rect_pair: false
+      i_publish_topic: true
+      i_rectify_edge_fill_color: 0
+      i_reverse_stereo_socket_order: false
+      i_right_rect_add_exposure_offset: false
+      i_right_rect_enable_feature_tracker: false
+      i_right_rect_exposure_offset: 0
+      i_right_rect_low_bandwidth: false
+      i_right_rect_low_bandwidth_bitrate: 0
+      i_right_rect_low_bandwidth_ffmpeg_encoder: libx264
+      i_right_rect_low_bandwidth_frame_freq: 30
+      i_right_rect_low_bandwidth_profile: 4
+      i_right_rect_low_bandwidth_quality: 50
+      i_right_rect_publish_compressed: false
+      i_right_rect_publish_topic: false
+      i_right_rect_synced: false
+      i_right_socket_id: 2
+      i_set_disparity_to_depth_use_spec_translation: false
+      i_set_input_size: false
+      i_socket_name: rgb
+      i_spatial_nn_source: right
+      i_stereo_conf_threshold: 240
+      i_subpixel: true
+      i_subpixel_fractional_bits: 3
+      i_synced: false
+      i_update_ros_base_time_on_ros_msg: false
+      i_width: 704
+    use_sim_time: false
+
+
+## C. ros2 topic echo --once (25s 제한) — CameraInfo 는 시간 안에 못 받음, compressedDepth format 만 받음
+# 2026-10-13 12:39:42 KST == ros2 topic echo --once /robot6/oakd/rgb/camera_info (header, height, width, distortion_model, d, k, r, p)
+# 2026-10-13 12:40:07 KST == ros2 topic echo --once /robot6/oakd/stereo/camera_info (header, height, width, distortion_model, d, k, r, p)
+# 2026-10-13 12:40:32 KST == ros2 topic echo --once /robot6/oakd/rgb/image_raw/compressed --field header / format
+# 2026-10-13 12:41:23 KST == ros2 topic echo --once /robot6/oakd/stereo/image_raw/compressedDepth --field header / format
+16UC1; compressedDepth png
+---
+
+## D. rclpy 40s 구독 (best_effort): CameraInfo 2개 + 압축 영상 2개
+# 스크립트 원문:
+#   import sys, time, rclpy
+#   from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+#   from sensor_msgs.msg import CameraInfo, CompressedImage
+#   rclpy.init(); n = rclpy.create_node('mu03_oakd_probe_readonly')
+#   dur = float(sys.argv[1]) if len(sys.argv) > 1 else 30
+#   got = {}
+#   def cb(name):
+#       def f(m):
+#           now = n.get_clock().now().nanoseconds
+#           st = m.header.stamp.sec * 10**9 + m.header.stamp.nanosec
+#           got.setdefault(name, []).append((st, now, m))
+#       return f
+#   for rel in (ReliabilityPolicy.BEST_EFFORT,):
+#       q = QoSProfile(depth=10, reliability=rel, history=HistoryPolicy.KEEP_LAST)
+#       n.create_subscription(CameraInfo, '/robot6/oakd/rgb/camera_info', cb('rgb_info'), q)
+#       n.create_subscription(CameraInfo, '/robot6/oakd/stereo/camera_info', cb('stereo_info'), q)
+#       n.create_subscription(CompressedImage, '/robot6/oakd/rgb/image_raw/compressed', cb('rgb_jpeg'), q)
+#       n.create_subscription(CompressedImage, '/robot6/oakd/stereo/image_raw/compressedDepth', cb('depth_png'), q)
+#   t0 = time.time()
+#   while time.time() - t0 < dur:
+#       rclpy.spin_once(n, timeout_sec=0.1)
+#   print(f"# {time.strftime('%F %T %Z')} subscribed {dur:.0f}s best_effort")
+#   for k in ('rgb_info', 'stereo_info', 'rgb_jpeg', 'depth_png'):
+#       v = got.get(k, [])
+#       print(f"== {k}: {len(v)} msgs")
+#       if not v: continue
+#       st, now, m = v[-1]
+#       print(f"  frame_id={m.header.frame_id!r} last_stamp_ns={st} recv_minus_stamp_ms={(now-st)/1e6:.1f}")
+#       if len(v) > 1:
+#           print(f"  rate_hz={(len(v)-1)/((v[-1][0]-v[0][0])/1e9):.2f} (by stamp)")
+#       if isinstance(m, CameraInfo):
+#           print(f"  width={m.width} height={m.height} distortion_model={m.distortion_model!r}")
+#           print(f"  d={list(m.d)}")
+#           print(f"  k={list(m.k)}")
+#           print(f"  r={list(m.r)}")
+#           print(f"  p={list(m.p)}")
+#       else:
+#           print(f"  format={m.format!r} bytes={len(m.data)}")
+#   a = [s for s, _, _ in got.get('rgb_info', [])]; b = [s for s, _, _ in got.get('stereo_info', [])]
+#   if a and b:
+#       diffs = [min(abs(x - y) for x in a) / 1e6 for y in b]
+#       exact = sum(1 for d in diffs if d == 0)
+#       diffs.sort()
+#       print(f"== stereo_info vs nearest rgb_info stamp: n={len(diffs)} exact_equal={exact} min_ms={diffs[0]:.3f} median_ms={diffs[len(diffs)//2]:.3f} max_ms={diffs[-1]:.3f}")
+#   n.destroy_node(); rclpy.shutdown()
+# 2026-10-13 12:43:36 KST subscribed 40s best_effort
+== rgb_info: 1134 msgs
+  frame_id='oakd_rgb_camera_optical_frame' last_stamp_ns=1791863016022872155 recv_minus_stamp_ms=-2.7
+  rate_hz=29.66 (by stamp)
+  width=704 height=704 distortion_model='rational_polynomial'
+  d=[8.75229549407959, -106.59236907958984, -0.0026850122958421707, -0.001596215064637363, 506.55828857421875, 8.479351043701172, -104.16783142089844, 495.6709899902344]
+  k=[564.6177368164062, 0.0, 348.7132568359375, 0.0, 564.6177368164062, 350.1556091308594, 0.0, 0.0, 1.0]
+  r=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  p=[564.6177368164062, 0.0, 348.7132568359375, 0.0, 0.0, 564.6177368164062, 350.1556091308594, 0.0, 0.0, 0.0, 1.0, 0.0]
+== stereo_info: 348 msgs
+  frame_id='oakd_rgb_camera_optical_frame' last_stamp_ns=1791863015189577816 recv_minus_stamp_ms=776.9
+  rate_hz=9.25 (by stamp)
+  width=704 height=704 distortion_model='rational_polynomial'
+  d=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  k=[564.6177368164062, 0.0, 348.7132568359375, 0.0, 564.6177368164062, 350.1556091308594, 0.0, 0.0, 1.0]
+  r=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  p=[564.6177368164062, 0.0, 348.7132568359375, 0.0, 0.0, 564.6177368164062, 350.1556091308594, 0.0, 0.0, 0.0, 1.0, 0.0]
+== rgb_jpeg: 1095 msgs
+  frame_id='oakd_rgb_camera_optical_frame' last_stamp_ns=1791863015989543159 recv_minus_stamp_ms=10.1
+  rate_hz=28.67 (by stamp)
+  format='bgr8; jpeg compressed bgr8' bytes=52177
+== depth_png: 179 msgs
+  frame_id='oakd_rgb_camera_optical_frame' last_stamp_ns=1791863015189577816 recv_minus_stamp_ms=776.2
+  rate_hz=4.76 (by stamp)
+  format='16UC1; compressedDepth png' bytes=193330
+== stereo_info vs nearest rgb_info stamp: n=348 exact_equal=0 min_ms=0.077 median_ms=2.891 max_ms=138.667
+
+## E. 도킹·배터리 재측정
+# 2026-10-13 12:42:34 KST == /robot5 dock_status.is_docked
+False
+---
+== /robot5 battery_state.percentage
+0.8899999856948853
+---
+# 2026-10-13 12:42:39 KST == /robot6 dock_status.is_docked
+False
+---
+== /robot6 battery_state.percentage
+0.8399999737739563
+---
+
+## F. Pi 설정 읽기 시도 (ssh 키 인증만, 비밀번호 쓰지 않음)
+== <TB6_PI>
+ubuntu@<TB6_PI>: Permission denied (publickey,password).
+== <TB5_PI>
+ubuntu@<TB5_PI>: Permission denied (publickey,password).
+
+## G. Wi-Fi 측정 (작전 요청 12:46, 읽기만)
+# 2026-10-13 12:47:34 KST Wi-Fi 측정 (읽기만). 이 PC 경로 인터페이스: wlo1
+== iw dev wlo1 get power_save
+/bin/bash: line 1: iw: command not found
+== iw dev wlo1 link (signal/bitrate)
+== ping -c 50 -i 0.2 <TB5_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9837ms
+rtt min/avg/max/mdev = 2.069/11.714/52.309/9.545 ms
+== ping -c 50 -i 0.2 <TB6_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9841ms
+rtt min/avg/max/mdev = 3.226/35.053/404.210/68.987 ms, pipe 2
+# 2026-10-13 12:47:54 KST 끝
+# 2026-10-13 12:48:02 KST iw 없음 → nmcli·/proc 로 대신 읽음
+== nmcli 802-11-wireless.powersave (활성 Wi-Fi 연결; 0=기본값 따름 1=무시 2=끔 3=켬)
+default
+== NetworkManager 전역 기본값 (conf.d 의 wifi.powersave)
+wifi.powersave = 3
+== /proc/net/wireless
+Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
+ face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+  wlo1: 0000   56.  -54.  -256        0      0      0      0    149        0
+== nmcli dev wifi (사용 중인 AP 만: 주파수·속도·신호)
+IN-USE  CHAN  RATE        SIGNAL
+*       40    270 Mbit/s  84

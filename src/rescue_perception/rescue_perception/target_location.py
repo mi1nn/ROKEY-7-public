@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import math
 from uuid import NAMESPACE_URL, uuid5
 
-from rescue_contracts import ros_time_to_ns, uuid_string
+from rescue_contracts import STAMP_SEMANTICS, ros_time_to_ns, uuid_string
 from rescue_mapping import RigidTransform
 from .map_projection import rotate_covariance
 
@@ -81,11 +81,11 @@ def time_refusal(t, basis, now_ns):
         return 'CLOCK_NOT_SYNCED'
     if not t.has_clock_error_bound:
         return 'NO_CLOCK_ERROR_BOUND'
-    if t.stamp_semantics == 'UNKNOWN':
+    if t.stamp_semantics not in STAMP_SEMANTICS - {'UNKNOWN'}:
         return 'STAMP_SEMANTICS_UNKNOWN'
     if t.clock_domain_id != basis.clock_domain_id:
         return 'CLOCK_DOMAIN_MISMATCH'
-    if now_ns > t.valid_until_ns:
+    if now_ns >= t.valid_until_ns:
         return 'OBSERVATION_EXPIRED'
     if t.observed_at_ns > now_ns + t.clock_error_bound_ns:
         return 'FUTURE_STAMP'
