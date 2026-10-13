@@ -6,13 +6,18 @@ raises that instead of ExternalShutdownException. Only that case is a normal sto
 while the context is valid, or any other error, is raised. Every perception node spins through it.
 """
 import ast
+import importlib.util
 from pathlib import Path
 import unittest
 
 from rescue_perception.shutdown import spin_until_shutdown
 
-PACKAGE = Path(__file__).resolve().parents[1] / 'src/rescue_perception/rescue_perception'
-NODES = ('target_locator.py', 'amr_target.py', 'amr_camera.py', 'mjpeg_relay.py')
+NODES = ('target_locator', 'amr_target', 'amr_camera', 'mjpeg_relay')
+
+
+def node_source(name):
+    """The module source as installed (wheel or checkout), found without importing it (no ROS here)."""
+    return Path(importlib.util.find_spec(f'rescue_perception.{name}').origin).read_text()
 
 
 class RCLError(RuntimeError):
@@ -44,7 +49,7 @@ class ShutdownRaceTests(unittest.TestCase):
 
     def test_every_node_spins_through_the_shutdown_guard(self):
         for name in NODES:
-            tree = ast.parse((PACKAGE / name).read_text())
+            tree = ast.parse(node_source(name))
             bare = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call)
                     and isinstance(n.func, ast.Attribute) and n.func.attr == 'spin'
                     and not any(isinstance(p, ast.Lambda) and n in ast.walk(p) for p in ast.walk(tree))]
