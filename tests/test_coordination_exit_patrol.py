@@ -73,6 +73,7 @@ class ExitRegistrationTests(unittest.TestCase):
         self.assertEqual('FRAME_REVISION_MISMATCH', caught.exception.code)
 
     def test_the_freeze_waits_for_the_exit_and_the_patrol_goes_on(self):
+        self.core.on_status(status_msg(SCOUT))
         self.core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
         self.save_target()
         self.assertEqual(1, len(ticks(self.core, 'SEARCH_AREA')))

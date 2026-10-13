@@ -396,7 +396,9 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual({'MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', 'MAP_FREEZE_FAILED',
                           'MAP_NOT_FROZEN', 'TARGET_NOT_ON_FROZEN_MAP', 'SCOUT_NOT_LOCALIZED',
                           'SUPPORT_NOT_LOCALIZED', 'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE',
-                          'SCOUT_HOME_NOT_FREE'}, set(ros_node.MAP_FREEZE_REASONS))
+                          'SCOUT_HOME_NOT_FREE', 'MAP_FREEZE_WAITING_EXIT', 'TARGET_REBASED_ON_FREEZE',
+                          'EXIT_NOT_ON_FROZEN_MAP', 'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN',
+                          'START_POSE_CONFLICT'}, set(ros_node.MAP_FREEZE_REASONS))
 
 
 if __name__ == '__main__':

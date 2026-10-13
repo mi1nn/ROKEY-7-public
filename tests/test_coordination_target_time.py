@@ -17,7 +17,7 @@ from types import SimpleNamespace as NS
 
 
 def timed(n, **time_changes):
-    return location(n, observation=NS(time=obs_time(**time_changes)))
+    return location(n, observation=NS(time=obs_time(**time_changes), class_label='survivor'))
 
 
 class TargetTimeGateTests(unittest.TestCase):
