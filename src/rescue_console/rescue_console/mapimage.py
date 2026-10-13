@@ -138,7 +138,7 @@ def encode_png(width, height, pixels):
 
 @dataclass(frozen=True)
 class MapImage:
-    """One loaded map, immutable: the PNG served at /map.png and the `meta` dict the screen model carries.
+    """One loaded map (frozen): the PNG served at /map.png and the `meta` dict the screen model carries.
 
     `meta` (keys: see load_map) holds no image bytes, so the polled view JSON stays small.
     """
@@ -181,8 +181,9 @@ def load_map(yaml_path):
     image_path = image_path if image_path.is_absolute() else yaml_path.parent / image_path
     pgm_bytes = _read(image_path)
     width, height, pixels, maxval = read_pgm(pgm_bytes)
-    # occupied_thresh / free_thresh / mode are accepted but not applied: the PGM is shown as saved. A
-    # map_snapshot file is already trinary (0 occupied, 254 free, 205 unknown). Only rescale to 0..255 here.
+    # occupied_thresh / free_thresh / mode are accepted but not applied to pixels: they are shown as saved, only
+    # rescaled to 0..255 and flipped by negate. map_snapshot files are already trinary
+    # (0 occupied, 254 free, 205 unknown).
     if maxval != 255:
         pixels = bytes(value * 255 // maxval for value in pixels)
     if negate:
@@ -247,7 +248,7 @@ class LiveMap:
                 try:
                     self.image, self._error = load_map(self.path), None
                 except ConsoleError as exc:
-                    # self.image keeps the last good map; the error goes on screen next to it.
+                    # self.image keeps the last good map; the error is reported alongside it.
                     self._error = exc.detail
             received = stat.st_mtime_ns
             age_s = round((self.clock() - received) / 1e9, 1)

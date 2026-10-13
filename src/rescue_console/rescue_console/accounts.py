@@ -64,7 +64,7 @@ def hash_password(password):
     """Salted PBKDF2-HMAC-SHA256 of `password` as `pbkdf2_sha256$<iterations>$<salt hex>$<digest hex>`.
 
     Raises ConsoleError INVALID_INPUT unless it is a string of at least MIN_PASSWORD characters.
-    A new random 16-byte salt per call means two accounts with one password never share a stored value.
+    A new random 16-byte salt per call means two accounts with one password do not share a stored value.
     """
     _require(isinstance(password, str) and len(password) >= MIN_PASSWORD,
              f'password must be at least {MIN_PASSWORD} characters')
@@ -273,12 +273,12 @@ class AccountStore:
             if 'display_name' in changes and changes['display_name'] == '':
                 changes['display_name'] = username
             # Compared with the stored row: re-sending the same role or status does not end any session.
-            credential_changed =('password_hash' in changes or after_role != row['role'] or after_status != row['status'])
+            credential_changed = ('password_hash' in changes or after_role != row['role'] or after_status != row['status'])
             if credential_changed:
                 changes['auth_version'] = row['auth_version'] + 1   # every earlier session stops matching
             changes['updated_at_ns'] = time.time_ns()
             # Column names come only from the fixed keys set above; every value is a bound parameter.
-            assignments =', '.join(f'{key} = ?' for key in changes)
+            assignments = ', '.join(f'{key} = ?' for key in changes)
             db.execute(f'UPDATE accounts SET {assignments} WHERE username = ?', (*changes.values(), username))
         return self.get(username)
 
@@ -299,7 +299,7 @@ class AccountStore:
     @staticmethod
     def _guard_last_admin(db, excluding):
         # Runs on the caller's connection inside its BEGIN IMMEDIATE, so the count holds until its write.
-        others =db.execute("SELECT COUNT(*) FROM accounts WHERE role = 'ADMIN' AND status = 'ACTIVE' AND username != ?",
+        others = db.execute("SELECT COUNT(*) FROM accounts WHERE role = 'ADMIN' AND status = 'ACTIVE' AND username != ?",
                             (excluding,)).fetchone()[0]
         _require(others > 0, 'at least one ACTIVE ADMIN must remain', 'LAST_ADMIN')
 
@@ -313,7 +313,7 @@ class _Transaction:
     def __enter__(self):
         """Start the transaction and hand the connection to the block.
 
-        IMMEDIATE takes the write lock at the start (reads too), so a check-then-write in the block (name taken,
+        IMMEDIATE takes the write lock at BEGIN (reads too), so a check-then-write in the block (name taken,
         last ADMIN) cannot interleave with another writer; a second caller's BEGIN waits up to sqlite3's busy
         timeout. If BEGIN fails (busy, or not a database) the connection is closed and STORAGE_ERROR raised.
         """
@@ -353,7 +353,7 @@ def main(argv=None):
     The password comes from the environment variable named by --password-env, or from a prompt when that is
     unset or empty, so it is never typed on the command line. Returns 0, or 2 after `ACCOUNTS FAILED: ...`.
     """
-    parser =argparse.ArgumentParser(description='Create the console accounts database with one ADMIN.')
+    parser = argparse.ArgumentParser(description='Create the console accounts database with one ADMIN.')
     sub = parser.add_subparsers(dest='command', required=True)
     init = sub.add_parser('init', help='create ACCOUNTS with one active admin')
     init.add_argument('accounts', help='path of the new accounts SQLite file (must not exist)')
