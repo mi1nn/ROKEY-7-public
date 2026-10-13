@@ -288,14 +288,14 @@ def world_to_pixel(meta, x, y):
 EXIT_NAME = '출구(QR)'
 
 
-def map_overlay(meta, robots, targets, exit_=None):
+def map_overlay(meta, robots, targets, exit_=None, passages=()):
     """화면 모델의 `map` 영역 생성: MAP_FRAME과 일치하고 이미지 범위 내에 위치한 개체 마커 표시.
 
     robots/targets는 화면 모델 행 목록이며(`pose`/`position`은 None 가능), exit_는 최신 출구(QR) 관측이다.
     타 frame 좌표는 `frame_mismatch`에 분리하고 투영하지 않는다. frame은 맞으나 이미지 범위 밖인 좌표는
     임의로 경계에 맞추지 않고 `off_map`에, 위치 미확인 로봇은 `no_pose`에 분류한다. 출구 마커는 `exits`에 포함된다.
     """
-    overlay = dict(meta, available=True, robots=[], targets=[], exits=[], off_map=[], frame_mismatch=[], no_pose=[],
+    overlay = dict(meta, available=True, robots=[], targets=[], exits=[], passages=[], off_map=[], frame_mismatch=[], no_pose=[],
                    note=f'기준 지도 {meta["source"]} ({meta["width_px"]}×{meta["height_px"]} px, '
                         f'{meta["resolution"]} m/px) — 좌표 map_session 일치는 확인하지 않음(Q-09)')
     entries = [('robot', row['robot_id'], row.get('pose'), {'yaw': (row.get('pose') or {}).get('yaw'),
@@ -304,12 +304,16 @@ def map_overlay(meta, robots, targets, exit_=None):
     if exit_ is not None:   # 가장 최근 관측된 exit_qr 관측치(#237)
         entries.append(('exit', EXIT_NAME, exit_, {'observed_at_ns': exit_['observed_at_ns'],
                                                    'map_revision': exit_['map_revision']}))
+    entries += [('passage', row['id'], row, {'state': row['state'], 'label': row['label'], 'current': row['current'],
+                                              'robot_id': row['robot_id'], 'map_revision': row['map_revision']})
+                for row in passages]   # 터널 판정(#262, OPS-189)
     for kind, ident, pose, extra in entries:
         if pose is None:
             if kind == 'robot':   # 목록에만 포함하고 지도에 그리지 않음: 미확인 위치를 임의 생성하지 않음(지도 확정 전 TB-5)
                 overlay['no_pose'].append({'id': ident, 'name': extra['name'] or ident})
             continue
-        where = {'kind': kind, 'id': ident, 'x': pose['x'], 'y': pose['y'], 'frame_id': pose['frame_id']}
+        where = {'kind': kind, 'id': ident, 'x': pose['x'], 'y': pose['y'], 'frame_id': pose['frame_id'],
+                 'label': extra.get('label')}
         if pose['frame_id'] != MAP_FRAME:
             overlay['frame_mismatch'].append(where)
             continue

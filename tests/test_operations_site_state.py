@@ -609,7 +609,7 @@ class SiteStateTests(unittest.TestCase):
         db.close()
         self.ledger().close()
         metadata, tables = self.metadata_and_tables()
-        self.assertEqual(('1.3', site_state.SCHEMA_VERSION), (metadata['schema'], metadata['schema']))
+        self.assertEqual(('1.4', site_state.SCHEMA_VERSION), (metadata['schema'], metadata['schema']))
         self.assertLessEqual({'mission_state', 'robot_status', 'site_events', 'target_states', 'error_log',
                               'operator_commands', 'map_snapshots'}, tables)
         self.assertEqual(mission() | NO_DISPATCH, site_state.read_mission_state(self.path)['mission'])

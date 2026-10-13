@@ -10,6 +10,8 @@ import math
 import re
 import os
 
+from rescue_contracts.overhead import overhead_passages_topic
+
 from .profile import Deployment
 
 SITE_EVENTS_TOPIC = '/rescue/site_events'
@@ -54,12 +56,16 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, we
     if not isinstance(command_timeout_s, float) or not 0.0 < command_timeout_s < CONSOLE_TIMEOUT_S:
         raise LaunchSettingError(f'command_timeout_s must be over 0 and under the console {CONSOLE_TIMEOUT_S:g} s')
     robots = [robot.id for robot in deployment.robots]
+    (slam_robot,) = [robot for robot in robots if deployment.mission.role_of(robot) == 'SCOUT']
     return {
         'db_path': db_path,
         'allowed_robot_ids': robots,
         'robot_roles': [deployment.mission.role_of(robot) for robot in robots],
         'status_topics': [ROBOT_PREFIX + robot + '/status' for robot in robots],
         'pose_topics': [ROBOT_PREFIX + robot + '/pose' for robot in robots],
+        'overhead_passages_topics': [overhead_passages_topic(robot) for robot in robots],  # C-04b (OPS-194)
+        # passages of both robots are measured on the SLAM robot's (SCOUT) map: its MapState is the current map
+        'map_state_topic': ROBOT_PREFIX + slam_robot + '/map_state',
         'site_events_topic': SITE_EVENTS_TOPIC,
         'system_state_topic': SYSTEM_STATE_TOPIC,
         'targets_topic': TARGETS_TOPIC,

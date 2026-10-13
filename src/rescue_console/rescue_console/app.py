@@ -70,7 +70,7 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
     if map_source is not None:   # --live-map: 마지막으로 수신된 SLAM 지도 및 갱신 주기·상태
         map_image, live = map_source.current()
     if map_image is not None:
-        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'], view['exit'])
+        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'], view['exit'], view['passages'])
         # 마커 좌표를 임의로 보정하거나 누락하지 않음: map_overlay 투영 실패 항목은 화면에 경고로 노출한다.
         for where in view['map']['frame_mismatch']:
             view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
