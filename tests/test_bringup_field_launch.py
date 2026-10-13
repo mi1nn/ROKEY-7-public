@@ -214,9 +214,11 @@ class RobotParameters(FieldCase):
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
         # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
-        # SCOUT) takes no automatic approach; its REOBSERVE_TARGET comes with C1-b.
-        expected.update({'task.live.auto_target.enabled': False,
-                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+        # SCOUT) takes only REOBSERVE_TARGET (C1-b) and asks the recheck server after the stop.
+        expected.update({'task.live.auto_target.enabled': True,
+                         'task.live.auto_target.kinds': ['REOBSERVE_TARGET'],
+                         'task.live.recheck.window_ns': 3_000_000_000,
+                         'task.live.recheck.deadline_ns': 10_000_000_000,
                          'task.live.auto_target.goal_clear_radius_m': 0.2,
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
         values = self.robot()
@@ -262,7 +264,8 @@ class RobotParameters(FieldCase):
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
         # Least privilege per robot: each robot's own automatic kinds (decision 2026-10-13)
         self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
-        self.assertFalse(self.robot()['task_input']['task.live.auto_target.enabled'])
+        self.assertEqual(['REOBSERVE_TARGET'], self.robot()['task_input']['task.live.auto_target.kinds'])
+        self.assertEqual(['APPROACH_TARGET'], values['task_input']['task.live.auto_target.kinds'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
