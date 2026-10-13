@@ -266,6 +266,23 @@ class SearchStartModeTests(LedgerFixture):
         with self.assertRaises(ConsoleError):
             self.view('auto')
 
+    def test_command_line_passes_the_mode(self):
+        import os
+        from unittest import mock
+        from rescue_console import __main__ as cli
+        from rescue_console.view import ConsoleError
+        os.environ['RESCUE_CONSOLE_TEST_SECRET'] = 'x' * 16
+        self.addCleanup(os.environ.pop, 'RESCUE_CONSOLE_TEST_SECRET', None)
+        seen = {}
+
+        def create_app(*args, **kwargs):   # stop before the server starts
+            seen.update(kwargs)
+            raise ConsoleError('INVALID_INPUT', 'stop')
+        with mock.patch.object(cli, 'create_app', create_app), mock.patch('sys.stderr'):
+            cli.main([str(self.db), '--accounts', str(self.dir / 'accounts.sqlite3'), '--status', 'status.json',
+                      '--search-start', 'AUTO', '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
+        self.assertEqual('AUTO', seen.get('search_start'))
+
 
 if __name__ == '__main__':
     unittest.main()
