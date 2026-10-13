@@ -65,7 +65,7 @@ web은 SQLite 읽기 전용 조회, operations만 DB 쓰기, 로컬 브라우저
 
 페이지별 인터페이스 범위와 요구 상태는 JSON `metadata.detail_pages`에 기록한다. `check_sdd_unified.py`는 두 00 보존, 모든 상세도의 IF 범위·정확한 source/target 관계·노드 호스트·89IF 전체 포함·선 geometry·11 재확인 관문을 검사한다. 02~07·09의 반복 박스는 인터페이스별 동일한 논리 노드다. 01/08/10은 기준 페이지의 검증된 geometry를 복제·선별해 사용한다. 11의 요구 단계 박스는 추가 ROS 노드가 아니다.
 
-실제 현장 배치 차이: main #160(2026-10-13)의 [Discovery 현장 운영 기록](https://github.com/jaebeom/ROKEY-7/blob/043bd218f8ac5cfd6b8c4ca5b696f7d0f28dd397/docs/design/network-discovery.md#11-현장-적용-기록-2026-10-13)은 각 PC가 로봇 Pi 서버에 직접 연결하는 권고안 A를 기록한다. 이번 요청의 PC4 전용 발견 서버는 PM 설계 제안으로 분리하며 실제 운영 설정·소유자 채택을 변경하지 않는다. 원본 00 채택 여부와 PC4 배치 채택은 PR #141의 소유자 통합 검토에서 결정 대기 상태다.
+Discovery 최종 구성과 시험 중 구성 (재범 결정, 2026-10-13): **최종은 PC4 Discovery 전용**(이 문서의 배치)이고, **시험 중에는 권고안 A**(각 PC가 로봇 Pi 서버에 직접 연결)를 쓴다. 실습 1회가 성공하면 바로 PC4로 바꾼다. 로봇 노드가 PC4 서버에 보이게 하는 방법(로봇 Pi에 외부 서버 추가 = 등급 4, 또는 서버끼리 연결)은 결정 대기다. 근거: [network-discovery.md](network-discovery.md) 0절·11절(#197·#201). 로봇 이름: AMR1 = TB-6(robot_a, SCOUT), AMR2 = TB-5(robot_b, SUPPORT)(재범 결정 2026-10-13). 노드 ID `amr1.*`·`amr2.*`는 그대로 둔다.
 
 ## 기존 팀 설계와의 적용 경계 (과거 v0.1 기록)
 
@@ -77,7 +77,7 @@ web은 SQLite 읽기 전용 조회, operations만 DB 쓰기, 로컬 브라우저
 | 고정 카메라·구출 조건 | 카메라 A 재난 징후 + B 출구 카운트 + AMR1 재관측, 부재만으로 완료 금지(Q-10·Q-15) | 구조 지점을 계속 촬영하는 웹캠 하나의 소실 후보 + fresh AMR1 관측. 사람 이송을 증명하지 않는 **시연 판정** | 카메라 1대 결정에 맞춘 scope·SiteEvent·완료 상태/정책·인수 시험 개정은 소유자의 SoT PR과 연결. 이 PR은 기존 실행 코드를 직접 바꾸지 않음 |
 | AMR2 출동·이동 | 자동 출동을 기본 후보로 두고 승인 버튼은 선택(Q-12), 기존 task kind 집합(C-06) | 관리자 출동 승인 + `MOVE_SEGMENT`마다 “계속” 승인, `RETURN_HOME` 추가 | 명령/승인·TaskResult·상태 전이·프로파일 및 실행기/관제 소비자 개정 |
 | 중앙 배치 | 로봇 담당 PC 둘 + coordination/operations 분리 후보 | PC3 웹캠, PC4 coordination·operations·웹·DB 동거 | 4-PC 부하·장애 검증과 프로파일 개정. PC1~4는 도면의 논리 배치이며 실제 호스트 이름이 아님 |
-| Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 온보드/오프보드 연결·서버 목록·고유 ID를 별도 결정. 이 도면으로 네트워크 채택안을 덮어쓰지 않음. domain ID만으로 격리된다고 가정하지 않음 |
+| Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 최종 = PC4 전용, 시험 중 = 토폴로지 A(재범 결정 2026-10-13). 로봇 Pi 쪽 연결 방법·서버 목록·고유 ID는 결정 대기. domain ID만으로 격리된다고 가정하지 않음 |
 | watchdog 위치 | 로봇 담당 PC에서 실행하는 Phase 1 방향([#35 OPS-17 결정](https://github.com/jaebeom/ROKEY-7/pull/35#issuecomment-6058147235)) | 도면의 AMR1·AMR2 온보드 watchdog(`PROPOSED_NOT_INSTALLED`) | 온보드 배치는 채택·설치 검증이 필요한 별도 제안. PC↔로봇 링크 단절을 처리하는 Create 3 timeout은 실측 전이며 TR-11·T-05에서 확인. 도면으로 Phase 1 배치 결정을 변경하지 않음 |
 | ROS 타입·HTTP | C-08의 토픽/API 제안과 현재 Python DTO 의미 | 필드·서비스·액션·HTTP 경로의 상세 초안 | IDL 생성/컴파일, Python DTO 변환과 인증·배선·QoS 검증. 경로 이름을 곧바로 실제 서버의 주소로 사용하지 않음 |
 
