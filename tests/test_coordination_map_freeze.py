@@ -298,6 +298,31 @@ class NodeWiringTests(Base):
         self.assertIsNone(self.core.freeze)
 
 
+class FrozenGridTests(unittest.TestCase):
+    """ros_node.FrozenGrid reads an OccupancyGrid with the shared rescue_contracts.occupancy functions (#208)."""
+
+    def msg(self, data=None, qz=0., qw=1.):
+        origin = NS(position=NS(x=-1., y=-2., z=0.), orientation=NS(x=0., y=0., z=qz, w=qw))
+        return NS(header=NS(frame_id='map'), info=NS(width=4, height=3, resolution=.5, origin=origin),
+                  data=data if data is not None else [0] * 12)
+
+    def test_hash_and_free_cells_are_the_shared_rule(self):
+        from rescue_contracts.occupancy import footprint_clear, occupancy_sha256
+        data = [0] * 11 + [100]
+        grid = ros_node.FrozenGrid(self.msg(data))
+        fields = dict(frame='map', width=4, height=3, resolution=.5, origin=(-1., -2., 0.), data=data)
+        self.assertEqual(occupancy_sha256(**fields), grid.sha256)
+        for xy in ((-.5, -1.5), (.75, -.75)):
+            with self.subTest(xy=xy):
+                self.assertEqual(footprint_clear(**fields, x=xy[0], y=xy[1], radius=.1), grid.clear(*xy, .1))
+        self.assertFalse(grid.clear(.75, -.75, .1))  # the occupied corner cell
+
+    def test_an_invalid_grid_or_origin_is_a_value_error(self):
+        for msg in (self.msg(data=[0] * 11), self.msg(qz=.5, qw=.5)):
+            with self.subTest(msg=msg), self.assertRaises(ValueError):
+                ros_node.FrozenGrid(msg)
+
+
 class ParameterTests(unittest.TestCase):
     def test_typed_required_parameters(self):
         self.assertEqual(('STRING', 'DOUBLE', 'DOUBLE'),
