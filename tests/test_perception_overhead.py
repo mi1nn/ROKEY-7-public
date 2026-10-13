@@ -206,8 +206,11 @@ class ViewTests(unittest.TestCase):
     def test_labels_match_the_map_words(self):
         self.assertEqual(('통과 가능 ↑0.47 m', (0, 200, 0)), view_label('PASSABLE', 0.47, confirmed=True))
         self.assertEqual(('통과 불가 ↑0.40 m', (0, 0, 220)), view_label('BLOCKED', 0.4, confirmed=True))
-        for state, lowest, confirmed in (('PASSABLE', 0.47, False), ('UNKNOWN', None, True), ('BLOCKED', 0.4, False)):
-            self.assertEqual(('판정 중', (160, 160, 160)), view_label(state, lowest, confirmed=confirmed))
+        # one wording for the map and the camera (OPS-196): UNKNOWN 「판정 불가」; only the camera has
+        # 「판정 중」, a place still counting its agreeing frames
+        self.assertEqual(('판정 불가', (160, 160, 160)), view_label('UNKNOWN', None, confirmed=True))
+        for state, lowest in (('PASSABLE', 0.47), ('UNKNOWN', None), ('BLOCKED', 0.4)):
+            self.assertEqual(('판정 중', (160, 160, 160)), view_label(state, lowest, confirmed=False))
 
     @unittest.skipIf(np is None, 'NumPy not installed')
     def test_render_view_paints_the_polygon_and_writes_a_jpeg(self):

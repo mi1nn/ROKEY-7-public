@@ -190,7 +190,7 @@ class OverheadLaunch(FieldCase):
             self.assertEqual(raw['passage.overhead.' + key], p[key])
 
     def test_camera_view_values(self):
-        """Judgement drawn on the robot camera (OPS-189): TB-6 RGB measured; TB-5 RGB not measured -> view off."""
+        """Judgement drawn on the robot camera (OPS-189): both robots' RGB measured (TB-5 OPS-196); none -> view off."""
         from rescue_bringup.field_launch import overhead_passage_launch_values
         raw = json.loads(FIELD.read_text())['robot']
         a = overhead_passage_launch_values(self.deployment, field=self.field(), robot_id='robot_a')['parameters']
@@ -199,7 +199,10 @@ class OverheadLaunch(FieldCase):
         for key in ('width', 'quality', 'slop_ns', 'font_path'):
             self.assertEqual(raw['passage.view.' + key], a['view_' + key])
         b = overhead_passage_launch_values(self.deployment, field=self.field(with_tb5_depth), robot_id='robot_b')
-        self.assertEqual('', b['parameters']['view_image_topic'])   # not in the field file: the node says view off
+        self.assertEqual('/robot5/oakd/rgb/image_raw/compressed', b['parameters']['view_image_topic'])
+        off = overhead_passage_launch_values(self.deployment, field=self.field(
+            lambda r: r['robots']['robot_b'].pop('passage.view_image_topic')), robot_id='robot_b')
+        self.assertEqual('', off['parameters']['view_image_topic'])   # not in the field file: the node says view off
         with self.assertRaises(Exception):   # a view topic of another robot
             overhead_passage_launch_values(self.deployment, field=self.field(lambda r: r['robots']['robot_a'].update(
                 {'passage.view_image_topic': '/robot5/oakd/rgb/image_raw/compressed'})), robot_id='robot_a')
