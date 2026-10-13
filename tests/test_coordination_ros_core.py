@@ -36,7 +36,9 @@ def make_core(**changes):
                   lease_message_ttl_ns=TTL, camera_watch=None, target_clock_domain_id=CLOCK_DOMAIN,
                   target_max_age_ns=TARGET_AGE, target_max_future_ns=TARGET_FUTURE, support_dispatch='OPERATOR',
                   approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
-                  recheck_max_clock_error_ns=20_000_000, new_id=lambda: uid(next(ids)))
+                  recheck_max_clock_error_ns=20_000_000, map_mode='SAVED_MAP', freeze_clearance_m=0.2,
+                  map_freeze_timeout_ns=5_000_000_000, map_snapshot_id=lambda *basis: ':'.join(map(str, basis)),
+                  new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
