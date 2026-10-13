@@ -40,7 +40,8 @@ class AutoSearchStartTests(unittest.TestCase):
                 if status is not None:
                     self.core.on_status(status_msg(**status))
                 self.assertEqual([], searches(self.core))
-                self.assertEqual('SEARCH_QUEUED', self.core.system_state_change(NOW)['reason'])
+                self.core.system_state_change(NOW)  # None when unchanged since the last subtest
+                self.assertEqual('SEARCH_QUEUED', self.core.last_state['reason'])
         self.core.on_status(status_msg())
         self.assertEqual(1, len(searches(self.core)))
 
