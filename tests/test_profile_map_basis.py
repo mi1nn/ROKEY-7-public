@@ -81,9 +81,9 @@ class MapBasisTests(unittest.TestCase):
                 area[key] = saved
 
     def test_hold_positions_must_be_on_the_map_basis(self):
+        """The map only: a hold pose may name a robot-scoped TF frame (test_profile_v2)."""
         hold = self.data["mission"]["hold_positions"]["robot_b"]
-        for key, other in (("frame_id", "map"), ("map_session_id", "33333333-3333-4333-8333-333333333333"),
-                           ("map_revision", 1)):
+        for key, other in (("map_session_id", "33333333-3333-4333-8333-333333333333"), ("map_revision", 1)):
             with self.subTest(key=key):
                 saved = hold[key]
                 hold[key] = other
