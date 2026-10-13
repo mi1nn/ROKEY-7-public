@@ -26,7 +26,10 @@ def read_config(node, adapter):
         'task.saved_map.transform_xy_yaw': T.PARAMETER_DOUBLE_ARRAY,
         'task.saved_map.valid_from_ns': I, 'task.saved_map.transform_valid_until_ns': I,
         'task.saved_map.position_error_m': D, 'task.saved_map.rotation_error_rad': D,
-        'task.saved_map.max_position_variance_m2': D, 'task.saved_map.max_yaw_variance_rad2': D}
+        'task.saved_map.max_position_variance_m2': D, 'task.saved_map.max_yaw_variance_rad2': D,
+        # Automatic target moves without an operator approval (C1, 2026-10-13); enabled=false rejects them.
+        'task.live.auto_target.enabled': T.PARAMETER_BOOL, 'task.live.auto_target.kinds': T.PARAMETER_STRING_ARRAY,
+        'task.live.auto_target.goal_clear_radius_m': D, 'task.live.auto_target.policy_version': S}
     values, missing = declare_required(node, fields)
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
@@ -58,6 +61,8 @@ def read_config(node, adapter):
         raise ContractError('explicit measured [x,y,yaw] transform required')
     m.update(mode='SAVED_MAP_AMCL',authority_id=c['mapping_authority'],clock_domain_id=c['lease']['clock_domain_id'])
     c['saved_maps'] = {adapter.robot_id:m}
+    c['auto_target'] = {key:get('live.auto_target.'+key) for key in
+                        ('enabled','kinds','goal_clear_radius_m','policy_version')}
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:
