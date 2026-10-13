@@ -18,7 +18,9 @@ Topics (``--robot`` = the logical id in the profile):
 - executor_heartbeat, watchdog_heartbeat: std_msgs/Header at ``<namespace>/rescue/...`` (the launch
   convention of scripts/field/search-area/nav2_watchdog.launch.py; the profile keeps no heartbeat
   topic). Limit: ``--heartbeat-max-age-s``, the value the watchdog runs with.
-- odom, scan, tf: the robot parameters file of the profile; limits = readiness ``max_age_s``.
+- odom, scan, tf: the robot parameters file of the profile; limits = readiness ``max_age_s``. ``tf`` counts
+  only messages that carry the profile ``map_frame`` -> ``odom_frame`` transform: /tf also carries the fast
+  odom -> base_link, which would hide a map -> odom silence.
 - robot_status: rescue_interfaces/RobotStatus at /rescue/robots/<robot>/status; no limit (measured only).
 - camera_status:<cam>: rescue_interfaces/CameraStatus of every profile site camera; no limit.
 ``--topic role=/name`` replaces a topic name (e.g. a field namespace that differs from the profile).
@@ -30,7 +32,8 @@ BEST_EFFORT so they match both reliable and best-effort publishers; a reliable p
 resend to a reliable subscriber, so a loss here is the raw link, not necessarily what the watchdog saw.
 
 Verdict per topic: FAILED when nothing arrived or the longest silence is over its limit, PASSED
-otherwise, NOT_RUN when the topic is not configured. Exit code as scripts/field/preflight.py:
+otherwise, NOT_RUN when the profile does not configure the topic (no odom topic, no readiness block):
+that row stays in the table, nothing is subscribed. Exit code as scripts/field/preflight.py:
 0 = all PASSED, 2 = at least one FAILED, 3 = nothing failed but at least one NOT_RUN.
 
     python3 scripts/field/link_check.py --profile <profile.json> --robot robot_a --duration-s 60 \\
@@ -65,6 +68,7 @@ class TopicSpec:
     type: str          # pkg/msg/Name
     limit_s: float | None
     source: str        # where the name and limit come from
+    frames: tuple | None = None  # tf only: (parent, child) a message must carry to count
 
 
 def gap_stats(arrivals_ns, start_ns, end_ns):
@@ -90,6 +94,15 @@ def stamp_delay(pairs):
     return dict(mean_s=sum(delays) / len(delays), max_s=max(delays), min_s=min(delays), basis='참고')
 
 
+def has_transform(msg, frames):
+    """True when ``frames`` is None (count every message) or the TF message carries parent -> child."""
+    if frames is None:
+        return True
+    parent, child = (f.lstrip('/') for f in frames)
+    return any(t.header.frame_id.lstrip('/') == parent and t.child_frame_id.lstrip('/') == child
+               for t in getattr(msg, 'transforms', ()))
+
+
 def select_topics(deployment, robot_id, overrides, *, heartbeat_max_age_s):
     """The topics of one robot (and the site cameras) from a loaded profile; ``overrides`` = {role: topic}."""
     robot = next((r for r in deployment.robots if r.id == robot_id), None)
@@ -104,14 +117,19 @@ def select_topics(deployment, robot_id, overrides, *, heartbeat_max_age_s):
                        heartbeat_max_age_s, hb),
              TopicSpec('robot_status', f'/rescue/robots/{robot_id}/status', 'rescue_interfaces/msg/RobotStatus',
                        None, 'rescue_interfaces README (/rescue/robots/{r}/status); no limit, measured only')]
-    if params.odom_topic:
-        specs.append(TopicSpec('odom', params.odom_topic, 'nav_msgs/msg/Odometry',
-                               ready.max_age('odom') if ready else None, f'profile {robot.parameters_file}'))
+    unset = f'not configured in profile {robot.parameters_file}'
+    specs.append(TopicSpec('odom', params.odom_topic, 'nav_msgs/msg/Odometry',
+                           ready.max_age('odom') if ready else None, f'profile {robot.parameters_file}')
+                 if params.odom_topic else TopicSpec('odom', '', 'nav_msgs/msg/Odometry', None, unset))
     if ready is not None:
         specs += [TopicSpec('scan', ready.scan_topic, 'sensor_msgs/msg/LaserScan', ready.max_age('scan'),
                             f'profile {robot.parameters_file}'),
                   TopicSpec('tf', ready.tf_topic, 'tf2_msgs/msg/TFMessage', ready.max_age('map_to_odom_tf'),
-                            f'profile {robot.parameters_file} (limit map_to_odom_tf)')]
+                            f'profile {robot.parameters_file} (limit map_to_odom_tf, '
+                            f'{ready.map_frame} -> {ready.odom_frame} only)', (ready.map_frame, ready.odom_frame))]
+    else:
+        specs += [TopicSpec('scan', '', 'sensor_msgs/msg/LaserScan', None, unset),
+                  TopicSpec('tf', '', 'tf2_msgs/msg/TFMessage', None, unset)]
     for camera in deployment.site_cameras:
         specs.append(TopicSpec(f'camera_status:{camera.id}', f'/rescue/cameras/{camera.id}/status',
                                'rescue_interfaces/msg/CameraStatus', None,
@@ -120,11 +138,13 @@ def select_topics(deployment, robot_id, overrides, *, heartbeat_max_age_s):
     unknown = sorted(set(overrides) - set(by_role))
     if unknown:
         raise LinkCheckError(f'--topic role(s) {unknown} unknown; roles are {sorted(by_role)}')
-    return [TopicSpec(s.role, overrides[s.role], s.type, s.limit_s, 'command line') if s.role in overrides else s
-            for s in specs]
+    return [TopicSpec(s.role, overrides[s.role], s.type, s.limit_s, 'command line', s.frames) if s.role in overrides
+            else s for s in specs]
 
 
 def verdict(spec, stats):
+    if not spec.topic:
+        return NOT_RUN
     if stats['count'] == 0:
         return FAILED
     if spec.limit_s is not None and stats['max_gap_s'] > spec.limit_s:
@@ -189,14 +209,14 @@ def run(specs, duration_s, warmup_s):
     window = {}
     rows = []
     try:
-        for spec in specs:
+        for spec in (s for s in specs if s.topic):
             pkg, _, name = spec.type.partition('/msg/')
             msg_type = getattr(importlib.import_module(f'{pkg}.msg'), name)
 
-            def on_msg(msg, role=spec.role):
+            def on_msg(msg, role=spec.role, frames=spec.frames):
                 mono, wall = time.monotonic_ns(), time.time_ns()
-                if 'start' not in window or mono > window['end']:
-                    return  # warm-up (discovery) or after the window
+                if 'start' not in window or mono > window['end'] or not has_transform(msg, frames):
+                    return  # warm-up (discovery), after the window, or a TF without the checked transform
                 arrivals, pairs = seen[role]
                 arrivals.append(mono)
                 stamp = message_stamp_ns(msg)
@@ -211,6 +231,9 @@ def run(specs, duration_s, warmup_s):
         while time.monotonic_ns() < window['end']:
             rclpy.spin_once(node, timeout_sec=0.02)
         for spec in specs:
+            if not spec.topic:
+                rows.append(dict(asdict(spec), status=NOT_RUN, stats=None, stamp_delay=None, publishers_seen=None))
+                continue
             arrivals, pairs = seen[spec.role]
             stats = gap_stats(arrivals, window['start'], window['end'])
             publishers = node.count_publishers(spec.topic)
