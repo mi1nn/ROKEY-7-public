@@ -17,6 +17,8 @@ from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / 'scripts/field/preflight_role.py'
+if not SCRIPT.is_file():
+    raise unittest.SkipTest('repo preflight_role script absent (installed-wheel checkout)')
 spec = importlib.util.spec_from_file_location('field_preflight_role', SCRIPT)
 pr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pr)

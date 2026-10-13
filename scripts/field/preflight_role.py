@@ -131,16 +131,30 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+def _read_settings(path):
+    """JSON is a YAML subset; other YAML needs the ROS host's PyYAML dependency."""
+    text = Path(path).read_text()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        import yaml
+        try:
+            return yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            raise ValueError(f'invalid YAML: {exc}') from exc
+
+
 def _webcam(path, clock):
     if path is None:
         return [check('webcam.params', NOT_RUN, '--webcam-params 를 주지 않음 (웹캠을 이 PC 에서 띄우면 필요)')], None
     try:
-        import yaml
         from rescue_perception.webcam_node import PARAMS
-        values = yaml.safe_load(Path(path).read_text())['webcam_node']['ros__parameters']
+        values = _read_settings(path)['webcam_node']['ros__parameters']
         if not isinstance(values, dict):
             raise TypeError('webcam_node.ros__parameters is not a mapping')
-    except (ImportError, OSError, KeyError, TypeError, ValueError) as exc:
+    except ImportError as exc:
+        return [check('webcam.params', NOT_RUN, f'{path}: 필요한 파서/모듈 없음: {exc}')], None
+    except (OSError, KeyError, TypeError, ValueError) as exc:
         return [check('webcam.params', FAILED, f'{path}: 읽기 실패: {type(exc).__name__}: {exc}')], None
     missing = sorted(set(PARAMS) - set(values))
     clock_keys = sorted(name for name in PARAMS if name.startswith('clock_'))
@@ -171,10 +185,11 @@ def _map_files(path):
     if path is None:
         return check('map.files', NOT_RUN, '--map 을 주지 않음 (위치 추정을 이 PC 에서 띄우면 필요)')
     try:
-        import yaml
-        data = yaml.safe_load(Path(path).read_text())
+        data = _read_settings(path)
         image = Path(data['image'])
-    except (ImportError, OSError, KeyError, TypeError, ValueError) as exc:
+    except ImportError as exc:
+        return check('map.files', NOT_RUN, f'{path}: 필요한 YAML 파서 없음: {exc}')
+    except (OSError, KeyError, TypeError, ValueError) as exc:
         return check('map.files', FAILED, f'{path}: 읽기 실패: {type(exc).__name__}: {exc}')
     image = image if image.is_absolute() else Path(path).parent / image
     if not image.is_file():

@@ -63,12 +63,14 @@ source /opt/ros/jazzy/setup.bash
 colcon build --packages-select rescue_contracts rescue_mapping rescue_interfaces rescue_perception \
   --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3 -DPYTHON_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
-ros2 run rescue_perception amr_camera
-# camera 노드를 종료한 뒤 target 노드를 따로 시험한다.
-ros2 run rescue_perception amr_target
+ros2 run rescue_perception amr_camera --ros-args -p image_topic:=<RGB 토픽>
+# camera 노드를 종료한 뒤 target 노드를 따로 시험한다. launch 가 토픽·frame·TF remap 을 넘긴다.
+ros2 launch rescue_bringup amr_perception.launch.py image_topic:=<RGB> depth_topic:=<Depth> \
+  camera_info_topic:=<CameraInfo> rgb_optical_frame:=<RGB frame_id> depth_optical_frame:=<Depth frame_id> \
+  tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static
 ```
 
-YAML이나 `--params-file`은 필요 없다. ROS 표준 namespace/topic remap은 사용할 수 있다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
+[작전 B1, 2026-10-13] 카메라 토픽(`image_topic`·`depth_topic`·`camera_info_topic`)과 광학 frame(`rgb_optical_frame`·`depth_optical_frame`)은 코드 기본값이 없는 STRING 파라미터다. 전에는 코드 기본값 `camera/...`, readiness 설정 `oakd/rgb/preview/...`, #132 현장 스크립트 `/robot6/oakd/rgb/...` 세 가지가 서로 달랐다. 값이 없거나 비어 있으면 노드가 시작하지 않는다. 실제 robot6 토픽·frame 이름은 [미확인]이며 로봇에서 `ros2 topic list`와 메시지 header 로 확인해 넣는다. 나머지 설정은 SETTINGS 그대로이고 YAML은 필요 없다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
 RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. MapState 구독·map/odom TF 조회·TargetLocation publisher는 없다. 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
@@ -94,6 +96,7 @@ ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/camera
 | 프레임 | 받은 프레임을 한 번씩만 보낸다. jpeg 가 아닌 형식은 보내지 않고 형식마다 한 번 경고한다 |
 | 끊김 | `stale_s` 안에 새 프레임이 없으면 열린 스트림을 닫는다. 마지막 프레임을 반복하지 않는다. 새 프레임이 없을 때 온 요청은 503 이다 |
 | 경로 | `path` 하나만 연다. 다른 경로는 404 |
+| 느린 클라이언트 | 소켓 읽기·쓰기 타임아웃은 `stale_s` 다. 읽지 않는 클라이언트(멈춘 탭, FIN 없이 끊긴 네트워크)는 그 시간 뒤 끊어서 서버 스레드가 묶이지 않게 한다 |
 | 파라미터 | 모두 기본값 없는 타입 명시. 없거나 틀리면 exit 2. 기동 로그에 git SHA·적용 값·URL |
 
 시험: `tests/test_perception_mjpeg_relay.py`(localhost HTTP, E2). 판정 화면 영상은 판정에 쓰지 않는 확인용이다.
