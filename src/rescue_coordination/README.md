@@ -1,5 +1,61 @@
 # rescue_coordination
 
+## 늦게 접속한 로봇의 세션 등록 (2026-10-12 현장 오류)
+
+[현장 관측] 중앙 NORMAL/IDLE 기동 후 로봇이 나중에 접속하면 초기 시계 미준비로
+SystemState를 거절하고, 시계 공급이 준비된 뒤에도 새 상태 발행이 없어 세션 등록이
+대기한다. 저장 snapshot의 원 발행 나이 검사는 유지한다.
+
+live_inputs를 켠 기존 중앙에 `~/refresh_state` 표준 std_srvs/Trigger 서비스를
+추가했다. 운영자가 요청하면 중앙이 현재 상태를 실제로 다시 발행한다. 상태가
+변하지 않았다면 state_sequence/changed_at_ns는 원 값이고 Envelope의 publication
+sequence/published_at_ns만 실제 새 발행에 맞춰 변경한다. 반복 heartbeat는 아니다.
+서비스는 임무 tick/lease 갱신/arm/재난 모드 전환/Nav2 전송을 호출하지 않는다.
+중앙 실측 clock이 UNKNOWN/만료면 거절한다. 로봇의 실제 clock/신원/boot/나이 검사와
+DISARMED 및 watchdog 관문은 유지한다. 새 노드나 IDL은 추가하지 않았다.
+
+## RViz에서 SEARCH_AREA 목적지 선택 (2026-10-12)
+
+[사용자 요구, 2026-10-12] “아 아니다 고르는 식으로 해줘.”
+`live_inputs.search_goal_topic`에 전용 절대 토픽을 지정하면 기존 중앙 노드가
+PoseStamped를 받는다. RViz 기본 `rviz_default_plugins/SetGoal` 도구의 Topic을
+그 이름으로 바꾸고 mission frame에서 위치/방향을 드래그한다. 기존 Nav2 Goal
+도구를 선택 입력으로 사용하지 않는다. 이 토픽은 Nav2에 연결하지 않는다.
+
+선택 모드에서는 프로파일의 첫 구역 ID/지도 기준만 유지하며 예제 좌표는 공급하지
+않는다. 선택 후 구역 하나만 기존 service와 SearchPolicy에 넣는다. 선택 기록은
+메모리에만 보관한다. 선택만으로 mode 변경/START_SEARCH/arm/Nav2 전송은 하지 않는다.
+START_SEARCH 전 재선택은 허용하고, 수색 승인 후 또는 pending/active 임무 중에는
+거절한다. 선택 전 START_SEARCH는 PENDING_EVIDENCE로 거절한다. frame 불일치,
+비평면/비유한 좌표, 영 quaternion도 거절한다. 재기동하면 새 선택이 필요하다.
+지도/AMCL/TF 정합과 lease/watchdog 준비는 로봇의 기존 관문이 계속 확인한다.
+목적점을 클릭한 것으로 지도 기준 검증이나 안전한 통로를 입증했다고 주장하지 않는다.
+
+## 2026-10-12 현장 수정: 로봇에 직접 공급하는 입력
+
+기존 mission_coordinator에서 `live_inputs.enabled=true`로 켜면 `~/task_inputs`
+표준 GetParameters 서비스를 추가한다. 새 노드/IDL은 없다. 로봇의 LIVE_ROS가 이
+서비스의 names=['source']를 비동기 조회한다. STRING 값은 내부 직렬화 기록이며
+사용자가 만들거나 전달하는 JSON 파일이 아니다.
+
+다음은 모두 명시적 ROS 파라미터다:
+`live_inputs.clock_domain_id`(선언된 공통 시간 기준),
+`live_inputs.clock_backend`(chrony/timesyncd), `live_inputs.clock_max_age_ns`(원 NTP 관측 최대 나이),
+`live_inputs.clock_drift_ppm`(선정된 oscillator 오차 예산), `live_inputs.poll_period_s`(OS 읽기 주기).
+이들 값과 기존 lease/임무 파라미터는 운영 정책이며 자동 예시값을 주지 않는다.
+
+수색 목적점은 `core.search.policy.areas`에서 생성하고 실제 SCOUT ID·지도 기준·방향을
+보존한다. 시계는 같은 PC의 OS에서 실측한다. robot이 응답의 coordinator ID/boot,
+authority/schema/domain, lease 길이·갱신 주기를 자신의 설정과 대조한다. SystemState,
+ExecuteTask, CommandLease의 IDL·토픽·의미를 변경하지 않았다. service의 clock 관측 시각과
+만료는 원 NTP reply/reference 시각에 묶이며 조회로 연장되지 않는다.
+
+중앙 설정 자체의 기존 profile_path와 실행 파라미터는 유지한다. 이 수정은 로봇에
+중앙 설정 파일을 복사하는 절차를 없애며, 중앙의 프로파일 계약을 임의로 바꾸지 않는다.
+
+Python 회귀 확인만 실행했다. 실제 ROS 서비스/DDS·두 PC 시계·로봇 주행은 NOT_RUN이다.
+
+
 경로 증거 기반 후보 선택, 중복 임무 배정 방지, 대상 최신성/접근 확인, 통로 점유 상태의 Python 코어다. 현재 코드는 로봇을 움직이거나 실제 경로를 계산하지 않는다. 임무 조정기 ROS 노드(얇은 버전, `mission_coordinator`)는 `ExecuteTask` goal 을 보낼 뿐이고, 토픽·파라미터·`reason_code` 대응표는 [구현 기록](../../docs/implementation/implementation-coordination.md)「임무 조정기 ROS 노드」에 있다.
 
 API와 시험용 fixture는 [`tests/test_coordination.py`](../../tests/test_coordination.py), 출처·계약·미구현은 [구현 기록](../../docs/implementation/implementation-coordination.md)을 참고한다. 외부 증거를 생성하는 어댑터와 지도 자동 접근 허가가 연결되기 전에는 물리 로봇 실행 계층으로 사용하지 않는다.
