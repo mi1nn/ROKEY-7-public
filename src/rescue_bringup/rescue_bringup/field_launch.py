@@ -109,8 +109,9 @@ SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
 PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
-# This robot's RGB image the depth is aligned to, for the camera view (OPS-189); absent until measured: no view
-PASSAGE_VIEW_KEYS = {'passage.view_image_topic': S}
+# This robot's RGB preview (the camera the depth is aligned to) and its CameraInfo for the camera view
+# (OPS-189/198); both or neither: without them that robot has no view
+PASSAGE_VIEW_KEYS = {'passage.view_image_topic': S, 'passage.view_camera_info_topic': S}
 DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
 PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
@@ -302,7 +303,7 @@ def _robot_map_modes(robots):
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
-        if 'passage.view_image_topic' in section:
+        if any(key in section for key in PASSAGE_VIEW_KEYS):
             keys.update(PASSAGE_VIEW_KEYS)
         _section(robots, robot_id, keys)
         for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
@@ -659,11 +660,12 @@ def overhead_passage_launch_values(deployment, *, field, robot_id):
         'clearance_m': p['max_height_m'], 'floor_noise_m': p['min_height_m'], 'front_near_m': float(p['front_m'][0]),
         'front_far_m': float(p['front_m'][1]), 'half_width_m': p['half_width_m'], 'min_points': p['min_points'],
         **{k[len('passage.overhead.'):]: v for k, v in r.items() if k.startswith('passage.overhead.')},
-        'camera_info_topic': p['camera_info_topic'],
         **{'view_' + k[len('passage.view.'):]: v for k, v in r.items() if k.startswith('passage.view.')},
-        'view_image_topic': section.get('passage.view_image_topic', '')}   # '' = not measured: the node says view off
-    if parameters['view_image_topic'] and not parameters['view_image_topic'].startswith(ns + '/'):
-        raise FieldLaunchError(f'robots.{robot_id}.passage.view_image_topic must be a topic of this robot ({ns}/...)')
+        # '' = not in the field file: the node says view off
+        **{k[len('passage.'):]: section.get(k, '') for k in PASSAGE_VIEW_KEYS}}
+    for key in PASSAGE_VIEW_KEYS:
+        if section.get(key) is not None and not section[key].startswith(ns + '/'):
+            raise FieldLaunchError(f'robots.{robot_id}.{key} must be a topic of this robot ({ns}/...)')
     return {'namespace': ns, 'tf_topic': robot.readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
             'parameters': parameters}
 

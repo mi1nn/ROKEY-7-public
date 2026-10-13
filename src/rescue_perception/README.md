@@ -275,10 +275,10 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 - **목록:** 같은 revision 에서 `merge_radius_m` 안이면 같은 항목을 갱신한다. `UNKNOWN` 은 이미 잰 높이를 덮지 않는다. 다른 revision 항목은 따로 남는다(웹이 현재 revision 을 진하게, 이전 것을 흐리게 그림, OPS-186 c).
 - **발행:** 목록이 바뀔 때마다 전체를 `/rescue/robots/<id>/overhead_passages`(std_msgs/String JSON `rescue-overhead-passages/1`, latched)로 낸다. 기동 때 빈 목록도 한 번 낸다. 해석은 `rescue_contracts.overhead.parse_overhead_passages` 하나로만 한다(contracts C-04b).
 - **판정 영상(OPS-189):** 웹 카메라 칸용으로 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT)를 낸다.
-  - 처리한 점구름마다 시각이 가장 가까운 RGB 프레임(`view_slop_ns` 안)을 쓴다. 깊이가 이 RGB 에 정렬돼 있어 같은 광학 frame 과 K 를 쓴다(TB-6 실측).
+  - 바탕은 각 Pi 가 이미 내는 작은 RGB 미리보기(`<ns>/oakd/rgb/preview/image_raw/compressed`)다. 처리한 점구름마다 시각이 가장 가까운 미리보기 프레임(`view_slop_ns` 안)을 쓴다. 투영은 미리보기 camera_info 로 한다. 깊이가 RGB 카메라에 정렬돼 있어 같은 광학 frame 이고 크기만 다르다. 영상 크기가 그 camera_info 와 다르거나 frame 이 다르면 거절한다.
   - 구조물 아래 빈 공간(구조물의 x 구간, 통로 폭, 바닥 ~ 가장 낮은 점)을 투영해 반투명으로 칠한다.
   - 색과 문구는 지도와 같다(OPS-196): 초록 「통과 가능 ↑h」 / 빨강 「통과 불가 ↑h」 / 회색 「판정 불가」(바닥을 못 봄, 판정하지 못한 프레임). 카메라에만 있는 회색 「판정 중」은 그 자리가 아직 연속 횟수를 채우는 중이라는 뜻이다. 구조물이 없으면 칠하지 않는다.
-  - RGB 구독: 이 노드가 그 로봇의 압축 RGB 를 **새로 하나 구독한다**(다른 노드의 구독을 재사용하지 않는다). TB-6 은 amr_target 에 이어 두 번째, TB-5 는 첫 구독이다. 로봇에서 PC 로 오는 RGB 가 받는 쪽 수만큼 늘 수 있다. TB-5 RGB 는 받는 쪽이 늘었을 때 30 Hz 에서 19.5–24 Hz 로 떨어진 기록이 있다(2026-10-13 20:15). 영상을 끄려면 현장 파일에서 그 로봇의 `passage.view_image_topic` 을 지운다.
+  - 구독: 전체 RGB(인형 탐지 입력)는 구독하지 않는다(OPS-198). Fast DDS 유니캐스트에서는 같은 PC 의 두 번째 구독자에게도 Pi 가 Wi-Fi 로 한 번 더 보내기 때문이다 [추정]. 미리보기는 작아서 부담이 적지만, 해상도와 속도는 아직 재지 않았다. 영상을 끄려면 현장 파일에서 그 로봇의 `passage.view_image_topic`, `passage.view_camera_info_topic` 을 둘 다 지운다.
   - 맞는 RGB 프레임이 없으면 영상을 내지 않는다(다른 프레임으로 대신하지 않음). 영상 실패는 판정에 영향을 주지 않는다.
   - 한글 문구는 PIL 과 `view_font_path`(Noto Sans CJK, 각 PC 에서 `fc-list :lang=ko` 로 확인)로 쓴다. `view_image_topic` 이 빈 값이면 영상을 끄고 기동 로그에 남긴다.
   - 합성 시험에서 판 등장 → 확정 목록·초록 영상까지 0.68 s 였다(`process_period_s` 0.2 × `confirm_frames` 3). 감속 0.3 배(0.078 m/s)면 그동안 약 5 cm 움직이므로 [계산] 초록 표시가 터널 앞에서 먼저 나온다. 704→352 디코드와 그리기는 약 7 ms 다.

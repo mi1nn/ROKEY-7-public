@@ -47,7 +47,7 @@ MAP_STATE = '/rescue/robots/robot_a/map_state'
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 PARAMS = dict(points_topic='/e3robot/passage_points', base_frame='base_link', map_frame='map', robot_id='robot_a',
               map_robot_id='robot_a', map_state_topic=MAP_STATE, clock_error_bound_ns=0, process_period_s=0.3,
-              max_cloud_age_s=1.0, stride=1, camera_info_topic='/e3robot/camera_info',
+              max_cloud_age_s=1.0, stride=1, view_camera_info_topic='/e3robot/camera_info',
               view_image_topic='/e3robot/rgb/compressed', view_width=88, view_quality=90, view_slop_ns=20_000_000,
               view_font_path=next(iter(sorted(__import__('pathlib').Path('/usr/share/fonts').glob('**/NotoSansCJK-*.ttc'))),
                                   '/missing-cjk-font'), clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4,

@@ -16,13 +16,16 @@ reports each overhead structure on the map:
   in the map frame (TF at the cloud stamp); the map revision from the SCOUT's MapState.
 * One item per place and map revision (``merge_radius_m``); UNKNOWN never replaces a known height.
   The whole list goes out as one latched JSON text (rescue_contracts.overhead, C-04b).
-* Camera view (owner decision OPS-189): the RGB frame nearest the cloud (``view_slop_ns``; the depth
-  is aligned to it, same optical frame and K) with the free space under the structure (its x span,
+* Camera view (owner decision OPS-189): the RGB preview frame nearest the cloud (``view_slop_ns``),
+  projected with the preview CameraInfo (the depth is aligned to the RGB camera, same optical frame;
+  only the size differs; an image of another size than its CameraInfo is refused). The preview is
+  the small stream each Pi already publishes, so the full RGB, the doll detector input, gets no
+  second subscriber over Wi-Fi (OPS-198). The free space under the structure (its x span,
   the box width, floor to its lowest point) painted: green 「통과 가능 ↑h」 / red 「통과 불가 ↑h」 once
   that place is confirmed, grey 「판정 불가」 when the floor is not seen (one wording with the map, OPS-196),
   grey 「판정 중」 while the place still counts its agreeing frames; nothing painted
   without a structure. A small JPEG on <ns>/rescue/passage_view/compressed for the web camera panel.
-  ``view_image_topic`` '' = no view (that robot's RGB not measured).
+  ``view_image_topic`` and ``view_camera_info_topic`` both '' = no view.
 
     ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> \
         field_path:=<repo>/config/field/search_area.field.json robot_id:=<robot>
@@ -50,7 +53,7 @@ NODE_PARAMS = {
     'points_topic': 'STRING', 'base_frame': 'STRING', 'map_frame': 'STRING', 'robot_id': 'STRING',
     'map_robot_id': 'STRING', 'map_state_topic': 'STRING', 'clock_error_bound_ns': 'INTEGER',
     'process_period_s': 'DOUBLE', 'max_cloud_age_s': 'DOUBLE', 'stride': 'INTEGER',
-    'camera_info_topic': 'STRING', 'view_image_topic': 'STRING', 'view_width': 'INTEGER', 'view_quality': 'INTEGER',
+    'view_camera_info_topic': 'STRING', 'view_image_topic': 'STRING', 'view_width': 'INTEGER', 'view_quality': 'INTEGER',
     'view_slop_ns': 'INTEGER', 'view_font_path': 'STRING'}
 OVERHEAD_PARAMS = {**NODE_PARAMS, **POLICY_PARAMS}   # every one required, none has a default
 
@@ -96,10 +99,13 @@ def overhead_values(values):
         raise ValueError(f'missing parameters: {missing}')
     node = {name: values[name] for name in NODE_PARAMS}
     for name, kind in NODE_PARAMS.items():
-        if kind == 'STRING' and name != 'view_image_topic' and (type(node[name]) is not str or not node[name].strip()):
+        if kind == 'STRING' and not name.startswith('view_') and (type(node[name]) is not str or not node[name].strip()):
             raise ValueError(f'{name} must be a non-empty STRING')
-    if type(node['view_image_topic']) is not str:
-        raise ValueError("view_image_topic must be a STRING ('' = no camera view)")
+    view_topics = (node['view_image_topic'], node['view_camera_info_topic'])
+    if any(type(t) is not str for t in view_topics) or bool(view_topics[0].strip()) != bool(view_topics[1].strip()):
+        raise ValueError("view_image_topic and view_camera_info_topic: both topics, or both '' (no camera view)")
+    if type(node['view_font_path']) is not str or not node['view_font_path'].strip():
+        raise ValueError('view_font_path must be a non-empty STRING')
     if type(node['view_width']) is not int or node['view_width'] < 16:
         raise ValueError('view_width must be an integer >= 16')
     if type(node['view_quality']) is not int or not 1 <= node['view_quality'] <= 100:
@@ -257,6 +263,12 @@ def free_space_polygon(reading, policy, height_m, base_to_optical, k, *, scale):
     return hull
 
 
+def view_size_checked(shape, info):
+    """None when the image (numpy shape) is the size of its CameraInfo; ValueError otherwise (never rescaled K)."""
+    if (shape[1], shape[0]) != (info.width, info.height):
+        raise ValueError(f'view image {shape[1]}x{shape[0]} is not its CameraInfo {info.width}x{info.height}')
+
+
 def view_label(state, lowest_m, *, confirmed):
     """(text, BGR colour) for the camera view; the same words and colours as the web map (OPS-189)."""
     if confirmed and state == 'PASSABLE':
@@ -335,6 +347,7 @@ def main(args=None):
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         publisher = node.create_publisher(String, topic, latched)
         state = {'cloud': None, 'done': None, 'frames': 0, 'busy_s': 0.0, 'info': None}
+        msg_frame = ['']   # optical frame of the cloud last processed: the view CameraInfo must name the same one
         images = deque(maxlen=30)   # (stamp_ns, CompressedImage): about 1 s of 30 Hz RGB
         view_pub = node.create_publisher(CompressedImage, VIEW_TOPIC, QoSProfile(
             depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)) if v['view_image_topic'] else None
@@ -351,13 +364,13 @@ def main(args=None):
             bgr = cv2.imdecode(np.frombuffer(image.data, np.uint8), cv2.IMREAD_COLOR)
             if bgr is None:
                 raise ValueError(f'RGB format {image.format!r} not decodable')
-            scale = bgr.shape[1] / info.width
-            if abs(info.height * scale - bgr.shape[0]) > 1:
-                raise ValueError(f'RGB {bgr.shape[1]}x{bgr.shape[0]} is not CameraInfo {info.width}x{info.height} scaled')
+            view_size_checked(bgr.shape, info)
+            if info.header.frame_id != msg_frame[0]:
+                raise ValueError(f'view CameraInfo frame {info.header.frame_id!r} is not the depth frame {msg_frame[0]!r}')
             polygon = None
             if view['reading'] is not None:
                 polygon = free_space_polygon(view['reading'], policy, view['height'], base_to_optical, info.k,
-                                             scale=scale)
+                                             scale=1.0)
             out = CompressedImage(header=image.header, format='jpeg')
             out.data = render_view(bgr, polygon, view['text'], view['colour'], width=v['view_width'],
                                    quality=v['view_quality'], font_path=v['view_font_path'])
@@ -397,6 +410,7 @@ def main(args=None):
                 points = to_frame(cloud_xyz(msg, v['stride']), *lookup(v['base_frame'], msg.header.frame_id, stamp))
                 found = judge(points, policy)
                 if view_pub is not None:
+                    msg_frame[0] = msg.header.frame_id
                     base_to_optical = lookup(msg.header.frame_id, v['base_frame'], stamp)
                 if found is not None:
                     (mx, my, _), = to_frame(np.array([[found.x, found.y, 0.0]]),
@@ -432,12 +446,12 @@ def main(args=None):
         sensor = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
         node.create_subscription(PointCloud2, v['points_topic'], lambda m: state.update(cloud=m), sensor)
         node.create_subscription(MapState, v['map_state_topic'], on_map_state, latched)
-        node.create_subscription(CameraInfo, v['camera_info_topic'], lambda m: state.update(info=m), sensor)
         if view_pub is not None:
+            node.create_subscription(CameraInfo, v['view_camera_info_topic'], lambda m: state.update(info=m), sensor)
             node.create_subscription(CompressedImage, v['view_image_topic'], lambda m: images.append(
                 (m.header.stamp.sec * 10**9 + m.header.stamp.nanosec, m)), sensor)
         else:
-            log.warning('camera view OFF: view_image_topic is empty (this robot RGB topic is not in the field file)')
+            log.warning('camera view OFF: no view_image_topic / view_camera_info_topic in the field file for this robot')
         node.create_timer(v['process_period_s'], process)
         publish()   # an empty list: no structure reported yet (latched for late listeners)
         log.info(f'overhead_passage git={git_sha()} topic={topic} parameters={dict(sorted(values.items()))}')
