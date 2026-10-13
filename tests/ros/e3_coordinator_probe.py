@@ -75,6 +75,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'support_dispatch:=OPERATOR', '-p', 'approach_standoff_m:=0.8', '-p', 'support_pose_max_age_s:=2.0',
              '-p', 'support_exit_wait_s:=1.0', '-p', 'recheck_max_clock_error_s:=2.0',
              '-p', 'map_mode:=SAVED_MAP', '-p', 'freeze_clearance_m:=0.2', '-p', 'map_freeze_timeout_s:=5.0',
+             '-p', 'search_mode:=AREAS', '-p', 'patrol_rounds:=1', '-p', 'exit_standoff_m:=0.5',
              # OPERATOR: this probe and the rehearsal press START_SEARCH (OPS-136 AUTO is unit-tested)
              '-p', 'search_start:=OPERATOR']
 

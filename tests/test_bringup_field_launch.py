@@ -166,6 +166,8 @@ class CoordinatorParameters(FieldCase):
         expected['recheck_max_clock_error_s'] = 2.0
         # Added after #132: SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; 작전 OPS-119)
         expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
+        # Added after #132: TB-6 search mode and TB-5's exit approach (OPS-136·139); patrol_points [] is left unset
+        expected.update(search_mode='AREAS', patrol_rounds=1, exit_standoff_m=0.5)
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
@@ -434,6 +436,16 @@ class FieldFile(FieldCase):
             'exit wait negative': lambda r: r['coordinator'].update({'support_exit_wait_s': -1.0}),
             'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'map mode unknown': lambda r: r['coordinator'].update({'map_mode': 'SLAM'}),
+            'search mode unknown': lambda r: r['coordinator'].update({'search_mode': 'LOOP'}),
+            'patrol without points': lambda r: r['coordinator'].update({'search_mode': 'PATROL'}),
+            'patrol points not triples': lambda r: r['coordinator'].update({'patrol_points': [1.0, 2.0]}),
+            'patrol rounds below one': lambda r: r['coordinator'].update({'patrol_rounds': 0}),
+            'exit standoff not positive': lambda r: r['coordinator'].update({'exit_standoff_m': 0.0}),
+            # PATROL replaces the RViz goal pick (it would replace the areas) and needs PATROL_POINT executable
+            'patrol with the RViz goal pick': lambda r: r['coordinator'].update(
+                {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'executable_bases': ['PATROL_POINT']}),
+            'patrol point basis not executable': lambda r: r['coordinator'].update(
+                {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'live_inputs.search_goal_topic': ''}),
             'search start unknown': lambda r: r['coordinator'].update({'search_start': 'auto'}),
             'freeze timeout not positive': lambda r: r['coordinator'].update({'map_freeze_timeout_s': 0.0}),
             # The coordinator checks the approach point and homes with the radius the robot checks its goal with.

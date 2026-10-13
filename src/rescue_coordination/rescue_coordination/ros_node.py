@@ -29,17 +29,19 @@ Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5), verdict linking
 """
 from dataclasses import replace
 import hashlib
+import uuid
 import json
 import math
 import subprocess
 from pathlib import Path
 from uuid import uuid4
 
+from rescue_contracts.occupancy import compose_planar, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand, RecheckRequest
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
-from .search import SearchCoordinator, SearchPolicy, mission_sites
+from .search import MissionSite, SearchCoordinator, SearchPolicy, mission_sites
 from .verdict import Reference, judge
 from .watch import CameraWatchBook, roi_value
 
@@ -76,7 +78,40 @@ MAP_FREEZE_SERVICE = '/rescue/map/freeze'  # std_srvs/Trigger (통합-로봇); o
 FROZEN_MAP_TOPIC = '/rescue/map/frozen'    # nav_msgs/OccupancyGrid, RELIABLE / TRANSIENT_LOCAL
 MAP_FREEZE_REASONS = ('MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', 'MAP_FREEZE_FAILED', 'MAP_NOT_FROZEN',
                       'TARGET_NOT_ON_FROZEN_MAP', 'SCOUT_NOT_LOCALIZED', 'SUPPORT_NOT_LOCALIZED',
-                      'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE', 'SCOUT_HOME_NOT_FREE')
+                      'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE', 'SCOUT_HOME_NOT_FREE',
+                      # QR exit, re-basing at the freeze, TB-6 start pose (OPS-136·138·139·141·142)
+                      'MAP_FREEZE_WAITING_EXIT', 'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
+                      'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN', 'START_POSE_CONFLICT')
+# TB-6 search (owner decision 2026-10-13 evening, OPS-136·139): PATROL = the field's patrol points, given in TB-6's
+# start pose; AREAS = the profile search areas. Never both.
+SEARCH_MODES = ('PATROL', 'AREAS')
+PATROL_BASIS = 'PATROL_POINT'  # MissionSite.basis of a patrol point; must be in executable_bases
+PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_point')
+EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
+EXIT_CLASS_LABEL = 'exit_qr'
+START_POSE_TOPIC = '/rescue/map/start_pose/'  # + SCOUT robot_id; PoseWithCovarianceStamped, map, TRANSIENT_LOCAL
+
+
+def start_pose_from_msg(msg, mission_frame):
+    """PoseWithCovarianceStamped on START_POSE_TOPIC -> (x, y, yaw) in the mission frame (OPS-142).
+
+    The yaw follows the shared planar rule (rescue_contracts.occupancy.planar_origin, the robot's own); another
+    frame or a non-planar pose is refused, never projected."""
+    if msg.header.frame_id != mission_frame:
+        raise CoordinationError('FRAME_REVISION_MISMATCH', f'start pose frame {msg.header.frame_id!r} is not '
+                                                           f'{mission_frame!r}')
+    p, q = msg.pose.pose.position, msg.pose.pose.orientation
+    try:
+        return planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+    except ValueError as exc:
+        raise CoordinationError('INVALID_INPUT', f'start pose: {exc}') from exc
+
+
+def patrol_site_id(map_session_id, index):
+    """SEARCH_AREA ref of patrol point ``index`` in a map session: a UUID (the executor takes only UUID refs)."""
+    return str(uuid.uuid5(PATROL_NAMESPACE, f'{map_session_id}/{index}'))
+
+
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
                         'ARRIVED': 'STOPPED'}
@@ -245,7 +280,8 @@ class CoordinatorCore:
                  lease_message_ttl_ns, camera_watch, target_clock_domain_id, target_max_age_ns,
                  target_max_future_ns, support_dispatch, approach_standoff_m, support_pose_max_age_ns,
                  support_exit_wait_ns, recheck_max_clock_error_ns, map_mode, freeze_clearance_m,
-                 map_freeze_timeout_ns, map_snapshot_id, search_start, new_id=None):
+                 map_freeze_timeout_ns, map_snapshot_id, search_start, search_mode, patrol_points,
+                 patrol_rounds, exit_standoff_m, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -307,6 +343,31 @@ class CoordinatorCore:
         self.frozen_grid = None    # the grid of that basis: ``sha256`` and ``clear(x, y, radius)``
         self.map_grid = None       # latest grid on FROZEN_MAP_TOPIC (latched: may be an older run's until frozen)
         self.scout_map_state = None  # TB-6's latest (map_session_id, map_revision, snapshot_id)
+        if search_mode not in SEARCH_MODES:
+            raise CoordinationError('INVALID_POLICY', 'search_mode must be PATROL or AREAS')
+        patrol_points = tuple(tuple(float(v) for v in p) for p in patrol_points)
+        if not all(len(p) == 3 and all(math.isfinite(v) for v in p) for p in patrol_points):
+            raise CoordinationError('INVALID_POLICY', 'patrol points are finite [x, y, yaw]')
+        if search_mode == 'PATROL' and (not patrol_points
+                                        or PATROL_BASIS not in mission.search.policy.executable_bases):
+            raise CoordinationError('INVALID_POLICY', f'PATROL needs patrol points and {PATROL_BASIS} executable')
+        if type(patrol_rounds) is not int or patrol_rounds < 1:
+            raise CoordinationError('INVALID_POLICY', 'patrol_rounds must be an integer >= 1')
+        finite(exit_standoff_m, 'exit_standoff_m')
+        if exit_standoff_m <= 0:
+            raise CoordinationError('INVALID_POLICY', 'exit_standoff_m must be positive')
+        self.search_mode, self.patrol_points, self.patrol_rounds = search_mode, patrol_points, patrol_rounds
+        self.exit_standoff_m = exit_standoff_m
+        self.patrol_round, self.patrol_exhausted = 1, False
+        if search_mode == 'PATROL':  # no area until the start pose places the points (OPS-141)
+            mission.search.policy = replace(mission.search.policy, areas=())
+        self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
+        self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
+        self.start_pose_conflict = False
+        self.exit = None                # dict(basis, xy, revision, location_id): TB-5's registered exit
+        self.exit_locations = {}        # location_id -> (basis, xy): replays and conflicts
+        self.rebased = set()            # targets re-based at the freeze, shown until that revision is saved
+        self.rebase_reports = []        # (target_id, revision, location) reports to queue at the next reports_due
         self.verdict_reason = None  # 'RECHECK_NEEDED_<reason>' of the latest judgement, for SystemState
         self.scout_return = None    # TB-6 after RESCUE_CONFIRMED (5A): None, ISSUED, MOVING, AT_DOCK_APPROACH, FAILED
         self.at_home = set()        # role robots at their home/exit, for FINISHED
@@ -421,7 +482,142 @@ class CoordinatorCore:
             return False
         self.mission.record_map_basis(msg.robot_id, map_session_id=msg.map_session_id, map_revision=msg.map_revision,
                                       transform_revision=self.observe_goal.transform_revision)
+        self._bind_start_pose()
         return True
+
+    # -- TB-6 start pose and patrol (OPS-136·139·141·142) ---------------------------------------------------
+    def on_start_pose(self, xy_yaw):
+        """TB-6's first SLAM pose in the map (x, y, yaw). Bound once to TB-6's VALID MapState on the search basis;
+        the same value again is a replay, another one is refused and shown (START_POSE_CONFLICT)."""
+        pose = tuple(float(v) for v in xy_yaw)
+        if len(pose) != 3 or not all(math.isfinite(v) for v in pose):
+            raise CoordinationError('INVALID_INPUT', 'start pose is a finite (x, y, yaw)')
+        known = self.start_pose or self.start_pose_pending
+        if known is not None:
+            if known != pose:
+                self.start_pose_conflict = True
+                raise CoordinationError('ID_CONTENT_CONFLICT', 'another TB-6 start pose in the same map session')
+            return False
+        self.start_pose_pending = pose
+        return self._bind_start_pose()
+
+    def _bind_start_pose(self):
+        scout = self.roles['SCOUT']
+        if (self.start_pose is not None or self.start_pose_pending is None
+                or self.mission.map_basis.get(scout) != self._search_basis()):
+            return False
+        self.start_pose, self.start_pose_pending = self.start_pose_pending, None
+        session, rev, transform = self._search_basis()
+        if self.search_mode == 'PATROL':
+            sites = []
+            for i, point_ in enumerate(self.patrol_points):
+                x, y, yaw = compose_planar(self.start_pose, point_)
+                sites.append(MissionSite(patrol_site_id(session, i), (x, y), PATROL_BASIS, session, rev, transform,
+                                         entry_yaw=yaw))
+            self.search.policy = replace(self.search.policy, areas=tuple(sites))
+        if self.map_mode == 'SLAM_FREEZE' and scout in self.mission.homes:
+            # The docking approach point is measured from TB-6's start pose, not the SLAM origin (OPS-141).
+            home = self.mission.homes[scout]
+            x, y, yaw = compose_planar(self.start_pose, (*home.mission_xy, home.yaw))
+            self.mission.homes = self.mission.homes | {scout: replace(home, mission_xy=(x, y), yaw=yaw)}
+        self.notes.append(f'START_POSE bound {self.start_pose} session={session} revision={rev}')
+        return True
+
+    def _patrol_tick(self):
+        """Next round once every point of this one ended; PATROL_EXHAUSTED after ``patrol_rounds``."""
+        areas = self.search.policy.areas
+        if self.search_mode != 'PATROL' or not areas or self.patrol_exhausted:
+            return
+        ids = {a.site_id for a in areas}
+        if not ids <= self.search.completed_areas or self.search.assignment(self.roles['SCOUT']) is not None:
+            return
+        if self.patrol_round >= self.patrol_rounds:
+            self.patrol_exhausted = True
+            self.notes.append(f'PATROL_EXHAUSTED after {self.patrol_rounds} rounds')
+            return
+        self.search.completed_areas -= ids
+        self.patrol_round += 1
+        self.notes.append(f'PATROL_ROUND {self.patrol_round}')
+
+    def _search_reason(self):
+        if self.start_pose_conflict:
+            return 'START_POSE_CONFLICT'
+        if self.search_queued() and self.search_mode == 'PATROL' and self.start_pose is None:
+            return 'START_POSE_UNKNOWN'
+        if self.search_queued():
+            return self._search_wait_reason()
+        if self.search_mode == 'PATROL' and self.mission.search_started:
+            return 'PATROL_EXHAUSTED' if self.patrol_exhausted else f'PATROL_ROUND_{self.patrol_round}'
+        return ''
+
+    # -- QR exit (안 「나」, OPS-136·138·139) ------------------------------------------------------------------
+    def on_exit_location(self, msg, *, now_ns):
+        """A VALID exit_qr TargetLocation registers TB-5's exit: the search basis before the freeze, the frozen one
+        after it. The latest one counts; never merged with a person target."""
+        contract_value(timestamp_ns, now_ns)
+        if msg.observation.class_label != EXIT_CLASS_LABEL:
+            raise CoordinationError('INVALID_INPUT', f'{EXIT_LOCATION_TOPIC} carries {EXIT_CLASS_LABEL} only')
+        if msg.projection_status != 'VALID':
+            raise CoordinationError('STALE_OBSERVATION', 'only VALID projections register an exit')
+        uid(msg.location_id)
+        f = msg.frame_ref
+        basis = (uid(f.map_session_id), revision(f.map_revision), revision(f.transform_revision))
+        xy = point((float(msg.mission_position.x), float(msg.mission_position.y)))
+        seen = self.exit_locations.get(msg.location_id)
+        if seen is not None:
+            if seen != (basis, xy):
+                raise CoordinationError('ID_CONTENT_CONFLICT', 'exit content differs for the same location_id')
+            return False
+        self._check_observation_time(msg.observation.time, now_ns)
+        if (basis != self.basis() or f.mission_frame != self.search.policy.mission_frame_id
+                or f.alignment_status != 'VALID'):
+            raise CoordinationError('FRAME_REVISION_MISMATCH', 'exit is not on the current map basis')
+        self.exit_locations[msg.location_id] = (basis, xy)
+        self.exit = dict(basis=basis, xy=xy, revision=(self.exit['revision'] + 1) if self.exit else 1,
+                         location_id=msg.location_id)
+        self.notes.append(f'EXIT_REGISTERED revision={self.exit["revision"]} xy={xy} basis={basis} '
+                          f'location={msg.location_id}')
+        return True
+
+    def _exit_point(self, target_id):
+        """(xy, yaw) exit_standoff_m before the exit on the side of the target TB-5 comes from, facing the exit."""
+        return approach_point(self.exit['xy'], self.target_geo[target_id][1], self.exit_standoff_m)
+
+    def _exit_ready(self, target_id):
+        """The exit is registered on the frozen map and its approach is free (before TB-5 leaves, OPS-138)."""
+        if self.exit is None:
+            self.issue_block = 'SUPPORT_EXIT_UNREGISTERED'
+            return False
+        if self.exit['basis'] != self.frozen:
+            self.issue_block = 'EXIT_NOT_ON_FROZEN_MAP'
+            return False
+        point_ = self._exit_point(target_id)
+        if point_ is None:
+            self.issue_block = 'SUPPORT_EXIT_NOT_FREE'
+            return False
+        return self._free_cell(point_[0], 'SUPPORT_EXIT_NOT_FREE')
+
+    def live_destinations(self):
+        """RETURN_HOME destinations this coordinator computes (SLAM_FREEZE, after the freeze): TB-5's exit approach
+        and TB-6's docking approach in the map, sent in ~/task_inputs (live_task_inputs.destinations; the robot
+        takes its own 'home/<id>' key, #232)."""
+        if self.map_mode != 'SLAM_FREEZE' or self.frozen is None:
+            return {}
+        out, frame_id = {}, self.search.policy.mission_frame_id
+        scout, support = self.roles['SCOUT'], self.roles['SUPPORT']
+        home = self.mission.homes.get(scout)
+        if home is not None and self.start_pose is not None:
+            out[f'home/{scout}'] = dict(robot_id=scout, frame_id=frame_id, xy_yaw=[*home.mission_xy, home.yaw],
+                                        map_session_id=self.frozen[0], map_revision=self.frozen[1],
+                                        transform_revision=self.frozen[2])
+        target = self.mission.dispatch_target
+        if self.exit is not None and self.exit['basis'] == self.frozen and target in self.target_geo:
+            point_ = self._exit_point(target)
+            if point_ is not None:
+                out[f'home/{support}'] = dict(robot_id=support, frame_id=frame_id, xy_yaw=[*point_[0], point_[1]],
+                                              map_session_id=self.frozen[0], map_revision=self.frozen[1],
+                                              transform_revision=self.frozen[2])
+        return out
 
     # -- map freeze (SLAM_FREEZE; owner decision 2026-10-13, 작전 OPS-113..117) ------------------------------
     def basis(self):
@@ -449,15 +645,15 @@ class CoordinatorCore:
             return
         if self.freeze in ('REQUESTED', 'AWAITING_MAP') and now_ns > self.freeze_due_ns:
             self._freeze_failed(f'no frozen map matching TB-6 MapState within the timeout (state {self.freeze})')
-        if self.freeze is not None or not self._target_saved():
-            return
+        if self.freeze is not None or not self._target_saved() or self.exit is None:
+            return  # OPS-136: the freeze waits for the registered exit too (MAP_FREEZE_WAITING_EXIT)
         scout = self.roles['SCOUT']
         state, detail = self.ready(scout, now_ns), self.status_detail.get(scout)
         if (state is None or not state[1] or detail is None or detail[2] != 'STOPPED'
                 or self.search.assignment(scout) is not None):
             return  # the approach gate shows MAP_FREEZE_WAITING_SCOUT_STOP
         self.freeze, self.freeze_due_ns, self.freeze_send = 'REQUESTED', now_ns + self.map_freeze_timeout_ns, True
-        self.notes.append('MAP_FREEZE requested: target saved, TB-6 stopped')
+        self.notes.append('MAP_FREEZE requested: target saved, exit registered, TB-6 stopped')
 
     def take_freeze_request(self):
         """True once when the node must call MAP_FREEZE_SERVICE."""
@@ -506,7 +702,30 @@ class CoordinatorCore:
                               for r, h in self.mission.homes.items()}
         self.notes.append(f'MAP_FROZEN session={session} revision={rev} snapshot={snapshot} '
                           f'sha256={self.map_grid.sha256}')
+        self._rebase_on_freeze()
         return True
+
+    def _rebase_on_freeze(self):
+        """OPS-138·139: TB-6 stands in front of whichever it found last, so the other was seen on the search
+        revision. Same map session only: the latest target and exit positions of the search revision move to the
+        frozen revision. A target gets revision + 1, saved again with its latest location; recorded in the log and
+        in SystemState (TARGET_REBASED_ON_FREEZE) until saved. Another session is never re-based."""
+        search = self._search_basis()
+        if self.frozen[0] != search[0]:
+            return
+        for target_id, (basis, xy, locations) in list(self.target_geo.items()):
+            if basis != search:
+                continue
+            rev, confirmed, _ = self.mission.targets[target_id]
+            self.target_geo[target_id] = (self.frozen, xy, locations)
+            self.mission.record_target(target_id, rev + 1, detection_confirmed=confirmed, report_persisted=False)
+            self.rebased.add(target_id)
+            self.rebase_reports.append((target_id, rev + 1, locations[-1]))
+            self.notes.append(f'TARGET_REBASED_ON_FREEZE target={target_id} revision={rev + 1} xy={xy} '
+                              f'from={search} to={self.frozen}')
+        if self.exit is not None and self.exit['basis'] == search:
+            self.exit = self.exit | dict(basis=self.frozen)
+            self.notes.append(f'EXIT_REBASED_ON_FREEZE xy={self.exit["xy"]} from={search} to={self.frozen}')
 
     def _freeze_failed(self, detail):
         self.freeze, self.freeze_send = 'FAILED', False
@@ -516,6 +735,9 @@ class CoordinatorCore:
         """TB-5 goes only on the frozen map: target observed there, both robots localized there (SLAM_FREEZE)."""
         if self.map_mode != 'SLAM_FREEZE':
             return True
+        if self.freeze is None and self.exit is None:
+            self.issue_block = 'MAP_FREEZE_WAITING_EXIT'  # TB-6 keeps patrolling (OPS-136)
+            return False
         if self.freeze != 'FROZEN':
             self.issue_block = {None: 'MAP_FREEZE_WAITING_SCOUT_STOP', 'REQUESTED': 'MAP_FREEZE_REQUESTED',
                                 'AWAITING_MAP': 'MAP_NOT_FROZEN', 'FAILED': 'MAP_FREEZE_FAILED'}[self.freeze]
@@ -527,7 +749,7 @@ class CoordinatorCore:
             if self.mission.map_basis.get(self.roles[role]) != self.frozen:
                 self.issue_block = f'{role}_NOT_LOCALIZED'
                 return False
-        return True
+        return self._exit_ready(target_id)
 
     def _free_cell(self, xy, reason):
         """True when ``xy`` is free on the frozen grid within freeze_clearance_m (always True in SAVED_MAP)."""
@@ -545,6 +767,11 @@ class CoordinatorCore:
         """The role robot's home (TB-6 docking approach point, TB-5 exit) is known and free on the frozen map."""
         if self.map_mode != 'SLAM_FREEZE':
             return True
+        if role == 'SUPPORT':  # TB-5 ends at the registered exit (OPS-136 4), not a profile home
+            return self._exit_ready(self.mission.dispatch_target)
+        if self.start_pose is None:
+            self.issue_block = 'START_POSE_UNKNOWN'  # the docking approach point is given in the start pose
+            return False
         home = self.mission.homes.get(self.roles[role])
         if home is None:
             self.issue_block = 'NO_HOME_POSITION'  # nothing to check: never sent unchecked
@@ -594,6 +821,10 @@ class CoordinatorCore:
         stop = bool(result.stop_confirmed)
         if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
             return False
+        if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
+                and result.outcome != 'COMPLETED'):
+            self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
+            self.notes.append(f'PATROL_POINT_PASSED {item.target_id} outcome={result.outcome}')
         if item.robot_id == self.roles['SCOUT'] and result.outcome == 'CANCELED':
             # The executor ends a stop (operator, lease, deadline) as CANCELED; a FAILED/UNREACHABLE
             # task is not a stop and leaves the waiting search in place.
@@ -638,6 +869,8 @@ class CoordinatorCore:
         split into a new target (distances across bases mean nothing).
         """
         contract_value(timestamp_ns, now_ns)
+        if msg.observation.class_label == EXIT_CLASS_LABEL:  # OPS-138: an exit is never a person target
+            raise CoordinationError('INVALID_INPUT', f'{EXIT_CLASS_LABEL} belongs on {EXIT_LOCATION_TOPIC}')
         if msg.projection_status != 'VALID':
             raise CoordinationError('STALE_OBSERVATION', 'only VALID projections become targets')
         uid(msg.location_id)
@@ -681,6 +914,7 @@ class CoordinatorCore:
         for report in self.reports.values():
             if report['target_id'] == target_id and not report['done']:
                 report['done'] = True
+        self.rebase_reports = [r for r in self.rebase_reports if r[0] != target_id]  # this newer one covers it
         unsaved = [loc for loc in locations if loc.location_id not in self.saved_records]
         report_id = self.new_id()
         self.reports[report_id] = dict(report_id=report_id, target_id=target_id, target_revision=target_revision,
@@ -714,6 +948,16 @@ class CoordinatorCore:
 
     def reports_due(self, now_ns):
         """RescueReports to (re)send now; resent every ``report_retry_ns`` until PERSISTED or REJECTED."""
+        for target_id, target_revision, location in self.rebase_reports:
+            # A re-based revision is saved again with its latest location (record ids may repeat across reports).
+            for report in self.reports.values():
+                if report['target_id'] == target_id and not report['done']:
+                    report['done'] = True
+            report_id = self.new_id()
+            self.reports[report_id] = dict(report_id=report_id, target_id=target_id, target_revision=target_revision,
+                                           record_ids=[location.location_id], locations=[location],
+                                           first_issued_at_ns=now_ns, next_send_ns=now_ns, done=False)
+        self.rebase_reports = []
         due = []
         for report in self.reports.values():
             if not report['done'] and report['next_send_ns'] <= now_ns:
@@ -746,7 +990,7 @@ class CoordinatorCore:
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
-            reason=self.issue_block or self.mission_reason(now_ns) or self._search_wait_reason() or (
+            reason=self.issue_block or self._rebase_reason() or self.mission_reason(now_ns) or self._search_reason() or (
                 self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
                 self.location_refusal or ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
@@ -837,6 +1081,7 @@ class CoordinatorCore:
         self._issue_scout_return(now_ns)
         self._issue_segment(now_ns)
         self._issue_rechecks(now_ns)
+        self._patrol_tick()
         self._issue_search(now_ns)
         sent, self.outbox = self.outbox, []
         return sent
@@ -1258,8 +1503,10 @@ class CoordinatorCore:
 
     def _issue_search(self, now_ns):
         scout = self.roles['SCOUT']
-        if self.map_mode == 'SLAM_FREEZE' and self._target_saved():
-            return  # TB-6 stops for the freeze; it does not map further (Q-29 ⑦)
+        if self.map_mode == 'SLAM_FREEZE' and self._target_saved() and self.exit is not None:
+            return  # TB-6 stops for the freeze; until the exit is seen it keeps patrolling (OPS-136)
+        if self.patrol_exhausted:
+            return
         state = self.ready(scout, now_ns)
         if state is None:
             return
@@ -1333,6 +1580,10 @@ class CoordinatorCore:
         if self.timed_out:
             self.issue_block = 'ADMISSION_TIMEOUT'  # held until stop evidence releases the task
 
+    def _rebase_reason(self):
+        """TARGET_REBASED_ON_FREEZE while a target re-based at the freeze waits for that revision to be saved."""
+        return 'TARGET_REBASED_ON_FREEZE' if any(
+            not self.mission.targets[t][2] for t in self.rebased if t in self.mission.targets) else ''
     def _search_wait_reason(self):
         """SEARCH_QUEUED while an accepted start waits; SEARCH_GOAL_NOT_SELECTED when there is no area to send
         (the RViz pick is still missing, live_task_inputs.SelectedSearchGoal)."""
@@ -1532,7 +1783,18 @@ def build_core(values, *, map_snapshot_id):
                            recheck_max_clock_error_ns=seconds_to_ns(str(values['recheck_max_clock_error_s'])),
                            map_mode=values['map_mode'], freeze_clearance_m=values['freeze_clearance_m'],
                            map_freeze_timeout_ns=seconds_to_ns(str(values['map_freeze_timeout_s'])),
-                           map_snapshot_id=map_snapshot_id, search_start=values['search_start'])
+                           map_snapshot_id=map_snapshot_id, search_start=values['search_start'],
+                           search_mode=values['search_mode'],
+                           patrol_points=patrol_points(values['patrol_points']),
+                           patrol_rounds=values['patrol_rounds'], exit_standoff_m=values['exit_standoff_m'])
+
+
+def patrol_points(flat):
+    """``patrol_points`` [x, y, yaw]*N in TB-6's start pose -> tuple of triples. Left out = none (AREAS)."""
+    flat = list(flat or [])
+    if len(flat) % 3:
+        raise CoordinationError('INVALID_POLICY', 'patrol_points must be [x, y, yaw] triples')
+    return tuple(tuple(flat[i:i + 3]) for i in range(0, len(flat), 3))
 
 
 def home_positions(flat, roles, basis):
@@ -1591,12 +1853,16 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # the homes on the frozen map (= the robots' goal_clear_radius_m); wait for the frozen map after the request.
     'map_mode': 'STRING', 'freeze_clearance_m': 'DOUBLE', 'map_freeze_timeout_s': 'DOUBLE',
     # TB-6 search start (owner decision 2026-10-13 evening, OPS-136): AUTO (the disaster sign) | OPERATOR (button).
-    'search_start': 'STRING'}
+    'search_start': 'STRING',
+    # TB-6 search (OPS-136·139): PATROL | AREAS; rounds of the patrol points; TB-5's exit approach standoff.
+    'search_mode': 'STRING', 'patrol_rounds': 'INTEGER', 'exit_standoff_m': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
 # on the goal_map_* basis (TB-6 docking approach point, TB-5 exit); none = RETURN_HOME refused.
-UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY'}
+# patrol_points: [x, y, yaw]*N in TB-6's start pose (search_mode PATROL); none with AREAS.
+UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY',
+                       'patrol_points': 'DOUBLE_ARRAY'}
 
 
 def main(args=None):
@@ -1864,6 +2130,14 @@ def main(args=None):
                                  guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
+        # QR exit (안 「나」, OPS-136·138): same message as targets, class_label exit_qr only.
+        node.create_subscription(TargetLocation, EXIT_LOCATION_TOPIC, guarded('exit_location', lambda msg: log.info(
+            f'EXIT_LOCATION {msg.location_id} -> {core.on_exit_location(msg, now_ns=now_ns())} exit={core.exit}')), 10)
+        from geometry_msgs.msg import PoseWithCovarianceStamped
+        start_topic = START_POSE_TOPIC + core.roles['SCOUT']  # OPS-142: once per map session, latched
+        node.create_subscription(PoseWithCovarianceStamped, start_topic, guarded('start_pose', lambda msg: log.info(
+            f'START_POSE {start_topic} -> bound={core.on_start_pose(start_pose_from_msg(msg, core.search.policy.mission_frame_id))} '
+            f'start_pose={core.start_pose}')), latched)
         node.create_subscription(ReportReceipt, REPORT_RECEIPT_TOPIC, guarded('receipt', lambda msg: log.info(
             f'RECEIPT {msg.report_id} {msg.state} -> saved={core.on_receipt(msg)}')), 10)
         node.create_service(SubmitOperatorCommand, OPERATOR_COMMAND_SERVICE, on_command)

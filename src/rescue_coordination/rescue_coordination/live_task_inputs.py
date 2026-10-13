@@ -79,6 +79,19 @@ class SelectedSearchGoal:
         return area
 
 
+def destinations(core):
+    """Destinations record of ~/task_inputs: the executable search areas (SCOUT) and the RETURN_HOME destinations
+    the coordinator computes (``home/<robot_id>``: TB-5 exit approach, TB-6 docking approach; SLAM_FREEZE after
+    the freeze). Each robot takes its own; the robot accepts only its own 'home/<id>' key besides UUIDs (#232)."""
+    policy = core.search.policy
+    scout = core.roles['SCOUT']
+    out = {area.site_id: dict(robot_id=scout, frame_id=policy.mission_frame_id,
+           xy_yaw=[*area.mission_xy, area.entry_yaw], map_session_id=area.map_session_id,
+           map_revision=area.map_revision, transform_revision=area.transform_revision)
+           for area in policy.areas if policy.executable(area)}
+    return out | core.live_destinations()
+
+
 def attach(node, core, values, boot_id):
     from rcl_interfaces.msg import ParameterType, ParameterValue
     from rcl_interfaces.msg import ParameterDescriptor
@@ -141,17 +154,11 @@ def attach(node, core, values, boot_id):
             last_reason[0] = reason
 
     def get(request, response):
-        policy = core.search.policy
-        scout = core.roles['SCOUT']
-        destinations = {area.site_id: dict(robot_id=scout, frame_id=policy.mission_frame_id,
-            xy_yaw=[*area.mission_xy, area.entry_yaw], map_session_id=area.map_session_id,
-            map_revision=area.map_revision, transform_revision=area.transform_revision)
-            for area in policy.areas if policy.executable(area)}
         record = dict(format='rescue-live-task-source/1', coordinator_id=values['coordinator_id'],
             publisher_boot_id=boot_id, authority_epoch=values['authority_epoch'],
             schema_version=values['envelope_schema_version'], clock_domain_id=settings['live_inputs.clock_domain_id'],
             clock=sampler.record, lease_duration_s=values['lease_duration_s'],
-            lease_renew_period_s=values['lease_renew_period_s'], destinations=destinations)
+            lease_renew_period_s=values['lease_renew_period_s'], destinations=destinations(core))
         response.values = [ParameterValue(type=ParameterType.PARAMETER_STRING,
             string_value=json.dumps(record, sort_keys=True, allow_nan=False)) if name == 'source'
             else ParameterValue(type=ParameterType.PARAMETER_NOT_SET) for name in request.names]

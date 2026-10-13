@@ -48,9 +48,12 @@ COORDINATOR_KEYS = {
     'map_mode': S, 'freeze_clearance_m': F, 'map_freeze_timeout_s': F,
     # TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
     'search_start': S,
+    # TB-6 search (OPS-136·139): PATROL (points in TB-6's start pose) | AREAS; TB-5 exit approach standoff
+    'search_mode': S, 'patrol_points': FL, 'patrol_rounds': I, 'exit_standoff_m': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
+SEARCH_MODES = ('PATROL', 'AREAS')  # rescue_coordination.ros_node.SEARCH_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -179,6 +182,20 @@ def load_field(path):
                                f'(the coordinator node this launch starts)')
     if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
+    if coordinator['search_mode'] not in SEARCH_MODES:
+        raise FieldLaunchError(f'coordinator.search_mode must be one of {list(SEARCH_MODES)}')
+    if len(coordinator['patrol_points']) % 3:
+        raise FieldLaunchError('coordinator.patrol_points must be [x, y, yaw] * N')
+    if coordinator['search_mode'] == 'PATROL':
+        if not coordinator['patrol_points']:
+            raise FieldLaunchError('coordinator.search_mode PATROL needs patrol_points')
+        if coordinator['live_inputs.search_goal_topic']:
+            raise FieldLaunchError('coordinator.search_mode PATROL replaces the RViz search goal pick: '
+                                   'live_inputs.search_goal_topic must be empty')
+        if 'PATROL_POINT' not in coordinator['executable_bases']:
+            raise FieldLaunchError('coordinator.search_mode PATROL needs PATROL_POINT in executable_bases')
+    if coordinator['patrol_rounds'] < 1:
+        raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
     if coordinator['search_start'] not in SEARCH_START_MODES:
         raise FieldLaunchError(f'coordinator.search_start must be one of {list(SEARCH_START_MODES)}')
     if coordinator['map_mode'] not in MAP_MODES:
@@ -191,7 +208,7 @@ def load_field(path):
             raise FieldLaunchError(f'coordinator.freeze_clearance_m must equal robots.{robot_id}.'
                                    'task.live.auto_target.goal_clear_radius_m')
     for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s',
-                'freeze_clearance_m', 'map_freeze_timeout_s'):
+                'freeze_clearance_m', 'map_freeze_timeout_s', 'exit_standoff_m'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['support_exit_wait_s'] < 0:
@@ -319,7 +336,9 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
             raise FieldLaunchError('profile home_positions needs both the SCOUT and the SUPPORT robot '
                                    '(home_poses = SCOUT [x, y, yaw] then SUPPORT); or leave the block out')
         homes['home_poses'] = [*deployment.home_of(scout), *deployment.home_of(support)]
-    return {**roi, **homes, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **field.coordinator,
+    # An empty array cannot go through ROS parameters (measured 2026-10-13): no patrol points = left unset.
+    coordinator = {k: v for k, v in field.coordinator.items() if not (k == 'patrol_points' and not v)}
+    return {**roi, **homes, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
             'mission_frame_id': basis.frame_id, 'goal_map_session_id': basis.map_session_id,
             'goal_map_revision': basis.map_revision, 'goal_transform_revision': basis.transform_revision,
             'route_segment_goals': goals, 'observe_goal': observe, 'route_segment_passage_free': passage}
