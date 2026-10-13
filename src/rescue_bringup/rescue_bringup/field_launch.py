@@ -60,6 +60,8 @@ ROBOT_KEYS = {
     'task.saved_map.transform_xy_yaw': FL,
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
+    # ObserveTarget after a REOBSERVE_TARGET stop (C1-b, 2026-10-13)
+    'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I,
     'task.live.pose_valid_ns': I,  # RobotPose validity after the AMCL stamp (live_pose, 2026-10-13)
 }
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
