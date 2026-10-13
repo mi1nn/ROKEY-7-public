@@ -4,11 +4,10 @@ Saved-map AMCL only: a configured measured alignment and exact occupancy hash
 bind the coordinate basis. TF ticks never manufacture SLAM correction events.
 """
 from copy import deepcopy
-import hashlib
-import json
 import math
 
 from rescue_contracts import ros_time_to_ns
+from rescue_contracts.occupancy import footprint_clear, occupancy_sha256
 from rescue_robot.executor import ContractError
 
 
@@ -25,20 +24,23 @@ def planar(pose):
 
 
 class Grid:
+    """One received OccupancyGrid; hash and free-footprint rule are rescue_contracts.occupancy (shared)."""
     def __init__(self,message):
         info=message.info
         self.frame=message.header.frame_id
         self.width,self.height=info.width,info.height
-        self.resolution=float(info.resolution); self.origin=planar(info.origin)
+        self.resolution=info.resolution; self.origin=planar(info.origin)
         self.data=tuple(message.data)
-        if (not self.frame or self.width<=0 or self.height<=0
-                or not math.isfinite(self.resolution) or self.resolution<=0
-                or len(self.data)!=self.width*self.height
-                or any(type(v) is not int or not -1<=v<=100 for v in self.data)):
-            raise ContractError('invalid occupancy grid')
-        # Resource identity deliberately excludes publication stamp/load time.
-        payload=[self.frame,self.width,self.height,self.resolution,list(self.origin),self.data]
-        self.sha256=hashlib.sha256(json.dumps(payload,separators=(',',':'),allow_nan=False).encode()).hexdigest()
+        try:
+            # Resource identity deliberately excludes publication stamp/load time.
+            self.sha256=occupancy_sha256(**self._fields())
+        except ValueError:
+            raise ContractError('invalid occupancy grid') from None
+        self.resolution=float(self.resolution)
+
+    def _fields(self):
+        return dict(frame=self.frame,width=self.width,height=self.height,resolution=self.resolution,
+                    origin=self.origin,data=self.data)
 
     def point(self,x,y):
         ox,oy,yaw=self.origin; c,s=math.cos(yaw),math.sin(yaw)
@@ -53,14 +55,7 @@ class Grid:
         return self.data[iy*self.width+ix] if 0<=ix<self.width and 0<=iy<self.height else None
 
     def clear(self,x,y,radius):
-        ix,iy=self.cell(x,y); extent=math.ceil(radius/self.resolution)+1
-        for cy in range(iy-extent,iy+extent+1):
-            for cx in range(ix-extent,ix+extent+1):
-                px,py=self.point((cx+.5)*self.resolution,(cy+.5)*self.resolution)
-                if math.hypot(px-x,py-y)<=radius+self.resolution/math.sqrt(2):
-                    if not (0<=cx<self.width and 0<=cy<self.height) or self.data[cy*self.width+cx]!=0:
-                        return False
-        return True
+        return footprint_clear(**self._fields(),x=x,y=y,radius=radius)
 
 
 class SavedMapSources:
