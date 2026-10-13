@@ -305,7 +305,10 @@ class AccountStore:
 
 
 class _Transaction:
-    """BEGIN IMMEDIATE ... COMMIT/ROLLBACK around a block; sqlite errors become STORAGE_ERROR."""
+    """BEGIN IMMEDIATE ... COMMIT/ROLLBACK around a block, closing the connection after.
+
+    A failed BEGIN or COMMIT becomes STORAGE_ERROR; for errors raised inside the block see `__exit__`.
+    """
 
     def __init__(self, db):
         self.db = db

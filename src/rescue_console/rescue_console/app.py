@@ -245,7 +245,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     @app.post('/login')
     def login():
-        """Check the login form and start a session; every outcome redirects (Post/Redirect/Get).
+        """Check the login form and start a session; past the CSRF check every outcome is a redirect.
 
         Order: CSRF, then the (name, client address) lock, then the password. A wrong name, a wrong
         password and an inactive account get the same message (AccountStore.authenticate returns None).

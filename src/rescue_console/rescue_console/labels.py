@@ -10,8 +10,8 @@ Where each vocabulary comes from (2026-10-10, main 7a940e9):
   status (`docs/design/sdd-node-interface-spec-v0.1.md`: STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED)
   and `UNKNOWN` (`tests/test_operations_site_state.py`).
 - readiness: free text in site_state, copied the same way from RobotStatus.readiness. READY / NOT_READY /
-  UNKNOWN from `tests/test_operations_site_state.py` and `examples/status.example.json`. The message's
-  DEGRADED (`src/rescue_interfaces/msg/RobotStatus.msg`) has no word here yet and shows as its code.
+  UNKNOWN from `tests/test_operations_site_state.py` and `examples/status.example.json`. RobotStatus also
+  defines DEGRADED (`src/rescue_interfaces/msg/RobotStatus.msg`); it has no word here yet and shows as its code.
 - rescue: `rescue_contracts.RESCUE_STATES`.
 - support: `rescue_operations.site_state.SUPPORT_STATES`.
 - approach / confirmation: report schema checks in `rescue_operations.schema` (inline tuples).
