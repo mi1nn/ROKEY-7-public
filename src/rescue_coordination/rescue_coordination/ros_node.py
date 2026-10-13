@@ -227,7 +227,7 @@ class CoordinatorCore:
         if camera_watch is not None and not isinstance(camera_watch, CameraWatchBook):
             raise CoordinationError('INVALID_POLICY', 'camera_watch must be a CameraWatchBook or None')
         self.camera_watch = camera_watch  # None: the profile has no TARGET_WATCH camera
-        self.candidate_results = {}  # candidate event_id -> its first reason (replay answers the same)
+        self.candidate_results = {}  # candidate event_id -> its first reason, None = a row-3 conflict (replay = same)
         self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
         self.mission = mission
         self.search = mission.search
@@ -275,11 +275,18 @@ class CoordinatorCore:
         if event.kind != 'TARGET_DISAPPEARED_CANDIDATE':
             return result
         if replay:
-            return self.candidate_results[event.event_id]
+            reason = self.candidate_results[event.event_id]
+            if reason is None:  # its first arrival was a row-3 conflict: the replay is the same conflict
+                raise CoordinationError('ID_CONTENT_CONFLICT', 'another candidate event_id for the same watch_id')
+            return reason
         if self.mission.mode != 'DISASTER' or self.camera_watch is None:
             reason = 'CANDIDATE_NOT_DISASTER' if self.mission.mode != 'DISASTER' else 'CANDIDATE_NOT_LINKED'
         else:
-            reason = self.camera_watch.on_candidate(event)
+            try:
+                reason = self.camera_watch.on_candidate(event)
+            except CoordinationError:
+                self.candidate_results[event.event_id] = None
+                raise
         self.candidate_results[event.event_id] = reason
         return reason
 
@@ -885,11 +892,13 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # AST88-01: one field-checked bool per segment end. A ROS parameter cannot carry an empty array (-p and
     # --params-file both arrive unset = missing, measured 2026-10-13); to hold every segment give all false.
     'route_segment_passage_free': 'BOOL_ARRAY',
-    # SetCameraWatch (C-11 row 2): the deployment ROI [x0, y0, x1, y1] normalized, used when the operator's
-    # request carries none; leave it out for none (= only the request's ROI; never the full frame). Request deadline.
-    'camera_watch_roi': 'DOUBLE_ARRAY', 'camera_watch_timeout_s': 'DOUBLE'}
-OPTIONAL_PARAMETERS = ('route_segment_passage_free', 'camera_watch_roi')
-UNSET_OK_PARAMETERS = ('camera_watch_roi',)  # left out = no deployment ROI (only the operator's)
+    # SetCameraWatch (C-11 row 2) request deadline. The deployment ROI camera_watch_roi [x0, y0, x1, y1]
+    # (normalized, used when the operator's request carries none; never the full frame) is in UNSET_OK_PARAMETERS.
+    'camera_watch_timeout_s': 'DOUBLE'}
+OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
+# Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
+# camera_watch_roi: no deployment ROI, only the operator's.
+UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY'}
 
 
 def main(args=None):
@@ -911,8 +920,9 @@ def main(args=None):
     live_task_source = None
     try:
         values, missing = declare_required(
-            node, {name: getattr(ParameterType, 'PARAMETER_' + kind) for name, kind in PARAMETERS.items()},
-            optional=OPTIONAL_PARAMETERS, unset_ok=UNSET_OK_PARAMETERS)
+            node, {name: getattr(ParameterType, 'PARAMETER_' + kind)
+                   for name, kind in (PARAMETERS | UNSET_OK_PARAMETERS).items()},
+            optional=OPTIONAL_PARAMETERS + tuple(UNSET_OK_PARAMETERS), unset_ok=tuple(UNSET_OK_PARAMETERS))
         if missing:
             log.fatal(f'missing parameters: {missing}')
             raise SystemExit(2)
