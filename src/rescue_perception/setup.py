@@ -25,5 +25,6 @@ setup(
         "amr_target = rescue_perception.amr_target:main",
         "target_locator = rescue_perception.target_locator:main",
         "mjpeg_relay = rescue_perception.mjpeg_relay:main",
-        "headroom_record = rescue_perception.headroom:main"]},
+        "headroom_record = rescue_perception.headroom:main",
+        "overhead_passage = rescue_perception.overhead:main"]},
 )
