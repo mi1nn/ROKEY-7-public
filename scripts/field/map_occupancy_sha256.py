@@ -4,7 +4,8 @@
     python3 scripts/field/map_occupancy_sha256.py /robot6/map map
 
 Reads exactly one nav_msgs/OccupancyGrid from the map topic (RELIABLE, TRANSIENT_LOCAL, as the
-localization map server publishes it) and prints rescue_robot.live_sources.Grid(...).sha256,
+localization map server publishes it) and prints rescue_robot.live_sources.Grid(...).sha256
+(= rescue_contracts.occupancy.occupancy_sha256, the same function the coordinator uses),
 the hash task_input compares against. Same check as #132 start_robot.sh: the map frame must be
 the expected frame (identity alignment is declared). Nothing is printed on stdout and the exit
 code is 2 when no valid map arrives within the timeout; nothing is written to disk.
