@@ -34,16 +34,16 @@ updated: 2026-10-13
 | --- | --- | --- | --- |
 | 1 | `src/rescue_console/README.md` | README.md | 로봇 없이 띄우는 명령(「실행 (로봇 없이, E2)」), 화면 칸 설명 |
 | 2 | `src/rescue_console/rescue_console/__main__.py` | Main() | 실행 인자 검사 → `create_app` → 서버 기동. 실패하면 서버를 띄우지 않고 종료코드 2 |
-| 3 | `src/rescue_console/rescue_console/app.py` | Node/Class | 라우트 전부, 로그인·세션 무효화·CSRF, `POST /commands` 가 명령을 넘기는 곳 |
+| 3 | `src/rescue_console/rescue_console/app.py` | Node/Class | 라우트 전부(13), 로그인·세션 무효화·CSRF, `POST /commands` 가 명령을 넘기는 곳, `POST /webcam`·`POST /robot-camera` 카메라 고르기 |
 | 4 | `src/rescue_console/rescue_console/sources.py` | 입력 Topic | 현장 상태 DB 를 읽기 전용으로 여는 곳(웹은 DB 에 쓰지 않음) |
 | 5 | `src/rescue_console/rescue_console/view.py` | Function(핵심) | 입력 → 화면 모델: 대상 4단계 규칙, 낡음 판정, 버튼 관문 거울 `_gate`·`command_gates` |
-| 6 | `src/rescue_console/rescue_console/commands.py` | 출력 Topic | operations 로 한 번 POST, 재시도 없음, 답 검사 |
+| 6 | `src/rescue_console/rescue_console/commands.py` | 출력 Topic | operations·로봇 카메라 중계로 한 번 보내기, 재시도 없음, 답 검사 |
 | 7 | `src/rescue_console/rescue_console/render.py` | Function(화면) | HTML 조각, 1초 폴링·명령 확인 칸·영상 끊김 감지 JS |
 | 8 | `src/rescue_console/rescue_console/mapimage.py` | Function | 지도 PGM → PNG, 로봇·대상 위치 표시, 실시간 지도 낡음 |
 | 9 | `src/rescue_console/rescue_console/accounts.py`, `src/rescue_console/rescue_console/throttle.py` | Function | 계정·비밀번호 해시·역할, 로그인 연속 실패 잠금 |
 | 10 | `src/rescue_console/rescue_console/labels.py` | 변수 | 코드 → 한국어 낱말 표 |
 
-- **시험(Test Code):** `tests/test_console_web.py`, `tests/test_console_commands.py`, `tests/test_console_view.py` 셋을 보여 준다. 나머지 9개(`tests/test_console_*.py`)는 질문이 나오면 4절 표로 답한다.
+- **시험(Test Code):** `tests/test_console_web.py`, `tests/test_console_commands.py`, `tests/test_console_view.py` 셋을 보여 준다. 나머지 11개(`tests/test_console_*.py`)는 질문이 나오면 4절 표로 답한다.
 - **설계·증거 문서:** `docs/design/console-dataflow.md`([관제 웹 데이터 흐름](../design/console-dataflow.md): 어느 노드·토픽이 어느 장부 표를 거쳐 웹의 어느 파일·화면 칸으로 오는지, 파일마다 받는 것·하는 것·내보내는 것), `docs/design/console-spec.md`([관제 웹 설계 명세](../design/console-spec.md), 순서도는 8절), `docs/process/console-code-review.md`(이 문서), `docs/evidence/console-2026-10-13/README.md`([스크린샷·시험 로그](../evidence/console-2026-10-13/README.md)).
 - **보지 않는 것:** `src/rescue_operations/`(operations API·DB 쓰기)는 다른 담당이다. 웹이 기대는 약속만 [설계 명세](../design/console-spec.md) 「웹이 기대는 인터페이스」로 설명한다. `src/rescue_console/rescue_console/__init__.py` 는 빈 파일이다.
 - 슬라이드의 말과 웹의 대응: 웹은 ROS 노드가 아니라서 「입력 Topic」은 HTTP 요청과 현장 상태 DB 표, 「출력 Topic」은 HTTP 응답과 operations 로 보내는 POST 다. 그 DB 표가 어느 노드의 어느 토픽에서 오는지는 [관제 웹 데이터 흐름](../design/console-dataflow.md) 2·3절 표에 있다. 「Node/Class」 자리는 `app.py` 의 `create_app`(Flask 앱)이 맡는다.
@@ -65,14 +65,14 @@ updated: 2026-10-13
 | 화면 조회도 operations 를 거친다 | 웹이 현장 상태 DB 를 `mode=ro`·`query_only` 로 직접 읽는다. operations 로는 명령만 보낸다 | `sources.py` `load_site_state`, `rescue_operations/site_state.py:486-547` |
 | 정지 버튼 | 늘 꺼져 있다. `RequestStop` 경로는 아직 어디에도 없고, 위험하면 현장 비상 정지 장치를 쓴다 | `view.py:58-63`, AGENTS.md 2절 「현장 정지 수단을 웹 연결에만 의존시키지 않는다」 |
 | ⑤ 계속(구간 승인) | 현장 설정이 `support_dispatch: AUTO` 라 출동 승인·계속 단계가 없다. AUTO 면 출동 승인 버튼 대신 「TB-5 자동 출동」 상태만 보인다 | `config/field/search_area.field.json:29`, `view.py:605-611`, 결정 1B(PR #187) |
-| 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:152-153` |
+| 웹캠 영상 | 원본이 아니라 판정 영상(격자·ROI·상자를 그린 것)이다 | `rescue_bringup/operations_launch.py:154-155` |
 | 지도 | 기준 지도(`--map`) 또는 운영 PC 가 SLAM 지도를 파일로 쓴 실시간 지도(`--live-map`) 중 하나 | [관제 웹 README](../../src/rescue_console/README.md) 「지도」·「실시간 SLAM 지도」 |
 
 설계도는 main `c79097d` 기준이라 그 뒤의 자동 출동(#187)과 자동 수색 시작(#228)이 반영돼 있지 않다(그림 안 범례). 관제 웹을 `--search-start AUTO` 로 띄우면 지진 감지가 곧 TB-6 수색 시작이고, 「수색 시작」 버튼 대신 「TB-6 자동 출발」 상태가 보인다([README](../../src/rescue_console/README.md) `--search-start`). 같은 이유로 그림의 「② 출동」 화살표는 현장 설정(둘 다 AUTO)에서는 운영자가 누르지 않는다.
 
 ## 2. 설계 (Design) — [관제 웹 설계 명세](../design/console-spec.md)
 
-명세는 「이 문서만 보고 같은 웹을 다시 짤 수 있게」를 목표로 10절로 적었다: 1 책임과 경계 · 2 실행 단위 · 3 실행 인자와 코드 상수 · 4 내부 상태(로그인 세션·명령 칸·갱신 표시·실시간 지도·카메라 칸 상태 기계) · 5 입력(HTTP 경로 11개, 폼 검사, 파일, operations 답) · 6 출력(화면 모델 JSON, 명령 응답, operations 요청, 로그, 화면 칸 배치) · 7 처리 규칙(대상 4단계 규칙표, 사유 문구표, 명령×단계 버튼 관문표 포함) · 8 순서도 2개(폴링 한 번, 명령 한 번) · 9 오류·예외 표 · 10 시험. 끝에 「웹이 기대는 인터페이스」(operations 명령 API·현장 상태 DB·`live_map.yaml` 계약)와 「문서와 코드의 차이」를 두었다. 리뷰에서 설명하는 순서:
+명세는 「이 문서만 보고 같은 웹을 다시 짤 수 있게」를 목표로 10절로 적었다: 1 책임과 경계 · 2 실행 단위 · 3 실행 인자와 코드 상수 · 4 내부 상태(로그인 세션·명령 칸·갱신 표시·실시간 지도·카메라 칸 상태 기계) · 5 입력(HTTP 경로 13개, 폼 검사, 파일, operations 답) · 6 출력(화면 모델 JSON, 명령 응답, operations 요청, 로그, 화면 칸 배치) · 7 처리 규칙(대상 4단계 규칙표, 사유 문구표, 명령×단계 버튼 관문표 포함) · 8 순서도 2개(폴링 한 번, 명령 한 번) · 9 오류·예외 표 · 10 시험. 끝에 「웹이 기대는 인터페이스」(operations 명령 API·현장 상태 DB·`live_map.yaml`·직접 관측 파일·웹캠 API·로봇 카메라 중계 계약)와 「문서와 코드의 차이」를 두었다. 리뷰에서 설명하는 순서:
 
 1. 설계도의 관제 웹 상자와 화살표 셋(1절) → 「웹은 보여 주고 명령을 전달만 한다. DB 쓰기·ROS 직접 구독·로봇 명령은 없다」(AGENTS.md 2절 관제·화면 레인).
 2. 화면 한 장([스크린샷](../evidence/console-2026-10-13/02-dashboard.png))의 칸마다 어느 모듈이 그리는지.
@@ -116,7 +116,7 @@ updated: 2026-10-13
 
 | 종류 | 무엇 | 결과 | 위치 |
 | --- | --- | --- | --- |
-| 시험 코드 | `tests/test_console_*.py` 12 파일 | Flask 3.1.3 설치 상태에서 `bd4bfa5` 198 OK(skip 0) [측정, 2026-10-13, Python 3.13, 로그]. `32e8ee1`(main merge 뒤) 209 OK [측정, 2026-10-13]. main `ede7f8b`(직접 관측·터널 판정 시험 2 파일 추가 뒤) 223 OK(skip 0) [측정, 2026-10-13, Python 3.13, Flask 3.1.3] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
+| 시험 코드 | `tests/test_console_*.py` 14 파일 | Flask 3.1.3 설치 상태에서 `bd4bfa5` 198 OK(skip 0) [측정, 2026-10-13, Python 3.13, 로그]. `32e8ee1`(main merge 뒤) 209 OK [측정, 2026-10-13]. main `ede7f8b`(직접 관측·터널 판정 시험 2 파일 추가 뒤) 223 OK(skip 0), main `4163a25` 합친 뒤(웹캠 고르기·로봇 카메라 시험 2 파일 추가) 235 OK(skip 0) [측정, 2026-10-13, Python 3.13, Flask 3.1.3] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
 | CI | `foundation`(Python 3.10 ~ 3.12) | 이 PR 전에는 CI 에 Flask 가 없어 웹 경로 시험 23건이 skip(NOT_RUN)이었다. 이 PR 이 `flask==3.1.3` 설치를 더했고, 커밋 `484c492` 의 3.10 작업에서 `Ran 1514 tests` · `OK (skipped=15)` [측정, 2026-10-13]. skip 15 는 로컬 Flask 환경의 skip 15(NumPy·OpenCV·PyYAML·ROS 없음)와 수가 같다. CI 쪽 이유별 내역은 로그에 없어 [미확인] | [.github/workflows/foundation.yml](../../.github/workflows/foundation.yml) |
 | 스크린샷 | 로그인, 관제 화면(합성 데이터, `bd4bfa5` 코드 — 출구 QR 표시 전) | 2장 | [console-2026-10-13](../evidence/console-2026-10-13/README.md) |
 | 현장 기록 | 운영 PC 에서 관제 웹 기동(장부 없이 #147), `--camera` 로 MJPEG 수신(#158) | PASS [측정, 2026-10-13 12:42·12:54] | [10-13 운영 PC 기록](../evidence/field-2026-10-13-operations-host.md) 25·27줄 |
@@ -137,9 +137,11 @@ updated: 2026-10-13
 | `test_console_throttle.py` | 7 | 같은 이름·같은 클라이언트의 연속 로그인 실패를 잠시 막음 |
 | `test_console_labels.py` | 3 | 계약 값마다 한국어 표시가 있고 모르는 코드는 그대로 보임 |
 | `test_console_robot_watch.py` | 9 | `--robot-watch` 직접 관측: 상태 없는 로봇의 카드·위치를 채우고, 프로젝트 상태가 먼저, 낡음·파일 멈춤·배치 밖·파일 깨짐을 숨기지 않음 |
+| `test_console_webcam_switch.py` | 7 | 웹캠 고르기는 ADMIN 만, 재난 모드면 한 번 더 묻기, 한 번 보내고 답·거절을 그대로, operations 꺼짐은 문구 |
+| `test_console_robot_camera.py` | 5 | 로봇 카메라 칸: http(s) 주소만, 누구나 확인 창 없이 고름, CSRF, 중계 꺼짐은 문구 |
 | `test_console_tunnel_map.py` | 5 | 터널 판정 세 상태의 낱말·색, 옛 지도 revision 흐림, 지금 지도 모름 경고, 지도 밖은 목록 |
 
-개수는 main `ede7f8b` 에서 `def test_` 를 센 값이다(합계 223, 실행 결과와 같음) [계산, 2026-10-13].
+개수는 main `4163a25` 합친 뒤 `def test_` 를 센 값이다(합계 235, 실행 결과와 같음) [계산, 2026-10-13].
 
 ## 5. 예상 질문과 답
 

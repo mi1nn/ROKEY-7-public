@@ -8,16 +8,17 @@ updated: 2026-10-13
 
 > 코드 리뷰에서 이 문서를 쓰는 순서와 주석·시험 증거는 [관제 웹 코드 리뷰 준비](../process/console-code-review.md)에 있다. 화면 예시는 [합성 데이터 스크린샷](../evidence/console-2026-10-13/02-dashboard.png)이다.
 
-이 문서는 관제 웹 `rescue_console`(Flask 웹 서비스이고 ROS 노드가 아니다)을 **이 명세만 보고 같은 동작으로 다시 짤 수 있게** 적는다. 코드는 옮기지 않고 규칙·조건·문구·순서를 문장과 표로 적는다. 처음에는 `bd4bfa5` 를 보고 썼고 `32e8ee1` 에서 다시 확인했다. 2026-10-13 main `ede7f8b` 에서 그 뒤 들어온 로봇 직접 관측(`--robot-watch`)과 터널 판정 표시를 더했고(7.4.7·7.4.8·I-5), **모든 줄 표기를 `ede7f8b` 로 옮겼다**: 옛 표기가 가리키던 줄(웹·`rescue_operations/site_state.py`·`rescue_operations/ros_ingest.py` 는 `32e8ee1`, 그 밖은 `bd4bfa5`)을 diff 로 지금 줄에 맞춰 옮기고, 옛 줄과 새 줄의 글자가 크게 다른 끝점은 손으로 열어 봤다(달라진 것은 주석 문장뿐이고 구조가 바뀐 3곳은 고쳤다). 노드·토픽에서 웹 화면까지의 사슬과 파일별 입출력 요약은 [관제 웹 데이터 흐름](console-dataflow.md)이다. 줄 표기 규칙: 접두어 없는 `app.py:…`·`view.py:…` 등은 `src/rescue_console/rescue_console/` 아래 파일, `rescue_operations/…` 는 `src/rescue_operations/rescue_operations/`, `rescue_bringup/…` 는 `src/rescue_bringup/rescue_bringup/`, `launch/…` 는 `src/rescue_bringup/launch/`, `README:…` 는 `src/rescue_console/README.md` 다. operations 쪽 노드(db_writer·report_node·map_snapshot)의 내부는 다루지 않고, 마지막 「웹이 기대는 인터페이스」 절에 웹이 기대는 계약(명령 API·현장 상태 DB 의 쓰는 열·`live_map.yaml`)만 적는다. 값의 출처 태그는 팀 `AGENTS.md` 5절을 따른다.
+이 문서는 관제 웹 `rescue_console`(Flask 웹 서비스이고 ROS 노드가 아니다)을 **이 명세만 보고 같은 동작으로 다시 짤 수 있게** 적는다. 코드는 옮기지 않고 규칙·조건·문구·순서를 문장과 표로 적는다. 처음에는 `bd4bfa5` 를 보고 썼고 `32e8ee1` 에서 다시 확인했다. 2026-10-13 main `ede7f8b` 에서 그 뒤 들어온 로봇 직접 관측(`--robot-watch`)과 터널 판정 표시를 더했고(7.4.7·7.4.8·I-5), 이어 main `4163a25` 의 웹캠 고르기·로봇 카메라 칸을 더했다(7.12·I-6·I-7). **모든 줄 표기는 `4163a25` 기준이다**: 옛 표기가 가리키던 줄(웹·`rescue_operations/site_state.py`·`rescue_operations/ros_ingest.py` 는 `32e8ee1`, 그 밖은 `bd4bfa5`)을 diff 로 `ede7f8b` 에, 다시 `4163a25` 에 맞춰 옮기고, 옛 줄과 새 줄의 글자가 크게 다른 끝점은 손으로 열어 봤다(달라진 것은 주석 문장뿐이고 구조가 바뀐 3곳은 고쳤다). 노드·토픽에서 웹 화면까지의 사슬과 파일별 입출력 요약은 [관제 웹 데이터 흐름](console-dataflow.md)이다. 줄 표기 규칙: 접두어 없는 `app.py:…`·`view.py:…` 등은 `src/rescue_console/rescue_console/` 아래 파일, `rescue_operations/…` 는 `src/rescue_operations/rescue_operations/`, `rescue_bringup/…` 는 `src/rescue_bringup/rescue_bringup/`, `launch/…` 는 `src/rescue_bringup/launch/`, `README:…` 는 `src/rescue_console/README.md` 다. operations 쪽 노드(db_writer·report_node·map_snapshot)의 내부는 다루지 않고, 마지막 「웹이 기대는 인터페이스」 절에 웹이 기대는 계약(명령 API·현장 상태 DB 의 쓰는 열·`live_map.yaml`)만 적는다. 값의 출처 태그는 팀 `AGENTS.md` 5절을 따른다.
 
 ## rescue-console — 현장 상태 DB 를 읽기 전용으로 읽어 한 화면에 보이고, ADMIN 의 운영자 명령을 operations HTTP API 로 한 번 넘기는 로그인 웹
 
 ### 1. 책임과 경계
 
 하는 일
-- 요청이 올 때마다 operations 의 현장 상태 DB(`operations-site-state` schema 1.4)를 **읽기 전용**으로 읽고, 주어졌으면 옛 보고 장부(`operations-ledger` 1.0)도 읽어, 화면 모델 하나로 합성해 HTML·JSON 으로 낸다(`app.py:50-82`, `sources.py:75-99`, `view.py:692-790`).
+- 요청이 올 때마다 operations 의 현장 상태 DB(`operations-site-state` schema 1.4)를 **읽기 전용**으로 읽고, 주어졌으면 옛 보고 장부(`operations-ledger` 1.0)도 읽어, 화면 모델 하나로 합성해 HTML·JSON 으로 낸다(`app.py:52-84`, `sources.py:75-99`, `view.py:692-790`).
 - 표시층에서 구조 상태 4단계(Q-20), 임무 띠, 조정기 사유 문구, 명령 버튼의 **관문 거울**을 계산한다. 거울은 관문이 아니다: 켜진 버튼도 조정기가 거절할 수 있고 그 답을 그대로 보인다(`view.py:598-601`).
-- ADMIN 이 누른 명령 한 건을 operations `POST /api/operator-commands` 로 **한 번** 보내고 답(또는 실패)을 그대로 돌려준다(`app.py:324-356`, `commands.py:168-175`).
+- ADMIN 이 누른 명령 한 건을 operations `POST /api/operator-commands` 로 **한 번** 보내고 답(또는 실패)을 그대로 돌려준다(`app.py:377-409`, `commands.py:171-178`).
+- ADMIN 의 웹캠 바꾸기를 operations `POST /api/webcam` 으로, 누구나의 로봇 카메라 고르기를 `robot_view_relay` `POST /select` 로 **한 번** 보내고, 페이지를 그릴 때 각각의 목록을 `GET` 으로 묻는다(7.12).
 - 로그인·세션·CSRF·계정 관리. 콘솔이 쓰는 파일은 콘솔 소유 계정 DB 하나뿐이다(`accounts.py:1-12`).
 - 지도(고정 map_server 지도 `--map` 또는 map_snapshot 이 쓰는 실시간 SLAM 지도 `--live-map`)를 PNG 로 바꿔 주고, 로봇·요구조자·출구(QR) 관측·터널 판정 표식을 SVG 로 겹친다(`mapimage.py`, `render.py:211-295`). 웹캠 MJPEG 주소를 `<img>` 로 넣는다(`render.py:1170-1187`). `--robot-watch` 면 operations 의 robot_watch 노드가 쓴 로봇 직접 관측 파일을 읽어 로봇 카드에 붙인다(7.4.7).
 
@@ -25,18 +26,18 @@ updated: 2026-10-13
 - 운영 장부·현장 상태 DB 에 쓰거나 파일을 만들지 않는다(`sources.py:1-3`). 쓰기는 operations `db_writer` 하나다.
 - ROS 구독·발행·서비스 호출을 하지 않는다. 명령을 받을지 정하지 않는다(조정기). 명령을 다시 보내지 않는다(`commands.py:1-7`).
 - 영상을 중계하지 않는다. 브라우저가 카메라 PC 의 MJPEG 서버에 직접 붙는다(`render.py:1171-1174`, 중계는 perception `mjpeg_relay`).
-- 현장 정지 수단이 아니다. `STOP_ROBOT` 버튼은 늘 꺼 두고(`view.py:58-63`), 명령 칸·실패 페이지에 「현장 비상 정지 장치를 쓰세요」를 늘 둔다(`render.py:545-546`, `render.py:1210-1211`; 팀 AGENTS 7절).
+- 현장 정지 수단이 아니다. `STOP_ROBOT` 버튼은 늘 꺼 두고(`view.py:58-63`), 명령 칸·실패 페이지에 「현장 비상 정지 장치를 쓰세요」를 늘 둔다(`render.py:545-546`, `render.py:1254-1255`; 팀 AGENTS 7절).
 - 지도를 만들거나 고치지 않는다(map_snapshot 몫). 모르는 값을 지어내지 않는다: 없는 값은 None 이고 화면에 「—」로 보인다(`view.py:1-5`).
 
 ### 2. 실행 단위
 
-- 패키지 `rescue_console`, 실행 파일 `rescue-console` = `rescue_console.__main__:main`(`src/rescue_console/setup.py:22`). `python3 -m rescue_console` 로도 뜬다. Flask 는 선택 의존(`extras_require web`, `src/rescue_console/setup.py:14-15`)이고 없으면 기동이 `DEPENDENCY_MISSING` 으로 끝난다(`app.py:125-129`).
-- launch 파일 없음. `operations.launch.py` 는 콘솔을 띄우지 않고 콘솔에 줄 인자만 문서·로그로 알린다(`launch/operations.launch.py:18-20`, `:70`, `:75`).
-- ROS 노드 이름·namespace: 해당 없음(ROS import 없음, `app.py:8-20`).
+- 패키지 `rescue_console`, 실행 파일 `rescue-console` = `rescue_console.__main__:main`(`src/rescue_console/setup.py:22`). `python3 -m rescue_console` 로도 뜬다. Flask 는 선택 의존(`extras_require web`, `src/rescue_console/setup.py:14-15`)이고 없으면 기동이 `DEPENDENCY_MISSING` 으로 끝난다(`app.py:136-140`).
+- launch 파일 없음. `operations.launch.py` 는 콘솔을 띄우지 않고 콘솔에 줄 인자만 문서·로그로 알린다(`launch/operations.launch.py:18-20`, `:71`, `:76`).
+- ROS 노드 이름·namespace: 해당 없음(ROS import 없음, `app.py:8-22`).
 - 계정 초기화는 별도 명령 `python3 -m rescue_console.accounts init`(`accounts.py:353-374`).
-- 서버 스레드 모델: Flask `app.run` 을 디버그 끈 채 호스트·포트로 부른다(`__main__.py:93`) = Werkzeug 개발 서버. 요청마다 스레드 하나 [문서: Flask 1.0 이후 `app.run` 의 threaded 기본값 참; `throttle.py:4-6` 주석도 같은 전제]. 서버 쪽 타이머·백그라운드 스레드는 없고 모든 계산은 요청 처리 안에서 한다.
+- 서버 스레드 모델: Flask `app.run` 을 디버그 끈 채 호스트·포트로 부른다(`__main__.py:97`) = Werkzeug 개발 서버. 요청마다 스레드 하나 [문서: Flask 1.0 이후 `app.run` 의 threaded 기본값 참; `throttle.py:4-6` 주석도 같은 전제]. 서버 쪽 타이머·백그라운드 스레드는 없고 모든 계산은 요청 처리 안에서 한다.
 - 잠금: 로그인 제한 기록 `threading.Lock`(`throttle.py:33`), 실시간 지도 캐시 `threading.Lock`(`mapimage.py:231`). 계정 DB 는 호출마다 새 SQLite 연결 + `BEGIN IMMEDIATE`(`accounts.py:179-191`, `:316-328`). 현장 상태 DB 는 읽기 함수마다 새 읽기 전용 연결(`rescue_operations/site_state.py:572-592`).
-- 브라우저 쪽 타이머: 조각 폴링 인터벌 1000 ms(`render.py:1096`, `render.py:14`), 카메라 감시 `setInterval` 주기 = max(100, min(500, 끊김 기준 ms ÷ 2)) ms(`render.py:1163`), 실패 페이지 `meta refresh` 5 s(`render.py:1205-1206`, `render.py:69`).
+- 브라우저 쪽 타이머: 조각 폴링 인터벌 1000 ms(`render.py:1096`, `render.py:14`), 카메라 감시 `setInterval` 주기 = max(100, min(500, 끊김 기준 ms ÷ 2)) ms(`render.py:1163`), 실패 페이지 `meta refresh` 5 s(`render.py:1249-1250`, `render.py:69`).
 
 ### 3. 파라미터
 
@@ -44,23 +45,24 @@ updated: 2026-10-13
 
 | 이름 | 타입 | 단위 | 현장 값(출처) | 필수? 기본값 | 기동 시 검사 규칙 | 뜻 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `LEDGER`(위치 인자) | 경로 | — | 생략 [측정 2026-10-13, `docs/evidence/field-2026-10-13-operations-host.md:25`, `:165`] | 선택, 없음. `--site-state` 가 없으면 필수 | 둘 다 없으면 `INVALID_INPUT`(`__main__.py:70-71`, `app.py:46-47`). 기동 때 열지 않고 요청마다 `read_reports` 로 연다(실패는 그 요청의 503) | 옛 `ReportLedger` 파일(`operations-ledger` 1.0). report_node 의 `rescue-report-store` 파일은 역할이 달라 열리지 않는다 |
-| `--accounts` | 경로 | — | 저장소 밖 설정 폴더, 권한 600 [측정 2026-10-10, `docs/process/ops-db-tables.md:42`] | **필수** | 파일이 없으면 `STORAGE_ERROR`, `metadata` 가 다르면 `POLICY_MISMATCH`(`app.py:133`, `accounts.py:160-177`) | 계정 DB |
-| `--site-state` | 경로 | — | launch 의 `db_path` 와 같은 파일(`launch/operations.launch.py:19`) | 선택, 없음. `--status` 와 배타 | argparse 배타 그룹(`__main__.py:27-29`)과 `app.py:42-43`. 기동 때 열지 않음 | 현장 상태 DB |
+| `LEDGER`(위치 인자) | 경로 | — | 생략 [측정 2026-10-13, `docs/evidence/field-2026-10-13-operations-host.md:25`, `:165`] | 선택, 없음. `--site-state` 가 없으면 필수 | 둘 다 없으면 `INVALID_INPUT`(`__main__.py:73-74`, `app.py:48-49`). 기동 때 열지 않고 요청마다 `read_reports` 로 연다(실패는 그 요청의 503) | 옛 `ReportLedger` 파일(`operations-ledger` 1.0). report_node 의 `rescue-report-store` 파일은 역할이 달라 열리지 않는다 |
+| `--accounts` | 경로 | — | 저장소 밖 설정 폴더, 권한 600 [측정 2026-10-10, `docs/process/ops-db-tables.md:42`] | **필수** | 파일이 없으면 `STORAGE_ERROR`, `metadata` 가 다르면 `POLICY_MISMATCH`(`app.py:144`, `accounts.py:160-177`) | 계정 DB |
+| `--site-state` | 경로 | — | launch 의 `db_path` 와 같은 파일(`launch/operations.launch.py:19`) | 선택, 없음. `--status` 와 배타 | argparse 배타 그룹(`__main__.py:27-29`)과 `app.py:44-45`. 기동 때 열지 않음 | 현장 상태 DB |
 | `--status` | 경로 | — | 현장에서 쓰지 않음(E2 전용) | 선택. `--site-state` 와 배타, `LEDGER` 필요 | 요청마다 JSON 을 읽고 최상위 키가 `STATUS_KEYS` 의 부분집합이어야 함(`sources.py:34-54`) | 픽스처 JSON |
-| `--camera ID=URL`(반복) | 문자열 | — | launch 로그의 값 `cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`(`rescue_bringup/operations_launch.py:213-215`, `launch/operations.launch.py:70`) | 선택, 빈 목록 | 첫 `=` 앞 ID 가 비지 않고 URL 이 `http://` 또는 `https://` 로 시작(`app.py:103-108`), 아니면 `INVALID_INPUT` | 웹캠 MJPEG 주소 |
-| `--camera-stale-s` | float | s | [미확인] | `--camera` 가 있으면 필수, 기본값 없음 | 없으면 `CONFIG_MISSING`, float 이 아니거나 유한·양수가 아니면 `INVALID_INPUT`(`render.py:1126-1134`, 호출 `app.py:124`). 카메라가 없으면 값을 보지 않음 | 새 프레임 없이 이 시간이 지나면 「영상 끊김」·재연결 |
-| `--robot-name ID=NAME`(반복) | 문자열 | — | `robot_a=TB-6`, `robot_b=TB-5` [사용자 결정 2026-10-13, `README:47`] | 선택 | `=` 가 있고 앞뒤 공백을 뺀 ID·이름이 비지 않음(`app.py:85-90`), 같은 ID 두 번이면 `INVALID_INPUT`(`app.py:93-100`) | 화면 표시 이름. 없으면 robot_id |
+| `--camera ID=URL`(반복) | 문자열 | — | launch 로그의 값 `cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`(`rescue_bringup/operations_launch.py:242-244`, `launch/operations.launch.py:71`) | 선택, 빈 목록 | 첫 `=` 앞 ID 가 비지 않고 URL 이 `http://` 또는 `https://` 로 시작(`app.py:105-110`), 아니면 `INVALID_INPUT` | 웹캠 MJPEG 주소 |
+| `--camera-stale-s` | float | s | [미확인] | `--camera` 가 있으면 필수, 기본값 없음 | 없으면 `CONFIG_MISSING`, float 이 아니거나 유한·양수가 아니면 `INVALID_INPUT`(`render.py:1126-1134`, 호출 `app.py:135`). 카메라가 없으면 값을 보지 않음 | 새 프레임 없이 이 시간이 지나면 「영상 끊김」·재연결 |
+| `--robot-name ID=NAME`(반복) | 문자열 | — | `robot_a=TB-6`, `robot_b=TB-5` [사용자 결정 2026-10-13, `README:48`] | 선택 | `=` 가 있고 앞뒤 공백을 뺀 ID·이름이 비지 않음(`app.py:87-92`), 같은 ID 두 번이면 `INVALID_INPUT`(`app.py:95-102`) | 화면 표시 이름. 없으면 robot_id |
 | `--support-dispatch` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, `rescue_coordination/ros_node.py:20`] — 조정기의 같은 이름 값과 같아야 함 | 선택, 없음(= 버튼) | argparse choices(`__main__.py:35-37`), 요청마다 `view.py:707-708` 가 다시 검사 | AUTO 면 출동 승인 버튼 대신 「자동 출동」 상태 |
-| `--search-start` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, OPS-136, `config/field/search_area.field.json:3`, `:44`] — 조정기의 `search_start` 와 같아야 함(`README:49`) | 선택, 없음(= 버튼) | argparse choices(`__main__.py:38-40`), 요청마다 `view.py:709` 가 다시 검사 | AUTO 면 수색 시작 버튼 대신 「{정찰 이름} 자동 출발」 상태(7.5) |
-| `--map` | 경로 | — | `assets/maps/pre_quake/map.yaml`(`README:139`) | 선택 | 기동 때 한 번 `load_map`, 실패하면 기동 실패(`app.py:134`) | 고정 지도 |
-| `--live-map` | 경로 | — | `<map_dir>/live_map.yaml`(`launch/operations.launch.py:75`) | 선택. `--map` 과 배타(`app.py:135-136`), `--live-map-stale-s` 와 짝(`__main__.py:75-76`) | 파일이 아직 없어도 됨 | 실시간 SLAM 지도 |
+| `--search-start` | `AUTO` 또는 `OPERATOR` | — | `AUTO` [소유자 결정 2026-10-13, OPS-136, `config/field/search_area.field.json:3`, `:44`] — 조정기의 `search_start` 와 같아야 함(`README:50`) | 선택, 없음(= 버튼) | argparse choices(`__main__.py:38-40`), 요청마다 `view.py:709` 가 다시 검사 | AUTO 면 수색 시작 버튼 대신 「{정찰 이름} 자동 출발」 상태(7.5) |
+| `--map` | 경로 | — | `assets/maps/pre_quake/map.yaml`(`README:159`) | 선택 | 기동 때 한 번 `load_map`, 실패하면 기동 실패(`app.py:145`) | 고정 지도 |
+| `--live-map` | 경로 | — | `<map_dir>/live_map.yaml`(`launch/operations.launch.py:76`) | 선택. `--map` 과 배타(`app.py:146-147`), `--live-map-stale-s` 와 짝(`__main__.py:78-79`) | 파일이 아직 없어도 됨 | 실시간 SLAM 지도 |
 | `--live-map-stale-s` | float | s | [미확인]. map_snapshot 의 alive 주기 2 s 보다 커야 함(`rescue_operations/map_snapshot.py:24`) | `--live-map` 과 짝, 기본값 없음 | 유한·양수(`mapimage.py:226-227`), 아니면 `INVALID_INPUT` | 지도 낡음 기준 |
-| `--robot-watch` | 경로 | — | 운영 launch 인자 `robot_watch_path`(노드 `rescue_robot_watch`, `launch/operations.launch.py:79-81`) | 선택, 없음. `--robot-watch-stale-s` 와 짝(`__main__.py:73-74`) | 기동 때 열지 않음. 파일이 아직 없어도 됨(요청마다 읽고, 없으면 경고) | 로봇 기본 토픽 직접 관측 JSON(I-5) |
+| `--robot-watch` | 경로 | — | 운영 launch 인자 `robot_watch_path`(노드 `rescue_robot_watch`, `launch/operations.launch.py:88-90`) | 선택, 없음. `--robot-watch-stale-s` 와 짝(`__main__.py:76-77`) | 기동 때 열지 않음. 파일이 아직 없어도 됨(요청마다 읽고, 없으면 경고) | 로봇 기본 토픽 직접 관측 JSON(I-5) |
 | `--robot-watch-stale-s` | float | s | [미확인]. robot_watch 쓰기 주기 1 s(`rescue_operations/robot_watch.py:19`)보다 커야 함 | `--robot-watch` 와 짝, 기본값 없음 | argparse float 만. 유한·양수 검사가 **없다**(`--live-map-stale-s` 와 다름) [관찰, 코드 읽기] — 9절 | 이 시간보다 오래 받은 것이 없으면 「직접 관측 낡음」 |
-| `--operations URL` | 문자열 | — | `http://127.0.0.1:<api_port>`(`launch/operations.launch.py:19`, `rescue_bringup/operations_launch.py:26`) | 선택. 없으면 명령 버튼 꺼짐 + 표준 오류 한 줄(`__main__.py:89-91`) | scheme 이 http·https, host 있음, query·fragment 없음, 아니면 `INVALID_INPUT`. 끝 `/` 제거(`commands.py:60-65`) | operations API 기준 주소 |
-| `--secret-env` | 문자열 | — | 기본 그대로 | 기본 `RESCUE_CONSOLE_SECRET` | 그 환경 변수가 없거나 비면 `CONFIG_MISSING`(`__main__.py:66-68`), 16자 미만이면 `CONFIG_MISSING`(`app.py:130-131`) | 세션 서명 비밀이 든 환경 변수 이름 |
-| `--host` | 문자열 | — | 운영 PC 의 접속 주소는 프로파일 값 [`README:54`] | 기본 `127.0.0.1` | 없음 | 바인드 주소 |
+| `--robot-camera URL` | 문자열 | — | launch 로그의 `http://<video_bind_host>:<video_port + 1>/robot_view.mjpg`(인자 `robot_views`, `rescue_bringup/operations_launch.py:203-224`) | 선택, 없음 | scheme 이 http·https 이고 host 가 있어야 함, 아니면 `INVALID_INPUT`(`app.py:113-118`). 고르기 주소 = 같은 host:port 의 `/select`(`app.py:152-153`). `--camera-stale-s` 가 필요하지만 **기동 때 보지 않는다** — `--camera` 없이 주면 `GET /` 가 매번 503(9절) [측정] | 로봇 카메라 칸(7.12) |
+| `--operations URL` | 문자열 | — | `http://127.0.0.1:<api_port>`(`launch/operations.launch.py:19`, `rescue_bringup/operations_launch.py:26`) | 선택. 없으면 명령 버튼 꺼짐 + 표준 오류 한 줄(`__main__.py:93-95`) | scheme 이 http·https, host 있음, query·fragment 없음, 아니면 `INVALID_INPUT`. 끝 `/` 제거(`commands.py:61-66`) | operations API 기준 주소 |
+| `--secret-env` | 문자열 | — | 기본 그대로 | 기본 `RESCUE_CONSOLE_SECRET` | 그 환경 변수가 없거나 비면 `CONFIG_MISSING`(`__main__.py:69-71`), 16자 미만이면 `CONFIG_MISSING`(`app.py:141-142`) | 세션 서명 비밀이 든 환경 변수 이름 |
+| `--host` | 문자열 | — | 운영 PC 의 접속 주소는 프로파일 값 [`README:55`] | 기본 `127.0.0.1` | 없음 | 바인드 주소 |
 | `--port` | int | — | 8080 [측정 2026-10-10, `docs/process/ops-host-record.md:54`] | 기본 8080 | argparse int | 포트 |
 
 환경 변수: `RESCUE_CONSOLE_SECRET`(세션 서명 비밀, 16자 이상), `RESCUE_CONSOLE_ADMIN_PASSWORD`(계정 초기화용, 없으면 프롬프트, `accounts.py:364-367`).
@@ -81,8 +83,8 @@ updated: 2026-10-13
 | `STATUS_STALE_S` | 5.0 | s | `view.py:75` | [제안] 관제·화면 2026-10-10 | 로봇 상태 낡음(표시 전용, 준비 판정 아님 C-05) |
 | `EVENT_ROWS` | 50 | 행 | `view.py:68` | [제안] 2026-10-08 | 사건 기록 표 최대 행 |
 | `HISTORY_ROWS` | 30 | 행 | `view.py:70` | [제안] 작전 2026-10-12 | 명령·오류 기록 최대 행(읽기 한도로도 씀) |
-| `COMMAND_TIMEOUT_S` | 5.0 | s | `commands.py:22` | [제안] 관제·화면 2026-10-12 | operations 답 대기(한 번) |
-| `MAX_ID` | 128 | 글자 | `commands.py:41` | — | 폼 `target_id` 최대 길이 |
+| `COMMAND_TIMEOUT_S` | 5.0 | s | `commands.py:23` | [제안] 관제·화면 2026-10-12 | operations 답 대기(한 번) |
+| `MAX_ID` | 128 | 글자 | `commands.py:42` | — | 폼 `target_id` 최대 길이 |
 | `LEDGER_READ_LIMIT`, `SITE_EVENT_READ_LIMIT` | 1000, 1000 | 행 | `sources.py:17`, `sources.py:20` | 읽기 함수 상한 | 장부·현장 사건 한 번 읽기 행 수 |
 | `LOGIN_MAX_FAILURES`, `LOGIN_WINDOW_S`, `LOGIN_LOCK_S`, `LOGIN_MAX_KEYS` | 5, 300, 60, 10000 | 회, s, s, 쌍 | `throttle.py:14-18` | [제안] 관제·화면 2026-10-10 | 로그인 반복 실패 잠금 |
 | `_ITERATIONS` | 200000 | 회 | `accounts.py:39` | — | PBKDF2 반복 |
@@ -99,12 +101,12 @@ updated: 2026-10-13
 
 | 이름 | 타입(자료구조) | 초기값 | 바뀌는 때(어느 함수) | 뜻 |
 | --- | --- | --- | --- | --- |
-| Flask 세션 쿠키 | 서명된 쿠키(키: `account_id`, `auth_version`, `csrf`, Flask 의 flash 목록) | 비어 있음 | `csrf_token`(`app.py:185-189`)이 처음 필요할 때 `csrf` 생성, 로그인 성공 때 비우고 `account_id`·`auth_version`·새 `csrf`(`app.py:276-279`), 로그아웃·무효 계정 때 비움(`app.py:181`, `app.py:286`) | 누가 로그인했나. 서버에 세션 저장소는 없다 |
+| Flask 세션 쿠키 | 서명된 쿠키(키: `account_id`, `auth_version`, `csrf`, Flask 의 flash 목록) | 비어 있음 | `csrf_token`(`app.py:198-202`)이 처음 필요할 때 `csrf` 생성, 로그인 성공 때 비우고 `account_id`·`auth_version`·새 `csrf`(`app.py:289-292`), 로그아웃·무효 계정 때 비움(`app.py:194`, `app.py:299`) | 누가 로그인했나. 서버에 세션 저장소는 없다 |
 | `throttle._entries` | dict: (소문자·앞뒤 공백 뺀 이름, 접속 주소) → {실패 시각 목록, 잠금 끝 시각} | 비어 있음 | `failed`·`succeeded`(`throttle.py:52-73`) | 프로세스 메모리에만, 재시작하면 사라짐 |
 | `LiveMap.image`, `_key`, `_error` | MapImage 또는 None, (mtime_ns, size) 또는 None, 오류 문구 또는 None | 모두 None | `LiveMap.current`(`mapimage.py:233-270`) | 마지막으로 잘 읽은 실시간 지도와 그 파일 열쇠 |
-| `map_image` | MapImage 또는 None | `--map` 이면 기동 때 읽은 지도 | 바뀌지 않음(`app.py:134`) | 고정 지도 |
+| `map_image` | MapImage 또는 None | `--map` 이면 기동 때 읽은 지도 | 바뀌지 않음(`app.py:145`) | 고정 지도 |
 | `_DUMMY` | 해시 문자열 하나를 담는 목록 | 비어 있음 | 없는 아이디 로그인 첫 시도 때(`accounts.py:56-60`) | 없는 아이디도 같은 비용을 치르게 하는 가짜 해시 |
-| `accounts`, `operations`, `transport`, `cameras`, `robot_names`, `support_dispatch`, `search_start`, `robot_watch_path`, `robot_watch_stale_s` | 설정 값 | 기동 때 | 바뀌지 않음(`app.py:123-147`, `:161-166`) | — |
+| `accounts`, `operations`, `transport`, `cameras`, `robot_names`, `support_dispatch`, `search_start`, `robot_watch_path`, `robot_watch_stale_s`, `robot_camera`, `robot_select` | 설정 값 | 기동 때 | 바뀌지 않음(`app.py:134-160`, `:174-179`) | — |
 
 화면 모델(요청마다 새로 만들고 버린다, 서버 캐시 없음): 6.1 절의 `/api/view` 표.
 
@@ -153,21 +155,23 @@ updated: 2026-10-13
 
 #### 5.1 HTTP 경로(브라우저 → 콘솔)
 
-모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 스스로 정하지 않았으면 `Cache-Control: no-store` 를 붙인다(`app.py:28-33`, `app.py:149-159`). 로그인이 없을 때 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands` 중 하나면 401 JSON `{"error": "login required"}`, 그 밖은 302 `/login`(`app.py:24`, `app.py:198-214`). 등록 안 된 경로는 Flask 기본 404, 틀린 메서드는 405.
+모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 스스로 정하지 않았으면 `Cache-Control: no-store` 를 붙인다(`app.py:30-35`, `app.py:162-172`). 로그인이 없을 때 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands` 중 하나면 401 JSON `{"error": "login required"}`, 그 밖은 302 `/login`(`app.py:26`, `app.py:211-227`). 등록 안 된 경로는 Flask 기본 404, 틀린 메서드는 405.
 
 | 메서드·경로 | 로그인 | 역할 | 입력 | 성공 응답 | 실패 응답 | 근거 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `GET /login` | 불필요 | — | 없음 | 로그인돼 있으면 302 `/`. 아니면 200 HTML 로그인 페이지(flash 표시, 숨은 csrf) | — | `app.py:246-251` |
-| `POST /login` | 불필요 | — | 폼 `csrf`, `username`, `password` | 302 `/` | CSRF 틀림 400(Flask 기본 HTML). 잠금이면 flash danger 「로그인을 너무 많이 틀렸습니다. {n}초 뒤에 다시 하세요.」+ 302 `/login`(비밀번호 확인 전). 틀림이면 flash danger 「아이디 또는 비밀번호가 틀립니다.」+ 302 `/login` | `app.py:253-280` |
-| `POST /logout` | 불필요 | — | 폼 `csrf` | 302 `/login`(세션 비움) | CSRF 틀림 400. `GET /logout` 은 405 | `app.py:282-287` |
-| `GET /` | 필요(302) | 모두 | 없음 | 200 HTML 전체 페이지 | 입력 읽기 실패 503 HTML 실패 페이지 | `app.py:290-296`, `app.py:238-239` |
-| `GET /fragment` | 필요(401) | 모두 | 없음 | 200 `text/html` 조각 | 503 `text/plain` 한 줄 `{코드}: {확인할 것} ({원문})` | `app.py:298-302`, `app.py:243` |
-| `GET /api/view` | 필요(401) | 모두 | 없음 | 200 JSON 화면 모델 | 503 JSON `{error, message, hint}` | `app.py:304-308`, `app.py:240-242` |
-| `GET /map.png` | 필요(401) | 모두 | 쿼리 `v` 는 무시(캐시 열쇠일 뿐) | 200 `image/png`, `Cache-Control: private, max-age=3600` | 지도 없음 404 | `app.py:310-321` |
-| `POST /commands` | 필요(401 JSON) | ADMIN | 폼 `csrf`, `kind`, 명령별 필드(5.2) | 200 JSON `sent: true` | 400·403·503·502 JSON `sent: false`(7.6 절) | `app.py:324-356` |
-| `GET /admin/accounts` | 필요(302) | ADMIN(아니면 403) | 없음 | 200 HTML 계정 관리 | — | `app.py:365-368`, `app.py:216-227` |
-| `POST /admin/accounts` | 필요(302) | ADMIN(403) | 폼 `csrf`, `username`, `password`, `role`(없으면 CUSTOMER), `display_name`, `email` | 303 `/admin/accounts` + flash success 「계정 {아이디} 추가」 | CSRF 400. 검사 실패는 flash danger 「추가 실패: {코드}: {문구}」+ 303 | `app.py:370-388` |
-| `POST /admin/accounts/{username}` | 필요(302) | ADMIN(403) | 폼 `csrf`, `_action`(`delete` 또는 `update`), update 때 `display_name`, `email`, `role`, `status`, `password`(빈 값 = 안 바꿈) | 303 + flash 「계정 {아이디} 삭제」(info) 또는 「계정 {아이디} 저장」(success) | CSRF 400. 다른 `_action` 400. 검사 실패 flash danger 「변경 실패: …」+ 303 | `app.py:390-415` |
+| `GET /login` | 불필요 | — | 없음 | 로그인돼 있으면 302 `/`. 아니면 200 HTML 로그인 페이지(flash 표시, 숨은 csrf) | — | `app.py:259-264` |
+| `POST /login` | 불필요 | — | 폼 `csrf`, `username`, `password` | 302 `/` | CSRF 틀림 400(Flask 기본 HTML). 잠금이면 flash danger 「로그인을 너무 많이 틀렸습니다. {n}초 뒤에 다시 하세요.」+ 302 `/login`(비밀번호 확인 전). 틀림이면 flash danger 「아이디 또는 비밀번호가 틀립니다.」+ 302 `/login` | `app.py:266-293` |
+| `POST /logout` | 불필요 | — | 폼 `csrf` | 302 `/login`(세션 비움) | CSRF 틀림 400. `GET /logout` 은 405 | `app.py:295-300` |
+| `GET /` | 필요(302) | 모두 | 없음 | 200 HTML 전체 페이지. 그리기 전에 ADMIN·`--camera`·`--operations` 면 웹캠 목록을, `--robot-camera` 면 로봇 카메라 상태를 한 번씩 묻는다(7.12) | 입력 읽기 실패 503 HTML 실패 페이지 | `app.py:303-323`, `app.py:251-252` |
+| `POST /robot-camera` | 필요(302) | 모두 | 폼 `csrf`, `robot` | 303 `/`(실패면 flash 「로봇 카메라 …」) | CSRF 400. `--robot-camera` 없으면 404 | `app.py:325-336` |
+| `POST /webcam` | 필요(302) | ADMIN(403) | 폼 `csrf`, `device` | 303 `/` + flash(성공·실패 문구 모두) | CSRF 400. `--operations` 없으면 503 | `app.py:338-349` |
+| `GET /fragment` | 필요(401) | 모두 | 없음 | 200 `text/html` 조각 | 503 `text/plain` 한 줄 `{코드}: {확인할 것} ({원문})` | `app.py:351-355`, `app.py:256` |
+| `GET /api/view` | 필요(401) | 모두 | 없음 | 200 JSON 화면 모델 | 503 JSON `{error, message, hint}` | `app.py:357-361`, `app.py:253-255` |
+| `GET /map.png` | 필요(401) | 모두 | 쿼리 `v` 는 무시(캐시 열쇠일 뿐) | 200 `image/png`, `Cache-Control: private, max-age=3600` | 지도 없음 404 | `app.py:363-374` |
+| `POST /commands` | 필요(401 JSON) | ADMIN | 폼 `csrf`, `kind`, 명령별 필드(5.2) | 200 JSON `sent: true` | 400·403·503·502 JSON `sent: false`(7.6 절) | `app.py:377-409` |
+| `GET /admin/accounts` | 필요(302) | ADMIN(아니면 403) | 없음 | 200 HTML 계정 관리 | — | `app.py:418-421`, `app.py:229-240` |
+| `POST /admin/accounts` | 필요(302) | ADMIN(403) | 폼 `csrf`, `username`, `password`, `role`(없으면 CUSTOMER), `display_name`, `email` | 303 `/admin/accounts` + flash success 「계정 {아이디} 추가」 | CSRF 400. 검사 실패는 flash danger 「추가 실패: {코드}: {문구}」+ 303 | `app.py:423-441` |
+| `POST /admin/accounts/{username}` | 필요(302) | ADMIN(403) | 폼 `csrf`, `_action`(`delete` 또는 `update`), update 때 `display_name`, `email`, `role`, `status`, `password`(빈 값 = 안 바꿈) | 303 + flash 「계정 {아이디} 삭제」(info) 또는 「계정 {아이디} 저장」(success) | CSRF 400. 다른 `_action` 400. 검사 실패 flash danger 「변경 실패: …」+ 303 | `app.py:443-468` |
 
 #### 5.2 폼 필드 검사
 
@@ -176,15 +180,15 @@ updated: 2026-10-13
 | 로그인 | `username` | 문자열 | 계정 DB 의 `username` 과 정확히 같아야 함(대소문자 구분). 잠금 열쇠는 소문자·공백 제거본(`throttle.py:40-42`) |
 | 로그인 | `password` | 문자열 | PBKDF2 비교(7.7) |
 | 계정 추가·수정 | `username` | 문자열 | 정규식 소문자로 시작 + 소문자·숫자·`_` `.` `-` 2~31자, 전체 3~32자(`accounts.py:30`, `:93-96`) |
-| 계정 추가·수정 | `password` | 문자열 | 8자 이상(`accounts.py:63-70`). 수정 때 빈 값은 안 바꿈(`app.py:409`) |
+| 계정 추가·수정 | `password` | 문자열 | 8자 이상(`accounts.py:63-70`). 수정 때 빈 값은 안 바꿈(`app.py:462`) |
 | 계정 추가·수정 | `role` | 문자열 | ADMIN 또는 CUSTOMER(`accounts.py:28`) |
 | 계정 수정 | `status` | 문자열 | ACTIVE 또는 INACTIVE(`accounts.py:29`) |
 | 계정 추가·수정 | `display_name` | 문자열 | 128자 이하, 줄바꿈 없음. 빈 값이면 아이디로 채움(`accounts.py:99-101`, `:234`, `:273-274`) |
 | 계정 추가·수정 | `email` | 문자열 | 128자 이하, 줄바꿈 없음, 빈 값 또는 `이름@호스트.최상위` 꼴(`accounts.py:32`, `:104-107`) |
-| 명령 | `kind` | 문자열 | `COMMAND_FIELDS` 의 다섯 종류 중 하나(`commands.py:26-32`, `:97-99`) |
-| 명령 | 그 밖 키 | — | `csrf`·`kind`·그 종류의 필드 말고 다른 키가 하나라도 있으면 거절(`commands.py:100-103`) |
-| 명령 | `target_id` | 문자열 | 1~128자, 출력 가능 문자, 공백 없음(`commands.py:77-80`). UUID 여부는 operations 가 본다 |
-| 명령 | `target_revision`, `route_revision`, `segment_index` | 10진 숫자 문자열 | ASCII 숫자만(음수·소수 없음) → 정수(`commands.py:83-88`). 상한은 operations 가 본다 |
+| 명령 | `kind` | 문자열 | `COMMAND_FIELDS` 의 다섯 종류 중 하나(`commands.py:27-33`, `:98-100`) |
+| 명령 | 그 밖 키 | — | `csrf`·`kind`·그 종류의 필드 말고 다른 키가 하나라도 있으면 거절(`commands.py:101-104`) |
+| 명령 | `target_id` | 문자열 | 1~128자, 출력 가능 문자, 공백 없음(`commands.py:78-81`). UUID 여부는 operations 가 본다 |
+| 명령 | `target_revision`, `route_revision`, `segment_index` | 10진 숫자 문자열 | ASCII 숫자만(음수·소수 없음) → 정수(`commands.py:84-89`). 상한은 operations 가 본다 |
 
 #### 5.3 파일 입력
 
@@ -200,7 +204,7 @@ updated: 2026-10-13
 
 #### 5.4 operations 의 답(명령 전송 뒤)
 
-`POST {operations}/api/operator-commands` 의 HTTP 상태와 본문(`commands.py:143-165`). 상태 코드와 상관없이 본문을 읽는다.
+`POST {operations}/api/operator-commands` 의 HTTP 상태와 본문(`commands.py:146-168`). 상태 코드와 상관없이 본문을 읽는다.
 
 | 필드 | 타입 | 검사 |
 | --- | --- | --- |
@@ -210,11 +214,11 @@ updated: 2026-10-13
 
 #### 5.5 웹캠 MJPEG(브라우저가 직접 받음)
 
-`<img src={URL}>` 의 `load` 사건(프레임마다 1회로 관찰됨 [측정 2026-10-13, Firefox, `render.py:1137-1140`])과 `error` 사건만 쓴다. Chrome 의 프레임별 load 동작은 [미확인] (`README:51`).
+`<img src={URL}>` 의 `load` 사건(프레임마다 1회로 관찰됨 [측정 2026-10-13, Firefox, `render.py:1137-1140`])과 `error` 사건만 쓴다. Chrome 의 프레임별 load 동작은 [미확인] (`README:52`).
 
 ### 6. 출력
 
-언제 내는가: 서버는 스스로 아무것도 내지 않는다. 모든 HTTP 응답은 요청이 올 때 한 번이고(브라우저가 1초마다 `/fragment` 를 부른다), operations 로 가는 POST 는 ADMIN 이 「보내기」를 누를 때 한 번, 계정 DB 쓰기는 ADMIN 의 계정 폼 제출 때 한 번이다. 재시도·주기 발행은 없다.
+언제 내는가: 서버는 스스로 아무것도 내지 않는다. 모든 HTTP 응답은 요청이 올 때 한 번이고(브라우저가 1초마다 `/fragment` 를 부른다), operations 로 가는 명령 POST 는 ADMIN 이 「보내기」를 누를 때 한 번, 웹캠 바꾸기 POST 는 ADMIN 이 확인 창에서 고를 때 한 번, 로봇 카메라 `/select` POST 는 누가 고를 때 한 번이다. 웹캠 목록·로봇 카메라 상태 GET 은 **전체 페이지(`GET /`)를 그릴 때마다** 한 번씩이고 1초 폴링에는 없다. 계정 DB 쓰기는 ADMIN 의 계정 폼 제출 때 한 번이다. 재시도·주기 발행은 없다.
 
 #### 6.1 `/api/view` JSON = 화면 모델(`view.py:770-790`)
 
@@ -238,7 +242,7 @@ updated: 2026-10-13
 | `history` | 객체 또는 null | 7.4.5 |
 | `warnings` | 문자열 배열 | 각 절에서 붙인 「확인할 것」 |
 
-#### 6.2 `POST /commands` 응답 JSON(`app.py:334-356`, `commands.py:168-175`)
+#### 6.2 `POST /commands` 응답 JSON(`app.py:387-409`, `commands.py:171-178`)
 
 | 경우 | HTTP | 본문 |
 | --- | --- | --- |
@@ -251,16 +255,27 @@ updated: 2026-10-13
 
 #### 6.3 operations 로 보내는 요청(명령 한 건당 정확히 한 번)
 
-- `POST {--operations}/api/operator-commands`, 헤더 `Content-Type: application/json`, `Accept: application/json`, 대기 5.0 s(`commands.py:115-118`, `commands.py:19-22`). 본문은 아래 키만:
+- `POST {--operations}/api/operator-commands`, 헤더 `Content-Type: application/json`, `Accept: application/json`, 대기 5.0 s(`commands.py:116-121`, `commands.py:19-23`). 본문은 아래 키만:
 
 | 필드 | 타입 | 값 |
 | --- | --- | --- |
-| `command_id` | 문자열 | 누를 때마다 새 UUID4(`app.py:348`). 같은 명령을 다시 눌러도 새 ID |
+| `command_id` | 문자열 | 누를 때마다 새 UUID4(`app.py:401`). 같은 명령을 다시 눌러도 새 ID |
 | `kind` | 문자열 | 폼 `kind` |
-| `operator_id` | 문자열 | 로그인 계정의 `username`(`app.py:348`). 폼에서 받지 않음 |
+| `operator_id` | 문자열 | 로그인 계정의 `username`(`app.py:401`). 폼에서 받지 않음 |
 | `target_id` | 문자열 | DISPATCH_SUPPORT·CONTINUE_SEGMENT·REQUEST_RECHECK 만. 운영자가 화면에서 본 값 |
 | `target_revision` | 정수 | DISPATCH_SUPPORT·CONTINUE_SEGMENT 만 |
 | `route_revision`, `segment_index` | 정수 | CONTINUE_SEGMENT 만 |
+
+#### 6.3a 웹캠·로봇 카메라 요청
+
+| 요청 | 본문 | 대기 | 근거 |
+| --- | --- | --- | --- |
+| `GET {--operations}/api/webcam` | 없음 | 1.0 s(`WEBCAM_LIST_TIMEOUT_S`) | `commands.py:181`, `:184-193` |
+| `POST {--operations}/api/webcam` | `{device: 고른 이름, operator_id: 로그인 계정}` | 5.0 s | `commands.py:222-235` |
+| `GET {robot_select}`(= `--robot-camera` 의 host:port + `/select`) | 없음 | 1.0 s | `commands.py:196-205` |
+| `POST {robot_select}` | `{robot: 고른 robot_id}` | 1.0 s | `commands.py:208-219` |
+
+넷 다 `post_json`(본문이 None 이면 GET)을 한 번 부르고 다시 보내지 않는다(`commands.py:116-139`). 답 계약은 I-6·I-7.
 
 #### 6.4 계정 DB 쓰기
 
@@ -270,23 +285,25 @@ updated: 2026-10-13
 
 | 언제 | 어디 | 문구 |
 | --- | --- | --- |
-| 기동 실패 | 표준 오류, 종료코드 2 | `CONSOLE FAILED: {코드}: {문구}`(`__main__.py:86-88`) |
-| `--operations` 없음 | 표준 오류 | `operations 주소 없음: 명령 비활성 (--operations URL 로 켬)`(`__main__.py:89-91`) |
-| 명령을 보내기 전에 거절 | Flask logger warning | `command refused before sending: {코드} {문구} ({아이디})`(`app.py:335`) |
-| 명령 보냄 | 성공이면 info, 실패면 warning | `operator command {kind} {command_id} by {아이디} -> {나머지 결과}`(`app.py:352-354`) |
+| 기동 실패 | 표준 오류, 종료코드 2 | `CONSOLE FAILED: {코드}: {문구}`(`__main__.py:90-92`) |
+| `--operations` 없음 | 표준 오류 | `operations 주소 없음: 명령 비활성 (--operations URL 로 켬)`(`__main__.py:93-95`) |
+| 명령을 보내기 전에 거절 | Flask logger warning | `command refused before sending: {코드} {문구} ({아이디})`(`app.py:388`) |
+| 웹캠 바꾸기 | 성공이면 info, 실패면 warning | `webcam switch by {아이디}: {문구}`(`app.py:347`) |
+| 로봇 카메라 고르기 실패 | warning | `robot camera pick by {아이디}: {문구}`(`app.py:334`) |
+| 명령 보냄 | 성공이면 info, 실패면 warning | `operator command {kind} {command_id} by {아이디} -> {나머지 결과}`(`app.py:405-407`) |
 | 계정 init | 표준 출력 또는 표준 오류(2) | `created {파일} with ADMIN {아이디}` 또는 `ACCOUNTS FAILED: …`(`accounts.py:368-374`) |
 
 기동 때 git SHA 를 남기는 코드는 없다(검색: `grep -nwi "git" src/rescue_console/rescue_console/*.py`, `grep -n "rev-parse\|subprocess"` 같은 파일들 — 둘 다 결과 없음. 단어 경계 없는 `grep -n "git"` 은 `commands.py` 의 「digit」 주석에 걸린다).
 
 #### 6.6 화면 배치(칸 단위)
 
-페이지는 외부 자원을 하나도 읽지 않는다(CSS·JS 모두 인라인, `render.py:1100-1104`, `render.py:1223-1231`). HTML 뼈대(`render.py:1214-1231`, `render.py:506-509`):
+페이지는 외부 자원을 하나도 읽지 않는다(CSS·JS 모두 인라인, `render.py:1100-1104`, `render.py:1268-1277`). HTML 뼈대(`render.py:1258-1277`, `render.py:506-509`):
 
 | 순서 | 요소 | 안에 든 것 | 갱신 |
 | --- | --- | --- | --- |
 | 1 | `main.console` | 아래 3개 | — |
 | 1.1 | `section#topbar` | `p#poll`(처음 「연결 중」), 쓰이지 않는 `div#poll-error`(숨김), `div.kpi`(`p#kpi` + 「지연 기록 저장」 버튼), `nav.who`(표시 이름(역할), ADMIN 이면 「계정 관리」 링크, 로그아웃 폼) | 페이지 고정, 스크립트가 글자만 바꿈 |
-| 1.2 | `aside#side` | `section#cameras`(웹캠) 다음 `section#commands`(명령 칸) | 페이지 고정(폴링이 다시 그리지 않음) |
+| 1.2 | `aside#side` | `section#cameras`(웹캠 + ADMIN 의 카메라 고르기), `section#robot-camera`(`--robot-camera` 일 때), `section#commands`(명령 칸) 순서 | 페이지 고정(폴링이 다시 그리지 않음) |
 | 1.3 | `div#live`(`display: contents`) | 조각: `section#mission`, `section#warnings`, `section#map`, `div#middle`(`section#robots`, `section#targets`), `section#events`, `section#history`, 숨은 `div#gates`(관문 JSON) | 1초마다 통째로 교체 |
 | 2 | `script` | 폴링·KPI·명령 칸 스크립트, 카메라가 있으면 카메라 감시 스크립트 | — |
 
@@ -297,20 +314,20 @@ updated: 2026-10-13
 | 임무 띠 `#mission` | band | 1행, 왼쪽 두 열 | 모드 낱말(큰 글씨), 사실 줄(트리거·경과·진동 감지 건수·단계·구간·사유), 모드 설명, 오른쪽 끝 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
 | 위쪽 막대 `#topbar` | top | 1행, 오른쪽 열 | 갱신 상태, KPI-04 요약·저장, 사용자 |
 | 확인할 것 `#warnings` | warn | 2행, 왼쪽 두 열 | 경고가 없으면 숨김. 「확인할 것 {n}」 + 경고를 「／」로 이어 한 줄 |
-| 옆 칸 `#side` | side | 2~4행, 오른쪽 열 | 위 웹캠, 아래 명령 칸 |
+| 옆 칸 `#side` | side | 2~4행, 오른쪽 열 | 위 웹캠, 가운데 로봇 카메라, 아래 명령 칸 |
 | 지도 `#map` | map | 3행, 왼쪽 열 | 범례, SVG 지도(요구조자·출구(QR) 관측·로봇 표식), 지도 설명 줄, 「지도에 그리지 못한 위치」 목록 |
 | 가운데 `#middle` | middle | 3행, 가운데 열 | 위 로봇 카드(넘치면 그 안에서 스크롤), 아래 요구조자(최소 240px) |
 | 사건 기록 `#events` | log | 4행, 왼쪽 열 | 사건 표(안에서 스크롤) |
 | 명령·오류 기록 `#history` | hist | 4행, 가운데 열 | 기록 표(안에서 스크롤) |
 
 - 창 폭 1400px 이상이고 높이 820px 이상이면 격자가 창 높이에 고정되고 페이지는 스크롤되지 않는다(`render.py:576`). 폭이 1399px 이하이면 한 열로 쌓이고 순서는 위쪽 막대 → 임무 띠 → 확인할 것 → 지도 → 옆 칸 → 가운데 → 사건 기록 → 명령·오류 기록(`render.py:577-580`). 폭 1400px 이상·높이 820px 미만은 세 열 그대로이고 페이지가 세로로 스크롤된다.
-- 색은 의미에만 쓴다: 신호 빨강 = 재난·정지·실패, 구조 주황 = 미구조, 안내 파랑 = 지원 중·SUPPORT 로봇·승인 버튼·자동 상태 줄, 안전 초록 = 구출 완료·출구(QR) 관측, 회색 점선 = 미확정, 경고 노랑 = 낡음·끊김·확인할 것(`render.py:550-555`, `:614`, `:641`, `README:108-115`).
+- 색은 의미에만 쓴다: 신호 빨강 = 재난·정지·실패, 구조 주황 = 미구조, 안내 파랑 = 지원 중·SUPPORT 로봇·승인 버튼·자동 상태 줄, 안전 초록 = 구출 완료·출구(QR) 관측, 회색 점선 = 미확정, 경고 노랑 = 낡음·끊김·확인할 것(`render.py:550-555`, `:614`, `:641`, `README:109-116`).
 
 칸별 내용 규칙은 7.10 절.
 
 ### 7. 처리 명세
 
-#### 7.1 `main` (`__main__.py:17-94`) — 명령행 → 서버 기동
+#### 7.1 `main` (`__main__.py:17-98`) — 명령행 → 서버 기동
 
 1. 3절 표대로 인자를 읽는다. argparse 오류는 argparse 기본 동작(사용법 출력, 종료코드 2).
 2. `--secret-env` 가 가리키는 환경 변수를 읽는다. 없거나 빈 문자열이면 `CONFIG_MISSING` 「set {변수} to a random string of 16+ characters」.
@@ -322,35 +339,35 @@ updated: 2026-10-13
 8. `--operations` 가 없으면 표준 오류에 안내 한 줄.
 9. Flask 개발 서버를 `--host`·`--port` 로 디버그 끈 채 띄운다. 서버가 끝나면 0.
 
-#### 7.2 `create_app` (`app.py:111-417`) — 설정 검사와 라우트 등록
+#### 7.2 `create_app` (`app.py:121-470`) — 설정 검사와 라우트 등록
 
 기동 검사 순서(앞에서 실패하면 뒤는 하지 않음):
 1. 카메라 끊김 시간 검사(`camera_stale_ms`) — Flask import 전에.
 2. Flask import. 실패면 `DEPENDENCY_MISSING` 「Flask is required for the web console: python3 -m pip install flask」.
 3. 비밀이 문자열이고 16자 이상. 아니면 `CONFIG_MISSING`.
-4. 입력 원천: `--site-state` 와 `--status` 동시 → `INVALID_INPUT`, 장부·현장 상태 둘 다 없음 → `INVALID_INPUT`(`app.py:36-47`).
+4. 입력 원천: `--site-state` 와 `--status` 동시 → `INVALID_INPUT`, 장부·현장 상태 둘 다 없음 → `INVALID_INPUT`(`app.py:38-49`).
 5. `AccountStore.open`(7.7).
 6. `--map` 이 있으면 `load_map`(실패가 곧 기동 실패).
 7. `--map` 과 `--live-map` 동시 → `INVALID_INPUT` 「--map and --live-map are exclusive: one map panel」.
 8. `--live-map` 이 있으면 `LiveMap` 생성(파일은 아직 없어도 됨).
 9. `--operations` 가 있으면 `parse_operations_url`.
-10. Flask 앱: 비밀 키, 세션 쿠키 `HttpOnly`·`SameSite=Lax`(`app.py:141-146`). `Secure` 는 켜지 않는다(http 운영). 세션은 브라우저 세션 쿠키다 [문서: Flask 기본값, `permanent` 를 쓰지 않음].
+10. Flask 앱: 비밀 키, 세션 쿠키 `HttpOnly`·`SameSite=Lax`(`app.py:154-159`). `Secure` 는 켜지 않는다(http 운영). 세션은 브라우저 세션 쿠키다 [문서: Flask 기본값, `permanent` 를 쓰지 않음].
 11. 장부·현장 상태·픽스처 파일은 여기서 열지 않는다. 처음 요청에서 실패가 드러난다.
 
 인증 규칙:
-- `user()`(`app.py:169-183`): 세션에 `account_id` 가 없으면 익명. 있으면 그 ID 로 계정 행을 찾고, 행이 없거나 `status` ≠ ACTIVE 이거나 행의 `auth_version` ≠ 세션 `auth_version` 이면 세션을 비우고 익명. 그래서 계정 삭제 뒤 같은 이름으로 다시 만들어도(새 `account_id`), 비밀번호·역할·상태가 바뀌어도(`auth_version` +1) 이전 쿠키는 서버에서 거절된다.
+- `user()`(`app.py:182-196`): 세션에 `account_id` 가 없으면 익명. 있으면 그 ID 로 계정 행을 찾고, 행이 없거나 `status` ≠ ACTIVE 이거나 행의 `auth_version` ≠ 세션 `auth_version` 이면 세션을 비우고 익명. 그래서 계정 삭제 뒤 같은 이름으로 다시 만들어도(새 `account_id`), 비밀번호·역할·상태가 바뀌어도(`auth_version` +1) 이전 쿠키는 서버에서 거절된다.
 - `login_required`: 익명이면 5.1 의 401/302 규칙. `admin_required`: 로그인 + 역할이 ADMIN 이 아니면 403 「admin only」.
-- CSRF: 세션당 토큰 하나(`secrets.token_urlsafe` 32 byte 난수, 처음 필요할 때 생성, 로그인 성공 때 새로 생성). 검사는 폼 `csrf` 와 세션 `csrf` 를 상수 시간 비교, 세션에 없으면 비교 대상은 `-` 라 빈 폼은 늘 틀림(`app.py:191-196`). `/login`·`/logout`·`/admin/*` 는 400 으로 끊고 `/commands` 는 JSON 400 으로 답한다.
-- `ConsoleError` 처리기(`app.py:229-243`): 요청 경로가 `/` 이면 503 HTML 실패 페이지, `/api/` 로 시작하면 503 JSON(`hint` 는 코드별 확인할 것), 그 밖(`/fragment`, `/map.png` 등)은 503 `text/plain` 한 줄. 어느 쪽도 빈 정상 화면처럼 보이지 않는다.
+- CSRF: 세션당 토큰 하나(`secrets.token_urlsafe` 32 byte 난수, 처음 필요할 때 생성, 로그인 성공 때 새로 생성). 검사는 폼 `csrf` 와 세션 `csrf` 를 상수 시간 비교, 세션에 없으면 비교 대상은 `-` 라 빈 폼은 늘 틀림(`app.py:204-209`). `/login`·`/logout`·`/admin/*` 는 400 으로 끊고 `/commands` 는 JSON 400 으로 답한다.
+- `ConsoleError` 처리기(`app.py:242-256`): 요청 경로가 `/` 이면 503 HTML 실패 페이지, `/api/` 로 시작하면 503 JSON(`hint` 는 코드별 확인할 것), 그 밖(`/fragment`, `/map.png` 등)은 503 `text/plain` 한 줄. 어느 쪽도 빈 정상 화면처럼 보이지 않는다.
 
-#### 7.3 `current_view` (`app.py:50-82`) + `load_site_state` (`sources.py:75-99`) — 한 번의 폴링 입력
+#### 7.3 `current_view` (`app.py:52-84`) + `load_site_state` (`sources.py:75-99`) — 한 번의 폴링 입력
 
 1. 입력 원천 규칙을 다시 확인(`_check_sources`).
 2. 상태 = `--site-state` 가 있으면 `load_site_state`, 아니면 `load_status`(픽스처, 경로가 없으면 빈 객체).
-3. 장부 경로가 있으면 `load_ledger`, 없으면 None. `--robot-watch` 면 `load_robot_watch` 의 (data, problem) 에 `stale_s` 를 붙인 객체, 없으면 None(`app.py:63-64`).
-4. `build_view` 에 장부·상태·서버 현재 ns(`built_at_ns`)·표시 이름·`--support-dispatch`·`--search-start` 값과 직접 관측 객체를 넘겨 화면 모델을 만든다(7.4, `app.py:65-66`).
+3. 장부 경로가 있으면 `load_ledger`, 없으면 None. `--robot-watch` 면 `load_robot_watch` 의 (data, problem) 에 `stale_s` 를 붙인 객체, 없으면 None(`app.py:65-66`).
+4. `build_view` 에 장부·상태·서버 현재 ns(`built_at_ns`)·표시 이름·`--support-dispatch`·`--search-start` 값과 직접 관측 객체를 넘겨 화면 모델을 만든다(7.4, `app.py:67-68`).
 5. `--live-map` 이면 `LiveMap.current` 로 (지도, live 상태)를 얻는다.
-6. 지도가 있으면 `map` 을 `map_overlay`(지도 meta, 로봇 행, 대상 행, 화면 모델 `exit`, 화면 모델 `passages`) 결과로 바꾸고(`app.py:71`), 다른 frame 좌표마다 경고 「지도에 안 그림: {robot·target·exit·passage} {ID} frame '{frame}' ≠ 지도 frame」, 지도 밖 좌표마다 「지도 밖 좌표: {kind} {ID} ({x}, {y})」(소수 둘째 자리)를 붙인다. 출구의 ID 는 「출구(QR)」다.
+6. 지도가 있으면 `map` 을 `map_overlay`(지도 meta, 로봇 행, 대상 행, 화면 모델 `exit`, 화면 모델 `passages`) 결과로 바꾸고(`app.py:73`), 다른 frame 좌표마다 경고 「지도에 안 그림: {robot·target·exit·passage} {ID} frame '{frame}' ≠ 지도 frame」, 지도 밖 좌표마다 「지도 밖 좌표: {kind} {ID} ({x}, {y})」(소수 둘째 자리)를 붙인다. 출구의 ID 는 「출구(QR)」다.
 7. live 가 있으면 `map.live` 로 붙이고 `message` 가 비지 않았으면 경고에도 붙인다.
 - `load_site_state` 는 9개 읽기를 차례로 따로 열어 읽는다(5.3). 한 번의 폴링에서 표끼리 한 행씩 어긋날 수 있다(다음 폴링에서 맞춰짐, `sources.py:78-82`). 어느 하나라도 `OperationsError` 면 전체가 `STORAGE_ERROR` 다. 역할·스키마가 다른 DB(`POLICY_MISMATCH`)도 화면에는 `STORAGE_ERROR` 로 보인다.
 - 한 폴링의 비용: 현장 상태 DB 연결 9번 + (장부 1번) + (직접 관측 파일 읽기 1번) + 계정 DB 연결 1번(`user()`) + 실시간 지도 stat 1~2번.
@@ -375,7 +392,7 @@ updated: 2026-10-13
 13. 명령 낱말: 지원 이름이 있으면 DISPATCH_SUPPORT 낱말 = 「{지원 이름} 출동 승인」, 없으면 「SUPPORT 출동 승인」(`view.py:491-496`).
 14. `mission.reason_view` = `mission_reason` 에 사유·지원 이름·정찰 이름을 넘긴 결과(7.4.6).
 15. `history`(7.4.5).
-16. 자동 수색 불일치 경고(`view.py:763-767`): 사유 목록 = `history` 행들의 `reason`(기록이 None 이면 빈 목록, 오류 행은 None) + 임무 행의 `reason`. `search_start` 가 AUTO 가 아니고(OPERATOR 또는 없음) 이 목록에 `AUTO_SEARCH_ENABLED` 가 있으면 경고 「조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요」. 그 거절 명령이 최근 30행에 남아 있는 동안 경고도 남는다. 반대(콘솔 AUTO, 조정기 OPERATOR)는 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없다(`README:49`).
+16. 자동 수색 불일치 경고(`view.py:763-767`): 사유 목록 = `history` 행들의 `reason`(기록이 None 이면 빈 목록, 오류 행은 None) + 임무 행의 `reason`. `search_start` 가 AUTO 가 아니고(OPERATOR 또는 없음) 이 목록에 `AUTO_SEARCH_ENABLED` 가 있으면 경고 「조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요」. 그 거절 명령이 최근 30행에 남아 있는 동안 경고도 남는다. 반대(콘솔 AUTO, 조정기 OPERATOR)는 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없다(`README:50`).
 17. `exit` = `_exit`(`view.py:650-657`, `:768`): `exit_locations` 절(모양 검사는 2번, 목록 키 `exits`)이 없거나 목록이 비면 None, 아니면 첫 행(읽기가 최신 순 1행)에서 {location_id, x, y, frame_id = `mission_frame`, observed_at_ns, map_revision}. 행 값은 다시 검사하지 않는다. `passages` = `_passages`(7.4.8, `view.py:769`).
 18. `commands` = `command_gates`(7.5)에 지원 이름·정찰 이름·`support_dispatch`·`search_start` 를 넘긴 결과, `map` 기본값 「지도 스냅샷 미연결」, `support_dispatch`·`search_start` 는 인자 그대로.
 
@@ -503,7 +520,7 @@ updated: 2026-10-13
 
 #### 7.5 `_gate` (`view.py:530-595`) + `command_gates` (`view.py:598-623`) — 버튼별 활성 관문 거울
 
-명령 목록과 묶음(`view.py:38-56`): 승인 묶음 = 수색 시작 START_SEARCH, 출동 승인 DISPATCH_SUPPORT, 다음 구간 계속 CONTINUE_SEGMENT. 임무 묶음 = 재확인 지시 REQUEST_RECHECK, 복귀 RETURN_HOME, 일시정지 PAUSE, 재개 RESUME, 작업 취소 CANCEL. 정지 묶음 = 정지 STOP_ROBOT. 보낼 수 있는 것은 앞 다섯뿐(`commands.py:26-33`).
+명령 목록과 묶음(`view.py:38-56`): 승인 묶음 = 수색 시작 START_SEARCH, 출동 승인 DISPATCH_SUPPORT, 다음 구간 계속 CONTINUE_SEGMENT. 임무 묶음 = 재확인 지시 REQUEST_RECHECK, 복귀 RETURN_HOME, 일시정지 PAUSE, 재개 RESUME, 작업 취소 CANCEL. 정지 묶음 = 정지 STOP_ROBOT. 보낼 수 있는 것은 앞 다섯뿐(`commands.py:27-34`).
 
 판정 순서(첫 번째로 걸리는 것이 답):
 1. `HELD_COMMANDS`(`view.py:58-63`): PAUSE·RESUME·CANCEL → 끔 「Q-22 재개 관문 전」, STOP_ROBOT → 끔 「RequestStop 별도 경로 — 위험하면 현장 비상 정지 장치」. 상태와 무관하게 늘 끔.
@@ -512,7 +529,7 @@ updated: 2026-10-13
 4. 명령별 규칙(아래).
 5. `command_gates`(`view.py:604-622`)는 명령마다 먼저 1~4 로 판정한 뒤, 두 AUTO 검사를 이 순서로 본다. 결과를 버리고 상태 행으로 바꾼다(`args` {}, `choices` [], 꺼짐, `auto: true`). 화면은 버튼 대신 점선 상자 한 줄을 그린다.
    - DISPATCH_SUPPORT 이고 `--support-dispatch AUTO`(`view.py:606-613`): 낱말 「{S} 자동 출동」, 사유 「{S} 자동 출동 — 조정기가 보냄」.
-   - START_SEARCH 이고 `--search-start AUTO`(`view.py:614-620`): 낱말 「{C} 자동 출발」({C} = 정찰 이름, 없으면 「SCOUT」), 사유 「{C} 자동 출발 — 지진 감지로 조정기가 수색 시작」. 조정기는 이때 운영자의 START_SEARCH 를 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절한다(`README:49`).
+   - START_SEARCH 이고 `--search-start AUTO`(`view.py:614-620`): 낱말 「{C} 자동 출발」({C} = 정찰 이름, 없으면 「SCOUT」), 사유 「{C} 자동 출발 — 지진 감지로 조정기가 수색 시작」. 조정기는 이때 운영자의 START_SEARCH 를 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절한다(`README:50`).
    - 두 검사는 행 이름이 달라 한 행에 둘 다 걸리지 않는다. 행 순서는 `COMMANDS` 순서 그대로라 승인 묶음에서 수색 시작 상태 줄이 출동 승인(버튼 또는 상태 줄) 위에 온다.
 
 명령 × phase(모드 DISASTER 이고 임무 행이 있을 때). 「D」「C」「R」 은 phase 와 무관한 조건이다. `--search-start AUTO` 면 「수색 시작」 열이, `--support-dispatch AUTO` 면 「출동 승인」 열이 모드·phase 와 무관하게 5번의 상태 행이다(1~3 에서 꺼진 경우도).
@@ -539,17 +556,17 @@ updated: 2026-10-13
 - R(재확인 지시): `rescue_state` 가 RESCUE_CONFIRMED 가 아닌 대상(상태가 없는 대상 포함)이 선택지, 없으면 끔 「재확인할 대상 없음」, 있으면 켬 「대상 {k}명 중 고름」.
 - 브라우저의 최종 활성(`render.py:959`): 버튼이 눌리려면 (ADMIN 이고 `--operations` 있음) 이고 관문 켬이고 갱신 끊김이 아니고 전송 중이 아니고 확인 칸이 닫혀 있어야 한다. 끊김이면 모든 버튼의 사유 글자가 「갱신 끊김 — 화면이 최신이 아니라 꺼 둠」으로 바뀐다. 관문 정보가 없는 버튼은 꺼짐 「관문 정보 없음」. AUTO 상태 줄은 `data-command` 가 없는 `<p>` 라 이 규칙 밖이다(`render.py:955`; 관문 JSON 에는 꺼짐으로 남는다).
 
-#### 7.6 명령 보내기 — `POST /commands` (`app.py:324-356`), `build_request` (`commands.py:91-112`), `post_json` (`commands.py:115-136`), `read_reply` (`commands.py:143-165`), `send_command` (`commands.py:168-175`)
+#### 7.6 명령 보내기 — `POST /commands` (`app.py:377-409`), `build_request` (`commands.py:92-113`), `post_json` (`commands.py:116-139`), `read_reply` (`commands.py:146-168`), `send_command` (`commands.py:171-178`)
 
 라우트 순서:
 1. 로그인 확인(익명이면 401 JSON).
 2. CSRF 확인 → 틀리면 400 `CSRF`.
-3. `command_access` 에 역할과 operations 주소 유무를 넘김(`commands.py:68-74`): 역할이 ADMIN 이 아니면 403 `NOT_AUTHORIZED`, ADMIN 인데 주소가 없으면 503 `NOT_CONNECTED`. 켜졌을 때 칸 위 안내 「누르면 operations 로 한 번 보냅니다. 받을지는 조정기가 정합니다」.
+3. `command_access` 에 역할과 operations 주소 유무를 넘김(`commands.py:69-75`): 역할이 ADMIN 이 아니면 403 `NOT_AUTHORIZED`, ADMIN 인데 주소가 없으면 503 `NOT_CONNECTED`. 켜졌을 때 칸 위 안내 「누르면 operations 로 한 번 보냅니다. 받을지는 조정기가 정합니다」.
 4. `build_request`: `kind` 가 다섯 종류 밖이면 `INVALID_INPUT` 「command '{kind}' is not sendable from the console」(PAUSE 등 보류 명령도 여기서 걸림). 그 종류가 받지 않는 키가 있으면 「{kind} does not take {키들}」. 필드마다 정수 필드는 `_count`, `target_id` 는 `_target_id`. 실패는 400.
 5. `send_command`: 주소 + `/api/operator-commands` 로 `post_json` 한 번, 그 결과를 `read_reply`.
 6. 성공이면 200, 실패면 502. 다시 보내지 않는다.
 
-`post_json` 실패 분류(`commands.py:119-136`):
+`post_json` 실패 분류(`commands.py:122-139`):
 
 | 상황 | 코드 | delivery |
 | --- | --- | --- |
@@ -689,10 +706,22 @@ KPI-04(`render.py:814-866`): `stamp` 가 사건 행마다 처음 본 시각을 �
 
 카메라 감시(`render.py:1141-1167`): 카메라 칸마다 `last`·`retried` = 로드 시각. 프레임 `load` 마다 `last` = 지금, 끊김 표시가 있으면 지움. 주기 max(100, min(500, stale ÷ 2)) ms 로 검사해 지금 − `last` ≥ stale 이면 끊김 표시(「영상 끊김」), 그리고 지금 − `retried` ≥ stale 이면 `retried` = 지금, `src` = 원래 주소 + (`?` 또는 `&`) + `_r={지금}` 으로 다시 연결.
 
-실패 페이지(`render.py:1200-1211`): 503, 제목 「[화면 오류] 구조 관제」, 5 s 자동 새로고침, 「화면을 그릴 수 없습니다」, 코드별 확인할 것(STORAGE_ERROR·INVALID_INPUT·POLICY_MISMATCH 세 가지, 그 밖 「콘솔을 띄운 터미널의 로그를 확인하세요.」, `render.py:62-67`), 코드 + 원문, 「5초마다 다시 시도합니다. 로봇은 이 화면과 상관없이 동작하므로, 위험하면 현장 비상 정지 장치를 쓰세요.」.
+실패 페이지(`render.py:1244-1255`): 503, 제목 「[화면 오류] 구조 관제」, 5 s 자동 새로고침, 「화면을 그릴 수 없습니다」, 코드별 확인할 것(STORAGE_ERROR·INVALID_INPUT·POLICY_MISMATCH 세 가지, 그 밖 「콘솔을 띄운 터미널의 로그를 확인하세요.」, `render.py:62-67`), 코드 + 원문, 「5초마다 다시 시도합니다. 로봇은 이 화면과 상관없이 동작하므로, 위험하면 현장 비상 정지 장치를 쓰세요.」.
 
-로그인 페이지(`render.py:1234-1242`): 「구조 관제 로그인」, flash, 폼(숨은 csrf, 아이디, 비밀번호, 「로그인」).
-계정 관리(`render.py:1245-1280`): 머리(「구조 관제」 + 사용자 메뉴), flash, 「계정 추가」 폼(아이디, 표시 이름, 이메일, 역할 기본 CUSTOMER, 비밀번호 8자 이상), 계정 표(아이디 · 수정 폼[표시 이름, 이메일, 역할, 상태, 새 비밀번호(선택), 저장] · 삭제 버튼(브라우저 확인 「삭제할까요?」, 본인 행은 「본인」) · 갱신 시각), 「관제 화면으로」 링크.
+로그인 페이지(`render.py:1280-1288`): 「구조 관제 로그인」, flash, 폼(숨은 csrf, 아이디, 비밀번호, 「로그인」).
+계정 관리(`render.py:1291-1326`): 머리(「구조 관제」 + 사용자 메뉴), flash, 「계정 추가」 폼(아이디, 표시 이름, 이메일, 역할 기본 CUSTOMER, 비밀번호 8자 이상), 계정 표(아이디 · 수정 폼[표시 이름, 이메일, 역할, 상태, 새 비밀번호(선택), 저장] · 삭제 버튼(브라우저 확인 「삭제할까요?」, 본인 행은 「본인」) · 갱신 시각), 「관제 화면으로」 링크.
+
+#### 7.12 웹캠 고르기 · 로봇 카메라 칸 — `app.py:303-349`, `commands.py:181-235`, `render.py:1170-1231`
+
+웹캠 고르기(OPS-183, ADMIN 만):
+1. `GET /` 에서 `--camera` 가 있고 `--operations` 가 있고 계정이 ADMIN 이면 `webcam_state` 로 목록을 묻는다(`app.py:308-310`). 답이 200 이 아니거나 `cameras` 가 배열이 아니거나 보내기·읽기에 실패하면 목록 없이 문구 「카메라 목록을 못 받음: {사유}」(`commands.py:184-193`).
+2. 웹캠 칸 아래(`_webcam_picker`, `render.py:1190-1205`): 문구가 있으면 그 문구만. 아니면 `<select name=device>`(지금 장치가 선택됨) + 「카메라 바꾸기」. 제출 전 브라우저 `confirm`: 「카메라를 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀립니다. 바꿀까요?」, 모드가 DISASTER 면 앞에 「임무 진행 중(재난 모드)입니다.」를 더한다.
+3. `POST /webcam`(`app.py:338-349`): CSRF, `--operations` 없으면 503, `switch_webcam` 을 한 번(`commands.py:222-235`). 문구: 성공 「카메라 전환 — 지진 판정 다시 시작, 출구 감시 풀림 ({지금 장치})」; 보내기 실패 「카메라 전환 요청 실패({코드}): {문구}」(전달 여부를 모르면 「 — 바뀌었는지 모름」); 답을 못 읽음 「카메라 전환 답을 못 읽음(HTTP {상태}) — 바뀌었는지 모름」; 거절 「카메라 전환 거절: {reason 또는 HTTP 상태}」. 문구를 flash(`webcam`)로 남기고 303 `/`.
+
+로봇 카메라 칸(OPS-191, 누구나 — 운영 명령이 아니라 보기 설정):
+1. `--robot-camera` 면 `GET /` 마다 `robot_camera_state` 로 고를 수 있는 로봇과 지금 로봇을 묻는다(`app.py:313-318`). 실패하면 문구 「로봇 카메라 선택 상태를 못 받음: {사유}」(`commands.py:196-205`). 로봇 이름은 화면 모델의 로봇 행 `name`(`--robot-name`)을 쓴다.
+2. 칸(`_robot_camera`, `render.py:1208-1231`): 제목 「로봇 카메라」, 영상 `<img src=--robot-camera>`(웹캠과 같은 끊김 감시, 끊기면 「카메라 영상 낡음」), 캡션 「{지금 로봇 이름} 카메라」, 문구가 없으면 `<select name=robot>`(고르면 바로 제출, 확인 창 없음).
+3. `POST /robot-camera`(`app.py:325-336`): CSRF, `--robot-camera` 없으면 404, `select_robot_camera` 를 한 번(`commands.py:208-219`). 답이 200 이고 `robot` 이 고른 값이면 성공(문구 없음). 아니면 「로봇 카메라 바꾸기 실패({코드}): …」·「… 답을 못 읽음(HTTP {상태})」·「로봇 카메라 바꾸기 거절: {error}」를 flash(`robot_camera`)로 남기고 303 `/`.
 
 #### 7.11 코드 → 한국어 낱말 — `labels.py`
 
@@ -738,7 +767,7 @@ flowchart TD
   M --> N["applyGates - 버튼 켜짐과 확인 칸 유지 판단"]
 ```
 
-상자 ↔ 코드: A `render.py:1096` · B `render.py:895`, `app.py:298-302` · C `app.py:169-183`, `app.py:198-214` · D `app.py:210-211`, `render.py:896-902` · E `app.py:50-60` · F `sources.py:75-99` · I `view.py:692-790` · G `app.py:229-243` · H `app.py:243`, `render.py:903-914` · J `app.py:68-72` · K `mapimage.py:233-270`, `mapimage.py:288-325` · L `render.py:506-509` · M `render.py:908-911` · N `render.py:954-969`
+상자 ↔ 코드: A `render.py:1096` · B `render.py:895`, `app.py:351-355` · C `app.py:182-196`, `app.py:211-227` · D `app.py:223-224`, `render.py:896-902` · E `app.py:52-62` · F `sources.py:75-99` · I `view.py:692-790` · G `app.py:242-256` · H `app.py:256`, `render.py:903-914` · J `app.py:70-74` · K `mapimage.py:233-270`, `mapimage.py:288-325` · L `render.py:506-509` · M `render.py:908-911` · N `render.py:954-969`
 
 8.2 명령 한 번
 
@@ -762,45 +791,49 @@ flowchart TD
   I --> N
 ```
 
-상자 ↔ 코드: A `render.py:995-1011` · B `render.py:973-992` · C `render.py:1082-1089` · D `render.py:1013-1020`, `render.py:966-968` · E `render.py:1052-1068` · F `app.py:324-344` · G `app.py:334-344`, `render.py:1071` · H `commands.py:91-112` · I `app.py:345-350` · J `commands.py:115-136`, `commands.py:168-172` · K `commands.py:143-165` · L `commands.py:175`, `app.py:356` · M `commands.py:173-174`, `app.py:356` · N `render.py:1035-1048`, `render.py:1076-1078`
+상자 ↔ 코드: A `render.py:995-1011` · B `render.py:973-992` · C `render.py:1082-1089` · D `render.py:1013-1020`, `render.py:966-968` · E `render.py:1052-1068` · F `app.py:377-397` · G `app.py:387-397`, `render.py:1071` · H `commands.py:92-113` · I `app.py:398-403` · J `commands.py:116-139`, `commands.py:171-175` · K `commands.py:146-168` · L `commands.py:178`, `app.py:409` · M `commands.py:176-177`, `app.py:409` · N `render.py:1035-1048`, `render.py:1076-1078`
 
 ### 9. 오류·예외 처리
 
 | 상황 | 동작 | 코드·문구 | 근거 |
 | --- | --- | --- | --- |
-| 비밀 환경 변수 없음·16자 미만 | 기동 안 함, 종료코드 2 | `CONFIG_MISSING` | `__main__.py:66-68`, `app.py:130-131` |
-| Flask 없음 | 기동 안 함(다른 방식으로 대신 뜨지 않음) | `DEPENDENCY_MISSING` | `app.py:125-129` |
+| 비밀 환경 변수 없음·16자 미만 | 기동 안 함, 종료코드 2 | `CONFIG_MISSING` | `__main__.py:69-71`, `app.py:141-142` |
+| Flask 없음 | 기동 안 함(다른 방식으로 대신 뜨지 않음) | `DEPENDENCY_MISSING` | `app.py:136-140` |
 | 계정 DB 없음·다른 파일 | 기동 안 함 | `STORAGE_ERROR`·`POLICY_MISMATCH` | `accounts.py:160-177` |
 | `--map` 못 읽음·형식 틀림 | 기동 안 함(지도를 지어내지 않음) | `STORAGE_ERROR`·`INVALID_INPUT` 「map: …」 | `mapimage.py:29-30`, `:149-153` |
 | 카메라가 있는데 끊김 시간 없음 | 기동 안 함 | `CONFIG_MISSING` 「cameras need --camera-stale-s …」 | `render.py:1130-1131` |
-| 현장 상태 DB 없음·잠김·역할 다름·schema 1.4 아님(1.0~1.3 파일은 새 db_writer 가 한 번 열어 올리기 전) | 그 요청 503(페이지는 안내 + 5 s 새로고침, 조각은 한 줄, API 는 JSON). 파일을 만들지 않음 | `STORAGE_ERROR` 「site-state read failed: …」 | `sources.py:96-99`, `app.py:229-243`, `rescue_operations/site_state.py:581-582` |
+| 현장 상태 DB 없음·잠김·역할 다름·schema 1.4 아님(1.0~1.3 파일은 새 db_writer 가 한 번 열어 올리기 전) | 그 요청 503(페이지는 안내 + 5 s 새로고침, 조각은 한 줄, API 는 JSON). 파일을 만들지 않음 | `STORAGE_ERROR` 「site-state read failed: …」 | `sources.py:96-99`, `app.py:242-256`, `rescue_operations/site_state.py:581-582` |
 | 장부를 줬는데 못 읽음 | 그 요청 503 | `STORAGE_ERROR` 「ledger read failed: …」 | `sources.py:26-31` |
 | 입력 모양이 틀림(중복 로봇·대상, 사건 계약 위반, revision 타입, 임무 행 키) | 그 요청 503 | `INVALID_INPUT` | `view.py:122-133`, `:202`, `:207`, `:250`, `:285-297`, `:355-358`, `:735` |
 | 배치 밖 로봇 상태 | 버리고 경고 | 「배치 밖 로봇 상태 무시: …」 | `view.py:247-249` |
 | `--robot-watch` 파일 없음·못 읽음·모양 다름 | 요청은 성공, 직접 관측 없이 그리고 경고 | 「로봇 직접 관측 파일 없음」·「로봇 직접 관측 파일 읽기 실패: …」 | `sources.py:57-72`, `view.py:668-670` |
 | 직접 관측 파일이 `--robot-watch-stale-s` 넘게 안 바뀜 | 모든 직접 관측을 낡음으로, 위치를 쓰지 않음, 경고 | 「로봇 직접 관측 파일이 {n}초 동안 갱신 안 됨 — robot_watch 노드 확인」 | `view.py:671-674` |
 | 배치 밖 로봇의 직접 관측 | 버리고 경고 | 「배치 밖 로봇 직접 관측 무시: '{ID}'」 | `view.py:676-677` |
-| `--robot-watch-stale-s` 가 `nan`·0·음수 | 막지 않는다. `nan` 이면 크기 비교가 모두 거짓이라 **낡음이 영영 안 뜨고** 직접 관측 위치도 쓰지 않는다. 0·음수면 늘 낡음 [관찰, 코드 읽기, 미실행] | — | `__main__.py:51-52`(argparse float), `view.py:672`, `:684-685` |
+| `--robot-watch-stale-s` 가 `nan`·0·음수 | 막지 않는다. `nan` 이면 크기 비교가 모두 거짓이라 **낡음이 영영 안 뜨고** 직접 관측 위치도 쓰지 않는다. 0·음수면 늘 낡음 [관찰, 코드 읽기, 미실행] | — | `__main__.py:54-55`(argparse float), `view.py:672`, `:684-685` |
 | 터널 판정이 있는데 지금 지도(`current_map`)를 모름 | 모두 진하게 그리고 경고 | 「현재 지도 revision 모름 — 터널 판정을 모두 진하게 그림」 | `view.py:645-646` |
 | 상태를 한 번도 못 받은 로봇 | 카드는 그리고 알림 | 「상태를 한 번도 받지 못했습니다. …」 | `render.py:346-349` |
 | 로봇 상태가 5 s 넘게 안 옴 | 카드 흐림 + 알림(준비 판정 아님) | 「낡음: {나이} 동안 새 상태 없음」 | `view.py:280`, `render.py:352-353` |
-| 세션 무효(삭제·재생성·비활성·비밀번호/역할 변경) | 세션 비움, 데이터 401·페이지 302 | `{"error": "login required"}` | `app.py:176-183`, `:210-212` |
-| CSRF 틀림 | 400 | Flask 기본 400 또는 JSON `CSRF` | `app.py:191-196`, `:338-339` |
-| 로그인 5회/300 s 실패 | 그 (아이디, 주소)를 60 s 거절(맞는 비밀번호도) | 「로그인을 너무 많이 틀렸습니다. {n}초 뒤에 다시 하세요.」 | `app.py:262-266`, `throttle.py:52-69` |
-| CUSTOMER 가 명령·계정 관리 | 403 | `NOT_AUTHORIZED` / 「admin only」 | `app.py:340-344`, `:224-225` |
-| operations 주소 없음 | 버튼 꺼짐, POST 는 503 | `NOT_CONNECTED` | `commands.py:72-73`, `app.py:343-344` |
-| operations 연결 거부·이름 풀이 실패 | 보내지 않음, 502, 다시 안 보냄 | `UNREACHABLE`, delivery NOT_SENT | `commands.py:130-131` |
-| operations 시간 초과·응답 모양 틀림·HTTP 오류 | 502, 다시 안 보냄, 「전달됐는지 모름 — command_id … 로 명령 기록을 확인」 | `TIMEOUT`·`BAD_RESPONSE`·`HTTP_ERROR`, delivery UNKNOWN | `commands.py:128-136`, `:159-164`, `render.py:1042-1046` |
+| 세션 무효(삭제·재생성·비활성·비밀번호/역할 변경) | 세션 비움, 데이터 401·페이지 302 | `{"error": "login required"}` | `app.py:189-196`, `:223-225` |
+| CSRF 틀림 | 400 | Flask 기본 400 또는 JSON `CSRF` | `app.py:204-209`, `:391-392` |
+| 로그인 5회/300 s 실패 | 그 (아이디, 주소)를 60 s 거절(맞는 비밀번호도) | 「로그인을 너무 많이 틀렸습니다. {n}초 뒤에 다시 하세요.」 | `app.py:275-279`, `throttle.py:52-69` |
+| CUSTOMER 가 명령·계정 관리 | 403 | `NOT_AUTHORIZED` / 「admin only」 | `app.py:393-397`, `:237-238` |
+| operations 주소 없음 | 버튼 꺼짐, POST 는 503 | `NOT_CONNECTED` | `commands.py:73-74`, `app.py:396-397` |
+| operations 연결 거부·이름 풀이 실패 | 보내지 않음, 502, 다시 안 보냄 | `UNREACHABLE`, delivery NOT_SENT | `commands.py:133-134` |
+| operations 시간 초과·응답 모양 틀림·HTTP 오류 | 502, 다시 안 보냄, 「전달됐는지 모름 — command_id … 로 명령 기록을 확인」 | `TIMEOUT`·`BAD_RESPONSE`·`HTTP_ERROR`, delivery UNKNOWN | `commands.py:131-139`, `:162-167`, `render.py:1042-1046` |
 | 계정 추가·수정·삭제 검사 실패(마지막 ADMIN, 본인 삭제, 중복, 형식) | 바꾸지 않음, flash | `LAST_ADMIN`·`SELF_DELETE`·`ALREADY_EXISTS`·`NOT_FOUND`·`INVALID_INPUT` | `accounts.py:239-240`, `:267`, `:291`, `:304` |
 | 계정 DB 작업 중 sqlite 오류 | `STORAGE_ERROR` 로 바꾸려 하지만 비교가 정확한 타입 일치라 하위 오류(OperationalError 등)는 그대로 올라가 Flask 500 이 된다 [관찰, 코드 읽기] | — | `accounts.py:348-349` |
 | 실시간 지도 아직 없음 | 지도 칸에 문구, 기동은 정상 | 「실시간 지도 없음 — live_map.yaml 를 아직 받지 못함」 | `mapimage.py:239-241` |
 | 실시간 지도 새 파일 못 읽음 | 마지막 좋은 지도 유지 + 경고, 지도 흐림 | 「지도 읽기 실패: … — 마지막으로 읽은 지도를 보임」 | `mapimage.py:248-259` |
 | 실시간 지도 발행 끊김 | 경고, 지도 흐림 | 「지도 낡음: {n}초 동안 지도 발행 없음」 | `mapimage.py:265-269` |
-| 좌표 frame 이 `map` 이 아님·지도 밖·위치 없음 | 그리지 않고 경고·목록 | 「지도에 안 그림 …」·「지도 밖 좌표 …」·「위치 미확정」 | `app.py:73-76`, `mapimage.py:310-322` |
-| 출구(QR) 관측이 다른 frame·지도 밖 | 표식 없이 경고와 「지도에 그리지 못한 위치」 목록(가장자리로 끌어오지 않음) | 「지도에 안 그림: exit 출구(QR) frame '{frame}' ≠ 지도 frame」 또는 「지도 밖 좌표: exit 출구(QR) ({x}, {y})」, 목록 「출구(QR): 좌표계 …」 또는 「출구(QR): 지도 밖 ({x}, {y}) m」 | `mapimage.py:304-323`, `app.py:73-76`, `render.py:268-269` |
+| 좌표 frame 이 `map` 이 아님·지도 밖·위치 없음 | 그리지 않고 경고·목록 | 「지도에 안 그림 …」·「지도 밖 좌표 …」·「위치 미확정」 | `app.py:75-78`, `mapimage.py:310-322` |
+| 출구(QR) 관측이 다른 frame·지도 밖 | 표식 없이 경고와 「지도에 그리지 못한 위치」 목록(가장자리로 끌어오지 않음) | 「지도에 안 그림: exit 출구(QR) frame '{frame}' ≠ 지도 frame」 또는 「지도 밖 좌표: exit 출구(QR) ({x}, {y})」, 목록 「출구(QR): 좌표계 …」 또는 「출구(QR): 지도 밖 ({x}, {y}) m」 | `mapimage.py:304-323`, `app.py:75-78`, `render.py:268-269` |
 | 출구(QR) 관측 없음(빈 표·픽스처 키 없음) | 표식 없음, 경고 없음 | — | `view.py:653-654` |
-| 조정기 `search_start` 와 `--search-start` 가 다름 | 조정기 AUTO·콘솔 버튼: 버튼이 남고 누르면 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`) 거절, 그 거절이나 임무 사유를 보고 경고. 콘솔 AUTO·조정기 OPERATOR: 「자동 출발」로 보이지만 수색이 시작되지 않고 화면은 알 수 없음 | 「조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요」 | `view.py:763-767`, `README:49` |
-| 지도 없는데 `/map.png` | 404 | 「no map: start with --map MAP_YAML or --live-map LIVE_YAML」 | `app.py:318-319` |
+| 조정기 `search_start` 와 `--search-start` 가 다름 | 조정기 AUTO·콘솔 버튼: 버튼이 남고 누르면 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`) 거절, 그 거절이나 임무 사유를 보고 경고. 콘솔 AUTO·조정기 OPERATOR: 「자동 출발」로 보이지만 수색이 시작되지 않고 화면은 알 수 없음 | 「조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요」 | `view.py:763-767`, `README:50` |
+| 지도 없는데 `/map.png` | 404 | 「no map: start with --map MAP_YAML or --live-map LIVE_YAML」 | `app.py:371-372` |
+| 웹캠 목록을 못 받음(operations 꺼짐·1 s 초과·답 모양 틀림) | 페이지는 그리고 고르기 대신 문구 | 「카메라 목록을 못 받음: …」 | `commands.py:184-193` |
+| 웹캠 바꾸기 실패·거절 | 다시 안 보냄, 다음 화면에 문구 | 7.12 웹캠 3번의 문구 | `commands.py:222-235` |
+| 로봇 카메라 중계가 꺼짐 | 페이지는 그리고 고르기 대신 문구 | 「로봇 카메라 선택 상태를 못 받음: …」 | `commands.py:196-205` |
+| `--robot-camera` 를 주고 `--camera`·`--camera-stale-s` 는 안 줌 | **기동은 성공하고** `GET /` 가 매번 503 실패 페이지(`CONFIG_MISSING` 「cameras need --camera-stale-s …」). 기동 검사(`app.py:135`)가 `--camera` 목록만 보고, 로봇 카메라를 더한 검사는 페이지를 그릴 때(`render.py:1264`) 처음 돈다 [측정 2026-10-13, Flask test client, main `4163a25`] | `CONFIG_MISSING` | `app.py:135`, `render.py:1264` |
 | 웹캠 오류·멈춤 | 끊김 표시, stale 마다 재연결 | 「영상 끊김」 | `render.py:1182-1183`, `:1155-1163` |
 | 폴링 실패(503, 네트워크) | 끊김 표시, 모든 버튼 끔, 열린 확인 취소, 탭 제목 | 「갱신 끊김: …」 | `render.py:875-888`, `:954-969` |
 | 폴링이 1 s 넘게 걸림 | 앞 요청을 기다리지 않고 다음 요청이 나간다. 늦게 온 옛 조각이 새 조각을 덮을 수 있다(막는 장치 없음) [관찰, 코드 읽기] | — | `render.py:1096` |
@@ -818,6 +851,8 @@ flowchart TD
 - `tests/test_console_live_map.py::ExitMapTests.test_an_exit_off_the_map_is_listed_not_placed` — 지도 밖 출구 관측은 `exits` 에 없고 「출구(QR): 지도 밖」 목록에 있음.
 - 모듈별 나머지: `test_console_accounts.py`(계정·해시·마지막 ADMIN), `test_console_throttle.py`(잠금), `test_console_view.py`(4단계·장부 없는 실행·배치 로봇·최신 출구 관측 읽기 `SiteStateSourceTests.test_the_newest_exit_qr_observation_is_read`), `test_console_history.py`, `test_console_reasons.py`(사유 문구·출동/수색 AUTO·#228/#234 코드), `test_console_live_map.py`(실시간 지도·출구 표식 `ExitMapTests`), `test_console_map.py`(출구 시험 없음), `test_console_labels.py`. Flask 가 없는 환경에서는 Flask 시험이 skip(= NOT_RUN)이다(`tests/test_console_web.py:310`).
 - `tests/test_console_robot_watch.py` — 상태 없는 로봇은 직접 관측이 카드·위치를 채움, 프로젝트 상태가 먼저, 낡은 직접 관측은 위치를 안 그림, 파일이 멈추면 모두 낡음, 배치 밖 직접 관측은 경고, 파일 없음·깨짐은 경고(요청 성공), 인자가 없으면 꺼짐.
+- `tests/test_console_webcam_switch.py` — ADMIN 은 꽂힌 카메라 목록(지금 것 선택)을 보고 CUSTOMER 는 못 봄, 재난 모드면 한 번 더 묻기, 바꾸기는 한 번 보내고 답을 그대로, 거절도 그대로, CUSTOMER 는 바꾸기 403, operations 꺼짐은 문구.
+- `tests/test_console_robot_camera.py` — http(s) 주소만, 칸에 고른 로봇 영상·선택지, 누구나 확인 창 없이 바꿈, CSRF 검사, 중계 꺼짐은 문구.
 - `tests/test_console_tunnel_map.py` — 세 상태의 낱말·색, 옛 revision 흐림, `current_map` 모름은 모두 진하게 + 경고, 지도 밖 터널은 목록, 표가 없으면 아무것도 안 그림.
 - 이 명세를 쓰면서 시험은 실행하지 않았다(미실행). 시험 실행 기록은 [관제 웹 코드 리뷰 준비](../process/console-code-review.md) 4절.
 - E3/E4: 운영 PC 에서 장부 없이 기동 PASS, 로봇 카드 2개 PASS, MJPEG 중계와 `--camera` PASS [측정 2026-10-13, `docs/evidence/field-2026-10-13-operations-host.md:25-27`, `:162-181`]. Firefox 눈 확인·웹캠 가림 「영상 끊김」·진동 → 재난 모드는 [대기](같은 문서 `:28-30`). 콘솔 → operations → 조정기 명령 왕복은 기록 없음 = NOT_RUN(검색: `docs/evidence`·`docs/process` 에서 `operator-commands`, `operator_command`, `/commands` — 운영 PC 기록의 db_writer 기동 로그 한 줄 말고 없음).
@@ -828,9 +863,9 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 
 ### I-1. 운영자 명령 API — `POST /api/operator-commands`
 
-- 주소: db_writer 프로세스 안의 HTTP 서버, `api_host` = `127.0.0.1`(운영 PC 안에서만), 포트 = launch `api_port`(`rescue_bringup/operations_launch.py:26`, `:73-74`; `rescue_operations/ros_node.py:248`). 이 API 에는 로그인이 없다. ADMIN 확인은 같은 PC 의 콘솔이 한다(`rescue_bringup/operations_launch.py:25`).
-- 요청: POST, `Content-Length` 필수, 본문 0~8192 byte(`rescue_operations/command_api.py:25`, `:183-187`). 경로가 다르면 404. `Content-Type` 은 보지 않는다.
-- JSON 은 객체이고 키 집합이 **정확히** 기본 3개 + 종류별 필드여야 한다(`rescue_operations/command_api.py:30-38`, `:51-73`):
+- 주소: db_writer 프로세스 안의 HTTP 서버, `api_host` = `127.0.0.1`(운영 PC 안에서만), 포트 = launch `api_port`(`rescue_bringup/operations_launch.py:26`, `:73-74`; `rescue_operations/ros_node.py:289`). 이 API 에는 로그인이 없다. ADMIN 확인은 같은 PC 의 콘솔이 한다(`rescue_bringup/operations_launch.py:25`).
+- 요청: POST, `Content-Length` 필수, 본문 0~8192 byte(`rescue_operations/command_api.py:26`, `:245-249`). 경로가 다르면 404. `Content-Type` 은 보지 않는다.
+- JSON 은 객체이고 키 집합이 **정확히** 기본 3개 + 종류별 필드여야 한다(`rescue_operations/command_api.py:31-39`, `:52-74`):
 
 | kind | 키 | 콘솔이 보내나 |
 | --- | --- | --- |
@@ -839,10 +874,10 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 | CONTINUE_SEGMENT | + target_id, target_revision, route_revision, segment_index | 예 |
 | REQUEST_RECHECK | + target_id | 예 |
 | RETURN_HOME | 기본만 | 예 |
-| SET_CAMERA_WATCH | + target_id | 아니오(콘솔 표에 없음, `commands.py:26-32`) |
+| SET_CAMERA_WATCH | + target_id | 아니오(콘솔 표에 없음, `commands.py:27-33`) |
 
 - 값 검사: `command_id`·`target_id` = 정규 UUID 문자열, `operator_id` = 1~256자·NUL 없음, `target_revision`·`route_revision` = 0~2^64−1 정수(bool 아님), `segment_index` = 0~2^32−1 정수.
-- 응답(JSON, `Content-Type: application/json`, `rescue_operations/command_api.py:107-149`, `:179-189`):
+- 응답(JSON, `Content-Type: application/json`, `rescue_operations/command_api.py:108-150`, `:241-252`):
 
 | HTTP | 언제 | 본문 | 콘솔 `read_reply` 의 해석 | 화면 |
 | --- | --- | --- | --- | --- |
@@ -853,9 +888,9 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 | 503 | 조정기 서비스가 없음(보내지 않음) | `error: "ACCEPT_TIMEOUT"`, `request_id`, `detail` | BAD_RESPONSE(`accepted` 가 없으니) | 「전달됐는지 모름」(실제로는 안 보냈어도 보수적으로) |
 | 504 | 보냈으나 `command_timeout_s` 안에 답 없음 | 같음 | BAD_RESPONSE | 「전달됐는지 모름」 |
 
-- 시간: operations 는 `command_timeout_s` 가 0 초과 5.0 s 미만이어야 기동하고(`rescue_operations/ros_node.py:92-93`, `rescue_bringup/operations_launch.py:56-57`), 콘솔은 5.0 s 를 기다린다(`commands.py:22`). 그래서 조정기 무응답은 콘솔 시간 초과 전에 504 로 온다.
-- 멱등: operations 는 같은 `command_id` 의 첫 수신 시각을 프로세스 동안 기억해 재전송을 DUPLICATE 로 만든다(`rescue_operations/command_api.py:103-113`). 콘솔은 누를 때마다 새 `command_id` 를 만들고 다시 보내지 않으므로 이 경로를 쓰지 않는다.
-- 기록: operations 는 200 답과 400 거절(쓸 만한 command_id·kind·operator_id 가 있을 때, `result` = `REFUSED_BY_OPERATIONS`)을 `operator_commands` 에, 503/504 와 쓸 수 없는 400 을 `error_log`(코드 `ACCEPT_TIMEOUT` 또는 `INVALID_INPUT`)에 남긴다(`rescue_operations/command_api.py:116-164`). 콘솔의 「명령·오류 기록」 칸이 이것을 읽는다.
+- 시간: operations 는 `command_timeout_s` 가 0 초과 5.0 s 미만이어야 기동하고(`rescue_operations/ros_node.py:100-101`, `rescue_bringup/operations_launch.py:56-57`), 콘솔은 5.0 s 를 기다린다(`commands.py:23`). 그래서 조정기 무응답은 콘솔 시간 초과 전에 504 로 온다.
+- 멱등: operations 는 같은 `command_id` 의 첫 수신 시각을 프로세스 동안 기억해 재전송을 DUPLICATE 로 만든다(`rescue_operations/command_api.py:104-114`). 콘솔은 누를 때마다 새 `command_id` 를 만들고 다시 보내지 않으므로 이 경로를 쓰지 않는다.
+- 기록: operations 는 200 답과 400 거절(쓸 만한 command_id·kind·operator_id 가 있을 때, `result` = `REFUSED_BY_OPERATIONS`)을 `operator_commands` 에, 503/504 와 쓸 수 없는 400 을 `error_log`(코드 `ACCEPT_TIMEOUT` 또는 `INVALID_INPUT`)에 남긴다(`rescue_operations/command_api.py:117-165`). 콘솔의 「명령·오류 기록」 칸이 이것을 읽는다.
 
 ### I-2. 현장 상태 DB — 웹이 읽는 표와 열
 
@@ -877,7 +912,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 | `current_map`(같은 읽기, 1.4) | 1행 또는 null | map_session_id, map_revision(→ 터널 행 `current`) | robot_id, generated_at_ns, received_at_ns |
 | `map_snapshots` | — | 읽지 않음 | 전부 |
 
-- `exit_locations` 는 db_writer 가 `/rescue/exit_location` 의 `projection_status` VALID 관측만 넣고(아니면 거절, `rescue_operations/ros_ingest.py:147-163`), 같은 `location_id` 를 다시 받으면 처음 행을 지킨다(`rescue_operations/site_state.py:489-504`). 조정기가 등록·재기준한 출구가 아니라 인식의 관측 원본이다. 지도 고정 전·후 관측을 웹은 구분하지 않는다(`README:168`).
+- `exit_locations` 는 db_writer 가 `/rescue/exit_location` 의 `projection_status` VALID 관측만 넣고(아니면 거절, `rescue_operations/ros_ingest.py:147-163`), 같은 `location_id` 를 다시 받으면 처음 행을 지킨다(`rescue_operations/site_state.py:489-504`). 조정기가 등록·재기준한 출구가 아니라 인식의 관측 원본이다. 지도 고정 전·후 관측을 웹은 구분하지 않는다(`README:188`).
 
 - 터널 표: db_writer 가 `/rescue/robots/<robot_id>/overhead_passages`(`std_msgs/String` JSON)를 받아 로봇마다 **목록 통째로** 바꾼다. `generated_at_ns` 가 더 새 목록이면 그 로봇의 항목을 지우고 다시 쓰고, 같거나 옛 목록은 버린다(`rescue_operations/site_state.py:506-527`). `current_map` 은 SLAM 로봇(SCOUT)의 `/rescue/robots/<robot_id>/map_state`(`MapState`)에서 같은 규칙으로 1행(`rescue_operations/site_state.py:529-544`). 판정 자체는 인식 `overhead_passage` 노드 몫이고 웹은 다시 판정하지 않는다.
 
@@ -885,7 +920,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 
 ### I-3. 실시간 지도 파일 — `live_map.yaml`
 
-쓰는 쪽은 map_snapshot(`launch/operations.launch.py:71-75`, 인자 `map_topic`·`map_dir` 는 둘 다 있거나 둘 다 없음, `rescue_bringup/operations_launch.py:198-210`).
+쓰는 쪽은 map_snapshot(`launch/operations.launch.py:72-76`, 인자 `map_topic`·`map_dir` 는 둘 다 있거나 둘 다 없음, `rescue_bringup/operations_launch.py:227-239`).
 
 | 항목 | 계약 | 쓰는 쪽 근거 | 웹 쪽 근거 |
 | --- | --- | --- | --- |
@@ -902,19 +937,40 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 ### I-4. 그 밖
 
 - 옛 보고 장부(선택 `LEDGER`): `read_reports(limit=1000)`(`rescue_operations/ledger.py:350-380`), `metadata.role` = `operations-ledger`, `schema` = `1.0`. 웹이 쓰는 것: 최상위 `evidence_policy`·`allowed_robot_ids`, 보고마다 `payload` 의 report_id, target_id, source_robot, reported_at_ns, observed_at_ns, confirmation_result, approach_result, position{x,y,frame_id,map_revision}, clock_domain_id, `receipt.status`, `received_at_ns`. report_node 의 장부(`metadata.role` = `rescue-report-store`, `rescue_operations/report_store.py:29`)는 이 자리에 줄 수 없다(`POLICY_MISMATCH` → 화면 `STORAGE_ERROR`).
-- 웹캠 MJPEG: `http://{video_bind_host}:{video_port}/{camera_id}.mjpg`(`rescue_bringup/operations_launch.py:170`, `:213-215`). 브라우저가 직접 붙으므로 `video_bind_host` 는 브라우저 PC 에서 닿는 주소여야 한다(`launch/operations.launch.py:101-103`).
+- 웹캠 MJPEG: `http://{video_bind_host}:{video_port}/{camera_id}.mjpg`(`rescue_bringup/operations_launch.py:172`, `:242-244`). 브라우저가 직접 붙으므로 `video_bind_host` 는 브라우저 PC 에서 닿는 주소여야 한다(`launch/operations.launch.py:110-112`).
 
 ### I-5. 로봇 직접 관측 파일 — `--robot-watch`
 
-쓰는 쪽은 `rescue_robot_watch`(rescue_operations `robot_watch`, `launch/operations.launch.py:79-81`, 인자 `robot_namespaces`·`robot_watch_path` 는 둘 다 있거나 둘 다 없음, `rescue_bringup/operations_launch.py:178-195`). 로봇 기본 토픽 `<ns>/battery_state`·`<ns>/dock_status`·`<ns>/tf`·`<ns>/tf_static` 을 **구독만** 한다(발행·서비스·액션 없음, `rescue_operations/robot_watch.py:103-106`).
+쓰는 쪽은 `rescue_robot_watch`(rescue_operations `robot_watch`, `launch/operations.launch.py:88-90`, 인자 `robot_namespaces`·`robot_watch_path` 는 둘 다 있거나 둘 다 없음, `rescue_bringup/operations_launch.py:180-197`). 로봇 기본 토픽 `<ns>/battery_state`·`<ns>/dock_status`·`<ns>/tf`·`<ns>/tf_static` 을 **구독만** 한다(발행·서비스·액션 없음, `rescue_operations/robot_watch.py:103-106`).
 
 | 항목 | 계약 | 쓰는 쪽 근거 | 웹 쪽 근거 |
 | --- | --- | --- | --- |
 | 형식 | UTF-8 JSON 객체 `{schema: "robot_watch/1", written_at_ns: int, robots: {robot_id: 행}}` | `rescue_operations/robot_watch.py:18`, `:35-40` | `sources.py:69-71`(robots 객체·`written_at_ns` int 만 검사, `schema` 는 보지 않음) |
 | 로봇 행 | `namespace`, `last_seen_ns`(네 토픽 중 아무거나 받은 마지막 시각) 또는 null, `battery_percent`(0~100, NaN·범위 밖은 null), `docked`(bool 또는 null), `pose`{x, y, yaw, frame_id = map_frame} 또는 null, `pose_seen_ns` 또는 null | `rescue_operations/robot_watch.py:82-83`, `:24-28`, `:113-119` | `view.py:679-687` |
-| 위치 | tf 에 `map_frame -> base_frame`(launch 값 `map` → `base_link`)이 있을 때만. 없으면 null 이고 지어내지 않음 | `rescue_operations/robot_watch.py:110-119`, `rescue_bringup/operations_launch.py:194-195` | `view.py:685` |
+| 위치 | tf 에 `map_frame -> base_frame`(launch 값 `map` → `base_link`)이 있을 때만. 없으면 null 이고 지어내지 않음 | `rescue_operations/robot_watch.py:110-119`, `rescue_bringup/operations_launch.py:196-197` | `view.py:685` |
 | 주기·원자성 | 1.0 s 마다 임시 파일에 쓰고 rename | `rescue_operations/robot_watch.py:19`, `:35-40`, `:127` | `sources.py:58-59`(반쯤 쓴 파일을 보지 않음) |
 | 시계 | 모든 ns 는 관측 노드의 ROS 시계(운영 PC). 웹은 자기 `time.time_ns` 와 비교 — 같은 PC 를 전제 [추정] | `rescue_operations/robot_watch.py:87-88`, `:109` | `view.py:671`, `:682-683` |
+
+### I-6. 웹캠 API — `GET`·`POST /api/webcam`(operations)
+
+operations HTTP 서버(명령 API 와 같은 주소)가 db_writer 의 `webcam_node` 파라미터가 있을 때만 연다(`rescue_operations/command_api.py:224-250`, `rescue_operations/ros_node.py:255-282`, launch 는 웹캠이 이 PC 에 있을 때 `/webcam_node` 를 넘김 `launch/operations.launch.py:50`).
+
+| 요청 | 답 | 웹이 쓰는 것 |
+| --- | --- | --- |
+| `GET` | 200 `{cameras: [/dev/v4l/by-id 의 *-video-index0 이름], current: 지금 장치 이름 또는 null}`(`rescue_operations/command_api.py:185-190`) | `cameras`(배열이어야 함), `current` |
+| `POST {device, operator_id}` | 200 `{switched: true, current}` / 200 `{switched: false, reason, current}`(webcam_node 가 거절) / 400 `{switched: false, reason: INVALID_INPUT·UNKNOWN_DEVICE, …}` / 503 `{switched: false, reason: WEBCAM_NODE_UNAVAILABLE, detail}`(`rescue_operations/command_api.py:192-218`) | `switched` 가 참이면 성공, 아니면 `reason`(없으면 HTTP 상태) |
+
+- 바꾸기는 `webcam_node` 의 `set_parameters` 서비스로 `device_path` 를 바꾼다. 결과는 `error_log` 에 남는다: 성공 `SENSOR_UNAVAILABLE` + 「CAMERA_SWITCHED …」, 거절 `NOT_FOUND`·`INVALID_INPUT`·`DRIVER_UNAVAILABLE` + 「CAMERA_SWITCH_REFUSED …」(`rescue_operations/command_api.py:168-221`). 그래서 웹의 명령·오류 기록에 보인다.
+
+### I-7. 로봇 카메라 중계 — `robot_view_relay`
+
+운영 PC 의 `robot_view_relay`(rescue_perception, launch 인자 `robot_views`, `launch/operations.launch.py:77-82`)가 로봇마다 `<ns>/rescue/passage_view/compressed`(터널 판정을 그린 영상, `rescue_perception/overhead.py:352`) 중 **고른 하나만** 구독해 MJPEG 로 낸다(`rescue_perception/robot_view_relay.py:113-123`). 기본은 SCOUT.
+
+| 경로 | 답 | 근거 |
+| --- | --- | --- |
+| `GET /robot_view.mjpg` | MJPEG, 새 장면이 `stale_s` 동안 없으면 닫고 새 요청은 503 | `rescue_perception/mjpeg_relay.py:108-125` |
+| `GET /select` | 200 `{robot: 지금, robots: [고를 수 있는 것]}` | `rescue_perception/mjpeg_relay.py:108-111` |
+| `POST /select {robot}` | 성공 200 + 위와 같은 상태, 실패 400 `{error}` | `rescue_perception/mjpeg_relay.py:96-106` |
 
 ## 문서와 코드의 차이 (bd4bfa5 에서 찾고 32e8ee1 에서 다시 봄)
 
@@ -922,17 +978,17 @@ operations 노드의 내부는 다루지 않는다. 웹이 기대는 계약만 �
 
 | 문서:줄 | 문서 내용 | 코드 | 비고 |
 | --- | --- | --- | --- |
-| `docs/design/console-and-db-plan.md:13`, `:20` | 콘솔 버튼은 비활성 placeholder, operations POST 미연결 | 버튼이 켜지고 operations API 로 보냄(`view.py:530-623`, `app.py:324-356`, `rescue_operations/command_api.py`) | 문서가 낡음(updated 2026-10-11) |
+| `docs/design/console-and-db-plan.md:13`, `:20` | 콘솔 버튼은 비활성 placeholder, operations POST 미연결 | 버튼이 켜지고 operations API 로 보냄(`view.py:530-623`, `app.py:377-409`, `rescue_operations/command_api.py`) | 문서가 낡음(updated 2026-10-11) |
 | `docs/design/console-and-db-plan.md:66`, `:69` | 웹은 operations `GET /api/snapshot` 으로 읽고, 지도는 `PUT /api/maps/{id}` | 웹이 현장 상태 DB 를 직접 읽기 전용으로 읽고(`sources.py:75-99`), 지도는 map_snapshot 파일(`mapimage.py:210-270`). 두 API 는 없음 | 계획 [제안] 과 구현이 다름 |
 | `docs/design/console-and-db-plan.md:82`, `:85` | 웹캠은 화면 위, 버튼에 일시정지·재개·취소·정지 | 웹캠은 오른쪽 옆 칸(`render.py:572-575`), 넷은 늘 꺼짐(`view.py:58-63`) | — |
 | `docs/process/ops-db-tables.md:41`, `:129-131` | 현장 상태는 표 3개, 1.1 표 넷은 아직 코드에 없음 | schema 1.3, `metadata` 말고 표 8개(`rescue_operations/site_state.py:28`, `:95-138`) | 문서 updated 2026-10-10 로 낡음 |
 | `docs/design/db-schema.md:11-16`, `docs/process/ops-db-tables.md:37-42` | SQLite 역할 4가지 | report_node 의 `rescue-report-store` 파일이 다섯째(`rescue_operations/report_store.py:29`) | 콘솔은 그 파일을 읽지 않음 |
 | `docs/design/db-schema.md:20` | `metadata(key TEXT PRIMARY KEY, value TEXT)` | `value TEXT NOT NULL`(`rescue_operations/ledger.py:84`, `accounts.py:140`) | 사소 |
 | `README:14` | 현장 상태 「읽기 함수 넷」 | 읽기 함수 8개(배치 로봇·명령·오류·출구 포함, `sources.py:84-95`) | **고침(이 PR)**: 「여덟」(merge 로 들어온 `read_exit_locations`, `sources.py:93` 포함) |
-| `README:76-84`, `:86`, `:88` | 입력 표 5행, 「픽스처의 네 칸」, 「네 읽기는 한 트랜잭션이 아니다」 | 읽기 9개(`sources.py:84-95`), 픽스처 키 9개(`sources.py:22-23`) | 그대로 |
+| `README:77-85`, `:87`, `:89` | 입력 표 5행, 「픽스처의 네 칸」, 「네 읽기는 한 트랜잭션이 아니다」 | 읽기 9개(`sources.py:84-95`), 픽스처 키 9개(`sources.py:22-23`) | 그대로 |
 | `README:14`(2026-10-13 main `ede7f8b`) | 현장 상태 「읽기 함수 여덟」 | 읽기 함수 9개(터널 판정 `read_overhead_passages`, `sources.py:94` 가 더해짐) | **고침(이 PR)**: 「아홉」 |
-| `README:193` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:885-886`) | **고침(이 PR)** |
-| `README:94` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:577-580`), 높이는 고정 여부만 정함(`render.py:576`) | **고침(이 PR)** |
-| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:324-356`) | **고침(이 PR)**: 「sends operator commands to operations once」 |
+| `README:213` | 갱신 실패 문구 「갱신 실패 — 표시 값이 낡았을 수 있음」 | 「갱신 끊김: {이유}, {n} 전 값을 보는 중」(`render.py:885-886`) | **고침(이 PR)** |
+| `README:95` | 가로 1400px **또는 세로 820px** 미만이면 한 줄로 쌓임 | 쌓임은 폭 1399px 이하만(`render.py:577-580`), 높이는 고정 여부만 정함(`render.py:576`) | **고침(이 PR)** |
+| `src/rescue_console/setup.py:20` | 「Read-only … view …; no ROS, no commands.」 | 명령을 보냄(`app.py:377-409`) | **고침(이 PR)**: 「sends operator commands to operations once」 |
 | `docs/process/ops-host-record.md:54` | 콘솔이 기동 때 git SHA 를 로그에 남김 | 콘솔 코드에 그런 줄이 없음(검색은 6.5 끝). 서비스 래퍼가 하는지는 [미확인] | AGENTS 8절 「기동 로그에 git SHA」 |
 | `labels.py:8-14` | motion·readiness 는 「no producer yet」 | operations 가 RobotStatus 에서 씀(`rescue_operations/ros_ingest.py:70-87`) | **고침(이 PR)**: 「copied by operations from RobotStatus」 |
