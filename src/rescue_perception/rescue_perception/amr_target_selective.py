@@ -31,7 +31,7 @@ from .target_utils import (FIELD_PARAMS as TARGET_FIELD_PARAMS, SETTINGS, target
 from .adapter import stamp_ns
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline, Inference
-from .selective_depth import SelectiveDepth
+from .selective_depth import NODE_NAME, TEST_TOPICS, SelectiveDepth
 
 
 FIELD_PARAMS = {**TARGET_FIELD_PARAMS, 'clock_domain_id': 'STRING'}
@@ -40,9 +40,9 @@ FIELD_PARAMS = {**TARGET_FIELD_PARAMS, 'clock_domain_id': 'STRING'}
 def create_node(*, model_factory=None, transform_lookup=None):
     """Create the RGB-D observation node; mapping integration is a later step."""
 
-    node = Node('amr_target')
+    node = Node(NODE_NAME)
     try:
-        v = field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
+        v = field_values({**SETTINGS, **TEST_TOPICS}, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         blockers = localization_blockers(v)
