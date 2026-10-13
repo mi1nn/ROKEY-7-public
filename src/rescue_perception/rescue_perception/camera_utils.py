@@ -30,6 +30,7 @@ SETTINGS = {
 # Field-dependent names are typed ROS parameters with no default (B1, 2026-10-13): the
 # robot6 OAK-D topic was written three different ways and none is verified on the robot.
 FIELD_PARAMS = {'image_topic': 'STRING'}
+STAMP_SEMANTICS = ('CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN')   # ObservationTime vocabulary
 
 PARAMS = {
     'image_topic': 'STRING', 'image_type': 'STRING', 'annotated_topic': 'STRING',
@@ -46,8 +47,14 @@ def field_values(settings, supplied, names):
         raise ValueError(f'missing parameters: {missing}')
     for name, kind in names.items():
         value = supplied[name]
-        if type(value) is not {'STRING': str}[kind] or not value.strip():
+        if kind == 'BOOL':
+            if type(value) is not bool:
+                raise ValueError(f'{name} must be a BOOL')
+        elif type(value) is not str or not value.strip():
             raise ValueError(f'{name} must be a non-empty {kind}')
+    for name in ('rgb_stamp_semantics', 'depth_stamp_semantics'):
+        if name in names and supplied[name] not in STAMP_SEMANTICS:
+            raise ValueError(f'{name} must be one of {STAMP_SEMANTICS}')
     return {**settings, **{name: supplied[name] for name in names}}
 
 

@@ -34,12 +34,6 @@ SETTINGS = {
     'camera_id': 'amr_rgbd',
     'model_id': 'survivor_yolo26n_640',
     'confirm_confidence_min': 0.8,
-    'calibration_id': 'UNCONFIGURED',
-    'alignment_evidence_id': 'UNCONFIGURED',
-    'rgb_rectified': False,
-    'rgb_depth_alignment_verified': False,
-    'rgb_stamp_semantics': 'UNKNOWN',
-    'depth_stamp_semantics': 'UNKNOWN',
     'clock_domain_id': 'UNCONFIGURED',
     'clock_state': 'UNKNOWN',
     'clock_error_bound_ns': -1,
@@ -58,8 +52,15 @@ SETTINGS = {
 }
 
 # Topic and optical frame names come from the robot, not from code (B1, 2026-10-13).
+# Localization evidence too (2026-10-13): core.locate_detection refuses a point unless both stamp
+# semantics are known (CLOCK_UNCERTAIN), RGB-Depth alignment is verified and RGB is rectified
+# (ALIGNMENT_UNVERIFIED). The old code values UNKNOWN/False refused every detection; true values
+# must come from the robot's camera configuration, never from here.
 FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_topic': 'STRING',
-                'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING'}
+                'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING',
+                'rgb_stamp_semantics': 'STRING', 'depth_stamp_semantics': 'STRING',
+                'rgb_depth_alignment_verified': 'BOOL', 'rgb_rectified': 'BOOL',
+                'calibration_id': 'STRING', 'alignment_evidence_id': 'STRING'}
 
 
 def target_config(v, boot_id):
