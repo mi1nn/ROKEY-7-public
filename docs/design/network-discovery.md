@@ -4,10 +4,11 @@ status: draft
 updated: 2026-10-08
 ---
 
-# Fast DDS Discovery Server 조사와 채택안 (작전, 2026-10-08)
+# Fast DDS Discovery Server 조사와 채택안 (작전, 2026-10-08 · 실기·배포 보강 같은 날)
 
 > 배경: 튜터가 멀티 로봇 구성에 Discovery Server 사용을 지시함 (원문 미확인, 전달: 사용자, 2026-10-08).
-> 결론 먼저. 출처 표기: [문서] [측정] [추정] [미확인]. 측정은 이 PC(Jazzy, Fast DDS 2.14.6, `rmw_fastrtps_cpp`) 로컬 전용 서버(127.0.0.1:11899, 도메인 77/78)에서 했고 로봇은 쓰지 않았다.
+> 결론 먼저. 출처 표기: [문서] [측정] [추정] [미확인]. 3절 측정은 작전 PC(Jazzy, Fast DDS 2.14.6, `rmw_fastrtps_cpp`) 로컬 전용 서버(127.0.0.1:11899, 도메인 77/78)에서, 3.1절 재측정은 실기·배포 PC 의 Jazzy 컨테이너에서 했다. 로봇은 쓰지 않았다.
+> 실기·배포가 더한 것: 3.1 재측정, 8 PC 별 설정 절차와 되돌리기, 9 오프라인 시험 규칙, 10 실행 전 점검 `scripts/field/preflight.py`.
 
 ## 0. 결론
 
@@ -40,9 +41,9 @@ updated: 2026-10-08
 
 `ROS_DISCOVERY_SERVER` 규칙: 세미콜론으로 나눈 **자리 번호가 서버 ID**다. ID 3 서버 하나만 쓰면 `;;;ip:11811`, ID 3과 6이면 `;;;ip3:11811;;;ip6:11811` [문서: ROS 2 DS tutorial, 측정: P4 제어 PC 값]. 매뉴얼은 PC의 `ROS_DOMAIN_ID`를 로봇과 맞추라고 쓰지만(0 기본) [문서], 아래 측정처럼 발견과 데이터 모두 도메인을 보지 않는다.
 
-## 3. 로컬 측정 (2026-10-08, 이 PC, 로봇 없음)
+## 3. 로컬 측정 (2026-10-08, 작전 PC, 로봇 없음)
 
-서버 `fastdds discovery -i 0 -l 127.0.0.1 -p 11899`, 발행자 `ros2 topic pub /ds_probe`(도메인 77, 서버 클라이언트), `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`. 측정 스크립트는 실기·배포 레인이 `scripts/field/` 로 옮긴다(작성 시점에는 작전 PC 의 임시 폴더).
+서버 `fastdds discovery -i 0 -l 127.0.0.1 -p 11899`, 발행자 `ros2 topic pub /ds_probe`(도메인 77, 서버 클라이언트), `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`. 작성 시점의 스크립트는 작전 PC 의 임시 폴더에 있었고 저장소에 없다. 같은 경우를 다시 재는 탐침은 3.1 절의 [`tests/ros/hosts_discovery_probe.py`](../../tests/ros/hosts_discovery_probe.py)다.
 
 | # | 조건 | 결과 |
 |---|---|---|
@@ -57,6 +58,30 @@ updated: 2026-10-08
 | H5·H6 | 같은 ID·포트로 서버 재시작 | 2초 뒤 기존 발행자 다시 보임, 새 구독자 수신 |
 | H7 | 기존 구독자 | 서버 죽음·재시작 내내 수신 유지 (총 199건) |
 | - | `fastdds discovery` 래퍼 kill | 자식 `fast-discovery-server` 가 남는다. P4 "서비스 재시작으로는 서버가 안 내려감, PID 그대로" 와 같은 현상. 끌 때는 자식 PID를 지정 |
+
+### 3.1 재측정 (2026-10-08, 실기·배포 PC, 로봇 없음)
+
+이 PC 에는 ROS 가 설치돼 있지 않다 [측정: Ubuntu 26.04, `/opt/ros` 없음]. 그래서 `ros:jazzy-ros-base` 컨테이너(Fast DDS 2.14.6, `rmw_fastrtps_cpp` 기본값 [측정])를 `--network none` 으로 띄워 **loopback 밖으로는 패킷이 못 나가게** 하고 쟀다. 도메인 42, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, 서버 `127.0.0.1:11899`(ID 0). 탐침은 시작할 때 `ROS_DISCOVERY_SERVER` 가 남아 있으면 거절한다. 원문 로그: [hosts-discovery-probe](../evidence/field-2026-10-08-hosts-discovery-probe.log). 2026-10-12 에 Jazzy 가 설치된 개발 PC(현장 PC 아님)의 호스트 셸에서 같은 탐침을 다시 돌려 9/9 PASSED 였다([hosts-discovery-probe 10-12](../evidence/field-2026-10-12-hosts-discovery-probe.log)).
+
+```sh
+docker run --rm --network none -v <REPO>:/repo:ro -w /repo \
+  -e ROS_DOMAIN_ID=42 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST ros:jazzy-ros-base \
+  bash -c 'source /opt/ros/jazzy/setup.bash && python3 tests/ros/hosts_discovery_probe.py'
+```
+
+| # | 조건 | 기대 | 결과 [측정 2026-10-08] |
+|---|---|---|---|
+| A | 서버 있음, 일반 클라이언트(`ROS_SUPER_CLIENT=False`)가 목록 조회 | 안 보임 | 안 보임 — 3절 A 와 같음 |
+| B | 서버 있음, super client 가 목록 조회 | 보임 | 보임 — 3절 B 와 같음 |
+| C | 서버 있음, 일반 클라이언트가 구독(`echo --once`) | 수신 | 수신 — 서로를 찾는다 |
+| F | 서버 있음, 발행자는 서버 클라이언트, 구독자는 Simple Discovery | 못 받음 | 12 초 안에 못 받음 — 3절 F 와 같음 |
+| P | preflight 를 이 서버에 붙여 `/probe_robot/cmd_vel` 발행자 2개를 셈 | `FAILED`, 2 | `FAILED`, 2 — 중복 발행 감지 경로가 실제 그래프에서 동작 |
+| R1 | 서버가 떠 있을 때 preflight 의 UDP 포트 점검 | `FAILED` 아님 | `no_reply` → `NOT_RUN` (UDP 는 침묵이 열림의 증명이 아님) |
+| H | 서버 프로세스 그룹을 끈 뒤 새 클라이언트가 구독 | 못 받음 | 못 받음 — 3절 H3·H4 와 같음 |
+| R2 | 서버를 끈 뒤 같은 UDP 점검 | `FAILED` | `refused` → `FAILED` |
+| S | 서버 설정이 아무 데도 없음, 양쪽 Simple Discovery | 수신 | 수신 — 오프라인 시험의 기준 상태 |
+
+9/9 일치, 종료 코드 0 [측정]. 3절의 C·D(도메인 무시)·H5~H7(재시작 뒤 복구)은 다시 재지 않았다 — 미실행. 서버는 프로세스 그룹으로 껐고 R2 의 `refused` 로 자식 `fast-discovery-server` 까지 내려간 것을 확인했다(3절 마지막 행의 "자식이 남는다" 문제를 피하는 방법).
 
 ## 4. 운영에서 걸리는 것 (P4 기록 + 측정)
 
@@ -82,8 +107,8 @@ updated: 2026-10-08
 ## 6. 우리 저장소에 반영할 것
 
 1. `rescue_bringup` profile v2.1 에 호스트별 `network` 블록: `domain_id`, `discovery_servers[{server_id, host, port}]`, `namespace`, `super_client=false`. 코드는 값을 읽어 기록·비교만 하고 발견 성공을 가정하지 않는다 (development.md 미구현 후보 그대로).
-2. 실행 전 점검(E3): 프로세스의 실제 `ROS_DISCOVERY_SERVER`·`RMW`·`ROS_SUPER_CLIENT` 를 프로파일과 비교, 로봇 서버 포트 도달 여부, `/robotN/cmd_vel`·`/robotN/map` 발행자 수, 최근 수신 시각. P4 `preflight.py` 의 `discovery_host()` 를 가져온다.
-3. 오프라인 시험 규칙: `scripts/run_tests.py` 와 가짜 로봇은 `ROS_DISCOVERY_SERVER` 를 지우고 시작한다.
+2. 실행 전 점검(E3) — **10절에서 구현**(최근 수신 시각은 아직 없음): 프로세스의 실제 `ROS_DISCOVERY_SERVER`·`RMW`·`ROS_SUPER_CLIENT` 를 프로파일과 비교, 로봇 서버 포트 도달 여부, `/robotN/cmd_vel`·`/robotN/map` 발행자 수, 최근 수신 시각. P4 `preflight.py` 의 `discovery_host()` 를 가져온다.
+3. 오프라인 시험 규칙 — **9절**: `scripts/run_tests.py` 와 가짜 로봇은 `ROS_DISCOVERY_SERVER` 를 지우고 시작한다.
 4. AC-01·CT-08 의 A0 실험 목록을 구체화: (a) 관제 PC가 두 서버 목록으로 두 로봇을 동시에 보는가(도메인 다른 채로) (b) 참가자 수 대 Pi 서버 CPU (c) Pi 재부팅 뒤 재등록 시간 (d) 두 PC가 같은 서버에 붙을 때 발행자 충돌 감지.
 5. `docs/scope.md` 에 Q 추가: 튜터 지시 원문, 두 로봇의 현재 서버 ID·도메인·네임스페이스, PC 4대의 서버 목록.
 
@@ -92,6 +117,61 @@ updated: 2026-10-08
 - 튜터가 말한 구성의 원문(Notion 'Multi Robot' 두 쪽, pD5 p.55-56). 오프보드 서버까지 요구하는지.
 - robot6 의 현재 서버 ID·도메인·네임스페이스 (robot3 는 ID 3·도메인 3·`/robot3` [측정 P4]).
 - A안 채택 여부. 채택하면 PC 쪽 설정만 바꾸고 로봇 설정 변경은 0건이다.
+
+## 8. PC 별 설정 절차와 되돌리기 (사람이 실행, 실기·배포 2026-10-08)
+
+PC 의 셸 설정을 바꾸는 일은 [팀 작업 규칙](../../AGENTS.md) 6절의 설정 변경 절차(백업·전후 해시·사용자 승인 날짜)를 따른다. AI 세션은 아래 명령을 실행하지 않고, 사람이 실행한 뒤 결과(해시·preflight JSON)를 PR 이나 실행 기록에 붙인다. 로봇 Pi 는 바꾸지 않는다(토폴로지 A 는 로봇 쪽 변경이 0건이다).
+
+**원칙: `.bashrc` 에 넣지 않는다 [제안].** TB4 의 `configure_discovery.sh` 는 `/etc/turtlebot4_discovery/setup.bash` 를 쓰고 `.bashrc` 에서 읽게 한다 [문서]. 그러면 모든 셸이 로봇 서버의 클라이언트가 되어 오프라인 시험 노드끼리도 서로 못 찾는다(3절 F·H, 3.1 절 F·H [측정]). 그래서 현장 터미널에서만 `source` 하는 파일 하나를 쓴다.
+
+| 단계 | 명령(예시, `<...>` 는 Q-01 배정 뒤 값) | 남길 것 |
+| --- | --- | --- |
+| 0. 승인 | 사용자 승인 날짜를 실행 기록에 적는다 | 날짜 |
+| 1. 지금 값 | `env \| grep -E '^(ROS_\|RMW_\|CYCLONEDDS_\|FASTRTPS_)' \| sort` · `python3 -I scripts/field/preflight.py --host-config config/hosts/<role>.example.json --json <TMP>/before.json` | 바꾸기 전 환경, preflight JSON |
+| 2. 백업 | `cp ~/.bashrc ~/.bashrc.bak-<날짜>` · `sha256sum ~/.bashrc ~/.bashrc.bak-<날짜>` | 두 해시가 같은지 |
+| 3. 파일 만들기 | `~/.config/rokey7/field-discovery.bash` 에 아래 내용 | 파일 해시 |
+| 4. 현장 터미널에서만 | `source ~/.config/rokey7/field-discovery.bash` | — |
+| 5. 확인 | `python3 -I scripts/field/preflight.py --host-config ... --json <TMP>/after.json` · `sha256sum ~/.bashrc`(그대로여야 함) | preflight JSON, `.bashrc` 해시 |
+
+```sh
+# ~/.config/rokey7/field-discovery.bash — 현장 터미널에서만 source 한다
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp      # Discovery Server 는 Fast DDS 전용 [문서]
+unset CYCLONEDDS_URI
+# 자리 번호 = 서버 ID. ID 1·2 라면 ";<robot_a-ip>:11811;<robot_b-ip>:11811" (2절 규칙)
+export ROS_DISCOVERY_SERVER="<서버 목록>"
+export ROS_SUPER_CLIENT=False                   # 조회만 앞에 붙여 쓴다: ROS_SUPER_CLIENT=True ros2 topic list
+export ROS_DOMAIN_ID=<Q-01>                     # 서버는 도메인을 보지 않지만 매뉴얼대로 로봇과 맞춘다 [문서]
+ros2 daemon stop; ros2 daemon start             # 낡은 목록을 버린다 (4절)
+```
+
+역할별 서버 목록은 [`config/hosts/`](../../config/hosts) 예시를 따른다: 로봇 담당 PC 두 대는 자기 로봇 서버 하나, 관제(`central` = deployment 의 `coordination`)와 `operations`(관제 화면·고정 카메라 A·B) PC 는 두 서버 모두 [제안]. 로봇 카메라 인식은 별도 역할이 아니라 로봇 담당 PC(`robots[].perception_host`)다(작전 결정 2026-10-08). 예시의 주소와 ID 는 자리표시자이고, 작전의 프로파일 v2.1 `hosts[].network` 블록(#39, 서버 항목은 `server_id`·`address`·`port`)이 들어오면 그 값으로 바꾼다.
+
+**되돌리기.** 이 방식은 `.bashrc` 를 바꾸지 않으므로 그 터미널을 닫으면 끝난다. 열린 터미널에서 되돌릴 때는 `unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT` 뒤 1단계에서 적은 `RMW_IMPLEMENTATION`·`CYCLONEDDS_URI`·`ROS_DOMAIN_ID` 를 다시 `export` 하고 `ros2 daemon stop`. TB4 의 `configure_discovery.sh` 를 이미 썼다면 `.bashrc` 를 2단계 백업으로 되돌리고(해시 확인) `/etc/turtlebot4_discovery/setup.bash` 를 지운다 — 이것은 sudo 라 사람이 한다.
+
+이 PC 의 측정 [2026-10-08]: 셸에 CycloneDDS RMW 와 그 설정 파일, 로봇과 무관한 도메인 값이 들어 있다. 이 PC 를 현장에 쓰면 위 파일이 RMW 를 덮어써야 하고, 쓰지 않는 셸은 그대로 둔다.
+
+## 9. 오프라인 시험 규칙 (로봇 없이 ROS 를 돌릴 때)
+
+1. 시작하는 셸에서 `unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT` 를 하거나, 8절 파일을 source 하지 않은 새 터미널을 쓴다.
+2. `ROS_DOMAIN_ID` 는 로봇과 겹치지 않는 값(지금은 10 이상, 팀 작업 규칙 6절), `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`.
+3. 서버가 필요한 시험은 `127.0.0.1` 의 로컬 서버를 직접 띄우고 그 주소만 쓴다(3.1 절 탐침이 예). 끌 때는 자기가 띄운 프로세스 그룹이나 PID 로 끈다. `pkill -f` 금지.
+4. 시험 스크립트는 시작할 때 1·2 를 확인하고 아니면 거절한다(`tests/ros/e3_*_probe.py`, `tests/ros/hosts_discovery_probe.py` 가 그렇게 한다). `scripts/run_tests.py` 는 ROS 를 쓰지 않아 해당 없음.
+
+## 10. 실행 전 점검 `scripts/field/preflight.py`
+
+자기 PC 의 실제 값을 **보고만** 한다. 파일·설정·로봇을 바꾸지 않는다. 그래프 조회 때 super client 참가자 하나가 잠깐 서버에 붙는 것이 유일한 흔적이다.
+
+| 점검 | 판정 |
+| --- | --- |
+| `ROS_DISTRO`·`RMW_IMPLEMENTATION`·`ROS_DISCOVERY_SERVER`·`ROS_DOMAIN_ID` | 호스트 설정(`--host-config`)과 비교. 기대값이 없거나 예시 자리표시자면 `NOT_RUN`. 서버가 있는데 Fast DDS 가 아니면 설정이 없어도 `FAILED` |
+| `ROS_SUPER_CLIENT`·`ROS_AUTOMATIC_DISCOVERY_RANGE` | 기록만 (조회 터미널은 True 가 정상이라 판정하지 않음) |
+| 설치 패키지 `nav2_msgs`·`irobot_create_msgs`·`turtlebot4_*`·`rmw_fastrtps_cpp`, `fastdds` CLI | source 한 ament 경로에서 찾음. source 안 했으면 `NOT_RUN` |
+| 서버 포트 | 빈 UDP 한 개. `refused`·`unreachable` 은 `FAILED`, 응답 없음은 `NOT_RUN`(UDP 는 열림을 증명 못함) |
+| `/<ns>/cmd_vel`·`/<ns>/map` 발행자 수 | `ROS_SUPER_CLIENT=True` 를 자식 프로세스에만 주고 `ros2 topic list -v --no-daemon` 한 번. 2 이상이면 `FAILED`(2026-10-06 P4 중복 발행 사고). 그 네임스페이스가 안 보이면 `NOT_RUN` |
+
+결과는 표준 출력 JSON, 사람이 읽는 표는 표준 오류. JSON 의 `host_facts` 에 OS 이름·Python 버전·`/opt/ros/<distro>` 목록을 판정 없이 남긴다(현장 PC 를 고를 때의 입력, Q-02·Q-15). 종료 코드 0 = 전부 `PASSED`, 2 = `FAILED` 하나 이상, 3 = 실패는 없고 `NOT_RUN` 이 있음. 아직 없는 것: 최근 수신 시각(생존 판정), 서버 CPU, 참가자 수 — 다음 PR(4-PC 기동 탐침, AC-01).
+
+이 PC 에서 잰 값 [측정 2026-10-08]: 호스트 셸(Ubuntu 26.04.1, Python 3.14, `/opt/ros` 없음)은 ROS 미설치로 종료 코드 2([preflight-host](../evidence/field-2026-10-08-preflight-host.log)), Jazzy 컨테이너(`--network none`)는 `nav2_msgs`·`irobot_create_msgs` 미설치로 종료 코드 2([preflight-container](../evidence/field-2026-10-08-preflight-container.log)). 둘 다 서버·그래프는 `NOT_RUN`(로봇 없음). [측정 2026-10-12] Jazzy 가 설치된 개발 PC(현장 PC 아님, 격리 도메인·LOCALHOST)에서 예시 파일로 다시 돌린 결과: `operations` 는 종료 코드 3(배포판·RMW·패키지·fastdds 통과, 서버·도메인·그래프 `NOT_RUN`), `central` 은 종료 코드 2(`irobot_create_msgs` 미설치)([preflight-host 10-12](../evidence/field-2026-10-12-preflight-host.log)).
 
 ## 출처
 

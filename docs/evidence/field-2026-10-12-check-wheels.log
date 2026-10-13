@@ -1,0 +1,1037 @@
+# 2026-10-12, head 10d4e9e
++ /usr/bin/python3 -m pip wheel --no-index --no-deps --no-build-isolation --no-cache-dir --wheel-dir <TMP>/wheels <TMP>/source/rescue_bringup <TMP>/source/rescue_console <TMP>/source/rescue_contracts <TMP>/source/rescue_coordination <TMP>/source/rescue_mapping <TMP>/source/rescue_operations <TMP>/source/rescue_perception <TMP>/source/rescue_robot
+Processing <TMP>/source/rescue_bringup
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_console
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_contracts
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_coordination
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_mapping
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_operations
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_perception
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Processing <TMP>/source/rescue_robot
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Building wheels for collected packages: rescue-bringup, rescue-console, rescue-contracts, rescue-coordination, rescue-mapping, rescue-operations, rescue-perception, rescue-robot
+  Building wheel for rescue-bringup (setup.py): started
+  Building wheel for rescue-bringup (setup.py): finished with status 'done'
+  Created wheel for rescue-bringup: filename=rescue_bringup-0.0.0-py3-none-any.whl size=23545 sha256=a2491e90297269e035bebc3244274119023555e70adf4740e564e309ea24143d
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/aa/d0/23/07825d483053eaba81794e5797af69605f8acb4ec086b31c34
+  Building wheel for rescue-console (setup.py): started
+  Building wheel for rescue-console (setup.py): finished with status 'done'
+  Created wheel for rescue-console: filename=rescue_console-0.0.0-py3-none-any.whl size=63862 sha256=60ca825eaf9f21909e8044466248b2197aa33d8cade762ceeeb45111bef05f36
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/2a/2a/e4/250977c92f00fdfbfdc2eb0d29521070855048ed74a05893f0
+  Building wheel for rescue-contracts (setup.py): started
+  Building wheel for rescue-contracts (setup.py): finished with status 'done'
+  Created wheel for rescue-contracts: filename=rescue_contracts-0.0.0-py3-none-any.whl size=8516 sha256=3906bed78abec057f2b37009a74480843b8ce7e67fe05318786a8f310e6c2931
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/0a/79/6a/8e1c63d9e9b5fc2937b5a842f15217d764848d79878cdbf6c0
+  Building wheel for rescue-coordination (setup.py): started
+  Building wheel for rescue-coordination (setup.py): finished with status 'done'
+  Created wheel for rescue-coordination: filename=rescue_coordination-0.0.0-py3-none-any.whl size=40262 sha256=89fe3afa553257acc2ce2082f02c70e4c86d1b223a5b5dea78eaecb07c0fa317
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/55/d6/26/9a13dd5c1b61a3fc64b565bac0f17b5e90cbe064a8a00f46cf
+  Building wheel for rescue-mapping (setup.py): started
+  Building wheel for rescue-mapping (setup.py): finished with status 'done'
+  Created wheel for rescue-mapping: filename=rescue_mapping-0.0.0-py3-none-any.whl size=13248 sha256=7cbf80c3553309632bff1be020aafe89c5ce61f09365501c6d2a328d4492a3bb
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/da/64/3a/c8a1d8b0a56e3a41b3f243f90a1199f2cef0991b1c04a5ee99
+  Building wheel for rescue-operations (setup.py): started
+  Building wheel for rescue-operations (setup.py): finished with status 'done'
+  Created wheel for rescue-operations: filename=rescue_operations-0.0.0-py3-none-any.whl size=27364 sha256=5eecb35d37ab5236b62701cfdace88b5b33de9e31f0de114104ea495b672cf98
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/fa/80/c8/9b3b5012d423988a30a4ef8c36a41a6b724ca01ec76dc8935d
+  Building wheel for rescue-perception (setup.py): started
+  Building wheel for rescue-perception (setup.py): finished with status 'done'
+  Created wheel for rescue-perception: filename=rescue_perception-0.0.0-py3-none-any.whl size=49791 sha256=60acee93f103a96660b5e02ac606b4749584218f69945bc5db61a99bb6dfb1ce
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/64/57/68/5c949d8d3ba0af0e813486e26686d02d282218d5028dbf6b23
+  Building wheel for rescue-robot (setup.py): started
+  Building wheel for rescue-robot (setup.py): finished with status 'done'
+  Created wheel for rescue-robot: filename=rescue_robot-0.0.0-py3-none-any.whl size=72565 sha256=8ffafa3ec16ea013867a335722d980a773a48b31dd48487ca5289f14f0d79d47
+  Stored in directory: /tmp/pip-ephem-wheel-cache-mqmg_05n/wheels/34/ee/98/8e422a299efdf0775f944637f03e04026f40dbd470a57f2bd0
+Successfully built rescue-bringup rescue-console rescue-contracts rescue-coordination rescue-mapping rescue-operations rescue-perception rescue-robot
++ /usr/bin/python3 -m venv <TMP>/venv
++ <TMP>/venv/bin/python -m pip install --no-index --no-deps <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_console-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_bringup-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_console-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_contracts-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_coordination-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_mapping-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_operations-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_perception-0.0.0-py3-none-any.whl
+Processing <TMP>/wheels/rescue_robot-0.0.0-py3-none-any.whl
+Installing collected packages: rescue-robot, rescue-perception, rescue-operations, rescue-mapping, rescue-coordination, rescue-contracts, rescue-console, rescue-bringup
+Successfully installed rescue-bringup-0.0.0 rescue-console-0.0.0 rescue-contracts-0.0.0 rescue-coordination-0.0.0 rescue-mapping-0.0.0 rescue-operations-0.0.0 rescue-perception-0.0.0 rescue-robot-0.0.0
++ <TMP>/venv/bin/python -m pip check
+No broken requirements found.
++ <TMP>/venv/bin/python -I -c import importlib,sys
+for name in ('rescue_robot','rescue_mapping','rescue_perception','rescue_coordination','rescue_operations','rescue_bringup','rescue_contracts','rescue_console'):
+ module=importlib.import_module(name)
+ assert module.__file__.startswith(sys.prefix), (name,module.__file__,sys.prefix)
+ print('INSTALLED IMPORT',name)
+
+INSTALLED IMPORT rescue_robot
+INSTALLED IMPORT rescue_mapping
+INSTALLED IMPORT rescue_perception
+INSTALLED IMPORT rescue_coordination
+INSTALLED IMPORT rescue_operations
+INSTALLED IMPORT rescue_bringup
+INSTALLED IMPORT rescue_contracts
+INSTALLED IMPORT rescue_console
++ <TMP>/venv/bin/python -I -B -c import sys,unittest
+from pathlib import Path
+assert not (Path.cwd()/'src').exists(), 'installed test checkout must not contain source'
+print('SOURCELESS_CHECKOUT', flush=True)
+suite=unittest.defaultTestLoader.discover(sys.argv[1])
+assert suite.countTestCases()>0, 'empty installed test suite'
+print('Installed suite:',suite.countTestCases(),flush=True)
+raise SystemExit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+ <TMP>/check/tests
+SOURCELESS_CHECKOUT
+Installed suite: 913
+test_allows_tokens_robot_user_and_system_paths (test_check_docs_paths.PersonalPathTests.test_allows_tokens_robot_user_and_system_paths) ... skipped 'installed-wheel checkout has no scripts/'
+test_flags_personal_paths_with_line_numbers (test_check_docs_paths.PersonalPathTests.test_flags_personal_paths_with_line_numbers) ... skipped 'installed-wheel checkout has no scripts/'
+test_ubuntu_prefix_alone_is_not_an_exemption (test_check_docs_paths.PersonalPathTests.test_ubuntu_prefix_alone_is_not_an_exemption) ... skipped 'installed-wheel checkout has no scripts/'
+test_watchdog_flag_comes_only_from_a_configured_heartbeat_topic (test_command_watchdog.AdapterWatchdogSourceTests.test_watchdog_flag_comes_only_from_a_configured_heartbeat_topic) ... ok
+test_command_arriving_after_heartbeat_expiry_latches_even_before_step (test_command_watchdog.CommandWatchdogTests.test_command_arriving_after_heartbeat_expiry_latches_even_before_step) ... ok
+test_command_over_limit_or_not_finite_latches_instead_of_clamping (test_command_watchdog.CommandWatchdogTests.test_command_over_limit_or_not_finite_latches_instead_of_clamping) ... ok
+test_events_record_each_transition_with_its_reason (test_command_watchdog.CommandWatchdogTests.test_events_record_each_transition_with_its_reason) ... ok
+test_explicit_reset_needs_a_fresh_heartbeat (test_command_watchdog.CommandWatchdogTests.test_explicit_reset_needs_a_fresh_heartbeat) ... ok
+test_fresh_heartbeat_arms_and_forwards_commands_within_limits (test_command_watchdog.CommandWatchdogTests.test_fresh_heartbeat_arms_and_forwards_commands_within_limits) ... ok
+test_heartbeat_recovery_never_releases_the_latch (test_command_watchdog.CommandWatchdogTests.test_heartbeat_recovery_never_releases_the_latch) ... ok
+test_input_silence_after_motion_sends_one_zero_without_latching (test_command_watchdog.CommandWatchdogTests.test_input_silence_after_motion_sends_one_zero_without_latching) ... ok
+test_nothing_is_forwarded_before_the_first_executor_heartbeat (test_command_watchdog.CommandWatchdogTests.test_nothing_is_forwarded_before_the_first_executor_heartbeat) ... ok
+test_stale_executor_heartbeat_latches_stop_and_silences_own_heartbeat (test_command_watchdog.CommandWatchdogTests.test_stale_executor_heartbeat_latches_stop_and_silences_own_heartbeat) ... ok
+test_time_going_backwards_latches (test_command_watchdog.CommandWatchdogTests.test_time_going_backwards_latches) ... ok
+test_zero_command_does_not_need_a_follow_up_zero (test_command_watchdog.CommandWatchdogTests.test_zero_command_does_not_need_a_follow_up_zero) ... ok
+test_every_threshold_must_be_positive_and_finite (test_command_watchdog.WatchdogPolicyTests.test_every_threshold_must_be_positive_and_finite) ... ok
+test_account_identity_and_auth_version (test_console_accounts.AccountStoreTests.test_account_identity_and_auth_version)
+Sessions bind to (account_id, auth_version): names can be reused, credentials can change. ... ok
+test_admin_creates_updates_and_deletes_customers (test_console_accounts.AccountStoreTests.test_admin_creates_updates_and_deletes_customers) ... ok
+test_create_bootstraps_one_active_admin_and_refuses_to_overwrite (test_console_accounts.AccountStoreTests.test_create_bootstraps_one_active_admin_and_refuses_to_overwrite) ... ok
+test_invalid_inputs_are_rejected_with_the_contract_error (test_console_accounts.AccountStoreTests.test_invalid_inputs_are_rejected_with_the_contract_error) ... ok
+test_last_active_admin_is_protected (test_console_accounts.AccountStoreTests.test_last_active_admin_is_protected) ... ok
+test_open_refuses_missing_or_foreign_database (test_console_accounts.AccountStoreTests.test_open_refuses_missing_or_foreign_database) ... ok
+test_passwords_are_salted_hashes_and_authenticate_is_strict (test_console_accounts.AccountStoreTests.test_passwords_are_salted_hashes_and_authenticate_is_strict) ... ok
+test_unknown_and_inactive_names_cost_a_password_check_too (test_console_accounts.AccountStoreTests.test_unknown_and_inactive_names_cost_a_password_check_too) ... ok
+test_vocabularies (test_console_accounts.AccountStoreTests.test_vocabularies) ... ok
+test_bad_or_extra_values_are_refused (test_console_commands.CommandRequestTests.test_bad_or_extra_values_are_refused) ... ok
+test_each_kind_carries_exactly_the_fields_the_coordinator_reads (test_console_commands.CommandRequestTests.test_each_kind_carries_exactly_the_fields_the_coordinator_reads) ... ok
+test_every_value_the_operator_saw_must_be_there (test_console_commands.CommandRequestTests.test_every_value_the_operator_saw_must_be_there) ... ok
+test_fields_match_the_coordinator_gate (test_console_commands.CommandRequestTests.test_fields_match_the_coordinator_gate) ... ok
+test_held_and_unknown_kinds_are_refused_before_anything_is_sent (test_console_commands.CommandRequestTests.test_held_and_unknown_kinds_are_refused_before_anything_is_sent) ... ok
+test_operations_url_is_http_only_and_has_no_default (test_console_commands.CommandRequestTests.test_operations_url_is_http_only_and_has_no_default) ... ok
+test_a_failed_send_is_shown_and_not_retried (test_console_commands.CommandRouteTests.test_a_failed_send_is_shown_and_not_retried) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_admin_sends_once_and_gets_the_answer (test_console_commands.CommandRouteTests.test_admin_sends_once_and_gets_the_answer) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_commands_is_the_only_new_write_route (test_console_commands.CommandRouteTests.test_commands_is_the_only_new_write_route) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_customer_cannot_send (test_console_commands.CommandRouteTests.test_customer_cannot_send) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_held_or_malformed_commands_are_refused_here (test_console_commands.CommandRouteTests.test_held_or_malformed_commands_are_refused_here) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_login_and_csrf_are_required (test_console_commands.CommandRouteTests.test_login_and_csrf_are_required) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_rejection_is_shown_as_given (test_console_commands.CommandRouteTests.test_rejection_is_shown_as_given) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_without_an_operations_address_nothing_is_sent (test_console_commands.CommandRouteTests.test_without_an_operations_address_nothing_is_sent) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_an_error_status_body_is_still_read (test_console_commands.FakeOperationsTests.test_an_error_status_body_is_still_read) ... ok
+test_nothing_listening_is_unreachable_and_not_sent (test_console_commands.FakeOperationsTests.test_nothing_listening_is_unreachable_and_not_sent) ... ok
+test_one_json_post_and_the_answer_is_read (test_console_commands.FakeOperationsTests.test_one_json_post_and_the_answer_is_read) ... ok
+test_slow_operations_times_out_once_and_delivery_is_unknown (test_console_commands.FakeOperationsTests.test_slow_operations_times_out_once_and_delivery_is_unknown) ... ok
+test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger (test_console_commands.GateTests.test_a_row_without_the_receipt_key_is_not_guessed_from_the_ledger) ... ok
+test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows (test_console_commands.GateTests.test_continue_only_while_awaiting_approval_and_carries_what_the_screen_shows) ... ok
+test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet (test_console_commands.GateTests.test_dispatch_needs_a_confirmed_target_with_its_revision_and_no_dispatch_yet) ... ok
+test_dispatch_waits_for_the_report_receipt (test_console_commands.GateTests.test_dispatch_waits_for_the_report_receipt) ... ok
+test_held_commands_stay_off_whatever_the_state (test_console_commands.GateTests.test_held_commands_stay_off_whatever_the_state) ... ok
+test_malformed_revision_or_receipt_fails_the_poll (test_console_commands.GateTests.test_malformed_revision_or_receipt_fails_the_poll) ... ok
+test_outside_disaster_mode_nothing_is_enabled (test_console_commands.GateTests.test_outside_disaster_mode_nothing_is_enabled) ... ok
+test_panel_lists_every_command_with_the_flow_gates_first (test_console_commands.GateTests.test_panel_lists_every_command_with_the_flow_gates_first) ... ok
+test_recheck_leaves_out_rescued_targets (test_console_commands.GateTests.test_recheck_leaves_out_rescued_targets) ... ok
+test_return_home_only_after_a_verdict (test_console_commands.GateTests.test_return_home_only_after_a_verdict) ... ok
+test_start_search_only_before_the_search (test_console_commands.GateTests.test_start_search_only_before_the_search) ... ok
+test_without_a_mission_row_nothing_is_enabled (test_console_commands.GateTests.test_without_a_mission_row_nothing_is_enabled) ... ok
+test_badge_reads_the_mission_state_row (test_console_commands.MissionBadgeTests.test_badge_reads_the_mission_state_row) ... ok
+test_every_mission_mode_has_a_word (test_console_commands.MissionBadgeTests.test_every_mission_mode_has_a_word) ... ok
+test_no_mission_row_yet_falls_back_to_the_signs_and_says_so (test_console_commands.MissionBadgeTests.test_no_mission_row_yet_falls_back_to_the_signs_and_says_so) ... ok
+test_buttons_need_both_the_access_and_the_gate (test_console_commands.PanelRenderTests.test_buttons_need_both_the_access_and_the_gate) ... ok
+test_fragment_carries_the_gates_for_the_buttons (test_console_commands.PanelRenderTests.test_fragment_carries_the_gates_for_the_buttons) ... ok
+test_the_site_stop_stays_on_the_panel (test_console_commands.PanelRenderTests.test_the_site_stop_stays_on_the_panel) ... ok
+test_an_error_status_that_carries_an_answer_is_still_an_answer (test_console_commands.ReplyTests.test_an_error_status_that_carries_an_answer_is_still_an_answer) ... ok
+test_answer_is_passed_on_as_given (test_console_commands.ReplyTests.test_answer_is_passed_on_as_given) ... ok
+test_what_is_not_an_answer_is_a_failure_not_a_rejection (test_console_commands.ReplyTests.test_what_is_not_an_answer_is_a_failure_not_a_rejection) ... ok
+test_a_failure_is_reported_and_never_retried (test_console_commands.SendTests.test_a_failure_is_reported_and_never_retried) ... ok
+test_one_post_and_the_answer_comes_back (test_console_commands.SendTests.test_one_post_and_the_answer_comes_back) ... ok
+test_every_upstream_value_has_a_korean_word (test_console_labels.LabelTests.test_every_upstream_value_has_a_korean_word) ... ok
+test_unknown_code_is_shown_unchanged_and_none_stays_none (test_console_labels.LabelTests.test_unknown_code_is_shown_unchanged_and_none_stays_none) ... ok
+test_words_are_nonempty_and_differ_from_the_code (test_console_labels.LabelTests.test_words_are_nonempty_and_differ_from_the_code) ... ok
+test_example_poses_land_on_free_cells_of_the_pre_quake_map (test_console_map.ExampleFixtureOnMapTests.test_example_poses_land_on_free_cells_of_the_pre_quake_map) ... skipped 'source checkout only: example fixture and map assets are not installed'
+test_offline_ledger_with_example_and_map_has_nothing_off_the_map (test_console_map.ExampleFixtureOnMapTests.test_offline_ledger_with_example_and_map_has_nothing_off_the_map) ... skipped 'source checkout only: example fixture and map assets are not installed'
+test_map_png_needs_login_and_is_get_only (test_console_map.MapRouteTests.test_map_png_needs_login_and_is_get_only) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_no_map_is_404_and_bad_map_fails_at_startup (test_console_map.MapRouteTests.test_no_map_is_404_and_bad_map_fails_at_startup) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_page_draws_robots_and_targets_on_the_map (test_console_map.MapScreenTests.test_page_draws_robots_and_targets_on_the_map) ... ok
+test_robot_heading_and_off_map_warning (test_console_map.MapScreenTests.test_robot_heading_and_off_map_warning) ... ok
+test_untrusted_ids_are_escaped_in_the_overlay (test_console_map.MapScreenTests.test_untrusted_ids_are_escaped_in_the_overlay) ... ok
+test_without_map_the_placeholder_stays (test_console_map.MapScreenTests.test_without_map_the_placeholder_stays) ... ok
+test_bad_pgm_is_refused (test_console_map.PgmPngTests.test_bad_pgm_is_refused) ... ok
+test_bad_yaml_is_refused_not_defaulted (test_console_map.PgmPngTests.test_bad_yaml_is_refused_not_defaulted) ... ok
+test_flat_yaml_subset (test_console_map.PgmPngTests.test_flat_yaml_subset) ... ok
+test_loaded_map_png_is_the_pgm_as_saved (test_console_map.PgmPngTests.test_loaded_map_png_is_the_pgm_as_saved) ... ok
+test_missing_files_are_storage_errors_and_nothing_is_created (test_console_map.PgmPngTests.test_missing_files_are_storage_errors_and_nothing_is_created) ... ok
+test_negate_flips_so_dark_stays_occupied (test_console_map.PgmPngTests.test_negate_flips_so_dark_stays_occupied) ... ok
+test_pgm_header_with_comment_is_read_exactly (test_console_map.PgmPngTests.test_pgm_header_with_comment_is_read_exactly) ... ok
+test_png_round_trips_the_pixels (test_console_map.PgmPngTests.test_png_round_trips_the_pixels) ... ok
+test_pre_quake_map_matches_its_manifest (test_console_map.PreQuakeMapAssetTests.test_pre_quake_map_matches_its_manifest) ... skipped 'source checkout only: assets are not installed'
+test_origin_is_bottom_left_and_y_is_flipped (test_console_map.ProjectionTests.test_origin_is_bottom_left_and_y_is_flipped) ... ok
+test_overlay_plots_map_frame_only_and_lists_the_rest (test_console_map.ProjectionTests.test_overlay_plots_map_frame_only_and_lists_the_rest) ... ok
+test_points_off_the_image_are_none_not_clamped (test_console_map.ProjectionTests.test_points_off_the_image_are_none_not_clamped) ... ok
+test_locks_after_the_limit_and_opens_again_after_the_lock (test_console_throttle.LoginThrottleTests.test_locks_after_the_limit_and_opens_again_after_the_lock) ... ok
+test_memory_is_bounded_under_a_flood_of_names (test_console_throttle.LoginThrottleTests.test_memory_is_bounded_under_a_flood_of_names) ... ok
+test_name_is_case_insensitive_and_clients_are_separate (test_console_throttle.LoginThrottleTests.test_name_is_case_insensitive_and_clients_are_separate) ... ok
+test_old_failures_fall_out_of_the_window (test_console_throttle.LoginThrottleTests.test_old_failures_fall_out_of_the_window) ... ok
+test_success_clears_the_count (test_console_throttle.LoginThrottleTests.test_success_clears_the_count) ... ok
+test_concurrent_failures_of_one_pair_still_lock_it (test_console_throttle.LoginThrottleThreadTests.test_concurrent_failures_of_one_pair_still_lock_it) ... ok
+test_concurrent_flood_evicts_without_errors (test_console_throttle.LoginThrottleThreadTests.test_concurrent_flood_evicts_without_errors) ... ok
+test_every_contract_rescue_state_maps_without_extending_vocabulary (test_console_view.ComposeStageTests.test_every_contract_rescue_state_maps_without_extending_vocabulary) ... ok
+test_known_support_state_overrides_report_approach (test_console_view.ComposeStageTests.test_known_support_state_overrides_report_approach) ... ok
+test_rule_table_rows_are_each_reachable (test_console_view.ComposeStageTests.test_rule_table_rows_are_each_reachable) ... ok
+test_unconfirmed_wins_and_flags_inconsistent_inputs (test_console_view.ComposeStageTests.test_unconfirmed_wins_and_flags_inconsistent_inputs) ... ok
+test_values_outside_vocabulary_are_rejected (test_console_view.ComposeStageTests.test_values_outside_vocabulary_are_rejected) ... ok
+test_events_carry_source_time_and_ledger_time_for_kpi04 (test_console_view.LedgerViewTests.test_events_carry_source_time_and_ledger_time_for_kpi04) ... ok
+test_exit_count_is_taken_from_read_api_not_recounted (test_console_view.LedgerViewTests.test_exit_count_is_taken_from_read_api_not_recounted) ... ok
+test_exit_count_zero_with_rescues_is_not_a_warning (test_console_view.LedgerViewTests.test_exit_count_zero_with_rescues_is_not_a_warning) ... ok
+test_four_stages_are_composed_from_ledger_and_states (test_console_view.LedgerViewTests.test_four_stages_are_composed_from_ledger_and_states) ... ok
+test_missing_ledger_fails_without_creating_it (test_console_view.LedgerViewTests.test_missing_ledger_fails_without_creating_it) ... ok
+test_missing_status_inputs_are_visible_not_defaulted (test_console_view.LedgerViewTests.test_missing_status_inputs_are_visible_not_defaulted) ... ok
+test_mission_mode_comes_from_the_first_disaster_sign (test_console_view.LedgerViewTests.test_mission_mode_comes_from_the_first_disaster_sign) ... ok
+test_mission_mode_is_normal_without_signs_and_unknown_without_input (test_console_view.LedgerViewTests.test_mission_mode_is_normal_without_signs_and_unknown_without_input) ... ok
+test_position_source_is_labelled (test_console_view.LedgerViewTests.test_position_source_is_labelled) ... ok
+test_reading_never_changes_or_creates_ledger_files (test_console_view.LedgerViewTests.test_reading_never_changes_or_creates_ledger_files) ... ok
+test_robot_outside_deployment_is_not_shown (test_console_view.LedgerViewTests.test_robot_outside_deployment_is_not_shown) ... ok
+test_robot_rows_are_stale_past_the_display_limit (test_console_view.LedgerViewTests.test_robot_rows_are_stale_past_the_display_limit) ... ok
+test_robots_follow_ledger_deployment_and_unknowns_stay_none (test_console_view.LedgerViewTests.test_robots_follow_ledger_deployment_and_unknowns_stay_none) ... ok
+test_status_fixture_rejects_unknown_sections (test_console_view.LedgerViewTests.test_status_fixture_rejects_unknown_sections) ... ok
+test_targets_match_latest_ledger_report_one_to_one (test_console_view.LedgerViewTests.test_targets_match_latest_ledger_report_one_to_one) ... ok
+test_example_status_fixture_matches_offline_ledger (test_console_view.OfflineRehearsalLedgerTests.test_example_status_fixture_matches_offline_ledger) ... skipped 'source checkout only: example fixture is not installed'
+test_offline_demo_ledger_renders (test_console_view.OfflineRehearsalLedgerTests.test_offline_demo_ledger_renders) ... ok
+test_ledger_file_is_not_a_site_state_db (test_console_view.SiteStateSourceTests.test_ledger_file_is_not_a_site_state_db) ... ok
+test_site_state_and_fixture_together_are_refused (test_console_view.SiteStateSourceTests.test_site_state_and_fixture_together_are_refused) ... ok
+test_site_state_db_gives_the_fixture_shapes (test_console_view.SiteStateSourceTests.test_site_state_db_gives_the_fixture_shapes) ... ok
+test_site_state_read_changes_nothing_and_missing_db_is_not_created (test_console_view.SiteStateSourceTests.test_site_state_read_changes_nothing_and_missing_db_is_not_created) ... ok
+test_dashboard_header_names_the_user_and_hides_admin_link_from_customers (test_console_web.CommandPanelTests.test_dashboard_header_names_the_user_and_hides_admin_link_from_customers) ... ok
+test_logged_in_page_has_only_the_logout_form (test_console_web.CommandPanelTests.test_logged_in_page_has_only_the_logout_form) ... ok
+test_login_and_accounts_pages_carry_csrf_and_escape_values (test_console_web.CommandPanelTests.test_login_and_accounts_pages_carry_csrf_and_escape_values) ... ok
+test_page_without_command_access_disables_every_button (test_console_web.CommandPanelTests.test_page_without_command_access_disables_every_button) ... ok
+test_without_a_mission_state_every_command_is_disabled_in_the_model (test_console_web.CommandPanelTests.test_without_a_mission_state_every_command_is_disabled_in_the_model) ... ok
+test_broken_ledger_is_a_visible_failure (test_console_web.FlaskBoundaryTests.test_broken_ledger_is_a_visible_failure) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_customer_views_only_and_admin_manages_accounts (test_console_web.FlaskBoundaryTests.test_customer_views_only_and_admin_manages_accounts) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_everything_needs_login_and_data_routes_stay_get_only (test_console_web.FlaskBoundaryTests.test_everything_needs_login_and_data_routes_stay_get_only) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_fragment_polling_gets_401_not_a_login_document (test_console_web.FlaskBoundaryTests.test_fragment_polling_gets_401_not_a_login_document)
+AST-50-02: the poller must never receive the login page as a fragment. ... skipped 'Flask not installed: web routes NOT_RUN'
+test_login_logout_and_wrong_password (test_console_web.FlaskBoundaryTests.test_login_logout_and_wrong_password) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_logout_is_a_post_with_csrf (test_console_web.FlaskBoundaryTests.test_logout_is_a_post_with_csrf)
+AST-50-03: a link click must not end the session. ... skipped 'Flask not installed: web routes NOT_RUN'
+test_missing_flask_is_a_clear_error_not_a_fallback (test_console_web.FlaskBoundaryTests.test_missing_flask_is_a_clear_error_not_a_fallback) ... ok
+test_missing_secret_or_accounts_fail_at_startup (test_console_web.FlaskBoundaryTests.test_missing_secret_or_accounts_fail_at_startup) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_old_sessions_die_with_the_account_they_came_from (test_console_web.FlaskBoundaryTests.test_old_sessions_die_with_the_account_they_came_from)
+AST-50-01: a session is bound to the account row and its auth version, not to the name. ... skipped 'Flask not installed: web routes NOT_RUN'
+test_repeated_wrong_passwords_lock_that_name_for_a_while (test_console_web.FlaskBoundaryTests.test_repeated_wrong_passwords_lock_that_name_for_a_while) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_responses_carry_security_headers_and_data_is_not_cached (test_console_web.FlaskBoundaryTests.test_responses_carry_security_headers_and_data_is_not_cached) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_event_log_row_fits_its_content (test_console_web.LayoutTests.test_event_log_row_fits_its_content) ... ok
+test_robot_cards_scroll_instead_of_squeezing_the_victims (test_console_web.LayoutTests.test_robot_cards_scroll_instead_of_squeezing_the_victims) ... ok
+test_victims_panel_keeps_room_for_its_list (test_console_web.LayoutTests.test_victims_panel_keeps_room_for_its_list) ... ok
+test_ages_read_at_a_glance (test_console_web.PageTests.test_ages_read_at_a_glance) ... ok
+test_camera_argument_needs_an_id_and_http_url (test_console_web.PageTests.test_camera_argument_needs_an_id_and_http_url) ... ok
+test_camera_streams_sit_outside_the_polled_fragment (test_console_web.PageTests.test_camera_streams_sit_outside_the_polled_fragment) ... ok
+test_codes_are_shown_as_korean_words_and_unknown_codes_stay_visible (test_console_web.PageTests.test_codes_are_shown_as_korean_words_and_unknown_codes_stay_visible) ... ok
+test_command_panel_puts_approvals_first_and_stop_apart (test_console_web.PageTests.test_command_panel_puts_approvals_first_and_stop_apart) ... ok
+test_elapsed_time_switches_to_days (test_console_web.PageTests.test_elapsed_time_switches_to_days) ... ok
+test_event_rows_carry_event_time_for_render_latency (test_console_web.PageTests.test_event_rows_carry_event_time_for_render_latency) ... ok
+test_event_rows_carry_what_the_kpi04_file_needs (test_console_web.PageTests.test_event_rows_carry_what_the_kpi04_file_needs) ... ok
+test_failure_page_says_what_to_check_and_retries (test_console_web.PageTests.test_failure_page_says_what_to_check_and_retries) ... ok
+test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing (test_console_web.PageTests.test_kpi04_recorder_keeps_live_rows_apart_and_sends_nothing) ... ok
+test_mode_badge_shows_disaster_with_trigger_time (test_console_web.PageTests.test_mode_badge_shows_disaster_with_trigger_time) ... ok
+test_one_screen_has_mode_map_slot_robots_targets_and_events (test_console_web.PageTests.test_one_screen_has_mode_map_slot_robots_targets_and_events) ... ok
+test_page_loads_nothing_from_outside (test_console_web.PageTests.test_page_loads_nothing_from_outside) ... ok
+test_rescued_victim_is_struck_through_on_the_map_legend (test_console_web.PageTests.test_rescued_victim_is_struck_through_on_the_map_legend) ... ok
+test_stale_robot_rows_are_marked (test_console_web.PageTests.test_stale_robot_rows_are_marked) ... ok
+test_tab_title_carries_the_disaster_mode (test_console_web.PageTests.test_tab_title_carries_the_disaster_mode) ... ok
+test_untrusted_text_is_escaped (test_console_web.PageTests.test_untrusted_text_is_escaped) ... ok
+test_console_serves_the_site_state_db_and_camera_streams (test_console_web.SiteStateWebTests.test_console_serves_the_site_state_db_and_camera_streams) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_site_state_and_fixture_together_fail_at_startup (test_console_web.SiteStateWebTests.test_site_state_and_fixture_together_fail_at_startup) ... skipped 'Flask not installed: web routes NOT_RUN'
+test_component_dictionary_has_only_canonical_targets (test_contracts.SharedContractTests.test_component_dictionary_has_only_canonical_targets) ... ok
+test_decimal_policy_conversion_is_exact (test_contracts.SharedContractTests.test_decimal_policy_conversion_is_exact) ... ok
+test_no_float_or_boolean_timestamp (test_contracts.SharedContractTests.test_no_float_or_boolean_timestamp) ... ok
+test_real_epoch_exact_round_trip (test_contracts.SharedContractTests.test_real_epoch_exact_round_trip) ... ok
+test_ros_header_bounds (test_contracts.SharedContractTests.test_ros_header_bounds) ... ok
+test_two_configured_ids_no_defaults (test_contracts.SharedContractTests.test_two_configured_ids_no_defaults) ... ok
+test_ambient_decimal_precision_cannot_erase_epoch_nanosecond (test_contracts_precision.DecimalPrecisionRegressionTests.test_ambient_decimal_precision_cannot_erase_epoch_nanosecond) ... ok
+test_subnanosecond_fraction_cannot_round_to_integer (test_contracts_precision.DecimalPrecisionRegressionTests.test_subnanosecond_fraction_cannot_round_to_integer) ... ok
+test_trailing_zero_and_huge_exponents (test_contracts_precision.DecimalPrecisionRegressionTests.test_trailing_zero_and_huge_exponents) ... ok
+test_disappearance_candidate_links_target_and_watch (test_contracts_site.SiteContractTests.test_disappearance_candidate_links_target_and_watch)
+Single fixed camera (2026-10-09): a candidate must say which target and which watch it came from. ... ok
+test_non_string_enum_inputs_are_contract_errors_not_type_errors (test_contracts_site.SiteContractTests.test_non_string_enum_inputs_are_contract_errors_not_type_errors) ... ok
+test_role_and_camera_id_validation (test_contracts_site.SiteContractTests.test_role_and_camera_id_validation) ... ok
+test_site_event_round_trip_and_rejections (test_contracts_site.SiteContractTests.test_site_event_round_trip_and_rejections) ... ok
+test_unknown_time_basis_is_recorded_but_not_declared_usable (test_contracts_site.SiteContractTests.test_unknown_time_basis_is_recorded_but_not_declared_usable) ... ok
+test_vocabularies_are_closed_and_disjoint_from_error_codes (test_contracts_site.SiteContractTests.test_vocabularies_are_closed_and_disjoint_from_error_codes) ... ok
+test_allocator_single_event_single_robot_idempotency (test_coordination.CoordinationTests.test_allocator_single_event_single_robot_idempotency) ... ok
+test_candidate_uses_path_and_protects_person (test_coordination.CoordinationTests.test_candidate_uses_path_and_protects_person) ... ok
+test_corridor_duplicate_renewal_cannot_extend (test_coordination.CoordinationTests.test_corridor_duplicate_renewal_cannot_extend) ... ok
+test_corridor_expiry_and_stale_pose_stay_unknown (test_coordination.CoordinationTests.test_corridor_expiry_and_stale_pose_stay_unknown) ... ok
+test_duplicate_does_not_refresh_gap (test_coordination.CoordinationTests.test_duplicate_does_not_refresh_gap) ... ok
+test_invalid_input_and_clock (test_coordination.CoordinationTests.test_invalid_input_and_clock) ... ok
+test_method_inputs_cannot_use_boolean_revisions (test_coordination.CoordinationTests.test_method_inputs_cannot_use_boolean_revisions) ... ok
+test_new_observation_cannot_erase_gap_or_original_expiry (test_coordination.CoordinationTests.test_new_observation_cannot_erase_gap_or_original_expiry) ... ok
+test_no_target_no_permission (test_coordination.CoordinationTests.test_no_target_no_permission) ... ok
+test_observation_at_arrival_is_not_postarrival_confirmation (test_coordination.CoordinationTests.test_observation_at_arrival_is_not_postarrival_confirmation) ... ok
+test_original_expiry_and_guard_loss_cancel_irrevocably (test_coordination.CoordinationTests.test_original_expiry_and_guard_loss_cancel_irrevocably) ... ok
+test_overflowing_corridor_lease_rejected_before_mutation (test_coordination.CoordinationTests.test_overflowing_corridor_lease_rejected_before_mutation) ... ok
+test_success_requires_fresh_reobservation_stop_and_distance (test_coordination.CoordinationTests.test_success_requires_fresh_reobservation_stop_and_distance) ... ok
+test_unavailable_observer_is_not_reassigned (test_coordination.CoordinationTests.test_unavailable_observer_is_not_reassigned) ... ok
+test_selected_target_is_reserved_once (test_coordination_dispatch.DispatchHandoffTests.test_selected_target_is_reserved_once) ... ok
+test_choice_reasons_are_closed (test_coordination_dispatch.DispatchSelectionTests.test_choice_reasons_are_closed) ... ok
+test_duplicate_event_ids_rejected (test_coordination_dispatch.DispatchSelectionTests.test_duplicate_event_ids_rejected) ... ok
+test_ineligible_targets_are_skipped_with_closed_reasons (test_coordination_dispatch.DispatchSelectionTests.test_ineligible_targets_are_skipped_with_closed_reasons) ... ok
+test_origin_on_another_map_basis_is_not_compared (test_coordination_dispatch.DispatchSelectionTests.test_origin_on_another_map_basis_is_not_compared) ... ok
+test_path_length_order_uses_the_verified_path_cost (test_coordination_dispatch.DispatchSelectionTests.test_path_length_order_uses_the_verified_path_cost) ... ok
+test_policy_has_no_default_order_and_rejects_unknown (test_coordination_dispatch.DispatchSelectionTests.test_policy_has_no_default_order_and_rejects_unknown) ... ok
+test_recheck_needed_target_is_still_eligible (test_coordination_dispatch.DispatchSelectionTests.test_recheck_needed_target_is_still_eligible) ... ok
+test_straight_line_picks_the_nearest_target_to_the_support_robot (test_coordination_dispatch.DispatchSelectionTests.test_straight_line_picks_the_nearest_target_to_the_support_robot) ... ok
+test_straight_line_without_a_usable_origin_selects_nothing (test_coordination_dispatch.DispatchSelectionTests.test_straight_line_without_a_usable_origin_selects_nothing) ... ok
+test_tie_breaks_by_event_id_not_input_order (test_coordination_dispatch.DispatchSelectionTests.test_tie_breaks_by_event_id_not_input_order) ... ok
+test_basis_kind_is_kept_not_judged (test_coordination_loader.MissionSiteLoaderTests.test_basis_kind_is_kept_not_judged) ... ok
+test_duplicate_or_empty_areas_rejected (test_coordination_loader.MissionSiteLoaderTests.test_duplicate_or_empty_areas_rejected) ... ok
+test_entry_yaw_is_per_area (test_coordination_loader.MissionSiteLoaderTests.test_entry_yaw_is_per_area) ... ok
+test_missing_extra_or_nonfinite_entry_yaw_rejected (test_coordination_loader.MissionSiteLoaderTests.test_missing_extra_or_nonfinite_entry_yaw_rejected) ... ok
+test_profile_areas_become_sites_in_order (test_coordination_loader.MissionSiteLoaderTests.test_profile_areas_become_sites_in_order) ... ok
+test_roles_come_from_contracts (test_coordination_loader.SharedVocabularyTests.test_roles_come_from_contracts) ... ok
+test_task_kinds_come_from_contracts (test_coordination_loader.SharedVocabularyTests.test_task_kinds_come_from_contracts) ... ok
+test_home_positions_must_be_policy_robots_once (test_coordination_mission.HomeAndApprovalKeyTests.test_home_positions_must_be_policy_robots_once) ... ok
+test_return_home_on_another_map_basis_is_refused (test_coordination_mission.HomeAndApprovalKeyTests.test_return_home_on_another_map_basis_is_refused) ... ok
+test_return_home_without_a_home_position_is_refused (test_coordination_mission.HomeAndApprovalKeyTests.test_return_home_without_a_home_position_is_refused) ... ok
+test_return_home_without_a_known_map_basis_is_refused (test_coordination_mission.HomeAndApprovalKeyTests.test_return_home_without_a_known_map_basis_is_refused) ... ok
+test_segment_approval_carries_the_move_segment_keys (test_coordination_mission.HomeAndApprovalKeyTests.test_segment_approval_carries_the_move_segment_keys) ... ok
+test_phase_follows_the_scenario (test_coordination_mission.MissionPhaseTests.test_phase_follows_the_scenario) ... ok
+test_recheck_needed_is_shown_until_the_next_recheck (test_coordination_mission.MissionPhaseTests.test_recheck_needed_is_shown_until_the_next_recheck) ... ok
+test_returned_needs_a_policy_robot_and_a_return (test_coordination_mission.MissionPhaseTests.test_returned_needs_a_policy_robot_and_a_return) ... ok
+test_unconfirmed_target_is_not_found_yet (test_coordination_mission.MissionPhaseTests.test_unconfirmed_target_is_not_found_yet) ... ok
+test_view_carries_what_the_screen_shows (test_coordination_mission.MissionPhaseTests.test_view_carries_what_the_screen_shows) ... ok
+test_later_sign_keeps_the_first_trigger (test_coordination_mission.ModeGateTests.test_later_sign_keeps_the_first_trigger) ... ok
+test_non_site_event_is_invalid_input (test_coordination_mission.ModeGateTests.test_non_site_event_is_invalid_input) ... ok
+test_other_kinds_and_unusable_time_basis_are_rejected_with_reasons (test_coordination_mission.ModeGateTests.test_other_kinds_and_unusable_time_basis_are_rejected_with_reasons) ... ok
+test_same_event_id_is_idempotent_and_conflicting_content_is_rejected (test_coordination_mission.ModeGateTests.test_same_event_id_is_idempotent_and_conflicting_content_is_rejected) ... ok
+test_scout_gets_no_search_area_before_disaster (test_coordination_mission.ModeGateTests.test_scout_gets_no_search_area_before_disaster) ... ok
+test_start_search_needs_disaster_and_is_accepted_once (test_coordination_mission.ModeGateTests.test_start_search_needs_disaster_and_is_accepted_once) ... ok
+test_support_plan_is_not_gated_by_mode (test_coordination_mission.ModeGateTests.test_support_plan_is_not_gated_by_mode) ... ok
+test_valid_disaster_sign_enters_disaster_and_releases_the_scout (test_coordination_mission.ModeGateTests.test_valid_disaster_sign_enters_disaster_and_releases_the_scout) ... ok
+test_command_id_replay_is_idempotent_and_conflict_is_rejected (test_coordination_mission.OperatorCommandTests.test_command_id_replay_is_idempotent_and_conflict_is_rejected) ... ok
+test_continue_only_when_awaiting_approval_and_never_automatic (test_coordination_mission.OperatorCommandTests.test_continue_only_when_awaiting_approval_and_never_automatic) ... ok
+test_dispatch_needs_a_confirmed_persisted_current_target_with_a_route (test_coordination_mission.OperatorCommandTests.test_dispatch_needs_a_confirmed_persisted_current_target_with_a_route) ... ok
+test_every_command_needs_disaster_mode (test_coordination_mission.OperatorCommandTests.test_every_command_needs_disaster_mode) ... ok
+test_last_segment_arrives (test_coordination_mission.OperatorCommandTests.test_last_segment_arrives) ... ok
+test_malformed_commands_are_invalid_input (test_coordination_mission.OperatorCommandTests.test_malformed_commands_are_invalid_input) ... ok
+test_only_one_dispatch (test_coordination_mission.OperatorCommandTests.test_only_one_dispatch) ... ok
+test_reasons_are_closed (test_coordination_mission.OperatorCommandTests.test_reasons_are_closed) ... ok
+test_recheck_follows_c11_row_10 (test_coordination_mission.OperatorCommandTests.test_recheck_follows_c11_row_10)
+Q-26 (2026-10-11): any recorded target, no arrival condition, one open recheck, judged target refused. ... ok
+test_rechecks_are_per_target (test_coordination_mission.OperatorCommandTests.test_rechecks_are_per_target) ... ok
+test_return_home_only_after_a_verdict (test_coordination_mission.OperatorCommandTests.test_return_home_only_after_a_verdict) ... ok
+test_route_and_target_revisions_do_not_go_back (test_coordination_mission.OperatorCommandTests.test_route_and_target_revisions_do_not_go_back) ... ok
+test_route_replacement_only_while_stopped_and_restarts_the_count (test_coordination_mission.OperatorCommandTests.test_route_replacement_only_while_stopped_and_restarts_the_count) ... ok
+test_save_receipt_may_arrive_after_the_revision (test_coordination_mission.OperatorCommandTests.test_save_receipt_may_arrive_after_the_revision) ... ok
+test_segment_end_needs_a_confirmed_stop_and_failure_waits_for_approval (test_coordination_mission.OperatorCommandTests.test_segment_end_needs_a_confirmed_stop_and_failure_waits_for_approval) ... ok
+test_verdict_needs_a_pending_recheck_and_a_rescue_state (test_coordination_mission.OperatorCommandTests.test_verdict_needs_a_pending_recheck_and_a_rescue_state) ... ok
+test_accepted_receipt_replay_after_release_does_not_reactivate (test_coordination_review.CoordinationReviewTests.test_accepted_receipt_replay_after_release_does_not_reactivate) ... ok
+test_command_or_generation_cannot_be_reused_for_another_task (test_coordination_review.CoordinationReviewTests.test_command_or_generation_cannot_be_reused_for_another_task) ... ok
+test_corridor_requires_exact_holder_even_after_expiry (test_coordination_review.CoordinationReviewTests.test_corridor_requires_exact_holder_even_after_expiry) ... ok
+test_deployment_ids_and_generation_overflow_are_explicit (test_coordination_review.CoordinationReviewTests.test_deployment_ids_and_generation_overflow_are_explicit) ... ok
+test_dto_accepts_profile_robot_names_not_a_b_constants (test_coordination_review.CoordinationReviewTests.test_dto_accepts_profile_robot_names_not_a_b_constants) ... ok
+test_error_is_common_machine_readable_contract (test_coordination_review.CoordinationReviewTests.test_error_is_common_machine_readable_contract) ... ok
+test_internal_error_sites_use_registered_uppercase_diagnostics (test_coordination_review.CoordinationReviewTests.test_internal_error_sites_use_registered_uppercase_diagnostics) ... ok
+test_nanosecond_expiry_and_confirmation_at_large_epoch (test_coordination_review.CoordinationReviewTests.test_nanosecond_expiry_and_confirmation_at_large_epoch) ... ok
+test_nanosecond_fields_reject_float_bool_zero_and_overflow (test_coordination_review.CoordinationReviewTests.test_nanosecond_fields_reject_float_bool_zero_and_overflow) ... ok
+test_pending_holds_robot_target_until_rejection_or_verified_stop (test_coordination_review.CoordinationReviewTests.test_pending_holds_robot_target_until_rejection_or_verified_stop) ... ok
+test_receipt_identity_mismatch_cannot_activate_or_raise_counter (test_coordination_review.CoordinationReviewTests.test_receipt_identity_mismatch_cannot_activate_or_raise_counter) ... ok
+test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance (test_coordination_review.CoordinationReviewTests.test_rejection_keeps_accepted_counter_and_cannot_later_flip_to_acceptance) ... ok
+test_reserve_is_pending_until_matching_executor_admission (test_coordination_review.CoordinationReviewTests.test_reserve_is_pending_until_matching_executor_admission) ... ok
+test_unissued_generation_or_robot_cannot_be_reserved (test_coordination_review.CoordinationReviewTests.test_unissued_generation_or_robot_cannot_be_reserved) ... ok
+test_unregistered_coordination_diagnostic_is_not_silently_normalized (test_coordination_review.CoordinationReviewTests.test_unregistered_coordination_diagnostic_is_not_silently_normalized) ... ok
+test_validation_explanations_are_separate_from_diagnostic_codes (test_coordination_review.CoordinationReviewTests.test_validation_explanations_are_separate_from_diagnostic_codes) ... ok
+test_wall_rollback_latches_cancellation (test_coordination_review.CoordinationReviewTests.test_wall_rollback_latches_cancellation) ... ok
+test_admission_in_time_keeps_the_lease (test_coordination_ros_core.CommandLeaseTests.test_admission_in_time_keeps_the_lease) ... ok
+test_each_task_gets_a_lease_renewed_with_rising_sequence (test_coordination_ros_core.CommandLeaseTests.test_each_task_gets_a_lease_renewed_with_rising_sequence) ... ok
+test_finished_or_refused_task_is_not_renewed (test_coordination_ros_core.CommandLeaseTests.test_finished_or_refused_task_is_not_renewed) ... ok
+test_new_robot_boot_stops_renewal (test_coordination_ros_core.CommandLeaseTests.test_new_robot_boot_stops_renewal) ... ok
+test_period_must_be_at_most_half_the_lease (test_coordination_ros_core.CommandLeaseTests.test_period_must_be_at_most_half_the_lease) ... ok
+test_segment_lease_is_bound_to_the_support_task (test_coordination_ros_core.CommandLeaseTests.test_segment_lease_is_bound_to_the_support_task) ... ok
+test_stale_status_stops_renewal_for_good (test_coordination_ros_core.CommandLeaseTests.test_stale_status_stops_renewal_for_good) ... ok
+test_status_before_admission_does_not_cut_a_new_lease (test_coordination_ros_core.CommandLeaseTests.test_status_before_admission_does_not_cut_a_new_lease) ... ok
+test_status_naming_another_task_after_admission_stops_renewal (test_coordination_ros_core.CommandLeaseTests.test_status_naming_another_task_after_admission_stops_renewal) ... ok
+test_stopped_robot_gets_no_more_renewals (test_coordination_ros_core.CommandLeaseTests.test_stopped_robot_gets_no_more_renewals) ... ok
+test_task_never_admitted_stops_renewing_and_is_released_on_stop_evidence (test_coordination_ros_core.CommandLeaseTests.test_task_never_admitted_stops_renewing_and_is_released_on_stop_evidence) ... ok
+test_disaster_sign_message_becomes_a_site_event (test_coordination_ros_core.ConversionTests.test_disaster_sign_message_becomes_a_site_event) ... ok
+test_execute_task_goal_carries_the_reservation (test_coordination_ros_core.ConversionTests.test_execute_task_goal_carries_the_reservation) ... ok
+test_invalid_site_event_messages_are_rejected_not_repaired (test_coordination_ros_core.ConversionTests.test_invalid_site_event_messages_are_rejected_not_repaired) ... ok
+test_continue_maps_route_fields (test_coordination_ros_core.OperatorServiceTests.test_continue_maps_route_fields) ... ok
+test_dispatch_is_accepted_but_creates_no_task_yet (test_coordination_ros_core.OperatorServiceTests.test_dispatch_is_accepted_but_creates_no_task_yet) ... ok
+test_every_refusal_maps_to_a_c09_code (test_coordination_ros_core.OperatorServiceTests.test_every_refusal_maps_to_a_c09_code) ... ok
+test_malformed_or_unsupported_requests_are_rejected_as_invalid_input (test_coordination_ros_core.OperatorServiceTests.test_malformed_or_unsupported_requests_are_rejected_as_invalid_input) ... ok
+test_normal_mode_rejects_with_a_closed_reason (test_coordination_ros_core.OperatorServiceTests.test_normal_mode_rejects_with_a_closed_reason) ... ok
+test_recheck_rejections_use_c11_row_10_codes (test_coordination_ros_core.OperatorServiceTests.test_recheck_rejections_use_c11_row_10_codes) ... ok
+test_replay_is_duplicate_with_the_first_answer_and_conflict_is_rejected (test_coordination_ros_core.OperatorServiceTests.test_replay_is_duplicate_with_the_first_answer_and_conflict_is_rejected) ... ok
+test_role_robot_may_be_named (test_coordination_ros_core.OperatorServiceTests.test_role_robot_may_be_named) ... ok
+test_admission_activates_and_completed_result_moves_to_the_next_area (test_coordination_ros_core.ScoutDispatchTests.test_admission_activates_and_completed_result_moves_to_the_next_area) ... ok
+test_disaster_alone_starts_no_search (test_coordination_ros_core.ScoutDispatchTests.test_disaster_alone_starts_no_search) ... ok
+test_disaster_and_a_ready_scout_give_one_search_goal (test_coordination_ros_core.ScoutDispatchTests.test_disaster_and_a_ready_scout_give_one_search_goal) ... ok
+test_idle_scout_without_a_lease_gets_the_first_search_goal (test_coordination_ros_core.ScoutDispatchTests.test_idle_scout_without_a_lease_gets_the_first_search_goal) ... ok
+test_rejected_admission_frees_the_scout (test_coordination_ros_core.ScoutDispatchTests.test_rejected_admission_frees_the_scout) ... ok
+test_result_without_confirmed_stop_keeps_the_task (test_coordination_ros_core.ScoutDispatchTests.test_result_without_confirmed_stop_keeps_the_task) ... ok
+test_scout_that_is_not_ready_gets_nothing (test_coordination_ros_core.ScoutDispatchTests.test_scout_that_is_not_ready_gets_nothing) ... ok
+test_start_search_before_the_scout_is_ready_is_refused_and_not_counted (test_coordination_ros_core.ScoutDispatchTests.test_start_search_before_the_scout_is_ready_is_refused_and_not_counted) ... ok
+test_start_search_issues_the_first_area_at_once (test_coordination_ros_core.ScoutDispatchTests.test_start_search_issues_the_first_area_at_once) ... ok
+test_status_of_an_unknown_robot_is_rejected (test_coordination_ros_core.ScoutDispatchTests.test_status_of_an_unknown_robot_is_rejected) ... ok
+test_stop_cancels_the_waiting_search (test_coordination_ros_core.ScoutDispatchTests.test_stop_cancels_the_waiting_search) ... ok
+test_waiting_search_is_shown_then_issued_after_the_current_task (test_coordination_ros_core.ScoutDispatchTests.test_waiting_search_is_shown_then_issued_after_the_current_task) ... ok
+test_admission_and_stopped_result_drive_the_segment_state (test_coordination_ros_core.TaskIssueTests.test_admission_and_stopped_result_drive_the_segment_state) ... ok
+test_core_rejects_a_route_without_segments_or_with_another_basis (test_coordination_ros_core.TaskIssueTests.test_core_rejects_a_route_without_segments_or_with_another_basis) ... ok
+test_dispatch_issues_one_move_segment_with_route_and_approval (test_coordination_ros_core.TaskIssueTests.test_dispatch_issues_one_move_segment_with_route_and_approval) ... ok
+test_failed_segment_waits_for_approval_again (test_coordination_ros_core.TaskIssueTests.test_failed_segment_waits_for_approval_again) ... ok
+test_idle_support_without_a_lease_gets_the_segment (test_coordination_ros_core.TaskIssueTests.test_idle_support_without_a_lease_gets_the_segment) ... ok
+test_recheck_issues_reobserve_at_the_observation_goal (test_coordination_ros_core.TaskIssueTests.test_recheck_issues_reobserve_at_the_observation_goal) ... ok
+test_recheck_that_did_not_complete_is_reissued_once (test_coordination_ros_core.TaskIssueTests.test_recheck_that_did_not_complete_is_reissued_once) ... ok
+test_recheck_waits_for_the_current_search_area_then_goes_first (test_coordination_ros_core.TaskIssueTests.test_recheck_waits_for_the_current_search_area_then_goes_first) ... ok
+test_result_without_a_confirmed_stop_changes_nothing (test_coordination_ros_core.TaskIssueTests.test_result_without_a_confirmed_stop_changes_nothing) ... ok
+test_segment_route_keeps_the_time_the_route_was_made (test_coordination_ros_core.TaskIssueTests.test_segment_route_keeps_the_time_the_route_was_made) ... ok
+test_segment_waits_for_a_known_support_and_is_issued_later (test_coordination_ros_core.TaskIssueTests.test_segment_waits_for_a_known_support_and_is_issued_later) ... ok
+test_ttl_must_be_positive (test_coordination_ros_passage.LeaseTtlTests.test_ttl_must_be_positive) ... ok
+test_valid_until_is_issued_plus_ttl (test_coordination_ros_passage.LeaseTtlTests.test_valid_until_is_issued_plus_ttl) ... ok
+test_length_mismatch_holds_every_segment (test_coordination_ros_passage.PassageTests.test_length_mismatch_holds_every_segment) ... ok
+test_no_passage_values_hold_every_segment (test_coordination_ros_passage.PassageTests.test_no_passage_values_hold_every_segment) ... ok
+test_only_the_marked_segments_are_issued (test_coordination_ros_passage.PassageTests.test_only_the_marked_segments_are_issued) ... ok
+test_passage_values_must_be_booleans (test_coordination_ros_passage.PassageTests.test_passage_values_must_be_booleans) ... ok
+test_segment_not_marked_passage_free_is_held (test_coordination_ros_passage.PassageTests.test_segment_not_marked_passage_free_is_held) ... ok
+test_admission_timeout_clears_once_the_task_is_released_and_reissued (test_coordination_ros_passage.StaleBlockTests.test_admission_timeout_clears_once_the_task_is_released_and_reissued) ... ok
+test_alignment_block_clears_once_the_recheck_is_issued (test_coordination_ros_passage.StaleBlockTests.test_alignment_block_clears_once_the_recheck_is_issued) ... ok
+test_approach_segment_and_rescue_states (test_coordination_ros_snapshot.TargetSnapshotTests.test_approach_segment_and_rescue_states) ... ok
+test_new_target_estimate (test_coordination_ros_snapshot.TargetSnapshotTests.test_new_target_estimate) ... ok
+test_persisted_report_id_follows_the_current_revision (test_coordination_ros_snapshot.TargetSnapshotTests.test_persisted_report_id_follows_the_current_revision) ... ok
+test_published_on_change_only (test_coordination_ros_snapshot.TargetSnapshotTests.test_published_on_change_only) ... ok
+test_targets_are_ordered_by_id (test_coordination_ros_snapshot.TargetSnapshotTests.test_targets_are_ordered_by_id) ... ok
+test_far_location_is_a_new_target (test_coordination_ros_targets.IntakeTests.test_far_location_is_a_new_target) ... ok
+test_first_valid_location_makes_a_target_and_a_report (test_coordination_ros_targets.IntakeTests.test_first_valid_location_makes_a_target_and_a_report) ... ok
+test_location_on_another_map_basis_is_refused_not_split (test_coordination_ros_targets.IntakeTests.test_location_on_another_map_basis_is_refused_not_split) ... ok
+test_location_replay_is_idempotent_and_conflict_is_rejected (test_coordination_ros_targets.IntakeTests.test_location_replay_is_idempotent_and_conflict_is_rejected) ... ok
+test_nearby_location_on_the_same_basis_is_the_same_target (test_coordination_ros_targets.IntakeTests.test_nearby_location_on_the_same_basis_is_the_same_target) ... ok
+test_only_valid_projections_enter (test_coordination_ros_targets.IntakeTests.test_only_valid_projections_enter) ... ok
+test_persisted_receipt_saves_the_revision_and_stops_resending (test_coordination_ros_targets.IntakeTests.test_persisted_receipt_saves_the_revision_and_stops_resending) ... ok
+test_receipts_that_do_not_cover_the_report_save_nothing (test_coordination_ros_targets.IntakeTests.test_receipts_that_do_not_cover_the_report_save_nothing) ... ok
+test_rejected_report_is_not_resent_and_not_saved (test_coordination_ros_targets.IntakeTests.test_rejected_report_is_not_resent_and_not_saved) ... ok
+test_blocked_recheck_does_not_stop_the_search (test_coordination_ros_targets.RouteFrameTests.test_blocked_recheck_does_not_stop_the_search) ... ok
+test_no_segment_when_the_goal_basis_differs_from_the_target_frame (test_coordination_ros_targets.RouteFrameTests.test_no_segment_when_the_goal_basis_differs_from_the_target_frame) ... ok
+test_no_segment_while_the_target_alignment_is_not_valid (test_coordination_ros_targets.RouteFrameTests.test_no_segment_while_the_target_alignment_is_not_valid) ... ok
+test_reobserve_carries_the_observation_point_as_route_without_approval (test_coordination_ros_targets.RouteFrameTests.test_reobserve_carries_the_observation_point_as_route_without_approval) ... ok
+test_segment_route_uses_the_target_frame_and_unknown_assessment (test_coordination_ros_targets.RouteFrameTests.test_segment_route_uses_the_target_frame_and_unknown_assessment) ... ok
+test_segment_phase_and_mode_mapping (test_coordination_ros_targets.SystemStateTests.test_segment_phase_and_mode_mapping) ... ok
+test_state_is_published_on_change_with_the_c10_vocabulary (test_coordination_ros_targets.SystemStateTests.test_state_is_published_on_change_with_the_c10_vocabulary) ... ok
+test_search_cancel_stop_then_next_area_is_admitted_with_new_generation (test_coordination_search.ExecutorHandoffTests.test_search_cancel_stop_then_next_area_is_admitted_with_new_generation) ... ok
+test_all_three_kinds_build_real_executor_tasks_with_goal_fields (test_coordination_search.SearchCoordinatorTests.test_all_three_kinds_build_real_executor_tasks_with_goal_fields) ... ok
+test_approach_reservation_without_path_candidate_is_impossible (test_coordination_search.SearchCoordinatorTests.test_approach_reservation_without_path_candidate_is_impossible) ... ok
+test_approach_yaw_faces_the_target_from_the_candidate (test_coordination_search.SearchCoordinatorTests.test_approach_yaw_faces_the_target_from_the_candidate) ... ok
+test_areas_without_executable_map_basis_are_excluded (test_coordination_search.SearchCoordinatorTests.test_areas_without_executable_map_basis_are_excluded) ... ok
+test_discovery_reserves_one_support_approach_per_event_after_hold_release (test_coordination_search.SearchCoordinatorTests.test_discovery_reserves_one_support_approach_per_event_after_hold_release) ... ok
+test_every_returned_reason_is_from_the_closed_set (test_coordination_search.SearchCoordinatorTests.test_every_returned_reason_is_from_the_closed_set) ... ok
+test_goal_carries_the_transform_revision_it_was_planned_under (test_coordination_search.SearchCoordinatorTests.test_goal_carries_the_transform_revision_it_was_planned_under) ... ok
+test_hold_is_not_reissued_after_confirmed_hold_for_the_same_boot (test_coordination_search.SearchCoordinatorTests.test_hold_is_not_reissued_after_confirmed_hold_for_the_same_boot) ... ok
+test_late_admission_or_result_cannot_revive_a_released_task (test_coordination_search.SearchCoordinatorTests.test_late_admission_or_result_cannot_revive_a_released_task) ... ok
+test_not_ready_robot_gets_nothing_new (test_coordination_search.SearchCoordinatorTests.test_not_ready_robot_gets_nothing_new) ... ok
+test_policy_rejects_bad_roles_and_foreign_robots (test_coordination_search.SearchCoordinatorTests.test_policy_rejects_bad_roles_and_foreign_robots) ... ok
+test_rejected_admission_does_not_activate_and_next_proposal_uses_new_generation (test_coordination_search.SearchCoordinatorTests.test_rejected_admission_does_not_activate_and_next_proposal_uses_new_generation) ... ok
+test_reservation_is_pending_until_executor_admission (test_coordination_search.SearchCoordinatorTests.test_reservation_is_pending_until_executor_admission) ... ok
+test_same_area_is_never_reserved_twice (test_coordination_search.SearchCoordinatorTests.test_same_area_is_never_reserved_twice) ... ok
+test_scout_gets_first_area_and_support_gets_hold_as_executor_tasks (test_coordination_search.SearchCoordinatorTests.test_scout_gets_first_area_and_support_gets_hold_as_executor_tasks) ... ok
+test_scout_keeps_searching_during_approach_unless_policy_pauses (test_coordination_search.SearchCoordinatorTests.test_scout_keeps_searching_during_approach_unless_policy_pauses) ... ok
+test_search_area_yaw_is_the_configured_entry_yaw (test_coordination_search.SearchCoordinatorTests.test_search_area_yaw_is_the_configured_entry_yaw) ... ok
+test_swapping_role_input_swaps_robots (test_coordination_search.SearchCoordinatorTests.test_swapping_role_input_swaps_robots) ... ok
+test_switch_needs_confirmed_stop_then_new_generation_and_ids (test_coordination_search.SearchCoordinatorTests.test_switch_needs_confirmed_stop_then_new_generation_and_ids) ... ok
+test_unfinished_area_is_proposed_again_but_not_counted_as_searched (test_coordination_search.SearchCoordinatorTests.test_unfinished_area_is_proposed_again_but_not_counted_as_searched) ... ok
+test_withdrawn_area_requires_release_before_reassignment (test_coordination_search.SearchCoordinatorTests.test_withdrawn_area_requires_release_before_reassignment) ... ok
+test_approach_still_needs_planner_evidence (test_coordination_target_goal.TargetGoalTests.test_approach_still_needs_planner_evidence) ... ok
+test_approved_segment_needs_no_candidate (test_coordination_target_goal.TargetGoalTests.test_approved_segment_needs_no_candidate) ... ok
+test_goal_and_approval_only_where_the_rule_allows (test_coordination_target_goal.TargetGoalTests.test_goal_and_approval_only_where_the_rule_allows) ... ok
+test_goal_point_validation (test_coordination_target_goal.TargetGoalTests.test_goal_point_validation) ... ok
+test_reobserve_with_an_observation_goal_needs_no_candidate (test_coordination_target_goal.TargetGoalTests.test_reobserve_with_an_observation_goal_needs_no_candidate) ... ok
+test_reobserve_without_an_observation_goal_is_still_rejected (test_coordination_target_goal.TargetGoalTests.test_reobserve_without_an_observation_goal_is_still_rejected) ... ok
+test_segment_without_approval_or_goal_is_still_rejected (test_coordination_target_goal.TargetGoalTests.test_segment_without_approval_or_goal_is_still_rejected) ... ok
+test_acceptance_timeout_cancels_late_accept (test_executor.ExecutorTests.test_acceptance_timeout_cancels_late_accept) ... ok
+test_cancel_timeout_failure_latches_and_keeps_original_cause (test_executor.ExecutorTests.test_cancel_timeout_failure_latches_and_keeps_original_cause) ... ok
+test_delayed_prefence_samples_cannot_confirm_stop (test_executor.ExecutorTests.test_delayed_prefence_samples_cannot_confirm_stop) ... ok
+test_dispatch_requires_current_stopped_motion (test_executor.ExecutorTests.test_dispatch_requires_current_stopped_motion) ... ok
+test_dispatch_revalidates_guards (test_executor.ExecutorTests.test_dispatch_revalidates_guards) ... ok
+test_duplicate_is_idempotent_conflict_rejected (test_executor.ExecutorTests.test_duplicate_is_idempotent_conflict_rejected) ... ok
+test_duplicate_terminal_does_not_reset_stop_window (test_executor.ExecutorTests.test_duplicate_terminal_does_not_reset_stop_window) ... ok
+test_input_rejection (test_executor.ExecutorTests.test_input_rejection) ... ok
+test_invalid_stop_timer_still_cancels_and_latches_failure (test_executor.ExecutorTests.test_invalid_stop_timer_still_cancels_and_latches_failure) ... ok
+test_late_old_result_cannot_touch_current_task (test_executor.ExecutorTests.test_late_old_result_cannot_touch_current_task) ... ok
+test_lease_generation_rejects_boolean (test_executor.ExecutorTests.test_lease_generation_rejects_boolean) ... ok
+test_lease_sequence_no_revival (test_executor.ExecutorTests.test_lease_sequence_no_revival) ... ok
+test_local_deadlines_cannot_overflow_or_round_to_present (test_executor.ExecutorTests.test_local_deadlines_cannot_overflow_or_round_to_present) ... ok
+test_motion_duplicate_gap_moving_and_stale (test_executor.ExecutorTests.test_motion_duplicate_gap_moving_and_stale) ... ok
+test_readiness_requires_undock_and_watchdog (test_executor.ExecutorTests.test_readiness_requires_undock_and_watchdog) ... ok
+test_regressed_clock_latches (test_executor.ExecutorTests.test_regressed_clock_latches) ... ok
+test_rejected_renewal_preserves_sequence_and_deadline (test_executor.ExecutorTests.test_rejected_renewal_preserves_sequence_and_deadline) ... ok
+test_stop_requires_terminal_and_continuous_fresh_motion (test_executor.ExecutorTests.test_stop_requires_terminal_and_continuous_fresh_motion) ... ok
+test_wrong_robot_boot_authority_generation (test_executor.ExecutorTests.test_wrong_robot_boot_authority_generation) ... ok
+test_admission_reasons_are_canonical (test_executor_review.ExecutorReviewTests.test_admission_reasons_are_canonical) ... ok
+test_bounded_velocity_before_fence_is_not_stop_requested (test_executor_review.ExecutorReviewTests.test_bounded_velocity_before_fence_is_not_stop_requested) ... ok
+test_conflicting_goal_response_cannot_invent_execution_fence (test_executor_review.ExecutorReviewTests.test_conflicting_goal_response_cannot_invent_execution_fence) ... ok
+test_external_cancel_and_abort_preserve_action_status (test_executor_review.ExecutorReviewTests.test_external_cancel_and_abort_preserve_action_status) ... ok
+test_float_epoch_and_conflicting_terminal_rejected (test_executor_review.ExecutorReviewTests.test_float_epoch_and_conflicting_terminal_rejected) ... ok
+test_profile_ids_and_receipt_identity (test_executor_review.ExecutorReviewTests.test_profile_ids_and_receipt_identity) ... ok
+test_stop_cause_not_overwritten_by_action_cancellation (test_executor_review.ExecutorReviewTests.test_stop_cause_not_overwritten_by_action_cancellation) ... ok
+test_unknown_stop_reason_has_common_error_and_is_atomic (test_executor_review.ExecutorReviewTests.test_unknown_stop_reason_has_common_error_and_is_atomic) ... ok
+test_field_preflight (unittest.loader.ModuleSkipped.test_field_preflight) ... skipped 'scripts/field/preflight.py absent (installed-wheel checkout)'
+test_messages (test_interfaces_schema.InterfaceSchemaTests.test_messages) ... skipped 'source checkout absent (installed-wheel run): IDL check NOT_RUN here'
+test_only_phase1_files_and_types_resolve (test_interfaces_schema.InterfaceSchemaTests.test_only_phase1_files_and_types_resolve) ... skipped 'source checkout absent (installed-wheel run): IDL check NOT_RUN here'
+test_services_and_actions (test_interfaces_schema.InterfaceSchemaTests.test_services_and_actions) ... skipped 'source checkout absent (installed-wheel run): IDL check NOT_RUN here'
+test_a_map_correction_invalidates_mixed_goal_but_preserves_b_observation (test_mapping.MappingTests.test_a_map_correction_invalidates_mixed_goal_but_preserves_b_observation) ... ok
+test_alignment_authority_frame_and_clock_are_explicit (test_mapping.MappingTests.test_alignment_authority_frame_and_clock_are_explicit) ... ok
+test_alignment_degraded_invalid_uncertain_and_time_window_are_rejected (test_mapping.MappingTests.test_alignment_degraded_invalid_uncertain_and_time_window_are_rejected) ... ok
+test_alignment_only_change_can_reproject_same_sensor_time_transform (test_mapping.MappingTests.test_alignment_only_change_can_reproject_same_sensor_time_transform) ... ok
+test_corrected_map_needs_new_observation_not_current_tf_added_to_old_point (test_mapping.MappingTests.test_corrected_map_needs_new_observation_not_current_tf_added_to_old_point) ... ok
+test_defensive_copy_and_frozen_observation_preserve_original (test_mapping.MappingTests.test_defensive_copy_and_frozen_observation_preserve_original) ... ok
+test_destination_restart_invalidates_goal_from_other_robot (test_mapping.MappingTests.test_destination_restart_invalidates_goal_from_other_robot) ... ok
+test_duplicate_observation_id_must_keep_every_semantic_field (test_mapping.MappingTests.test_duplicate_observation_id_must_keep_every_semantic_field) ... ok
+test_expiry_uses_original_deadline_and_alignment_deadline (test_mapping.MappingTests.test_expiry_uses_original_deadline_and_alignment_deadline) ... ok
+test_explicit_alignment_failure_invalidates_affected_goals (test_mapping.MappingTests.test_explicit_alignment_failure_invalidates_affected_goals) ... ok
+test_extreme_finite_quaternion_scales_preserve_lengths_and_inverse (test_mapping.MappingTests.test_extreme_finite_quaternion_scales_preserve_lengths_and_inverse) ... ok
+test_general_rotation_inverse_roundtrip_and_scaled_quaternion (test_mapping.MappingTests.test_general_rotation_inverse_roundtrip_and_scaled_quaternion) ... ok
+test_geometry_valid_never_means_backend_or_automatic_approach_valid (test_mapping.MappingTests.test_geometry_valid_never_means_backend_or_automatic_approach_valid) ... ok
+test_goal_recheck_closes_revision_change_after_acceptance_in_pure_model (test_mapping.MappingTests.test_goal_recheck_closes_revision_change_after_acceptance_in_pure_model) ... ok
+test_goal_snapshot_cannot_be_modified_or_used_in_another_registry (test_mapping.MappingTests.test_goal_snapshot_cannot_be_modified_or_used_in_another_registry) ... ok
+test_invalid_numeric_values_and_unknown_robot_are_not_coordinates (test_mapping.MappingTests.test_invalid_numeric_values_and_unknown_robot_are_not_coordinates) ... ok
+test_latest_tf_is_rejected_even_if_very_close_to_observation_time (test_mapping.MappingTests.test_latest_tf_is_rejected_even_if_very_close_to_observation_time) ... ok
+test_map_content_update_does_not_fabricate_coordinate_revision (test_mapping.MappingTests.test_map_content_update_does_not_fabricate_coordinate_revision) ... ok
+test_missing_tf_retains_original_but_produces_no_location (test_mapping.MappingTests.test_missing_tf_retains_original_but_produces_no_location) ... ok
+test_native_map_and_camera_names_are_isolated_by_robot_identity (test_mapping.MappingTests.test_native_map_and_camera_names_are_isolated_by_robot_identity) ... ok
+test_nonplanar_map_alignment_preserves_vertical_component (test_mapping.MappingTests.test_nonplanar_map_alignment_preserves_vertical_component) ... ok
+test_optical_depth_point_uses_full_3d_rotation_then_translation (test_mapping.MappingTests.test_optical_depth_point_uses_full_3d_rotation_then_translation) ... ok
+test_planar_alignment_and_destination_inverse_share_a_physical_point (test_mapping.MappingTests.test_planar_alignment_and_destination_inverse_share_a_physical_point) ... ok
+test_revisions_cannot_go_backwards_or_change_content_under_same_number (test_mapping.MappingTests.test_revisions_cannot_go_backwards_or_change_content_under_same_number) ... ok
+test_same_observation_cannot_silently_replace_its_bound_tf (test_mapping.MappingTests.test_same_observation_cannot_silently_replace_its_bound_tf) ... ok
+test_uint64_revision_bounds_apply_to_inputs_and_registry_updates (test_mapping.MappingTests.test_uint64_revision_bounds_apply_to_inputs_and_registry_updates) ... ok
+test_uuid_fields_require_canonical_nonzero_uuid (test_mapping.MappingTests.test_uuid_fields_require_canonical_nonzero_uuid) ... ok
+test_validated_interpolation_requires_bracketing_original_stamp (test_mapping.MappingTests.test_validated_interpolation_requires_bracketing_original_stamp) ... ok
+test_wrong_sensor_map_clock_or_map_version_cannot_be_substituted (test_mapping.MappingTests.test_wrong_sensor_map_clock_or_map_version_cannot_be_substituted) ... ok
+test_zero_future_expired_observation_and_clock_regression_fail_closed (test_mapping.MappingTests.test_zero_future_expired_observation_and_clock_regression_fail_closed) ... ok
+test_alignment_change_while_driving_cancels_and_needs_stop (test_mapping_guard.MappingGuardTests.test_alignment_change_while_driving_cancels_and_needs_stop) ... ok
+test_binder_rejects_other_robot_task (test_mapping_guard.MappingGuardTests.test_binder_rejects_other_robot_task) ... ok
+test_current_alignment_is_read_only (test_mapping_guard.MappingGuardTests.test_current_alignment_is_read_only) ... ok
+test_heading_is_rotated_into_map (test_mapping_guard.MappingGuardTests.test_heading_is_rotated_into_map) ... ok
+test_hold_needs_no_alignment (test_mapping_guard.MappingGuardTests.test_hold_needs_no_alignment) ... ok
+test_map_revision_advance_blocks_dispatch (test_mapping_guard.MappingGuardTests.test_map_revision_advance_blocks_dispatch) ... ok
+test_mission_goal_is_sent_in_robot_map_frame (test_mapping_guard.MappingGuardTests.test_mission_goal_is_sent_in_robot_map_frame) ... ok
+test_stale_goal_version_or_frame_sends_nothing (test_mapping_guard.MappingGuardTests.test_stale_goal_version_or_frame_sends_nothing) ... ok
+test_target_kinds_need_the_gate (test_mapping_guard.MappingGuardTests.test_target_kinds_need_the_gate) ... ok
+test_alignment_timestamps_are_int64_while_revisions_remain_uint64 (test_mapping_time_contract.MappingTimeContractTests.test_alignment_timestamps_are_int64_while_revisions_remain_uint64) ... ok
+test_invalid_now_does_not_poison_registry_clock_or_existing_goal (test_mapping_time_contract.MappingTimeContractTests.test_invalid_now_does_not_poison_registry_clock_or_existing_goal) ... ok
+test_observation_timestamps_are_positive_int64_not_unbounded_ints (test_mapping_time_contract.MappingTimeContractTests.test_observation_timestamps_are_positive_int64_not_unbounded_ints) ... ok
+test_tf_query_and_sample_timestamps_share_common_range (test_mapping_time_contract.MappingTimeContractTests.test_tf_query_and_sample_timestamps_share_common_range) ... ok
+test_cancel_request_reply_terminal_and_stop_are_separate (test_nav2_adapter.AdapterTests.test_cancel_request_reply_terminal_and_stop_are_separate) ... ok
+test_clock_offset_beyond_bound_is_not_a_sample (test_nav2_adapter.AdapterTests.test_clock_offset_beyond_bound_is_not_a_sample) ... ok
+test_full_cycle_send_accept_terminal_stop_completed (test_nav2_adapter.AdapterTests.test_full_cycle_send_accept_terminal_stop_completed) ... ok
+test_guard_failure_blocks_send (test_nav2_adapter.AdapterTests.test_guard_failure_blocks_send) ... ok
+test_hold_completes_only_after_stop_and_sends_no_goal (test_nav2_adapter.AdapterTests.test_hold_completes_only_after_stop_and_sends_no_goal) ... ok
+test_late_accept_after_timeout_cancels_only_that_goal (test_nav2_adapter.AdapterTests.test_late_accept_after_timeout_cancels_only_that_goal) ... ok
+test_late_terminal_of_previous_generation_cannot_touch_current (test_nav2_adapter.AdapterTests.test_late_terminal_of_previous_generation_cannot_touch_current) ... ok
+test_missing_or_docked_readiness_is_rejected (test_nav2_adapter.AdapterTests.test_missing_or_docked_readiness_is_rejected) ... ok
+test_nav2_acceptance_is_not_an_admission (test_nav2_adapter.AdapterTests.test_nav2_acceptance_is_not_an_admission) ... ok
+test_no_odometry_after_cancel_is_stop_unconfirmed (test_nav2_adapter.AdapterTests.test_no_odometry_after_cancel_is_stop_unconfirmed) ... ok
+test_non_terminal_status_does_not_fence (test_nav2_adapter.AdapterTests.test_non_terminal_status_does_not_fence) ... ok
+test_role_task_kinds_use_the_same_adapter (test_nav2_adapter.AdapterTests.test_role_task_kinds_use_the_same_adapter) ... ok
+test_same_command_with_other_goal_is_conflict_and_sends_first_goal (test_nav2_adapter.AdapterTests.test_same_command_with_other_goal_is_conflict_and_sends_first_goal) ... ok
+test_stale_odometry_cannot_confirm_stop (test_nav2_adapter.AdapterTests.test_stale_odometry_cannot_confirm_stop) ... ok
+test_stale_stop_evidence_blocks_dispatch (test_nav2_adapter.AdapterTests.test_stale_stop_evidence_blocks_dispatch) ... ok
+test_task_for_other_robot_is_rejected_by_executor (test_nav2_adapter.AdapterTests.test_task_for_other_robot_is_rejected_by_executor) ... ok
+test_two_namespaces_do_not_mix_callbacks (test_nav2_adapter.AdapterTests.test_two_namespaces_do_not_mix_callbacks) ... ok
+test_unusable_odom_stamp_resets_stop_window (test_nav2_adapter.AdapterTests.test_unusable_odom_stamp_resets_stop_window) ... ok
+test_ros_boundary_imports_without_ros (test_nav2_adapter.RosBoundaryImportTests.test_ros_boundary_imports_without_ros) ... ok
+test_a_revision_invalidates_only_a_observation_and_all_dependent_goals (test_offline_demo.OfflineDemoTests.test_a_revision_invalidates_only_a_observation_and_all_dependent_goals) ... ok
+test_both_roles_are_proposals_with_automatic_approach_blocked (test_offline_demo.OfflineDemoTests.test_both_roles_are_proposals_with_automatic_approach_blocked) ... ok
+test_evidence_bytes_and_two_reports_survive_receipt_loss_and_reopen (test_offline_demo.OfflineDemoTests.test_evidence_bytes_and_two_reports_survive_receipt_loss_and_reopen) ... ok
+test_exact_epoch_reaches_actual_mapping_and_one_ns_shift_is_rejected (test_offline_demo.OfflineDemoTests.test_exact_epoch_reaches_actual_mapping_and_one_ns_shift_is_rejected) ... ok
+test_existing_output_is_refused_without_overwriting (test_offline_demo.OfflineDemoTests.test_existing_output_is_refused_without_overwriting) ... ok
+test_invalid_profile_does_not_create_output (test_offline_demo.OfflineDemoTests.test_invalid_profile_does_not_create_output) ... ok
+test_module_cli_runs_and_existing_path_fails_cleanly (test_offline_demo.OfflineDemoTests.test_module_cli_runs_and_existing_path_fails_cleanly) ... ok
+test_stop_then_new_generation_and_real_receipt_promote_reservation_only (test_offline_demo.OfflineDemoTests.test_stop_then_new_generation_and_real_receipt_promote_reservation_only) ... ok
+test_synthetic_search_results_do_not_claim_real_commands (test_offline_demo.OfflineDemoTests.test_synthetic_search_results_do_not_claim_real_commands) ... ok
+test_valid_profile_with_other_robot_names_is_not_silently_ignored (test_offline_demo.OfflineDemoTests.test_valid_profile_with_other_robot_names_is_not_silently_ignored) ... ok
+test_concurrent_ledger_instances_deduplicate (test_operations.OperationsTests.test_concurrent_ledger_instances_deduplicate) ... ok
+test_envelope_changes_are_retries_not_collisions (test_operations.OperationsTests.test_envelope_changes_are_retries_not_collisions) ... ok
+test_evidence_cannot_relabel_an_old_photo_as_confirmation (test_operations.OperationsTests.test_evidence_cannot_relabel_an_old_photo_as_confirmation) ... ok
+test_evidence_id_metadata_collision_rejected (test_operations.OperationsTests.test_evidence_id_metadata_collision_rejected) ... ok
+test_invalid_paths_and_closed_db_normalize_errors (test_operations.OperationsTests.test_invalid_paths_and_closed_db_normalize_errors) ... ok
+test_invalid_schema_numeric_ids_and_medical_claims_rejected (test_operations.OperationsTests.test_invalid_schema_numeric_ids_and_medical_claims_rejected) ... ok
+test_missing_ref_and_original_photo_do_not_satisfy_confirmation_policy (test_operations.OperationsTests.test_missing_ref_and_original_photo_do_not_satisfy_confirmation_policy) ... ok
+test_optional_policy_does_not_persist_dangling_declared_evidence (test_operations.OperationsTests.test_optional_policy_does_not_persist_dangling_declared_evidence) ... ok
+test_outbox_receipt_write_failure_replays_committed_remote_report (test_operations.OperationsTests.test_outbox_receipt_write_failure_replays_committed_remote_report) ... ok
+test_payload_bounds_and_immutable_input_snapshot (test_operations.OperationsTests.test_payload_bounds_and_immutable_input_snapshot) ... ok
+test_persist_write_failure_never_returns_persisted_receipt (test_operations.OperationsTests.test_persist_write_failure_never_returns_persisted_receipt) ... ok
+test_policy_and_role_cannot_change_on_reopen (test_operations.OperationsTests.test_policy_and_role_cannot_change_on_reopen) ... ok
+test_readonly_cli_exports_and_does_not_create_missing_database (test_operations.OperationsTests.test_readonly_cli_exports_and_does_not_create_missing_database) ... ok
+test_receipt_loss_after_commit_retries_without_duplicate (test_operations.OperationsTests.test_receipt_loss_after_commit_retries_without_duplicate) ... ok
+test_received_and_pending_receipts_remain_retryable (test_operations.OperationsTests.test_received_and_pending_receipts_remain_retryable) ... ok
+test_received_is_not_persisted_and_restart_retains_receipt (test_operations.OperationsTests.test_received_is_not_persisted_and_restart_retains_receipt) ... ok
+test_report_id_collision_does_not_mutate_original (test_operations.OperationsTests.test_report_id_collision_does_not_mutate_original) ... ok
+test_report_transaction_failure_rolls_back_and_retry_succeeds (test_operations.OperationsTests.test_report_transaction_failure_rolls_back_and_retry_succeeds) ... ok
+test_required_evidence_waits_for_actual_bytes_then_survives_reopen (test_operations.OperationsTests.test_required_evidence_waits_for_actual_bytes_then_survives_reopen) ... ok
+test_stale_receipt_revision_does_not_regress_outbox (test_operations.OperationsTests.test_stale_receipt_revision_does_not_regress_outbox) ... ok
+test_unreachable_report_is_recorded_without_claiming_approach_complete (test_operations.OperationsTests.test_unreachable_report_is_recorded_without_claiming_approach_complete) ... ok
+test_upload_transaction_failure_does_not_claim_stored (test_operations.OperationsTests.test_upload_transaction_failure_does_not_claim_stored) ... ok
+test_wrong_report_receipt_cannot_finish_outbox (test_operations.OperationsTests.test_wrong_report_receipt_cannot_finish_outbox) ... ok
+test_absent_values_become_none_not_invented_numbers (test_operations_ros_ingest.RobotStatusConversion.test_absent_values_become_none_not_invented_numbers) ... ok
+test_malformed_status_is_invalid_input (test_operations_ros_ingest.RobotStatusConversion.test_malformed_status_is_invalid_input) ... ok
+test_status_message_becomes_the_db_snapshot (test_operations_ros_ingest.RobotStatusConversion.test_status_message_becomes_the_db_snapshot) ... ok
+test_valid_mission_pose_is_attached_with_yaw (test_operations_ros_ingest.RobotStatusConversion.test_valid_mission_pose_is_attached_with_yaw) ... ok
+test_a_pose_that_is_no_longer_valid_hides_the_old_one (test_operations_ros_ingest.RobotStatusIngest.test_a_pose_that_is_no_longer_valid_hides_the_old_one)
+AGENTS 7절: an old position is not shown as if it were current. ... ok
+test_pose_after_status_updates_the_map_and_a_status_resend_is_not_a_conflict (test_operations_ros_ingest.RobotStatusIngest.test_pose_after_status_updates_the_map_and_a_status_resend_is_not_a_conflict)
+Found in the local ROS run (2026-10-11): pose comes on its own topic, faster than status. ... ok
+test_refused_status_lands_in_the_error_log_with_its_robot (test_operations_ros_ingest.RobotStatusIngest.test_refused_status_lands_in_the_error_log_with_its_robot) ... ok
+test_stale_status_is_ignored_without_an_error (test_operations_ros_ingest.RobotStatusIngest.test_stale_status_is_ignored_without_an_error) ... ok
+test_status_uses_the_configured_role_and_the_latest_pose (test_operations_ros_ingest.RobotStatusIngest.test_status_uses_the_configured_role_and_the_latest_pose) ... ok
+test_candidate_keeps_target_and_watch_and_missing_bound_is_none (test_operations_ros_ingest.SiteEventConversion.test_candidate_keeps_target_and_watch_and_missing_bound_is_none) ... ok
+test_contract_violations_surface_as_invalid_input (test_operations_ros_ingest.SiteEventConversion.test_contract_violations_surface_as_invalid_input) ... ok
+test_disaster_sign_message_becomes_the_contract_event (test_operations_ros_ingest.SiteEventConversion.test_disaster_sign_message_becomes_the_contract_event) ... ok
+test_not_valid_visibility_is_refused (test_operations_ros_ingest.SiteEventConversion.test_not_valid_visibility_is_refused)
+C-10: ROS -> Python refuses every visibility other than VALID, the empty string included. ... ok
+test_refused_message_is_not_stored_and_lands_in_the_error_log (test_operations_ros_ingest.SiteEventIngest.test_refused_message_is_not_stored_and_lands_in_the_error_log) ... ok
+test_same_id_with_other_content_is_logged_as_a_conflict (test_operations_ros_ingest.SiteEventIngest.test_same_id_with_other_content_is_logged_as_a_conflict) ... ok
+test_valid_event_is_stored_and_a_resend_is_not_an_error (test_operations_ros_ingest.SiteEventIngest.test_valid_event_is_stored_and_a_resend_is_not_an_error) ... ok
+test_dispatching_state_becomes_the_mission_row (test_operations_ros_ingest.SystemStateConversion.test_dispatching_state_becomes_the_mission_row) ... ok
+test_has_flags_false_give_none_not_zeroes (test_operations_ros_ingest.SystemStateConversion.test_has_flags_false_give_none_not_zeroes) ... ok
+test_reason_code_is_kept_and_empty_is_none (test_operations_ros_ingest.SystemStateConversion.test_reason_code_is_kept_and_empty_is_none) ... ok
+test_refused_state_lands_in_the_error_log (test_operations_ros_ingest.SystemStateIngest.test_refused_state_lands_in_the_error_log) ... ok
+test_states_are_stored_in_change_order_and_a_coordinator_restart_is_not_mistaken (test_operations_ros_ingest.SystemStateIngest.test_states_are_stored_in_change_order_and_a_coordinator_restart_is_not_mistaken) ... ok
+test_inconsistent_configuration_is_refused_before_anything_starts (test_operations_ros_node.NodeConfig.test_inconsistent_configuration_is_refused_before_anything_starts) ... ok
+test_module_imports_without_rclpy (test_operations_ros_node.NodeConfig.test_module_imports_without_rclpy) ... ok
+test_parallel_lists_become_one_entry_per_robot (test_operations_ros_node.NodeConfig.test_parallel_lists_become_one_entry_per_robot) ... ok
+test_subscriptions_accept_both_latched_and_plain_publishers (test_operations_ros_node.NodeConfig.test_subscriptions_accept_both_latched_and_plain_publishers)
+Local ROS run with the #90 probe (2026-10-11): a VOLATILE RobotStatus publisher and a ... ok
+test_every_step_is_stored_and_shown_in_order (test_operations_site_flow.SiteFlowRehearsal.test_every_step_is_stored_and_shown_in_order) ... ok
+test_false_alarm_clears_through_clearing_back_to_normal (test_operations_site_flow.SiteFlowRehearsal.test_false_alarm_clears_through_clearing_back_to_normal)
+S-00: DISASTER → CLEARING (stop running tasks, SCOUT returns) → NORMAL. ... ok
+test_final_screen_links_event_target_commands_and_verdict (test_operations_site_flow.SiteFlowRehearsal.test_final_screen_links_event_target_commands_and_verdict) ... ok
+test_late_snapshot_does_not_move_the_screen_backwards (test_operations_site_flow.SiteFlowRehearsal.test_late_snapshot_does_not_move_the_screen_backwards) ... ok
+test_operator_arms_the_camera_watch_before_a_candidate_can_exist (test_operations_site_flow.SiteFlowRehearsal.test_operator_arms_the_camera_watch_before_a_candidate_can_exist)
+C-11 2행: the operator's SET_CAMERA_WATCH (1차 IDL since #77) is kept in the command history. ... ok
+test_replaying_the_flow_after_a_restart_changes_nothing_but_the_error_log (test_operations_site_flow.SiteFlowRehearsal.test_replaying_the_flow_after_a_restart_changes_nothing_but_the_error_log) ... ok
+test_a_write_outside_the_vocabulary_is_refused_not_stored (test_operations_site_flow.SiteFlowStorage.test_a_write_outside_the_vocabulary_is_refused_not_stored) ... ok
+test_rehearsal_file_is_schema_1_1_and_has_every_table (test_operations_site_flow.SiteFlowStorage.test_rehearsal_file_is_schema_1_1_and_has_every_table) ... ok
+test_disappeared_candidate_keeps_target_and_watch (test_operations_site_state.SiteStateTests.test_disappeared_candidate_keeps_target_and_watch) ... ok
+test_dock_state_and_segment_index_are_optional_robot_keys (test_operations_site_state.SiteStateTests.test_dock_state_and_segment_index_are_optional_robot_keys)
+1차 IDL RobotStatus carries them; older writers and rows do not (db-schema 5절: default on read). ... ok
+test_error_log_appends_every_entry_and_reads_newest_first (test_operations_site_state.SiteStateTests.test_error_log_appends_every_entry_and_reads_newest_first) ... ok
+test_error_log_rejects_bad_input (test_operations_site_state.SiteStateTests.test_error_log_rejects_bad_input) ... ok
+test_events_stored_before_target_and_watch_read_back_with_none (test_operations_site_state.SiteStateTests.test_events_stored_before_target_and_watch_read_back_with_none) ... ok
+test_every_operation_of_the_command_service_can_be_recorded (test_operations_site_state.SiteStateTests.test_every_operation_of_the_command_service_can_be_recorded)
+The console forwards SubmitOperatorCommand (1차 IDL, #77·#98); a refused record would lose it. ... skipped 'source checkout absent (installed-wheel run): IDL comparison NOT_RUN here'
+test_exit_count_is_over_all_events_not_the_page (test_operations_site_state.SiteStateTests.test_exit_count_is_over_all_events_not_the_page) ... ok
+test_map_snapshot_rejects_bad_input (test_operations_site_state.SiteStateTests.test_map_snapshot_rejects_bad_input) ... ok
+test_map_snapshots_append_and_resends_are_idempotent (test_operations_site_state.SiteStateTests.test_map_snapshots_append_and_resends_are_idempotent) ... ok
+test_mission_dispatch_and_finished_rules_are_checked (test_operations_site_state.SiteStateTests.test_mission_dispatch_and_finished_rules_are_checked) ... ok
+test_mission_dispatch_fields_and_finished_mode_round_trip (test_operations_site_state.SiteStateTests.test_mission_dispatch_fields_and_finished_mode_round_trip)
+schema 1.2: SystemState (C-10, contracts 207행) carries the AMR2 dispatch and MISSION_FINISHED. ... ok
+test_mission_reason_code_is_kept_and_optional (test_operations_site_state.SiteStateTests.test_mission_reason_code_is_kept_and_optional)
+#91 (CLA-02): a blocked approach keeps the phase and puts the cause code in SystemState.reason. ... ok
+test_mission_state_is_one_row_and_only_newer_replaces (test_operations_site_state.SiteStateTests.test_mission_state_is_one_row_and_only_newer_replaces) ... ok
+test_mission_state_rejects_bad_input (test_operations_site_state.SiteStateTests.test_mission_state_rejects_bad_input) ... ok
+test_new_robot_keys_are_checked (test_operations_site_state.SiteStateTests.test_new_robot_keys_are_checked) ... ok
+test_opening_schema_1_0_db_upgrades_tables_without_dropping_data (test_operations_site_state.SiteStateTests.test_opening_schema_1_0_db_upgrades_tables_without_dropping_data) ... ok
+test_opening_schema_1_1_db_rebuilds_mission_state_and_keeps_its_row (test_operations_site_state.SiteStateTests.test_opening_schema_1_1_db_rebuilds_mission_state_and_keeps_its_row)
+A 1.1 file (main at #87) has mission_state without the dispatch columns and generation NOT NULL. ... ok
+test_operator_command_rejects_bad_input (test_operations_site_state.SiteStateTests.test_operator_command_rejects_bad_input) ... ok
+test_operator_commands_keep_rejections_and_resends_are_idempotent (test_operations_site_state.SiteStateTests.test_operator_commands_keep_rejections_and_resends_are_idempotent) ... ok
+test_policy_cannot_change_on_reopen (test_operations_site_state.SiteStateTests.test_policy_cannot_change_on_reopen) ... ok
+test_pose_is_updated_on_its_own_and_is_not_part_of_the_status_identity (test_operations_site_state.SiteStateTests.test_pose_is_updated_on_its_own_and_is_not_part_of_the_status_identity) ... ok
+test_readers_are_read_only (test_operations_site_state.SiteStateTests.test_readers_are_read_only) ... ok
+test_readers_do_not_create_or_accept_other_databases (test_operations_site_state.SiteStateTests.test_readers_do_not_create_or_accept_other_databases) ... ok
+test_readers_reject_a_schema_1_0_file_until_the_writer_upgrades_it (test_operations_site_state.SiteStateTests.test_readers_reject_a_schema_1_0_file_until_the_writer_upgrades_it) ... ok
+test_resending_an_event_stored_before_target_and_watch_is_not_a_conflict (test_operations_site_state.SiteStateTests.test_resending_an_event_stored_before_target_and_watch_is_not_a_conflict) ... ok
+test_robot_row_stored_without_the_new_keys_reads_as_none_and_resend_is_idempotent (test_operations_site_state.SiteStateTests.test_robot_row_stored_without_the_new_keys_reads_as_none_and_resend_is_idempotent) ... ok
+test_robot_snapshot_round_trips_latest_per_robot (test_operations_site_state.SiteStateTests.test_robot_snapshot_round_trips_latest_per_robot) ... ok
+test_robot_status_rejects_bad_input (test_operations_site_state.SiteStateTests.test_robot_status_rejects_bad_input) ... ok
+test_schema_1_0_db_with_other_policy_is_rejected_and_left_unchanged (test_operations_site_state.SiteStateTests.test_schema_1_0_db_with_other_policy_is_rejected_and_left_unchanged) ... ok
+test_site_events_keep_fields_and_count_distinct_exit_passes (test_operations_site_state.SiteStateTests.test_site_events_keep_fields_and_count_distinct_exit_passes) ... ok
+test_stale_or_old_boot_status_never_overwrites (test_operations_site_state.SiteStateTests.test_stale_or_old_boot_status_never_overwrites) ... ok
+test_target_state_rejects_inconsistent_input (test_operations_site_state.SiteStateTests.test_target_state_rejects_inconsistent_input) ... ok
+test_target_state_round_trips_and_only_newer_replaces (test_operations_site_state.SiteStateTests.test_target_state_round_trips_and_only_newer_replaces) ... ok
+test_envelope_and_evidence_times_are_positive_int64 (test_operations_time_contract.OperationsTimeContractTests.test_envelope_and_evidence_times_are_positive_int64) ... ok
+test_invalid_persisted_receipt_is_not_accepted_by_outbox (test_operations_time_contract.OperationsTimeContractTests.test_invalid_persisted_receipt_is_not_accepted_by_outbox) ... ok
+test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries (test_operations_time_contract.OperationsTimeContractTests.test_nil_uuid_cannot_cross_report_envelope_or_evidence_boundaries) ... ok
+test_report_times_are_int64_while_generation_and_revisions_remain_uint64 (test_operations_time_contract.OperationsTimeContractTests.test_report_times_are_int64_while_generation_and_revisions_remain_uint64) ... ok
+test_cycle_finder_reports_a_cycle (test_package_dependency_graph.PackageDependencyGraphTests.test_cycle_finder_reports_a_cycle) ... ok
+test_repository_packages_have_no_dependency_cycle (test_package_dependency_graph.PackageDependencyGraphTests.test_repository_packages_have_no_dependency_cycle) ... skipped 'source checkout absent (installed-wheel run): package.xml check NOT_RUN here'
+test_detection_without_explicit_tracking_mode_must_not_hide_fallback (test_perception.BoundaryContractRegressionTests.test_detection_without_explicit_tracking_mode_must_not_hide_fallback) ... ok
+test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost (test_perception.BoundaryContractRegressionTests.test_float_epoch_capture_time_must_be_rejected_before_precision_is_lost) ... ok
+test_background_discontinuity_rejects_median_position (test_perception.PerceptionTests.test_background_discontinuity_rejects_median_position) ... ok
+test_bbox_no_silent_clip_or_scale (test_perception.PerceptionTests.test_bbox_no_silent_clip_or_scale) ... ok
+test_collision_cannot_extend_lifetime_or_replace_evidence (test_perception.PerceptionTests.test_collision_cannot_extend_lifetime_or_replace_evidence) ... ok
+test_common_error_and_localization_detail_keep_distinct_meanings (test_perception.PerceptionTests.test_common_error_and_localization_detail_keep_distinct_meanings) ... ok
+test_depth_encoding_units_and_shape (test_perception.PerceptionTests.test_depth_encoding_units_and_shape) ... ok
+test_depth_failure_keeps_discovery_without_position (test_perception.PerceptionTests.test_depth_failure_keeps_discovery_without_position) ... ok
+test_depth_pair_one_ns_boundary_at_real_epoch (test_perception.PerceptionTests.test_depth_pair_one_ns_boundary_at_real_epoch) ... ok
+test_events_dedup_conflicts_and_no_reordered_identity (test_perception.PerceptionTests.test_events_dedup_conflicts_and_no_reordered_identity) ... ok
+test_float_metres_invalid_samples_and_median (test_perception.PerceptionTests.test_float_metres_invalid_samples_and_median) ... ok
+test_future_and_original_expiry_consider_uncertainty (test_perception.PerceptionTests.test_future_and_original_expiry_consider_uncertainty) ... ok
+test_intrinsics_alignment_and_resolution_are_not_inferred (test_perception.PerceptionTests.test_intrinsics_alignment_and_resolution_are_not_inferred) ... ok
+test_model_manifest_and_class_mapping (test_perception.PerceptionTests.test_model_manifest_and_class_mapping) ... ok
+test_no_implicit_thresholds_and_invalid_scalar_validation (test_perception.PerceptionTests.test_no_implicit_thresholds_and_invalid_scalar_validation) ... ok
+test_observation_ids_hashes_validity_and_freezing (test_perception.PerceptionTests.test_observation_ids_hashes_validity_and_freezing) ... ok
+test_publication_schema_and_sequence_validation (test_perception.PerceptionTests.test_publication_schema_and_sequence_validation) ... ok
+test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input (test_perception.PerceptionTests.test_real_epoch_ros_stamp_preserved_exactly_through_observation_and_tf_input) ... ok
+test_receiver_time_regression_latches_until_new_receiver_session (test_perception.PerceptionTests.test_receiver_time_regression_latches_until_new_receiver_session) ... ok
+test_registered_millimetres_deproject_to_optical_metres (test_perception.PerceptionTests.test_registered_millimetres_deproject_to_optical_metres) ... ok
+test_rejected_collision_still_records_receiver_clock (test_perception.PerceptionTests.test_rejected_collision_still_records_receiver_clock) ... ok
+test_reordered_and_same_frame_do_not_refresh_gap_timer (test_perception.PerceptionTests.test_reordered_and_same_frame_do_not_refresh_gap_timer) ... ok
+test_reordered_discovery_survives_in_immutable_history_without_event_admission (test_perception.PerceptionTests.test_reordered_discovery_survives_in_immutable_history_without_event_admission) ... ok
+test_republication_changes_only_envelope_not_source_hash_or_timer (test_perception.PerceptionTests.test_republication_changes_only_envelope_not_source_hash_or_timer) ... ok
+test_robot_identity_uses_shared_profile_format (test_perception.PerceptionTests.test_robot_identity_uses_shared_profile_format) ... ok
+test_same_frame_people_both_get_events_without_identity_claim (test_perception.PerceptionTests.test_same_frame_people_both_get_events_without_identity_claim) ... ok
+test_source_boots_keep_separate_receive_history (test_perception.PerceptionTests.test_source_boots_keep_separate_receive_history) ... ok
+test_stale_input_still_records_receiver_clock_and_detects_rollback (test_perception.PerceptionTests.test_stale_input_still_records_receiver_clock_and_detects_rollback) ... ok
+test_sync_semantics_and_clock_domain_rejected (test_perception.PerceptionTests.test_sync_semantics_and_clock_domain_rejected) ... ok
+test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow (test_perception.PerceptionTests.test_timestamp_and_duration_boundaries_reject_float_bool_and_overflow) ... ok
+test_tracking_mode_is_part_of_immutable_source_payload_hash (test_perception.PerceptionTests.test_tracking_mode_is_part_of_immutable_source_payload_hash) ... ok
+test_tracking_mode_required_and_consistent_with_track_id (test_perception.PerceptionTests.test_tracking_mode_required_and_consistent_with_track_id) ... ok
+test_two_robots_same_track_id_remain_separate_candidates (test_perception.PerceptionTests.test_two_robots_same_track_id_remain_separate_candidates) ... ok
+test_unknown_clock_and_stamp_can_be_recorded_but_not_used (test_perception.PerceptionTests.test_unknown_clock_and_stamp_can_be_recorded_but_not_used) ... ok
+test_16uc1_little_endian_with_row_padding (test_perception_adapter.AdapterTests.test_16uc1_little_endian_with_row_padding) ... ok
+test_32fc1_big_endian_keeps_nan_as_missing (test_perception_adapter.AdapterTests.test_32fc1_big_endian_keeps_nan_as_missing) ... ok
+test_bad_time_alignment_or_depth_never_produce_a_point (test_perception_adapter.AdapterTests.test_bad_time_alignment_or_depth_never_produce_a_point) ... ok
+test_binding_and_policy_use_shared_contract_validators (test_perception_adapter.AdapterTests.test_binding_and_policy_use_shared_contract_validators) ... ok
+test_detection_from_another_frame_is_rejected_by_one_nanosecond (test_perception_adapter.AdapterTests.test_detection_from_another_frame_is_rejected_by_one_nanosecond) ... ok
+test_duplicate_and_reordered_input_do_not_refresh_stream_or_validity (test_perception_adapter.AdapterTests.test_duplicate_and_reordered_input_do_not_refresh_stream_or_validity) ... ok
+test_evidence_hash_is_the_exact_rgb_payload (test_perception_adapter.AdapterTests.test_evidence_hash_is_the_exact_rgb_payload) ... ok
+test_float_header_stamp_is_rejected_not_rounded (test_perception_adapter.AdapterTests.test_float_header_stamp_is_rejected_not_rounded) ... ok
+test_header_stamp_reaches_observation_without_losing_a_nanosecond (test_perception_adapter.AdapterTests.test_header_stamp_reaches_observation_without_losing_a_nanosecond) ... ok
+test_non_robot_source_stops_at_localization (test_perception_adapter.AdapterTests.test_non_robot_source_stops_at_localization) ... ok
+test_rectified_stream_uses_projection_not_raw_k (test_perception_adapter.AdapterTests.test_rectified_stream_uses_projection_not_raw_k) ... ok
+test_secondary_stereo_binning_and_roi_are_rejected (test_perception_adapter.AdapterTests.test_secondary_stereo_binning_and_roi_are_rejected) ... ok
+test_unsupported_encoding_and_bad_length_are_rejected (test_perception_adapter.AdapterTests.test_unsupported_encoding_and_bad_length_are_rejected) ... ok
+test_vision_msgs_detection_requires_explicit_tracking_mode (test_perception_adapter.AdapterTests.test_vision_msgs_detection_requires_explicit_tracking_mode) ... ok
+test_cli_exit_distinguishes_clean_replay_gaps_and_empty_input (test_perception_bag_replay.BagReplayCliTests.test_cli_exit_distinguishes_clean_replay_gaps_and_empty_input) ... ok
+test_cli_reports_input_error_without_traceback (test_perception_bag_replay.BagReplayCliTests.test_cli_reports_input_error_without_traceback) ... ok
+test_missing_bag_is_explicit_before_ros_import (test_perception_bag_replay.BagReplayCliTests.test_missing_bag_is_explicit_before_ros_import) ... ok
+test_config_is_strict (test_perception_bag_replay.BagReplayTests.test_config_is_strict) ... ok
+test_depth_skew_boundary_and_gap_report (test_perception_bag_replay.BagReplayTests.test_depth_skew_boundary_and_gap_report) ... ok
+test_detection_array_pairs_exact_rgb_and_nearest_depth (test_perception_bag_replay.BagReplayTests.test_detection_array_pairs_exact_rgb_and_nearest_depth) ... ok
+test_detection_with_unusable_stamp_is_a_rejection (test_perception_bag_replay.BagReplayTests.test_detection_with_unusable_stamp_is_a_rejection) ... ok
+test_empty_detection_array_is_reported (test_perception_bag_replay.BagReplayTests.test_empty_detection_array_is_reported) ... ok
+test_localization_failure_and_rejection_are_rows (test_perception_bag_replay.BagReplayTests.test_localization_failure_and_rejection_are_rows) ... ok
+test_missing_stamp_fields_reported_without_aborting (test_perception_bag_replay.BagReplayTests.test_missing_stamp_fields_reported_without_aborting) ... ok
+test_topic_mapping_must_be_nonempty_and_distinct (test_perception_bag_replay.BagReplayTests.test_topic_mapping_must_be_nonempty_and_distinct) ... ok
+test_unpaired_arrays_are_reported_not_dropped (test_perception_bag_replay.BagReplayTests.test_unpaired_arrays_are_reported_not_dropped) ... ok
+test_unusable_stamps_are_reported_and_valid_records_continue (test_perception_bag_replay.BagReplayTests.test_unusable_stamps_are_reported_and_valid_records_continue) ... ok
+test_brightness_offset_alone_raises_nothing (test_perception_disaster_sign.DisasterSignTests.test_brightness_offset_alone_raises_nothing) ... ok
+test_camera_moved_to_a_new_spot_becomes_the_new_scene (test_perception_disaster_sign.DisasterSignTests.test_camera_moved_to_a_new_spot_becomes_the_new_scene) ... ok
+test_channel_order_matters (test_perception_disaster_sign.DisasterSignTests.test_channel_order_matters) ... ok
+test_colour_encodings_use_luma (test_perception_disaster_sign.DisasterSignTests.test_colour_encodings_use_luma) ... ok
+test_covered_view_is_unknown_and_keeps_the_count (test_perception_disaster_sign.DisasterSignTests.test_covered_view_is_unknown_and_keeps_the_count) ... ok
+test_duplicate_and_reordered_frames_change_nothing (test_perception_disaster_sign.DisasterSignTests.test_duplicate_and_reordered_frames_change_nothing) ... ok
+test_fewer_reversals_than_needed_raise_nothing (test_perception_disaster_sign.DisasterSignTests.test_fewer_reversals_than_needed_raise_nothing) ... ok
+test_frame_gap_resets_the_count (test_perception_disaster_sign.DisasterSignTests.test_frame_gap_resets_the_count) ... ok
+test_frame_size_change_restarts_instead_of_crashing (test_perception_disaster_sign.DisasterSignTests.test_frame_size_change_restarts_instead_of_crashing) ... ok
+test_hand_moving_right_in_front_of_lens_is_not_shaking (test_perception_disaster_sign.DisasterSignTests.test_hand_moving_right_in_front_of_lens_is_not_shaking) ... ok
+test_hand_over_most_of_the_view_in_every_quadrant_is_not_shaking (test_perception_disaster_sign.DisasterSignTests.test_hand_over_most_of_the_view_in_every_quadrant_is_not_shaking) ... ok
+test_hand_over_one_side_is_unknown (test_perception_disaster_sign.DisasterSignTests.test_hand_over_one_side_is_unknown) ... ok
+test_hand_pausing_briefly_does_not_become_the_scene (test_perception_disaster_sign.DisasterSignTests.test_hand_pausing_briefly_does_not_become_the_scene) ... ok
+test_hold_counts_from_when_the_condition_became_true (test_perception_disaster_sign.DisasterSignTests.test_hold_counts_from_when_the_condition_became_true) ... ok
+test_invalid_inputs_are_rejected (test_perception_disaster_sign.DisasterSignTests.test_invalid_inputs_are_rejected) ... ok
+test_jitter_below_noise_floor_is_not_counted (test_perception_disaster_sign.DisasterSignTests.test_jitter_below_noise_floor_is_not_counted) ... ok
+test_known_shift_is_measured (test_perception_disaster_sign.DisasterSignTests.test_known_shift_is_measured) ... ok
+test_lighting_change_alone_raises_nothing (test_perception_disaster_sign.DisasterSignTests.test_lighting_change_alone_raises_nothing) ... ok
+test_mostly_covered_by_a_textured_hand_is_unknown (test_perception_disaster_sign.DisasterSignTests.test_mostly_covered_by_a_textured_hand_is_unknown) ... ok
+test_one_quadrant_moving_is_partial_motion (test_perception_disaster_sign.DisasterSignTests.test_one_quadrant_moving_is_partial_motion) ... ok
+test_person_at_the_top_edge_covering_one_quadrant_is_not_unknown (test_perception_disaster_sign.DisasterSignTests.test_person_at_the_top_edge_covering_one_quadrant_is_not_unknown) ... ok
+test_person_passing_over_part_of_the_view_is_not_unknown (test_perception_disaster_sign.DisasterSignTests.test_person_passing_over_part_of_the_view_is_not_unknown) ... ok
+test_rejected_frame_leaves_no_state (test_perception_disaster_sign.DisasterSignTests.test_rejected_frame_leaves_no_state) ... ok
+test_rejected_frame_then_retry_of_same_stamp (test_perception_disaster_sign.DisasterSignTests.test_rejected_frame_then_retry_of_same_stamp) ... ok
+test_release_must_hold_before_rearming (test_perception_disaster_sign.DisasterSignTests.test_release_must_hold_before_rearming) ... ok
+test_replay_yields_identical_events (test_perception_disaster_sign.DisasterSignTests.test_replay_yields_identical_events) ... ok
+test_steady_pan_is_not_shaking (test_perception_disaster_sign.DisasterSignTests.test_steady_pan_is_not_shaking) ... ok
+test_still_scene_raises_nothing (test_perception_disaster_sign.DisasterSignTests.test_still_scene_raises_nothing) ... ok
+test_three_quadrants_moving_is_still_partial_motion (test_perception_disaster_sign.DisasterSignTests.test_three_quadrants_moving_is_still_partial_motion) ... ok
+test_whole_view_shake_emits_one_event_with_exact_stamp (test_perception_disaster_sign.DisasterSignTests.test_whole_view_shake_emits_one_event_with_exact_stamp) ... ok
+test_confident_located_person_is_confirmed_observation (test_perception_person_pipeline.PersonPipelineTests.test_confident_located_person_is_confirmed_observation) ... ok
+test_duplicate_and_reordered_frames_are_ignored (test_perception_person_pipeline.PersonPipelineTests.test_duplicate_and_reordered_frames_are_ignored) ... ok
+test_every_frame_feeds_registry_freshness (test_perception_person_pipeline.PersonPipelineTests.test_every_frame_feeds_registry_freshness) ... ok
+test_invalid_inputs_are_rejected (test_perception_person_pipeline.PersonPipelineTests.test_invalid_inputs_are_rejected) ... ok
+test_low_confidence_or_no_position_stays_unconfirmed_but_is_kept (test_perception_person_pipeline.PersonPipelineTests.test_low_confidence_or_no_position_stays_unconfirmed_but_is_kept) ... ok
+test_model_not_run_is_not_an_empty_result (test_perception_person_pipeline.PersonPipelineTests.test_model_not_run_is_not_an_empty_result) ... ok
+test_non_person_labels_skipped_and_unknown_labels_rejected (test_perception_person_pipeline.PersonPipelineTests.test_non_person_labels_skipped_and_unknown_labels_rejected) ... ok
+test_rejected_frame_leaves_no_state (test_perception_person_pipeline.PersonPipelineTests.test_rejected_frame_leaves_no_state) ... ok
+test_rejected_label_then_clean_retry (test_perception_person_pipeline.PersonPipelineTests.test_rejected_label_then_clean_retry) ... ok
+test_same_track_is_a_new_candidate_once_and_again_only_on_upgrade (test_perception_person_pipeline.PersonPipelineTests.test_same_track_is_a_new_candidate_once_and_again_only_on_upgrade) ... ok
+test_threshold_is_inclusive (test_perception_person_pipeline.PersonPipelineTests.test_threshold_is_inclusive) ... ok
+test_untracked_detections_are_each_new (test_perception_person_pipeline.PersonPipelineTests.test_untracked_detections_are_each_new) ... ok
+test_absence_restarts_after_occlusion (test_perception_target_watch.TargetWatchTests.test_absence_restarts_after_occlusion) ... ok
+test_brief_absence_is_not_a_candidate (test_perception_target_watch.TargetWatchTests.test_brief_absence_is_not_a_candidate) ... ok
+test_detector_without_result_is_unknown (test_perception_target_watch.TargetWatchTests.test_detector_without_result_is_unknown) ... ok
+test_doll_in_roi_is_present (test_perception_target_watch.TargetWatchTests.test_doll_in_roi_is_present) ... ok
+test_doll_outside_roi_or_low_score_counts_as_absent (test_perception_target_watch.TargetWatchTests.test_doll_outside_roi_or_low_score_counts_as_absent) ... ok
+test_doll_removed_raises_one_candidate_with_watch_link (test_perception_target_watch.TargetWatchTests.test_doll_removed_raises_one_candidate_with_watch_link) ... ok
+test_duplicate_and_reordered_frames_change_nothing (test_perception_target_watch.TargetWatchTests.test_duplicate_and_reordered_frames_change_nothing) ... ok
+test_frame_gap_restarts_absence (test_perception_target_watch.TargetWatchTests.test_frame_gap_restarts_absence) ... ok
+test_invalid_inputs_are_rejected (test_perception_target_watch.TargetWatchTests.test_invalid_inputs_are_rejected) ... ok
+test_never_seen_doll_does_not_arm (test_perception_target_watch.TargetWatchTests.test_never_seen_doll_does_not_arm) ... ok
+test_occlusion_is_unknown_and_never_a_candidate (test_perception_target_watch.TargetWatchTests.test_occlusion_is_unknown_and_never_a_candidate) ... ok
+test_one_candidate_per_watch (test_perception_target_watch.TargetWatchTests.test_one_candidate_per_watch) ... ok
+test_partial_overlap_uses_box_fraction_inside_roi (test_perception_target_watch.TargetWatchTests.test_partial_overlap_uses_box_fraction_inside_roi) ... ok
+test_replay_yields_identical_results (test_perception_target_watch.TargetWatchTests.test_replay_yields_identical_results) ... ok
+test_unknown_stream_is_unknown (test_perception_target_watch.TargetWatchTests.test_unknown_stream_is_unknown) ... ok
+test_length_mismatch_or_nan_is_rejected (test_perception_webcam_service.BoxTests.test_length_mismatch_or_nan_is_rejected) ... ok
+test_no_detections_is_empty_tuple (test_perception_webcam_service.BoxTests.test_no_detections_is_empty_tuple) ... ok
+test_rows_become_boxes (test_perception_webcam_service.BoxTests.test_rows_become_boxes) ... ok
+test_slight_overflow_is_clipped_and_empty_boxes_dropped (test_perception_webcam_service.BoxTests.test_slight_overflow_is_clipped_and_empty_boxes_dropped) ... ok
+test_example_yaml_matches_node_params (test_perception_webcam_service.NodeParamsExampleTests.test_example_yaml_matches_node_params) ... ok
+test_duplicate_or_unknown_status_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_duplicate_or_unknown_status_is_unknown) ... ok
+test_match_failed_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_match_failed_is_unknown) ... ok
+test_normal_view_is_valid (test_perception_webcam_service.SceneVisibilityTests.test_normal_view_is_valid) ... ok
+test_offline_stream_is_unknown (test_perception_webcam_service.SceneVisibilityTests.test_offline_stream_is_unknown) ... ok
+test_whole_view_cover_is_occluded (test_perception_webcam_service.SceneVisibilityTests.test_whole_view_cover_is_occluded) ... ok
+test_disable_must_match_active_watch (test_perception_webcam_service.WatchSlotTests.test_disable_must_match_active_watch) ... ok
+test_disable_without_active_watch_is_rejected (test_perception_webcam_service.WatchSlotTests.test_disable_without_active_watch_is_rejected) ... ok
+test_empty_slot_has_no_detector (test_perception_webcam_service.WatchSlotTests.test_empty_slot_has_no_detector) ... ok
+test_enable_accepts_and_bumps_revision (test_perception_webcam_service.WatchSlotTests.test_enable_accepts_and_bumps_revision) ... ok
+test_image_size_change_clears_watch (test_perception_webcam_service.WatchSlotTests.test_image_size_change_clears_watch) ... ok
+test_invalid_input_reply_says_which_field (test_perception_webcam_service.WatchSlotTests.test_invalid_input_reply_says_which_field) ... ok
+test_rejections_leave_slot_unchanged (test_perception_webcam_service.WatchSlotTests.test_rejections_leave_slot_unchanged) ... ok
+test_replace_needs_current_revision (test_perception_webcam_service.WatchSlotTests.test_replace_needs_current_revision) ... ok
+test_same_command_is_idempotent (test_perception_webcam_service.WatchSlotTests.test_same_command_is_idempotent) ... ok
+test_cli_distinguishes_static_validation_from_runtime (test_profile.DeploymentProfileTests.test_cli_distinguishes_static_validation_from_runtime) ... ok
+test_cli_rejects_nul_input_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_input_path_without_traceback) ... ok
+test_cli_rejects_nul_parameter_path_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_nul_parameter_path_without_traceback) ... ok
+test_cli_rejects_overlong_json_integer_without_traceback (test_profile.DeploymentProfileTests.test_cli_rejects_overlong_json_integer_without_traceback) ... ok
+test_clock_mode_does_not_accept_truthy_strings (test_profile.DeploymentProfileTests.test_clock_mode_does_not_accept_truthy_strings) ... ok
+test_coordination_and_operations_can_share_if_all_hosts_have_roles (test_profile.DeploymentProfileTests.test_coordination_and_operations_can_share_if_all_hosts_have_roles) ... ok
+test_duplicate_host_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_host_is_rejected) ... ok
+test_duplicate_json_keys_and_nonfinite_numbers_are_rejected (test_profile.DeploymentProfileTests.test_duplicate_json_keys_and_nonfinite_numbers_are_rejected) ... ok
+test_duplicate_robot_namespace_is_rejected (test_profile.DeploymentProfileTests.test_duplicate_robot_namespace_is_rejected) ... ok
+test_example_loads_and_retains_robot_ownership (test_profile.DeploymentProfileTests.test_example_loads_and_retains_robot_ownership) ... ok
+test_fourth_host_cannot_be_listed_but_unused (test_profile.DeploymentProfileTests.test_fourth_host_cannot_be_listed_but_unused) ... ok
+test_hardware_roles_are_not_frozen_to_example_placement (test_profile.DeploymentProfileTests.test_hardware_roles_are_not_frozen_to_example_placement) ... ok
+test_invalid_cli_has_nonzero_exit_and_no_success_output (test_profile.DeploymentProfileTests.test_invalid_cli_has_nonzero_exit_and_no_success_output) ... ok
+test_missing_file_and_oversized_parameter_file_are_rejected (test_profile.DeploymentProfileTests.test_missing_file_and_oversized_parameter_file_are_rejected) ... ok
+test_mixed_clock_modes_are_rejected (test_profile.DeploymentProfileTests.test_mixed_clock_modes_are_rejected) ... ok
+test_namespace_must_be_explicit_single_robot_prefix (test_profile.DeploymentProfileTests.test_namespace_must_be_explicit_single_robot_prefix) ... ok
+test_nonregular_profile_is_rejected_before_read (test_profile.DeploymentProfileTests.test_nonregular_profile_is_rejected_before_read) ... ok
+test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly (test_profile.DeploymentProfileTests.test_oversized_profile_invalid_utf8_and_deep_json_fail_cleanly) ... ok
+test_parameter_path_cannot_escape_by_parent_absolute_or_symlink (test_profile.DeploymentProfileTests.test_parameter_path_cannot_escape_by_parent_absolute_or_symlink) ... ok
+test_policy_baseline_change_updates_counts_and_cli_without_literal_edits (test_profile.DeploymentProfileTests.test_policy_baseline_change_updates_counts_and_cli_without_literal_edits) ... ok
+test_profile_symlink_uses_target_directory_for_parameter_paths (test_profile.DeploymentProfileTests.test_profile_symlink_uses_target_directory_for_parameter_paths) ... ok
+test_robot_identity_collision_is_rejected (test_profile.DeploymentProfileTests.test_robot_identity_collision_is_rejected) ... ok
+test_runtime_activation_is_rejected (test_profile.DeploymentProfileTests.test_runtime_activation_is_rejected) ... ok
+test_schema_version_is_not_boolean_or_unrecognized_version (test_profile.DeploymentProfileTests.test_schema_version_is_not_boolean_or_unrecognized_version) ... ok
+test_swapped_robot_parameter_files_are_rejected (test_profile.DeploymentProfileTests.test_swapped_robot_parameter_files_are_rejected) ... ok
+test_two_robot_command_owners_can_share_a_host (test_profile.DeploymentProfileTests.test_two_robot_command_owners_can_share_a_host) ... ok
+test_unknown_command_host_is_rejected (test_profile.DeploymentProfileTests.test_unknown_command_host_is_rejected) ... ok
+test_unknown_configuration_cannot_silently_enable_actions (test_profile.DeploymentProfileTests.test_unknown_configuration_cannot_silently_enable_actions) ... ok
+test_wrong_robot_host_counts_and_tier_mix_are_rejected (test_profile.DeploymentProfileTests.test_wrong_robot_host_counts_and_tier_mix_are_rejected) ... ok
+test_cli_reports_roles_and_mission_summary (test_profile_v2.MissionProfileTests.test_cli_reports_roles_and_mission_summary) ... ok
+test_hold_pose_accepts_robot_scoped_tf_frames (test_profile_v2.MissionProfileTests.test_hold_pose_accepts_robot_scoped_tf_frames) ... ok
+test_hold_pose_rejects_unknown_robot_nonfinite_and_boolean_revision (test_profile_v2.MissionProfileTests.test_hold_pose_rejects_unknown_robot_nonfinite_and_boolean_revision) ... ok
+test_huge_json_integer_is_a_profile_error_not_overflow (test_profile_v2.MissionProfileTests.test_huge_json_integer_is_a_profile_error_not_overflow) ... ok
+test_profile_vocabularies_match_shared_contracts (test_profile_v2.MissionProfileTests.test_profile_vocabularies_match_shared_contracts) ... ok
+test_roles_are_data_so_swapping_them_swaps_scout_and_support (test_profile_v2.MissionProfileTests.test_roles_are_data_so_swapping_them_swaps_scout_and_support) ... ok
+test_roles_must_be_exactly_one_scout_and_one_support (test_profile_v2.MissionProfileTests.test_roles_must_be_exactly_one_scout_and_one_support) ... ok
+test_ros_names_must_live_under_the_robot_namespace_and_be_distinct (test_profile_v2.MissionProfileTests.test_ros_names_must_live_under_the_robot_namespace_and_be_distinct) ... ok
+test_search_areas_need_unique_canonical_ids_finite_xy_and_known_basis (test_profile_v2.MissionProfileTests.test_search_areas_need_unique_canonical_ids_finite_xy_and_known_basis) ... ok
+test_support_robot_requires_a_hold_pose (test_profile_v2.MissionProfileTests.test_support_robot_requires_a_hold_pose) ... ok
+test_v1_example_still_loads_without_mission (test_profile_v2.MissionProfileTests.test_v1_example_still_loads_without_mission) ... ok
+test_v1_profile_cannot_carry_mission_and_v2_must (test_profile_v2.MissionProfileTests.test_v1_profile_cannot_carry_mission_and_v2_must) ... ok
+test_v2_deployment_rejects_v1_parameter_files_and_vice_versa (test_profile_v2.MissionProfileTests.test_v2_deployment_rejects_v1_parameter_files_and_vice_versa) ... ok
+test_v2_example_loads_with_roles_areas_holds_and_names (test_profile_v2.MissionProfileTests.test_v2_example_loads_with_roles_areas_holds_and_names) ... ok
+test_blocks_are_optional_and_absent_means_none (test_profile_v21.V21ProfileTests.test_blocks_are_optional_and_absent_means_none) ... ok
+test_camera_only_host_counts_as_used (test_profile_v21.V21ProfileTests.test_camera_only_host_counts_as_used) ... ok
+test_cli_reports_cameras_and_networks (test_profile_v21.V21ProfileTests.test_cli_reports_cameras_and_networks) ... ok
+test_entry_yaw_must_be_finite_number (test_profile_v21.V21ProfileTests.test_entry_yaw_must_be_finite_number) ... ok
+test_example_loads_readiness_network_cameras_and_entry_yaw (test_profile_v21.V21ProfileTests.test_example_loads_readiness_network_cameras_and_entry_yaw) ... ok
+test_network_rejections (test_profile_v21.V21ProfileTests.test_network_rejections) ... ok
+test_null_is_not_absent_and_server_id_is_global (test_profile_v21.V21ProfileTests.test_null_is_not_absent_and_server_id_is_global) ... ok
+test_readiness_rejections (test_profile_v21.V21ProfileTests.test_readiness_rejections) ... ok
+test_site_camera_rejections (test_profile_v21.V21ProfileTests.test_site_camera_rejections) ... ok
+test_all_sources_fresh_then_one_ages_out (test_readiness_monitor.ReadinessMonitorTests.test_all_sources_fresh_then_one_ages_out) ... ok
+test_every_source_of_a_flag_is_required (test_readiness_monitor.ReadinessMonitorTests.test_every_source_of_a_flag_is_required) ... ok
+test_out_of_order_or_future_arrival_is_not_fresh (test_readiness_monitor.ReadinessMonitorTests.test_out_of_order_or_future_arrival_is_not_fresh) ... ok
+test_policy_shape (test_readiness_monitor.ReadinessMonitorTests.test_policy_shape) ... ok
+test_watchdog_without_source_keeps_adapter_not_ready (test_readiness_monitor.ReadinessMonitorTests.test_watchdog_without_source_keeps_adapter_not_ready) ... ok
+test_camera_message_type_follows_the_topic_suffix (test_readiness_monitor.ReadinessPolicyBuilderTests.test_camera_message_type_follows_the_topic_suffix) ... ok
+test_ros_node_policy_builder_without_ros (test_readiness_monitor.ReadinessPolicyBuilderTests.test_ros_node_policy_builder_without_ros) ... ok
+test_alignment_only_is_stale_and_can_reproject_original (test_review_mapping.MappingReviewTests.test_alignment_only_is_stale_and_can_reproject_original) ... ok
+test_invalid_alignment_requires_reobservation (test_review_mapping.MappingReviewTests.test_invalid_alignment_requires_reobservation) ... ok
+test_public_mapping_error_has_canonical_and_namespaced_detail (test_review_mapping.MappingReviewTests.test_public_mapping_error_has_canonical_and_namespaced_detail) ... ok
+test_stale_derivation_escalates_after_alignment_invalidation (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_after_alignment_invalidation) ... ok
+test_stale_derivation_escalates_after_new_session (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_after_new_session) ... ok
+test_stale_derivation_escalates_to_reobservation_after_map_correction (test_review_mapping.MappingReviewTests.test_stale_derivation_escalates_to_reobservation_after_map_correction) ... ok
+test_version_mismatch_uses_same_projection_status_vocabulary (test_review_mapping.MappingReviewTests.test_version_mismatch_uses_same_projection_status_vocabulary) ... ok
+test_allowed_id_policy_is_required_and_bounded (test_review_operations.OperationsReviewTests.test_allowed_id_policy_is_required_and_bounded) ... ok
+test_allowed_ids_are_immutable_and_pinned_on_reopen (test_review_operations.OperationsReviewTests.test_allowed_ids_are_immutable_and_pinned_on_reopen) ... ok
+test_missing_robot_policy_is_not_silently_adopted_on_reopen (test_review_operations.OperationsReviewTests.test_missing_robot_policy_is_not_silently_adopted_on_reopen) ... ok
+test_operations_error_uses_common_envelope_without_losing_detail (test_review_operations.OperationsReviewTests.test_operations_error_uses_common_envelope_without_losing_detail) ... ok
+test_profile_ids_reach_persisted_report_and_outbox (test_review_operations.OperationsReviewTests.test_profile_ids_reach_persisted_report_and_outbox) ... ok
+test_schema_accepts_valid_identifier_without_fixed_membership (test_review_operations.OperationsReviewTests.test_schema_accepts_valid_identifier_without_fixed_membership) ... ok
+test_schema_robot_identifiers_follow_profile_syntax (test_review_operations.OperationsReviewTests.test_schema_robot_identifiers_follow_profile_syntax) ... ok
+test_unknown_source_or_executor_robot_is_rejected_before_storage (test_review_operations.OperationsReviewTests.test_unknown_source_or_executor_robot_is_rejected_before_storage) ... ok
+test_bound_contains_remaining_correction_root_delay_and_dispersion (test_robot_clock_capture.ClockCaptureTests.test_bound_contains_remaining_correction_root_delay_and_dispersion) ... ok
+test_two_host_bounds_are_added_and_epoch_is_bound_to_both_boots (test_robot_clock_capture.ClockCaptureTests.test_two_host_bounds_are_added_and_epoch_is_bound_to_both_boots) ... ok
+test_unsynced_local_mode_and_missing_or_nan_values_never_become_synced (test_robot_clock_capture.ClockCaptureTests.test_unsynced_local_mode_and_missing_or_nan_values_never_become_synced) ... ok
+test_duplicate_return_does_not_dispatch_twice (test_robot_segment_return.SegmentReturnTests.test_duplicate_return_does_not_dispatch_twice) ... ok
+test_new_kinds_need_a_pose (test_robot_segment_return.SegmentReturnTests.test_new_kinds_need_a_pose) ... ok
+test_new_kinds_reject_stale_alignment (test_robot_segment_return.SegmentReturnTests.test_new_kinds_reject_stale_alignment) ... ok
+test_return_has_no_target_or_search_area (test_robot_segment_return.SegmentReturnTests.test_return_has_no_target_or_search_area) ... ok
+test_return_is_bound_into_robot_map_and_waits_for_stop (test_robot_segment_return.SegmentReturnTests.test_return_is_bound_into_robot_map_and_waits_for_stop) ... ok
+test_segment_needs_live_target_gate_before_send (test_robot_segment_return.SegmentReturnTests.test_segment_needs_live_target_gate_before_send) ... ok
+test_segment_permission_loss_cancels_only_active_goal (test_robot_segment_return.SegmentReturnTests.test_segment_permission_loss_cancels_only_active_goal) ... ok
+test_segment_requires_target_and_revision (test_robot_segment_return.SegmentReturnTests.test_segment_requires_target_and_revision) ... ok
+test_entrypoint_shares_adapter_instead_of_creating_second_node (test_robot_task_entrypoint.EntryPointTests.test_entrypoint_shares_adapter_instead_of_creating_second_node) ... ok
+test_existing_launch_alias_and_new_entrypoint_share_one_runtime (test_robot_task_entrypoint.EntryPointTests.test_existing_launch_alias_and_new_entrypoint_share_one_runtime) ... ok
+test_factory_must_be_callable (test_robot_task_entrypoint.EntryPointTests.test_factory_must_be_callable) ... ok
+test_missing_factory_is_visible (test_robot_task_entrypoint.EntryPointTests.test_missing_factory_is_visible) ... ok
+test_older_adapter_without_runtime_hook_is_rejected (test_robot_task_entrypoint.EntryPointTests.test_older_adapter_without_runtime_hook_is_rejected) ... ok
+test_required_factory_uses_existing_jazzy_typed_parameter_helper (test_robot_task_entrypoint.EntryPointTests.test_required_factory_uses_existing_jazzy_typed_parameter_helper) ... ok
+test_requires_explicit_installed_factory_reference (test_robot_task_entrypoint.EntryPointTests.test_requires_explicit_installed_factory_reference) ... ok
+test_source_alias_check_has_no_build_tool_dependency (test_robot_task_entrypoint.EntryPointTests.test_source_alias_check_has_no_build_tool_dependency) ... skipped 'source-only check; installed aliases are checked through distribution metadata'
+test_unset_factory_rejected_before_loading_site_code (test_robot_task_entrypoint.EntryPointTests.test_unset_factory_rejected_before_loading_site_code) ... ok
+test_clock_session_change_and_forward_step_latch_runtime (test_robot_task_pr90.LeaseReceptionTests.test_clock_session_change_and_forward_step_latch_runtime) ... ok
+test_expired_old_and_uncertain_lease_never_extend_local_deadline (test_robot_task_pr90.LeaseReceptionTests.test_expired_old_and_uncertain_lease_never_extend_local_deadline) ... ok
+test_forward_wall_step_without_steady_progress_blocks_renew (test_robot_task_pr90.LeaseReceptionTests.test_forward_wall_step_without_steady_progress_blocks_renew) ... ok
+test_fresh_lease_allows_bounded_future_timestamp (test_robot_task_pr90.LeaseReceptionTests.test_fresh_lease_allows_bounded_future_timestamp) ... ok
+test_goal_admitted_without_first_lease_and_initial_sequence_not_consumed (test_robot_task_pr90.LeaseReceptionTests.test_goal_admitted_without_first_lease_and_initial_sequence_not_consumed) ... ok
+test_goal_before_lease_still_requires_authorization_and_clock_proof (test_robot_task_pr90.LeaseReceptionTests.test_goal_before_lease_still_requires_authorization_and_clock_proof) ... ok
+test_message_expiry_is_reception_gate_not_local_steady_lease_length (test_robot_task_pr90.LeaseReceptionTests.test_message_expiry_is_reception_gate_not_local_steady_lease_length) ... ok
+test_unknown_domain_unsynced_missing_bound_and_over_policy_bound_rejected (test_robot_task_pr90.LeaseReceptionTests.test_unknown_domain_unsynced_missing_bound_and_over_policy_bound_rejected) ... ok
+test_approved_endpoint_without_planner_values_is_admitted_and_transformed (test_robot_task_pr90.Phase1RouteTests.test_approved_endpoint_without_planner_values_is_admitted_and_transformed) ... ok
+test_missing_approval_changed_revision_expiry_and_invalid_pose_rejected (test_robot_task_pr90.Phase1RouteTests.test_missing_approval_changed_revision_expiry_and_invalid_pose_rejected) ... ok
+test_phase1_approval_and_route_expiry_must_bind_to_task_deadline (test_robot_task_pr90.Phase1RouteTests.test_phase1_approval_and_route_expiry_must_bind_to_task_deadline) ... ok
+test_phase1_reobserve_without_guard_cannot_use_generic_resolver (test_robot_task_pr90.Phase1RouteTests.test_phase1_reobserve_without_guard_cannot_use_generic_resolver) ... ok
+test_reobserve_uses_fixed_endpoint_without_operator_approval (test_robot_task_pr90.Phase1RouteTests.test_reobserve_uses_fixed_endpoint_without_operator_approval) ... ok
+test_revocation_and_target_change_are_live_guards (test_robot_task_pr90.Phase1RouteTests.test_revocation_and_target_change_are_live_guards) ... ok
+test_target_source_basis_is_validated_then_bound_to_moving_robot_basis (test_robot_task_pr90.Phase1RouteTests.test_target_source_basis_is_validated_then_bound_to_moving_robot_basis) ... ok
+test_unknown_passage_and_replan_entry_block_or_cancel (test_robot_task_pr90.Phase1RouteTests.test_unknown_passage_and_replan_entry_block_or_cancel) ... ok
+test_goal_first_matches_pr90_send_order (test_robot_task_pr90.TransportContractTests.test_goal_first_matches_pr90_send_order) ... ok
+test_idle_status_does_not_invent_command_lease (test_robot_task_pr90.TransportContractTests.test_idle_status_does_not_invent_command_lease) ... ok
+test_real_robot_status_uses_stop_observation_not_cancel_ack (test_robot_task_pr90.TransportContractTests.test_real_robot_status_uses_stop_observation_not_cancel_ack) ... ok
+test_no_watchdog_needed_to_prepare_and_missing_values_are_listed (test_robot_task_prepare.TaskPrepareTests.test_no_watchdog_needed_to_prepare_and_missing_values_are_listed) ... ok
+test_regenerating_task_overlay_does_not_refresh_or_replace_input (test_robot_task_prepare.TaskPrepareTests.test_regenerating_task_overlay_does_not_refresh_or_replace_input) ... ok
+test_watchdog_independent_rehearsal_runs_real_runtime_six_scenarios (test_robot_task_prepare.TaskPrepareTests.test_watchdog_independent_rehearsal_runs_real_runtime_six_scenarios) ... ok
+test_approval_expiry_cancels_even_with_long_renewed_lease (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_approval_expiry_cancels_even_with_long_renewed_lease) ... ok
+test_bad_completion_scope_is_rejected_before_success (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_bad_completion_scope_is_rejected_before_success) ... ok
+test_changed_approval_is_not_rebound_on_retry (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_changed_approval_is_not_rebound_on_retry) ... ok
+test_changed_home_record_during_movement_cancels (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_changed_home_record_during_movement_cancels) ... ok
+test_home_lookup_failure_blocks_dispatch_without_inventing_pose (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_home_lookup_failure_blocks_dispatch_without_inventing_pose) ... ok
+test_live_revocation_cancels_then_waits_for_stop (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_live_revocation_cancels_then_waits_for_stop) ... ok
+test_proof_for_another_adapter_is_rejected (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_proof_for_another_adapter_is_rejected) ... ok
+test_return_cannot_infer_missing_home_pose (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_return_cannot_infer_missing_home_pose) ... ok
+test_return_resolves_home_record_without_target_or_approval (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_return_resolves_home_record_without_target_or_approval) ... ok
+test_route_cache_failure_during_movement_cancels_and_logs (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_route_cache_failure_during_movement_cancels_and_logs) ... ok
+test_segment_reaches_transformed_selected_endpoint_only_once (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_segment_reaches_transformed_selected_endpoint_only_once) ... ok
+test_segment_result_is_not_target_approach_completion (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_segment_result_is_not_target_approach_completion) ... ok
+test_segment_without_authenticated_gate_is_rejected (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_segment_without_authenticated_gate_is_rejected) ... ok
+test_target_revision_change_cancels (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_target_revision_change_cancels) ... ok
+test_unauthorized_operator_or_changed_backend_route_rejected_before_admission (test_robot_task_runtime_integration.RuntimeIntegrationTests.test_unauthorized_operator_or_changed_backend_route_rejected_before_admission) ... ok
+test_common_cancel_waits_for_stop_and_no_odom_is_not_success (test_robot_task_runtime_stages.OrderedRuntimeTests.test_common_cancel_waits_for_stop_and_no_odom_is_not_success) ... ok
+test_common_stage_accepts_search_reobserve_hold_and_renews_active_search (test_robot_task_runtime_stages.OrderedRuntimeTests.test_common_stage_accepts_search_reobserve_hold_and_renews_active_search) ... ok
+test_fallback_stage_only_runs_segment_and_preserves_scope (test_robot_task_runtime_stages.OrderedRuntimeTests.test_fallback_stage_only_runs_segment_and_preserves_scope) ... ok
+test_probe_namespace_is_valid_for_every_uuid_hex_prefix (test_robot_task_runtime_stages.OrderedRuntimeTests.test_probe_namespace_is_valid_for_every_uuid_hex_prefix) ... ok
+test_ros_hold_missing_result_times_out_and_cleans_up (test_robot_task_runtime_stages.OrderedRuntimeTests.test_ros_hold_missing_result_times_out_and_cleans_up) ... ok
+test_ros_hold_waits_for_result_after_lease_delivery (test_robot_task_runtime_stages.OrderedRuntimeTests.test_ros_hold_waits_for_result_after_lease_delivery) ... ok
+test_unknown_stage_rejected_before_runtime_creation (test_robot_task_runtime_stages.OrderedRuntimeTests.test_unknown_stage_rejected_before_runtime_creation) ... ok
+test_changed_source_map_or_revoked_authority_cancels_active_task (test_robot_task_site_runtime.SiteRuntimeTests.test_changed_source_map_or_revoked_authority_cancels_active_task) ... ok
+test_expired_inputs_after_dispatch_cancel_without_fake_stopped_result (test_robot_task_site_runtime.SiteRuntimeTests.test_expired_inputs_after_dispatch_cancel_without_fake_stopped_result) ... ok
+test_input_atomic_write_and_explicit_policy_no_defaults (test_robot_task_site_runtime.SiteRuntimeTests.test_input_atomic_write_and_explicit_policy_no_defaults) ... ok
+test_installed_runtime_goal_first_transforms_endpoint_and_returns_segment (test_robot_task_site_runtime.SiteRuntimeTests.test_installed_runtime_goal_first_transforms_endpoint_and_returns_segment) ... ok
+test_lease_issuer_rejections_explain_boot_and_publisher_without_renewing (test_robot_task_site_runtime.SiteRuntimeTests.test_lease_issuer_rejections_explain_boot_and_publisher_without_renewing) ... ok
+test_malformed_live_mapping_input_stops_search_instead_of_breaking_timer (test_robot_task_site_runtime.SiteRuntimeTests.test_malformed_live_mapping_input_stops_search_instead_of_breaking_timer) ... ok
+test_missing_or_stale_inputs_reject_and_do_not_refresh_timestamp (test_robot_task_site_runtime.SiteRuntimeTests.test_missing_or_stale_inputs_reject_and_do_not_refresh_timestamp) ... ok
+test_missing_protection_and_operator_records_reject (test_robot_task_site_runtime.SiteRuntimeTests.test_missing_protection_and_operator_records_reject) ... ok
+test_node_runtime_installs_without_watchdog_and_stays_disarmed (test_robot_task_site_runtime.SiteRuntimeTests.test_node_runtime_installs_without_watchdog_and_stays_disarmed) ... ok
+test_registered_publisher_required_even_when_message_claims_authority (test_robot_task_site_runtime.SiteRuntimeTests.test_registered_publisher_required_even_when_message_claims_authority) ... ok
+test_renewal_checks_registered_publisher_and_active_lease_binding (test_robot_task_site_runtime.SiteRuntimeTests.test_renewal_checks_registered_publisher_and_active_lease_binding) ... ok
+test_reobserve_phase1_without_operator_approval (test_robot_task_site_runtime.SiteRuntimeTests.test_reobserve_phase1_without_operator_approval) ... ok
+test_search_area_resolves_configured_point_with_empty_wire_alignment (test_robot_task_site_runtime.SiteRuntimeTests.test_search_area_resolves_configured_point_with_empty_wire_alignment) ... ok
+test_search_destination_change_requires_new_command (test_robot_task_site_runtime.SiteRuntimeTests.test_search_destination_change_requires_new_command) ... ok
+test_stored_duplicate_and_identity_conflict_have_distinct_rejection_logs (test_robot_task_site_runtime.SiteRuntimeTests.test_stored_duplicate_and_identity_conflict_have_distinct_rejection_logs) ... ok
+test_alignment_unknown_blocks_motion (test_robot_task_wire.TaskWireTests.test_alignment_unknown_blocks_motion) ... ok
+test_approval_and_route_expiry_are_rejected_at_boundary (test_robot_task_wire.TaskWireTests.test_approval_and_route_expiry_are_rejected_at_boundary) ... ok
+test_approval_must_match_all_segment_identity_fields (test_robot_task_wire.TaskWireTests.test_approval_must_match_all_segment_identity_fields) ... ok
+test_boolean_approval_revision_and_segment_are_rejected (test_robot_task_wire.TaskWireTests.test_boolean_approval_revision_and_segment_are_rejected) ... ok
+test_boolean_lease_generation_is_not_equal_to_one (test_robot_task_wire.TaskWireTests.test_boolean_lease_generation_is_not_equal_to_one) ... ok
+test_clock_uncertainty_is_subtracted_not_used_to_extend_lease (test_robot_task_wire.TaskWireTests.test_clock_uncertainty_is_subtracted_not_used_to_extend_lease) ... ok
+test_deadline_shorter_than_lease_wins (test_robot_task_wire.TaskWireTests.test_deadline_shorter_than_lease_wins) ... ok
+test_empty_or_noncanonical_ids_are_rejected (test_robot_task_wire.TaskWireTests.test_empty_or_noncanonical_ids_are_rejected) ... ok
+test_expired_or_invalid_intervals_are_rejected (test_robot_task_wire.TaskWireTests.test_expired_or_invalid_intervals_are_rejected) ... ok
+test_future_task_and_lease_are_rejected (test_robot_task_wire.TaskWireTests.test_future_task_and_lease_are_rejected) ... ok
+test_hold_cannot_carry_move_permission (test_robot_task_wire.TaskWireTests.test_hold_cannot_carry_move_permission) ... ok
+test_hold_has_no_destination_pose (test_robot_task_wire.TaskWireTests.test_hold_has_no_destination_pose) ... ok
+test_named_home_reference_is_valid_without_an_invented_coordinate (test_robot_task_wire.TaskWireTests.test_named_home_reference_is_valid_without_an_invented_coordinate) ... ok
+test_no_mutation_of_transport_payload (test_robot_task_wire.TaskWireTests.test_no_mutation_of_transport_payload) ... ok
+test_old_boot_other_robot_and_authority_are_rejected (test_robot_task_wire.TaskWireTests.test_old_boot_other_robot_and_authority_are_rejected) ... ok
+test_resolver_must_preserve_frame_and_revision (test_robot_task_wire.TaskWireTests.test_resolver_must_preserve_frame_and_revision) ... ok
+test_return_requires_home_record_and_forbids_target (test_robot_task_wire.TaskWireTests.test_return_requires_home_record_and_forbids_target) ... ok
+test_return_result_has_return_scope (test_robot_task_wire.TaskWireTests.test_return_result_has_return_scope) ... ok
+test_route_frame_and_policy_must_match_task (test_robot_task_wire.TaskWireTests.test_route_frame_and_policy_must_match_task) ... ok
+test_segment_endpoint_is_not_inferred_from_final_approach (test_robot_task_wire.TaskWireTests.test_segment_endpoint_is_not_inferred_from_final_approach) ... ok
+test_segment_requires_both_route_and_approval (test_robot_task_wire.TaskWireTests.test_segment_requires_both_route_and_approval) ... ok
+test_segment_result_cannot_be_reported_as_target_approach (test_robot_task_wire.TaskWireTests.test_segment_result_cannot_be_reported_as_target_approach) ... ok
+test_six_kinds_have_valid_distinct_wire_shapes (test_robot_task_wire.TaskWireTests.test_six_kinds_have_valid_distinct_wire_shapes) ... ok
+test_target_revision_cannot_be_boolean (test_robot_task_wire.TaskWireTests.test_target_revision_cannot_be_boolean) ... ok
+test_unknown_kind_or_nonboolean_flags_are_rejected (test_robot_task_wire.TaskWireTests.test_unknown_kind_or_nonboolean_flags_are_rejected) ... ok
+test_unmeasured_or_negative_clock_bound_is_rejected (test_robot_task_wire.TaskWireTests.test_unmeasured_or_negative_clock_bound_is_rejected) ... ok
+test_adapter_never_passes_a_made_up_sample_time (test_stop_evidence_invalidation.StopEvidenceInvalidationTests.test_adapter_never_passes_a_made_up_sample_time) ... ok
+test_executor_invalidation_keeps_last_sample_and_clock_rules (test_stop_evidence_invalidation.StopEvidenceInvalidationTests.test_executor_invalidation_keeps_last_sample_and_clock_rules) ... ok
+test_goal_fields_take_part_in_content_conflict (test_task_goal_fields.TaskGoalFieldTests.test_goal_fields_take_part_in_content_conflict) ... ok
+test_goal_pose_shape (test_task_goal_fields.TaskGoalFieldTests.test_goal_pose_shape) ... ok
+test_kind_field_rules (test_task_goal_fields.TaskGoalFieldTests.test_kind_field_rules) ... ok
+test_authorization_and_frame_revision_are_required (test_task_ingress.TaskIngressTests.test_authorization_and_frame_revision_are_required) ... ok
+test_changed_content_on_retry_is_rejected (test_task_ingress.TaskIngressTests.test_changed_content_on_retry_is_rejected) ... ok
+test_clock_regression_blocks_renewal_and_latches_runtime_guard (test_task_ingress.TaskIngressTests.test_clock_regression_blocks_renewal_and_latches_runtime_guard) ... ok
+test_coordinator_string_identifier_is_not_forced_to_uuid (test_task_ingress.TaskIngressTests.test_coordinator_string_identifier_is_not_forced_to_uuid) ... ok
+test_hold_does_not_resolve_or_send_a_pose (test_task_ingress.TaskIngressTests.test_hold_does_not_resolve_or_send_a_pose) ... ok
+test_late_renewal_cannot_resurrect_expired_lease (test_task_ingress.TaskIngressTests.test_late_renewal_cannot_resurrect_expired_lease) ... ok
+test_lease_identity_and_time_fail_before_admission (test_task_ingress.TaskIngressTests.test_lease_identity_and_time_fail_before_admission) ... ok
+test_malformed_segment_and_return_are_rejected (test_task_ingress.TaskIngressTests.test_malformed_segment_and_return_are_rejected) ... ok
+test_renewal_reception_expiry_does_not_shorten_policy_steady_lifetime (test_task_ingress.TaskIngressTests.test_renewal_reception_expiry_does_not_shorten_policy_steady_lifetime) ... ok
+test_retry_does_not_extend_lease_or_dispatch_twice (test_task_ingress.TaskIngressTests.test_retry_does_not_extend_lease_or_dispatch_twice) ... ok
+test_retry_with_foreign_lease_is_not_an_admission (test_task_ingress.TaskIngressTests.test_retry_with_foreign_lease_is_not_an_admission) ... ok
+test_revocation_during_resolution_is_rejected_before_admission (test_task_ingress.TaskIngressTests.test_revocation_during_resolution_is_rejected_before_admission) ... ok
+test_slow_goal_resolution_does_not_extend_an_expired_lease (test_task_ingress.TaskIngressTests.test_slow_goal_resolution_does_not_extend_an_expired_lease) ... ok
+test_stop_without_odometry_is_reported_as_unconfirmed_failure (test_task_ingress.TaskIngressTests.test_stop_without_odometry_is_reported_as_unconfirmed_failure) ... ok
+test_terminal_report_waits_for_continuous_stop_evidence (test_task_ingress.TaskIngressTests.test_terminal_report_waits_for_continuous_stop_evidence) ... ok
+test_wire_fields_submit_and_dispatch (test_task_ingress.TaskIngressTests.test_wire_fields_submit_and_dispatch) ... ok
+test_accept_publishes_admission_without_dispatching_nav2 (test_task_server.TaskServerTests.test_accept_publishes_admission_without_dispatching_nav2) ... ok
+test_admission_publish_failure_stops_before_any_dispatch (test_task_server.TaskServerTests.test_admission_publish_failure_stops_before_any_dispatch) ... ok
+test_authentication_rejection_logs_without_extending_lease (test_task_server.TaskServerTests.test_authentication_rejection_logs_without_extending_lease) ... ok
+test_cancel_foreign_handle_does_not_stop_current_task (test_task_server.TaskServerTests.test_cancel_foreign_handle_does_not_stop_current_task) ... ok
+test_cancel_is_not_reported_as_stopped_without_evidence (test_task_server.TaskServerTests.test_cancel_is_not_reported_as_stopped_without_evidence) ... ok
+test_encoder_cannot_turn_failure_into_success (test_task_server.TaskServerTests.test_encoder_cannot_turn_failure_into_success) ... ok
+test_execute_waits_for_stop_and_reports_unknown_feedback_pose (test_task_server.TaskServerTests.test_execute_waits_for_stop_and_reports_unknown_feedback_pose) ... ok
+test_executor_rejection_logs_expiry_stopping_and_sequence (test_task_server.TaskServerTests.test_executor_rejection_logs_expiry_stopping_and_sequence) ... ok
+test_installing_runtime_on_armed_executor_is_rejected (test_task_server.TaskServerTests.test_installing_runtime_on_armed_executor_is_rejected) ... ok
+test_lease_subscription_requires_external_authorization (test_task_server.TaskServerTests.test_lease_subscription_requires_external_authorization) ... ok
+test_other_lease_logs_debug_without_extending_active_task (test_task_server.TaskServerTests.test_other_lease_logs_debug_without_extending_active_task) ... ok
+test_pre_goal_lease_is_stored_with_debug_and_no_dispatch (test_task_server.TaskServerTests.test_pre_goal_lease_is_stored_with_debug_and_no_dispatch) ... ok
+test_retry_preserves_admission_id_and_observed_time (test_task_server.TaskServerTests.test_retry_preserves_admission_id_and_observed_time) ... ok
+test_runtime_install_does_not_arm_and_missing_alignment_blocks_dispatch (test_task_server.TaskServerTests.test_runtime_install_does_not_arm_and_missing_alignment_blocks_dispatch) ... ok
+test_stop_unconfirmed_result_aborts_action (test_task_server.TaskServerTests.test_stop_unconfirmed_result_aborts_action) ... ok
+test_untrusted_goal_is_rejected_with_admission_reason (test_task_server.TaskServerTests.test_untrusted_goal_is_rejected_with_admission_reason) ... ok
+
+----------------------------------------------------------------------
+Ran 913 tests in 52.379s
+
+OK (skipped=36)
+WHEEL_SHA256 {"rescue_bringup-0.0.0-py3-none-any.whl": "a2491e90297269e035bebc3244274119023555e70adf4740e564e309ea24143d", "rescue_console-0.0.0-py3-none-any.whl": "60ca825eaf9f21909e8044466248b2197aa33d8cade762ceeeb45111bef05f36", "rescue_contracts-0.0.0-py3-none-any.whl": "3906bed78abec057f2b37009a74480843b8ce7e67fe05318786a8f310e6c2931", "rescue_coordination-0.0.0-py3-none-any.whl": "89fe3afa553257acc2ce2082f02c70e4c86d1b223a5b5dea78eaecb07c0fa317", "rescue_mapping-0.0.0-py3-none-any.whl": "7cbf80c3553309632bff1be020aafe89c5ce61f09365501c6d2a328d4492a3bb", "rescue_operations-0.0.0-py3-none-any.whl": "5eecb35d37ab5236b62701cfdace88b5b33de9e31f0de114104ea495b672cf98", "rescue_perception-0.0.0-py3-none-any.whl": "60acee93f103a96660b5e02ac606b4749584218f69945bc5db61a99bb6dfb1ce", "rescue_robot-0.0.0-py3-none-any.whl": "8ffafa3ec16ea013867a335722d980a773a48b31dd48487ca5289f14f0d79d47"}
+PASS 8 installed wheels, dependency check, isolated imports and nonempty tests
+exit=0

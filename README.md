@@ -18,9 +18,10 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
+| [AMR1 자율 탐색 후보](docs/implementation/amr1-exploration-candidates.md) | 무지도 환경의 탐색 알고리즘 5개, 구현·논문 근거, 비교 순서와 미검증 관문 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
-| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 기존 팀 BRD·실행 계약과의 차이를 명시 |
-| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 노드·토픽 상세는 `rokey7-sdd.drawio` 01~10쪽 |
+| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 웹캠 1대·관리자 구간 승인의 별도 검토안: 노드 배치, 토픽·서비스·액션·HTTP, JSON·CSV·draw.io. 도면 00쪽 통합 시스템 설계도와 기존 01~11쪽 상세도, 관제 웹 데이터 출처. 기존 팀 BRD·실행 계약과의 차이를 명시 |
+| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
 | [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
@@ -34,7 +35,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서. 단, 출구 카메라 B·출구 카운트는 웹캠 1대 결정(2026-10-09, [#44 OPS-20 ②](https://github.com/jaebeom/ROKEY-7/pull/44#issuecomment-6078811090))으로 빠졌다. 웹캠 하나가 재난 징후와 대상 감시를 맡고, 재확인은 대상 소실 후보로 시작한다 |
 | [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
 | [BRD v0.2 (제안)](docs/requirements/brd-v0.2.md) · [SRD v0.2 (제안)](docs/requirements/srd-v0.2.md) | 웹캠 1대·운영자 구간 승인·머리 위 기둥 통로·이중 확인 완료 판정 시나리오를 교육 양식 목차로 쓴 BRD·SRD. 채택 전 `[제안]`, 기준 문서는 Part I v0.1 |
-| [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, 오프라인 시험 규칙 |
+| [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, PC 별 설정·되돌리기, 오프라인 시험 규칙, 실행 전 점검 `scripts/field/preflight.py` |
 | [운영 PC 현황 기록](docs/process/ops-host-record.md) | 운영 PC 에 실제로 떠 있는 Discovery Server(서버 ID 0, 손으로 띄움, DHCP 주소)·관제 웹의 측정값, network-discovery 권고안 A 와의 차이, 로봇 Discovery 설정을 건드리지 않는 규칙 |
 | [운영 DB 파일과 테이블 관계도](docs/process/ops-db-tables.md) | SQLite 파일 넷(송신 대기열·운영 장부·현장 상태·웹 계정)의 쓰는 쪽·읽는 쪽, 테이블과 JSON 안 ID 로 이어지는 관계(Mermaid 그림), 읽기 전용으로 여는 법 |
 | [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |

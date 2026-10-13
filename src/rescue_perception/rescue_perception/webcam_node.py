@@ -26,7 +26,7 @@ from .adapter import SourceBinding
 from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
 from .target_watch import TargetWatchPolicy
-from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility
+from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, stream_state
 
 ENCODING = 'bgr8'  # OpenCV 프레임 채널 순서
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'
@@ -34,7 +34,7 @@ EVIDENCE_MIME = 'application/octet-stream'  # 원 픽셀 바이트(bgr8)의 해�
 
 # (이름, 타입). 모두 필수이고 기본값이 없다.
 PARAMS = {
-    'camera_id': 'STRING', 'frame_id': 'STRING', 'device_index': 'INTEGER', 'width': 'INTEGER',
+    'camera_id': 'STRING', 'frame_id': 'STRING', 'device_path': 'STRING', 'width': 'INTEGER',
     'height': 'INTEGER', 'frame_period_s': 'DOUBLE', 'reopen_period_s': 'DOUBLE',
     'clock_domain_id': 'STRING', 'clock_state': 'STRING', 'clock_error_bound_ns': 'INTEGER',
     'calibration_id': 'STRING', 'observation_validity_s': 'DOUBLE',
@@ -50,6 +50,8 @@ PARAMS = {
     'quake_release_s': 'DOUBLE', 'quake_max_gap_s': 'DOUBLE',
     'watch_score_min': 'DOUBLE', 'watch_roi_overlap_min': 'DOUBLE', 'watch_present_confirm_frames': 'INTEGER',
     'watch_absent_hold_s': 'DOUBLE', 'watch_absent_min_frames': 'INTEGER', 'watch_max_gap_s': 'DOUBLE',
+    'watch_exit_roi': 'DOUBLE_ARRAY', 'watch_track_max_jump': 'DOUBLE',
+    'debug_image_topic': 'STRING',
 }
 
 
@@ -86,8 +88,26 @@ def policies(v):
     watch = TargetWatchPolicy(
         score_min=v['watch_score_min'], roi_overlap_min=v['watch_roi_overlap_min'],
         present_confirm_frames=v['watch_present_confirm_frames'], absent_hold_ns=_ns(v['watch_absent_hold_s']),
-        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']))
+        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']),
+        exit_roi_xyxy_normalized=tuple(float(x) for x in v['watch_exit_roi']),
+        track_max_jump=v['watch_track_max_jump'])
     return quake, watch
+
+
+def spin_until_shutdown(rclpy, node, log):
+    """spin. 종료(Ctrl+C·외부 shutdown)와 종료 뒤 처리 중이던 콜백의 오류는 정상 종료로 본다.
+
+    SIGINT 가 프레임 처리 도중에 오면 그 콜백의 발행이 RCLError(context invalid)를 낸다(2026-10-12 실기).
+    context 가 살아 있는데 난 오류는 버그이므로 그대로 올린다.
+    """
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        if rclpy.ok():
+            raise
+    log.info('webcam_node stopping')
 
 
 def frame_image(frame, stamp_ns, frame_id):
@@ -101,11 +121,11 @@ def main(args=None):
     import cv2
     import rclpy
     from rclpy.exceptions import ParameterUninitializedException
-    from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import CameraStatus, SiteEvent, TargetPresence
+    from sensor_msgs.msg import CompressedImage
     from rescue_interfaces.srv import SetCameraWatch
     from ultralytics import YOLO
 
@@ -142,7 +162,7 @@ def main(args=None):
     slot = WatchSlot(binding, watch_policy)
     validity_ns = _ns(v['observation_validity_s'])
     log.info(f'webcam_node git={git_sha()} boot={boot_id} model={v["model_path"]} sha256={model_sha} '
-             f'camera={v["camera_id"]} device={v["device_index"]} {v["width"]}x{v["height"]} '
+             f'camera={v["camera_id"]} device={v["device_path"]}->{Path(v["device_path"]).resolve()} {v["width"]}x{v["height"]} '
              f'period={v["frame_period_s"]}s policy={v["policy_version"]} quake={quake_policy} watch={watch_policy}')
 
     reliable = dict(reliability=ReliabilityPolicy.RELIABLE)
@@ -153,6 +173,82 @@ def main(args=None):
     presence_pub = node.create_publisher(TargetPresence, v['presence_topic'],
                                          QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, **reliable))
     seq = {'status': 0, 'event': 0, 'presence': 0, 'frame': 0, 'srv': 0}
+    # 판정 화면용 영상(시험·관제 확인용). 빈 문자열이면 끈다. 판정에는 쓰지 않는다.
+    debug_pub = (node.create_publisher(CompressedImage, v['debug_image_topic'],
+                                       QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+                 if v['debug_image_topic'] else None)
+    trail = {'detector': None, 'points': []}
+
+    def label(img, text, org, color):
+        """어두운 바탕 상자 위에 글자(작은 글씨도 읽히게)."""
+        (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        x, y = org
+        cv2.rectangle(img, (x - 4, y - th - 5), (x + tw + 4, y + base + 2), (20, 20, 20), -1)
+        cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+    def publish_debug(frame, stamp, sign, boxes, presence):
+        """지진 판정(블록 격자·이동 화살표·방향 전환 횟수)과 출구 영역·감시 영역·인형 상자·추적 선·상태를
+        그린 JPEG 을 debug_image_topic 으로."""
+        if debug_pub is None:
+            return
+        img = frame.copy()
+        height, width = img.shape[:2]
+
+        def px(x, y):
+            return int(x * width), int(y * height)
+        grid = img.copy()   # 지진 판정 블록 격자(사분면 경계는 굵게), tools/webcam_quake_probe.py 와 같은 그림
+        bx, by = v['quake_blocks_x'], v['quake_blocks_y']
+        for i in range(1, bx):
+            cv2.line(grid, (width * i // bx, 0), (width * i // bx, height), (255, 255, 255), 2 if i * 2 == bx else 1)
+        for j in range(1, by):
+            cv2.line(grid, (0, height * j // by), (width, height * j // by), (255, 255, 255), 2 if j * 2 == by else 1)
+        img = cv2.addWeighted(grid, 0.22, img, 0.78, 0)
+        if sign.shift is not None and any(sign.shift):
+            scale = v['quake_sample_stride'] * 6   # 화면에서 잘 보이게 키운 이동 화살표
+            centre = (width // 2, height // 2)
+            end = (int(centre[0] + sign.shift[0] * scale), int(centre[1] + sign.shift[1] * scale))
+            cv2.arrowedLine(img, centre, end, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.3)
+            cv2.arrowedLine(img, centre, end, (10, 214, 255), 5, cv2.LINE_AA, tipLength=0.3)
+        quake = f'QUAKE turns {sign.reversals}/{v["quake_shakes_min"]}' + (f' {sign.reason}' if sign.reason else '')
+        ex = watch_policy.exit_roi_xyxy_normalized
+        tint = img.copy()
+        cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
+        img = cv2.addWeighted(tint, 0.2, img, 0.8, 0)
+        cv2.rectangle(img, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), 2)
+        watch = slot.watch
+        if watch is not None and tuple(watch.roi_xyxy_normalized) != (0.0, 0.0, 1.0, 1.0):
+            r = watch.roi_xyxy_normalized
+            cv2.rectangle(img, px(r[0], r[1]), px(r[2], r[3]), (89, 199, 52), 2)
+        if trail['detector'] is not slot.detector:
+            trail['detector'], trail['points'] = slot.detector, []
+        track = slot.detector.track if slot.detector is not None else None
+        if track is not None and (not trail['points'] or trail['points'][-1] != track):
+            trail['points'] = (trail['points'] + [track])[-25:]
+        for a, b in zip(trail['points'], trail['points'][1:]):
+            cv2.line(img, px(*a), px(*b), (10, 214, 255), 2, cv2.LINE_AA)
+        for box in boxes or ():
+            color = (255, 132, 10) if box.score >= watch_policy.score_min else (147, 142, 142)
+            cv2.rectangle(img, px(box.x0, box.y0), px(box.x1, box.y1), color, 2, cv2.LINE_AA)
+            cv2.putText(img, f'{box.score:.2f}', px(box.x0, box.y0 - 0.01), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        if track is not None:
+            cv2.circle(img, px(*track), 8, (10, 214, 255), -1, cv2.LINE_AA)
+        if presence is not None:
+            text = (f'{presence.state} {presence.reason or ""} absent={presence.absent_ns / 1e9:.1f}s '
+                    f'rev={watch.watch_revision if watch else 0}')
+        else:
+            text = 'NO WATCH'
+        label(img, quake, (10, 22), (242, 90, 191) if sign.condition else (255, 255, 255))
+        label(img, text, (10, height - 10), (255, 255, 255))
+        ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ok:
+            log.error('debug image encode failed')
+            return
+        msg = CompressedImage()
+        msg.header.stamp.sec, msg.header.stamp.nanosec = stamp // 10**9, stamp % 10**9
+        msg.header.frame_id = v['frame_id']
+        msg.format = 'jpeg'
+        msg.data = jpeg.tobytes()
+        debug_pub.publish(msg)
 
     def envelope(env, key):
         seq[key] += 1
@@ -252,7 +348,7 @@ def main(args=None):
     camera = {'cap': None, 'next_open_ns': 0}
 
     def open_camera():
-        cap = cv2.VideoCapture(v['device_index'])
+        cap = cv2.VideoCapture(v['device_path'], cv2.CAP_V4L2)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, v['width'])
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, v['height'])
         # 주기 읽기(frame_period_s)라 버퍼에 쌓인 예전 프레임이 나오지 않게 1장만 둔다(#113 재범 제안).
@@ -272,7 +368,7 @@ def main(args=None):
             if camera['cap'] is None:
                 camera['next_open_ns'] = now + _ns(v['reopen_period_s'])
                 publish_status('OFFLINE', now, reason='OPEN_FAILED')
-                log.warning(f'camera {v["device_index"]} open failed; retry in {v["reopen_period_s"]}s')
+                log.warning(f'camera {v["device_path"]} open failed; retry in {v["reopen_period_s"]}s')
                 return
         ok, frame = camera['cap'].read()
         stamp = time.time_ns()
@@ -284,21 +380,21 @@ def main(args=None):
             return
         seq['frame'] += 1
         height, width = frame.shape[:2]
-        if (width, height) != (v['width'], v['height']):
-            publish_status('DEGRADED', stamp, width, height, reason='SIZE_MISMATCH')
-        else:
-            publish_status('ONLINE', stamp, width, height)
         if slot.observe_image_size(width, height):
             log.warning(f'image size changed to {width}x{height}; watch cleared (revision {slot.revision})')
         image = frame_image(frame, stamp, v['frame_id'])
         try:
             sign = quake.update(image)
         except PerceptionError as exc:
+            publish_status('UNKNOWN', stamp, width, height, reason='QUAKE_JUDGE_FAILED')
             log.error(f'quake judge failed: {exc.detail_code}: {exc.detail}')
             return
+        state, reason = stream_state(sign, (width, height), (v['width'], v['height']))
+        publish_status(state, stamp, width, height, reason=reason)
         if sign.event is not None:
             publish_event(sign.event)
         if slot.detector is None:
+            publish_debug(frame, stamp, sign, None, None)
             return
         try:
             result = model.predict(frame, imgsz=v['model_imgsz'], conf=v['model_conf'], verbose=False)[0]
@@ -315,6 +411,7 @@ def main(args=None):
             return
         if presence.status != 'PROCESSED':
             return
+        publish_debug(frame, stamp, sign, boxes, presence)
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
         if presence.event is not None:
@@ -322,9 +419,7 @@ def main(args=None):
 
     node.create_timer(v['frame_period_s'], step)
     try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        log.info('webcam_node stopping')
+        spin_until_shutdown(rclpy, node, log)
     finally:
         if camera['cap'] is not None:
             camera['cap'].release()
