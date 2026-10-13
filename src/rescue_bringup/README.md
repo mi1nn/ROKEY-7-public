@@ -98,3 +98,49 @@ ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json
 | 로컬 ROS(jazzy, `ROS_DOMAIN_ID=77`, LOCALHOST, Discovery Server 해제, 한 PC, 2026-10-12, 스크래치 colcon 설치본): 예시 프로파일로 이 launch + 조정기 노드, 가짜 로봇 상태·DISASTER_SIGN | db_writer 기동(`allowed_robot_ids` = robot_a·robot_b), 조정기 전 API 503, 재난 전 START_SEARCH 거절 `NOT_AUTHORIZED`, 재난 뒤 접수, 명령 2행·임무 DISASTER/SEARCHING·로봇 2행(SCOUT·SUPPORT) 저장, 종료 코드 0. v1 프로파일은 launch 오류로 시작하지 않음 |
 
 NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요), 운영 PC·실기 프로파일, 조정기·로봇 PC launch.
+
+## SEARCH_AREA 현장 실행: 운영 · 조정기 · 로봇 launch (2026-10-13)
+
+세 launch 로 웹캠 → 재난 판정 → 관제 출동(START_SEARCH) → AMR1 SEARCH_AREA(Nav2) 를 띄운다. 값은 세 곳에서만 온다.
+
+| 어디서 | 무엇 |
+| --- | --- |
+| 배포 프로파일 v2.1(저장소 밖, 현장 값) | 로봇 ID·역할·namespace·ROS 이름·readiness·검색 영역(`entry_yaw`)·지도 기준 `map_basis` |
+| 현장 실행 파일 `config/field/search_area.field.json` | #132 현장 스크립트(`scripts/field/search-area/start_*.sh`)의 정책 값. 조정기와 로봇이 같아야 하는 값(lease·authority epoch·coordinator ID·envelope·시계)은 양쪽에 적고 launch 가 같은지 검사한다 |
+| launch 인자(기본값 없음) | 아직 정하지 않은 Phase 1 경로·관측 목표(#132 의 `[0, 0, 0]` 자리표시값), 현장에서 잰 지도 해시 |
+
+순서(로봇을 움직이는 단계는 사람이 지켜본다. 이 launch 들은 arm·임무·이동 명령을 보내지 않는다):
+
+```bash
+# 운영 PC: 현장 상태 DB·명령 API(+ 구조 보고 저장). 웹캠이 다른 PC 면 webcam_params_file 을 뺀다
+ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
+  db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  [webcam_params_file:=<webcam_node.yaml>]
+
+# 웹캠 PC(운영 PC 와 다를 때): 웹캠 노드만. 파라미터 예시는 rescue_perception share/config/webcam_node.example.yaml
+# 프로파일 site_cameras[].host 는 4대 중 그 PC 의 호스트 id(예: coordination)
+ros2 run rescue_perception webcam_node --ros-args --params-file <webcam_node.yaml>
+
+# 로봇: 위치 추정(저장 지도) 한 번, 그 지도 해시 측정
+ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot6 map:=<map.yaml> use_sim_time:=false
+python3 scripts/field/map_occupancy_sha256.py /robot6/map map        # stdout: 64자리 해시, 실패 시 exit 2
+
+# 로봇: Nav2(최종 cmd_vel 은 watchdog 로) + command_watchdog + task_input
+FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> \
+  field_path:=$PWD/config/field/search_area.field.json robot_id:=robot_a \
+  occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py /robot6/map map)
+
+# 조정 PC: mission_coordinator(live 입력, 노드 이름 mission_coordinator)
+ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
+  field_path:=$PWD/config/field/search_area.field.json \
+  route_segment_goals:='[0.0, 0.0, 0.0]' observe_goal:='[0.0, 0.0, 0.0]' route_segment_passage_free:='[false]' \
+  [camera_watch_roi:='[x0, y0, x1, y1]']   # 빼면 조정기가 웹캠 감시 지정을 거절(화면 전체 기본값 없음)
+```
+
+- 로봇 2(robot_b)는 `robot_id:=robot_b` 로 같은 launch 를 쓴다. 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority`)가 없으면 launch 가 멈춘다. #132 에 robot_b 값이 없어 지어내지 않았다.
+- 정렬 유효 구간은 #132 처럼 launch 시각 기준 `now - alignment.backdate_s` ~ `now + alignment.window_s` 로 선언한다(관측값이 아님). launch 로그에 해시·구간을 남긴다.
+- ROS 파라미터로는 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정으로 남음 [측정 2026-10-13]). 그래서 `route_segment_passage_free:='[]'` 와 빈 `camera_topics` 는 launch 가 거절한다.
+- 문자열 값은 `ParameterValue(str)` 로 넘긴다(`ros_parameters.typed`). 일반 문자열은 launch_ros 가 YAML 로 다시 읽어 숫자처럼 보이는 문자열이 숫자가 된다.
+- 시험: `tests/test_bringup_field_launch.py`. 만든 파라미터가 #132 `start_coordinator.sh`·`start_robot.sh`·`nav2_watchdog.launch.py` 와 같은지(같은 프로파일 값일 때), 서로 맞아야 하는 값과 자리표시 인자를 검사하는지 본다.
