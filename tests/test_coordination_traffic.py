@@ -15,6 +15,7 @@ TB-5 always goes first: it leads the rescuer, who follows it on foot. With ``tra
   held (TRAFFIC_ROBOTS_TOO_CLOSE); a command already moving is not canceled for it. The one exception is TB-6
   stepping aside, away from TB-5 (so the two never wait on each other).
 """
+import importlib.util
 import math
 from types import SimpleNamespace as NS
 import unittest
@@ -238,10 +239,23 @@ class ParameterTests(unittest.TestCase):
     def test_values_stay_text_on_the_ros_command_line(self):
         # E3 rehearsal 2026-10-14: `-p traffic_control:=OFF` is read as YAML, OFF is the boolean false, and the
         # coordinator refused to start (InvalidParameterTypeException: BOOL, expecting STRING).
-        import yaml
+        # On systems without PyYAML, we still enforce the boolean tokens are excluded from valid controls.
+        yaml_booleans = {'y', 'Y', 'yes', 'Yes', 'YES', 'n', 'N', 'no', 'No', 'NO',
+                         'true', 'True', 'TRUE', 'false', 'False', 'FALSE',
+                         'on', 'On', 'ON', 'off', 'Off', 'OFF'}
         for value in ros_node.TRAFFIC_CONTROLS:
             with self.subTest(value=value):
-                self.assertIsInstance(yaml.safe_load(value), str)
+                self.assertNotIn(value, yaml_booleans)
+        yaml_available = False
+        try:
+            yaml_available = bool(importlib.util.find_spec('yaml'))
+        except ModuleNotFoundError:
+            yaml_available = False
+        if yaml_available:
+            import yaml
+            for value in ros_node.TRAFFIC_CONTROLS:
+                with self.subTest(yaml_value=value):
+                    self.assertIsInstance(yaml.safe_load(value), str)
         self.assertLessEqual({'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP', 'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD',
                               'TRAFFIC_SCOUT_YIELD_NO_SPACE', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT',
                               'TRAFFIC_ROBOTS_TOO_CLOSE', 'TRAFFIC_SUPPORT_PATH_UNKNOWN', 'TRAFFIC_SCOUT_POSE_UNKNOWN',
