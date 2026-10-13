@@ -96,6 +96,16 @@ class RescueFlowTests(unittest.TestCase):
         self.assertEqual(('FINISHED', 'MISSION_FINISHED'),
                          (core.mission.phase(), core.system_state_change(NOW)['mode']))
 
+    def test_each_verdict_leaves_one_log_note_for_the_operator(self):
+        # Field run (2026-10-13): RESULT lines alone do not show the verdict; the node logs these notes.
+        self.accepted_candidate()
+        fields = self.reobserve()
+        self.core.on_result(fields['task_id'], result(fields, obs=recheck(fields, lidar_state='BLOCKED')))
+        (note,) = self.core.drain_notes()
+        self.assertTrue(note.startswith(f'VERDICT target={self.target} state=RECHECK_NEEDED reason=LIDAR_NOT_CLEAR '
+                                        'source=CAMERA'), note)
+        self.assertEqual([], self.core.drain_notes())
+
     def test_a_failing_condition_is_recheck_needed_with_its_reason(self):
         self.accepted_candidate()
         fields = self.reobserve()
