@@ -62,6 +62,24 @@ class MapRevisionTests(unittest.TestCase):
         t.update(state(0, T0 + SECOND, quality='UNKNOWN'))
         self.assertRefused('NO_VALID_MAP_STATE', t, T0 + 2 * SECOND)
 
+    def test_regained_localization_counts_from_the_regain(self):
+        # #207 review REV-207-01: a capture while localization was lost must not get the revision just
+        # because the same revision comes back VALID before the observation is processed.
+        t = tracker()
+        t.update(state(0, T0))
+        t.update(state(0, T0 + 5 * SECOND, quality='UNKNOWN'))   # lost
+        t.update(state(0, T0 + 8 * SECOND))                      # regained, same revision
+        self.assertRefused('CAPTURED_BEFORE_MAP_REVISION', t, T0 + 6 * SECOND)   # captured while lost
+        self.assertEqual((S1, 0), t.basis_for(T0 + 9 * SECOND, 5_000_000))
+
+    def test_returning_to_an_earlier_revision_counts_from_the_return(self):
+        t = tracker()
+        t.update(state(0, T0))
+        t.update(state(1, T0 + 5 * SECOND))
+        t.update(state(0, T0 + 8 * SECOND))
+        self.assertRefused('CAPTURED_BEFORE_MAP_REVISION', t, T0 + 6 * SECOND)
+        self.assertEqual((S1, 0), t.basis_for(T0 + 9 * SECOND, 5_000_000))
+
     def test_other_robot_or_frame_is_refused(self):
         t = tracker()
         with self.assertRaises(ValueError):
