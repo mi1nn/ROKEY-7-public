@@ -383,6 +383,8 @@ class NoLedgerTests(LedgerFixture):
     def setUp(self):
         super().setUp()
         self.site_db = self.dir / 'site_state.sqlite3'
+        gated = self.status['target_states']['targets'][1]
+        gated.update(target_revision=2, persisted_report_id=uid('gated/report'))  # dispatch keys (#118)
         write_site_state(self.site_db, self.status)
 
     def test_site_state_alone_gives_a_page_that_names_the_missing_ledger(self):
@@ -402,8 +404,14 @@ class NoLedgerTests(LedgerFixture):
         with_ledger = current_view(self.db, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
         without = current_view(None, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
         self.assertEqual(with_ledger['mission'], without['mission'])
-        self.assertEqual([(r['target_id'], r['persisted_report_id'], r['target_revision']) for r in with_ledger['targets']],
-                         [(r['target_id'], r['persisted_report_id'], r['target_revision']) for r in without['targets']])
+        states = {t['target_id'] for t in self.status['target_states']['targets']}
+
+        def gate(view):
+            return [(r['target_id'], r['persisted_report_id'], r['target_revision'])
+                    for r in view['targets'] if r['target_id'] in states]
+        self.assertEqual(gate(with_ledger), gate(without))
+        self.assertIn((uid('gated/report'), 2), [(r['persisted_report_id'], r['target_revision'])
+                                                 for r in without['targets']])
 
     def test_a_given_ledger_that_cannot_be_read_is_still_an_error(self):
         with self.assertRaises(ConsoleError) as caught:
