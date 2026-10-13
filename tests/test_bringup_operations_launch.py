@@ -188,6 +188,26 @@ class MjpegRelayParameters(unittest.TestCase):
             read_webcam_parameters(REPO / 'absent.yaml')
 
 
+class MapSnapshotParameters(unittest.TestCase):
+    """map_topic/map_dir: the SLAM map relay for the console --live-map (owner 2026-10-13: TB-6 SLAM)."""
+
+    def test_off_without_both(self):
+        from rescue_bringup.operations_launch import map_snapshot_parameters
+        self.assertIsNone(map_snapshot_parameters(map_topic='', map_dir=''))
+
+    def test_on_with_both_and_the_console_value(self):
+        from rescue_bringup.operations_launch import map_snapshot_parameters
+        self.assertEqual({'map_topic': '/robot6/map', 'out_dir': '/srv/live'},
+                         map_snapshot_parameters(map_topic='/robot6/map', map_dir='/srv/live'))
+
+    def test_one_without_the_other_is_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, map_snapshot_parameters
+        for bad in (dict(map_topic='/robot6/map', map_dir=''), dict(map_topic='', map_dir='/srv/live'),
+                    dict(map_topic='robot6/map', map_dir='/srv/live')):
+            with self.subTest(bad=bad), self.assertRaises(LaunchSettingError):
+                map_snapshot_parameters(**bad)
+
+
 class LaunchArguments(unittest.TestCase):
     def test_text_launch_arguments_are_parsed_strictly(self):
         from rescue_bringup.operations_launch import LaunchSettingError, parse_launch_arguments
