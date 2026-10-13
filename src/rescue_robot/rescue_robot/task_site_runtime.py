@@ -251,6 +251,11 @@ class SiteRuntime:
         self.recheck=recheck_settings(config['recheck']) if 'recheck' in config else None
         if self.auto_target is not None and 'REOBSERVE_TARGET' in self.auto_target['kinds'] and self.recheck is None:
             raise ContractError('automatic REOBSERVE_TARGET needs recheck settings (window_ns, deadline_ns)')
+        # TB-5 passage stop from collision_monitor (live_passage); None = this robot reports none
+        self.passage=None
+        if 'passage' in config:
+            from rescue_robot.live_passage import PassageMonitor, passage_settings
+            self.passage=PassageMonitor(passage_settings(config['passage']))
         self.rechecks={}      # command_id -> ObserveTarget result to carry in TaskResult.recheck
         self.observe=None     # async goal-fields -> ObserveTarget result or None (attached with ROS)
         self.input_handles=[]; self._coordinator=None
@@ -282,7 +287,7 @@ class SiteRuntime:
             schema_version=config['schema_version'],publisher_id=config['publisher_id'],
             poll_period_s=config['poll_period_s'],lookup_lease=lambda goal:self.leases.get(goal.lease_id),
             accept_lease=self.accept_lease,encode_result=self.encode_result,bindings=bindings,
-            auto_resolve=self._auto,before_result=self.before_result,
+            auto_resolve=self._auto,before_result=self.before_result,feedback_reason=self.feedback_reason,
             lease_rejection_reason=lambda:self.last_lease_rejection,
             **config['endpoints'])
         self.services=[]
@@ -450,11 +455,21 @@ class SiteRuntime:
         return bool(request and task.kind in ('MOVE_SEGMENT','REOBSERVE_TARGET')
                     and task.command_id in self.gate.requests)
 
+    def feedback_reason(self):
+        """Non-latched ExecuteTask feedback reason: PASSAGE_BLOCKED while the passage polygon holds the active task."""
+        if self.passage is not None and self.adapter.executor.active is not None and self.passage.blocked():
+            return 'PASSAGE_BLOCKED'
+        return ''
+
     def encode_result(self,report,goal):
         response=self.server.bindings.ExecuteTask.Result(); result=response.result
         result.task_id,result.command_id,result.robot_id=report.task_id,report.command_id,report.robot_id
         result.generation=report.generation
         result.outcome,result.terminal_reason=report.result.outcome,report.result.reason
+        # Nav2 gave up after the passage polygon held TB-5: say why (original_cause keeps Nav2's cause).
+        if (self.passage is not None and result.terminal_reason=='ACTION_ABORTED'
+                and self.passage.blocked_within(now_ns=self.adapter.wall_clock_ns())):
+            result.terminal_reason='PASSAGE_BLOCKED'
         result.original_cause,result.stop_confirmed=report.result.original_cause,report.result.stop_confirmed
         result.motion_state='STOPPED' if result.stop_confirmed else 'STOP_UNCONFIRMED'
         result.completion_scope=COMPLETION_SCOPES[goal.kind]
@@ -691,6 +706,9 @@ class SiteRuntime:
         if self.recheck is not None and self.auto_target is not None and 'REOBSERVE_TARGET' in self.auto_target['kinds']:
             from rescue_robot.live_recheck import RecheckClient
             self.observe=RecheckClient(self,action_name=f'/rescue/robots/{self.adapter.robot_id}/observe_target')
+        if self.passage is not None:
+            from rescue_robot.live_passage import attach as attach_passage
+            attach_passage(self,'collision_monitor_state')  # relative: <ns>/collision_monitor_state (Nav2)
         if self.saved_maps is not None:
             from rescue_robot.live_sources import attach_sources
             if 'pose_valid_ns' in self.config:
