@@ -26,9 +26,9 @@ TARGET_AGE = 2_000_000_000     # target_max_age_s 2.0
 TARGET_FUTURE = 50_000_000     # target_max_future_s 0.05
 
 
-def make_core(**changes):
+def make_core(policy_changes=None, **changes):
     ids = itertools.count(1000)
-    search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(),
+    search = SearchCoordinator(Allocator(EPOCH, allowed_robot_ids=(SCOUT, SUPPORT)), policy(**(policy_changes or {})),
                                new_id=lambda: uid(next(ids)))
     values = dict(status_max_age_ns=MAX_AGE, segment_goals=SEGMENTS, route_revision=7, observe_goal=OBSERVE,
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
@@ -38,6 +38,7 @@ def make_core(**changes):
                   approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
                   recheck_max_clock_error_ns=20_000_000, map_mode='SAVED_MAP', freeze_clearance_m=0.2,
                   map_freeze_timeout_ns=5_000_000_000, map_snapshot_id=lambda *basis: ':'.join(map(str, basis)),
+                  search_mode='AREAS', patrol_points=(), patrol_rounds=1, exit_standoff_m=0.5,
                   new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
@@ -59,7 +60,8 @@ def obs_time(**changes):
 def location(n, xy=(4., 4.), **changes):
     values = dict(location_id=uid(800 + n), frame_ref=frame(), projection_status='VALID',
                   mission_position=NS(x=xy[0], y=xy[1], z=0.), covariance=[.01 * n] * 9,
-                  observation=NS(time=obs_time(observed_at_ns=NOW - 10**8 + n, valid_until_ns=NOW + 10**9 + n)))
+                  observation=NS(time=obs_time(observed_at_ns=NOW - 10**8 + n, valid_until_ns=NOW + 10**9 + n),
+                                 class_label='survivor'))
     return NS(**(values | changes))
 
 
