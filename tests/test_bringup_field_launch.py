@@ -185,6 +185,9 @@ class CoordinatorParameters(FieldCase):
                         frontier_blacklist_m=0.5, frontier_issue_delay_s=2.0, exploration_empty_checks=3,
                         exploration_timeout_s=600.0)
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
+        # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
+        expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
+                        traffic_yield_max_m=2.0, traffic_stop_timeout_s=3.0)
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
@@ -477,6 +480,12 @@ class FieldFile(FieldCase):
                 {'frontier_issue_delay_s': 0.5}),
             'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
             'completion mode unknown': lambda r: r['coordinator'].update({'completion_mode': 'ARRIVAL'}),
+            # OPS-204: two robots on one live map in the field cross; traffic control is not optional there
+            'slam freeze without traffic control': lambda r: r['coordinator'].update({'traffic_control': 'OFF'}),
+            'traffic control unknown': lambda r: r['coordinator'].update({'traffic_control': 'ON'}),
+            'path clearance under separation': lambda r: r['coordinator'].update({'traffic_path_clearance_m': 0.5}),
+            'yield distance not positive': lambda r: r['coordinator'].update({'traffic_yield_max_m': 0.0}),
+            'stop timeout not positive': lambda r: r['coordinator'].update({'traffic_stop_timeout_s': 0.0}),
             'patrol without points': lambda r: r['coordinator'].update({'search_mode': 'PATROL'}),
             'patrol points not triples': lambda r: r['coordinator'].update({'patrol_points': [1.0, 2.0]}),
             'patrol rounds below one': lambda r: r['coordinator'].update({'patrol_rounds': 0}),

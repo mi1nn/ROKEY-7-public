@@ -37,6 +37,8 @@ def values(**changes):
             'frontier_min_cells': 3, 'frontier_reach_m': 1.0, 'frontier_goal_max_m': 1.5, 'frontier_blacklist_m': 0.5,
             'frontier_issue_delay_s': 2.0, 'exploration_empty_checks': 3, 'exploration_timeout_s': 600.0,
             'completion_mode': 'RECHECK', 'support_start_pose': None,
+            'traffic_control': 'OFF', 'traffic_min_separation_m': 0.6, 'traffic_path_clearance_m': 0.6,
+            'traffic_yield_max_m': 2.0, 'traffic_stop_timeout_s': 3.0,
             'search_start': 'OPERATOR'}
     return base | changes
 
