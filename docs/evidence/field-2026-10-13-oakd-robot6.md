@@ -1,6 +1,6 @@
 # TB-6 OAK-D 카메라 설정 확인 기록 (/robot6/oakd, 2026-10-13)
 
-- 요청: 작전(삼성)-R7/1007 → 실기-기록 (사용자 배정). `amr_target` 실행 인자(`rgb/depth_stamp_semantics`, `rgb_depth_alignment_verified`, `rgb_rectified`, `calibration_id`)를 채울 근거.
+- 요청: 작전·총괄 → 실기·기록 (사용자 배정). `amr_target` 실행 인자(`rgb/depth_stamp_semantics`, `rgb_depth_alignment_verified`, `rgb_rectified`, `calibration_id`)를 채울 근거.
 - 기준: main `d2648ea`. 측정 12:38–12:44 KST. TB-5 담당 PC 호스트 셸, ROS Jazzy, `rmw_fastrtps_cpp`, `ROS_DOMAIN_ID=6`.
 - Discovery: 이 측정 프로세스의 환경변수만 TB-5·TB-6 Pi 서버(ID 5·6) 둘로 바꿨다. `/etc` 파일, 로봇 설정, 카메라 노드는 바꾸지 않았다. 로봇은 움직이지 않았다.
 - 원문 출력: [field-2026-10-13-oakd-robot6.log](field-2026-10-13-oakd-robot6.log). 주소는 `<TB5_PI>`·`<TB6_PI>` 로 가렸다.
@@ -74,7 +74,7 @@ stereo.i_get_base_device_timestamp: false   stereo.i_synced: false
 ## 5. 시각 기준
 
 - 파라미터: `rgb`·`stereo` 모두 `i_get_base_device_timestamp: false`, `i_update_ros_base_time_on_ros_msg: false`. 노출 보정 `i_add_exposure_offset: false`.
-- depthai-ros `jazzy` 브랜치 `depthai_bridge/src/ImageConverter.cpp` [문서]: `header.stamp = getFrameTime(rosBaseTime, steadyBaseTime, tstamp)`. `getBaseDeviceTimestamp` 가 false 면 `tstamp = inData->getTimestamp()` 다. 즉 장치가 찍은 프레임 시각(호스트 steady clock 에 맞춘 값)을 노드 시작 때 잡은 ROS 기준 시각으로 옮긴다. 드라이버가 받은 시각이 아니라 **촬영 시각**이다. Pi 에 설치된 depthai-ros 버전이 이 브랜치와 같은지는 [미확인].
+- depthai-ros [고정 소스 680ba201, ImageConverter.cpp L77–94](https://github.com/luxonis/depthai-ros/blob/680ba2018f2da14b19fd11a42ef7d6094cf7fc0e/depthai_bridge/src/ImageConverter.cpp#L77-L94) [문서, 검토 2026-10-13]: `header.stamp = getFrameTime(rosBaseTime, steadyBaseTime, tstamp)`. `getBaseDeviceTimestamp` 가 false 면 `tstamp = inData->getTimestamp()` 다. 즉 장치가 찍은 프레임 시각(호스트 steady clock 에 맞춘 값)을 노드 시작 때 잡은 ROS 기준 시각으로 옮긴다. 드라이버가 받은 시각이 아니라 **촬영 시각**이다. Pi 에 설치된 depthai-ros 버전이 이 브랜치와 같은지는 [미확인].
 - stamp 값은 벽시계 기준이다(마지막 stamp 1791863016 s = 2026-10-13 12:43 KST).
 - RGB 30 Hz 와 Depth 약 9 Hz 는 서로 다른 센서라 stamp 가 정확히 같지 않다 (`rgb.i_synced: false`). `amr_target` 이 `sync_slop_ns=20000000`(20 ms) 근사 동기화를 쓰면 중앙값 2.9 ms 는 들어간다. 최대 138.7 ms 는 RGB 프레임이 빠진 구간으로 보인다 [추정].
 

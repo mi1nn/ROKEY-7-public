@@ -619,5 +619,5 @@ Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
  face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
   wlo1: 0000   56.  -54.  -256        0      0      0      0    149        0
 == nmcli dev wifi (사용 중인 AP 만: 주파수·속도·신호)
-IN-USE  CHAN  RATE        SIGNAL 
-*       40    270 Mbit/s  84     
+IN-USE  CHAN  RATE        SIGNAL
+*       40    270 Mbit/s  84

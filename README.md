@@ -33,6 +33,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [Survivor v2 재학습 결과](docs/implementation/yolo26n-v2-results.md) | 별도 amr-mini-project 설정, 100/최대200 epoch 평가와 최종 채택 best.pt(100 epoch), 사람 오탐 재평가는 남음 |
 | [YOLO26n 학습 결과·비교](docs/implementation/yolo26n-training-results.md) | 무증강·scale_light 결과, 원거리 현장 관측(재학습 전 기록, 최종 모델은 v2) |
 | [Depth 클릭 보정 기록](docs/implementation/depth-click-calibration.md) | PC depth 확인 도구, 82cm 보정 근거와 사용자 측정 로그·검증 한계 |
+| [10-13 TB-6 카메라 기록](docs/evidence/field-2026-10-13-oakd-robot6.md) | OAK-D 파라미터·메시지·무선 측정과 설치 버전/정렬 미확인 범위 |
 | [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 | [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서. 단, 출구 카메라 B·출구 카운트는 웹캠 1대 결정(2026-10-09, [#44 OPS-20 ②](https://github.com/jaebeom/ROKEY-7/pull/44#issuecomment-6078811090))으로 빠졌다. 웹캠 하나가 재난 징후와 대상 감시를 맡고, 재확인은 대상 소실 후보로 시작한다 |
 | [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
