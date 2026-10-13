@@ -5,13 +5,14 @@ it must compute exactly what the robot computes without depending on rescue_robo
 values pinned here were computed with the robot code before the move (main fee1e72), so the
 move changes no hash and no snapshot id.
 """
+import math
 from types import SimpleNamespace as NS
 import unittest
 
-from rescue_contracts.occupancy import footprint_clear, map_snapshot_id, occupancy_sha256
+from rescue_contracts.occupancy import footprint_clear, map_snapshot_id, occupancy_sha256, planar_origin
 from rescue_robot.executor import ContractError
 from rescue_robot.live_pose import map_state_record
-from rescue_robot.live_sources import Grid
+from rescue_robot.live_sources import Grid, planar
 
 DATA = [0] * 12
 DATA[5], DATA[6] = 100, -1   # cell (1, 1) occupied, cell (2, 1) unknown
@@ -59,6 +60,19 @@ class OccupancyContract(unittest.TestCase):
             with self.subTest(point=(x, y)):
                 self.assertIs(expected, footprint_clear(**GRID, x=x, y=y, radius=radius))
                 self.assertIs(expected, Grid(message()).clear(x, y, radius))
+
+    def test_origin_yaw_is_the_robots_conversion_before_the_move(self):
+        """The yaw is part of the hash: the coordinator converts the origin quaternion with this same function (OPS-118)."""
+        q = (0., 0., math.sin(0.3), math.cos(0.3))
+        self.assertEqual((-1.0, -0.5, 0.6), planar_origin(-1.0, -0.5, 0., *q))
+        self.assertEqual((-1.0, -0.5, 0.6), planar(NS(position=NS(x=-1.0, y=-0.5, z=0.),
+                                                     orientation=NS(x=q[0], y=q[1], z=q[2], w=q[3]))))
+        self.assertEqual('60c7b134cda979151dfff384b3caaf57cfec64921ebc528c43eb2d0b2ea92653',
+                         occupancy_sha256(**dict(GRID, origin=planar_origin(-1.0, -0.5, 0., *q))))
+        for bad in ((0., 0., 0.1, 0., 0., 0., 1.), (0., 0., 0., 0.1, 0., 0., 1.), (0., 0., 0., 0., 0., 0.5, 0.5),
+                    (float('nan'), 0., 0., 0., 0., 0., 1.)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                planar_origin(*bad)
 
     def test_invalid_grids_are_refused(self):
         for change in (dict(frame=''), dict(width=0), dict(resolution=float('nan')), dict(data=DATA[:11]),
