@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-13",
+  "checked_epoch": 1791862656.435738,
+  "robot": "robot6",
+  "samples": 40,
+  "odom_age": 0.042120248914672864,
+  "max_linear_mps": 0.0,
+  "max_yaw_radps": 0.0,
+  "displacement_m": 0.0,
+  "stop_confirmed": true
+}

@@ -131,7 +131,7 @@ class PageTests(LedgerFixture):
 
     def test_page_loads_nothing_from_outside(self):
         # The field network may have no internet: no CDN, web font, external stylesheet or script.
-        html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),))
+        html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.0)
         self.assertNotRegex(html, r'<link|@import|url\(|<script[^>]+src=')
         external = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
         self.assertEqual(external, ['http://camera.invalid:8081/stream'])   # only the camera the operator gave
@@ -208,7 +208,7 @@ class PageTests(LedgerFixture):
 
     def test_camera_streams_sit_outside_the_polled_fragment(self):
         cameras = (('cam_a', 'http://camera.invalid:8081/stream?q="x"'),)
-        html = render_page(self.view(), cameras=cameras)
+        html = render_page(self.view(), cameras=cameras, camera_stale_s=2.0)
         live = html.index('<div id="live">')
         figure = html.index('<section id="cameras">')
         self.assertLess(figure, live)    # a poll replaces #live only, so the stream is never restarted
@@ -216,6 +216,43 @@ class PageTests(LedgerFixture):
         self.assertIn('영상 끊김', html)
         self.assertNotIn('id="cameras"', render_page(self.view()))
         self.assertEqual(re.findall(r"fetch\('([^']*)'", html), ['fragment', 'commands'])
+
+    def test_stalled_stream_is_marked_lost_and_reconnected(self):
+        # 2026-10-13 measured (Firefox): a multipart stream that ends normally fires no onerror and the
+        # last frame stays on screen. The page watches load events instead (one per frame there).
+        html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.5)
+        self.assertIn('data-stale-ms="2500"', html)
+        self.assertEqual(1, html.count('http://camera.invalid:8081/stream'))   # the script reads the original src
+        self.assertIn('onerror=', html)   # an error is still shown at once
+        watch = html[html.index('function watchCameras'):]
+        for part in ("addEventListener('load'", "'영상 끊김'", "'_r=' + now", "classList.remove('lost')"):
+            self.assertIn(part, watch)
+
+    def test_cameras_need_an_explicit_stale_time(self):
+        cameras = (('cam_a', 'http://camera.invalid:8081/stream'),)
+        with self.assertRaises(ConsoleError) as caught:
+            render_page(self.view(), cameras=cameras)
+        self.assertEqual('CONFIG_MISSING', caught.exception.detail_code)
+        for bad in (0.0, -1.0, float('nan'), float('inf'), 2):
+            with self.subTest(bad=bad), self.assertRaises(ConsoleError) as caught:
+                render_page(self.view(), cameras=cameras, camera_stale_s=bad)
+            self.assertEqual('INVALID_INPUT', caught.exception.detail_code)
+        self.assertNotIn('watchCameras', render_page(self.view()))
+
+    def test_command_line_camera_needs_stale_seconds(self):
+        import contextlib
+        import io
+        import os
+        from rescue_console.__main__ import main
+        os.environ['RESCUE_CONSOLE_TEST_SECRET'] = 'x' * 16
+        self.addCleanup(os.environ.pop, 'RESCUE_CONSOLE_TEST_SECRET', None)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = main([str(self.db), '--accounts', str(self.dir / 'accounts.sqlite3'), '--status', 'status.json',
+                         '--camera', 'cam_a=http://camera.invalid:8081/stream',
+                         '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
+        self.assertEqual(2, code)
+        self.assertIn('--camera-stale-s', err.getvalue())
 
     def test_camera_argument_needs_an_id_and_http_url(self):
         from rescue_console.app import parse_camera
@@ -466,7 +503,7 @@ class SiteStateWebTests(AccountsFixture):
         site_db = self.dir / 'site_state.sqlite3'
         write_site_state(site_db, self.status)
         app = create_app(self.db, accounts_path=self.accounts, secret_key=SECRET, site_state_path=site_db,
-                         cameras=[('cam_a', 'http://camera.invalid:8081/stream')])
+                         cameras=[('cam_a', 'http://camera.invalid:8081/stream')], camera_stale_s=2.0)
         client = app.test_client()
         self.login(client, *CUSTOMER)
         before = digest_dir(self.dir)
@@ -490,7 +527,8 @@ class SiteStateWebTests(AccountsFixture):
         self.assertIn('보고 장부 입력 없음', page.get_data(as_text=True))
         model = client.get('/api/view').get_json()
         self.assertEqual(model['mission']['mode'], 'DISASTER')
-        self.assertIn('상태가 들어온 로봇만', ' '.join(model['warnings']))
+        self.assertNotIn('상태가 들어온 로봇만', ' '.join(model['warnings']))   # #149: the DB gives the robots
+        self.assertEqual(['robot_a', 'robot_b'], [r['robot_id'] for r in model['robots']])
         self.assertEqual(client.get('/fragment').status_code, 200)
 
     def test_site_state_and_fixture_together_fail_at_startup(self):

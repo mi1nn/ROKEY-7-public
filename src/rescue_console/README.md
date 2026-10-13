@@ -43,8 +43,11 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
     --operations http://<operations 호스트>:<포트> --port 8080
 ```
 
-- `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 목록은 장부의 배치 로봇 대신 상태가 들어온 로봇만 보인다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
+- `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 카드는 현장 상태 DB 가 정한 배치 로봇 목록(`read_allowed_robot_ids`, #149)으로 그린다. 상태를 아직 안 보낸 로봇도 카드가 있다. 그 목록이 없는 입력(픽스처)에서만 상태가 들어온 로봇만 그리고, 그 사실을 「확인할 것」 줄에 적는다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
+- `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
+- `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
+- `--camera` 를 주면 `--camera-stale-s S` 도 줘야 한다(기본값 없음, 없으면 시작하지 않음). 새 프레임이 S 초 동안 오지 않으면 그 칸에 「영상 끊김」을 띄우고, 캐시 무효화 쿼리(`_r=`)를 붙여 S 초마다 한 번 다시 연결한다. 프레임이 다시 오면 표시를 지운다. 정상으로 닫힌 multipart 스트림은 `onerror` 없이 마지막 프레임을 남기기 때문이다 [측정, 2026-10-13, Firefox: 프레임마다 load 1회, 닫힌 뒤 error 0회]. `onerror` 표시도 그대로 둔다. Chrome 의 프레임별 load 동작은 [미확인]이다.
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 
 - 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.
@@ -92,7 +95,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 ```text
 ┌ 재난 띠: 모드 · 트리거 · 경과 · 단계 · 구간 · 사유 ──────────┬ 갱신 상태 · 사용자 ┐
 ├ (경고가 있을 때만) 확인할 것 ────────────────────────────────┼ 웹캠              │
-├ 지도: 기준 지도 + 1m 격자 + 로봇·요구조자 ─┬ 로봇 AMR1·AMR2 ───┤                   │
+├ 지도: 기준 지도 + 1m 격자 + 로봇·요구조자 ─┬ 로봇 TB-6·TB-5 ───┤                   │
 │                                          │ 요구조자 목록       ├ 명령              │
 ├ 사건 기록 (KPI-04 열 포함) ────────────────┼ 명령·오류 기록 ─────┤ (승인 · 임무 · 정지)│
 └───────────────────────────────────────────────────────────────┴──────────────────┘
@@ -105,7 +108,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
   | --- | --- |
   | 신호 빨강 | 재난·정지 |
   | 구조 주황 | 미구조 요구조자 |
-  | 안내 파랑 | 지원 중·AMR2 |
+  | 안내 파랑 | 지원 중·SUPPORT 역할 로봇 |
   | 안전 초록 | 구출 완료 |
   | 회색 점선 | 미확정 |
   | 경고 노랑 | 낡음·끊김·확인할 것 |
@@ -134,7 +137,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 - **원본:** map_server 형식 지도(YAML + 이진 PGM `P5`). 지금 쓸 수 있는 것은 재난 전 기준 지도 `assets/maps/pre_quake/map.yaml` 이다(출처·해시는 [assets/manifest/pre_quake_map.json](../../assets/manifest/pre_quake_map.json)). 경로는 인자로만 받고 코드에 두지 않는다.
 - **읽기:** 기동할 때 한 번 읽어 PNG 로 바꿔 메모리에 둔다. YAML 은 map_server 키 7개(`image` `mode` `resolution` `origin` `negate` `occupied_thresh` `free_thresh`)의 평평한 `키: 값` 만 받고, 모르는 키·중첩·`origin` 회전(yaw ≠ 0)·크기가 안 맞는 PGM 은 `INVALID_INPUT`, 파일이 없으면 `STORAGE_ERROR` 로 **기동이 실패**한다. 지도를 지어내거나 빈 지도로 대신 뜨지 않는다. PyYAML·Pillow 없이 표준 라이브러리만 쓴다.
-- **그리기:** `GET /map.png`(로그인 필요, GET 만, URL 에 PGM 해시 `?v=` 를 붙여 캐시) 위에 SVG 를 겹친다. SVG 좌표는 지도 픽셀이고, `origin` 은 왼쪽 아래 칸의 왼쪽 아래 모서리다(열 = (x − origin_x) / resolution, 행 = 높이 − (y − origin_y) / resolution). 지도 PNG 는 그 SVG 의 `<image>` 라서 표식과 같이 늘고 준다. 로봇은 진행 방향(yaw)을 가리키는 화살촉 + 「AMR1」·「AMR2」(yaw 가 없으면 원), 요구조자는 위 「V」 표식, 1m 격자·축 숫자·축척 막대가 같이 그려진다. SVG 는 조각(`fragment`)에 들어 있어 1초 폴링마다 바뀌고 PNG 는 다시 받지 않는다.
+- **그리기:** `GET /map.png`(로그인 필요, GET 만, URL 에 PGM 해시 `?v=` 를 붙여 캐시) 위에 SVG 를 겹친다. SVG 좌표는 지도 픽셀이고, `origin` 은 왼쪽 아래 칸의 왼쪽 아래 모서리다(열 = (x − origin_x) / resolution, 행 = 높이 − (y − origin_y) / resolution). 지도 PNG 는 그 SVG 의 `<image>` 라서 표식과 같이 늘고 준다. 로봇은 진행 방향(yaw)을 가리키는 화살촉 + 표시 이름(예: 「TB-6」·「TB-5」, yaw 가 없으면 원), 요구조자는 위 「V」 표식, 1m 격자·축 숫자·축척 막대가 같이 그려진다. SVG 는 조각(`fragment`)에 들어 있어 1초 폴링마다 바뀌고 PNG 는 다시 받지 않는다.
 - **frame 규칙:** `frame_id == "map"` 인 좌표만 그린다. 다른 frame 은 투영하지 않고 「지도에 안 그림」 경고와 지도 아래 목록으로 보인다. 지도 밖 좌표는 가장자리로 끌어오지 않고 「지도 밖 좌표」로 보인다. 위치가 없는 로봇·대상은 그리지 않는다(표에 「—」).
 - **확인하지 않는 것:** 좌표의 `map_session_id`·`map_revision` 이 이 기준 지도와 같은 지도에서 나왔는지는 모른다(Q-09, 지도 아래 문구로 표시). 재난 뒤 SLAM 지도 실시간 표시, IF-084 `PUT /api/maps/{id}`, `map_snapshots` 표(site_state 1.1) 연결은 후속이다.
 
@@ -168,7 +171,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 | 묶음 | 버튼 | 보냄 |
 | --- | --- | --- |
-| 승인 (크게, 파랑) — 임무 흐름의 사람 승인 지점 순서 | 수색 시작(`START_SEARCH`), AMR2 출동 승인(`DISPATCH_SUPPORT`), 다음 구간 계속(`CONTINUE_SEGMENT`) | 보냄 |
+| 승인 (크게, 파랑) — 임무 흐름의 사람 승인 지점 순서 | 수색 시작(`START_SEARCH`), 출동 승인(`DISPATCH_SUPPORT`, 예: 「TB-5 출동 승인」), 다음 구간 계속(`CONTINUE_SEGMENT`) | 보냄 |
 | 임무 | 재확인 지시(`REQUEST_RECHECK`), 복귀(`RETURN_HOME`) | 보냄 |
 | 임무 | 일시정지·재개·작업 취소 | 꺼 둠 — Q-22 재개 관문 미결 |
 | 정지 (따로, 빨강) | 정지(`STOP_ROBOT`) | 꺼 둠 — RequestStop 별도 경로, 현장 정지는 별도 수단 |
@@ -178,7 +181,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
   | 명령 | 켜짐 | 보내는 값 |
   | --- | --- | --- |
   | 수색 시작 | 단계 `DISASTER`(아직 수색 전) | 없음 |
-  | AMR2 출동 승인 | 출동 없음, 확정·미구출 대상 중 대상 revision 과 저장된 보고(`persisted_report_id`)가 둘 다 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
+  | 출동 승인(`DISPATCH_SUPPORT`) | 출동 없음, 확정·미구출 대상 중 대상 revision 과 저장된 보고(`persisted_report_id`)가 둘 다 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
   | 다음 구간 계속 | `segment_phase == AWAITING_APPROVAL` | `mission_state` 의 `target_id`·`target_revision`·`route_revision`·`segment_index` |
   | 재확인 지시 | 구출 확인 전 대상이 있음(운영자가 고름) | 고른 대상의 `target_id` |
   | 복귀 | 단계 `RESCUE_CONFIRMED`·`RECHECK_NEEDED`(판정 뒤) | 없음 |
@@ -190,6 +193,28 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - **답 보이기:** 패널 아래 기록(최근 6건)에 「접수됨 (실행 완료 아님)」 또는 「거절 <사유 코드> (한국어 풀이)」와 `request_id` 를 그대로 보인다. 사유 풀이는 `labels.py` 의 `reply`, 모르는 코드는 코드 그대로.
 - **실패:** 「보내지 못함」으로 드러내고 다시 보내지 않는다(팀 `AGENTS.md` 7절). 연결 거부는 「전달 안 됨」, 시간 초과·operations 오류·응답 모양이 틀림은 「전달됐는지 모름 — command_id … 로 명령 기록을 확인한 뒤 다시 누르세요」. 콘솔 터미널 로그에도 명령마다 한 줄씩 남는다.
 - 패널 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요」를 늘 둔다. 버튼은 1초 폴링 조각 밖에 있어 누르려는 순간 다시 그려지지 않고, 켜짐 상태는 조각에 실린 관문 값(`#gates`)으로 바뀐다.
+
+## 조정기 사유 (SystemState.reason, 2026-10-13)
+
+조정기가 임무 상태의 사유(`SystemState.reason`, operations 의 mission 행 `reason`)에 넣은 코드를 쉬운 한국어로 보인다(`view.mission_reason`). 로봇 이름은 상태가 SUPPORT·SCOUT 인 로봇의 표시 이름이다(`--robot-name` 대응, 없으면 robot_id). 그 역할의 로봇 상태가 아직 없으면 역할 코드(SUPPORT·SCOUT)를 쓴다(일반 명칭은 쓰지 않음, 재범 규칙). 판정 RESCUE_CONFIRMED 는 「구출 완료」(초록), 모드 MISSION_FINISHED 는 「임무 종료」다. 글 옆에 코드를 같이 둔다. 모르는 코드는 코드 그대로 보인다.
+
+| 코드 | 표시 | 어디에 |
+| --- | --- | --- |
+| `SUPPORT_EXIT_IN_<n>S` | 「TB-5 출구 출발까지 n초」(폴링 1초마다 갱신) | 임무 띠, TB-5(SUPPORT) 카드, 출동 중인 대상 줄 |
+| `SUPPORT_EXITING` · `SUPPORT_AT_EXIT` | 「TB-5 출구로 이동 중」·「TB-5 출구 도착」 | 같음 |
+| `SUPPORT_EXIT_CANCELED` | 「TB-5 출구 이동 취소(판정 종료·재난 해제)」 | 같음 |
+| `SUPPORT_EXIT_FAILED` | 「TB-5 출구 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
+| `SUPPORT_POSE_UNKNOWN` | 「TB-5 위치 모름」(주의색) | 같음 |
+| `SUPPORT_POSE_BASIS_MISMATCH` · `SUPPORT_AT_TARGET` | 「TB-5 위치의 지도 기준이 다름 — 자동 출동 보류」·「TB-5 가 이미 대상 바로 옆 — 접근 지점을 정할 수 없음」(주의색) | 같음 |
+| `SUPPORT_NOT_READY` | 「TB-5 준비 안 됨 — arm 필요」(주의색, #196: TB-5 상태가 없거나 READY·최신이 아님) | 같음 |
+| `APPROACH_FAILED` | 「TB-5 대상 접근 실패 — 다시 보내지 않음」(빨간색) | 같음 |
+| 자동 접근 판단(`MODE_NOT_DISASTER`·`ALREADY_DISPATCHED`·`UNKNOWN_TARGET`·`TARGET_NOT_CONFIRMED`·`TARGET_REVISION_STALE`·`TARGET_ALREADY_JUDGED`) | 「… — TB-5 출동 안 함/대기/다시 판단」 | 같음 |
+| `TARGET_TIME_BASIS_UNUSABLE` 등 대상 위치 시각 거절(#174) | 「대상 위치의 관측 시각을 쓸 수 없음(…)」 등(주의색) | 임무 띠 |
+| `RECHECK_NEEDED_<이유>` | 「재확인 필요: <이유>」(주의색). 이유: 후보 연결 안 됨·지도 기준 다름·시각 기준 못 씀·시각 순서 틀림·인형이 아직 보임·자리가 막힘·관측 범위 부족·재확인 관측 없음(「재확인 지시」 버튼 안내). 모르는 이유는 코드 그대로 | 임무 띠, 출동 중인 대상 줄 |
+| `SCOUT_RETURNING` · `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND` | 「TB-6 도킹 접근 지점으로 이동 중」·「TB-6 도킹 접근 지점 도착 — 도킹은 사람이 합니다」 | 임무 띠, TB-6(SCOUT) 카드 |
+| `SCOUT_RETURN_FAILED` | 「TB-6 도킹 접근 지점 이동 실패 — 다시 보내지 않음」(빨간색) | 같음 |
+
+SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드는 #194(head 1fc7770)와 대조했다. 위에 없는 코드는 코드 그대로 보인다.
 
 ## 대상 소실 후보 (2026-10-13)
 

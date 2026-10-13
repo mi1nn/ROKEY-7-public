@@ -146,7 +146,27 @@ class CoordinatorParameters(FieldCase):
         expected = script_parameters('start_coordinator.sh')
         expected['profile_path'] = str(self.profile_path)
         expected['camera_watch_timeout_s'] = 2.0  # added after #132 (SetCameraWatch, coordination C2)
+        # Added after #132: TB-5 automatic dispatch (user decision 1B, 2026-10-13)
+        expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
+        # Added after #132: TargetLocation time checks (coordination OPS-103, 2026-10-13)
+        expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=3.0, target_max_future_s=0.05)
+        # Added after #132: TB-5 waits at the target before leaving for the exit (user decision 2026-10-13: 15 s)
+        expected['support_exit_wait_s'] = 15.0
+        # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
+        expected['recheck_max_clock_error_s'] = 2.0
         self.assertEqual(expected, self.coordinator())
+
+    def test_one_passage_flag_per_segment_end(self):
+        """A length other than the segment count holds every segment (PASSAGE_ASSESSMENT_REQUIRED) at run time;
+        it is never what the operator meant, so the launch refuses it before start."""
+        from rescue_bringup.field_launch import FieldLaunchError
+        two = '[1.0, 2.0, 0.0, 3.0, 4.0, 0.0]'
+        self.assertEqual([True, False], self.coordinator(route_segment_goals=two,
+                                                         route_segment_passage_free='[true, false]')
+                         ['route_segment_passage_free'])
+        for flags in ('[true]', '[true, false, false]'):
+            with self.subTest(flags=flags), self.assertRaisesRegex(FieldLaunchError, 'one true/false per segment'):
+                self.coordinator(route_segment_goals=two, route_segment_passage_free=flags)
 
     def test_camera_watch_roi_is_an_optional_site_argument(self):
         """Unset by default: the coordinator then refuses camera watch requests (no whole-frame default)."""
@@ -190,7 +210,7 @@ class CoordinatorParameters(FieldCase):
                     dict(route_segment_goals='[]'), dict(observe_goal='[0.0, 0.0, 0.0, 1.0]'),
                     dict(observe_goal='[0, 0, nan]'), dict(observe_goal='0,0,0'),
                     dict(route_segment_passage_free='[0]'), dict(route_segment_passage_free='false'),
-                    dict(route_segment_passage_free='[]')):
+                    dict(route_segment_passage_free='[]'), dict(route_segment_passage_free='[false, false]')):
             with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
                 self.coordinator(**bad)
 
@@ -201,6 +221,20 @@ class RobotParameters(FieldCase):
         expected.update({'task.saved_map.occupancy_sha256': SHA,
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
+        # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
+        # SCOUT) takes only REOBSERVE_TARGET (C1-b) and asks the recheck server after the stop.
+        expected.update({'task.live.auto_target.enabled': True,
+                         'task.live.auto_target.kinds': ['REOBSERVE_TARGET', 'RETURN_HOME'],
+                         'task.live.recheck.window_ns': 3_000_000_000,
+                         'task.live.recheck.deadline_ns': 10_000_000_000,
+                         'task.live.auto_target.goal_clear_radius_m': 0.2,
+                         'task.live.auto_target.policy_version': 'auto-target-20261013'})
+        # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
+        expected['task.live.pose_valid_ns'] = 2_000_000_000
+        # The robot Pi clock (sensor host of the AMCL stamps), per robot (2026-10-13)
+        expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
+        # TB-6 Pi measured 2026-10-13 (chronyc tracking, about 109 ms by the parse_chrony bound) -> 150 ms
+        expected['task.live.sensor_host_clock_error_bound_ns'] = 150_000_000
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -228,16 +262,41 @@ class RobotParameters(FieldCase):
         for name in ('executor_heartbeat_topic', 'watchdog_heartbeat_topic'):
             self.assertEqual(values['task_input'][name], values['watchdog'][name])
 
+    def test_tb5_values_in_the_repository_field_file(self):
+        """TB-5 (robot_b, SUPPORT): its own publisher, the same mapping authority as TB-6, approach and return
+        only, Pi clock measured (150 ms). Decided 2026-10-13; #132 had no robot_b values."""
+        b, a = self.robot(robot_id='robot_b')['task_input'], self.robot()['task_input']
+        self.assertEqual('/robot5/navigate_to_pose', b['nav_action'])
+        self.assertNotEqual(a['task.publisher_id'], b['task.publisher_id'])
+        self.assertEqual(a['task.mapping_authority'], b['task.mapping_authority'])
+        self.assertTrue(b['task.live.auto_target.enabled'])
+        self.assertEqual(['APPROACH_TARGET', 'RETURN_HOME'], b['task.live.auto_target.kinds'])
+        # TB-5 Pi measured 2026-10-13 (chronyc tracking, about 107 ms by the parse_chrony bound) -> 150 ms
+        self.assertEqual(150_000_000, b['task.live.sensor_host_clock_error_bound_ns'])
+
     def test_robot_b_needs_its_own_identity_in_the_field_file(self):
-        """No publisher_id / mapping_authority is made up for robot_b (none was set in #132)."""
+        """No publisher_id / mapping_authority is made up for a robot the field file does not name."""
         from rescue_bringup.field_launch import FieldLaunchError
         with self.assertRaisesRegex(FieldLaunchError, 'robot_b'):
-            self.robot(robot_id='robot_b')
+            self.robot(field=self.field(lambda raw: raw['robots'].pop('robot_b')), robot_id='robot_b')
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}
+                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                        'task.live.auto_target.enabled': True,
+                                        'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                                        'task.live.auto_target.goal_clear_radius_m': 0.2,
+                                        'task.live.auto_target.policy_version': 'p',
+                                        'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
+                                        'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        # Both policy and sensor clock must stay local to this robot.
+        self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
+        self.assertEqual(['REOBSERVE_TARGET', 'RETURN_HOME'], self.robot()['task_input']['task.live.auto_target.kinds'])
+        self.assertEqual(['APPROACH_TARGET'], values['task_input']['task.live.auto_target.kinds'])
+        # Each robot Pi has its own measured clock bound (decision 2026-10-13)
+        self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
+        self.assertEqual(150_000_000, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
@@ -303,6 +362,34 @@ class MapBasisFromProfile(FieldCase):
             self.robot()
 
 
+class HomePoses(FieldCase):
+    """RETURN_HOME destinations from the profile home_positions (decision 5A, 2026-10-13)."""
+
+    def with_homes(self, homes):
+        raw = json.loads(self.profile_path.read_text())
+        raw['home_positions'] = homes
+        self.profile_path.write_text(json.dumps(raw))
+        self.deployment = load_deployment(self.profile_path)
+
+    def test_coordinator_gets_scout_then_support_home(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        self.assertEqual([1.0, 2.0, 0.5, 3.0, -4.0, 0.0], self.coordinator()['home_poses'])
+
+    def test_no_homes_passes_nothing(self):
+        self.assertNotIn('home_poses', self.coordinator())
+        self.assertNotIn('task.live.home_xy_yaw', self.robot()['task_input'])
+
+    def test_one_home_only_is_refused_for_the_coordinator(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        self.with_homes({'robot_a': [1.0, 2.0, 0.5]})
+        with self.assertRaisesRegex(FieldLaunchError, 'home_positions'):
+            self.coordinator()
+
+    def test_robot_gets_its_own_home(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        self.assertEqual([1.0, 2.0, 0.5], self.robot()['task_input']['task.live.home_xy_yaw'])
+
+
 class FieldFile(FieldCase):
     def test_values_that_must_agree_between_coordinator_and_robot_are_checked(self):
         from rescue_bringup.field_launch import FieldLaunchError
@@ -324,6 +411,20 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'dispatch mode': lambda r: r['coordinator'].update({'support_dispatch': 'auto'}),
+            'standoff not positive': lambda r: r['coordinator'].update({'approach_standoff_m': 0.0}),
+            'pose age not positive': lambda r: r['coordinator'].update({'support_pose_max_age_s': -1.0}),
+            'target age not positive': lambda r: r['coordinator'].update({'target_max_age_s': 0.0}),
+            'target future negative': lambda r: r['coordinator'].update({'target_max_future_s': -0.01}),
+            'target clock domain differs': lambda r: r['coordinator'].update({'target_clock_domain_id': 'other'}),
+            'exit wait negative': lambda r: r['coordinator'].update({'support_exit_wait_s': -1.0}),
+            'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
+            'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
+                {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
+            'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
+            'auto target shared, not per robot': lambda r: r['robot'].update({'task.live.auto_target.enabled': True}),
+            'pi clock shared, not per robot': lambda r: r['robot'].update(
+                {'task.live.sensor_host_clock_error_bound_ns': 5}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),

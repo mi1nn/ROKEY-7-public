@@ -16,6 +16,7 @@ from pathlib import Path
 import tempfile
 import time
 from types import SimpleNamespace
+from uuid import uuid4
 
 from rescue_contracts import RescueError
 from rescue_robot.executor import ContractError, GoalPose, generation, identifier, number, wall_time
@@ -23,6 +24,40 @@ from rescue_robot.phase1_route import Phase1RouteGate, phase1_endpoint
 from rescue_robot.task_policy import ClockBasis, LeasePolicy, validate_clock_basis
 from rescue_robot.task_server import attach_task_runtime
 from rescue_robot.task_wire import COMPLETION_SCOPES
+
+# Target moves the coordinator may send without an operator approval (C1, 2026-10-13).
+AUTO_TARGET_KINDS = ('APPROACH_TARGET','REOBSERVE_TARGET','RETURN_HOME')
+# Kinds resolved by _resolve_auto_target; RETURN_HOME keeps its configured-destination resolver and is
+# only a per-robot permission in the policy (decision 5A, least privilege, 2026-10-13).
+AUTO_TARGET_MOVES = ('APPROACH_TARGET','REOBSERVE_TARGET')
+
+
+def recheck_settings(value):
+    """ObserveTarget call after a REOBSERVE stop: observation window and the whole call's deadline (ns)."""
+    if not isinstance(value,dict) or set(value)!={'window_ns','deadline_ns'}:
+        raise ContractError('recheck needs exactly window_ns and deadline_ns')
+    window,deadline=value['window_ns'],value['deadline_ns']
+    if type(window) is not int or type(deadline) is not int or not 0<window<=deadline:
+        raise ContractError('recheck window_ns and deadline_ns must be integers, 0 < window <= deadline')
+    return dict(value)
+
+
+def auto_target_policy(value):
+    """Check the explicit LIVE_ROS automatic target-move policy; no field has a default."""
+    if not isinstance(value,dict) or set(value)!={'enabled','kinds','goal_clear_radius_m','policy_version'}:
+        raise ContractError('auto_target needs exactly enabled, kinds, goal_clear_radius_m, policy_version')
+    kinds=value['kinds']
+    if type(value['enabled']) is not bool:
+        raise ContractError('auto_target.enabled must be a bool')
+    if (not isinstance(kinds,list) or not kinds or len(set(kinds))!=len(kinds)
+            or any(kind not in AUTO_TARGET_KINDS for kind in kinds)):
+        raise ContractError('auto_target.kinds must be distinct kinds from '+str(list(AUTO_TARGET_KINDS)))
+    radius=value['goal_clear_radius_m']
+    if type(radius) not in (int,float) or not math.isfinite(radius) or radius<=0:
+        raise ContractError('auto_target.goal_clear_radius_m must be finite and positive')
+    if not isinstance(value['policy_version'],str) or not value['policy_version']:
+        raise ContractError('auto_target.policy_version required')
+    return deepcopy(value)
 
 
 def atomic_json(path, value):
@@ -212,6 +247,12 @@ class SiteRuntime:
         if unsupported:
             raise ContractError('optional non-SEARCH live extensions not installed: '+', '.join(sorted(unsupported)))
         self.last_lease_rejection=''
+        self.auto_target=auto_target_policy(config['auto_target']) if 'auto_target' in config else None
+        self.recheck=recheck_settings(config['recheck']) if 'recheck' in config else None
+        if self.auto_target is not None and 'REOBSERVE_TARGET' in self.auto_target['kinds'] and self.recheck is None:
+            raise ContractError('automatic REOBSERVE_TARGET needs recheck settings (window_ns, deadline_ns)')
+        self.rechecks={}      # command_id -> ObserveTarget result to carry in TaskResult.recheck
+        self.observe=None     # async goal-fields -> ObserveTarget result or None (attached with ROS)
         self.input_handles=[]; self._coordinator=None
         self._retired_coordinators=set(); self._input_error=''
         self.saved_maps=None
@@ -241,6 +282,7 @@ class SiteRuntime:
             schema_version=config['schema_version'],publisher_id=config['publisher_id'],
             poll_period_s=config['poll_period_s'],lookup_lease=lambda goal:self.leases.get(goal.lease_id),
             accept_lease=self.accept_lease,encode_result=self.encode_result,bindings=bindings,
+            auto_resolve=self._auto,before_result=self.before_result,
             lease_rejection_reason=lambda:self.last_lease_rejection,
             **config['endpoints'])
         self.services=[]
@@ -252,8 +294,19 @@ class SiteRuntime:
         return dict(a,robot_boot_id=self.adapter.executor.robot_boot_id,
                     publisher_id=self._coordinator[0],publisher_boot_id=self._coordinator[1])
 
+    def _allowed(self,kind):
+        """This robot's explicit LIVE_ROS policy lets it take this kind (no operator approval)."""
+        policy=self.auto_target
+        return (self.config.get('input_mode')=='LIVE_ROS' and policy is not None
+                and policy['enabled'] is True and kind in policy['kinds'])
+
+    def _auto(self,kind):
+        """An automatic target move resolved by _resolve_auto_target."""
+        return kind in AUTO_TARGET_MOVES and self._allowed(kind)
+
     def _issuer_rejection(self,message,*,boot_field):
-        if self.config.get('input_mode')=='LIVE_ROS' and getattr(message,'kind','SEARCH_AREA')!='SEARCH_AREA':
+        kind=getattr(message,'kind','SEARCH_AREA')
+        if self.config.get('input_mode')=='LIVE_ROS' and kind!='SEARCH_AREA' and not self._allowed(kind):
             return 'LIVE_SEARCH_ONLY'
         a=self._authority(); e=message.envelope
         checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
@@ -289,8 +342,85 @@ class SiteRuntime:
         self.leases[lease.lease_id]=deepcopy(lease)
         return True
 
+    def _resolve_auto_target(self,goal):
+        """Automatic target move (C1): the coordinator's approach goal on this robot's own map basis.
+
+        One shared map (profile map_basis): the goal's frame_ref must be this robot's current
+        declared alignment; the target source robot's live map is not read (another PC may not
+        see it). Path basis: the goal footprint is free in the saved map this robot loaded and
+        hashed. Nav2 plans the real path on its live costmap (scene changes after the quake);
+        an unplannable goal ends UNREACHABLE. No operator approval is read or recorded.
+        """
+        if goal.has_route is not True or goal.has_approval is not False:
+            raise ContractError('automatic target move needs a route and no operator approval','NOT_AUTHORIZED')
+        if goal.kind=='REOBSERVE_TARGET':
+            self._current_target(goal.target_id,goal.target_estimate_revision)
+        pose=phase1_endpoint(goal)  # no planner evidence, passage UNKNOWN, planar mission-frame goal
+        a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
+        f=goal.frame_ref
+        if (f.mission_frame,f.map_session_id,f.map_revision,f.transform_revision)!=(
+                self.inputs.mission_frame,a.map_session_id,a.map_revision,a.transform_revision):
+            raise ContractError('target goal is not on this robot\'s current map basis','FRAME_REVISION_MISMATCH')
+        grid=(self.saved_maps.maps.get(goal.robot_id) if self.saved_maps is not None else None)
+        if grid is None:
+            raise ContractError('saved map not loaded; cannot check the goal footprint','LOCALIZATION_UNCERTAIN')
+        x,y,_=a.transform.inverse().apply((pose.x,pose.y,0.))
+        if grid.clear(x,y,self.auto_target['goal_clear_radius_m']) is not True:
+            raise ContractError('goal footprint is not free in the saved map','UNREACHABLE')
+        return GoalPose(self.inputs.mission_frame,pose.x,pose.y,pose.yaw,a.map_session_id,a.map_revision,
+                        a.transform_revision)
+
+    def _current_target(self,target_id,revision):
+        """The coordinator's TargetSnapshot record of this target at this revision (IF-070)."""
+        record=self._targets.get(target_id)
+        if record is None:
+            raise ContractError('target not in the coordinator snapshot','STALE_OBSERVATION')
+        self.inputs._window(record['observed_at_ns'],record['valid_until_ns'],self.adapter.wall_clock_ns())
+        if record['revision']!=revision:
+            raise ContractError('target revision changed','FRAME_REVISION_MISMATCH')
+        return record
+
+    def _recheck_goal(self,goal):
+        """ObserveTarget goal fields: the target's current position in this robot's native map frame."""
+        record=self._current_target(goal.target_id,goal.target_estimate_revision)
+        a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
+        point=tuple(float(v) for v in a.transform.inverse().apply(tuple(record['mission_position'])))
+        now=self.adapter.wall_clock_ns()
+        return dict(request_id=str(uuid4()),task_id=goal.task_id,target_id=goal.target_id,robot_id=goal.robot_id,
+            watched_native_point=point,requested_window_ns=self.recheck['window_ns'],
+            policy_version=self.auto_target['policy_version'],deadline_ns=now+self.recheck['deadline_ns'],
+            frame_ref=dict(robot_id=goal.robot_id,native_frame=a.map_frame,mission_frame=self.inputs.mission_frame,
+                map_session_id=a.map_session_id,map_revision=a.map_revision,transform_revision=a.transform_revision,
+                alignment_status='VALID'))
+
+    async def before_result(self,report,goal):
+        """After a REOBSERVE stop is confirmed, ask the recheck server; carry its answer as it is.
+
+        Only COMPLETED + stop_confirmed asks. No target position, no server or no answer by the
+        deadline leaves has_recheck false (nothing is made up); the task outcome never changes.
+        """
+        if (goal.kind!='REOBSERVE_TARGET' or not self._auto(goal.kind)
+                or report.result.outcome!='COMPLETED' or report.result.stop_confirmed is not True):
+            return
+        log=self.node.get_logger()
+        try:
+            with self.adapter.lock:
+                fields=self._recheck_goal(goal)
+        except Exception as exc:
+            log.error('recheck not requested for '+goal.command_id+': '+str(exc)); return
+        if self.observe is None:
+            log.error('recheck not requested for '+goal.command_id+': no ObserveTarget client'); return
+        answer=await self.observe(fields)
+        if answer is None:
+            log.error('recheck '+fields['request_id']+' got no answer; has_recheck=false'); return
+        log.info('RECHECK '+goal.command_id+' request='+fields['request_id']+' outcome='+str(answer.outcome)
+                 +' reason='+str(answer.reason_code))
+        with self.adapter.lock:
+            self.rechecks[goal.command_id]=answer
+
     def resolve_goal(self,goal):
         if goal.kind=='HOLD': return None
+        if self._auto(goal.kind): return self._resolve_auto_target(goal)
         if goal.kind not in ('SEARCH_AREA','RETURN_HOME'):
             raise ContractError('target movement requires phase-one route; automatic approach unavailable','NOT_AUTHORIZED')
         ref=goal.search_area_ref if goal.kind=='SEARCH_AREA' else goal.home_ref
@@ -300,7 +430,10 @@ class SiteRuntime:
             if p['frame_id']!=self.inputs.mission_frame:
                 raise ContractError('configured destination frame differs','FRAME_REVISION_MISMATCH')
         else:
-            p=self.inputs.current()['destinations'][ref]
+            p=self.inputs.current().get('destinations',{}).get(ref)
+            if p is None:
+                what='home destination' if goal.kind=='RETURN_HOME' else 'search destination'
+                raise ContractError(what+' not configured: '+str(ref),'NOT_AUTHORIZED')
             self.inputs._window(p['observed_at_ns'],p['valid_until_ns'],self.adapter.wall_clock_ns())
         a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
         if (p['robot_id'],p['map_session_id'],p['map_revision'],p['transform_revision'])!=(
@@ -312,6 +445,8 @@ class SiteRuntime:
         # attach_task_runtime runs ingress.check (the live Phase1RouteGate)
         # before the binder. Do not run that same gate a second time here.
         request=self.server.ingress.requests.get(task.command_id)
+        if request and self._auto(task.kind):
+            return True  # resolved again by guard() on every step (_resolve_auto_target)
         return bool(request and task.kind in ('MOVE_SEGMENT','REOBSERVE_TARGET')
                     and task.command_id in self.gate.requests)
 
@@ -323,7 +458,11 @@ class SiteRuntime:
         result.original_cause,result.stop_confirmed=report.result.original_cause,report.result.stop_confirmed
         result.motion_state='STOPPED' if result.stop_confirmed else 'STOP_UNCONFIRMED'
         result.completion_scope=COMPLETION_SCOPES[goal.kind]
-        result.has_recheck=False; result.used_record_ids=[]; result.stop_evidence=[]
+        answer=self.rechecks.pop(goal.command_id,None) if goal.kind=='REOBSERVE_TARGET' else None
+        result.has_recheck=answer is not None
+        if answer is not None:
+            result.recheck=answer.observation  # the server's observation, unchanged (OBSERVED/UNKNOWN/FAILED)
+        result.used_record_ids=[]; result.stop_evidence=[]
         # Action + fresh odometry prove stop. No pose or perception/evidence
         # record is invented; independent evidence recorders may add those.
         pose=result.final_pose
@@ -339,7 +478,7 @@ class SiteRuntime:
         try:
             if not self.authorize(request[0],None): return False
             # RETURN_HOME is resolved continuously by TaskIngress.check.
-            if task.kind=='SEARCH_AREA' and self.resolve_goal(request[0])!=task.goal_pose:
+            if (task.kind=='SEARCH_AREA' or self._auto(task.kind)) and self.resolve_goal(request[0])!=task.goal_pose:
                 raise ContractError('destination changed; require a new command','FRAME_REVISION_MISMATCH')
             return self._base_guard(task)
         except Exception as exc:
@@ -436,7 +575,11 @@ class SiteRuntime:
                     if item.confirmation_state not in ('CANDIDATE','CONFIRMED','NEEDS_REOBSERVATION','DISMISSED'):
                         raise ContractError('invalid target confirmation state')
                     seen.add(item.target_id)
-                    record=dict(revision=item.estimate_revision,observed_at_ns=start,valid_until_ns=until)
+                    position=item.mission_position
+                    if not all(math.isfinite(v) for v in (position.x,position.y,position.z)):
+                        raise ContractError('invalid target position')
+                    record=dict(revision=item.estimate_revision,observed_at_ns=start,valid_until_ns=until,
+                                mission_position=(float(position.x),float(position.y),float(position.z)))
                     old=self._target_versions.get(item.target_id) if self._coordinator is not None and key==self._coordinator[:2] else None
                     if old is not None and (record['revision']<old['revision']
                             or record['revision']==old['revision'] and record!=old):
@@ -545,8 +688,15 @@ class SiteRuntime:
                 raise ContractError('explicit absolute coordinator_targets_topic required')
             subscription=self.node.create_subscription(TargetSnapshot,topic,self._receive_targets,qos)
             self.input_handles.append(('destroy_subscription',subscription))
+        if self.recheck is not None and self.auto_target is not None and 'REOBSERVE_TARGET' in self.auto_target['kinds']:
+            from rescue_robot.live_recheck import RecheckClient
+            self.observe=RecheckClient(self,action_name=f'/rescue/robots/{self.adapter.robot_id}/observe_target')
         if self.saved_maps is not None:
             from rescue_robot.live_sources import attach_sources
+            if 'pose_valid_ns' in self.config:
+                from rescue_robot.live_pose import LivePosePublisher
+                self.saved_maps.publisher=LivePosePublisher(self,pose_valid_ns=self.config['pose_valid_ns'],
+                                                            sensor_clock=self.config['sensor_host_clock'])
             attach_sources(self)
         timer=self.node.create_timer(self.config['poll_period_s'],self._check_input_session)
         self.input_handles.append(('destroy_timer',timer))

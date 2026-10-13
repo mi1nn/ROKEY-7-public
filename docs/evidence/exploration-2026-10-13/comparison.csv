@@ -1,0 +1,4 @@
+algorithm,run,elapsed_seconds,path_length_m,known_area_m2,reason,mapping_complete_verified,accuracy_verified
+explore_lite,run-014-explore-lite-matched,29.927009001999977,6.297878801116567,19.622500584796075,ALGORITHM_REPORTED_COMPLETE,False,False
+frontier_exploration_ros2,run-013-frontier-exploration-ros2-onboard,36.603924784998526,7.274172455894789,19.872500592246656,ALGORITHM_REPORTED_COMPLETE,False,False
+frontier_toolbox,run-015-frontier-toolbox-matched,136.15454626599967,7.297809157373143,19.812500590458516,STALLED_REPEATED_IDENTICAL_GOAL,False,False

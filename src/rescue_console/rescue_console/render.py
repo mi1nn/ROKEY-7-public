@@ -7,7 +7,7 @@ import math
 
 from .labels import label
 from .mapimage import MAP_FRAME
-from .view import STAGES
+from .view import STAGES, ConsoleError
 
 # Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
 # ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
@@ -50,8 +50,6 @@ def _age(seconds):
     return sign + text
 
 
-# Role -> the unit name the team uses (console-and-db-plan 1절: AMR1 정찰, AMR2 지원 출동).
-ROLE_UNIT = {'SCOUT': 'AMR1', 'SUPPORT': 'AMR2'}
 # Characters of a UUID shown on screen; the full ID stays in the title tooltip.
 SHORT_ID = 8
 # Battery bar colours switch below these percentages ([제안] 관제·화면, 2026-10-10; display only).
@@ -119,6 +117,20 @@ def _victim_icon(stage):
 
 # ---- band (fragment) ------------------------------------------------------------------------
 
+def _reason(reason):
+    """Coordinator reason in words, with the code beside it when the words are not the code."""
+    level = f' {reason["level"]}' if reason['level'] else ''
+    code = '' if reason['text'] == reason['code'] else f' <code>{escape(reason["code"])}</code>'
+    return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
+
+
+def _scoped_reason(view, *scopes, tag='p'):
+    reason = view['mission'].get('reason_view')
+    if reason is None or reason['scope'] not in scopes:
+        return ''
+    return f'<{tag} class="scoped-reason">{_reason(reason)}</{tag}>'
+
+
 def _band(view):
     """Mission mode across the top. The exit count is not drawn: one fixed camera (db-schema 2절)."""
     mission = view['mission']
@@ -136,8 +148,8 @@ def _band(view):
     if dispatch is not None:
         facts.append(('구간', f'<span title="끝낸 구간 / 전체 구간">{dispatch["segment_index"]}/{dispatch["segment_count"]}</span> '
                               f'{_word("segment", dispatch["segment_phase"])}'))
-    if mission['reason'] is not None:
-        facts.append(('사유', f'<span class="reason">{escape(mission["reason"])}</span>'))
+    if mission.get('reason_view') is not None:
+        facts.append(('사유', _reason(mission['reason_view'])))
     if source == 'mission_state':
         note = f'조정기 임무 상태, {_age((built - mission["updated_at_ns"]) / 1e9)} 전 바뀜'
     elif mode == 'DISASTER':
@@ -203,7 +215,7 @@ def _map(view):
     for robot in layer['robots']:
         x, y = robot['px'], robot['py']
         role = robot.get('role') or 'UNKNOWN'
-        unit = ROLE_UNIT.get(role, robot['id'])
+        unit = robot.get('name') or robot['id']
         if robot['yaw'] is None:
             body = f'<circle class="body" cx="{x}" cy="{y}" r="{ROBOT_MARK_PX}"/>'
         else:
@@ -253,8 +265,7 @@ def _robots(view):
     units = []
     for robot in view['robots']:
         role = robot['role']
-        unit = ROLE_UNIT.get(role, '')
-        head = (f'<h3><span class="unit-name">{escape(unit or robot["robot_id"])}</span>'
+        head = (f'<h3><span class="unit-name">{escape(robot["name"])}</span>'
                 f'<span class="unit-role">{_word("role", role) if role else ""}</span>'
                 f'<span class="unit-id">{escape(robot["robot_id"])}</span></h3>')
         if not robot['has_status']:
@@ -274,7 +285,7 @@ def _robots(view):
             + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
             f'<div><dt>작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
             f'<div><dt>수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
-            + stale + '</section>')
+            + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale + '</section>')
     return f'<section id="robots"><h2>로봇</h2>{"".join(units)}</section>'
 
 
@@ -291,6 +302,11 @@ def _targets(view):
             support = (f'<span class="support">지원 {_word("support", target["support_state"])}'
                        + (f' {escape(target["support_robot_id"])}' if target['support_robot_id'] else '') + '</span>')
         notes = ''.join(f'<li>{escape(n)}</li>' for n in target['warnings'] + target['rescue_reasons'])
+        dispatched = view['mission'].get('dispatch') or {}
+        if dispatched.get('target_id') == target['target_id']:
+            support += _scoped_reason(view, 'support', 'target', tag='span')
+        elif not dispatched and view.get('support_dispatch') == 'AUTO' and target['stage'] == 'NOT_RESCUED':
+            support += _scoped_reason(view, 'support', tag='span')   # why the automatic dispatch has not gone
         receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
                    f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         mark = target['disappeared_candidate']
@@ -405,6 +421,10 @@ def _commands(view, access, csrf):
     allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
     for command in view['commands']:
+        if command.get('auto'):   # automatic support dispatch: a state line, no button (no data-command)
+            groups[command['group']].append(f'<p class="cmd-auto" title="{escape(command["reason"])}">'
+                                            f'{escape(command["label"])}</p>')
+            continue
         name, reason = escape(command['name']), escape(command['reason'])
         off = '' if allowed and command['enabled'] else ' disabled'
         groups[command['group']].append(
@@ -489,6 +509,9 @@ dl{margin:0}
 .mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
 
 /* ---- warnings ---- */
+.reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
+.scoped-reason{margin:4px 0 0;font-weight:600}
+.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
 #warnings.empty{display:none}
 #warnings h2{display:inline;margin-right:12px;font-size:14px}
@@ -946,17 +969,60 @@ def _header(user, csrf):
     return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
 
 
-def _cameras(cameras):
+def camera_stale_ms(cameras, stale_s):
+    """Milliseconds without a new frame before a stream is shown lost; required with cameras, no default."""
+    if not cameras:
+        return None
+    if stale_s is None:
+        raise ConsoleError('CONFIG_MISSING', 'cameras need --camera-stale-s (seconds without a new frame)')
+    if type(stale_s) is not float or not math.isfinite(stale_s) or stale_s <= 0:
+        raise ConsoleError('INVALID_INPUT', f'camera stale time must be finite seconds > 0: {stale_s!r}')
+    return round(stale_s * 1000)
+
+
+# A multipart stream that ends normally fires no error and leaves its last frame on screen (measured
+# 2026-10-13, Firefox: one load event per frame, none after the close). So each frame's load event is
+# timed; past the stale time the figure shows 「영상 끊김」 and the stream is opened again with a
+# cache-busting query, at most once per stale time. onerror still marks it at once.
+_CAMERA_SCRIPT = """
+function watchCameras() {
+  document.querySelectorAll('#cameras figure[data-stale-ms]').forEach(figure => {
+    const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
+    const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
+    let last = Date.now(), retried = Date.now();
+    img.addEventListener('load', () => {
+      last = Date.now();
+      if (figure.classList.contains('lost')) {
+        figure.classList.remove('lost'); note.textContent = ''; note.className = '';
+      }
+    });
+    setInterval(() => {
+      const now = Date.now();
+      if (now - last < stale) return;
+      figure.classList.add('lost'); note.textContent = '영상 끊김'; note.className = 'lost';
+      if (now - retried >= stale) {
+        retried = now;
+        img.src = base + (base.includes('?') ? '&' : '?') + '_r=' + now;
+      }
+    }, Math.max(100, Math.min(500, stale / 2)));
+  });
+}
+watchCameras();
+"""
+
+
+def _cameras(cameras, stale_ms=None):
     """Camera streams embedded straight from the camera PC's MJPEG gateway (IF-082).
 
     Outside the polled fragment, so a poll never restarts a stream. The console does not relay
-    video. A broken stream is shown as lost, not hidden.
+    video. A broken or stalled stream is shown as lost, not hidden, and reconnected (_CAMERA_SCRIPT).
     """
     if not cameras:
         return ('<section class="camera-empty"><h2>웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
                 '<code>--camera cam_a=http://…</code> 로 카메라 PC 의 영상 주소를 주세요.</p></section>')
     figures = ''.join(
-        f'<figure><img src="{escape(url)}" alt="{escape(camera_id)} 영상" '
+        f'<figure data-stale-ms="{stale_ms}"><img src="{escape(url)}" '
+        f'alt="{escape(camera_id)} 영상" '
         'onerror="var f=this.parentNode,s=f.querySelector(\'figcaption\').lastChild;'
         'f.classList.add(\'lost\');s.textContent=\'영상 끊김\';s.className=\'lost\'">'
         '<p class="nosignal">영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.</p>'
@@ -988,18 +1054,22 @@ def render_failure(code, message):
             '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
 
 
-def render_page(view, user=None, csrf=None, cameras=(), command_access=None):
-    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments. `command_access`:
+def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
+    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments; with them `camera_stale_s`
+    (seconds without a new frame before 「영상 끊김」, no default). `command_access`:
     (allowed, reason) from commands.command_access; without it no command can be sent from the page."""
     access = command_access or (False, '명령 연결 없음')
+    stale_ms = camera_stale_ms(cameras, camera_stale_s)
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
+    if cameras:
+        script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras)}{_commands(view, access, csrf)}</aside>'
+            + f'<aside id="side">{_cameras(cameras, stale_ms)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
 

@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege): TB-6 (robot_a) takes REOBSERVE_TARGET (C1-b) and RETURN_HOME (C1-c), recheck window 3 s / deadline 10 s proposed; radius 0.2 m proposed; task.live.pose_valid_ns 2 s (coordinator age proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock: TB-6 150 ms (measured 2026-10-13 14:31-14:34 chronyc tracking, parse_chrony bound about 109 ms with drift 100 ppm over the update interval; measure again on the run day); support_dispatch AUTO (user decision 1B), approach_standoff_m 0.8 and support_pose_max_age_s 2.0 proposed by coordination (2026-10-13); target_max_age_s 3.0 (age check adds no clock error, so an observation from a slow-clock PC looks older by its error; coordination estimate) and target_max_future_s 0.05 (margin above the error each observation declares, #174) (OPS-103, 2026-10-13); support_exit_wait_s 15.0 (user decision 2026-10-13: time for the rescuer to pick up the doll and stand behind TB-5 after it arrives); recheck_max_clock_error_s 2.0 (measured webcam PC 271-365 ms + TB-6 detection PC 385-465 ms + TB-6 Pi not measured, sum under about 1 s estimated, x2 margin; revisit when the Pi is measured; coordination 2026-10-13); robots.robot_b = TB-5 (2026-10-13): new publisher_id, mapping_authority shared with TB-6, APPROACH_TARGET + RETURN_HOME, Pi clock 150 ms (measured 2026-10-13 14:31-14:34 chronyc tracking, parse_chrony bound about 107 ms; measure again on the run day)",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -25,7 +25,15 @@
     "live_inputs.clock_drift_ppm": 100.0,
     "live_inputs.poll_period_s": 1.0,
     "live_inputs.search_goal_topic": "/rescue/search_goal",
-    "camera_watch_timeout_s": 2.0
+    "camera_watch_timeout_s": 2.0,
+    "support_dispatch": "AUTO",
+    "approach_standoff_m": 0.8,
+    "support_pose_max_age_s": 2.0,
+    "target_clock_domain_id": "rokey7-utc-field",
+    "target_max_age_s": 3.0,
+    "target_max_future_s": 0.05,
+    "support_exit_wait_s": 15.0,
+    "recheck_max_clock_error_s": 2.0
   },
   "robot": {
     "authority_epoch": "66666666-6666-4666-8666-666666666666",
@@ -62,12 +70,31 @@
     "task.saved_map.position_error_m": 0.0,
     "task.saved_map.rotation_error_rad": 0.0,
     "task.saved_map.max_position_variance_m2": 0.25,
-    "task.saved_map.max_yaw_variance_rad2": 0.25
+    "task.saved_map.max_yaw_variance_rad2": 0.25,
+    "task.live.pose_valid_ns": 2000000000,
+    "task.live.recheck.window_ns": 3000000000,
+    "task.live.recheck.deadline_ns": 10000000000
   },
   "robots": {
     "robot_a": {
       "task.publisher_id": "99999999-9999-4999-8999-999999999999",
-      "task.mapping_authority": "88888888-8888-4888-8888-888888888888"
+      "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
+      "task.live.auto_target.enabled": true,
+      "task.live.auto_target.kinds": ["REOBSERVE_TARGET", "RETURN_HOME"],
+      "task.live.auto_target.goal_clear_radius_m": 0.2,
+      "task.live.auto_target.policy_version": "auto-target-20261013",
+      "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
+      "task.live.sensor_host_clock_error_bound_ns": 150000000
+    },
+    "robot_b": {
+      "task.publisher_id": "563f0fad-d73d-4afa-b6db-08928e416703",
+      "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
+      "task.live.auto_target.enabled": true,
+      "task.live.auto_target.kinds": ["APPROACH_TARGET", "RETURN_HOME"],
+      "task.live.auto_target.goal_clear_radius_m": 0.2,
+      "task.live.auto_target.policy_version": "auto-target-20261013",
+      "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
+      "task.live.sensor_host_clock_error_bound_ns": 150000000
     }
   },
   "alignment": {

@@ -1,0 +1,10 @@
+{
+  "checked_epoch": 1791863978.536828,
+  "robot": "robot6",
+  "samples": 40,
+  "odom_age": 0.04319510152478029,
+  "max_linear_mps": 0.0,
+  "max_yaw_radps": 8.949667972046882e-06,
+  "displacement_m": 0.0,
+  "confirmed": true
+}

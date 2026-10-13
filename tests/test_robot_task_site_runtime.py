@@ -245,7 +245,8 @@ class SiteRuntimeTests(unittest.TestCase):
         envelope=NS(schema_version=g.envelope.schema_version,publisher_id=g.coordinator_id,
             publisher_boot_id=phase.runtime.mapping.uid(995),sequence=1,published_at_ns=self.adapter.wall_clock_ns())
         target=NS(target_id=g.target_id,estimate_revision=g.target_estimate_revision,
-            latest_observed_at_ns=self.adapter.wall_clock_ns(),valid_until_ns=g.deadline_ns,confirmation_state='CONFIRMED')
+            latest_observed_at_ns=self.adapter.wall_clock_ns(),valid_until_ns=g.deadline_ns,confirmation_state='CONFIRMED',
+            mission_position=NS(x=3.,y=0.,z=0.))  # TargetEstimate always carries it (IF-070)
         snapshot=NS(envelope=envelope,snapshot_id=phase.runtime.mapping.uid(996),targets=[target])
         with patch('rescue_robot.task_site_runtime.load_json',return_value=source):
             self.runtime._receive_targets(snapshot)
