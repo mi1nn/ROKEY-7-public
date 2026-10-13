@@ -108,6 +108,15 @@ def read_config(node, adapter):
     except ParameterUninitializedException:
         if m['mode'] == 'SLAM_THEN_FROZEN':
             raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.slam_localization_topic') from None
+    # TB-6 pose while searching = TF map -> base_link, covariance from the SLAM pose (OPS-177)
+    for name, kind in (('slam_tf_topic', Parameter.Type.STRING), ('slam_odom_frame', Parameter.Type.STRING),
+                       ('slam_base_frame', Parameter.Type.STRING), ('slam_covariance_max_age_ns', Parameter.Type.INTEGER)):
+        node.declare_parameter('task.saved_map.' + name, kind)
+        try:
+            m[name] = node.get_parameter('task.saved_map.' + name).value
+        except ParameterUninitializedException:
+            if m['mode'] == 'SLAM_THEN_FROZEN':
+                raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.' + name) from None
     c['saved_maps'] = {adapter.robot_id:m}
     c['auto_target'] = {key:get('live.auto_target.'+key) for key in
                         ('enabled','kinds','goal_clear_radius_m','policy_version')}

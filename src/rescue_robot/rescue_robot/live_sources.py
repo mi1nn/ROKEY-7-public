@@ -72,13 +72,14 @@ class SavedMapSources:
     def __init__(self,runtime,settings):
         self.runtime=runtime; self.settings=deepcopy(settings); self.maps={}; self.poses={}; self.faults={}
         self.slam_maps={}; self.received={}; self.frozen=None
+        self.slam_tf={}  # robot -> SlamTfPose (SLAM_THEN_FROZEN while searching)
         self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
         if not settings: raise ContractError('saved_maps requires measured robot settings')
         for robot,c in self.settings.items():
             if c['mode'] not in MAP_MODES: raise ContractError('SLAM backend correction adapter not configured')
             topics=['map_topic','localization_topic']
             if c['mode']!='SAVED_MAP_AMCL': topics.append('frozen_topic')
-            if c['mode']=='SLAM_THEN_FROZEN': topics.append('slam_localization_topic')
+            if c['mode']=='SLAM_THEN_FROZEN': topics+=['slam_localization_topic','slam_tf_topic']
             for name in topics:
                 if not isinstance(c.get(name),str) or not c[name].startswith('/'):
                     raise ContractError('absolute saved-map input topic required')
@@ -88,6 +89,10 @@ class SavedMapSources:
                 raise ContractError('the freeze decides the map hash; no declared occupancy sha256')
             for name in ('max_position_variance_m2','max_yaw_variance_rad2'):
                 if not math.isfinite(c[name]) or c[name]<=0: raise ContractError('explicit localization variance policy')
+            if c['mode']=='SLAM_THEN_FROZEN':  # searching: pose = TF map -> base_link (OPS-177)
+                from rescue_robot.slam_tf_pose import SlamTfPose
+                self.slam_tf[robot]=SlamTfPose(map_frame=c['map_frame'],odom_frame=c.get('slam_odom_frame'),
+                    base_frame=c.get('slam_base_frame'),covariance_max_age_ns=c.get('slam_covariance_max_age_ns'))
 
     def phase(self,robot):
         mode=self.settings[robot]['mode']
@@ -162,8 +167,9 @@ class SavedMapSources:
                 r.node.get_logger().error('saved map blocked: '+str(exc))
             self._publish_map_state(robot)
 
-    def receive_pose(self,robot,message,source='localization'):
-        """``source`` 'slam' (SLAM pose topic) counts only while searching, 'localization' (AMCL) otherwise."""
+    def receive_pose(self,robot,message,source='localization',covariance_fresh=True):
+        """``source`` 'slam' (TF map -> base_link, slam_tf_pose) counts only while searching, 'localization'
+        (AMCL) otherwise. ``covariance_fresh`` False (the SLAM pose giving the covariance is too old): not valid."""
         r=self.runtime
         with r.adapter.lock:
             if (source=='slam')!=(self.phase(robot)=='SLAM'): return
@@ -179,6 +185,7 @@ class SavedMapSources:
                     valid=(vx>=0 and vy>=0 and math.isclose(cxy,covariance[6],abs_tol=1e-9)
                         and cxy*cxy<=vx*vy and (vx+vy+math.hypot(vx-vy,2*cxy))/2<=c['max_position_variance_m2']
                         and 0<=covariance[35]<=c['max_yaw_variance_rad2'])
+                valid=valid and covariance_fresh
                 self.poses[robot]=(observed,valid)
                 if self.publisher is not None and robot==self.publisher.robot:
                     self.publisher.on_pose(message,observed,valid)
@@ -203,6 +210,36 @@ class SavedMapSources:
         return result
 
 
+def attach_slam_tf_pose(r,robot,c,subscribe):
+    """TB-6 searching: TF map -> base_link on the poll period, covariance from <ns>/pose (OPS-177)."""
+    from geometry_msgs.msg import PoseWithCovarianceStamped
+    from rclpy.qos import qos_profile_sensor_data
+    from tf2_msgs.msg import TFMessage
+    from rescue_robot.slam_tf_pose import pose_message
+    source=r.saved_maps.slam_tf[robot]; said={'refused':False}
+
+    def on_tf(message):
+        if source.on_tf(message) and not said['refused']:
+            said['refused']=True
+            r.node.get_logger().warning(f'SLAM_TF_POSE {robot}: a non-planar map/odom/base edge was not used')
+
+    def on_slam_pose(message):
+        if message.header.frame_id!=c['map_frame']: raise ContractError('SLAM pose is not in the map frame')
+        source.on_covariance(stamp(message),list(message.pose.covariance))
+
+    def tick():
+        with r.adapter.lock:
+            pose=source.pose(now_ns=r.adapter.wall_clock_ns())
+            if pose is None: return   # no TF edge or no SLAM pose yet: no pose, MapState stays UNKNOWN
+            r.saved_maps.receive_pose(robot,pose_message(pose,c['map_frame'],PoseWithCovarianceStamped),
+                                      source='slam',covariance_fresh=pose['covariance_fresh'])
+
+    subscribe(TFMessage,c['slam_tf_topic'],on_tf,100,lambda:None)
+    subscribe(PoseWithCovarianceStamped,c['slam_localization_topic'],on_slam_pose,qos_profile_sensor_data,lambda:None)
+    timer=r.node.create_timer(r.config['poll_period_s'],tick)
+    r.input_handles.append(('destroy_timer',timer))
+
+
 def attach_sources(runtime):
     """Bind real ROS inputs; polling is asynchronous and never moves the robot."""
     from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, qos_profile_sensor_data
@@ -225,9 +262,7 @@ def attach_sources(runtime):
             subscribe(OccupancyGrid,topic,r.saved_maps.receive_frozen,snapshot,lambda:None)
         for robot,c in r.saved_maps.settings.items():
             if c['mode']=='SLAM_THEN_FROZEN':
-                subscribe(PoseWithCovarianceStamped,c['slam_localization_topic'],
-                          lambda m,robot=robot:r.saved_maps.receive_pose(robot,m,source='slam'),qos_profile_sensor_data,
-                          lambda robot=robot:r.saved_maps.poses.pop(robot,None))
+                attach_slam_tf_pose(r,robot,c,subscribe)
             subscribe(OccupancyGrid,c['map_topic'],lambda m,robot=robot:r.saved_maps.receive_map(robot,m),snapshot,
                       lambda robot=robot:r.saved_maps.maps.pop(robot,None))
             subscribe(PoseWithCovarianceStamped,c['localization_topic'],lambda m,robot=robot:r.saved_maps.receive_pose(robot,m),qos_profile_sensor_data,
