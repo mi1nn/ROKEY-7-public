@@ -72,7 +72,7 @@ flowchart LR
 | PC | launch | 노드 | 하는 일 |
 | --- | --- | --- | --- |
 | 운영 PC | `operations.launch.py` | db_writer, report_node, webcam_node, mjpeg_relay, robot_view_relay, map_snapshot, robot_watch | 현장 상태 DB 기록과 명령 API, 보고 저장, 웹캠 지진·소실 판정, 영상 중계, 실시간 지도 파일 저장, 로봇 배터리·도킹 직접 관측 |
-| 운영 PC | `coordinator.launch.py` | mission_coordinator | 두 로봇의 임무 결정, 지도 고정 요청, 교통 관제 |
+| 운영 PC | `coordinator.launch.py` | mission_coordinator | 두 로봇의 임무 결정, 지도 고정 요청. 교통 관제는 #272(머지 전, 지금 코드에 없음) |
 | 운영 PC | (launch 없음, 직접 실행) | rescue_console (Flask) | 관제 웹 |
 | TB-6 담당 PC | `tb6_slam.launch.py` | slam_toolbox | 탐색 중 SLAM. 2차 고정 뒤 사람이 끄고 아래 위치 추정으로 바꾼다 |
 | TB-6 담당 PC | `frozen_localization.launch.py` (robot_a) | frozen_map_relay, amcl | 2차 고정 뒤 고정 지도 위치 추정 |
