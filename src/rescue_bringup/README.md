@@ -84,8 +84,14 @@ RViz에서 `2D Pose Estimate`로 실제 초기 위치와 방향을 지정하고 
 ```bash
 ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json> \
   db_path:=<site_state.sqlite3> api_port:=<포트> command_timeout_s:=3.0 \
-  webcam_params_file:=<webcam_node.yaml>   # 빼면 웹캠 없이
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  webcam_params_file:=<webcam_node.yaml> \
+  video_port:=<포트> video_bind_host:=<주소> video_stale_s:=2.0
 ```
+
+`webcam_params_file` 을 빼면 웹캠 없이, `video_*` 를 빼면 판정 영상 중계 없이 뜬다.
+
+- 판정 영상 중계(`mjpeg_relay`, #153): `video_port` 를 주면 켠다. 웹캠을 이 PC 에서 띄울 때만 가능하고(`webcam_params_file` 없이 주면 launch 가 멈춤), 입력 토픽은 웹캠 설정의 `debug_image_topic`, 주소 경로는 `/<camera_id>.mjpg` 다. `video_bind_host`·`video_stale_s` 는 켤 때 필수다. launch 가 관제 웹에 줄 값을 로그로 남긴다: `console --camera cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`. 관제 웹을 보는 브라우저가 이 주소에 닿아야 하므로, 다른 기기에서 볼 때는 `video_bind_host` 를 그 기기가 닿는 주소로 준다.
 
 - `db_path` 는 프로파일의 로봇 ID 구성(지금은 `robot_a`·`robot_b`)이 같으면 같은 파일을 계속 쓴다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않으므로, ID 구성을 바꿀 때만 새 파일을 쓴다. 더 낮은 schema 파일은 처음 열 때 올라가므로 그 전에 복사본을 남긴다.
 - 운영자 명령 API 는 `127.0.0.1` 에서만 받는다(API 자체에 로그인 확인 없음). 관제 웹은 이 launch 밖의 웹 서비스로, `--site-state <db_path> --operations http://127.0.0.1:<api_port>` 로 같은 DB·API 를 가리킨다.
@@ -104,7 +110,7 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 무엇 | 상태 (2026-10-13) |
 | --- | --- |
 | 운영 `operations.launch.py`: db_writer + 구조 보고 저장(report_node) + 웹캠 | 있음(#134·#144) |
-| 운영 launch 의 웹캠 판정 영상 중계(mjpeg_relay, `video_port`) | PR #158 머지 뒤 |
+| 운영 launch 의 웹캠 판정 영상 중계(mjpeg_relay, `video_port`) | 있음(#158) |
 | 조정기 `coordinator.launch.py`, 로봇 `robot.launch.py`, 지도 해시 `scripts/field/map_occupancy_sha256.py` | 있음(#152) |
 | 지도 기준 값 `map_basis`(프로파일, 조정기·로봇·탐지 launch 공용) | 있음(#145). 현장 프로파일에 넣어야 한다(frame `map`) |
 | PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | PR #156 머지 뒤 |
@@ -127,7 +133,8 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
   db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
   report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
-  [webcam_params_file:=<webcam_node.yaml>]
+  [webcam_params_file:=<webcam_node.yaml> [video_port:=<port> video_bind_host:=<address> video_stale_s:=2.0]]
+# 관제 웹: --site-state <db_path> --operations http://127.0.0.1:<port> --camera <launch 로그의 console --camera 값>
 
 # 웹캠 PC(운영 PC 와 다를 때): 웹캠 노드만. 파라미터 예시는 rescue_perception share/config/webcam_node.example.yaml
 # 프로파일 site_cameras[].host 는 4대 중 그 PC 의 호스트 id(예: coordination)
