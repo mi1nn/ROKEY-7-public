@@ -6,6 +6,13 @@ select a pair; steady time bounds waiting and memory retention.
 from collections import deque
 import math
 
+# The selective node is a local test (2026-10-13): its own node name, and observations/base points on test
+# topics so its clock-UNKNOWN observations never sit on the consumers' /rescue/observations (TRANSIENT_LOCAL)
+# next to the main amr_target's (#205 review REV-205-02). Remap them when a real topic is wanted.
+NODE_NAME = 'amr_target_selective'
+TEST_TOPICS = {'observations_topic': '/rescue/selective_test/observations',
+               'base_point_topic': 'perception/selective_test/target_base_point'}
+
 
 class SelectiveDepth:
     def __init__(self, *, capacity, slop_ns, wait_s, confidence, label):

@@ -37,6 +37,12 @@ class Recorder:
     def state(self, now_ns):
         self.events.append(('state',))
 
+    def freeze(self):
+        self.events.append(('freeze',))
+
+    def note(self, line):
+        self.events.append(('note', line.split()[0]))
+
 
 class NodeTickOrderTests(unittest.TestCase):
     def test_the_snapshot_with_a_new_revision_goes_before_the_goal_naming_it(self):
