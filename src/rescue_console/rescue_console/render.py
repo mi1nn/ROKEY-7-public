@@ -339,6 +339,42 @@ def _events(view):
             f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
+# ---- command and error history (fragment) ---------------------------------------------------
+
+def _reply(code):
+    """Reason word with its code; an unknown code is shown once, as itself."""
+    if code is None:
+        return ''
+    word = label('reply', code)
+    return escape(code) if word == code else f'{escape(word)} <code>{escape(code)}</code>'
+
+
+def _history(view):
+    history = view['history']
+    head = '<h2>명령·오류 기록</h2>'
+    if history is None:
+        return (f'<section id="history" class="empty">{head}<p>기록 입력 없음 — <code>--site-state</code> 로 '
+                '띄우면 운영자 명령의 접수·거절과 operations 오류가 보입니다.</p></section>')
+    built, rows = view['built_at_ns'], []
+    for row in history['rows']:
+        if row['kind'] == 'COMMAND':
+            outcome, css = ('접수', 'accepted') if row['accepted'] else ('거절', 'refused')
+            target = '' if row['target_id'] is None else f' 대상 {_short(row["target_id"])}'
+            rows.append(f'<tr class="hist command {css}" data-ref="{escape(row["ref_id"])}">'
+                        f'<td class="t">{_time(row["at_ns"], built)}</td>'
+                        f'<td>{escape(row["what_label"])}</td>'
+                        f'<td><b class="outcome" title="{escape(row["result"] or "")}">{outcome}</b> '
+                        f'{_reply(row["reason"])}{target}</td></tr>')
+        else:
+            rows.append(f'<tr class="hist error" data-ref="{escape(row["ref_id"])}">'
+                        f'<td class="t">{_time(row["at_ns"], built)}</td><td>오류</td>'
+                        f'<td><b class="outcome">{escape(row["what"])}</b> {escape(row["detail"])}</td></tr>')
+    missing = ''.join(f'<p class="missing">{escape(key)} 입력 없음</p>' for key in history['missing'])
+    body = ('<table><thead><tr><th>시각</th><th>무엇</th><th>결과 · 사유</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>') if rows else '<p>아직 기록 없음</p>'
+    return f'<section id="history">{head}{missing}{body}</section>'
+
+
 def _gates(view):
     """The command gate mirror for the buttons outside the fragment; the page script applies it after each poll."""
     gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
@@ -348,7 +384,7 @@ def _gates(view):
 def render_fragment(view):
     """The part of the page that the browser replaces on every poll (its children sit in the page grid)."""
     return (_band(view) + _warnings(view) + _map(view) + '<div id="middle">' + _robots(view) + _targets(view)
-            + '</div>' + _events(view) + _gates(view))
+            + '</div>' + _events(view) + _history(view) + _gates(view))
 
 
 # ---- page-level parts (outside the polled fragment) -----------------------------------------
@@ -407,16 +443,16 @@ dl{margin:0}
 .console{display:grid;gap:10px;padding:10px;min-height:100vh;
   grid-template-columns:minmax(0,1fr) 400px 470px;
   grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
-  grid-template-areas:"band band top" "warn warn side" "map middle side" "log log side"}
+  grid-template-areas:"band band top" "warn warn side" "map middle side" "log hist side"}
 #live{display:contents}
 #mission{grid-area:band} #warnings{grid-area:warn} #map{grid-area:map} #middle{grid-area:middle}
-#events{grid-area:log} #topbar{grid-area:top} #side{grid-area:side}
+#events{grid-area:log} #history{grid-area:hist} #topbar{grid-area:top} #side{grid-area:side}
 @media (min-width:1400px) and (min-height:820px){ .console{height:100vh;overflow:hidden} }
 @media (max-width:1399px){
   .console{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
-    grid-template-areas:"top" "band" "warn" "map" "side" "middle" "log"}
+    grid-template-areas:"top" "band" "warn" "map" "side" "middle" "log" "hist"}
 }
-#map,#middle>section,#events,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
+#map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
 #middle{display:flex;flex-direction:column;gap:10px;min-height:0}
 /* Robot cards give way (and scroll) before the victims list does (#64). */
 #robots{min-height:0;overflow:auto}
@@ -539,6 +575,15 @@ dl{margin:0}
 #events tr.disaster_sign td.kind{color:var(--signal);font-weight:700}
 #events tr.target_disappeared_candidate td.kind{color:var(--safe);font-weight:700}
 #events tr.fresh td{background:var(--caution-tint)}
+/* ---- command and error history: beside the event log, under the victims; scrolls inside ---- */
+#history{min-height:0;overflow:auto}
+#history table{border-collapse:collapse;width:100%;font-size:13px}
+#history th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2)}
+#history td{padding:3px 6px;border-bottom:1px solid #d5dbda;vertical-align:top}
+#history td.t,#history td:nth-child(2){white-space:nowrap}
+#history tr.refused .outcome,#history tr.error .outcome{color:var(--signal);font-weight:700}
+#history tr.accepted .outcome{color:var(--safe)}
+#history .missing,#history.empty p{color:var(--ink-2)}
 
 /* ---- side: cameras and commands ---- */
 #cameras figure{margin:0;position:relative}
