@@ -10,8 +10,10 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / 'scripts/field/preflight_role.py'
@@ -59,8 +61,8 @@ class RoleCase(unittest.TestCase):
         self.write_webcam()
         self.map = self.dir / 'map.yaml'
         (self.dir / 'map.pgm').write_bytes(b'P5 1 1 255 \x00')
-        self.map.write_text('image: map.pgm\nresolution: 0.05\norigin: [0.0, 0.0, 0.0]\n'
-                            'negate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n')
+        self.map.write_text(json.dumps(dict(image='map.pgm', resolution=0.05, origin=[0.0, 0.0, 0.0],
+                                          negate=0, occupied_thresh=0.65, free_thresh=0.25)))
 
     def write_webcam(self, drop=(), **changes):
         from rescue_perception.webcam_node import PARAMS
@@ -125,6 +127,25 @@ class Duties(RoleCase):
 
 
 class Failures(RoleCase):
+    def test_json_settings_remain_checked_without_yaml(self):
+        with patch.dict(sys.modules, {'yaml': None}):
+            self.assertStatus(self.run_role('compute_a'), 'map.files', pr.PASSED)
+            self.assertStatus(self.run_role('operations'), 'webcam.model', pr.PASSED)
+
+    def test_native_yaml_without_parser_is_not_run(self):
+        self.map.write_text('image: map.pgm\n')
+        self.webcam.write_text('webcam_node:\n  ros__parameters: {}\n')
+        with patch.dict(sys.modules, {'yaml': None}):
+            self.assertStatus(self.run_role('compute_a'), 'map.files', pr.NOT_RUN)
+            self.assertStatus(self.run_role('operations'), 'webcam.params', pr.NOT_RUN)
+
+    @unittest.skipUnless(importlib.util.find_spec('yaml'), 'native YAML parsing needs PyYAML')
+    def test_malformed_yaml_is_failed(self):
+        self.map.write_text('image: [unterminated')
+        self.webcam.write_text('webcam_node: [unterminated')
+        self.assertStatus(self.run_role('compute_a'), 'map.files', pr.FAILED)
+        self.assertStatus(self.run_role('operations'), 'webcam.params', pr.FAILED)
+
     def test_ros_not_sourced(self):
         checks = self.run_role('coordination', env={})
         self.assertStatus(checks, 'ros.distro', pr.FAILED)
