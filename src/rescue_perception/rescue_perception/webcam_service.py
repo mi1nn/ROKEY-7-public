@@ -113,6 +113,11 @@ class WatchSlot:
         self.detector = TargetWatchDetector(self._binding, self._policy, watch)
         return WatchReply(True, watch.watch_id, self.revision, "ACCEPTED")
 
+    def camera_changed(self):
+        """카메라를 바꿨다(OPS-183): ROI 가 다른 화면을 가리키므로 활성 감시를 푼다."""
+        self._clear()
+        self._image_size = None
+
     def _clear(self):
         self.revision += 1
         self.watch = None

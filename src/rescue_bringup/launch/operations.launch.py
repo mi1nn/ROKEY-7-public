@@ -46,7 +46,8 @@ def _nodes(context):
     values = parse_launch_arguments(db_path=arg('db_path'), api_port=arg('api_port'),
                                     command_timeout_s=arg('command_timeout_s'))
     nodes = [Node(package='rescue_operations', executable='db_writer', name='rescue_db_writer', output='screen',
-                  parameters=[db_writer_parameters(deployment, **values)]),
+                  parameters=[db_writer_parameters(deployment, **values,
+                                                   webcam_node='/webcam_node' if arg('webcam_params_file') else '')]),
              Node(package='rescue_operations', executable='report_node', name='rescue_report_node', output='screen',
                   parameters=[_text_as_text(report_node_parameters(
                       db_path=values['db_path'], report_db_path=arg('report_db_path'),

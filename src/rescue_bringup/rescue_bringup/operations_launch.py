@@ -43,7 +43,7 @@ def parse_launch_arguments(*, db_path, api_port, command_timeout_s):
     return dict(db_path=db_path, api_port=port, command_timeout_s=timeout)
 
 
-def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s):
+def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, webcam_node):
     """Profile + launch values -> every parameter rescue_operations db_writer requires."""
     if not isinstance(deployment, Deployment) or deployment.mission is None:
         raise LaunchSettingError('profile v2 with mission roles is required (config/deployment.v2.example.json)')
@@ -68,6 +68,8 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s):
         'api_port': api_port,
         'operator_command_service': OPERATOR_COMMAND_SERVICE,
         'command_timeout_s': command_timeout_s,
+        # the console's camera pick goes to this webcam_node ('' = no webcam in this launch, OPS-183)
+        'webcam_node': webcam_node,
     }
 
 

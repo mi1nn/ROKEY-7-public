@@ -17,6 +17,7 @@ from .labels import label
 from .view import ConsoleError
 
 COMMAND_PATH = '/api/operator-commands'
+WEBCAM_PATH = '/api/webcam'   # operations: GET 꽂힌 카메라 목록, POST {device, operator_id} 바꾸기(OPS-183)
 # 관제 웹이 operations의 응답을 대기하는 타임아웃. operations가 coordinator 서비스를 호출하는 시간까지
 # 감안하여 설정한다([제안] 관제·화면, 2026-10-12; PR 본문 「열린 것」).
 COMMAND_TIMEOUT_S = 5.0
@@ -113,8 +114,10 @@ def build_request(form, *, operator_id, command_id):
 
 
 def post_json(url, payload, timeout):
-    """재시도 없이 단일 HTTP POST를 수행한다. 응답 수신 시 (status, body)를 반환하고, 실패 시 CommandSendError를 발생시킨다."""
-    request = urllib.request.Request(url, data=json.dumps(payload).encode(), method='POST',
+    """재시도 없이 단일 HTTP POST(payload None 이면 GET)를 수행한다. 응답 수신 시 (status, body)를 반환하고, 실패 시
+    CommandSendError를 발생시킨다."""
+    request = urllib.request.Request(url, data=None if payload is None else json.dumps(payload).encode(),
+                                     method='GET' if payload is None else 'POST',
                                      headers={'Content-Type': 'application/json', 'Accept': 'application/json'})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -173,3 +176,34 @@ def send_command(base_url, payload, *, transport=post_json, timeout=COMMAND_TIME
     except CommandSendError as exc:
         return {'sent': False, **head, 'error': exc.code, 'message': exc.message, 'delivery': exc.delivery}
     return {'sent': True, **head, **reply, 'reason_label': label('reply', reply['reason'])}
+
+
+WEBCAM_LIST_TIMEOUT_S = 1.0   # 화면을 그릴 때 한 번 묻는다: 오래 막지 않는다
+
+
+def webcam_state(base_url, *, transport=post_json):
+    """(cameras, current, problem): operations 가 본 꽂힌 카메라(by-id 이름)와 지금 장치. 못 받으면 problem 만."""
+    try:
+        status, body = transport(base_url + WEBCAM_PATH, None, WEBCAM_LIST_TIMEOUT_S)
+        data = json.loads(body)
+        if status != 200 or not isinstance(data.get('cameras'), list):
+            raise ValueError(f'HTTP {status}')
+    except (CommandSendError, ValueError, TypeError, AttributeError) as exc:
+        return [], None, f'카메라 목록을 못 받음: {getattr(exc, "message", exc)}'
+    return [str(name) for name in data['cameras']], data.get('current'), None
+
+
+def switch_webcam(base_url, device, *, operator_id, transport=post_json, timeout=COMMAND_TIMEOUT_S):
+    """(ok, 문구): 고른 카메라를 operations 로 한 번 보낸다. 재시도하지 않고 답을 그대로 문구로 만든다."""
+    try:
+        status, body = transport(base_url + WEBCAM_PATH, {'device': device, 'operator_id': operator_id}, timeout)
+        data = json.loads(body)
+    except CommandSendError as exc:
+        return False, f'카메라 전환 요청 실패({exc.code}): {exc.message} — 바뀌었는지 모름' if exc.delivery == 'UNKNOWN' \
+            else f'카메라 전환 요청 실패({exc.code}): {exc.message}'
+    except (TypeError, ValueError):
+        return False, f'카메라 전환 답을 못 읽음(HTTP {status}) — 바뀌었는지 모름'
+    if isinstance(data, dict) and data.get('switched') is True:
+        return True, f'카메라 전환 — 지진 판정 다시 시작, 출구 감시 풀림 ({data.get("current")})'
+    reason = data.get('reason') if isinstance(data, dict) else None
+    return False, f'카메라 전환 거절: {reason or f"HTTP {status}"}'

@@ -67,6 +67,14 @@ def git_sha():
         return 'UNKNOWN'
 
 
+CAMERA_BY_ID_DIR = '/dev/v4l/by-id'   # same naming as the launch webcam_device (#204)
+
+
+def plugged_cameras(by_id_dir):
+    """Plugged camera names: the capture node of each (``*-video-index0``), as #204 lists them."""
+    return sorted(p.name for p in Path(by_id_dir).glob('*-video-index0'))
+
+
 def node_config(values):
     """Parameter values -> checked config. Raises OperationsError(INVALID_INPUT) before anything starts."""
     ids = list(values['allowed_robot_ids'])
@@ -86,8 +94,11 @@ def node_config(values):
     require(type(port) is int and 1 <= port <= 65535, 'api_port must be 1..65535')
     require(isinstance(timeout_s, float) and 0.0 < timeout_s < CONSOLE_TIMEOUT_S,
             f'command_timeout_s must be over 0 and under the console {CONSOLE_TIMEOUT_S:g} s')
+    webcam_node = values['webcam_node']
+    require(isinstance(webcam_node, str) and (webcam_node == '' or webcam_node.startswith('/')),
+            "webcam_node must be the webcam_node's absolute name, or '' for no console camera pick")
     # The path itself (parent exists, not a directory) is checked when the ledger opens it.
-    return {'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
+    return {'webcam_node': webcam_node, 'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
             'system_state_topic': values['system_state_topic'], 'targets_topic': values['targets_topic'],
             'exit_location_topic': values['exit_location_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
@@ -130,7 +141,7 @@ def main(args=None):
                                        TargetSnapshot)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
-    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, make_server
+    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, WebcamSwitch, make_server
 
     from .ros_ingest import SiteStateIngest
     from .site_state import SiteStateLedger
@@ -144,7 +155,8 @@ def main(args=None):
              'system_state_topic': Parameter.Type.STRING, 'targets_topic': Parameter.Type.STRING,
              'exit_location_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
-             'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE}
+             'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE,
+             'webcam_node': Parameter.Type.STRING}
     values = {}
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, kind)
@@ -223,8 +235,37 @@ def main(args=None):
                     created_task_id=res.created_task_id)
 
     gate = CommandGate(ledger, send, timeout_ns=config['command_timeout_ns'])
+    webcam = None
+    if config['webcam_node']:   # the console's camera pick (OPS-183): webcam_node's own parameter services
+        from rcl_interfaces.msg import Parameter as ParameterMsg, ParameterType, ParameterValue
+        from rcl_interfaces.srv import GetParameters, SetParameters
+        get_client = node.create_client(GetParameters, config['webcam_node'] + '/get_parameters')
+        set_client = node.create_client(SetParameters, config['webcam_node'] + '/set_parameters')
+
+        def call(client, req):
+            if not client.service_is_ready():
+                raise CommandUnavailable(f'{client.srv_name} not available')
+            done = threading.Event()
+            future = client.call_async(req)
+            future.add_done_callback(lambda _: done.set())
+            if not done.wait(config['command_timeout_ns'] / 1e9):
+                client.remove_pending_request(future)
+                raise CommandTimeout(f'no answer within {config["command_timeout_ns"] / 1e9:g} s')
+            return future.result()
+
+        def get_device():
+            return call(get_client, GetParameters.Request(names=['device_path'])).values[0].string_value
+
+        def set_device(path):
+            value = ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=path)
+            result = call(set_client, SetParameters.Request(
+                parameters=[ParameterMsg(name='device_path', value=value)])).results[0]
+            return result.successful, result.reason
+
+        webcam = WebcamSwitch(ledger, list_cameras=lambda: plugged_cameras(CAMERA_BY_ID_DIR), get_device=get_device,
+                              set_device=set_device, by_id_dir=CAMERA_BY_ID_DIR + '/')
     try:
-        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug)
+        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam)
     except OSError as exc:
         log.fatal(f'cannot serve the command API on {config["api_host"]}:{config["api_port"]}: {exc}')
         ledger.close()

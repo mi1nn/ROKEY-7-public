@@ -22,6 +22,7 @@ from .schema import OperationsError, require, text, uid, uint
 from .site_state import OPERATOR_COMMAND_KINDS
 
 COMMAND_PATH = "/api/operator-commands"
+WEBCAM_PATH = "/api/webcam"  # GET: plugged cameras; POST {device, operator_id}: switch webcam_node (OPS-183)
 MAX_BODY_BYTES = 8192
 # Per-kind request fields = rescue_coordination mission.ALL_COMMAND_FIELDS (the coordinator's gate).
 # Phase 1 takes these six; PAUSE/RESUME/CANCEL/STOP_ROBOT and the other IDL operations are refused.
@@ -164,8 +165,60 @@ class CommandGate:
         self.ledger.record_error(dict(at_ns=at_ns, robot_id=None, task_id=None, code=code, detail=detail[:1024]))
 
 
-def make_server(host, port, gate, *, log=None):
-    """A threading HTTP server with one route, POST COMMAND_PATH -> gate.handle. Not started."""
+class WebcamSwitch:
+    """The console's camera pick (OPS-183): plugged ``by-id`` cameras and switching webcam_node's device_path.
+
+    Only a plugged camera is sent; anything else is refused with the list (never kept quietly on the old one).
+    A switch restarts the quake judge and clears the exit watch in webcam_node, so it is written to error_log
+    (CAMERA_SWITCHED / CAMERA_SWITCH_REFUSED) and shows in the console's command and error history.
+    """
+
+    def __init__(self, ledger, *, list_cameras, get_device, set_device, by_id_dir):
+        self.ledger, self.list_cameras, self.get_device, self.set_device = ledger, list_cameras, get_device, set_device
+        self.by_id_dir = by_id_dir
+
+    def _name(self, path):
+        return path[len(self.by_id_dir):] if path and path.startswith(self.by_id_dir) else path
+
+    def state(self):
+        try:
+            current = self._name(self.get_device())
+        except (CommandUnavailable, CommandTimeout):
+            current = None
+        return 200, {"cameras": self.list_cameras(), "current": current}
+
+    def switch(self, raw, *, received_at_ns):
+        try:
+            require(isinstance(raw, bytes) and len(raw) <= MAX_BODY_BYTES, "body too large")
+            value = json.loads(raw)
+            require(isinstance(value, dict), "body must be a JSON object")
+            device, operator = value.get("device"), text(value.get("operator_id"), "operator_id")
+            require(isinstance(device, str) and device, "device must be a camera name")
+        except (OperationsError, UnicodeDecodeError, ValueError) as exc:
+            return 400, {"switched": False, "reason": "INVALID_INPUT", "detail": str(exc)}
+        cameras = self.list_cameras()
+        if device not in cameras:
+            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device} is not plugged in ({cameras})")
+            return 400, {"switched": False, "reason": "UNKNOWN_DEVICE", "cameras": cameras}
+        before = self.state()[1]["current"]
+        try:
+            ok, reason = self.set_device(self.by_id_dir + device)
+        except (CommandUnavailable, CommandTimeout) as exc:
+            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device}: webcam_node did not answer: {exc}")
+            return 503, {"switched": False, "reason": "WEBCAM_NODE_UNAVAILABLE", "detail": str(exc)}
+        if not ok:
+            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device}: {reason}")
+            return 200, {"switched": False, "reason": reason, "current": before}
+        self._log(received_at_ns, "CAMERA_SWITCHED",
+                  f"{operator}: {before} -> {device} — 카메라 전환, 지진 판정 다시 시작·출구 감시 풀림")
+        return 200, {"switched": True, "current": device}
+
+    def _log(self, at_ns, code, detail):
+        self.ledger.record_error(dict(at_ns=at_ns, robot_id=None, task_id=None, code=code, detail=detail[:1024]))
+
+
+def make_server(host, port, gate, *, log=None, webcam=None):
+    """A threading HTTP server: POST COMMAND_PATH -> gate.handle; with ``webcam`` also GET/POST WEBCAM_PATH. Not started."""
 
     class Handler(BaseHTTPRequestHandler):
         def _answer(self, status, body):
@@ -176,8 +229,13 @@ def make_server(host, port, gate, *, log=None):
             self.end_headers()
             self.wfile.write(data)
 
+        def do_GET(self):  # noqa: N802 - http.server naming
+            if self.path != WEBCAM_PATH or webcam is None:
+                return self._answer(404, {"error": "NOT_FOUND"})
+            self._answer(*webcam.state())
+
         def do_POST(self):  # noqa: N802 - http.server naming
-            if self.path != COMMAND_PATH:
+            if self.path not in (COMMAND_PATH, WEBCAM_PATH) or (self.path == WEBCAM_PATH and webcam is None):
                 return self._answer(404, {"error": "NOT_FOUND"})
             try:
                 length = int(self.headers.get("Content-Length", ""))
@@ -185,7 +243,8 @@ def make_server(host, port, gate, *, log=None):
                 return self._answer(411, {"error": "INVALID_INPUT", "detail": "Content-Length required"})
             if not 0 <= length <= MAX_BODY_BYTES:
                 return self._answer(413, {"error": "INVALID_INPUT", "detail": f"body over {MAX_BODY_BYTES} bytes"})
-            status, body = gate.handle(self.rfile.read(length), received_at_ns=time.time_ns())
+            handle = gate.handle if self.path == COMMAND_PATH else webcam.switch
+            status, body = handle(self.rfile.read(length), received_at_ns=time.time_ns())
             self._answer(status, body)
 
         def log_message(self, fmt, *args):

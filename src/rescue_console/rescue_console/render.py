@@ -1155,7 +1155,7 @@ watchCameras();
 """
 
 
-def _cameras(cameras, stale_ms=None):
+def _cameras(cameras, stale_ms=None, webcam=None, csrf=None, mode=None):
     """카메라 PC의 MJPEG 게이트웨이(IF-082) 스트림을 직접 임베드한다.
 
     폴링 프래그먼트 외부에 배치되어 브라우저 갱신 시에도 영상 스트림이 재연결되지 않는다.
@@ -1172,7 +1172,25 @@ def _cameras(cameras, stale_ms=None):
         '<p class="nosignal">영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.</p>'
         f'<figcaption><span>{escape(camera_id)}</span><span></span></figcaption></figure>'
         for camera_id, url in cameras)
-    return f'<section id="cameras"><h2>웹캠</h2>{figures}</section>'
+    return f'<section id="cameras"><h2>웹캠</h2>{figures}{_webcam_picker(webcam, csrf, mode)}</section>'
+
+
+def _webcam_picker(webcam, csrf, mode):
+    """관리자의 카메라 고르기(OPS-183). 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀리므로 늘 확인을 받고,
+    재난 모드(임무 진행 중)에는 그 말을 더 크게 한다."""
+    if webcam is None:
+        return ''
+    notices = ''.join(f'<p class="webcam-notice">{escape(text)}</p>' for text in webcam['notices'])
+    if webcam['problem']:
+        return f'<div class="webcam-pick">{notices}<p class="alert">{escape(webcam["problem"])}</p></div>'
+    options = ''.join(f'<option value="{escape(name)}"{" selected" if name == webcam["current"] else ""}>'
+                      f'{escape(name)}</option>' for name in webcam['cameras'])
+    warn = ('임무 진행 중(재난 모드)입니다. 카메라를 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀립니다. 바꿀까요?'
+            if mode == 'DISASTER' else '카메라를 바꾸면 지진 판정이 처음부터 다시 돌고 출구 감시가 풀립니다. 바꿀까요?')
+    return (f'<form class="webcam-pick" method="post" action="/webcam" onsubmit="return confirm({escape(json.dumps(warn, ensure_ascii=False))})">'
+            f'{notices}<input type="hidden" name="csrf" value="{escape(csrf or "")}">'
+            f'<label>카메라 <select name="device">{options}</select></label>'
+            '<button type="submit">카메라 바꾸기</button></form>')
 
 
 def page_title(view):
@@ -1199,7 +1217,7 @@ def render_failure(code, message):
             '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
 
 
-def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
+def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None, webcam=None):
     """`cameras`: CLI 인자로 전달된 ((camera_id, URL), ...). 설정 시 `camera_stale_s` 옵션도 필수이다
     (영상 두절 판정 대기 시간, 기본값 없음). `command_access`:
     commands.command_access의 (allowed, reason) 튜플이며, 미지정 시 명령 패널이 비활성화된다."""
@@ -1214,7 +1232,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras, stale_ms)}{_commands(view, access, csrf)}</aside>'
+            + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view['mission']['mode'])}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
 

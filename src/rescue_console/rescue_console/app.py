@@ -11,7 +11,8 @@ import time
 import uuid
 
 from .accounts import AccountStore
-from .commands import build_request, command_access, parse_operations_url, post_json, send_command
+from .commands import (build_request, command_access, parse_operations_url, post_json, send_command, switch_webcam,
+                       webcam_state)
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
@@ -291,9 +292,27 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @login_required
     def page(account):
         """전체 관제 화면 렌더링. 명령 패널 활성화 여부는 계정 역할 및 --operations 지정 여부에 따라 결정된다."""
+        picker = None
+        if cameras and operations is not None and account['role'] == 'ADMIN':   # 카메라 고르기(OPS-183): 관리자만
+            picker = dict(zip(('cameras', 'current', 'problem'), webcam_state(operations, transport=transport)),
+                          notices=get_flashed_messages(category_filter=['webcam']))
         return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras, camera_stale_s=camera_stale_s,
-                                    command_access=command_access(account['role'], operations is not None)),
+                                    command_access=command_access(account['role'], operations is not None),
+                                    webcam=picker),
                         mimetype='text/html')
+
+    @app.post('/webcam')
+    @admin_required
+    def webcam(account):
+        """웹캠 칸의 카메라 고르기(OPS-183) -> operations 로 한 번 보내고 답을 다음 화면에 보인다."""
+        check_csrf()
+        if operations is None:
+            abort(503, 'no --operations')
+        ok, message = switch_webcam(operations, request.form.get('device', ''), operator_id=account['username'],
+                                    transport=transport)
+        (app.logger.info if ok else app.logger.warning)('webcam switch by %s: %s', account['username'], message)
+        flash(message, 'webcam')
+        return redirect('/')
 
     @app.get('/fragment')
     @login_required
