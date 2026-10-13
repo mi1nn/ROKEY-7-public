@@ -186,8 +186,9 @@ class OneShotTarget:
     def reason(self, candidate):
         if self.state == 'SENT':
             return 'ALREADY_SENT'
-        if candidate.status != 'CONFIRMED':
-            return 'UNCONFIRMED'
+        if candidate.status != 'CONFIRMED':   # name the pipeline reasons: the field log is the only clue
+            reasons = getattr(candidate, 'reasons', ())
+            return f'UNCONFIRMED({",".join(reasons)})' if reasons else 'UNCONFIRMED'
         o = candidate.observation
         point = o.localization.point_optical
         if point is None or not all(math.isfinite(x) for x in point):

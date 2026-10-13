@@ -6,13 +6,16 @@ the coordinator. A TF that does not arrive within tf_wait_s, or any refused inpu
 and nothing is published. The robot's namespaced TF is given by remapping /tf and /tf_static.
 """
 import json
+import math
 import sys
 import time
 from uuid import uuid4
 
 from .camera_utils import git_sha
 from .target_location import LocationBasis, LocationRefused, fill_location, locate
-from .target_utils import fill_envelope
+from .target_utils import SETTINGS as TARGET_SETTINGS, fill_envelope
+
+TARGET_LOCATIONS_TOPIC = '/rescue/target_locations'  # the coordinator's subscription (rescue_coordination)
 
 PARAMS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
     'robot_id': 'STRING', 'observations_topic': 'STRING', 'target_locations_topic': 'STRING',
@@ -30,6 +33,40 @@ PARAMS = {  # name -> rcl_interfaces ParameterType name; every one is required, 
     'alignment_authority_id': 'STRING', 'alignment_valid_from_ns': 'INTEGER', 'alignment_valid_until_ns': 'INTEGER',
     'publisher_id': 'STRING', 'envelope_schema_version': 'STRING',
 }
+
+
+def profile_parameters(deployment, map_basis, *, tf_wait_s, clock_domain_id, alignment_authority_id,
+                       alignment_valid_from_ns, alignment_valid_until_ns):
+    """Every PARAMS value from the deployment profile (map_basis, the SCOUT robot) and the launch arguments.
+
+    The clock domain and the alignment authority with its window (OPS-103, C-03·C-04) are field values
+    from the launch; LocationBasis checks them.
+
+    The profile has no map -> mission transform, so the identity is used only when the SCOUT's
+    map frame is the map_basis frame; otherwise this refuses rather than assume an alignment.
+    """
+    if type(tf_wait_s) is not float or not math.isfinite(tf_wait_s) or tf_wait_s <= 0:
+        raise ValueError('tf_wait_s must be finite and positive')
+    scouts = [robot_id for robot_id, role in deployment.mission.roles if role == 'SCOUT']
+    if len(scouts) != 1:
+        raise ValueError(f'exactly one SCOUT robot required, got {scouts}')
+    readiness = {robot.id: robot for robot in deployment.robots}[scouts[0]].parameters.readiness
+    if readiness is None:
+        raise ValueError(f'profile robot {scouts[0]} has no readiness.map_frame')
+    if readiness.map_frame != map_basis.frame_id:
+        raise ValueError(f'map frame {readiness.map_frame!r} is not the map_basis frame {map_basis.frame_id!r} '
+                         'and the profile has no map -> mission alignment')
+    values = dict(robot_id=scouts[0], observations_topic=TARGET_SETTINGS['observations_topic'],
+                  target_locations_topic=TARGET_LOCATIONS_TOPIC, map_frame=readiness.map_frame,
+                  mission_frame=map_basis.frame_id, map_session_id=map_basis.map_session_id,
+                  map_revision=map_basis.map_revision, transform_revision=map_basis.transform_revision,
+                  alignment_xy_yaw=[0.0, 0.0, 0.0], alignment_position_error_m=0.0,
+                  alignment_rotation_error_rad=0.0, tf_wait_s=tf_wait_s, publisher_id='amr.target_locator',
+                  envelope_schema_version=TARGET_SETTINGS['envelope_version'], clock_domain_id=clock_domain_id,
+                  alignment_authority_id=alignment_authority_id, alignment_valid_from_ns=alignment_valid_from_ns,
+                  alignment_valid_until_ns=alignment_valid_until_ns)
+    LocationBasis.from_values(values)
+    return values
 
 
 def main(args=None):

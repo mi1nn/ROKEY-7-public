@@ -1,4 +1,5 @@
-"""AMR1 perception PC: amr_target (OAK-D RGB-D -> YOLO -> TargetObservation on /rescue/observations).
+"""TB-6 perception PC: amr_target (OAK-D RGB-D -> YOLO -> TargetObservation on /rescue/observations)
+and target_locator (capture-time TF -> TargetLocation on /rescue/target_locations).
 
     ros2 launch rescue_bringup amr_perception.launch.py \
         image_topic:=<RGB topic> depth_topic:=<depth topic> camera_info_topic:=<CameraInfo topic> \
@@ -10,16 +11,23 @@
         tf_topic:=<robot /tf> tf_static_topic:=<robot /tf_static> \
         clock_domain_id:=<domain> clock_backend:=<timesyncd|chrony|NONE> clock_max_age_ns:=<ns> \
         clock_drift_ppm:=<ppm> clock_poll_period_s:=<s> \
-        sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain>
+        sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain> \
+        profile_path:=<profile.json> tf_wait_s:=<seconds> \
+        alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
-remapped to the given topics for the capture-time camera -> base lookup.
+remapped to the given topics for the capture-time TF lookups. target_locator takes the map
+basis and the SCOUT robot from the deployment profile's map_basis block, the same block the
+coordinator reads; the launch fails without it.
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+from rescue_bringup.profile import load_deployment, require_map_basis
+from rescue_perception.target_locator import profile_parameters
 
 FIELD_ARGUMENTS = {
     'image_topic': 'RGB image topic, e.g. as listed on the robot',
@@ -53,6 +61,13 @@ FIELD_ARGUMENTS = {
                                         'driver host, TB-6 Pi), measured there; 0 only when the driver runs here',
     'sensor_host_clock_domain_id': 'clock domain of that host; the same value only when it is synced to the '
                                    'same reference',
+    'profile_path': 'Deployment profile v2 JSON with the map_basis block (shared with the coordinator)',
+    'tf_wait_s': 'How long target_locator waits for the TF at a capture time',
+    # OPS-103 decision 2 (C-04): the alignment authority (profile map_basis + the robot's saved-map identity)
+    # and the window it holds for; target_locator publishes nothing VALID outside it.
+    'alignment_authority_id': 'ID of the declared map -> mission alignment (field record)',
+    'alignment_valid_from_ns': 'start of the declared alignment window, ns (this run)',
+    'alignment_valid_until_ns': 'end of the declared alignment window, ns',
 }
 CLOCK_TYPES = {'clock_domain_id': str, 'clock_backend': str, 'clock_max_age_ns': int, 'clock_drift_ppm': float,
                'clock_poll_period_s': float, 'sensor_host_clock_error_bound_ns': int,
@@ -89,9 +104,19 @@ def _nodes(context):
             parameters[name] = kind(arg(name))
         except ValueError as exc:
             raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
+    deployment = load_deployment(arg('profile_path'))
+    locator = profile_parameters(deployment, require_map_basis(deployment), tf_wait_s=float(arg('tf_wait_s')),
+                                 clock_domain_id=arg('clock_domain_id'),   # the same measured domain as amr_target
+                                 alignment_authority_id=arg('alignment_authority_id'),
+                                 alignment_valid_from_ns=_integer('alignment_valid_from_ns',
+                                                                  arg('alignment_valid_from_ns')),
+                                 alignment_valid_until_ns=_integer('alignment_valid_until_ns',
+                                                                   arg('alignment_valid_until_ns')))
+    tf = [('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))]
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',
-                 parameters=[parameters],
-                 remappings=[('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))])]
+                 parameters=[parameters], remappings=tf),
+            Node(package='rescue_perception', executable='target_locator', name='target_locator', output='screen',
+                 parameters=[locator], remappings=tf)]
 
 
 def generate_launch_description():
