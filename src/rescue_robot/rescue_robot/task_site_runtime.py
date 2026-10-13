@@ -26,7 +26,10 @@ from rescue_robot.task_server import attach_task_runtime
 from rescue_robot.task_wire import COMPLETION_SCOPES
 
 # Target moves the coordinator may send without an operator approval (C1, 2026-10-13).
-AUTO_TARGET_KINDS = ('APPROACH_TARGET','REOBSERVE_TARGET')
+AUTO_TARGET_KINDS = ('APPROACH_TARGET','REOBSERVE_TARGET','RETURN_HOME')
+# Kinds resolved by _resolve_auto_target; RETURN_HOME keeps its configured-destination resolver and is
+# only a per-robot permission in the policy (decision 5A, least privilege, 2026-10-13).
+AUTO_TARGET_MOVES = ('APPROACH_TARGET','REOBSERVE_TARGET')
 
 
 def recheck_settings(value):
@@ -291,15 +294,19 @@ class SiteRuntime:
         return dict(a,robot_boot_id=self.adapter.executor.robot_boot_id,
                     publisher_id=self._coordinator[0],publisher_boot_id=self._coordinator[1])
 
-    def _auto(self,kind):
-        """This kind may move to a target without an operator approval (explicit LIVE_ROS policy)."""
+    def _allowed(self,kind):
+        """This robot's explicit LIVE_ROS policy lets it take this kind (no operator approval)."""
         policy=self.auto_target
         return (self.config.get('input_mode')=='LIVE_ROS' and policy is not None
                 and policy['enabled'] is True and kind in policy['kinds'])
 
+    def _auto(self,kind):
+        """An automatic target move resolved by _resolve_auto_target."""
+        return kind in AUTO_TARGET_MOVES and self._allowed(kind)
+
     def _issuer_rejection(self,message,*,boot_field):
         kind=getattr(message,'kind','SEARCH_AREA')
-        if self.config.get('input_mode')=='LIVE_ROS' and kind!='SEARCH_AREA' and not self._auto(kind):
+        if self.config.get('input_mode')=='LIVE_ROS' and kind!='SEARCH_AREA' and not self._allowed(kind):
             return 'LIVE_SEARCH_ONLY'
         a=self._authority(); e=message.envelope
         checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
@@ -423,7 +430,10 @@ class SiteRuntime:
             if p['frame_id']!=self.inputs.mission_frame:
                 raise ContractError('configured destination frame differs','FRAME_REVISION_MISMATCH')
         else:
-            p=self.inputs.current()['destinations'][ref]
+            p=self.inputs.current().get('destinations',{}).get(ref)
+            if p is None:
+                what='home destination' if goal.kind=='RETURN_HOME' else 'search destination'
+                raise ContractError(what+' not configured: '+str(ref),'NOT_AUTHORIZED')
             self.inputs._window(p['observed_at_ns'],p['valid_until_ns'],self.adapter.wall_clock_ns())
         a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
         if (p['robot_id'],p['map_session_id'],p['map_revision'],p['transform_revision'])!=(

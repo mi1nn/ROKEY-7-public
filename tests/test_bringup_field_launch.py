@@ -224,7 +224,7 @@ class RobotParameters(FieldCase):
         # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
         # SCOUT) takes only REOBSERVE_TARGET (C1-b) and asks the recheck server after the stop.
         expected.update({'task.live.auto_target.enabled': True,
-                         'task.live.auto_target.kinds': ['REOBSERVE_TARGET'],
+                         'task.live.auto_target.kinds': ['REOBSERVE_TARGET', 'RETURN_HOME'],
                          'task.live.recheck.window_ns': 3_000_000_000,
                          'task.live.recheck.deadline_ns': 10_000_000_000,
                          'task.live.auto_target.goal_clear_radius_m': 0.2,
@@ -280,7 +280,7 @@ class RobotParameters(FieldCase):
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
         # Both policy and sensor clock must stay local to this robot.
         self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
-        self.assertEqual(['REOBSERVE_TARGET'], self.robot()['task_input']['task.live.auto_target.kinds'])
+        self.assertEqual(['REOBSERVE_TARGET', 'RETURN_HOME'], self.robot()['task_input']['task.live.auto_target.kinds'])
         self.assertEqual(['APPROACH_TARGET'], values['task_input']['task.live.auto_target.kinds'])
         # Each robot Pi has its own measured clock bound (decision 2026-10-13)
         self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
@@ -348,6 +348,34 @@ class MapBasisFromProfile(FieldCase):
         self.reload(lambda raw: raw['map_basis'].update(frame_id='mission'))
         with self.assertRaisesRegex(FieldLaunchError, 'map_frame'):
             self.robot()
+
+
+class HomePoses(FieldCase):
+    """RETURN_HOME destinations from the profile home_positions (decision 5A, 2026-10-13)."""
+
+    def with_homes(self, homes):
+        raw = json.loads(self.profile_path.read_text())
+        raw['home_positions'] = homes
+        self.profile_path.write_text(json.dumps(raw))
+        self.deployment = load_deployment(self.profile_path)
+
+    def test_coordinator_gets_scout_then_support_home(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        self.assertEqual([1.0, 2.0, 0.5, 3.0, -4.0, 0.0], self.coordinator()['home_poses'])
+
+    def test_no_homes_passes_nothing(self):
+        self.assertNotIn('home_poses', self.coordinator())
+        self.assertNotIn('task.live.home_xy_yaw', self.robot()['task_input'])
+
+    def test_one_home_only_is_refused_for_the_coordinator(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        self.with_homes({'robot_a': [1.0, 2.0, 0.5]})
+        with self.assertRaisesRegex(FieldLaunchError, 'home_positions'):
+            self.coordinator()
+
+    def test_robot_gets_its_own_home(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        self.assertEqual([1.0, 2.0, 0.5], self.robot()['task_input']['task.live.home_xy_yaw'])
 
 
 class FieldFile(FieldCase):

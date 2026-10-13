@@ -243,7 +243,14 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
         roi['camera_watch_roi'] = _list_argument(camera_watch_roi, 'camera_watch_roi', F)
         if len(roi['camera_watch_roi']) != 4:
             raise FieldLaunchError('camera_watch_roi must be 4 numbers')
-    return {**roi, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **field.coordinator,
+    homes = {}
+    if deployment.home_positions:
+        scout, support = (dict((role, robot) for robot, role in deployment.mission.roles)[r] for r in ('SCOUT', 'SUPPORT'))
+        if deployment.home_of(scout) is None or deployment.home_of(support) is None:
+            raise FieldLaunchError('profile home_positions needs both the SCOUT and the SUPPORT robot '
+                                   '(home_poses = SCOUT [x, y, yaw] then SUPPORT); or leave the block out')
+        homes['home_poses'] = [*deployment.home_of(scout), *deployment.home_of(support)]
+    return {**roi, **homes, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **field.coordinator,
             'mission_frame_id': basis.frame_id, 'goal_map_session_id': basis.map_session_id,
             'goal_map_revision': basis.map_revision, 'goal_transform_revision': basis.transform_revision,
             'route_segment_goals': goals, 'observe_goal': observe, 'route_segment_passage_free': passage}
@@ -298,6 +305,9 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         'task.saved_map.valid_from_ns': now_ns - backdate_ns,
         'task.saved_map.transform_valid_until_ns': now_ns + window_ns,
     }
+    home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
+    if home is not None:
+        task_input['task.live.home_xy_yaw'] = list(home)
     upstream = ns + '/cmd_vel_watchdog_in'
     watchdog = {'namespace': ns, 'cmd_vel_in_topic': upstream, 'cmd_vel_out_topic': ns + '/cmd_vel',
                 'cmd_vel_stamped': True, 'executor_heartbeat_topic': executor_heartbeat,
