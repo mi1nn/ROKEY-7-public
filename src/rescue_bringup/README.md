@@ -84,8 +84,14 @@ RViz에서 `2D Pose Estimate`로 실제 초기 위치와 방향을 지정하고 
 ```bash
 ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json> \
   db_path:=<site_state.sqlite3> api_port:=<포트> command_timeout_s:=3.0 \
-  webcam_params_file:=<webcam_node.yaml>   # 빼면 웹캠 없이
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  webcam_params_file:=<webcam_node.yaml> \
+  video_port:=<포트> video_bind_host:=<주소> video_stale_s:=2.0
 ```
+
+`webcam_params_file` 을 빼면 웹캠 없이, `video_*` 를 빼면 판정 영상 중계 없이 뜬다.
+
+- 판정 영상 중계(`mjpeg_relay`, #153): `video_port` 를 주면 켠다. 웹캠을 이 PC 에서 띄울 때만 가능하고(`webcam_params_file` 없이 주면 launch 가 멈춤), 입력 토픽은 웹캠 설정의 `debug_image_topic`, 주소 경로는 `/<camera_id>.mjpg` 다. `video_bind_host`·`video_stale_s` 는 켤 때 필수다. launch 가 관제 웹에 줄 값을 로그로 남긴다: `console --camera cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`. 관제 웹을 보는 브라우저가 이 주소에 닿아야 하므로, 다른 기기에서 볼 때는 `video_bind_host` 를 그 기기가 닿는 주소로 준다.
 
 - `db_path` 는 프로파일의 로봇 ID 구성(지금은 `robot_a`·`robot_b`)이 같으면 같은 파일을 계속 쓴다. 다른 로봇 ID 로 만든 파일을 열면 db_writer 가 `POLICY_MISMATCH` 로 시작하지 않으므로, ID 구성을 바꿀 때만 새 파일을 쓴다. 더 낮은 schema 파일은 처음 열 때 올라가므로 그 전에 복사본을 남긴다.
 - 운영자 명령 API 는 `127.0.0.1` 에서만 받는다(API 자체에 로그인 확인 없음). 관제 웹은 이 launch 밖의 웹 서비스로, `--site-state <db_path> --operations http://127.0.0.1:<api_port>` 로 같은 DB·API 를 가리킨다.
@@ -104,10 +110,10 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 무엇 | 상태 (2026-10-13) |
 | --- | --- |
 | 운영 `operations.launch.py`: db_writer + 구조 보고 저장(report_node) + 웹캠 | 있음(#134·#144) |
-| 운영 launch 의 웹캠 판정 영상 중계(mjpeg_relay, `video_port`) | PR #158 머지 뒤 |
+| 운영 launch 의 웹캠 판정 영상 중계(mjpeg_relay, `video_port`) | 있음(#158) |
 | 조정기 `coordinator.launch.py`, 로봇 `robot.launch.py`, 지도 해시 `scripts/field/map_occupancy_sha256.py` | 있음(#152) |
 | 지도 기준 값 `map_basis`(프로파일, 조정기·로봇·탐지 launch 공용) | 있음(#145). 현장 프로파일에 넣어야 한다(frame `map`) |
-| PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | PR #156 머지 뒤 |
+| PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | 있음(#156) |
 | robot_b(robot5) 로봇 launch | 안 됨: 현장 실행 파일에 `robots.robot_b` 값 없음(AMR2 시나리오 #131·#133 결정 대기) |
 | 구간 이동·재관측·복귀(MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: LIVE_ROS 는 SEARCH_AREA 만([rescue_robot README](../rescue_robot/README.md)) |
 | watchdog 현장 값 | #132 임시값, 확정은 #94. 영구 정지(STOP_LATCHED)와 리셋은 [rescue_robot README](../rescue_robot/README.md) 「2026-10-13 현재」 절 |
@@ -120,6 +126,25 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 현장 실행 파일 `config/field/search_area.field.json` | #132 현장 스크립트(`scripts/field/search-area/start_*.sh`)의 정책 값. 조정기와 로봇이 같아야 하는 값(lease·authority epoch·coordinator ID·envelope·시계)은 양쪽에 적고 launch 가 같은지 검사한다 |
 | launch 인자(기본값 없음) | 아직 정하지 않은 Phase 1 경로·관측 목표(#132 의 `[0, 0, 0]` 자리표시값), 현장에서 잰 지도 해시 |
 
+먼저 모든 PC 에서(0단계) Discovery 연결과 준비 상태를 본다. 각 PC 는 로봇 Pi 온보드 서버에 직접 붙는다([현장 결정 기록](../../docs/design/network-discovery.md#11-현장-적용-기록-2026-10-13), 권고안 A, 2026-10-13). 로봇 담당 PC 는 자기 로봇 서버 하나, 조정·운영 PC 는 두 서버 모두다. 로봇 설정은 바꾸지 않는다.
+
+준비 점검은 JSON 형식 설정도 읽는다(YAML의 부분집합). 다른 YAML은 PyYAML이 필요하다. 파서가 없으면 해당 파일 검사는 `NOT_RUN`, 문법이 틀리면 `FAILED`이며 모두 `PASSED`가 되기 전에는 준비 완료가 아니다.
+
+```bash
+# 이 PC 의 값 = 프로파일 hosts[<이 PC 의 host id>].network. 세미콜론 자리 번호가 서버 ID 다
+# (예: ID 6 하나면 ';;;;;;<주소>:11811', ID 5·6 이면 ';;;;;<주소5>:11811;<주소6>:11811')
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<위 규칙의 값>'
+ros2 daemon stop && ros2 daemon start          # 바뀐 서버 목록으로 CLI 데몬을 다시 띄운다
+# 확인만 super client 로: 조정·운영 PC 는 두 로봇, 로봇 담당 PC 는 자기 로봇 토픽이 보여야 한다
+ROS_SUPER_CLIENT=True ros2 topic list --no-daemon | grep -E '^/robot[56]/' | cut -d/ -f2 | sort | uniq -c
+# 노드는 super client 가 아니다(ROS_SUPER_CLIENT=False, 프로파일 super_client=false)
+python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json> \
+  --field config/field/search_area.field.json [--webcam-params <yaml>] [--map <map.yaml>]   # 모두 PASSED 인지
+```
+
+두 로봇의 온보드 서버 ID 는 서로 달라야 한다. 같으면 두 서버에 붙는 PC 가 한 자리에 두 서버를 적을 수 없고, 프로파일도 `server_id must be unique` 로 거절한다.
+
 순서(로봇을 움직이는 단계는 사람이 지켜본다. 이 launch 들은 arm·임무·이동 명령을 보내지 않는다):
 
 ```bash
@@ -127,7 +152,8 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
   db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
   report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
-  [webcam_params_file:=<webcam_node.yaml>]
+  [webcam_params_file:=<webcam_node.yaml> [video_port:=<port> video_bind_host:=<address> video_stale_s:=2.0]]
+# 관제 웹: --site-state <db_path> --operations http://127.0.0.1:<port> --camera <launch 로그의 console --camera 값>
 
 # 웹캠 PC(운영 PC 와 다를 때): 웹캠 노드만. 파라미터 예시는 rescue_perception share/config/webcam_node.example.yaml
 # 프로파일 site_cameras[].host 는 4대 중 그 PC 의 호스트 id(예: coordination)

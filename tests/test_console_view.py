@@ -345,7 +345,7 @@ class SiteStateSourceTests(LedgerFixture):
 
     def test_site_state_db_gives_the_fixture_shapes(self):
         status = load_site_state(self.site_db)
-        self.assertEqual(set(status), {'robot_status', 'site_events', 'target_states', 'mission_state',
+        self.assertEqual(set(status), {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
                                        'operator_commands', 'error_log'})
         self.assertEqual([r['robot_id'] for r in status['robot_status']['robots']], list(ROBOTS))
         self.assertEqual(status['site_events']['exit_pass_count'], 1)
@@ -475,6 +475,35 @@ class DisappearedCandidateTests(LedgerFixture):
     def test_candidate_for_an_unknown_target_is_a_warning(self):
         view = self.view_with(candidate_event('gone-x', 'nobody'))
         self.assertIn(f"소실 후보의 대상이 목록에 없음: {uid('nobody')}", view['warnings'])
+
+
+class AllowedRobotsTests(LedgerFixture):
+    """Without the report ledger the deployment's robots come from the site-state DB metadata
+    (read_allowed_robot_ids, #149): a card per robot even before its first status."""
+
+    def setUp(self):
+        super().setUp()
+        self.status['robot_status']['robots'] = [r for r in self.status['robot_status']['robots']
+                                                 if r['robot_id'] == 'robot_a']   # robot_b silent so far
+        self.site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(self.site_db, self.status)
+
+    def test_site_state_gives_the_allowed_robots(self):
+        self.assertEqual(list(ROBOTS), load_site_state(self.site_db)['allowed_robots']['allowed_robot_ids'])
+
+    def test_silent_robot_still_has_a_card_without_the_ledger(self):
+        view = current_view(None, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
+        self.assertEqual([('robot_a', True), ('robot_b', False)],
+                         [(r['robot_id'], r['has_status']) for r in view['robots']])
+        warnings = ' '.join(view['warnings'])
+        self.assertIn('보고 장부 입력 없음', warnings)
+        self.assertNotIn('상태가 들어온 로봇만', warnings)
+
+    def test_fixture_without_the_robot_list_still_says_so(self):
+        status = {k: v for k, v in self.status.items()}
+        view = build_view(None, status, built_at_ns=T0 + 30 * SECOND)
+        self.assertEqual(['robot_a'], [r['robot_id'] for r in view['robots']])
+        self.assertIn('상태가 들어온 로봇만', ' '.join(view['warnings']))
 
 
 if __name__ == '__main__':

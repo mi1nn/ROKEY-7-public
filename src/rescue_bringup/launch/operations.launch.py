@@ -1,22 +1,26 @@
 """operations PC: db_writer (site-state DB + operator command API), report_node (RescueReport ->
-ReportReceipt) and, optionally, the fixed webcam.
+ReportReceipt) and, optionally, the fixed webcam and its judge video relay (MJPEG for the console).
 
     ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
         db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
         report_db_path:=<reports.sqlite3> envelope_schema_version:=<text> report_publisher_id:=<text> \
-        [webcam_params_file:=<webcam_node.yaml>]
+        [webcam_params_file:=<webcam_node.yaml> \
+         [video_port:=<port> video_bind_host:=<address> video_stale_s:=<s>]]
 
 Robot IDs, roles and topics come from the deployment profile (v2.1, mission roles); nothing
-here has a default except the optional webcam. The console is not started here: it is a
-web service, run with --site-state <db_path> --operations http://127.0.0.1:<api_port>.
+here has a default except the optional webcam and video relay. The console is not started here:
+it is a web service, run with --site-state <db_path> --operations http://127.0.0.1:<api_port> and,
+with the relay, the --camera value this launch logs.
 """
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
-from rescue_bringup.operations_launch import db_writer_parameters, parse_launch_arguments, report_node_parameters
+from rescue_bringup.operations_launch import (console_camera_argument, db_writer_parameters, mjpeg_relay_parameters,
+                                              parse_launch_arguments, read_webcam_parameters, relay_requested,
+                                              report_node_parameters)
 from rescue_bringup.profile import load_deployment
 
 
@@ -41,9 +45,17 @@ def _nodes(context):
                       envelope_schema_version=arg('envelope_schema_version'),
                       publisher_id=arg('report_publisher_id')))])]
     webcam = arg('webcam_params_file')
+    relay = relay_requested(video_port=arg('video_port'), webcam_params_file=webcam)
     if webcam:
         nodes.append(Node(package='rescue_perception', executable='webcam_node', name='webcam_node',
                           output='screen', parameters=[webcam]))
+    if relay:
+        settings = read_webcam_parameters(webcam)
+        params = mjpeg_relay_parameters(webcam=settings, bind_host=arg('video_bind_host'), port=arg('video_port'),
+                                        stale_s=arg('video_stale_s'))
+        nodes += [Node(package='rescue_perception', executable='mjpeg_relay', name='mjpeg_relay', output='screen',
+                       parameters=[_text_as_text(params)]),
+                  LogInfo(msg='console --camera ' + console_camera_argument(params, camera_id=settings['camera_id']))]
     return nodes
 
 
@@ -58,5 +70,12 @@ def generate_launch_description():
         DeclareLaunchArgument('report_publisher_id', description='ReportReceipt envelope publisher_id'),
         DeclareLaunchArgument('webcam_params_file', default_value='',
                               description='webcam_node parameters YAML; empty = no webcam on this PC'),
+        DeclareLaunchArgument('video_port', default_value='',
+                              description='Judge video MJPEG relay port; empty = no relay (needs the webcam)'),
+        DeclareLaunchArgument('video_bind_host', default_value='',
+                              description='Relay listen address, required with video_port (the console browser '
+                                          'must reach it)'),
+        DeclareLaunchArgument('video_stale_s', default_value='',
+                              description='Relay: no new frame for this long closes the stream; required with video_port'),
         OpaqueFunction(function=_nodes),
     ])

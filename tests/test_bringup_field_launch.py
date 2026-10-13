@@ -148,6 +148,18 @@ class CoordinatorParameters(FieldCase):
         expected['camera_watch_timeout_s'] = 2.0  # added after #132 (SetCameraWatch, coordination C2)
         self.assertEqual(expected, self.coordinator())
 
+    def test_one_passage_flag_per_segment_end(self):
+        """A length other than the segment count holds every segment (PASSAGE_ASSESSMENT_REQUIRED) at run time;
+        it is never what the operator meant, so the launch refuses it before start."""
+        from rescue_bringup.field_launch import FieldLaunchError
+        two = '[1.0, 2.0, 0.0, 3.0, 4.0, 0.0]'
+        self.assertEqual([True, False], self.coordinator(route_segment_goals=two,
+                                                         route_segment_passage_free='[true, false]')
+                         ['route_segment_passage_free'])
+        for flags in ('[true]', '[true, false, false]'):
+            with self.subTest(flags=flags), self.assertRaisesRegex(FieldLaunchError, 'one true/false per segment'):
+                self.coordinator(route_segment_goals=two, route_segment_passage_free=flags)
+
     def test_camera_watch_roi_is_an_optional_site_argument(self):
         """Unset by default: the coordinator then refuses camera watch requests (no whole-frame default)."""
         from rescue_bringup.field_launch import FieldLaunchError
@@ -190,7 +202,7 @@ class CoordinatorParameters(FieldCase):
                     dict(route_segment_goals='[]'), dict(observe_goal='[0.0, 0.0, 0.0, 1.0]'),
                     dict(observe_goal='[0, 0, nan]'), dict(observe_goal='0,0,0'),
                     dict(route_segment_passage_free='[0]'), dict(route_segment_passage_free='false'),
-                    dict(route_segment_passage_free='[]')):
+                    dict(route_segment_passage_free='[]'), dict(route_segment_passage_free='[false, false]')):
             with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
                 self.coordinator(**bad)
 
