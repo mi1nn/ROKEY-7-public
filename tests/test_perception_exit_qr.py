@@ -12,7 +12,8 @@ from rescue_perception.adapter import SourceBinding
 from rescue_perception.exit_qr import (EXIT_PARAMS, ExitQrConfirmer, ExitQrPolicy, ExitSender, detect_qr, exit_values,
                                        fill_exit_observation, qr_point)
 
-POLICY = ExitQrPolicy(payload='ROKEY7-EXIT', required_frames=3, position_tolerance_m=0.2, min_valid_depth_ratio=0.5)
+POLICY = ExitQrPolicy(payload='ROKEY7-EXIT', required_frames=3, position_tolerance_m=0.2, min_valid_depth_ratio=0.5,
+                      every_n_frames=1)
 P = (1.0, 0.0, 2.0)
 
 
@@ -20,8 +21,10 @@ class PolicyTests(unittest.TestCase):
     def test_rejects_unusable_values(self):
         for bad in (dict(payload=''), dict(payload='  '), dict(required_frames=0), dict(required_frames=2.0),
                     dict(position_tolerance_m=0.0), dict(position_tolerance_m=math.nan),
-                    dict(min_valid_depth_ratio=0.0), dict(min_valid_depth_ratio=1.5)):
-            values = dict(payload='ROKEY7-EXIT', required_frames=3, position_tolerance_m=0.2, min_valid_depth_ratio=0.5)
+                    dict(min_valid_depth_ratio=0.0), dict(min_valid_depth_ratio=1.5),
+                    dict(every_n_frames=0), dict(every_n_frames=6.0)):
+            values = dict(payload='ROKEY7-EXIT', required_frames=3, position_tolerance_m=0.2, min_valid_depth_ratio=0.5,
+                          every_n_frames=1)
             values.update(bad)
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 ExitQrPolicy(**values)
@@ -50,6 +53,12 @@ class ConfirmerTests(unittest.TestCase):
         far = (1.5, 0.0, 2.0)
         self.assertEqual([False, False, False, False, True],
                          [c.add('ROKEY7-EXIT', p) for p in (P, P, far, far, far)])   # restarts at the far point
+
+    def test_every_nth_frame_is_checked_and_skipped_frames_do_not_break_the_run(self):
+        from dataclasses import replace
+        c = ExitQrConfirmer(replace(POLICY, every_n_frames=3))   # OPS-141: about 35 ms per frame at 704x704
+        self.assertEqual([True, False, False, True, False, False, True], [c.due() for _ in range(7)])
+        self.assertEqual([False, False, True], [c.add('ROKEY7-EXIT', P) for _ in range(3)])   # checked frames only
 
     def test_runs_again_after_a_confirmation(self):
         c = ExitQrConfirmer(POLICY)
@@ -118,7 +127,8 @@ def message():
 BINDING = SourceBinding('robot_a', 'amr_rgbd', '00000000-0000-4000-8000-000000000100', 'rokey7-utc-field',
                         'CAPTURE', 'CAPTURE', 'cal', 'SYNCED', 7_000_000)
 FIELD = dict(exit_qr_payload='ROKEY7-EXIT', exit_qr_required_frames=5, exit_qr_position_tolerance_m=0.2,
-             exit_qr_min_valid_depth_ratio=0.5, exit_map_state_topic='/rescue/robots/robot_a/map_state')
+             exit_qr_min_valid_depth_ratio=0.5, exit_qr_every_n_frames=6,
+             exit_map_state_topic='/rescue/robots/robot_a/map_state')
 
 
 class ValuesTests(unittest.TestCase):
@@ -132,7 +142,7 @@ class ValuesTests(unittest.TestCase):
 
     def test_policy_and_map_state_topic(self):
         policy, topic = exit_values(FIELD)
-        self.assertEqual((policy.payload, policy.required_frames), ('ROKEY7-EXIT', 5))
+        self.assertEqual((policy.payload, policy.required_frames, policy.every_n_frames), ('ROKEY7-EXIT', 5, 6))
         self.assertEqual('/rescue/robots/robot_a/map_state', topic)
 
 
