@@ -231,6 +231,15 @@ def _map(view):
             f'<path class="mark" d="{_victim_path(x, y, TARGET_MARK_PX)}"/>{strike}'
             f'<text class="label" x="{x + TARGET_MARK_PX + 0.5:.2f}" y="{y - TARGET_MARK_PX:.2f}">'
             f'{escape(target["id"][:4])}</text></g>')
+    for exit_ in layer.get('exits', ()):
+        x, y = exit_['px'], exit_['py']
+        seen = f'{exit_["id"]} 관측 {datetime.fromtimestamp(exit_["observed_at_ns"] / 1e9):%H:%M:%S}'
+        half = TARGET_MARK_PX
+        marks.append(
+            f'<g class="exit"><title>{escape(seen)} · map_revision {exit_["map_revision"]} '
+            f'(조정기 등록 출구 아님 — 관측)</title>'
+            f'<rect class="mark" x="{x - half:.2f}" y="{y - half:.2f}" width="{2 * half:.2f}" height="{2 * half:.2f}"/>'
+            f'<text class="label" x="{x + half + 0.5:.2f}" y="{y - half:.2f}">{escape(seen)}</text></g>')
     for robot in layer['robots']:
         x, y = robot['px'], robot['py']
         role = robot.get('role') or 'UNKNOWN'
@@ -603,6 +612,7 @@ dl{margin:0}
 .victim.supporting .mark{stroke:var(--info)} .victim.supporting .label{fill:var(--info)}
 .victim.rescued .mark,.victim.rescued .strike{stroke:var(--safe)} .victim.rescued .label{fill:var(--safe)}
 .robot .heading,.robot .body{fill:var(--ink);stroke:#fff;stroke-width:.35}
+.exit .mark{fill:none;stroke:var(--safe);stroke-width:.75} .exit .label{fill:var(--safe)}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
 .map-note{font-size:12px;color:var(--ink-2);margin-top:4px}

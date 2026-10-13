@@ -6,7 +6,7 @@ deserialized messages, or test doubles). Source identity, stamp meaning,
 calibration and alignment evidence are injected by the caller; nothing here
 guesses them from topic names or message contents.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 import math
@@ -152,14 +152,74 @@ def depth_frame(image, binding):
     return DepthFrame(meta, image.encoding, unit, rows)
 
 
+def locate_center_depth(rgb, image, binding, intrinsics, alignment, detection, policy, *, radius):
+    """User-selected center ROI (2026-10-13); map raw RGB points before depth lookup.
+
+    Check original metadata before cropping. Only the selected patch becomes
+    Python pixel values; encoding conversion and calibration use the existing core.
+    """
+    _require(type(radius) is int and radius >= 0, "INVALID_INPUT", "depth ROI radius")
+    meta = frame_meta(image, binding, binding.depth_stamp_semantics, "depth")
+    def unavailable(reason):
+        return LocalizationResult(None, reason, 0, alignment.evidence_id)
+    if rgb.clock_domain_id != meta.clock_domain_id or "UNKNOWN" in (rgb.stamp_semantics, meta.stamp_semantics) or rgb.stamp_semantics != meta.stamp_semantics:
+        return unavailable("CLOCK_UNCERTAIN")
+    if abs(rgb.observed_at_ns - meta.observed_at_ns) > policy.max_stamp_skew_ns:
+        return unavailable("UNSYNCHRONIZED")
+    if not alignment.verified or not (intrinsics.rectified or intrinsics.undistort is not None):
+        return unavailable("ALIGNMENT_UNVERIFIED")
+    if not (alignment.rgb_frame_id == rgb.frame_id == intrinsics.frame_id and
+            alignment.depth_frame_id == meta.frame_id and
+            alignment.calibration_id == rgb.calibration_id == meta.calibration_id == intrinsics.calibration_id):
+        return unavailable("CALIBRATION_MISMATCH")
+    if not (rgb.width == meta.width == intrinsics.width and rgb.height == meta.height == intrinsics.height):
+        return unavailable("DIMENSION_MISMATCH")
+    x0, y0, x1, y1 = detection.bbox
+    _require(x1 <= rgb.width and y1 <= rgb.height, "INVALID_INPUT", "bbox outside image")
+    u, v = (x0+x1)/2-.5, (y0+y1)/2-.5
+    if intrinsics.undistort is not None:
+        xm, ym = (x0+x1)/2, (y0+y1)/2
+        edges = [(x0,y0),(xm,y0),(x1,y0),(x1,ym),(x1,y1),(xm,y1),(x0,y1),(x0,ym)]
+        mapped = intrinsics.undistort([(x-.5,y-.5) for x,y in edges]+[(u,v)])
+        _require(len(mapped) == 9 and all(len(p) == 2 and all(math.isfinite(c) for c in p) for p in mapped),
+                 "INVALID_INPUT", "undistorted points")
+        u,v = mapped[-1]
+        x0,y0 = min(p[0]+.5 for p in mapped[:-1]),min(p[1]+.5 for p in mapped[:-1])
+        x1,y1 = max(p[0]+.5 for p in mapped[:-1]),max(p[1]+.5 for p in mapped[:-1])
+    left, top = max(0, math.floor(x0), round(u)-radius), max(0, math.floor(y0), round(v)-radius)
+    right, bottom = min(meta.width, math.ceil(x1), round(u)+radius+1), min(meta.height, math.ceil(y1), round(v)+radius+1)
+    if right <= left or bottom <= top or not (0 <= u < meta.width and 0 <= v < meta.height):
+        return unavailable("DEPTH_INSUFFICIENT")
+    _require(image.encoding in DEPTH_ENCODINGS, "UNSUPPORTED_DEPTH", "depth encoding")
+    unit, code, size = DEPTH_ENCODINGS[image.encoding]
+    _require(image.is_bigendian in (0,1,False,True), "INVALID_INPUT", "is_bigendian")
+    data = _payload(image, "depth")
+    _require(image.step >= image.width*size, "INVALID_INPUT", "depth step shorter than row")
+    width, height = right-left, bottom-top
+    row = struct.Struct((">" if image.is_bigendian else "<")+code*width)
+    rows = tuple(row.unpack_from(data, y*image.step+left*size) for y in range(top,bottom))
+    cropped_rgb = replace(rgb,width=width,height=height)
+    cropped_depth = DepthFrame(replace(meta,width=width,height=height),image.encoding,unit,rows)
+    cropped_intr = replace(intrinsics,width=width,height=height,cx=intrinsics.cx-left,cy=intrinsics.cy-top,
+                           rectified=True,undistort=None,undistortion_id=None)
+    result = locate_detection(cropped_rgb,cropped_depth,cropped_intr,alignment,
+                              replace(detection,bbox=(0.,0.,float(width),float(height))),policy)
+    if result.point_optical is not None:
+        z = result.point_optical[2]
+        result = replace(result,point_optical=((u-intrinsics.cx)*z/intrinsics.fx,(v-intrinsics.cy)*z/intrinsics.fy,z),
+                         undistortion_id=intrinsics.undistortion_id)
+    return result
+
+
 def camera_intrinsics(info, binding, *, rectified):
     """Pinhole intrinsics for the image the detector actually saw.
 
     ``rectified`` is the caller's evidence that the subscribed image is rectified
     (e.g. an ``image_rect`` stream); it is not inferred from ``d``. Rectified images
     use the projection matrix ``p`` (ROS CameraInfo convention); a non-zero ``p``
-    translation (secondary stereo camera) is rejected. Unrectified images keep ``k``
-    and the core then refuses to localize (ALIGNMENT_UNVERIFIED).
+    translation (secondary stereo camera) is rejected. Supported unrectified images
+    map raw K/D pixels onto the P grid before aligned-depth sampling; unsupported
+    models remain ALIGNMENT_UNVERIFIED.
     """
     _require(type(rectified) is bool, "INVALID_INPUT", "rectified")
     _dimensions(info, "camera_info")
@@ -239,7 +299,7 @@ def detection_from_vision_msgs(det, model, *, tracking_mode):
 
 
 def observe(rgb, depth, camera_info, detection, detection_header, *, binding, alignment, rectified,
-            model, depth_policy, observation_policy, observation_id, evidence_id):
+            model, depth_policy, observation_policy, observation_id, evidence_id, depth_roi_radius_px=None):
     """One recorded RGB/Depth/CameraInfo/detection tuple -> localization (+ observation).
 
     ``detection_header`` must carry the RGB frame's exact stamp and frame_id, so a box
@@ -255,9 +315,11 @@ def observe(rgb, depth, camera_info, detection, detection_header, *, binding, al
     _require(stamp_ns(detection_header, "detection") == rgb_meta.observed_at_ns and
              detection_header.frame_id == rgb_meta.frame_id, "INVALID_INPUT",
              "detection header does not match the RGB frame")
-    localization = locate_detection(rgb_meta, depth_frame(depth, binding),
-                                    camera_intrinsics(camera_info, binding, rectified=rectified),
-                                    alignment, detection, depth_policy)
+    intrinsics = camera_intrinsics(camera_info, binding, rectified=rectified)
+    localization = (locate_detection(rgb_meta, depth_frame(depth, binding), intrinsics, alignment, detection, depth_policy)
+                    if depth_roi_radius_px is None else
+                    locate_center_depth(rgb_meta, depth, binding, intrinsics, alignment, detection, depth_policy,
+                                        radius=depth_roi_radius_px))
     if binding.source_robot is None:
         return AdapterResult(localization, None, "SOURCE_IDENTITY_UNDEFINED")
     observation = make_observation(

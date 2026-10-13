@@ -46,16 +46,17 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
 | [target_location.py](rescue_perception/target_location.py) | 확정 TargetObservation + 촬영 시각 TF map←camera → TargetLocation(VALID) 좌표·공분산·frame_ref. ROS 없음 |
 | [target_locator.py](rescue_perception/target_locator.py) | 위 변환의 ROS 노드: `/rescue/observations` 구독 → 촬영 시각 TF 조회 → `/rescue/target_locations` 발행 |
+| [exit_qr.py](rescue_perception/exit_qr.py) | 출구 QR 판정(내용 정확 일치·N 프레임 연속·위치 허용 범위·깊이)과 출구 TargetObservation 채우기. ROS 없음, amr_target 이 프레임마다 부름 |
 | [headroom.py](rescue_perception/headroom.py) | TB-5 머리 위 여유 실기 반복 판정 기록 도구 `headroom_record`(OPS-115). 판정·발행·정지 명령 없음 |
-| [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 실행용 보정계수·offset·로봇/보정 ID·입력 단위/상태. 설치본에도 포함 |
+| [robot_depth.json](rescue_perception/config/robot_depth.json) | robot5·robot6 공통 보정계수·offset·허용 로봇 ID·입력 단위/상태. 설치본에도 포함 |
 
 [사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
 
 [사용자 요구, 2026-10-12] 실제 실행 대상은 README 시나리오의 로봇 제어용 컴퓨터다. 기준 환경은 MSI RTX 4070 노트북·Ubuntu 24.04·ROS 2 Jazzy다. 이 저장소에서는 베이스와 테스트 코드를 작성하며 작성 환경에서 ROS 노드를 실행하는 것을 전제하지 않는다. ROS가 없는 환경에서 노드 import를 허용하기 위한 함수 내부 import와 의존성 오류 호환 분기를 제거했다. 순수 설정·보정·검사 시험은 utils를 직접 import한다.
 
-[설정/사용자 요구, 2026-10-12] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.8`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot6_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. clock/stamp/alignment는 UNKNOWN·미확인을 유지한다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
+[설정/사용자 요구, 2026-10-13] 첫 CUDA GPU `device: '0'`, 탐지 신뢰도 `model_conf: 0.5`, 기존 대상 확정 정책 `confirm_confidence_min: 0.9`, `physical_robot_id: robot6`, `depth_calibration_path: package:robot_depth.json`. 그 외 토픽·frame 이름과 최신성·깊이 임계값은 이전 예시의 [제안]이며 실기 검증 전이다. clock/stamp/alignment는 UNKNOWN·미확인을 유지한다. 코드 통합은 이 값을 측정 사실로 바꾸지 않는다.
 
-[사용자 요구, 2026-10-12] robot6_depth.json은 실행에 쓰는 6개 필드만 유지하고 출처·날짜·측정 기록·설명은 제거했다. 로더는 로봇 일치·m 단위 raw 입력·유효한 scale/offset을 검사한다. RGB는 유지하고 Depth를 m로 변환한 뒤 원 0·음수·NaN·Inf를 제외한다. raw_m * scale + offset_m을 한 번 적용하고 범위·불연속 검사·중앙값으로 optical XYZ를 계산한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m 모두 같은 보정을 사용한다. 다른 physical_robot_id는 보정 로드 시 거절하며 이미 보정된 입력은 사용하지 않는다.
+[사용자 요구, 2026-10-13] “robot 5랑 6은 depth보정도 같으니 로봇용 보정으로 통합해줘”. 공통 robot_depth.json의 physical_robot_ids는 robot5·robot6만 허용한다. 실제 physical_robot_id는 실행 로봇에 맞춰 유지한다. m 단위 raw 입력·유효한 scale/offset을 검사하고 raw_m * scale + offset_m을 한 번만 적용한다. raw/PNG compressedDepth, 16UC1/mm·32FC1/m에 같은 보정을 쓰며 이미 보정된 입력은 사용하지 않는다. 거리 scale 공유는 공간 정합이나 시계 검증을 대신하지 않는다.
 
 ### 빌드와 실행
 
@@ -90,7 +91,7 @@ clock_domain_id:=rokey7-utc-field   # #132·#146 과 같은 현장 시계 영역
 
 [작전 B1, 2026-10-13] 카메라 토픽(`image_topic`·`depth_topic`·`camera_info_topic`)과 광학 frame(`rgb_optical_frame`·`depth_optical_frame`)은 코드 기본값이 없는 STRING 파라미터다. 전에는 코드 기본값 `camera/...`, readiness 설정 `oakd/rgb/preview/...`, #132 현장 스크립트 `/robot6/oakd/rgb/...` 세 가지가 서로 달랐다. 값이 없거나 비어 있으면 노드가 시작하지 않는다. 실제 robot6 토픽·frame 이름은 [미확인]이며 로봇에서 `ros2 topic list`와 메시지 header 로 확인해 넣는다. 위치 계산 근거도 같은 방식이다(2026-10-13). `rgb_stamp_semantics`·`depth_stamp_semantics`(CAPTURE·DRIVER_RECEIVE·UNKNOWN), `rgb_depth_alignment_verified`·`rgb_rectified`(bool), `calibration_id`·`alignment_evidence_id` 는 기본값이 없다. 전에는 코드 값 UNKNOWN·False 라서 `core.locate_detection` 이 모든 탐지의 위치를 거절했다(CLOCK_UNCERTAIN·ALIGNMENT_UNVERIFIED). 그래서 확정 관측이 한 번도 나가지 않았다. 두 stamp 의미가 알려져 있고(UNKNOWN 아님) 서로 같으며, 정렬이 검증됐고 RGB 가 rectified 일 때만 위치가 나온다. 값은 로봇 카메라 설정에서 확인해 넣는다 [미확인]. RGB 가 rectified 가 아니어도 CameraInfo 의 왜곡 모델이 plumb_bob(5)·rational_polynomial(8)이면 위치를 낸다. 이때 탐지 상자의 모서리·중심을 K·D 로 왜곡 보정해(cv2.undistortPoints, P 로 재투영) 정렬된 Depth 에서 읽는다. 이미지 전체는 보정하지 않는다. 근거(`<model>:<sha256(D) 앞 12자리>`)는 `LocalizationResult.undistortion_id` 와 SENT 로그에 남는다. 다른 모델이면 지금처럼 ALIGNMENT_UNVERIFIED 다. 입력 형식 `image_type`(raw·compressed)·`depth_transport`(raw·compressedDepth)도 현장 값이다(TB-6 Depth 는 raw 16UC1 로 측정, 옛 코드 값 compressedDepth). 짝 맞추기 `sync_queue_size`·`sync_slop_ns`·`camera_info_max_age_ns` 도 기본값 없는 현장 값이다. TB-6 은 Depth 가 약 0.78 s 늦게 와서, 옛 코드 값 큐 3 으로는 짝이 하나도 만들어지지 않았다(message_filters 재현, 2026-10-13). 나머지 설정은 SETTINGS 그대로이고 YAML은 필요 없다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
 
-RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. amr_target 자신은 map/odom TF 를 조회하지 않고 TargetLocation 도 내지 않는다. 지도 좌표는 별도 노드 target_locator 가 만든다(아래 「지도 좌표 TargetLocation」). 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
+RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 촬영 시각 카메라→base 변환을 확인한 뒤 로봇 기준 PointStamped와 원 카메라 관측을 발행한다. amr_target 자신은 map/odom TF 를 조회하지 않고 TargetLocation 도 내지 않는다. 지도 좌표는 별도 노드 target_locator 가 만든다(아래 「지도 좌표 TargetLocation」). 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
 ### TB-6 현장 실행 한 줄과 원인 가르기 (2026-10-13)
 
@@ -159,38 +160,37 @@ ros2 launch rescue_bringup amr_perception.launch.py \
 [사용자 요구, 2026-10-13] “인형이 detect되서 정확히 감지된 1개의 프레임만
 depth를 뽑는게 어떨까? 나머지때는 depth를 사용하지 않고 있는거야 … 그렇게 코드를 수정해봐”.
 RGB 추론·화면은 Depth·CameraInfo 없이도 계속 실행한다. 좌표 처리 조건은 confidence
-`confirm_confidence_min`(지금 0.8) 이상과 화면 내부 bbox이며, 여러 탐지가 있으면 조건을 만족한 최고 confidence 하나를
+`confirm_confidence_min`(지금 0.9) 이상과 화면 내부 bbox이며, 여러 탐지가 있으면 조건을 만족한 최고 confidence 하나를
 선택한다. RGB의 원 stamp에서 `sync_slop_ns` 이내의 Depth 하나만 해제·검사한다.
 탐지 전 Depth는 압축 상태(raw 입력은 원 메시지 상태)로 `sync_queue_size`개만 보관한다.
 대기 RGB는 하나이고 `depth_wait_s`가 지나면 해제하며 다음 탐지에서 재시도한다.
-`depth_wait_s=0.5`는 제한된 PC 대기 시간의 [제안]이며 실기 확정값이 아니다.
-시각·정렬 설정이 이미 계산을 차단하는 경우 Depth 해제를 건너뛰고 이유를 표시한다.
-깊이 부족·처리 실패·publish 실패는 다음 탐지 프레임에서 재시도한다. 전송 성공 뒤에는
-Depth 구독과 계산을 중단하고 RGB 표시만 계속한다. TF 실패 시 카메라 관측을 한 번
-남기는 기존 동작은 유지한다.
+`depth_wait_s=1.5`는 최신 main 문서의 TB-6 Depth 지연 약 0.78 s를 덮기 위한 [설정, 2026-10-13] 대기 상한이다. 타임아웃이면 다음 RGB 탐지에서 재시도한다.
+시각·정렬 설정이 계산을 차단하면 Depth 해제를 건너뛴다. 지원되는 CameraInfo K/D/P로
+RGB 중심과 bbox를 정렬 Depth 격자로 먼저 보정한 뒤 중심 11×11 ROI(`depth_roi_radius_px=5`)
+내 유효 depth만 검사한다. ROI는 보정된 객체 bbox와 영상 경계로 제한한다.
+범위·유효 비율·깊이 불연속 검사, 보정 1회 적용, 촬영 시각 TF 검사를 유지한다.
 
-탐지 전에도 원 stamp 매칭용 Depth 수신은 필요하므로 전송량 감소를 보장하지 않는다.
-이 변경은 로봇의 해상도·발행 FPS·Depth 드라이버 설정을 바꾸지 않는다. 다른 Depth
-구독자가 있으면 이 노드의 구독 종료 뒤에도 그 구독자에게 영상이 발행될 수 있다.
+첫 객체 전송 뒤 객체용 Depth 계산은 중단한다. 최신 main의 ObserveTarget 재관측 창이
+열렸거나 출구 QR 후보가 있을 때는 그 기능에 필요한 Depth를 처리하므로 구독은 유지한다.
+재관측은 객체가 없어도 depth/coverage 증거가 필요하다. 대기 요청 하나·Depth 캐시는
+제한되며 압축 해제 없이 받은 메시지만 보관한다. 수신 전송량 자체를 줄이는 변경은 아니다.
+로봇의 해상도·발행 FPS·카메라 설정은 변경하지 않는다.
 
 [사용자 요구, 2026-10-13] 로봇은 RGB·Depth 토픽 전송을 담당하며, 추론·Depth 해제·
 거리 추정·좌표 변환은 모두 로봇 제어용 PC에서 수행한다. 이 선택 처리 노드도 PC에서
 실행하며 로봇에 계산 프로세스를 배포하거나 카메라 설정을 변경하지 않는다.
 
-탐지 confidence와 좌표 유효성은 별도로 표시한다. `amr_target_selective`는 시작할 때
-`CLOCK_UNCERTAIN`·`ALIGNMENT_UNVERIFIED` 설정 관문을 경고하고, 후보의 실제
-실패 이유와 confidence를 화면·로그에 함께 표시한다. 같은 이유의 로그는
-`no_frame_warn_s` 주기로 제한한다. `UNCONFIRMED`만으로 탐지 실패라고 판단하지 않는다.
-RGB 원본의 왜곡 계수가 0이 아니면 `rgb_rectified=True`로 선언하는 것만으로
-보정되지 않는다. 실제 rectified RGB와 그 픽셀에 정합된 Depth 또는 검증된
-소프트웨어 보정이 필요하다. 드라이버의 depth alignment 설정·동일 frame 이름만으로
-정렬 검증을 완료했다고 간주하지 않는다.
+탐지 confidence와 좌표 유효성은 별도로 표시한다. 기반 `amr_target` 한 노드에서
+RGB 추론·annotated 화면을 독립 처리하고 Depth 수신/해제 수·stamp 차이·요청 만료 수를
+로그로 남긴다. corrected depth·valid_pixels·base_xyz·촬영 stamp도 별도 줄로 출력한다.
+`rgb_rectified=false`이면 지원되는 K/D/P 점 보정을 사용한다. compressed는 전송 형식으로
+왜곡 보정 여부를 뜻하지 않는다. 정렬 검증은 사용자 현장 근거를 명시해야 한다.
 
 [사용자 요구, 2026-10-12] 현재 좌표 계산 범위는 카메라 optical 기준과 로봇 base_link 기준까지다. 지도 좌표는 이후 mapping 연결에서 처리한다. 원 TargetObservation의 sensor_frame·sensor_position·관측 시각·ID·신뢰도·공분산은 카메라 기준으로 보존한다.
 
 로봇 기준 점은 `perception/target_base_point`에 geometry_msgs/PointStamped로 발행한다. header.frame_id는 SETTINGS의 base_frame(현재 base_link), stamp는 원 RGB 관측 시각, point는 m 단위 XYZ다. camera→base 변환은 실제 TF를 관측 시각으로 조회하며 위치 이동과 회전을 모두 적용한다. 최신 TF 조회나 임의 장착값으로 대체하지 않는다. 고정 장착 static TF의 반환 stamp=0은 관측 시각으로 조회한 결과일 때 허용한다.
 
-카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 이유와 observation_id를 로그에 남기고 원 카메라 관측만 유지한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
+카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 오류를 기록하고 관측/좌표 전송과 SENT 전환을 보류한다. 다음 탐지 프레임에서 재시도한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
 
 ### 지도 좌표 TargetLocation (target_locator)
 
@@ -247,13 +247,13 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 ### 단일 인형·회차별 1회 전송
 
-[사용자 요구, 2026-10-12] 한 회차에는 인형 하나만 사용한다. 화면 표시 기준은 model_conf 설정을 따르지만, 관측/좌표 전송은 첫 CONFIRMED(현재 `confirm_confidence_min` 0.8 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.
+[사용자 요구, 2026-10-12] 한 회차에는 인형 하나만 사용한다. 화면 표시 기준은 model_conf 설정을 따르지만, 관측/좌표 전송은 첫 CONFIRMED(현재 `confirm_confidence_min` 0.9 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.
 
-상태는 SEARCHING→SENT다. 최초 카메라 관측의 로컬 publish 성공 뒤 SENT로 고정하며 같은 회차의 카메라 관측·base 점을 다시 발행하지 않는다. TF 실패 시에는 카메라 관측만 한 번 남기고 base 점 실패를 로그로 드러낸다. publish 자체가 예외로 실패하면 SEARCHING을 유지한다. 영상 추론·annotated Image는 계속 처리하고 AMR1의 auto SLAM이나 주행을 변경하지 않는다. 인형이 사라졌다 다시 보여도 재무장하지 않는다. 현재 회차 경계는 amr_target의 기동이며 다시 기동하면 새 회차로 시작한다.
+상태는 SEARCHING→SENT다. 촬영 시각의 base TF 확인과 base 점·카메라 관측의 로컬 publish 성공 뒤 SENT로 고정하며 같은 회차의 카메라 관측·base 점을 다시 발행하지 않는다. TF 실패 시 SEARCHING을 유지하며 다음 탐지에서 재시도한다. publish 자체가 예외로 실패하면 SEARCHING을 유지한다. 영상 추론·annotated Image는 계속 처리하고 AMR1의 auto SLAM이나 주행을 변경하지 않는다. 인형이 사라졌다 다시 보여도 재무장하지 않는다. 현재 회차 경계는 amr_target의 기동이며 다시 기동하면 새 회차로 시작한다.
 
 두 좌표/관측 publisher는 RELIABLE·TRANSIENT_LOCAL·depth=1로 마지막 출력을 보존한다. 이후 구독자가 캐시를 받으려면 맞는 QoS가 필요하다. 한 번 발행은 AMR2 수신·저장·주행 수락을 뜻하지 않으며, 재전달 시 소비자는 observation_id로 중복을 처리해야 한다. 캐시 전달은 원 관측 시각·유효기간을 연장하지 않는다.
 
-위치는 bbox 중심 픽셀과 bbox 내부 유효 Depth 중앙값으로 구한 인형 위치의 기준점이다. 인형 형상의 정확한 중심·무게중심이나 AMR2의 주행 목표가 아니다. 실제 접근점·이격 거리·장애물/도달 가능성은 기존 mapping·협업·로봇 제어의 후속 연동에서 결정한다. AMR1 기준 좌표를 AMR2 기준 목표로 그대로 사용하지 않는다.
+위치는 bbox 중심 픽셀과 bbox 중심 ROI 내부 유효 Depth 중앙값으로 구한 인형 위치의 기준점이다. 인형 형상의 정확한 중심·무게중심이나 AMR2의 주행 목표가 아니다. 실제 접근점·이격 거리·장애물/도달 가능성은 기존 mapping·협업·로봇 제어의 후속 연동에서 결정한다. AMR1 기준 좌표를 AMR2 기준 목표로 그대로 사용하지 않는다.
 
 후속 AMR 단위별 연동 시험에는 후보 탐지→기존 제어 측 정지 요청→실제 정지 확인→새 RGB-D 관측→좌표 전달/수신 확인→주행 재개를 포함한다. 인식 노드에서 직접 cmd_vel·Nav2 cancel/goal을 발행하지 않는다. 정지·수신·AMR2 접근 연결은 현재 구현하지 않았으며 자동 SLAM의 지도 갱신과 주행 정지를 구분한다.
 
@@ -263,6 +263,16 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 시험: `tests/test_perception_headroom.py`(판정·점 변환·요약), `tests/ros/e3_headroom_probe.py`(LOCALHOST ROS, 합성 깊이·정적 TF → 판정 기록, E3). 실제 TB-5 깊이·가로판·보이는 거리는 NOT_RUN 이다.
 
+### 출구 QR (OPS-136/138)
+
+[저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-138 설계 승인] TB-6 가 순찰 중 출구 QR 을 보면 그 위치가 출구다. amr_target 이 대상과 같은 RGB-D 프레임에서 OpenCV `QRCodeDetector` 로 읽는다. 같은 시계·CameraInfo·왜곡 보정(#164)·깊이 보정을 쓴다. 내용이 `exit_qr_payload` 와 정확히 같은 프레임이 `exit_qr_required_frames` 번 연속이어야 출구로 인정한다. 그 프레임들의 위치가 모두 있어야 하고, 첫 위치에서 `exit_qr_position_tolerance_m` 안이어야 한다. QR 이 없거나, 내용이 다르거나, 깊이가 모자란(`exit_qr_min_valid_depth_ratio`) 프레임이 하나라도 끼면 처음부터 다시 센다. 위치는 QR 네 꼭짓점을 왜곡 보정하고, 코드 안쪽 절반의 깊이 중앙값으로 중심을 역투영한 점이다. 시각 근거(stamp 의미)나 RGB-깊이 정렬 근거가 없으면 위치를 내지 않는다. 대상과 같은 규칙이다.
+
+인정되면 `/rescue/exit_observations` 에 TargetObservation 하나를 낸다(새 IDL 없음). `class_label` 은 `exit_qr` 이다. `confidence` 1.0 은 확률이 아니라 내용 일치를 뜻한다. `model_id` 는 `opencv.QRCodeDetector/<cv2 버전>`, `model_sha256` 은 설치된 cv2 바이너리의 sha256 이고, 둘 다 기동 로그에 남는다. `tracking_mode` 는 `DETECTION_ONLY` 다. TB-6 지도(session, revision)마다 한 번만 내고, revision 이 바뀌면 같은 QR 도 다시 낸다. launch 의 두 번째 target_locator(`exit_locator`)가 이것을 `/rescue/exit_location` TargetLocation 으로 바꾼다. 지도 기준은 대상과 같다(MapRevisionTracker). 조정기는 `class_label == 'exit_qr'` 만 출구로 쓴다. 지도 고정 때 이전 revision 의 위치를 재기준하는 일과 출구 앞 접근점 계산은 조정기 몫이다.
+
+필수 파라미터(기본값 없음): `exit_qr_payload`, `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_qr_every_n_frames`([제안] 6: 30 Hz 에서 5 Hz 검사, 704×704 프레임당 약 35 ms 라서(OPS-141). 연속 횟수는 검사한 프레임 기준이고 건너뛴 프레임은 연속을 끊지 않는다), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
+
+시험: `tests/test_perception_exit_qr.py`(판정·위치·메시지·송신), `tests/ros/e3_amr_target_probe.py` 5–7번(합성 RGB-D 의 QR → 출구 관측). 실제 TB-6 영상의 QR, exit_locator → `/rescue/exit_location` 연결, 검출 처리 시간은 NOT_RUN 이다.
+
 ### 검증과 범위
 
 [사용자 요구, 2026-10-12] 이번 AMR 합성 입력 시험 3개는 작성 환경의 로컬 검사 전용으로 보관하고 PR에는 포함하지 않는다. 기존 main의 단위시험·CI는 유지한다. 로컬 검사 결과는 코드 규칙의 검증이며 실제 탐지 성능이나 ROS·GPU·로봇 실행을 증명하지 않는다. 실제 영상·Depth·TF를 이용한 검증은 제어용 컴퓨터에서 AMR 단위별 연동 시험으로 진행한다.
@@ -270,33 +280,29 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 실제 robot6 RGB-D·CUDA 추론·GUI·다거리 보정·시간/정렬·공분산·TF/SLAM·조정기/DB·2 AMR/4 PC 인수는 NOT_RUN이다. 단일 거리 보정은 공간 정렬·시간 동기를 증명하지 않는다. 지도 변환 모듈은 아직 실제 mapping 경로에 연결되지 않았다.
 
 
-### robot5 로컬 선택 Depth 시험 (2026-10-13)
+### AMR 통합 전 최종 인식 파일 (2026-10-13)
 
-[사용자 요구] “보정은 6과 5과 같은 상황이라 6의 보정을 그대로 가지고 오고 최신 메인 기준으로 가져와줘”.
-robot5_depth.json은 robot6_depth.json의 scale/offset을 그대로 복사하고 physical_robot_id는
-robot5로 명시했다. 재사용 근거를 파일에 기록했으며 robot5에서 새로 측정한 계수라고
-주장하지 않는다. 거리 scale 재사용은 공간 정합 verified나 PC 간 clock SYNCED의 근거가 아니다.
+[사용자 요구] “잘된 경우에서 selective 원래 코드들과 필요한 부분만 합쳐서 다시 넣어줘”,
+“최종 통합해서 amr 통합전 최종 파일이라고 올리는데 그전에 baselink까지 뽑는 과정까지 잘 구현됬는지 확인해줘”.
+실행 파일은 [amr_target.py](rescue_perception/amr_target.py)로 통합했다.
+별도 amr_target_selective 실행 파일/entry point는 제거하고 bounded cache 정책만
+[selective_depth.py](rescue_perception/selective_depth.py)에서 재사용한다.
+최신 main의 clock_binding, ObserveTarget, 출구 QR와 관측 wire 형식을 유지한다.
 
-최신 main의 amr_target과 clock/recheck 경로는 유지한다. 로컬 테스트용
-[amr_target_selective.py](rescue_perception/amr_target_selective.py)는 최신 adapter/core의
-점 왜곡 보정을 사용하며 RGB만 계속 표시하고 조건을 만족한 한 탐지에만 Depth를 처리한다.
-기본 amr_target과 이 선택 시험 모듈을 동시에 실행하지 않는다. 노드 이름은 `amr_target_selective`이고, 관측은 `/rescue/selective_test/observations`, 로봇 기준 점은 `perception/selective_test/target_base_point`에 낸다(실제 토픽이 필요하면 ROS remap, #205 검토 REV-205-02). 재확인 서버(#200)와 시계 경로가 없어 TB-6 구출 완료 판정을 대신할 수 없다. 선택 시험의 관측 clock은
-UNKNOWN을 유지하며 별도 로봇 제어 입력을 만들지 않는다. 실제 실행 인자는 최신 FIELD_PARAMS와
-clock_domain_id를 명시한다. rgb_rectified=False라도 지원되는 K/D/P 점 보정 모델이면 계산할
-수 있으며, 공간 정합 미검증은 계속 차단한다. 위 선택 처리 설명은 이 로컬 시험 모듈에 적용한다.
-보정 파일은 [robot5_depth.json](rescue_perception/config/robot5_depth.json)이다.
+[사용자 실기 검증] robot5에서 depth 약 1.350 m와 base XYZ가 잘 나온 진단 경로의
+중심 ROI·K/D/P 보정 순서를 반영한다. “depth값은 매우 잘맞아”, “검증 됬으니 false 날려줘”는
+당시 robot5 구성의 정합 확인 기록이며 다른 로봇·토픽·해상도에 자동 승계하지 않는다.
+수정된 기반 노드 전체의 실제 로봇 E4 재시험은 NOT_RUN이다.
 
-[사용자 검증·설정 승인, 2026-10-13] 현장 시험 후 사용자는 “depth값은 매우 잘맞아”,
-“검증 됬으니 false 날려줘”라고 확인했다. robot5 로컬 실행 설정에
-rgb_depth_alignment_verified=true와 사용자 확인 근거 ID를 적용했다. 이는 사용자
-현장 검증 기록이며 이 PR에서 별도로 수집한 공간 정합 평가 데이터는 아니다.
-원본 RGB의 rgb_rectified=false는 유지하고 최신 main의 K/D/P 점 보정을 사용한다.
-이 값은 보정을 끄지 않으며, 지원 모델에서 보정된 bbox/중심으로 Depth를 읽는다.
-다른 로봇·토픽·해상도·보정값에 사용자 확인을 자동 승계하지 않는다.
+robot5/robot6 모두 `depth_calibration_path=package:robot_depth.json`을 사용하고
+`physical_robot_id`는 실제 로봇으로 설정한다. SETTINGS도 타입을 유지한 ROS 파라미터로 읽으므로 physical_robot_id·base_frame·base_point_topic 등의 실행 인자가 적용된다.
+기존 FIELD_PARAMS와 최신 CLOCK_PARAMS,
+RECHECK_PARAMS, EXIT_PARAMS가 모두 필요하다. UNKNOWN clock을 운영 좌표 승인으로 쓰지 않는다.
 
-설치 후 `ros2 run rescue_perception amr_target_selective`로 실행할 수 있다.
-최신 FIELD_PARAMS와 clock_domain_id를 명시해야 한다. robot5 실행에서는
-physical_robot_id와 depth_calibration_path를 사용자 로컬 실행 설정으로 각각 robot5와
-package:robot5_depth.json에 맞춘다. 일반 main 노드의 clock/recheck 경로와 이 테스트
-노드는 동시에 실행하지 않는다. 정합 설정 변경 뒤 실제 노드의 좌표 전송은 아직
-재시험하지 않았으며, clock_state UNKNOWN은 운영 최신성 승인으로 사용할 수 없다.
+합성 입력 검사는 `tests/test_perception_center_depth.py`(ROI·왜곡 보정·깊이 정책),
+`tests/test_perception_base_point.py`(축 변환·capture TF·실패 재시도),
+`tests/ros/e3_amr_target_probe.py`(실제 노드→base_link·재관측·QR)를 사용한다.
+map 통합 시에는 촬영 시각의 map←base_link TF와 지도 session/revision·유효기간·공분산
+검사를 연결해야 한다. 현재 TargetObservation은 원 camera 좌표와 ID·confidence·공분산을
+보존하므로 기존 target_locator의 map←camera 경로도 그대로 사용할 수 있다.
+base PointStamped만으로는 관측 ID·confidence·공분산을 전달할 수 없다.

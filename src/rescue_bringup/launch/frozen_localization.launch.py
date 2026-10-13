@@ -8,7 +8,8 @@
 - AMCL (nav2_amcl, turtlebot4_navigation localization.yaml values, map from <ns>/map, no
   map_server) starts at: robot_a = the frozen pose /rescue/map/frozen_pose/robot_a (this launch
   waits up to frozen_pose_wait_s for it, then fails); a FROZEN_MAP_AMCL robot = its measured
-  robots.<id>.initial_pose_xy_yaw (missing = the launch refuses).
+  robots.<id>.initial_pose_xy_yaw, relative to the TB-6 start pose, placed on the map with
+  /rescue/map/start_pose/robot_a (waits frozen_pose_wait_s; missing value or start = the launch refuses).
 Every node is in the robot namespace, so both robots' launches can run on one PC.
 No arm, task or movement command is sent.
 """
@@ -20,6 +21,8 @@ from launch.actions import DeclareLaunchArgument, GroupAction, LogInfo, OpaqueFu
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetRemap
 import yaml
+
+from rescue_contracts.occupancy import compose_planar
 
 from rescue_bringup.field_launch import amcl_parameters, frozen_localization_values, load_field
 from rescue_bringup.frozen_pose import wait_frozen_pose
@@ -39,7 +42,12 @@ def _nodes(context):
                                       map_frame=deployment.map_basis.frame_id))
         source = values['initial_pose_topic']
     else:
-        start, source = values['initial_pose_xy_yaw'], 'field run file robots.' + arg('robot_id')
+        # field value relative to the TB-6 start pose (OPS-141) -> map, with this run's start pose
+        tb6_start = wait_frozen_pose(values['start_pose_topic'], timeout_s=float(arg('frozen_pose_wait_s')),
+                                     map_frame=deployment.map_basis.frame_id)
+        start = list(compose_planar(tb6_start, values['initial_pose_xy_yaw']))
+        source = (f'field run file robots.{arg("robot_id")} {values["initial_pose_xy_yaw"]} relative to the TB-6 '
+                  f'start {[round(v, 3) for v in tb6_start]} ({values["start_pose_topic"]})')
     params_file = arg('localization_params_file') or str(
         Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'localization.yaml')
     amcl = amcl_parameters(yaml.safe_load(Path(params_file).read_text()), initial_pose_xy_yaw=start,
@@ -67,7 +75,8 @@ def generate_launch_description():
         DeclareLaunchArgument('field_path', description='Field run file (config/field/*.field.json)'),
         DeclareLaunchArgument('robot_id', description='robot_a (TB-6, after SLAM is stopped) or robot_b (TB-5)'),
         DeclareLaunchArgument('frozen_pose_wait_s',
-                              description='robot_a: how long to wait for /rescue/map/frozen_pose/robot_a (s)'),
+                              description='How long to wait (s) for /rescue/map/frozen_pose/robot_a (robot_a) or '
+                                          '/rescue/map/start_pose/robot_a (robot_b)'),
         DeclareLaunchArgument('localization_params_file', default_value='',
                               description='AMCL parameters; empty = turtlebot4_navigation config/localization.yaml'),
         OpaqueFunction(function=_nodes),

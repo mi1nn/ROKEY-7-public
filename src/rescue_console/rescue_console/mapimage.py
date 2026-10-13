@@ -285,19 +285,25 @@ def world_to_pixel(meta, x, y):
     return column, row
 
 
-def map_overlay(meta, robots, targets):
+EXIT_NAME = '출구(QR)'
+
+
+def map_overlay(meta, robots, targets, exit_=None):
     """Screen-model `map` section: markers for poses in MAP_FRAME that land on the image.
 
     robots / targets are the screen-model rows (`pose` / `position` may be None). Poses in another
     frame are listed in `frame_mismatch` and never projected; on-frame poses outside the image are
     listed in `off_map`, not clamped to the edge.
     """
-    overlay = dict(meta, available=True, robots=[], targets=[], off_map=[], frame_mismatch=[], no_pose=[],
+    overlay = dict(meta, available=True, robots=[], targets=[], exits=[], off_map=[], frame_mismatch=[], no_pose=[],
                    note=f'기준 지도 {meta["source"]} ({meta["width_px"]}×{meta["height_px"]} px, '
                         f'{meta["resolution"]} m/px) — 좌표 map_session 일치는 확인하지 않음(Q-09)')
     entries = [('robot', row['robot_id'], row.get('pose'), {'yaw': (row.get('pose') or {}).get('yaw'),
                                                             'role': row.get('role'), 'name': row.get('name')}) for row in robots]
     entries += [('target', row['target_id'], row.get('position'), {'stage': row['stage']}) for row in targets]
+    if exit_ is not None:   # the newest exit_qr observation (#237)
+        entries.append(('exit', EXIT_NAME, exit_, {'observed_at_ns': exit_['observed_at_ns'],
+                                                   'map_revision': exit_['map_revision']}))
     for kind, ident, pose, extra in entries:
         if pose is None:
             if kind == 'robot':   # listed, not placed: no pose is ever made up (TB-5 before the map is fixed)

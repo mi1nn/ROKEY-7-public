@@ -15,7 +15,7 @@ import runpy
 import sys
 import unittest
 
-from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase
+from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase, HomePoses
 
 START = [0.4, -0.3, 0.1]
 LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py'
@@ -93,6 +93,24 @@ class MapMode(FieldCase):
         for name, change in bad.items():
             with self.subTest(name), self.assertRaises(FieldLaunchError):
                 self.field(change)
+
+
+class TB5ExitFromTheCoordinator(FieldCase):
+    """SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds; the coordinator sends it as destination
+    'home/robot_b' (OPS-139). A launch-time profile home would be used until the first coordinator
+    record, so the FROZEN_MAP_AMCL robot gets none; TB-6 keeps its docking approach point."""
+    with_homes = HomePoses.with_homes
+
+    def test_frozen_map_robot_has_no_launch_home_and_the_slam_robot_keeps_its_own(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        b = self.robot(field=self.field(), robot_id='robot_b', occupancy_sha256='')['task_input']
+        a = self.robot(field=self.field(), occupancy_sha256='')['task_input']
+        self.assertNotIn('task.live.home_xy_yaw', b)
+        self.assertEqual([1.0, 2.0, 0.5], a['task.live.home_xy_yaw'])
+
+    def test_saved_maps_keep_both_launch_homes(self):
+        self.with_homes({'robot_b': [3.0, -4.0, 0.0], 'robot_a': [1.0, 2.0, 0.5]})
+        self.assertEqual([3.0, -4.0, 0.0], self.robot(robot_id='robot_b')['task_input']['task.live.home_xy_yaw'])
 
 
 class CoordinatorRobotPairing(FieldCase):
@@ -229,6 +247,12 @@ class CaptureInitialPose(unittest.TestCase):
         self.addCleanup(sys.path.remove, str(REPO / 'scripts' / 'field'))
         return runpy.run_path(str(CAPTURE))
 
+    def origin(self):
+        """TB-6 start pose at the map origin: relative values equal map values."""
+        from types import SimpleNamespace as NS
+        return NS(header=NS(frame_id='map'), pose=NS(pose=NS(position=NS(x=0.0, y=0.0, z=0.0),
+                  orientation=NS(x=0.0, y=0.0, z=0.0, w=1.0)), covariance=[0.0] * 36))
+
     def message(self, frame='map', yaw=0.1, covariance=None):
         from types import SimpleNamespace as NS
         cov = covariance or [0.0] * 36
@@ -237,18 +261,19 @@ class CaptureInitialPose(unittest.TestCase):
 
     def test_prints_the_field_file_line_for_the_robot(self):
         snippet = self.tool()['snippet']
-        text = snippet(self.message(), map_frame='map')
+        # TB-6 start at the map origin (0, 0, 0): the relative value is the map value (OPS-141)
+        text = snippet(self.message(), start=self.origin(), map_frame='map')
         self.assertEqual({'initial_pose_xy_yaw': [0.4, -0.3, 0.1]},
                          {k: [round(v, 6) for v in vals] for k, vals in json.loads('{' + text + '}').items()})
 
     def test_refuses_another_frame_or_a_non_planar_pose(self):
         tool = self.tool()
         with self.assertRaises(tool['CaptureError']):
-            tool['snippet'](self.message(frame='odom'), map_frame='map')
+            tool['snippet'](self.message(frame='odom'), start=self.origin(), map_frame='map')
         bad = self.message()
         bad.pose.pose.orientation.x = 0.3
         with self.assertRaises(tool['CaptureError']):
-            tool['snippet'](bad, map_frame='map')
+            tool['snippet'](bad, start=self.origin(), map_frame='map')
 
 
 if __name__ == '__main__':

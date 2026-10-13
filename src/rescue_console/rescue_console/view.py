@@ -400,6 +400,17 @@ MISSION_REASONS = {
     'SUPPORT_EXIT_NOT_FREE': ('{support} 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)', 'caution'),
     'SCOUT_HOME_NOT_FREE': ('{scout} 도킹 접근 지점이 막힘 — {scout} 복귀 보류', 'caution'),
     'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
+    # search_start AUTO (#228, OPS-140) and the exit QR before the freeze (OPS-136).
+    'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
+    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
+    # #234 (OPS-147): the QR exit holds TB-5's dispatch and its exit move; the start pose holds patrol and TB-6's return.
+    'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info'),
+    'EXIT_NOT_ON_FROZEN_MAP': ('출구(QR) 위치가 고정 지도 기준에 없음 — {support} 출동·출구 이동 보류', 'caution'),
+    'SUPPORT_EXIT_UNREGISTERED': ('출구(QR) 미등록 — {support} 출동·출구 이동 보류', 'caution'),
+    'START_POSE_UNKNOWN': ('{scout} 출발 자세 모름 — 순찰·{scout} 복귀 보류', 'caution'),
+    'START_POSE_CONFLICT': ('{scout} 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert'),
+    'PATROL_EXHAUSTED': ('{scout} 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution'),
 }
 # APPROACH_FAILED_<why> (#216): the executor's terminal reason, or its outcome when there is none.
 # An unknown why is shown as its code (OPS-127: never hidden).
@@ -410,6 +421,7 @@ APPROACH_WHY = {
     'CLOCK_UNCERTAIN': '시계 불확실',
 }
 EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
+PATROL_ROUND = re.compile(r'PATROL_ROUND_(\d+)')
 # RECHECK_NEEDED_<why>: the recheck did not confirm the rescue (C-11 rows 7-11).
 RECHECK_WHY = {
     'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
@@ -435,6 +447,8 @@ def mission_reason(code, support_name, scout_name):
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
         text, level = f'{names["support"]} 출구 출발까지 {int(countdown.group(1))}초', 'info'
+    elif PATROL_ROUND.fullmatch(code):
+        text, level = f'{names["scout"]} 순찰 {int(code[len("PATROL_ROUND_"):])}바퀴째', 'info'
     elif code.startswith('APPROACH_FAILED_'):
         why = code[len('APPROACH_FAILED_'):]
         text, level = f'{names["support"]} 접근 실패: {APPROACH_WHY.get(why, why)} — 다시 보내지 않음', 'alert'
@@ -471,6 +485,7 @@ def _mission(site_events, row):
 
 
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch; the coordinator's field value
+SEARCH_START_MODES = ('AUTO', 'OPERATOR')       # --search-start; the coordinator's field value (#228)
 
 
 def _command_words(support_name):
@@ -580,7 +595,8 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
-def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None):
+def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None, search_start=None,
+                  scout_name=None):
     """Every command with the state of its button. A mirror of the coordinator gate for the screen,
     not the gate: an enabled command may still be rejected, and that answer is shown as it comes."""
     words = dict(COMMANDS) if words is None else words
@@ -595,18 +611,37 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
             continue
+        if name == 'START_SEARCH' and search_start == 'AUTO':
+            # The disaster sign starts the search and the coordinator refuses this command (AUTO_SEARCH_ENABLED).
+            auto = f'{scout_name or "SCOUT"} 자동 출발'
+            rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
+                         'reason': f'{auto} — 지진 감지로 조정기가 수색 시작', 'args': {}, 'choices': [],
+                         'auto': True})
+            continue
         rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
                      'reason': reason, 'args': args, 'choices': choices})
     return rows
 
 
-def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None):
+def _exit(section):
+    """The newest exit_qr observation (#237, read newest first; VALID only), or None. An observation, not the exit
+    the coordinator registered (that one shows only as its reasons, e.g. SUPPORT_EXIT_UNREGISTERED)."""
+    if section is None or not section['exits']:
+        return None
+    row = section['exits'][0]
+    return {'location_id': row['location_id'], 'x': row['x'], 'y': row['y'], 'frame_id': row['mission_frame'],
+            'observed_at_ns': row['observed_at_ns'], 'map_revision': row['map_revision']}
+
+
+def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
     """Build the whole screen model (the `/api/view` JSON) from one poll's inputs.
 
     ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
     2026-10-13): report rows and counts are then not shown, said so in the warnings.
     status: {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
-    'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet).
+    'operator_commands', 'error_log', 'exit_locations'}, each the matching operations read API result (or None
+    when not available yet). support_dispatch / search_start: the coordinator's field modes as given on the
+    command line (AUTO shows a state instead of the button).
     A malformed input raises ``ConsoleError INVALID_INPUT``; a missing section is reported (``warnings``, or
     ``history['missing']``), never filled with a default.
     """
@@ -614,6 +649,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     names = dict(robot_names or {})   # robot_id -> display name (--robot-name); none: the ID itself
     _require(support_dispatch in (None,) + SUPPORT_DISPATCH_MODES,
              f'support_dispatch must be one of {SUPPORT_DISPATCH_MODES} or unset')
+    _require(search_start in (None,) + SEARCH_START_MODES, f'search_start must be one of {SEARCH_START_MODES} or unset')
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
     allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
@@ -666,8 +702,15 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     scout = [row['name'] for row in robots if row['role'] == 'SCOUT']
     mission['reason_view'] = mission_reason(mission['reason'], support[0] if len(support) == 1 else None,
                                             scout[0] if len(scout) == 1 else None)
+    history = _history(status, words)
+    refused = [row['reason'] for row in (history or {'rows': []})['rows']] + [mission['reason']]
+    if search_start != 'AUTO' and 'AUTO_SEARCH_ENABLED' in refused:
+        # The coordinator runs search_start AUTO; this console still offers the button it refuses.
+        warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
+    exits = _section(status, 'exit_locations', 'exits')
     return {
         'built_at_ns': built_at_ns,
+        'exit': _exit(exits),
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],
         'mission': mission,
         'robots': robots,
@@ -678,8 +721,10 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
         'commands': command_gates(mission, targets, words, support_dispatch,
-                                  support[0] if len(support) == 1 else None),
+                                  support[0] if len(support) == 1 else None, search_start,
+                                  scout[0] if len(scout) == 1 else None),
         'support_dispatch': support_dispatch,
-        'history': _history(status, words),
+        'search_start': search_start,
+        'history': history,
         'warnings': warnings,
     }

@@ -48,22 +48,24 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
-                 map_source=None, robot_names=None, support_dispatch=None):
+                 map_source=None, robot_names=None, support_dispatch=None, search_start=None):
     """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture.
 
-    Reads the inputs fresh (no cache), builds the screen model with `build_view`, then lays the robots and
-    targets over the map when there is one. Positions in another frame or off the map become warnings. A read or
-    shape failure raises ConsoleError (STORAGE_ERROR / INVALID_INPUT); the app turns it into a 503.
+    Reads the inputs fresh (no cache), builds the screen model with `build_view`, then lays the robots, targets
+    and the newest exit (QR) observation over the map when there is one. Positions in another frame or off the
+    map become warnings. A read or shape failure raises ConsoleError (STORAGE_ERROR / INVALID_INPUT); the app
+    turns it into a 503.
     """
     _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
-    view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch)
+    view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch,
+                      search_start=search_start)
     live = None
     if map_source is not None:   # --live-map: the SLAM map as last written, with its age and state
         map_image, live = map_source.current()
     if map_image is not None:
-        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
+        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'], view['exit'])
         # A marker is never moved or dropped silently: what map_overlay could not place is said on screen.
         for where in view['map']['frame_mismatch']:
             view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
@@ -104,7 +106,7 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, operations_url=None,
+               map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
                command_transport=None, camera_stale_s=None):
     """Check the configuration, then build the Flask app with its login, console, command and account routes.
 
@@ -157,7 +159,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         """The screen model for this request, from the inputs fixed at startup (one `current_view` call)."""
         return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
                             map_source=live_map,
-                            robot_names=robot_names, support_dispatch=support_dispatch)
+                            robot_names=robot_names, support_dispatch=support_dispatch,
+                            search_start=search_start)
 
     def user():
         """The account behind this session, or None.

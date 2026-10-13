@@ -80,6 +80,33 @@ class ReasonWordTests(unittest.TestCase):
                 self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
                                  mission_reason(code, 'TB-5', 'TB-6'))
 
+    def test_auto_search_start_of_228(self):   # search_start AUTO (#228, OPS-140)
+        cases = {
+            'SEARCH_GOAL_NOT_SELECTED': ('TB-6 수색 목표 선택 대기', 'caution', None),
+            'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info', None),
+            'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — TB-5 출동 대기', 'info', None),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
+    def test_exit_patrol_and_start_pose_of_234(self):   # QR exit, re-base at the freeze, patrol, start pose (OPS-147)
+        cases = {
+            'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info', None),
+            'EXIT_NOT_ON_FROZEN_MAP': ('출구(QR) 위치가 고정 지도 기준에 없음 — TB-5 출동·출구 이동 보류', 'caution', None),
+            'SUPPORT_EXIT_UNREGISTERED': ('출구(QR) 미등록 — TB-5 출동·출구 이동 보류', 'caution', 'support'),
+            'START_POSE_UNKNOWN': ('TB-6 출발 자세 모름 — 순찰·TB-6 복귀 보류', 'caution', None),
+            'START_POSE_CONFLICT': ('TB-6 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert', None),
+            'PATROL_ROUND_2': ('TB-6 순찰 2바퀴째', 'info', None),
+            'PATROL_EXHAUSTED': ('TB-6 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution', None),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+        self.assertEqual('PATROL_ROUND_X', mission_reason('PATROL_ROUND_X', 'TB-5', 'TB-6')['text'])   # unknown stays
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
@@ -210,6 +237,67 @@ class SupportDispatchModeTests(LedgerFixture):
         from rescue_console.view import ConsoleError
         with self.assertRaises(ConsoleError):
             self.view('SOMETIMES')
+
+
+class SearchStartModeTests(LedgerFixture):
+    """--search-start AUTO (#228, OPS-140): the disaster sign starts TB-6's search and the coordinator refuses
+    START_SEARCH (NOT_AUTHORIZED, AUTO_SEARCH_ENABLED), so there is no button, only the state. A console
+    started without AUTO against an AUTO coordinator is said, from the refusal it gets back."""
+
+    def view(self, mode, phase='DISASTER', reason=None, commands=()):
+        status = dict(self.status, mission_state={'schema_version': '1.2', 'mission': mission_state(
+            'DISASTER', phase, reason=reason)})
+        if commands:
+            status['operator_commands'] = {'schema_version': '1.0', 'commands': list(commands)}
+        return build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND, robot_names=NAMES,
+                          search_start=mode)
+
+    def test_auto_shows_the_state_instead_of_the_button(self):
+        view = self.view('AUTO')
+        gate = {c['name']: c for c in view['commands']}['START_SEARCH']
+        self.assertEqual((False, 'TB-6 자동 출발', True), (gate['enabled'], gate['label'], gate['auto']))
+        self.assertIn('지진 감지', gate['reason'])
+        html = re.sub(r'<script>.*?</script>', '', render_page(view, command_access=(True, 'ADMIN')), flags=re.S)
+        self.assertNotIn('data-command="START_SEARCH"', html)
+        self.assertIn('TB-6 자동 출발', html)
+
+    def test_operator_or_unset_keeps_the_button(self):
+        for mode in ('OPERATOR', None):
+            with self.subTest(mode=mode):
+                html = render_page(self.view(mode), command_access=(True, 'ADMIN'))
+                self.assertRegex(html, r'<button[^>]*data-command="START_SEARCH"')
+
+    def test_a_coordinator_in_auto_against_a_button_console_is_said(self):
+        refused = {'command_id': uid('cmd-auto'), 'kind': 'START_SEARCH', 'requested_at_ns': T0 + SECOND, 'accepted': False,
+                   'result': 'NOT_AUTHORIZED', 'reason': 'AUTO_SEARCH_ENABLED', 'target_id': None,
+                   'operator_id': 'admin'}
+        for mode, kwargs in ((None, {'commands': [refused]}), ('OPERATOR', {'reason': 'AUTO_SEARCH_ENABLED'})):
+            with self.subTest(mode=mode):
+                warnings = ' '.join(self.view(mode, **kwargs)['warnings'])
+                self.assertIn('--search-start AUTO', warnings)
+        self.assertNotIn('--search-start', ' '.join(self.view('AUTO', reason='AUTO_SEARCH_ENABLED')['warnings']))
+
+    def test_mode_value_is_checked(self):
+        from rescue_console.view import ConsoleError
+        with self.assertRaises(ConsoleError):
+            self.view('auto')
+
+    def test_command_line_passes_the_mode(self):
+        import os
+        from unittest import mock
+        from rescue_console import __main__ as cli
+        from rescue_console.view import ConsoleError
+        os.environ['RESCUE_CONSOLE_TEST_SECRET'] = 'x' * 16
+        self.addCleanup(os.environ.pop, 'RESCUE_CONSOLE_TEST_SECRET', None)
+        seen = {}
+
+        def create_app(*args, **kwargs):   # stop before the server starts
+            seen.update(kwargs)
+            raise ConsoleError('INVALID_INPUT', 'stop')
+        with mock.patch.object(cli, 'create_app', create_app), mock.patch('sys.stderr'):
+            cli.main([str(self.db), '--accounts', str(self.dir / 'accounts.sqlite3'), '--status', 'status.json',
+                      '--search-start', 'AUTO', '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
+        self.assertEqual('AUTO', seen.get('search_start'))
 
 
 if __name__ == '__main__':
