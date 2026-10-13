@@ -4,6 +4,7 @@
 counter; a new VALID TargetLocation within ``merge_distance_m`` on the same map basis is the
 same target. Saved = ReportReceipt PERSISTED for the coordinator's RescueReport (IF-072 -> 073).
 """
+from operator import itemgetter
 import unittest
 
 from rescue_contracts import RescueError
@@ -67,7 +68,28 @@ class IntakeTests(TargetTestCase):
         self.assertEqual(target, self.core.on_target_location(location(2, (4.5, 4.)), now_ns=NOW))
         self.assertEqual((1, True, False), self.core.mission.targets[target])  # the new revision needs its own save
         (report,) = self.core.reports_due(NOW)
-        self.assertEqual((1, [uid(801), uid(802)]), (report['target_revision'], report['record_ids']))
+        # 801 is already in a PERSISTED receipt: the new report carries only the unsaved location.
+        self.assertEqual((1, [uid(802)], [uid(802)]), (report['target_revision'], report['record_ids'],
+                                                       [loc.location_id for loc in report['locations']]))
+
+    def test_unsaved_locations_ride_the_newest_report_and_the_older_one_stops(self):
+        target = self.core.on_target_location(location(1), now_ns=NOW)
+        (first,) = self.core.reports_due(NOW)
+        self.core.on_target_location(location(2, (4.5, 4.)), now_ns=NOW)
+        (second,) = self.core.reports_due(NOW)  # the revision-0 report is covered and no longer resent
+        self.assertEqual((1, [uid(801), uid(802)]), (second['target_revision'], second['record_ids']))
+        self.assertFalse(self.core.on_receipt(receipt(first)))  # a late receipt of the covered report saves nothing
+        self.assertEqual((1, True, False), self.core.mission.targets[target])
+        self.assertTrue(self.core.on_receipt(receipt(second)))
+        self.assertEqual((1, True, True), self.core.mission.targets[target])
+        self.assertEqual([], self.core.reports_due(NOW + 10 * RETRY))
+
+    def test_report_size_does_not_grow_with_the_number_of_saved_locations(self):
+        for n in range(1, 41):  # #137 measured: all-locations reports failed from the 34th location at 64 KiB
+            self.core.on_target_location(location(n, (4. + n * 1e-3, 4.)), now_ns=NOW + n)
+            (report,) = self.core.reports_due(NOW + n)
+            self.assertEqual([uid(800 + n)], report['record_ids'])
+            self.assertTrue(self.core.on_receipt(receipt(report)))
 
     def test_far_location_is_a_new_target(self):
         target = self.saved()
@@ -166,6 +188,43 @@ class RouteFrameTests(TargetTestCase):
                          (goal.has_route, goal.has_approval, goal.route.approach_goal.pose.position.x,
                           goal.route.assessment.status))
         self.assertEqual(NOW, goal.route.generated_at_ns)  # made with the target, not at sending
+
+
+class DispatchGateTests(TargetTestCase):
+    """B-stage gate: CONFIRMED + ReportReceipt PERSISTED of the current revision opens DISPATCH_SUPPORT (S-00)."""
+
+    def setUp(self):
+        super().setUp()
+        self.core.on_site_event(site_msg())
+        self.core.on_status(status_msg(SUPPORT))
+
+    def dispatch(self, n, target, target_revision):
+        return self.core.on_command(request('DISPATCH_SUPPORT', command_id=uid(700 + n), target_id=target,
+                                            expected_target_revision=target_revision), now_ns=NOW + n)
+
+    def test_receipt_persisted_names_the_report_and_opens_dispatch(self):
+        target = self.core.on_target_location(location(1), now_ns=NOW)
+        (report,) = self.core.reports_due(NOW)
+        self.assertEqual((False, 'PENDING_EVIDENCE'), itemgetter('accepted', 'reason_code')(self.dispatch(1, target, 0)))
+        self.assertEqual('TARGET_NOT_CONFIRMED', self.core.last_reason)
+        self.assertTrue(self.core.on_receipt(receipt(report)))
+        (estimate,) = self.core.target_snapshot_change()['targets']
+        self.assertEqual((target, 0, report['report_id']),
+                         (estimate['target_id'], estimate['estimate_revision'], estimate['persisted_report_id']))
+        reply = self.dispatch(2, target, 0)
+        self.assertEqual((True, 'ACCEPTED'), (reply['accepted'], reply['request_state']))
+        (fields,) = self.core.tick(NOW)
+        self.assertEqual(('MOVE_SEGMENT', SUPPORT, reply['created_task_id']),
+                         (fields['kind'], fields['robot_id'], fields['task_id']))
+
+    def test_a_newer_unsaved_revision_closes_the_gate_until_its_own_receipt(self):
+        target = self.saved()
+        self.core.on_target_location(location(2, (4.5, 4.)), now_ns=NOW)
+        self.assertEqual('PENDING_EVIDENCE', self.dispatch(1, target, 1)['reason_code'])
+        (report,) = self.core.reports_due(NOW)
+        self.assertTrue(self.core.on_receipt(receipt(report)))
+        self.assertEqual('INVALID_INPUT', self.dispatch(2, target, 0)['reason_code'])  # TARGET_REVISION_STALE
+        self.assertEqual(True, self.dispatch(3, target, 1)['accepted'])
 
 
 class SystemStateTests(TargetTestCase):
