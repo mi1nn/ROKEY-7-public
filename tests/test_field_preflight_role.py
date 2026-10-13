@@ -203,5 +203,64 @@ class Failures(RoleCase):
         self.assertTrue(all(line.split()[0] in (pr.PASSED, pr.FAILED, pr.NOT_RUN) for line in lines))
 
 
+class DiscoveryServers(RoleCase):
+    """Plan A (network-discovery.md, 2026-10-13): each PC joins the robots' onboard Pi servers.
+
+    The robot PCs join their own robot's server, coordination and operations join both. The slot
+    in ROS_DISCOVERY_SERVER is the server ID, so robots with IDs 6 and 5 give ';;;;;;ip6' style
+    values. The IDs here stand in for the values read from the robots.
+    """
+
+    A, B = ('198.51.100.6', 11811, 6), ('198.51.100.5', 11811, 5)
+
+    def setUp(self):
+        super().setUp()
+        raw = json.loads(self.profile.read_text())
+        servers = {'compute_a': [self.A], 'compute_b': [self.B], 'coordination': [self.A, self.B],
+                   'operations': [self.A, self.B]}
+        for host in raw['hosts']:
+            host['network']['discovery_servers'] = [dict(server_id=i, address=a, port=p)
+                                                    for a, p, i in servers[host['id']]]
+        self.profile.write_text(json.dumps(raw))
+
+    @staticmethod
+    def value(*servers):
+        slots = [''] * (max(i for _, _, i in servers) + 1)
+        for address, port, server_id in servers:
+            slots[server_id] = f'{address}:{port}'
+        return ';'.join(slots)
+
+    def status(self, role, value):
+        return self.run_role(role, env=self.env | {'ROS_DISCOVERY_SERVER': value})['env.ROS_DISCOVERY_SERVER']['status']
+
+    def test_two_servers_for_coordination_and_operations(self):
+        both = self.value(self.A, self.B)
+        self.assertEqual(';;;;;198.51.100.5:11811;198.51.100.6:11811', both)
+        for role in ('coordination', 'operations'):
+            with self.subTest(role=role):
+                self.assertEqual(pr.PASSED, self.status(role, both))
+                self.assertEqual(pr.FAILED, self.status(role, self.value(self.A)))       # one server missing
+                self.assertEqual(pr.FAILED, self.status(role, '198.51.100.6:11811;198.51.100.5:11811'))  # slots 0, 1
+
+    def test_one_server_for_each_robot_pc(self):
+        self.assertEqual(pr.PASSED, self.status('compute_a', self.value(self.A)))
+        self.assertEqual(pr.PASSED, self.status('compute_b', self.value(self.B)))
+        self.assertEqual(pr.FAILED, self.status('compute_a', self.value(self.B)))        # the other robot
+        self.assertEqual(pr.FAILED, self.status('compute_a', self.value(self.A, self.B)))  # extra server
+        self.assertEqual(pr.FAILED, self.status('compute_a', '198.51.100.6:11811'))      # slot 0, not ID 6
+        self.assertEqual(pr.FAILED, self.status('compute_a', ''))
+
+    def test_robots_with_the_same_server_id_cannot_be_joined_together(self):
+        """Two onboard servers with one ID: a PC on both cannot list them (one slot), the profile says so."""
+        raw = json.loads(self.profile.read_text())
+        for host in raw['hosts']:
+            for server in host['network']['discovery_servers']:
+                server['server_id'] = 0
+        self.profile.write_text(json.dumps(raw))
+        checks = self.run_role('coordination')
+        self.assertStatus(checks, 'profile.load', pr.FAILED)
+        self.assertIn('server_id must be unique', checks['profile.load']['detail'])
+
+
 if __name__ == '__main__':
     unittest.main()
