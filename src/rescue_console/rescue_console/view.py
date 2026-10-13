@@ -439,8 +439,13 @@ def build_view(ledger, status, *, built_at_ns):
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
-    if ledger is None:
-        # The robot policy lives in the ledger metadata; the site-state read API does not return it.
+    allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
+    if ledger is None and allowed_section is not None:
+        # The site-state DB fixes the deployment's robots (read_allowed_robot_ids, #149).
+        warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음')
+        allowed = tuple(allowed_section['allowed_robot_ids'])
+    elif ledger is None:
+        # A fixture without the robot list: only robots that sent a status can be drawn.
         warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음, 로봇 목록은 상태가 들어온 로봇만')
         allowed = tuple(sorted({r.get('robot_id') for r in ([] if robot_section is None else robot_section['robots'])}))
     else:
