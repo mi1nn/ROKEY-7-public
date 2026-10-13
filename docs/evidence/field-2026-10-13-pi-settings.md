@@ -89,3 +89,41 @@ TB-5 담당 PC 에서 `ping -c 50 -i 0.2` 로 쟀다. 이 PC 의 무선 절전 �
 - 3절 바꾸기 전 해시: 백업 파일 `~/backup-20261013/20auto-upgrades` 의 sha256 을 Pi 에서 읽어 덧붙인다.
 - `config/robots/` 반영: AGENTS.md 6절은 로봇 설정을 바꾸면 `config/robots/` 도 같이 고치라고 한다. 이 PR 은 기록만 하고, 그 파일은 기반 레인이 판단한다.
 - 무선 절전은 재부팅하면 다시 켜진다. 현장 런북의 아침 점검에 `iw dev wlan0 get power_save` 를 넣을지는 실기·배포 레인 후속이다.
+
+## 6. 카메라 절전 설정 (14:29–14:34 덧붙임)
+
+> [!WARNING]
+> 원문 미확인 (전달: 작전 자리, 2026-10-13): 사용자 화면에서 읽은 값.
+> - 두 Pi 모두 `/etc/turtlebot4/turtlebot4.yaml` 이 없다. 따라서 기본값을 쓴다.
+> - 그때 두 로봇 모두 `is_docked: true` 였다.
+> - 로그상 두 로봇 모두 도킹할 때 `turtlebot4_node` 가 `stop_camera` 를 했다 (TB-6 13:00:08, TB-5 14:17:18).
+> - 작전 판단: 두 로봇 사이의 설정 차이가 아니다.
+
+- 오전에 `/robot5` 에서 oakd 토픽이 안 보였던 것(#170, 11:03 도킹 중)과 맞는다. 도킹 중 카메라 꺼짐은 기본 동작이다.
+
+## 7. Pi 시계 (14:29–14:34 덧붙임)
+
+> [!WARNING]
+> 원문 미확인 (전달: 작전 자리, 2026-10-13): 사용자 화면의 `chronyc tracking` 값. 두 Pi 모두 chrony active, timesyncd inactive, Leap status Normal.
+
+| 항목 | TB-5 | TB-6 |
+| --- | --- | --- |
+| 기준 서버 | 공용 NTP (주소 생략), stratum 5 | AWS ap-northeast-2 NTP, stratum 3 |
+| System time | 0.000119616 s fast | 0.000257099 s fast |
+| RMS offset | 0.000896511 s | 0.000489500 s |
+| Root delay | 0.004309657 s | 0.007075318 s |
+| Root dispersion | 0.002450904 s | 0.002184822 s |
+| Update interval | 1024.8 s | 1033.5 s |
+
+오차 한계 [계산]: [`clock_measurement.parse_chrony`](../../src/rescue_contracts/rescue_contracts/clock_measurement.py) 식을 썼다. 식은 `|System time| + Root delay/2 + Root dispersion + drift_ppm × 경과 시간` 이다. `drift_ppm` 은 100 으로 두었다. 경과 시간에는 Update interval 을 넣었다. 다음 갱신 직전, 즉 가장 나쁜 때의 값이다.
+
+- TB-5: 0.000119616 + 0.004309657/2 + 0.002450904 + 100e-6 × 1024.8 ≈ **107.2 ms**
+- TB-6: 0.000257099 + 0.007075318/2 + 0.002184822 + 100e-6 × 1033.5 ≈ **109.3 ms**
+- 이 기록에서 다시 계산해 전달값(약 107·109 ms)과 같음을 확인했다.
+
+> [!WARNING]
+> 원문 미확인 (전달: 작전 자리, 2026-10-13): 현장 시계 오차 한계 값은 150 ms 로 정했다(작전 결정). 결정 기록은 해당 설정 PR 에서 확인한다.
+
+## 8. 아직 없는 값
+
+- 3절 바꾸기 전 해시: `sha256sum ~/backup-20261013/20auto-upgrades` 를 아직 받지 못했다 [미확인].
