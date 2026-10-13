@@ -98,6 +98,7 @@ PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 
 DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
 PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # which revision FROZEN_TOPIC is (OPS-159)
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
 START_POSE_TOPIC = '/rescue/map/start_pose/'            # + SLAM robot id: origin of coordinates measured in advance
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
@@ -443,6 +444,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     }
     if mode == 'SLAM_THEN_FROZEN':
         task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
+    if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
+        task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
     # (OPS-139); a profile home here would be used until the first coordinator record.
@@ -498,6 +501,8 @@ def frozen_localization_values(deployment, *, field, robot_id):
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
             'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
+            # the relay copies the frozen grid of the revision this robot's executor is on (OPS-154)
+            'frozen_revision_topic': FROZEN_REVISION_TOPIC, 'map_state_topic': f'/rescue/robots/{robot_id}/map_state',
             'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
             # initial_pose_xy_yaw is relative to the TB-6 start pose (OPS-141); the launch places it on the map
             'start_pose_topic': START_POSE_TOPIC + _slam_robot(field) if mode == 'FROZEN_MAP_AMCL' else None}
@@ -525,23 +530,23 @@ def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):
     return params
 
 
-def map_freeze_parameters(deployment, *, field, output_dir, record_path):
-    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0)."""
+def map_freeze_parameters(deployment, *, field, output_dir):
+    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0).
+
+    A restarted node reloads this run's freezes from output_dir (two per run, OPS-154).
+    """
     deployment, basis = _deployment(deployment)
     slam = [robot_id for robot_id, section in field.robots.items()
             if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
     if not slam:
         raise FieldLaunchError('no SLAM_THEN_FROZEN robot in the field run file; nothing to freeze')
     _, robot, section = _robot(deployment, field, slam[0])
-    for name, value in (('output_dir', output_dir), ('record_path', record_path)):
-        if not isinstance(value, str) or (value and not value.startswith('/')) or (name == 'output_dir' and not value):
-            raise FieldLaunchError(f'{name} must be an absolute path' + ('' if name == 'output_dir' else ' or empty'))
+    if not isinstance(output_dir, str) or not output_dir.startswith('/'):
+        raise FieldLaunchError('output_dir must be an absolute path')
     params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
               'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
               'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
               'output_dir': output_dir}
-    if record_path:
-        params['record_path'] = record_path   # restart: republish the saved freeze
     return params
 
 

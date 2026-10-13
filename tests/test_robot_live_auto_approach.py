@@ -28,6 +28,11 @@ def grid(cells=None, *, width=60, height=40, resolution=0.05, origin=(-1.0, -1.0
     return Grid(message)
 
 
+def loaded_maps(maps):
+    """SavedMapSources stand-in: these maps loaded, no newer frozen revision pending (OPS-159 D2)."""
+    return NS(maps=maps, check_new_goal=lambda robot: None)
+
+
 class LiveAutoApproach(unittest.TestCase):
     def setUp(self):
         self.base = site.SiteRuntimeTests('test_installed_runtime_goal_first_transforms_endpoint_and_returns_segment')
@@ -52,7 +57,7 @@ class LiveAutoApproach(unittest.TestCase):
         self.store = InputStore(self.cfg, wall_clock_ns=self.adapter.wall_clock_ns, read=lambda: deepcopy(self.data))
         self.runtime = SiteRuntime(self.node, self.adapter, self.cfg, self.store, bindings=b.runtime.server.bindings)
         # The live saved-map source (SavedMapSources.maps): this robot's loaded, hash-checked map.
-        self.runtime.saved_maps = NS(maps={self.g.robot_id: grid()})
+        self.runtime.saved_maps = loaded_maps({self.g.robot_id: grid()})
         self.adapter.executor.arm(self.g.authority_epoch, now=self.adapter.clock(),
                                   readiness=self.adapter.readiness(self.adapter.clock()))
 
@@ -90,7 +95,7 @@ class LiveAutoApproach(unittest.TestCase):
         for value in (100, -1):
             with self.subTest(value=value):
                 self.build(POLICY)
-                self.runtime.saved_maps = NS(maps={self.g.robot_id: grid({(41, 21): value})})
+                self.runtime.saved_maps = loaded_maps({self.g.robot_id: grid({(41, 21): value})})
                 self.assertEqual('reject', self.submit())
                 self.assertEqual([], self.f.r.f.port.goals)
 
@@ -99,7 +104,7 @@ class LiveAutoApproach(unittest.TestCase):
         self.assertEqual('reject', self.submit())
 
     def test_no_loaded_saved_map_rejects(self):
-        self.runtime.saved_maps = NS(maps={})
+        self.runtime.saved_maps = loaded_maps({})
         self.assertEqual('reject', self.submit())
         self.runtime.saved_maps = None
         self.assertEqual('reject', self.submit())

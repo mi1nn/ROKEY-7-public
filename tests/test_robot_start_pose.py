@@ -93,7 +93,8 @@ class StartPose(unittest.TestCase):
         f.on_map(dict(frame='map', width=2, height=1, resolution=0.05, position=(0.0, 0.0, 0.0),
                       orientation=(0., 0., 0., 1.), data=[0, 0]))
         f.on_pose(pose(x=1.0))
-        record = f.freeze()
+        f.freeze()
+        record = f.freeze()                      # both freezes carry it; the second also the TB-6 pose
         self.assertEqual(pose(), record['start_pose'])
         self.assertEqual(1.0, record['pose']['position'][0])
 

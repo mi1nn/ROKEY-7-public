@@ -8,9 +8,12 @@ same MapState snapshot id on both sides. Invalid grids raise ValueError.
 import hashlib
 import json
 import math
+import re
 import uuid
 
 SNAPSHOT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_robot/map_state/snapshot')  # same map -> same id
+FROZEN_REVISION_FORMAT = 'rescue-map-frozen/1'   # /rescue/map/frozen_revision (std_msgs/String JSON, C-04)
+_FROZEN_REVISION_KEYS = {'format', 'map_session_id', 'map_revision', 'occupancy_sha256'}
 
 
 def planar_origin(px, py, pz, qx, qy, qz, qw):
@@ -88,3 +91,39 @@ def relative_planar(start, pose):
     c, s = math.cos(syaw), math.sin(syaw)
     dx, dy, yaw = px - sx, py - sy, pyaw - syaw
     return c * dx + s * dy, -s * dx + c * dy, math.atan2(math.sin(yaw), math.cos(yaw))
+
+
+def _frozen_revision_fields(map_session_id, map_revision, occupancy_sha256):
+    try:
+        canonical = isinstance(map_session_id, str) and str(uuid.UUID(map_session_id)) == map_session_id
+    except ValueError:
+        canonical = False
+    if (not canonical or type(map_revision) is not int or map_revision < 1 or not isinstance(occupancy_sha256, str)
+            or not re.fullmatch('[0-9a-f]{64}', occupancy_sha256)):
+        raise ValueError('frozen revision needs a UUID session, revision >= 1 and a lower-case sha256')
+    return dict(map_session_id=map_session_id, map_revision=map_revision, occupancy_sha256=occupancy_sha256)
+
+
+def frozen_revision_text(*, map_session_id, map_revision, occupancy_sha256):
+    """/rescue/map/frozen_revision text for one frozen grid (map_freeze publishes it next to the grid)."""
+    fields = _frozen_revision_fields(map_session_id, map_revision, occupancy_sha256)
+    return json.dumps(dict(format=FROZEN_REVISION_FORMAT, **fields), separators=(',', ':'), sort_keys=True)
+
+
+def parse_frozen_revision(text):
+    """The fields of a /rescue/map/frozen_revision text; ValueError for another format or any bad field.
+
+    Map frozen twice per run (OPS-154): /rescue/map/frozen carries no revision, this does.
+    """
+    try:
+        data = json.loads(text) if isinstance(text, str) else None
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or set(data) != _FROZEN_REVISION_KEYS or data['format'] != FROZEN_REVISION_FORMAT:
+        raise ValueError(f'not a {FROZEN_REVISION_FORMAT} frozen revision')
+    return _frozen_revision_fields(data['map_session_id'], data['map_revision'], data['occupancy_sha256'])
+
+
+def paired_revision(info, occupancy_sha256):
+    """The revision of a received frozen grid: only when ``info`` (parsed) names its hash, else None (wait)."""
+    return info['map_revision'] if info['occupancy_sha256'] == occupancy_sha256 else None

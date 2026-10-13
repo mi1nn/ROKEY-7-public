@@ -164,7 +164,7 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
   --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
 ```
 
-현장 프로파일에는 `map_basis`(frame `map`, revision R0 = 탐색 중 revision; 고정 지도는 R0+1)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; TB-6 지도에서 잼)가 있어야 한다. 프로파일은 저장소 밖이라 **`hosts[compute_a]`·`hosts[compute_b]` 의 `network.discovery_servers` 를 두 Pi 서버(자리 5·6)로 직접 고쳐야** 준비 점검 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
+현장 프로파일에는 `map_basis`(frame `map`, revision R0 = 탐색 중 revision; 1차 고정 지도는 R0+1, 2차는 R0+2)와 `home_positions`(TB-6 도킹 접근 지점, TB-5 출구; TB-6 지도에서 잼)가 있어야 한다. 프로파일은 저장소 밖이라 **`hosts[compute_a]`·`hosts[compute_b]` 의 `network.discovery_servers` 를 두 Pi 서버(자리 5·6)로 직접 고쳐야** 준비 점검 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 준비 점검이 모두 PASSED 여야 다음으로 간다.
 
 ### 1단계 — operations + coordination PC
 
@@ -259,22 +259,31 @@ compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). �
 ros2 service call <ns>/request_nomotion_update std_srvs/srv/Empty {}
 ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}
 ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}      # success=True
+# (TB-6 은 탐색 중 SLAM 이라 AMCL 이 없다: request_nomotion_update 는 TB-5 만, 고정 R0+2 뒤에는 TB-6 도)
+
+# TB-6 탐색 중 위치(읽기 전용, 조정기 frontier 탐색이 받는 값). Discovery 서버 아래에서는 topic list 대신 hz/echo 로 본다.
+ros2 topic hz /robot6/pose        # slam_toolbox 위치. TB-6 을 세워 둔 채로도 2 s 안 간격으로 나오는지 본다
+ros2 topic echo --once /rescue/robots/robot_a/pose   # mission_pose_status: VALID, frame_ref.map_revision: <R0>
 ```
+
+TB-6 탐색 중 RobotPose 는 `/robot6/pose`(slam_toolbox, `task.saved_map.slam_localization_topic`) 한 개가 올 때마다 `/rescue/robots/robot_a/pose` 로 한 번 나간다(`live_sources.receive_pose(source='slam')` → `live_pose.LivePosePublisher.on_pose`). 유효 기간은 `task.live.pose_valid_ns` 2 s 다. 그래서 `/robot6/pose` 가 2 s 넘게 끊기면 조정기에는 오래된 위치가 된다. slam_toolbox 가 멈춰 있는 동안에도 위치를 내는지는 실기 확인 항목이다[추정: 스캔 처리 조건(최소 이동 거리)에 따라 정지 중에는 안 나올 수 있다]. `VALID` 가 되려면 `/robot6/map` 을 받았고, 위치 공분산이 한도(`max_position_variance_m2` 0.25) 안이며, 시계가 SYNCED 여야 한다. 하나라도 아니면 `UNKNOWN` 이다.
 
 1. RViz(2D Goal Pose)로 `/rescue/search_goal` 에 TB-6 수색 목표를 고른다. 조정기 로그 `SEARCH_GOAL_SELECTED`. 탐색 중 목표는 revision R0 다.
 2. TB-6 과 TB-5 를 모두 arm 한다. TB-5 는 자동 출동이라 대상이 나오기 전에 arm 돼 있어야 한다. 실행기는 arm(latch ARMED)일 때만 READY 를 내고(`task_status.py`), 조정기는 READY·최신 상태인 SUPPORT 에만 task 를 낸다(통합-조정 확인 2026-10-13). arm 하지 않으면 조정기는 기다리기만 한다. PR #196 머지 뒤에는 SystemState `reason=SUPPORT_NOT_READY` 로 보이고, 관제 웹에는 「TB-5 준비 안 됨 — arm 필요」로 보인다(PR #185 머지 뒤).
 3. 웹캠 앞 흔들림 → 관제 화면 모드 DISASTER → 관제 웹 출동 버튼(START_SEARCH).
-4. **지도 고정과 TB-6 전환.** 대상이 확정·저장되면 조정기가 TB-6 정지를 확인한 뒤 `/rescue/map/freeze` 를 부른다(#214). compute_a 로그에 `MAP_FROZEN sha256=... rev=<R0+1> tb6_start=(...)` 가 나오면 TB-6 을 전환한다:
-   1. `tb6_slam.launch.py` 터미널에서 Ctrl-C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 의 발행자 수가 0 이 될 때까지 기다린다.
-   2. 아래 한 줄을 띄운다. 고정 위치에서 AMCL 이 시작한다(`/rescue/map/frozen_pose/robot_a`, 10 s 안에 없으면 launch 실패):
-      `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0`
-   3. 로그 `MAP_RELAYED /rescue/map/frozen -> /robot6/map sha256=<고정 해시>` 를 확인한다. SLAM 이 아직 떠 있으면 `MAP_RELAY_BLOCKED` 가 나오고 지도를 넘기지 않는다.
-   4. 두 로봇 모두 `MAP_STATE ... rev=<R0+1> quality=VALID` 가 나오는지 확인한다. `snapshot_id` 가 두 로봇에서 같아야 한다.
-   - TB-5 는 이미 떠 있는 `frozen_localization` 이 고정 지도를 받아 위치를 잡는다(`MAP_RELAYED /rescue/map/frozen -> /robot5/map`).
-   - AMCL 이 자리를 못 잡으면(공분산 초과) `quality=UNKNOWN` 이고 TB-5 는 출동하지 않는다.
+4. **1차 고정(인형 발견) — TB-5 출동, TB-6 은 계속 탐색.** 대상이 확정·저장되면 조정기가 `/rescue/map/freeze` 를 부른다(통합-조정 두 번 고정). TB-6 은 멈추지 않아도 된다. compute_a 로그 `MAP_FROZEN ... rev=<R0+1> final=False tb6 keeps SLAM`.
+   - TB-5: `MAP_REVISION_ADOPTED robot_b RNone -> R<R0+1>` → `MAP_RELAYED /rescue/map/frozen R<R0+1> -> /robot5/map` → `MAP_STATE robot_b ... rev=<R0+1> quality=VALID` 이면 출동할 수 있다. AMCL 이 자리를 못 잡으면(공분산 초과) `quality=UNKNOWN` 이고 출동하지 않는다.
+   - TB-6: 아무것도 바뀌지 않는다. `MAP_STATE robot_a ... rev=<R0>` 그대로이고 `/robot6/map` 은 SLAM 지도다(중계는 TB-6 MapState 가 R0 라 복사하지 않음).
    - 고정이 실패하면(`MAP_FREEZE_FAILED`) 아무것도 바뀌지 않는다. TB-5 도 출동하지 않는다.
-5. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
-6. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다. 고정은 회차마다 한 번이다. 새 회차는 `tb6_slam` 부터 다시 띄우고, 고정 노드는 `record_path` 없이 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 `record_path:=<저장된 .json>` 로 같은 지도를 다시 낸다.
+5. **2차 고정(탐색 완료) — TB-6 전환, TB-5 재정합.** 조정기가 TB-6 정지를 확인한 뒤 다시 `/rescue/map/freeze` 를 부른다. compute_a 로그 `MAP_FROZEN ... rev=<R0+2> final=True tb6 amcl start=(...)`. 세 번째 요청은 거절된다.
+   1. TB-6: `MAP_REVISION_ADOPTED robot_a RNone -> R<R0+2>` 를 확인하고 `tb6_slam.launch.py` 터미널에서 Ctrl-C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 의 발행자 수가 0 이 될 때까지 기다린다.
+   2. 아래 한 줄을 띄운다. 고정 위치에서 AMCL 이 시작한다(`/rescue/map/frozen_pose/robot_a`, 2차에만 나옴, 10 s 안에 없으면 launch 실패):
+      `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0`
+   3. 로그 `MAP_RELAYED /rescue/map/frozen R<R0+2> -> /robot6/map` 를 확인한다. SLAM 이 아직 떠 있으면 `MAP_RELAY_BLOCKED` 가 나오고 지도를 넘기지 않는다.
+   4. TB-5: 인형 앞에서 정지·작업 없음이면 바로 `MAP_REVISION_ADOPTED robot_b R<R0+1> -> R<R0+2>` → `MAP_RELAYED ... R<R0+2> -> /robot5/map` → `MAP_REALIGN robot_b ...`(직전 자기 위치로 AMCL 재시작). 움직이는 중이면 `MAP_REVISION_DEFERRED robot_b ... not stopped`(또는 `task active`)가 나오고, 멈추면 자동으로 받는다. 그동안 새 목표는 `map revision pending` 으로 거절된다.
+   5. 두 로봇 모두 `MAP_STATE ... rev=<R0+2> quality=VALID` 가 나오는지 확인한다. `snapshot_id` 가 두 로봇에서 같아야 한다.
+6. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
+7. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다. 고정은 회차마다 두 번까지다(R0+1 인형 발견, R0+2 탐색 완료, OPS-154). 새 회차는 `tb6_slam` 부터 다시 띄우고, 고정 노드는 **새 `output_dir`** 로 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 같은 `output_dir` 로 띄우면 그 회차의 출발 자세와 고정 기록(`frozen-r<revision>-*.json`)을 순서대로 다시 낸다(`record_path` 인자는 없어졌다). 기록이 한 회차로 맞지 않으면(같은 revision 두 개, R0+1 없는 R0+2) `MAP_FREEZE_RESTORE_FAILED` 로 기동하지 않는다.
 
 ### 참고
 
