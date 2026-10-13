@@ -196,6 +196,10 @@ def _grid(layer):
 def _map(view):
     """Pre-quake map as the background of one SVG, so marks and image always scale together."""
     layer = view['map']
+    live = layer.get('live')
+    if not layer.get('available') and live is not None:
+        return (f'<section id="map" class="placeholder"><h2>지도</h2><p>{escape(live["message"])}</p>'
+                '<p>운영 launch 의 <code>map_topic</code>·<code>map_dir</code> 와 SLAM 지도 발행을 확인하세요.</p></section>')
     if not layer.get('available'):
         return ('<section id="map" class="placeholder"><h2>지도</h2>'
                 '<p>기준 지도가 없습니다. 실행할 때 <code>--map assets/maps/pre_quake/map.yaml</code> 을 주세요.</p>'
@@ -231,19 +235,30 @@ def _map(view):
             f'{escape(unit)}</text></g>')
     unplotted = [f'{w["id"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
     unplotted += [f'{w["id"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
+    unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
     notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
     legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
     legend += '<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true"><polygon points="14,8 3,2.5 3,13.5"/></svg>로봇과 진행 방향</li>'
     pad_left, pad_top, pad_bottom = 5, 2, 9
-    return (f'<section id="map" class="map"><header><h2>지도</h2><ul class="legend">{legend}</ul></header>'
+    if live is None:
+        note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
+                .format(grid=GRID_M))
+        state = ''
+    else:
+        received = '받은 시각 없음' if live['received_at_ns'] is None else (
+            f'받은 시각 {datetime.fromtimestamp(live["received_at_ns"] / 1e9):%H:%M:%S} ({live["age_s"]:g}초 전)')
+        note = (f'실시간 SLAM 지도 · {received} · {width}×{height} px · {layer["resolution"]:g} m/px · '
+                f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
+                + (f' — {live["message"]}' if live['message'] else ''))
+        state = '' if live['state'] == 'OK' else ' stale'
+    return (f'<section id="map" class="map{state}"><header><h2>지도</h2><ul class="legend">{legend}</ul></header>'
             f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="기준 지도 위 로봇과 요구조자 위치">'
             f'<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
             f'preserveAspectRatio="none"/>'
             f'<rect class="frame" x="0" y="0" width="{width}" height="{height}"/>'
             f'{_grid(layer)}{"".join(marks)}</svg>'
-            f'<p class="map-note" title="{escape(layer["note"])}">재난 전 기준 지도, 격자 한 칸 {GRID_M:g} m. '
-            '좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).</p>'
+            f'<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
             + (f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else '')
             + '</section>')
 
@@ -541,6 +556,7 @@ dl{margin:0}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
 .map-note{font-size:12px;color:var(--ink-2);margin-top:4px}
+#map.stale .plan{opacity:.45} #map.stale .map-note{color:var(--signal);font-weight:700}
 .unplotted{margin:6px 0 0;padding:6px 10px;list-style:none;background:var(--caution-tint);border-left:6px solid var(--caution);font-size:13px}
 .unplotted .head{font-weight:700}
 #map.placeholder p{margin-top:40px;text-align:center;color:var(--ink-2)}
