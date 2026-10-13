@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); task.live.pose_valid_ns 2 s (RobotPose validity, = coordinator support_pose_max_age_s proposal)",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -62,7 +62,8 @@
     "task.saved_map.position_error_m": 0.0,
     "task.saved_map.rotation_error_rad": 0.0,
     "task.saved_map.max_position_variance_m2": 0.25,
-    "task.saved_map.max_yaw_variance_rad2": 0.25
+    "task.saved_map.max_yaw_variance_rad2": 0.25,
+    "task.live.pose_valid_ns": 2000000000
   },
   "robots": {
     "robot_a": {

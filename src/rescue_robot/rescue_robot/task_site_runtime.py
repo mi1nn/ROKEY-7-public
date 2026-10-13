@@ -547,6 +547,9 @@ class SiteRuntime:
             self.input_handles.append(('destroy_subscription',subscription))
         if self.saved_maps is not None:
             from rescue_robot.live_sources import attach_sources
+            if 'pose_valid_ns' in self.config:
+                from rescue_robot.live_pose import LivePosePublisher
+                self.saved_maps.publisher=LivePosePublisher(self,pose_valid_ns=self.config['pose_valid_ns'])
             attach_sources(self)
         timer=self.node.create_timer(self.config['poll_period_s'],self._check_input_session)
         self.input_handles.append(('destroy_timer',timer))

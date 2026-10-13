@@ -72,8 +72,18 @@ class PoseRecord(unittest.TestCase):
     def test_unusable_alignment_is_not_valid_in_the_frame_ref(self):
         self.assertEqual('INVALID', record(transform=None)['frame_ref']['alignment_status'])
 
+    def test_covariance_as_ros_gives_it(self):
+        """rclpy hands covariance over as a numpy float64 array (found on a ROS run, 2026-10-13)."""
+        try:
+            import numpy
+        except ImportError:
+            self.skipTest('numpy not installed')
+        r = record(native=(1.0, 2.0, 0.5, numpy.array(COV, dtype=numpy.float64)))
+        self.assertEqual('VALID', r['mission_pose_status'])
+
     def test_bad_inputs_are_refused(self):
         for change in (dict(observed_at_ns=0), dict(pose_valid_ns=0), dict(native=(float('nan'), 0.0, 0.0, COV)),
+                       dict(native=(True, 0.0, 0.0, COV)),
                        dict(native=(0.0, 0.0, 0.0, COV[:35]))):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 record(**change)
