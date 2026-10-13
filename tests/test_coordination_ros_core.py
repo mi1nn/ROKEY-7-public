@@ -31,7 +31,8 @@ def make_core(**changes):
                   merge_distance_m=1.0, report_retry_ns=1_000_000_000, lease_renew_period_ns=PERIOD,
                   admission_timeout_ns=ACCEPT, segment_passage_free=(True,) * len(SEGMENTS),
                   lease_message_ttl_ns=TTL, camera_watch=None, support_dispatch='OPERATOR',
-                  approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, new_id=lambda: uid(next(ids)))
+                  approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
+                  new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
