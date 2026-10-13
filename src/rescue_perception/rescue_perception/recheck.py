@@ -85,43 +85,53 @@ def frame_coverage(point_map, map_from_optical, camera, depth_at, policy):
 def scan_state(scan, map_from_laser, point_map, policy):
     """(CLEAR|BLOCKED|UNKNOWN, reason) for one LaserScan (dict of its fields) and the watched point.
 
-    Uses the scan plane only (2-D). A ray toward the disc that returns inside it is a hit; one that
-    returns before the disc is occluded; one that passes beyond it (or has no return while the far
-    side of the disc is inside range_max) is clear.
+    Uses the scan plane only (2-D). For each ray that meets the disc around the point, the ray-circle
+    entry/exit distances decide (#165 review CDX-165-02): a return inside [entry, exit] is a hit, one
+    before the entry is occluded, one beyond the exit passes. No return (+inf, or a finite value above
+    range_max, REP-117) passes only when the exit is within range_max. -inf (something closer than
+    range_min, REP-117), NaN and finite values below range_min say nothing (CDX-165-01). CLEAR needs
+    every ray toward the disc to pass: any occluded or unreadable ray leaves it UNKNOWN.
     """
     px, py, _ = inverse(map_from_laser).apply(point_map)
-    distance, bearing = math.hypot(px, py), math.atan2(py, px)
+    distance = math.hypot(px, py)
     radius = policy.lidar_radius_m
     if distance <= radius:
         return 'UNKNOWN', 'INSIDE_DISC'
-    half = math.asin(radius / distance)
-    hits = passes = occluded = considered = 0
+    hits = passes = occluded = unreadable = out_of_range = 0
     for index, rng in enumerate(scan['ranges']):
         angle = scan['angle_min'] + index * scan['angle_increment']
-        if abs((angle - bearing + math.pi) % (2 * math.pi) - math.pi) > half:
-            continue
-        considered += 1
-        returned = math.isfinite(rng) and scan['range_min'] <= rng <= scan['range_max']
-        if returned:
-            hx, hy = rng * math.cos(angle), rng * math.sin(angle)
-            if math.hypot(hx - px, hy - py) <= radius:
-                hits += 1
-            elif rng < distance - radius:
+        along = px * math.cos(angle) + py * math.sin(angle)          # closest approach along the ray
+        across_sq = distance * distance - along * along
+        if along <= 0 or across_sq >= radius * radius:
+            continue                                                 # the ray misses the disc
+        half = math.sqrt(radius * radius - across_sq)
+        entry, exit_ = along - half, along + half
+        if rng == math.inf or (math.isfinite(rng) and rng > scan['range_max']):
+            if exit_ <= scan['range_max']:
+                passes += 1                                          # nothing returned up to past the disc
+            else:
+                out_of_range += 1
+        elif math.isfinite(rng) and rng >= scan['range_min']:
+            if rng < entry:
                 occluded += 1
+            elif rng <= exit_:
+                hits += 1
             else:
                 passes += 1
-        elif distance + radius <= scan['range_max'] and (math.isinf(rng) or rng > scan['range_max']):
-            passes += 1   # nothing returned within range, and the whole disc is within range
-    if considered == 0:
+        else:
+            unreadable += 1                                          # -inf, NaN or below range_min
+    if hits + passes + occluded + unreadable + out_of_range == 0:
         return 'UNKNOWN', 'NOT_IN_SCAN'
-    if hits + passes + occluded == 0:
-        return 'UNKNOWN', 'OUT_OF_RANGE'
     if hits >= policy.min_lidar_hits:
         return 'BLOCKED', 'RETURNS_IN_DISC'
-    if occluded and passes < policy.min_lidar_rays:
+    if occluded:
         return 'UNKNOWN', 'OCCLUDED'
-    if passes >= policy.min_lidar_rays and hits == 0:
+    if unreadable:
+        return 'UNKNOWN', 'UNREADABLE_RANGE'
+    if hits == 0 and passes >= policy.min_lidar_rays and not out_of_range:
         return 'CLEAR', 'RAYS_PASS_DISC'
+    if out_of_range and not passes:
+        return 'UNKNOWN', 'OUT_OF_RANGE'
     return 'UNKNOWN', 'TOO_FEW_RAYS'
 
 

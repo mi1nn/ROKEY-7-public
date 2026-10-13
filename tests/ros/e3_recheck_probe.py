@@ -14,7 +14,8 @@ node does on the robot) and the host clock measured with timesyncd when availabl
 1. rescued spot (in view, no detection, LiDAR clear) -> OBSERVED ABSENT/CLEAR/VALID, window after
 the goal; 2. a confirmed detection at the point -> PRESENT, LiDAR BLOCKED; 3. cancel -> UNKNOWN with
 every state UNKNOWN; 4. another robot's goal -> FAILED ROBOT_MISMATCH; 5. samples only before the
-goal -> nothing counts (UNKNOWN states). Exit code 0 = all held.
+goal -> nothing counts (UNKNOWN states); 6. two goals sent back to back -> the second is rejected
+(one window at a time, #165 review CDX-165-03). Exit code 0 = all held.
 """
 import os
 import sys
@@ -124,6 +125,18 @@ def main():
                                                    o.coverage_state) == ('UNKNOWN', 'CANCELED', 'UNKNOWN', 'UNKNOWN', 'UNKNOWN')
         _, r = run(goal(robot='robot_b'))
         checks['other robot -> FAILED ROBOT_MISMATCH'] = (r.outcome, r.reason_code) == ('FAILED', 'ROBOT_MISMATCH')
+        first_future = client.send_goal_async(goal(window_s=2.0))
+        second_future = client.send_goal_async(goal(window_s=2.0))   # before the first one executes
+        while not (first_future.done() and second_future.done()):
+            time.sleep(0.02)
+        first, second = first_future.result(), second_future.result()
+        if first.accepted:
+            result = first.get_result_async()
+            while not result.done():
+                time.sleep(0.02)
+        checks['back-to-back goals -> second rejected'] = first.accepted and not second.accepted
+        _, r = run(goal())
+        checks['slot free again after the first ends'] = r.outcome == 'OBSERVED'
         scene['feed'] = False   # camera and LiDAR stopped: only older samples exist
         _, r = run(goal())
         o = r.observation

@@ -19,6 +19,28 @@ from .webcam_clock import observation_clock
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'   # samples are timed when this host receives them
 
 
+class WindowSlot:
+    """One recheck window at a time, taken when the goal is accepted (#165 review CDX-165-03).
+
+    The window used to exist only once the goal executed, so two goals accepted before that could
+    both run on one window. reserve() in the accept callback, release() when the goal ends."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._taken = False
+
+    def reserve(self):
+        with self._lock:
+            if self._taken:
+                return False
+            self._taken = True
+            return True
+
+    def release(self):
+        with self._lock:
+            self._taken = False
+
+
 class RecheckServer:
     def __init__(self, node, *, action_name, robot_id, map_frame, policy, max_window_ns, validity_ns,
                  clock_domain_id, clock_record, publisher_id, envelope_version, callback_group=None,
@@ -34,10 +56,11 @@ class RecheckServer:
         self.log = log or node.get_logger()
         self._lock = threading.Lock()
         self._window = None
+        self._slot = WindowSlot()
         self._sequence = 0
         self._server = ActionServer(
             node, ObserveTarget, action_name, execute_callback=self._execute,
-            goal_callback=lambda goal: GoalResponse.REJECT if self.busy() else GoalResponse.ACCEPT,
+            goal_callback=lambda goal: GoalResponse.ACCEPT if self._slot.reserve() else GoalResponse.REJECT,
             cancel_callback=lambda handle: CancelResponse.ACCEPT, callback_group=callback_group)
 
     # -- sensor input (called from the owning node's callbacks) ---------------------------------
@@ -77,6 +100,14 @@ class RecheckServer:
         return None
 
     def _execute(self, handle):
+        try:
+            return self._run(handle)
+        finally:   # however the goal ends (result, refusal, cancel, exception) the slot is free again
+            with self._lock:
+                self._window = None
+            self._slot.release()
+
+    def _run(self, handle):
         goal, now = handle.request, self.now_ns()
         refusal = self._refusal(goal, now)
         if refusal is not None:
