@@ -13,7 +13,7 @@ import uuid
 from .accounts import AccountStore
 from .commands import build_request, command_access, parse_operations_url, post_json, send_command
 from .mapimage import load_map, map_overlay
-from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, failure_text, render_accounts, render_failure,
+from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
 from .sources import load_ledger, load_site_state, load_status
 from .throttle import LoginThrottle
@@ -84,9 +84,11 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, login_throttle=None, robot_names=None, operations_url=None, command_transport=None):
+               map_path=None, login_throttle=None, robot_names=None, operations_url=None, command_transport=None, camera_stale_s=None):
     """`operations_url`: base URL of operations' HTTP API. Without it the command buttons stay off
     (no default address). `command_transport` replaces the HTTP POST in tests."""
+    cameras = tuple(cameras)
+    camera_stale_ms(cameras, camera_stale_s)   # validate configuration before optional Flask import
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
     except ImportError as exc:
@@ -95,7 +97,6 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     if not isinstance(secret_key, str) or len(secret_key) < 16:
         raise ConsoleError('CONFIG_MISSING', 'secret_key (>= 16 chars) is required to sign login sessions')
     _check_sources(ledger_path, status_path, site_state_path)
-    cameras = tuple(cameras)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup
     operations = None if operations_url is None else parse_operations_url(operations_url)
@@ -213,7 +214,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @app.get('/')
     @login_required
     def page(account):
-        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras,
+        return Response(render_page(view(), account, csrf=csrf_token(), cameras=cameras, camera_stale_s=camera_stale_s,
                                     command_access=command_access(account['role'], operations is not None)),
                         mimetype='text/html')
 

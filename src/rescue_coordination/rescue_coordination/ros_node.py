@@ -15,9 +15,17 @@ ROS packages are imported inside functions, so this module stays importable and
 - Operator SET_CAMERA_WATCH -> ``SetCameraWatch`` to the profile's one TARGET_WATCH camera
   (``watch.CameraWatchBook``, C-11 rows 1-4); a TARGET_DISAPPEARED_CANDIDATE is judged against it
   in DISASTER only (#124) and the watch is released when its mission ends.
+- ``home_poses`` (TB-6 docking approach point, TB-5 exit) -> HomePosition; ``/rescue/robots/{r}/map_state``
+  (#176) VALID -> the robot's current map basis, which RETURN_HOME compares with its home.
+- ``support_dispatch=AUTO`` (owner decision 2026-10-13, 1B·2B): once a target is CONFIRMED and its
+  current revision PERSISTED, the SUPPORT gets one APPROACH_TARGET to ``approach_standoff_m`` from the
+  target toward its current mission pose (``/rescue/robots/{SUPPORT}/pose``), facing the target, with no
+  operator approval. ``OPERATOR`` keeps DISPATCH_SUPPORT / MOVE_SEGMENT.
 
-Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5) and verdict linking, HomePosition
-and RETURN_HOME assignment (Q-22).
+  After it arrives (COMPLETED, stop confirmed) it waits ``support_exit_wait_s`` and gets one RETURN_HOME
+  to its exit (home_ref ``home/<robot_id>``, Q1-b·5A).
+
+Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5), verdict linking and the TB-6 RETURN_HOME.
 """
 import hashlib
 import json
@@ -26,9 +34,9 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
+from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
-from .mission import ALL_COMMAND_FIELDS, MissionCoordinator, OperatorCommand
+from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
 from .watch import CameraWatchBook, roi_value
@@ -65,6 +73,10 @@ SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITIN
 # Internal segment phase -> TargetEstimate.approach_state for the dispatched target [제안].
 APPROACH_STATES = {'APPROVED': 'ASSIGNED', 'MOVING': 'IN_PROGRESS', 'AWAITING_APPROVAL': 'IN_PROGRESS',
                    'ARRIVED': 'APPROACH_COMPLETE'}
+# Automatic approach phase -> TargetEstimate (approach_state, segment_phase) [제안, C-10 vocabulary].
+AUTO_APPROACH_STATES = {'ISSUED': ('ASSIGNED', 'EXECUTING'), 'MOVING': ('IN_PROGRESS', 'EXECUTING'),
+                        'ARRIVED': ('APPROACH_COMPLETE', 'STOPPED'), 'FAILED': ('FAILED', 'STOPPED')}
+SUPPORT_DISPATCH_MODES = frozenset({'AUTO', 'OPERATOR'})
 
 
 def system_mode(mode, phase):
@@ -133,6 +145,7 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
     goal.target_id = fields['target_id'] or ''
     goal.target_estimate_revision = fields['target_revision'] or 0
     goal.search_area_ref = fields['search_area_ref'] or ''
+    goal.home_ref = fields.get('home_ref') or ''  # RETURN_HOME: home/<robot_id>, the robot holds the pose
     goal.lease_id = fields['lease_id']
     frame = goal.frame_ref
     frame.robot_id = fields['robot_id']
@@ -183,6 +196,23 @@ def operator_command_from_request(req, roles):
                            **{name: values[name] if name in used else None for name in values})
 
 
+def approach_point(target_xy, support_xy, standoff_m):
+    """((x, y), yaw) ``standoff_m`` from the target toward the SUPPORT, facing the target; None on the target.
+
+    A SUPPORT already within the standoff stays where it is and only turns to the target. Plain geometry
+    in the mission frame; the executor and Nav2 check the path and the target's protected area.
+    """
+    dx, dy = support_xy[0] - target_xy[0], support_xy[1] - target_xy[1]
+    distance = math.hypot(dx, dy)
+    if distance == 0:
+        return None
+    if distance <= standoff_m:
+        xy = (float(support_xy[0]), float(support_xy[1]))
+    else:
+        xy = (target_xy[0] + standoff_m * dx / distance, target_xy[1] + standoff_m * dy / distance)
+    return xy, math.atan2(target_xy[1] - xy[1], target_xy[0] - xy[0])
+
+
 def route_id(segment_goals):
     """sha256 of the configured segment-end list (작전 #88: route_id of the fixed route)."""
     text = json.dumps([[g.mission_xy[0], g.mission_xy[1], g.yaw, g.map_session_id, g.map_revision,
@@ -200,7 +230,9 @@ class CoordinatorCore:
 
     def __init__(self, mission, *, status_max_age_ns, segment_goals, route_revision, observe_goal, merge_distance_m,
                  report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
-                 lease_message_ttl_ns, camera_watch, new_id=None):
+                 lease_message_ttl_ns, camera_watch, target_clock_domain_id, target_max_age_ns,
+                 target_max_future_ns, support_dispatch, approach_standoff_m, support_pose_max_age_ns,
+                 support_exit_wait_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -227,8 +259,31 @@ class CoordinatorCore:
         if camera_watch is not None and not isinstance(camera_watch, CameraWatchBook):
             raise CoordinationError('INVALID_POLICY', 'camera_watch must be a CameraWatchBook or None')
         self.camera_watch = camera_watch  # None: the profile has no TARGET_WATCH camera
+        if support_dispatch not in SUPPORT_DISPATCH_MODES:
+            raise CoordinationError('INVALID_POLICY', 'support_dispatch must be AUTO or OPERATOR')
+        finite(approach_standoff_m, 'approach_standoff_m')
+        contract_value(duration_ns, support_pose_max_age_ns)
+        if approach_standoff_m <= 0 or support_pose_max_age_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'approach standoff and pose age must be positive')
+        self.support_dispatch, self.approach_standoff_m = support_dispatch, approach_standoff_m
+        self.support_pose_max_age_ns = support_pose_max_age_ns
+        self.support_pose = None   # (mission_xy, (session, revision, transform), mission_frame, status, observed_at_ns)
+        self.approach_task = None  # the open APPROACH_TARGET task_id
+        contract_value(duration_ns, support_exit_wait_ns)
+        self.support_exit_wait_ns = support_exit_wait_ns
+        # TB-5 to the exit after it reached the target (Q1-b): None, WAITING, ISSUED, MOVING, AT_EXIT, CANCELED, FAILED
+        self.support_exit, self.exit_due_ns = None, None
         self.candidate_results = {}  # candidate event_id -> its first reason, None = a row-3 conflict (replay = same)
         self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
+        if not isinstance(target_clock_domain_id, str) or not target_clock_domain_id:
+            raise CoordinationError('INVALID_POLICY', 'target_clock_domain_id required')
+        contract_value(duration_ns, target_max_age_ns)
+        contract_value(duration_ns, target_max_future_ns)
+        if target_max_age_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'target_max_age must be positive')
+        self.target_clock_domain_id = target_clock_domain_id
+        self.target_max_age_ns, self.target_max_future_ns = target_max_age_ns, target_max_future_ns
+        self.location_refusal = None  # why the latest location made no target; cleared by the next accepted one
         self.mission = mission
         self.search = mission.search
         self.roles = {role: robot_id for robot_id, role in self.search.policy.roles}
@@ -265,6 +320,9 @@ class CoordinatorCore:
         self.task_meta = {}      # task_id -> ('MOVE_SEGMENT', SegmentApproval) | ('REOBSERVE_TARGET', link_id)
         self.outbox = []         # task fields reserved and not yet handed to the node
         self.last_reason = None  # mission reason behind the latest reply, for the node log
+        # Refused before moving: approval command_id / recheck link_id -> hold-until ns (None until the next
+        # tick sets it). The same approval or recheck goes again as a new task after admission_timeout_ns.
+        self.refused = {}
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
@@ -307,17 +365,50 @@ class CoordinatorCore:
         self.status_detail[msg.robot_id] = (self.status_arrivals, msg.stop_reason, msg.motion_state,
                                             bool(msg.lease_valid), msg.active_task_id)
 
+    def on_map_state(self, msg):
+        """MapState of a role robot (#176): a VALID localization is its current map basis for RETURN_HOME.
+
+        transform_revision is not in MapState; it is the profile map_basis value, which is this coordinator's
+        goal basis. Anything but VALID withdraws the robot's basis (HOME_BASIS_MISMATCH), never keeps an old one.
+        """
+        if msg.robot_id not in self.roles.values():
+            raise CoordinationError('WRONG_ROBOT', 'map state from a robot outside the policy')
+        if msg.localization_quality != 'VALID':
+            self.mission.map_basis.pop(msg.robot_id, None)
+            return False
+        self.mission.record_map_basis(msg.robot_id, map_session_id=msg.map_session_id, map_revision=msg.map_revision,
+                                      transform_revision=self.observe_goal.transform_revision)
+        return True
+
+    def on_pose(self, msg):
+        """RobotPose of the SUPPORT (its current mission pose); other robots are not used here."""
+        if msg.robot_id not in self.roles.values():
+            raise CoordinationError('WRONG_ROBOT', 'pose from a robot outside the policy')
+        if msg.robot_id != self.roles['SUPPORT']:
+            return False
+        f, p = msg.frame_ref, msg.mission_pose.pose.pose.position
+        self.support_pose = ((float(p.x), float(p.y)), (f.map_session_id, f.map_revision, f.transform_revision),
+                             f.mission_frame, msg.mission_pose_status, msg.time.observed_at_ns)
+        return True
+
     def on_admission(self, msg):
         admission = admission_from_msg(msg)
         admitted = self.search.record_admission(admission)
         meta = self.task_meta.get(admission.task_id)
         if admitted and admission.accepted and admission.task_id in self.leases:
             self.leases[admission.task_id]['admitted_after'] = self.status_arrivals
+        if admitted and admission.accepted and meta and meta[0] == 'APPROACH_TARGET':
+            self.mission.approach_started()
+        if admitted and admission.accepted and meta and meta[0] == 'RETURN_HOME':
+            self.support_exit = 'MOVING'
         if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
             self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
                                          route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
-        elif admitted and not admission.accepted and meta:
-            self._forget(admission.task_id)  # refused before moving: issue again on the next tick
+        elif not admission.accepted and meta and self.search.allocator.admissions.get(admission.task_id) == admission:
+            # A refusal the Allocator recorded (it returns False for it, so ``admitted`` is never True here):
+            # the task is released; its approval or recheck goes again after a hold.
+            self.refused[meta[1].command_id if meta[0] == 'MOVE_SEGMENT' else meta[1]] = None
+            self._forget(admission.task_id)
         return admitted
 
     def on_result(self, task_id, result):
@@ -340,6 +431,11 @@ class CoordinatorCore:
                                           route_revision=approval.route_revision,
                                           segment_index=approval.segment_index,
                                           completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
+        elif meta and meta[0] == 'RETURN_HOME':
+            self.support_exit = 'AT_EXIT' if result.outcome == 'COMPLETED' else 'FAILED'  # FAILED: shown, not retried
+        elif meta and meta[0] == 'APPROACH_TARGET':
+            self.mission.approach_finished(completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
+            self.approach_task = None  # ARRIVED or FAILED: never issued again
         elif meta and meta[0] == 'REOBSERVE_TARGET' and result.outcome != 'COMPLETED':
             self._forget(task_id)  # C-11 row 5: same recheck, new task_id and generation
         return True
@@ -365,6 +461,7 @@ class CoordinatorCore:
             if seen[2] != key:
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'location content differs for the same location_id')
             return seen[0]
+        self._check_observation_time(msg.observation.time, now_ns)
         if any(geo[0] != basis for geo in self.target_geo.values()):
             raise CoordinationError('FRAME_REVISION_MISMATCH', 'location map basis differs from the known targets')
         near = sorted((math.dist(geo[1], xy), target_id) for target_id, geo in self.target_geo.items()
@@ -396,6 +493,30 @@ class CoordinatorCore:
                                        record_ids=[loc.location_id for loc in unsaved], locations=unsaved,
                                        first_issued_at_ns=now_ns, next_send_ns=now_ns, done=False)
         return target_id
+
+    def _check_observation_time(self, t, now_ns):
+        """OPS-103 (#142): only an observation with a usable time becomes a target (C-03).
+
+        Declared basis (stamp semantics known, SYNCED, an error bound), this coordinator's clock domain, not
+        ahead of now by more than ``target_max_future_ns`` plus the observation's own declared error bound (PC
+        clocks differ by hundreds of ms under timesyncd, measured 2026-10-13), not older than
+        ``target_max_age_ns`` and before its own ``valid_until_ns``. The reason stays in SystemState.reason
+        until a location is accepted.
+        """
+        checks = (
+            (t.stamp_semantics in STAMP_SEMANTICS - {'UNKNOWN'} and t.clock_state == 'SYNCED'
+             and bool(t.has_clock_error_bound),
+             'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE'),
+            (t.clock_domain_id == self.target_clock_domain_id, 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH'),
+            (t.observed_at_ns - now_ns <= self.target_max_future_ns + int(t.clock_error_bound_ns),
+             'STALE_OBSERVATION', 'TARGET_OBSERVATION_FUTURE'),
+            (now_ns - t.observed_at_ns <= self.target_max_age_ns and now_ns < t.valid_until_ns,
+             'STALE_OBSERVATION', 'TARGET_OBSERVATION_STALE'))
+        for ok, code, reason in checks:
+            if not ok:
+                self.location_refusal = reason
+                raise CoordinationError(code, reason)
+        self.location_refusal = None
 
     def reports_due(self, now_ns):
         """RescueReports to (re)send now; resent every ``report_retry_ns`` until PERSISTED or REJECTED."""
@@ -431,8 +552,9 @@ class CoordinatorCore:
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
-            reason=self.issue_block or ('SEARCH_QUEUED' if self.search_queued() else '') or (
-                self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else ''),
+            reason=self.issue_block or self.exit_reason(now_ns) or ('SEARCH_QUEUED' if self.search_queued() else '') or (
+                self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
+                self.location_refusal or ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -462,13 +584,19 @@ class CoordinatorCore:
             target_revision = mission.targets[target_id][0]
             dispatched = target_id == mission.dispatch_target
             latest = locations[-1]
+            if dispatched and mission.dispatch_kind == 'APPROACH':
+                approach_state, segment_state = AUTO_APPROACH_STATES[mission.approach_phase]
+            elif dispatched:
+                approach_state = APPROACH_STATES[mission.segment_phase]
+                segment_state = SEGMENT_PHASE_STATES[mission.segment_phase]
+            else:
+                approach_state, segment_state = 'UNASSIGNED', 'IDLE'
             targets.append(dict(
                 target_id=target_id, estimate_revision=target_revision, locations=list(locations),
                 latest_observed_at_ns=max(loc.observation.time.observed_at_ns for loc in locations),
                 valid_until_ns=latest.observation.time.valid_until_ns, mission_position=xy,
                 covariance=list(latest.covariance), confirmation_state='CONFIRMED',
-                approach_state=APPROACH_STATES[mission.segment_phase] if dispatched else 'UNASSIGNED',
-                segment_phase=SEGMENT_PHASE_STATES[mission.segment_phase] if dispatched else 'IDLE',
+                approach_state=approach_state, segment_phase=segment_state,
                 rescue_state=mission.verdicts.get(target_id, 'NOT_CHECKED'),
                 persisted_report_id=saved.get((target_id, target_revision), '')))
         if targets == self.last_targets:
@@ -504,6 +632,8 @@ class CoordinatorCore:
             self._cancel_queued_search('SCOUT_STOPPING')
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
+        self._issue_approach(now_ns)
+        self._issue_support_exit(now_ns)
         self._issue_segment(now_ns)
         self._issue_rechecks(now_ns)
         self._issue_search(now_ns)
@@ -530,6 +660,12 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if command.kind == 'DISPATCH_SUPPORT' and self.support_dispatch == 'AUTO':
+            # 1B: the coordinator dispatches the SUPPORT itself; the operator path is for OPERATOR mode only.
+            self.last_reason = 'AUTO_DISPATCH_ENABLED'
+            reply = self._reply(False, 'REJECTED', 'NOT_AUTHORIZED')
+            self.replies[command.command_id] = (command, reply)
+            return reply
         if command.kind == 'SET_CAMERA_WATCH':
             refused = self._watch_precheck(req, command)
             if refused is not None:
@@ -629,17 +765,151 @@ class CoordinatorCore:
             return None
         return f
 
-    def _route(self, fields, goal, frame, route_id, segment_index):
-        return dict(route_id=route_id, route_revision=self.route_revision, robot_id=fields['robot_id'],
-                    target_id=fields['target_id'], segment_index=segment_index, approach_goal=goal,
-                    frame_ref=frame, generated_at_ns=self.route_made_at[fields['target_id']],
+    def _route(self, fields, goal, frame, route_id, segment_index, *, route_revision=None, generated_at_ns=None):
+        return dict(route_id=route_id,
+                    route_revision=self.route_revision if route_revision is None else route_revision,
+                    robot_id=fields['robot_id'], target_id=fields['target_id'], segment_index=segment_index,
+                    approach_goal=goal, frame_ref=frame,
+                    generated_at_ns=(self.route_made_at[fields['target_id']] if generated_at_ns is None
+                                     else generated_at_ns),
                     valid_until_ns=fields['deadline_ns'])
+
+    def _approach_target(self):
+        """(target_id, revision) the automatic dispatch serves now, or None."""
+        mission = self.mission
+        if mission.dispatch_kind == 'APPROACH':
+            if mission.approach_phase == 'FAILED':
+                self.issue_block = 'APPROACH_FAILED'  # shown, never retried by itself
+            if mission.approach_phase != 'ISSUED' or self.approach_task is not None:
+                return None
+            return mission.dispatch_target, mission.dispatch_target_revision
+        if mission.dispatch_target is not None:
+            return None
+        # Targets in the order they were found (Phase 1: one SUPPORT dispatch per mission) [제안].
+        for target_id in sorted(self.route_made_at, key=lambda t: (self.route_made_at[t], t)):
+            rev, confirmed, persisted = mission.targets[target_id]
+            if confirmed and persisted and mission.verdicts.get(target_id) != 'RESCUE_CONFIRMED':
+                return target_id, rev
+        return None
+
+    def _issue_support_exit(self, now_ns):
+        """Q1-b: support_exit_wait_ns after TB-5 arrived (COMPLETED, stop confirmed), one RETURN_HOME to its exit.
+
+        The robot holds the exit pose (home_ref ``home/<robot_id>``, 5A). Only the end of disaster mode cancels
+        the exit: a RESCUE_CONFIRMED target does not, TB-5 still leads out and ends at the exit (5A; 작전
+        2026-10-13: after the verdict the TB-6 return and the TB-5 exit both follow). A failed approach never
+        reaches here (ARRIVED only).
+        """
+        mission = self.mission
+        if (mission.dispatch_kind != 'APPROACH' or mission.approach_phase != 'ARRIVED'
+                or self.support_exit not in (None, 'WAITING')):
+            return None
+        if mission.mode != 'DISASTER':
+            self.support_exit = 'CANCELED'
+            return None
+        if self.support_exit is None:
+            self.support_exit, self.exit_due_ns = 'WAITING', now_ns + self.support_exit_wait_ns
+        if now_ns < self.exit_due_ns or self._held_after_refusal('SUPPORT_EXIT', now_ns):
+            return None
+        boot = self._free('SUPPORT', now_ns)
+        if boot is None:
+            return None
+        robot_id = self.roles['SUPPORT']
+        decision = self.search.reserve_goal_task(robot_id, robot_boot_id=boot, kind='RETURN_HOME',
+                                                 target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
+        if decision.action != 'RESERVED':
+            return None
+        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
+        self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SUPPORT_EXIT')
+        self.support_exit = 'ISSUED'
+        self._send(fields)
+        return fields['task_id']
+
+    def exit_reason(self, now_ns):
+        """SystemState.reason for TB-5's exit: the countdown in whole seconds (rounded up), then its progress."""
+        if self.support_exit == 'WAITING':
+            remaining = max(0, self.exit_due_ns - now_ns)
+            return f'SUPPORT_EXIT_IN_{-(-remaining // 1_000_000_000)}S'
+        return {'ISSUED': 'SUPPORT_EXITING', 'MOVING': 'SUPPORT_EXITING', 'AT_EXIT': 'SUPPORT_AT_EXIT',
+                'CANCELED': 'SUPPORT_EXIT_CANCELED', 'FAILED': 'SUPPORT_EXIT_FAILED'}.get(self.support_exit, '')
+
+    def _support_xy(self, now_ns):
+        """The SUPPORT's mission xy when its pose is fresh, VALID and on the coordinator's basis, else None."""
+        pose = self.support_pose
+        if pose is None or pose[3] != 'VALID' or not (
+                pose[4] <= now_ns and now_ns - pose[4] <= self.support_pose_max_age_ns):
+            self.issue_block = 'SUPPORT_POSE_UNKNOWN'
+            return None
+        goal_basis = (self.observe_goal.map_session_id, self.observe_goal.map_revision,
+                      self.observe_goal.transform_revision)
+        if pose[1] != goal_basis or pose[2] != self.search.policy.mission_frame_id:
+            self.issue_block = 'SUPPORT_POSE_BASIS_MISMATCH'
+            return None
+        return pose[0]
+
+    def _issue_approach(self, now_ns):
+        """AUTO: one APPROACH_TARGET to the standoff point of the saved target (owner decision 2026-10-13)."""
+        if self.support_dispatch != 'AUTO' or self.mission.mode != 'DISASTER':
+            return None
+        chosen = self._approach_target()
+        if chosen is None:
+            return None
+        target_id, target_revision = chosen
+        if self._held_after_refusal(target_id, now_ns):  # refused before moving: wait, then a new task
+            return None
+        boot = self._free('SUPPORT', now_ns)
+        if boot is None:
+            return None
+        support_xy = self._support_xy(now_ns)
+        if support_xy is None:
+            return None
+        point = approach_point(self.target_geo[target_id][1], support_xy, self.approach_standoff_m)
+        if point is None:
+            self.issue_block = 'SUPPORT_AT_TARGET'
+            return None
+        o = self.observe_goal
+        goal = GoalPoint(point[0], point[1], o.map_session_id, o.map_revision, o.transform_revision)
+        frame = self._route_frame(target_id, goal)
+        if frame is None:
+            return None
+        if self.mission.dispatch_kind is None:
+            reason = self.mission.start_approach(target_id, target_revision)
+            if reason != 'ACCEPTED':
+                self.issue_block = reason
+                return None
+        decision = self.search.reserve_goal_task(
+            self.roles['SUPPORT'], robot_boot_id=boot, kind='APPROACH_TARGET', target_id=target_id,
+            target_revision=target_revision, goal=goal, now_ns=now_ns)
+        if decision.action != 'RESERVED':
+            return None
+        fields = decision.task_fields
+        fields = fields | dict(route=self._route(fields, goal, frame, route_id((goal,)), 0,
+                                                 route_revision=target_revision, generated_at_ns=now_ns),
+                               approval=None)
+        self.approach_task = fields['task_id']
+        self.task_meta[fields['task_id']] = ('APPROACH_TARGET', target_id)
+        self._send(fields)
+        return fields['task_id']
+
+    def _held_after_refusal(self, key, now_ns):
+        """True while a refused approval/recheck waits admission_timeout_ns before it is issued again."""
+        if key not in self.refused:
+            return False
+        if self.refused[key] is None:
+            self.refused[key] = now_ns + self.admission_timeout_ns
+        if now_ns <= self.refused[key]:
+            self.issue_block = 'TASK_REFUSED'
+            return True
+        del self.refused[key]
+        return False
 
     def _issue_segment(self, now_ns):
         approval = self.mission.approval
         if (approval is None or self.mission.segment_phase != 'APPROVED'
                 or approval.command_id in self.segment_tasks or approval.route_revision != self.route_revision):
             return self.segment_tasks.get(approval.command_id) if approval else None
+        if self._held_after_refusal(approval.command_id, now_ns):
+            return None
         if not self._passage_free(approval.segment_index):
             self.issue_block = 'PASSAGE_ASSESSMENT_REQUIRED'  # Q-25 default: hold, never guess
             return None
@@ -673,7 +943,7 @@ class CoordinatorCore:
 
     def _issue_rechecks(self, now_ns):
         for target_id, recheck in self.mission.open_rechecks.items():
-            if recheck.link_id in self.recheck_tasks:
+            if recheck.link_id in self.recheck_tasks or self._held_after_refusal(recheck.link_id, now_ns):
                 continue
             boot = self._free('SCOUT', now_ns)
             frame = self._route_frame(target_id, self.observe_goal)
@@ -795,6 +1065,12 @@ class CoordinatorCore:
 
     def _forget(self, task_id):
         kind, key = self.task_meta.pop(task_id)
+        if kind == 'APPROACH_TARGET':
+            self.approach_task = None  # refused or timed out before moving: issued again on a later tick
+            return
+        if kind == 'RETURN_HOME':
+            self.support_exit = 'WAITING'  # the wait is over; issued again after the refusal hold
+            return
         table = self.segment_tasks if kind == 'MOVE_SEGMENT' else self.recheck_tasks
         table.pop(key.command_id if kind == 'MOVE_SEGMENT' else key, None)
 
@@ -817,6 +1093,33 @@ def spin_until_shutdown(spin, context_ok, shutdown_error):
     except shutdown_error:
         if context_ok():
             raise
+
+
+def _send_targets(core, out):
+    targets = core.target_snapshot_change()
+    if targets is not None:
+        out.targets(targets)
+
+
+def node_tick(core, now_ns, out):
+    """One timer tick of the node, in send order; ``out`` turns each item into a ROS message.
+
+    Changed targets go out before the goals (#179, 2026-10-13): a goal names its target revision, and the
+    robot looks that revision up in the latched /rescue/targets snapshot. They go again after the goals, for
+    the approach states those goals changed; ``target_snapshot_change`` is None when nothing changed.
+    """
+    _send_targets(core, out)
+    for fields in core.tick(now_ns):
+        out.task(fields)
+    for fields in core.watch_requests(now_ns):
+        out.watch(fields)
+    for report in core.reports_due(now_ns):
+        out.report(report)
+    for lease in core.leases_due(now_ns):
+        out.lease(lease)
+    out.block(core.issue_block)
+    _send_targets(core, out)
+    out.state(now_ns)
 
 
 # ---- ROS wiring (needs a sourced ROS 2 environment) --------------------------------------------
@@ -857,8 +1160,11 @@ def build_core(values):
                           mission_frame_id=values['mission_frame_id'])
     robot_ids = tuple(robot for robot, _ in deployment.mission.roles)
     search = SearchCoordinator(Allocator(values['authority_epoch'], allowed_robot_ids=robot_ids), policy)
-    # No profile home positions yet: RETURN_HOME stays NO_HOME_POSITION (assignment is Q-22, later).
-    mission = MissionCoordinator(search, home_positions=())
+    # home_poses: TB-6 (SCOUT) docking approach point, TB-5 (SUPPORT) exit; launch fills it from the profile
+    # (owner decision 2026-10-13, 5A). Left out = no home: RETURN_HOME stays NO_HOME_POSITION.
+    basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
+    roles = {role: robot_id for robot_id, role in deployment.mission.roles}
+    mission = MissionCoordinator(search, home_positions=home_positions(values['home_poses'], roles, basis))
     cameras = [c.id for c in deployment.site_cameras if 'TARGET_WATCH' in c.roles]
     if len(cameras) > 1:
         raise CoordinationError('INVALID_POLICY', 'SET_CAMERA_WATCH needs exactly one TARGET_WATCH camera')
@@ -867,7 +1173,6 @@ def build_core(values):
         cameras[0], roi=tuple(roi) if roi else None,
         request_timeout_ns=seconds_to_ns(str(values['camera_watch_timeout_s'])),
         new_id=lambda: str(uuid4())) if cameras else None
-    basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
     flat = list(values['route_segment_goals'])
     if len(flat) % 3 or len(values['observe_goal']) != 3:
         raise CoordinationError('INVALID_POLICY', 'goals are [x, y, yaw] triples in the mission frame')
@@ -881,7 +1186,30 @@ def build_core(values):
                            admission_timeout_ns=seconds_to_ns(str(values['admission_timeout_s'])),
                            segment_passage_free=tuple(values['route_segment_passage_free']),
                            lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])),
-                           camera_watch=camera_watch)
+                           camera_watch=camera_watch,
+                           target_clock_domain_id=values['target_clock_domain_id'],
+                           target_max_age_ns=seconds_to_ns(str(values['target_max_age_s'])),
+                           target_max_future_ns=seconds_to_ns(str(values['target_max_future_s'])),
+                           support_dispatch=values['support_dispatch'],
+                           approach_standoff_m=values['approach_standoff_m'],
+                           support_pose_max_age_ns=seconds_to_ns(str(values['support_pose_max_age_s'])),
+                           support_exit_wait_ns=seconds_to_ns(str(values['support_exit_wait_s'])))
+
+
+def home_positions(flat, roles, basis):
+    """``home_poses`` [x, y, yaw] per role robot (SCOUT, then SUPPORT) -> HomePosition tuple.
+
+    Same mission frame and map basis as the other configured goals (goal_map_*). Left out or
+    empty = no home: RETURN_HOME stays NO_HOME_POSITION. Any other length is refused at start.
+    """
+    flat = list(flat or [])
+    if not flat:
+        return ()
+    order = [roles[role] for role in ('SCOUT', 'SUPPORT')]
+    if len(flat) != 3 * len(order):
+        raise CoordinationError('INVALID_POLICY', 'home_poses must be [x, y, yaw] for the SCOUT then the SUPPORT')
+    return tuple(HomePosition(robot_id, (flat[3 * i], flat[3 * i + 1]), flat[3 * i + 2], *basis)
+                 for i, robot_id in enumerate(order))
 
 
 def camera_watch_service(camera_id):
@@ -909,11 +1237,20 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'route_segment_passage_free': 'BOOL_ARRAY',
     # SetCameraWatch (C-11 row 2) request deadline. The deployment ROI camera_watch_roi [x0, y0, x1, y1]
     # (normalized, used when the operator's request carries none; never the full frame) is in UNSET_OK_PARAMETERS.
-    'camera_watch_timeout_s': 'DOUBLE'}
+    'camera_watch_timeout_s': 'DOUBLE',
+    # OPS-103 (#142): a TargetLocation counts only on this clock domain, at most this old, and at most this far
+    # ahead beyond its own declared clock error bound.
+    'target_clock_domain_id': 'STRING', 'target_max_age_s': 'DOUBLE', 'target_max_future_s': 'DOUBLE',
+    # TB-5 (SUPPORT) dispatch (owner decision 2026-10-13, 1B·2B): AUTO | OPERATOR; standoff from the target; max age of
+    # the SUPPORT RobotPose used for the approach direction.
+    'support_dispatch': 'STRING', 'approach_standoff_m': 'DOUBLE', 'support_pose_max_age_s': 'DOUBLE',
+    # Q1-b: TB-5 waits this long at the target after arriving, then goes to its exit (RETURN_HOME).
+    'support_exit_wait_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
-# camera_watch_roi: no deployment ROI, only the operator's.
-UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY'}
+# camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
+# on the goal_map_* basis (TB-6 docking approach point, TB-5 exit); none = RETURN_HOME refused.
+UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY'}
 
 
 def main(args=None):
@@ -925,7 +1262,7 @@ def main(args=None):
     from rcl_interfaces.msg import ParameterType
     from rescue_interfaces.action import ExecuteTask
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
+    from rescue_interfaces.msg import (CommandLease, MapState, ReportReceipt, RescueReport, RobotPose, RobotStatus,
                                        SiteEvent as SiteEventMsg, SystemState, TargetEstimate, TargetLocation,
                                        TargetSnapshot, TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SetCameraWatch, SubmitOperatorCommand
@@ -1056,35 +1393,52 @@ def main(args=None):
             report_pub.publish(envelope(msg))
             log.info(f'REPORT {report["report_id"]} target={report["target_id"]} rev={report["target_revision"]}')
 
-        def tick():
-            now = now_ns()
-            for fields in core.tick(now):
+        class Out:
+            """node_tick's sinks: ROS messages and log lines."""
+            @staticmethod
+            def task(fields):
                 send(fields)
-            for fields in core.watch_requests(now):
+
+            @staticmethod
+            def watch(fields):
                 send_watch(fields)
-            for report in core.reports_due(now):
+
+            @staticmethod
+            def report(report):
                 publish_report(report)
-            for lease in core.leases_due(now):
+
+            @staticmethod
+            def lease(lease):
                 msg = CommandLease(coordinator_id=values['coordinator_id'], **lease)
                 lease_pubs[lease['robot_id']].publish(envelope(msg))
-            if core.issue_block != last_block[0]:
-                last_block[0] = core.issue_block
-                if core.issue_block:
-                    log.error(f'task not issued: {core.issue_block}')
-            targets = core.target_snapshot_change()
-            if targets is not None:
+
+            @staticmethod
+            def block(reason):
+                if reason != last_block[0]:
+                    last_block[0] = reason
+                    if reason:
+                        log.error(f'task not issued: {reason}')
+
+            @staticmethod
+            def targets(snapshot):
                 estimates = []
-                for item in targets['targets']:
+                for item in snapshot['targets']:
                     estimate = TargetEstimate(**{k: v for k, v in item.items() if k != 'mission_position'})
                     estimate.mission_position.x, estimate.mission_position.y = map(float, item['mission_position'])
                     estimates.append(estimate)
-                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=targets['snapshot_id'], targets=estimates)))
+                targets_pub.publish(envelope(TargetSnapshot(snapshot_id=snapshot['snapshot_id'], targets=estimates)))
                 summary = [(t['target_id'], t['estimate_revision'], t['approach_state'], t['rescue_state'])
-                           for t in targets['targets']]
-                log.info(f'TARGETS {targets["snapshot_id"]} {summary}')
-            state = state_channel.send(now)
-            if state is not None:
-                log.info(f'SYSTEM_STATE {state}')
+                           for t in snapshot['targets']]
+                log.info(f'TARGETS {snapshot["snapshot_id"]} {summary}')
+
+            @staticmethod
+            def state(now):
+                state = state_channel.send(now)
+                if state is not None:
+                    log.info(f'SYSTEM_STATE {state}')
+
+        def tick():
+            node_tick(core, now_ns(), Out)
 
         def on_site_event(msg):
             log.info(f'SITE_EVENT {msg.event_id} {msg.kind} -> {core.on_site_event(msg)}')
@@ -1111,6 +1465,14 @@ def main(args=None):
                                      guarded('status', core.on_status), 1)
             node.create_subscription(AdmissionMsg, ROBOT_PREFIX + robot + '/task_admission', guarded(
                 'admission', lambda msg: log.info(f'ADMISSION {msg.task_id} -> {core.on_admission(msg)}')), 10)
+        latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                             durability=DurabilityPolicy.TRANSIENT_LOCAL)  # #176: map_state is latched
+        for robot in core.roles.values():
+            node.create_subscription(MapState, ROBOT_PREFIX + robot + '/map_state', guarded('map_state', lambda msg: log.info(
+                f'MAP_STATE {msg.robot_id} {msg.map_session_id}/{msg.map_revision} {msg.localization_quality} '
+                f'-> recorded={core.on_map_state(msg)}')), latched)
+        node.create_subscription(RobotPose, ROBOT_PREFIX + core.roles['SUPPORT'] + '/pose',
+                                 guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
         node.create_subscription(ReportReceipt, REPORT_RECEIPT_TOPIC, guarded('receipt', lambda msg: log.info(

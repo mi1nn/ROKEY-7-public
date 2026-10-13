@@ -14,7 +14,6 @@ import subprocess
 # Controller deployment: Ubuntu 24.04, ROS 2 Jazzy, RTX 4070.
 # Topic/frame names still require live verification; no sensor settings are changed.
 SETTINGS = {
-    'image_type': 'compressed',
     'annotated_topic': 'perception/annotated',
     'model_path': 'assets/models/best.pt',
     'model_sha256': '0a149876a59fabb06bd57d8d146a4938a8fe2a74e030982941c28c431a4dcb74',
@@ -29,7 +28,9 @@ SETTINGS = {
 
 # Field-dependent names are typed ROS parameters with no default (B1, 2026-10-13): the
 # robot6 OAK-D topic was written three different ways and none is verified on the robot.
-FIELD_PARAMS = {'image_topic': 'STRING'}
+FIELD_PARAMS = {'image_topic': 'STRING', 'image_type': 'STRING'}   # image_type: raw or compressed
+STAMP_SEMANTICS = ('CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN')   # ObservationTime vocabulary
+INTEGER_MINIMUM = {'sync_slop_ns': 0}   # other INTEGER field values must be >= 1
 
 PARAMS = {
     'image_topic': 'STRING', 'image_type': 'STRING', 'annotated_topic': 'STRING',
@@ -46,8 +47,17 @@ def field_values(settings, supplied, names):
         raise ValueError(f'missing parameters: {missing}')
     for name, kind in names.items():
         value = supplied[name]
-        if type(value) is not {'STRING': str}[kind] or not value.strip():
+        if kind == 'BOOL':
+            if type(value) is not bool:
+                raise ValueError(f'{name} must be a BOOL')
+        elif kind == 'INTEGER':
+            if type(value) is not int or value < INTEGER_MINIMUM.get(name, 1):
+                raise ValueError(f'{name} must be an INTEGER >= {INTEGER_MINIMUM.get(name, 1)}')
+        elif type(value) is not str or not value.strip():
             raise ValueError(f'{name} must be a non-empty {kind}')
+    for name in ('rgb_stamp_semantics', 'depth_stamp_semantics'):
+        if name in names and supplied[name] not in STAMP_SEMANTICS:
+            raise ValueError(f'{name} must be one of {STAMP_SEMANTICS}')
     return {**settings, **{name: supplied[name] for name in names}}
 
 

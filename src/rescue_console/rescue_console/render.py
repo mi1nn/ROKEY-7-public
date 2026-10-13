@@ -7,7 +7,7 @@ import math
 
 from .labels import label
 from .mapimage import MAP_FRAME
-from .view import STAGES
+from .view import STAGES, ConsoleError
 
 # Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
 # ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
@@ -943,17 +943,60 @@ def _header(user, csrf):
     return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
 
 
-def _cameras(cameras):
+def camera_stale_ms(cameras, stale_s):
+    """Milliseconds without a new frame before a stream is shown lost; required with cameras, no default."""
+    if not cameras:
+        return None
+    if stale_s is None:
+        raise ConsoleError('CONFIG_MISSING', 'cameras need --camera-stale-s (seconds without a new frame)')
+    if type(stale_s) is not float or not math.isfinite(stale_s) or stale_s <= 0:
+        raise ConsoleError('INVALID_INPUT', f'camera stale time must be finite seconds > 0: {stale_s!r}')
+    return round(stale_s * 1000)
+
+
+# A multipart stream that ends normally fires no error and leaves its last frame on screen (measured
+# 2026-10-13, Firefox: one load event per frame, none after the close). So each frame's load event is
+# timed; past the stale time the figure shows 「영상 끊김」 and the stream is opened again with a
+# cache-busting query, at most once per stale time. onerror still marks it at once.
+_CAMERA_SCRIPT = """
+function watchCameras() {
+  document.querySelectorAll('#cameras figure[data-stale-ms]').forEach(figure => {
+    const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
+    const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
+    let last = Date.now(), retried = Date.now();
+    img.addEventListener('load', () => {
+      last = Date.now();
+      if (figure.classList.contains('lost')) {
+        figure.classList.remove('lost'); note.textContent = ''; note.className = '';
+      }
+    });
+    setInterval(() => {
+      const now = Date.now();
+      if (now - last < stale) return;
+      figure.classList.add('lost'); note.textContent = '영상 끊김'; note.className = 'lost';
+      if (now - retried >= stale) {
+        retried = now;
+        img.src = base + (base.includes('?') ? '&' : '?') + '_r=' + now;
+      }
+    }, Math.max(100, Math.min(500, stale / 2)));
+  });
+}
+watchCameras();
+"""
+
+
+def _cameras(cameras, stale_ms=None):
     """Camera streams embedded straight from the camera PC's MJPEG gateway (IF-082).
 
     Outside the polled fragment, so a poll never restarts a stream. The console does not relay
-    video. A broken stream is shown as lost, not hidden.
+    video. A broken or stalled stream is shown as lost, not hidden, and reconnected (_CAMERA_SCRIPT).
     """
     if not cameras:
         return ('<section class="camera-empty"><h2>웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
                 '<code>--camera cam_a=http://…</code> 로 카메라 PC 의 영상 주소를 주세요.</p></section>')
     figures = ''.join(
-        f'<figure><img src="{escape(url)}" alt="{escape(camera_id)} 영상" '
+        f'<figure data-stale-ms="{stale_ms}"><img src="{escape(url)}" '
+        f'alt="{escape(camera_id)} 영상" '
         'onerror="var f=this.parentNode,s=f.querySelector(\'figcaption\').lastChild;'
         'f.classList.add(\'lost\');s.textContent=\'영상 끊김\';s.className=\'lost\'">'
         '<p class="nosignal">영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.</p>'
@@ -985,18 +1028,22 @@ def render_failure(code, message):
             '위험하면 현장 비상 정지 장치를 쓰세요.</p></main></body></html>')
 
 
-def render_page(view, user=None, csrf=None, cameras=(), command_access=None):
-    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments. `command_access`:
+def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
+    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments; with them `camera_stale_s`
+    (seconds without a new frame before 「영상 끊김」, no default). `command_access`:
     (allowed, reason) from commands.command_access; without it no command can be sent from the page."""
     access = command_access or (False, '명령 연결 없음')
+    stale_ms = camera_stale_ms(cameras, camera_stale_s)
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
+    if cameras:
+        script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
             + _user_nav(user, csrf) + '</section>'
-            + f'<aside id="side">{_cameras(cameras)}{_commands(view, access, csrf)}</aside>'
+            + f'<aside id="side">{_cameras(cameras, stale_ms)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
             f'<script>{script}</script></body></html>')
 
