@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege): TB-6 (robot_a) takes REOBSERVE_TARGET (C1-b) and RETURN_HOME (C1-c), recheck window 3 s / deadline 10 s proposed; radius 0.2 m proposed; task.live.pose_valid_ns 2 s (coordinator age proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock, -1 until measured and RobotPose stays UNKNOWN (2026-10-13)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege): TB-6 (robot_a) takes REOBSERVE_TARGET (C1-b) and RETURN_HOME (C1-c), recheck window 3 s / deadline 10 s proposed; radius 0.2 m proposed; task.live.pose_valid_ns 2 s (coordinator age proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock, -1 until measured and RobotPose stays UNKNOWN (2026-10-13); robots.robot_b = TB-5 (2026-10-13): new publisher_id, mapping_authority shared with TB-6, APPROACH_TARGET + RETURN_HOME, Pi clock -1 until measured",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -73,6 +73,16 @@
       "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
       "task.live.auto_target.enabled": true,
       "task.live.auto_target.kinds": ["REOBSERVE_TARGET", "RETURN_HOME"],
+      "task.live.auto_target.goal_clear_radius_m": 0.2,
+      "task.live.auto_target.policy_version": "auto-target-20261013",
+      "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
+      "task.live.sensor_host_clock_error_bound_ns": -1
+    },
+    "robot_b": {
+      "task.publisher_id": "563f0fad-d73d-4afa-b6db-08928e416703",
+      "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
+      "task.live.auto_target.enabled": true,
+      "task.live.auto_target.kinds": ["APPROACH_TARGET", "RETURN_HOME"],
       "task.live.auto_target.goal_clear_radius_m": 0.2,
       "task.live.auto_target.policy_version": "auto-target-20261013",
       "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
