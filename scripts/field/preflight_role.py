@@ -201,8 +201,8 @@ def run_role(role, *, env, profile_path, field_path, webcam_params, map_yaml,
              find_spec=importlib.util.find_spec, clock=None):
     checks = _environment(env)
     try:
-        from rescue_bringup.field_launch import (FieldLaunchError, coordinator_parameters, load_field,
-                                                 robot_launch_values)
+        from rescue_bringup.field_launch import (FieldLaunchError, coordinator_parameters,
+                                                 frozen_localization_values, load_field, robot_launch_values)
         from rescue_bringup.profile import ProfileError, load_deployment, require_map_basis
     except ImportError as exc:
         return checks + [check('profile.load', NOT_RUN, f'rescue_bringup import 실패: {exc}')]
@@ -262,12 +262,21 @@ def run_role(role, *, env, profile_path, field_path, webcam_params, map_yaml,
         for duty, robot in duties:
             if duty != 'command' or field is None:
                 continue
+            mode = field.robots.get(robot.id, {}).get('task.saved_map.mode')
             try:
-                robot_launch_values(deployment, field=field, robot_id=robot.id, occupancy_sha256='0' * 64, now_ns=1)
+                # SAVED_MAP_AMCL: the hash is measured at the site; the SLAM -> frozen map modes take none.
+                robot_launch_values(deployment, field=field, robot_id=robot.id, now_ns=1,
+                                    occupancy_sha256='0' * 64 if mode == 'SAVED_MAP_AMCL' else '')
                 checks.append(check('field.robot.' + robot.id, PASSED,
-                                    f'{robot.id}: 로봇 launch 파라미터를 만들 수 있음 (지도 해시는 현장 측정)'))
+                                    f'{robot.id}: 로봇 launch 파라미터를 만들 수 있음 (지도 방식 {mode})'))
             except FieldLaunchError as exc:
                 checks.append(check('field.robot.' + robot.id, FAILED, str(exc)))
+            if mode == 'FROZEN_MAP_AMCL':
+                try:
+                    start = frozen_localization_values(deployment, field=field, robot_id=robot.id)['initial_pose_xy_yaw']
+                    checks.append(check('field.initial_pose.' + robot.id, PASSED, f'{robot.id}: AMCL 출발값 {start}'))
+                except FieldLaunchError as exc:
+                    checks.append(check('field.initial_pose.' + robot.id, FAILED, str(exc)))
             r = field.robot
             clocks.setdefault(r['task.live.clock_backend'], (r['task.live.clock_max_age_ns'],
                                                              r['task.live.clock_drift_ppm'], 'field robot'))

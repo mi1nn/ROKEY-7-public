@@ -73,6 +73,14 @@ ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
                        'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
                        'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S,
                        'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
+# Map lifecycle (scope Q-29 ⑦, OPS-113/124/126): every robot names its map mode; the SLAM robot
+# also the freeze pose age, a FROZEN_MAP_AMCL robot its measured AMCL start (once measured).
+ROBOT_IDENTITY_KEYS['task.saved_map.mode'] = S
+ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
+SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshness at the freeze
+FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
+FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
+FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
@@ -155,8 +163,7 @@ def load_field(path):
     _section(raw, 'watchdog', WATCHDOG_KEYS)
     if not isinstance(raw['robots'], dict) or not raw['robots']:
         raise FieldLaunchError('robots must name at least one robot')
-    for robot_id in raw['robots']:
-        _section(raw['robots'], robot_id, ROBOT_IDENTITY_KEYS)
+    robot_modes = _robot_map_modes(raw['robots'])
     for left, right in SHARED:
         if coordinator[left] != robot[right]:
             raise FieldLaunchError(f'coordinator.{left} ({coordinator[left]!r}) and robot.{right} '
@@ -170,6 +177,7 @@ def load_field(path):
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
     if coordinator['map_mode'] not in MAP_MODES:
         raise FieldLaunchError(f'coordinator.map_mode must be one of {list(MAP_MODES)}')
+    _pair_map_modes(coordinator['map_mode'], robot_modes)
     for robot_id, identity in raw['robots'].items():
         # The coordinator checks the approach point and homes on the frozen map with the radius each robot checks
         # its goals with; a different one passes points the robot then refuses (작전 OPS-116).
@@ -192,6 +200,49 @@ def load_field(path):
     if len(robot['task.saved_map.transform_xy_yaw']) != 3:
         raise FieldLaunchError('robot.task.saved_map.transform_xy_yaw must be [x, y, yaw]')
     return FieldRun(raw)
+
+
+def _robot_map_modes(robots):
+    """robots.<id>: identity keys + map mode; one SLAM robot feeds the frozen-map robots; no mixing with saved maps."""
+    modes = {}
+    for robot_id, section in robots.items():
+        mode = section.get('task.saved_map.mode') if isinstance(section, dict) else None
+        if mode not in ROBOT_MAP_MODES:
+            raise FieldLaunchError(f'robots.{robot_id}.task.saved_map.mode must be one of {list(ROBOT_MAP_MODES)}')
+        keys = dict(ROBOT_IDENTITY_KEYS)
+        if mode == 'SLAM_THEN_FROZEN':
+            keys.update(SLAM_ROBOT_KEYS)
+        if mode == 'FROZEN_MAP_AMCL' and 'initial_pose_xy_yaw' in section:
+            keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
+        _section(robots, robot_id, keys)
+        if mode == 'SLAM_THEN_FROZEN' and section['map_freeze.pose_max_age_ns'] <= 0:
+            raise FieldLaunchError(f'robots.{robot_id}.map_freeze.pose_max_age_ns must be positive')
+        if 'initial_pose_xy_yaw' in section and len(section['initial_pose_xy_yaw']) != 3:
+            raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw must be [x, y, yaw]')
+        modes[robot_id] = mode
+    slam = [robot_id for robot_id, mode in modes.items() if mode == 'SLAM_THEN_FROZEN']
+    frozen = [robot_id for robot_id, mode in modes.items() if mode == 'FROZEN_MAP_AMCL']
+    if len(slam) > 1:
+        raise FieldLaunchError(f'only one robot makes the map (SLAM_THEN_FROZEN): {slam}')
+    if frozen and not slam:
+        raise FieldLaunchError('FROZEN_MAP_AMCL needs the SLAM_THEN_FROZEN robot that makes the frozen map')
+    if (slam or frozen) and 'SAVED_MAP_AMCL' in modes.values():
+        raise FieldLaunchError('saved maps and the frozen SLAM map cannot be mixed in one run')
+    return modes
+
+
+def _pair_map_modes(map_mode, robot_modes):
+    """One map decision (OPS-126): SLAM_FREEZE = one SLAM_THEN_FROZEN robot and the rest FROZEN_MAP_AMCL (at least
+    one); SAVED_MAP = every robot SAVED_MAP_AMCL. Anything else starts nothing."""
+    modes = sorted(robot_modes.values())
+    if map_mode == 'SAVED_MAP':
+        ok = set(modes) == {'SAVED_MAP_AMCL'}
+    else:
+        ok = modes.count('SLAM_THEN_FROZEN') == 1 and modes.count('FROZEN_MAP_AMCL') == len(modes) - 1 >= 1
+    if not ok:
+        raise FieldLaunchError(f'coordinator.map_mode {map_mode} does not match the robots\' task.saved_map.mode '
+                               f'{robot_modes}: SLAM_FREEZE needs one SLAM_THEN_FROZEN robot and FROZEN_MAP_AMCL for '
+                               'the others, SAVED_MAP needs SAVED_MAP_AMCL for every robot')
 
 
 def _list_argument(text, name, kind):
@@ -281,8 +332,13 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         raise FieldLaunchError(f'robot_id {robot_id!r} is not in the profile ({sorted(robots)})')
     if robot_id not in field.robots:
         raise FieldLaunchError(f'field run file has no robots.{robot_id} (task.publisher_id, task.mapping_authority)')
-    if not isinstance(occupancy_sha256, str) or not SHA256.match(occupancy_sha256):
-        raise FieldLaunchError('occupancy_sha256 must be the measured 64 lowercase hex map hash')
+    mode = field.robots[robot_id]['task.saved_map.mode']
+    if mode == 'SAVED_MAP_AMCL':
+        if not isinstance(occupancy_sha256, str) or not SHA256.match(occupancy_sha256):
+            raise FieldLaunchError('occupancy_sha256 must be the measured 64 lowercase hex map hash')
+    elif occupancy_sha256 != '':
+        raise FieldLaunchError(f'{robot_id} is {mode}: the map freeze decides the map hash; '
+                               'give no occupancy_sha256')
     if type(now_ns) is not int or now_ns <= 0:
         raise FieldLaunchError('now_ns must be a positive wall-clock time')
     robot = robots[robot_id].parameters
@@ -309,16 +365,16 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         **{'readiness.max_age_s.' + source: seconds for source, seconds in readiness.max_age_s},
         'camera_topics': list(readiness.camera_topics), 'wheel_status_topic': readiness.wheel_status_topic or '',
         'executor_heartbeat_topic': executor_heartbeat, 'watchdog_heartbeat_topic': watchdog_heartbeat,
-        **field.robot, **field.robots[robot_id], 'task.mission_frame': basis.frame_id,
+        **field.robot, **_task_keys(field.robots[robot_id]), 'task.mission_frame': basis.frame_id,
         'task.saved_map.map_session_id': basis.map_session_id, 'task.saved_map.map_revision': basis.map_revision,
         'task.saved_map.transform_revision': basis.transform_revision,
-        # Saved map with a measured hash; the SLAM -> frozen map modes come from the field file next (OPS-113)
-        'task.saved_map.mode': 'SAVED_MAP_AMCL',
         'task.saved_map.map_topic': ns + '/map', 'task.saved_map.localization_topic': ns + '/amcl_pose',
         'task.saved_map.map_frame': readiness.map_frame, 'task.saved_map.occupancy_sha256': occupancy_sha256,
         'task.saved_map.valid_from_ns': now_ns - backdate_ns,
         'task.saved_map.transform_valid_until_ns': now_ns + window_ns,
     }
+    if mode == 'SLAM_THEN_FROZEN':
+        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     if home is not None:
         task_input['task.live.home_xy_yaw'] = list(home)
@@ -330,3 +386,78 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     remaps = [('collision_monitor:' + ns + '/cmd_vel', upstream), ('docking_server:' + ns + '/cmd_vel', upstream)]
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'task_input': task_input, 'watchdog': watchdog,
             'nav2_remaps': remaps}
+
+
+def _task_keys(section):
+    """The task_input parameters of a robots.<id> section (map lifecycle keys stay in the launch)."""
+    return {key: value for key, value in section.items() if key.startswith('task.')}
+
+
+def _robot(deployment, field, robot_id):
+    deployment, basis = _deployment(deployment)
+    robots = {robot.id: robot for robot in deployment.robots}
+    if robot_id not in robots:
+        raise FieldLaunchError(f'robot_id {robot_id!r} is not in the profile ({sorted(robots)})')
+    if robot_id not in field.robots:
+        raise FieldLaunchError(f'field run file has no robots.{robot_id}')
+    return basis, robots[robot_id].parameters, field.robots[robot_id]
+
+
+def slam_launch_values(deployment, *, field, robot_id):
+    """TB-6 SLAM while searching (turtlebot4_navigation slam.launch.py): only the SLAM_THEN_FROZEN robot."""
+    _, robot, section = _robot(deployment, field, robot_id)
+    if section['task.saved_map.mode'] != 'SLAM_THEN_FROZEN':
+        raise FieldLaunchError(f'{robot_id} is {section["task.saved_map.mode"]}, not the SLAM robot')
+    return {'namespace': robot.namespace, 'use_sim_time': robot.use_sim_time}
+
+
+def frozen_localization_values(deployment, *, field, robot_id):
+    """AMCL on the frozen map: TB-6 starts at its frozen pose, a FROZEN_MAP_AMCL robot at its measured start."""
+    _, robot, section = _robot(deployment, field, robot_id)
+    mode, ns = section['task.saved_map.mode'], robot.namespace
+    if mode == 'SAVED_MAP_AMCL':
+        raise FieldLaunchError(f'{robot_id} uses a saved map (SAVED_MAP_AMCL); no frozen-map localization')
+    start = None
+    if mode == 'FROZEN_MAP_AMCL':
+        if 'initial_pose_xy_yaw' not in section:
+            raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw is not measured yet: click the start on '
+                                   f'the TB-6 map in a trial run, then python3 scripts/field/capture_initial_pose.py '
+                                   f'{ns}/amcl_pose map and add its line to the field run file')
+        start = list(section['initial_pose_xy_yaw'])
+    return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
+            'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
+            'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None}
+
+
+def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):
+    """turtlebot4_navigation localization.yaml amcl values + the start pose (nav2 amcl set_initial_pose)."""
+    try:
+        params = dict(localization_yaml['amcl']['ros__parameters'])
+    except (KeyError, TypeError):
+        raise ValueError('localization parameters have no amcl.ros__parameters') from None
+    if (len(initial_pose_xy_yaw) != 3 or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                                 and math.isfinite(v) for v in initial_pose_xy_yaw)):
+        raise ValueError('AMCL start must be three finite numbers [x, y, yaw]')
+    x, y, yaw = (float(v) for v in initial_pose_xy_yaw)
+    params.update(use_sim_time=use_sim_time, set_initial_pose=True, initial_pose={'x': x, 'y': y, 'z': 0.0, 'yaw': yaw})
+    return params
+
+
+def map_freeze_parameters(deployment, *, field, output_dir, record_path):
+    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0)."""
+    deployment, basis = _deployment(deployment)
+    slam = [robot_id for robot_id, section in field.robots.items()
+            if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
+    if not slam:
+        raise FieldLaunchError('no SLAM_THEN_FROZEN robot in the field run file; nothing to freeze')
+    _, robot, section = _robot(deployment, field, slam[0])
+    for name, value in (('output_dir', output_dir), ('record_path', record_path)):
+        if not isinstance(value, str) or (value and not value.startswith('/')) or (name == 'output_dir' and not value):
+            raise FieldLaunchError(f'{name} must be an absolute path' + ('' if name == 'output_dir' else ' or empty'))
+    params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
+              'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
+              'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
+              'output_dir': output_dir}
+    if record_path:
+        params['record_path'] = record_path   # restart: republish the saved freeze
+    return params

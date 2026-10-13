@@ -1,0 +1,74 @@
+"""AMCL on the frozen TB-6 map (map lifecycle, OPS-113/124): one robot, after the freeze.
+
+    ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> \
+        field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_b frozen_pose_wait_s:=10.0
+
+- frozen_map_relay copies /rescue/map/frozen to <ns>/map (only while no other node publishes
+  <ns>/map: stop TB-6 SLAM first).
+- AMCL (nav2_amcl, turtlebot4_navigation localization.yaml values, map from <ns>/map, no
+  map_server) starts at: robot_a = the frozen pose /rescue/map/frozen_pose/robot_a (this launch
+  waits up to frozen_pose_wait_s for it, then fails); a FROZEN_MAP_AMCL robot = its measured
+  robots.<id>.initial_pose_xy_yaw (missing = the launch refuses).
+Every node is in the robot namespace, so both robots' launches can run on one PC.
+No arm, task or movement command is sent.
+"""
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, LogInfo, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node, SetRemap
+import yaml
+
+from rescue_bringup.field_launch import amcl_parameters, frozen_localization_values, load_field
+from rescue_bringup.frozen_pose import wait_frozen_pose
+from rescue_bringup.profile import load_deployment
+from rescue_bringup.ros_parameters import typed
+
+
+def _nodes(context):
+    def arg(name):
+        return LaunchConfiguration(name).perform(context)
+
+    deployment = load_deployment(arg('profile_path'))
+    values = frozen_localization_values(deployment, field=load_field(arg('field_path')), robot_id=arg('robot_id'))
+    ns, use_sim_time = values['namespace'], values['use_sim_time']
+    if values['initial_pose_topic'] is not None:
+        start = list(wait_frozen_pose(values['initial_pose_topic'], timeout_s=float(arg('frozen_pose_wait_s')),
+                                      map_frame=deployment.map_basis.frame_id))
+        source = values['initial_pose_topic']
+    else:
+        start, source = values['initial_pose_xy_yaw'], 'field run file robots.' + arg('robot_id')
+    params_file = arg('localization_params_file') or str(
+        Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'localization.yaml')
+    amcl = amcl_parameters(yaml.safe_load(Path(params_file).read_text()), initial_pose_xy_yaw=start,
+                           use_sim_time=use_sim_time)
+    return [
+        LogInfo(msg=f'frozen localization {arg("robot_id")} ns={ns} map={values["map_topic"]} <- '
+                    f'{values["frozen_topic"]} amcl_start={start} from {source} params={params_file}'),
+        Node(package='rescue_robot', executable='frozen_map_relay', name='rescue_frozen_map_relay', namespace=ns,
+             output='screen', parameters=[typed({'frozen_topic': values['frozen_topic'],
+                                                 'map_topic': values['map_topic']})]),
+        GroupAction([
+            SetRemap('/tf', ns + '/tf'), SetRemap('/tf_static', ns + '/tf_static'),
+            Node(package='nav2_amcl', executable='amcl', name='amcl', namespace=ns, output='screen',
+                 parameters=[typed(amcl)]),
+            Node(package='nav2_lifecycle_manager', executable='lifecycle_manager',
+                 name='lifecycle_manager_localization', namespace=ns, output='screen',
+                 parameters=[{'use_sim_time': use_sim_time, 'autostart': True, 'node_names': ['amcl']}]),
+        ]),
+    ]
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        DeclareLaunchArgument('profile_path', description='Deployment profile v2.1 JSON (outside the repo)'),
+        DeclareLaunchArgument('field_path', description='Field run file (config/field/*.field.json)'),
+        DeclareLaunchArgument('robot_id', description='robot_a (TB-6, after SLAM is stopped) or robot_b (TB-5)'),
+        DeclareLaunchArgument('frozen_pose_wait_s',
+                              description='robot_a: how long to wait for /rescue/map/frozen_pose/robot_a (s)'),
+        DeclareLaunchArgument('localization_params_file', default_value='',
+                              description='AMCL parameters; empty = turtlebot4_navigation config/localization.yaml'),
+        OpaqueFunction(function=_nodes),
+    ])

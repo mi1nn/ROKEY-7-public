@@ -58,6 +58,7 @@ class MapMode(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
 
         def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
@@ -155,6 +156,7 @@ class LocalizationLaunch(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
 
         def saved(raw):
+            raw['coordinator']['map_mode'] = 'SAVED_MAP'
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
