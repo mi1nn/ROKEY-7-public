@@ -46,6 +46,9 @@ class LiveReturnHome(unittest.TestCase):
     def test_no_home_for_this_robot_is_refused(self):
         self.build(POLICY, homes=False)
         self.assertEqual('reject', self.a.submit())
+        # A clear refusal, not a KeyError turned into INVALID_INPUT (field readiness check, 2026-10-13)
+        self.assertIn('NOT_AUTHORIZED', self.node.errors[-1])
+        self.assertIn('home destination not configured', self.node.errors[-1])
 
     def test_other_home_ref_is_refused(self):
         self.build(POLICY)
