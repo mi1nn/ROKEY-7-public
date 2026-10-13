@@ -10,6 +10,7 @@ from parameters (launch/profile); nothing here has a default (AGENTS 8절).
 
 Not yet: map snapshots, RequestStop and the other HTTP routes of console-and-db-plan 4절.
 """
+import signal
 import subprocess
 import threading
 import time
@@ -89,6 +90,27 @@ def node_config(values):
             'command_timeout_ns': round(timeout_s * 1e9),
             'roles': dict(zip(ids, roles)),
             'robots': list(zip(ids, values['status_topics'], values['pose_topics']))}
+
+
+def teardown(*steps):
+    """Ignore SIGINT for the rest of the process, then run every cleanup step; the first error is raised
+    after all of them ran.
+
+    ``ros2 launch`` and the terminal both send SIGINT on Ctrl-C. The first one stops ``rclpy.spin``;
+    the second used to land in ``ThreadingHTTPServer.shutdown()`` as a KeyboardInterrupt, so the
+    ledger and node were never closed and the process ended with a traceback (exit -2, measured
+    2026-10-13). The handler is not put back: the process is ending, and a SIGINT after the last
+    step would still end it with -2. A hung step is ended by launch's SIGTERM/SIGKILL.
+    """
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    error = None
+    for step in steps:
+        try:
+            step()
+        except Exception as exc:  # keep closing; report the first failure afterwards
+            error = error or exc
+    if error is not None:
+        raise error
 
 
 def main(args=None):
@@ -199,10 +221,7 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):  # jazzy: SIGINT shuts the context down
-        log.info('rescue_db_writer stopping')
+        pass
     finally:
-        server.shutdown()
-        server.server_close()
-        ledger.close()
-        node.destroy_node()
-        rclpy.try_shutdown()
+        teardown(lambda: log.info('rescue_db_writer stopping'), server.shutdown, server.server_close, ledger.close,
+                 node.destroy_node, rclpy.try_shutdown)

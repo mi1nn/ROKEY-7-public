@@ -24,8 +24,9 @@ from rescue_interfaces.msg import TargetObservation
 from ultralytics import YOLO
 from rclpy.executors import ExternalShutdownException
 
-from .camera_utils import PreviewProcessor, git_sha, validate_labels, verify_model
-from .target_utils import (SETTINGS, target_config, PreparedDetector, OneShotTarget, fill_envelope,
+from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_parameters,
+    validate_labels, verify_model)
+from .target_utils import (FIELD_PARAMS, SETTINGS, target_config, PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
 from .core import ModelManifest
@@ -37,7 +38,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
 
     node = Node('amr_target')
     try:
-        v = dict(SETTINGS)
+        v = field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',

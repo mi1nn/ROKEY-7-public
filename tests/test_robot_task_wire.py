@@ -64,18 +64,14 @@ class TaskWireTests(unittest.TestCase):
             goal,lease=wire();setattr(goal,name,'')
             with self.assertRaises(ContractError):validate(goal,lease)
 
-    def test_boolean_lease_generation_is_not_equal_to_one(self):
-        goal,lease=wire();lease.generation=True
-        with self.assertRaises(ContractError):validate(goal,lease)
-
-    def test_boolean_approval_revision_and_segment_are_rejected(self):
-        for name in ('target_estimate_revision','route_revision','segment_index'):
-            goal,lease=wire();setattr(goal.approval,name,True)
-            with self.assertRaises(ContractError):validate(goal,lease)
-
-    def test_target_revision_cannot_be_boolean(self):
-        goal,lease=wire();goal.target_estimate_revision=True
-        with self.assertRaises(ContractError):validate(goal,lease)
+    def test_boolean_generation_and_revisions_are_rejected(self):
+        for owner,name in (('lease','generation'),('goal','target_estimate_revision'),
+                           ('approval','target_estimate_revision'),('approval','route_revision'),
+                           ('approval','segment_index')):
+            with self.subTest(owner=owner,name=name):
+                goal,lease=wire()
+                setattr({'goal':goal,'lease':lease,'approval':goal.approval}[owner],name,True)
+                with self.assertRaises(ContractError):validate(goal,lease)
 
     def test_return_requires_home_record_and_forbids_target(self):
         for name,value in (('home_ref',''),('target_id',uid(20)),('target_estimate_revision',1),

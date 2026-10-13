@@ -1,0 +1,35 @@
+SEARCH_AREA field fixture — 2026-10-12
+
+This directory preserves the final single-robot field launch settings.
+These values are explicit field fixture settings, not generic deployment defaults.
+Logical robot_a / namespace /robot6; saved prior map and declared identity alignment.
+Requires ROS Jazzy, TurtleBot4 navigation, measured timesyncd clock, existing DDS
+environment and assets/maps/pre_quake/map.yaml with its PGM. Map is not in this patch.
+Check deployment.v2.example.json roles and all launch parameters before another site run.
+No script should be run unattended: start_search.sh arms and requests physical motion.
+
+From the built repository root, separate terminals:
+1. Robot: perform the existing supervised robot-undock procedure if docked.
+2. Robot: bash scripts/field/search-area/start_localization.sh "$PWD"
+3. Robot: bash scripts/field/search-area/start_viz.sh "$PWD"
+4. Robot: FASTDDS_BUILTIN_TRANSPORTS=UDPv4 bash scripts/field/search-area/start_navigation.sh "$PWD"
+5. Central: bash scripts/field/search-area/start_coordinator.sh "$PWD"
+6. RViz: 2D Pose Estimate sets actual pose; 2D Goal Pose selects /rescue/search_goal.
+7. Robot: bash scripts/field/search-area/start_robot.sh "$PWD"
+8. Central: bash scripts/field/search-area/start_search.sh "$PWD" --synthetic-trigger
+   This injects a clearly labelled synthetic disaster event, not camera evidence.
+   Omit --synthetic-trigger only when a real event already entered DISASTER.
+
+Preserve a single localization/Nav2 instance and the existing command-watchdog chain.
+Do not restore joystick output during the run. Use the existing supervised, backed-up
+procedure for any robot process/configuration change; old boot-specific temp paths
+are intentionally not included here.
+
+Successful CLI acceptance is not arrival. Observe central SEND/ADMISSION/RESULT
+and the physical robot. Failure/refusal aborts later CLI commands.
+Stop through the existing task_stop service and verify physical stop.
+A repeat run requires restarting the coordinator/executor and selecting a new goal.
+
+Observed field result: user reported actual movement and selected destination arrival.
+The integrated code has not been rerun on ROS/robot. Lease-loss, cancel/stop fault
+injection, multiple robots and four-host acceptance remain NOT_RUN.
