@@ -56,8 +56,8 @@ class ExitChoiceTests(Base):
         self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True, terminal_reason=''))
         for n, (xy, track) in enumerate(exits):
             self.core.on_exit_location(exit_msg(10 + n, xy, track=track), now_ns=NOW)
-        self.assertEqual([], self.tick(NOW, 'RETURN_HOME'))
-        self.assertEqual('MAP_NOT_FINAL', self.reason())  # TB-5 waits at the doll for the whole map
+        self.assertEqual([], self.tick(NOW, 'RETURN_HOME'))  # TB-5 waits at the doll for the whole map
+        self.assertEqual('WAITING', self.core.support_exit)
         self.explore_to_the_end(NOW)
         self.tick(NOW + 2)
         self.freeze(R2, grid=grid_ or RealGrid([WALL]))

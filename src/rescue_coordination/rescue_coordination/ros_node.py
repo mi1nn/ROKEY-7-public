@@ -86,7 +86,9 @@ MAP_FREEZE_REASONS = ('MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', '
                       'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
                       'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN', 'START_POSE_CONFLICT',
                       # two freezes (OPS-154): TB-6's return waits for the final map
-                      'MAP_NOT_FINAL')
+                      'MAP_NOT_FINAL',
+                      # the end of a FRONTIER run (OPS-154·155): TB-5's way out
+                      'SUPPORT_START_UNKNOWN', 'SUPPORT_EXIT_UNREACHABLE')
 # TB-6 search (owner decision 2026-10-13 evening, OPS-136·139): PATROL = the field's patrol points, given in TB-6's
 # start pose; AREAS = the profile search areas. Never both.
 # FRONTIER (owner decision 2026-10-13 night, OPS-154): TB-6 explores the whole map frontier by frontier.
@@ -95,6 +97,7 @@ PATROL_BASIS = 'PATROL_POINT'  # MissionSite.basis of a patrol point; must be in
 PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_point')
 FRONTIER_BASIS = 'FRONTIER'    # MissionSite.basis of a frontier goal; must be in executable_bases
 FRONTIER_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/frontier')
+COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')
 SCOUT_MAP_TOPIC = '/robot6/map'  # TB-6 live SLAM OccupancyGrid (통합-로봇 OPS-159 ④) [추정: 실기 미확인]
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
@@ -310,7 +313,7 @@ class CoordinatorCore:
                  map_freeze_timeout_ns, search_start, search_mode, patrol_points,
                  patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
                  frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
-                 new_id=None):
+                 completion_mode, support_start_pose, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -421,6 +424,17 @@ class CoordinatorCore:
         self.frontier_tried = []    # goals and centroids tried once (completed or not): not picked again
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
         self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
+        # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL = TB-5 at the exit, no TB-6 recheck; RECHECK = C-11 flow.
+        if completion_mode not in COMPLETION_MODES:
+            raise CoordinationError('INVALID_POLICY', 'completion_mode must be EXIT_ARRIVAL or RECHECK')
+        if support_start_pose is not None:
+            support_start_pose = tuple(float(v) for v in support_start_pose)
+            if len(support_start_pose) != 3 or not all(math.isfinite(v) for v in support_start_pose):
+                raise CoordinationError('INVALID_POLICY', 'support_start_pose is [x, y, yaw] in TB-6\'s start pose')
+        self.completion_mode = completion_mode
+        self.support_start_pose = support_start_pose  # TB-5's start spot, the exit when no QR was seen (OPS-155 ①)
+        self.support_exit_goal = None  # (x, y, yaw) TB-5 leads out to, chosen on the final map (FRONTIER)
+        self.last_tick_ns = None
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -503,8 +517,8 @@ class CoordinatorCore:
         else:
             try:
                 reason = self.camera_watch.on_candidate(event)
-                if reason == 'CANDIDATE_ACCEPTED':
-                    self._open_camera_recheck(event)
+                if reason == 'CANDIDATE_ACCEPTED' and self.completion_mode == 'RECHECK':
+                    self._open_camera_recheck(event)  # EXIT_ARRIVAL: recorded and shown only (OPS-155 ②)
             except CoordinationError:
                 self.candidate_results[event.event_id] = None
                 raise
@@ -757,6 +771,49 @@ class CoordinatorCore:
             return False
         return self._free_cell(point_[0], 'SUPPORT_EXIT_NOT_FREE')
 
+    def _final_exit_ready(self):
+        """TB-5's exit on the final map (OPS-154 3·155 ①): after the second freeze, with TB-5 localized there,
+        the registered exit whose approach (exit_standoff_m before it, on the doll's side) has the shortest clear
+        grid path from TB-5; no exit seen: TB-5's start spot. Held with the reason otherwise, nothing made up."""
+        self.support_exit_goal = None
+        if self.frozen_stage < 2:
+            self.issue_block = 'MAP_NOT_FINAL'
+            return False
+        if self.mission.map_basis.get(self.roles['SUPPORT']) != self.frozen:
+            self.issue_block = 'SUPPORT_NOT_LOCALIZED'
+            return False
+        start = self._support_xy(self.last_tick_ns)
+        if start is None:
+            return False  # _support_xy said why
+        fields, radius = self.frozen_grid.fields, self.freeze_clearance_m
+        doll = self.target_geo[self.mission.dispatch_target][1]
+        if not self.exits:
+            if self.support_start_pose is None or self.start_pose is None:
+                self.issue_block = 'SUPPORT_START_UNKNOWN'
+                return False
+            goal = compose_planar(self.start_pose, self.support_start_pose)
+            if path_lengths(**fields, radius=radius, start=start, goals=[goal[:2]])[0] is None:
+                self.issue_block = 'SUPPORT_EXIT_UNREACHABLE'
+                return False
+            self.support_exit_goal = goal
+            self.notes.append(f'EXIT_CHOSEN TB5_START xy=({goal[0]:.2f}, {goal[1]:.2f}) (no QR exit seen)')
+            return True
+        on_map = [e for e in self.exits if e['basis'] == self.frozen]
+        points = [approach_point(e['xy'], doll, self.exit_standoff_m) for e in on_map]
+        usable = [(e, p) for e, p in zip(on_map, points) if p is not None]
+        mask = clear_mask(**fields, radius=radius)
+        lengths = path_lengths(**fields, radius=radius, start=start, goals=[p[0] for _, p in usable], mask=mask)
+        best = min(((length, e['exit_id'], i) for i, ((e, _), length) in enumerate(zip(usable, lengths))
+                    if length is not None), default=None)
+        if best is None:
+            self.issue_block = 'SUPPORT_EXIT_UNREACHABLE'
+            return False
+        exit_, (xy, yaw) = usable[best[2]]
+        self.support_exit_goal = (*xy, yaw)
+        self.notes.append(f'EXIT_CHOSEN {exit_["exit_id"]} path_m={best[0]:.2f} approach=({xy[0]:.2f}, {xy[1]:.2f}) '
+                          f'of {[e["exit_id"] for e in on_map]}')
+        return True
+
     def live_destinations(self):
         """RETURN_HOME destinations this coordinator computes (SLAM_FREEZE, after the freeze): TB-5's exit approach
         and TB-6's docking approach in the map, sent in ~/task_inputs (live_task_inputs.destinations; the robot
@@ -771,6 +828,12 @@ class CoordinatorCore:
                                         map_session_id=self.frozen[0], map_revision=self.frozen[1],
                                         transform_revision=self.frozen[2])  # TB-6 on the final map (stage 2)
         target = self.mission.dispatch_target
+        if self.search_mode == 'FRONTIER':
+            if self.support_exit_goal is not None:
+                out[f'home/{support}'] = dict(robot_id=support, frame_id=frame_id, xy_yaw=list(self.support_exit_goal),
+                                              map_session_id=self.frozen[0], map_revision=self.frozen[1],
+                                              transform_revision=self.frozen[2])
+            return out
         exit_ = self._chosen_exit(target) if target in self.target_geo else None
         if exit_ is not None:
             point_ = self._exit_point(target, exit_)
@@ -820,8 +883,8 @@ class CoordinatorCore:
                 self.issue_block = {'REQUESTED': 'MAP_FREEZE_REQUESTED', 'AWAITING_MAP': 'MAP_NOT_FROZEN',
                                     'FAILED': 'MAP_FREEZE_FAILED'}[self.freeze]
             return
-        if self.frozen_stage == 0 and not self._target_saved():
-            return  # the doll's freeze; it never waits for an exit (OPS-156)
+        if self.frozen_stage == 0 and not self._target_saved() and not self._no_survivor():
+            return  # the doll's freeze (never waits for an exit, OPS-156); no doll: both freezes after the search
         if self.frozen_stage == 1 and not self.exploration_complete:
             return  # the final map's freeze waits for the whole map (OPS-154)
         if self.frozen_stage >= 2:
@@ -959,6 +1022,8 @@ class CoordinatorCore:
         """The role robot's home (TB-6 docking approach point, TB-5 exit) is known and free on the frozen map."""
         if self.map_mode != 'SLAM_FREEZE':
             return True
+        if role == 'SUPPORT' and self.search_mode == 'FRONTIER':
+            return self._final_exit_ready()  # the whole map first, then the exit nearest along free cells
         if role == 'SUPPORT':  # TB-5 ends at the registered exit (OPS-136 4), not a profile home
             return self._exit_ready(self.mission.dispatch_target)
         if self.frozen_stage < 2:
@@ -1039,6 +1104,8 @@ class CoordinatorCore:
         elif meta and meta[0] == 'RETURN_HOME' and meta[1] == 'SUPPORT_EXIT':
             self.support_exit = 'AT_EXIT' if result.outcome == 'COMPLETED' else 'FAILED'  # FAILED: shown, not retried
             if self.support_exit == 'AT_EXIT':
+                if self.completion_mode == 'EXIT_ARRIVAL':
+                    self._confirm_by_exit_arrival()
                 self.note_support_at_exit()
         elif meta and meta[0] == 'RETURN_HOME':
             # TB-6 stops at the docking approach point; docking itself is done by hand (supervised, 5A).
@@ -1261,6 +1328,7 @@ class CoordinatorCore:
     def tick(self, now_ns):
         """Task fields to send now: approved segment, open rechecks, then the SCOUT's search once started."""
         contract_value(timestamp_ns, now_ns)
+        self.last_tick_ns = now_ns
         self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
         self._expire_unadmitted(now_ns)
         self._watch_tick(now_ns)
@@ -1527,7 +1595,12 @@ class CoordinatorCore:
     def _issue_scout_return(self, now_ns):
         """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>)."""
         mission = self.mission
-        if (self.scout_return is not None or 'RESCUE_CONFIRMED' not in mission.verdicts.values()
+        if self.completion_mode == 'EXIT_ARRIVAL':
+            # OPS-155 ②: TB-6 is done once the whole map is frozen; with AREAS, once TB-5 is at the exit.
+            due = self.frozen_stage >= 2 if self.search_mode == 'FRONTIER' else self.support_exit == 'AT_EXIT'
+        else:
+            due = 'RESCUE_CONFIRMED' in mission.verdicts.values()
+        if (self.scout_return is not None or not due
                 or mission.mode != 'DISASTER' or self._held_after_refusal('SCOUT_RETURN', now_ns)):
             return None
         if not self._home_free('SCOUT', 'SCOUT_HOME_NOT_FREE'):
@@ -1544,6 +1617,8 @@ class CoordinatorCore:
         self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SCOUT_RETURN')
         self.scout_return = 'ISSUED'
         mission.returning = True
+        if self._no_survivor():
+            self.at_home.add(self.roles['SUPPORT'])  # TB-5 never left its start spot
         for robot in self.at_home:  # TB-5 may already be at its exit
             mission.record_returned(robot)
         self._send(fields)
@@ -1558,8 +1633,20 @@ class CoordinatorCore:
         if self.mission.returning:
             self.mission.record_returned(robot_id)
 
+    def _no_survivor(self):
+        return (self.map_mode == 'SLAM_FREEZE' and self.search_mode == 'FRONTIER' and self.exploration_complete
+                and not self.target_geo)
+
+    def _confirm_by_exit_arrival(self):
+        """OPS-155 ②: TB-5 led the rescuer to the exit; that is the rescue, no TB-6 recheck."""
+        target = self.mission.dispatch_target
+        self.mission.verdicts[target] = self.mission.verdict = 'RESCUE_CONFIRMED'
+        self.notes.append(f'VERDICT target={target} state=RESCUE_CONFIRMED reason=CONFIRMED source=EXIT_ARRIVAL')
+
     def mission_reason(self, now_ns):
         """The latest stage after dispatch for SystemState.reason: TB-6 return, the verdict, TB-5's exit."""
+        if self._no_survivor():
+            return 'NO_SURVIVOR_FOUND'  # the whole map, no doll: TB-5 never leaves (OPS-155 ③)
         scout = {'ISSUED': 'SCOUT_RETURNING', 'MOVING': 'SCOUT_RETURNING',
                  'AT_DOCK_APPROACH': 'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'FAILED': 'SCOUT_RETURN_FAILED'}
         return scout.get(self.scout_return) or self.verdict_reason or self.exit_reason(now_ns)
@@ -1999,7 +2086,10 @@ def build_core(values):
                            frontier_blacklist_m=values['frontier_blacklist_m'],
                            frontier_issue_delay_ns=seconds_to_ns(str(values['frontier_issue_delay_s'])),
                            exploration_empty_checks=values['exploration_empty_checks'],
-                           exploration_timeout_ns=seconds_to_ns(str(values['exploration_timeout_s'])))
+                           exploration_timeout_ns=seconds_to_ns(str(values['exploration_timeout_s'])),
+                           completion_mode=values['completion_mode'],
+                           support_start_pose=list(values['support_start_pose']) if values['support_start_pose']
+                           else None)
 
 
 def patrol_points(flat):
@@ -2074,14 +2164,18 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # row with nothing to pick before EXPLORATION_COMPLETE, and the exploration time limit (OPS-156 ①).
     'frontier_min_cells': 'INTEGER', 'frontier_reach_m': 'DOUBLE', 'frontier_goal_max_m': 'DOUBLE',
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
-    'exploration_timeout_s': 'DOUBLE'}
+    'exploration_timeout_s': 'DOUBLE',
+    # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).
+    'completion_mode': 'STRING'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
 # on the goal_map_* basis (TB-6 docking approach point, TB-5 exit); none = RETURN_HOME refused.
 # patrol_points: [x, y, yaw]*N in TB-6's start pose (search_mode PATROL); none with AREAS.
+# support_start_pose: TB-5's start spot [x, y, yaw] in TB-6's start pose (robots.<TB-5>.initial_pose_xy_yaw, the
+# robot's own start value); the exit when no QR exit was seen (OPS-155 ①·173). Unmeasured = unset.
 UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY',
-                       'patrol_points': 'DOUBLE_ARRAY'}
+                       'patrol_points': 'DOUBLE_ARRAY', 'support_start_pose': 'DOUBLE_ARRAY'}
 
 
 def main(args=None):

@@ -36,6 +36,7 @@ def values(**changes):
             'search_mode': 'AREAS', 'patrol_points': None, 'patrol_rounds': 1, 'exit_standoff_m': 0.5,
             'frontier_min_cells': 3, 'frontier_reach_m': 1.0, 'frontier_goal_max_m': 1.5, 'frontier_blacklist_m': 0.5,
             'frontier_issue_delay_s': 2.0, 'exploration_empty_checks': 3, 'exploration_timeout_s': 600.0,
+            'completion_mode': 'RECHECK', 'support_start_pose': None,
             'search_start': 'OPERATOR'}
     return base | changes
 

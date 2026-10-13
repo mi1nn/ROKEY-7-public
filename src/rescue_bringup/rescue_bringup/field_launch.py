@@ -53,10 +53,13 @@ COORDINATOR_KEYS = {
     # FRONTIER exploration (owner decision 2026-10-13 night, OPS-154·156)
     'frontier_min_cells': I, 'frontier_reach_m': F, 'frontier_goal_max_m': F, 'frontier_blacklist_m': F,
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
+    # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
+    'completion_mode': S,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
+COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')  # rescue_coordination.ros_node.COMPLETION_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -218,6 +221,8 @@ def load_field(path):
     if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
         # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
+    if coordinator['completion_mode'] not in COMPLETION_MODES:
+        raise FieldLaunchError(f'coordinator.completion_mode must be one of {list(COMPLETION_MODES)}')
     if coordinator['patrol_rounds'] < 1:
         raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
     if coordinator['search_start'] not in SEARCH_START_MODES:
@@ -374,9 +379,15 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
             raise FieldLaunchError('profile home_positions needs both the SCOUT and the SUPPORT robot '
                                    '(home_poses = SCOUT [x, y, yaw] then SUPPORT); or leave the block out')
         homes['home_poses'] = [*deployment.home_of(scout), *deployment.home_of(support)]
+    # TB-5's start spot: the robot's own measured start value (robots.<TB-5>.initial_pose_xy_yaw, in TB-6's start
+    # pose) is also its exit when no QR exit was seen (OPS-155 ①·173). Not measured yet = left unset.
+    support_id = dict((role, robot) for robot, role in deployment.mission.roles)['SUPPORT']
+    start = {}
+    if 'initial_pose_xy_yaw' in field.robots.get(support_id, {}):
+        start['support_start_pose'] = [float(v) for v in field.robots[support_id]['initial_pose_xy_yaw']]
     # An empty array cannot go through ROS parameters (measured 2026-10-13): no patrol points = left unset.
     coordinator = {k: v for k, v in field.coordinator.items() if not (k == 'patrol_points' and not v)}
-    return {**roi, **homes, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
+    return {**roi, **homes, **start, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
             'mission_frame_id': basis.frame_id, 'goal_map_session_id': basis.map_session_id,
             'goal_map_revision': basis.map_revision, 'goal_transform_revision': basis.transform_revision,
             'route_segment_goals': goals, 'observe_goal': observe, 'route_segment_passage_free': passage}

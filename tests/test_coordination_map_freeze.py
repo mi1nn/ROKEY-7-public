@@ -450,7 +450,8 @@ class ParameterTests(unittest.TestCase):
                           'SUPPORT_NOT_LOCALIZED', 'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE',
                           'SCOUT_HOME_NOT_FREE', 'TARGET_REBASED_ON_FREEZE',
                           'EXIT_NOT_ON_FROZEN_MAP', 'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN',
-                          'START_POSE_CONFLICT', 'MAP_NOT_FINAL'}, set(ros_node.MAP_FREEZE_REASONS))
+                          'START_POSE_CONFLICT', 'MAP_NOT_FINAL', 'SUPPORT_START_UNKNOWN',
+                          'SUPPORT_EXIT_UNREACHABLE'}, set(ros_node.MAP_FREEZE_REASONS))
 
 
 if __name__ == '__main__':

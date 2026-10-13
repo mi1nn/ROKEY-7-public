@@ -179,9 +179,19 @@ class CoordinatorParameters(FieldCase):
         expected.update(frontier_min_cells=10, frontier_reach_m=1.0, frontier_goal_max_m=1.5,
                         frontier_blacklist_m=0.5, frontier_issue_delay_s=2.0, exploration_empty_checks=3,
                         exploration_timeout_s=600.0)
+        expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
+
+    def test_tb5_start_spot_goes_to_the_coordinator_only_when_measured(self):
+        """OPS-155 ①·173: robots.<TB-5>.initial_pose_xy_yaw (TB-6 start pose frame) is also TB-5's exit when no QR
+        exit was seen; one source, passed on as support_start_pose, left unset while not measured."""
+        self.assertNotIn('support_start_pose', self.coordinator())
+
+        def measured(raw):
+            raw['robots']['robot_b']['initial_pose_xy_yaw'] = [1.5, -0.4, 3.14]
+        self.assertEqual([1.5, -0.4, 3.14], self.coordinator(field=self.field(measured))['support_start_pose'])
 
     def test_one_passage_flag_per_segment_end(self):
         """A length other than the segment count holds every segment (PASSAGE_ASSESSMENT_REQUIRED) at run time;
@@ -461,6 +471,7 @@ class FieldFile(FieldCase):
             'frontier issue before the robot reads it': lambda r: r['coordinator'].update(
                 {'frontier_issue_delay_s': 0.5}),
             'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
+            'completion mode unknown': lambda r: r['coordinator'].update({'completion_mode': 'ARRIVAL'}),
             'patrol without points': lambda r: r['coordinator'].update({'search_mode': 'PATROL'}),
             'patrol points not triples': lambda r: r['coordinator'].update({'patrol_points': [1.0, 2.0]}),
             'patrol rounds below one': lambda r: r['coordinator'].update({'patrol_rounds': 0}),
