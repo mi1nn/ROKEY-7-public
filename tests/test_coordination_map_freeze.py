@@ -159,6 +159,7 @@ class FreezeRequestTests(Base):
             with self.subTest(msg=msg):
                 self.core.on_map_state(msg)
                 self.assertIsNone(self.core.frozen)
+        self.tick()
         self.assertEqual('MAP_NOT_FROZEN', self.reason())
         self.core.on_map_state(map_state(SCOUT))
         self.assertEqual(FROZEN, self.core.frozen)
