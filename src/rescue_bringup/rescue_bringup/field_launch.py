@@ -202,6 +202,11 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
         # launch_ros refuses it and --params-file / -p leave it unset (measured 2026-10-13).
         raise FieldLaunchError('route_segment_passage_free cannot be [] through ROS parameters; '
                                'give one true/false per segment end')
+    if len(passage) != len(goals) // 3:
+        # The coordinator holds every segment on a length mismatch (PASSAGE_ASSESSMENT_REQUIRED);
+        # a mismatch is never meant, so refuse it here instead of at run time.
+        raise FieldLaunchError(f'route_segment_passage_free needs one true/false per segment end: '
+                               f'{len(goals) // 3} segments, {len(passage)} flags')
     if not profile_path:
         raise FieldLaunchError('profile_path is required')
     roi = {}

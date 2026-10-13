@@ -67,7 +67,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'goal_map_session_id:=22222222-2222-4222-8222-222222222222', '-p', 'goal_map_revision:=0',
              '-p', 'goal_transform_revision:=1', '-p', 'merge_distance_m:=0.5', '-p', 'report_retry_s:=1.0',
              '-p', 'lease_renew_period_s:=0.2', '-p', 'admission_timeout_s:=1.0', '-p', 'lease_message_ttl_s:=1.0',
-             '-p', 'route_segment_passage_free:=[true, true]',
+             '-p', 'route_segment_passage_free:=[true, true]', '-p', 'camera_watch_timeout_s:=2.0',
              # OPS-103: TargetLocation time gate (the probe's observations use this domain, SYNCED, 5 ms bound).
              '-p', f'target_clock_domain_id:={CLOCK_DOMAIN}', '-p', 'target_max_age_s:=5.0',
              '-p', 'target_max_future_s:=0.05']
