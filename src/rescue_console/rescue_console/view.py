@@ -35,7 +35,7 @@ STAGE_RULES = (
 # (rescue_console.commands); the rest stay off here whatever the state.
 COMMANDS = (
     ('START_SEARCH', '수색 시작'),
-    ('DISPATCH_SUPPORT', 'AMR2 출동 승인'),
+    ('DISPATCH_SUPPORT', 'SUPPORT 출동 승인'),   # the SUPPORT robot's name once a status names it (_command_words)
     ('CONTINUE_SEGMENT', '다음 구간 계속'),
     ('REQUEST_RECHECK', '재확인 지시'),
     ('RETURN_HOME', '복귀'),
@@ -44,7 +44,7 @@ COMMANDS = (
     ('CANCEL', '작업 취소'),
     ('STOP_ROBOT', '정지'),
 )
-# Panel grouping: the flow's human gates in order (#85 start, AMR2 dispatch, each next segment) first,
+# Panel grouping: the flow's human gates in order (#85 start, support dispatch, each next segment) first,
 # the stop apart from everything else.
 COMMAND_GROUPS = {
     'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
@@ -339,7 +339,15 @@ def _mission(site_events, row):
                    'trigger_ns': signs[0].observed_at_ns if signs else None}
 
 
-def _history(status):
+def _command_words(support_name):
+    """Command labels; the dispatch carries the SUPPORT robot's display name (owner 2026-10-13: TB-5)."""
+    words = dict(COMMANDS)
+    if support_name is not None:
+        words['DISPATCH_SUPPORT'] = f'{support_name} 출동 승인'
+    return words
+
+
+def _history(status, words=None):
     """Operator commands as operations recorded them (answer and reason, rejections included) and
     operations' error_log, newest first. None when neither input is there (the status fixture).
     Kept apart from the event rows: those carry the KPI-04 display latency, these do not."""
@@ -347,7 +355,7 @@ def _history(status):
     errors = _section(status, 'error_log', 'errors')
     if commands is None and errors is None:
         return None
-    words = dict(COMMANDS)
+    words = dict(COMMANDS) if words is None else words
     rows = []
     for item in [] if commands is None else commands['commands']:
         rows.append({'at_ns': item['requested_at_ns'], 'kind': 'COMMAND', 'ref_id': item['command_id'],
@@ -421,22 +429,24 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
-def command_gates(mission, targets):
+def command_gates(mission, targets, words=None):
     """Every command with the state of its button. A mirror of the coordinator gate for the screen,
     not the gate: an enabled command may still be rejected, and that answer is shown as it comes."""
+    words = dict(COMMANDS) if words is None else words
     rows = []
-    for name, text in COMMANDS:
+    for name, _ in COMMANDS:
         enabled, reason, args, choices = _gate(name, mission, targets)
-        rows.append({'name': name, 'label': text, 'group': COMMAND_GROUPS[name], 'enabled': enabled,
+        rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
                      'reason': reason, 'args': args, 'choices': choices})
     return rows
 
 
-def build_view(ledger, status, *, built_at_ns):
+def build_view(ledger, status, *, built_at_ns, robot_names=None):
     """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
     2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
     'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
+    names = dict(robot_names or {})   # robot_id -> display name (--robot-name); none: the ID itself
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
     allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
@@ -476,19 +486,23 @@ def build_view(ledger, status, *, built_at_ns):
         stage_counts[row['stage']] += 1
     events, event_total = _events(ledger, site_events)
     mission = _mission(None if site_section is None else site_events, mission_row)
+    robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
+    for row in robots:
+        row['name'] = names.get(row['robot_id'], row['robot_id'])
+    support = [row['name'] for row in robots if row['role'] == 'SUPPORT']
+    words = _command_words(support[0] if len(support) == 1 else None)
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],
         'mission': mission,
-        'robots': _robots(allowed, [] if robot_section is None else robot_section['robots'],
-                          built_at_ns, warnings),
+        'robots': robots,
         'targets': targets,
         'stage_counts': stage_counts,
         'exit_count': exit_count,
         'events': events,
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
-        'commands': command_gates(mission, targets),
-        'history': _history(status),
+        'commands': command_gates(mission, targets, words),
+        'history': _history(status, words),
         'warnings': warnings,
     }
