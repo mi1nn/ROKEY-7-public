@@ -1416,8 +1416,9 @@ class FrozenGrid:
     def __init__(self, msg):
         from rescue_contracts.occupancy import occupancy_sha256, planar_origin
         info = msg.info
+        p, q = info.origin.position, info.origin.orientation
         self.fields = dict(frame=msg.header.frame_id, width=int(info.width), height=int(info.height),
-                           resolution=float(info.resolution), origin=planar_origin(info.origin),
+                           resolution=float(info.resolution), origin=planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w),
                            data=[int(v) for v in msg.data])
         self.sha256 = occupancy_sha256(**self.fields)
 
