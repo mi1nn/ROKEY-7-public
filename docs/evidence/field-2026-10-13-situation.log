@@ -1,0 +1,90 @@
+# 2026-10-13 10:58-11:04 KST, head d54c9ad. 실행 위치: TB-5 담당 PC 호스트 셸. ROS Jazzy, rmw_fastrtps_cpp, ROS_DOMAIN_ID=6. 로봇은 움직이지 않음, 읽기 전용(토픽 구독·목록, ping, 빈 UDP 1개). 설정 파일 변경 없음.
+# 주소는 <OPS_HOST_IP>(운영 PC 중앙 서버), <ROBOT5_IP>, <ROBOT6_IP>, <HOST_X> 로 가림. MAC 은 지움.
+
+## 1. 10:58 기본 설정(중앙 서버 <OPS_HOST_IP>:11811 ID 0) — robot5 battery_state percentage 0.99 수신, ping 3 ms
+
+## 2. preflight (기본 설정)
+# 2026-10-13 11:00:30 KST
+PASSED   env.ros_distro                     jazzy (기대값 없음, 설정만 확인)
+PASSED   env.rmw                            rmw_fastrtps_cpp
+NOT_RUN  env.discovery_server               기대값 없음 (호스트 설정 없음)
+NOT_RUN  env.domain_id                      기대값 없음. 실제 6 — Discovery Server 는 도메인을 보지 않음
+PASSED   pkg.nav2_msgs                      nav2_msgs
+PASSED   pkg.irobot_create_msgs             irobot_create_msgs
+PASSED   pkg.turtlebot4_*                   turtlebot4_cpp_tutorials, turtlebot4_description, turtlebot4_desktop, turtlebot4_gz_bringup, turtlebot4_gz_gui_plugins, turtlebot4_gz_toolbox, turtlebot4_msgs, turtlebot4_navigation, turtlebot4_node, turtlebot4_openai_tutorials, turtlebot4_python_tutorials, turtlebot4_simulator, turtlebot4_tutorials, turtlebot4_viz
+PASSED   pkg.rmw_fastrtps_cpp               rmw_fastrtps_cpp
+PASSED   tool.fastdds                       fastdds CLI 있음
+NOT_RUN  server.0.reach                     <OPS_HOST_IP>:11811 no_reply: UDP 는 응답이 없어도 열림 증명이 아님 — graph 점검으로 판정
+NOT_RUN  graph./robot5                      /robot5 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)
+NOT_RUN  graph./robot6                      /robot6 아래 발행 토픽이 안 보임 (로봇·서버 미연결 또는 꺼짐)
+preflight exit=3 (NOT_RUN 있음)
+
+## 3. 기본 설정 그래프·토픽 재확인
+# 2026-10-13 11:00:52 KST  super_client=True server=<OPS_HOST_IP>:11811; domain=6
+== topic list --no-daemon (super client, 15s)
+      1 /parameter_events
+      1 /rosout
+== robot5 battery
+== robot5 dock_status
+== robot5 odom hz
+== robot5 scan hz
+== robot6 battery
+== robot6 dock_status
+== robot6 odom hz
+== robot6 scan hz
+
+## 4. 네트워크
+# 2026-10-13 11:01:50 KST
+== ping ops server
+3 packets transmitted, 0 received, +1 errors, 100% packet loss, time 2002ms
+
+== ip neigh (109 subnet)
+<ROBOT5_IP> dev wlo1 STALE
+<ROBOT6_IP> dev wlo1 REACHABLE
+<HOST_X> dev wlo1 REACHABLE
+<GATEWAY> dev wlo1 REACHABLE
+<OPS_HOST_IP> dev wlo1 INCOMPLETE
+== robot5 battery retry 15s
+# 2026-10-13 11:02:19 KST
+<ROBOT5_IP> 0% packet loss rtt min/avg/max/mdev = 4.559/5.838/7.118/1.279 ms
+<ROBOT6_IP> 0% packet loss rtt min/avg/max/mdev = 7.178/7.525/7.873/0.347 ms
+<HOST_X> 0% packet loss rtt min/avg/max/mdev = 1.448/2.777/4.106/1.329 ms
+<OPS_HOST_IP> 100% packet loss
+== UDP 11811 probe on Pis (one empty datagram)
+<ROBOT5_IP> sent
+<ROBOT6_IP> sent
+# 2026-10-13 11:02:34 KST  onboard server probe (env override in this process only, files unchanged)
+<ROBOT5_IP> id=0 -> none
+<ROBOT5_IP> id=5 ->      24 /robot5
+<ROBOT5_IP> id=6 -> none
+<ROBOT6_IP> id=0 -> none
+<ROBOT6_IP> id=5 -> none
+<ROBOT6_IP> id=6 ->      43 /robot6
+
+## 5. 로봇 온보드 서버로 직접 읽기 (이 프로세스 환경변수만 바꿈)
+# 2026-10-13 11:03:27 KST  read via onboard servers: ;;;;;<ROBOT5_IP>:11811;<ROBOT6_IP>:11811; (process env only)
+== robot5 topics: 24
+/robot5/cmd_vel /robot5/cmd_vel_unstamped /robot5/odom /robot5/scan /robot5/tf /robot5/tf_static
+battery: 1.0
+docked: True
+odom:
+scan:
+== robot6 topics: 43
+/robot6/cmd_vel /robot6/cmd_vel_unstamped /robot6/oakd/imu/data /robot6/oakd/rgb/camera_info /robot6/oakd/rgb/image_raw /robot6/oakd/rgb/image_raw/compressed /robot6/oakd/rgb/image_raw/compressedDepth /robot6/oakd/rgb/image_raw/theora /robot6/oakd/rgb/image_raw/zstd /robot6/oakd/rgb/preview/camera_info /robot6/oakd/rgb/preview/image_raw /robot6/oakd/rgb/preview/image_raw/compressed /robot6/oakd/rgb/preview/image_raw/compressedDepth /robot6/oakd/rgb/preview/image_raw/theora /robot6/oakd/rgb/preview/image_raw/zstd /robot6/oakd/stereo/camera_info /robot6/oakd/stereo/image_raw /robot6/oakd/stereo/image_raw/compressed /robot6/oakd/stereo/image_raw/compressedDepth /robot6/oakd/stereo/image_raw/theora /robot6/oakd/stereo/image_raw/zstd /robot6/odom /robot6/scan /robot6/tf /robot6/tf_static
+battery: 0.8199999928474426
+docked: False
+odom:
+scan:
+# 2026-10-13 11:03:54 KST  hz retry (no type arg, 10s)
+/robot5/odom: WARNING: topic [/robot5/odom] does not appear to be published yet
+
+/robot5/scan: WARNING: topic [/robot5/scan] does not appear to be published yet
+
+/robot6/odom: WARNING: topic [/robot6/odom] does not appear to be published yet
+
+/robot6/scan: WARNING: topic [/robot6/scan] does not appear to be published yet
+
+
+## 6. 정정 메모 (12:45 추가)
+# 11:03 도킹 값은 그 시각 /robot5·/robot6 측정이다. 사용자 전달: 그 뒤 TB-5 언독·TB-6 독, 12:42 직전 TB-6 도 언독.
+# 12:42 재측정: /robot5 is_docked False 0.89, /robot6 is_docked False 0.84 (field-2026-10-13-oakd-robot6.log E절).
