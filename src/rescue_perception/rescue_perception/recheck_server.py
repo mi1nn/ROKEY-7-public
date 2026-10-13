@@ -7,6 +7,7 @@ count. Sensor samples are pushed in by the node that owns the camera and LiDAR i
 every state UNKNOWN, never an absence. The observation time uses this host's measured clock
 (webcam_clock, as the webcam does); unmeasured means UNKNOWN.
 """
+from dataclasses import dataclass
 import math
 import threading
 import time
@@ -16,7 +17,31 @@ from .recheck import RecheckWindow, window_states
 from .target_utils import fill_envelope
 from .webcam_clock import observation_clock
 
-STAMP_SEMANTICS = 'DRIVER_RECEIVE'   # samples are timed when this host receives them
+STAMP_SEMANTICS = 'CAPTURE'   # samples are timed by their sensor capture stamps (OPS-108)
+
+
+@dataclass(frozen=True)
+class SensorClock:
+    """The host whose clock stamps the sensor data (camera / LiDAR driver, TB-6 Pi): its measured sync
+    error bound and clock domain, the same field values as the detection launch (sensor_host_*)."""
+    error_bound_ns: int
+    clock_domain_id: str
+
+
+def window_margin_ns(record, now_ns, sensor):
+    """How much later than the acceptance a capture stamp must be: this host's measured bound (0 when
+    unmeasured, no bound claimed) plus the sensor host's."""
+    state, bound = observation_clock(record, now_ns)
+    return (bound if state == 'SYNCED' else 0) + sensor.error_bound_ns
+
+
+def capture_clock(record, stamp_ns, sensor, clock_domain_id):
+    """(clock_state, bound or None) of a capture stamp: SYNCED only with this host measured and the
+    sensor host in the same clock domain; the bound adds both."""
+    state, bound = observation_clock(record, stamp_ns)
+    if state != 'SYNCED' or sensor.clock_domain_id != clock_domain_id:
+        return 'UNKNOWN', None
+    return 'SYNCED', bound + sensor.error_bound_ns
 
 
 class WindowSlot:
@@ -70,14 +95,14 @@ def goal_refusal(*, robot_id, native_frame, point, window_ns, deadline_ns, now_n
 
 class RecheckServer:
     def __init__(self, node, *, action_name, robot_id, map_frame, policy, max_window_ns, validity_ns,
-                 clock_domain_id, clock_record, publisher_id, envelope_version, callback_group=None,
+                 clock_domain_id, clock_record, publisher_id, envelope_version, sensor_clock, callback_group=None,
                  now_ns=time.time_ns, log=None):
         from rclpy.action import ActionServer, CancelResponse, GoalResponse
         from rescue_interfaces.action import ObserveTarget
         self._action = ObserveTarget
         self.robot_id, self.map_frame, self.policy = robot_id, map_frame, policy
         self.max_window_ns, self.validity_ns = max_window_ns, validity_ns
-        self.clock_domain_id, self.clock_record = clock_domain_id, clock_record
+        self.clock_domain_id, self.clock_record, self.sensor_clock = clock_domain_id, clock_record, sensor_clock
         self.publisher_id, self.envelope_version = publisher_id, envelope_version
         self.now_ns, self.boot_id = now_ns, str(uuid4())
         self.log = log or node.get_logger()
@@ -100,23 +125,24 @@ class RecheckServer:
         with self._lock:
             return None if self._window is None else self._window.point_map
 
-    def add_frame(self, *, received_ns, coverage, confirmed_points, unconfirmed_at_point):
+    def add_frame(self, *, stamp_ns, coverage, confirmed_points, unconfirmed_at_point):
         with self._lock:
             if self._window is not None:
-                self._window.add_frame(received_ns=received_ns, coverage=coverage,
+                self._window.add_frame(stamp_ns=stamp_ns, coverage=coverage,
                                        confirmed_points=confirmed_points, unconfirmed_at_point=unconfirmed_at_point)
 
-    def add_scan(self, *, received_ns, state):
+    def add_scan(self, *, stamp_ns, state):
         with self._lock:
             if self._window is not None:
-                self._window.add_scan(received_ns=received_ns, state=state)
+                self._window.add_scan(stamp_ns=stamp_ns, state=state)
 
     # -- action ---------------------------------------------------------------------------------
     def _refusal(self, goal, now):
         p = goal.watched_native_point
         return goal_refusal(robot_id=goal.robot_id, native_frame=goal.frame_ref.native_frame, point=(p.x, p.y, p.z),
                             window_ns=goal.requested_window_ns, deadline_ns=goal.deadline_ns, now_ns=now,
-                            margin_ns=deadline_margin_ns(self.clock_record(), now), expected_robot=self.robot_id,
+                            margin_ns=window_margin_ns(self.clock_record(), now, self.sensor_clock),
+                            expected_robot=self.robot_id,
                             map_frame=self.map_frame, max_window_ns=self.max_window_ns)
 
     def _execute(self, handle):
@@ -133,13 +159,14 @@ class RecheckServer:
         if refusal is not None:
             handle.abort()
             self.log.warning(f'ObserveTarget task={goal.task_id} refused: {refusal}')
-            return self._result(goal, 'FAILED', refusal, None, now, now)
+            return self._result(goal, 'FAILED', refusal, None, now, now)   # no samples: times are the refusal's
         point = (goal.watched_native_point.x, goal.watched_native_point.y, goal.watched_native_point.z)
+        margin = window_margin_ns(self.clock_record(), now, self.sensor_clock)
         with self._lock:
-            self._window = RecheckWindow(point, self.policy, start_ns=now)
+            self._window = RecheckWindow(point, self.policy, start_ns=now, start_margin_ns=margin)
         self.log.info(f'ObserveTarget task={goal.task_id} target={goal.target_id} window '
-                      f'{goal.requested_window_ns / 1e9:.1f}s point={point}')
-        end = now + goal.requested_window_ns
+                      f'{goal.requested_window_ns / 1e9:.1f}s after a {margin / 1e9:.3f}s clock margin point={point}')
+        end = now + margin + goal.requested_window_ns   # the window counts from the first admissible capture
         outcome = reason = None
         feedback = self._action.Feedback(request_id=goal.request_id, phase='COLLECTING')
         while outcome is None:
@@ -156,7 +183,8 @@ class RecheckServer:
                 handle.publish_feedback(feedback)
         with self._lock:
             window, self._window = self._window, None
-        result = self._result(goal, outcome, reason, window, now, window.end_ns() or self.now_ns())
+        span = window.span_ns() or (window.first_ns(), window.first_ns())
+        result = self._result(goal, outcome, reason, window, *span)
         if reason == 'CANCELED':
             handle.canceled()
         elif outcome == 'OBSERVED':
@@ -189,6 +217,6 @@ class RecheckServer:
         t = o.time
         t.observed_at_ns, t.valid_until_ns = end_ns, end_ns + self.validity_ns
         t.stamp_semantics, t.clock_domain_id = STAMP_SEMANTICS, self.clock_domain_id
-        t.clock_state, bound = observation_clock(self.clock_record(), end_ns)
+        t.clock_state, bound = capture_clock(self.clock_record(), end_ns, self.sensor_clock, self.clock_domain_id)
         t.has_clock_error_bound, t.clock_error_bound_ns = bound is not None, bound or 0
         return result

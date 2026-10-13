@@ -112,7 +112,12 @@ ros2 launch rescue_bringup amr_perception.launch.py \
   clock_drift_ppm:=100.0 clock_poll_period_s:=5.0 \
   sensor_host_clock_error_bound_ns:=150000000 sensor_host_clock_domain_id:=rokey7-utc-field \
   profile_path:=<현장 배포 프로파일.json> tf_wait_s:=1.0 \
-  alignment_authority_id:=tb6-saved-map-identity alignment_valid_from_ns:=$from_ns alignment_valid_until_ns:=$until_ns
+  alignment_authority_id:=tb6-saved-map-identity alignment_valid_from_ns:=$from_ns alignment_valid_until_ns:=$until_ns \
+  recheck_action_name:=/rescue/robots/robot_a/observe_target recheck_map_frame:=map recheck_scan_topic:=/robot6/scan \
+  recheck_max_window_ns:=10000000000 recheck_validity_ns:=5000000000 \
+  recheck_presence_radius_m:=0.5 recheck_lidar_radius_m:=0.3 recheck_min_frames:=3 recheck_min_scans:=3 \
+  recheck_min_lidar_rays:=3 recheck_min_lidar_hits:=2 recheck_image_margin_px:=10 \
+  recheck_min_depth_m:=0.2 recheck_max_depth_m:=5.0 recheck_occlusion_tolerance_m:=0.3 recheck_depth_window_px:=2
 ```
 
 | 인자 | 근거 |
@@ -126,6 +131,8 @@ ros2 launch rescue_bringup amr_perception.launch.py \
 | `sensor_host_*` | [측정] TB-6 Pi chronyc tracking → 약 109 ms, 여유 150 ms |
 | `profile_path` | 현장 프로파일. `map_basis.frame_id` 가 `map` 이어야 한다(아니면 launch 가 멈춤) |
 | 정렬 창·권한 | OPS-103 결정 2. 프로파일 `map_basis` + TB-6 saved-map 선언(#132) |
+| `recheck_action_name`·`recheck_scan_topic` | ObserveTarget 은 논리 ID 경로 `/rescue/robots/robot_a/observe_target`(로봇 실행기 #179 가 부름). scan 은 [설정] #132 `scan_topic` |
+| `recheck_*` 정책 값 | [제안] 판정 반경 0.5 m·LiDAR 원 0.3 m·최소 프레임·스캔 3·빔 3·원 안 반사 2·깊이 0.2~5 m·가림 0.3 m. 창 상한 10 s 는 #199 의 실행기 재확인 창 3 s·마감 10 s 를 덮는다. 현장에서 바꿀 수 있다 |
 
 **「TB-6 이 인형을 보는데 위치가 안 나옴」 원인 가르기** — amr_target·target_locator 로그를 위에서부터 본다. 처음으로 맞지 않는 단계가 원인이다.
 
@@ -201,11 +208,11 @@ ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/camera
 | 카메라 | 확정 탐지가 지점 반경 `presence_radius_m` 안에 있으면 PRESENT. 지점이 화면 안·깊이 범위 안이고 가려지지 않은 프레임(`frame_coverage` VALID)이 `min_frames` 이상이면서 탐지가 없을 때만 ABSENT. 그 지점에 미확정 탐지가 있었거나 프레임이 모자라면 UNKNOWN |
 | LiDAR | 지점 둘레 원(`lidar_radius_m`)을 지나는 빔마다 광선-원 교점(들어감·나감 거리)으로 본다(#165 검토 CDX-165-02). 들어감~나감 사이에서 돌아오면 원 안 반사, 들어감 앞에서 돌아오면 가림, 나감 뒤에서 돌아오거나 반사가 없으면(+inf, 또는 range_max 보다 큰 유한값, REP-117) 통과다. 반사가 없을 때는 나감 거리가 range_max 안일 때만 통과로 센다. -inf(range_min 보다 가까이 무언가 있음, REP-117)·NaN·range_min 미만은 판단 불가다(CDX-165-01). 원 안 반사가 `min_lidar_hits` 이상이면 BLOCKED. 가린 빔이나 판단 불가 빔이 하나라도 있으면 UNKNOWN. 모든 빔이 통과하고 `min_lidar_rays` 이상이면 CLEAR. 창 안에 BLOCKED 가 하나라도 있으면 BLOCKED, CLEAR 스캔이 `min_scans` 이상이면 CLEAR |
 | 범위 | 카메라 VALID 프레임이 충분하고 LiDAR 가 UNKNOWN 이 아니면 VALID, 지점이 계속 화면·깊이 밖이면 INVALID, 그 밖은 UNKNOWN |
-| 시각 | 표본 시각은 이 호스트가 받은 시각(`DRIVER_RECEIVE`)이다. 시계 상태·오차는 웹캠과 같은 측정(`webcam_clock`, ClockSampler)이다. 측정이 안 되면 UNKNOWN |
+| 시각 | 표본 시각은 센서 캡처 stamp(RGB·scan header, 카메라·LiDAR 드라이버 호스트 = TB-6 Pi 시계)다(OPS-108). goal 수락은 이 호스트 시계라서, 수락 시각 + (이 호스트 측정 오차 + `sensor_host_clock_error_bound_ns`) 이후에 찍힌 표본만 센다. 창 길이는 그 시각부터 잰다. 관측 시각은 CAPTURE 이고, 오차 상한은 두 오차의 합이다. 이 호스트가 측정되지 않았거나 센서 호스트의 시계 영역이 다르면 UNKNOWN 이다 |
 | goal 검사 | robot_id·`frame_ref.native_frame`·유한한 지점·창 길이(0 초과, 상한 이하)·마감이 맞지 않으면 FAILED 와 이유 코드. 창은 goal 을 받을 때(수락 콜백) 예약하고 goal 이 어떻게 끝나든 해제한다. 예약된 창이 있으면 새 goal 은 거절(#165 검토 CDX-165-03) |
 | 마감 (C-03) | goal 마감은 실행기 시계 값이다. 이 호스트의 측정 오차 상한을 더해 비교한다: `now + 오차 ≥ 마감` 이면 마감이 지난 것(`DEADLINE_PASSED`, 창 중에는 UNKNOWN), `now + 창 + 오차 > 마감` 이면 마감 전에 못 끝나므로 받지 않는다(`DEADLINE_TOO_CLOSE`). 측정이 없으면 오차를 0 으로 주장하지 않고 그대로 비교하며, 결과 관측의 시계는 UNKNOWN 이다. 실행기와 관측 서버가 다른 PC 라면 실행기 쪽 오차는 여기 들어 있지 않다 |
 
-센서 입력을 넣는 일(amr_target 의 프레임·TB-6 LiDAR 스캔 → `add_frame`/`add_scan`)은 다음 PR 이다. 시험: `tests/test_perception_recheck.py`(E2), `tests/ros/e3_recheck_probe.py`(LOCALHOST action, 합성 입력). 실제 카메라·LiDAR·로봇은 NOT_RUN 이다.
+amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임마다 지점이 보이는지(`frame_coverage`), 확정 탐지의 지도 좌표, 지점 위 미확정 탐지 여부를 넣는다. RGB 가 rectified 가 아니면 미확정 탐지 상자도 탐지 위치와 같은 규칙(모서리·변 중점 8점 왜곡 보정)으로 보정된 격자에 옮긴 뒤 지점과 비교한다(#200 검토 REV-200-01). 지도 좌표는 촬영 시각 TF map ← 카메라, 깊이는 보정된 정렬 Depth 다. TB-6 LaserScan(`recheck_scan_topic`)은 `scan_state` 로 넣는다(`recheck_feed.py`). 설정은 `recheck_*` 파라미터 16개(기본값 없음, `RECHECK_PARAMS`)이고 launch 인자로도 받는다. 창을 기다리는 goal 이 프레임 처리를 막지 않게 amr_target 은 MultiThreadedExecutor 로 돈다. 시험: `tests/test_perception_recheck.py`·`tests/test_perception_recheck_feed.py`(E2), `tests/ros/e3_recheck_probe.py`(LOCALHOST action, 합성 입력), `tests/ros/e3_amr_target_probe.py`(실제 amr_target + 빨간 사각형만 찾는 가짜 탐지기 + 합성 RGB·Depth·TF·스캔). 실제 카메라·LiDAR·로봇은 NOT_RUN 이다.
 
 ### 단일 인형·회차별 1회 전송
 

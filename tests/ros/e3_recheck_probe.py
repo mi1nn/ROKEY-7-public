@@ -30,7 +30,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rescue_contracts.clock_measurement import ClockSampler
 from rescue_interfaces.action import ObserveTarget
 from rescue_perception.recheck import RecheckPolicy
-from rescue_perception.recheck_server import RecheckServer
+from rescue_perception.recheck_server import RecheckServer, SensorClock
 
 POLICY = RecheckPolicy(presence_radius_m=0.5, lidar_radius_m=0.3, min_frames=3, min_scans=3, min_lidar_rays=3,
                        min_lidar_hits=2, image_margin_px=10, min_depth_m=0.2, max_depth_m=5.0,
@@ -52,6 +52,7 @@ def main():
     server = RecheckServer(node, action_name=ACTION, robot_id='robot_a', map_frame='map', policy=POLICY,
                            max_window_ns=10_000_000_000, validity_ns=5_000_000_000, clock_domain_id='rokey7-utc-field',
                            clock_record=lambda: clock['record'], publisher_id='e3.recheck', envelope_version='0.1',
+                           sensor_clock=SensorClock(150_000_000, 'rokey7-utc-field'),   # test value (TB-6 Pi field value)
                            callback_group=ReentrantCallbackGroup())
     client_node = rclpy.create_node('e3_recheck_client')
     client = ActionClient(client_node, ObserveTarget, ACTION)
@@ -66,9 +67,9 @@ def main():
             if scene['feed']:
                 now = server.now_ns()
                 present = scene['mode'] == 'present'
-                server.add_frame(received_ns=now, coverage='VALID', unconfirmed_at_point=False,
+                server.add_frame(stamp_ns=now, coverage='VALID', unconfirmed_at_point=False,
                                  confirmed_points=[(2.1, 1.0, 0.3)] if present else [])
-                server.add_scan(received_ns=now, state='BLOCKED' if present else 'CLEAR')
+                server.add_scan(stamp_ns=now, state='BLOCKED' if present else 'CLEAR')
             time.sleep(0.1)
     threading.Thread(target=feed, daemon=True).start()
 

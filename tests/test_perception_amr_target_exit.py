@@ -27,12 +27,21 @@ class AmrTargetExitTests(unittest.TestCase):
             raise KeyboardInterrupt
         fake_rclpy = types.SimpleNamespace(init=lambda args=None: None, spin=interrupted, ok=lambda: False,
                                            shutdown=lambda: None)
-        original = amr.rclpy, amr.create_node
-        amr.rclpy, amr.create_node = fake_rclpy, Node
+        class Executor:   # main spins a multi-threaded executor (recheck window in its own group)
+            def __init__(self, num_threads=None):
+                pass
+
+            def add_node(self, node):
+                self.node = node
+
+            def spin(self):
+                interrupted(self.node)
+        original = amr.rclpy, amr.create_node, amr.MultiThreadedExecutor
+        amr.rclpy, amr.create_node, amr.MultiThreadedExecutor = fake_rclpy, Node, Executor
         try:
             self.assertEqual(0, amr.main())
         finally:
-            amr.rclpy, amr.create_node = original
+            amr.rclpy, amr.create_node, amr.MultiThreadedExecutor = original
         self.assertEqual([True], closed)
 
 
