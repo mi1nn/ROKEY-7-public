@@ -79,6 +79,9 @@ class ReasonWordTests(unittest.TestCase):
                          tuple(mission_reason('SCOUT_RETURNING', 'TB-5', 'TB-6')[k] for k in ('text', 'level', 'scope')))
         self.assertEqual('TB-6 도킹 접근 지점 도착 — 도킹은 사람이 합니다',
                          mission_reason('SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'TB-5', 'TB-6')['text'])
+        failed = mission_reason('SCOUT_RETURN_FAILED', 'TB-5', 'TB-6')   # #194: not sent again by itself
+        self.assertEqual(('TB-6 도킹 접근 지점 이동 실패 — 다시 보내지 않음', 'alert', 'scout'),
+                         (failed['text'], failed['level'], failed['scope']))
 
     def test_rescue_and_finish_words(self):
         from rescue_console.labels import label
