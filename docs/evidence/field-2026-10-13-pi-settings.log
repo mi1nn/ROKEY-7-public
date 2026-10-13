@@ -1,0 +1,29 @@
+# 2026-10-13 KST. TB-5 담당 PC 호스트 셸. 읽기 전용(ping). 이 PC 설정 변경 없음.
+# 주소는 <TB5_PI>·<TB6_PI> 로 가림.
+
+## 전: 12:47 (Pi power_save 바꾸기 전)
+== ping -c 50 -i 0.2 <TB5_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9837ms
+rtt min/avg/max/mdev = 2.069/11.714/52.309/9.545 ms
+== ping -c 50 -i 0.2 <TB6_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9841ms
+rtt min/avg/max/mdev = 3.226/35.053/404.210/68.987 ms, pipe 2
+# 2026-10-13 12:47:54 KST 끝
+
+## 뒤: 14:30 (Pi power_save off 뒤)
+# 2026-10-13 14:30:25 KST Pi power_save off 뒤 ping 재측정 (이 PC power_save 는 그대로: nmcli default, 전역 3)
+== ping -c 50 -i 0.2 <TB5_PI>
+50 packets transmitted, 49 received, 2% packet loss, time 9843ms
+rtt min/avg/max/mdev = 1.743/10.006/202.605/27.906 ms, pipe 2
+== ping -c 50 -i 0.2 <TB6_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9833ms
+rtt min/avg/max/mdev = 1.477/4.389/42.852/6.070 ms
+# 2026-10-13 14:30:45 KST 끝
+# 2026-10-13 14:30:50 KST 2회차
+== ping -c 50 -i 0.2 <TB5_PI>
+50 packets transmitted, 49 received, 2% packet loss, time 9834ms
+rtt min/avg/max/mdev = 2.148/6.718/21.196/3.428 ms
+== ping -c 50 -i 0.2 <TB6_PI>
+50 packets transmitted, 50 received, 0% packet loss, time 9836ms
+rtt min/avg/max/mdev = 1.430/5.016/29.568/4.728 ms
+# 2026-10-13 14:31:10 KST 끝

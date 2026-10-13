@@ -17,14 +17,19 @@
   - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 `tests/ros/e3_report_gate_probe.py`(#151, 머지됨).
 - 보고 크기(#139): 보고에는 아직 PERSISTED 영수증에 들어가지 않은 위치만 싣는다(SDD 391 기록 중복 제거). 같은 대상의 위치가 42개일 때 가장 큰 보고는 고치기 전 59,944 B, 고친 뒤 4,021 B [측정 2026-10-13].
 
+**TB-5 자동 출동·출구 (이 PR 뒤, 저장소 소유자 결정 2026-10-13 1B·2B·Q1-b·5A)**
+
+- `support_dispatch=AUTO` 면 대상이 CONFIRMED 이고 지금 revision 의 보고가 PERSISTED 일 때 TB-5 에 `APPROACH_TARGET` 하나(`has_approval=false`, route.approach_goal = standoff 접근 지점, frame_ref = 대상의 것). 한 임무에 한 번. 거절되면 `TASK_REFUSED` 대기 뒤 새 task(#167).
+- 접근이 COMPLETED·정지 확인으로 끝나면 `support_exit_wait_s` 뒤 `RETURN_HOME`(`home_ref=home/<robot_id>`, 좌표는 로봇이 프로파일에서 가짐) 하나. 재난 모드가 끝나면 취소(`SUPPORT_EXIT_CANCELED`), 구출 판정은 취소하지 않는다(5A). 접근 실패면 `APPROACH_FAILED` 로 보이고 출구로 보내지 않는다.
+- `SystemState.reason`: `SUPPORT_EXIT_IN_<n>S` → `SUPPORT_EXITING` → `SUPPORT_AT_EXIT`(실패 `SUPPORT_EXIT_FAILED`).
+
 **지금 안 되는 것**
 
 - 실제 로봇에서는 AMR2 가 움직이지 않는다. 로봇 실행기의 LIVE_ROS 입력은 지금 `SEARCH_AREA` 만 받는다(`src/rescue_robot/rescue_robot/task_site_runtime.py:256`). 조정기가 내는 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 은 실제 실행기가 거절한다. 위 리허설의 MOVE_SEGMENT 는 가짜 실행기가 받은 것이다(C1 보류, AMR2 시나리오 #131·#133 결정 대기).
-- RETURN_HOME 은 지금 항상 거절된다.
-  - 복귀 위치가 없어 `NO_HOME_POSITION` 이다. 복귀 위치 파라미터 `home_poses` 는 #148 머지 뒤 별도 PR 로 올린다.
-  - 복귀 위치를 넣어도 `HOME_BASIS_MISMATCH` 다. 로봇의 현재 지도 기준을 받는 곳(`record_map_basis` 호출)이 없다. 그 기준을 내는 노드(MapState)가 아직 없기 때문이다.
-  - 배치 기준으로 대신하지 않는다(작전 결정 2026-10-13, 측정된 기준이 생길 때까지 보류). 수락돼도 task 는 발급하지 않는다(C단계 시나리오 결정 뒤).
-- 웹캠 소실 후보 → AMR1 재확인 → 구출 판정 연결: `record_rescue_verdict` 를 부르는 실제 코드가 없다(C4 보류).
+- RETURN_HOME: 복귀 위치는 `home_poses`(TB-6 도킹 접근 지점, TB-5 출구; 저장소 소유자 결정 2026-10-13 5A)로 받고, 로봇의 현재 지도 기준은 각 로봇의 MapState(#176)에서 받는다(이 PR 뒤).
+  - 복귀 위치가 없으면 `NO_HOME_POSITION`, 로봇의 MapState 가 VALID 가 아니거나 지도 기준이 복귀 위치와 다르면 `HOME_BASIS_MISMATCH` 다. 다른 위치나 배치 기준으로 대신하지 않는다.
+  - 수락돼도 task 는 아직 발급하지 않는다(C단계 판정 → 복귀 연결 뒤).
+- 웹캠 소실 후보 → TB-6 재확인 → 구출 판정 → TB-6 복귀(이 PR 뒤, 저장소 소유자 결정 2026-10-13 4A·5A): 수용된 후보가 그 대상의 CAMERA 재확인을 연다(C-11 5행, 운영자 재확인이 열려 있으면 기록만 10행). REOBSERVE_TARGET 이 COMPLETED 면 RecheckObservation 을 `verdict.judge` 로 판정한다(7~9행: 연결된 task·frame_ref·시각 기준과 순서(`recheck_max_clock_error_s`)·카메라 ABSENT·LiDAR CLEAR·범위 VALID). 관측이 없으면 `RECHECK_NEEDED`(`RECHECK_OBSERVATION_MISSING`)로 닫고, COMPLETED 가 아니면 새 task. 판정마다 노드 로그에 `VERDICT target=… state=… reason=… source=… link=… task=…` 한 줄, `SystemState.reason` 은 `RECHECK_NEEDED_<이유>`. RESCUE_CONFIRMED 뒤 TB-6 에 `RETURN_HOME`(`home/<robot_id>`, 도킹 접근 지점, 도킹은 사람이 함) 하나 → `SCOUT_RETURNING` → `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND`. TB-6 도착과 TB-5 출구 도착이 모두면 phase `FINISHED`·mode `MISSION_FINISHED`. 운영자 재확인(11행)은 조정기 자신의 시계를 이 경로에서 재지 않아 늘 `CANDIDATE_TIME_BASIS_UNUSABLE`(동결 뒤 후보: live_inputs 시계 사용).
 - `route_segment_passage_free` 는 ROS 파라미터로 빈 배열을 줄 수 없다(`-p`·`--params-file` 모두 값 없음 → 기동 거절) [측정, 통합-로봇 2026-10-13]. 모든 구간을 보류하려면 모두 `false` 로 준다. 아래 파라미터 표의 문구는 #148 머지 때 함께 고쳐진다.
 
 **열려 있는 PR (이 레인)**
@@ -157,10 +162,12 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `/rescue/targets` (TargetSnapshot, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만, 대상마다 `TargetEstimate` 하나(target_id 순). `persisted_report_id` 는 지금 revision 의 저장된 보고만, 확정 상태는 `CONFIRMED`(얇은 버전), 출동 대상의 `approach_state` 는 APPROVED→ASSIGNED·MOVING/AWAITING_APPROVAL→IN_PROGRESS·ARRIVED→APPROACH_COMPLETE [제안], 나머지는 UNASSIGNED |
 | `/rescue/system_state` (SystemState, TRANSIENT_LOCAL) | 보냄 | 바뀔 때만. `segment_phase` 는 APPROVED·MOVING→EXECUTING, AWAITING_APPROVAL→AWAITING_APPROVAL, ARRIVED→STOPPED. phase `FINISHED` 면 mode `MISSION_FINISHED`(C-10, #88). `reason` 은 지금 남아 있는 발급 막힘(`PASSAGE_ASSESSMENT_REQUIRED`·`ADMISSION_TIMEOUT`·`TARGET_ALIGNMENT_NOT_VALID` 등, tick 마다 다시 판정해 풀리면 지움, OPS-70-01)이 먼저, 없으면 `SEARCH_QUEUED`, 둘 다 없으면 빈 값 |
 | `/rescue/cameras/{camera}/set_watch` (SetCameraWatch, IF-078) | 클라이언트 | 운영자 `SET_CAMERA_WATCH`(재난 모드, 기록된·확인된·판정 전 대상, #124)마다 새 `watch_id` 를 발급하고 프로파일의 `TARGET_WATCH` 카메라 1대에 enable 요청을 보낸다(`association_method=OPERATOR_ROI`, `association_evidence_id`=command_id, C-11 2행). ROI 는 요청 값, 없으면 `camera_watch_roi`, 둘 다 없으면 거절(`PENDING_EVIDENCE`, 화면 전체 기본값 없음). 카메라가 수락해야 활성 감시이고 거절·마감 초과면 지우고 `SystemState.reason=WATCH_REARM_NEEDED`. 요청은 한 번에 하나. 재난 모드가 아니게 되거나 복귀가 시작되거나 대상이 `RESCUE_CONFIRMED` 이거나 후보 1건을 받으면 enable=false 로 해제한다 |
+| `/rescue/robots/{r}/map_state` (MapState, RELIABLE·TRANSIENT_LOCAL·depth 1, #176) | 받음 | `localization_quality` VALID 면 그 로봇의 지금 지도 기준(map_session_id·map_revision, transform_revision 은 프로파일 값 = `goal_transform_revision`)으로 기록(`record_map_basis`). 그 밖이면 기록을 지운다. RETURN_HOME 이 복귀 위치와 비교한다 |
 
 - **경로 증거 Phase 1 규칙**(작전 2026-10-11, #88): `EvaluateRoute` 가 2차라 planner 경로 증거가 없다. `planning.Reservation` 은 ONE_SEGMENT 승인과 구간 끝 `GoalPoint` 가 있는 `MOVE_SEGMENT`, 고정 관측 지점이 있는 `REOBSERVE_TARGET` 만 `PathCandidate` 없이 받는다. 승인 없는 MOVE_SEGMENT, 관측 지점 없는 REOBSERVE, APPROACH_TARGET 은 여전히 거절한다. `ExecuteTask.route` 에는 `approach_goal`(구간 끝 또는 관측 지점)만 싣고, `planned_path`·`path_sha256`·`planner_evidence_id` 는 비우며, `assessment` 는 `UNKNOWN`(알려진 값 없음)이다. `route.frame_ref` 는 대상의 마지막 `TargetLocation.frame_ref` 를 그대로 쓰고, alignment 가 `VALID` 가 아니거나 목표의 지도 기준과 다르면 발급하지 않고 로그에 남긴다(`TARGET_ALIGNMENT_NOT_VALID`·`ROUTE_BASIS_MISMATCH`). 실제 경로 검증은 실행기 guard·Nav2 몫이고 실패는 `TaskResult` 로 드러난다.
 - **대상 병합**(작전 2026-10-11, Q-13·Q-21): 같은 지도 기준(map session·revision·transform revision)이고 `merge_distance_m` 안이면 같은 대상이고 revision 이 1 오른다. 밖이면 새 `target_id`(조정기 발급 UUID, C-11 1행)다. 기준이 다른 위치는 새 대상으로 나누지 않고 `FRAME_REVISION_MISMATCH` 로 거절한다. 같은 `location_id` 는 멱등, 내용이 다르면 `ID_CONTENT_CONFLICT`. 얇은 버전은 인식이 확정 탐지만 발행한다고 본다(작전 결정 3).
-- **발급 순서**: 한 tick 에서 승인된 구간 → 열린 재확인 → SCOUT 수색 순서다. 그래서 비어 있는 SCOUT 은 새 구역보다 열린 재확인을 먼저 받는다. 막힌 재확인은 수색을 멈추지 않는다. 진행 중인 수색 구역은 끊지 않는다. 다음 구간은 운영자 `CONTINUE_SEGMENT` 없이 발급하지 않는다. 완료되지 않은 재관측은 새 task 로 다시 예약한다(C-11 5행).
+- **관측 시각 자격**(OPS-103, #142, 2026-10-13): 새 `location_id` 는 `observation.time` 이 쓸 만할 때만 대상이 된다. 시각 기준 선언(stamp 의미 ≠ UNKNOWN·SYNCED·오차 상한 있음), `target_clock_domain_id` 와 같은 도메인, 지금보다 `target_max_future_s` + 관측 자신의 오차 상한(`clock_error_bound_ns`) 넘게 앞서지 않음(PC 사이 시계 차가 timesyncd 로 수백 ms [측정 2026-10-13]), `target_max_age_s` 이내이고 생산자의 `valid_until_ns` 전. 어기면 대상·보고를 만들지 않고 `SystemState.reason` 에 `TARGET_TIME_BASIS_UNUSABLE`·`TARGET_CLOCK_DOMAIN_MISMATCH`·`TARGET_OBSERVATION_FUTURE`·`TARGET_OBSERVATION_STALE` 를 다음 위치가 받아들여질 때까지 남긴다(발급 막힘·SEARCH_QUEUED 보다 뒤). 이미 받은 `location_id` 의 재전송은 시각을 다시 보지 않고 같은 대상이다. perception 의 `validate_freshness` 와 달리 받는 쪽 오차 합·상한은 보지 않는다(조정기 자신의 오차를 여기서 재지 않음) [제안].
+- **발급 순서**: 한 tick 에서 승인된 구간 → 열린 재확인 → SCOUT 수색 순서다. 그래서 비어 있는 SCOUT 은 새 구역보다 열린 재확인을 먼저 받는다. 막힌 재확인은 수색을 멈추지 않는다. 진행 중인 수색 구역은 끊지 않는다. 다음 구간은 운영자 `CONTINUE_SEGMENT` 없이 발급하지 않는다. 완료되지 않은 재관측은 새 task 로 다시 예약한다(C-11 5행). 실행기가 수락 전에 거절한 구간 이동·재관측은 `admission_timeout_s` 동안 `SystemState.reason=TASK_REFUSED` 로 기다린 뒤 같은 승인·재확인으로 새 task 를 낸다(#90 의 재발급 분기가 돌지 않던 것을 고침, 2026-10-13). 계속 거절하는 로봇에 tick 마다 다시 보내지 않으려는 대기다.
 
 운영자 서비스의 `reason_code` 는 C-09 공통 코드다(OPS-58). 임무 관문 사유는 노드 로그에 남긴다. REQUEST_RECHECK 의 세 줄은 C-11 10행이고, 나머지는 작전 승인(2026-10-11)이다.
 
@@ -192,6 +199,12 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `route_segment_passage_free` | bool[] | 구간마다 "통로 판정 불필요"(현장 확인값, AST88-01·OPS-60). true 가 아니거나 길이가 구간 수와 다르면 그 구간의 MOVE_SEGMENT 를 내지 않고 `PASSAGE_ASSESSMENT_REQUIRED` 로 보류한다(SystemState.reason·로그, Q-25 기본값). 모두 보류하려면 모두 false 로 준다. ROS 파라미터로는 빈 배열을 넣을 수 없다(`-p`·`--params-file` 모두 값 없음으로 처리돼 기동 거절, 통합-로봇 측정 2026-10-13) |
 | `camera_watch_roi` | double[] | 감시 ROI `[x0, y0, x1, y1]`(정규화). 운영자 요청에 ROI 가 없을 때만 쓴다. 넘기지 않아도 된다(그때는 요청 ROI 만. ROS 파라미터로는 빈 배열을 넣을 수 없으므로 "비움"은 "넘기지 않음"이다). 전부 0 은 받지 않는다. ROI 출처는 #76·Q-13 미정 |
 | `camera_watch_timeout_s` | double | SetCameraWatch 요청의 `deadline_ns` = 발급 + 이 값. 그때까지 답이 없으면 그 요청을 버리고 재무장 필요로 둔다 |
+| `home_poses` | double[] | 복귀 위치 `[x, y, yaw]` 를 SCOUT(TB-6, 도킹 접근 지점), SUPPORT(TB-5, 출구) 순으로(임무 frame, `goal_map_*` 기준). launch 가 프로파일에서 넣는다. 넘기지 않으면 복귀 위치 없음 → `NO_HOME_POSITION`. 길이가 6 이 아니면 기동 거절(exit 2) |
+| `support_dispatch` | string | `AUTO`·`OPERATOR`. AUTO(저장소 소유자 결정 2026-10-13, 1B)면 확정·저장된 대상에 TB-5 를 승인 없이 `APPROACH_TARGET` 으로 한 번 보낸다. 운영자 `DISPATCH_SUPPORT` 는 `NOT_AUTHORIZED`(로그 `AUTO_DISPATCH_ENABLED`). OPERATOR 면 기존 DISPATCH_SUPPORT → MOVE_SEGMENT |
+| `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
+| `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
+| `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
+| `recheck_max_clock_error_s` | double | C-11 8행: 후보와 재확인 관측의 시계 오차 합 상한. 넘으면 `CANDIDATE_TIME_BASIS_UNUSABLE`. 현장 제안 2.0 [근거: 측정 웹캠 PC 271~365 ms + TB-6 탐지 PC 385~465 ms + Pi, 2026-10-13] |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
 | `merge_distance_m` | double | 대상 병합 거리(Q-21) |

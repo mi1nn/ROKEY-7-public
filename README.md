@@ -10,6 +10,8 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 
 | 문서 | 확인할 내용 |
 | --- | --- |
+| [탐색 알고리즘 3종 실기 기록](docs/implementation/exploration-field-results-2026-10-13.md) | robot6 공통 Nav2 조건의 주행·종료·정체 관측과 지도 정확도 미검증 한계 |
+| [탐색 알고리즘 선정안](docs/implementation/exploration-algorithm-selection-2026-10-13.md) | explore_lite 우선 채택 권고, 협업 통합 경계, 후속 검증 |
 | [프로젝트 범위](docs/requirements/scope.md) | 사용자 요구, 성공·실패 시나리오, 미결정 사항, 계획 PR 순서 |
 | [원본 자산 선별](docs/process/source-selection.md) | 고정한 원본 커밋, 이식 후보, 바꿔야 할 전제, 제외 근거 |
 | [레슨런](docs/process/lessons-learned.md) | 원본 코드·기록의 교훈과 새 프로젝트에서 확인할 시험 |

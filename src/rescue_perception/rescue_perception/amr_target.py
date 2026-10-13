@@ -26,7 +26,11 @@ from rclpy.executors import ExternalShutdownException
 
 from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_parameters,
     validate_labels, verify_model)
-from .target_utils import (FIELD_PARAMS, SETTINGS, target_config, PreparedDetector, OneShotTarget, fill_envelope,
+from rescue_contracts.clock_measurement import ClockSampler
+
+from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, SensorHostClock, clock_binding, clock_values,
+    target_config,
+    PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
 from .core import ModelManifest
@@ -39,6 +43,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
     node = Node('amr_target')
     try:
         v = field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
+        v.update(clock_values(read_field_parameters(node, CLOCK_PARAMS)))
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
@@ -79,6 +84,35 @@ def create_node(*, model_factory=None, transform_lookup=None):
                  'warning': 0., 'frames': 0, 'observation_seq': 0}
 
         sender = OneShotTarget()
+        # Observation clock measured on this host (OPS-103 decision 1, like the webcam #146).
+        sampler = (ClockSampler(v['clock_backend'], v['clock_max_age_ns'], v['clock_drift_ppm'])
+                   if v['clock_backend'] != 'NONE' else None)
+        clock = {'record': dict(state='UNKNOWN', reason='clock_backend NONE' if sampler is None else 'waiting'),
+                 'logged': None}
+        node.clock_sampler = sampler
+        sensor_host = SensorHostClock(v['sensor_host_clock_error_bound_ns'], v['sensor_host_clock_domain_id'])
+        if sensor_host.clock_domain_id != v['clock_domain_id']:
+            node.get_logger().warning(f'sensor host (camera driver) clock domain {sensor_host.clock_domain_id} '
+                                      f'differs from {v["clock_domain_id"]}: every observation is clock_state UNKNOWN')
+        elif sensor_host.error_bound_ns == 0:
+            node.get_logger().info('sensor_host_clock_error_bound_ns=0: the camera driver runs on this host, '
+                                   'so its stamps use the clock measured here')
+        else:
+            node.get_logger().info(f'sensor host (camera driver) clock bound {sensor_host.error_bound_ns} ns '
+                                   'added to this host bound')
+
+        def poll_clock():
+            clock['record'] = sampler.poll()
+            shown = (clock['record'].get('state'), clock['record'].get('reason'))
+            if shown != clock['logged']:
+                clock['logged'] = shown
+                node.get_logger().info(f'clock {shown[0]} backend={v["clock_backend"]} '
+                                       f'error_bound_ns={clock["record"].get("error_bound_ns")} reason={shown[1]}')
+        if sampler is not None:
+            poll_clock()
+            node.create_timer(v['clock_poll_period_s'], poll_clock)
+        else:
+            node.get_logger().warning('clock_backend NONE: every observation is clock_state UNKNOWN')
 
         def envelope(message, key, now):
             state[key] += 1
@@ -117,6 +151,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 depth = (decode_depth_png(depth_message, byte_order=v['depth_byte_order'], bridge=bridge)
                          if v['depth_transport'] == 'compressedDepth' else depth_message)
                 detector.prepare(stamp, inference_from_result(result, manifest))
+                pipeline.binding = clock_binding(binding, clock['record'], stamp, sensor_host)
                 findings = pipeline.process(rgb, depth, info)
                 if findings.status != 'PROCESSED':
                     node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
@@ -133,7 +168,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
                         break
                     if sender.send(candidate, publish_target):
                         node.get_logger().info(
-                            f'target state=SENT observation_id={sender.observation_id}; '
+                            f'target state=SENT observation_id={sender.observation_id} '
+                            f'undistortion={candidate.observation.localization.undistortion_id}; '
                             'coordinate publication disabled for this run')
                         break
                     node.get_logger().warning(f'target not sent: {sender.reason(candidate)}')
@@ -182,6 +218,8 @@ def main(args=None):
         return 2
     finally:
         if node is not None:
+            if getattr(node, 'clock_sampler', None) is not None:
+                node.clock_sampler.close()
             node.destroy_node()
         cv2.destroyAllWindows()
         if rclpy.ok():

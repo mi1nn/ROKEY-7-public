@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-13",
+  "robot": "robot6",
+  "algorithm": "frontier_exploration_ros2",
+  "reason": "ALGORITHM_REPORTED_COMPLETE",
+  "elapsed_seconds": 36.603924784998526,
+  "path_length_m": 7.274172455894789,
+  "known_area_m2": 19.872500592246656,
+  "occ_threshold": 75,
+  "inflation_radius": 0.25,
+  "max_linear_mps": 0.26,
+  "max_angular_radps": 1.0,
+  "actual_stop": {
+    "date": "2026-10-13",
+    "checked_epoch": 1791862656.435738,
+    "robot": "robot6",
+    "samples": 40,
+    "odom_age": 0.042120248914672864,
+    "max_linear_mps": 0.0,
+    "max_yaw_radps": 0.0,
+    "displacement_m": 0.0,
+    "stop_confirmed": true
+  },
+  "environment_change": "사용자 보고: 이전 정체 구역 물리적 차단",
+  "mapping_complete_verified": false,
+  "accuracy_verified": false,
+  "completion_note": "No more frontiers found; preceding blocked frontier cost=99. Completion event does not prove complete mapping."
+}

@@ -1,0 +1,1226 @@
+[INFO] [1791863736.910866698] [robot6.toolbox_frontier_explorer]:
+	toolbox_frontier_explorer lifecycle node launched.
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1791863736.913185271] [robot6.toolbox_frontier_explorer]: Frontier explorer lifecycle node initialized
+[INFO] [1791863736.913311209] [robot6.toolbox_frontier_explorer]: Configuring...
+[WARN] [1791863739.166715522] [robot6.toolbox_frontier_explorer]: Node inactive... awaiting activation
+[INFO] [1791863739.735822704] [robot6.toolbox_frontier_explorer]: Activating...
+Number of frontiers: 581
+Cluster 0 has 9 points
+Cluster 1 has 6 points
+Cluster 2 has 5 points
+Cluster 3 has 11 points
+Cluster 4 has 5 points
+Cluster 5 has 530 points
+Number of clusters: 6
+[INFO] [1791863739.956795030] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 12 markers
+[INFO] [1791863739.956833148] [robot6.toolbox_frontier_explorer]: Number of clusters: 6
+Number of centroids: 6
+[INFO] [1791863739.956839987] [robot6.toolbox_frontier_explorer]: Publishing goal at -9.101503, 1.507968
+Number of frontiers: 242
+Cluster 0 has 5 points
+Cluster 1 has 9 points
+Cluster 2 has 11 points
+Cluster 3 has 51 points
+Cluster 4 has 75 points
+Cluster 5 has 54 points
+Cluster 6 has 10 points
+Cluster 7 has 15 points
+Number of clusters: 8
+[INFO] [1791863740.949709691] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 16 markers
+[INFO] [1791863740.949738953] [robot6.toolbox_frontier_explorer]: Number of clusters: 8
+Number of centroids: 8
+[INFO] [1791863740.949742802] [robot6.toolbox_frontier_explorer]: Publishing goal at -9.701503, 2.348006
+[WARN] [1791863740.981555824] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 58
+Cluster 0 has 5 points
+Cluster 1 has 39 points
+Cluster 2 has 5 points
+Cluster 3 has 5 points
+Number of clusters: 4
+[INFO] [1791863741.947393518] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863741.947429490] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863741.947435773] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.401503, 2.892773
+[WARN] [1791863741.961474070] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 50
+Cluster 0 has 5 points
+Cluster 1 has 32 points
+Cluster 2 has 5 points
+Cluster 3 has 5 points
+Number of clusters: 4
+[INFO] [1791863742.947411004] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863742.947437669] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863742.947441245] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.401503, 2.892773
+[WARN] [1791863742.970773869] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 36
+Cluster 0 has 5 points
+Cluster 1 has 8 points
+Cluster 2 has 5 points
+Cluster 3 has 5 points
+Cluster 4 has 5 points
+Number of clusters: 5
+[INFO] [1791863743.947426240] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863743.947453414] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863743.947457503] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.401503, 2.892773
+[WARN] [1791863743.951293316] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 23
+Cluster 0 has 5 points
+Cluster 1 has 5 points
+Cluster 2 has 5 points
+Number of clusters: 3
+[INFO] [1791863744.949572578] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863744.949609469] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863744.949617905] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.424443, 2.942773
+[WARN] [1791863744.981269492] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 5 points
+Cluster 1 has 5 points
+Cluster 2 has 5 points
+Number of clusters: 3
+[INFO] [1791863745.950588661] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863745.950640662] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863745.950649747] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.410942, 2.892773
+[WARN] [1791863745.962006916] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 27
+Cluster 0 has 6 points
+Cluster 1 has 6 points
+Cluster 2 has 5 points
+Cluster 3 has 7 points
+Number of clusters: 4
+[INFO] [1791863746.947777082] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863746.947804232] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863746.947809374] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.483351, 2.892773
+[WARN] [1791863746.970746806] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 30
+Cluster 0 has 5 points
+Cluster 1 has 5 points
+Cluster 2 has 6 points
+Cluster 3 has 7 points
+Cluster 4 has 5 points
+Number of clusters: 5
+[INFO] [1791863747.948009683] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863747.948040601] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863747.948044575] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.421986, 2.842773
+[WARN] [1791863747.950977172] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 59
+Cluster 0 has 13 points
+Cluster 1 has 7 points
+Cluster 2 has 38 points
+Number of clusters: 3
+[INFO] [1791863748.948145049] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863748.948171228] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863748.948175148] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.662973, 2.892773
+[WARN] [1791863748.970816567] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 59
+Cluster 0 has 13 points
+Cluster 1 has 7 points
+Cluster 2 has 38 points
+Number of clusters: 3
+[INFO] [1791863749.948227779] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863749.948265721] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863749.948275010] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.662973, 2.892773
+[WARN] [1791863749.951031363] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 167
+Cluster 0 has 19 points
+Cluster 1 has 102 points
+Cluster 2 has 18 points
+Cluster 3 has 19 points
+Number of clusters: 4
+[INFO] [1791863750.949374813] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863750.949413786] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863750.949422963] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.821319, 2.842773
+[WARN] [1791863750.971106545] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 242
+Cluster 0 has 207 points
+Cluster 1 has 17 points
+Cluster 2 has 6 points
+Cluster 3 has 6 points
+Number of clusters: 4
+[INFO] [1791863751.950645953] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863751.950682896] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863751.950690421] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.982171, 2.742773
+[WARN] [1791863751.980906512] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 179
+Cluster 0 has 54 points
+Cluster 1 has 11 points
+Cluster 2 has 7 points
+Cluster 3 has 6 points
+Cluster 4 has 21 points
+Cluster 5 has 66 points
+Cluster 6 has 5 points
+Number of clusters: 7
+[INFO] [1791863752.949855767] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 14 markers
+[INFO] [1791863752.949894917] [robot6.toolbox_frontier_explorer]: Number of clusters: 7
+Number of centroids: 7
+[INFO] [1791863752.949899209] [robot6.toolbox_frontier_explorer]: Publishing goal at -11.292448, 2.492773
+[WARN] [1791863752.961244508] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 107
+Cluster 0 has 21 points
+Cluster 1 has 6 points
+Cluster 2 has 12 points
+Cluster 3 has 5 points
+Cluster 4 has 5 points
+Cluster 5 has 17 points
+Cluster 6 has 25 points
+Cluster 7 has 6 points
+Number of clusters: 8
+[INFO] [1791863753.949229633] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 16 markers
+[INFO] [1791863753.949257103] [robot6.toolbox_frontier_explorer]: Number of clusters: 8
+Number of centroids: 8
+[INFO] [1791863753.949260749] [robot6.toolbox_frontier_explorer]: Publishing goal at -10.942449, 2.530069
+[WARN] [1791863753.981237179] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 109
+Cluster 0 has 9 points
+Cluster 1 has 6 points
+Cluster 2 has 6 points
+Cluster 3 has 7 points
+Cluster 4 has 7 points
+Cluster 5 has 12 points
+Cluster 6 has 6 points
+Cluster 7 has 42 points
+Number of clusters: 8
+[INFO] [1791863754.949522529] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 16 markers
+[INFO] [1791863754.949555811] [robot6.toolbox_frontier_explorer]: Number of clusters: 8
+Number of centroids: 8
+[INFO] [1791863754.949582974] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.256076, 2.130069
+[WARN] [1791863754.961354328] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 92
+Cluster 0 has 17 points
+Cluster 1 has 7 points
+Cluster 2 has 11 points
+Cluster 3 has 6 points
+Cluster 4 has 45 points
+Number of clusters: 5
+[INFO] [1791863755.949201321] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863755.949229628] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863755.949233509] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.256076, 2.080069
+[WARN] [1791863755.980903342] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 85
+Cluster 0 has 6 points
+Cluster 1 has 6 points
+Cluster 2 has 6 points
+Cluster 3 has 12 points
+Cluster 4 has 6 points
+Cluster 5 has 45 points
+Number of clusters: 6
+[INFO] [1791863756.949326100] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 12 markers
+[INFO] [1791863756.949352346] [robot6.toolbox_frontier_explorer]: Number of clusters: 6
+Number of centroids: 6
+[INFO] [1791863756.949356415] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.206077, 2.080069
+[WARN] [1791863756.961208525] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 90
+Cluster 0 has 10 points
+Cluster 1 has 8 points
+Cluster 2 has 5 points
+Cluster 3 has 6 points
+Cluster 4 has 6 points
+Cluster 5 has 5 points
+Cluster 6 has 45 points
+Number of clusters: 7
+[INFO] [1791863757.949429475] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 14 markers
+[INFO] [1791863757.949457592] [robot6.toolbox_frontier_explorer]: Number of clusters: 7
+Number of centroids: 7
+[INFO] [1791863757.949461237] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.356077, 1.980069
+[WARN] [1791863757.980855401] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 122
+Cluster 0 has 15 points
+Cluster 1 has 8 points
+Cluster 2 has 15 points
+Cluster 3 has 13 points
+Cluster 4 has 8 points
+Cluster 5 has 14 points
+Cluster 6 has 45 points
+Number of clusters: 7
+[INFO] [1791863758.949700131] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 14 markers
+[INFO] [1791863758.949726449] [robot6.toolbox_frontier_explorer]: Number of clusters: 7
+Number of centroids: 7
+[INFO] [1791863758.949730207] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.456077, 1.780069
+[WARN] [1791863758.961344819] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 122
+Cluster 0 has 34 points
+Cluster 1 has 6 points
+Cluster 2 has 9 points
+Cluster 3 has 21 points
+Cluster 4 has 45 points
+Number of clusters: 5
+[INFO] [1791863759.950080235] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863759.950105722] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863759.950120427] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.306077, 2.530069
+[WARN] [1791863759.980660785] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 164
+Cluster 0 has 5 points
+Cluster 1 has 96 points
+Cluster 2 has 7 points
+Cluster 3 has 45 points
+Number of clusters: 4
+[INFO] [1791863760.950657331] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863760.950682244] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863760.950685914] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.306077, 2.530069
+[WARN] [1791863760.961390718] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 138
+Cluster 0 has 12 points
+Cluster 1 has 11 points
+Cluster 2 has 61 points
+Cluster 3 has 45 points
+Number of clusters: 4
+[INFO] [1791863761.950684682] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863761.950723775] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863761.950732273] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.306077, 2.580069
+[WARN] [1791863761.981093817] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 116
+Cluster 0 has 12 points
+Cluster 1 has 6 points
+Cluster 2 has 25 points
+Cluster 3 has 21 points
+Cluster 4 has 45 points
+Number of clusters: 5
+[INFO] [1791863762.950315888] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863762.950343410] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863762.950347531] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.306077, 2.580069
+[WARN] [1791863762.961144228] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 116
+Cluster 0 has 12 points
+Cluster 1 has 6 points
+Cluster 2 has 25 points
+Cluster 3 has 21 points
+Cluster 4 has 45 points
+Number of clusters: 5
+[INFO] [1791863763.950405696] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863763.950431272] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863763.950434799] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.306077, 2.580069
+[WARN] [1791863763.981027011] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 131
+Cluster 0 has 69 points
+Cluster 1 has 12 points
+Cluster 2 has 6 points
+Cluster 3 has 9 points
+Cluster 4 has 7 points
+Cluster 5 has 5 points
+Cluster 6 has 14 points
+Number of clusters: 7
+[INFO] [1791863764.950630130] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 14 markers
+[INFO] [1791863764.950656208] [robot6.toolbox_frontier_explorer]: Number of clusters: 7
+Number of centroids: 7
+[INFO] [1791863764.950659822] [robot6.toolbox_frontier_explorer]: Publishing goal at -13.006077, 2.630069
+[WARN] [1791863764.961069187] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 149
+Cluster 0 has 7 points
+Cluster 1 has 14 points
+Cluster 2 has 7 points
+Cluster 3 has 6 points
+Cluster 4 has 6 points
+Cluster 5 has 83 points
+Cluster 6 has 7 points
+Cluster 7 has 6 points
+Cluster 8 has 7 points
+Number of clusters: 9
+[INFO] [1791863765.950588850] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 18 markers
+[INFO] [1791863765.950618714] [robot6.toolbox_frontier_explorer]: Number of clusters: 9
+Number of centroids: 9
+[INFO] [1791863765.950622736] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.906076, 2.630069
+[WARN] [1791863765.971563327] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 129
+Cluster 0 has 12 points
+Cluster 1 has 6 points
+Cluster 2 has 11 points
+Cluster 3 has 29 points
+Cluster 4 has 31 points
+Cluster 5 has 12 points
+Cluster 6 has 8 points
+Cluster 7 has 6 points
+Cluster 8 has 6 points
+Number of clusters: 9
+[INFO] [1791863766.950501902] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 18 markers
+[INFO] [1791863766.950538521] [robot6.toolbox_frontier_explorer]: Number of clusters: 9
+Number of centroids: 9
+[INFO] [1791863766.950548283] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.906076, 2.630069
+[WARN] [1791863766.980540255] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 131
+Cluster 0 has 15 points
+Cluster 1 has 6 points
+Cluster 2 has 82 points
+Cluster 3 has 7 points
+Cluster 4 has 7 points
+Cluster 5 has 7 points
+Number of clusters: 6
+[INFO] [1791863767.950881145] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 12 markers
+[INFO] [1791863767.950907293] [robot6.toolbox_frontier_explorer]: Number of clusters: 6
+Number of centroids: 6
+[INFO] [1791863767.950910834] [robot6.toolbox_frontier_explorer]: Publishing goal at -11.865892, 1.780069
+[WARN] [1791863767.961282406] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 109
+Cluster 0 has 13 points
+Cluster 1 has 7 points
+Cluster 2 has 5 points
+Cluster 3 has 70 points
+Cluster 4 has 6 points
+Number of clusters: 5
+[INFO] [1791863768.951131620] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863768.951168915] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863768.951176638] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.922326, 0.580069
+[WARN] [1791863768.980759935] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 109
+Cluster 0 has 13 points
+Cluster 1 has 7 points
+Cluster 2 has 5 points
+Cluster 3 has 70 points
+Cluster 4 has 6 points
+Number of clusters: 5
+[INFO] [1791863769.950738836] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 10 markers
+[INFO] [1791863769.950764772] [robot6.toolbox_frontier_explorer]: Number of clusters: 5
+Number of centroids: 5
+[INFO] [1791863769.950768748] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.922326, 0.580069
+[WARN] [1791863769.971397249] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 75
+Cluster 0 has 21 points
+Cluster 1 has 7 points
+Cluster 2 has 21 points
+Cluster 3 has 12 points
+Number of clusters: 4
+[INFO] [1791863770.950532060] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 8 markers
+[INFO] [1791863770.950568469] [robot6.toolbox_frontier_explorer]: Number of clusters: 4
+Number of centroids: 4
+[INFO] [1791863770.950572938] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.822326, 0.530069
+[WARN] [1791863770.980710706] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 62
+Cluster 0 has 14 points
+Cluster 1 has 27 points
+Cluster 2 has 11 points
+Number of clusters: 3
+[INFO] [1791863771.950484242] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863771.950511010] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863771.950515409] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.772326, 0.380069
+[WARN] [1791863771.961671802] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 47
+Cluster 0 has 12 points
+Cluster 1 has 6 points
+Cluster 2 has 20 points
+Number of clusters: 3
+[INFO] [1791863772.950954975] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863772.950980597] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863772.950984629] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.722326, 0.380069
+[WARN] [1791863772.981029477] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 32
+Cluster 0 has 7 points
+Cluster 1 has 6 points
+Cluster 2 has 6 points
+Number of clusters: 3
+[INFO] [1791863773.950882154] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 6 markers
+[INFO] [1791863773.950907243] [robot6.toolbox_frontier_explorer]: Number of clusters: 3
+Number of centroids: 3
+[INFO] [1791863773.950911422] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863773.961211982] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863774.950915837] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863774.950939106] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863774.950942810] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863774.980884262] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863775.950842843] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863775.950866565] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863775.950871499] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863775.961152290] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863776.950723404] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863776.950750108] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863776.950754004] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863776.981044266] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863777.952222427] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863777.952249708] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863777.952253766] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863777.961178221] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863778.950940374] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863778.950966220] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863778.950970357] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863778.980702487] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863779.950719982] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863779.950744767] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863779.950749003] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863779.961388187] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863780.950634451] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863780.950659036] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863780.950662813] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863780.981392640] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863781.950689254] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863781.950722038] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863781.950729199] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863781.961198428] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863782.950907202] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863782.950938033] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863782.950958071] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863782.980744258] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863783.950704930] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863783.950730081] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863783.950734379] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863783.960934298] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863784.950892488] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863784.950921080] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863784.950925393] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863784.980725702] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863785.950752220] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863785.950777926] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863785.950781927] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863785.960981713] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863786.950610800] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863786.950641279] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863786.950645710] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863786.981219495] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 22
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863787.950817660] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863787.950843260] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863787.950848144] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863787.961323764] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863788.950648976] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863788.950675998] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863788.950679780] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863788.980933325] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863789.950999969] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863789.951031039] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863789.951037900] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863789.961631235] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863790.950831124] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863790.950865023] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863790.950873054] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863790.981910809] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863791.950741751] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863791.950784649] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863791.950788764] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863791.961991433] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863792.950832791] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863792.950857112] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863792.950861513] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863792.981535803] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863793.950912099] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863793.950939078] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863793.950943890] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863793.961392767] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863794.950681894] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863794.950705729] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863794.950709472] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863794.980828001] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863795.950702038] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863795.950726772] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863795.950731051] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863795.960891241] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863796.950710985] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863796.950734607] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863796.950738111] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863796.980825998] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863797.950684369] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863797.950710167] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863797.950714298] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863797.961688110] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863798.950717615] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863798.950753424] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863798.950761806] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863798.980791826] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863799.951159603] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863799.951182115] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863799.951186838] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863799.961030490] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863800.951035422] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863800.951059323] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863800.951064022] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863800.981268590] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863801.950829297] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863801.950854765] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863801.950859012] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863801.961321495] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863802.950888424] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863802.950924271] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863802.950933421] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863802.981047083] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863803.950959369] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863803.950998156] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863803.951008053] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863803.961003203] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863804.950748760] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863804.950784361] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863804.950789139] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863804.981072259] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863805.950864813] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863805.950890555] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863805.950894387] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863805.961362699] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863806.950840217] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863806.950872530] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863806.950880703] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863806.980695341] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863807.950888048] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863807.950924600] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863807.950934256] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863807.961304269] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863808.950869992] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863808.950900179] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863808.950922115] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863808.981225091] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863809.950935827] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863809.950959777] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863809.950963924] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863809.961580126] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863810.950820249] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863810.950845395] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863810.950849523] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863810.981094093] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863811.950828029] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863811.950853925] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863811.950858845] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863811.961653201] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863812.950917898] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863812.950950760] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863812.950958339] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863812.981291064] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863813.950769024] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863813.950804636] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863813.950813163] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863813.961183673] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863814.950822901] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863814.950845330] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863814.950848934] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863814.980864018] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863815.950860438] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863815.950884450] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863815.950888396] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863815.961309213] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863816.950690494] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863816.950714690] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863816.950719112] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863816.980698801] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863817.951804170] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863817.951838176] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863817.951842337] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863817.961024772] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863818.951075508] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863818.951098864] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863818.951102476] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863818.980831490] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863819.950622387] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863819.950645808] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863819.950649789] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863819.961211952] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863820.950665032] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863820.950689419] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863820.950693384] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863820.980872151] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863821.950748167] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863821.950771471] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863821.950775143] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863821.961053816] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863822.950893790] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863822.950919768] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863822.950923851] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863822.981052854] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863823.950780974] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863823.950805861] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863823.950809981] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863823.961498859] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863824.950761300] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863824.950784181] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863824.950787814] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863824.980967828] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863825.950716653] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863825.950741708] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863825.950745471] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863825.961371892] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863826.950665166] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863826.950688498] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863826.950692466] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863826.980786673] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863827.950814346] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863827.950846245] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863827.950854222] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863827.961927886] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863828.950988357] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863828.951022535] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863828.951030065] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863828.981113230] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863829.950732102] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863829.950767772] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863829.950776221] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863829.961484989] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863830.951101747] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863830.951135584] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863830.951143030] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863830.981272721] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863831.951037054] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863831.951060128] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863831.951063983] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863831.961621248] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863832.950704173] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863832.950729509] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863832.950734016] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863832.980858252] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863833.952090323] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863833.952120743] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863833.952126256] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863833.961643500] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863834.950766130] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863834.950790843] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863834.950807891] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863834.980868327] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863835.950778421] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863835.950812406] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863835.950821133] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863835.961079503] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863836.950740138] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863836.950772923] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863836.950780582] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863836.980575479] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863837.950782771] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863837.950819436] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863837.950827838] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863837.961184099] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863838.951185973] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863838.951217779] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863838.951224997] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863838.980782886] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863839.950774836] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863839.950799353] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863839.950803618] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863839.961091380] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863840.950714012] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863840.950739074] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863840.950743345] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863840.980926070] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863841.950810960] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863841.950836288] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863841.950840203] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863841.961331182] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863842.950857145] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863842.950892804] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863842.950901307] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863842.980677556] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863843.950806066] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863843.950853349] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863843.950861766] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863843.961051569] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863844.950800731] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863844.950837226] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863844.950845747] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863844.981137905] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863845.950838994] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863845.950876862] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863845.950886119] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863845.961678523] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863846.950721600] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863846.950746312] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863846.950750690] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863846.980964280] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863847.950654121] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863847.950679556] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863847.950683350] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863847.961157810] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863848.950957905] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863848.950984117] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863848.950988130] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863848.980791784] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863849.951344196] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863849.951366863] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863849.951371135] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863849.961484239] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863850.950617822] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863850.950644382] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863850.950648360] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863850.980863203] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863851.950723325] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863851.950747909] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863851.950751890] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863851.961234518] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863852.951143354] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863852.951167252] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863852.951170829] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863852.980976232] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863853.950712290] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863853.950739280] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863853.950744111] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863853.960988926] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863854.950802570] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863854.950829039] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863854.950832984] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863854.980787903] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863855.950697096] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863855.950722595] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863855.950727060] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863855.984099817] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863856.950857001] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863856.950884777] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863856.950890006] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863856.961335315] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863857.950890856] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863857.950929470] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863857.950939089] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863857.980990099] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863858.950682315] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863858.950709658] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863858.950714116] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863858.961013639] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863859.950776375] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863859.950799237] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863859.950803379] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863859.980834910] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863860.950854553] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863860.950880835] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863860.950885057] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863860.961442205] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863861.950970570] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863861.950997125] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863861.951002596] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863861.980959015] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863862.951021982] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863862.951057262] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863862.951066082] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863862.961453438] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863863.951188220] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863863.951209830] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863863.951213300] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863863.980650763] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863864.951098659] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863864.951125365] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863864.951130328] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863864.961311947] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863865.950930495] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863865.950952727] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863865.950956552] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863865.980694569] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863866.951054050] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863866.951079275] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863866.951082644] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863866.961615599] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863867.950958088] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863867.950987450] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863867.950993980] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863867.980949893] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863868.951116775] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863868.951141117] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863868.951145696] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863868.961234456] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863869.950639776] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863869.950673256] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863869.950679273] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863869.981149589] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863870.950592180] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863870.950617958] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863870.950622116] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863870.961098956] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+Number of frontiers: 21
+Cluster 0 has 7 points
+Number of clusters: 1
+[INFO] [1791863871.950684658] [robot6.toolbox_frontier_explorer]: Publishing MarkerArray with 2 markers
+[INFO] [1791863871.950708645] [robot6.toolbox_frontier_explorer]: Number of clusters: 1
+Number of centroids: 1
+[INFO] [1791863871.950712543] [robot6.toolbox_frontier_explorer]: Publishing goal at -12.622326, 0.380069
+[WARN] [1791863871.980920168] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+[INFO] [1791863872.886316688] [robot6.toolbox_frontier_explorer]: Deactivating...
+[WARN] [1791863872.910850606] [robot6.toolbox_frontier_explorer]: Goal Cancelled.
+[WARN] [1791863872.950611934] [robot6.toolbox_frontier_explorer]: Node inactive... awaiting activation
+[WARN] [1791863873.951255684] [robot6.toolbox_frontier_explorer]: Node inactive... awaiting activation
+[INFO] [1791863874.892286845] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1791863874.892428004] [robot6.toolbox_frontier_explorer]: Running Nav2 LifecycleNode rcl preshutdown (toolbox_frontier_explorer)
+[INFO] [1791863874.892486408] [robot6.toolbox_frontier_explorer]: Cleaning up...
+[INFO] [1791863874.892505512] [robot6.toolbox_frontier_explorer]: Destroying bond (toolbox_frontier_explorer) to lifecycle manager.
+[INFO] [1791863874.938566093] [robot6.toolbox_frontier_explorer]: Destroying

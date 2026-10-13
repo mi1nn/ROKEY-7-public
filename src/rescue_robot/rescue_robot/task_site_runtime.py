@@ -430,7 +430,10 @@ class SiteRuntime:
             if p['frame_id']!=self.inputs.mission_frame:
                 raise ContractError('configured destination frame differs','FRAME_REVISION_MISMATCH')
         else:
-            p=self.inputs.current()['destinations'][ref]
+            p=self.inputs.current().get('destinations',{}).get(ref)
+            if p is None:
+                what='home destination' if goal.kind=='RETURN_HOME' else 'search destination'
+                raise ContractError(what+' not configured: '+str(ref),'NOT_AUTHORIZED')
             self.inputs._window(p['observed_at_ns'],p['valid_until_ns'],self.adapter.wall_clock_ns())
         a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
         if (p['robot_id'],p['map_session_id'],p['map_revision'],p['transform_revision'])!=(

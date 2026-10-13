@@ -18,7 +18,7 @@ updated: 2026-10-11
 | --- | --- | --- |
 | `NORMAL` | 고정 웹캠(1대, 2026-10-09 결정)의 `SiteEvent(kind=DISASTER_SIGN)` 가 정책의 판정 조건(Part I 3.1.2 시연 시나리오 기준, Q-11)을 충족 | `DISASTER`. coordination 이 이벤트를 검증(유효 영상·시각·중복 event_id)한 뒤 운영자 승인 없이 SCOUT 로봇에 수색 임무(SEARCH_AREA)를 발급하고 관리자 화면에 알림(FR-03·04, Q-12 결정 2026-10-10). 수동 시작은 자동 발급이 실패했을 때의 대체 수단이며 쓰면 기록한다. 카메라 어댑터 자체는 모드를 바꾸지 못한다 |
 | `DISASTER` | 오탐 해제 조건 충족(Q-11) 또는 운영자 해제 | `CLEARING`: 진행 중 임무를 S-04 정지 관문으로 종료하고 SCOUT 복귀. 정지 확인 뒤 `NORMAL`(E-01) |
-| `DISASTER` | SUPPORT 출동 조건: 확인 `CONFIRMED` 사건 + 저장 확인(receipt `PERSISTED`) + 운영자 출동 승인(`DISPATCH_SUPPORT`, Q-12 결정 2026-10-10) | 모드는 유지, SUPPORT 의 첫 구간 이동 임무(`MOVE_SEGMENT`) 예약(S-03·S-06). 다음 구간은 운영자 “계속” 승인(`CONTINUE_SEGMENT`)마다 새 generation 으로 예약 |
+| `DISASTER` | SUPPORT 출동 조건: 확인 `CONFIRMED` 사건 + 저장 확인(receipt `PERSISTED`). 조정기 `support_dispatch=AUTO`(저장소 소유자 결정 2026-10-13, 1B)면 그것만으로, `OPERATOR` 면 운영자 출동 승인(`DISPATCH_SUPPORT`, Q-12 결정 2026-10-10)도 | 모드는 유지. AUTO: TB-5 에 접근 임무(`APPROACH_TARGET`, 대상에서 `approach_standoff_m` 만큼 TB-5 쪽, 승인 없음) 하나를 예약. OPERATOR: 첫 구간 이동 임무(`MOVE_SEGMENT`) 예약(S-03·S-06), 다음 구간은 운영자 “계속” 승인(`CONTINUE_SEGMENT`)마다 새 generation 으로 예약 |
 | 어느 모드든 | 모드 전이 이벤트는 시각·근거(SiteEvent ID)·판정 정책 version 과 함께 보고 저장 | — |
 
 모드가 `NORMAL` 이면 자동 수색·접근 임무를 발급하지 않는다. 모드 전이는 운영 기록이며 로봇 측 정지 latch 를 대신하지 않는다.
@@ -117,7 +117,7 @@ action 수락 후 Result outcome은 `COMPLETED`, `CANCELED`, `EXPIRED`, `UNREACH
 | --- | --- | --- |
 | 수색 | SCOUT READY/ARMED, 설정 구역의 실행 근거(basis·map session/revision) 확인 | SCOUT 가 설정 구역을 순서대로 `SEARCH_AREA` 실행. SUPPORT 는 `HOLD`(제자리 정지 유지; 프로파일 `hold_positions` 로 이동시키는 명령이 아님) |
 | SCOUT 발견 | 관측의 시간·좌표·class·위치 품질 확인, 사건 생성/중복 검토 | SCOUT 는 유효 관측을 전달; 미확인 사건을 접근 완료로 표시하지 않음 |
-| SUPPORT 선정 | 저장 확인(receipt `PERSISTED`) 뒤 운영자 출동 승인(`DISPATCH_SUPPORT`, Q-12 결정 2026-10-10), `select_candidate` 의 경로 증거, 원 관측의 projection `VALID` | SUPPORT 의 HOLD 를 정지 확인으로 풀고(release) 새 generation 으로 첫 구간 `MOVE_SEGMENT` 예약(PENDING) → 실행기 `TaskAdmission` 뒤에만 ACTIVE |
+| SUPPORT 선정 | 저장 확인(receipt `PERSISTED`) 뒤 AUTO 면 바로(2026-10-13, 1B), OPERATOR 면 운영자 출동 승인(`DISPATCH_SUPPORT`, Q-12 결정 2026-10-10). 경로 증거는 Phase 1 규칙(C-06·C-10 #88)으로 목표 지점만, 원 관측의 projection `VALID` | SUPPORT 의 HOLD 를 정지 확인으로 풀고(release) 새 generation 으로 AUTO 는 `APPROACH_TARGET`, OPERATOR 는 첫 구간 `MOVE_SEGMENT` 예약(PENDING) → 실행기 `TaskAdmission` 뒤에만 ACTIVE |
 | SUPPORT 접근 | 공통 좌표·대상 유효성·통로/명령 lease 유지, 구간 끝의 실제 정지 확인 뒤 운영자 “계속” 승인(`CONTINUE_SEGMENT`) | SUPPORT 는 한 번에 한 구간만 움직이고 승인마다 새 generation 의 `MOVE_SEGMENT` 를 받는다(coordinator 는 다음 구간을 자동 발급하지 않음). 마지막 구간 뒤 SUPPORT 의 `REOBSERVE_TARGET` 으로 인형을 다시 탐지한다. 구조대원(사람)이 뒤를 따르며 로봇은 사람을 추종하지 않는다. SCOUT 는 정책(`scout_continues_during_approach`)대로 수색을 잇거나 현 구역 뒤 대기 |
 | SCOUT 재확인 | 고정 웹캠의 소실 후보(`TARGET_DISAPPEARED_CANDIDATE`) 뒤 같은 지점의 `REOBSERVE_TARGET`(웹캠이 판정 불가일 때는 운영자의 `REQUEST_RECHECK`, Q-26); 구출 판정은 S-05 구출 축(카메라 `ABSENT`·LiDAR `CLEAR`·관측 범위 `VALID` 모두) | SCOUT 가 재관측·LiDAR 증거를 제공. SUPPORT 는 접근 종료·정지 확인 뒤 다시 HOLD |
 | 결과 저장 | 보고 receipt·필수 근거 확인 | 접근 결과·보고 결과·구출 판정을 구분한 사건 종료/후속 수색 결정 |

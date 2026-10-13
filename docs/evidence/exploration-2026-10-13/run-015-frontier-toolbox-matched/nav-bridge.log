@@ -1,0 +1,1199 @@
+[INFO] [1791863736.905328588] [robot6.toolbox_nav_to_pose]: nav_to_pose node started
+[INFO] [1791863739.957004911] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863739.959165666] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863739.960065560] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863739.969177789] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863739.969214898] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863739.979170632] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863740.949812941] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863740.959175850] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863740.959215542] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863740.981251434] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863740.989281738] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863740.989930157] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863740.999166283] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863740.999189063] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863741.009188494] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863741.947663419] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863741.949167213] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863741.949183261] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863741.961341689] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863741.969184062] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863741.969827632] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863741.979163948] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863741.979185126] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863741.989183232] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863742.947520650] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863742.949169020] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863742.949189474] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863742.970649055] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863742.979203321] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863742.980074366] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863742.989201632] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863742.989244037] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863742.999160471] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863743.947524819] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863743.949176615] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863743.949198047] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863743.951211003] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863743.959159788] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863743.959766668] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863743.969171342] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863743.969220950] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863743.979194400] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863744.949711990] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863744.959162666] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863744.959180000] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863744.980676797] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863744.989184390] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863744.990289103] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863744.999158813] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863744.999178521] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863745.009209823] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863745.950742830] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863745.959161437] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863745.959182313] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863745.961907841] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863745.969194737] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863745.969802801] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863745.979161761] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863745.979174513] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863745.989182224] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863746.947899796] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863746.949172844] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863746.949193074] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863746.970673445] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863746.979190417] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863746.979983295] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863746.989176042] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863746.989215095] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863746.999176290] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863747.948157392] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863747.949156042] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863747.949167586] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863747.950855096] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863747.959170818] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863747.959836441] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863747.969183079] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863747.969236409] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863747.979166183] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863748.948240132] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863748.949163030] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863748.949175653] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863748.970715549] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863748.979188976] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863748.979754419] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863748.989182152] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863748.989220685] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863748.999166232] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863749.948366582] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863749.949162676] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863749.949175948] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863749.950941233] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863749.959174742] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863749.959760556] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863749.969180886] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863749.969217956] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863749.979168112] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863750.949506421] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863750.959196333] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863750.959236655] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863750.970919548] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863750.979182266] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863750.979859628] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863750.989167536] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863750.989196551] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863750.999168041] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863751.950892661] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863751.959186744] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863751.959212141] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863751.980777172] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863751.989175925] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863751.989963899] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863751.999178220] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863751.999208753] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863752.009204724] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863752.949996648] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863752.959164180] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863752.959189711] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863752.961157011] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863752.969232375] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863752.970050995] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863752.979200505] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863752.979239866] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863752.989199627] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863753.949530701] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863753.959172542] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863753.959206767] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863753.981010293] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863753.989195509] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863753.990058481] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863753.999171572] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863753.999201921] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863754.009173527] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863754.949701170] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863754.959164564] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863754.959187796] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863754.961277993] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863754.969176892] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863754.969852617] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863754.979166556] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863754.979187199] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863754.989181329] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863755.949291294] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863755.959154709] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863755.959170660] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863755.980731970] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863755.989206349] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863755.989876224] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863755.999172588] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863755.999203482] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863756.009203974] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863756.949464504] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863756.959166241] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863756.959199264] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863756.961070756] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863756.969175835] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863756.969889976] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863756.979186863] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863756.979217134] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863756.989167186] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863757.949535256] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863757.959161510] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863757.959183548] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863757.980747365] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863757.989182305] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863757.989837744] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863757.999175196] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863757.999203808] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863758.009214614] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863758.949793796] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863758.959161961] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863758.959222045] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863758.961265108] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863758.969168528] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863758.969940555] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863758.979193353] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863758.979247468] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863758.989207344] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863759.950209091] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863759.959165590] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863759.959191342] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863759.980562847] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863759.989187152] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863759.989820089] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863759.999181951] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863759.999224733] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863760.009199850] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863760.950865470] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863760.959274847] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863760.959311701] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863760.961271745] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863760.969210121] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863760.969973108] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863760.979165320] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863760.979186078] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863760.989159482] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863761.950794952] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863761.959166409] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863761.959189022] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863761.980986082] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863761.989176496] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863761.989898792] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863761.999192603] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863761.999218878] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863762.009198352] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863762.950442419] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863762.959196484] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863762.959226119] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863762.961058264] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863762.969199117] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863762.970099440] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863762.979180575] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863762.979215170] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863762.989181339] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863763.950520596] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863763.959161403] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863763.959184826] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863763.980874134] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863763.989184306] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863763.989871669] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863763.999179390] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863763.999204959] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863764.009185930] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863764.950708918] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863764.959163386] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863764.959179234] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863764.960992166] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863764.969180591] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863764.969772982] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863764.979171482] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863764.979207033] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863764.989177447] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863765.950671575] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863765.959160557] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863765.959178123] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863765.971468960] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863765.979169802] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863765.979753461] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863765.989182454] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863765.989215619] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863765.999175037] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863766.950591737] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863766.959158815] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863766.959177453] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863766.980435308] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863766.989154164] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863766.989937763] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863766.999173577] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863766.999199163] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863767.009175443] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863767.950978019] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863767.959160281] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863767.959181958] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863767.961035559] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863767.969167550] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863767.969712067] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863767.979163924] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863767.979188999] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863767.989178425] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863768.951246729] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863768.959198430] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863768.959240259] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863768.980456047] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863768.989214411] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863768.990048566] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863768.999187835] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863768.999222917] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863769.009199157] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863769.950828501] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863769.959160528] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863769.959179924] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863769.971270947] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863769.979176620] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863769.979757895] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863769.989183414] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863769.989227556] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863769.999168897] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863770.950631023] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863770.959161997] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863770.959187835] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863770.980439889] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863770.989188581] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863770.990057590] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863770.999162119] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863770.999176791] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863771.009208217] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863771.950704716] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863771.959174853] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863771.959208034] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863771.961563319] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863771.969169977] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863771.969858359] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863771.979203012] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863771.979240001] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863771.989174467] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863772.951243786] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863772.959167212] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863772.959194670] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863772.980921567] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863772.989202529] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863772.989962475] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863772.999208559] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863772.999249003] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863773.009201544] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863773.950986192] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863773.959171974] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863773.959188641] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863773.961133635] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863773.969177199] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863773.969853185] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863773.979178511] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863773.979212601] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863773.989126193] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863774.951001704] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863774.959188843] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863774.959216763] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863774.980774740] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863774.989208336] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863774.990016041] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863774.999173896] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863774.999202617] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863775.009151806] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863775.950926290] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863775.959199046] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863775.959269893] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863775.960992683] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863775.969210303] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863775.969980742] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863775.979205031] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863775.979248980] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863775.989193741] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863776.950828694] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863776.959199847] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863776.959220408] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863776.980941646] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863776.989170251] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863776.989761657] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863776.999168772] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863776.999203753] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863777.009169828] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863777.952335001] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863777.959167010] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863777.959188741] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863777.960926334] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863777.969178166] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863777.969805317] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863777.979192750] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863777.979237495] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863777.989168010] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863778.951046310] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863778.959163822] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863778.959176999] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863778.980533471] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863778.989205660] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863778.989836759] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863778.999174726] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863778.999201459] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863779.009200551] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863779.950795705] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863779.959184868] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863779.959228397] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863779.961167234] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863779.969163688] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863779.969767079] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863779.979165399] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863779.979185276] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863779.989167739] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863780.950719285] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863780.959172985] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863780.959205322] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863780.981143674] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863780.989176042] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863780.989760991] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863780.999196493] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863780.999244775] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863781.009213880] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863781.950860807] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863781.959165963] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863781.959192655] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863781.961017314] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863781.969187256] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863781.969841102] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863781.979187309] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863781.979222532] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863781.989192162] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863782.951035870] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863782.959161473] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863782.959173336] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863782.980614531] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863782.989177814] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863782.989755900] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863782.999164080] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863782.999184889] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863783.009174832] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863783.950857184] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863783.959165294] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863783.959181503] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863783.960857163] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863783.969187742] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863783.969772044] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863783.979163788] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863783.979196815] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863783.989181771] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863784.950986787] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863784.959165976] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863784.959181002] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863784.980611496] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863784.989168146] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863784.989698536] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863784.999167874] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863784.999191415] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863785.009184371] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863785.950840307] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863785.959161226] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863785.959182824] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863785.960894018] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863785.969169266] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863785.969866790] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863785.979167238] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863785.979183474] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863785.989183670] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863786.950767505] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863786.959194812] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863786.959236213] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863786.981115054] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863786.989205522] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863786.990084487] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863786.999171537] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863786.999202195] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863787.009203178] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863787.950918414] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863787.959178433] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863787.959211437] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863787.961220150] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863787.969178935] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863787.970013423] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863787.979175971] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863787.979203794] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863787.989239687] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863788.950860035] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863788.959181268] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863788.959222275] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863788.980811454] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863788.989179536] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863788.990128255] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863788.999174876] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863788.999209444] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863789.009180434] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863789.951295432] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863789.959260889] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863789.959345215] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863789.961333541] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863789.969250740] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863789.970530513] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863789.979254132] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863789.979339144] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863789.989407043] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863790.951145311] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863790.959259729] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863790.959341295] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863790.981657032] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863790.989268001] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863790.990580211] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863790.999255692] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863790.999330843] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863791.009250234] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863791.950940572] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863791.959265230] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863791.959342177] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863791.961708274] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863791.969256465] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863791.970453082] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863791.979183108] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863791.979226487] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863791.989228966] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863792.950950940] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863792.959167500] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863792.959185979] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863792.981348489] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863792.989181176] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863792.989920314] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863792.999323172] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863792.999361258] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863793.009209587] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863793.951142489] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863793.959230890] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863793.959252938] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863793.961163875] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863793.969181577] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863793.969796147] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863793.979194751] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863793.979226954] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863793.989192549] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863794.950765461] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863794.959165774] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863794.959188741] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863794.980715309] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863794.989181030] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863794.989743023] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863794.999122577] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863794.999140323] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863795.009174372] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863795.950828794] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863795.959178607] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863795.959215622] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863795.960815081] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863795.969183021] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863795.969887508] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863795.979165974] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863795.979193618] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863795.989166434] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863796.950793847] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863796.959184913] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863796.959216258] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863796.980712533] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863796.989198170] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863796.989975500] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863796.999175969] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863796.999217550] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863797.009186334] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863797.950766838] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863797.959185345] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863797.959221109] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863797.961284589] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863797.969166918] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863797.969774720] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863797.979172188] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863797.979207679] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863797.989165502] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863798.950822168] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863798.959167780] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863798.959190846] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863798.980674394] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863798.989176020] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863798.989749069] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863798.999162854] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863798.999179091] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863799.009142845] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863799.951365073] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863799.959167808] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863799.959196502] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863799.960942925] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863799.969209764] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863799.969906903] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863799.979193169] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863799.979230954] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863799.989170265] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863800.951125553] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863800.959170423] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863800.959194799] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863800.981111771] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863800.989175960] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863800.990016450] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863800.999183521] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863800.999224591] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863801.009208252] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863801.950915030] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863801.959175579] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863801.959202058] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863801.961051844] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863801.969199512] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863801.969877924] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863801.979163926] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863801.979186170] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863801.989170952] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863802.951011735] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863802.959156514] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863802.959172732] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863802.980849750] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863802.989179084] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863802.989808953] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863802.999157861] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863802.999172959] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863803.009194594] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863803.951094554] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863803.959156837] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863803.959168486] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863803.960915527] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863803.969172663] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863803.969813968] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863803.979173396] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863803.979204081] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863803.989201648] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863804.950847170] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863804.959166235] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863804.959196377] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863804.980930782] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863804.989198862] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863804.989947375] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863804.999226277] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863804.999309936] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863805.009198885] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863805.950959213] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863805.959166819] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863805.959192584] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863805.961287373] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863805.969179614] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863805.969761495] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863805.979164428] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863805.979185456] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863805.989194513] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863806.950945812] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863806.959173963] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863806.959202140] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863806.980604865] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863806.989182209] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863806.989754010] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863806.999182102] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863806.999222027] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863807.009168738] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863807.951229963] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863807.959210895] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863807.959243427] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863807.961180549] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863807.969208002] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863807.970247638] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863807.979171285] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863807.979203360] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863807.989176001] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863808.950982591] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863808.959207250] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863808.959250305] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863808.980999936] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863808.989209855] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863808.990122641] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863808.999172870] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863808.999198512] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863809.009184709] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863809.951289317] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863809.959260303] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863809.959307550] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863809.961492350] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863809.969197486] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863809.970010350] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863809.979193904] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863809.979217564] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863809.989190374] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863810.950903841] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863810.959195817] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863810.959246749] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863810.980810413] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863810.989160506] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863810.989709349] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863810.999162021] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863810.999182391] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863811.009193871] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863811.950918437] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863811.959156110] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863811.959168664] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863811.961463729] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863811.969181893] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863811.969765101] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863811.979173810] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863811.979205631] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863811.989166334] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863812.951026476] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863812.959175593] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863812.959214568] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863812.980895007] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863812.989172957] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863812.989770444] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863812.999189645] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863812.999228936] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863813.009214844] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863813.950880449] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863813.959170044] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863813.959191459] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863813.961099646] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863813.969176806] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863813.969820527] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863813.979171170] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863813.979196439] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863813.989166624] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863814.950911691] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863814.959164561] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863814.959189185] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863814.980523439] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863814.989182452] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863814.989750858] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863814.999186887] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863814.999237964] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863815.009186691] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863815.950946976] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863815.959153982] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863815.959162935] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863815.960987856] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863815.969166094] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863815.969737371] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863815.979206136] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863815.979237398] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863815.989181227] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863816.950778265] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863816.959184440] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863816.959216956] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863816.980593448] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863816.989169439] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863816.989725364] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863816.999187678] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863816.999211128] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863817.009192554] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863817.951911712] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863817.959157298] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863817.959171264] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863817.960833308] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863817.969189954] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863817.969787616] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863817.979169018] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863817.979187203] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863817.989191593] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863818.951152186] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863818.959166834] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863818.959191868] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863818.980708653] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863818.989173704] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863818.989747567] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863818.999177636] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863818.999215164] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863819.009203417] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863819.950704097] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863819.959160329] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863819.959189793] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863819.960999971] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863819.969176199] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863819.969800793] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863819.979165655] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863819.979183060] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863819.989172630] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863820.950741507] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863820.959164350] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863820.959183935] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863820.980747052] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863820.989175653] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863820.989763862] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863820.999173660] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863820.999201297] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863821.009199078] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863821.950830117] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863821.959188541] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863821.959229713] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863821.960982591] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863821.969168001] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863821.969879512] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863821.979183730] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863821.979206752] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863821.989213567] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863822.951004055] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863822.959171801] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863822.959196558] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863822.980874532] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863822.989164661] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863822.990167278] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863822.999180160] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863822.999209105] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863823.009198378] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863823.950979804] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863823.959160363] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863823.959179616] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863823.961411523] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863823.969207541] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863823.970051295] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863823.979207923] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863823.979233001] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863823.989203337] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863824.950833201] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863824.959163130] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863824.959183635] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863824.980872478] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863824.989182439] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863824.989814413] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863824.999185091] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863824.999225050] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863825.009164841] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863825.950807258] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863825.959165331] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863825.959183189] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863825.961271010] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863825.969159354] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863825.969708986] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863825.979167549] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863825.979183944] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863825.989180604] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863826.950754269] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863826.959169799] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863826.959195419] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863826.980673379] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863826.989182389] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863826.990662703] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863826.999252169] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863826.999353123] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863827.009251540] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863827.950930196] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863827.959156857] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863827.959174943] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863827.961821749] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863827.969162146] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863827.969770466] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863827.979178141] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863827.979210072] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863827.989206833] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863828.951183278] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863828.959232048] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863828.959259785] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863828.980626873] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863828.989201217] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863828.989925442] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863828.999174128] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863828.999212787] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863829.009207696] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863829.950868993] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863829.959177299] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863829.959216777] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863829.961332671] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863829.969173928] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863829.970467888] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863829.979272307] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863829.979352741] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863829.989307493] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863830.951458986] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863830.959290219] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863830.959369454] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863830.980945842] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863830.989260352] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863830.990172618] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863830.999175919] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863830.999215102] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863831.009170664] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863831.951233357] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863831.959170940] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863831.959202806] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863831.961456896] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863831.969176173] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863831.969846898] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863831.979180215] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863831.979215078] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863831.989179268] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863832.950786030] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863832.959162753] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863832.959178481] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863832.980570660] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863832.989177875] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863832.989809107] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863832.999172154] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863832.999206119] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863833.009187520] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863833.952289656] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863833.959171834] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863833.959205139] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863833.961430221] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863833.969211131] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863833.970059195] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863833.979161643] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863833.979181871] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863833.989208026] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863834.950903364] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863834.959174930] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863834.959197498] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863834.980765933] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863834.989190523] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863834.989791896] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863834.999168709] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863834.999199785] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863835.009172655] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863835.950897246] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863835.959180754] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863835.959223072] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863835.960955871] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863835.969187919] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863835.969801859] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863835.979163923] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863835.979181075] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863835.989175851] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863836.950866864] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863836.959164002] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863836.959175920] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863836.980471980] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863836.989176757] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863836.989789814] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863836.999210585] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863836.999251393] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863837.009205754] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863837.950958093] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863837.959174365] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863837.959208495] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863837.961058488] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863837.969201013] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863837.969898013] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863837.979167463] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863837.979200433] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863837.989195205] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863838.951312315] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863838.959168501] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863838.959195844] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863838.980635385] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863838.989204725] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863838.990037398] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863838.999177577] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863838.999216405] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863839.009176682] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863839.950858369] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863839.959165987] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863839.959197958] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863839.960979173] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863839.969161151] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863839.969812985] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863839.979200442] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863839.979231844] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863839.989163630] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863840.950792242] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863840.959161824] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863840.959181269] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863840.980733648] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863840.989209636] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863840.990004391] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863840.999175886] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863840.999206532] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863841.009168967] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863841.950908219] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863841.959166484] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863841.959193513] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863841.961159901] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863841.969178121] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863841.969796674] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863841.979169366] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863841.979196015] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863841.989185549] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863842.951066597] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863842.959168150] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863842.959193653] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863842.980566982] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863842.989186353] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863842.989774325] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863842.999172499] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863842.999194636] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863843.009201293] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863843.950941246] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863843.959162904] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863843.959181079] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863843.960943040] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863843.969171815] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863843.969800424] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863843.979167362] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863843.979199728] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863843.989188675] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863844.951005135] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863844.959150054] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863844.959188168] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863844.981012938] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863844.989171584] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863844.989862234] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863844.999179615] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863844.999207676] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863845.009179088] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863845.951052109] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863845.959163815] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863845.959193748] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863845.961423740] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863845.969165007] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863845.969952094] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863845.979174596] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863845.979216942] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863845.989170481] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863846.951082100] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863846.959166995] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863846.959183702] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863846.980782945] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863846.989172822] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863846.989963291] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863846.999171399] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863846.999201583] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863847.009167423] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863847.950742876] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863847.959163180] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863847.959181891] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863847.961070160] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863847.969182029] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863847.969776592] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863847.979198234] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863847.979232968] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863847.989208656] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863848.951043684] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863848.959171228] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863848.959187224] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863848.980672480] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863848.989169751] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863848.990138601] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863848.999295105] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863848.999340359] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863849.009180683] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863849.951430307] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863849.959190552] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863849.959221171] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863849.961407875] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863849.969201116] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863849.970106045] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863849.979170864] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863849.979193092] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863849.989181740] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863850.950701060] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863850.959163744] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863850.959178305] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863850.980717644] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863850.989211561] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863850.989952291] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863850.999179421] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863850.999216235] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863851.009172329] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863851.950812828] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863851.959171339] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863851.959201651] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863851.961145708] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863851.969204189] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863851.969909125] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863851.979182798] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863851.979214991] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863851.989160075] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863852.951220369] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863852.959168570] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863852.959180107] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863852.980880206] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863852.989176535] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863852.989757736] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863852.999167752] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863852.999189473] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863853.009197456] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863853.950808698] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863853.959170594] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863853.959198465] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863853.960899211] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863853.969190998] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863853.969833818] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863853.979196854] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863853.979233945] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863853.989198807] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863854.950890900] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863854.959159903] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863854.959175317] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863854.980674019] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863854.989195988] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863854.989829527] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863854.999173444] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863854.999219409] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863855.009175215] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863855.950788164] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863855.959170172] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863855.959196642] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863855.983933220] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863855.989179019] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863855.989713920] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863855.999188871] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863855.999245983] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863856.009178562] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863856.951009366] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863856.959197867] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863856.959247509] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863856.961238253] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863856.969209730] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863856.969904633] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863856.979187358] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863856.979249867] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863856.989198431] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863857.951012118] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863857.959164635] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863857.959182263] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863857.980732978] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863857.989182501] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863857.989768285] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863857.999183459] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863857.999217301] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863858.009160294] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863858.950778219] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863858.959167968] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863858.959183324] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863858.960938300] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863858.969168509] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863858.969750924] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863858.979204624] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863858.979247986] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863858.989171528] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863859.950875925] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863859.959164994] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863859.959194272] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863859.980711166] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863859.989205618] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863859.989981067] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863859.999189118] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863859.999236291] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863860.009211864] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863860.950980587] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863860.959175230] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863860.959208611] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863860.961315871] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863860.969210176] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863860.969892773] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863860.979193518] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863860.979227293] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863860.989170918] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863861.951079608] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863861.959168014] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863861.959194406] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863861.980790740] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863861.989177574] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863861.990136342] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863861.999175574] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863861.999212501] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863862.009212762] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863862.951131657] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863862.959167361] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863862.959182596] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863862.961366058] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863862.969173875] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863862.969716799] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863862.979168998] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863862.979184691] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863862.989185599] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863863.951286395] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863863.959174849] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863863.959202127] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863863.980551567] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863863.989180996] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863863.989799946] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863863.999175113] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863863.999212259] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863864.009211530] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863864.951264229] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863864.959177317] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863864.959208960] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863864.961189044] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863864.969206709] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863864.969888573] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863864.979170504] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863864.979198040] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863864.989203949] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863865.951020473] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863865.959167573] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863865.959196424] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863865.980558226] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863865.989174701] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863865.990078762] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863865.999175528] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863865.999207993] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863866.009175788] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863866.951142823] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863866.959179125] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863866.959194040] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863866.961476791] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863866.969177883] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863866.969761092] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863866.979163546] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863866.979180482] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863866.989176102] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863867.951062100] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863867.959199845] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863867.959224448] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863867.980822550] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863867.989214935] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863867.989966675] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863867.999186045] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863867.999217373] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863868.009189312] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863868.951205423] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863868.959165361] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863868.959203865] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863868.961171576] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863868.969189465] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863868.970146050] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863868.979168229] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863868.979189396] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863868.989177888] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863869.950841547] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863869.959277041] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863869.959323449] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863869.981013638] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863869.989173563] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863869.989810110] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863869.999202724] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863869.999241257] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863870.009206775] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863870.950679922] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863870.959175941] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863870.959204407] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863870.961001081] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863870.969217800] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863870.969913577] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863870.979166360] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863870.979190893] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863870.989161633] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863871.950758797] [robot6.toolbox_nav_to_pose]: Quaternion: x:0.000000, y:0.000000, z:0.000000, w:1.000000
+[INFO] [1791863871.959156180] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to CANCEL_CURRENT_GOAL
+[INFO] [1791863871.959169270] [robot6.toolbox_nav_to_pose]: Cancelling the current goal.
+[WARN] [1791863871.980809290] [robot6.toolbox_nav_to_pose]: Previous goal canceled. Planing next...
+[INFO] [1791863871.989170340] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to SEND_GOAL
+[INFO] [1791863871.989888065] [robot6.toolbox_nav_to_pose]: Goal response
+[INFO] [1791863871.999191056] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_GOAL_RESPONSE
+[INFO] [1791863871.999219393] [robot6.toolbox_nav_to_pose]: Goal accepted by server, waiting for result
+[INFO] [1791863872.009198692] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to WAIT_FOR_MOVEMENT_COMPLETE
+[INFO] [1791863872.888446527] [robot6.toolbox_nav_to_pose]: Cancelling navigation.
+[INFO] [1791863872.889163755] [robot6.toolbox_nav_to_pose]: nav_to_pose state changed to IDLE
+[WARN] [1791863872.910740386] [robot6.toolbox_nav_to_pose]: Goal was canceled
+[INFO] [1791863874.895485767] [rclcpp]: signal_handler(SIGINT/SIGTERM)

@@ -136,10 +136,18 @@ class CameraIntrinsics:
     cx: float
     cy: float
     rectified: bool
+    # Unrectified image with a supported distortion model (adapter.camera_intrinsics): maps pixel
+    # centres [(u, v), ...] of the raw image onto the undistorted grid fx..cy describe (CameraInfo P).
+    # The aligned depth is on that grid, so box points are undistorted, never the whole image.
+    undistort: object = None
+    undistortion_id: str | None = None   # "<distortion_model>:<sha256(D)[:12]>", kept with the result
 
     def __post_init__(self):
         _text(self.frame_id, "frame_id")
         _text(self.calibration_id, "calibration_id")
+        if self.undistort is not None:
+            _require(callable(self.undistort) and not self.rectified, "INVALID_INPUT", "undistort")
+            _text(self.undistortion_id, "undistortion_id")
         _integer(self.width, "width", minimum=1)
         _integer(self.height, "height", minimum=1)
         _number(self.fx, "fx", positive=True)
@@ -257,6 +265,7 @@ class LocalizationResult:
     reason: str
     valid_pixels: int
     alignment_evidence_id: str | None
+    undistortion_id: str | None = None   # set when box points were undistorted (CameraIntrinsics)
 
     def __post_init__(self):
         _require(self.reason in ("LOCATED", "CLOCK_UNCERTAIN", "UNSYNCHRONIZED",
@@ -304,7 +313,8 @@ def locate_detection(rgb, depth, intrinsics, alignment, detection, policy):
         return unavailable("CLOCK_UNCERTAIN")
     if abs(rgb.observed_at_ns - depth.meta.observed_at_ns) > policy.max_stamp_skew_ns:
         return unavailable("UNSYNCHRONIZED")
-    if not alignment.verified or not intrinsics.rectified:
+    # Rectified, or the box points can be undistorted with the CameraInfo model (2026-10-13, TB-6).
+    if not alignment.verified or not (intrinsics.rectified or intrinsics.undistort is not None):
         return unavailable("ALIGNMENT_UNVERIFIED")
     if not (alignment.rgb_frame_id == rgb.frame_id == intrinsics.frame_id and
             alignment.depth_frame_id == depth.meta.frame_id and
@@ -315,6 +325,20 @@ def locate_detection(rgb, depth, intrinsics, alignment, detection, policy):
         return unavailable("DIMENSION_MISMATCH")
     x0, y0, x1, y1 = detection.bbox
     _require(x1 <= rgb.width and y1 <= rgb.height, "INVALID_INPUT", "bbox outside image")
+    # Pixel centres range from 0 to width-1; bbox edges use [0, width].
+    u, v = (x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 0.5
+    if intrinsics.undistort is not None:
+        xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
+        edges = [(x0, y0), (xm, y0), (x1, y0), (x1, ym), (x1, y1), (xm, y1), (x0, y1), (x0, ym)]
+        mapped = intrinsics.undistort([(x - 0.5, y - 0.5) for x, y in edges] + [(u, v)])
+        _require(len(mapped) == len(edges) + 1 and all(math.isfinite(c) for p in mapped for c in p),
+                 "INVALID_INPUT", "undistorted points")
+        u, v = mapped[-1]
+        xs, ys = [p[0] + 0.5 for p in mapped[:-1]], [p[1] + 0.5 for p in mapped[:-1]]
+        x0, y0 = max(0.0, min(xs)), max(0.0, min(ys))
+        x1, y1 = min(float(depth.meta.width), max(xs)), min(float(depth.meta.height), max(ys))
+        if x1 <= x0 or y1 <= y0:
+            return unavailable("DEPTH_INSUFFICIENT")
     left, top, right, bottom = math.floor(x0), math.floor(y0), math.ceil(x1), math.ceil(y1)
     scale = 0.001 if depth.encoding == "16UC1" else 1.0
     # E2 ROI list allocation; no realtime throughput claim (see DepthFrame above).
@@ -330,11 +354,9 @@ def locate_detection(rgb, depth, intrinsics, alignment, detection, policy):
     if max(valid) - min(valid) > policy.max_depth_spread_m:
         return unavailable("DEPTH_DISCONTINUITY", len(valid))
     z = median(valid)
-    # Pixel centres range from 0 to width-1; bbox edges use [0, width].
-    u, v = (x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 0.5
     point = ((u - intrinsics.cx) * z / intrinsics.fx,
              (v - intrinsics.cy) * z / intrinsics.fy, z)
-    return LocalizationResult(point, "LOCATED", len(valid), alignment.evidence_id)
+    return LocalizationResult(point, "LOCATED", len(valid), alignment.evidence_id, intrinsics.undistortion_id)
 
 
 @dataclass(frozen=True)

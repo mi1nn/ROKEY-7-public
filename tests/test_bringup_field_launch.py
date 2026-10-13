@@ -150,8 +150,8 @@ class CoordinatorParameters(FieldCase):
         expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
         # Added after #132: TargetLocation time checks (coordination OPS-103, 2026-10-13)
         expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=3.0, target_max_future_s=0.05)
-        # Added after #132: TB-5 wait at the target before leaving for the exit (placeholder, user decision pending)
-        expected['support_exit_wait_s'] = 5.0
+        # Added after #132: TB-5 waits at the target before leaving for the exit (user decision 2026-10-13: 15 s)
+        expected['support_exit_wait_s'] = 15.0
         # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
         expected['recheck_max_clock_error_s'] = 2.0
         self.assertEqual(expected, self.coordinator())
@@ -231,9 +231,10 @@ class RobotParameters(FieldCase):
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
-        # The robot Pi clock (sensor host of the AMCL stamps), per robot: -1 until measured on the Pi (2026-10-13)
+        # The robot Pi clock (sensor host of the AMCL stamps), per robot (2026-10-13)
         expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
-        expected['task.live.sensor_host_clock_error_bound_ns'] = -1
+        # TB-6 Pi measured 2026-10-13 (chronyc tracking, about 109 ms by the parse_chrony bound) -> 150 ms
+        expected['task.live.sensor_host_clock_error_bound_ns'] = 150_000_000
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -295,7 +296,7 @@ class RobotParameters(FieldCase):
         self.assertEqual(['APPROACH_TARGET'], values['task_input']['task.live.auto_target.kinds'])
         # Each robot Pi has its own measured clock bound (decision 2026-10-13)
         self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
-        self.assertEqual(-1, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
+        self.assertEqual(150_000_000, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
