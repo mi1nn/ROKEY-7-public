@@ -115,9 +115,10 @@ NOT_RUN: 웹캠 노드를 이 launch 로 띄우는 것(카메라·모델 필요)
 | 지도 기준 값 `map_basis`(프로파일, 조정기·로봇·탐지 launch 공용) | 있음(#145). 현장 프로파일에 넣어야 한다(frame `map`) |
 | PC 역할별 준비 점검 `scripts/field/preflight_role.py`, 0단계 Discovery 확인 | 있음(#156) |
 | TB-5(robot_b, /robot5) 로봇 launch | 안 됨: 현장 실행 파일에 `robots.robot_b` 값이 없다. TB-5 실행 값 PR 에서 넣는다(재범 결정 2026-10-13: TB-5 자동 출동) |
-| TB-5 자동 대상 접근(APPROACH_TARGET)의 LIVE_ROS 입력 | PR #166 머지 뒤(로봇별 정책 `robots.<id>.task.live.auto_target.*`) |
+| TB-5 자동 대상 접근(APPROACH_TARGET)의 LIVE_ROS 입력 | 있음(#166, 로봇별 정책 `robots.<id>.task.live.auto_target.*`) |
 | 로봇 위치(RobotPose)·지도 상태(MapState) 발행 | PR #176 머지 뒤. 로봇 Pi 시계 값(`sensor_host_clock_*`)을 Pi 에서 재서 넣기 전에는 위치가 UNKNOWN 이다 |
-| 재관측(REOBSERVE_TARGET)·복귀(RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: 다음 PR(C1-b·C1-c). MOVE_SEGMENT 는 FILES 경로만 |
+| TB-6 재관측(REOBSERVE_TARGET) + 재확인 관측(ObserveTarget) | PR #179 머지 뒤 |
+| 복귀(RETURN_HOME)의 LIVE_ROS 입력 | 안 됨: 다음 PR(C1-c). MOVE_SEGMENT 는 FILES 경로만 |
 | watchdog 현장 값 | #132 임시값, 확정은 #94. 영구 정지(STOP_LATCHED)와 리셋은 [rescue_robot README](../rescue_robot/README.md) 「2026-10-13 현재」 절 |
 
 세 launch 로 웹캠 → 재난 판정 → 관제 출동(START_SEARCH) → TB-6 SEARCH_AREA(Nav2) 를 띄운다. 값은 세 곳에서만 온다.
