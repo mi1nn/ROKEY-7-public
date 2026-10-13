@@ -23,6 +23,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
 from rescue_interfaces.msg import TargetObservation
 from ultralytics import YOLO
+from rclpy._rclpy_pybind11 import RCLError
 from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 
 from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_parameters,
@@ -38,6 +39,7 @@ from .recheck import CameraModel, scan_state
 from .recheck_feed import (RECHECK_PARAMS, Candidate, depth_median, depth_rows_m, frame_evidence, recheck_values,
     rigid_from_tf, scan_fields)
 from .recheck_server import RecheckServer, SensorClock
+from .shutdown import spin_until_shutdown
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
 
@@ -271,7 +273,7 @@ def main(args=None):
         # The ObserveTarget goal waits for its window in its own callback group, so frames keep coming.
         executor = MultiThreadedExecutor(num_threads=3)
         executor.add_node(node)
-        executor.spin()
+        spin_until_shutdown(executor.spin, node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as exc:

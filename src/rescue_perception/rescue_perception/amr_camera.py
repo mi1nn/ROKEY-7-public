@@ -16,8 +16,10 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage, Image
 from ultralytics import YOLO
+from rclpy._rclpy_pybind11 import RCLError
 from rclpy.executors import ExternalShutdownException
 
+from .shutdown import spin_until_shutdown
 from .camera_utils import (FIELD_PARAMS, SETTINGS, PreviewProcessor, field_values, git_sha,
     read_field_parameters, validate_config, validate_labels, verify_model)
 
@@ -102,7 +104,7 @@ def main(args=None):
     try:
         rclpy.init(args=args)
         node = create_node()
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as exc:

@@ -12,6 +12,7 @@ import time
 from uuid import uuid4
 
 from .camera_utils import git_sha
+from .shutdown import spin_until_shutdown
 from .target_location import LocationBasis, LocationRefused, MapRevisionTracker, fill_location, locate
 from .target_utils import SETTINGS as TARGET_SETTINGS, fill_envelope
 
@@ -72,6 +73,7 @@ def main(args=None):
     import rclpy
     from rcl_interfaces.msg import ParameterDescriptor
     from rclpy.exceptions import ParameterUninitializedException
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
@@ -169,7 +171,7 @@ def main(args=None):
             depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         node.create_timer(0.1, try_pending)
         log.info(f'target_locator git={git_sha()} boot={boot_id} parameters={json.dumps(values, sort_keys=True)}')
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:

@@ -108,6 +108,7 @@ def main(args=None):
     import rclpy
     from rcl_interfaces.msg import ParameterDescriptor
     from rclpy.exceptions import ParameterUninitializedException
+    from rclpy._rclpy_pybind11 import RCLError
     from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.parameter import Parameter
@@ -115,6 +116,7 @@ def main(args=None):
     from sensor_msgs.msg import CompressedImage
 
     from .camera_utils import git_sha
+    from .shutdown import spin_until_shutdown
 
     rclpy.init(args=args)
     node = Node('mjpeg_relay')
@@ -159,7 +161,7 @@ def main(args=None):
         serving = True
         log.info(f'mjpeg_relay git={git_sha()} parameters={json.dumps(values, sort_keys=True)} '
                  f'url=http://{values["bind_host"]}:{server.server_address[1]}{values["path"]}')
-        rclpy.spin(node)
+        spin_until_shutdown(lambda: rclpy.spin(node), node.context.ok, RCLError)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
