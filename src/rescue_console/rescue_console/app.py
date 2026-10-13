@@ -33,12 +33,21 @@ SECURITY_HEADERS = {
 }
 
 
-def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None):
-    """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
+def _check_sources(ledger_path, status_path, site_state_path):
     if site_state_path is not None and status_path is not None:
         raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
+    # The old ReportLedger is optional with the site-state DB (no operations code writes it yet,
+    # 2026-10-13); the fixture (E2) still comes with its ledger. A given ledger must open.
+    if ledger_path is None and site_state_path is None:
+        raise ConsoleError('INVALID_INPUT', 'a ledger is required unless --site-state is given')
+
+
+def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None):
+    """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
+    _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
-    view = build_view(load_ledger(ledger_path), status, built_at_ns=clock())
+    ledger = None if ledger_path is None else load_ledger(ledger_path)
+    view = build_view(ledger, status, built_at_ns=clock())
     if map_image is not None:
         view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
         for where in view['map']['frame_mismatch']:
@@ -67,8 +76,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
                            'Flask is required for the web console: python3 -m pip install flask') from exc
     if not isinstance(secret_key, str) or len(secret_key) < 16:
         raise ConsoleError('CONFIG_MISSING', 'secret_key (>= 16 chars) is required to sign login sessions')
-    if site_state_path is not None and status_path is not None:
-        raise ConsoleError('INVALID_INPUT', 'give the site-state DB or a status fixture, not both')
+    _check_sources(ledger_path, status_path, site_state_path)
     cameras = tuple(cameras)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup

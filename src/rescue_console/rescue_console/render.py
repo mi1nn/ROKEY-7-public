@@ -291,14 +291,15 @@ def _targets(view):
             support = (f'<span class="support">지원 {_word("support", target["support_state"])}'
                        + (f' {escape(target["support_robot_id"])}' if target['support_robot_id'] else '') + '</span>')
         notes = ''.join(f'<li>{escape(n)}</li>' for n in target['warnings'] + target['rescue_reasons'])
+        receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
+                   f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         rows.append(
             f'<li class="victim-row {target["stage"].lower()}" data-stage="{target["stage"]}">'
             f'{_victim_icon(target["stage"])}'
             f'<div class="who">{_short(target["target_id"])}<span class="stage-word">{escape(target["stage_label"])}</span>'
             f'<span class="rule" title="표시 규칙 (README 구조 상태 4단계)">{target["rule"]}</span></div>'
             f'<div class="what"><span>{where}</span><span>구조 {_word("rescue", target["rescue_state"])}</span>'
-            f'<span>{_word("approach", target["approach_result"])}</span>{support}'
-            f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span></div>'
+            f'<span>{_word("approach", target["approach_result"])}</span>{support}{receipt}</div>'
             + (f'<ul class="notes">{notes}</ul>' if notes else '') + '</li>')
     body = ''.join(rows) or '<li class="none">아직 보고된 요구조자가 없습니다.</li>'
     return (f'<section id="targets"><h2>요구조자 {len(view["targets"])}명</h2>'
