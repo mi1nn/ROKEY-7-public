@@ -231,6 +231,7 @@ class CoordinatorCore:
         self.locations = {}      # location_id -> (target_id, TargetLocation msg, content key)
         self.target_geo = {}     # target_id -> (basis, (x, y), [location msgs]) of the latest merge
         self.reports = {}        # report_id -> dict(report fields, next_send_ns, done)
+        self.saved_records = set()  # location_ids some PERSISTED receipt included; never sent again
         self.issue_block = None  # why an approved/open task is held right now; recomputed every tick
         self.state_sequence, self.last_state = 0, None
         self.last_targets = None
@@ -343,9 +344,17 @@ class CoordinatorCore:
             self.route_made_at[target_id] = now_ns
         self.target_geo[target_id] = (basis, xy, locations)
         self.locations[msg.location_id] = (target_id, msg, key)
+        # SDD 391: records are deduplicated across reports. A report carries only the locations no
+        # PERSISTED receipt included yet, so its size follows the unsaved backlog, not the target's
+        # history (#137 measured all-locations reports hitting 64 KiB at the 34th location). An older
+        # unsaved report of the target is covered by this one and stops being resent.
+        for report in self.reports.values():
+            if report['target_id'] == target_id and not report['done']:
+                report['done'] = True
+        unsaved = [loc for loc in locations if loc.location_id not in self.saved_records]
         report_id = self.new_id()
         self.reports[report_id] = dict(report_id=report_id, target_id=target_id, target_revision=target_revision,
-                                       record_ids=[loc.location_id for loc in locations], locations=list(locations),
+                                       record_ids=[loc.location_id for loc in unsaved], locations=unsaved,
                                        first_issued_at_ns=now_ns, next_send_ns=now_ns, done=False)
         return target_id
 
@@ -369,6 +378,7 @@ class CoordinatorCore:
         if msg.state != 'PERSISTED' or not set(report['record_ids']) <= set(msg.included_record_ids):
             return False
         report['done'] = report['persisted'] = True
+        self.saved_records.update(report['record_ids'])
         self.mission.record_target(report['target_id'], report['target_revision'], detection_confirmed=True,
                                    report_persisted=True)
         return True
