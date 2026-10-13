@@ -1,7 +1,8 @@
-"""Run the console: python -m rescue_console LEDGER --accounts ACCOUNTS
+"""Run the console: python -m rescue_console [LEDGER] --accounts ACCOUNTS
 [--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--map MAP_YAML] [--operations URL] [--port N].
 
-The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
+LEDGER (the old ReportLedger) is optional with --site-state; without it the page says report rows
+are missing. The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
 accounts file is created once with `python -m rescue_console.accounts init`.
 """
 
@@ -15,7 +16,8 @@ from .view import ConsoleError
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('ledger', help='operations ledger SQLite file (opened read-only)')
+    parser.add_argument('ledger', nargs='?', default=None,
+                        help='operations ReportLedger SQLite file (opened read-only); optional with --site-state')
     parser.add_argument('--accounts', required=True, help='console accounts SQLite file (rescue_console.accounts init)')
     source = parser.add_mutually_exclusive_group()
     source.add_argument('--site-state', help='operations site-state SQLite file (opened read-only)')
@@ -37,6 +39,8 @@ def main(argv=None):
         secret = os.environ.get(args.secret_env)
         if not secret:
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
+        if args.ledger is None and args.site_state is None:
+            raise ConsoleError('INVALID_INPUT', 'LEDGER is required unless --site-state is given')
         cameras = [parse_camera(text) for text in args.camera]
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,

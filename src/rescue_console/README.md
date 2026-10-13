@@ -38,11 +38,12 @@ python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts
 operations 가 현장 상태 DB 를 쓰고 있으면 픽스처 대신 그 파일을 준다. 둘을 같이 주면 시작하지 않는다.
 
 ```bash
-python3 -m rescue_console <운영 장부> --accounts <계정 DB> --site-state <현장 상태 DB> \
+python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state <현장 상태 DB> \
     --camera cam_a=http://<카메라 PC>:<포트>/<경로> --map assets/maps/pre_quake/map.yaml \
     --operations http://<operations 호스트>:<포트> --port 8080
 ```
 
+- `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 목록은 장부의 배치 로봇 대신 상태가 들어온 로봇만 보인다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 

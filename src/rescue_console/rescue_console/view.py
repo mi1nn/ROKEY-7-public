@@ -155,7 +155,8 @@ def _latest_candidates(site_events):
 
 
 def _targets(ledger, target_states, candidates):
-    reports = _latest_reports(ledger['reports'])
+    """``ledger`` None: no report ledger was given; report fields stay None (not 0, not 'no report')."""
+    reports = {} if ledger is None else _latest_reports(ledger['reports'])
     rows = []
     for target_id in sorted(set(reports) | set(target_states)):
         item, report_count = reports.get(target_id, (None, 0))
@@ -185,7 +186,7 @@ def _targets(ledger, target_states, candidates):
         support_state = None if state is None else state['support_state']
         approach = None if payload is None else payload['approach_result']
         stage, rule, rule_warnings = compose_stage(confirmed, rescue_state, support_state, approach)
-        if payload is None:
+        if payload is None and ledger is not None:
             warnings.append('장부에 보고가 없는 대상')
         rows.append({
             'target_id': target_id,
@@ -202,7 +203,7 @@ def _targets(ledger, target_states, candidates):
             'support_state': support_state,
             'support_robot_id': None if state is None else state.get('support_robot_id'),
             'report_id': None if payload is None else payload['report_id'],
-            'report_count': report_count,
+            'report_count': None if ledger is None else report_count,
             'receipt_status': None if item is None else item['receipt']['status'],
             'observed_at_ns': None if payload is None else payload['observed_at_ns'],
             'disappeared_candidate': candidates.get(target_id),
@@ -264,7 +265,7 @@ def _site_events(raw_events):
 
 def _events(ledger, site_events):
     rows = []
-    for item in ledger['reports']:
+    for item in [] if ledger is None else ledger['reports']:
         payload = item['payload']
         rows.append({
             'event_ns': payload['observed_at_ns'],
@@ -432,12 +433,18 @@ def command_gates(mission, targets):
 
 
 def build_view(ledger, status, *, built_at_ns):
-    """ledger: read_reports() result. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
+    """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
+    2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
     'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     warnings = []
-    allowed = tuple(ledger['allowed_robot_ids'])
     robot_section = _section(status, 'robot_status', 'robots')
+    if ledger is None:
+        # The robot policy lives in the ledger metadata; the site-state read API does not return it.
+        warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음, 로봇 목록은 상태가 들어온 로봇만')
+        allowed = tuple(sorted({r.get('robot_id') for r in ([] if robot_section is None else robot_section['robots'])}))
+    else:
+        allowed = tuple(ledger['allowed_robot_ids'])
     site_section = _section(status, 'site_events', 'site_events')
     target_section = _section(status, 'target_states', 'targets')
     has_mission, mission_row = _mission_row(status)
@@ -466,7 +473,7 @@ def build_view(ledger, status, *, built_at_ns):
     mission = _mission(None if site_section is None else site_events, mission_row)
     return {
         'built_at_ns': built_at_ns,
-        'evidence_policy': ledger['evidence_policy'],
+        'evidence_policy': None if ledger is None else ledger['evidence_policy'],
         'mission': mission,
         'robots': _robots(allowed, [] if robot_section is None else robot_section['robots'],
                           built_at_ns, warnings),
