@@ -202,7 +202,15 @@ class ParameterTests(unittest.TestCase):
                          tuple(ros_node.PARAMETERS[k] for k in (
                              'traffic_control', 'traffic_min_separation_m', 'traffic_path_clearance_m',
                              'traffic_yield_max_m', 'traffic_stop_timeout_s')))
-        self.assertEqual(('TB5_PRIORITY', 'OFF'), ros_node.TRAFFIC_CONTROLS)
+        self.assertEqual(('TB5_PRIORITY', 'DISABLED'), ros_node.TRAFFIC_CONTROLS)
+
+    def test_values_stay_text_on_the_ros_command_line(self):
+        # E3 rehearsal 2026-10-14: `-p traffic_control:=OFF` is read as YAML, OFF is the boolean false, and the
+        # coordinator refused to start (InvalidParameterTypeException: BOOL, expecting STRING).
+        import yaml
+        for value in ros_node.TRAFFIC_CONTROLS:
+            with self.subTest(value=value):
+                self.assertIsInstance(yaml.safe_load(value), str)
         self.assertLessEqual({'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP', 'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD',
                               'TRAFFIC_SCOUT_YIELD_NO_SPACE', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT',
                               'TRAFFIC_ROBOTS_TOO_CLOSE', 'TRAFFIC_SUPPORT_PATH_UNKNOWN', 'TRAFFIC_SCOUT_POSE_UNKNOWN',
