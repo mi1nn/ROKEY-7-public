@@ -231,7 +231,7 @@ class RobotParameters(FieldCase):
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
-        # The robot Pi clock (sensor host of the AMCL stamps), per robot: -1 until measured on the Pi (2026-10-13)
+        # The robot Pi clock (sensor host of the AMCL stamps), per robot (2026-10-13)
         expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
         # TB-6 Pi measured 2026-10-13 (chronyc tracking, about 109 ms by the parse_chrony bound) -> 150 ms
         expected['task.live.sensor_host_clock_error_bound_ns'] = 150_000_000
