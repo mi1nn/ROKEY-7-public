@@ -18,6 +18,8 @@ import unittest
 from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase
 
 START = [0.4, -0.3, 0.1]
+LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py'
+CAPTURE = REPO / 'scripts' / 'field' / 'capture_initial_pose.py'
 
 
 def frozen_field(raw):
@@ -214,15 +216,18 @@ class OnePcTwoRoles(FieldCase):
         for key in ('executor_heartbeat_topic', 'watchdog_heartbeat_topic', 'task.saved_map.map_topic',
                     'task.saved_map.localization_topic'):
             self.assertNotEqual(a['task_input'][key], b['task_input'][key])
-        launch = (REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py').read_text()
-        self.assertIn('namespace=ns', launch)
+
+    @unittest.skipUnless(LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
+    def test_frozen_localization_nodes_are_in_the_robot_namespace(self):
+        self.assertIn('namespace=ns', LAUNCH.read_text())
 
 
+@unittest.skipUnless(CAPTURE.exists(), 'installed-wheel checkout has no scripts/')
 class CaptureInitialPose(unittest.TestCase):
     def tool(self):
         sys.path.insert(0, str(REPO / 'scripts' / 'field'))
         self.addCleanup(sys.path.remove, str(REPO / 'scripts' / 'field'))
-        return runpy.run_path(str(REPO / 'scripts' / 'field' / 'capture_initial_pose.py'))
+        return runpy.run_path(str(CAPTURE))
 
     def message(self, frame='map', yaw=0.1, covariance=None):
         from types import SimpleNamespace as NS
