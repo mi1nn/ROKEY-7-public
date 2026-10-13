@@ -4,7 +4,11 @@ The launch file (src/rescue_bringup/launch/operations.launch.py) only wraps this
 names must be the ones the coordinator uses, so this checks them against its constants.
 """
 from pathlib import Path
+import importlib.util
+import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from rescue_bringup.profile import load_deployment
 
@@ -135,6 +139,19 @@ class MjpegRelayParameters(unittest.TestCase):
         from rescue_bringup.operations_launch import console_camera_argument
         self.assertEqual('cam_fixed=http://127.0.0.1:8091/cam_fixed.mjpg',
                          console_camera_argument(relay(), camera_id='cam_fixed'))
+
+    def test_parameter_checks_run_without_yaml(self):
+        with patch.dict(sys.modules, {'yaml': None}):
+            self.assertEqual(8091, relay()['port'])
+
+    @unittest.skipUnless(importlib.util.find_spec('yaml'), 'PyYAML is a ROS launch dependency')
+    def test_malformed_yaml_is_a_launch_setting_error(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, read_webcam_parameters
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'broken.yaml'
+            path.write_text('webcam_node: [unterminated')
+            with self.assertRaises(LaunchSettingError):
+                read_webcam_parameters(path)
 
     def test_bad_values_are_refused(self):
         from rescue_bringup.operations_launch import LaunchSettingError, read_webcam_parameters
