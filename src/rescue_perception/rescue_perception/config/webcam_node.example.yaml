@@ -54,3 +54,9 @@ webcam_node:
     watch_absent_hold_s: 3.0
     watch_absent_min_frames: 10
     watch_max_gap_s: 1.0
+    # 출구 쪽으로 사라질 때만 소실 후보(사용자 결정 2026-10-12). 화면에서 출구 쪽 영역 [x0, y0, x1, y1].
+    # 시험 현장은 프레임 왼쪽이 출구(사용자 지정 2026-10-12). [0.0, 0.0, 1.0, 1.0] 이면 방향을 보지 않는다
+    watch_exit_roi: [0.0, 0.0, 0.2, 1.0]
+    # 판정 화면용 JPEG 영상 토픽(출구·인형 상자·추적 선). 빈 문자열 '' 이면 끈다
+    debug_image_topic: /rescue/cameras/cam_fixed/debug_image/compressed
+    watch_track_max_jump: 0.3            # 한 프레임(0.2 s) 사이 같은 인형으로 볼 최대 중심 이동(정규화)

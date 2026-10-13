@@ -26,7 +26,7 @@ from .adapter import SourceBinding
 from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
 from .target_watch import TargetWatchPolicy
-from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility
+from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, stream_state
 
 ENCODING = 'bgr8'  # OpenCV 프레임 채널 순서
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'
@@ -50,6 +50,8 @@ PARAMS = {
     'quake_release_s': 'DOUBLE', 'quake_max_gap_s': 'DOUBLE',
     'watch_score_min': 'DOUBLE', 'watch_roi_overlap_min': 'DOUBLE', 'watch_present_confirm_frames': 'INTEGER',
     'watch_absent_hold_s': 'DOUBLE', 'watch_absent_min_frames': 'INTEGER', 'watch_max_gap_s': 'DOUBLE',
+    'watch_exit_roi': 'DOUBLE_ARRAY', 'watch_track_max_jump': 'DOUBLE',
+    'debug_image_topic': 'STRING',
 }
 
 
@@ -86,7 +88,9 @@ def policies(v):
     watch = TargetWatchPolicy(
         score_min=v['watch_score_min'], roi_overlap_min=v['watch_roi_overlap_min'],
         present_confirm_frames=v['watch_present_confirm_frames'], absent_hold_ns=_ns(v['watch_absent_hold_s']),
-        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']))
+        absent_min_frames=v['watch_absent_min_frames'], max_gap_ns=_ns(v['watch_max_gap_s']),
+        exit_roi_xyxy_normalized=tuple(float(x) for x in v['watch_exit_roi']),
+        track_max_jump=v['watch_track_max_jump'])
     return quake, watch
 
 
@@ -121,6 +125,7 @@ def main(args=None):
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import CameraStatus, SiteEvent, TargetPresence
+    from sensor_msgs.msg import CompressedImage
     from rescue_interfaces.srv import SetCameraWatch
     from ultralytics import YOLO
 
@@ -168,6 +173,82 @@ def main(args=None):
     presence_pub = node.create_publisher(TargetPresence, v['presence_topic'],
                                          QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, **reliable))
     seq = {'status': 0, 'event': 0, 'presence': 0, 'frame': 0, 'srv': 0}
+    # 판정 화면용 영상(시험·관제 확인용). 빈 문자열이면 끈다. 판정에는 쓰지 않는다.
+    debug_pub = (node.create_publisher(CompressedImage, v['debug_image_topic'],
+                                       QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+                 if v['debug_image_topic'] else None)
+    trail = {'detector': None, 'points': []}
+
+    def label(img, text, org, color):
+        """어두운 바탕 상자 위에 글자(작은 글씨도 읽히게)."""
+        (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        x, y = org
+        cv2.rectangle(img, (x - 4, y - th - 5), (x + tw + 4, y + base + 2), (20, 20, 20), -1)
+        cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+    def publish_debug(frame, stamp, sign, boxes, presence):
+        """지진 판정(블록 격자·이동 화살표·방향 전환 횟수)과 출구 영역·감시 영역·인형 상자·추적 선·상태를
+        그린 JPEG 을 debug_image_topic 으로."""
+        if debug_pub is None:
+            return
+        img = frame.copy()
+        height, width = img.shape[:2]
+
+        def px(x, y):
+            return int(x * width), int(y * height)
+        grid = img.copy()   # 지진 판정 블록 격자(사분면 경계는 굵게), tools/webcam_quake_probe.py 와 같은 그림
+        bx, by = v['quake_blocks_x'], v['quake_blocks_y']
+        for i in range(1, bx):
+            cv2.line(grid, (width * i // bx, 0), (width * i // bx, height), (255, 255, 255), 2 if i * 2 == bx else 1)
+        for j in range(1, by):
+            cv2.line(grid, (0, height * j // by), (width, height * j // by), (255, 255, 255), 2 if j * 2 == by else 1)
+        img = cv2.addWeighted(grid, 0.22, img, 0.78, 0)
+        if sign.shift is not None and any(sign.shift):
+            scale = v['quake_sample_stride'] * 6   # 화면에서 잘 보이게 키운 이동 화살표
+            centre = (width // 2, height // 2)
+            end = (int(centre[0] + sign.shift[0] * scale), int(centre[1] + sign.shift[1] * scale))
+            cv2.arrowedLine(img, centre, end, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.3)
+            cv2.arrowedLine(img, centre, end, (10, 214, 255), 5, cv2.LINE_AA, tipLength=0.3)
+        quake = f'QUAKE turns {sign.reversals}/{v["quake_shakes_min"]}' + (f' {sign.reason}' if sign.reason else '')
+        ex = watch_policy.exit_roi_xyxy_normalized
+        tint = img.copy()
+        cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
+        img = cv2.addWeighted(tint, 0.2, img, 0.8, 0)
+        cv2.rectangle(img, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), 2)
+        watch = slot.watch
+        if watch is not None and tuple(watch.roi_xyxy_normalized) != (0.0, 0.0, 1.0, 1.0):
+            r = watch.roi_xyxy_normalized
+            cv2.rectangle(img, px(r[0], r[1]), px(r[2], r[3]), (89, 199, 52), 2)
+        if trail['detector'] is not slot.detector:
+            trail['detector'], trail['points'] = slot.detector, []
+        track = slot.detector.track if slot.detector is not None else None
+        if track is not None and (not trail['points'] or trail['points'][-1] != track):
+            trail['points'] = (trail['points'] + [track])[-25:]
+        for a, b in zip(trail['points'], trail['points'][1:]):
+            cv2.line(img, px(*a), px(*b), (10, 214, 255), 2, cv2.LINE_AA)
+        for box in boxes or ():
+            color = (255, 132, 10) if box.score >= watch_policy.score_min else (147, 142, 142)
+            cv2.rectangle(img, px(box.x0, box.y0), px(box.x1, box.y1), color, 2, cv2.LINE_AA)
+            cv2.putText(img, f'{box.score:.2f}', px(box.x0, box.y0 - 0.01), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        if track is not None:
+            cv2.circle(img, px(*track), 8, (10, 214, 255), -1, cv2.LINE_AA)
+        if presence is not None:
+            text = (f'{presence.state} {presence.reason or ""} absent={presence.absent_ns / 1e9:.1f}s '
+                    f'rev={watch.watch_revision if watch else 0}')
+        else:
+            text = 'NO WATCH'
+        label(img, quake, (10, 22), (242, 90, 191) if sign.condition else (255, 255, 255))
+        label(img, text, (10, height - 10), (255, 255, 255))
+        ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ok:
+            log.error('debug image encode failed')
+            return
+        msg = CompressedImage()
+        msg.header.stamp.sec, msg.header.stamp.nanosec = stamp // 10**9, stamp % 10**9
+        msg.header.frame_id = v['frame_id']
+        msg.format = 'jpeg'
+        msg.data = jpeg.tobytes()
+        debug_pub.publish(msg)
 
     def envelope(env, key):
         seq[key] += 1
@@ -299,21 +380,21 @@ def main(args=None):
             return
         seq['frame'] += 1
         height, width = frame.shape[:2]
-        if (width, height) != (v['width'], v['height']):
-            publish_status('DEGRADED', stamp, width, height, reason='SIZE_MISMATCH')
-        else:
-            publish_status('ONLINE', stamp, width, height)
         if slot.observe_image_size(width, height):
             log.warning(f'image size changed to {width}x{height}; watch cleared (revision {slot.revision})')
         image = frame_image(frame, stamp, v['frame_id'])
         try:
             sign = quake.update(image)
         except PerceptionError as exc:
+            publish_status('UNKNOWN', stamp, width, height, reason='QUAKE_JUDGE_FAILED')
             log.error(f'quake judge failed: {exc.detail_code}: {exc.detail}')
             return
+        state, reason = stream_state(sign, (width, height), (v['width'], v['height']))
+        publish_status(state, stamp, width, height, reason=reason)
         if sign.event is not None:
             publish_event(sign.event)
         if slot.detector is None:
+            publish_debug(frame, stamp, sign, None, None)
             return
         try:
             result = model.predict(frame, imgsz=v['model_imgsz'], conf=v['model_conf'], verbose=False)[0]
@@ -330,6 +411,7 @@ def main(args=None):
             return
         if presence.status != 'PROCESSED':
             return
+        publish_debug(frame, stamp, sign, boxes, presence)
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
         if presence.event is not None:
