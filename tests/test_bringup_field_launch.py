@@ -201,8 +201,9 @@ class RobotParameters(FieldCase):
         expected.update({'task.saved_map.occupancy_sha256': SHA,
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
-        # Added after #132: automatic target approach policy (C1-a, 2026-10-13)
-        expected.update({'task.live.auto_target.enabled': True,
+        # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
+        # SCOUT) takes no automatic approach; its REOBSERVE_TARGET comes with C1-b.
+        expected.update({'task.live.auto_target.enabled': False,
                          'task.live.auto_target.kinds': ['APPROACH_TARGET'],
                          'task.live.auto_target.goal_clear_radius_m': 0.2,
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
@@ -241,8 +242,15 @@ class RobotParameters(FieldCase):
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}
+                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                        'task.live.auto_target.enabled': True,
+                                        'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                                        'task.live.auto_target.goal_clear_radius_m': 0.2,
+                                        'task.live.auto_target.policy_version': 'p'}
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        # Least privilege per robot: each robot's own automatic kinds (decision 2026-10-13)
+        self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
+        self.assertFalse(self.robot()['task_input']['task.live.auto_target.enabled'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
@@ -329,8 +337,10 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
-            'auto target kinds not a list': lambda r: r['robot'].update({'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
-            'auto target enabled not bool': lambda r: r['robot'].update({'task.live.auto_target.enabled': 1}),
+            'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
+                {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
+            'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
+            'auto target shared, not per robot': lambda r: r['robot'].update({'task.live.auto_target.enabled': True}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),
