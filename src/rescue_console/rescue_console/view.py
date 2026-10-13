@@ -633,7 +633,37 @@ def _exit(section):
             'observed_at_ns': row['observed_at_ns'], 'map_revision': row['map_revision']}
 
 
-def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
+def _apply_watch(robots, watch, built_at_ns, warnings):
+    """--robot-watch: 로봇 기본 토픽 직접 관측을 행마다 ``watch`` 로 붙인다(재범 2026-10-13). 프로젝트 상태가 먼저이고,
+    상태가 없는 로봇은 낡지 않은 직접 관측 위치를 ``pose`` 로 쓴다. 낡음은 이 호스트 시계로 잰다(관측 노드와 같은 PC)."""
+    for row in robots:
+        row['watch'] = None
+    if watch is None:
+        return
+    data, stale_s = watch['data'], watch['stale_s']
+    if data is None:
+        warnings.append(watch['problem'])
+        return
+    written_age = (built_at_ns - data['written_at_ns']) / 1e9
+    dead = written_age > stale_s
+    if dead:
+        warnings.append(f'로봇 직접 관측 파일이 {written_age:.0f}초 동안 갱신 안 됨 — robot_watch 노드 확인')
+    for row in robots:
+        seen = data['robots'].get(row['robot_id'])
+        if seen is None:
+            continue
+        age = None if seen.get('last_seen_ns') is None else (built_at_ns - seen['last_seen_ns']) / 1e9
+        pose_age = None if seen.get('pose_seen_ns') is None else (built_at_ns - seen['pose_seen_ns']) / 1e9
+        stale = dead or age is None or age > stale_s
+        pose = seen.get('pose') if not dead and pose_age is not None and pose_age <= stale_s else None
+        row['watch'] = {'namespace': seen.get('namespace'), 'age_s': age, 'stale': stale,
+                        'battery_percent': seen.get('battery_percent'), 'docked': seen.get('docked'), 'pose': pose}
+        if not row['has_status'] and pose is not None:
+            row['pose'] = pose
+
+
+def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None,
+               robot_watch=None):
     """폴링 한 번의 입력으로 화면 모델 전체(`/api/view` JSON)를 만든다.
 
     ledger: read_reports() 결과. 보고 장부가 주어지지 않으면 None 이다(장부 없이 --site-state 만,
@@ -693,6 +723,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     events, event_total = _events(ledger, site_events)
     mission = _mission(None if site_section is None else site_events, mission_row)
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
+    _apply_watch(robots, robot_watch, built_at_ns, warnings)
     for row in robots:
         row['name'] = names.get(row['robot_id'], row['robot_id'])
     # 역할의 표시 이름은 그 역할을 알리는 로봇이 정확히 하나일 때만 쓴다(역할은 상태에서 온다).

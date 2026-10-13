@@ -53,6 +53,24 @@ def load_status(path):
     return data
 
 
+def load_robot_watch(path):
+    """(data, problem): robot_watch 노드가 쓴 직접 관측 파일(--robot-watch). 없거나 못 읽으면 data None 과 이유.
+    임시 파일 + rename 으로 써서 반쯤 쓴 파일은 보지 않는다."""
+    try:
+        text = Path(path).read_text(encoding='utf-8')
+    except FileNotFoundError:
+        return None, '로봇 직접 관측 파일 없음'
+    except OSError as exc:
+        return None, f'로봇 직접 관측 파일 읽기 실패: {exc}'
+    try:
+        data = json.loads(text)
+    except ValueError as exc:
+        return None, f'로봇 직접 관측 파일 읽기 실패: {exc}'
+    if not isinstance(data, dict) or not isinstance(data.get('robots'), dict) or type(data.get('written_at_ns')) is not int:
+        return None, '로봇 직접 관측 파일 읽기 실패: 모양이 다름'
+    return data, None
+
+
 def load_site_state(db_path):
     """현장 상태 읽기 API 결과(#34, mission_state #111, 명령·오류 #125)를 읽기 전용으로 하나씩 차례로
     열어 모은다. 명령과 오류는 각각 가장 새 HISTORY_ROWS 행이고, 새것부터 놓인다.

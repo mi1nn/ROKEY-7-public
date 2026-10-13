@@ -164,6 +164,25 @@ def mjpeg_relay_parameters(*, webcam, bind_host, port, stale_s):
             'stale_s': stale}
 
 
+def robot_watch_parameters(*, robot_namespaces, robot_watch_path, robot_ids):
+    """robot_namespaces('robot_a=/robot6,robot_b=/robot5') + robot_watch_path -> rescue_operations robot_watch
+    parameters, or None when both are empty. 구독만 하는 직접 관측(재범 허용 2026-10-13); 관제 웹 --robot-watch."""
+    if robot_namespaces == '' and robot_watch_path == '':
+        return None
+    if robot_namespaces == '' or robot_watch_path == '':
+        raise LaunchSettingError('robot_namespaces and robot_watch_path go together (console --robot-watch)')
+    ids, namespaces = [], []
+    for pair in robot_namespaces.split(','):
+        robot_id, sep, ns = pair.strip().partition('=')
+        if not sep or robot_id not in robot_ids or robot_id in ids or not ns.startswith('/'):
+            raise LaunchSettingError(f'robot_namespaces item {pair!r}: want <profile robot id>=/<namespace>, '
+                                     f'once per robot (profile robots {list(robot_ids)})')
+        ids.append(robot_id)
+        namespaces.append(ns)
+    return {'robot_ids': ids, 'namespaces': namespaces, 'out_path': robot_watch_path, 'map_frame': 'map',
+            'base_frame': 'base_link'}
+
+
 def map_snapshot_parameters(*, map_topic, map_dir):
     """map_topic + map_dir -> rescue_operations map_snapshot parameters, or None when both are empty.
 

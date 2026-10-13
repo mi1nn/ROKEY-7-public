@@ -15,7 +15,7 @@ from .commands import build_request, command_access, parse_operations_url, post_
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
-from .sources import load_ledger, load_site_state, load_status
+from .sources import load_ledger, load_robot_watch, load_site_state, load_status
 from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
@@ -48,7 +48,8 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
-                 map_source=None, robot_names=None, support_dispatch=None, search_start=None):
+                 map_source=None, robot_names=None, support_dispatch=None, search_start=None, robot_watch_path=None,
+                 robot_watch_stale_s=None):
     """폴링 한 번. 상태는 현장 상태 DB 에서, 또는 (E2, operations 없음) 픽스처에서 온다.
 
     입력을 캐시 없이 새로 읽고 `build_view` 로 화면 모델을 만든 뒤, 지도가 있으면 로봇, 대상,
@@ -59,8 +60,10 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
     _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
+    watch = None if robot_watch_path is None else dict(zip(('data', 'problem'), load_robot_watch(robot_watch_path)),
+                                                       stale_s=robot_watch_stale_s)
     view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch,
-                      search_start=search_start)
+                      search_start=search_start, robot_watch=watch)
     live = None
     if map_source is not None:   # --live-map: 마지막으로 쓰인 SLAM 지도와 그 나이·상태
         map_image, live = map_source.current()
@@ -107,7 +110,7 @@ def parse_camera(text):
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
                map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
-               command_transport=None, camera_stale_s=None):
+               command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None):
     """설정을 검사한 뒤 로그인·관제·명령·계정 경로를 가진 Flask 앱을 만든다.
 
     틀릴 수 있는 설정은 모두 여기서 ConsoleError 로 실패한다. 그래서 잘못된 플래그는 첫 요청이 아니라
@@ -160,7 +163,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
                             map_source=live_map,
                             robot_names=robot_names, support_dispatch=support_dispatch,
-                            search_start=search_start)
+                            search_start=search_start, robot_watch_path=robot_watch_path,
+                            robot_watch_stale_s=robot_watch_stale_s)
 
     def user():
         """이 세션의 계정, 없으면 None.
