@@ -6,7 +6,7 @@ import unittest
 from rescue_console.app import current_view
 from rescue_console.mapimage import LiveMap
 from rescue_console.render import render_fragment
-from rescue_operations.map_snapshot import LIVE_YAML, write_snapshot
+from rescue_operations.map_snapshot import ALIVE_FILE, LIVE_YAML, touch_alive, write_snapshot
 from test_console_view import LedgerFixture
 
 SECOND = 1_000_000_000
@@ -91,6 +91,42 @@ class LiveMapTests(LiveMapFixture):
         self.assertIs(good, image)
         self.assertEqual('ERROR', state['state'])
         self.assertIn('지도 읽기 실패', ' '.join(self.view(live)['warnings']))
+
+
+class FrozenMapTests(LiveMapFixture):
+    """After the map is frozen TB-6 republishes it once on the same topic (OPS-117/118): the hash stops
+    changing and no new message comes. A live publisher keeps it current; only a gone publisher is stale."""
+
+    def alive(self, at_ns):
+        touch_alive(self.maps)
+        os.utime(self.maps / ALIVE_FILE, ns=(at_ns, at_ns))
+
+    def test_an_unchanged_map_with_a_live_publisher_is_not_stale(self):
+        live = self.live(stale_s=10.0)
+        write_snapshot(self.maps, **grid())
+        self.received(100 * SECOND)
+        self.alive(195 * SECOND)
+        self.now[0] = 200 * SECOND
+        image, state = live.current()
+        self.assertEqual('OK', state['state'])
+        self.assertEqual((100 * SECOND, 100.0), (state['received_at_ns'], state['age_s']))   # still when it came
+
+    def test_a_gone_publisher_is_stale(self):
+        live = self.live(stale_s=10.0)
+        write_snapshot(self.maps, **grid())
+        self.received(100 * SECOND)
+        self.alive(150 * SECOND)
+        self.now[0] = 161 * SECOND
+        self.assertEqual('STALE', live.current()[1]['state'])
+        self.assertIn('발행', live.current()[1]['message'])
+
+    def test_touch_alive_creates_then_refreshes(self):
+        touch_alive(self.maps)
+        first = (self.maps / ALIVE_FILE).stat().st_mtime_ns
+        os.utime(self.maps / ALIVE_FILE, ns=(1, 1))
+        touch_alive(self.maps)
+        self.assertGreater((self.maps / ALIVE_FILE).stat().st_mtime_ns, 1)
+        self.assertGreater(first, 1)
 
 
 class UnplacedRobotTests(LiveMapFixture):
