@@ -23,6 +23,16 @@
 - 접근이 COMPLETED·정지 확인으로 끝나면 `support_exit_wait_s` 뒤 `RETURN_HOME`(`home_ref=home/<robot_id>`, 좌표는 로봇이 프로파일에서 가짐) 하나. 재난 모드가 끝나면 취소(`SUPPORT_EXIT_CANCELED`), 구출 판정은 취소하지 않는다(5A). 접근 실패면 `APPROACH_FAILED` 로 보이고 출구로 보내지 않는다.
 - `SystemState.reason`: `SUPPORT_EXIT_IN_<n>S` → `SUPPORT_EXITING` → `SUPPORT_AT_EXIT`(실패 `SUPPORT_EXIT_FAILED`).
 
+**지도 고정 뒤 출동 (이 PR 뒤, 저장소 소유자 결정 2026-10-13, scope Q-29 ⑦)**
+
+`map_mode=SLAM_FREEZE`: 기준 지도 없이 TB-6 만 탐색 중 SLAM 을 하고, TB-5 출동 전에 그 지도를 고정한다. `SAVED_MAP` 은 예전처럼 launch 의 `goal_map_*` 기준 하나로 끝까지 간다.
+
+- 고정 요청: 대상 하나가 PERSISTED 이고 TB-6 이 READY·STOPPED·작업 없음이면 `/rescue/map/freeze`(std_srvs/Trigger)를 한 번 부른다. 그 뒤 새 `SEARCH_AREA` 는 내지 않는다(진행 중인 것은 끝날 때까지 기다림).
+- 고정 판정: 응답 success 뒤 `/rescue/map/frozen`(OccupancyGrid, latched) 의 해시와 TB-6 MapState(탐색 revision 이 아닌 것)의 session·revision·프로파일 transform_revision 으로 계산한 snapshot id 가 그 MapState 의 `snapshot_id` 와 같을 때만 고정 basis 로 정한다. 해시·snapshot·빈 칸 규칙은 `rescue_contracts.occupancy`(로봇과 같은 함수)다. 응답 실패·잘못된 지도·`map_freeze_timeout_s` 안에 맞지 않음은 `MAP_FREEZE_FAILED` 이고 다시 부르지 않는다. 노드 로그 `MAP_FREEZE`·`MAP_FROZEN`·`MAP_FREEZE_FAILED` 한 줄씩.
+- 고정 뒤: 모든 목표(접근·재확인·구간)와 판정이 고정 basis 를 쓴다. 다른 basis 의 위치는 `FRAME_REVISION_MISMATCH` 로 거절하고, 고정 전 대상에서 `merge_distance_m` 안의 고정 지도 관측은 그 대상을 새 revision 으로 옮긴다(보고를 다시 PERSISTED 해야 출동). 복귀 위치도 같은 xy 로 고정 basis 에 옮긴다.
+- TB-5 출동 관문(`SystemState.reason`): `MAP_FREEZE_WAITING_SCOUT_STOP` → `MAP_FREEZE_REQUESTED` → `MAP_NOT_FROZEN`(응답 뒤 지도·MapState 대기) / `MAP_FREEZE_FAILED`, `TARGET_NOT_ON_FROZEN_MAP`, `SCOUT_NOT_LOCALIZED`·`SUPPORT_NOT_LOCALIZED`(MapState 가 고정 revision 에서 VALID 아님).
+- 빈 칸 검사(반지름 `freeze_clearance_m` = 로봇 `goal_clear_radius_m`, 현장 launch 가 같음을 검사): 접근 지점 `SUPPORT_APPROACH_NOT_FREE`, TB-5 출구 `SUPPORT_EXIT_NOT_FREE`, TB-6 도킹 접근 지점 `SCOUT_HOME_NOT_FREE`, 복귀 위치 없음 `NO_HOME_POSITION`. 다른 지점을 만들지 않고 보낸 것 없이 사유만 낸다.
+
 **지금 안 되는 것**
 
 - 실제 로봇에서는 AMR2 가 움직이지 않는다. 로봇 실행기의 LIVE_ROS 입력은 지금 `SEARCH_AREA` 만 받는다(`src/rescue_robot/rescue_robot/task_site_runtime.py:256`). 조정기가 내는 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 은 실제 실행기가 거절한다. 위 리허설의 MOVE_SEGMENT 는 가짜 실행기가 받은 것이다(C1 보류, AMR2 시나리오 #131·#133 결정 대기).
@@ -204,6 +214,9 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
 | `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
+| `map_mode` | string | `SLAM_FREEZE`(탐색 SLAM → 대상 저장 뒤 지도 고정 → 고정 지도에서만 TB-5 출동) 또는 `SAVED_MAP`(launch `goal_map_*` 기준 하나). 현장 `SLAM_FREEZE` [근거: 저장소 소유자 결정 2026-10-13, scope Q-29] |
+| `freeze_clearance_m` | double | 고정 지도에서 접근 지점·출구·도킹 접근 지점이 비어 있어야 하는 반지름. 로봇 `task.live.auto_target.goal_clear_radius_m` 과 같아야 한다(현장 launch 가 검사). 현장 0.2 |
+| `map_freeze_timeout_s` | double | 고정 요청 뒤 응답·고정 지도·TB-6 MapState 가 맞기까지 기다리는 시간. 넘으면 `MAP_FREEZE_FAILED`. 현장 10.0 [제안: 통합-조정 2026-10-13, 미측정] |
 | `recheck_max_clock_error_s` | double | C-11 8행: 후보와 재확인 관측의 시계 오차 합 상한. 넘으면 `CANDIDATE_TIME_BASIS_UNUSABLE`. 현장 제안 2.0 [근거: 측정 웹캠 PC 271~365 ms + TB-6 탐지 PC 385~465 ms + Pi, 2026-10-13] |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
