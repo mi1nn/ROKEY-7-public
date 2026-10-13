@@ -9,11 +9,11 @@ The map basis is the declared one (saved_maps); MapState never advances a revisi
 Pure builders here; ``attach`` binds them to ROS.
 """
 import math
-import uuid
+
+from rescue_contracts.occupancy import map_snapshot_id
 
 POSE_QOS = ('RELIABLE', 'VOLATILE', 1)            # IF-010
 MAP_STATE_QOS = ('RELIABLE', 'TRANSIENT_LOCAL', 1)  # IF-009 (latched latest snapshot)
-SNAPSHOT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_robot/map_state/snapshot')  # same map -> same id
 
 
 def _finite(*values):
@@ -86,8 +86,8 @@ def pose_record(*, robot_id, boot_id, observed_at_ns, pose_valid_ns, native, amc
 
 def map_state_record(*, robot_id, occupancy_sha256, basis, map_loaded, localization_valid, generated_at_ns):
     """Fields of one MapState: the declared basis, the measured localization quality."""
-    key = f'{occupancy_sha256}:{basis["map_session_id"]}:{basis["map_revision"]}:{basis["transform_revision"]}'
-    return dict(robot_id=robot_id, snapshot_id=str(uuid.uuid5(SNAPSHOT_NAMESPACE, key)),
+    return dict(robot_id=robot_id, snapshot_id=map_snapshot_id(occupancy_sha256, basis['map_session_id'],
+                                                               basis['map_revision'], basis['transform_revision']),
                 map_session_id=basis['map_session_id'], map_revision=basis['map_revision'], map_update_sequence=0,
                 generated_at_ns=generated_at_ns,
                 localization_quality='VALID' if (map_loaded and localization_valid) else 'UNKNOWN',

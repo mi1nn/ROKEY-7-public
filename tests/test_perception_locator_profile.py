@@ -39,12 +39,12 @@ class LocatorProfileTests(unittest.TestCase):
         values = profile_parameters(deployment, require_map_basis(deployment), **FIELD)
         self.assertEqual(set(PARAMS), set(values))
         self.assertEqual(dict(robot_id='robot_a', map_frame='map', mission_frame='map',
-                              map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0,
+                              map_state_topic='/rescue/robots/robot_a/map_state',   # session/revision: MapState (OPS-115)
                               transform_revision=1, alignment_xy_yaw=[0.0, 0.0, 0.0],
                               target_locations_topic='/rescue/target_locations', tf_wait_s=1.0,
                               clock_domain_id='rokey7-utc-field', alignment_authority_id='tb6-saved-map-identity'),
-                         {key: values[key] for key in ('robot_id', 'map_frame', 'mission_frame', 'map_session_id',
-                                                       'map_revision', 'transform_revision', 'alignment_xy_yaw',
+                         {key: values[key] for key in ('robot_id', 'map_frame', 'mission_frame', 'map_state_topic',
+                                                       'transform_revision', 'alignment_xy_yaw',
                                                        'target_locations_topic', 'tf_wait_s', 'clock_domain_id',
                                                        'alignment_authority_id')})
 
