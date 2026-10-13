@@ -27,19 +27,47 @@ class ReasonWordTests(unittest.TestCase):
         }
         for code, (text, level) in cases.items():
             with self.subTest(code):
-                self.assertEqual({'code': code, 'text': text, 'level': level, 'support': True},
-                                 mission_reason(code, 'TB-5'))
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': 'support'},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
 
     def test_target_time_refusals_and_unknown_codes(self):
-        self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5')['level'])
-        self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5')['text'])
-        self.assertFalse(mission_reason('TARGET_OBSERVATION_STALE', 'TB-5')['support'])
-        self.assertEqual({'code': 'SOMETHING_NEW', 'text': 'SOMETHING_NEW', 'level': None, 'support': False},
-                         mission_reason('SOMETHING_NEW', 'TB-5'))
-        self.assertIsNone(mission_reason(None, 'TB-5'))
+        self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
+        self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
+        self.assertIsNone(mission_reason('TARGET_OBSERVATION_STALE', 'TB-5', 'TB-6')['scope'])
+        self.assertEqual({'code': 'SOMETHING_NEW', 'text': 'SOMETHING_NEW', 'level': None, 'scope': None},
+                         mission_reason('SOMETHING_NEW', 'TB-5', 'TB-6'))
+        self.assertIsNone(mission_reason(None, 'TB-5', 'TB-6'))
 
     def test_without_a_support_name(self):
-        self.assertEqual('지원 로봇 출구로 이동 중', mission_reason('SUPPORT_EXITING', None)['text'])
+        self.assertEqual('지원 로봇 출구로 이동 중', mission_reason('SUPPORT_EXITING', None, None)['text'])
+        self.assertEqual('정찰 로봇 도킹 접근 지점으로 이동 중', mission_reason('SCOUT_RETURNING', None, None)['text'])
+
+    def test_recheck_needed_reasons(self):   # coordinator recheck -> judgement (C-11 rows 7-11)
+        cases = {'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
+                 'CANDIDATE_TIME_BASIS_UNUSABLE': '시각 기준 못 씀', 'ORDER_VIOLATION': '시각 순서 틀림',
+                 'CAMERA_NOT_ABSENT': '인형이 아직 보임', 'LIDAR_NOT_CLEAR': '자리가 막힘',
+                 'COVERAGE_NOT_VALID': '관측 범위 부족'}
+        for why, words in cases.items():
+            with self.subTest(why):
+                r = mission_reason(f'RECHECK_NEEDED_{why}', 'TB-5', 'TB-6')
+                self.assertEqual((f'재확인 필요: {words}', 'caution', 'target'), (r['text'], r['level'], r['scope']))
+        missing = mission_reason('RECHECK_NEEDED_RECHECK_OBSERVATION_MISSING', 'TB-5', 'TB-6')
+        self.assertIn('재확인 관측 없음', missing['text'])
+        self.assertIn('재확인 지시', missing['text'])
+        unknown = mission_reason('RECHECK_NEEDED_SOMETHING', 'TB-5', 'TB-6')
+        self.assertEqual('재확인 필요: SOMETHING', unknown['text'])
+
+    def test_scout_return(self):
+        self.assertEqual(('TB-6 도킹 접근 지점으로 이동 중', 'info', 'scout'),
+                         tuple(mission_reason('SCOUT_RETURNING', 'TB-5', 'TB-6')[k] for k in ('text', 'level', 'scope')))
+        self.assertEqual('TB-6 도킹 접근 지점 도착 — 도킹은 사람이 합니다',
+                         mission_reason('SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'TB-5', 'TB-6')['text'])
+
+    def test_rescue_and_finish_words(self):
+        from rescue_console.labels import label
+        self.assertEqual('구출 완료', label('rescue', 'RESCUE_CONFIRMED'))
+        self.assertEqual('구출 완료', label('phase', 'RESCUE_CONFIRMED'))
+        self.assertEqual('임무 종료', label('mode', 'MISSION_FINISHED'))
 
 
 class ReasonScreenTests(LedgerFixture):
@@ -66,6 +94,23 @@ class ReasonScreenTests(LedgerFixture):
     def test_failed_exit_is_red(self):
         html = render_fragment(self.view('SUPPORT_EXIT_FAILED'))
         self.assertRegex(html, r'class="reason alert"[^>]*>TB-5 출구 이동 실패 — 다시 보내지 않음')
+
+    def test_scout_return_goes_on_the_scout_card(self):
+        html = render_fragment(self.view('SCOUT_RETURNING'))
+        scout = re.search(r'<section class="unit[^"]*" data-robot="robot_a".*?</section>', html, re.S).group(0)
+        self.assertIn('TB-6 도킹 접근 지점으로 이동 중', scout)
+        support = re.search(r'<section class="unit[^"]*" data-robot="robot_b".*?</section>', html, re.S).group(0)
+        self.assertNotIn('도킹', support)
+
+    def test_recheck_needed_goes_on_the_dispatched_target_row(self):
+        html = render_fragment(self.view('RECHECK_NEEDED_CAMERA_NOT_ABSENT'))
+        row = re.search(rf'<li class="victim-row[^"]*"[^>]*>(?:(?!</li>).)*{uid("waiting")[:8]}.*?</li>', html, re.S)
+        self.assertIn('재확인 필요: 인형이 아직 보임', row.group(0))
+
+    def test_rescued_target_is_green(self):
+        html = render_fragment(self.view(None))
+        self.assertIn('구출 완료', html)
+        self.assertRegex(html, r'class="victim-row rescued')
 
     def test_target_refusal_stays_on_the_band_only(self):
         html = render_fragment(self.view('TARGET_TIME_BASIS_UNUSABLE', with_dispatch=False))
