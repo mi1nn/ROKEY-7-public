@@ -31,7 +31,7 @@ class ExecutionReport:
 
 class TaskIngress:
     def __init__(self, adapter, *, authorize, resolve_goal, clock_error_bound_ns,
-                 lease_policy, clock_basis, segment_gate=None, phase1_gate=None):
+                 lease_policy, clock_basis, segment_gate=None, phase1_gate=None, auto_resolve=None):
         if not callable(authorize) or not callable(resolve_goal):
             raise ContractError('authorization and goal resolver required')
         if type(clock_error_bound_ns) is not int or clock_error_bound_ns <= 0:
@@ -46,6 +46,9 @@ class TaskIngress:
         self.requests = {}
         self.segment_gate = segment_gate
         self.phase1_gate = phase1_gate
+        # kind -> True when the runtime's own resolver (an explicit automatic-move policy) handles
+        # that target kind instead of the Phase 1 route gate. None keeps the Phase 1 gate.
+        self.auto_resolve = auto_resolve
         self.lease_policy, self.clock_basis = lease_policy, clock_basis
         self.last_wall_ns = None
         self.last_steady = None
@@ -105,6 +108,7 @@ class TaskIngress:
             elif task.kind == 'REOBSERVE_TARGET':
                 request = self.requests.get(task.command_id)
                 if request and self._uses_phase1(request[0]): self._phase1_check(task)
+                # an automatically resolved REOBSERVE is checked again by the runtime guard every step
             elif task.kind == 'RETURN_HOME':
                 request = self.requests.get(task.command_id)
                 if request is None:
@@ -126,8 +130,9 @@ class TaskIngress:
             raise ContractError('matching Phase1RouteGate required', 'NOT_AUTHORIZED')
         return gate.validate(goal)
 
-    @staticmethod
-    def _uses_phase1(goal):
+    def _uses_phase1(self, goal):
+        if self.auto_resolve is not None and self.auto_resolve(goal.kind) is True:
+            return False
         return (goal.kind == 'REOBSERVE_TARGET' and goal.has_route
                 and not getattr(goal.route, 'planner_evidence_id', ''))
 

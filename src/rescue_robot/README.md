@@ -22,11 +22,11 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | 파라미터(기본값 없음) | 뜻 |
 | --- | --- |
 | `task.live.auto_target.enabled` (bool) | false 면 자동 대상 이동을 모두 거절 |
-| `task.live.auto_target.kinds` (string[]) | 받을 종류. 지금은 `APPROACH_TARGET` 만 |
+| `task.live.auto_target.kinds` (string[]) | 받을 종류: `APPROACH_TARGET`·`REOBSERVE_TARGET` 중 |
 | `task.live.auto_target.goal_clear_radius_m` (double) | 저장 지도에서 목표 중심 이 반경 안이 모두 비어 있어야 한다(현장 실행 파일 0.2 m [제안]) |
 | `task.live.auto_target.policy_version` (string) | 결정 기록용 버전 |
 
-현장 실행 파일에서는 이 넷을 로봇별(`robots.<id>`)로 둔다. 각 로봇은 자기 역할 임무만 받는다(최소 권한, 2026-10-13). TB-5(robot_b) = `APPROACH_TARGET`, TB-6(robot_a) = 자동 접근 없음(`enabled: false`, REOBSERVE_TARGET 은 C1-b).
+현장 실행 파일에서는 이 넷을 로봇별(`robots.<id>`)로 둔다. 각 로봇은 자기 역할 임무만 받는다(최소 권한, 2026-10-13). TB-5(robot_b) = `APPROACH_TARGET`, TB-6(robot_a) = `REOBSERVE_TARGET` 만.
 
 받는 조건(하나라도 아니면 거절):
 - 목표 모양: 경로가 있고 운영자 승인이 없다. `route.approach_goal` 은 임무 frame 의 평면 자세다. 계획 증거(planned_path·path_sha256·planner_evidence_id)는 비어 있고, 통로 판정은 UNKNOWN 이다. 이 모양은 Phase 1 과 같다.
@@ -34,6 +34,14 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 - 경로 근거: 이 로봇이 받아 해시까지 맞춘 저장 지도에서 목표 발자국이 비어 있어야 한다(`Grid.clear`). 점유·미지(-1)·지도 밖이면 `UNREACHABLE`, 지도가 없으면 `LOCALIZATION_UNCERTAIN` 이다. 실제 경로는 Nav2 가 실시간 costmap 으로 계획한다. 그래서 지진 뒤 바뀐 장애물은 Nav2 가 본다. 계획이 안 되면 Nav2 ABORTED 로 끝나고 결과는 `UNREACHABLE` 이다.
 - 수락 중 Nav2 `ComputePathToPose` 를 부르지 않는 이유: 수락은 실행기 잠금 안에서 동기로 돌고, 노드는 단일 스레드 executor 다. 수락 중에 액션 응답을 기다리면 그 응답을 처리할 스레드가 없어 멈춘다(교착).
 - 실행 중에는 매 step 다시 확인한다. 저장 지도·정합이 바뀌거나 발자국이 막히면 취소하고, 새 명령이 필요하다. 운영자 승인 기록은 읽지도 만들지도 않는다. 정지·lease·watchdog 관문은 그대로다.
+
+**재관측(REOBSERVE_TARGET)과 재확인 관측(ObserveTarget), TB-6(2026-10-13)**
+
+구출 완료 판정(재범 결정 4A)은 웹캠의 출구 소실 후보에 TB-6 의 현장 재확인을 더한 것이다. TB-6 은 조정기가 보낸 REOBSERVE_TARGET 을 자기 정책(`robots.robot_a.task.live.auto_target.kinds` 에 `REOBSERVE_TARGET`)으로 받는다.
+- 받는 조건: 자동 접근과 같다(Phase 1 모양, 지도 기준 일치, 관측 위치 발자국이 비어 있음). 더해서 대상이 조정기 TargetSnapshot(`/rescue/targets`)에 있고 revision 이 같아야 한다. Phase 1 보호 경로 기록은 요구하지 않는다(그 자리를 정책이 대신한다).
+- 도착하고 정지가 확인(stop_confirmed)된 뒤에만 `/rescue/robots/<robot_id>/observe_target`(#165)에 관측을 묻는다. 볼 지점은 TargetSnapshot 의 대상 `mission_position` 을 native 좌표로 바꾼 값이다. 창은 `task.live.recheck.window_ns`, 호출 전체 마감은 `task.live.recheck.deadline_ns` 다(현장 실행 파일 3 s / 10 s [제안]).
+- 서버의 답(OBSERVED·UNKNOWN·FAILED)은 그대로 `TaskResult.recheck` 에 싣는다(`has_recheck=true`). 묻지 못했으면 `has_recheck=false` 다(대상 위치 없음, 서버 없음, 마감까지 답 없음 → 취소 요청). 작업 결과(outcome)는 바꾸지 않는다.
+- 호출은 ExecuteTask 의 `execute` 코루틴에서 `await` 한다(실행기 잠금 밖). 단일 스레드 executor 에서도 멈추지 않는다.
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 

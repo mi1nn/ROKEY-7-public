@@ -51,6 +51,8 @@ ROBOT_KEYS = {
     'task.saved_map.transform_xy_yaw': FL,
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
+    # ObserveTarget after a REOBSERVE_TARGET stop (C1-b, 2026-10-13)
+    'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I,
 }
 # Per robot: identity, and the automatic target moves this robot's role may take without an
 # operator approval (C1, least privilege per robot, 2026-10-13; enabled false = rejected).

@@ -29,7 +29,9 @@ def read_config(node, adapter):
         'task.saved_map.max_position_variance_m2': D, 'task.saved_map.max_yaw_variance_rad2': D,
         # Automatic target moves without an operator approval (C1, 2026-10-13); enabled=false rejects them.
         'task.live.auto_target.enabled': T.PARAMETER_BOOL, 'task.live.auto_target.kinds': T.PARAMETER_STRING_ARRAY,
-        'task.live.auto_target.goal_clear_radius_m': D, 'task.live.auto_target.policy_version': S}
+        'task.live.auto_target.goal_clear_radius_m': D, 'task.live.auto_target.policy_version': S,
+        # ObserveTarget after a REOBSERVE_TARGET stop (C1-b): observation window and whole-call deadline
+        'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I}
     values, missing = declare_required(node, fields)
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
@@ -63,6 +65,9 @@ def read_config(node, adapter):
     c['saved_maps'] = {adapter.robot_id:m}
     c['auto_target'] = {key:get('live.auto_target.'+key) for key in
                         ('enabled','kinds','goal_clear_radius_m','policy_version')}
+    c['recheck'] = {key:get('live.recheck.'+key) for key in ('window_ns','deadline_ns')}
+    # The coordinator's TargetSnapshot: target revision and position for REOBSERVE (IF-070)
+    c['coordinator_targets_topic'] = '/rescue/targets'
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:

@@ -53,7 +53,7 @@ class Node:
 
     def get_logger(self):
         return NS(error=self.errors.append, warning=self.warnings.append,
-                  debug=self.debug_messages.append)
+                  debug=self.debug_messages.append, info=self.debug_messages.append)
 
 
 class Handle:
