@@ -30,7 +30,9 @@ from .site_state import SCHEMA_VERSION
 # get the coordinator's current mission state. TargetSnapshot likewise (#96 latches it, IF-070).
 QOS = {'status': ('RELIABLE', 'VOLATILE', 1), 'pose': ('RELIABLE', 'VOLATILE', 1),
        'site_events': ('RELIABLE', 'VOLATILE', 10), 'system_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
-       'targets': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
+       'targets': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
+       # QR exit observations: VOLATILE matches a latched or a plain publisher, every one is kept
+       'exit_location': ('RELIABLE', 'VOLATILE', 10)}
 ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics')
 # The console gives up after 5 s (#115 COMMAND_TIMEOUT_S); this must answer before that.
 CONSOLE_TIMEOUT_S = 5.0
@@ -77,6 +79,7 @@ def node_config(values):
     topics.append(text(values['site_events_topic'], 'site_events_topic'))
     topics.append(text(values['system_state_topic'], 'system_state_topic'))
     topics.append(text(values['targets_topic'], 'targets_topic'))
+    topics.append(text(values['exit_location_topic'], 'exit_location_topic'))  # QR exit (OPS-144)
     require(len(set(topics)) == len(topics), 'every subscribed topic must be different')
     port, timeout_s = values['api_port'], values['command_timeout_s']
     require(type(port) is int and 1 <= port <= 65535, 'api_port must be 1..65535')
@@ -85,6 +88,7 @@ def node_config(values):
     # The path itself (parent exists, not a directory) is checked when the ledger opens it.
     return {'db_path': text(values['db_path'], 'db_path', 4096), 'site_events_topic': values['site_events_topic'],
             'system_state_topic': values['system_state_topic'], 'targets_topic': values['targets_topic'],
+            'exit_location_topic': values['exit_location_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
             'operator_command_service': text(values['operator_command_service'], 'operator_command_service'),
             'command_timeout_ns': round(timeout_s * 1e9),
@@ -120,7 +124,8 @@ def main(args=None):
     from rclpy.node import Node
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import RobotPose, RobotStatus, SiteEvent, SystemState, TargetSnapshot
+    from rescue_interfaces.msg import (RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
+                                       TargetSnapshot)
     from rescue_interfaces.srv import SubmitOperatorCommand
 
     from .command_api import CommandGate, CommandTimeout, CommandUnavailable, make_server
@@ -135,6 +140,7 @@ def main(args=None):
              'robot_roles': Parameter.Type.STRING_ARRAY, 'status_topics': Parameter.Type.STRING_ARRAY,
              'pose_topics': Parameter.Type.STRING_ARRAY, 'site_events_topic': Parameter.Type.STRING,
              'system_state_topic': Parameter.Type.STRING, 'targets_topic': Parameter.Type.STRING,
+             'exit_location_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
              'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE}
     values = {}
@@ -159,6 +165,7 @@ def main(args=None):
     log.info(f'rescue_db_writer git={git_sha()} db={config["db_path"]} schema={SCHEMA_VERSION} '
              f'robots={config["robots"]} roles={config["roles"]} site_events={config["site_events_topic"]} '
              f'system_state={config["system_state_topic"]} targets={config["targets_topic"]} '
+             f'exit_location={config["exit_location_topic"]} '
              f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]}')
 
     def qos(kind):
@@ -182,7 +189,10 @@ def main(args=None):
                      node.create_subscription(SystemState, config['system_state_topic'],
                                               handler(ingest.on_system_state, 'system_state'), qos('system_state')),
                      node.create_subscription(TargetSnapshot, config['targets_topic'],
-                                              handler(ingest.on_target_snapshot, 'targets'), qos('targets'))]
+                                              handler(ingest.on_target_snapshot, 'targets'), qos('targets')),
+                     node.create_subscription(TargetLocation, config['exit_location_topic'],
+                                              handler(ingest.on_exit_location, 'exit_location'),
+                                              qos('exit_location'))]
     for robot, status_topic, pose_topic in config['robots']:
         subscriptions.append(node.create_subscription(
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))

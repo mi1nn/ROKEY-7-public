@@ -14,7 +14,8 @@ def params(**changes):
               'status_topics': ['/rescue/robots/robot_a/status', '/rescue/robots/robot_b/status'],
               'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
               'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state',
-              'targets_topic': '/rescue/targets', 'api_host': '127.0.0.1', 'api_port': 8090,
+              'targets_topic': '/rescue/targets', 'exit_location_topic': '/rescue/exit_location',
+              'api_host': '127.0.0.1', 'api_port': 8090,
               'operator_command_service': '/rescue/operator_command', 'command_timeout_s': 3.0}
     return values | changes
 
@@ -60,6 +61,7 @@ class NodeConfig(unittest.TestCase):
                           '/rescue/targets'),
                          (config['db_path'], config['site_events_topic'], config['system_state_topic'],
                           config['targets_topic']))
+        self.assertEqual('/rescue/exit_location', config['exit_location_topic'])  # QR exit (OPS-144)
 
     def test_command_api_settings_are_kept(self):
         """#115: the console posts to this address; the API waits command_timeout_s (< console 5 s)."""
@@ -76,7 +78,8 @@ class NodeConfig(unittest.TestCase):
                dict(status_topics=['/same', '/same']), dict(allowed_robot_ids=['robot_a', 'robot_a']),
                dict(site_events_topic=''), dict(db_path=''), dict(system_state_topic=''),
                dict(system_state_topic='/rescue/site_events'), dict(targets_topic=''),
-               dict(targets_topic='/rescue/system_state'), dict(api_host=''), dict(api_port=0),
+               dict(targets_topic='/rescue/system_state'), dict(exit_location_topic=''),
+               dict(exit_location_topic='/rescue/targets'), dict(api_host=''), dict(api_port=0),
                dict(api_port=70000), dict(operator_command_service=''), dict(command_timeout_s=0.0),
                dict(command_timeout_s=5.0)]
         for change in bad:
