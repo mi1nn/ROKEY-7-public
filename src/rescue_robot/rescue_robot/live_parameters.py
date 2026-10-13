@@ -7,6 +7,13 @@ import math
 
 from rescue_robot.executor import ContractError
 
+FROZEN_MAP_TOPIC = '/rescue/map/frozen'   # the one frozen TB-6 map (map_freeze on compute_a, OPS-113)
+
+
+def frozen_revision(saved_map):
+    """The revision homes are on: the declared one for a saved map, R0 + 1 (the frozen map) otherwise."""
+    return saved_map['map_revision'] + (0 if saved_map['mode'] == 'SAVED_MAP_AMCL' else 1)
+
 
 def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revision, transform_revision):
     """This robot's RETURN_HOME destination as a configured destination (home_ref 'home/<robot_id>')."""
@@ -31,6 +38,9 @@ def read_config(node, adapter):
         'task.input_max_age_ns': I, 'task.poll_period_s': D,
         'task.live.coordinator_service': S, 'task.live.clock_backend': S,
         'task.live.clock_max_age_ns': I, 'task.live.clock_drift_ppm': D,
+        # SAVED_MAP_AMCL | SLAM_THEN_FROZEN (TB-6) | FROZEN_MAP_AMCL (TB-5), map lifecycle (OPS-113); the
+        # two frozen modes take occupancy_sha256 '' (the freeze decides the hash)
+        'task.saved_map.mode': S,
         'task.saved_map.map_topic': S, 'task.saved_map.localization_topic': S,
         'task.saved_map.map_frame': S, 'task.saved_map.occupancy_sha256': S,
         'task.saved_map.map_session_id': S, 'task.saved_map.map_revision': I,
@@ -77,7 +87,18 @@ def read_config(node, adapter):
         'max_position_variance_m2','max_yaw_variance_rad2')}
     if len(m['transform_xy_yaw']) != 3:
         raise ContractError('explicit measured [x,y,yaw] transform required')
-    m.update(mode='SAVED_MAP_AMCL',authority_id=c['mapping_authority'],clock_domain_id=c['lease']['clock_domain_id'])
+    m.update(mode=get('saved_map.mode'),authority_id=c['mapping_authority'],clock_domain_id=c['lease']['clock_domain_id'])
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    if m['mode'] != 'SAVED_MAP_AMCL':
+        m['frozen_topic'] = FROZEN_MAP_TOPIC
+    # TB-6 SLAM pose while searching (slam_toolbox), only in SLAM_THEN_FROZEN
+    node.declare_parameter('task.saved_map.slam_localization_topic', Parameter.Type.STRING)
+    try:
+        m['slam_localization_topic'] = node.get_parameter('task.saved_map.slam_localization_topic').value
+    except ParameterUninitializedException:
+        if m['mode'] == 'SLAM_THEN_FROZEN':
+            raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.slam_localization_topic') from None
     c['saved_maps'] = {adapter.robot_id:m}
     c['auto_target'] = {key:get('live.auto_target.'+key) for key in
                         ('enabled','kinds','goal_clear_radius_m','policy_version')}
@@ -88,8 +109,6 @@ def read_config(node, adapter):
     c['sensor_host_clock'] = dict(domain_id=get('live.sensor_host_clock_domain_id'),
                                   error_bound_ns=get('live.sensor_host_clock_error_bound_ns'))
     # Optional: this robot's home (profile home_positions). Not given = no home; RETURN_HOME is refused.
-    from rclpy.exceptions import ParameterUninitializedException
-    from rclpy.parameter import Parameter
     node.declare_parameter('task.live.home_xy_yaw', Parameter.Type.DOUBLE_ARRAY)
     try:
         home = node.get_parameter('task.live.home_xy_yaw').value
@@ -97,7 +116,7 @@ def read_config(node, adapter):
         home = None
     if home is not None:
         c['configured_destinations'] = home_destinations(adapter.robot_id, list(home), frame_id=c['mission_frame'],
-            map_session_id=m['map_session_id'], map_revision=m['map_revision'],
+            map_session_id=m['map_session_id'], map_revision=frozen_revision(m),
             transform_revision=m['transform_revision'])
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')

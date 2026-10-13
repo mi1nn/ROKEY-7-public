@@ -12,7 +12,7 @@ import uuid
 
 from .accounts import AccountStore
 from .commands import build_request, command_access, parse_operations_url, post_json, send_command
-from .mapimage import load_map, map_overlay
+from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
 from .sources import load_ledger, load_site_state, load_status
@@ -43,18 +43,25 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
-                 robot_names=None, support_dispatch=None):
+                 map_source=None, robot_names=None, support_dispatch=None):
     """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
     _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
     view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch)
+    live = None
+    if map_source is not None:   # --live-map: the SLAM map as last written, with its age and state
+        map_image, live = map_source.current()
     if map_image is not None:
         view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
         for where in view['map']['frame_mismatch']:
             view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
         for where in view['map']['off_map']:
             view['warnings'].append(f"지도 밖 좌표: {where['kind']} {where['id']} ({where['x']:.2f}, {where['y']:.2f})")
+    if live is not None:
+        view['map']['live'] = live
+        if live['message']:
+            view['warnings'].append(live['message'])
     return view
 
 
@@ -84,7 +91,7 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, login_throttle=None, robot_names=None, support_dispatch=None, operations_url=None,
+               map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, operations_url=None,
                command_transport=None, camera_stale_s=None):
     """`operations_url`: base URL of operations' HTTP API. Without it the command buttons stay off
     (no default address). `command_transport` replaces the HTTP POST in tests."""
@@ -100,6 +107,10 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     _check_sources(ledger_path, status_path, site_state_path)
     accounts = AccountStore.open(accounts_path)   # fails now, not at the first login
     map_image = None if map_path is None else load_map(map_path)   # likewise: a bad map fails at startup
+    if map_path is not None and live_map_path is not None:
+        raise ConsoleError('INVALID_INPUT', '--map and --live-map are exclusive: one map panel')
+    # The live map may not exist yet at startup (no SLAM map received); the page says so.
+    live_map = None if live_map_path is None else LiveMap(live_map_path, stale_s=live_map_stale_s)
     operations = None if operations_url is None else parse_operations_url(operations_url)
     transport = post_json if command_transport is None else command_transport
     app = Flask(__name__)
@@ -117,6 +128,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     def view():
         return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
+                            map_source=live_map,
                             robot_names=robot_names, support_dispatch=support_dispatch)
 
     def user():
@@ -232,10 +244,11 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     @app.get('/map.png')
     @login_required
     def map_png(account):
-        if map_image is None:
-            abort(404, 'no map: start with --map MAP_YAML')
+        image = live_map.current()[0] if live_map is not None else map_image
+        if image is None:
+            abort(404, 'no map: start with --map MAP_YAML or --live-map LIVE_YAML')
         # The URL carries the PGM hash (`?v=`), so a cached copy is never a different map.
-        return Response(map_image.png, mimetype='image/png', headers={'Cache-Control': 'private, max-age=3600'})
+        return Response(image.png, mimetype='image/png', headers={'Cache-Control': 'private, max-age=3600'})
 
     # ---- operator commands (ADMIN) -----------------------------------------------------
     @app.post('/commands')

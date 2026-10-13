@@ -1,5 +1,5 @@
 """Run the console: python -m rescue_console [LEDGER] --accounts ACCOUNTS
-[--site-state DB | --status FIXTURE] [--camera ID=URL ... --camera-stale-s S] [--map MAP_YAML] [--operations URL] [--port N].
+[--site-state DB | --status FIXTURE] [--camera ID=URL ... --camera-stale-s S] [--map MAP_YAML | --live-map LIVE_YAML --live-map-stale-s S] [--operations URL] [--port N].
 
 LEDGER (the old ReportLedger) is optional with --site-state; without it the page says report rows
 are missing. The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
@@ -34,6 +34,10 @@ def main(argv=None):
                         help='with --camera: seconds without a new frame before the stream shows 영상 끊김 and '
                              'is reconnected. No default')
     parser.add_argument('--map', help='map_server map YAML (binary PGM) drawn under robot and target markers')
+    parser.add_argument('--live-map', help='SLAM map YAML written by the operations launch (map_topic/map_dir), '
+                                           're-read when it changes; may not exist yet at startup')
+    parser.add_argument('--live-map-stale-s', type=float,
+                        help='with --live-map: no new map for this long shows the map as stale. No default')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
                              'operator commands go to URL/api/operator-commands. No default: without it the '
@@ -50,10 +54,13 @@ def main(argv=None):
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
         if args.ledger is None and args.site_state is None:
             raise ConsoleError('INVALID_INPUT', 'LEDGER is required unless --site-state is given')
+        if (args.live_map is None) != (args.live_map_stale_s is None):
+            raise ConsoleError('INVALID_INPUT', '--live-map and --live-map-stale-s go together')
         cameras = [parse_camera(text) for text in args.camera]
         robot_names = robot_name_map(parse_robot_name(text) for text in args.robot_name)
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
+                         live_map_path=args.live_map, live_map_stale_s=args.live_map_stale_s,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch, camera_stale_s=args.camera_stale_s)
     except ConsoleError as exc:

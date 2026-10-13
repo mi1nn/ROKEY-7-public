@@ -312,6 +312,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         **field.robot, **field.robots[robot_id], 'task.mission_frame': basis.frame_id,
         'task.saved_map.map_session_id': basis.map_session_id, 'task.saved_map.map_revision': basis.map_revision,
         'task.saved_map.transform_revision': basis.transform_revision,
+        # Saved map with a measured hash; the SLAM -> frozen map modes come from the field file next (OPS-113)
+        'task.saved_map.mode': 'SAVED_MAP_AMCL',
         'task.saved_map.map_topic': ns + '/map', 'task.saved_map.localization_topic': ns + '/amcl_pose',
         'task.saved_map.map_frame': readiness.map_frame, 'task.saved_map.occupancy_sha256': occupancy_sha256,
         'task.saved_map.valid_from_ns': now_ns - backdate_ns,

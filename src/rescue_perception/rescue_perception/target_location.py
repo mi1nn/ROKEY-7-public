@@ -179,13 +179,13 @@ class MapRevisionTracker:
     TB-6 alone runs SLAM and the map is fixed when the target is confirmed, so the revision changes
     during a run. The latest VALID MapState is the basis; a revision counts for an observation only when
     the observation was captured, minus its clock error bound, after that revision's MapState was first
-    VALID. Without a VALID MapState, or for an earlier capture, the location is refused (never guessed).
+    VALID (again, after a loss or another revision). Without a VALID MapState, or for an earlier capture, the location is refused (never guessed).
     """
 
     def __init__(self, *, robot_id, map_frame):
         self.robot_id, self.map_frame = robot_id, map_frame
         self.latest = None          # (session, revision, native frame) of the latest VALID MapState
-        self.first_valid = {}       # (session, revision) -> generated_at_ns of its first VALID MapState
+        self.first_valid = {}       # (session, revision) -> generated_at_ns since it has been VALID without a break
 
     def update(self, msg):
         if msg.robot_id != self.robot_id:
@@ -194,7 +194,10 @@ class MapRevisionTracker:
             self.latest = None      # lost localization withdraws the basis, never keeps an old one
             return False
         key = (msg.map_session_id, int(msg.map_revision))
-        self.first_valid.setdefault(key, int(msg.generated_at_ns))
+        if self.latest is None or self.latest[:2] != key:
+            # Regained, or back on this revision: count from now, not from an earlier VALID stretch, so a
+            # capture made while localization was lost never gets it (#207 review REV-207-01).
+            self.first_valid[key] = int(msg.generated_at_ns)
         self.latest = key + (msg.current_native_map_frame,)
         return True
 
