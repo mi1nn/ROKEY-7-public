@@ -134,7 +134,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 `--camera` 와 `--operations` 로 띄우면 관리자 화면의 웹캠 칸 아래에 「카메라 [목록] 카메라 바꾸기」가 나온다. 목록은 operations 가 운영 PC 의 `/dev/v4l/by-id/*-video-index0`(기동 인자 `webcam_device` 와 같은 이름, #204)을 읽어 주고, 지금 장치가 선택돼 있다.
 
 - 바꾸면 operations(`POST /api/webcam`)가 webcam_node 의 `device_path` 파라미터를 바꾼다. webcam_node 는 카메라를 닫고 새 장치로 열며, **지진 판정을 처음부터 다시 하고 출구 감시를 푼다**(화면·ROI 가 바뀜). 카메라 상태는 `OFFLINE`/`CAMERA_SWITCHED` 를 한 번 낸다.
-- 화면에는 「카메라 전환 — 지진 판정 다시 시작, 출구 감시 풀림」, 거절이면 「카메라 전환 거절: <이유>」가 다음 화면에 보인다. operations 는 둘 다 오류 기록(`CAMERA_SWITCHED`·`CAMERA_SWITCH_REFUSED`, 누가·어디서·어디로)에 남겨 「명령·오류 기록」 표에 나온다.
+- 화면에는 「카메라 전환 — 지진 판정 다시 시작, 출구 감시 풀림」, 거절이면 「카메라 전환 거절: <이유>」가 다음 화면에 보인다. operations 는 둘 다 오류 기록에 남겨 「명령·오류 기록」 표에 나온다. 오류 기록은 공통 코드(C-09)만 받으므로 내용이 `CAMERA_SWITCHED`·`CAMERA_SWITCH_REFUSED` 로 시작하고(누가·어디서·어디로), 코드는 전환 `SENSOR_UNAVAILABLE`(판정 다시 시작 중), 꽂혀 있지 않음 `NOT_FOUND`, webcam_node 거절 `INVALID_INPUT`, 무응답 `DRIVER_UNAVAILABLE` 이다.
 - 꽂혀 있지 않은 장치는 operations 가 `UNKNOWN_DEVICE` 로, 사라진 경로는 webcam_node 가 거절한다. 조용히 이전 장치로 두지 않는다.
 - 바꾸기 전에 늘 확인 창이 뜨고, 재난 모드에서는 「임무 진행 중(재난 모드)입니다…」로 묻는다(재범 결정 대기: 재난 모드에서 아예 막을지).
 - 손님(CUSTOMER)에게는 목록도 버튼도 없고, `POST /webcam` 은 403 이다. operations 가 답하지 않으면 「카메라 목록을 못 받음」이 보인다.

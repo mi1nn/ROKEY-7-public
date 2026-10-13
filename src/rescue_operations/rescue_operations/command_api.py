@@ -169,8 +169,10 @@ class WebcamSwitch:
     """The console's camera pick (OPS-183): plugged ``by-id`` cameras and switching webcam_node's device_path.
 
     Only a plugged camera is sent; anything else is refused with the list (never kept quietly on the old one).
-    A switch restarts the quake judge and clears the exit watch in webcam_node, so it is written to error_log
-    (CAMERA_SWITCHED / CAMERA_SWITCH_REFUSED) and shows in the console's command and error history.
+    A switch restarts the quake judge and clears the exit watch in webcam_node, so it is written to error_log and
+    shows in the console's command and error history. error_log takes C-09 common codes only, so the detail starts
+    with CAMERA_SWITCHED / CAMERA_SWITCH_REFUSED: SENSOR_UNAVAILABLE (the judge is empty while it restarts),
+    NOT_FOUND (not plugged in), INVALID_INPUT (webcam_node refused), DRIVER_UNAVAILABLE (webcam_node did not answer).
     """
 
     def __init__(self, ledger, *, list_cameras, get_device, set_device, by_id_dir):
@@ -198,19 +200,21 @@ class WebcamSwitch:
             return 400, {"switched": False, "reason": "INVALID_INPUT", "detail": str(exc)}
         cameras = self.list_cameras()
         if device not in cameras:
-            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device} is not plugged in ({cameras})")
+            self._log(received_at_ns, "NOT_FOUND", f"CAMERA_SWITCH_REFUSED {operator}: {device} is not plugged in "
+                                                   f"({cameras})")
             return 400, {"switched": False, "reason": "UNKNOWN_DEVICE", "cameras": cameras}
         before = self.state()[1]["current"]
         try:
             ok, reason = self.set_device(self.by_id_dir + device)
         except (CommandUnavailable, CommandTimeout) as exc:
-            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device}: webcam_node did not answer: {exc}")
+            self._log(received_at_ns, "DRIVER_UNAVAILABLE",
+                      f"CAMERA_SWITCH_REFUSED {operator}: {device}: webcam_node did not answer: {exc}")
             return 503, {"switched": False, "reason": "WEBCAM_NODE_UNAVAILABLE", "detail": str(exc)}
         if not ok:
-            self._log(received_at_ns, "CAMERA_SWITCH_REFUSED", f"{operator}: {device}: {reason}")
+            self._log(received_at_ns, "INVALID_INPUT", f"CAMERA_SWITCH_REFUSED {operator}: {device}: {reason}")
             return 200, {"switched": False, "reason": reason, "current": before}
-        self._log(received_at_ns, "CAMERA_SWITCHED",
-                  f"{operator}: {before} -> {device} — 카메라 전환, 지진 판정 다시 시작·출구 감시 풀림")
+        self._log(received_at_ns, "SENSOR_UNAVAILABLE",
+                  f"CAMERA_SWITCHED {operator}: {before} -> {device} — 카메라 전환, 지진 판정 다시 시작·출구 감시 풀림")
         return 200, {"switched": True, "current": device}
 
     def _log(self, at_ns, code, detail):
