@@ -12,7 +12,12 @@ from rescue_perception.camera_utils import field_values
 from rescue_perception.target_utils import FIELD_PARAMS as TARGET_FIELD_PARAMS
 from rescue_perception.target_utils import SETTINGS as TARGET_SETTINGS
 
-TARGET_NAMES = {'image_topic', 'depth_topic', 'camera_info_topic', 'rgb_optical_frame', 'depth_optical_frame'}
+TARGET_NAMES = {'image_topic', 'depth_topic', 'camera_info_topic', 'rgb_optical_frame', 'depth_optical_frame',
+                # Localization evidence (2026-10-13): with the old code values UNKNOWN/False every detection
+                # was refused (core.locate_detection CLOCK_UNCERTAIN / ALIGNMENT_UNVERIFIED), so nothing was sent.
+                'rgb_stamp_semantics', 'depth_stamp_semantics', 'rgb_depth_alignment_verified', 'rgb_rectified',
+                'calibration_id', 'alignment_evidence_id'}
+BOOL_NAMES = {'rgb_depth_alignment_verified', 'rgb_rectified'}
 
 
 def supplied(**override):
@@ -20,7 +25,10 @@ def supplied(**override):
               'depth_topic': '/robot6/oakd/stereo/image_raw/compressedDepth',
               'camera_info_topic': '/robot6/oakd/rgb/camera_info',
               'rgb_optical_frame': 'oakd_rgb_camera_optical_frame',
-              'depth_optical_frame': 'oakd_rgb_camera_optical_frame'}
+              'depth_optical_frame': 'oakd_rgb_camera_optical_frame',
+              'rgb_stamp_semantics': 'DRIVER_RECEIVE', 'depth_stamp_semantics': 'DRIVER_RECEIVE',
+              'rgb_depth_alignment_verified': False, 'rgb_rectified': False,
+              'calibration_id': 'robot6-oakd-test', 'alignment_evidence_id': 'robot6-oakd-test-evidence'}
     values.update(override)
     return values
 
@@ -29,7 +37,8 @@ class AmrFieldParamsTests(unittest.TestCase):
     def test_no_topic_or_frame_default_in_code(self):
         self.assertEqual({'image_topic'}, set(CAMERA_FIELD_PARAMS))
         self.assertEqual(TARGET_NAMES, set(TARGET_FIELD_PARAMS))
-        self.assertEqual({'STRING'}, set(TARGET_FIELD_PARAMS.values()))
+        self.assertEqual({name: 'BOOL' if name in BOOL_NAMES else 'STRING' for name in TARGET_NAMES},
+                         dict(TARGET_FIELD_PARAMS))
         for name in TARGET_NAMES:
             self.assertNotIn(name, CAMERA_SETTINGS)
             self.assertNotIn(name, TARGET_SETTINGS)
@@ -39,6 +48,16 @@ class AmrFieldParamsTests(unittest.TestCase):
         self.assertEqual('/robot6/oakd/rgb/image_raw/compressed', values['image_topic'])
         self.assertEqual('oakd_rgb_camera_optical_frame', values['rgb_optical_frame'])
         self.assertEqual(TARGET_SETTINGS['model_label'], values['model_label'])
+
+    def test_flags_must_be_real_bools(self):
+        for bad in ('true', 1, None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                field_values(TARGET_SETTINGS, supplied(rgb_rectified=bad), TARGET_FIELD_PARAMS)
+        self.assertIs(True, field_values(TARGET_SETTINGS, supplied(rgb_rectified=True), TARGET_FIELD_PARAMS)['rgb_rectified'])
+
+    def test_stamp_semantics_vocabulary(self):
+        with self.assertRaises(ValueError):
+            field_values(TARGET_SETTINGS, supplied(rgb_stamp_semantics='CAMERA'), TARGET_FIELD_PARAMS)
 
     def test_missing_empty_or_wrong_type_is_refused(self):
         for bad in (None, '', '  ', 3):
