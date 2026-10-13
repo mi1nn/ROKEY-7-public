@@ -5,7 +5,8 @@
         rgb_optical_frame:=<RGB frame_id> depth_optical_frame:=<depth frame_id> \
         tf_topic:=<robot /tf> tf_static_topic:=<robot /tf_static> \
         clock_domain_id:=<domain> clock_backend:=<timesyncd|chrony|NONE> clock_max_age_ns:=<ns> \
-        clock_drift_ppm:=<ppm> clock_poll_period_s:=<s>
+        clock_drift_ppm:=<ppm> clock_poll_period_s:=<s> \
+        sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
@@ -30,9 +31,14 @@ FIELD_ARGUMENTS = {
     'clock_max_age_ns': 'NTP reply older than this -> UNKNOWN',
     'clock_drift_ppm': 'clock drift bound added after the measurement',
     'clock_poll_period_s': 'clock measurement read period',
+    'sensor_host_clock_error_bound_ns': 'sync error bound of the host whose clock stamps the images (the camera '
+                                        'driver host, TB-6 Pi), measured there; 0 only when the driver runs here',
+    'sensor_host_clock_domain_id': 'clock domain of that host; the same value only when it is synced to the '
+                                   'same reference',
 }
 CLOCK_TYPES = {'clock_domain_id': str, 'clock_backend': str, 'clock_max_age_ns': int, 'clock_drift_ppm': float,
-               'clock_poll_period_s': float}
+               'clock_poll_period_s': float, 'sensor_host_clock_error_bound_ns': int,
+               'sensor_host_clock_domain_id': str}
 
 
 def _nodes(context):

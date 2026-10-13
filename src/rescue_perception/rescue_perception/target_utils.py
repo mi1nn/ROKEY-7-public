@@ -61,8 +61,18 @@ FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_top
 
 # The observation clock is measured on this host like the webcam's (#146, OPS-103 decision 1):
 # typed parameters without defaults; the state is decided per frame by clock_binding.
+# The OAK-D stamp is the sensor host's clock (the camera driver host, TB-6 Pi), not this host's
+# (OPS-103 decision 1 addendum): its bound and domain are field values measured on that host (0 and the
+# same domain only when the driver runs here). Same names as the robot side (sensor_host_*).
 CLOCK_PARAMS = {'clock_domain_id': 'STRING', 'clock_backend': 'STRING', 'clock_max_age_ns': 'INTEGER',
-                'clock_drift_ppm': 'DOUBLE', 'clock_poll_period_s': 'DOUBLE'}
+                'clock_drift_ppm': 'DOUBLE', 'clock_poll_period_s': 'DOUBLE',
+                'sensor_host_clock_error_bound_ns': 'INTEGER', 'sensor_host_clock_domain_id': 'STRING'}
+
+
+@dataclass(frozen=True)
+class SensorHostClock:
+    error_bound_ns: int
+    clock_domain_id: str
 
 
 def clock_values(values):
@@ -71,8 +81,12 @@ def clock_values(values):
     missing = sorted(name for name in CLOCK_PARAMS if values.get(name) is None)
     if missing:
         raise ValueError(f'missing parameters: {missing}')
-    if type(values['clock_domain_id']) is not str or not values['clock_domain_id'].strip():
-        raise ValueError('clock_domain_id must be a non-empty STRING')
+    for name in ('clock_domain_id', 'sensor_host_clock_domain_id'):
+        if type(values[name]) is not str or not values[name].strip():
+            raise ValueError(f'{name} must be a non-empty STRING')
+    bound = values['sensor_host_clock_error_bound_ns']
+    if type(bound) is not int or bound < 0:
+        raise ValueError('sensor_host_clock_error_bound_ns must be an INTEGER >= 0')
     clock_settings(values)
     period = values['clock_poll_period_s']
     if type(period) is not float or not math.isfinite(period) or period <= 0:
@@ -80,11 +94,16 @@ def clock_values(values):
     return {name: values[name] for name in CLOCK_PARAMS}
 
 
-def clock_binding(binding, record, observed_ns):
-    """The source binding with the clock of the frame captured at ``observed_ns`` (SYNCED or UNKNOWN)."""
+def clock_binding(binding, record, observed_ns, sensor_host):
+    """The source binding with the clock of the frame captured at ``observed_ns`` (SYNCED or UNKNOWN).
+
+    SYNCED needs this host's measurement fresh at the capture time and the sensor host in the same
+    clock domain; the bound is this host's plus the sensor host's."""
     from .webcam_clock import observation_clock
     state, bound = observation_clock(record, observed_ns)
-    return replace(binding, clock_state=state, clock_error_bound_ns=bound)
+    if state != 'SYNCED' or sensor_host.clock_domain_id != binding.clock_domain_id:
+        return replace(binding, clock_state='UNKNOWN', clock_error_bound_ns=None)
+    return replace(binding, clock_state='SYNCED', clock_error_bound_ns=bound + sensor_host.error_bound_ns)
 
 
 def target_config(v, boot_id):

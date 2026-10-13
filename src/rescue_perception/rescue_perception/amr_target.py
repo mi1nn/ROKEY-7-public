@@ -28,7 +28,8 @@ from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_p
     validate_labels, verify_model)
 from rescue_contracts.clock_measurement import ClockSampler
 
-from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, clock_binding, clock_values, target_config,
+from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, SensorHostClock, clock_binding, clock_values,
+    target_config,
     PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png)
 from .adapter import stamp_ns
@@ -89,6 +90,16 @@ def create_node(*, model_factory=None, transform_lookup=None):
         clock = {'record': dict(state='UNKNOWN', reason='clock_backend NONE' if sampler is None else 'waiting'),
                  'logged': None}
         node.clock_sampler = sampler
+        sensor_host = SensorHostClock(v['sensor_host_clock_error_bound_ns'], v['sensor_host_clock_domain_id'])
+        if sensor_host.clock_domain_id != v['clock_domain_id']:
+            node.get_logger().warning(f'sensor host (camera driver) clock domain {sensor_host.clock_domain_id} '
+                                      f'differs from {v["clock_domain_id"]}: every observation is clock_state UNKNOWN')
+        elif sensor_host.error_bound_ns == 0:
+            node.get_logger().info('sensor_host_clock_error_bound_ns=0: the camera driver runs on this host, '
+                                   'so its stamps use the clock measured here')
+        else:
+            node.get_logger().info(f'sensor host (camera driver) clock bound {sensor_host.error_bound_ns} ns '
+                                   'added to this host bound')
 
         def poll_clock():
             clock['record'] = sampler.poll()
@@ -140,7 +151,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 depth = (decode_depth_png(depth_message, byte_order=v['depth_byte_order'], bridge=bridge)
                          if v['depth_transport'] == 'compressedDepth' else depth_message)
                 detector.prepare(stamp, inference_from_result(result, manifest))
-                pipeline.binding = clock_binding(binding, clock['record'], stamp)
+                pipeline.binding = clock_binding(binding, clock['record'], stamp, sensor_host)
                 findings = pipeline.process(rgb, depth, info)
                 if findings.status != 'PROCESSED':
                     node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
