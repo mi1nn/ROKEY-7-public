@@ -4,7 +4,7 @@
 
 **실행.** 로봇 쪽은 `rescue_bringup` 의 `robot.launch.py`(#152)로 띄운다. TurtleBot4 Nav2(최종 `cmd_vel` 을 watchdog 입력으로 remap) + `command_watchdog` + `task_input` 을 한 번에 띄운다. 값은 배포 프로파일, 현장 실행 파일 `config/field/search_area.field.json`(#132 값), 현장에서 잰 지도 해시(`scripts/field/map_occupancy_sha256.py`)에서 온다. 명령·순서는 [rescue_bringup README](../rescue_bringup/README.md) 「SEARCH_AREA 현장 실행」 절에 있다. #132 의 `scripts/field/search-area/start_*.sh` 는 같은 값의 원본으로 남아 있고, 시험(`tests/test_bringup_field_launch.py`)이 launch 값과 대조한다.
 
-**실행 전 점검.** PR #156 머지 뒤: `scripts/field/preflight_role.py --role <host id>` 가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
+**실행 전 점검.** `scripts/field/preflight_role.py --role <host id>`(#156)가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
 
 **지금 안 되는 것**
 
