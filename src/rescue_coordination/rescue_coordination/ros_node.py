@@ -412,14 +412,17 @@ class CoordinatorCore:
         """OPS-103 (#142): only an observation with a usable time becomes a target (C-03).
 
         Declared basis (stamp semantics known, SYNCED, an error bound), this coordinator's clock domain, not
-        ahead of now by more than ``target_max_future_ns``, not older than ``target_max_age_ns`` and before its
-        own ``valid_until_ns``. The reason stays in SystemState.reason until a location is accepted.
+        ahead of now by more than ``target_max_future_ns`` plus the observation's own declared error bound (PC
+        clocks differ by hundreds of ms under timesyncd, measured 2026-10-13), not older than
+        ``target_max_age_ns`` and before its own ``valid_until_ns``. The reason stays in SystemState.reason
+        until a location is accepted.
         """
         checks = (
             (t.stamp_semantics != 'UNKNOWN' and t.clock_state == 'SYNCED' and bool(t.has_clock_error_bound),
              'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE'),
             (t.clock_domain_id == self.target_clock_domain_id, 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH'),
-            (t.observed_at_ns - now_ns <= self.target_max_future_ns, 'STALE_OBSERVATION', 'TARGET_OBSERVATION_FUTURE'),
+            (t.observed_at_ns - now_ns <= self.target_max_future_ns + int(t.clock_error_bound_ns),
+             'STALE_OBSERVATION', 'TARGET_OBSERVATION_FUTURE'),
             (now_ns - t.observed_at_ns <= self.target_max_age_ns and now_ns < t.valid_until_ns,
              'STALE_OBSERVATION', 'TARGET_OBSERVATION_STALE'))
         for ok, code, reason in checks:
@@ -945,7 +948,8 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # SetCameraWatch (C-11 row 2) request deadline. The deployment ROI camera_watch_roi [x0, y0, x1, y1]
     # (normalized, used when the operator's request carries none; never the full frame) is in UNSET_OK_PARAMETERS.
     'camera_watch_timeout_s': 'DOUBLE',
-    # OPS-103 (#142): a TargetLocation counts only on this clock domain, at most this old, at most this far ahead.
+    # OPS-103 (#142): a TargetLocation counts only on this clock domain, at most this old, and at most this far
+    # ahead beyond its own declared clock error bound.
     'target_clock_domain_id': 'STRING', 'target_max_age_s': 'DOUBLE', 'target_max_future_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
