@@ -36,7 +36,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts.occupancy import compose_planar
+from rescue_contracts.occupancy import compose_planar, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand, RecheckRequest
@@ -90,6 +90,21 @@ PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_po
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
 START_POSE_TOPIC = '/rescue/map/start_pose/'  # + SCOUT robot_id; PoseWithCovarianceStamped, map, TRANSIENT_LOCAL
+
+
+def start_pose_from_msg(msg, mission_frame):
+    """PoseWithCovarianceStamped on START_POSE_TOPIC -> (x, y, yaw) in the mission frame (OPS-142).
+
+    The yaw follows the shared planar rule (rescue_contracts.occupancy.planar_origin, the robot's own); another
+    frame or a non-planar pose is refused, never projected."""
+    if msg.header.frame_id != mission_frame:
+        raise CoordinationError('FRAME_REVISION_MISMATCH', f'start pose frame {msg.header.frame_id!r} is not '
+                                                           f'{mission_frame!r}')
+    p, q = msg.pose.pose.position, msg.pose.pose.orientation
+    try:
+        return planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+    except ValueError as exc:
+        raise CoordinationError('INVALID_INPUT', f'start pose: {exc}') from exc
 
 
 def patrol_site_id(map_session_id, index):
@@ -2115,6 +2130,14 @@ def main(args=None):
                                  guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
+        # QR exit (안 「나」, OPS-136·138): same message as targets, class_label exit_qr only.
+        node.create_subscription(TargetLocation, EXIT_LOCATION_TOPIC, guarded('exit_location', lambda msg: log.info(
+            f'EXIT_LOCATION {msg.location_id} -> {core.on_exit_location(msg, now_ns=now_ns())} exit={core.exit}')), 10)
+        from geometry_msgs.msg import PoseWithCovarianceStamped
+        start_topic = START_POSE_TOPIC + core.roles['SCOUT']  # OPS-142: once per map session, latched
+        node.create_subscription(PoseWithCovarianceStamped, start_topic, guarded('start_pose', lambda msg: log.info(
+            f'START_POSE {start_topic} -> bound={core.on_start_pose(start_pose_from_msg(msg, core.search.policy.mission_frame_id))} '
+            f'start_pose={core.start_pose}')), latched)
         node.create_subscription(ReportReceipt, REPORT_RECEIPT_TOPIC, guarded('receipt', lambda msg: log.info(
             f'RECEIPT {msg.report_id} {msg.state} -> saved={core.on_receipt(msg)}')), 10)
         node.create_service(SubmitOperatorCommand, OPERATOR_COMMAND_SERVICE, on_command)
