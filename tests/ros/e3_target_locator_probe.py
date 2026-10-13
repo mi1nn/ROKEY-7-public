@@ -13,7 +13,7 @@ Run on an isolated graph, never a robot's domain, with no Discovery Server:
 Both nodes run as child processes: the coordinator with the e3_coordinator_probe parameters
 (mission_frame_id map, the #132 map basis), target_locator with the same basis and its TF
 remapped to a namespaced robot TF. This probe publishes the robot TF and TargetObservations.
-Observations carry a SYNCED clock in the configured domain (OPS-103); one with an unmeasured
+Observations carry a SYNCED clock; TB-6 MapState gives the map session/revision (OPS-115) in the configured domain (OPS-103); one with an unmeasured
 clock is refused. Checks: 1. target_locator refuses to start without parameters (exit 2); 2. an observation
 with capture-time TF -> one VALID TargetLocation at the expected map point with the
 coordinator's basis; 3. the coordinator makes a target of it (RescueReport naming that
@@ -33,7 +33,7 @@ from geometry_msgs.msg import TransformStamped
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from rescue_interfaces.msg import RescueReport, TargetLocation, TargetObservation, TargetSnapshot
+from rescue_interfaces.msg import MapState, RescueReport, TargetLocation, TargetObservation, TargetSnapshot
 from tf2_msgs.msg import TFMessage
 
 from e3_coordinator_probe import MAP, NODE_ARGS, node_command
@@ -47,7 +47,7 @@ TF_TOPIC, TF_STATIC_TOPIC = '/e3robot/tf', '/e3robot/tf_static'
 CAMERA = 'oakd_rgb_camera_optical_frame'
 LOCATOR_ARGS = ['-p', 'robot_id:=robot_a', '-p', 'observations_topic:=/rescue/observations',
                 '-p', 'target_locations_topic:=/rescue/target_locations', '-p', 'map_frame:=map',
-                '-p', 'mission_frame:=map', '-p', f'map_session_id:={MAP}', '-p', 'map_revision:=0',
+                '-p', 'mission_frame:=map', '-p', 'map_state_topic:=/rescue/robots/robot_a/map_state',
                 '-p', 'transform_revision:=1', '-p', 'alignment_xy_yaw:=[0.0, 0.0, 0.0]',
                 '-p', 'alignment_position_error_m:=0.0', '-p', 'alignment_rotation_error_rad:=0.0',
                 '-p', 'tf_wait_s:=1.0', '-p', 'publisher_id:=amr.target_locator',
@@ -91,11 +91,19 @@ class Probe(Node):
         self.tf_static = self.create_publisher(TFMessage, TF_STATIC_TOPIC, QoSProfile(
             depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.observations = self.create_publisher(TargetObservation, '/rescue/observations', latched)
+        self.map_state = self.create_publisher(MapState, '/rescue/robots/robot_a/map_state', QoSProfile(
+            depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.locations, self.reports, self.snapshots = [], [], []
         self.create_subscription(TargetLocation, '/rescue/target_locations', self.locations.append, latched)
         self.create_subscription(RescueReport, '/rescue/reports', self.reports.append, 10)
         self.create_subscription(TargetSnapshot, '/rescue/targets', self.snapshots.append, QoSProfile(
             depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+
+    def publish_map_state(self, session, revision, at_ns):
+        # TB-6 MapState (OPS-115): the session/revision a location carries; test values.
+        self.map_state.publish(MapState(robot_id='robot_a', map_session_id=session, map_revision=revision,
+                                        generated_at_ns=at_ns, localization_quality='VALID',
+                                        correction_detection_status='UNKNOWN', current_native_map_frame='map'))
 
     def publish_static(self):
         # odom -> camera fixed mount 0.3 m up; map -> odom comes as dynamic TF around each capture.
@@ -152,6 +160,7 @@ def main():
         wait(executor, lambda: probe.count_subscribers('/rescue/observations') >= 1
              and probe.count_subscribers('/rescue/target_locations') >= 2, 20)
         probe.publish_static()
+        probe.publish_map_state(MAP, 0, probe.get_clock().now().nanoseconds - 5_000_000_000)
         stamp = probe.get_clock().now().nanoseconds
         probe.publish_map_odom(stamp)
         wait(executor, lambda: False, 0.5)
@@ -183,6 +192,25 @@ def main():
         checks['unmeasured clock (C-03) -> nothing published'] = len(probe.locations) == before
         checks['unmeasured clock -> no new coordinator target'] = bool(probe.snapshots) and len(
             probe.snapshots[-1].targets) == 1
+        # OPS-115: the map is fixed (new session/revision); a capture from before that is never published.
+        fixed_session = '33333333-3333-4333-8333-333333333333'
+        before_fix = probe.get_clock().now().nanoseconds
+        probe.publish_map_odom(before_fix)
+        wait(executor, lambda: False, 0.3)
+        probe.publish_map_state(fixed_session, 1, probe.get_clock().now().nanoseconds)
+        wait(executor, lambda: False, 0.5)
+        count = len(probe.locations)
+        probe.publish_observation(before_fix)
+        wait(executor, lambda: False, 1.5)
+        checks['capture before the map fix -> nothing published'] = len(probe.locations) == count
+        after_fix = probe.get_clock().now().nanoseconds
+        probe.publish_map_odom(after_fix)
+        wait(executor, lambda: False, 0.3)
+        probe.publish_observation(after_fix)
+        got_new = wait(executor, lambda: len(probe.locations) > count, 5)
+        new = probe.locations[-1].frame_ref if got_new else None
+        checks['capture after the map fix -> new session/revision'] = bool(new) and (
+            new.map_session_id, new.map_revision) == (fixed_session, 1)
     finally:
         executor.shutdown()
         probe.destroy_node()
