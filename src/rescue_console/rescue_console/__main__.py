@@ -1,5 +1,5 @@
 """Run the console: python -m rescue_console [LEDGER] --accounts ACCOUNTS
-[--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--map MAP_YAML] [--operations URL] [--port N].
+[--site-state DB | --status FIXTURE] [--camera ID=URL ... --camera-stale-s S] [--map MAP_YAML] [--operations URL] [--port N].
 
 LEDGER (the old ReportLedger) is optional with --site-state; without it the page says report rows
 are missing. The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
@@ -24,6 +24,9 @@ def main(argv=None):
     source.add_argument('--status', help='status fixture JSON in the operations read API shapes (E2 without operations)')
     parser.add_argument('--camera', action='append', default=[], metavar='ID=URL',
                         help='camera MJPEG stream shown on the page, e.g. cam_a=http://<camera host>:<port>/stream')
+    parser.add_argument('--camera-stale-s', type=float, metavar='S',
+                        help='with --camera: seconds without a new frame before the stream shows 영상 끊김 and '
+                             'is reconnected. No default')
     parser.add_argument('--map', help='map_server map YAML (binary PGM) drawn under robot and target markers')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
@@ -44,7 +47,7 @@ def main(argv=None):
         cameras = [parse_camera(text) for text in args.camera]
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
-                         operations_url=args.operations)
+                         operations_url=args.operations, camera_stale_s=args.camera_stale_s)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2

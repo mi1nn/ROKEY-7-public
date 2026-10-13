@@ -222,7 +222,7 @@ class PageTests(LedgerFixture):
         # last frame stays on screen. The page watches load events instead (one per frame there).
         html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.5)
         self.assertIn('data-stale-ms="2500"', html)
-        self.assertIn('data-src="http://camera.invalid:8081/stream"', html)
+        self.assertEqual(1, html.count('http://camera.invalid:8081/stream'))   # the script reads the original src
         self.assertIn('onerror=', html)   # an error is still shown at once
         watch = html[html.index('function watchCameras'):]
         for part in ("addEventListener('load'", "'영상 끊김'", "'_r=' + now", "classList.remove('lost')"):
