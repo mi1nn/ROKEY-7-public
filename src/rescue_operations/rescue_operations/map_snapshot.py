@@ -3,7 +3,11 @@
 TB-6 SLAM 지도를 관제 웹 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 받은 지도마다
 ``map_<해시12>.pgm`` 과 ``live_map.yaml`` 을 쓴다. 그림을 먼저 쓰고 YAML 을 마지막에 바꾸며,
 둘 다 임시 파일 + rename 이라 읽는 쪽은 반쯤 쓴 지도를 보지 않는다. YAML 의 수정 시각이
-「받은 시각」이다(관제 웹이 낡음을 이것으로 판단). 지금 그림과 직전 그림만 남긴다.
+「받은 시각」이다. 지금 그림과 직전 그림만 남긴다.
+
+고정 뒤 TB-6 은 고정 지도를 같은 토픽에 한 번 다시 내고(TRANSIENT_LOCAL, OPS-117/118) 그 뒤로는
+새 메시지가 없다. 그래서 토픽에 발행자가 있는 동안 ``live_map.alive`` 를 주기적으로 갱신하고,
+관제 웹은 받은 시각과 이 파일 중 늦은 쪽으로 낡음을 판단한다(발행자가 사라지면 낡음).
 
 값은 nav2 map_saver trinary 와 같다(점유 >= 65 -> 0, 빈칸 <= 25 -> 254, 나머지·미지 -> 205).
 파라미터는 모두 필수이고 기본값이 없다(AGENTS 8절). ROS 패키지는 main() 안에서 import 한다.
@@ -16,6 +20,8 @@ from pathlib import Path
 import re
 
 LIVE_YAML = 'live_map.yaml'
+ALIVE_FILE = 'live_map.alive'                    # refreshed while the map topic has a publisher
+ALIVE_PERIOD_S = 2.0                             # well under any console --live-map-stale-s
 OCCUPIED_PERCENT, FREE_PERCENT = 65, 25          # nav2 map_saver defaults (0.65 / 0.25)
 OCCUPIED, FREE, UNKNOWN = 0, 254, 205             # trinary PGM values
 YAW_TOLERANCE = 1e-6                              # the console draws only yaw-0 maps (mapimage.load_map)
@@ -52,6 +58,12 @@ def _image_of(yaml_path):
     except OSError:
         return None
     return match.group(1) if match else None
+
+
+def touch_alive(out_dir):
+    path = Path(out_dir) / ALIVE_FILE
+    path.touch()
+    os.utime(path)
 
 
 def write_snapshot(out_dir, *, width, height, data, resolution, origin_x, origin_y, orientation):
@@ -125,6 +137,15 @@ def main(args=None):
 
     qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
     node.create_subscription(OccupancyGrid, values['map_topic'], received, qos)
+
+    def alive():
+        if node.count_publishers(values['map_topic']) > 0:
+            try:
+                touch_alive(out_dir)
+            except OSError as exc:
+                log.warning(f'alive file not written: {exc}')
+
+    node.create_timer(ALIVE_PERIOD_S, alive)
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):

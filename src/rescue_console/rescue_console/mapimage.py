@@ -18,6 +18,8 @@ from .view import ConsoleError
 # Markers are drawn only for poses in this frame. The saved map is the pre-quake reference
 # map whose frame is the mission frame candidate (assets/manifest/pre_quake_map.json, Q-09).
 MAP_FRAME = 'map'
+# rescue_operations map_snapshot writes this next to live_map.yaml while the map topic has a publisher.
+ALIVE_FILE = 'live_map.alive'
 # map_server YAML keys (nav2_map_server map_io). Any other key is refused, not ignored.
 YAML_KEYS = frozenset({'image', 'mode', 'resolution', 'origin', 'negate', 'occupied_thresh', 'free_thresh'})
 REQUIRED_YAML_KEYS = ('image', 'resolution', 'origin')
@@ -187,7 +189,9 @@ def load_map(yaml_path):
 class LiveMap:
     """--live-map: the SLAM map file (rescue_operations map_snapshot) re-read whenever it changes.
 
-    The YAML's modification time is when the map was received; older than ``stale_s`` is STALE.
+    The YAML's modification time is when the map was received. The map is STALE when both that and
+    ``live_map.alive`` (refreshed while the topic still has a publisher, so a frozen map that is not
+    re-sent stays current, OPS-117/118) are older than ``stale_s``.
     A missing map is MISSING and a map that fails to load is ERROR, keeping the last good image
     with the error said on screen: an old picture is never shown as if it were current.
     """
@@ -223,9 +227,15 @@ class LiveMap:
                 kept = ' — 마지막으로 읽은 지도를 보임' if self.image is not None else ''
                 return self.image, {'state': 'ERROR', 'received_at_ns': received, 'age_s': age_s,
                                     'message': f'지도 읽기 실패: {self._error}{kept}'}
-            if self.clock() - received > self.stale_ns:
+            try:
+                alive = (self.path.parent / ALIVE_FILE).stat().st_mtime_ns
+            except OSError:
+                alive = received
+            heard = max(received, alive)
+            if self.clock() - heard > self.stale_ns:
+                silent = round((self.clock() - heard) / 1e9, 1)
                 return self.image, {'state': 'STALE', 'received_at_ns': received, 'age_s': age_s,
-                                    'message': f'지도 낡음: {age_s:g}초 동안 새 지도 없음'}
+                                    'message': f'지도 낡음: {silent:g}초 동안 지도 발행 없음'}
             return self.image, {'state': 'OK', 'received_at_ns': received, 'age_s': age_s, 'message': ''}
 
 
