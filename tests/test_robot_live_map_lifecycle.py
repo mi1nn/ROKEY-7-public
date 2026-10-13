@@ -51,6 +51,9 @@ def settings(mode, robot='robot_a', **changes):
              frozen_topic='/rescue/map/frozen', frozen_revision_topic='/rescue/map/frozen_revision')
     if mode == 'SLAM_THEN_FROZEN':
         c['slam_localization_topic'] = ns + '/pose'
+        # SLAM-phase pose = TF map -> base_link, covariance from the last SLAM pose (OPS-177)
+        c.update(slam_tf_topic=ns + '/tf', slam_odom_frame='odom', slam_base_frame='base_link',
+                 slam_covariance_max_age_ns=30_000_000_000)
     if mode == 'FROZEN_MAP_AMCL':
         c['initial_pose_topic'] = ns + '/initialpose'
     c.update(changes)

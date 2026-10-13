@@ -156,6 +156,7 @@ def saved_maps(raw):
     for robot in raw['robots'].values():
         robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
         robot.pop('map_freeze.pose_max_age_ns', None)
+        robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
 
 
 class CoordinatorParameters(FieldCase):

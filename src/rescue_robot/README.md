@@ -67,7 +67,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | 모드 | 로봇 | 1차 고정 전 | 1차 고정(R0+1) 뒤 | 2차 고정(R0+2) 뒤 |
 | --- | --- | --- | --- | --- |
 | `SAVED_MAP_AMCL` | 로봇 없는 시험 | 저장 지도(측정 해시) + AMCL, 선언 revision | 고정 지도는 무시 | 같음 |
-| `SLAM_THEN_FROZEN` | TB-6 | 바뀌는 SLAM 지도(frame 만 검사) + SLAM 위치(`task.saved_map.slam_localization_topic`), revision R0, `snapshot_id` 의 해시 자리 = `slam`. 자동 이동(REOBSERVE·RETURN_HOME·APPROACH)은 빈 칸 검사용 지도가 없어 거절, SEARCH_AREA 만 R0 로 | 그대로(SLAM·R0) | 자기 `<ns>/map` 이 R0+2 grid 와 해시가 같을 때만 지도 적재, AMCL 위치만 인정(SLAM 위치 무시), revision R0+2. SLAM 으로 돌아가지 않음 |
+| `SLAM_THEN_FROZEN` | TB-6 | 바뀌는 SLAM 지도(frame 만 검사) + SLAM 위치 = TF `map→odom→base_link`(`task.saved_map.slam_tf_topic`, 실행기 poll 주기로 읽음, 시각은 두 edge 중 오래된 쪽) + 공분산은 마지막 `task.saved_map.slam_localization_topic`(이 값이 `slam_covariance_max_age_ns` 보다 오래되면 무효, OPS-177), revision R0, `snapshot_id` 의 해시 자리 = `slam`. 자동 이동(REOBSERVE·RETURN_HOME·APPROACH)은 빈 칸 검사용 지도가 없어 거절, SEARCH_AREA 만 R0 로 | 그대로(SLAM·R0) | 자기 `<ns>/map` 이 R0+2 grid 와 해시가 같을 때만 지도 적재, AMCL 위치만 인정(SLAM 위치 무시), revision R0+2. SLAM 으로 돌아가지 않음 |
 | `FROZEN_MAP_AMCL` | TB-5 | 지도 없음, `UNKNOWN`, revision R0, 해시 자리 = `unfrozen` | R0+1 지도 + AMCL(launch 출발값) | 정지·작업 없음일 때 R0+2 로 재정합: `<ns>/map` 이 R0+2 가 되면 직전 자기 유효 AMCL 위치를 `<ns>/initialpose` 로 다시 넣음(`MAP_REALIGN`), 그 뒤 AMCL 위치만 인정 |
 
 - 더 높은 revision 은 작업이 없고 odometry 가 `STOPPED` 일 때만 받는다(`MAP_REVISION_ADOPTED`). 아니면 `MAP_REVISION_DEFERRED <이유>` 를 남기고 R 을 유지했다가 멈추면 자동으로 받는다. 기다리는 동안 새 목표는 `FRAME_REVISION_MISMATCH` (`map revision pending`)로 거절하고, 진행 중 작업은 끝까지 간다(D2, OPS-159). HOLD 는 받는다.

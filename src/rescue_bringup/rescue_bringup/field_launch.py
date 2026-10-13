@@ -94,7 +94,10 @@ ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
 # also the freeze pose age, a FROZEN_MAP_AMCL robot its measured AMCL start (once measured).
 ROBOT_IDENTITY_KEYS['task.saved_map.mode'] = S
 ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
-SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshness at the freeze
+SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I,     # TB-6 SLAM pose freshness at the freeze
+                   # searching pose = TF map -> base_link; its covariance from a SLAM pose at most this old (OPS-177)
+                   'task.saved_map.slam_covariance_max_age_ns': I}
+SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom -> base_link
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
 PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
@@ -279,8 +282,9 @@ def _robot_map_modes(robots):
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
         _section(robots, robot_id, keys)
-        if mode == 'SLAM_THEN_FROZEN' and section['map_freeze.pose_max_age_ns'] <= 0:
-            raise FieldLaunchError(f'robots.{robot_id}.map_freeze.pose_max_age_ns must be positive')
+        for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
+            if section[key] <= 0:
+                raise FieldLaunchError(f'robots.{robot_id}.{key} must be positive')
         if 'initial_pose_xy_yaw' in section and len(section['initial_pose_xy_yaw']) != 3:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw must be [x, y, yaw]')
         if 'passage.depth_transport' in section and section['passage.depth_transport'] not in DEPTH_TRANSPORTS:
@@ -453,7 +457,11 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         'task.saved_map.transform_valid_until_ns': now_ns + window_ns,
     }
     if mode == 'SLAM_THEN_FROZEN':
-        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
+        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose: covariance
+        # searching pose = TF map -> base_link on this robot's TF topic (OPS-177)
+        task_input.update({'task.saved_map.slam_tf_topic': readiness.tf_topic,
+                           'task.saved_map.slam_odom_frame': readiness.odom_frame,
+                           'task.saved_map.slam_base_frame': SLAM_BASE_FRAME})
     if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
         task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
