@@ -149,6 +149,7 @@ class Duties(RoleCase):
         raw['coordinator']['map_mode'] = 'SAVED_MAP'
         raw['robots']['robot_a']['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
         raw['robots']['robot_a'].pop('map_freeze.pose_max_age_ns')
+        raw['robots']['robot_a'].pop('task.saved_map.slam_covariance_max_age_ns')
         field = self.dir / 'field_no_b.json'
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_b', field_path=field), 'field.robot.robot_b', pr.FAILED)
