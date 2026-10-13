@@ -167,8 +167,6 @@ class AdapterTests(unittest.TestCase):
         fisheye = camera_info(k=(9.0, 0, 9.0, 0, 9.0, 9.0, 0, 0, 1), model="equidistant", d=(0.0,) * 4)
         raw = camera_intrinsics(fisheye, self.binding, rectified=False)
         self.assertEqual((raw.fx, raw.cx, raw.rectified, raw.undistort), (9.0, 9.0, False, None))
-        undistorted = camera_intrinsics(info, self.binding, rectified=False)   # plumb_bob: points go onto P
-        self.assertEqual((undistorted.fx, undistorted.cx, undistorted.rectified), (2.0, 1.5, False))
 
     def test_secondary_stereo_binning_and_roi_are_rejected(self):
         right = camera_info(p=(2.0, 0, 1.5, -0.1, 0, 2.0, 1.5, 0, 0, 0, 1, 0))

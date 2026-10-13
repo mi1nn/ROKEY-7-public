@@ -33,6 +33,10 @@ COMMAND_FIELDS = {
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
 }
+# Commands the console has no button for yet (its tests mirror COMMAND_FIELDS, which drives its buttons).
+# SET_CAMERA_WATCH: C-11 row 2; the ROI and camera are bound by the node core.
+CAMERA_COMMAND_FIELDS = {'SET_CAMERA_WATCH': ('target_id',)}
+ALL_COMMAND_FIELDS = COMMAND_FIELDS | CAMERA_COMMAND_FIELDS
 OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_index')
 COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
@@ -143,7 +147,7 @@ class OperatorCommand:
         contract_value(timestamp_ns, self.requested_at_ns)
         if not isinstance(self.operator_id, str) or not self.operator_id:
             raise CoordinationError('INVALID_INPUT', 'operator_id')
-        required = COMMAND_FIELDS.get(self.kind) if isinstance(self.kind, str) else None
+        required = ALL_COMMAND_FIELDS.get(self.kind) if isinstance(self.kind, str) else None
         if required is None:
             raise CoordinationError('INVALID_INPUT', 'command kind')
         for name in OPTIONAL_FIELDS:
@@ -443,6 +447,17 @@ class MissionCoordinator:
             return 'RECHECK_ALREADY_REQUESTED'
         self.open_rechecks[command.target_id] = RecheckRequest(command.command_id, command.target_id, 'OPERATOR',
                                                                now_ns)
+        return 'ACCEPTED'
+
+    def _set_camera_watch(self, command, now_ns):
+        """C-11 row 2 / #124: a recorded, confirmed, not yet judged target, in DISASTER only."""
+        target = self.targets.get(command.target_id)
+        if target is None:
+            return 'UNKNOWN_TARGET'
+        if not target[1]:
+            return 'TARGET_NOT_CONFIRMED'
+        if self.verdicts.get(command.target_id) == 'RESCUE_CONFIRMED':
+            return 'TARGET_ALREADY_JUDGED'
         return 'ACCEPTED'
 
     def _return_home(self, command, now_ns):

@@ -74,6 +74,12 @@ class CameraInfoUndistortTests(unittest.TestCase):
         self.binding = SourceBinding('robot_a', 'amr_rgbd', '00000000-0000-4000-8000-000000000100', 'clock',
                                      'CAPTURE', 'CAPTURE', 'cal', 'UNKNOWN', None)
 
+    def test_unrectified_supported_model_uses_projection_intrinsics(self):
+        from test_perception_adapter import camera_info
+        info = camera_info(k=(9.0, 0, 9.0, 0, 9.0, 9.0, 0, 0, 1), frame_id=FRAME)
+        intrinsics = camera_intrinsics(info, self.binding, rectified=False)
+        self.assertEqual((intrinsics.fx, intrinsics.cx, intrinsics.rectified), (2.0, 1.5, False))
+
     def test_supported_model_gives_a_point_undistorter_equal_to_opencv(self):
         import cv2
         import numpy as np

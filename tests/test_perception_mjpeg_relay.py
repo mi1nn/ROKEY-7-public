@@ -84,6 +84,32 @@ class MjpegRelayTests(RelayFixture):
         self.assertIsNone(read_part(response))
 
 
+class StuckClientTests(RelayFixture):
+    """A client that stops reading (tab frozen, network gone without a FIN) must not hold a server
+    thread for ever: before this fix the handler stayed blocked in write after the camera stopped
+    (reproduced 2026-10-13 against main dbadaf1, #153)."""
+
+    def handlers(self):
+        return [t for t in threading.enumerate() if 'process_request_thread' in t.name]
+
+    def test_a_client_that_never_reads_is_dropped(self):
+        import socket
+        self.hub.put(b'x' * 200_000)
+        client = socket.socket()
+        self.addCleanup(client.close)
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
+        client.connect(self.server.server_address)
+        client.sendall(b'GET /stream HTTP/1.1\r\nHost: localhost\r\n\r\n')   # never reads
+        end = time.monotonic() + 1.5
+        while time.monotonic() < end:   # fill the socket buffers
+            self.hub.put(b'y' * 200_000)
+            time.sleep(0.02)
+        deadline = time.monotonic() + 10 * STALE_S + 2
+        while self.handlers() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertEqual([], self.handlers())
+
+
 class FormatTests(unittest.TestCase):
     def test_next_after_does_not_send_a_frame_that_expired_during_a_slow_write(self):
         now = [0.0]

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
-from rescue_operations.site_state import (read_error_log, read_mission_state, read_operator_commands,
+from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_mission_state, read_operator_commands,
                                           read_robot_status, read_site_events, read_target_states)
 
 from .view import HISTORY_ROWS, ConsoleError
@@ -17,7 +17,7 @@ LEDGER_READ_LIMIT = 1000
 # read_site_events returns the OLDEST rows first (ORDER BY observed_at_ns LIMIT n), so the console
 # asks for the cap; past 1000 site events the newest are missing (README 「후속」).
 SITE_EVENT_READ_LIMIT = 1000
-STATUS_KEYS = frozenset({'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
+STATUS_KEYS = frozenset({'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
                          'error_log'})
 
 
@@ -58,6 +58,7 @@ def load_site_state(db_path):
     """
     try:
         return {
+            'allowed_robots': read_allowed_robot_ids(db_path),   # #149: the robots before any status
             'robot_status': read_robot_status(db_path),
             'site_events': read_site_events(db_path, limit=SITE_EVENT_READ_LIMIT),
             'target_states': read_target_states(db_path),
