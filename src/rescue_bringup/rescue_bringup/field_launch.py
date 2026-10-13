@@ -42,6 +42,8 @@ COORDINATOR_KEYS = {
     'target_clock_domain_id': S, 'target_max_age_s': F, 'target_max_future_s': F,
     # TB-5 waits at the target (APPROACH_TARGET completed, stop confirmed) before leaving for the exit
     'support_exit_wait_s': F,
+    # Recheck -> rescue verdict: largest clock error of a recheck observation the coordinator accepts
+    'recheck_max_clock_error_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 ROBOT_KEYS = {
@@ -161,7 +163,7 @@ def load_field(path):
                                f'(the coordinator node this launch starts)')
     if coordinator['support_dispatch'] not in SUPPORT_DISPATCH_MODES:
         raise FieldLaunchError(f'coordinator.support_dispatch must be one of {list(SUPPORT_DISPATCH_MODES)}')
-    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s'):
+    for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['support_exit_wait_s'] < 0:
