@@ -12,7 +12,8 @@ and target_locator (capture-time TF -> TargetLocation on /rescue/target_location
         clock_domain_id:=<domain> clock_backend:=<timesyncd|chrony|NONE> clock_max_age_ns:=<ns> \
         clock_drift_ppm:=<ppm> clock_poll_period_s:=<s> \
         sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain> \
-        profile_path:=<profile.json> tf_wait_s:=<seconds>
+        profile_path:=<profile.json> tf_wait_s:=<seconds> \
+        alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
@@ -62,6 +63,11 @@ FIELD_ARGUMENTS = {
                                    'same reference',
     'profile_path': 'Deployment profile v2 JSON with the map_basis block (shared with the coordinator)',
     'tf_wait_s': 'How long target_locator waits for the TF at a capture time',
+    # OPS-103 decision 2 (C-04): the alignment authority (profile map_basis + the robot's saved-map identity)
+    # and the window it holds for; target_locator publishes nothing VALID outside it.
+    'alignment_authority_id': 'ID of the declared map -> mission alignment (field record)',
+    'alignment_valid_from_ns': 'start of the declared alignment window, ns (this run)',
+    'alignment_valid_until_ns': 'end of the declared alignment window, ns',
 }
 CLOCK_TYPES = {'clock_domain_id': str, 'clock_backend': str, 'clock_max_age_ns': int, 'clock_drift_ppm': float,
                'clock_poll_period_s': float, 'sensor_host_clock_error_bound_ns': int,
@@ -99,7 +105,13 @@ def _nodes(context):
         except ValueError as exc:
             raise ValueError(f'{name} must be {kind.__name__}, got {arg(name)!r}') from exc
     deployment = load_deployment(arg('profile_path'))
-    locator = profile_parameters(deployment, require_map_basis(deployment), tf_wait_s=float(arg('tf_wait_s')))
+    locator = profile_parameters(deployment, require_map_basis(deployment), tf_wait_s=float(arg('tf_wait_s')),
+                                 clock_domain_id=arg('clock_domain_id'),   # the same measured domain as amr_target
+                                 alignment_authority_id=arg('alignment_authority_id'),
+                                 alignment_valid_from_ns=_integer('alignment_valid_from_ns',
+                                                                  arg('alignment_valid_from_ns')),
+                                 alignment_valid_until_ns=_integer('alignment_valid_until_ns',
+                                                                   arg('alignment_valid_until_ns')))
     tf = [('/tf', arg('tf_topic')), ('/tf_static', arg('tf_static_topic'))]
     return [Node(package='rescue_perception', executable='amr_target', name='amr_target', output='screen',
                  parameters=[parameters], remappings=tf),

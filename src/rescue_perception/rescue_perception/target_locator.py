@@ -35,8 +35,12 @@ PARAMS = {  # name -> rcl_interfaces ParameterType name; every one is required, 
 }
 
 
-def profile_parameters(deployment, map_basis, *, tf_wait_s):
-    """Every PARAMS value from the deployment profile (map_basis, the SCOUT robot) and the TF wait.
+def profile_parameters(deployment, map_basis, *, tf_wait_s, clock_domain_id, alignment_authority_id,
+                       alignment_valid_from_ns, alignment_valid_until_ns):
+    """Every PARAMS value from the deployment profile (map_basis, the SCOUT robot) and the launch arguments.
+
+    The clock domain and the alignment authority with its window (OPS-103, C-03·C-04) are field values
+    from the launch; LocationBasis checks them.
 
     The profile has no map -> mission transform, so the identity is used only when the SCOUT's
     map frame is the map_basis frame; otherwise this refuses rather than assume an alignment.
@@ -58,7 +62,9 @@ def profile_parameters(deployment, map_basis, *, tf_wait_s):
                   map_revision=map_basis.map_revision, transform_revision=map_basis.transform_revision,
                   alignment_xy_yaw=[0.0, 0.0, 0.0], alignment_position_error_m=0.0,
                   alignment_rotation_error_rad=0.0, tf_wait_s=tf_wait_s, publisher_id='amr.target_locator',
-                  envelope_schema_version=TARGET_SETTINGS['envelope_version'])
+                  envelope_schema_version=TARGET_SETTINGS['envelope_version'], clock_domain_id=clock_domain_id,
+                  alignment_authority_id=alignment_authority_id, alignment_valid_from_ns=alignment_valid_from_ns,
+                  alignment_valid_until_ns=alignment_valid_until_ns)
     LocationBasis.from_values(values)
     return values
 
