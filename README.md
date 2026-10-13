@@ -17,7 +17,6 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [PR 진행과 검토 지침](docs/process/review-workflow.md) | 현재 검토 담당·인계·머지 조건, 계획 PR의 과거 운영 기록과 원본 URL |
 | [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
 | [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
-| [Depth 클릭 보정 기록](docs/implementation/depth-click-calibration.md) | PC depth 확인 도구, 82cm 보정 근거와 사용자 측정 로그·검증 한계 |
 | [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
 | [AMR1 자율 탐색 후보](docs/implementation/amr1-exploration-candidates.md) | 무지도 환경의 탐색 알고리즘 5개, 구현·논문 근거, 비교 순서와 미검증 관문 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
@@ -32,6 +31,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [YOLO26n·11n·v8n 모델 비교](docs/implementation/yolo-model-comparison/README.md) | 같은 v2 데이터·100 epoch 설정의 지표·추론 시간·곡선 비교 |
 | [Survivor v2 재학습 결과](docs/implementation/yolo26n-v2-results.md) | 별도 amr-mini-project 설정, 100/최대200 epoch 평가와 최종 채택 best.pt(100 epoch), 사람 오탐 재평가는 남음 |
 | [YOLO26n 학습 결과·비교](docs/implementation/yolo26n-training-results.md) | 무증강·scale_light 결과, 원거리 현장 관측(재학습 전 기록, 최종 모델은 v2) |
+| [Depth 클릭 보정 기록](docs/implementation/depth-click-calibration.md) | PC depth 확인 도구, 82cm 보정 근거와 사용자 측정 로그·검증 한계 |
 | [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
 | [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서. 단, 출구 카메라 B·출구 카운트는 웹캠 1대 결정(2026-10-09, [#44 OPS-20 ②](https://github.com/jaebeom/ROKEY-7/pull/44#issuecomment-6078811090))으로 빠졌다. 웹캠 하나가 재난 징후와 대상 감시를 맡고, 재확인은 대상 소실 후보로 시작한다 |
 | [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |

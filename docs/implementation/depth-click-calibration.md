@@ -1,12 +1,12 @@
 ---
 title: Depth 클릭 확인 도구와 82cm 보정 기록
 status: partial-measurement
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Depth 클릭 확인 도구와 82cm 보정 기록
 
-[사용자 요구, 2026-10-12] “오케이 그러면 그렇게 해서 PR 올려줘.”에 따라 사용자가 실행한 depth 확인 코드와 보정 계산·측정 로그를 별도 PR에 보존한다. [도구](../../tools/depth_check_claude.py)는 원본 ROS depth 토픽을 읽고 화면 클릭 지점의 Raw와 보정 거리를 출력한다. 주행 명령, 센서 설정 변경, 보정 depth 재발행은 하지 않는다.
+[사용자 요구, 2026-10-12] “오케이 그러면 그렇게 해서 PR 올려줘.”에 따라 사용자가 실행한 depth 확인 코드와 보정 계산·측정 로그를 별도 PR에 보존한다. [도구](../../tools/depth_click_check.py)는 원본 ROS depth 토픽을 읽고 화면 클릭 지점의 Raw와 보정 거리를 출력한다. 주행 명령, 센서 설정 변경, 보정 depth 재발행은 하지 않는다.
 
 ## 보정 근거
 
@@ -22,7 +22,7 @@ DEPTH_SCALE = 실제 거리 / Raw 평균
 DEPTH_OFFSET_M = 0.0
 ```
 
-도구에는 위 계산식을 `DEPTH_SCALE` 상수로 보존한다. 시작 로그의 소수점 9자리 표시는 `0.959438378`이다. 이전 계수는 `1.38 / 1.47 ≈ 0.938775510`이었다. 이번 세 값을 기존 Corrected 값으로 다시 나누지 않고, **원본 Raw 평균**을 사용했다.
+이 값은 perception 코어가 읽는 [`robot6_depth.json`](../../src/rescue_perception/rescue_perception/config/robot6_depth.json)의 `scale`(0.9594383775351013, `offset_m` 0.0)과 같다. 도구는 계수를 상수로 따로 두지 않고 이 파일을 코어와 같은 함수(`target_utils.load_depth_calibration`)로 읽는다. 시작 로그의 소수점 9자리 표시는 `0.959438378`이다. 이전 계수는 `1.38 / 1.47 ≈ 0.938775510`이었다. 이번 세 값을 기존 Corrected 값으로 다시 나누지 않고, **원본 Raw 평균**을 사용했다.
 
 ## 사용자가 제공한 원문 결과
 
@@ -57,28 +57,28 @@ DEPTH_OFFSET_M = 0.0
 
 사용자가 실행한 standalone 코드를 저장소 도구로 옮겼다. 클릭 주변 최대 **5×5** 패치의 양의 유효값 중앙값을 사용하고 `16UC1` mm 입력을 m로 변환한다. 마지막 수신 이후 **2초** 넘은 프레임은 클릭 측정을 거절한다. 이는 로컬 수신 단절 검사이며 원 header의 캡처 나이나 시계 동기화 판정이 아니다. 화면 색상 범위 3m는 시각화 설정이다.
 
-실제 로봇 토픽은 필수 CLI 인자로 받고, scale과 offset도 명시적으로 바꿀 수 있다. 코드에 robot6 이름을 고정하지 않는다. 시작 로그에는 도구 소스 SHA256, 입력 토픽, 실제 적용 계수와 offset을 남긴다.
+실제 로봇 토픽은 필수 CLI 인자로 받는다. 보정은 기본으로 `--calibration package:robot6_depth.json`, `--physical-robot-id robot6` 이고, 다른 보정 파일은 이 두 인자로 고른다(파일의 `physical_robot_id` 가 다르면 시작하지 않는다). `--depth-scale`·`--depth-offset-m` 은 실험용 덮어쓰기이며 시작 로그에 `override` 와 파일 값이 같이 남는다. 시작 로그에는 도구 소스 SHA256, 입력 토픽, 보정 파일 ID·SHA256, 실제 적용 계수와 offset을 남긴다. 클릭 계산(중앙값·거절·계수 적용)과 기본 보정 파일은 `tests/test_depth_click_check.py` 가 ROS 없이 시험한다.
 
-ROS 2 Jazzy, rclpy, sensor_msgs, cv_bridge, NumPy, OpenCV 및 GUI 화면이 필요하다. 기존 PC 환경에서 저장소 루트 기준으로 실행한다.
+ROS 2 Jazzy, rclpy, sensor_msgs, cv_bridge, NumPy, OpenCV, GUI 화면과 빌드한 `rescue_perception`(보정 파일)이 필요하다. 워크스페이스를 source 한 뒤 저장소 루트 기준으로 실행한다.
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=6
-python3 tools/depth_check_claude.py \
+python3 tools/depth_click_check.py \
   --depth-topic /robot6/oakd/stereo/image_raw \
   --camera-info-topic /robot6/oakd/stereo/camera_info
 ```
 
-창에서 대상 표면을 클릭하면 Raw/Corrected와 유효 픽셀 수를 출력한다. `q`, 창 닫기 또는 Ctrl+C로 종료한다. 이 도구의 기본 scale은 위 82cm 실측 보고에서 계산한 실험용 값이다. 원본 값만 비교하려면 다음처럼 실행한다.
+창에서 대상 표면을 클릭하면 Raw/Corrected와 유효 픽셀 수를 출력한다. `q`, 창 닫기 또는 Ctrl+C로 종료한다. 기본 계수는 위 82cm 실측 보고에서 계산한 값(보정 파일)이다. 원본 값만 비교하려면 다음처럼 덮어쓴다.
 
 ```bash
-python3 tools/depth_check_claude.py \
+python3 tools/depth_click_check.py \
   --depth-topic /robot6/oakd/stereo/image_raw \
   --camera-info-topic /robot6/oakd/stereo/camera_info \
   --depth-scale 1.0 --depth-offset-m 0.0
 ```
 
-ROS 센서 원본과 프로젝트 perception 코어의 좌표 계산에는 이 표시 보정이 자동 적용되지 않는다. CLI와 시작 기록을 추가한 저장소 버전의 실제 센서/GUI 재실행은 `NOT_RUN`이다. 로컬에서 시험한 이전 standalone 코드의 관찰을 이 변경본의 실행 통과로 바꾸지 않는다.
+ROS 센서 원본 토픽은 바꾸지 않는다. perception 코어는 같은 보정 파일을 `depth_calibration_path`(기본 `package:robot6_depth.json`)로 읽어 자기 좌표 계산에 쓴다. 이 도구가 코어에 값을 넘기지는 않는다. CLI와 시작 기록을 추가한 저장소 버전의 실제 센서/GUI 재실행은 `NOT_RUN`이다. 로컬에서 시험한 이전 standalone 코드의 관찰을 이 변경본의 실행 통과로 바꾸지 않는다.
 
 ## 후속 검증
 
