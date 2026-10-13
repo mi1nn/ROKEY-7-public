@@ -4,8 +4,10 @@ db_writer reads each robot's /rescue/robots/<id>/overhead_passages text (C-04b, 
 rescue_contracts.overhead.parse_overhead_passages and keeps that robot's current list: a newer list
 (generated_at_ns) replaces the robot's whole list, so an item missing from it is gone from the DB too (the robot
 keeps items of earlier map revisions in its list, the web dims those). The same list again is not new, an older
-one is dropped. A bad text, or a list naming another robot than its topic, is refused into error_log. Schema 1.4
-adds the two tables; a 1.3 file gets them on open and keeps its rows.
+one is dropped. A bad text, or a list naming another robot than its topic, is refused into error_log.
+Items of both robots are measured on the SLAM robot's (TB-6) map, so the read also gives that robot's latest
+MapState (``current_map``, None until heard): the web draws items of that revision bold, others faint (hv-06).
+Schema 1.4 adds the three tables; a 1.3 file gets them on open and keeps its rows.
 """
 from pathlib import Path
 from types import SimpleNamespace as Msg
@@ -107,12 +109,41 @@ class OverheadRecordTests(Case):
         with db:
             db.execute('DROP TABLE overhead_passages')
             db.execute('DROP TABLE overhead_passage_lists')
+            db.execute('DROP TABLE current_map')
             db.execute("UPDATE metadata SET value = '1.3' WHERE key = 'schema'")
         db.close()
         with self.ledger() as ledger:
             self.assertTrue(ledger.record_overhead_passages(record()))
         self.assertEqual(['kept'], [e['detail'] for e in site_state.read_error_log(self.path)['errors']])
         self.assertEqual('1.4', site_state.SCHEMA_VERSION)
+
+
+def current(revision=3, at=T0 + 50, robot='robot_a', received=T0 + 60, session=None):
+    return dict(robot_id=robot, map_session_id=session or uid(5), map_revision=revision, generated_at_ns=at,
+                received_at_ns=received)
+
+
+class CurrentMapTests(Case):
+    def test_none_until_the_map_state_is_heard_then_the_latest(self):
+        self.ledger().close()
+        self.assertIsNone(site_state.read_overhead_passages(self.path)['current_map'])
+        with self.ledger() as ledger:
+            self.assertIs(True, ledger.record_current_map(current(3)))
+            self.assertIs(True, ledger.record_current_map(current(4, at=T0 + 51)))
+            self.assertIs(False, ledger.record_current_map(current(4, at=T0 + 51, received=T0 + 99)))  # resend
+            self.assertIs(False, ledger.record_current_map(current(2, at=T0 + 40)))  # older
+        self.assertEqual(current(4, at=T0 + 51), site_state.read_overhead_passages(self.path)['current_map'])
+
+    def test_same_time_other_content_or_bad_values_are_refused(self):
+        with self.ledger() as ledger:
+            ledger.record_current_map(current(3))
+            for value, code in ((current(5), 'ID_CONTENT_CONFLICT'), (current(robot='robot_z'), 'WRONG_ROBOT'),
+                                (current(session='x', at=T0 + 70), 'INVALID_INPUT'),
+                                (current(-1, at=T0 + 71), 'INVALID_INPUT'),
+                                (current(at=T0 + 72) | dict(extra=1), 'INVALID_INPUT')):
+                with self.subTest(value=value), self.assertRaises(OperationsError) as caught:
+                    ledger.record_current_map(value)
+                self.assertEqual(code, caught.exception.detail_code.split('.')[-1])
 
 
 class OverheadIngestTests(Case):
@@ -140,6 +171,15 @@ class OverheadIngestTests(Case):
         self.assertIsNone(listing(self.path, 'robot_b'))
         errors = site_state.read_error_log(self.path)['errors']
         self.assertEqual((4, {'robot_a'}), (len(errors), {e['robot_id'] for e in errors}))
+
+    def test_the_slam_robot_s_map_state_is_the_current_map(self):
+        msg = Msg(robot_id='robot_a', snapshot_id=uid(6), map_session_id=uid(5), map_revision=3,
+                  map_update_sequence=9, generated_at_ns=T0 + 50, localization_quality='GOOD')
+        self.assertIs(True, self.ingest.on_map_state(msg, received_at_ns=T0 + 60))
+        self.assertEqual(current(3), site_state.read_overhead_passages(self.path)['current_map'])
+        self.assertIsNone(self.ingest.on_map_state(Msg(robot_id='robot_a', map_session_id='x', map_revision=4,
+                                                       generated_at_ns=T0 + 70), received_at_ns=T0 + 80))
+        self.assertEqual(1, len(site_state.read_error_log(self.path)['errors']))
 
 
 if __name__ == '__main__':

@@ -15,6 +15,7 @@ def params(**changes):
               'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
               'overhead_passages_topics': ['/rescue/robots/robot_a/overhead_passages',
                                            '/rescue/robots/robot_b/overhead_passages'],
+              'map_state_topic': '/rescue/robots/robot_a/map_state',
               'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state',
               'targets_topic': '/rescue/targets', 'exit_location_topic': '/rescue/exit_location',
               'api_host': '127.0.0.1', 'api_port': 8090,
@@ -67,6 +68,7 @@ class NodeConfig(unittest.TestCase):
         self.assertEqual({'robot_a': '/rescue/robots/robot_a/overhead_passages',
                           'robot_b': '/rescue/robots/robot_b/overhead_passages'},
                          config['overhead_passages_topics'])  # tunnels (C-04b, OPS-194)
+        self.assertEqual('/rescue/robots/robot_a/map_state', config['map_state_topic'])  # the SLAM robot's
 
     def test_command_api_settings_are_kept(self):
         """#115: the console posts to this address; the API waits command_timeout_s (< console 5 s)."""
@@ -87,7 +89,8 @@ class NodeConfig(unittest.TestCase):
                dict(exit_location_topic='/rescue/targets'), dict(api_host=''), dict(api_port=0),
                dict(api_port=70000), dict(operator_command_service=''), dict(command_timeout_s=0.0),
                dict(command_timeout_s=5.0), dict(overhead_passages_topics=['/a']),
-               dict(overhead_passages_topics=['/rescue/robots/robot_a/status', '/b'])]
+               dict(overhead_passages_topics=['/rescue/robots/robot_a/status', '/b']), dict(map_state_topic=''),
+               dict(map_state_topic='/rescue/targets')]
         for change in bad:
             with self.subTest(change=change), self.assertRaises(OperationsError) as caught:
                 node_config(params(**change))
@@ -106,6 +109,7 @@ class NodeConfig(unittest.TestCase):
         self.assertEqual('TRANSIENT_LOCAL', durability['system_state'])  # #90 latches it
         # each robot's tunnel list is latched (C-04b); a late start still gets the current list
         self.assertEqual(('RELIABLE', 'TRANSIENT_LOCAL', 1), QOS['overhead_passages'])
+        self.assertEqual(('RELIABLE', 'TRANSIENT_LOCAL', 1), QOS['map_state'])  # IF-009, latched
         self.assertEqual('TRANSIENT_LOCAL', durability['targets'])  # #96 latches TargetSnapshot too
 
 

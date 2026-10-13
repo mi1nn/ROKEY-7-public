@@ -33,6 +33,7 @@ class DbWriterParameters(unittest.TestCase):
             'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
             'overhead_passages_topics': ['/rescue/robots/robot_a/overhead_passages',
                                          '/rescue/robots/robot_b/overhead_passages'],
+            'map_state_topic': '/rescue/robots/robot_a/map_state',
             'site_events_topic': '/rescue/site_events',
             'system_state_topic': '/rescue/system_state',
             'targets_topic': '/rescue/targets',
