@@ -73,7 +73,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'target_max_future_s:=0.05',
              # TB-5 dispatch: OPERATOR here (this probe drives DISPATCH_SUPPORT); the rehearsal overrides it to AUTO.
              '-p', 'support_dispatch:=OPERATOR', '-p', 'approach_standoff_m:=0.8', '-p', 'support_pose_max_age_s:=2.0',
-             '-p', 'support_exit_wait_s:=1.0']
+             '-p', 'support_exit_wait_s:=1.0', '-p', 'recheck_max_clock_error_s:=2.0']
 
 
 def node_command(repo, extra):

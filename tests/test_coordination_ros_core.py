@@ -36,7 +36,7 @@ def make_core(**changes):
                   lease_message_ttl_ns=TTL, camera_watch=None, target_clock_domain_id=CLOCK_DOMAIN,
                   target_max_age_ns=TARGET_AGE, target_max_future_ns=TARGET_FUTURE, support_dispatch='OPERATOR',
                   approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
-                  new_id=lambda: uid(next(ids)))
+                  recheck_max_clock_error_ns=20_000_000, new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 
 
@@ -226,7 +226,8 @@ class ScoutDispatchTests(CoreTestCase):
         self.finish(recheck)
         (search,) = self.core.tick(NOW)
         self.assertEqual('SEARCH_AREA', search['kind'])
-        self.assertEqual('', self.core.system_state_change(NOW)['reason'])
+        # The recheck completed without an observation: judged RECHECK_NEEDED (C-11 row 5), shown in place of the queue.
+        self.assertEqual('RECHECK_NEEDED_RECHECK_OBSERVATION_MISSING', self.core.system_state_change(NOW)['reason'])
 
     def test_stop_cancels_the_waiting_search(self):
         for stop in ('status', 'canceled', 'mode'):

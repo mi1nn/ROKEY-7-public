@@ -102,10 +102,10 @@ class SegmentApproval:
 
 @dataclass(frozen=True)
 class RecheckRequest:
-    """An open SCOUT recheck of one target (C-11 rows 10-11).
+    """An open SCOUT recheck of one target (C-11 rows 5 and 10-11).
 
-    ``source`` is OPERATOR: camera candidates (row 4-5) are not taken in yet, so
-    ``link_id`` is the command_id sitting in the candidate event_id slot, and
+    ``source`` CAMERA: ``link_id`` is the accepted candidate's event_id and ``accepted_at_ns`` its observed time
+    (row 8 ordering). OPERATOR: ``link_id`` is the command_id in the candidate event_id slot and
     ``accepted_at_ns`` is when this coordinator accepted it (row 11 ordering).
     """
     link_id: str

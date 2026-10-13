@@ -36,9 +36,10 @@ from uuid import uuid4
 
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
-from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand
+from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand, RecheckRequest
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
+from .verdict import Reference, judge
 from .watch import CameraWatchBook, roi_value
 
 SITE_EVENT_TOPIC = '/rescue/site_events'
@@ -232,7 +233,7 @@ class CoordinatorCore:
                  report_retry_ns, lease_renew_period_ns, admission_timeout_ns, segment_passage_free,
                  lease_message_ttl_ns, camera_watch, target_clock_domain_id, target_max_age_ns,
                  target_max_future_ns, support_dispatch, approach_standoff_m, support_pose_max_age_ns,
-                 support_exit_wait_ns, new_id=None):
+                 support_exit_wait_ns, recheck_max_clock_error_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -273,6 +274,12 @@ class CoordinatorCore:
         self.support_exit_wait_ns = support_exit_wait_ns
         # TB-5 to the exit after it reached the target (Q1-b): None, WAITING, ISSUED, MOVING, AT_EXIT, CANCELED, FAILED
         self.support_exit, self.exit_due_ns = None, None
+        contract_value(duration_ns, recheck_max_clock_error_ns)
+        self.recheck_max_clock_error_ns = recheck_max_clock_error_ns  # C-11 row 8 limit on the error sum
+        self.verdict_reason = None  # 'RECHECK_NEEDED_<reason>' of the latest judgement, for SystemState
+        self.scout_return = None    # TB-6 after RESCUE_CONFIRMED (5A): None, ISSUED, MOVING, AT_DOCK_APPROACH, FAILED
+        self.at_home = set()        # role robots at their home/exit, for FINISHED
+        self.notes = []             # one log line per verdict for the operator; the node logs and drains them
         self.candidate_results = {}  # candidate event_id -> its first reason, None = a row-3 conflict (replay = same)
         self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
         if not isinstance(target_clock_domain_id, str) or not target_clock_domain_id:
@@ -342,6 +349,8 @@ class CoordinatorCore:
         else:
             try:
                 reason = self.camera_watch.on_candidate(event)
+                if reason == 'CANDIDATE_ACCEPTED':
+                    self._open_camera_recheck(event)
             except CoordinationError:
                 self.candidate_results[event.event_id] = None
                 raise
@@ -400,7 +409,10 @@ class CoordinatorCore:
         if admitted and admission.accepted and meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_started()
         if admitted and admission.accepted and meta and meta[0] == 'RETURN_HOME':
-            self.support_exit = 'MOVING'
+            if meta[1] == 'SUPPORT_EXIT':
+                self.support_exit = 'MOVING'
+            else:
+                self.scout_return = 'MOVING'
         if admitted and admission.accepted and meta and meta[0] == 'MOVE_SEGMENT':
             self.mission.segment_started(meta[1].target_id, target_revision=meta[1].target_revision,
                                          route_revision=meta[1].route_revision, segment_index=meta[1].segment_index)
@@ -431,13 +443,25 @@ class CoordinatorCore:
                                           route_revision=approval.route_revision,
                                           segment_index=approval.segment_index,
                                           completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
-        elif meta and meta[0] == 'RETURN_HOME':
+        elif meta and meta[0] == 'RETURN_HOME' and meta[1] == 'SUPPORT_EXIT':
             self.support_exit = 'AT_EXIT' if result.outcome == 'COMPLETED' else 'FAILED'  # FAILED: shown, not retried
+            if self.support_exit == 'AT_EXIT':
+                self.note_support_at_exit()
+        elif meta and meta[0] == 'RETURN_HOME':
+            # TB-6 stops at the docking approach point; docking itself is done by hand (supervised, 5A).
+            self.scout_return = 'AT_DOCK_APPROACH' if result.outcome == 'COMPLETED' else 'FAILED'
+            if self.scout_return == 'AT_DOCK_APPROACH':
+                self._returned(self.roles['SCOUT'])
         elif meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_finished(completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
             self.approach_task = None  # ARRIVED or FAILED: never issued again
-        elif meta and meta[0] == 'REOBSERVE_TARGET' and result.outcome != 'COMPLETED':
-            self._forget(task_id)  # C-11 row 5: same recheck, new task_id and generation
+        elif meta and meta[0] == 'REOBSERVE_TARGET':
+            if result.outcome == 'COMPLETED':
+                # Row 5: no new task after COMPLETED (only an operator REQUEST_RECHECK). Without an observation
+                # there is nothing to judge: RECHECK_NEEDED, which closes the recheck for the operator.
+                self._judge(task_id, meta[1], result.recheck if getattr(result, 'has_recheck', False) else None)
+            else:
+                self._forget(task_id)  # C-11 row 5: same recheck, new task_id and generation
         return True
 
     def on_target_location(self, msg, *, now_ns):
@@ -552,7 +576,7 @@ class CoordinatorCore:
             cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
-            reason=self.issue_block or self.exit_reason(now_ns) or ('SEARCH_QUEUED' if self.search_queued() else '') or (
+            reason=self.issue_block or self.mission_reason(now_ns) or ('SEARCH_QUEUED' if self.search_queued() else '') or (
                 self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
                 self.location_refusal or ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
@@ -634,6 +658,7 @@ class CoordinatorCore:
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
         self._issue_approach(now_ns)
         self._issue_support_exit(now_ns)
+        self._issue_scout_return(now_ns)
         self._issue_segment(now_ns)
         self._issue_rechecks(now_ns)
         self._issue_search(now_ns)
@@ -824,6 +849,85 @@ class CoordinatorCore:
         self.support_exit = 'ISSUED'
         self._send(fields)
         return fields['task_id']
+
+    # -- recheck -> verdict -> TB-6 return (C-11 rows 5, 7-11; owner decision 2026-10-13 4A·5A) ------------
+    def _open_camera_recheck(self, event):
+        """Row 5: an accepted candidate opens a CAMERA recheck of its target, unless one is already open (row 10:
+        an open operator recheck keeps its link; the candidate is recorded only) or the target is judged."""
+        mission, target_id = self.mission, event.target_id
+        if mission.verdicts.get(target_id) == 'RESCUE_CONFIRMED' or target_id in mission.open_rechecks:
+            return False
+        mission.open_rechecks[target_id] = RecheckRequest(event.event_id, target_id, 'CAMERA', event.observed_at_ns)
+        return True
+
+    def _judge(self, task_id, link_id, observation):
+        """Judge one completed REOBSERVE_TARGET with its RecheckObservation and close its recheck."""
+        mission = self.mission
+        recheck = next((r for r in mission.open_rechecks.values() if r.link_id == link_id), None)
+        if recheck is None:
+            return None  # closed meanwhile (judged by another path): nothing to record
+        if recheck.source == 'CAMERA':
+            event = mission.events[link_id][0]
+            reference = Reference('CAMERA', event.observed_at_ns, event.clock_domain_id, event.clock_error_bound_ns,
+                                  event.time_basis_declared)
+        else:  # row 11 needs this coordinator's measured clock, not measured on this path
+            reference = Reference('OPERATOR', recheck.accepted_at_ns, None, None, False)
+        o = self.observe_goal
+        if observation is None:
+            state, reason = 'RECHECK_NEEDED', 'RECHECK_OBSERVATION_MISSING'
+        else:
+            state, reason = judge(observation, reference, expected_task_id=task_id, target_id=recheck.target_id,
+                                  scout_id=self.roles['SCOUT'], basis=(o.map_session_id, o.map_revision,
+                                                                       o.transform_revision),
+                                  mission_frame=self.search.policy.mission_frame_id,
+                                  max_clock_error_ns=self.recheck_max_clock_error_ns)
+        mission.record_rescue_verdict(recheck.target_id, state)
+        self.verdict_reason = None if state == 'RESCUE_CONFIRMED' else f'RECHECK_NEEDED_{reason}'
+        self.notes.append(f'VERDICT target={recheck.target_id} state={state} reason={reason} source={recheck.source} '
+                          f'link={link_id} task={task_id}')
+        return state
+
+    def drain_notes(self):
+        notes, self.notes = self.notes, []
+        return notes
+
+    def _issue_scout_return(self, now_ns):
+        """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>)."""
+        mission = self.mission
+        if (self.scout_return is not None or 'RESCUE_CONFIRMED' not in mission.verdicts.values()
+                or mission.mode != 'DISASTER' or self._held_after_refusal('SCOUT_RETURN', now_ns)):
+            return None
+        boot = self._free('SCOUT', now_ns)
+        if boot is None:
+            return None
+        robot_id = self.roles['SCOUT']
+        decision = self.search.reserve_goal_task(robot_id, robot_boot_id=boot, kind='RETURN_HOME',
+                                                 target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
+        if decision.action != 'RESERVED':
+            return None
+        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
+        self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SCOUT_RETURN')
+        self.scout_return = 'ISSUED'
+        mission.returning = True
+        for robot in self.at_home:  # TB-5 may already be at its exit
+            mission.record_returned(robot)
+        self._send(fields)
+        return fields['task_id']
+
+    def note_support_at_exit(self):
+        """TB-5 reached its exit (5A); it counts toward FINISHED once the mission is returning."""
+        self._returned(self.roles['SUPPORT'])
+
+    def _returned(self, robot_id):
+        self.at_home.add(robot_id)
+        if self.mission.returning:
+            self.mission.record_returned(robot_id)
+
+    def mission_reason(self, now_ns):
+        """The latest stage after dispatch for SystemState.reason: TB-6 return, the verdict, TB-5's exit."""
+        scout = {'ISSUED': 'SCOUT_RETURNING', 'MOVING': 'SCOUT_RETURNING',
+                 'AT_DOCK_APPROACH': 'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'FAILED': 'SCOUT_RETURN_FAILED'}
+        return scout.get(self.scout_return) or self.verdict_reason or self.exit_reason(now_ns)
 
     def exit_reason(self, now_ns):
         """SystemState.reason for TB-5's exit: the countdown in whole seconds (rounded up), then its progress."""
@@ -1069,7 +1173,10 @@ class CoordinatorCore:
             self.approach_task = None  # refused or timed out before moving: issued again on a later tick
             return
         if kind == 'RETURN_HOME':
-            self.support_exit = 'WAITING'  # the wait is over; issued again after the refusal hold
+            if key == 'SUPPORT_EXIT':
+                self.support_exit = 'WAITING'  # the wait is over; issued again after the refusal hold
+            else:
+                self.scout_return = None
             return
         table = self.segment_tasks if kind == 'MOVE_SEGMENT' else self.recheck_tasks
         table.pop(key.command_id if kind == 'MOVE_SEGMENT' else key, None)
@@ -1193,7 +1300,8 @@ def build_core(values):
                            support_dispatch=values['support_dispatch'],
                            approach_standoff_m=values['approach_standoff_m'],
                            support_pose_max_age_ns=seconds_to_ns(str(values['support_pose_max_age_s'])),
-                           support_exit_wait_ns=seconds_to_ns(str(values['support_exit_wait_s'])))
+                           support_exit_wait_ns=seconds_to_ns(str(values['support_exit_wait_s'])),
+                           recheck_max_clock_error_ns=seconds_to_ns(str(values['recheck_max_clock_error_s'])))
 
 
 def home_positions(flat, roles, basis):
@@ -1245,7 +1353,9 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # the SUPPORT RobotPose used for the approach direction.
     'support_dispatch': 'STRING', 'approach_standoff_m': 'DOUBLE', 'support_pose_max_age_s': 'DOUBLE',
     # Q1-b: TB-5 waits this long at the target after arriving, then goes to its exit (RETURN_HOME).
-    'support_exit_wait_s': 'DOUBLE'}
+    'support_exit_wait_s': 'DOUBLE',
+    # C-11 row 8: the candidate + recheck clock error sum must be at most this for a RESCUE_CONFIRMED.
+    'recheck_max_clock_error_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
@@ -1351,8 +1461,13 @@ def main(args=None):
             handle = future.result()
             log.info(f'GOAL task={task_id} accepted={handle.accepted} (ACTIVE only from task_admission)')
             if handle.accepted:
-                handle.get_result_async().add_done_callback(guarded('result', lambda done: log.info(
-                    f'RESULT task={task_id} released={core.on_result(task_id, done.result().result.result)}')))
+                handle.get_result_async().add_done_callback(guarded('result', lambda done: on_task_result(
+                    task_id, done.result().result.result)))
+
+        def on_task_result(task_id, result):
+            log.info(f'RESULT task={task_id} outcome={result.outcome} released={core.on_result(task_id, result)}')
+            for note in core.drain_notes():
+                log.info(note)
 
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
