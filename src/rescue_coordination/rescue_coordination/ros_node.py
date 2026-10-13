@@ -16,8 +16,10 @@ ROS packages are imported inside functions, so this module stays importable and
   (``watch.CameraWatchBook``, C-11 rows 1-4); a TARGET_DISAPPEARED_CANDIDATE is judged against it
   in DISASTER only (#124) and the watch is released when its mission ends.
 
-Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5) and verdict linking, HomePosition
-and RETURN_HOME assignment (Q-22).
+- ``home_poses`` (TB-6 docking approach point, TB-5 exit) -> HomePosition; ``/rescue/robots/{r}/map_state``
+  (#176) VALID -> the robot's current map basis, which RETURN_HOME compares with its home.
+
+Not yet (PR body): accepted candidate -> REOBSERVE (C-11 row 5) and verdict linking, the RETURN_HOME task (Q-22).
 """
 import hashlib
 import json
@@ -306,6 +308,21 @@ class CoordinatorCore:
         self.status_arrivals += 1  # arrival order at this node; no clock comparison
         self.status_detail[msg.robot_id] = (self.status_arrivals, msg.stop_reason, msg.motion_state,
                                             bool(msg.lease_valid), msg.active_task_id)
+
+    def on_map_state(self, msg):
+        """MapState of a role robot (#176): a VALID localization is its current map basis for RETURN_HOME.
+
+        transform_revision is not in MapState; it is the profile map_basis value, which is this coordinator's
+        goal basis. Anything but VALID withdraws the robot's basis (HOME_BASIS_MISMATCH), never keeps an old one.
+        """
+        if msg.robot_id not in self.roles.values():
+            raise CoordinationError('WRONG_ROBOT', 'map state from a robot outside the policy')
+        if msg.localization_quality != 'VALID':
+            self.mission.map_basis.pop(msg.robot_id, None)
+            return False
+        self.mission.record_map_basis(msg.robot_id, map_session_id=msg.map_session_id, map_revision=msg.map_revision,
+                                      transform_revision=self.observe_goal.transform_revision)
+        return True
 
     def on_admission(self, msg):
         admission = admission_from_msg(msg)
@@ -944,7 +961,7 @@ def main(args=None):
     from rcl_interfaces.msg import ParameterType
     from rescue_interfaces.action import ExecuteTask
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from rescue_interfaces.msg import (CommandLease, ReportReceipt, RescueReport, RobotStatus,
+    from rescue_interfaces.msg import (CommandLease, MapState, ReportReceipt, RescueReport, RobotStatus,
                                        SiteEvent as SiteEventMsg, SystemState, TargetEstimate, TargetLocation,
                                        TargetSnapshot, TaskAdmission as AdmissionMsg)
     from rescue_interfaces.srv import SetCameraWatch, SubmitOperatorCommand
@@ -1130,6 +1147,12 @@ def main(args=None):
                                      guarded('status', core.on_status), 1)
             node.create_subscription(AdmissionMsg, ROBOT_PREFIX + robot + '/task_admission', guarded(
                 'admission', lambda msg: log.info(f'ADMISSION {msg.task_id} -> {core.on_admission(msg)}')), 10)
+        latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                             durability=DurabilityPolicy.TRANSIENT_LOCAL)  # #176: map_state is latched
+        for robot in core.roles.values():
+            node.create_subscription(MapState, ROBOT_PREFIX + robot + '/map_state', guarded('map_state', lambda msg: log.info(
+                f'MAP_STATE {msg.robot_id} {msg.map_session_id}/{msg.map_revision} {msg.localization_quality} '
+                f'-> recorded={core.on_map_state(msg)}')), latched)
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
         node.create_subscription(ReportReceipt, REPORT_RECEIPT_TOPIC, guarded('receipt', lambda msg: log.info(
