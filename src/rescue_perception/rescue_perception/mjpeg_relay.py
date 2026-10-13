@@ -52,10 +52,16 @@ class FrameHub:
         """The first frame after ``seq`` within stale_s, or None (camera stopped or hub closed)."""
         with self._cond:
             self._cond.wait_for(lambda: self._closed or self._seq > seq, timeout=self.stale_s)
-            if (self._closed or self._seq <= seq
+            if (self._closed or self._seq <= seq or self._jpeg is None
                     or self._clock() - self._at >= self.stale_s):
                 return None
             return self._seq, self._jpeg
+
+    def reset(self):
+        """Drop the last frame (the source changed): it is never shown as the new source's picture."""
+        with self._cond:
+            self._jpeg, self._at = None, None
+            self._cond.notify_all()
 
     def close(self):
         with self._cond:
@@ -63,8 +69,12 @@ class FrameHub:
             self._cond.notify_all()
 
 
-def make_server(hub, host, port, path, log=None):
-    """ThreadingHTTPServer serving ``path`` as MJPEG from ``hub``; every other path is 404."""
+SELECT_PATH = '/select'   # robot_view_relay: GET {robot, robots}, POST {robot} (OPS-191)
+
+
+def make_server(hub, host, port, path, log=None, select=None):
+    """ThreadingHTTPServer serving ``path`` as MJPEG from ``hub``; with ``select`` (robot_view_relay.Selector)
+    also GET/POST SELECT_PATH. Every other path is 404."""
 
     class Handler(BaseHTTPRequestHandler):
         # Socket timeout for every read and write: a client that stops reading cannot hold this
@@ -75,7 +85,30 @@ def make_server(hub, host, port, path, log=None):
             if log is not None:
                 log(f'{self.client_address[0]} {fmt % args}')
 
+        def _json(self, status, body):
+            data = json.dumps(body).encode()
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_POST(self):  # noqa: N802 - http.server naming
+            if select is None or self.path != SELECT_PATH:
+                self.send_error(404)
+                return
+            try:
+                length = int(self.headers.get('Content-Length', ''))
+                robot = json.loads(self.rfile.read(min(length, 1024))).get('robot') if 0 <= length <= 1024 else None
+            except (ValueError, AttributeError):
+                robot = None
+            ok, reason = select.select(robot) if isinstance(robot, str) else (False, 'body must be {"robot": <id>}')
+            self._json(200 if ok else 400, select.state() if ok else {'error': reason})
+
         def do_GET(self):
+            if select is not None and self.path == SELECT_PATH:
+                self._json(200, select.state())
+                return
             if self.path.split('?', 1)[0] != path:
                 self.send_error(404)
                 return

@@ -44,6 +44,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 ```
 
 - `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 카드는 현장 상태 DB 가 정한 배치 로봇 목록(`read_allowed_robot_ids`, #149)으로 그린다. 상태를 아직 안 보낸 로봇도 카드가 있다. 그 목록이 없는 입력(픽스처)에서만 상태가 들어온 로봇만 그리고, 그 사실을 「확인할 것」 줄에 적는다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
+- **새 회차는 새 현장 상태 DB 로 띄운다(OPS-183).** 재난 모드·사건 기록·임무 상태는 DB 에 남아 있어서, 같은 `--site-state`(운영 launch 의 `db_path`)로 다시 띄우면 지난 회차의 재난(예: 오전 15:13 진동 감지)이 그대로 보인다. 회차마다 새 폴더(예: `~/rokey7-field/run<날짜시각>/site_state.sqlite3`)를 운영 launch `db_path` 와 관제 웹 `--site-state` 에 같이 준다. 지난 DB 는 지우지 않고 증거로 둔다.
 - `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
 - `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
 - `--search-start AUTO|OPERATOR` 는 조정기의 `search_start` 와 같은 현장 값이다(#228, OPS-140). AUTO 이면 지진 감지(DISASTER)가 곧 TB-6 수색 시작이고 조정기는 운영자의 수색 시작을 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절하므로, 수색 시작 버튼 대신 「TB-6 자동 출발」 상태를 보인다. OPERATOR 이거나 인자가 없으면 버튼이다. 값이 어긋나면: 조정기가 AUTO 인데 관제 웹이 버튼이면 버튼을 눌렀을 때의 거절(또는 임무 띠의 `AUTO_SEARCH_ENABLED`)을 보고 경고 줄에 「관제 웹을 --search-start AUTO 로 다시 띄우세요」가 나온다. 반대로 관제 웹이 AUTO 인데 조정기가 OPERATOR 이면 화면은 자동 출발이라 하지만 수색이 시작되지 않는다 — 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없으므로, 두 값은 같은 현장 파일에서 가져온다.
@@ -127,6 +128,25 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 - **모드 배지:** `mission_state` 행(operations 가 조정기의 SystemState 를 적은 것, #111)을 보인다. 모드는 「평시」·「재난」(빨강 띠)·「해제 중」·「임무 종료」, 그 옆에 트리거 시각·경과(서버 집계 시각 − 트리거)·단계(`phase`)·구간 「끝낸 구간/전체 + 구간 상태」(출동 중일 때)·사유(`reason`, 있을 때)와 「조정기 임무 상태, n 전 바뀜」. 행이 아직 없으면 현장 사건의 `DISASTER_SIGN` 으로 재난/평시를 **추정**하고 「임무 상태 기록 전 — … 추정」이라고 적는다. 현장 사건도 없으면 「모름」. 단계·구간 낱말은 `labels.py`.
 - **웹캠:** `--camera` 로 받은 MJPEG 주소를 `<img src>` 로 넣는다(IF-082). 콘솔은 영상을 중계하지 않는다. 영상은 1초마다 바뀌는 조각(`#live`) **밖**에 있어 폴링이 스트림을 끊지 않는다. 영상이 끊기면 화면 안에 「영상이 들어오지 않습니다 …」와 캡션 「영상 끊김」을 띄운다. 주소가 없으면 `--camera` 를 넣으라는 안내가 자리에 남는다. 카메라 주소는 프로파일 v2.1 `site_cameras`(#39)가 들어오면 거기서 받는다.
+
+## 웹캠 고르기 (관리자, OPS-183)
+
+`--camera` 와 `--operations` 로 띄우면 관리자 화면의 웹캠 칸 아래에 「카메라 [목록] 카메라 바꾸기」가 나온다. 목록은 operations 가 운영 PC 의 `/dev/v4l/by-id/*-video-index0`(기동 인자 `webcam_device` 와 같은 이름, #204)을 읽어 주고, 지금 장치가 선택돼 있다.
+
+- 바꾸면 operations(`POST /api/webcam`)가 webcam_node 의 `device_path` 파라미터를 바꾼다. webcam_node 는 카메라를 닫고 새 장치로 열며, **지진 판정을 처음부터 다시 하고 출구 감시를 푼다**(화면·ROI 가 바뀜). 카메라 상태는 `OFFLINE`/`CAMERA_SWITCHED` 를 한 번 낸다.
+- 화면에는 「카메라 전환 — 지진 판정 다시 시작, 출구 감시 풀림」, 거절이면 「카메라 전환 거절: <이유>」가 다음 화면에 보인다. operations 는 둘 다 오류 기록에 남겨 「명령·오류 기록」 표에 나온다. 오류 기록은 공통 코드(C-09)만 받으므로 내용이 `CAMERA_SWITCHED`·`CAMERA_SWITCH_REFUSED` 로 시작하고(누가·어디서·어디로), 코드는 전환 `SENSOR_UNAVAILABLE`(판정 다시 시작 중), 꽂혀 있지 않음 `NOT_FOUND`, webcam_node 거절 `INVALID_INPUT`, 무응답 `DRIVER_UNAVAILABLE` 이다.
+- 꽂혀 있지 않은 장치는 operations 가 `UNKNOWN_DEVICE` 로, 사라진 경로는 webcam_node 가 거절한다. 조용히 이전 장치로 두지 않는다.
+- 바꾸기 전에 늘 확인 창이 뜨고, 재난 모드에서는 「임무 진행 중(재난 모드)입니다…」로 묻는다(재범 결정 대기: 재난 모드에서 아예 막을지).
+- 손님(CUSTOMER)에게는 목록도 버튼도 없고, `POST /webcam` 은 403 이다. operations 가 답하지 않으면 「카메라 목록을 못 받음」이 보인다.
+
+## 로봇 카메라 (OPS-191, 재범 결정)
+
+웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-6/TB-5 를 고른다(기본 TB-6 = 프로파일의 SCOUT). 운영 명령이 아니라 보기 설정이라 누구나 바꾸고 확인 창이 없다.
+
+- 영상은 통합-인식이 로봇 PC 에서 만든 판정 그린 영상 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT depth 1, 352×352 초당 5장 [제안])이다. 원본 RGB 를 Wi-Fi 로 또 끌지 않는다.
+- 운영 launch `robot_views:=robot_a=/robot6,robot_b=/robot5` 를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
+- 고르기는 관제 웹 `POST /robot-camera` → 중계 `POST /select {"robot": id}`. 바꾸면 중계가 이전 로봇의 마지막 화면을 버린다.
+- 고른 로봇 영상이 `video_stale_s`(중계)·`--camera-stale-s`(화면) 동안 없으면 「카메라 영상 낡음」이고 마지막 화면을 감춘다. 다른 로봇의 터널 판정은 지도 표시로만 본다(다음 PR, `overhead_passages` 기록 뒤).
 
 ## 시각과 나이 표시
 

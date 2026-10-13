@@ -19,7 +19,8 @@ def params(**changes):
               'site_events_topic': '/rescue/site_events', 'system_state_topic': '/rescue/system_state',
               'targets_topic': '/rescue/targets', 'exit_location_topic': '/rescue/exit_location',
               'api_host': '127.0.0.1', 'api_port': 8090,
-              'operator_command_service': '/rescue/operator_command', 'command_timeout_s': 3.0}
+              'operator_command_service': '/rescue/operator_command', 'command_timeout_s': 3.0,
+              'webcam_node': '/webcam_node'}
     return values | changes
 
 
@@ -88,7 +89,7 @@ class NodeConfig(unittest.TestCase):
                dict(targets_topic='/rescue/system_state'), dict(exit_location_topic=''),
                dict(exit_location_topic='/rescue/targets'), dict(api_host=''), dict(api_port=0),
                dict(api_port=70000), dict(operator_command_service=''), dict(command_timeout_s=0.0),
-               dict(command_timeout_s=5.0), dict(overhead_passages_topics=['/a']),
+               dict(command_timeout_s=5.0), dict(webcam_node='webcam_node'), dict(overhead_passages_topics=['/a']),
                dict(overhead_passages_topics=['/rescue/robots/robot_a/status', '/b']), dict(map_state_topic=''),
                dict(map_state_topic='/rescue/targets')]
         for change in bad:
