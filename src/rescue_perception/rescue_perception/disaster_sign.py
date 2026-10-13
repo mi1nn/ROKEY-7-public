@@ -23,6 +23,23 @@
 모든 값은 DisasterSignPolicy 로 받는다(Q-11, 기본값 없음). 진도 7 은 시나리오
 근거일 뿐 웹캠으로 재지 않는다. 사건은 증거이고 모드 전환은 협업·관제가 한다(계약 C-01).
 """
+# 용어
+#   격자      : 프레임을 sample_stride(8) 픽셀 간격으로 뽑은 회색 밝기 표. 640×480 → 80×60
+#   블록      : 격자를 4×4 로 나눈 한 칸. 블록마다 이동량을 따로 잰다
+#   칸        : 거리 단위. 1칸 = 격자 한 칸 = 8 픽셀
+#   기준 장면 : 흔들리기 전의 화면. 지금 화면에 이 장면이 보이는지로 가림을 판단한다
+#   방향 전환 : 이번 이동이 직전 이동과 반대 방향인 것. 3초 안에 4번이면 지진 조건
+# 읽는 순서: DisasterSignDetector.update() → _block_shifts·_best_zncc → _visible_blocks → _whole_view → _judge
+
+# 한 장면으로 따라가기 (예시 값, 0.2초마다 1장)
+#   t=0.0s  첫 프레임 → 기준 장면으로 저장 (FIRST_FRAME)
+#   t=0.2s  카메라가 오른쪽으로 밀림: 16블록 대부분이 (+2, 0) → 네 사분면 모두 동의 → 화면 이동 (+2, 0), 방향 기록
+#   t=0.4s  왼쪽으로 밀림 (-2, 0) → 직전 (+2, 0) 과 반대 → 방향 전환 1회
+#   t=0.6s ~ 1.0s  오른쪽·왼쪽 반복 → t=1.0s 에 전환 4회 → 조건 참
+#   t=1.2s  조건이 0.2초 유지됨 → DISASTER_SIGN 사건 1건 (이후 조용해질 때까지 다시 내지 않음)
+#   사람이 지나가면 → 사람이 있는 블록만 움직여 네 사분면이 같은 이동에 동의하지 않음 → 정상
+#   손으로 렌즈를 가리면 → 기준 장면이 보이는 블록이 30% 미만 → UNKNOWN(판단 보류), 전환 횟수는 그대로
+
 from dataclasses import dataclass
 import math
 from statistics import median
@@ -105,6 +122,7 @@ class DisasterSignPolicy:
     release_ns: int
     max_gap_ns: int
 
+    # 값 범위 검사. 하나라도 틀리면 PerceptionError → 노드가 기동하지 않는다.
     def __post_init__(self):
         _count(self.sample_stride, "sample_stride", 1)
         for name in ("blocks_x", "blocks_y"):
@@ -163,6 +181,7 @@ def _gray_grid(image, stride):
     _require(image.step >= image.width * channels, "INVALID_INPUT", "step shorter than row")
     weights = _LUMA.get(image.encoding)
     grid = []
+    # stride 픽셀마다 한 점만 뽑아 회색 밝기로 바꾼다(밝기 = 세 채널 가중합). 계산량이 약 1/64 로 준다.
     for y in range(0, image.height, stride):
         base, row = y * image.step, []
         for x in range(0, image.width, stride):
@@ -192,6 +211,7 @@ def _block_size(grid, policy):
 
 def _offsets(search):
     """찾아볼 이동 후보. 작은 이동부터 정렬해 점수가 같으면 덜 움직인 쪽을 고른다."""
+    # search 가 3 이면 (-3..3) × (-3..3) = 49 개 후보.
     span = range(-search, search + 1)
     return sorted(((dx, dy) for dy in span for dx in span),
                   key=lambda d: (d[0] ** 2 + d[1] ** 2, d[1], d[0]))
@@ -206,14 +226,19 @@ def _block_shifts(prev, cur, policy):
     s = policy.search_cells
     bh, bw = _block_size(cur, policy)
     n, offsets, out = bh * bw, _offsets(s), []
+    # 블록 위치: 격자 가장자리 s칸(여백)을 빼고 남은 부분을 4×4 로 나눈다. (y0, x0) = 블록의 왼쪽 위 칸.
+    #   예) 640×480, stride 8 → 격자 60행×80열, s=3 → 54행×74열 → 블록 하나 = 13행 × 18열 (bh=13, bw=18)
     for by in range(policy.blocks_y):
         for bx in range(policy.blocks_x):
             y0, x0 = s + by * bh, s + bx * bw
+            # a = 블록 안 밝기 값을 한 줄로 편 목록(13×18 = 234개, n = 234). norm_a = 평균을 뺀 a 의 길이(크기).
             # 현재 블록에서 평균을 뺀 값과 그 크기(표준편차 * sqrt(n))
             a = [cur[y][x] for y in range(y0, y0 + bh) for x in range(x0, x0 + bw)]
             mean = sum(a) / n
             a = [v - mean for v in a]
             norm_a = math.sqrt(sum(v * v for v in a))
+            # 표준편차(= norm_a / √n)가 작으면 무늬 없는 블록(흰 벽, 어둠)이다.
+            # 어디로 옮겨도 똑같아 보여 이동을 잴 수 없으므로 '무늬 없음'으로 두고 건너뛴다.
             if norm_a / math.sqrt(n) < policy.texture_min:
                 out.append((bx, by, False, None, None, None))
                 continue
@@ -221,25 +246,35 @@ def _block_shifts(prev, cur, policy):
     return out
 
 
+# ZNCC(평균을 뺀 정규화 상관): 두 조각에서 각각 평균을 빼고 크기로 나눈 뒤 곱해 더한 값. -1 ~ 1.
+#   1 에 가까울수록 같은 무늬다. 밝기·대비가 바뀌어도 점수가 그대로라 조명 변화를 이동으로 착각하지 않는다.
+#   예) [50, 100, 150] 과 불을 켜 두 배가 된 [100, 200, 300] → 1.0 / 다른 장면 [150, 50, 100] → -0.5
 def _best_zncc(prev, a, norm_a, y0, x0, bh, bw, offsets):
     """평균을 뺀 조각 a 를 prev 의 (y0+dy, x0+dx) 자리들과 ZNCC 로 비교해 최고 (dx, dy, 점수).
 
     ZNCC 는 -1 ~ 1 이다. 비교할 수 있는 자리가 없으면 점수 -2.
     """
     n, best = bh * bw, (None, None, -2.0)
+    # 후보 이동마다 직전 프레임에서 그만큼 옮긴 자리의 조각 b 를 꺼내 점수를 매긴다.
     for dx, dy in offsets:
+        # b = 직전 프레임에서 (dx, dy) 만큼 옮긴 자리의 같은 크기 조각
         b = [prev[y][x] for y in range(y0 + dy, y0 + dy + bh) for x in range(x0 + dx, x0 + dx + bw)]
         sb = sum(b)
+        # var_b = b 의 분산 × n (평균을 빼는 계산을 한 줄로 줄인 식)
         var_b = sum(v * v for v in b) - sb * sb / n
         if var_b <= 1e-9:  # 직전 자리가 완전히 평평하면 비교할 수 없다
             continue
         # a 는 이미 평균 0 이라 b 의 평균을 빼지 않아도 분자가 같다
+        # score = (a·b) / (|a|·|b|). 같은 무늬면 1, 상관없는 무늬면 0 근처, 밝기가 뒤집힌 무늬면 -1
         score = sum(p * q for p, q in zip(a, b)) / (norm_a * math.sqrt(var_b))
+        # 더 높은 점수일 때만 바꾼다 → 점수가 같으면 먼저 본(더 작은) 이동이 남는다.
         if score > best[2]:
             best = (dx, dy, score)
     return best
 
 
+# 직전 프레임이 아니라 '기준 장면'과 비교하는 이유: 손이 렌즈 앞에 머물면 직전 프레임에도 손이 있어서
+# 직전 프레임과는 잘 맞는다고 나온다. 흔들리기 전 장면과 비교해야 '원래 보이던 것이 지금도 보이나'를 알 수 있다.
 def _visible_blocks(ref, cur, policy):
     """기준 장면이 아직 보이는 블록들의 (bx, by) 집합.
 
@@ -257,11 +292,15 @@ def _visible_blocks(ref, cur, policy):
             mean = sum(a) / n
             a = [v - mean for v in a]
             norm_a = math.sqrt(sum(v * v for v in a))
+            # 기준 장면의 ±3칸 안에서 가장 잘 맞는 점수가 scene_match_min(0.6) 이상이면 '이 블록에는 원래 장면이 보인다'.
             if norm_a > 1e-9 and _best_zncc(ref, a, norm_a, y0, x0, bh, bw, offsets)[2] >= policy.scene_match_min:
                 visible.add((bx, by))
     return visible
 
 
+# 예) 카메라 흔들림: 16블록 대부분이 (+2, 0) → 중앙값 (+2, 0), 네 사분면 모두에 (+2, 0) 블록이 있음 → (+2, 0)
+#     사람이 화면 왼쪽 절반을 덮고 움직임: 왼쪽 8블록 (+3, 0), 오른쪽 8블록 (0, 0) → 중앙값 x = 1.5
+#     → 어느 블록도 1.5 ± 1칸 안에 없음 → 동의하는 사분면 0개 → None(부분 움직임)
 def _whole_view(matched, policy):
     """매칭된 블록들로 화면 전체 이동 (dx, dy) 을 구한다. 부분 움직임이면 None.
 
@@ -269,7 +308,10 @@ def _whole_view(matched, policy):
     맞는 블록이 하나 이상 있어야 한다. 사람이 화면 대부분을 가려도 멈춰 있는
     사분면이 남으므로 걸러진다.
     """
+    # 중앙값을 쓰는 이유: 손·사람이 일부 블록을 끌고 가도 다수 블록의 움직임이 화면 이동이 된다.
     mx, my = median(b[3] for b in matched), median(b[4] for b in matched)
+    # 중앙값과 ±agree_tol 안으로 맞는 블록이 속한 사분면을 모은다.
+    # (bx * 2 // blocks_x, by * 2 // blocks_y) 는 각각 0 또는 1 → (0,0) (1,0) (0,1) (1,1) 네 사분면.
     agreeing = {(b[0] * 2 // policy.blocks_x, b[1] * 2 // policy.blocks_y) for b in matched
                 if abs(b[3] - mx) <= policy.agree_tol and abs(b[4] - my) <= policy.agree_tol}
     return (mx, my) if len(agreeing) == 4 else None
@@ -288,6 +330,7 @@ class DisasterSignDetector:
         _require(isinstance(policy, DisasterSignPolicy), "INVALID_INPUT", "policy")
         self.camera_id = _contract(camera_id, binding.source_camera, "camera_id")
         self.binding, self.policy = binding, policy
+        # 판정기가 프레임 사이에 기억하는 값들. update() 가 매 프레임 읽고 고친다.
         self._last_ns = None        # 마지막으로 처리한 프레임 시각
         self._prev_grid = None      # 직전 프레임 격자(비교 기준)
         self._ref_grid = None       # 기준 장면(흔들리지 않을 때의 화면)
@@ -305,8 +348,10 @@ class DisasterSignDetector:
         self._true_since, self._false_since = None, None
 
     def update(self, rgb):
+        # rgb_frame: 입력 형식(encoding·크기·시각)을 검사하고, 증거로 쓸 원 픽셀의 sha256 을 구한다.
         frame, evidence_sha256 = rgb_frame(rgb, self.binding)
         stamp = frame.observed_at_ns
+        # 같은 시각(DUPLICATE)·더 이른 시각(REORDERED) 프레임은 무시한다. 판정 상태는 시간 순서로만 나아간다.
         if self._last_ns is not None and stamp <= self._last_ns:
             return SignFrame("DUPLICATE" if stamp == self._last_ns else "REORDERED", None, None,
                              len(self._reversal_ns), False, None)
@@ -319,30 +364,39 @@ class DisasterSignDetector:
             self._reset_motion()  # 해상도가 바뀌면 직전 프레임과 비교할 수 없다: 처음부터 다시
         self._last_ns = stamp
         prev, self._prev_grid = self._prev_grid, grid  # UNKNOWN 이어도 다음 비교 기준은 이 프레임
+        # 3초(window_ns) 창을 벗어난 방향 전환 기록은 지운다 → 남은 개수 = '최근 3초 안의 전환 횟수'.
         self._reversal_ns = [t for t in self._reversal_ns if t > stamp - self.policy.window_ns]
+        # 첫 프레임: 비교할 직전 프레임이 없다. 기준 장면으로 저장만 한다.
         if prev is None:
             self._ref_grid = grid  # 처음 보는 화면을 기준 장면으로
             return self._judge(frame, evidence_sha256, "FIRST_FRAME", None, None, None)
 
+        # 블록 16개의 이동량. textured = 무늬 있는 블록, matched = 그중 직전 프레임과 잘 맞은 블록(ZNCC ≥ match_min).
         blocks = _block_shifts(prev, grid, self.policy)
         textured = [b for b in blocks if b[2]]
         matched = [b for b in textured if b[5] >= self.policy.match_min]
         textured_ratio, matched_ratio = len(textured) / len(blocks), len(matched) / len(blocks)
         vmin = self.policy.valid_ratio_min
         # 이하 UNKNOWN 은 판정하지 않는다는 뜻: 횟수·hold·release 구간을 건드리지 않는다.
+        # [보류 ①] 무늬 있는 블록이 절반 미만 → 렌즈가 막혔거나 너무 어둡다. 판단하지 않는다(UNKNOWN / OCCLUDED).
         if textured_ratio < vmin:
             self._still_since, self._changed_since = None, None
             return SignFrame("UNKNOWN", "OCCLUDED", None, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio)
+        # 기준 장면이 아직 보이는 블록. 손·사람이 덮은 블록은 여기서 빠진다.
         visible = _visible_blocks(self._ref_grid, grid, self.policy)
         visible_ratio = len(visible) / len(blocks)
         # 화면 이동은 원래 장면이 보이는 블록으로만 정한다: 카메라가 흔들리면 움직이는 것은 장면이다.
         # 손·사람이 덮은 블록은 투표에서 뺀다(덮은 물체의 움직임을 흔들림으로 세지 않도록).
         scene_blocks = [b for b in matched if (b[0], b[1]) in visible]
+        # shift       : 원래 장면이 보이는 블록만으로 구한 화면 이동. 판정에 쓴다.
+        # frame_shift : 매칭된 블록 전부로 구한 이동. 화면이 가려졌을 때 '카메라를 옮긴 건가' 참고용이다.
         shift = _whole_view(scene_blocks, self.policy) if matched_ratio >= vmin and scene_blocks else None
         frame_shift = _whole_view(matched, self.policy) if matched_ratio >= vmin and matched else None
+        # 기준 장면이 보이는 사분면. 한 사분면이 통째로 가려지면 '네 사분면이 같이 움직였나'를 확인할 수 없다.
         visible_quadrants = {(bx * 2 // self.policy.blocks_x, by * 2 // self.policy.blocks_y) for bx, by in visible}
         quadrant_hidden = len(visible_quadrants) < 4 and visible_ratio < vmin
+        # [보류 ②] 원래 장면이 30% 미만 보임(SCENE_CHANGED), 또는 절반도 안 보이면서 한 사분면이 통째로 가려짐(QUADRANT_COVERED).
         if visible_ratio < self.policy.visible_min or quadrant_hidden:
             # 원래 장면이 거의 안 보이거나(손 등 가까운 물체, 카메라가 다른 곳을 봄), 절반도 안 보이면서
             # 한 구역이 통째로 가려져 네 사분면 확인을 할 수 없다: 판단하지 않는다. 화면 대부분이 보이면
@@ -360,16 +414,20 @@ class DisasterSignDetector:
             return SignFrame("UNKNOWN", reason, frame_shift, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio, visible_ratio)
         self._changed_since = None
+        # [보류 ③] 직전 프레임과 맞춘 블록이 절반 미만 → 너무 크게 흔들려 이동을 못 쟀다(UNKNOWN / MATCH_FAILED).
         if matched_ratio < vmin:
             self._still_since = None
             return SignFrame("UNKNOWN", "MATCH_FAILED", None, len(self._reversal_ns), False, None,
                              textured_ratio, matched_ratio, visible_ratio)
 
+        # 여기부터는 판정하는 프레임이다. shift = 화면 전체 이동 (dx, dy) 칸, None 이면 일부만 움직임.
         if shift is None or math.hypot(*shift) >= self.policy.shift_min:
             self._still_since = None  # 멈춤이 끊겼다
+        # 일부만 움직임(사람 통과) → 조건을 강제로 거짓으로 둔다(PARTIAL_MOTION).
         if shift is None:
             return self._judge(frame, evidence_sha256, "PARTIAL_MOTION", None, textured_ratio, matched_ratio,
                                visible_ratio, force_false=True)
+        # 1칸(8 픽셀) 미만 이동은 잡음으로 본다(BELOW_NOISE). 방향을 기록하지 않는다.
         if math.hypot(*shift) < self.policy.shift_min:
             self._still_since = stamp if self._still_since is None else self._still_since
             if not self._reversal_ns and stamp - self._still_since >= self.policy.window_ns:
@@ -378,27 +436,37 @@ class DisasterSignDetector:
                 self._ref_grid = grid
             return self._judge(frame, evidence_sha256, "BELOW_NOISE", shift, textured_ratio, matched_ratio,
                                visible_ratio)
+        # ★ 방향 전환: 내적 = dx1·dx2 + dy1·dy2. 음수면 두 이동이 반대 방향이다.
+        #   예) 직전 오른쪽 (2, 0), 이번 왼쪽 (-2, 0) → 내적 -4 < 0 → 전환 1회
         if self._last_dir is not None and shift[0] * self._last_dir[0] + shift[1] * self._last_dir[1] < 0:
             self._reversal_ns.append(stamp)  # 직전 방향과 반대: 방향 전환 1회
         self._last_dir = shift
         return self._judge(frame, evidence_sha256, None, shift, textured_ratio, matched_ratio, visible_ratio)
 
+    # 시간 순 예)
+    #   t=1.0s 전환이 4회가 됨 → _true_since = 1.0
+    #   t=1.2s 조건이 0.2초 유지 → 사건 1건, _armed = False (더 흔들려도 사건 안 냄)
+    #   흔들림이 멈춰도 3초 창 안의 전환 기록이 빠질 때까지는 조건이 참이다.
+    #   전환이 4회 밑으로 내려간 때부터 2초가 지나면 _armed = True → 다음 지진은 다시 사건을 낸다.
     def _judge(self, frame, evidence_sha256, reason, shift, textured_ratio, matched_ratio, visible_ratio=None,
                force_false=False):
         """조건을 정하고 hold/release 로 사건을 낼지 정한다(#33 과 같은 규칙)."""
         stamp, p = frame.observed_at_ns, self.policy
         reversals = len(self._reversal_ns)
+        # 조건: 최근 3초 안 방향 전환 ≥ shakes_min(4). 부분 움직임(force_false)이면 무조건 거짓.
         condition = not force_false and reversals >= p.shakes_min
         event = None
         if condition:
             self._false_since = None
             self._true_since = stamp if self._true_since is None else self._true_since
+            # 조건이 hold(0.2 s) 동안 이어졌고 아직 사건을 안 냈으면(armed) 사건 1건. 내고 나면 armed = False.
             if self._armed and stamp - self._true_since >= p.hold_ns:
                 self._armed = False
                 event = self._event(frame, evidence_sha256, shift, reversals)
         else:
             self._true_since = None
             self._false_since = stamp if self._false_since is None else self._false_since
+            # 사건 뒤 조건이 release(2 s) 동안 거짓이면 다시 사건을 낼 수 있게 한다(armed = True). 흔들림 한 번에 사건 1건.
             if not self._armed and stamp - self._false_since >= p.release_ns:
                 self._armed = True
         return SignFrame("PROCESSED", reason, shift, reversals, condition, event, textured_ratio, matched_ratio,
@@ -406,11 +474,13 @@ class DisasterSignDetector:
 
     def _event(self, frame, evidence_sha256, shift, reversals):
         p, stamp = self.policy, frame.observed_at_ns
+        # detail = 사건 근거(전환 횟수·이동·설정 값). 로그와 메시지에 남아 '왜 지진으로 봤나'를 설명한다.
         detail = (f"reversals={reversals}>={p.shakes_min} window_ns={p.window_ns} "
                   f"shift={'n/a' if shift is None else f'({shift[0]},{shift[1]})'} "
                   f"onset_ns={self._true_since} hold_ns={p.hold_ns} stride={p.sample_stride} "
                   f"blocks={p.blocks_x}x{p.blocks_y} search={p.search_cells}")
         # 규칙 기반 사건이라 확률이 아니다: 1.0 은 "정책 조건 충족" (#33 작전 결정, C-05).
+        # 사건 ID = uuid5(카메라/시각). 시각까지 같은 입력(시험·원래 시각을 담은 녹화)이면 같은 ID 가 나온다.
         return SiteEvent(str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/disaster")), self.camera_id,
                          "DISASTER_SIGN", stamp, str(uuid5(EVENT_NAMESPACE, f"{self.camera_id}/{stamp}/frame")),
                          evidence_sha256, 1.0, frame.clock_domain_id, frame.stamp_semantics,
