@@ -122,7 +122,8 @@ class RobotLaunch(FieldCase):
 
 class CollisionMonitor(unittest.TestCase):
     PASSAGE = dict(min_height_m=0.05, max_height_m=0.46, front_m=[0.4, 1.0], half_width_m=0.2, min_points=5,
-                   polygon_name='PassageStop')
+                   polygon_name='PassageStop', overhead_lidar_plane_m=0.23, overhead_top_m=1.0,
+                   slow_front_m=[0.4, 1.2], slow_ratio=0.3)   # PassageSlow: test_bringup_passage_slow
 
     def apply(self, base=None):
         from rescue_bringup.field_launch import nav2_with_passage
@@ -132,8 +133,8 @@ class CollisionMonitor(unittest.TestCase):
         out = self.apply()
         self.assertEqual(BASE['controller_server'], out['controller_server'])
         p = out['collision_monitor']['ros__parameters']
-        self.assertEqual(['FootprintApproach', 'PassageStop'], p['polygons'])
-        self.assertEqual(['scan', 'passage_depth'], p['observation_sources'])
+        self.assertEqual(['FootprintApproach', 'PassageStop', 'PassageSlow'], p['polygons'])
+        self.assertEqual(['scan', 'passage_depth', 'passage_overhead'], p['observation_sources'])
         stop = p['PassageStop']
         self.assertEqual(('polygon', 'stop', 5, ['passage_depth'], True),
                          (stop['type'], stop['action_type'], stop['min_points'], stop['sources_names'], stop['enabled']))
