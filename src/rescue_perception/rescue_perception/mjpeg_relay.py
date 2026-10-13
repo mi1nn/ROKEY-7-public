@@ -67,6 +67,10 @@ def make_server(hub, host, port, path, log=None):
     """ThreadingHTTPServer serving ``path`` as MJPEG from ``hub``; every other path is 404."""
 
     class Handler(BaseHTTPRequestHandler):
+        # Socket timeout for every read and write: a client that stops reading cannot hold this
+        # thread longer than one stale period (#153 left the write blocked for good).
+        timeout = hub.stale_s
+
         def log_message(self, fmt, *args):
             if log is not None:
                 log(f'{self.client_address[0]} {fmt % args}')
@@ -79,19 +83,19 @@ def make_server(hub, host, port, path, log=None):
             if frame is None:
                 self.send_error(503, 'no fresh webcam frame')
                 return
-            self.send_response(200)
-            self.send_header('Content-Type', f'multipart/x-mixed-replace; boundary={BOUNDARY}')
-            self.send_header('Cache-Control', 'no-store')
-            self.send_header('Connection', 'close')
-            self.end_headers()
             try:
+                self.send_response(200)
+                self.send_header('Content-Type', f'multipart/x-mixed-replace; boundary={BOUNDARY}')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Connection', 'close')
+                self.end_headers()
                 while frame is not None:
                     seq, jpeg = frame
                     self.wfile.write(f'--{BOUNDARY}\r\nContent-Type: image/jpeg\r\n'
                                      f'Content-Length: {len(jpeg)}\r\n\r\n'.encode() + jpeg + b'\r\n')
                     self.wfile.flush()
                     frame = hub.next_after(seq)
-            except (BrokenPipeError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, TimeoutError):
                 pass
             self.close_connection = True
 
