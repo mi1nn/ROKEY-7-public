@@ -91,6 +91,57 @@ clock_domain_id:=rokey7-utc-field   # #132·#146 과 같은 현장 시계 영역
 
 RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. amr_target 자신은 map/odom TF 를 조회하지 않고 TargetLocation 도 내지 않는다. 지도 좌표는 별도 노드 target_locator 가 만든다(아래 「지도 좌표 TargetLocation」). 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
 
+### TB-6 현장 실행 한 줄과 원인 가르기 (2026-10-13)
+
+TB-6 담당 PC 에서 저장소 루트(모델 경로 `assets/models/best.pt` 가 실행 위치 기준)에서, 현장 ROS 환경을 source 한 뒤 실행한다. 값 옆 표시: [측정] 오늘 TB-6 에서 잰 값, [설정] 다른 PR 의 현장 설정, [추정] 아직 로봇에서 이름을 확인하지 않은 값.
+
+```bash
+from_ns=$(python3 -c 'import time; print(time.time_ns() - 3_000_000_000)')         # 정렬 창: 지금 -3 s ~ +1 h (#132 와 같은 방식)
+until_ns=$(python3 -c 'import time; print(time.time_ns() + 3_600_000_000_000)')
+ros2 launch rescue_bringup amr_perception.launch.py \
+  image_topic:=/robot6/oakd/rgb/image_raw/compressed image_type:=compressed \
+  depth_topic:=/robot6/oakd/stereo/image_raw depth_transport:=raw \
+  camera_info_topic:=/robot6/oakd/rgb/camera_info \
+  rgb_optical_frame:=oakd_rgb_camera_optical_frame depth_optical_frame:=oakd_rgb_camera_optical_frame \
+  rgb_stamp_semantics:=CAPTURE depth_stamp_semantics:=CAPTURE \
+  rgb_depth_alignment_verified:=true rgb_rectified:=false \
+  calibration_id:=tb6-oakd-device-calibration alignment_evidence_id:=tb6-oakd-align-measured-20261013 \
+  sync_queue_size:=40 sync_slop_ns:=20000000 camera_info_max_age_ns:=1500000000 \
+  tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static \
+  clock_domain_id:=rokey7-utc-field clock_backend:=timesyncd clock_max_age_ns:=3600000000000 \
+  clock_drift_ppm:=100.0 clock_poll_period_s:=5.0 \
+  sensor_host_clock_error_bound_ns:=150000000 sensor_host_clock_domain_id:=rokey7-utc-field \
+  profile_path:=<현장 배포 프로파일.json> tf_wait_s:=1.0 \
+  alignment_authority_id:=tb6-saved-map-identity alignment_valid_from_ns:=$from_ns alignment_valid_until_ns:=$until_ns
+```
+
+| 인자 | 근거 |
+| --- | --- |
+| `image_topic` | [설정] #132 `camera_topics` 의 `/robot6/oakd/rgb/image_raw/compressed`. 실제 RGB 토픽 이름과 종류는 [추정] — `ros2 topic list \| grep oakd` 로 확인 |
+| `depth_topic`·`depth_transport:=raw` | [측정] `/robot6/oakd/stereo/image_raw`, 16UC1 raw |
+| `camera_info_topic` | [추정] depthai-ros 이름 규칙. RGB CameraInfo 값 자체는 [측정] |
+| 광학 frame·`CAPTURE`·정렬 `true`·`rectified false` | [측정] RGB·Depth CameraInfo frame_id 같음, 704×704, K·P 같음, `i_align_depth=true`. RGB D 는 rational_polynomial(점 보정 경로). stamp 는 depthai-ros 의 장치 촬영 시각 [문서] + 두 stamp 차이 중앙값 2.9 ms [측정]. 겹쳐 보기 시험은 아직 안 함 |
+| `sync_*`·`camera_info_max_age_ns` | [측정] Depth 가 약 0.78 s 늦게 옴(RGB 29.7 Hz, Depth 9.3 Hz). 큐 3 으로는 짝 0개(message_filters 재현) |
+| `clock_*` | [설정] #132·#146 현장 시계 영역과 backend(TB-6 담당 PC). PC 가 chrony 면 `clock_backend:=chrony` |
+| `sensor_host_*` | [측정] TB-6 Pi chronyc tracking → 약 109 ms, 여유 150 ms |
+| `profile_path` | 현장 프로파일. `map_basis.frame_id` 가 `map` 이어야 한다(아니면 launch 가 멈춤) |
+| 정렬 창·권한 | OPS-103 결정 2. 프로파일 `map_basis` + TB-6 saved-map 선언(#132) |
+
+**「TB-6 이 인형을 보는데 위치가 안 나옴」 원인 가르기** — amr_target·target_locator 로그를 위에서부터 본다. 처음으로 맞지 않는 단계가 원인이다.
+
+| # | 볼 로그 | 정상 | 아니면 |
+| --- | --- | --- | --- |
+| 1 | `AMR target startup/runtime failed: missing parameters: [...]` / `amr_target git=... parameters=...` | 기동 줄에 위 값이 그대로 있음 | 빠진 인자·틀린 값(exit 2) |
+| 2 | `clock SYNCED backend=... error_bound_ns=...` / `sensor host (camera driver) clock ...` | 기동 뒤 `clock_poll_period_s` 안에 SYNCED | `clock UNKNOWN ... reason=<이유>`: PC 시계 동기 안 됨(`timedatectl`·`chronyc tracking`). `... clock domain ... differs`: 두 영역 값이 다름 |
+| 3 | `No successful synchronized RGB-D frame; check both topics, QoS, CameraInfo and frame errors` (5 s 마다) | 이 경고가 없음 | 짝이 안 생김. `ros2 topic hz` 로 RGB·Depth 가 오는지, 큐(`sync_queue_size`)가 Depth 지연을 덮는지 |
+| 4 | `AMR target frame failed (no fabricated coordinates): ValueError: fresh matching CameraInfo required` | 없음 | CameraInfo 가 안 오거나 `camera_info_max_age_ns` 보다 오래됨 |
+| 5 | `... RGB/Depth optical frames differ from configured alignment evidence` | 없음 | 메시지 header frame_id 와 인자 frame 이 다름 |
+| 6 | `target not sent: UNCONFIRMED(<이유>)` | `target state=SENT observation_id=... undistortion=<model>:<hash>` | 이유별: `LOW_CONFIDENCE` 신뢰도 부족(인형이 멀거나 가림) · `CLOCK_UNCERTAIN` stamp 의미 UNKNOWN 이거나 서로 다름 · `UNSYNCHRONIZED` RGB-Depth stamp 차이가 `sync_slop_ns` 초과 · `ALIGNMENT_UNVERIFIED` 정렬 false 이거나 RGB D 모델을 보정 못 함 · `CALIBRATION_MISMATCH` frame·보정 ID 불일치 · `DIMENSION_MISMATCH` RGB·Depth 해상도 다름 · `DEPTH_INSUFFICIENT`·`DEPTH_DISCONTINUITY` 상자 안 Depth 가 비었거나 들쭉날쭉(너무 가깝거나 멂) |
+| 7 | `target not sent: BBOX_AT_IMAGE_EDGE` / `INVALID_POSITION` | — | 인형이 화면 가장자리에 걸림 / 위치 계산 실패 |
+| 8 | target_locator `refused, not published: <이유>` | `TargetLocation <id> VALID observation=... mission=(x, y, z)` | `CLOCK_NOT_SYNCED`·`NO_CLOCK_ERROR_BOUND`·`STAMP_SEMANTICS_UNKNOWN`·`CLOCK_DOMAIN_MISMATCH` 시계(2단계) · `OBSERVATION_EXPIRED`·`FUTURE_STAMP` 관측 나이·PC 시계 차이 · `ALIGNMENT_NOT_VALID_AT_CAPTURE`·`ALIGNMENT_EXPIRED` 정렬 창 · `COVARIANCE_INVALID` 공분산 |
+| 9 | target_locator `no TF map<-oakd_rgb_camera_optical_frame at capture ...` | 없음 | 촬영 시각의 TF 가 없음: `/robot6/tf` 에 map→odom(AMCL)이 오는지, TF remap 이 맞는지 |
+| 10 | 관제 화면 사유 `대상 위치의 관측 시각을 쓸 수 없음` 등(조정기 #174) | 대상이 생김 | 조정기 쪽 시계 검사. 조정기 `target_clock_domain_id` 가 같은 값인지 |
+
 ### 관측 시계 (OPS-103)
 
 [작전 결정 2026-10-13] amr_target 관측의 시계는 코드 값(`clock_state='UNKNOWN'`·`clock_error_bound_ns=-1`)이 아니라 이 호스트의 측정값이다. 웹캠(#146)과 같은 방식이다(`rescue_contracts.clock_measurement.ClockSampler` + `webcam_clock`). `clock_domain_id`·`clock_backend`(timesyncd·chrony·NONE)·`clock_max_age_ns`·`clock_drift_ppm`·`clock_poll_period_s` 는 기본값 없는 파라미터이고, launch 인자로도 받는다. 프레임마다 그 촬영 시각(RGB stamp)에서 마지막 측정이 SYNCED 이고 유효하면 SYNCED·오차 상한(측정값 + 표본 뒤 drift)이고, 아니면 UNKNOWN 이다. 기동 직후 첫 측정 전과 `clock_backend: NONE` 은 UNKNOWN 이다. OAK-D stamp 는 카메라 드라이버가 도는 호스트(TB-6 Pi)의 시계라서, 그 호스트의 오차 상한과 시계 영역을 `sensor_host_clock_error_bound_ns`·`sensor_host_clock_domain_id`(기본값 없음, 로봇 쪽과 같은 이름)로 받는다. 오차 상한은 이 호스트 측정값 + 센서 호스트 값이다. 두 시계 영역이 다르면 SYNCED 가 아니다. 드라이버가 이 호스트에서 돌 때만 0 과 같은 영역을 쓰고, 그 근거가 기동 로그에 남는다. 하류(target_locator, 조정기)는 UNKNOWN 관측을 쓰지 않는다(C-03).
