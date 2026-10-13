@@ -39,8 +39,8 @@ class ReasonWordTests(unittest.TestCase):
         self.assertIsNone(mission_reason(None, 'TB-5', 'TB-6'))
 
     def test_without_a_support_name(self):
-        self.assertEqual('지원 로봇 출구로 이동 중', mission_reason('SUPPORT_EXITING', None, None)['text'])
-        self.assertEqual('정찰 로봇 도킹 접근 지점으로 이동 중', mission_reason('SCOUT_RETURNING', None, None)['text'])
+        self.assertEqual('SUPPORT 출구로 이동 중', mission_reason('SUPPORT_EXITING', None, None)['text'])
+        self.assertEqual('SCOUT 도킹 접근 지점으로 이동 중', mission_reason('SCOUT_RETURNING', None, None)['text'])
 
     def test_recheck_needed_reasons(self):   # coordinator recheck -> judgement (C-11 rows 7-11)
         cases = {'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
