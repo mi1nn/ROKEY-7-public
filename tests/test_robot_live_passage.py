@@ -53,6 +53,18 @@ class Monitor(unittest.TestCase):
         self.assertIn('PASSAGE_BLOCKED', CANONICAL_CODES)
 
 
+class Parameters(unittest.TestCase):
+    """task.live.passage.* in the field run file: both for TB-5, neither for TB-6 (no default polygon)."""
+
+    def test_both_or_neither(self):
+        from rescue_robot.live_parameters import passage_from_parameters
+        self.assertIsNone(passage_from_parameters(None, None))
+        self.assertEqual(PASSAGE, passage_from_parameters('PassageStop', 5_000_000_000))
+        for half in (('PassageStop', None), (None, 5_000_000_000)):
+            with self.subTest(half=half), self.assertRaises(ContractError):
+                passage_from_parameters(*half)
+
+
 class Runtime(unittest.TestCase):
     def setUp(self):
         a = self.a = approach.LiveAutoApproach('test_policy_on_accepts_and_drives_to_the_approach_goal_in_the_native_frame')
