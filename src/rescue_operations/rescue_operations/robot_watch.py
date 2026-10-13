@@ -82,7 +82,7 @@ def main(args=None):
     for robot_id, ns in zip(values['robot_ids'], values['namespaces']):
         row = state[robot_id] = {'namespace': ns, 'last_seen_ns': None, 'battery_percent': None, 'docked': None,
                                  'pose': None, 'pose_seen_ns': None, '_stamp': None}
-        buffer = buffers[robot_id] = Buffer(node=node)
+        buffer = buffers[robot_id] = Buffer()   # no node: given one it makes a tf2_frames service
 
         def seen(row=row):
             row['last_seen_ns'] = node.get_clock().now().nanoseconds

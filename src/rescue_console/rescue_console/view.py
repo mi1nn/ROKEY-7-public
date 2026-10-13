@@ -648,6 +648,9 @@ def _apply_watch(robots, watch, built_at_ns, warnings):
     dead = written_age > stale_s
     if dead:
         warnings.append(f'로봇 직접 관측 파일이 {written_age:.0f}초 동안 갱신 안 됨 — robot_watch 노드 확인')
+    deployed = {row['robot_id'] for row in robots}
+    for rid in sorted(set(data['robots']) - deployed):
+        warnings.append(f'배치 밖 로봇 직접 관측 무시: {rid!r}')   # 빠진 것도 보인다(배치 밖 로봇 상태와 같음)
     for row in robots:
         seen = data['robots'].get(row['robot_id'])
         if seen is None:

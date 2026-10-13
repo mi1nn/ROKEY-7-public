@@ -7,6 +7,7 @@ profile file only. Topic and service names are the coordinator's (rescue_coordin
 ros_node constants); a test keeps them equal without importing it here.
 """
 import math
+import re
 import os
 
 from .profile import Deployment
@@ -164,6 +165,10 @@ def mjpeg_relay_parameters(*, webcam, bind_host, port, stale_s):
             'stale_s': stale}
 
 
+# absolute ROS namespace: /name(/name)*, each name a letter then letters, digits or _ (no trailing /)
+ROS_NAMESPACE = re.compile(r'(/[A-Za-z][A-Za-z0-9_]*)+')
+
+
 def robot_watch_parameters(*, robot_namespaces, robot_watch_path, robot_ids):
     """robot_namespaces('robot_a=/robot6,robot_b=/robot5') + robot_watch_path -> rescue_operations robot_watch
     parameters, or None when both are empty. 구독만 하는 직접 관측(재범 허용 2026-10-13); 관제 웹 --robot-watch."""
@@ -174,7 +179,8 @@ def robot_watch_parameters(*, robot_namespaces, robot_watch_path, robot_ids):
     ids, namespaces = [], []
     for pair in robot_namespaces.split(','):
         robot_id, sep, ns = pair.strip().partition('=')
-        if not sep or robot_id not in robot_ids or robot_id in ids or not ns.startswith('/'):
+        if (not sep or robot_id not in robot_ids or robot_id in ids or ns in namespaces
+                or not ROS_NAMESPACE.fullmatch(ns)):
             raise LaunchSettingError(f'robot_namespaces item {pair!r}: want <profile robot id>=/<namespace>, '
                                      f'once per robot (profile robots {list(robot_ids)})')
         ids.append(robot_id)
