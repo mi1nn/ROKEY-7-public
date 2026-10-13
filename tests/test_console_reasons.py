@@ -9,7 +9,7 @@ import unittest
 
 from test_console_commands import dispatch, mission_state
 from test_console_view import LedgerFixture, SECOND, T0, uid
-from rescue_console.render import render_fragment
+from rescue_console.render import render_fragment, render_page
 from rescue_console.view import build_view, mission_reason
 from rescue_console.sources import load_ledger
 
@@ -118,6 +118,45 @@ class ReasonScreenTests(LedgerFixture):
         self.assertIn('TARGET_TIME_BASIS_UNUSABLE', band)
         card = re.search(r'<section class="unit[^"]*" data-robot="robot_b".*?</section>', html, re.S).group(0)
         self.assertNotIn('TARGET_TIME_BASIS_UNUSABLE', card)
+
+
+class SupportDispatchModeTests(LedgerFixture):
+    """--support-dispatch AUTO (owner decision 2026-10-13): the coordinator sends the support robot itself
+    and refuses DISPATCH_SUPPORT with NOT_AUTHORIZED, so there is no button, only the state."""
+
+    def view(self, mode, reason=None, with_dispatch=False):
+        status = dict(self.status, mission_state={'schema_version': '1.2', 'mission': mission_state(
+            'DISASTER', 'TARGET_FOUND', dispatch=dispatch('STOPPED', 1) if with_dispatch else None, reason=reason)})
+        return build_view(load_ledger(self.db), status, built_at_ns=T0 + 30 * SECOND, robot_names=NAMES,
+                          support_dispatch=mode)
+
+    def test_auto_shows_the_state_instead_of_the_button(self):
+        view = self.view('AUTO')
+        gate = {c['name']: c for c in view['commands']}['DISPATCH_SUPPORT']
+        self.assertEqual((False, 'TB-5 자동 출동', True), (gate['enabled'], gate['label'], gate['auto']))
+        html = render_page(view, command_access=(True, 'ADMIN'))
+        self.assertNotIn('data-command="DISPATCH_SUPPORT"', re.sub(r'<script>.*?</script>', '', html, flags=re.S)
+                         .replace('class="cmd-auto" data-command="DISPATCH_SUPPORT"', ''))
+        self.assertIn('class="cmd-auto"', html)
+        self.assertIn('TB-5 자동 출동', html)
+
+    def test_operator_or_unset_keeps_the_button(self):
+        for mode in ('OPERATOR', None):
+            with self.subTest(mode=mode):
+                html = render_page(self.view(mode), command_access=(True, 'ADMIN'))
+                self.assertIn('<button type="button" class="cmd approve"', html)
+                self.assertRegex(html, r'<button[^>]*data-command="DISPATCH_SUPPORT"')
+
+    def test_auto_reason_goes_on_the_targets_waiting_for_support(self):
+        html = render_fragment(self.view('AUTO', reason='SUPPORT_POSE_UNKNOWN'))
+        rows = re.findall(r'<li class="victim-row not_rescued".*?</li>', html, re.S)
+        self.assertTrue(rows)
+        self.assertTrue(all('TB-5 위치 모름' in row for row in rows))
+
+    def test_mode_value_is_checked(self):
+        from rescue_console.view import ConsoleError
+        with self.assertRaises(ConsoleError):
+            self.view('SOMETIMES')
 
 
 if __name__ == '__main__':
