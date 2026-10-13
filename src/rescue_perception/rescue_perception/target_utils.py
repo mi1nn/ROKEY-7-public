@@ -24,6 +24,7 @@ from .camera_utils import FIELD_PARAMS as CAMERA_FIELD_PARAMS, SETTINGS as CAMER
 SETTINGS = {
     **CAMERA_SETTINGS,
     'depth_byte_order': 'little',
+    'depth_wait_s': 0.5,  # local selective node bound; field value remains proposed
     'observations_topic': '/rescue/observations',
     'base_point_topic': 'perception/target_base_point',
     'base_frame': 'base_link',
@@ -107,6 +108,24 @@ def clock_binding(binding, record, observed_ns, sensor_host):
     if state != 'SYNCED' or sensor_host.clock_domain_id != binding.clock_domain_id:
         return replace(binding, clock_state='UNKNOWN', clock_error_bound_ns=None)
     return replace(binding, clock_state='SYNCED', clock_error_bound_ns=bound + sensor_host.error_bound_ns)
+
+
+def localization_blockers(values):
+    """Report configured core gates without treating driver metadata as proof."""
+    reasons = []
+    if ('UNKNOWN' in (values.get('rgb_stamp_semantics', 'UNKNOWN'), values.get('depth_stamp_semantics', 'UNKNOWN'))
+            or values.get('rgb_stamp_semantics', 'UNKNOWN') != values.get('depth_stamp_semantics', 'UNKNOWN')):
+        reasons.append('CLOCK_UNCERTAIN')
+    if not values.get('rgb_depth_alignment_verified', False):
+        reasons.append('ALIGNMENT_UNVERIFIED')
+    return tuple(reasons)
+
+
+def target_diagnostic(candidate):
+    """Keep detection confidence separate from coordinate validity in diagnostics."""
+    reasons = ','.join(candidate.reasons) or 'LOCATED'
+    return (f'detected confidence={candidate.observation.detection.confidence:.3f} '
+            f'localization={reasons} status={candidate.status}')
 
 
 def target_config(v, boot_id):

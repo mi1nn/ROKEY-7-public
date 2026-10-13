@@ -208,6 +208,40 @@ class MapSnapshotParameters(unittest.TestCase):
                 map_snapshot_parameters(**bad)
 
 
+class WebcamDevice(unittest.TestCase):
+    """webcam_device:= picks which plugged camera the webcam_node opens, without editing its YAML."""
+
+    def setUp(self):
+        self.by_id = Path(tempfile.mkdtemp())
+        for name in ('usb-HP_Wide_Vision-video-index0', 'usb-HP_Wide_Vision-video-index1',
+                     'usb-Web_Camera-video-index0'):
+            (self.by_id / name).touch()
+
+    def test_cameras_are_the_capture_nodes_only(self):
+        """index1 is the metadata node of the same camera: it cannot be opened for frames."""
+        from rescue_bringup.operations_launch import available_cameras
+        self.assertEqual(['usb-HP_Wide_Vision-video-index0', 'usb-Web_Camera-video-index0'],
+                         available_cameras(self.by_id))
+        self.assertEqual([], available_cameras(self.by_id / 'absent'))
+
+    def test_empty_keeps_the_yaml_device(self):
+        from rescue_bringup.operations_launch import webcam_device
+        self.assertEqual('', webcam_device('', by_id_dir=self.by_id))
+
+    def test_a_name_or_a_path_selects_the_camera(self):
+        from rescue_bringup.operations_launch import webcam_device
+        path = str(self.by_id / 'usb-Web_Camera-video-index0')
+        self.assertEqual(path, webcam_device('usb-Web_Camera-video-index0', by_id_dir=self.by_id))
+        self.assertEqual(path, webcam_device(path, by_id_dir=self.by_id))
+
+    def test_a_missing_camera_is_refused_with_the_plugged_ones(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, webcam_device
+        with self.assertRaises(LaunchSettingError) as caught:
+            webcam_device('usb-Unplugged-video-index0', by_id_dir=self.by_id)
+        self.assertIn('usb-Web_Camera-video-index0', str(caught.exception))
+        self.assertIn('usb-HP_Wide_Vision-video-index0', str(caught.exception))
+
+
 class LaunchArguments(unittest.TestCase):
     def test_text_launch_arguments_are_parsed_strictly(self):
         from rescue_bringup.operations_launch import LaunchSettingError, parse_launch_arguments

@@ -171,3 +171,42 @@ def fill_location(message, observation, located, basis):
     message.mission_position.x, message.mission_position.y, message.mission_position.z = located.position
     message.covariance = list(located.covariance)
     return message
+
+
+class MapRevisionTracker:
+    """The map session/revision a location may carry, from the SCOUT's MapState (OPS-115, 2026-10-13).
+
+    TB-6 alone runs SLAM and the map is fixed when the target is confirmed, so the revision changes
+    during a run. The latest VALID MapState is the basis; a revision counts for an observation only when
+    the observation was captured, minus its clock error bound, after that revision's MapState was first
+    VALID. Without a VALID MapState, or for an earlier capture, the location is refused (never guessed).
+    """
+
+    def __init__(self, *, robot_id, map_frame):
+        self.robot_id, self.map_frame = robot_id, map_frame
+        self.latest = None          # (session, revision, native frame) of the latest VALID MapState
+        self.first_valid = {}       # (session, revision) -> generated_at_ns of its first VALID MapState
+
+    def update(self, msg):
+        if msg.robot_id != self.robot_id:
+            raise ValueError(f'MapState of {msg.robot_id!r}, not {self.robot_id!r}')
+        if msg.localization_quality != 'VALID':
+            self.latest = None      # lost localization withdraws the basis, never keeps an old one
+            return False
+        key = (msg.map_session_id, int(msg.map_revision))
+        self.first_valid.setdefault(key, int(msg.generated_at_ns))
+        self.latest = key + (msg.current_native_map_frame,)
+        return True
+
+    def basis_for(self, observed_at_ns, clock_error_bound_ns):
+        """(map_session_id, map_revision) for an observation captured at observed_at_ns, or LocationRefused."""
+        if self.latest is None:
+            raise LocationRefused('NO_VALID_MAP_STATE')
+        session, revision, frame = self.latest
+        if frame != self.map_frame:
+            raise LocationRefused('MAP_FRAME_MISMATCH', frame)
+        since = self.first_valid[(session, revision)]
+        if observed_at_ns - clock_error_bound_ns <= since:
+            raise LocationRefused('CAPTURED_BEFORE_MAP_REVISION',
+                                  f'observed={observed_at_ns} bound={clock_error_bound_ns} revision {revision} since={since}')
+        return session, revision

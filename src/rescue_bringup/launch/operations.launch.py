@@ -4,12 +4,15 @@ ReportReceipt) and, optionally, the fixed webcam and its judge video relay (MJPE
     ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
         db_path:=<site_state.sqlite3> api_port:=<port> command_timeout_s:=3.0 \
         report_db_path:=<reports.sqlite3> envelope_schema_version:=<text> report_publisher_id:=<text> \
-        [webcam_params_file:=<webcam_node.yaml> \
+        [webcam_params_file:=<webcam_node.yaml> [webcam_device:=<name in /dev/v4l/by-id>] \
          [video_port:=<port> video_bind_host:=<address> video_stale_s:=<s>]] \
         [map_topic:=/robot6/map map_dir:=<folder>]
 
 map_topic/map_dir write the SLAM map (owner 2026-10-13: TB-6) for the console --live-map; the
 launch logs the console value.
+
+webcam_device picks another plugged camera (e.g. a USB one) over the YAML device_path; the
+launch log lists the plugged cameras.
 
 Robot IDs, roles and topics come from the deployment profile (v2.1, mission roles); nothing
 here has a default except the optional webcam and video relay. The console is not started here:
@@ -22,10 +25,10 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
-from rescue_bringup.operations_launch import (console_camera_argument, db_writer_parameters, map_snapshot_parameters,
-                                              mjpeg_relay_parameters,
-                                              parse_launch_arguments, read_webcam_parameters, relay_requested,
-                                              report_node_parameters)
+from rescue_bringup.operations_launch import (available_cameras, console_camera_argument, db_writer_parameters,
+                                              map_snapshot_parameters, mjpeg_relay_parameters, parse_launch_arguments,
+                                              read_webcam_parameters, relay_requested, report_node_parameters,
+                                              webcam_device)
 from rescue_bringup.profile import load_deployment
 
 
@@ -52,8 +55,12 @@ def _nodes(context):
     webcam = arg('webcam_params_file')
     relay = relay_requested(video_port=arg('video_port'), webcam_params_file=webcam)
     if webcam:
-        nodes.append(Node(package='rescue_perception', executable='webcam_node', name='webcam_node',
-                          output='screen', parameters=[webcam]))
+        # A later parameter dict overrides the YAML's device_path.
+        device = webcam_device(arg('webcam_device'))
+        nodes += [LogInfo(msg='plugged cameras: ' + (', '.join(available_cameras()) or 'none')),
+                  Node(package='rescue_perception', executable='webcam_node', name='webcam_node', output='screen',
+                       parameters=[webcam] + ([{'device_path': ParameterValue(device, value_type=str)}]
+                                              if device else []))]
     if relay:
         settings = read_webcam_parameters(webcam)
         params = mjpeg_relay_parameters(webcam=settings, bind_host=arg('video_bind_host'), port=arg('video_port'),
@@ -80,6 +87,9 @@ def generate_launch_description():
         DeclareLaunchArgument('report_publisher_id', description='ReportReceipt envelope publisher_id'),
         DeclareLaunchArgument('webcam_params_file', default_value='',
                               description='webcam_node parameters YAML; empty = no webcam on this PC'),
+        DeclareLaunchArgument('webcam_device', default_value='',
+                              description='Camera to open instead of the YAML device_path: a name from '
+                                          '`ls /dev/v4l/by-id/` (*-video-index0) or a path; empty = the YAML one'),
         DeclareLaunchArgument('video_port', default_value='',
                               description='Judge video MJPEG relay port; empty = no relay (needs the webcam)'),
         DeclareLaunchArgument('video_bind_host', default_value='',

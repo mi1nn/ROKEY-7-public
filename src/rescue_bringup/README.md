@@ -91,6 +91,7 @@ ros2 launch rescue_bringup operations.launch.py profile_path:=<프로파일.json
 
 `webcam_params_file` 을 빼면 웹캠 없이, `video_*` 를 빼면 판정 영상 중계 없이 뜬다.
 
+- 웹캠 고르기: `webcam_device:=<이름>` 을 주면 웹캠 설정의 `device_path` 대신 그 카메라를 연다(예: USB 카메라를 꽂았을 때). 이름은 `ls /dev/v4l/by-id/` 의 `*-video-index0` 하나이고, 경로를 줘도 된다. launch 로그 `plugged cameras: …` 에 지금 꽂힌 카메라가 나온다. 없는 카메라를 주면 launch 가 꽂힌 목록과 함께 멈춘다. 빼면 설정 파일의 카메라다.
 - 실시간 SLAM 지도(2026-10-13, 재범 결정: TB-6): `map_topic:=/robot6/map map_dir:=<폴더>` 를 주면 `map_snapshot` 노드가 지도(OccupancyGrid, RELIABLE·TRANSIENT_LOCAL)를 받을 때마다 `<폴더>/live_map.yaml` 과 PGM 을 쓴다. 둘은 같이 줘야 하고, 토픽은 고정 뒤 바뀔 수 있어 인자로 둔다. launch 가 관제 웹 값 `console --live-map <폴더>/live_map.yaml --live-map-stale-s <s>` 를 로그로 남긴다. 회전된 지도 원점(yaw ≠ 0)은 관제 웹이 그리지 못해 쓰지 않고 경고한다. 토픽에 발행자가 있는 동안 `live_map.alive` 를 갱신해, 고정 뒤 다시 오지 않는 지도도 낡음으로 보이지 않게 한다.
 
 - 판정 영상 중계(`mjpeg_relay`, #153): `video_port` 를 주면 켠다. 웹캠을 이 PC 에서 띄울 때만 가능하고(`webcam_params_file` 없이 주면 launch 가 멈춤), 입력 토픽은 웹캠 설정의 `debug_image_topic`, 주소 경로는 `/<camera_id>.mjpg` 다. `video_bind_host`·`video_stale_s` 는 켤 때 필수다. launch 가 관제 웹에 줄 값을 로그로 남긴다: `console --camera cam_fixed=http://<video_bind_host>:<video_port>/cam_fixed.mjpg`. 관제 웹을 보는 브라우저가 이 주소에 닿아야 하므로, 다른 기기에서 볼 때는 `video_bind_host` 를 그 기기가 닿는 주소로 준다.

@@ -12,17 +12,16 @@ import time
 from uuid import uuid4
 
 from .camera_utils import git_sha
-from .target_location import LocationBasis, LocationRefused, fill_location, locate
+from .target_location import LocationBasis, LocationRefused, MapRevisionTracker, fill_location, locate
 from .target_utils import SETTINGS as TARGET_SETTINGS, fill_envelope
 
 TARGET_LOCATIONS_TOPIC = '/rescue/target_locations'  # the coordinator's subscription (rescue_coordination)
 
 PARAMS = {  # name -> rcl_interfaces ParameterType name; every one is required, none has a default
     'robot_id': 'STRING', 'observations_topic': 'STRING', 'target_locations_topic': 'STRING',
-    # Map basis: the same values as the coordinator's goal_map_session_id/goal_map_revision/
-    # goal_transform_revision and mission_frame_id, or it refuses the route (ROUTE_BASIS_MISMATCH).
-    'map_frame': 'STRING', 'mission_frame': 'STRING', 'map_session_id': 'STRING',
-    'map_revision': 'INTEGER', 'transform_revision': 'INTEGER',
+    # Map basis: the session and revision come from the SCOUT's MapState (OPS-115: TB-6 SLAM, map fixed
+    # at confirmation), the transform revision and mission frame from the profile map_basis.
+    'map_frame': 'STRING', 'mission_frame': 'STRING', 'map_state_topic': 'STRING', 'transform_revision': 'INTEGER',
     'alignment_xy_yaw': 'DOUBLE_ARRAY',  # mission <- map, [x, y, yaw]; identity is [0.0, 0.0, 0.0]
     'alignment_position_error_m': 'DOUBLE', 'alignment_rotation_error_rad': 'DOUBLE',
     'tf_wait_s': 'DOUBLE',  # how long to wait for the TF at the capture time to arrive
@@ -58,14 +57,14 @@ def profile_parameters(deployment, map_basis, *, tf_wait_s, clock_domain_id, ali
                          'and the profile has no map -> mission alignment')
     values = dict(robot_id=scouts[0], observations_topic=TARGET_SETTINGS['observations_topic'],
                   target_locations_topic=TARGET_LOCATIONS_TOPIC, map_frame=readiness.map_frame,
-                  mission_frame=map_basis.frame_id, map_session_id=map_basis.map_session_id,
-                  map_revision=map_basis.map_revision, transform_revision=map_basis.transform_revision,
+                  mission_frame=map_basis.frame_id, map_state_topic=f'/rescue/robots/{scouts[0]}/map_state',
+                  transform_revision=map_basis.transform_revision,
                   alignment_xy_yaw=[0.0, 0.0, 0.0], alignment_position_error_m=0.0,
                   alignment_rotation_error_rad=0.0, tf_wait_s=tf_wait_s, publisher_id='amr.target_locator',
                   envelope_schema_version=TARGET_SETTINGS['envelope_version'], clock_domain_id=clock_domain_id,
                   alignment_authority_id=alignment_authority_id, alignment_valid_from_ns=alignment_valid_from_ns,
                   alignment_valid_until_ns=alignment_valid_until_ns)
-    LocationBasis.from_values(values)
+    LocationBasis.from_values(values | dict(map_session_id=map_basis.map_session_id, map_revision=0))
     return values
 
 
@@ -78,7 +77,7 @@ def main(args=None):
     from rclpy.parameter import Parameter
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rclpy.time import Time
-    from rescue_interfaces.msg import TargetLocation, TargetObservation
+    from rescue_interfaces.msg import MapState, TargetLocation, TargetObservation
     from tf2_ros import Buffer, ConnectivityException, ExtrapolationException, LookupException, TransformListener
 
     rclpy.init(args=args)
@@ -97,8 +96,11 @@ def main(args=None):
         if missing:
             log.fatal(f'missing parameters: {missing}')
             return 2
+        # A placeholder session/revision only checks the static values here; each location takes its
+        # own from MapState (MapRevisionTracker) and is validated again then.
+        placeholder = dict(map_session_id='00000000-0000-4000-8000-000000000000', map_revision=0)
         try:
-            basis = LocationBasis.from_values(values)
+            basis = LocationBasis.from_values(values | placeholder)
             if not values['tf_wait_s'] > 0:
                 raise ValueError('tf_wait_s must be positive')
         except ValueError as exc:
@@ -109,6 +111,16 @@ def main(args=None):
         publisher = node.create_publisher(TargetLocation, values['target_locations_topic'], qos)
         buffer = Buffer()
         node.tf_listener = TransformListener(buffer, node)
+        maps = MapRevisionTracker(robot_id=values['robot_id'], map_frame=values['map_frame'])
+
+        def on_map_state(msg):
+            try:
+                valid = maps.update(msg)
+            except ValueError as exc:
+                log.warning(f'MapState ignored: {exc}')
+                return
+            log.info(f'MapState {"VALID" if valid else msg.localization_quality} session={msg.map_session_id} '
+                     f'revision={msg.map_revision} generated_at_ns={msg.generated_at_ns}')
         pending = {}  # observation_id -> (TargetObservation, monotonic deadline)
         handled = set()
         state = {'sequence': 0}
@@ -135,11 +147,14 @@ def main(args=None):
                 del pending[observation_id]
                 handled.add(observation_id)
                 try:
-                    located = locate(msg, tf, basis, now_ns=time.time_ns())
+                    bound = msg.time.clock_error_bound_ns if msg.time.has_clock_error_bound else 0
+                    session, revision = maps.basis_for(msg.time.observed_at_ns, bound)
+                    now_basis = LocationBasis.from_values(values | dict(map_session_id=session, map_revision=revision))
+                    located = locate(msg, tf, now_basis, now_ns=time.time_ns())
                 except LocationRefused as exc:
                     log.warning(f'observation {observation_id} refused, not published: {exc}')
                     continue
-                location = fill_location(TargetLocation(), msg, located, basis)
+                location = fill_location(TargetLocation(), msg, located, now_basis)
                 state['sequence'] += 1
                 fill_envelope(location.envelope, version=values['envelope_schema_version'],
                               publisher_id=values['publisher_id'], boot_id=boot_id, sequence=state['sequence'],
@@ -150,6 +165,8 @@ def main(args=None):
                          f'mission=({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) frame={basis.mission_frame}')
 
         node.create_subscription(TargetObservation, values['observations_topic'], on_observation, qos)
+        node.create_subscription(MapState, values['map_state_topic'], on_map_state, QoSProfile(  # IF-009, latched
+            depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         node.create_timer(0.1, try_pending)
         log.info(f'target_locator git={git_sha()} boot={boot_id} parameters={json.dumps(values, sort_keys=True)}')
         rclpy.spin(node)

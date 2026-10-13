@@ -21,6 +21,8 @@ ROBOT_PREFIX = '/rescue/robots/'
 # The command API has no login of its own; the console on the same PC checks ADMIN (#125).
 API_HOST = '127.0.0.1'
 CONSOLE_TIMEOUT_S = 5.0  # the console gives up after this (#115); the API must answer first
+# Stable camera names (the /dev/videoN number follows plug order). Only *-video-index0 gives frames.
+CAMERA_BY_ID_DIR = '/dev/v4l/by-id'
 
 
 class LaunchSettingError(ValueError):
@@ -100,6 +102,30 @@ def read_webcam_parameters(path):
     if not isinstance(values, dict):
         raise LaunchSettingError(f'{path}: webcam_node.ros__parameters must be a mapping')
     return values
+
+
+def available_cameras(by_id_dir=CAMERA_BY_ID_DIR):
+    """Plugged cameras that can be opened for frames (index1 is the same camera's metadata node)."""
+    try:
+        return sorted(name for name in os.listdir(by_id_dir) if name.endswith('-video-index0'))
+    except OSError:
+        return []
+
+
+def webcam_device(device, *, by_id_dir=CAMERA_BY_ID_DIR):
+    """webcam_device:= -> the device_path that overrides the webcam YAML; '' keeps the YAML's camera.
+
+    A bare name is looked up under ``by_id_dir`` (what `ls /dev/v4l/by-id/` prints). A camera that
+    is not plugged in is refused here with the plugged ones listed, instead of webcam_node retrying
+    a missing device forever.
+    """
+    if device == '':
+        return ''
+    path = device if os.path.isabs(device) else os.path.join(by_id_dir, device)
+    if not os.path.exists(path):
+        raise LaunchSettingError(f'webcam_device {device} is not plugged in; plugged: '
+                                 + (', '.join(available_cameras(by_id_dir)) or 'none'))
+    return path
 
 
 def relay_requested(*, video_port, webcam_params_file):
