@@ -5,10 +5,12 @@
 - 5절 ping 은 이 자리가 TB-5 담당 PC 에서 직접 쟀다 [측정]. 원문: [field-2026-10-13-pi-settings.log](field-2026-10-13-pi-settings.log). 주소는 자리표시로 가렸다.
 - 기준: main `ceff34b`.
 
-## 0. Discovery 최종 구성
+## 0. Discovery 구성 (시험 중)
 
 > [!WARNING]
 > 원문 미확인 (전달: 작전 자리, 2026-10-13): 최종 Discovery 는 권고안 A 로 확정됐다. 전용 서버 PC 는 두지 않는다. 각 PC 가 로봇 Pi 의 서버(TB-5 ID 5, TB-6 ID 6)에 직접 붙는다.
+
+> **정정 (2026-10-13, 작전 OPS-106):** 위 전달은 틀렸다. 재범 결정은 시험 중 = 권고안 A(위 구성), 최종 = Discovery 전용 PC 1대(서버 ID 0)다. 바른 기록은 [network-discovery.md](../design/network-discovery.md) 0절·11절(#197).
 
 - 관련 기록: [network-discovery.md](../design/network-discovery.md) 11절(#160), 오전 중앙 서버 끊김은 `docs/evidence/field-2026-10-13-situation.log`(#170, 아직 main 에 없음).
 
