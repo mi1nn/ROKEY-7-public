@@ -58,6 +58,8 @@ REASON_CODES = {
 COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', 'REQUEST_RECHECK': 'SCOUT',
                  'START_SEARCH': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
+# C-03 rescue_contracts.STAMP_SEMANTICS without UNKNOWN: only these declare when a stamp was taken (OPS-103).
+DECLARED_STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE'})
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # C-10 (#88): internal segment phase -> TargetEstimate/SystemState segment_phase.
 SEGMENT_PHASE_STATES = {'APPROVED': 'EXECUTING', 'MOVING': 'EXECUTING', 'AWAITING_APPROVAL': 'AWAITING_APPROVAL',
@@ -411,14 +413,14 @@ class CoordinatorCore:
     def _check_observation_time(self, t, now_ns):
         """OPS-103 (#142): only an observation with a usable time becomes a target (C-03).
 
-        Declared basis (stamp semantics known, SYNCED, an error bound), this coordinator's clock domain, not
+        Declared basis (stamp semantics CAPTURE or DRIVER_RECEIVE, SYNCED, an error bound), this coordinator's clock domain, not
         ahead of now by more than ``target_max_future_ns`` plus the observation's own declared error bound (PC
         clocks differ by hundreds of ms under timesyncd, measured 2026-10-13), not older than
         ``target_max_age_ns`` and before its own ``valid_until_ns``. The reason stays in SystemState.reason
         until a location is accepted.
         """
         checks = (
-            (t.stamp_semantics != 'UNKNOWN' and t.clock_state == 'SYNCED' and bool(t.has_clock_error_bound),
+            (t.stamp_semantics in DECLARED_STAMP_SEMANTICS and t.clock_state == 'SYNCED' and bool(t.has_clock_error_bound),
              'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE'),
             (t.clock_domain_id == self.target_clock_domain_id, 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH'),
             (t.observed_at_ns - now_ns <= self.target_max_future_ns + int(t.clock_error_bound_ns),
