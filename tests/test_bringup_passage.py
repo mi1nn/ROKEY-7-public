@@ -166,5 +166,39 @@ class PointsLaunch(FieldCase):
                           'depth_transport': 'compressedDepth'}, v)
 
 
+class OverheadLaunch(FieldCase):
+    """Tunnel marking on the map (OPS-185/186): the same passage.* heights as the stop, one place."""
+
+    def test_overhead_node_values_come_from_the_field_file(self):
+        from rescue_bringup.field_launch import overhead_passage_launch_values
+        from rescue_perception.overhead import OVERHEAD_PARAMS
+        v = overhead_passage_launch_values(self.deployment, field=self.field(with_tb5_depth), robot_id='robot_b')
+        p = v['parameters']
+        self.assertEqual(set(OVERHEAD_PARAMS), set(p))
+        self.assertEqual(('/robot5', '/robot5/tf', '/robot5/tf_static'),
+                         (v['namespace'], v['tf_topic'], v['tf_static_topic']))
+        self.assertEqual(dict(points_topic='/robot5/passage_points', base_frame='base_link', map_frame='map',
+                              robot_id='robot_b', map_robot_id='robot_a',   # TB-5 sits on the TB-6 map
+                              map_state_topic='/rescue/robots/robot_a/map_state', clock_error_bound_ns=150000000,
+                              clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0,
+                              half_width_m=0.2, min_points=5),
+                         {k: p[k] for k in ('points_topic', 'base_frame', 'map_frame', 'robot_id', 'map_robot_id',
+                                            'map_state_topic', 'clock_error_bound_ns', 'clearance_m', 'floor_noise_m',
+                                            'front_near_m', 'front_far_m', 'half_width_m', 'min_points')})
+        raw = json.loads(FIELD.read_text())['robot']
+        for key in ('lidar_plane_m', 'top_m', 'floor_min_points', 'confirm_frames', 'position_tolerance_m',
+                    'merge_radius_m', 'process_period_s', 'max_cloud_age_s', 'stride'):
+            self.assertEqual(raw['passage.overhead.' + key], p[key])
+
+    def test_a_missing_or_unusable_overhead_value_stops_the_launch(self):
+        from rescue_bringup.field_launch import FieldLaunchError
+        for change in (lambda raw: raw['robot'].pop('passage.overhead.lidar_plane_m'),
+                       lambda raw: raw['robot'].update({'passage.overhead.lidar_plane_m': 0.5}),   # above 46 cm
+                       lambda raw: raw['robot'].update({'passage.overhead.stride': 0})):
+            with self.assertRaises((FieldLaunchError, ValueError)):
+                from rescue_bringup.field_launch import overhead_passage_launch_values
+                overhead_passage_launch_values(self.deployment, field=self.field(change), robot_id='robot_a')
+
+
 if __name__ == '__main__':
     unittest.main()

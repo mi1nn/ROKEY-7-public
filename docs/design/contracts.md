@@ -105,6 +105,21 @@ TB-6 SLAM 지도는 회차마다 두 번 고정한다: R0+1(인형 발견, TB-5 
 
 같은 revision 에 다른 해시가 오면 지도를 막고 새 회차를 요구한다. 낮은 revision 이 늦게 오면 쓰지 않는다. 짝·grid 가 latched depth 1 이므로 R0+2 뒤에 붙은 구독자는 R0+1 grid 를 받지 못한다. 고정 노드가 재시작하면 그 회차 기록을 R0+1→R0+2 순으로 다시 낸다.
 
+### C-04b. 지도의 머리 위 구조물 목록 (`/rescue/robots/<id>/overhead_passages`, 2026-10-13, OPS-185/186)
+
+각 로봇의 `overhead_passage` 가 앞쪽 머리 위 구조물(터널)을 판정해 로봇별 목록 전체를 낸다. 웹 지도는 목록을 표시하고, db_writer 는 기록한다. 조정기는 나중에 frontier 를 고를 때 쓸 수 있다.
+
+| 항목 | 값 |
+| --- | --- |
+| 토픽 | `/rescue/robots/<robot_id>/overhead_passages`(로봇별, 받는 쪽이 합침) |
+| 형식 | std_msgs/String, RELIABLE·TRANSIENT_LOCAL·depth 1. 새 IDL 없음. 목록이 바뀔 때마다 전체를 다시 낸다. 기동 때 빈 목록을 한 번 낸다 |
+| 내용 | JSON 객체 하나. 필드는 정확히 `format`(`"rescue-overhead-passages/1"`), `robot_id`, `map_frame`, `generated_at_ns`, `clearance_m`(통과 기준, 현장 0.46), `floor_noise_m`, `lidar_plane_m`, `items` |
+| 항목 | 필드는 정확히 `id`(UUID), `state`(`PASSABLE`·`BLOCKED`·`UNKNOWN`), `lowest_m`(UNKNOWN 이면 null), `x`·`y`(map_frame 의 바닥 중심), `map_session_id`(UUID)·`map_revision`(정수 ≥ 0, 잰 때의 지도), `frames`, `first_seen_ns`·`last_seen_ns`, `reason` |
+| 일관성 | PASSABLE ⇔ `lowest_m` ≥ `clearance_m`. BLOCKED 는 그 아래. UNKNOWN 은 높이를 주장하지 않는다(바닥을 못 봄, `NO_FLOOR_SEEN`). `0 ≤ floor_noise_m < lidar_plane_m < clearance_m`. id 는 서로 다르다 |
+| 해석 | `rescue_contracts.overhead.parse_overhead_passages` 하나로만 한다(웹·db·조정기 공용). 다른 형식, 빠진·남는 필드, 어긋난 값은 거절(ValueError) |
+
+항목은 잰 때의 revision 을 그대로 가진다. 지도를 고정한 뒤(R1, R2) 이전 revision 항목은 웹이 흐리게 그린다. 조정기가 쓸 때는 출구처럼 고정 때 재기준한다(후속). 판정 규칙과 현장 값은 `src/rescue_perception/README.md` 「지도의 머리 위 구조물」 절에 있다.
+
 ## C-05. 관측·사건·보고의 논리 스키마
 
 실제 ROS 정의 파일 이름·배열 상한·직렬화 형식은 아래 의미를 보존하며 구현 PR에서 고정한다.
