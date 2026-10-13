@@ -1,7 +1,7 @@
-"""장부 + 상태 스냅숏 -> 화면 모델 하나. 순수 Python 이다. 입출력도 시계 읽기도 없다.
+"""장부 + 상태 스냅숏 -> 화면 모델 변환. 순수 함수형 Python 모듈로 I/O 및 시스템 시계 조회가 없다.
 
-호출하는 쪽이 `built_at_ns` 를 넘기므로 같은 입력은 늘 같은 모델을 낸다.
-없는 값은 None 으로 남고 화면에도 없음으로 보인다. 아무것도 채워 넣지 않는다.
+호출 측에서 `built_at_ns`를 명시적으로 주입하므로 동일한 입력에 대해 항상 결정론적인 모델을 생성한다.
+누락된 값은 임의의 기본값으로 채우지 않고 None을 유지하여 화면에도 미수신 상태로 노출한다.
 """
 
 import re
@@ -10,7 +10,7 @@ from rescue_contracts import RESCUE_STATES, RescueError, SiteEvent
 
 from .labels import label
 
-# Q-20 (scope.md, 2026-10-08): Part I 3.7.2 의 대상 4단계를 여기, 표시 계층에서 조합한다.
+# Q-20 (scope.md, 2026-10-08): Part I 3.7.2의 요구사항인 대상 4단계를 프레젠테이션 계층에서 합성한다.
 # 계약 어휘(RESCUE_STATES, confirmation_result)는 늘리지 않는다.
 STAGES = {
     'UNCONFIRMED': '미확정',
@@ -18,12 +18,12 @@ STAGES = {
     'SUPPORTING': '지원 중',
     'RESCUED': '구출 완료',
 }
-# operations 읽기 API 가 생길 때까지 쓰는 임시 지원 상태 어휘다([제안] 관제·화면, 2026-10-08).
+# operations 읽기 API가 구현될 때까지 사용할 임시 지원 상태 어휘 정의([제안] 관제·화면, 2026-10-08).
 SUPPORT_STATES = frozenset({'NONE', 'ASSIGNED', 'ARRIVED', 'FAILED'})
 ACTIVE_SUPPORT = frozenset({'ASSIGNED', 'ARRIVED'})
 
-# 규칙 표. 위에서부터 처음 맞는 줄이 이긴다. 각 줄: (규칙 ID, 조건 글, 단계).
-# 조건 글은 README 에 보이는 글이고, 아래 `compose_stage` 가 실행되는 형태다.
+# 상태 판정 규칙 표. 위에서부터 최초로 조건을 만족하는 행이 적용된다: (규칙 ID, 조건 설명, 결과 단계).
+# 조건 설명은 README 사양과 일치하며, 하단의 `compose_stage` 함수에서 실제 분기로 구현된다.
 STAGE_RULES = (
     ('R1', 'detection_confirmed is false', 'UNCONFIRMED'),
     ('R2', 'rescue_state == RESCUE_CONFIRMED', 'RESCUED'),
@@ -32,9 +32,9 @@ STAGE_RULES = (
     ('R5', 'otherwise (CONFIRMED, not rescued, no active support)', 'NOT_RESCUED'),
 )
 
-# 운영자 명령: console-and-db-plan 4절의 `POST /api/operator-commands` 종류다
-# (Part I 3.7.6 에 임무 흐름의 사람 관문을 더한 것). 앞 다섯은 operations 로 보내고
-# (rescue_console.commands), 나머지는 상태와 무관하게 여기서 꺼 둔다.
+# 운영자 명령 목록: console-and-db-plan 4절의 `POST /api/operator-commands` 명세에 대응한다
+# (Part I 3.7.6의 명령에 임무 상태 전이를 위한 사람 승인 관문을 통합한 구성). 상위 5개는 operations로 전달하며
+# (rescue_console.commands), 하위 명령들은 상태와 무관하게 비활성화 상태를 유지한다.
 COMMANDS = (
     ('START_SEARCH', '수색 시작'),
     ('DISPATCH_SUPPORT', 'SUPPORT 출동 승인'),   # 상태가 SUPPORT 로봇을 알려 주면 그 로봇 이름으로 바뀐다(_command_words)
@@ -46,44 +46,44 @@ COMMANDS = (
     ('CANCEL', '작업 취소'),
     ('STOP_ROBOT', '정지'),
 )
-# 버튼 판 묶음: 흐름의 사람 관문(#85 시작, 지원 출동, 구간마다 다음 구간)을 순서대로 먼저 두고,
-# 정지는 나머지 모두와 떼어 둔다.
+# 버튼 그룹 분류: 사람 승인 관문(#85 수색 시작, 지원 출동, 구간별 계속 진행)을 상단에 순서대로 배치하고,
+# 비상 정지는 오작동 방지를 위해 다른 명령과 분리한다.
 COMMAND_GROUPS = {
     'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
     'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
     'CANCEL': 'mission',
     'STOP_ROBOT': 'stop',
 }
-# 콘솔이 보내지 않는 명령과 그 이유(작전 2026-10-12, #115).
+# 콘솔에서 전송을 차단하는 보류 명령 및 차단 사유(작전 2026-10-12, #115).
 HELD_COMMANDS = {
     'PAUSE': 'Q-22 재개 관문 전',
     'RESUME': 'Q-22 재개 관문 전',
     'CANCEL': 'Q-22 재개 관문 전',
     'STOP_ROBOT': 'RequestStop 별도 경로 — 위험하면 현장 비상 정지 장치',
 }
-# 임무 판정 뒤, 복귀 전의 phase(rescue_coordination.mission: RETURN_HOME 은 판정이 있어야 한다).
+# 임무 판정 완료 후 복귀 전 단계(rescue_coordination.mission: RETURN_HOME은 판정 완료가 선행되어야 함).
 VERDICT_PHASES = frozenset({'RESCUE_CONFIRMED', 'RECHECK_NEEDED'})
 
-# 사건 표의 행 상한. 더 오래된 행은 장부에 남는다([제안] 관제·화면, 2026-10-08).
+# 사건 테이블 최대 표시 행 수. 초과된 이전 이력은 원장에 보존된다([제안] 관제·화면, 2026-10-08).
 EVENT_ROWS = 50
-# 명령·오류 기록의 행 상한. 더 오래된 행은 현장 상태 DB 에 남는다([제안] 작전, 2026-10-12).
+# 명령 및 오류 로그 최대 표시 행 수. 초과된 이전 이력은 현장 상태 DB에 보존된다([제안] 작전, 2026-10-12).
 HISTORY_ROWS = 30
 
-# 마지막 상태가 operations 에 닿은 지 이보다 오래된 로봇 행은 낡음으로 표시한다
-# ([제안] 관제·화면, 2026-10-10). 표시용일 뿐 준비 판정(C-05)이 아니다. 프로파일 v2.1(#39)이
-# main 에 들어가면 프로파일의 readiness max_age_s 로 바꾼다.
+# operations 수신 후 경과 시간이 이 임계치를 초과하면 해당 로봇 행을 낡음(stale)으로 표시한다
+# ([제안] 관제·화면, 2026-10-10). 이는 UI 표시용이며 노드 준비 상태 판정(C-05)과 무관하다. 프로파일 v2.1(#39)이
+# main에 병합되면 프로파일의 readiness max_age_s 파라미터로 대체한다.
 STATUS_STALE_S = 5.0
 
-# 임무 배지 낱말: site_state MISSION_MODES(계약 S-00 모드 + SystemState MISSION_FINISHED).
+# 임무 배지 상태 레이블: site_state MISSION_MODES(계약 S-00 모드 + SystemState MISSION_FINISHED).
 MODES = {'NORMAL': '평시', 'DISASTER': '재난', 'CLEARING': '해제 중', 'MISSION_FINISHED': '임무 종료'}
 DISPATCH_KEYS = ('target_id', 'target_revision', 'route_revision', 'segment_index', 'segment_count', 'segment_phase')
 
 
 class ConsoleError(ValueError):
-    """콘솔 입력·설정 실패를 고정된 코드와 함께 나타낸다.
+    """콘솔 계층의 입력 검증 및 설정 오류를 고정된 오류 코드와 함께 표현한다.
 
-    콘솔 안에서만 쓰고 RescueError 가 아니다. 계약 코드는 로봇·판정·보고 경로에만 쓰도록
-    남겨 둔다(작전 결정 2026-10-08, README 「하지 않는 것」).
+    콘솔 내부 전용 예외이며 RescueError와 구분된다. 계약 계층 오류 코드는 로봇·판정·보고 경로에만
+    한정하여 사용한다(작전 결정 2026-10-08, README 「하지 않는 것」).
     """
 
     def __init__(self, code, message=''):
@@ -97,15 +97,15 @@ def _require(ok, message, code='INVALID_INPUT'):
 
 
 def compose_stage(detection_confirmed, rescue_state, support_state, approach_result):
-    """대상 하나의 (단계, 규칙 ID, 경고)를 돌려준다. None 은 「보고 안 됨」이다."""
-    # 엄격한 bool: 없는 값은 여기서 실패해야 한다. 「확정 안 됨」으로 읽혀 R1 에 떨어지면 안 된다.
+    """단일 대상의 상태를 합성하여 (단계, 규칙 ID, 경고 목록)을 반환한다. None은 '미보고' 상태를 의미한다."""
+    # 엄격한 bool 타입 검사: 누락된 값이 '미확정'으로 오인되어 R1으로 잘못 분류되는 오류를 차단한다.
     _require(type(detection_confirmed) is bool, 'detection_confirmed must be bool')
     _require(rescue_state is None or rescue_state in RESCUE_STATES, 'rescue_state outside RESCUE_STATES')
     _require(support_state is None or support_state in SUPPORT_STATES, 'support_state')
     warnings = []
-    # 아래 분기는 STAGE_RULES R1..R5 를 순서대로 옮긴 것이다. 처음 맞는 분기가 돌려준다.
+    # 아래 분기는 STAGE_RULES R1..R5를 순차 평가하며, 최초 일치하는 규칙의 결과를 즉시 반환한다.
     if not detection_confirmed:
-        # 서로 어긋나는 입력은 R1 에 두고 경고를 붙인다. RESCUED 나 SUPPORTING 으로 올리지 않는다.
+        # 상호 모순된 입력은 R1으로 처리하고 경고를 부착한다. 모순 상태에서 RESCUED나 SUPPORTING으로 승격하지 않는다.
         if rescue_state == 'RESCUE_CONFIRMED' or support_state in ACTIVE_SUPPORT:
             warnings.append('미확정 대상에 구출/지원 상태가 있음 — 입력 불일치')
         return 'UNCONFIRMED', 'R1', warnings
@@ -113,17 +113,17 @@ def compose_stage(detection_confirmed, rescue_state, support_state, approach_res
         return 'RESCUED', 'R2', warnings
     if support_state in ACTIVE_SUPPORT:
         return 'SUPPORTING', 'R3', warnings
-    # R4 는 지원 상태를 모를 때(None)만 쓴다. 보고된 NONE·FAILED 가 보고의 APPROACH_COMPLETE 보다 앞선다.
+    # R4는 지원 상태를 알 수 없는 경우(None)에 한해 평가한다. 명시적 보고(NONE/FAILED)가 APPROACH_COMPLETE보다 우선한다.
     if support_state is None and approach_result == 'APPROACH_COMPLETE':
         return 'SUPPORTING', 'R4', warnings
     return 'NOT_RESCUED', 'R5', warnings
 
 
 def _section(status, key, items_key):
-    """읽기 API 결과 ``status[key]`` 를 돌려준다. 키가 없으면(입력이 아직 없음) None 이다.
+    """읽기 API 응답 ``status[key]`` 섹션을 반환한다. 키가 없으면(데이터 미수신) None을 반환한다.
 
-    있는 절은 문자열 ``schema_version`` 과 ``items_key`` 아래 목록을 가진 dict 여야 한다.
-    그 밖이면 반쯤 읽은 채 그리지 않고 ``ConsoleError INVALID_INPUT`` 을 올린다.
+    존재하는 섹션은 문자열 ``schema_version``과 ``items_key`` 리스트를 포함하는 dict여야 한다.
+    규격에 맞지 않으면 불완전한 상태로 렌더링하지 않고 ``ConsoleError INVALID_INPUT`` 예외를 발생시킨다.
     """
     section = status.get(key)
     if section is None:
@@ -134,10 +134,10 @@ def _section(status, key, items_key):
 
 
 def _latest_reports(reports):
-    """target_id -> (그 대상의 가장 새 장부 항목, 그 대상의 보고 수).
+    """target_id -> (해당 대상의 최신 장부 항목, 해당 대상의 누적 보고 건수) 매핑을 생성한다.
 
-    가장 새 것은 (reported_at_ns, received_at_ns, report_id) 가 가장 큰 것이다. 보고 시각이 정하고,
-    장부 수신 시각과 보고 ID 는 같을 때만 가르므로 시각이 같아도 답은 하나로 정해진다.
+    최신 보고는 (reported_at_ns, received_at_ns, report_id) 튜플의 최댓값으로 결정된다. 보고 시각이 우선하며,
+    수신 시각과 고유 ID를 순차 비교하므로 동일 시각이라도 항상 유일한 최신 항목이 결정론적으로 선택된다.
     """
     latest, counts = {}, {}
     for item in reports:
@@ -151,7 +151,7 @@ def _latest_reports(reports):
 
 
 def _position(position, source):
-    """위치의 사본에 출처(``source``: 'target_state' 또는 'report')를 붙인다. None 은 None 으로 둔다."""
+    """위치 정보 딕셔너리를 복사하고 데이터 출처(``source``: 'target_state' 또는 'report')를 명시한다."""
     if position is None:
         return None
     return {'x': position['x'], 'y': position['y'], 'frame_id': position['frame_id'],
@@ -159,7 +159,7 @@ def _position(position, source):
 
 
 def _latest_candidates(site_events):
-    """target_id -> 그 대상을 가리키는 가장 새 TARGET_DISAPPEARED_CANDIDATE(후보일 뿐이고 로봇이 재확인한다)."""
+    """target_id -> 대상을 가리키는 최신 TARGET_DISAPPEARED_CANDIDATE 이벤트(후보 단계이며 로봇 재확인 필요)."""
     latest = {}
     for event in site_events:
         if event.kind != 'TARGET_DISAPPEARED_CANDIDATE':
@@ -172,9 +172,9 @@ def _latest_candidates(site_events):
 
 
 def _targets(ledger, target_states, candidates):
-    """장부 보고나 대상 상태가 가리키는 대상마다 한 행을 만들고 target_id 로 정렬한다.
+    """장부 보고 및 대상 상태를 취합하여 대상별 1행을 구성하고 target_id 기준으로 정렬한다.
 
-    ``ledger`` 가 None 이면 보고 장부가 주어지지 않은 것이다. 보고 칸은 None 으로 둔다(0 도 「보고 없음」도 아님).
+    ``ledger``가 None이면 보고 장부가 비활성화된 상태다. 보고 관련 열은 0이 아닌 None으로 설정한다.
     """
     reports = {} if ledger is None else _latest_reports(ledger['reports'])
     rows = []
@@ -184,8 +184,8 @@ def _targets(ledger, target_states, candidates):
         state = target_states.get(target_id)
         warnings = []
         report_confirmed = None if payload is None else payload['confirmation_result'] == 'CONFIRMED'
-        # 대상 상태(operations)가 이긴다. 최신 보고는 상태가 없을 때만 대신한다.
-        # 어느 쪽이든 어긋남이나 빠진 입력은 행 경고가 된다. 말없이 하나를 고르지 않는다.
+        # 대상 상태(operations)가 우선권을 갖는다. 최신 보고 데이터는 상태가 존재하지 않을 때만 대체한다.
+        # 양자 간 불일치나 누락된 입력은 행 단위 경고로 기록하며, 묵묵히 한쪽을 취사선택하지 않는다.
         if state is not None:
             confirmed = state['detection_confirmed']
             if report_confirmed is not None and report_confirmed != confirmed:
@@ -196,13 +196,13 @@ def _targets(ledger, target_states, candidates):
             position = _position(payload['position'], 'report')
             warnings.append('구조 상태 입력 없음')
         rescue_state = None if state is None else state['rescue_state']
-        # 운영자가 승인하는 revision(SubmitOperatorCommand expected_target_revision)이다. operations 가
-        # 저장하면 대상 상태에 실려 온다. 그 전에는 None 이고 출동 버튼은 꺼진 채로 있다.
+        # 운영자 승인 대상 revision(SubmitOperatorCommand expected_target_revision). operations가
+        # 원장에 영속화하면 대상 상태에 반영되며, 미기록 상태에서는 None으로 출동 버튼이 비활성화된다.
         revision = None if state is None else state.get('target_revision')
         _require(revision is None or (type(revision) is int and revision >= 0), 'target_revision')
-        # 조정기가 그 revision 에 대해 PERSISTED 영수증을 가진 보고다(TargetEstimate
-        # persisted_report_id, #118 선택 키). 없으면 조정기가 출동을 거절한다. 키가 생기기 전에 쓴 행도
-        # None 으로 읽힌다. 아래의 장부 영수증으로 짐작하지 않는다.
+        # 해당 revision에 대해 PERSISTED 영수증이 발급된 보고 식별자(TargetEstimate
+        # persisted_report_id, #118 선택 필드). 영수증 부재 시 조정기가 출동을 거부한다. 필드 도입 전 레코드는
+        # None으로 파싱되며, 아래 장부 영수증을 임의로 유추하지 않는다.
         persisted = None if state is None else state.get('persisted_report_id')
         _require(persisted is None or (type(persisted) is str and persisted != ''), 'persisted_report_id')
         support_state = None if state is None else state['support_state']
@@ -235,11 +235,11 @@ def _targets(ledger, target_states, candidates):
 
 
 def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
-    """배치 로봇마다 ``allowed_robot_ids`` 순서로 한 행을 만든다. 경과 시간은 ``built_at_ns`` 에서 잰다.
+    """배치 로봇 목록(``allowed_robot_ids``) 순서대로 로봇 상태 행을 구성한다. 경과 시간은 ``built_at_ns`` 기준이다.
 
-    배치 밖 로봇의 상태는 ``warnings`` 에 문구를 더하고 버린다. 한 로봇의 상태가 둘이면
-    ``ConsoleError INVALID_INPUT`` 을 올린다. 상태가 없는 배치 로봇도 행을 받으므로
-    (``has_status`` False, 나머지 칸 None, ``stale`` True) 말없는 로봇이 가려지지 않는다.
+    배치 외 로봇 상태는 ``warnings``에 기록하고 무시한다. 동일 로봇의 상태가 중복 수신되면
+    ``ConsoleError INVALID_INPUT`` 예외를 발생시킨다. 미보고 배치 로봇도 행을 유지하여
+    (``has_status`` False, 필드 None, ``stale`` True) 통신 두절 로봇이 UI에서 누락되지 않도록 한다.
     """
     by_id = {}
     for status in robot_status:
@@ -269,24 +269,24 @@ def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
             'motion_state': status.get('motion_state'),
             'readiness': status.get('readiness'),
             'battery_percent': status.get('battery_percent'),
-            # 경과 시간은 로봇 시각을 이 호스트 시계와 비교한다. 두 시계가 맞을 때만 뜻이 있다(C-03).
+            # 배터리 경과 시간은 로봇 발행 시각과 호스트 시계를 비교한다. 시계 동기화가 전제되어야 유효하다(C-03).
             'battery_age_s': None if battery_stamp is None else (built_at_ns - battery_stamp) / 1e9,
             'active_task_id': status.get('active_task_id'),
             'stamp_ns': stamp,
             'age_s': None if stamp is None else (built_at_ns - stamp) / 1e9,
-            # 장부 시계 기준 경과 시간: 재부팅한 로봇의 시계가 뒤로 가도 여전히 뜻이 있다.
+            # 장부 수신 시각 기준 경과 시간: 로봇 재부팅으로 로봇 시계가 역행하더라도 신뢰할 수 있는 단조 증가 기준이다.
             'received_age_s': received_age,
-            # 낡음은 로봇 시각이 아니라 수신 경과 시간으로 판정한다. 잴 수 없는 경과 시간은 낡음이다.
+            # 낡음 판정은 로봇 시각이 아닌 장부 수신 시각을 기준으로 수행한다. 수신 시각 미확인 항목은 stale로 처리한다.
             'stale': received_age is None or received_age > STATUS_STALE_S,
         })
     return rows
 
 
 def _site_events(raw_events):
-    """날것의 현장 사건 dict 를 계약 ``SiteEvent`` 로 다시 만들어 계약의 검사가 여기서 돌게 한다.
+    """원시 현장 이벤트 dict를 계약 ``SiteEvent`` 객체로 인스턴스화하여 계약 유효성 검증을 강제한다.
 
-    계약이 거절하는 행(모르는 칸·빠진 칸: TypeError, 잘못된 값: RescueError)은 화면 전체에 대해
-    ``ConsoleError INVALID_INPUT`` 을 올린다. 건너뛰지 않는다.
+    계약 규격에 어긋나는 행(정의되지 않은 필드, 누락 필드: TypeError, 값 범위 위반: RescueError)은
+    개별 건너뛰기 대신 전체 화면에 대해 ``ConsoleError INVALID_INPUT`` 예외를 발생시킨다.
     """
     events = []
     for raw in raw_events:
@@ -298,11 +298,11 @@ def _site_events(raw_events):
 
 
 def _events(ledger, site_events):
-    """사건 표: 장부 보고와 현장 사건을 한 행 모양으로 담고 최신 순으로 둔다.
+    """사건 이력 테이블: 장부 보고와 현장 이벤트를 단일 행 스키마로 통합하여 최신 순으로 정렬한다.
 
-    (앞 EVENT_ROWS 행, 전체 행 수)를 돌려준다. 종류에 없는 칸은 None 으로 둔다. 현장 사건은 읽기 함수가
-    ``received_at_ns`` 를 돌려주지 않으므로 그 값이 없다. ``event_ns`` 는 KPI-04 표시 지연을
-    재는 기준인 관측 시각이다.
+    (상위 EVENT_ROWS개 행, 전체 건수)를 반환한다. 해당 이벤트 종류에 없는 필드는 None으로 채운다. 현장 이벤트는
+    ``received_at_ns``가 제공되지 않으므로 그 값이 없다. ``event_ns``는 KPI-04 표시 지연 측정 기준인
+    관측 시각이다.
     """
     rows = []
     for item in [] if ledger is None else ledger['reports']:
@@ -338,7 +338,7 @@ def _events(ledger, site_events):
             'clock_domain_id': event.clock_domain_id,
             'ref_id': event.event_id,
         })
-    # 시각이 같으면 ref_id 로 가르므로 같은 시각의 행도 폴링마다 같은 순서를 지킨다.
+    # 시각이 동일한 경우 ref_id를 2차 정렬 키로 사용하여 매 폴링마다 결정론적인 정렬 순서를 보장한다.
     rows.sort(key=lambda row: (row['event_ns'], row['ref_id']), reverse=True)
     return rows[:EVENT_ROWS], len(rows)
 
@@ -348,7 +348,7 @@ MISSION_ROW_KEYS = frozenset({'mode', 'phase', 'trigger_event_id', 'started_at_n
 
 
 def _mission_row(status):
-    """read_mission_state() 결과를 (절이 있는가, 행 또는 None)으로 돌려준다."""
+    """read_mission_state() 조회 결과를 (섹션 존재 여부, 미션 행 또는 None) 튜플로 반환한다."""
     section = status.get('mission_state')
     if section is None:
         return False, None
@@ -359,9 +359,9 @@ def _mission_row(status):
     return True, row
 
 
-# SystemState.reason 코드를 쉬운 한국어로 옮긴다(2026-10-13). {support}/{scout}: SUPPORT·SCOUT 로봇의
-# 표시 이름. level: info(정상 진행), caution(보류), alert(빨강: 실패했고 다시 하지
-# 않음). scope: 임무 띠 말고 또 보이는 곳(지원·정찰 카드, 출동한 대상).
+# SystemState.reason 코드를 사용자 친화적 한국어 기술 용어로 변환한다(2026-10-13). {support}/{scout}: 지원/정찰 로봇의
+# 화면 표시명 매핑. level: info(정상 진행), caution(주의/대기), alert(심각: 실패 및 재시도 불가).
+# scope: 미션 배너 외 추가 표시 영역(지원/정찰 카드, 출동 대상 등).
 MISSION_REASONS = {
     'SUPPORT_EXITING': ('{support} 출구로 이동 중', 'info'),
     'SUPPORT_AT_EXIT': ('{support} 출구 도착', 'info'),
@@ -412,8 +412,8 @@ MISSION_REASONS = {
     'START_POSE_CONFLICT': ('{scout} 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert'),
     'PATROL_EXHAUSTED': ('{scout} 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution'),
 }
-# APPROACH_FAILED_<why> (#216): 실행기의 종료 이유, 그것이 없으면 실행 결과.
-# 모르는 이유는 코드 그대로 보인다(OPS-127: 숨기지 않는다).
+# APPROACH_FAILED_<why> (#216): 실행기 종료 사유, 미정의 시 실행 결과 코드.
+# 정의되지 않은 사유 코드는 코드명을 그대로 노출하여 정보를 은폐하지 않는다(OPS-127).
 APPROACH_WHY = {
     'PASSAGE_BLOCKED': '통로 막힘', 'UNREACHABLE': '갈 수 없는 위치', 'FAILED': '실행 실패',
     'CANCELED': '취소됨', 'EXPIRED': '시간 초과', 'NAV_NOT_READY': '주행 준비 안 됨',
@@ -422,7 +422,7 @@ APPROACH_WHY = {
 }
 EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
 PATROL_ROUND = re.compile(r'PATROL_ROUND_(\d+)')
-# RECHECK_NEEDED_<why>: 재확인이 구출을 확정하지 못했다(C-11 7-11행).
+# RECHECK_NEEDED_<why>: 재확인 결과 구출을 확정하지 못한 원인(C-11 7-11행).
 RECHECK_WHY = {
     'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
     'CANDIDATE_TIME_BASIS_UNUSABLE': '시각 기준 못 씀', 'ORDER_VIOLATION': '시각 순서 틀림',
@@ -436,10 +436,10 @@ SUPPORT_CODES = frozenset({'APPROACH_FAILED', 'MODE_NOT_DISASTER', 'ALREADY_DISP
 
 
 def mission_reason(code, support_name, scout_name):
-    """SystemState.reason 하나의 {code, text, level, scope} 를 만든다. 모르는 코드는 그대로 둔다."""
+    """SystemState.reason 코드를 {code, text, level, scope} 구조로 변환한다. 미등록 코드는 원본을 유지한다."""
     if code is None:
         return None
-    # 그 역할의 로봇을 알려 주는 상태가 없으면 robot_id 를 모른다. 일반 낱말 말고 역할 코드를 쓴다.
+    # 해당 역할의 로봇이 식별되지 않으면 robot_id를 알 수 없으므로 임의 명칭 대신 역할 코드(SUPPORT/SCOUT)를 사용한다.
     names = {'support': support_name or 'SUPPORT', 'scout': scout_name or 'SCOUT'}
     support_code = code in SUPPORT_CODES or code.startswith('APPROACH_FAILED_')
     scope = 'support' if support_code else next((where for prefix, where in SCOPES if code.startswith(prefix)),
@@ -464,9 +464,9 @@ def mission_reason(code, support_name, scout_name):
 
 
 def _mission(site_events, row):
-    """배지 입력. mission_state 행(operations 가 조정기의 SystemState 를 쓴다, #111)이 있으면
-    그 행을 쓴다. 첫 행 전에는 DISASTER_SIGN 사건에서 모드를 추정하고 추정이라고 표시한다
-    (`source`). None 은 둘 다 없다는 뜻이다."""
+    """임무 배지 데이터 모델 구성. mission_state 레코드(operations가 SystemState를 기록함, #111)가 있으면
+    해당 레코드를 적용한다. 최초 레코드 수신 전에는 DISASTER_SIGN 이벤트로 모드를 추정하고 출처(`source`)를 명시한다.
+    둘 다 없으면 미수신 상태(None)를 반환한다."""
     signs = sorted((e for e in site_events or () if e.kind == 'DISASTER_SIGN'),
                    key=lambda e: (e.observed_at_ns, e.event_id))
     base = {'sign_count': len(signs), 'phase': None, 'reason': None, 'dispatch': None, 'updated_at_ns': None}
@@ -484,12 +484,12 @@ def _mission(site_events, row):
                    'trigger_ns': signs[0].observed_at_ns if signs else None}
 
 
-SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch. 조정기와 같은 현장 값
-SEARCH_START_MODES = ('AUTO', 'OPERATOR')       # --search-start. 조정기와 같은 현장 값(#228)
+SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch: 조정기와 공유하는 현장 운영 정책
+SEARCH_START_MODES = ('AUTO', 'OPERATOR')       # --search-start: 조정기와 공유하는 현장 운영 정책(#228)
 
 
 def _command_words(support_name):
-    """명령 낱말. 출동 낱말에는 SUPPORT 로봇의 표시 이름을 넣는다(소유자 2026-10-13: TB-5)."""
+    """명령 레이블 구성. 출동 승인 명령에는 SUPPORT 로봇의 화면 표시명을 반영한다(소유자 2026-10-13: TB-5)."""
     words = dict(COMMANDS)
     if support_name is not None:
         words['DISPATCH_SUPPORT'] = f'{support_name} 출동 승인'
@@ -497,9 +497,9 @@ def _command_words(support_name):
 
 
 def _history(status, words=None):
-    """operations 가 기록한 운영자 명령(답과 사유, 거절 포함)과
-    operations 의 error_log 를 최신 순으로 둔다. 두 입력이 다 없으면(상태 픽스처) None 이다.
-    사건 행과 따로 둔다. 사건 행은 KPI-04 표시 지연을 싣고 이 행은 싣지 않는다."""
+    """operations가 기록한 운영자 명령 이력(응답 및 거절 사유 포함)과
+    operations의 error_log를 통합하여 최신 순으로 정렬한다. 두 입력 모두 없으면(픽스처 모드) None 반환.
+    사건 이력과 분리 운영된다: 사건 이력은 KPI-04 지연 메트릭을 포함하지만 명령 이력은 포함하지 않는다."""
     commands = _section(status, 'operator_commands', 'commands')
     errors = _section(status, 'error_log', 'errors')
     if commands is None and errors is None:
@@ -522,47 +522,47 @@ def _history(status, words=None):
 
 
 def _choice(target):
-    """선택지 한 항목: 대상, 화면에 보인 revision(DISPATCH_SUPPORT 와 함께 보냄), 그 단계."""
+    """선택지 항목 구성: 대상 ID, 화면에 표시된 revision(DISPATCH_SUPPORT 전달용), 대상 단계 정보."""
     return {'target_id': target['target_id'], 'target_revision': target['target_revision'],
             'stage': target['stage'], 'stage_label': target['stage_label']}
 
 
 def _gate(name, mission, targets):
-    """명령 하나의 (enabled, reason, args, choices). rescue_coordination.mission.handle_command 의 관문 거울이다."""
+    """단일 명령의 (enabled, reason, args, choices) 판정. rescue_coordination.mission.handle_command의 게이트 로직을 반영한다."""
     def off(reason):
         return False, reason, {}, []
-    # 순서가 중요하다. 처음 걸리는 검사가 버튼 아래 보이는 사유가 된다.
-    # 1. 보류 명령은 상태와 무관하게 끈다(commands.py 가 보내지 않는다).
+    # 평가 순서가 핵심이다: 최초로 걸린 검사 조건이 버튼 하단 안내 사유로 표시된다.
+    # 1. 보류 명령은 상태와 무관하게 즉시 비활성화한다(commands.py 전송 차단).
     if name in HELD_COMMANDS:
         return off(HELD_COMMANDS[name])
-    # 2. mission_state 행이 없으면 조정기 상태를 모른다. DISASTER_SIGN 사건에서 추정한 모드는
-    #    (source 'site_events') 배지에는 보이지만 버튼을 켜지 않는다.
+    # 2. mission_state 레코드가 없으면 조정기 상태를 알 수 없다. DISASTER_SIGN 이벤트 기반 추정 모드는
+    #    (source 'site_events') 배지에는 표시되나 명령 버튼을 활성화하지 않는다.
     if mission['source'] != 'mission_state':
         return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
-    # 3. DISASTER 밖에서는 handle_command 가 모든 종류에 MODE_NOT_DISASTER 로 답한다.
+    # 3. DISASTER 모드가 아니면 handle_command가 모든 요청에 대해 MODE_NOT_DISASTER로 거부한다.
     if mission['mode'] != 'DISASTER':
         return off(f"재난 모드 아님 ({mission['label']})")
-    # 4. 명령별 규칙. 각각 그 종류에 대한 조정기 처리기를 따른다.
+    # 4. 개별 명령별 전이 조건 검증. 각 명령에 대응하는 조정기 핸들러 로직과 일치시킨다.
     phase, dispatch = mission['phase'], mission['dispatch']
     if name == 'START_SEARCH':
-        # phase DISASTER 는 조정기의 「재난 감지, 아직 수색 시작 전」이다(mission.phase).
+        # phase DISASTER는 조정기의 '재난 감지 후 수색 시작 전' 초기 단계다(mission.phase).
         return (True, '재난 감지 — 아직 수색 전', {}, []) if phase == 'DISASTER' else off('이미 수색을 시작함')
     if name == 'DISPATCH_SUPPORT':
         if dispatch is not None:
             return off('이미 출동함')
-        # 확정이고 아직 구출 전인 대상: 지원 로봇을 아직 보낼 수 있는 대상이다.
+        # 확정 상태이며 아직 구출되지 않은 대상: 지원 로봇 출동이 허용되는 대상 목록이다.
         confirmed = [t for t in targets if t['detection_confirmed'] and t['stage'] != 'RESCUED']
         if not confirmed:
             return off('확정 대상 없음')
-        # 운영자는 화면의 revision 을 승인한다. revision 이 없는 대상은 내놓지 않는다(null 로 보내지 않는다).
+        # 운영자는 화면에 표시된 revision을 승인한다. revision 정보가 없는 대상은 선택지로 제시하지 않는다(null 전송 방지).
         revised = [t for t in confirmed if t['target_revision'] is not None]
         if not revised:
             return off('대상 revision 없음 — 대상 상태에 revision 이 기록되면 켜짐')
-        # mission.py: 확정이면서 report_persisted 여야 하고, 아니면 TARGET_NOT_CONFIRMED.
+        # mission.py: 확정 상태이면서 report_persisted 영수증이 존재해야 하며, 미충족 시 TARGET_NOT_CONFIRMED.
         choices = [_choice(t) for t in revised if t['persisted_report_id'] is not None]
         if not choices:
             return off('보고 저장 대기 — 조정기가 저장 영수증을 받으면 켜짐')
-        # 영수증이 없어 빠진 대상 수를 사유에 넣어, 선택지에 없는 대상의 까닭을 밝힌다.
+        # 영수증 누락으로 제외된 대상 수를 사유 메시지에 표기하여 선택지 누락 원인을 명확히 안내한다.
         waiting = len(revised) - len(choices)
         return (True, f'확정 대상 {len(choices)}명 중 고름' + (f' (보고 저장 대기 {waiting}명 빠짐)' if waiting else ''),
                 {}, choices)
@@ -571,48 +571,48 @@ def _gate(name, mission, targets):
             return off('출동 전')
         if dispatch['segment_phase'] != 'AWAITING_APPROVAL':
             return off(f"승인 대기 아님 ({label('segment', dispatch['segment_phase'])})")
-        # 화면의 값을 그대로 돌려보낸다. 그사이 바뀐 값이 있으면 조정기가 거절한다
+        # 화면의 파라미터를 그대로 회신한다. 그 사이 상태가 변경되었으면 조정기가 안전하게 거절한다
         # (TARGET_REVISION_STALE, ROUTE_REVISION_STALE, SEGMENT_INDEX_MISMATCH).
         args = {key: dispatch[key] for key in ('target_id', 'target_revision', 'route_revision', 'segment_index')}
         return (True, f"구간 {dispatch['segment_index']}/{dispatch['segment_count']} 끝 — 다음 구간 승인 대기",
                 args, [])
     if name == 'REQUEST_RECHECK':
-        # RESCUE_CONFIRMED 로 판정되지 않은 모든 대상이다. 대상 상태가 없는 대상도 넣는다(C-11 10행:
-        # 도착·출동은 조건이 아니다). UNKNOWN_TARGET 과 RECHECK_ALREADY_REQUESTED 는 여전히
-        # 조정기가 답한다.
+        # RESCUE_CONFIRMED로 최종 확정되지 않은 모든 대상이다. 대상 상태 레코드가 없는 대상도 포함한다(C-11 10행:
+        # 도착 및 출동 여부는 재확인 지시의 필수 선행 조건이 아님). UNKNOWN_TARGET 및 RECHECK_ALREADY_REQUESTED는
+        # 조정기가 최종 판정하여 거절한다.
         open_targets = [_choice(t) for t in targets if t['rescue_state'] != 'RESCUE_CONFIRMED']
         if not open_targets:
             return off('재확인할 대상 없음')
         return True, f'대상 {len(open_targets)}명 중 고름', {}, open_targets
     if name == 'RETURN_HOME':
-        # 조정기와 같은 순서: ALREADY_RETURNING, 그다음 NO_VERDICT(판정 phase 면 「판정이 있음」이다).
+        # 조정기와 동일한 검증 순서: ALREADY_RETURNING 검사 후 NO_VERDICT 검사(판정 phase 진입 시 판정 완료로 간주).
         if phase == 'RETURNING':
             return off('이미 복귀 중')
         if phase not in VERDICT_PHASES:
             return off('구출 판정 전')
         return True, '판정 뒤 — 두 로봇 복귀', {}, []
-    # 여기 규칙이 없는 COMMANDS 항목은 사유 없는 버튼을 그리지 않고 드러나게 실패한다.
+    # 등록되지 않은 COMMANDS 항목은 안내 없는 버튼을 생성하지 않고 즉시 예외를 발생시킨다.
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
 def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None, search_start=None,
                   scout_name=None):
-    """모든 명령과 그 버튼 상태. 화면용 조정기 관문 거울이지
-    관문 자체가 아니다. 켜진 명령도 거절될 수 있고, 그 답은 온 그대로 보인다."""
+    """모든 운영자 명령의 버튼 활성화 상태를 계산한다. 이는 프론트엔드 안내용 게이트 복제본이며
+    권한 인가 그 자체가 아니다. 활성화된 명령도 조정기에서 거절될 수 있으며 해당 응답은 그대로 표시된다."""
     words = dict(COMMANDS) if words is None else words
     rows = []
     for name, _ in COMMANDS:
         enabled, reason, args, choices = _gate(name, mission, targets)
         if name == 'DISPATCH_SUPPORT' and support_dispatch == 'AUTO':
-            # 조정기가 지원 로봇을 스스로 보내고 이 명령은 거절한다(NOT_AUTHORIZED).
-            # 버튼이 아니라 상태다(소유자 결정 2026-10-13). 이 행에서는 위 _gate 결과를 버린다.
-            # `auto: True` 이면 render.py 가 data-command 없는 상태 줄을 그린다.
+            # 조정기가 지원 로봇을 자동 파견하므로 수동 명령은 거부된다(NOT_AUTHORIZED).
+            # 버튼이 아닌 자동 상태 표시로 전환된다(소유자 결정 2026-10-13). 본 행에서는 _gate 결과를 대체한다.
+            # `auto: True` 설정 시 render.py가 data-command 없는 안내 텍스트로 렌더링한다.
             auto = f'{support_name or "SUPPORT"} 자동 출동'
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
             continue
         if name == 'START_SEARCH' and search_start == 'AUTO':
-            # 재난 징후가 수색을 시작하고 조정기는 이 명령을 거절한다(AUTO_SEARCH_ENABLED).
+            # 지진 감지 시 수색이 자동 시작되므로 수동 명령은 거부된다(AUTO_SEARCH_ENABLED).
             auto = f'{scout_name or "SCOUT"} 자동 출발'
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
                          'reason': f'{auto} — 지진 감지로 조정기가 수색 시작', 'args': {}, 'choices': [],
@@ -624,8 +624,8 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
 
 
 def _exit(section):
-    """가장 새 exit_qr 관측(#237, 최신 순으로 읽음, VALID 만) 또는 None. 관측일 뿐, 조정기가 등록한
-    출구가 아니다(그것은 사유로만 보인다, 예: SUPPORT_EXIT_UNREGISTERED)."""
+    """최신 exit_qr 관측 정보(#237, 최신 순 정렬, VALID 판정만) 또는 None 반환. 단순 센서 관측치이며
+    조정기에 등록 확정된 출구와는 구별된다(미등록 시 SUPPORT_EXIT_UNREGISTERED 사유로 노출됨)."""
     if section is None or not section['exits']:
         return None
     row = section['exits'][0]
@@ -634,19 +634,19 @@ def _exit(section):
 
 
 def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
-    """폴링 한 번의 입력으로 화면 모델 전체(`/api/view` JSON)를 만든다.
+    """단일 폴링 주기의 모든 입력 소스를 종합하여 전체 화면 모델(`/api/view` JSON)을 빌드한다.
 
-    ledger: read_reports() 결과. 보고 장부가 주어지지 않으면 None 이다(장부 없이 --site-state 만,
-    2026-10-13). 그때는 보고 행과 건수를 보이지 않고 경고에 그렇다고 적는다.
+    ledger: read_reports() 결과. 보고 원장이 미제공된 경우 None(원장 없이 --site-state 단독 실행,
+    2026-10-13). 이 경우 보고 행 및 건수를 비활성화하고 warnings에 사유를 명시한다.
     status: {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
-    'operator_commands', 'error_log', 'exit_locations'}. 각각 해당 operations 읽기 API 결과다(아직 없으면
-    None). support_dispatch / search_start: 명령행으로 받은 조정기의 현장 방식 값이다
-    (AUTO 면 버튼 대신 상태를 보인다).
-    형식이 틀린 입력은 ``ConsoleError INVALID_INPUT`` 을 올린다. 없는 절은 알린다(``warnings`` 또는
-    ``history['missing']``). 기본값으로 채우지 않는다.
+    'operator_commands', 'error_log', 'exit_locations'}. operations 읽기 API 결과 딕셔너리다(미수신 시
+    None). support_dispatch / search_start: 명령행으로 전달된 조정기 현장 운영 모드 플래그다
+    (AUTO 설정 시 버튼 대신 자동 상태 메시지를 표시한다).
+    입력 형식 위반 시 ``ConsoleError INVALID_INPUT`` 예외를 발생시킨다. 누락된 섹션은 경고로 보고하며
+    (``warnings`` 또는 ``history['missing']``), 임의의 기본값으로 채우지 않는다.
     """
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
-    names = dict(robot_names or {})   # robot_id -> 표시 이름(--robot-name). 없으면 ID 그대로
+    names = dict(robot_names or {})   # robot_id -> 화면 표시명(--robot-name). 미설정 시 robot_id 원본 사용
     _require(support_dispatch in (None,) + SUPPORT_DISPATCH_MODES,
              f'support_dispatch must be one of {SUPPORT_DISPATCH_MODES} or unset')
     _require(search_start in (None,) + SEARCH_START_MODES, f'search_start must be one of {SEARCH_START_MODES} or unset')
@@ -654,21 +654,21 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     robot_section = _section(status, 'robot_status', 'robots')
     allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
     if ledger is None and allowed_section is not None:
-        # 현장 상태 DB 가 배치 로봇을 정한다(read_allowed_robot_ids, #149).
+        # 현장 상태 DB가 배치 로봇을 결정한다(read_allowed_robot_ids, #149).
         warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음')
         allowed = tuple(allowed_section['allowed_robot_ids'])
     elif ledger is None:
-        # 로봇 목록이 없는 픽스처: 상태를 보낸 로봇만 그릴 수 있다.
+        # 로봇 목록이 정의되지 않은 픽스처: 상태가 수신된 로봇만으로 구성한다.
         warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음, 로봇 목록은 상태가 들어온 로봇만')
         allowed = tuple(sorted({r.get('robot_id') for r in ([] if robot_section is None else robot_section['robots'])}))
     else:
-        # 장부가 있으면 장부의 로봇 목록을 쓴다. 현장 상태 목록은 보지 않는다.
+        # 원장이 존재하면 원장에 정의된 로봇 목록을 우선 사용하며 현장 상태 목록은 참조하지 않는다.
         allowed = tuple(ledger['allowed_robot_ids'])
     site_section = _section(status, 'site_events', 'site_events')
     target_section = _section(status, 'target_states', 'targets')
     has_mission, mission_row = _mission_row(status)
-    # 없는 절은 빈 목록이 아니라 보이는 경고다(「입력 없음」이 「아무 일도 없음」처럼 보이면
-    # 안 된다). `has_mission or None`: 행이 None 인 mission_state 절은 있는 것이므로 경고하지 않는다.
+    # 누락된 섹션은 빈 리스트가 아닌 명시적 경고로 노출한다('데이터 미수신'이 '정상 공백'으로 오인되는
+    # 현상을 방지함). `has_mission or None`: 행이 None이라도 mission_state 섹션 자체가 존재하면 경고를 생략한다.
     for key, section in (('robot_status', robot_section), ('site_events', site_section),
                          ('target_states', target_section), ('mission_state', has_mission or None)):
         if section is None:
@@ -682,9 +682,9 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     targets = _targets(ledger, target_states, candidates)
     for target_id in sorted(set(candidates) - {row['target_id'] for row in targets}):
         warnings.append(f'소실 후보의 대상이 목록에 없음: {target_id}')
-    # API 모델에는 두되 그리지 않는다. 고정 카메라가 하나라 EXIT_PASS 를 내는 곳이 없어
-    # 수가 0 에 머문다(2026-10-09 결정, console-and-db-plan 3절, db-schema 2절). 3.5.5 의
-    # 「구출 <= 출구 통과 수」 경고도 함께 뺐다. 구출 계기는 카메라의 후보 사건이다.
+    # API 모델에는 보존하되 화면에 렌더링하지 않는다. 고정 카메라 1대 환경에서 EXIT_PASS 이벤트 발행처가 없어
+    # 카운트가 0에 고정된다(2026-10-09 결정, console-and-db-plan 3절, db-schema 2절). 사양 3.5.5의
+    # '구출 수 <= 출구 통과 수' 불일치 경고도 제외되었다. 구출 상태 전이는 카메라 소실 후보 이벤트로 트리거된다.
     exit_count = None if site_section is None else site_section['exit_pass_count']
     _require(exit_count is None or (type(exit_count) is int and exit_count >= 0), 'exit_pass_count')
     stage_counts = {stage: 0 for stage in STAGES}
@@ -695,8 +695,8 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
     for row in robots:
         row['name'] = names.get(row['robot_id'], row['robot_id'])
-    # 역할의 표시 이름은 그 역할을 알리는 로봇이 정확히 하나일 때만 쓴다(역할은 상태에서 온다).
-    # 없거나 여럿이면 None 이고, 짐작 대신 역할 코드(SUPPORT/SCOUT)를 보인다.
+    # 역할 표시명은 해당 역할을 보고한 로봇이 단 1대일 때만 적용한다(역할 정보는 robot_status에서 수신).
+    # 없거나 복수 대인 경우 추측하지 않고 기본 역할 코드(SUPPORT/SCOUT)를 노출한다.
     support = [row['name'] for row in robots if row['role'] == 'SUPPORT']
     words = _command_words(support[0] if len(support) == 1 else None)
     scout = [row['name'] for row in robots if row['role'] == 'SCOUT']
@@ -705,7 +705,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     history = _history(status, words)
     refused = [row['reason'] for row in (history or {'rows': []})['rows']] + [mission['reason']]
     if search_start != 'AUTO' and 'AUTO_SEARCH_ENABLED' in refused:
-        # 조정기는 search_start AUTO 로 도는데, 이 콘솔은 조정기가 거절할 버튼을 아직 내놓는다.
+        # 조정기는 search_start AUTO 모드로 동작 중이나, 콘솔은 수동 시작 버튼을 제시하는 불일치 상황 안내.
         warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
     exits = _section(status, 'exit_locations', 'exits')
     return {

@@ -1,4 +1,4 @@
-"""화면 모델 -> HTML. 표준 라이브러리만 쓰므로 Flask 없이 페이지를 시험한다."""
+"""화면 모델 -> HTML 렌더링. 표준 라이브러리 기반으로 구현하여 Flask 의존성 없이 단위 테스트가 가능하다."""
 
 from datetime import datetime
 from html import escape
@@ -9,24 +9,24 @@ from .labels import label
 from .mapimage import MAP_FRAME
 from .view import STAGES, ConsoleError
 
-# 브라우저 폴링 주기. KPI-04 예산은 3 s(BRD v0.1)이고, 1 s 폴링이면 2 s 가 남아
-# 장부 기록·읽기·전송에 쓴다([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
+# 브라우저 폴링 주기. KPI-04 예산은 3초(BRD v0.1)이며, 1초 주기로 폴링하면 남은 2초를
+# 운영 장부 기록·조회·전송 처리에 활용한다([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
 POLL_INTERVAL_MS = 1000
-# KPI-04 예산: 사건 시각부터 운영자 화면에 보일 때까지(BRD v0.1 KPI-04, 3 s).
+# KPI-04 레이턴시 예산: 사건 발생 시각부터 운영자 화면에 렌더링될 때까지의 시간(BRD v0.1 KPI-04, 3초).
 KPI04_BUDGET_S = 3.0
 MISSING = '—'
-# 지도 표식 크기, 지도 픽셀 단위(재난 전 지도는 0.05 m/px): 로봇 화살표의 반폭과
-# 앞코 길이, 요구조자 V 의 반폭. 표시 전용이다([제안] 관제·화면, 2026-10-10).
+# 지도 표식 크기(지도 픽셀 단위, 재난 전 기준 지도는 0.05 m/px): 로봇 화살표 반폭 및
+# 전방 꼭짓점 길이, 요구조자 V 표식 반폭. 화면 표시 전용이다([제안] 관제·화면, 2026-10-10).
 ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.6, 4.8, 2.0
 
 
 def _text(value):
-    """아무 값이나 이스케이프한 글자로 바꾼다. None 은 MISSING 으로 보인다."""
+    """임의의 값을 HTML 이스케이프된 문자열로 변환한다. None은 MISSING으로 표시된다."""
     return MISSING if value is None else escape(str(value))
 
 
 def _time(ns, ref_ns=None):
-    """ns 시각을 시계 시각으로 보인다. `ref_ns` 와 날짜가 다르면 날짜를 붙인다."""
+    """나노초 단위 타임스탬프를 시각 문자열로 표시한다. `ref_ns`와 날짜가 다르면 날짜도 함께 병기한다."""
     if ns is None:
         return MISSING
     moment = datetime.fromtimestamp(ns / 1e9)
@@ -36,7 +36,7 @@ def _time(ns, ref_ns=None):
 
 
 def _age(seconds):
-    """짧은 나이 글자: 0.4s, 12.0s, 3분 05초, 2시간 10분, 41일. 음수는 시계가 이 호스트보다 앞섰다는 뜻이다."""
+    """경과 시간 문자열(0.4s, 12.0s, 3분 05초, 2시간 10분, 41일). 음수는 원격 시계가 호스트보다 앞섬을 의미한다."""
     if seconds is None:
         return MISSING
     sign, value = ('-', -seconds) if seconds < 0 else ('', seconds)
@@ -51,28 +51,28 @@ def _age(seconds):
     return sign + text
 
 
-# 화면에 보이는 UUID 글자 수. 전체 ID 는 title 툴팁에 남는다.
+# 화면에 표시할 UUID 글자 수. 전체 UUID는 title 툴팁에 보존된다.
 SHORT_ID = 8
-# 배터리 막대 색은 이 백분율 아래에서 바뀐다([제안] 관제·화면, 2026-10-10; 표시 전용).
+# 배터리 잔량 표시 색상 전환 임계값(단위: %)([제안] 관제·화면, 2026-10-10; UI 표시 전용).
 BATTERY_LOW, BATTERY_WARN = 25, 50
-# 지도 위 측량 격자 간격, 미터 단위.
+# 지도 평면 상의 측량 그리드 간격(단위: 미터).
 GRID_M = 1.0
 STAGE_ORDER = ('UNCONFIRMED', 'NOT_RESCUED', 'SUPPORTING', 'RESCUED')
-# 콘솔이 입력을 읽지 못할 때 운영자가 확인할 것, ConsoleError 코드별.
+# 콘솔이 입력 데이터를 읽지 못할 때 표시할 조치 가이드(ConsoleError 코드별 대응).
 FAILURE_HINTS = {
     'STORAGE_ERROR': '운영 장부나 현장 상태 DB 를 읽지 못했습니다. 실행 인자의 파일 경로와 operations 프로세스가 돌고 있는지 확인하세요.',
     'INVALID_INPUT': '읽은 데이터의 형식이 화면이 기대한 것과 다릅니다. operations 와 콘솔이 같은 버전인지 확인하세요.',
     'POLICY_MISMATCH': '연 파일이 기대한 DB 가 아닙니다(역할·스키마가 다름). 실행 인자의 경로를 확인하세요.',
 }
 FAILURE_HINT_OTHER = '콘솔을 띄운 터미널의 로그를 확인하세요.'
-# 실패 페이지는 이 주기로 스스로 다시 읽으므로, 입력을 읽을 수 있게 되면 화면이 돌아온다.
+# 장애 화면 자동 재시도 폴링 주기(초). 정상 입력 복구 시 화면이 자동으로 복원된다.
 FAILURE_RETRY_S = 5
 
 
 def _short(ident):
-    """표에 쓰는 짧은 ID: SHORT_ID + 1 자까지는 그대로 보이고, 더 길면 SHORT_ID 자로 자른다.
+    """테이블 표시용 단축 식별자. SHORT_ID + 1자 이하는 그대로 표시하고 초과 시 잘라낸다.
 
-    전체 ID 는 title 툴팁에 남고, None 은 MISSING 으로 보인다. 페이지 스크립트의 shortId 도 같은 규칙을 쓴다.
+    전체 식별자는 title 툴팁에 보존되며, None은 MISSING으로 표시된다. 프론트엔드 shortId()도 동일한 규칙을 따른다.
     """
     if ident is None:
         return MISSING
@@ -82,14 +82,14 @@ def _short(ident):
 
 
 def _word(kind, code):
-    """코드를 한국어 낱말(labels.label)로 바꿔 이스케이프한다. 모르는 코드는 그대로, None 은 MISSING 으로 보인다."""
+    """도메인 코드를 한국어 레이블(labels.label)로 변환해 이스케이프한다. 미등록 코드는 원본 유지, None은 MISSING 표기."""
     return _text(label(kind, code))
 
 
 def _elapsed(seconds):
-    """임무 경과 시간, 초 단위 정수: 1시간 미만은 분/초, 하루 미만은 시간/분, 그 이상은 일/시간.
+    """임무 경과 시간(초 단위 정수). 1시간 미만은 분/초, 24시간 미만은 시간/분, 초과 시 일/시간 단위 포맷.
 
-    `_age` 와 달리 None 이나 음수(트리거가 집계 시각보다 늦음)는 MISSING 으로 보인다.
+    `_age`와 달리 None이거나 음수(트리거 시각이 집계 시각보다 미래)인 경우 MISSING으로 표시된다.
     """
     if seconds is None or seconds < 0:
         return MISSING
@@ -102,9 +102,9 @@ def _elapsed(seconds):
 
 
 def _pose(pose):
-    """자세 글자 `(x, y) m`. yaw 를 알면 정수 도로 붙이고 이스케이프한다. None 은 MISSING 으로 보인다.
+    """로봇 자세 문자열 `(x, y) m`. yaw 정보가 포함되어 있으면 도(°) 단위로 변환해 표기한다.
 
-    MAP_FRAME 이 아닌 좌표계는 대괄호 안에 이름을 적어, 숫자를 지도 좌표로 읽지 않게 한다.
+    MAP_FRAME이 아닌 로컬 좌표계는 대괄호 안에 frame_id를 명시하여 지도 좌표와 오인되지 않도록 방지한다.
     """
     if pose is None:
         return MISSING
@@ -117,29 +117,29 @@ def _pose(pose):
 
 
 def _victim_path(x, y, size):
-    """INSARAG 식 요구조자 표식: 꼭짓점이 보고된 위치에 놓인 V."""
+    """INSARAG 규격 요구조자 표식 SVG 패스(꼭짓점이 대상 좌표에 닿는 V자 형태)."""
     return (f'M{x - size:.2f},{y - 1.6 * size:.2f} L{x:.2f},{y:.2f} '
             f'L{x + size:.2f},{y - 1.6 * size:.2f}')
 
 
 def _victim_icon(stage):
-    """목록과 범례에 쓰는 작은 V. 모양과 색은 지도 위와 같다."""
+    """요구조자 목록 및 범례용 축소 V 아이콘(지도 표식과 색상·도안 일치)."""
     strike = '<line x1="2" y1="7" x2="14" y2="7"/>' if stage == 'RESCUED' else ''
     return (f'<svg class="vicon {stage.lower()}" viewBox="0 0 16 16" aria-hidden="true">'
             f'<path d="{_victim_path(8, 13, 5)}"/>{strike}</svg>')
 
 
-# ---- 임무 띠 (조각) ------------------------------------------------------------------------------
+# ---- 임무 상태 띠 배너 (조각 렌더링) -------------------------------------------------------------
 
 def _reason(reason):
-    """조정기 사유를 낱말로 보이고, 낱말이 코드와 다르면 옆에 코드를 붙인다."""
+    """조정기 사유를 읽기 쉬운 레이블로 렌더링하며, 코드가 다른 경우 <code>로 병기한다."""
     level = f' {reason["level"]}' if reason['level'] else ''
     code = '' if reason['text'] == reason['code'] else f' <code>{escape(reason["code"])}</code>'
     return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
 
 
 def _scoped_reason(view, *scopes, tag='p'):
-    """조정기 사유를 요소 하나로 만든다. 범위가 `scopes` 중 하나일 때만 만들고, 아니면 ''."""
+    """조정기 사유 엘리먼트를 생성한다. 사유의 적용 범위가 `scopes`에 포함될 때만 출력한다."""
     reason = view['mission'].get('reason_view')
     if reason is None or reason['scope'] not in scopes:
         return ''
@@ -147,7 +147,7 @@ def _scoped_reason(view, *scopes, tag='p'):
 
 
 def _band(view):
-    """맨 위를 가로지르는 임무 모드 띠. 출구 누적은 그리지 않는다: 고정 카메라가 하나다(db-schema 2절)."""
+    """화면 최상단 임무 모드 배너. 출구 누적은 생략한다(단일 고정 카메라 환경, db-schema 2절)."""
     mission = view['mission']
     mode, source = mission['mode'], mission['source']
     built = view['built_at_ns']
@@ -187,10 +187,10 @@ def _warnings(view):
     return f'<section id="warnings"><h2>확인할 것 {len(view["warnings"])}</h2><ul>{items}</ul></section>'
 
 
-# ---- 지도 (조각) --------------------------------------------------------------------------------
+# ---- 지도 뷰 (조각 렌더링) ----------------------------------------------------------------------
 
 def _grid(layer):
-    """미터 격자와 축 숫자를 이미지 픽셀 단위로 그린다(측량 도면 모양)."""
+    """미터 단위 측량 그리드 및 축 눈금을 이미지 픽셀 좌표계로 렌더링한다."""
     width, height, res = layer['width_px'], layer['height_px'], layer['resolution']
     x0, y0 = layer['origin'][0], layer['origin'][1]
     lines, numbers = [], []
@@ -209,7 +209,7 @@ def _grid(layer):
 
 
 def _map(view):
-    """재난 전 지도를 SVG 하나의 바탕으로 깔아, 표식과 이미지가 늘 함께 확대·축소되게 한다."""
+    """재난 전 기준 지도를 SVG 배경으로 배치하여 표식과 이미지가 항상 동일 비율로 확대·축소되도록 렌더링한다."""
     layer = view['map']
     live = layer.get('live')
     if not layer.get('available') and live is not None:
@@ -247,7 +247,7 @@ def _map(view):
         if robot['yaw'] is None:
             body = f'<circle class="body" cx="{x}" cy="{y}" r="{ROBOT_MARK_PX}"/>'
         else:
-            # 이미지 행은 아래로 자라므로, +yaw(지도에서 반시계 방향)는 여기서 -y 다.
+            # SVG y축은 아래로 증가하므로, 지도 상의 반시계 방향(+yaw)은 SVG 상에서 -y 방향이다.
             points = []
             for angle, reach in ((0.0, HEADING_PX), (2.5, ROBOT_MARK_PX), (-2.5, ROBOT_MARK_PX)):
                 a = robot['yaw'] + angle
@@ -287,13 +287,13 @@ def _map(view):
             + '</section>')
 
 
-# ---- 로봇과 요구조자 (조각) --------------------------------------------------------------------------
+# ---- 로봇 및 요구조자 현황 (조각 렌더링) --------------------------------------------------------
 
 def _battery(robot):
-    """로봇 카드의 배터리 막대: BATTERY_LOW / BATTERY_WARN 에 따른 색, 값, 그 측정값의 나이.
+    """로봇 카드의 배터리 게이지: 임계값별 색상 클래스, 잔량(%), 측정값 경과 시간.
 
-    값이 없으면 빈 막대나 0 % 막대가 아니라 「배터리 값 없음」을 보인다. 막대 폭만 0-100 으로 자르고,
-    숫자는 받은 값 그대로 보인다.
+    배터리 정보가 없으면 빈 게이지나 0% 대신 「배터리 값 없음」으로 명시한다. 프로그레스 너비는 0-100%로
+    제한하되 수치 레이블은 수신값 그대로 표시한다.
     """
     percent = robot['battery_percent']
     if percent is None:
@@ -306,11 +306,11 @@ def _battery(robot):
 
 
 def _robots(view):
-    """배치 순서(view['robots'])대로 로봇 카드를 그린다.
+    """배치 설정 순서(view['robots'])대로 로봇 상태 카드를 렌더링한다.
 
-    아직 상태가 없는 로봇은 빈 값이 아니라 경고 카드를 받는다. 그 밖에는 이동·준비 낱말,
-    배터리, 위치, 진행 중 작업, operations 가 상태를 받은 뒤 지난 시간, 역할 범위에 맞는 조정기
-    사유, 상태가 오래됐으면 낡음 안내(마지막 값은 남기고 `stale` 클래스로 흐리게 한다)를 보인다.
+    아직 수신된 상태가 없는 로봇은 빈 카드 대신 경고 카드로 표시된다. 그 외에는 주행/준비 상태,
+    배터리 잔량, 좌표 자세, 실행 중 작업, operations 수신 경과 시간, 로봇 역할에 해당하는 조정기 사유를
+    표시하며, 상태가 지연된 경우 stale 경고(마지막 수신값 유지 및 stale 스타일 적용)를 제공한다.
     """
     units = []
     for robot in view['robots']:
@@ -340,12 +340,12 @@ def _robots(view):
 
 
 def _targets(view):
-    """요구조자 칸: 단계별 개수, 그 아래에 화면 모델 순서대로 대상마다 한 줄.
+    """요구조자 섹션: 구조 단계별 통계 및 개별 대상 상세 목록.
 
-    한 줄에는 단계와 그 규칙 ID, 위치, 구조·접근 낱말, 지원, 소실 후보(고정 카메라의 단서일 뿐이고
-    구출은 로봇 재확인이 판정한다), 보고 건수를 보인다. 보고 건수는 장부가 없으면 0 이 아니라
-    「보고 장부 입력 없음」이다. 조정기 사유는 출동한 대상에 붙이고, AUTO 출동인데 아직 출동한
-    대상이 없으면 NOT_RESCUED 대상마다 붙인다.
+    각 행에는 구조 단계, 상태 판정 규칙 ID, 추정 좌표, 구조/접근 상태, 지원 출동 현황, 소실 후보 표시
+    (고정 카메라 단서이며 최종 구조 완료는 로봇 현장 재확인으로 확정), 보고 누적 건수를 표시한다.
+    보고 장부 데이터가 없으면 0건 대신 「보고 장부 입력 없음」으로 명시한다. 조정기 사유는 출동 대상에 표기하며,
+    자동 출동 대기 상태인 경우 NOT_RESCUED 대상들에 미출동 사유를 안내한다.
     """
     counts = ''.join(
         f'<li class="{stage.lower()}">{_victim_icon(stage)}<span>{escape(STAGES[stage])}</span>'
@@ -384,13 +384,13 @@ def _targets(view):
             f'<ul class="stage-counts">{counts}</ul><ul class="victims">{body}</ul></section>')
 
 
-# ---- 사건 기록 (조각) -----------------------------------------------------------------------------
+# ---- 사건 기록 (조각 렌더링) ---------------------------------------------------------------------
 
 def _event_text(event):
-    """사건 행의 내용 칸.
+    """사건 행의 상세 내용 텍스트 생성.
 
-    REPORT 는 확정·접근·영수증 낱말을, 현장 사건은 신뢰도와 메모를 보인다.
-    보일 것이 없으면 MISSING 이다.
+    REPORT 사건은 확정/접근/보고접수 상태를 요약하고, 현장 사건은 신뢰도 및 메모를 표시한다.
+    표시할 정보가 없으면 MISSING으로 대체된다.
     """
     if event['kind'] == 'REPORT':
         return (f'{_word("confirmation", event["confirmation"])}, {_word("approach", event["approach"])}, '
@@ -402,10 +402,10 @@ def _event_text(event):
 
 
 def _events(view):
-    """사건 기록 표, 화면 모델 순서(최신이 위). 최근 행만 보일 때는 제목에 그렇게 적는다.
+    """사건 기록 테이블(최신순 정렬). 부분 조회 시 건수 요약이 함께 표시된다.
 
-    행마다 페이지 스크립트가 쓸 data-* 속성(ref, 사건·수신 ns, 종류, 시계 영역)을 단다. 스크립트가
-    화면 표시·지연 칸(KPI-04)을 채우고 폴링 사이에도 유지한다. 서버는 그 칸에 MISSING 을 보낸다.
+    각 행에는 프론트엔드 스크립트가 활용할 data-* 메타데이터(ref, 타임스탬프, 종류, 시계 도메인)를 주입한다.
+    브라우저 스크립트가 렌더링 시각 및 지연 시간(KPI-04)을 계산하여 채우며, 서버 초기값은 MISSING으로 전달된다.
     """
     rows = []
     built = view['built_at_ns']
@@ -429,10 +429,10 @@ def _events(view):
             f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
-# ---- 명령·오류 기록 (조각) --------------------------------------------------------------------------
+# ---- 명령 및 오류 이력 (조각 렌더링) -------------------------------------------------------------
 
 def _reply(code):
-    """사유 낱말과 그 코드. 모르는 코드는 코드 그대로 한 번만 보인다."""
+    """응답 사유 레이블 및 식별 코드 포맷. 레이블과 코드가 동일한 경우 단일 표기한다."""
     if code is None:
         return ''
     word = label('reply', code)
@@ -440,11 +440,11 @@ def _reply(code):
 
 
 def _history(view):
-    """운영자 명령과 operations 오류 기록(--site-state 에서 읽은 operator_commands 와 error_log).
+    """운영자 명령 및 operations 오류 이력(--site-state 소스의 operator_commands, error_log 테이블).
 
-    None(예: --status 고정 입력)이면 빈 표 대신 기록을 보는 방법을 보인다. 명령 행은
-    접수/거절과 사유 낱말·코드, 대상을 보이고, 오류 행은 코드와 상세를 보인다.
-    없는 입력은 이름으로 나열한다.
+    입력 소스가 없거나 고정 파일 모드인 경우 안내 문구를 출력한다.
+    명령 행은 접수/거절 여부 및 사유 코드, 대상을 표시하며, 오류 행은 오류 코드와 세부 내용을 표시한다.
+    누락된 입력 소스가 있으면 명칭을 함께 안내한다.
     """
     history = view['history']
     head = '<h2>명령·오류 기록</h2>'
@@ -472,25 +472,25 @@ def _history(view):
 
 
 def _gates(view):
-    """조각 밖 버튼을 위한 명령 관문 거울. 페이지 스크립트가 폴링마다 적용한다."""
+    """명령 패널 동기화를 위한 게이트 상태 미러. 브라우저 스크립트가 폴링마다 동기화한다."""
     gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
     return f'<div id="gates" hidden data-gates="{escape(json.dumps(gates, ensure_ascii=False))}"></div>'
 
 
 def render_fragment(view):
-    """브라우저가 폴링마다 갈아 끼우는 페이지 부분(그 자식들이 페이지 격자에 놓인다)."""
+    """브라우저가 폴링마다 교체 렌더링하는 본문 프래그먼트 HTML."""
     return (_band(view) + _warnings(view) + _map(view) + '<div id="middle">' + _robots(view) + _targets(view)
             + '</div>' + _events(view) + _history(view) + _gates(view))
 
 
-# ---- 페이지 단위 부분 (폴링 조각 밖) --------------------------------------------------------------------
+# ---- 정적 페이지 레이아웃 (폴링 영역 외곽) -------------------------------------------------------
 
 def _commands(view, access, csrf):
-    """결과의 무게에 따라 묶은 버튼, 확인 칸, 이 페이지에서 보낸 명령의 답.
+    """명령 성격별 그룹 버튼, 2단계 승인 대화상자, 명령 전송 결과 로그 패널.
 
-    `access` 는 로그인한 역할의 (allowed, reason)이다(commands.command_access). 버튼이 켜지려면
-    권한과 그 관문(view.command_gates)이 모두 있어야 하고, 페이지 스크립트가 폴링마다 관문을
-    다시 적용한다. 이 칸은 폴링 조각 밖에 있어서 폴링이 커서 아래에서 다시 그리지 않는다.
+    `access`는 현재 사용자 권한의 (allowed, reason) 튜플이다(commands.command_access).
+    버튼 활성화를 위해서는 사용자 권한과 도메인 게이트 조건(view.command_gates)이 모두 충족되어야 한다.
+    이 패널은 폴링 프래그먼트 외부에 위치하므로 갱신 주기마다 포커스나 입력 상태가 초기화되지 않는다.
     """
     allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
@@ -554,7 +554,7 @@ dl{margin:0}
 }
 #map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
 #middle{display:flex;flex-direction:column;gap:10px;min-height:0}
-/* 칸이 모자라면 요구조자 목록보다 로봇 카드가 먼저 줄고 그 안에서 스크롤된다(#64). */
+/* 칸이 부족하면 요구조자 목록보다 로봇 카드가 먼저 축소되며 내부 스크롤된다(#64). */
 #robots{min-height:0;overflow:auto}
 #side{display:flex;flex-direction:column;gap:10px;min-height:0}
 
@@ -716,10 +716,10 @@ dl{margin:0}
 .cmd.approve .cmd-label{font-size:17px} .cmd.approve .why{font-size:12.5px;color:#dbe9f4}
 .cmd.stop{width:100%;padding:8px 12px;background:var(--signal);border-color:var(--signal);color:#fff}
 .cmd.stop .cmd-label{font-size:17px} .cmd.stop .why{color:#ffd9de}
-/* 꺼진 버튼도 읽히게 둔다: 낱말 아래 꺼진 이유가 핵심이다. */
+/* 비활성화된 버튼도 가독성을 유지한다: 버튼 레이블 하단의 비활성화 사유 안내가 핵심 정보다. */
 .cmd:disabled{cursor:not-allowed;background:#e9edec;border-color:var(--rule);color:var(--ink-2)}
 .cmd:disabled .why{color:var(--ink-2)}
-/* 확인 칸이 열려 있는 동안 누른 명령. */
+/* 2단계 승인 대화상자가 활성화되어 있는 동안 선택된 명령 버튼. */
 .cmd.armed:disabled{background:var(--info-tint);border:2px solid var(--info);color:var(--info)}
 #cmd-confirm{border:2px solid var(--info);background:#fff;padding:8px 10px;margin-bottom:8px}
 #cmd-confirm .what{font-weight:700;margin-bottom:6px}
@@ -754,22 +754,22 @@ form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}
 .admin th,.admin td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
 """
 
-# 사건 행마다 처음 나타난 브라우저 시각을 찍고(KPI-04), 명령 칸을 돌린다.
-# 조각은 GET 으로 받고, 유일한 POST 는 이 콘솔의 /commands 로 보내는 운영자 명령이다.
+# 사건 행마다 브라우저 최초 렌더링 시각을 기록하고(KPI-04), 명령 패널 동작을 관리한다.
+# 프래그먼트는 GET 방식으로 주기적 폴링하며, 유일한 POST 요청은 /commands 경로의 운영자 명령이다.
 _SCRIPT = """
-// 페이지 상태: firstSeen 은 사건 ref_id 를 그 행을 처음 그린 브라우저 시각에 잇는다. window.kpi04 는
-// 사건마다 지연 기록 하나를 담는다(saveKpi 가 CSV 로 저장). loaded 는 첫 stamp() 뒤에 참이 된다.
-// lastOk 는 마지막 성공 폴링 시각, FRESH_MS 는 새로 들어온 행을 강조해 두는 시간이다.
+// 페이지 상태: firstSeen은 사건 ref_id를 브라우저 최초 표시 시각과 매핑한다. window.kpi04는
+// 사건별 표시 지연 기록을 누적한다(saveKpi를 통해 CSV 다운로드 가능). loaded는 첫 stamp() 완료 후 true가 된다.
+// lastOk는 최근 폴링 성공 시각, FRESH_MS는 신규 수신 행의 강조 표시 유지 시간(ms)이다.
 const firstSeen = new Map();
 window.kpi04 = [];
 const FRESH_MS = 3000;
 let lastOk = Date.now(), loaded = false;
-// render.py _time / _age 와 같은 형식이라 서버 칸과 브라우저 칸이 똑같이 읽힌다.
+// render.py의 _time / _age 함수와 포맷을 일치시켜 서버 렌더링 값과 브라우저 계산 값이 동일하게 표시된다.
 function clock(ms) {
   const d = new Date(ms), pad = (n, w) => String(n).padStart(w || 2, '0');
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
 }
-// render.py _age 와 같은 나이 글자. 다만 1분 미만은 소수 한 자리가 아니라 두 자리로 쓴다.
+// render.py의 _age와 동일한 경과 시간 포맷. 단, 1분 미만 구간은 소수점 둘째 자리까지 표기한다.
 function age(s) {
   const sign = s < 0 ? '-' : '', v = Math.abs(s);
   if (v < 60) return sign + v.toFixed(2) + 's';
@@ -777,18 +777,18 @@ function age(s) {
   if (v < 86400) return sign + Math.floor(v / 3600) + '시간 ' + Math.floor(v % 3600 / 60) + '분';
   return sign + Math.floor(v / 86400) + '일';
 }
-// 모든 사건 행의 화면 표시·지연 칸을 채운다. 새 조각은 그 칸이 빈 채(—)로 오므로 폴링마다 돈다.
-// 처음 본 ref_id 는 firstSeen 에 지금 브라우저 시각을 받고 KPI-04 기록 하나를 얻는다. 그래서 사건의
-// 지연은 그 행이 처음 나타날 때 한 번만 잰다. 지연은 브라우저 시계에서 사건 시계를 뺀 값이라,
-// 두 시계가 맞을 때만 의미가 있다(C-03).
+// 모든 사건 행의 화면 표시 시각 및 표시 지연(KPI-04) 셀을 계산하여 갱신한다.
+// 신규 수신된 ref_id는 firstSeen에 브라우저 현재 시각을 등록하고 KPI-04 지연 샘플로 기록한다.
+// 사건 표시 지연은 행이 화면에 처음 나타난 시점에 1회 측정된다. 측정값은 브라우저 시계에서 사건 발생 시각을
+// 뺀 값이므로, 두 호스트 간 시계 동기화가 보장된 환경에서만 유효하다(계약 C-03).
 function stamp() {
   const now = Date.now();
   for (const row of document.querySelectorAll('tr.event')) {
     const ref = row.dataset.ref, eventMs = Number(row.dataset.eventNs) / 1e6;
     if (!firstSeen.has(ref)) {
       firstSeen.set(ref, now);
-      // live: 이 페이지가 열려 있는 동안 들어온 행이다. 로드 때 이미 있던 행은 표시 지연이 아니라
-      // 지난 기록이므로 KPI-04 요약에서 뺀다.
+      // live: 페이지가 로드되어 열려 있는 동안 실시간 수신된 행. 초기 로드 시점의 기존 행은
+      // 표시 지연 측정이 아닌 과거 이력이므로 KPI-04 실시간 지연 요약 통계에서 제외한다.
       window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
                          event_ns: row.dataset.eventNs, received_at_ns: row.dataset.receivedNs || '',
                          rendered_ms: now, latency_s: (now - eventMs) / 1000, live: loaded});
@@ -797,13 +797,13 @@ function stamp() {
     row.dataset.renderedMs = shown;
     row.querySelector('.rendered').textContent = clock(shown);
     row.querySelector('.latency').textContent = age((shown - eventMs) / 1000);
-    // 페이지가 열린 뒤 들어온 행은 잠시 강조해 둔다(애니메이션 없음).
+    // 페이지 접속 후 새로 도착한 행을 일정 시간 동안 시각적으로 강조한다.
     row.classList.toggle('fresh', loaded && now - shown < FRESH_MS);
   }
   loaded = true;
   kpiSummary();
 }
-// #kpi 줄: live 기록만 대상으로, KPI-04 예산 안에 든 건수와 가장 긴 지연을 보인다.
+// 상단 KPI 통계 요약: 실시간(live) 수신 사건만을 대상으로 KPI-04 예산 준수 건수 및 최대 지연 시간을 표시한다.
 function kpiSummary() {
   const el = document.getElementById('kpi');
   if (!el) return;
@@ -818,12 +818,12 @@ function kpiSummary() {
   el.className = within === live.length ? 'ok' : 'over';
   el.textContent = 'KPI-04: 실시간 사건 ' + live.length + '건 중 ' + KPI_BUDGET_S + '초 이내 ' + within + '건, 최대 ' + age(worst);
 }
-// CSV 칸 하나. 따옴표·쉼표·줄바꿈이 있으면 따옴표로 감싼다(안의 따옴표는 두 번 쓴다).
+// CSV 필드 이스케이프: 따옴표, 쉼표, 개행 문자가 포함된 경우 큰따옴표로 감싸고 내부 따옴표를 이스케이프한다.
 function csvCell(value) {
   const text = String(value);
   return /[",\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
-// 기록을 브라우저 안에서 CSV 파일(Blob)로 저장한다. 서버로는 아무것도 보내지 않는다.
+// 지연 측정 기록을 브라우저 로컬에서 CSV Blob으로 다운로드한다. 서버로의 추가 네트워크 요청은 발생하지 않는다.
 function saveKpi() {
   const keys = ['ref_id', 'kind', 'clock_domain_id', 'event_ns', 'received_at_ns', 'rendered_ms', 'latency_s', 'live'];
   const lines = window.kpi04.map(r => keys.map(k => csvCell(k === 'latency_s' ? r[k].toFixed(3) : r[k])).join(','));
@@ -834,14 +834,14 @@ function saveKpi() {
   link.click();
   URL.revokeObjectURL(url);
 }
-// 탭 제목에도 상태를 실어, 뒤에 깔린 탭도 재난이나 갱신 끊김을 알린다.
+// 브라우저 탭 타이틀에 핵심 상태를 반영하여 백그라운드 탭에서도 재난 선포 및 통신 두절을 식별할 수 있도록 한다.
 function title(lost) {
   const band = document.getElementById('mission');
   const tag = lost ? '[갱신 끊김] ' : band && band.dataset.mode === 'DISASTER' ? '[재난] ' : '';
   document.title = tag + '구조 관제';
 }
-// 폴링 결과를 탭 제목과 #poll 에 보인다. 갱신 끊김이면 모든 명령 버튼이 꺼져야 하므로 명령 관문도
-// 다시 적용한다. 실패 때는 lastOk 를 그대로 두어, 화면이 얼마나 오래된 값인지 문구가 말해 준다.
+// 폴링 통신 결과를 탭 타이틀 및 상태 표시줄(#poll)에 반영한다. 연결이 두절된 경우
+// 모든 명령 버튼이 비활성화되도록 게이트 상태를 즉시 재적용한다. lastOk를 갱신하지 않아 데이터의 지연 시간이 표시된다.
 function pollStatus(ok, message) {
   title(!ok);
   screenLost = !ok;
@@ -857,21 +857,21 @@ function pollStatus(ok, message) {
   }
 }
 let timer = null;
-// 폴링 한 번. 맨 아래 setInterval 이 앞 폴링이 끝나기를 기다리지 않고 시작한다: 조각을 GET 하고
-// #live 를 바꾼 뒤 사건 행에 시각을 찍고 새 관문을 읽고 화면을 실시간으로 표시한다. 401·다른 주소로 재지정이면
-// 폴링을 멈추고 로그인 화면(재지정이면 그 주소)으로 간다. 그 밖의 실패는 갱신 끊김 표시뿐이고 마지막 조각은 남는다.
+// 단일 폴링 주기 처리: fragment 엔드포인트를 GET 조회하여 #live 영역을 교체하고
+// 사건 행 타임스탬프 계산 및 게이트 상태를 갱신한다. 401 또는 리다이렉트 응답 시에는
+// 폴링을 중단하고 로그인 페이지로 전환한다(AST-50-02). 그 외 일시적 통신 장애 시에는 기존 화면을 유지한 채 경고를 표시한다.
 async function poll() {
   try {
     const response = await fetch('fragment', {cache: 'no-store'});
     if (response.status === 401 || response.redirected) {
-      // 세션이 끝났다(다른 곳에서 로그아웃, 계정 변경): 돌아온 내용을 콘솔에 붙이지 않고
-      // 폴링을 멈춘 뒤 로그인 페이지로 간다(AST-50-02).
+      // 인증 세션 만료(외부 로그아웃, 계정 삭제 등): 응답 본문을 DOM에 삽입하지 않고
+      // 폴링 타이머를 해제한 뒤 로그인 페이지로 안전하게 이동한다(AST-50-02).
       clearInterval(timer);
       location.href = response.status === 401 ? '/login' : response.url;
       return;
     }
     if (!response.ok) {
-      // 서버가 무엇이 실패했는지 알려 준다(render.failure_text). 상태 코드만 보이지 말고 그 글을 보인다.
+      // 서버에서 전달된 오류 사유 텍스트(render.failure_text)를 포함하여 상태를 표시한다.
       const reason = (await response.text()).slice(0, 200);
       throw new Error('HTTP ' + response.status + (reason ? ' ' + reason : ''));
     }
@@ -885,68 +885,68 @@ async function poll() {
 }
 document.getElementById('kpi-save').addEventListener('click', saveKpi);
 
-// ---- 운영자 명령 ----
-// 관문은 조각마다 함께 온다(#gates). 버튼이 켜지려면 이 페이지의 권한(ADMIN, operations 주소)과
-// 그 관문이 있어야 하고, 화면이 갱신되지 않는 동안에는 모든 버튼이 꺼진다. 한 번 누르면 보낼 내용을
-// 보이는 확인 칸이 열리고, 보내기만 한 번 보낸다. 자동으로 다시 보내는 일은 없다.
+// ---- 운영자 명령 패널 ----
+// 명령 게이트 조건은 각 프래그먼트 응답(#gates)에 동기화된다. 버튼이 활성화되려면 사용자 권한(ADMIN)과
+// 도메인 게이트 조건이 모두 충족되어야 하며, 화면 연결이 끊기면 즉시 비활성화된다.
+// 버튼 클릭 시 2단계 확인 대화상자가 열리며, 사용자의 명시적 승인 시에만 단 1회의 POST 요청이 전송된다(자동 재시도 배제).
 const panel = document.getElementById('commands');
 const allowed = panel.dataset.allowed === '1';
 const confirmBox = document.getElementById('cmd-confirm'), pick = document.getElementById('cmd-pick');
 const sendButton = document.getElementById('cmd-send'), cancelButton = document.getElementById('cmd-cancel');
 const LOG_ROWS = 6;
-// gates: 최신 관문 거울. armed: 확인 칸이 열린 명령({kind, name, JSON 문자열인 args,
-// choices}). sending: POST 가 가는 중. screenLost: 마지막 폴링이 실패했다.
+// gates: 최신 게이트 상태 미러. armed: 확인 대화상자가 열린 명령 객체({kind, name, args JSON 문자열, choices}).
+// sending: 비동기 POST 전송 진행 중 플래그. screenLost: 최근 폴링 통신 실패 상태 플래그.
 let gates = {}, armed = null, sending = false, screenLost = false;
-// 조각의 숨은 #gates 에서 관문 JSON 을 읽는다. 거울이 없거나 읽히지 않으면 관문이 없는 것으로 보고,
-// 이전 관문을 유지하지 않고 모든 버튼을 끈다.
+// 프래그먼트의 hidden #gates 엘리먼트에서 게이트 JSON을 파싱한다.
+// 요소가 없거나 파싱 실패 시에는 기존 상태를 보존하지 않고 모든 명령을 안전하게 비활성화한다.
 function readGates() {
   const el = document.getElementById('gates');
   try { gates = el ? JSON.parse(el.dataset.gates) : {}; } catch (error) { gates = {}; }
 }
-// 명령 종류의 버튼 글자(확인 칸과 답 목록에 쓴다). 버튼이 없으면 종류 그대로.
+// 명령 종류의 UI 레이블 반환(확인 대화상자 및 결과 로그에 표시). 매핑이 없으면 식별 코드 그대로 표기.
 function nameOf(kind) {
   const button = panel.querySelector('button[data-command="' + kind + '"] .cmd-label');
   return button ? button.textContent : kind;
 }
-// render.py _short 와 같은 줄임 규칙.
+// render.py의 _short 함수와 동일한 식별자 단축 규칙.
 function shortId(id) { return String(id).length > 9 ? String(id).slice(0, 8) : String(id); }
-// 확인 칸에서 고른 대상. 열린 명령에 선택지가 없으면 null.
+// 확인 대화상자에서 선택된 대상 반환. 선택지가 없는 명령의 경우 null.
 function chosen() { return armed && armed.choices.length ? armed.choices[pick.selectedIndex] : null; }
-// 열린 확인 칸이 아직 최신 관문과 맞으면 참: 관문이 켜져 있고, args 가 그대로이고,
-// 고른 대상이 아직 선택지에 있다. 아니면 운영자가 확인한 내용이 낡은 것이다.
+// 현재 열려 있는 확인 대화상자의 파라미터가 최신 게이트 상태와 유효하게 일치하는지 검증한다.
+// 게이트가 활성 상태이고 파라미터가 동일하며 대상이 선택지에 남아 있어야 한다. 불일치 시 취소 처리된다.
 function sameArmed(gate) {
   if (!gate || !gate.enabled || JSON.stringify(gate.args) !== armed.args) return false;
   const choice = chosen();
   return !choice || gate.choices.some(c => JSON.stringify(c) === JSON.stringify(choice));
 }
-// 모든 명령 버튼을 그 관문에 맞춰 켜고 끄며 아래에 사유를 쓴다. 버튼은 이 페이지에 권한이 있고,
-// 관문이 켜져 있고, 화면이 실시간이고, 보내는 중이 아니고, 확인 칸이 닫혀 있을 때만 켜진다.
+// 모든 명령 버튼의 활성화/비활성화 상태 및 안내 사유를 게이트 조건에 맞춰 갱신한다.
+// 사용자 권한, 게이트 조건, 화면 연결 상태가 모두 정상이고 전송 중이 아닐 때만 활성화된다.
 function applyGates() {
   for (const button of panel.querySelectorAll('button[data-command]')) {
     const gate = gates[button.dataset.command] || {enabled: false, reason: '관문 정보 없음'};
-    // 폴링이 실패하는 동안 관문은 낡았을 수 있으므로, 최신이 아닌 화면에서는 명령을 내주지 않는다.
-    const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 꺼 둠' : gate.reason;
+    // 통신 두절 중에는 게이트 정보가 지연될 수 있으므로, 비정상 화면에서의 오작동을 방지하기 위해 명령을 차단한다.
+    const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 비활성화됨' : gate.reason;
     button.disabled = !allowed || !gate.enabled || screenLost || sending || armed !== null;
     button.classList.toggle('armed', armed !== null && armed.kind === button.dataset.command);
     button.querySelector('.why').textContent = reason;
     button.title = reason;
   }
-  // 열린 확인 칸은 그 관문이 바뀌었거나 화면이 낡으면 취소하고, 운영자에게 다시 누르라고 알린다.
-  // 보내는 중에는 취소하지 않는다: POST 는 이미 나갔고 취소해도 멈추지 않는다.
+  // 확인 대화상자가 열린 상태에서 게이트 조건이 변경되거나 화면이 stale해지면 안전하게 취소한다.
+  // 단, 이미 HTTP 요청이 전송된 상태에서는 취소하지 않는다(요청 취소가 불가능하기 때문).
   if (armed && !sending && (screenLost || !sameArmed(gates[armed.kind]))) {
-    disarm('상태가 바뀌어 ' + armed.name + ' 확인을 취소했습니다. 다시 누르세요.');
+    disarm('상태가 변경되어 ' + armed.name + ' 승인 대화상자를 취소했습니다. 다시 시도해 주세요.');
   }
 }
-// 확인 칸에 고른 대상 말고 명령과 함께 가는 값을 나열한다: DISPATCH_SUPPORT 면 대상 revision,
-// 그리고 관문 arg 마다 한국어 이름표를 붙여 보인다. 다른 대상을 고르면 다시 돈다.
-// 값은 textContent 로 넣으므로 관문에서 온 어떤 값도 HTML 로 해석되지 않는다.
+// 확인 대화상자에 명령과 함께 전달될 인자 및 대상 정보를 나열한다.
+// 관문 args별로 한국어 필드명을 매핑하며, 대상 선택 변경 시 재호출된다.
+// textContent를 통해 안전하게 DOM에 삽입하여 XSS 위험을 원천 방지한다.
 function showArgs() {
   const rows = [], args = JSON.parse(armed.args), choice = chosen();
   const labels = {target_id: '대상', target_revision: '대상 revision', route_revision: '경로 revision',
                   segment_index: '승인할 구간'};
   if (choice && armed.kind === 'DISPATCH_SUPPORT') rows.push(['대상 revision', choice.target_revision]);
   for (const key of Object.keys(args)) {
-    // segment_index 는 끝낸 구간 수이므로, 다음 구간을 0부터 센 번호이기도 하다.
+    // segment_index는 완료된 구간 수이자 다음에 승인할 구간의 0-based 인덱스이다.
     rows.push([labels[key] || key, key === 'segment_index'
       ? (args[key] + 1) + '번째 구간 (segment_index ' + args[key] + ')' : args[key]]);
   }
@@ -960,8 +960,8 @@ function showArgs() {
     list.append(dt, dd);
   }
 }
-// 첫 번째 누름: 명령 하나의 확인 칸을 열고 모든 명령 버튼을 끈다. 관문의 args 와 choices 를 지금
-// armed 에 복사하므로 뒤의 폴링이 보낼 내용을 바꿀 수 없다(바뀌면 sameArmed 가 대신 취소한다).
+// 1단계 클릭: 해당 명령의 2단계 승인 대화상자를 열고 모든 명령 버튼을 잠근다.
+// 현재 게이트의 args 및 choices를 armed 객체에 복사하여 후속 폴링에 의한 파라미터 변조를 방지한다.
 function arm(kind) {
   const gate = gates[kind];
   if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
@@ -979,7 +979,7 @@ function arm(kind) {
   applyGates();
   sendButton.focus();
 }
-// 확인 칸을 닫고 그 버튼을 되돌린다. message 가 있으면 왜 닫았는지 답 목록에 적는다.
+// 확인 대화상자를 닫고 버튼 상태를 원복한다. 안내 메시지가 제공된 경우 결과 로그에 기록한다.
 function disarm(message) {
   armed = null;
   confirmBox.hidden = true;
@@ -988,8 +988,8 @@ function disarm(message) {
   if (message) log('info', message);
   applyGates();
 }
-// 이 페이지의 답 목록 맨 위에 시각을 붙인 줄 하나(클래스 accepted, rejected, failed, info)를 더하고
-// 최신 LOG_ROWS 줄만 남긴다. 이 페이지에서 누른 것만 보이고, 함께 보는 기록은 명령·오류 기록 표다.
+// 페이지 내 명령 결과 로그에 타임스탬프가 포함된 엔트리를 추가하고 최신 LOG_ROWS건만 유지한다.
+// 현재 세션에서 전송한 명령 결과만 표기되며, 전체 내역은 하단 명령/오류 이력 테이블에서 확인한다.
 function log(kind, text) {
   const item = document.createElement('li'), time = document.createElement('time');
   item.className = kind;
@@ -999,9 +999,9 @@ function log(kind, text) {
   list.prepend(item);
   while (list.children.length > LOG_ROWS) list.lastChild.remove();
 }
-// 콘솔의 답을 답 목록용 [클래스, 글자]로 바꾼다. sent === true: operations 가 답했다
-// (accepted 는 접수이지 완료가 아니다). sent === false: 전달 안 됨이거나, 전달 여부를 모르고 찾아볼
-// command_id 가 함께 온다. 그 밖(예상 못 한 HTTP 답)은 전달 여부를 모르는 실패다.
+// 콘솔 서버 응답 객체를 로그 표기용 [CSS클래스, 메시지문자열]로 변환한다.
+// sent === true: operations 서비스가 정상 응답함(accepted는 큐 접수 상태이며 작업 완료가 아님).
+// sent === false: 미전송(NOT_SENT)이거나 전달 여부가 불확실하여 command_id 조회가 필요함.
 function describe(name, status, result) {
   if (result && result.sent === true) {
     const id = ' — request_id ' + result.request_id + (result.request_state ? ' (' + result.request_state + ')' : '');
@@ -1016,9 +1016,9 @@ function describe(name, status, result) {
   }
   return ['failed', name + ': 보내지 못함 — 콘솔 응답 HTTP ' + status + ', 전달됐는지 모름'];
 }
-// 두 번째 누름(보내기): 이 콘솔의 commands 경로로 CSRF 토큰, kind, 고른 대상, args 를 담아 정확히
-// 한 번 POST 한다. 답이나 실패를 기록에 적고 확인 칸을 닫는다. 다시 시도하지 않는다
-// (AGENTS.md 7절): 콘솔은 POST 마다 새 command_id 를 주므로, 다시 보내면 두 번째 명령이 된다.
+// 2단계 클릭(최종 전송): CSRF 토큰, 명령 종류, 대상 ID, 파라미터를 담아 콘솔 /commands 경로로 단 1회 POST 전송한다.
+// 응답 결과를 로그에 기록하고 대화상자를 닫는다. 오류 시 자동 재시도하지 않는다(AGENTS.md 7절).
+// 콘솔 서버는 POST 요청마다 새로운 command_id를 채번하므로, 자동 재전송 시 중복 명령이 발행될 위험이 있다.
 async function send() {
   if (!armed || sending) return;
   const body = new URLSearchParams({csrf: panel.dataset.csrf, kind: armed.kind});
@@ -1047,8 +1047,8 @@ async function send() {
   sending = false;
   disarm();
 }
-// 모든 명령 버튼을 위한 클릭 리스너 하나를 칸에 단다(이벤트 위임). 취소와 Escape 는 확인 칸을
-// 닫지만, 명령을 보내는 중에는 Escape 가 아무것도 하지 않는다.
+// 명령 패널 전체에 대한 클릭 이벤트 위임 리스너 등록.
+// 취소 버튼 및 Escape 키는 대화상자를 닫되, HTTP 전송 중에는 Escape 키에 의한 취소를 차단한다.
 panel.addEventListener('click', event => {
   const button = event.target.closest('button[data-command]');
   if (button && !button.disabled) arm(button.dataset.command);
@@ -1058,8 +1058,8 @@ sendButton.addEventListener('click', send);
 cancelButton.addEventListener('click', () => disarm());
 confirmBox.addEventListener('keydown', event => { if (event.key === 'Escape' && !sending) disarm(); });
 
-// 시작: 페이지는 서버가 그린 조각을 품고 오므로, 그 행에 시각을 찍고(live 가 아닌 지난 기록으로)
-// 관문을 적용한 뒤 일정한 간격으로 폴링한다.
+// 초기화: 서버가 사전 렌더링한 초기 프래그먼트에 타임스탬프를 부여하고,
+// 게이트 조건을 동기화한 후 주기적 폴링 루프를 시작한다.
 stamp();
 readGates();
 pollStatus(true);
@@ -1068,7 +1068,7 @@ timer = setInterval(poll, POLL_MS);
 
 
 def _head(title):
-    """스타일시트를 안에 넣은 문서 머리. 페이지는 바깥에서 아무것도 읽지 않는다(현장에 인터넷이 없을 수 있다)."""
+    """스타일시트가 인라인 포함된 기본 HTML 문서 헤더(폐쇄망 및 오프라인 환경 대응)."""
     return ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{escape(title)}</title><style>{_STYLE}</style></head><body>')
@@ -1079,7 +1079,7 @@ def _flashes(messages):
 
 
 def _user_nav(user, csrf):
-    """누가 로그인했고 어디로 갈 수 있는지. 관제 화면의 유일한 폼은 로그아웃(POST + CSRF)이다."""
+    """현재 로그인 사용자 정보 및 내비게이션 바(로그아웃 버튼은 POST 및 CSRF 검증 적용)."""
     if user is None:
         return ''
     admin = ' <a href="/admin/accounts">계정 관리</a>' if user['role'] == 'ADMIN' else ''
@@ -1089,12 +1089,12 @@ def _user_nav(user, csrf):
 
 
 def _header(user, csrf):
-    """계정 페이지에 쓰는 단순한 페이지 머리."""
+    """관리자 전용 계정 관리 페이지 상단 헤더."""
     return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
 
 
 def camera_stale_ms(cameras, stale_s):
-    """영상을 끊김으로 보이기 전까지 새 프레임 없이 기다리는 ms. 카메라가 있으면 꼭 필요하고 기본값은 없다."""
+    """카메라 영상 두절 판정 대기 시간(ms). 카메라 목록 설정 시 필수 옵션이며 기본값은 제공되지 않는다."""
     if not cameras:
         return None
     if stale_s is None:
@@ -1104,24 +1104,24 @@ def camera_stale_ms(cameras, stale_s):
     return round(stale_s * 1000)
 
 
-# 정상으로 끝난 multipart 영상은 오류를 내지 않고 마지막 프레임을 화면에 남긴다(측정
-# 2026-10-13, Firefox: 프레임마다 load 이벤트 하나, 닫힌 뒤에는 없음). 그래서 프레임마다 load 이벤트
-# 시각을 재고, 끊김 판정 시간을 넘기면 칸에 「영상 끊김」을 보이고 캐시를 피하는 쿼리를 붙여 영상을
-# 다시 연다. 다시 열기는 끊김 판정 시간마다 많아야 한 번이다. onerror 는 여전히 바로 표시한다.
+# 정상적으로 연결이 종료된 multipart 스트림은 오류 이벤트를 발생시키지 않고 마지막 프레임이 정지 화면으로 남는다
+# (측정: 2026-10-13 Firefox, 프레임 수신마다 load 이벤트 발생, 스트림 종료 후 이벤트 중단).
+# 따라서 개별 프레임의 load 이벤트 타임스탬프를 감시하여, stale 대기 시간을 초과할 경우
+# 화면에 「영상 끊김」을 표시하고 캐시 방지 쿼리를 붙여 재연결을 시도한다(stale 주기당 최대 1회). onerror는 즉시 반영된다.
 _CAMERA_SCRIPT = """
 function watchCameras() {
   document.querySelectorAll('#cameras figure[data-stale-ms]').forEach(figure => {
     const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
     const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
     let last = Date.now(), retried = Date.now();
-    // 프레임의 load 이벤트가 살아 있다는 신호이고, 끊김 표시도 지운다.
+    // 프레임 load 이벤트 발생 시 스트림 생존으로 판정하고 두절 경고를 해제한다.
     img.addEventListener('load', () => {
       last = Date.now();
       if (figure.classList.contains('lost')) {
         figure.classList.remove('lost'); note.textContent = ''; note.className = '';
       }
     });
-    // stale / 2 ms 마다 검사하되, 100-500 ms 안으로 둔다.
+    // stale / 2 주기(최소 100ms, 최대 500ms)로 프레임 갱신 여부를 주기 검사한다.
     setInterval(() => {
       const now = Date.now();
       if (now - last < stale) return;
@@ -1138,10 +1138,10 @@ watchCameras();
 
 
 def _cameras(cameras, stale_ms=None):
-    """카메라 PC 의 MJPEG 게이트웨이(IF-082)에서 바로 받는 영상을 넣는다.
+    """카메라 PC의 MJPEG 게이트웨이(IF-082) 스트림을 직접 임베드한다.
 
-    폴링 조각 밖에 있으므로 폴링이 영상을 다시 시작하지 않는다. 콘솔은 영상을 중계하지
-    않는다. 깨지거나 멈춘 영상은 숨기지 않고 끊김으로 보이며 다시 연결한다(_CAMERA_SCRIPT).
+    폴링 프래그먼트 외부에 배치되어 브라우저 갱신 시에도 영상 스트림이 재연결되지 않는다.
+    콘솔 서버는 영상을 중계하지 않고 클라이언트가 직접 스트림을 수신한다. 영상 두절 시 자동으로 감지 및 재시도된다.
     """
     if not cameras:
         return ('<section class="camera-empty"><h2>웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
@@ -1158,19 +1158,19 @@ def _cameras(cameras, stale_ms=None):
 
 
 def page_title(view):
-    """로드 때의 탭 제목. 그 뒤에는 페이지 스크립트의 title() 이 폴링마다 최신으로 유지한다."""
+    """초기 로드 시 탭 타이틀. 이후에는 프론트엔드 title() 함수가 상태에 따라 동적으로 갱신한다."""
     return ('[재난] ' if view['mission']['mode'] == 'DISASTER' else '') + '구조 관제'
 
 
 def failure_text(code, message):
-    """갱신 상태에 쓸 한 줄: 코드, 확인할 것, 원문 상세."""
+    """갱신 실패 시 상태 표기용 한 줄 텍스트(오류 코드, 조치 안내, 상세 메시지)."""
     return f'{code}: {FAILURE_HINTS.get(code, FAILURE_HINT_OTHER)} ({message})'
 
 
 def render_failure(code, message):
-    """페이지 전체 실패(503): 무엇이 실패했고 무엇을 확인할지 보이고, FAILURE_RETRY_S 마다 다시 시도한다.
+    """페이지 초기 로드 전체 실패(503): 오류 원인 및 점검 사항을 안내하며 FAILURE_RETRY_S 주기로 자동 재시도한다.
 
-    비어 있으면서 정상처럼 보이는 콘솔은 절대 내지 않는다(AGENTS.md 7절: 실패는 드러나야 한다).
+    정상적인 데이터를 조회할 수 없는 상태에서 빈 정상 화면을 표시하지 않는다(AGENTS.md 7절: 실패는 명확히 드러나야 함).
     """
     return (_head('[화면 오류] 구조 관제').replace(
                 '<meta charset="utf-8">', f'<meta charset="utf-8"><meta http-equiv="refresh" content="{FAILURE_RETRY_S}">')
@@ -1182,9 +1182,9 @@ def render_failure(code, message):
 
 
 def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
-    """`cameras`: 실행 인자에서 온 ((camera_id, http(s) URL), ...). 이것이 있으면 `camera_stale_s` 도
-    필요하다(「영상 끊김」 전까지 새 프레임 없이 기다리는 초, 기본값 없음). `command_access`:
-    commands.command_access 의 (allowed, reason). 없으면 이 페이지에서 명령을 보낼 수 없다."""
+    """`cameras`: CLI 인자로 전달된 ((camera_id, URL), ...). 설정 시 `camera_stale_s` 옵션도 필수이다
+    (영상 두절 판정 대기 시간, 기본값 없음). `command_access`:
+    commands.command_access의 (allowed, reason) 튜플이며, 미지정 시 명령 패널이 비활성화된다."""
     access = command_access or (False, '명령 연결 없음')
     stale_ms = camera_stale_ms(cameras, camera_stale_s)
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
@@ -1202,7 +1202,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
 
 
 def render_login(csrf, messages=()):
-    """로그인 페이지(강사 day5 요구: SQLite 의 로그인 데이터를 쓰는 로그인 페이지)."""
+    """로그인 폼 렌더링(SQLite 사용자 계정 데이터베이스 인증 연동)."""
     return (_head('구조 관제 로그인') + '<div class="card"><h1>구조 관제 로그인</h1>' + _flashes(messages)
             + '<form method="post" action="/login">'
             f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
@@ -1213,7 +1213,7 @@ def render_login(csrf, messages=()):
 
 
 def render_accounts(accounts, user, csrf, messages=()):
-    """ADMIN 전용: 계정 목록, 고객 계정 만들기, 계정 수정·삭제."""
+    """관리자(ADMIN) 전용 계정 관리 화면: 계정 목록 조회, 신규 계정 등록, 정보 수정 및 삭제."""
     hidden = f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
     rows = []
     for account in accounts:
