@@ -44,6 +44,8 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [camera_utils.py](rescue_perception/camera_utils.py) | 공통 SETTINGS, 모델 SHA/class·RGB 형식 검사, 복호화·추론·annotated Image 생성 |
 | [target_utils.py](rescue_perception/target_utils.py) | RGB-D SETTINGS·target_config, YOLO 관측 메시지, Depth 복호화·robot6 보정, 카메라→base 상대 좌표 |
 | [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
+| [target_location.py](rescue_perception/target_location.py) | 확정 TargetObservation + 촬영 시각 TF map←camera → TargetLocation(VALID) 좌표·공분산·frame_ref. ROS 없음 |
+| [target_locator.py](rescue_perception/target_locator.py) | 위 변환의 ROS 노드: `/rescue/observations` 구독 → 촬영 시각 TF 조회 → `/rescue/target_locations` 발행 |
 | [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 실행용 보정계수·offset·로봇/보정 ID·입력 단위/상태. 설치본에도 포함 |
 
 [사용자 요구, 2026-10-12] AMR 환경별 YAML·projection template와 필수 ROS 파라미터 선언/읽기 코드를 제거하고 기존 utils의 SETTINGS에 필수 설정을 모았다. 노드는 설정을 가져와 그대로 실행한다. 기존 main의 웹캠·bag 코드와 웹캠 설정은 유지한다.
@@ -67,12 +69,82 @@ ros2 run rescue_perception amr_camera --ros-args -p image_topic:=<RGB 토픽>
 # camera 노드를 종료한 뒤 target 노드를 따로 시험한다. launch 가 토픽·frame·TF remap 을 넘긴다.
 ros2 launch rescue_bringup amr_perception.launch.py image_topic:=<RGB> depth_topic:=<Depth> \
   camera_info_topic:=<CameraInfo> rgb_optical_frame:=<RGB frame_id> depth_optical_frame:=<Depth frame_id> \
-  tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static
+  tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static \
+  rgb_stamp_semantics:=<…> depth_stamp_semantics:=<…> rgb_depth_alignment_verified:=<true|false> \
+  rgb_rectified:=<true|false> calibration_id:=<…> alignment_evidence_id:=<…> \
+  profile_path:=<배포 프로파일.json> tf_wait_s:=1.0
 ```
 
-[작전 B1, 2026-10-13] 카메라 토픽(`image_topic`·`depth_topic`·`camera_info_topic`)과 광학 frame(`rgb_optical_frame`·`depth_optical_frame`)은 코드 기본값이 없는 STRING 파라미터다. 전에는 코드 기본값 `camera/...`, readiness 설정 `oakd/rgb/preview/...`, #132 현장 스크립트 `/robot6/oakd/rgb/...` 세 가지가 서로 달랐다. 값이 없거나 비어 있으면 노드가 시작하지 않는다. 실제 robot6 토픽·frame 이름은 [미확인]이며 로봇에서 `ros2 topic list`와 메시지 header 로 확인해 넣는다. 나머지 설정은 SETTINGS 그대로이고 YAML은 필요 없다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
+TB-6 현장 값 예(2026-10-13). 측정한 값만 넣었고, 나머지는 현장에서 확인해 넣는다:
 
-RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. MapState 구독·map/odom TF 조회·TargetLocation publisher는 없다. 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
+```text
+sensor_host_clock_error_bound_ns:=150000000 sensor_host_clock_domain_id:=rokey7-utc-field
+  # [측정, 재범 화면 14:31~14:34, TB-6 Pi chronyc tracking] System time 0.257 ms, Root delay 7.08 ms,
+  # Root dispersion 2.18 ms, Update interval 1033.5 s -> parse_chrony 식(drift 100 ppm x 갱신 간격) 약 109 ms, 여유 150 ms.
+  # TB-6·TB-5 Pi 는 chrony 를 쓴다(timesyncd 아님). clock_backend 는 amr_target 이 도는 PC 의 것이다.
+clock_domain_id:=rokey7-utc-field   # #132·#146 과 같은 현장 시계 영역
+```
+
+같은 launch 가 target_locator 도 띄운다. 시계 영역은 amr_target 과 같은 `clock_domain_id` 를 쓴다. 정렬 권한 `alignment_authority_id`·`alignment_valid_from_ns`·`alignment_valid_until_ns`(OPS-103, 기본값 없음)는 실행 인자다. 권한 출처는 프로파일 `map_basis` 와 TB-6 의 saved-map 선언(#132)이다. 창 밖이면 target_locator 가 VALID 를 내지 않는다. 지도 기준(map session·revision·transform revision·mission frame)과 SCOUT 로봇 ID·지도 frame 은 배포 프로파일의 `map_basis` 블록과 로봇 readiness 에서 읽는다. 조정기도 같은 블록을 읽는다(작전 결정 2026-10-13). 블록이 없으면 launch 가 멈춘다. 프로파일에 map → mission 변환이 없으므로, 로봇 지도 frame 과 `map_basis.frame_id` 가 같을 때만 identity 로 두고 다르면 멈춘다.
+
+[작전 B1, 2026-10-13] 카메라 토픽(`image_topic`·`depth_topic`·`camera_info_topic`)과 광학 frame(`rgb_optical_frame`·`depth_optical_frame`)은 코드 기본값이 없는 STRING 파라미터다. 전에는 코드 기본값 `camera/...`, readiness 설정 `oakd/rgb/preview/...`, #132 현장 스크립트 `/robot6/oakd/rgb/...` 세 가지가 서로 달랐다. 값이 없거나 비어 있으면 노드가 시작하지 않는다. 실제 robot6 토픽·frame 이름은 [미확인]이며 로봇에서 `ros2 topic list`와 메시지 header 로 확인해 넣는다. 위치 계산 근거도 같은 방식이다(2026-10-13). `rgb_stamp_semantics`·`depth_stamp_semantics`(CAPTURE·DRIVER_RECEIVE·UNKNOWN), `rgb_depth_alignment_verified`·`rgb_rectified`(bool), `calibration_id`·`alignment_evidence_id` 는 기본값이 없다. 전에는 코드 값 UNKNOWN·False 라서 `core.locate_detection` 이 모든 탐지의 위치를 거절했다(CLOCK_UNCERTAIN·ALIGNMENT_UNVERIFIED). 그래서 확정 관측이 한 번도 나가지 않았다. 두 stamp 의미가 알려져 있고(UNKNOWN 아님) 서로 같으며, 정렬이 검증됐고 RGB 가 rectified 일 때만 위치가 나온다. 값은 로봇 카메라 설정에서 확인해 넣는다 [미확인]. RGB 가 rectified 가 아니어도 CameraInfo 의 왜곡 모델이 plumb_bob(5)·rational_polynomial(8)이면 위치를 낸다. 이때 탐지 상자의 모서리·중심을 K·D 로 왜곡 보정해(cv2.undistortPoints, P 로 재투영) 정렬된 Depth 에서 읽는다. 이미지 전체는 보정하지 않는다. 근거(`<model>:<sha256(D) 앞 12자리>`)는 `LocalizationResult.undistortion_id` 와 SENT 로그에 남는다. 다른 모델이면 지금처럼 ALIGNMENT_UNVERIFIED 다. 입력 형식 `image_type`(raw·compressed)·`depth_transport`(raw·compressedDepth)도 현장 값이다(TB-6 Depth 는 raw 16UC1 로 측정, 옛 코드 값 compressedDepth). 짝 맞추기 `sync_queue_size`·`sync_slop_ns`·`camera_info_max_age_ns` 도 기본값 없는 현장 값이다. TB-6 은 Depth 가 약 0.78 s 늦게 와서, 옛 코드 값 큐 3 으로는 짝이 하나도 만들어지지 않았다(message_filters 재현, 2026-10-13). 나머지 설정은 SETTINGS 그대로이고 YAML은 필요 없다. 모델 경로는 실행 작업 디렉터리 기준이다. GUI는 SETTINGS의 show=True에서만 켠다. GPU 추론 실패를 CPU 추론으로 숨기지 않는다.
+
+RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신성, 모델 SHA/class, Depth 유효값·정렬·시각 검사는 유지한다. [사용자 요구, 2026-10-12] 지도 변환은 map_projection.py로 분리해 코드로만 유지하고, 기존 rescue_mapping과의 연결은 후속으로 진행한다. amr_target은 원 카메라 기준 TargetObservation과 annotated Image를 발행하고, 유효한 카메라→base 변환이 있으면 로봇 기준 PointStamped를 추가 발행한다. amr_target 자신은 map/odom TF 를 조회하지 않고 TargetLocation 도 내지 않는다. 지도 좌표는 별도 노드 target_locator 가 만든다(아래 「지도 좌표 TargetLocation」). 별도 지도 변환 모듈에도 ROS 노드·실행 등록은 없다. 후속 연결에서는 기존 mapping의 fresh MapState·clock·alignment·관측 시각 TF·공분산 근거를 제공하고 검사해야 한다. 현재 합성 함수 시험은 실제 mapping 연동을 증명하지 않는다. 주행 명령은 보내지 않는다.
+
+### TB-6 현장 실행 한 줄과 원인 가르기 (2026-10-13)
+
+TB-6 담당 PC 에서 저장소 루트(모델 경로 `assets/models/best.pt` 가 실행 위치 기준)에서, 현장 ROS 환경을 source 한 뒤 실행한다. 값 옆 표시: [측정] 오늘 TB-6 에서 잰 값, [설정] 다른 PR 의 현장 설정, [추정] 아직 로봇에서 이름을 확인하지 않은 값.
+
+```bash
+from_ns=$(python3 -c 'import time; print(time.time_ns() - 3_000_000_000)')         # 정렬 창: 지금 -3 s ~ +1 h (#132 와 같은 방식)
+until_ns=$(python3 -c 'import time; print(time.time_ns() + 3_600_000_000_000)')
+ros2 launch rescue_bringup amr_perception.launch.py \
+  image_topic:=/robot6/oakd/rgb/image_raw/compressed image_type:=compressed \
+  depth_topic:=/robot6/oakd/stereo/image_raw depth_transport:=raw \
+  camera_info_topic:=/robot6/oakd/rgb/camera_info \
+  rgb_optical_frame:=oakd_rgb_camera_optical_frame depth_optical_frame:=oakd_rgb_camera_optical_frame \
+  rgb_stamp_semantics:=CAPTURE depth_stamp_semantics:=CAPTURE \
+  rgb_depth_alignment_verified:=true rgb_rectified:=false \
+  calibration_id:=tb6-oakd-device-calibration alignment_evidence_id:=tb6-oakd-align-measured-20261013 \
+  sync_queue_size:=40 sync_slop_ns:=20000000 camera_info_max_age_ns:=1500000000 \
+  tf_topic:=/robot6/tf tf_static_topic:=/robot6/tf_static \
+  clock_domain_id:=rokey7-utc-field clock_backend:=timesyncd clock_max_age_ns:=3600000000000 \
+  clock_drift_ppm:=100.0 clock_poll_period_s:=5.0 \
+  sensor_host_clock_error_bound_ns:=150000000 sensor_host_clock_domain_id:=rokey7-utc-field \
+  profile_path:=<현장 배포 프로파일.json> tf_wait_s:=1.0 \
+  alignment_authority_id:=tb6-saved-map-identity alignment_valid_from_ns:=$from_ns alignment_valid_until_ns:=$until_ns
+```
+
+| 인자 | 근거 |
+| --- | --- |
+| `image_topic` | [설정] #132 `camera_topics` 의 `/robot6/oakd/rgb/image_raw/compressed`. 실제 RGB 토픽 이름과 종류는 [추정] — `ros2 topic list \| grep oakd` 로 확인 |
+| `depth_topic`·`depth_transport:=raw` | [측정] `/robot6/oakd/stereo/image_raw`, 16UC1 raw |
+| `camera_info_topic` | [추정] depthai-ros 이름 규칙. RGB CameraInfo 값 자체는 [측정] |
+| 광학 frame·`CAPTURE`·정렬 `true`·`rectified false` | [측정] RGB·Depth CameraInfo frame_id 같음, 704×704, K·P 같음, `i_align_depth=true`. RGB D 는 rational_polynomial(점 보정 경로). stamp 는 depthai-ros 의 장치 촬영 시각 [문서] + 두 stamp 차이 중앙값 2.9 ms [측정]. 겹쳐 보기 시험은 아직 안 함 |
+| `sync_*`·`camera_info_max_age_ns` | [측정] Depth 가 약 0.78 s 늦게 옴(RGB 29.7 Hz, Depth 9.3 Hz). 큐 3 으로는 짝 0개(message_filters 재현) |
+| `clock_*` | [설정] #132·#146 현장 시계 영역과 backend(TB-6 담당 PC). PC 가 chrony 면 `clock_backend:=chrony` |
+| `sensor_host_*` | [측정] TB-6 Pi chronyc tracking → 약 109 ms, 여유 150 ms |
+| `profile_path` | 현장 프로파일. `map_basis.frame_id` 가 `map` 이어야 한다(아니면 launch 가 멈춤) |
+| 정렬 창·권한 | OPS-103 결정 2. 프로파일 `map_basis` + TB-6 saved-map 선언(#132) |
+
+**「TB-6 이 인형을 보는데 위치가 안 나옴」 원인 가르기** — amr_target·target_locator 로그를 위에서부터 본다. 처음으로 맞지 않는 단계가 원인이다.
+
+| # | 볼 로그 | 정상 | 아니면 |
+| --- | --- | --- | --- |
+| 1 | `AMR target startup/runtime failed: missing parameters: [...]` / `amr_target git=... parameters=...` | 기동 줄에 위 값이 그대로 있음 | 빠진 인자·틀린 값(exit 2) |
+| 2 | `clock SYNCED backend=... error_bound_ns=...` / `sensor host (camera driver) clock ...` | 기동 뒤 `clock_poll_period_s` 안에 SYNCED | `clock UNKNOWN ... reason=<이유>`: PC 시계 동기 안 됨(`timedatectl`·`chronyc tracking`). `... clock domain ... differs`: 두 영역 값이 다름 |
+| 3 | `No successful synchronized RGB-D frame; check both topics, QoS, CameraInfo and frame errors` (5 s 마다) | 이 경고가 없음 | 짝이 안 생김. `ros2 topic hz` 로 RGB·Depth 가 오는지, 큐(`sync_queue_size`)가 Depth 지연을 덮는지 |
+| 4 | `AMR target frame failed (no fabricated coordinates): ValueError: fresh matching CameraInfo required` | 없음 | CameraInfo 가 안 오거나 `camera_info_max_age_ns` 보다 오래됨 |
+| 5 | `... RGB/Depth optical frames differ from configured alignment evidence` | 없음 | 메시지 header frame_id 와 인자 frame 이 다름 |
+| 6 | `target not sent: UNCONFIRMED(<이유>)` | `target state=SENT observation_id=... undistortion=<model>:<hash>` | 이유별: `LOW_CONFIDENCE` 신뢰도 부족(인형이 멀거나 가림) · `CLOCK_UNCERTAIN` stamp 의미 UNKNOWN 이거나 서로 다름 · `UNSYNCHRONIZED` RGB-Depth stamp 차이가 `sync_slop_ns` 초과 · `ALIGNMENT_UNVERIFIED` 정렬 false 이거나 RGB D 모델을 보정 못 함 · `CALIBRATION_MISMATCH` frame·보정 ID 불일치 · `DIMENSION_MISMATCH` RGB·Depth 해상도 다름 · `DEPTH_INSUFFICIENT`·`DEPTH_DISCONTINUITY` 상자 안 Depth 가 비었거나 들쭉날쭉(너무 가깝거나 멂) |
+| 7 | `target not sent: BBOX_AT_IMAGE_EDGE` / `INVALID_POSITION` | — | 인형이 화면 가장자리에 걸림 / 위치 계산 실패 |
+| 8 | target_locator `refused, not published: <이유>` | `TargetLocation <id> VALID observation=... mission=(x, y, z)` | `CLOCK_NOT_SYNCED`·`NO_CLOCK_ERROR_BOUND`·`STAMP_SEMANTICS_UNKNOWN`·`CLOCK_DOMAIN_MISMATCH` 시계(2단계) · `OBSERVATION_EXPIRED`·`FUTURE_STAMP` 관측 나이·PC 시계 차이 · `ALIGNMENT_NOT_VALID_AT_CAPTURE`·`ALIGNMENT_EXPIRED` 정렬 창 · `COVARIANCE_INVALID` 공분산 |
+| 9 | target_locator `no TF map<-oakd_rgb_camera_optical_frame at capture ...` | 없음 | 촬영 시각의 TF 가 없음: `/robot6/tf` 에 map→odom(AMCL)이 오는지, TF remap 이 맞는지 |
+| 10 | 관제 화면 사유 `대상 위치의 관측 시각을 쓸 수 없음` 등(조정기 #174) | 대상이 생김 | 조정기 쪽 시계 검사. 조정기 `target_clock_domain_id` 가 같은 값인지 |
+
+### 관측 시계 (OPS-103)
+
+[작전 결정 2026-10-13] amr_target 관측의 시계는 코드 값(`clock_state='UNKNOWN'`·`clock_error_bound_ns=-1`)이 아니라 이 호스트의 측정값이다. 웹캠(#146)과 같은 방식이다(`rescue_contracts.clock_measurement.ClockSampler` + `webcam_clock`). `clock_domain_id`·`clock_backend`(timesyncd·chrony·NONE)·`clock_max_age_ns`·`clock_drift_ppm`·`clock_poll_period_s` 는 기본값 없는 파라미터이고, launch 인자로도 받는다. 프레임마다 그 촬영 시각(RGB stamp)에서 마지막 측정이 SYNCED 이고 유효하면 SYNCED·오차 상한(측정값 + 표본 뒤 drift)이고, 아니면 UNKNOWN 이다. 기동 직후 첫 측정 전과 `clock_backend: NONE` 은 UNKNOWN 이다. OAK-D stamp 는 카메라 드라이버가 도는 호스트(TB-6 Pi)의 시계라서, 그 호스트의 오차 상한과 시계 영역을 `sensor_host_clock_error_bound_ns`·`sensor_host_clock_domain_id`(기본값 없음, 로봇 쪽과 같은 이름)로 받는다. 오차 상한은 이 호스트 측정값 + 센서 호스트 값이다. 두 시계 영역이 다르면 SYNCED 가 아니다. 드라이버가 이 호스트에서 돌 때만 0 과 같은 영역을 쓰고, 그 근거가 기동 로그에 남는다. 하류(target_locator, 조정기)는 UNKNOWN 관측을 쓰지 않는다(C-03).
 
 ### 상대 좌표 출력
 
@@ -82,6 +154,24 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 
 카메라 XYZ가 무효이면 base 점을 발행하지 않는다. TF 조회·frame·시각·변환 검사에 실패하면 이유와 observation_id를 로그에 남기고 원 카메라 관측만 유지한다. base PointStamped는 ID·신뢰도·공분산을 담지 않는 보조 좌표 출력이며 여러 탐지를 영속 연결하거나 이동을 허가하는 메시지가 아니다. 현재 UNKNOWN clock·미검증 정렬 설정에서는 유효 XYZ를 발행한다고 가정할 수 없다. 실제 입력의 근거를 확인한 뒤 사용해야 한다.
 
+### 지도 좌표 TargetLocation (target_locator)
+
+[작전 B2, 2026-10-13] `target_locator` 는 amr_target 이 낸 확정 TargetObservation 을 받아 조정기가 받는 TargetLocation 을 만든다.
+
+| 항목 | 규칙 |
+| --- | --- |
+| 입력 | `observations_topic`(RELIABLE·TRANSIENT_LOCAL)의 TargetObservation. `source_robot` 이 `robot_id` 와 같고 `localization_status=VALID`·유한한 `sensor_position` 일 때만 쓴다 |
+| TF | `map_frame ← sensor_frame` 을 관측의 `observed_at_ns`(RGB stamp)로 조회한다. 최신 TF로 바꾸지 않는다. `tf_wait_s` 안에 그 시각 TF가 없으면 내지 않고 ERROR 로그를 남긴다. 로봇 TF는 namespace 아래라 launch 에서 `/tf`·`/tf_static` 을 remap 한다 |
+| 좌표 | 카메라 점에 TF를 적용한 뒤, 선언된 정렬 `alignment_xy_yaw`(mission ← map)를 적용한다. 공분산은 관측 공분산을 같은 회전으로 돌리고 선언된 정렬 오차(위치 + 회전 lever arm)를 더한다. AMCL 위치 불확실성은 들어가지 않는다 [미확인] |
+| frame_ref | `robot_id`·`map_frame`·`mission_frame`·`map_session_id`·`map_revision`·`transform_revision` 파라미터 그대로. 조정기의 `mission_frame_id`·`goal_map_session_id`·`goal_map_revision`·`goal_transform_revision` 과 같아야 조정기가 경로를 낸다(다르면 `ROUTE_BASIS_MISMATCH`). 이 노드는 그 값을 측정하지 않는다 |
+| 출력 | `target_locations_topic` 에 `projection_status=VALID` 하나. 같은 관측·같은 정렬은 같은 `location_id` 다(아래). 거절된 입력은 VALID 아닌 상태로도 내지 않는다(조정기가 VALID 만 받는다) |
+| 시간 기준 (C-03, OPS-103) | 관측이 `clock_state=SYNCED`·오차 상한 있음·`stamp_semantics` 가 UNKNOWN 아님·`clock_domain_id` 가 설정값과 같음이어야 한다. 이 호스트 시각으로 만료(`now > valid_until_ns`)거나 미래 stamp(`observed_at_ns > now + 오차`)면 내지 않는다. 이유는 로그(`CLOCK_NOT_SYNCED` 등)에 남는다 |
+| 정렬 권한 (C-04, OPS-103) | `alignment_authority_id`·`alignment_valid_from_ns`·`alignment_valid_until_ns` 를 실행 인자로 받는다(권한 출처: 프로파일 `map_basis` + 로봇의 saved-map 선언, #132·#145). 촬영 시각이 창 안이고 지금이 창 끝 전일 때만 VALID 다. 설정값만으로 VALID 를 채우지 않는다 |
+| 공분산 (C-02) | 입력·출력 공분산이 유한·대칭·대각 비음수·양의 준정부호(주소행렬식 모두 ≥ 0)가 아니면 `COVARIANCE_INVALID` 로 내지 않는다 |
+| location_id | (observation_id, session, revision, transform revision, 정렬 권한, 정렬값)의 uuid5. 정렬을 바꾸면 새 ID 라서 조정기의 `ID_CONTENT_CONFLICT` 가 나지 않는다 |
+| 파라미터 | 모두 기본값 없는 타입 명시 파라미터. 없거나 틀리면 exit 2. 기동 로그에 git SHA·적용 값 |
+
+시험: `tests/test_perception_target_location.py`(합성 TF·관측, E2), `tests/ros/e3_target_locator_probe.py`(LOCALHOST ROS, 가짜 관측·TF → target_locator → 조정기 대상, E3). 실제 로봇 TF·카메라는 NOT_RUN이다.
 ### 웹캠 판정 영상 중계 (mjpeg_relay)
 
 [작전 배정, 2026-10-13] `mjpeg_relay` 는 webcam_node 의 판정 화면 영상(`debug_image_topic`, CompressedImage jpeg)을 HTTP multipart MJPEG 로 낸다. 관제 웹은 `--camera cam_fixed=http://<웹캠 PC>:<port><path>` 로 보여 준다. 표준 라이브러리 `http.server` 만 쓰고 새 설치는 없다.
@@ -96,6 +186,7 @@ ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/camera
 | 프레임 | 받은 프레임을 한 번씩만 보낸다. jpeg 가 아닌 형식은 보내지 않고 형식마다 한 번 경고한다 |
 | 끊김 | `stale_s` 안에 새 프레임이 없으면 열린 스트림을 닫는다. 마지막 프레임을 반복하지 않는다. 새 프레임이 없을 때 온 요청은 503 이다 |
 | 경로 | `path` 하나만 연다. 다른 경로는 404 |
+| 느린 클라이언트 | 소켓 읽기·쓰기 타임아웃은 `stale_s` 다. 읽지 않는 클라이언트(멈춘 탭, FIN 없이 끊긴 네트워크)는 그 시간 뒤 끊어서 서버 스레드가 묶이지 않게 한다 |
 | 파라미터 | 모두 기본값 없는 타입 명시. 없거나 틀리면 exit 2. 기동 로그에 git SHA·적용 값·URL |
 
 시험: `tests/test_perception_mjpeg_relay.py`(localhost HTTP, E2). 판정 화면 영상은 판정에 쓰지 않는 확인용이다.

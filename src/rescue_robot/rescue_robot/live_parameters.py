@@ -3,7 +3,19 @@
 These are deployment settings, not observed maps/poses/clock records. No
 production threshold, calibration or identity is inferred from a goal.
 """
+import math
+
 from rescue_robot.executor import ContractError
+
+
+def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revision, transform_revision):
+    """This robot's RETURN_HOME destination as a configured destination (home_ref 'home/<robot_id>')."""
+    if (not isinstance(xy_yaw, (list, tuple)) or len(xy_yaw) != 3
+            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in xy_yaw)):
+        raise ContractError('home [x, y, yaw] must be three finite numbers')
+    return {'home/' + robot_id: dict(frame_id=frame_id, robot_id=robot_id, map_session_id=map_session_id,
+                                      map_revision=map_revision, transform_revision=transform_revision,
+                                      xy_yaw=[float(v) for v in xy_yaw])}
 
 
 def read_config(node, adapter):
@@ -26,7 +38,16 @@ def read_config(node, adapter):
         'task.saved_map.transform_xy_yaw': T.PARAMETER_DOUBLE_ARRAY,
         'task.saved_map.valid_from_ns': I, 'task.saved_map.transform_valid_until_ns': I,
         'task.saved_map.position_error_m': D, 'task.saved_map.rotation_error_rad': D,
-        'task.saved_map.max_position_variance_m2': D, 'task.saved_map.max_yaw_variance_rad2': D}
+        'task.saved_map.max_position_variance_m2': D, 'task.saved_map.max_yaw_variance_rad2': D,
+        # Automatic target moves without an operator approval (C1, 2026-10-13); enabled=false rejects them.
+        'task.live.auto_target.enabled': T.PARAMETER_BOOL, 'task.live.auto_target.kinds': T.PARAMETER_STRING_ARRAY,
+        'task.live.auto_target.goal_clear_radius_m': D, 'task.live.auto_target.policy_version': S,
+        # ObserveTarget after a REOBSERVE_TARGET stop (C1-b): observation window and whole-call deadline
+        'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I,
+        # RobotPose time.valid_until_ns = AMCL stamp + this (live_pose; coordinator applies its own age limit)
+        'task.live.pose_valid_ns': I,
+        # The robot Pi clock that stamps the scans (AMCL pose time): domain and bound measured on the Pi, -1 = not
+        'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
     values, missing = declare_required(node, fields)
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
@@ -58,6 +79,26 @@ def read_config(node, adapter):
         raise ContractError('explicit measured [x,y,yaw] transform required')
     m.update(mode='SAVED_MAP_AMCL',authority_id=c['mapping_authority'],clock_domain_id=c['lease']['clock_domain_id'])
     c['saved_maps'] = {adapter.robot_id:m}
+    c['auto_target'] = {key:get('live.auto_target.'+key) for key in
+                        ('enabled','kinds','goal_clear_radius_m','policy_version')}
+    c['recheck'] = {key:get('live.recheck.'+key) for key in ('window_ns','deadline_ns')}
+    # The coordinator's TargetSnapshot: target revision and position for REOBSERVE (IF-070)
+    c['coordinator_targets_topic'] = '/rescue/targets'
+    c['pose_valid_ns'] = get('live.pose_valid_ns')
+    c['sensor_host_clock'] = dict(domain_id=get('live.sensor_host_clock_domain_id'),
+                                  error_bound_ns=get('live.sensor_host_clock_error_bound_ns'))
+    # Optional: this robot's home (profile home_positions). Not given = no home; RETURN_HOME is refused.
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    node.declare_parameter('task.live.home_xy_yaw', Parameter.Type.DOUBLE_ARRAY)
+    try:
+        home = node.get_parameter('task.live.home_xy_yaw').value
+    except ParameterUninitializedException:
+        home = None
+    if home is not None:
+        c['configured_destinations'] = home_destinations(adapter.robot_id, list(home), frame_id=c['mission_frame'],
+            map_session_id=m['map_session_id'], map_revision=m['map_revision'],
+            transform_revision=m['transform_revision'])
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:

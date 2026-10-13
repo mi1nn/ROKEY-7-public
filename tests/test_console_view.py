@@ -345,7 +345,7 @@ class SiteStateSourceTests(LedgerFixture):
 
     def test_site_state_db_gives_the_fixture_shapes(self):
         status = load_site_state(self.site_db)
-        self.assertEqual(set(status), {'robot_status', 'site_events', 'target_states', 'mission_state',
+        self.assertEqual(set(status), {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
                                        'operator_commands', 'error_log'})
         self.assertEqual([r['robot_id'] for r in status['robot_status']['robots']], list(ROBOTS))
         self.assertEqual(status['site_events']['exit_pass_count'], 1)
@@ -436,6 +436,110 @@ class NoLedgerTests(LedgerFixture):
                          '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
         self.assertEqual(2, code)
         self.assertIn('INVALID_INPUT', err.getvalue())
+
+
+def candidate_event(label, target_label, offset=20):
+    event = site_event(label, 'DISASTER_SIGN', offset)
+    event.update(kind='TARGET_DISAPPEARED_CANDIDATE', camera_id='cam_fixed', target_id=uid(target_label),
+                 watch_id=uid(label + '/watch'), confidence=0.8)
+    return event
+
+
+class DisappearedCandidateTests(LedgerFixture):
+    """The fixed camera's TARGET_DISAPPEARED_CANDIDATE shows on the target row and in the event table.
+    It is only a candidate: rescue is confirmed by the robot's re-observation (SiteEvent docstring)."""
+
+    def view_with(self, *events):
+        self.status['site_events']['site_events'].extend(events)
+        return self.view()
+
+    def test_candidate_names_its_target_row_and_event_subject(self):
+        view = self.view_with(candidate_event('gone-1', 'waiting'))
+        rows = {row['target_id']: row for row in view['targets']}
+        mark = rows[uid('waiting')]['disappeared_candidate']
+        self.assertEqual((uid('gone-1'), T0 + 20 * SECOND, 'cam_fixed'),
+                         (mark['event_id'], mark['observed_at_ns'], mark['camera_id']))
+        self.assertTrue(all(row['disappeared_candidate'] is None for tid, row in rows.items() if tid != uid('waiting')))
+        event = [e for e in view['events'] if e['kind'] == 'TARGET_DISAPPEARED_CANDIDATE'][0]
+        self.assertEqual(uid('waiting'), event['subject'])
+        html = render_page(view)
+        row_html = html[html.index(f'<li class="victim-row'):]
+        self.assertIn('소실 후보', row_html)
+        self.assertIn('대상 소실 후보', html)
+
+    def test_latest_candidate_wins(self):
+        view = self.view_with(candidate_event('gone-1', 'waiting', 20), candidate_event('gone-2', 'waiting', 25))
+        mark = {row['target_id']: row for row in view['targets']}[uid('waiting')]['disappeared_candidate']
+        self.assertEqual(uid('gone-2'), mark['event_id'])
+
+    def test_candidate_for_an_unknown_target_is_a_warning(self):
+        view = self.view_with(candidate_event('gone-x', 'nobody'))
+        self.assertIn(f"소실 후보의 대상이 목록에 없음: {uid('nobody')}", view['warnings'])
+
+
+class AllowedRobotsTests(LedgerFixture):
+    """Without the report ledger the deployment's robots come from the site-state DB metadata
+    (read_allowed_robot_ids, #149): a card per robot even before its first status."""
+
+    def setUp(self):
+        super().setUp()
+        self.status['robot_status']['robots'] = [r for r in self.status['robot_status']['robots']
+                                                 if r['robot_id'] == 'robot_a']   # robot_b silent so far
+        self.site_db = self.dir / 'site_state.sqlite3'
+        write_site_state(self.site_db, self.status)
+
+    def test_site_state_gives_the_allowed_robots(self):
+        self.assertEqual(list(ROBOTS), load_site_state(self.site_db)['allowed_robots']['allowed_robot_ids'])
+
+    def test_silent_robot_still_has_a_card_without_the_ledger(self):
+        view = current_view(None, site_state_path=self.site_db, clock=lambda: T0 + 30 * SECOND)
+        self.assertEqual([('robot_a', True), ('robot_b', False)],
+                         [(r['robot_id'], r['has_status']) for r in view['robots']])
+        warnings = ' '.join(view['warnings'])
+        self.assertIn('보고 장부 입력 없음', warnings)
+        self.assertNotIn('상태가 들어온 로봇만', warnings)
+
+    def test_fixture_without_the_robot_list_still_says_so(self):
+        status = {k: v for k, v in self.status.items()}
+        view = build_view(None, status, built_at_ns=T0 + 30 * SECOND)
+        self.assertEqual(['robot_a'], [r['robot_id'] for r in view['robots']])
+        self.assertIn('상태가 들어온 로봇만', ' '.join(view['warnings']))
+
+
+class RobotNameTests(LedgerFixture):
+    """Robot display names come from the launch (owner 2026-10-13: TB-6 = robot_a SCOUT, TB-5 = robot_b
+    SUPPORT); nothing ties a name to a role and no AMR1/AMR2 wording is left on the screen."""
+    NAMES = {'robot_a': 'TB-6', 'robot_b': 'TB-5'}
+
+    def named(self):
+        return build_view(load_ledger(self.db), self.status, built_at_ns=T0 + 30 * SECOND, robot_names=self.NAMES)
+
+    def test_given_names_label_the_robots_and_the_dispatch_command(self):
+        view = self.named()
+        self.assertEqual([('robot_a', 'TB-6'), ('robot_b', 'TB-5')], [(r['robot_id'], r['name']) for r in view['robots']])
+        labels = {c['name']: c['label'] for c in view['commands']}
+        self.assertEqual('TB-5 출동 승인', labels['DISPATCH_SUPPORT'])
+        html = render_page(view)
+        self.assertIn('TB-6', html)
+        self.assertNotRegex(html, r'AMR ?[12]')
+
+    def test_without_names_the_robot_id_is_shown(self):
+        view = self.view()
+        self.assertEqual(['robot_a', 'robot_b'], [r['name'] for r in view['robots']])
+        self.assertEqual('robot_b 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
+        self.assertNotRegex(render_page(view), r'AMR ?[12]')
+
+    def test_without_a_support_status_the_label_uses_the_role_code(self):   # no generic robot words (owner rule)
+        status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})
+        view = build_view(load_ledger(self.db), status, built_at_ns=T0, robot_names=self.NAMES)
+        self.assertEqual('SUPPORT 출동 승인', {c['name']: c['label'] for c in view['commands']}['DISPATCH_SUPPORT'])
+
+    def test_name_argument(self):
+        from rescue_console.app import parse_robot_name
+        self.assertEqual(('robot_a', 'TB-6'), parse_robot_name('robot_a=TB-6'))
+        for bad in ('robot_a', '=TB-6', 'robot_a=', 'robot_a= '):
+            with self.subTest(bad=bad), self.assertRaises(ConsoleError):
+                parse_robot_name(bad)
 
 
 if __name__ == '__main__':

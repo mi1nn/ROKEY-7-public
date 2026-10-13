@@ -66,6 +66,7 @@ class Grid:
 class SavedMapSources:
     def __init__(self,runtime,settings):
         self.runtime=runtime; self.settings=deepcopy(settings); self.maps={}; self.poses={}; self.faults={}
+        self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
         if not settings: raise ContractError('saved_maps requires measured robot settings')
         for robot,c in self.settings.items():
             if c['mode']!='SAVED_MAP_AMCL': raise ContractError('SLAM backend correction adapter not configured')
@@ -87,6 +88,7 @@ class SavedMapSources:
             except (ContractError,ValueError,TypeError) as exc:
                 self.maps.pop(robot,None); self.faults[robot]=str(exc)
                 r.node.get_logger().error('saved map blocked: '+str(exc))
+            self._publish_map_state(robot)
 
     def receive_pose(self,robot,message):
         r=self.runtime
@@ -104,8 +106,15 @@ class SavedMapSources:
                         and cxy*cxy<=vx*vy and (vx+vy+math.hypot(vx-vy,2*cxy))/2<=c['max_position_variance_m2']
                         and 0<=covariance[35]<=c['max_yaw_variance_rad2'])
                 self.poses[robot]=(observed,valid)
+                if self.publisher is not None and robot==self.publisher.robot:
+                    self.publisher.on_pose(message,observed,valid)
             except (ContractError,ValueError,TypeError) as exc:
                 self.poses.pop(robot,None); r.node.get_logger().warning('AMCL input rejected: '+str(exc))
+                self._publish_map_state(robot)
+
+    def _publish_map_state(self,robot):
+        if self.publisher is not None and robot==self.publisher.robot:
+            self.publisher.publish_map_state(localization_valid=self.poses.get(robot,(0,False))[1])
 
     def records(self):
         result={}

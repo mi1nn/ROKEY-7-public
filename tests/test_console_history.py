@@ -72,7 +72,7 @@ class HistoryPageTests(HistoryFixture):
     def test_refused_command_shows_its_reason_in_korean_and_code(self):
         html = render_fragment(self.site_view())
         section = re.search(r'<section id="history".*?</section>', html, re.S).group(0)
-        self.assertIn('AMR2 출동 승인', section)
+        self.assertIn('robot_b 출동 승인', section)   # no --robot-name: the SUPPORT robot's ID
         self.assertIn('거절', section)
         self.assertIn('확정·경로·판정이 아직 없음', section)
         self.assertIn('PENDING_EVIDENCE', section)
