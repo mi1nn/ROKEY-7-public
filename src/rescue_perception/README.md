@@ -203,6 +203,7 @@ ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/camera
 | 범위 | 카메라 VALID 프레임이 충분하고 LiDAR 가 UNKNOWN 이 아니면 VALID, 지점이 계속 화면·깊이 밖이면 INVALID, 그 밖은 UNKNOWN |
 | 시각 | 표본 시각은 이 호스트가 받은 시각(`DRIVER_RECEIVE`)이다. 시계 상태·오차는 웹캠과 같은 측정(`webcam_clock`, ClockSampler)이다. 측정이 안 되면 UNKNOWN |
 | goal 검사 | robot_id·`frame_ref.native_frame`·유한한 지점·창 길이(0 초과, 상한 이하)·마감이 맞지 않으면 FAILED 와 이유 코드. 열린 창이 있으면 새 goal 은 거절 |
+| 마감 (C-03) | goal 마감은 실행기 시계 값이다. 이 호스트의 측정 오차 상한을 더해 비교한다: `now + 오차 ≥ 마감` 이면 마감이 지난 것(`DEADLINE_PASSED`, 창 중에는 UNKNOWN), `now + 창 + 오차 > 마감` 이면 마감 전에 못 끝나므로 받지 않는다(`DEADLINE_TOO_CLOSE`). 측정이 없으면 오차를 0 으로 주장하지 않고 그대로 비교하며, 결과 관측의 시계는 UNKNOWN 이다. 실행기와 관측 서버가 다른 PC 라면 실행기 쪽 오차는 여기 들어 있지 않다 |
 
 센서 입력을 넣는 일(amr_target 의 프레임·TB-6 LiDAR 스캔 → `add_frame`/`add_scan`)은 다음 PR 이다. 시험: `tests/test_perception_recheck.py`(E2), `tests/ros/e3_recheck_probe.py`(LOCALHOST action, 합성 입력). 실제 카메라·LiDAR·로봇은 NOT_RUN 이다.
 

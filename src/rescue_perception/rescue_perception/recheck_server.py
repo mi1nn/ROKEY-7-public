@@ -39,6 +39,33 @@ class WindowSlot:
     def release(self):
         with self._lock:
             self._taken = False
+def deadline_margin_ns(record, now_ns):
+    """This host's measured clock error bound now (C-03), or 0 when unmeasured (no bound is claimed).
+
+    The goal deadline comes from the executor's clock, possibly another PC. With a measured bound the
+    deadline counts as reached that much earlier. Unmeasured: compared as is, and the observation then
+    carries clock UNKNOWN, which C-03 consumers refuse anyway."""
+    state, bound = observation_clock(record, now_ns)
+    return bound if state == 'SYNCED' else 0
+
+
+def goal_refusal(*, robot_id, native_frame, point, window_ns, deadline_ns, now_ns, margin_ns, expected_robot,
+                 map_frame, max_window_ns):
+    """The reason code an ObserveTarget goal is refused, or None."""
+    if robot_id != expected_robot:
+        return 'ROBOT_MISMATCH'
+    if native_frame != map_frame:
+        return 'FRAME_MISMATCH'
+    if not all(math.isfinite(v) for v in point):
+        return 'INVALID_POINT'
+    if not 0 < window_ns <= max_window_ns:
+        return 'INVALID_WINDOW'
+    if deadline_ns:
+        if deadline_ns <= now_ns + margin_ns:
+            return 'DEADLINE_PASSED'
+        if now_ns + window_ns + margin_ns > deadline_ns:
+            return 'DEADLINE_TOO_CLOSE'   # the window could not end before the deadline
+    return None
 
 
 class RecheckServer:
@@ -87,17 +114,10 @@ class RecheckServer:
     # -- action ---------------------------------------------------------------------------------
     def _refusal(self, goal, now):
         p = goal.watched_native_point
-        if goal.robot_id != self.robot_id:
-            return 'ROBOT_MISMATCH'
-        if goal.frame_ref.native_frame != self.map_frame:
-            return 'FRAME_MISMATCH'
-        if not all(math.isfinite(v) for v in (p.x, p.y, p.z)):
-            return 'INVALID_POINT'
-        if not 0 < goal.requested_window_ns <= self.max_window_ns:
-            return 'INVALID_WINDOW'
-        if goal.deadline_ns and goal.deadline_ns <= now:
-            return 'DEADLINE_PASSED'
-        return None
+        return goal_refusal(robot_id=goal.robot_id, native_frame=goal.frame_ref.native_frame, point=(p.x, p.y, p.z),
+                            window_ns=goal.requested_window_ns, deadline_ns=goal.deadline_ns, now_ns=now,
+                            margin_ns=deadline_margin_ns(self.clock_record(), now), expected_robot=self.robot_id,
+                            map_frame=self.map_frame, max_window_ns=self.max_window_ns)
 
     def _execute(self, handle):
         try:
@@ -127,7 +147,7 @@ class RecheckServer:
             current = self.now_ns()
             if handle.is_cancel_requested:
                 outcome, reason = 'UNKNOWN', 'CANCELED'
-            elif goal.deadline_ns and current >= goal.deadline_ns:
+            elif goal.deadline_ns and current + deadline_margin_ns(self.clock_record(), current) >= goal.deadline_ns:
                 outcome, reason = 'UNKNOWN', 'DEADLINE'
             elif current >= end:
                 outcome, reason = 'OBSERVED', ''
