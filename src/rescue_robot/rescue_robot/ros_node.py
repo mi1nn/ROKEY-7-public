@@ -121,8 +121,8 @@ def bind_dock_status(node, adapter, topic):
 
 def camera_message_type(topic):
     """sensor_msgs type name for a camera topic: image_transport's .../compressed is
-    CompressedImage (TB4 OAK-D default, P4 DEC-004), anything else Image."""
-    return 'CompressedImage' if topic.rstrip('/').endswith('/compressed') else 'Image'
+    CompressedImage (TB4 OAK-D default, P4 DEC-004), so is .../compressedDepth (passage depth), anything else Image."""
+    return 'CompressedImage' if topic.rstrip('/').endswith(('/compressed', '/compressedDepth')) else 'Image'
 
 
 def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_status_topic,
