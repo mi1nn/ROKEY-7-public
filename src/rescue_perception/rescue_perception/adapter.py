@@ -194,23 +194,24 @@ def _point_undistorter(info):
     """(undistort(points), "<model>:<sha12(D)>", P intrinsics) for a supported model, else None.
 
     Unsupported models (e.g. equidistant) or malformed D/P stay unrectified: the core then refuses
-    to localize (ALIGNMENT_UNVERIFIED). OpenCV/NumPy are imported only here.
+    to localize (ALIGNMENT_UNVERIFIED). OpenCV/NumPy are imported only when a point is undistorted,
+    so building intrinsics works without them (CI pure-python, installed-wheels); without them
+    undistorting raises ImportError (loud, never a pinhole point in place of the undistorted one).
     """
     model, d, p = info.distortion_model, tuple(info.d), tuple(info.p)
     if model not in UNDISTORT_MODELS or len(d) not in UNDISTORT_MODELS[model]:
         return None
     if len(p) != 12 or p[3] != 0 or p[7] != 0 or p[11] != 0 or not all(math.isfinite(x) for x in d + p):
         return None
-    import cv2
-    import numpy as np
-    k_matrix = np.array(info.k, dtype=np.float64).reshape(3, 3)
-    d_vector = np.array(d, dtype=np.float64)
-    p_matrix = np.array(p, dtype=np.float64).reshape(3, 4)
+    k = tuple(info.k)
 
     def undistort(points):
+        import cv2
+        import numpy as np
         raw = np.array([list(points)], dtype=np.float64).reshape(-1, 1, 2)
-        return [tuple(float(c) for c in row) for row in cv2.undistortPoints(raw, k_matrix, d_vector,
-                                                                              P=p_matrix).reshape(-1, 2)]
+        result = cv2.undistortPoints(raw, np.array(k, dtype=np.float64).reshape(3, 3), np.array(d, dtype=np.float64),
+                                     P=np.array(p, dtype=np.float64).reshape(3, 4))
+        return [tuple(float(c) for c in row) for row in result.reshape(-1, 2)]
     digest = hashlib.sha256(json.dumps([model, list(d)]).encode()).hexdigest()[:12]
     return undistort, f"{model}:{digest}", (p[0], p[2], p[5], p[6])
 
