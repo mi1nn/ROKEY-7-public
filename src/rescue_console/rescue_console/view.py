@@ -365,6 +365,13 @@ MISSION_REASONS = {
     'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
     'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info'),
     'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
+    # #234 (OPS-147): the QR exit holds TB-5's dispatch and its exit move; the start pose holds patrol and TB-6's return.
+    'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info'),
+    'EXIT_NOT_ON_FROZEN_MAP': ('출구(QR) 위치가 고정 지도 기준에 없음 — {support} 출동·출구 이동 보류', 'caution'),
+    'SUPPORT_EXIT_UNREGISTERED': ('출구(QR) 미등록 — {support} 출동·출구 이동 보류', 'caution'),
+    'START_POSE_UNKNOWN': ('{scout} 출발 자세 모름 — 순찰·{scout} 복귀 보류', 'caution'),
+    'START_POSE_CONFLICT': ('{scout} 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert'),
+    'PATROL_EXHAUSTED': ('{scout} 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution'),
 }
 # APPROACH_FAILED_<why> (#216): the executor's terminal reason, or its outcome when there is none.
 # An unknown why is shown as its code (OPS-127: never hidden).
@@ -375,6 +382,7 @@ APPROACH_WHY = {
     'CLOCK_UNCERTAIN': '시계 불확실',
 }
 EXIT_COUNTDOWN = re.compile(r'SUPPORT_EXIT_IN_(\d+)S')
+PATROL_ROUND = re.compile(r'PATROL_ROUND_(\d+)')
 # RECHECK_NEEDED_<why>: the recheck did not confirm the rescue (C-11 rows 7-11).
 RECHECK_WHY = {
     'CANDIDATE_NOT_LINKED': '후보 연결 안 됨', 'FRAME_REVISION_MISMATCH': '지도 기준 다름',
@@ -400,6 +408,8 @@ def mission_reason(code, support_name, scout_name):
     countdown = EXIT_COUNTDOWN.fullmatch(code)
     if countdown:
         text, level = f'{names["support"]} 출구 출발까지 {int(countdown.group(1))}초', 'info'
+    elif PATROL_ROUND.fullmatch(code):
+        text, level = f'{names["scout"]} 순찰 {int(code[len("PATROL_ROUND_"):])}바퀴째', 'info'
     elif code.startswith('APPROACH_FAILED_'):
         why = code[len('APPROACH_FAILED_'):]
         text, level = f'{names["support"]} 접근 실패: {APPROACH_WHY.get(why, why)} — 다시 보내지 않음', 'alert'
