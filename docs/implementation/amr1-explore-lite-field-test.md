@@ -6,7 +6,7 @@ updated: 2026-10-12
 
 # AMR1 explore_lite 단독 시험 절차와 결과 기록
 
-[사용자 요구, 2026-10-12] “지금 테스트 하는거에 대해서 git에 먼저 올리고 테스트 해보고 그거에 대한 피드백을 올린 pr밑에다 달면 어때?”에 따라 실행 절차를 먼저 저장하고, 실행한 커밋의 결과를 이 문서를 추가한 PR 댓글에 남긴다. [PR #116](https://github.com/jaebeom/ROKEY-7/pull/116)의 첫 기준 후보 `explore_lite`를 대상으로 한다. 최종 알고리즘 채택이나 프로젝트 주행 adapter 구현을 뜻하지 않는다.
+[사용자 요구, 2026-10-12] “지금 테스트 하는거에 대해서 git에 먼저 올리고 테스트 해보고 그거에 대한 피드백을 올린 pr밑에다 달면 어때?”에 따라 실행 절차를 먼저 저장하고, 실행한 커밋의 결과를 이 문서를 추가한 PR 댓글에 남긴다. [AMR1 자율 탐색 후보](amr1-exploration-candidates.md)([PR #116](https://github.com/jaebeom/ROKEY-7/pull/116))의 첫 기준 후보 `explore_lite`를 대상으로 한다. 최종 알고리즘 채택이나 프로젝트 주행 adapter 구현을 뜻하지 않는다.
 
 [사용자 설정, 2026-10-12] 이번 시험 대상은 `robot6`, `ROS_DOMAIN_ID=6`이며 SLAM/Nav2는 아직 시작하지 않았다고 보고했다. 이는 이번 회차의 설정이며 논리 AMR1의 영구 배치나 팀 공통 프로파일을 확정하지 않는다.
 
@@ -25,7 +25,7 @@ updated: 2026-10-12
 
 ## 실행 전 관문
 
-- [시험·증거 기준](../process/acceptance-plan.md)과 [현장 실행 관문](../process/field-runbook.md)을 따른다. PR #116의 E3→E4 순서를 유지한다. E3의 목표 발행·취소 동작 증거가 없으면 먼저 격리 시험하고, 그 상태를 이 PR에 남긴다. 이 문서 게시만으로 실기 준비가 완료되지 않는다.
+- [시험·증거 기준](../process/acceptance-plan.md)과 [현장 실행 관문](../process/field-runbook.md)을 따른다. [AMR1 자율 탐색 후보](amr1-exploration-candidates.md)(PR #116)의 E3→E4 순서를 유지한다. E3의 목표 발행·취소 동작 증거가 없으면 먼저 격리 시험하고, 그 상태를 이 PR에 남긴다. 이 문서 게시만으로 실기 준비가 완료되지 않는다.
 - 현장에서 한 사람이 robot6를 관찰하고 정지 수단을 사용할 수 있어야 한다. 팀에 사용 시작·종료를 알리고, 다른 PC의 SLAM·탐색·주행 발행기가 같은 로봇에 연결되지 않았는지 확인한다.
 - 단독 시험에서는 upstream 탐색 노드가 Nav2 goal을 직접 발행한다. `rescue_robot`의 임무 실행기, 다른 탐색 노드 및 RViz 목표 발행과 함께 사용하지 않는다. 협업 통합에서는 [D-05](../design/algorithm-decisions.md)의 `rescue_robot` 전용 goal/cancel 경계를 유지한다.
 - 로봇이 도킹 상태라면 기존 운영 절차로 언도크하고 실제 상태를 확인한다. 이 문서는 언도크·도킹 명령이나 로봇 설정 변경을 수행하지 않는다.
@@ -89,9 +89,9 @@ ros2 lifecycle get "/$AMR_NS/bt_navigator"
 ros2 action info "/$AMR_NS/navigate_to_pose"
 ```
 
-TF 출력 확인은 마지막 timeout 종료 코드만으로 판정하지 않고, 연속으로 출력된 변환 값을 저장한다.`bt_navigator`がactive、Nav2 action serverが利用可能であることも確認する。これは実機の停止保証ではない。
+TF 출력 확인은 마지막 timeout 종료 코드만으로 판정하지 않고, 연속으로 출력된 변환 값을 저장한다. `bt_navigator` 가 active 이고 Nav2 action server 를 쓸 수 있는지도 확인한다. 이것이 실기의 정지를 보장하지는 않는다.
 
-## 3. 中断端末を準備してから自動探索
+## 3. 중단용 터미널을 준비한 뒤 자동 탐색
 
 중단용 터미널에 아래 명령을 준비한다. 탐색 시작 전에 보낸 false는 시작 대기를 보장하지 않는다. **탐색 노드 시작 후의 중단 명령**으로 사용한다.
 
