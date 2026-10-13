@@ -211,6 +211,34 @@ class MapSnapshotParameters(unittest.TestCase):
                 map_snapshot_parameters(**bad)
 
 
+class RobotViewRelay(unittest.TestCase):
+    """robot_views: 로봇 카메라 칸(OPS-191) — 고른 로봇 하나의 판정 영상 중계, 기본은 SCOUT(TB-6)."""
+
+    def test_off_when_empty(self):
+        from rescue_bringup.operations_launch import robot_view_relay_parameters
+        self.assertIsNone(robot_view_relay_parameters(robot_views='', bind_host='', port='', stale_s='',
+                                                      robot_ids=['robot_a'], default_robot='robot_a'))
+
+    def test_one_relay_on_the_next_port(self):
+        from rescue_bringup.operations_launch import robot_view_relay_parameters
+        self.assertEqual({'sources': ['robot_a=/robot6/rescue/passage_view/compressed',
+                                      'robot_b=/robot5/rescue/passage_view/compressed'],
+                          'default_source': 'robot_a', 'bind_host': '0.0.0.0', 'port': 18083,
+                          'path': '/robot_view.mjpg', 'stale_s': 2.0},
+                         robot_view_relay_parameters(robot_views='robot_a=/robot6,robot_b=/robot5', bind_host='0.0.0.0',
+                                                     port='18082', stale_s='2.0', robot_ids=['robot_a', 'robot_b'],
+                                                     default_robot='robot_a'))
+
+    def test_bad_values_are_refused(self):
+        from rescue_bringup.operations_launch import LaunchSettingError, robot_view_relay_parameters
+        for views, port, default in (('robot_a=/robot6', '', 'robot_a'), ('robot_x=/robot6', '18082', 'robot_a'),
+                                     ('robot_a=robot6', '18082', 'robot_a'), ('robot_a=/robot6', '65535', 'robot_a'),
+                                     ('robot_b=/robot5', '18082', 'robot_a')):
+            with self.subTest(views=views, port=port), self.assertRaises(LaunchSettingError):
+                robot_view_relay_parameters(robot_views=views, bind_host='0.0.0.0', port=port, stale_s='2.0',
+                                            robot_ids=['robot_a', 'robot_b'], default_robot=default)
+
+
 class RobotWatchParameters(unittest.TestCase):
     """robot_namespaces/robot_watch_path: 로봇 기본 토픽 직접 관측(구독만, 재범 허용 2026-10-13)."""
 
