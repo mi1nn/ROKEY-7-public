@@ -263,14 +263,15 @@ class RobotParameters(FieldCase):
 
     def test_tb5_values_in_the_repository_field_file(self):
         """TB-5 (robot_b, SUPPORT): its own publisher, the same mapping authority as TB-6, approach and return
-        only, Pi clock not measured yet (-1). Decided 2026-10-13; #132 had no robot_b values."""
+        only, Pi clock measured (150 ms). Decided 2026-10-13; #132 had no robot_b values."""
         b, a = self.robot(robot_id='robot_b')['task_input'], self.robot()['task_input']
         self.assertEqual('/robot5/navigate_to_pose', b['nav_action'])
         self.assertNotEqual(a['task.publisher_id'], b['task.publisher_id'])
         self.assertEqual(a['task.mapping_authority'], b['task.mapping_authority'])
         self.assertTrue(b['task.live.auto_target.enabled'])
         self.assertEqual(['APPROACH_TARGET', 'RETURN_HOME'], b['task.live.auto_target.kinds'])
-        self.assertEqual(-1, b['task.live.sensor_host_clock_error_bound_ns'])
+        # TB-5 Pi measured 2026-10-13 (chronyc tracking, about 107 ms by the parse_chrony bound) -> 150 ms
+        self.assertEqual(150_000_000, b['task.live.sensor_host_clock_error_bound_ns'])
 
     def test_robot_b_needs_its_own_identity_in_the_field_file(self):
         """No publisher_id / mapping_authority is made up for a robot the field file does not name."""
