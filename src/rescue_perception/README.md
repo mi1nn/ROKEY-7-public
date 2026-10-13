@@ -76,6 +76,15 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 
 ### 상대 좌표 출력
 
+탐지 confidence와 좌표 유효성은 별도로 표시한다. `amr_target`은 시작할 때
+`CLOCK_UNCERTAIN`·`ALIGNMENT_UNVERIFIED` 설정 관문을 경고하고, 후보의 실제
+실패 이유와 confidence를 화면·로그에 함께 표시한다. 같은 이유의 로그는
+`no_frame_warn_s` 주기로 제한한다. `UNCONFIRMED`만으로 탐지 실패라고 판단하지 않는다.
+RGB 원본의 왜곡 계수가 0이 아니면 `rgb_rectified=True`로 선언하는 것만으로
+보정되지 않는다. 실제 rectified RGB와 그 픽셀에 정합된 Depth 또는 검증된
+소프트웨어 보정이 필요하다. 드라이버의 depth alignment 설정·동일 frame 이름만으로
+정렬 검증을 완료했다고 간주하지 않는다.
+
 [사용자 요구, 2026-10-12] 현재 좌표 계산 범위는 카메라 optical 기준과 로봇 base_link 기준까지다. 지도 좌표는 이후 mapping 연결에서 처리한다. 원 TargetObservation의 sensor_frame·sensor_position·관측 시각·ID·신뢰도·공분산은 카메라 기준으로 보존한다.
 
 로봇 기준 점은 `perception/target_base_point`에 geometry_msgs/PointStamped로 발행한다. header.frame_id는 SETTINGS의 base_frame(현재 base_link), stamp는 원 RGB 관측 시각, point는 m 단위 XYZ다. camera→base 변환은 실제 TF를 관측 시각으로 조회하며 위치 이동과 회전을 모두 적용한다. 최신 TF 조회나 임의 장착값으로 대체하지 않는다. 고정 장착 static TF의 반환 stamp=0은 관측 시각으로 조회한 결과일 때 허용한다.

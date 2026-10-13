@@ -27,7 +27,8 @@ from rclpy.executors import ExternalShutdownException
 from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_parameters,
     validate_labels, verify_model)
 from .target_utils import (FIELD_PARAMS, SETTINGS, target_config, PreparedDetector, OneShotTarget, fill_envelope,
-    fill_observation, fill_base_point, inference_from_result, decode_depth_png)
+    fill_observation, fill_base_point, inference_from_result, decode_depth_png,
+    localization_blockers, target_diagnostic)
 from .adapter import stamp_ns
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
@@ -41,6 +42,12 @@ def create_node(*, model_factory=None, transform_lookup=None):
         v = field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
+        blockers = localization_blockers(v)
+        if blockers:
+            node.get_logger().warning(
+                f'Coordinate output blocked by configuration: {",".join(blockers)}. '
+                'Detection preview remains available; verify timestamp semantics, '
+                'RGB rectification and depth registration before enabling coordinates.')
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
                       'observations_topic', 'base_point_topic')
         topics = {key: node.resolve_topic_name(v[key]) for key in topic_keys}
@@ -76,7 +83,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 target, source, Time(nanoseconds=stamp))
         image_pub = node.create_publisher(Image, topics['annotated_topic'], 1)
         state = {'info': None, 'last_success': time.monotonic(),
-                 'warning': 0., 'frames': 0, 'observation_seq': 0}
+                 'warning': 0., 'frames': 0, 'observation_seq': 0,
+                 'last_target_reason': None, 'target_warning': 0.}
 
         sender = OneShotTarget()
 
@@ -122,6 +130,12 @@ def create_node(*, model_factory=None, transform_lookup=None):
                     node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
                     return
                 canvas = result.plot(labels=True, conf=True)
+                diagnostics = [target_diagnostic(c) for c in findings.candidates]
+                if not diagnostics and blockers:
+                    diagnostics = ['coordinates blocked: ' + ','.join(blockers)]
+                for index, text in enumerate(diagnostics):
+                    cv2.putText(canvas, text, (8, 24 + index * 24),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
                 annotated = bridge.cv2_to_imgmsg(canvas, encoding='bgr8')
                 annotated.header = rgb.header
                 image_pub.publish(annotated)
@@ -136,7 +150,14 @@ def create_node(*, model_factory=None, transform_lookup=None):
                             f'target state=SENT observation_id={sender.observation_id}; '
                             'coordinate publication disabled for this run')
                         break
-                    node.get_logger().warning(f'target not sent: {sender.reason(candidate)}')
+                    detail = f'target not sent: {sender.reason(candidate)}; {target_diagnostic(candidate)}'
+                    now = time.monotonic()
+                    reason_key = (sender.reason(candidate), candidate.reasons)
+                    if (reason_key != state['last_target_reason']
+                            or now - state['target_warning'] >= v['no_frame_warn_s']):
+                        node.get_logger().warning(detail)
+                        state['last_target_reason'] = reason_key
+                        state['target_warning'] = now
                 state['frames'] += 1
                 state['last_success'] = time.monotonic()
                 if state['frames'] % v['log_every'] == 0:

@@ -62,6 +62,24 @@ FIELD_PARAMS = {**CAMERA_FIELD_PARAMS, 'depth_topic': 'STRING', 'camera_info_top
                 'rgb_optical_frame': 'STRING', 'depth_optical_frame': 'STRING'}
 
 
+def localization_blockers(values):
+    """Report configured core gates without treating driver metadata as proof."""
+    reasons = []
+    if ('UNKNOWN' in (values['rgb_stamp_semantics'], values['depth_stamp_semantics'])
+            or values['rgb_stamp_semantics'] != values['depth_stamp_semantics']):
+        reasons.append('CLOCK_UNCERTAIN')
+    if not values['rgb_depth_alignment_verified'] or not values['rgb_rectified']:
+        reasons.append('ALIGNMENT_UNVERIFIED')
+    return tuple(reasons)
+
+
+def target_diagnostic(candidate):
+    """Keep detection confidence separate from coordinate validity in diagnostics."""
+    reasons = ','.join(candidate.reasons) or 'LOCATED'
+    return (f'detected confidence={candidate.observation.detection.confidence:.3f} '
+            f'localization={reasons} status={candidate.status}')
+
+
 def target_config(v, boot_id):
     validate_config(v)
     for key, default in SETTINGS.items():
