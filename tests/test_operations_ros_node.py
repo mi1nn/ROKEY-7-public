@@ -20,6 +20,13 @@ def params(**changes):
 
 
 class NodeConfig(unittest.TestCase):
+    def test_import_probe_preserves_loaded_node_references(self):
+        import rescue_operations
+        original = importlib.import_module('rescue_operations.ros_node')
+        self.test_module_imports_without_rclpy()
+        self.assertIs(original, sys.modules['rescue_operations.ros_node'])
+        self.assertIs(original, rescue_operations.ros_node)
+
     def test_module_imports_without_rclpy(self):
         blocked = {name: None for name in ('rclpy', 'rescue_interfaces', 'rescue_interfaces.msg')}
         saved = {name: sys.modules.get(name) for name in blocked}
