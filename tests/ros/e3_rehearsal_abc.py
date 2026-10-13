@@ -36,8 +36,8 @@ C5 TB-6 RETURN_HOME home/robot_a (docking approach) -> both home -> DB mission F
 Then the same nodes again with fresh DBs and ``map_mode=SLAM_FREEZE`` (owner decision 2026-10-13, scope Q-29:
 no reference map, TB-6 maps while it searches, the map is frozen before TB-5 goes). Played here: the freeze
 service (/rescue/map/freeze), the frozen grid (/rescue/map/frozen) and both robots' MapState.
-F1 target on the search revision R0 -> PERSISTED -> no freeze yet (MAP_FREEZE_WAITING_EXIT) -> the QR exit
-   (/rescue/exit_location, exit_qr) -> one freeze call (TB-6 stopped, no task)
+F1 the QR exit (/rescue/exit_location, exit_qr, EXIT-1) and the target on the search revision R0 -> PERSISTED ->
+   one freeze call (TB-6 stopped, no task; the freeze does not wait for an exit, OPS-156)
 F2 frozen grid + TB-6 MapState R0+1 with the grid's snapshot id -> frozen; the R0 target and exit are re-based
    (TARGET_REBASED_ON_FREEZE until the re-based revision is saved, OPS-138)
 F3 the target seen again on R0+1 -> PERSISTED -> TB-5 localized on R0+1 -> APPROACH_TARGET on R0+1
@@ -247,6 +247,7 @@ class FrozenMap:
         f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
         msg.mission_position.x, msg.mission_position.y = xy
         msg.observation.class_label = 'exit_qr'
+        msg.observation.tracking_mode, msg.observation.has_track_id, msg.observation.track_id = 'TRACKING', True, 'EXIT-1'
         declared_time(msg.observation.time, self.node.get_clock().now().nanoseconds)
         self.exit_pub.publish(msg)
 
@@ -424,17 +425,15 @@ def run(repo, scratch, map_mode):
         def f1():
             robots.publish_disaster()
             spin(lambda: mission().get('mode') == 'DISASTER', 10)
+            frozen_map.publish_exit()
             observe(0)
             if spin(lambda: tb6_camera.snapshots and tb6_camera.snapshots[-1].targets, 10):
                 found['target'] = tb6_camera.snapshots[-1].targets[0].target_id
             saved = spin(lambda: (target_row() or {}).get('persisted_report_id'), 15)
-            waiting = reason_seen('MAP_FREEZE_WAITING_EXIT', 5) and not frozen_map.calls
-            frozen_map.publish_exit()
             called = spin(lambda: frozen_map.calls, 10)
             spin(lambda: False, 1.)
-            return bool(saved) and waiting and called and len(frozen_map.calls) == 1, (
-                f'target={found.get("target")} saved={bool(saved)} MAP_FREEZE_WAITING_EXIT seen={waiting} '
-                f'freeze calls={len(frozen_map.calls)}')
+            return bool(saved) and called and len(frozen_map.calls) == 1, (
+                f'target={found.get("target")} saved={bool(saved)} freeze calls={len(frozen_map.calls)}')
 
         def f2():
             frozen_map.publish_grid()
@@ -467,7 +466,7 @@ def run(repo, scratch, map_mode):
                     ('C4 recheck ABSENT/CLEAR/VALID -> DB RESCUE_CONFIRMED', c4),
                     ('C5 TB-6 RETURN_HOME dock approach -> DB FINISHED', c5))
         else:
-            plan = (('F1 SLAM_FREEZE: target on R0 PERSISTED -> wait for exit -> QR exit -> one freeze call', f1),
+            plan = (('F1 SLAM_FREEZE: QR exit + target on R0 PERSISTED -> one freeze call', f1),
                     ('F2 frozen grid + TB-6 MapState R0+1 -> frozen; R0 target and exit re-based', f2),
                     ('F3 target seen on R0+1 PERSISTED, TB-5 localized -> APPROACH_TARGET on R0+1', f3))
         for name, check in plan:
