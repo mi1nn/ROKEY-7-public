@@ -42,7 +42,7 @@ class FieldValues(FieldCase):
         self.assertEqual('/robot6/oakd/stereo/image_raw', raw['robots']['robot_a']['passage.depth_topic'])
         # TB-5 measured 2026-10-13 20:19-20:20 (OPS-165/166): depth image is published; compressedDepth
         # 6.9-9.2 Hz (max gap 0.30 s) beats raw 5.1-5.5 Hz (max gap 0.45 s) over Wi-Fi
-        self.assertEqual(TB5_DEPTH, {k: v for k, v in raw['robots']['robot_b'].items() if k.startswith('passage.')})
+        self.assertEqual(TB5_DEPTH, {k: v for k, v in raw['robots']['robot_b'].items() if k in TB5_DEPTH})
 
     def test_both_robots_start_from_the_repository_field_file(self):
         for robot_id in ('robot_a', 'robot_b'):

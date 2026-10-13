@@ -19,7 +19,8 @@ reports each overhead structure on the map:
 * Camera view (owner decision OPS-189): the RGB frame nearest the cloud (``view_slop_ns``; the depth
   is aligned to it, same optical frame and K) with the free space under the structure (its x span,
   the box width, floor to its lowest point) painted: green 「통과 가능 ↑h」 / red 「통과 불가 ↑h」 once
-  that place is confirmed, grey 「판정 중」 before and while the floor is not seen; nothing painted
+  that place is confirmed, grey 「판정 불가」 when the floor is not seen (one wording with the map, OPS-196),
+  grey 「판정 중」 while the place still counts its agreeing frames; nothing painted
   without a structure. A small JPEG on <ns>/rescue/passage_view/compressed for the web camera panel.
   ``view_image_topic`` '' = no view (that robot's RGB not measured).
 
@@ -262,7 +263,9 @@ def view_label(state, lowest_m, *, confirmed):
         return f'통과 가능 ↑{lowest_m:.2f} m', GREEN
     if confirmed and state == 'BLOCKED':
         return f'통과 불가 ↑{lowest_m:.2f} m', RED
-    return '판정 중', GREY
+    if confirmed:
+        return '판정 불가', GREY   # UNKNOWN: the floor under it was not seen
+    return '판정 중', GREY         # camera only: the place is still counting its agreeing frames
 
 
 _FONTS = {}
@@ -414,7 +417,7 @@ def main(args=None):
                             'text': text, 'colour': colour}
             except Exception as exc:   # stale, no map revision (LocationRefused), no TF, bad cloud: says nothing
                 confirmer.add(None)
-                view = {'reading': None, 'height': None, 'text': '판정 안 됨', 'colour': GREY}
+                view = {'reading': None, 'height': None, 'text': '판정 불가', 'colour': GREY}
                 log.warning(f'cloud {stamp} not judged: {type(exc).__name__}: {exc}', throttle_duration_sec=5.0)
             if view_pub is not None:
                 try:

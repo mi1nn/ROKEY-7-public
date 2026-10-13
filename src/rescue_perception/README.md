@@ -277,10 +277,11 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 - **판정 영상(OPS-189):** 웹 카메라 칸용으로 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT)를 낸다.
   - 처리한 점구름마다 시각이 가장 가까운 RGB 프레임(`view_slop_ns` 안)을 쓴다. 깊이가 이 RGB 에 정렬돼 있어 같은 광학 frame 과 K 를 쓴다(TB-6 실측).
   - 구조물 아래 빈 공간(구조물의 x 구간, 통로 폭, 바닥 ~ 가장 낮은 점)을 투영해 반투명으로 칠한다.
-  - 색과 문구: 그 자리가 확정되면 초록 「통과 가능 ↑h」 / 빨강 「통과 불가 ↑h」, 확정 전이나 바닥을 못 봤으면 회색 「판정 중」, 판정하지 못한 프레임은 「판정 안 됨」이다. 구조물이 없으면 칠하지 않는다.
+  - 색과 문구는 지도와 같다(OPS-196): 초록 「통과 가능 ↑h」 / 빨강 「통과 불가 ↑h」 / 회색 「판정 불가」(바닥을 못 봄, 판정하지 못한 프레임). 카메라에만 있는 회색 「판정 중」은 그 자리가 아직 연속 횟수를 채우는 중이라는 뜻이다. 구조물이 없으면 칠하지 않는다.
+  - RGB 구독: 이 노드가 그 로봇의 압축 RGB 를 **새로 하나 구독한다**(다른 노드의 구독을 재사용하지 않는다). TB-6 은 amr_target 에 이어 두 번째, TB-5 는 첫 구독이다. 로봇에서 PC 로 오는 RGB 가 받는 쪽 수만큼 늘 수 있다. TB-5 RGB 는 받는 쪽이 늘었을 때 30 Hz 에서 19.5–24 Hz 로 떨어진 기록이 있다(2026-10-13 20:15). 영상을 끄려면 현장 파일에서 그 로봇의 `passage.view_image_topic` 을 지운다.
   - 맞는 RGB 프레임이 없으면 영상을 내지 않는다(다른 프레임으로 대신하지 않음). 영상 실패는 판정에 영향을 주지 않는다.
-  - 한글 문구는 PIL 과 `view_font_path`(Noto Sans CJK)로 쓴다. `view_image_topic` 이 빈 값이면 영상을 끄고 기동 로그에 남긴다. TB-5 RGB 는 아직 재지 않아 현장 파일에 없다.
-  - 합성 시험에서 판 등장 → 확정 목록·초록 영상까지 0.68 s 였다(`process_period_s` 0.2 × `confirm_frames` 3). 704→352 디코드와 그리기는 약 7 ms 다.
+  - 한글 문구는 PIL 과 `view_font_path`(Noto Sans CJK, 각 PC 에서 `fc-list :lang=ko` 로 확인)로 쓴다. `view_image_topic` 이 빈 값이면 영상을 끄고 기동 로그에 남긴다.
+  - 합성 시험에서 판 등장 → 확정 목록·초록 영상까지 0.68 s 였다(`process_period_s` 0.2 × `confirm_frames` 3). 감속 0.3 배(0.078 m/s)면 그동안 약 5 cm 움직이므로 [계산] 초록 표시가 터널 앞에서 먼저 나온다. 704→352 디코드와 그리기는 약 7 ms 다.
 - **처리량:** `process_period_s` 마다 가장 최근 점구름 한 장만 보고, `stride` 행·열마다 한 점을 쓴다. 합성 704×704 점구름에서 판정 시간은 stride 1 이 41 ms, stride 2 가 9 ms, stride 4 가 2 ms 였다(개발 PC, numpy). 노드 로그는 20장마다 평균 처리 시간을 남긴다.
 
 필수 파라미터(기본값 없음)는 `rescue_perception.overhead.OVERHEAD_PARAMS` 이고, launch 가 현장 실행 파일 `passage.*` 와 `passage.overhead.*` 에서 채운다. 시험: `tests/test_perception_overhead.py`, `tests/test_contracts_overhead.py`, `tests/test_bringup_passage.py`, `tests/ros/e3_overhead_probe.py`(격리 도메인, 실제 노드). 실제 OAK-D 점구름, 현장 PC 의 수신·처리 시간, TB-6 라이다 높이는 NOT_RUN 이다.
