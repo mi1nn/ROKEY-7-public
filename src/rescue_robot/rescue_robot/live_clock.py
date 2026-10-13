@@ -4,6 +4,7 @@ No observed timestamps/expiry are changed by receiving or polling a record.
 The designated service is a deployment trust boundary, like the existing
 configured SystemState publisher; DDS cryptographic authentication is not added.
 """
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -78,9 +79,18 @@ class LiveClock:
             self.validate_measurement(record['clock'])
             if not isinstance(record['destinations'], dict):
                 raise ContractError('central destination object required')
-            destinations = {}
+            # The launch home (profile home_positions) stays until the coordinator sends one for this robot,
+            # which then wins (TB-5 QR exit, OPS-139/144). Replacing everything lost it (#192 on #132).
+            destinations = deepcopy(r.config.get('configured_destinations', {}))
             for ref, point in record['destinations'].items():
-                identifier(ref)
+                if isinstance(ref, str) and ref.startswith('home/'):
+                    # RETURN_HOME home_ref 'home/<robot_id>': the only non-UUID key (OPS-144 a)
+                    if ref == 'home/':
+                        raise ContractError('home destination key needs a robot id')
+                    if point['robot_id'] != ref[len('home/'):]:
+                        raise ContractError('home destination point is for another robot than its key')
+                else:
+                    identifier(ref)
                 if point['robot_id'] != r.adapter.robot_id:
                     continue
                 # resolve_goal will compare frame/session/revisions to the
