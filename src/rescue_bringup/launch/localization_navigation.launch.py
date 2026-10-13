@@ -1,11 +1,31 @@
-"""Start standalone TurtleBot4 saved-map localization, Nav2 and optional RViz."""
+"""Start standalone TurtleBot4 saved-map localization, Nav2 and optional RViz.
+
+Nav2 runs without the backup recovery (OPS-207, rescue_bringup.nav2_recovery).
+"""
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
+
+from rescue_bringup.nav2_recovery import write_nav2_without_backup
+
+
+def _nav2(context, shared_arguments):
+    """TurtleBot4 Nav2 with nav2_params_file minus the backup recovery (OPS-207)."""
+    base = LaunchConfiguration('nav2_params_file').perform(context)
+    params = write_nav2_without_backup(base, prefix='nav2_no_backup_')
+    return [
+        LogInfo(msg=f'nav2_params={base} + no BackUp recovery -> {params}'),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution([FindPackageShare('turtlebot4_navigation'), 'launch', 'nav2.launch.py'])
+            ),
+            launch_arguments={**shared_arguments, 'params_file': params}.items(),
+        ),
+    ]
 
 
 def generate_launch_description():
@@ -37,14 +57,7 @@ def generate_launch_description():
                 'params': LaunchConfiguration('localization_params_file'),
             }.items(),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([navigation, 'launch', 'nav2.launch.py'])
-            ),
-            launch_arguments={
-                **shared_arguments, 'params_file': LaunchConfiguration('nav2_params_file'),
-            }.items(),
-        ),
+        OpaqueFunction(function=_nav2, args=[shared_arguments]),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([
                 FindPackageShare('turtlebot4_viz'), 'launch', 'view_navigation.launch.py',
