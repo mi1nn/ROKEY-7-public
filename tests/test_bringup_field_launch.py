@@ -166,6 +166,8 @@ class CoordinatorParameters(FieldCase):
         expected['recheck_max_clock_error_s'] = 2.0
         # Added after #132: SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; 작전 OPS-119)
         expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
+        # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
+        expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
@@ -432,6 +434,7 @@ class FieldFile(FieldCase):
             'exit wait negative': lambda r: r['coordinator'].update({'support_exit_wait_s': -1.0}),
             'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'map mode unknown': lambda r: r['coordinator'].update({'map_mode': 'SLAM'}),
+            'search start unknown': lambda r: r['coordinator'].update({'search_start': 'auto'}),
             'freeze timeout not positive': lambda r: r['coordinator'].update({'map_freeze_timeout_s': 0.0}),
             # The coordinator checks the approach point and homes with the radius the robot checks its goal with.
             'freeze clearance differs from a robot goal radius': lambda r: r['robots']['robot_b'].update(
