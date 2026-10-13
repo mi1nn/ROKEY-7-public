@@ -534,6 +534,8 @@ class CommandRouteTests(AccountsFixture):
         rules = {rule.rule: rule.methods - {'HEAD', 'OPTIONS'} for rule in app.url_map.iter_rules()
                  if not rule.rule.startswith(('/login', '/logout', '/admin', '/static'))}
         self.assertEqual(rules.pop('/commands'), {'POST'})
+        self.assertEqual(rules.pop('/webcam'), {'POST'})   # 관리자 카메라 고르기(OPS-183)
+        self.assertEqual(rules.pop('/robot-camera'), {'POST'})   # 로봇 카메라 보기 설정(OPS-191)
         self.assertEqual({frozenset(methods) for methods in rules.values()}, {frozenset({'GET'})})
 
 

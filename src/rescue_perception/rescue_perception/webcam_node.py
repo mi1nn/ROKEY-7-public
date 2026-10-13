@@ -140,6 +140,18 @@ def frame_image(frame, stamp_ns, frame_id):
               width=width, height=height, encoding=ENCODING, is_bigendian=0, step=width * 3, data=frame.tobytes())
 
 
+def device_change_refusal(name, value):
+    """실행 중 파라미터 바꾸기의 거절 이유(받으면 None). 관제 웹 카메라 고르기(OPS-183)용으로 device_path 만 바꾼다.
+    없는 장치는 거절한다: 조용히 이전 장치로 두지 않고 거절 이유가 관제 웹까지 간다."""
+    if name != 'device_path':
+        return f'{name} is fixed at start; only device_path can change'
+    if not isinstance(value, str) or not value:
+        return 'device_path must be a device path'
+    if not Path(value).exists():
+        return f'no such camera device: {value}'
+    return None
+
+
 def main(args=None):
     import cv2
     import rclpy
@@ -433,6 +445,22 @@ def main(args=None):
 
     node.create_service(SetCameraWatch, v['set_watch_service'], on_set_watch)
 
+    # 관제 웹 카메라 고르기(OPS-183): device_path 를 실행 중에 바꾼다. 다음 틱에 카메라를 닫고 새 장치로 열며,
+    # 지진 판정을 처음부터 다시 하고(화면이 바뀜) 출구 감시를 푼다(ROI 가 다른 화면을 가리킴).
+    switch = {'to': None}
+
+    def on_set_parameters(params):
+        from rcl_interfaces.msg import SetParametersResult
+        for param in params:
+            refusal = device_change_refusal(param.name, param.value)
+            if refusal is not None:
+                log.warning(f'parameter change refused: {refusal}')
+                return SetParametersResult(successful=False, reason=refusal)
+        switch['to'] = params[-1].value if params else None
+        return SetParametersResult(successful=True)
+
+    node.add_on_set_parameters_callback(on_set_parameters)
+
     camera = {'cap': None, 'next_open_ns': 0}  # cap = 열린 카메라(없으면 None), next_open_ns = 다음에 다시 열어 볼 시각
 
     def open_camera():
@@ -456,7 +484,19 @@ def main(args=None):
         (1) 카메라 열기 → (2) 프레임 읽기 → (3) 크기 확인 → (4) 지진 판정 → (5) 카메라 상태·지진 사건 발행
         → (6) 감시가 없으면 여기서 끝 → (7) YOLO 로 인형 찾기 → (8) 시야 정하기 → (9) 출구 판정 → (10) 결과 발행
         """
+        nonlocal quake
         now = time.time_ns()
+        if switch['to'] is not None:
+            old, v['device_path'], switch['to'] = v['device_path'], switch['to'], None
+            if camera['cap'] is not None:
+                camera['cap'].release()
+            camera['cap'], camera['next_open_ns'] = None, 0
+            quake = DisasterSignDetector(binding, quake_policy)
+            slot.camera_changed()
+            publish_status('OFFLINE', now, reason='CAMERA_SWITCHED')
+            log.warning(f'CAMERA_SWITCHED {old} -> {v["device_path"]}: quake judge restarted, watch cleared '
+                        f'(revision {slot.revision})')
+            return
         # (1) 카메라가 닫혀 있으면 다시 연다. 실패하면 OFFLINE 을 보내고 2초 뒤에 다시 시도한다.
         if camera['cap'] is None:
             if now < camera['next_open_ns']:
