@@ -51,3 +51,15 @@ class CenterDepthTests(unittest.TestCase):
     def test_roi_is_clipped_to_object_and_image(self):
         self.det=replace(self.det,bbox=(1.,1.,5.,5.));self.depth.data=array('H',[1500])*900
         result=self.locate();self.assertEqual(result.reason,'LOCATED');self.assertEqual(result.valid_pixels,16)
+
+    def test_float_depth_uses_metres_and_corrects_once(self):
+        import struct
+        self.depth.encoding='32FC1';self.depth.step=120
+        self.depth.data=b''.join(struct.pack('<30f',*([1.5]*30)) for _ in range(30))
+        self.policy=replace(self.policy,scale=.9,offset_m=.1)
+        self.assertAlmostEqual(self.locate().point_optical[2],1.45)
+    def test_background_quality_and_frame_calibration_gates_remain(self):
+        self.fill(14,14,5,1500);self.depth.data[14*30+14]=2300
+        self.assertEqual(self.locate().reason,'DEPTH_DISCONTINUITY')
+        self.align=replace(self.align,depth_frame_id='wrong')
+        self.assertEqual(self.locate().reason,'CALIBRATION_MISMATCH')

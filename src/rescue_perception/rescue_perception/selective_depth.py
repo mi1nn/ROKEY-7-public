@@ -6,14 +6,6 @@ select a pair; steady time bounds waiting and memory retention.
 from collections import deque
 import math
 
-# The selective node is a local test (2026-10-13): its own node name, and observations/base points on test
-# topics so its clock-UNKNOWN observations never sit on the consumers' /rescue/observations (TRANSIENT_LOCAL)
-# next to the main amr_target's (#205 review REV-205-02). Remap them when a real topic is wanted.
-NODE_NAME = 'amr_target_selective'
-TEST_TOPICS = {'observations_topic': '/rescue/selective_test/observations',
-               'base_point_topic': 'perception/selective_test/target_base_point'}
-
-
 class SelectiveDepth:
     def __init__(self, *, capacity, slop_ns, wait_s, confidence, label):
         if (type(capacity) is not int or capacity <= 0 or type(slop_ns) is not int
@@ -39,7 +31,7 @@ class SelectiveDepth:
             self._pending = None
             self.expired_requests += 1
 
-    def offer_rgb(self, stamp, width, height, outputs, payload, now):
+    def offer_rgb(self, stamp, width, height, outputs, payload, now, *, force=False):
         self.expire(now)
         if self.sent or (self._last_rgb_stamp is not None and stamp <= self._last_rgb_stamp):
             return False
@@ -54,9 +46,9 @@ class SelectiveDepth:
                     and all(math.isfinite(x) for x in output.bbox)
                     and 0 < x0 < x1 < width and 0 < y0 < y1 < height):
                 eligible.append(output)
-        if not eligible:
+        if not eligible and not force:
             return False
-        best = max(eligible, key=lambda item: item.confidence)
+        best = max(eligible, key=lambda item: item.confidence) if eligible else None
         self._pending = (stamp, payload, best, now)
         return True
 

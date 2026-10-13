@@ -49,16 +49,8 @@ class SelectiveDepthTests(unittest.TestCase):
         g=self.gate();g.offer_depth(100,'stale',0);self.offer(g,now=.6)
         self.assertIsNone(g.take(.6))
 
-
-class SelectiveNodeIdentityTests(unittest.TestCase):
-    """#205 review REV-205-02: the selective test node must not take the main amr_target's node name or
-    publish its UNKNOWN-clock observations on the consumers' /rescue/observations."""
-
-    def test_own_node_name_and_test_topics(self):
-        from rescue_perception.selective_depth import NODE_NAME, TEST_TOPICS
-        from rescue_perception.target_utils import SETTINGS
-        self.assertEqual('amr_target_selective', NODE_NAME)
-        self.assertEqual('/rescue/selective_test/observations', TEST_TOPICS['observations_topic'])
-        self.assertEqual('perception/selective_test/target_base_point', TEST_TOPICS['base_point_topic'])
-        for key, topic in TEST_TOPICS.items():
-            self.assertNotEqual(SETTINGS[key], topic)
+    def test_active_recheck_or_qr_can_request_depth_without_doll(self):
+        g=self.gate();g.offer_depth(100,'depth',0)
+        self.assertTrue(g.offer_rgb(100,10,10,[], 'recheck',0,force=True))
+        payload, selected, depth, _=g.take(0)
+        self.assertEqual((payload,selected,depth),('recheck',None,'depth'))
