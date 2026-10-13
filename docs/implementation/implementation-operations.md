@@ -277,5 +277,5 @@ E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 �
   - `record_ids` 빔·`report_id` 형식 오류 → REJECTED INVALID_INPUT, 같은 report_id 다른 내용 → REJECTED ID_CONTENT_CONFLICT, 모두 ERROR 로그·`included_record_ids` 빔·`has_persisted_at=false`.
   - `message_to_ordereddict` 는 고정 길이 배열(`float64[4]`·`float64[9]`)을 리스트로 바꿔 canonical JSON 이 된다.
   - 실제 조정기(`e3_coordinator_probe.py` 파라미터, `deployment.v2.example.json`)와 함께: VALID TargetLocation 1개 → 조정기 REPORT → 영수증 PERSISTED(24 ms) → 조정기 로그 `RECEIPT ... PERSISTED -> saved=True`, `TargetSnapshot.persisted_report_id` 채워짐, 재전송 없음.
-- 한계: 보고 하나는 canonical JSON 64 KiB(`schema.MAX_JSON_BYTES`) 안이어야 한다. 조정기는 같은 대상의 위치를 모두 담아 새 보고를 만들므로, 위치 1개 약 1.8 KB 기준 **34개째부터 REJECTED INVALID_INPUT** 이다 [측정, 2026-10-13].
+- 보고 크기: 조정기는 같은 대상의 위치를 모두 담아 새 보고를 만든다. 공용 한도 64 KiB(`schema.MAX_JSON_BYTES`)로는 위치 1개 약 1.8 KB 기준 34개째부터 REJECTED INVALID_INPUT 이 돼 출동 승인이 열리지 않았다 → 보고 장부만 `REPORT_MAX_BYTES` = 1 MiB 로 둔다(사용자 결정 2026-10-13). 실제 값을 채운 위치 500개 보고까지 PERSISTED [측정, 2026-10-13].
 - NOT_RUN: `operations.launch.py` 에 넣기(실기·배포 담당 요청), 관제 웹에서 "보고 저장 대기" 해제와 출동 승인 버튼 활성(완료 기준 — 그 입력인 `TargetSnapshot.persisted_report_id` 까지만 확인), 실기.
