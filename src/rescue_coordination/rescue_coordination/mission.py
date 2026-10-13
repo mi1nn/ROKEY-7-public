@@ -46,6 +46,12 @@ COMMAND_REJECT_REASONS = frozenset({
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
 SEGMENT_PHASES = frozenset({'APPROVED', 'MOVING', 'AWAITING_APPROVAL', 'ARRIVED'})
+# TB-5 (SUPPORT) automatic dispatch (owner decision 2026-10-13, 1B): ISSUED = the coordinator dispatched the
+# saved target; MOVING = the executor admitted the APPROACH_TARGET; ARRIVED = completed with a confirmed
+# stop; FAILED = ended otherwise with a confirmed stop (not retried).
+APPROACH_PHASES = frozenset({'ISSUED', 'MOVING', 'ARRIVED', 'FAILED'})
+APPROACH_REJECT_REASONS = frozenset({'MODE_NOT_DISASTER', 'ALREADY_DISPATCHED', 'UNKNOWN_TARGET',
+                                     'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'TARGET_ALREADY_JUDGED'})
 # console-and-db-plan 1. CANDIDATE needs TARGET_DISAPPEARED_CANDIDATE (#48) and is not reached yet.
 MISSION_PHASES = frozenset({
     'IDLE', 'DISASTER', 'SEARCHING', 'TARGET_FOUND', 'DISPATCH_APPROVED', 'SEGMENT_MOVING',
@@ -211,6 +217,8 @@ class MissionCoordinator:
         self.search_authorized = False  # operator START_SEARCH accepted (#85)
         self.dispatch_target = None
         self.dispatch_target_revision = None
+        self.dispatch_kind = None    # 'SEGMENTS' (operator DISPATCH_SUPPORT) or 'APPROACH' (automatic)
+        self.approach_phase = None   # APPROACH_PHASES while dispatch_kind == 'APPROACH'
         self.approval = None  # SegmentApproval while APPROVED/MOVING
         self.segment_index = None
         self.segment_phase = None
@@ -222,10 +230,14 @@ class MissionCoordinator:
 
     @property
     def route_revision(self):
+        if self.dispatch_kind == 'APPROACH':
+            return 0  # one computed goal, no configured route
         return self.routes[self.dispatch_target][0] if self.dispatch_target else None
 
     @property
     def segment_count(self):
+        if self.dispatch_kind == 'APPROACH':
+            return 1
         return self.routes[self.dispatch_target][1] if self.dispatch_target else None
 
     # -- mode gate ---------------------------------------------------------
@@ -348,6 +360,48 @@ class MissionCoordinator:
         self.segment_phase = 'ARRIVED' if self.segment_index == self.segment_count else 'AWAITING_APPROVAL'
         return True
 
+    # -- automatic dispatch (owner decision 2026-10-13, 1B) ---------------------
+    def start_approach(self, target_id, target_revision):
+        """Dispatch the SUPPORT to a saved target without an operator: the same gate as DISPATCH_SUPPORT.
+
+        Once per mission: CONFIRMED, its current revision PERSISTED, not judged. Returns 'ACCEPTED' or a
+        reason from ``APPROACH_REJECT_REASONS``.
+        """
+        uid(target_id)
+        revision(target_revision)
+        if self.mode != 'DISASTER':
+            return 'MODE_NOT_DISASTER'
+        if self.dispatch_target is not None:
+            return 'ALREADY_DISPATCHED'
+        target = self.targets.get(target_id)
+        if target is None:
+            return 'UNKNOWN_TARGET'
+        if not (target[1] and target[2]):
+            return 'TARGET_NOT_CONFIRMED'
+        if target_revision != target[0]:
+            return 'TARGET_REVISION_STALE'
+        if self.verdicts.get(target_id) == 'RESCUE_CONFIRMED':
+            return 'TARGET_ALREADY_JUDGED'
+        self.dispatch_target, self.dispatch_target_revision = target_id, target_revision
+        self.dispatch_kind, self.approach_phase, self.segment_index = 'APPROACH', 'ISSUED', 0
+        return 'ACCEPTED'
+
+    def approach_started(self):
+        """The executor admitted the APPROACH_TARGET: ISSUED -> MOVING. False otherwise."""
+        if self.dispatch_kind != 'APPROACH' or self.approach_phase != 'ISSUED':
+            return False
+        self.approach_phase = 'MOVING'
+        return True
+
+    def approach_finished(self, *, completed, stop_confirmed):
+        """The approach ended. Needs a confirmed stop; COMPLETED -> ARRIVED, anything else -> FAILED."""
+        if type(completed) is not bool or type(stop_confirmed) is not bool:
+            raise CoordinationError('INVALID_INPUT', 'completed/stop_confirmed must be boolean')
+        if not stop_confirmed or self.dispatch_kind != 'APPROACH' or self.approach_phase not in ('ISSUED', 'MOVING'):
+            return False
+        self.approach_phase = 'ARRIVED' if completed else 'FAILED'
+        return True
+
     def record_rescue_verdict(self, target_id, state):
         """The rescue judgement that closes the target's open recheck (RESCUE_CONFIRMED or RECHECK_NEEDED)."""
         if target_id not in self.open_rechecks:
@@ -413,7 +467,7 @@ class MissionCoordinator:
             return 'TARGET_REVISION_STALE'
         if command.target_id not in self.routes:
             return 'NO_ROUTE'
-        self.dispatch_target, self.segment_index = command.target_id, 0
+        self.dispatch_target, self.segment_index, self.dispatch_kind = command.target_id, 0, 'SEGMENTS'
         self._approve(command)
         return 'ACCEPTED'
 
@@ -485,6 +539,10 @@ class MissionCoordinator:
             return 'RECHECKING'
         if self.verdict is not None:
             return self.verdict
+        if self.dispatch_kind == 'APPROACH':
+            # A failed approach leaves the target found and undispatched on screen (SystemState.reason says why).
+            return {'ISSUED': 'DISPATCH_APPROVED', 'MOVING': 'SEGMENT_MOVING', 'ARRIVED': 'ARRIVED',
+                    'FAILED': 'TARGET_FOUND'}[self.approach_phase]
         if self.dispatch_target is not None:
             return {'ARRIVED': 'ARRIVED', 'AWAITING_APPROVAL': 'AWAITING_CONTINUE', 'MOVING': 'SEGMENT_MOVING',
                     'APPROVED': 'DISPATCH_APPROVED' if self.segment_index == 0 else 'SEGMENT_MOVING'
@@ -494,9 +552,13 @@ class MissionCoordinator:
         return 'SEARCHING' if self.search_started else 'DISASTER'
 
     def view(self):
+        segment_phase = self.segment_phase
+        if self.dispatch_kind == 'APPROACH':  # shown with the segment vocabulary: one segment, no approval
+            segment_phase = {'ISSUED': 'APPROVED', 'MOVING': 'MOVING', 'ARRIVED': 'ARRIVED', 'FAILED': None
+                             }[self.approach_phase]
         return MissionView(self.mode, self.phase(), self.trigger_event_id, self.trigger_observed_at_ns,
                            self.dispatch_target, self.dispatch_target_revision, self.route_revision,
-                           self.segment_index, self.segment_count, self.segment_phase)
+                           self.segment_index, self.segment_count, segment_phase)
 
     # -- helpers -----------------------------------------------------------
     def _is_segment(self, *key):

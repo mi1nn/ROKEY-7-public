@@ -175,7 +175,8 @@ class Reservation:
     robot_boot_id: str
     task_kind: str = 'APPROACH_TARGET'
     # Phase 1 rule (#88): without a candidate, MOVE_SEGMENT needs a ONE_SEGMENT approval and its
-    # segment-end goal; REOBSERVE_TARGET needs a fixed observation goal. Nowhere else.
+    # segment-end goal; REOBSERVE_TARGET needs a fixed observation goal; APPROACH_TARGET needs its
+    # standoff goal and no approval (TB-5 (SUPPORT) automatic dispatch, owner decision 2026-10-13). Nowhere else.
     goal: GoalPoint | None = None
     approval_id: str | None = None
 
@@ -194,14 +195,15 @@ class Reservation:
         if self.approval_id is not None:
             uid(self.approval_id)
         without_candidate = {'MOVE_SEGMENT': self.goal is not None and self.approval_id is not None,
-                             'REOBSERVE_TARGET': self.goal is not None and self.approval_id is None}
+                             'REOBSERVE_TARGET': self.goal is not None and self.approval_id is None,
+                             'APPROACH_TARGET': self.goal is not None and self.approval_id is None}
         if self.candidate is None and self.task_kind in TARGET_TASK_KINDS and not without_candidate.get(
                 self.task_kind):
             raise CoordinationError('INVALID_RESERVATION', 'target task needs a path candidate or the Phase 1 goal')
         if (self.goal is not None or self.approval_id is not None) and (
                 self.candidate is not None or self.task_kind not in without_candidate):
             raise CoordinationError('INVALID_RESERVATION', 'goal/approval only replace a candidate for '
-                                    'MOVE_SEGMENT/REOBSERVE_TARGET')
+                                    'MOVE_SEGMENT/REOBSERVE_TARGET/APPROACH_TARGET')
         if self.candidate is not None and (not isinstance(self.candidate, PathCandidate)
                                            or self.candidate.robot_id != self.robot_id):
             raise CoordinationError('INVALID_RESERVATION', 'candidate owner')

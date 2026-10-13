@@ -17,6 +17,12 @@
   - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 `tests/ros/e3_report_gate_probe.py`(#151, 머지됨).
 - 보고 크기(#139): 보고에는 아직 PERSISTED 영수증에 들어가지 않은 위치만 싣는다(SDD 391 기록 중복 제거). 같은 대상의 위치가 42개일 때 가장 큰 보고는 고치기 전 59,944 B, 고친 뒤 4,021 B [측정 2026-10-13].
 
+**TB-5 자동 출동·출구 (이 PR 뒤, 저장소 소유자 결정 2026-10-13 1B·2B·Q1-b·5A)**
+
+- `support_dispatch=AUTO` 면 대상이 CONFIRMED 이고 지금 revision 의 보고가 PERSISTED 일 때 TB-5 에 `APPROACH_TARGET` 하나(`has_approval=false`, route.approach_goal = standoff 접근 지점, frame_ref = 대상의 것). 한 임무에 한 번. 거절되면 `TASK_REFUSED` 대기 뒤 새 task(#167).
+- 접근이 COMPLETED·정지 확인으로 끝나면 `support_exit_wait_s` 뒤 `RETURN_HOME`(`home_ref=home/<robot_id>`, 좌표는 로봇이 프로파일에서 가짐) 하나. 재난 모드가 끝나면 취소(`SUPPORT_EXIT_CANCELED`), 구출 판정은 취소하지 않는다(5A). 접근 실패면 `APPROACH_FAILED` 로 보이고 출구로 보내지 않는다.
+- `SystemState.reason`: `SUPPORT_EXIT_IN_<n>S` → `SUPPORT_EXITING` → `SUPPORT_AT_EXIT`(실패 `SUPPORT_EXIT_FAILED`).
+
 **지금 안 되는 것**
 
 - 실제 로봇에서는 AMR2 가 움직이지 않는다. 로봇 실행기의 LIVE_ROS 입력은 지금 `SEARCH_AREA` 만 받는다(`src/rescue_robot/rescue_robot/task_site_runtime.py:256`). 조정기가 내는 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 은 실제 실행기가 거절한다. 위 리허설의 MOVE_SEGMENT 는 가짜 실행기가 받은 것이다(C1 보류, AMR2 시나리오 #131·#133 결정 대기).
@@ -194,6 +200,10 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `camera_watch_roi` | double[] | 감시 ROI `[x0, y0, x1, y1]`(정규화). 운영자 요청에 ROI 가 없을 때만 쓴다. 넘기지 않아도 된다(그때는 요청 ROI 만. ROS 파라미터로는 빈 배열을 넣을 수 없으므로 "비움"은 "넘기지 않음"이다). 전부 0 은 받지 않는다. ROI 출처는 #76·Q-13 미정 |
 | `camera_watch_timeout_s` | double | SetCameraWatch 요청의 `deadline_ns` = 발급 + 이 값. 그때까지 답이 없으면 그 요청을 버리고 재무장 필요로 둔다 |
 | `home_poses` | double[] | 복귀 위치 `[x, y, yaw]` 를 SCOUT(TB-6, 도킹 접근 지점), SUPPORT(TB-5, 출구) 순으로(임무 frame, `goal_map_*` 기준). launch 가 프로파일에서 넣는다. 넘기지 않으면 복귀 위치 없음 → `NO_HOME_POSITION`. 길이가 6 이 아니면 기동 거절(exit 2) |
+| `support_dispatch` | string | `AUTO`·`OPERATOR`. AUTO(저장소 소유자 결정 2026-10-13, 1B)면 확정·저장된 대상에 TB-5 를 승인 없이 `APPROACH_TARGET` 으로 한 번 보낸다. 운영자 `DISPATCH_SUPPORT` 는 `NOT_AUTHORIZED`(로그 `AUTO_DISPATCH_ENABLED`). OPERATOR 면 기존 DISPATCH_SUPPORT → MOVE_SEGMENT |
+| `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
+| `support_pose_max_age_s` | double | TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
+| `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
 | `merge_distance_m` | double | 대상 병합 거리(Q-21) |
