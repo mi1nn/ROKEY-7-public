@@ -155,7 +155,8 @@ class CoordinatorParameters(FieldCase):
         # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
         expected['recheck_max_clock_error_s'] = 2.0
         # Added after #132: SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; 작전 OPS-119)
-        expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
+        # SAVED_MAP until the robot launch takes SLAM_THEN_FROZEN/FROZEN_MAP_AMCL from this file (작전 OPS-126)
+        expected.update(map_mode='SAVED_MAP', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
