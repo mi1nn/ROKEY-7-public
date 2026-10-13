@@ -31,6 +31,10 @@ def _invalid(message):
 
 
 def _scalar(text):
+    """One YAML scalar: quoted -> the text inside, else int, else float, else the bare text.
+
+    Enough for map_server's flat keys; there are no YAML booleans, nulls or escape sequences here.
+    """
     text = text.strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in '\'"':
         return text[1:-1]
@@ -46,11 +50,13 @@ def parse_map_yaml(text):
     """Flat `key: value` lines, values scalar or `[a, b, c]`. Nested YAML is refused."""
     result = {}
     for number, line in enumerate(text.splitlines(), 1):
+        # Everything after '#' is a comment, even inside quotes: a simplification of this flat parser.
         line = line.split('#', 1)[0].rstrip()
         if not line:
             continue
         key, sep, value = line.partition(':')
         key = key.strip()
+        # An indented line would be nested YAML: refuse it rather than read it as a top-level key.
         if not sep or line[0].isspace() or not value.strip():
             raise _invalid(f'yaml line {number} is not a flat "key: value"')
         if key not in YAML_KEYS:
@@ -58,7 +64,7 @@ def parse_map_yaml(text):
         if key in result:
             raise _invalid(f'duplicate yaml key {key!r}')
         value = value.strip()
-        if value.startswith('['):
+        if value.startswith('['):   # flow list such as `origin: [x, y, yaw]`, split on commas into scalars
             if not value.endswith(']'):
                 raise _invalid(f'yaml line {number}: unclosed list')
             value = [_scalar(item) for item in value[1:-1].split(',')]
@@ -79,6 +85,7 @@ def _number(value, label):
 
 def read_pgm(data):
     """Binary PGM (P5, maxval <= 255) -> (width, height, pixels top row first, maxval)."""
+    # Header: 4 whitespace-separated tokens (magic, width, height, maxval); '#' comments may sit between them.
     tokens, pos = [], 0
     while len(tokens) < 4:
         while pos < len(data) and data[pos:pos + 1].isspace():
@@ -101,11 +108,14 @@ def read_pgm(data):
         width, height, maxval = (int(token) for token in tokens[1:])
     except ValueError as exc:
         raise _invalid('pgm size or maxval is not an integer') from exc
+    # maxval above 255 would mean 2 bytes per sample, which this reader does not handle.
     if width <= 0 or height <= 0 or not 0 < maxval <= 255:
         raise _invalid(f'pgm size {width}x{height} or maxval {maxval} out of range')
+    # Exactly one whitespace byte ends the header; skipping more could eat pixels whose value is a space code.
     if pos >= len(data) or not data[pos:pos + 1].isspace():
         raise _invalid('pgm header must end with one whitespace byte')
     pixels = data[pos + 1:]
+    # Exact size: a short or padded raster is refused, never cropped or filled in.
     if len(pixels) != width * height:
         raise _invalid(f'pgm raster has {len(pixels)} bytes, expected {width * height}')
     return width, height, pixels, maxval
@@ -118,14 +128,20 @@ def encode_png(width, height, pixels):
     raw = b''.join(b'\x00' + pixels[row * width:(row + 1) * width] for row in range(height))
 
     def chunk(kind, body):
+        # PNG chunk: big-endian body length, 4-byte type, body, CRC-32 over type + body.
         return struct.pack('>I', len(body)) + kind + body + struct.pack('>I', zlib.crc32(kind + body))
 
+    # IHDR: width, height, bit depth 8, colour type 0 (grayscale), compression 0, filter 0, no interlace.
     header = struct.pack('>IIBBBBB', width, height, 8, 0, 0, 0, 0)
     return PNG_SIGNATURE + chunk(b'IHDR', header) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b'')
 
 
 @dataclass(frozen=True)
 class MapImage:
+    """One loaded map (frozen): the PNG served at /map.png and the `meta` dict the screen model carries.
+
+    `meta` (keys: see load_map) holds no image bytes, so the polled view JSON stays small.
+    """
     meta: dict      # what the screen model carries (no bytes)
     png: bytes
 
@@ -161,9 +177,13 @@ def load_map(yaml_path):
     if not isinstance(spec['image'], str) or not spec['image']:
         raise _invalid('image must be a file name')
     image_path = Path(spec['image'])
+    # A relative image name is resolved against the YAML's folder, as map_server does.
     image_path = image_path if image_path.is_absolute() else yaml_path.parent / image_path
     pgm_bytes = _read(image_path)
     width, height, pixels, maxval = read_pgm(pgm_bytes)
+    # occupied_thresh / free_thresh / mode are accepted but not applied to pixels: they are shown as saved, only
+    # rescaled to 0..255 and flipped by negate. map_snapshot files are already trinary
+    # (0 occupied, 254 free, 205 unknown).
     if maxval != 255:
         pixels = bytes(value * 255 // maxval for value in pixels)
     if negate:
@@ -176,6 +196,7 @@ def load_map(yaml_path):
         'height_px': height,
         'resolution': resolution,
         'origin': origin,
+        # The YAML names no frame; this map is taken as MAP_FRAME and only poses in it are drawn (map_overlay).
         'frame_id': MAP_FRAME,
         'mode': spec.get('mode'),
         'yaml_sha256': hashlib.sha256(yaml_bytes).hexdigest(),
@@ -197,9 +218,15 @@ class LiveMap:
     """
 
     def __init__(self, yaml_path, *, stale_s, clock=time.time_ns):
+        """Remember the path and the stale limit; nothing is read until the first current() call.
+
+        stale_s has no default (a field value) and must be a positive finite number, else INVALID_INPUT.
+        `clock` gives wall-clock ns because it is compared with file mtimes (same PC assumed); tests pass a fake.
+        """
         if type(stale_s) not in (int, float) or not math.isfinite(stale_s) or stale_s <= 0:
             raise _invalid('live map stale seconds must be a positive number')
         self.path, self.stale_ns, self.clock = Path(yaml_path), int(stale_s * 1e9), clock
+        # Last good map, (mtime_ns, size) of the last file read, and that read's error text (None if it loaded).
         self.image, self._key, self._error = None, None, None
         self._lock = threading.Lock()
 
@@ -214,15 +241,18 @@ class LiveMap:
                                   'message': f'실시간 지도 없음 — {self.path.name} 를 아직 받지 못함'}
                 return self.image, {'state': 'ERROR', 'received_at_ns': None, 'age_s': None,
                                     'message': f'지도 읽기 실패: {exc.strerror} — 마지막으로 읽은 지도를 보임'}
+            # map_snapshot replaces the YAML by rename, so a new (mtime, size) means a complete new file to read.
             key = (stat.st_mtime_ns, stat.st_size)
             if key != self._key:
-                self._key = key
+                self._key = key     # stored even if the load fails, so a broken file is not re-parsed every poll
                 try:
                     self.image, self._error = load_map(self.path), None
                 except ConsoleError as exc:
+                    # self.image keeps the last good map; the error is reported alongside it.
                     self._error = exc.detail
             received = stat.st_mtime_ns
             age_s = round((self.clock() - received) / 1e9, 1)
+            # ERROR is checked before STALE: a failed read is reported even when the file itself is recent.
             if self._error is not None:
                 kept = ' — 마지막으로 읽은 지도를 보임' if self.image is not None else ''
                 return self.image, {'state': 'ERROR', 'received_at_ns': received, 'age_s': age_s,
@@ -230,7 +260,8 @@ class LiveMap:
             try:
                 alive = (self.path.parent / ALIVE_FILE).stat().st_mtime_ns
             except OSError:
-                alive = received
+                alive = received    # no readable alive file: judge by the map's own time alone
+            # Last sign of the map topic: a newly received map or the publisher-alive touch, whichever is later.
             heard = max(received, alive)
             if self.clock() - heard > self.stale_ns:
                 silent = round((self.clock() - heard) / 1e9, 1)

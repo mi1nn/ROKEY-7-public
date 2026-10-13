@@ -98,11 +98,14 @@ def _require(ok, message, code='INVALID_INPUT'):
 
 def compose_stage(detection_confirmed, rescue_state, support_state, approach_result):
     """Return (stage, rule id, warnings) for one target. None means "not reported"."""
+    # Strict bool: a missing value must fail here, not read as "not confirmed" and fall into R1.
     _require(type(detection_confirmed) is bool, 'detection_confirmed must be bool')
     _require(rescue_state is None or rescue_state in RESCUE_STATES, 'rescue_state outside RESCUE_STATES')
     _require(support_state is None or support_state in SUPPORT_STATES, 'support_state')
     warnings = []
+    # The branches below are STAGE_RULES R1..R5 in order; the first one that matches returns.
     if not detection_confirmed:
+        # Contradicting input stays R1 and is flagged; it is never promoted to RESCUED or SUPPORTING.
         if rescue_state == 'RESCUE_CONFIRMED' or support_state in ACTIVE_SUPPORT:
             warnings.append('미확정 대상에 구출/지원 상태가 있음 — 입력 불일치')
         return 'UNCONFIRMED', 'R1', warnings
@@ -110,12 +113,18 @@ def compose_stage(detection_confirmed, rescue_state, support_state, approach_res
         return 'RESCUED', 'R2', warnings
     if support_state in ACTIVE_SUPPORT:
         return 'SUPPORTING', 'R3', warnings
+    # R4 only while support is unknown (None): a reported NONE or FAILED wins over the report's APPROACH_COMPLETE.
     if support_state is None and approach_result == 'APPROACH_COMPLETE':
         return 'SUPPORTING', 'R4', warnings
     return 'NOT_RESCUED', 'R5', warnings
 
 
 def _section(status, key, items_key):
+    """Return the read API result ``status[key]``, or None when the key is absent (input not available yet).
+
+    A present section must be a dict with a string ``schema_version`` and a list under ``items_key``;
+    anything else raises ``ConsoleError INVALID_INPUT`` instead of being drawn half-read.
+    """
     section = status.get(key)
     if section is None:
         return None
@@ -125,6 +134,11 @@ def _section(status, key, items_key):
 
 
 def _latest_reports(reports):
+    """target_id -> (newest ledger item for that target, number of reports for it).
+
+    Newest is the largest (reported_at_ns, received_at_ns, report_id): the report time decides, and the
+    ledger receive time and the report ID only break ties, so equal stamps still give one fixed answer.
+    """
     latest, counts = {}, {}
     for item in reports:
         payload = item['payload']
@@ -137,6 +151,7 @@ def _latest_reports(reports):
 
 
 def _position(position, source):
+    """Copy of a position tagged with where it came from (``source``: 'target_state' or 'report'); None stays None."""
     if position is None:
         return None
     return {'x': position['x'], 'y': position['y'], 'frame_id': position['frame_id'],
@@ -157,7 +172,10 @@ def _latest_candidates(site_events):
 
 
 def _targets(ledger, target_states, candidates):
-    """``ledger`` None: no report ledger was given; report fields stay None (not 0, not 'no report')."""
+    """One row per target named by a ledger report or a target state, sorted by target_id.
+
+    ``ledger`` None: no report ledger was given; report fields stay None (not 0, not 'no report').
+    """
     reports = {} if ledger is None else _latest_reports(ledger['reports'])
     rows = []
     for target_id in sorted(set(reports) | set(target_states)):
@@ -166,6 +184,8 @@ def _targets(ledger, target_states, candidates):
         state = target_states.get(target_id)
         warnings = []
         report_confirmed = None if payload is None else payload['confirmation_result'] == 'CONFIRMED'
+        # The target state (operations) wins; the latest report stands in only when there is no state.
+        # Either way a disagreement or a missing input becomes a row warning, never a silent pick.
         if state is not None:
             confirmed = state['detection_confirmed']
             if report_confirmed is not None and report_confirmed != confirmed:
@@ -215,6 +235,12 @@ def _targets(ledger, target_states, candidates):
 
 
 def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
+    """One row per deployment robot, in ``allowed_robot_ids`` order, with ages measured from ``built_at_ns``.
+
+    A status from a robot outside the deployment is dropped with a message appended to ``warnings``; two
+    statuses for one robot raise ``ConsoleError INVALID_INPUT``. A deployment robot without a status still
+    gets a row (``has_status`` False, other fields None, ``stale`` True), so a silent robot is not hidden.
+    """
     by_id = {}
     for status in robot_status:
         rid = status.get('robot_id')
@@ -250,12 +276,18 @@ def _robots(allowed_robot_ids, robot_status, built_at_ns, warnings):
             'age_s': None if stamp is None else (built_at_ns - stamp) / 1e9,
             # Ledger-clock age: still meaningful when a rebooted robot's clock went backwards.
             'received_age_s': received_age,
+            # Stale is judged on the receive age, not the robot stamp; an age that cannot be measured is stale.
             'stale': received_age is None or received_age > STATUS_STALE_S,
         })
     return rows
 
 
 def _site_events(raw_events):
+    """Rebuild each raw site-event dict as the contract ``SiteEvent``, so the contract's checks run here.
+
+    A row the contract rejects (unknown or missing field: TypeError; bad value: RescueError) raises
+    ``ConsoleError INVALID_INPUT`` for the whole view; it is not skipped.
+    """
     events = []
     for raw in raw_events:
         try:
@@ -266,6 +298,12 @@ def _site_events(raw_events):
 
 
 def _events(ledger, site_events):
+    """Event table: ledger reports and site events in one row shape, newest first.
+
+    Returns (the first EVENT_ROWS rows, total row count). Fields a kind does not have stay None; a site
+    event has no ``received_at_ns`` because its read function does not return one. ``event_ns`` is the
+    observation time the KPI-04 display latency is measured from.
+    """
     rows = []
     for item in [] if ledger is None else ledger['reports']:
         payload = item['payload']
@@ -300,6 +338,7 @@ def _events(ledger, site_events):
             'clock_domain_id': event.clock_domain_id,
             'ref_id': event.event_id,
         })
+    # ref_id breaks ties, so rows with the same time keep one order from poll to poll.
     rows.sort(key=lambda row: (row['event_ns'], row['ref_id']), reverse=True)
     return rows[:EVENT_ROWS], len(rows)
 
@@ -483,6 +522,7 @@ def _history(status, words=None):
 
 
 def _choice(target):
+    """One picker entry: the target, the revision shown (sent with DISPATCH_SUPPORT) and its stage."""
     return {'target_id': target['target_id'], 'target_revision': target['target_revision'],
             'stage': target['stage'], 'stage_label': target['stage_label']}
 
@@ -491,18 +531,26 @@ def _gate(name, mission, targets):
     """(enabled, reason, args, choices) for one command, mirroring rescue_coordination.mission.handle_command."""
     def off(reason):
         return False, reason, {}, []
+    # Order matters: the first check that fails is the reason shown under the button.
+    # 1. Held commands are off whatever the state (commands.py does not send them).
     if name in HELD_COMMANDS:
         return off(HELD_COMMANDS[name])
+    # 2. No mission_state row: the coordinator's state is unknown. A mode inferred from DISASTER_SIGN
+    #    events (source 'site_events') is shown on the badge but never enables a button.
     if mission['source'] != 'mission_state':
         return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
+    # 3. Outside DISASTER handle_command answers MODE_NOT_DISASTER to every kind.
     if mission['mode'] != 'DISASTER':
         return off(f"재난 모드 아님 ({mission['label']})")
+    # 4. Per-command rules, each following the coordinator's handler for that kind.
     phase, dispatch = mission['phase'], mission['dispatch']
     if name == 'START_SEARCH':
+        # Phase DISASTER is the coordinator's "disaster seen, search not started yet" (mission.phase).
         return (True, '재난 감지 — 아직 수색 전', {}, []) if phase == 'DISASTER' else off('이미 수색을 시작함')
     if name == 'DISPATCH_SUPPORT':
         if dispatch is not None:
             return off('이미 출동함')
+        # Confirmed and not yet rescued: the targets a support robot can still be sent to.
         confirmed = [t for t in targets if t['detection_confirmed'] and t['stage'] != 'RESCUED']
         if not confirmed:
             return off('확정 대상 없음')
@@ -514,6 +562,7 @@ def _gate(name, mission, targets):
         choices = [_choice(t) for t in revised if t['persisted_report_id'] is not None]
         if not choices:
             return off('보고 저장 대기 — 조정기가 저장 영수증을 받으면 켜짐')
+        # Targets dropped for a missing receipt are counted in the reason, so a missing choice is explained.
         waiting = len(revised) - len(choices)
         return (True, f'확정 대상 {len(choices)}명 중 고름' + (f' (보고 저장 대기 {waiting}명 빠짐)' if waiting else ''),
                 {}, choices)
@@ -522,20 +571,27 @@ def _gate(name, mission, targets):
             return off('출동 전')
         if dispatch['segment_phase'] != 'AWAITING_APPROVAL':
             return off(f"승인 대기 아님 ({label('segment', dispatch['segment_phase'])})")
+        # The values on screen, sent back as they are: the coordinator rejects any that changed since
+        # (TARGET_REVISION_STALE, ROUTE_REVISION_STALE, SEGMENT_INDEX_MISMATCH).
         args = {key: dispatch[key] for key in ('target_id', 'target_revision', 'route_revision', 'segment_index')}
         return (True, f"구간 {dispatch['segment_index']}/{dispatch['segment_count']} 끝 — 다음 구간 승인 대기",
                 args, [])
     if name == 'REQUEST_RECHECK':
+        # Every target not judged RESCUE_CONFIRMED, those without a target state included (C-11 row 10:
+        # arrival and dispatch are not conditions). UNKNOWN_TARGET and RECHECK_ALREADY_REQUESTED stay the
+        # coordinator's answers.
         open_targets = [_choice(t) for t in targets if t['rescue_state'] != 'RESCUE_CONFIRMED']
         if not open_targets:
             return off('재확인할 대상 없음')
         return True, f'대상 {len(open_targets)}명 중 고름', {}, open_targets
     if name == 'RETURN_HOME':
+        # Same order as the coordinator: ALREADY_RETURNING, then NO_VERDICT (a verdict phase means "has a verdict").
         if phase == 'RETURNING':
             return off('이미 복귀 중')
         if phase not in VERDICT_PHASES:
             return off('구출 판정 전')
         return True, '판정 뒤 — 두 로봇 복귀', {}, []
+    # A COMMANDS entry without a rule here fails loudly instead of drawing a button with no reason.
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
@@ -549,7 +605,8 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
         enabled, reason, args, choices = _gate(name, mission, targets)
         if name == 'DISPATCH_SUPPORT' and support_dispatch == 'AUTO':
             # The coordinator sends the support robot itself and refuses this command (NOT_AUTHORIZED):
-            # a state, not a button (owner decision 2026-10-13).
+            # a state, not a button (owner decision 2026-10-13). The _gate result above is dropped for this
+            # row; `auto: True` makes render.py draw a state line with no data-command.
             auto = f'{support_name or "SUPPORT"} 자동 출동'
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
@@ -577,9 +634,17 @@ def _exit(section):
 
 
 def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
-    """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
-    2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
-    'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
+    """Build the whole screen model (the `/api/view` JSON) from one poll's inputs.
+
+    ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
+    2026-10-13): report rows and counts are then not shown, said so in the warnings.
+    status: {'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state',
+    'operator_commands', 'error_log', 'exit_locations'}, each the matching operations read API result (or None
+    when not available yet). support_dispatch / search_start: the coordinator's field modes as given on the
+    command line (AUTO shows a state instead of the button).
+    A malformed input raises ``ConsoleError INVALID_INPUT``; a missing section is reported (``warnings``, or
+    ``history['missing']``), never filled with a default.
+    """
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     names = dict(robot_names or {})   # robot_id -> display name (--robot-name); none: the ID itself
     _require(support_dispatch in (None,) + SUPPORT_DISPATCH_MODES,
@@ -597,10 +662,13 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         warnings.append('보고 장부 입력 없음 — 구조 보고 행·건수를 표시하지 않음, 로봇 목록은 상태가 들어온 로봇만')
         allowed = tuple(sorted({r.get('robot_id') for r in ([] if robot_section is None else robot_section['robots'])}))
     else:
+        # With a ledger, its own robot list is used; the site-state list is not consulted.
         allowed = tuple(ledger['allowed_robot_ids'])
     site_section = _section(status, 'site_events', 'site_events')
     target_section = _section(status, 'target_states', 'targets')
     has_mission, mission_row = _mission_row(status)
+    # A missing section is a visible warning, not an empty list ("no input" must not look like "nothing
+    # happened"). `has_mission or None`: a mission_state section whose row is None is present, so no warning.
     for key, section in (('robot_status', robot_section), ('site_events', site_section),
                          ('target_states', target_section), ('mission_state', has_mission or None)):
         if section is None:
@@ -627,6 +695,8 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
     for row in robots:
         row['name'] = names.get(row['robot_id'], row['robot_id'])
+    # A role's display name only when exactly one robot reports that role (roles come from statuses);
+    # none or several gives None, and the role code (SUPPORT/SCOUT) is shown instead of a guess.
     support = [row['name'] for row in robots if row['role'] == 'SUPPORT']
     words = _command_words(support[0] if len(support) == 1 else None)
     scout = [row['name'] for row in robots if row['role'] == 'SCOUT']

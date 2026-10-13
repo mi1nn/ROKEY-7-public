@@ -15,6 +15,11 @@ from .view import ConsoleError
 
 
 def main(argv=None):
+    """Parse the command line, build the app with `create_app` and run the Flask development server.
+
+    Every check runs before the server starts: on a ConsoleError it prints `CONSOLE FAILED: ...` to
+    stderr and returns 2 without serving. Returns 0 when the server stops.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('ledger', nargs='?', default=None,
                         help='operations ReportLedger SQLite file (opened read-only); optional with --site-state')
@@ -52,11 +57,15 @@ def main(argv=None):
     parser.add_argument('--port', type=int, default=8080)
     args = parser.parse_args(argv)
     try:
+        # The session secret comes from the environment, not an argument, so it is not on the command line;
+        # create_app checks its length.
         secret = os.environ.get(args.secret_env)
         if not secret:
             raise ConsoleError('CONFIG_MISSING', f'set {args.secret_env} to a random string of 16+ characters')
+        # create_app checks the same rule (app._check_sources); this message names the command-line argument.
         if args.ledger is None and args.site_state is None:
             raise ConsoleError('INVALID_INPUT', 'LEDGER is required unless --site-state is given')
+        # One without the other is refused: the stale limit has no default.
         if (args.live_map is None) != (args.live_map_stale_s is None):
             raise ConsoleError('INVALID_INPUT', '--live-map and --live-map-stale-s go together')
         cameras = [parse_camera(text) for text in args.camera]
@@ -71,7 +80,9 @@ def main(argv=None):
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2
     if args.operations is None:
+        # Not an error: view-only runs (E2 fixture, offline demo) are valid. The line says why the buttons are off.
         print('operations 주소 없음: 명령 비활성 (--operations URL 로 켬)', file=sys.stderr)
+    # Werkzeug development server; debug=False keeps the interactive debugger off.
     app.run(host=args.host, port=args.port, debug=False)
     return 0
 

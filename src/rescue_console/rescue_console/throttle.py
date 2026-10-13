@@ -19,6 +19,14 @@ LOGIN_MAX_KEYS = 10_000
 
 
 class LoginThrottle:
+    """Counts wrong passwords per (name, client) pair and refuses that pair for a while after too many.
+
+    State: `_entries` (recent failure times and lock end per pair) behind one lock shared by request threads.
+    `clock` is time.monotonic by default, so a wall-clock change cannot shorten or extend a lock; tests pass
+    a fake clock. The login route calls locked_for() before checking the password, then failed() or
+    succeeded() with the result.
+    """
+
     def __init__(self, clock=time.monotonic):
         self._clock = clock
         self._entries = {}      # (name, client) -> {'failures': [t, ...], 'locked_until': t}
@@ -30,6 +38,7 @@ class LoginThrottle:
 
     @staticmethod
     def _key(name, client):
+        # Trimmed and lower-cased, so case or space variants of one name share a single counter.
         return (str(name).strip().lower(), str(client or ''))
 
     def locked_for(self, name, client):
@@ -41,6 +50,12 @@ class LoginThrottle:
             return max(0, math.ceil(entry['locked_until'] - self._clock()))
 
     def failed(self, name, client):
+        """Record one wrong password for this pair; reaching LOGIN_MAX_FAILURES in the window starts the lock.
+
+        Failures older than LOGIN_WINDOW_S are dropped first. On the lock, locked_until = now + LOGIN_LOCK_S
+        and the list is cleared, so the count starts again from zero once the lock ends. Above LOGIN_MAX_KEYS
+        pairs, the pairs whose last failure is oldest are forgotten first.
+        """
         key = self._key(name, client)
         with self._lock:
             now = self._clock()

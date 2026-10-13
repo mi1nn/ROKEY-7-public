@@ -35,7 +35,9 @@ SENDABLE = tuple(COMMAND_FIELDS)
 # attach to a target or route that changed since (SubmitOperatorCommand expected_* fields). None is sent
 # as unknown: the button is off instead (작전 #115, 2026-10-12).
 INT_FIELDS = frozenset({'target_revision', 'route_revision', 'segment_index'})
+# Form keys every kind may carry besides its own fields; anything else is refused (build_request).
 FORM_KEYS = frozenset({'csrf', 'kind'})
+# Longest target_id taken from a form. Only a bound: whether it is a known target ID is for operations.
 MAX_ID = 128
 # Delivery of a failed send: NOT_SENT when nothing reached operations, UNKNOWN when it may have.
 DELIVERY = frozenset({'NOT_SENT', 'UNKNOWN'})
@@ -79,6 +81,8 @@ def _target_id(text):
 
 
 def _count(name, text):
+    # isdigit alone also accepts non-ASCII digits such as '²', which int() rejects; isascii keeps it to 0-9.
+    # No sign and no decimal point, so a value is never negative or rounded.
     if not (isinstance(text, str) and text.isascii() and text.isdigit()):
         raise _invalid(f'{name} must be a non-negative integer')
     return int(text)
@@ -97,6 +101,7 @@ def build_request(form, *, operator_id, command_id):
     extra = sorted(key for key in form if key not in FORM_KEYS | set(fields))
     if extra:
         raise _invalid(f'{kind} does not take {", ".join(extra)}')
+    # command_id and operator_id come from the server (app.py), never from the form.
     payload = {'command_id': command_id, 'kind': kind, 'operator_id': operator_id}
     for name in fields:
         text = form.get(name, '')
@@ -115,15 +120,17 @@ def post_json(url, payload, timeout):
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as exc:          # an answer with an error status: its body may still say why
-        with exc:
+        with exc:                                  # the error is also the response: read its body, then close it
             return exc.code, exc.read()
+    # No HTTP answer. Delivery is NOT_SENT only when the connection was never made (refused, or the host
+    # name did not resolve); for every other failure operations may have received the request.
     except urllib.error.URLError as exc:
         if isinstance(exc.reason, (TimeoutError, socket.timeout)):
             raise CommandSendError('TIMEOUT', f'no answer within {timeout:g}s') from exc
         if isinstance(exc.reason, (ConnectionRefusedError, socket.gaierror)):
             raise CommandSendError('UNREACHABLE', str(exc.reason), delivery='NOT_SENT') from exc
         raise CommandSendError('UNREACHABLE', str(exc.reason)) from exc
-    except (TimeoutError, socket.timeout) as exc:
+    except (TimeoutError, socket.timeout) as exc:  # timed out after connecting, while waiting for the answer
         raise CommandSendError('TIMEOUT', f'no answer within {timeout:g}s') from exc
     except OSError as exc:
         raise CommandSendError('SEND_FAILED', str(exc)) from exc
@@ -143,12 +150,15 @@ def read_reply(status, body):
         data = json.loads(body)
     except (TypeError, ValueError):
         data = None
+    # An answer: `accepted` is a real bool (not 1/0), the other fields are absent, null or non-empty text,
+    # a rejection names its reason, and nothing is accepted with a non-2xx status.
     ok = (isinstance(data, dict) and type(data.get('accepted')) is bool
           and all(_optional_text(data.get(key)) for key in ('request_id', 'reason', 'request_state', 'created_task_id'))
           and (data['accepted'] or data.get('reason') is not None)
           and not (data['accepted'] and not 200 <= status < 300))
     if not ok:
-        snippet = (body or b'')[:200].decode('utf-8', 'replace')
+        snippet = (body or b'')[:200].decode('utf-8', 'replace')   # only the start, so the message stays short
+        # A 2xx or a JSON object that is not a valid answer is BAD_RESPONSE; anything else is a plain HTTP error.
         if 200 <= status < 300 or isinstance(data, dict):
             raise CommandSendError('BAD_RESPONSE', f'HTTP {status}: not an operator-command answer: {snippet}')
         raise CommandSendError('HTTP_ERROR', f'HTTP {status}: {snippet}')

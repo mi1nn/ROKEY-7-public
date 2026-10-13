@@ -28,6 +28,8 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 00 통합도: AMR1 지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료 위치의 E2E 이후 PM 요구안. PC3대 복제 00은 웹캠·관제·DB·로컬 브라우저를 PC3에 통합하고 전용 Discovery PC4를 추가(응용 PC 3 + 서버 PC 1). JSON·CSV·그림 정합 검사, 두 00은 보존, 01~11 상세도는 PC3대 기준으로 통일 |
 | [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
+| [관제 웹 설계 명세](docs/design/console-spec.md) | 관제 웹(`rescue_console`) 모듈별 책임·인자·라우트·상태·입출력·처리 규칙·순서도·오류 처리. 이 문서만 보고 다시 짤 수 있는 수준이 목표 |
+| [관제 웹 코드 리뷰 준비](docs/process/console-code-review.md) | 튜터 코드 리뷰(설계·주석·시험) 대비: 설계도 속 관제 웹, 그림과 다른 곳, 주석 현황(`scripts/check_comments.py`), 시험·스크린샷, 예상 질문 |
 | [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |

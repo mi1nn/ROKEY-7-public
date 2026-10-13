@@ -5,11 +5,13 @@ added upstream shows up as its raw code instead of disappearing or being renamed
 
 Where each vocabulary comes from (2026-10-10, main 7a940e9):
 - role: `rescue_contracts.ROBOT_ROLES` + `UNKNOWN` (`rescue_operations.site_state._robot_status`).
-- motion: free text in site_state (<= 64 chars, no producer yet). Values from the SDD robot
+- motion: free text in site_state (<= 64 chars), copied by operations from RobotStatus.motion_state
+  (`rescue_operations.ros_ingest.robot_status_from_msg`). Values from the SDD robot
   status (`docs/design/sdd-node-interface-spec-v0.1.md`: STOPPED/MOVING/STOPPING/STOP_UNCONFIRMED)
   and `UNKNOWN` (`tests/test_operations_site_state.py`).
-- readiness: free text in site_state, no producer yet. READY / NOT_READY / UNKNOWN from
-  `tests/test_operations_site_state.py` and `examples/status.example.json`.
+- readiness: free text in site_state, copied the same way from RobotStatus.readiness. READY / NOT_READY /
+  UNKNOWN from `tests/test_operations_site_state.py` and `examples/status.example.json`. RobotStatus also
+  defines DEGRADED (`src/rescue_interfaces/msg/RobotStatus.msg`); it has no word here yet and shows as its code.
 - rescue: `rescue_contracts.RESCUE_STATES`.
 - support: `rescue_operations.site_state.SUPPORT_STATES`.
 - approach / confirmation: report schema checks in `rescue_operations.schema` (inline tuples).
@@ -25,6 +27,7 @@ Where each vocabulary comes from (2026-10-10, main 7a940e9):
 The Korean words are [제안] 관제·화면, 2026-10-10 (phase / segment / reply 2026-10-12).
 """
 
+# kind -> {code: Korean word}. Each kind is one vocabulary listed above.
 LABELS = {
     'role': {'SCOUT': '정찰', 'SUPPORT': '지원', 'UNKNOWN': '모름'},
     'motion': {'MOVING': '이동 중', 'STOPPING': '정지 중', 'STOPPED': '정지',
