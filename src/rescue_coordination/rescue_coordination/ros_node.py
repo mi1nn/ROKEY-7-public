@@ -275,6 +275,7 @@ class CoordinatorCore:
         self.verdict_reason = None  # 'RECHECK_NEEDED_<reason>' of the latest judgement, for SystemState
         self.scout_return = None    # TB-6 after RESCUE_CONFIRMED (5A): None, ISSUED, MOVING, AT_DOCK_APPROACH, FAILED
         self.at_home = set()        # role robots at their home/exit, for FINISHED
+        self.notes = []             # one log line per verdict for the operator; the node logs and drains them
         self.candidate_results = {}  # candidate event_id -> its first reason, None = a row-3 conflict (replay = same)
         self.watch_rois = {}  # SET_CAMERA_WATCH command_id -> raw request ROI (replay content check)
         self.mission = mission
@@ -828,8 +829,13 @@ class CoordinatorCore:
                                   max_clock_error_ns=self.recheck_max_clock_error_ns)
         mission.record_rescue_verdict(recheck.target_id, state)
         self.verdict_reason = None if state == 'RESCUE_CONFIRMED' else f'RECHECK_NEEDED_{reason}'
-        self.last_reason = f'VERDICT {recheck.target_id} {state} {reason} link={link_id} source={recheck.source}'
+        self.notes.append(f'VERDICT target={recheck.target_id} state={state} reason={reason} source={recheck.source} '
+                          f'link={link_id} task={task_id}')
         return state
+
+    def drain_notes(self):
+        notes, self.notes = self.notes, []
+        return notes
 
     def _issue_scout_return(self, now_ns):
         """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>)."""
@@ -1348,8 +1354,13 @@ def main(args=None):
             handle = future.result()
             log.info(f'GOAL task={task_id} accepted={handle.accepted} (ACTIVE only from task_admission)')
             if handle.accepted:
-                handle.get_result_async().add_done_callback(guarded('result', lambda done: log.info(
-                    f'RESULT task={task_id} released={core.on_result(task_id, done.result().result.result)}')))
+                handle.get_result_async().add_done_callback(guarded('result', lambda done: on_task_result(
+                    task_id, done.result().result.result)))
+
+        def on_task_result(task_id, result):
+            log.info(f'RESULT task={task_id} outcome={result.outcome} released={core.on_result(task_id, result)}')
+            for note in core.drain_notes():
+                log.info(note)
 
         snapshot = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)  # IF-071 latest snapshot
