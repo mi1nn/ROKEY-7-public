@@ -15,6 +15,7 @@ from types import SimpleNamespace as NS
 import unittest
 
 from rescue_robot.executor import ContractError
+from rescue_robot.live_parameters import frozen_revision, home_destinations
 from rescue_robot.live_sources import Grid, SavedMapSources
 
 SESSION = '22222222-2222-4222-8222-222222222222'
@@ -204,6 +205,15 @@ class Lifecycle(unittest.TestCase):
         self.pose()
         self.assertEqual(('VALID', R0), (self.record()['localization_status'], self.record()['map_revision']))
         self.assertEqual(Grid(g).sha256, s.basis('robot_a')['occupancy_key'])
+
+    def test_homes_are_on_the_frozen_revision(self):
+        """RETURN_HOME and the exit are TB-6 map points used after the freeze: revision R0 + 1."""
+        for mode, expected in (('SLAM_THEN_FROZEN', R0 + 1), ('FROZEN_MAP_AMCL', R0 + 1), ('SAVED_MAP_AMCL', R0)):
+            with self.subTest(mode=mode):
+                m = settings(mode)['robot_a']
+                home = home_destinations('robot_a', [1., 2., 0.], frame_id='map', map_session_id=SESSION,
+                                         map_revision=frozen_revision(m), transform_revision=1)
+                self.assertEqual(expected, home['home/robot_a']['map_revision'])
 
     # --- settings -------------------------------------------------------------------------------
 

@@ -56,7 +56,22 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | 토픽 | QoS | 언제 | 내용 |
 | --- | --- | --- | --- |
 | `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN`. 현장 값 150 ms: 2026-10-13 `chronyc tracking` 으로 `clock_measurement.parse_chrony` 식(차이 + root delay/2 + root dispersion + 갱신 간격 × 100 ppm)을 계산하면 TB-6 약 109 ms, TB-5 약 107 ms 다. 재부팅·재동기화 뒤 값이 바뀌므로 실기 당일 다시 잰다 |
-| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 을 스스로 올리지 않는다 |
+| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 은 지도 고정 때 한 번만 R0 → R0+1 로 오른다(아래) |
+
+**지도 수명 주기: TB-6 SLAM → 고정 지도(2026-10-13 저녁, scope Q-29 ⑦, OPS-113)**
+
+기준 지도 없이 TB-6 SLAM 지도 frame 을 공통 frame 으로 쓴다. `task.saved_map.mode` 로 로봇마다 하나를 고르고, 모드 사이에 대체는 없다. 현장 실행 파일에서 모드를 고르는 것과 고정 노드·launch 는 다음 PR 이다(지금 `robot.launch.py` 는 `SAVED_MAP_AMCL`).
+
+| 모드 | 로봇 | 고정 전 | 고정 뒤(`/rescue/map/frozen` 받음) |
+| --- | --- | --- | --- |
+| `SAVED_MAP_AMCL` | 로봇 없는 시험 | 저장 지도(측정 해시) + AMCL, 선언 revision | 고정 지도는 무시 |
+| `SLAM_THEN_FROZEN` | TB-6 | 바뀌는 SLAM 지도(frame 만 검사) + SLAM 위치(`task.saved_map.slam_localization_topic`), revision R0, `snapshot_id` 의 해시 자리 = `slam`. 자동 이동(REOBSERVE·RETURN_HOME·APPROACH)은 빈 칸 검사용 지도가 없어 거절, SEARCH_AREA 만 R0 로 | 자기 `<ns>/map` 이 고정 grid 와 해시가 같을 때만 지도 적재, AMCL 위치만 인정(SLAM 위치 무시), revision R0+1. SLAM 으로 돌아가지 않음 |
+| `FROZEN_MAP_AMCL` | TB-5 | 지도 없음, `UNKNOWN`, revision R0, 해시 자리 = `unfrozen` | TB-6 과 같음 |
+
+- 해시가 다른 지도가 `<ns>/map` 에 오면 적재하지 않고 오류 로그(`map is not the frozen map`). AMCL 공분산이 한도를 넘으면(미수렴) `UNKNOWN`.
+- 같은 고정 지도가 다시 오면(고정 노드 재시작) 그대로, **다른** 고정 지도가 오면 지도 차단(새 회차 필요).
+- 귀환·출구 목적지(`task.live.home_xy_yaw`)는 고정 지도 위 값이라 revision R0+1 로 묶는다.
+- 두 고정 모드는 `task.saved_map.occupancy_sha256` 를 빈 문자열로 받는다(고정이 해시를 정함).
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 

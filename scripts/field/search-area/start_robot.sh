@@ -90,6 +90,7 @@ exec ros2 run rescue_robot task_input --ros-args -r __ns:=/robot6 \
   -p task.live.clock_backend:=timesyncd \
   -p task.live.clock_max_age_ns:=3600000000000 \
   -p task.live.clock_drift_ppm:=100.0 \
+  -p task.saved_map.mode:=SAVED_MAP_AMCL \
   -p task.saved_map.map_topic:=/robot6/map \
   -p task.saved_map.localization_topic:=/robot6/amcl_pose \
   -p task.saved_map.map_frame:=map \

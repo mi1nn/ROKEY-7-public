@@ -5,7 +5,8 @@ The coordinator places the SUPPORT robot from /rescue/robots/<id>/pose and compa
 checks the AMCL pose (frame, covariance) and the hashed saved map (live_sources); this module
 turns them into the two messages. The mission pose is VALID only with a valid AMCL pose, the
 loaded map, a current alignment and a SYNCED clock; otherwise UNKNOWN and no mission numbers.
-The map basis is the declared one (saved_maps); MapState never advances a revision by itself.
+The map basis is the one SavedMapSources.basis reports: the declared revision R0, raised once to
+R0 + 1 when the TB-6 map is frozen (map lifecycle, OPS-113); nothing else advances it.
 Pure builders here; ``attach`` binds them to ROS.
 """
 import math
@@ -132,10 +133,10 @@ class LivePosePublisher:
         self.last_map_state = None
 
     def _basis(self):
-        c = self.runtime.saved_maps.settings[self.robot]
-        return dict(mission_frame=self.runtime.inputs.mission_frame, native_frame=c['map_frame'],
-                    map_session_id=c['map_session_id'], map_revision=c['map_revision'],
-                    transform_revision=c['transform_revision'])
+        b = self.runtime.saved_maps.basis(self.robot)
+        return dict(mission_frame=self.runtime.inputs.mission_frame, native_frame=b['map_frame'],
+                    map_session_id=b['map_session_id'], map_revision=b['map_revision'],
+                    transform_revision=b['transform_revision'])
 
     def _clock(self):
         from rescue_robot.task_policy import validate_clock_basis
@@ -162,7 +163,7 @@ class LivePosePublisher:
         record = pose_record(robot_id=self.robot, boot_id=r.adapter.executor.robot_boot_id,
             observed_at_ns=observed_at_ns, pose_valid_ns=self.pose_valid_ns,
             native=(x, y, yaw, [float(v) for v in message.pose.covariance]), amcl_valid=valid,
-            map_loaded=self.robot in r.saved_maps.maps, transform=self._transform(), basis=self._basis(),
+            map_loaded=r.saved_maps.loaded(self.robot), transform=self._transform(), basis=self._basis(),
             clock=self._clock(), clock_domain_id=r.inputs.lease_policy.clock_domain_id,
             sensor_clock=self.sensor_clock)
         msg = self.RobotPose()
@@ -182,8 +183,8 @@ class LivePosePublisher:
     def publish_map_state(self, *, localization_valid):
         r = self.runtime
         record = map_state_record(robot_id=self.robot,
-            occupancy_sha256=r.saved_maps.settings[self.robot]['occupancy_sha256'], basis=self._basis(),
-            map_loaded=self.robot in r.saved_maps.maps, localization_valid=localization_valid,
+            occupancy_sha256=r.saved_maps.basis(self.robot)['occupancy_key'], basis=self._basis(),
+            map_loaded=r.saved_maps.loaded(self.robot), localization_valid=localization_valid,
             generated_at_ns=r.adapter.wall_clock_ns())
         meaning = {k: v for k, v in record.items() if k != 'generated_at_ns'}
         if meaning == self.last_map_state:
