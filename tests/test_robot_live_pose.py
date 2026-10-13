@@ -23,7 +23,8 @@ SYNCED = dict(clock_state='SYNCED', error_bound_ns=5_000_000)
 def record(**changes):
     values = dict(robot_id='robot_b', boot_id='boot', observed_at_ns=1_000, pose_valid_ns=2_000_000_000,
                   native=(1.0, 2.0, 0.5, COV), amcl_valid=True, map_loaded=True,
-                  transform=RigidTransform.identity(), basis=BASIS, clock=SYNCED, clock_domain_id='rokey7-utc-field')
+                  transform=RigidTransform.identity(), basis=BASIS, clock=SYNCED, clock_domain_id='rokey7-utc-field',
+                  sensor_clock=dict(domain_id='rokey7-utc-field', error_bound_ns=7_000_000))
     values.update(changes)
     return pose_record(**values)
 
@@ -52,7 +53,7 @@ class PoseRecord(unittest.TestCase):
                               alignment_status='VALID'), r['frame_ref'])
         self.assertEqual(dict(observed_at_ns=1_000, valid_until_ns=1_000 + 2_000_000_000,
                               stamp_semantics='CAPTURE', clock_domain_id='rokey7-utc-field', clock_state='SYNCED',
-                              has_clock_error_bound=True, clock_error_bound_ns=5_000_000), r['time'])
+                              has_clock_error_bound=True, clock_error_bound_ns=5_000_000 + 7_000_000), r['time'])
         self.assertEqual(('robot_b', 'boot'), (r['robot_id'], r['source_boot_id']))
 
     def test_any_missing_basis_makes_the_mission_pose_unknown_without_numbers(self):
@@ -63,6 +64,16 @@ class PoseRecord(unittest.TestCase):
                 self.assertEqual('UNKNOWN', r['mission_pose_status'])
                 self.assertIsNone(r['mission_pose'])
                 self.assertEqual((1.0, 2.0, 0.5), r['native_pose'][:3])  # the measured AMCL pose stays
+
+    def test_the_robot_pi_clock_is_part_of_the_bound(self):
+        """AMCL stamps follow the scan, stamped on the robot Pi: its measured bound adds to this PC's."""
+        self.assertEqual(5_000_000 + 7_000_000, record()['time']['clock_error_bound_ns'])
+        for sensor in (dict(domain_id='other-domain', error_bound_ns=7_000_000),   # Pi not in this clock domain
+                       dict(domain_id='rokey7-utc-field', error_bound_ns=-1)):      # Pi bound not measured
+            with self.subTest(sensor=sensor):
+                r = record(sensor_clock=sensor)
+                self.assertEqual(('UNKNOWN', 'UNKNOWN', False), (r['mission_pose_status'], r['time']['clock_state'],
+                                                                 r['time']['has_clock_error_bound']))
 
     def test_unknown_clock_has_no_error_bound(self):
         r = record(clock=dict(clock_state='UNKNOWN', error_bound_ns=None))
@@ -84,6 +95,8 @@ class PoseRecord(unittest.TestCase):
     def test_bad_inputs_are_refused(self):
         for change in (dict(observed_at_ns=0), dict(pose_valid_ns=0), dict(native=(float('nan'), 0.0, 0.0, COV)),
                        dict(native=(True, 0.0, 0.0, COV)),
+                       dict(sensor_clock=dict(domain_id='', error_bound_ns=0)),
+                       dict(sensor_clock=dict(domain_id='d', error_bound_ns=-2)),
                        dict(native=(0.0, 0.0, 0.0, COV[:35]))):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 record(**change)

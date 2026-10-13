@@ -215,6 +215,9 @@ class RobotParameters(FieldCase):
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
+        # The robot Pi clock (sensor host of the AMCL stamps): -1 until measured on the Pi (2026-10-13)
+        expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
+        expected['task.live.sensor_host_clock_error_bound_ns'] = -1
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
