@@ -6,6 +6,8 @@
 Only the SLAM_THEN_FROZEN robot of the field run file. Wraps turtlebot4_navigation
 slam.launch.py: map on <ns>/map, pose on <ns>/pose (task_input searching and map_freeze read
 them). Stop it (Ctrl-C) after the freeze, before frozen_localization.launch.py robot_id:=robot_a.
+Refuses to start while <ns>/map already has a publisher (an earlier SLAM: its old map would be
+continued), naming it (OPS-184).
 """
 from pathlib import Path
 
@@ -16,6 +18,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
 from rescue_bringup.field_launch import load_field, slam_launch_values
+from rescue_bringup.map_guard import check_no_map_publisher
 from rescue_bringup.profile import load_deployment
 
 
@@ -25,6 +28,8 @@ def _nodes(context):
 
     values = slam_launch_values(load_deployment(arg('profile_path')), field=load_field(arg('field_path')),
                                 robot_id=arg('robot_id'))
+    # an earlier SLAM still publishing <ns>/map would be continued silently: refuse and name it (OPS-184)
+    check_no_map_publisher(values['namespace'] + '/map', wait_s=float(arg('map_publisher_wait_s')))
     share = Path(get_package_share_directory('turtlebot4_navigation'))
     params = arg('slam_params_file') or str(share / 'config' / 'slam.yaml')
     return [
@@ -38,6 +43,8 @@ def _nodes(context):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('map_publisher_wait_s', default_value='3.0',
+                              description='How long to look for an earlier <ns>/map publisher before starting'),
         DeclareLaunchArgument('profile_path', description='Deployment profile v2.1 JSON (outside the repo)'),
         DeclareLaunchArgument('field_path', description='Field run file (config/field/*.field.json)'),
         DeclareLaunchArgument('robot_id', description='The SLAM_THEN_FROZEN robot (robot_a, TB-6)'),

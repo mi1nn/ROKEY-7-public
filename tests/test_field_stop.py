@@ -43,8 +43,8 @@ elif args[:2] == ['node', 'list']:
 
 class StopScript(unittest.TestCase):
     def run_script(self, *args, services=()):
-        if not (REPO / 'scripts').exists():
-            self.skipTest('installed-wheel checkout has no scripts/')
+        if not SCRIPT.exists() and not (REPO / 'src').exists():
+            self.skipTest('installed-wheel checkout: no source scripts')
         self.assertTrue(SCRIPT.exists(), 'scripts/field/stop_robot.sh missing')
         tmp = Path(tempfile.mkdtemp())
         fake = tmp / 'ros2'

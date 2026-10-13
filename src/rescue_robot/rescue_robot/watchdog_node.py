@@ -6,6 +6,7 @@ the command adapter's executor heartbeat and publishes its own heartbeat, which
 the adapter turns into the `watchdog` readiness flag. `~/reset` (std_srvs/Trigger)
 is the only way out of STOP_LATCHED. ROS packages are imported inside functions.
 """
+import sys
 import time
 
 from rescue_contracts import RescueError
@@ -80,12 +81,31 @@ def bind_watchdog(node, dog, *, cmd_vel_in_topic, cmd_vel_out_topic, stamped, ex
     return handles
 
 
+def zero_commands(kind, *, stamped, stamp, count):
+    """``count`` zero velocity commands (sent when the watchdog is stopped, OPS-183)."""
+    out = []
+    for _ in range(count):
+        msg = kind()
+        twist = msg.twist if stamped else msg
+        twist.linear.x = twist.linear.y = twist.linear.z = 0.0
+        twist.angular.x = twist.angular.y = twist.angular.z = 0.0
+        if stamped:
+            msg.header.stamp = stamp
+        out.append(msg)
+    return out
+
+
+EXIT_ZERO_COUNT = 3   # zero commands on Ctrl+C / launch shutdown, before the watchdog goes away
+
+
 def main(args=None):
     import rclpy
     from rclpy.node import Node
+    from rclpy.signals import SignalHandlerOptions
     from rcl_interfaces.msg import ParameterType
 
-    rclpy.init(args=args)
+    # Ctrl+C reaches us as KeyboardInterrupt with the context still up, so zero can still be sent
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     node = Node('rescue_command_watchdog')
     log = node.get_logger()
     string, double = ParameterType.PARAMETER_STRING, ParameterType.PARAMETER_DOUBLE
@@ -118,5 +138,15 @@ def main(args=None):
     except KeyboardInterrupt:  # launch stops nodes with SIGINT
         pass
     finally:
+        try:   # stopped (Ctrl+C or launch shutdown): leave the robot with zero, not with the last command
+            from geometry_msgs.msg import Twist, TwistStamped
+            kind = TwistStamped if value['cmd_vel_stamped'] else Twist
+            zero = node.create_publisher(kind, value['cmd_vel_out_topic'], 10)
+            for msg in zero_commands(kind, stamped=value['cmd_vel_stamped'], stamp=node.get_clock().now().to_msg(),
+                                     count=EXIT_ZERO_COUNT):
+                zero.publish(msg)
+            log.info(f'watchdog stopped: {EXIT_ZERO_COUNT} zero commands on {value["cmd_vel_out_topic"]}')
+        except Exception as exc:   # the context may already be gone (SIGTERM): say so, do not hide it
+            print(f'watchdog stopped: zero commands not sent: {exc}', file=sys.stderr)
         node.destroy_node()
         rclpy.try_shutdown()
