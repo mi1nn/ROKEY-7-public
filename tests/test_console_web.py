@@ -490,7 +490,8 @@ class SiteStateWebTests(AccountsFixture):
         self.assertIn('보고 장부 입력 없음', page.get_data(as_text=True))
         model = client.get('/api/view').get_json()
         self.assertEqual(model['mission']['mode'], 'DISASTER')
-        self.assertIn('상태가 들어온 로봇만', ' '.join(model['warnings']))
+        self.assertNotIn('상태가 들어온 로봇만', ' '.join(model['warnings']))   # #149: the DB gives the robots
+        self.assertEqual(['robot_a', 'robot_b'], [r['robot_id'] for r in model['robots']])
         self.assertEqual(client.get('/fragment').status_code, 200)
 
     def test_site_state_and_fixture_together_fail_at_startup(self):
