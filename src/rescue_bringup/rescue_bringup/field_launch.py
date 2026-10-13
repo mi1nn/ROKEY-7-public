@@ -376,7 +376,9 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     if mode == 'SLAM_THEN_FROZEN':
         task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
-    if home is not None:
+    # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
+    # (OPS-139); a profile home here would be used until the first coordinator record.
+    if home is not None and mode != 'FROZEN_MAP_AMCL':
         task_input['task.live.home_xy_yaw'] = list(home)
     upstream = ns + '/cmd_vel_watchdog_in'
     watchdog = {'namespace': ns, 'cmd_vel_in_topic': upstream, 'cmd_vel_out_topic': ns + '/cmd_vel',
