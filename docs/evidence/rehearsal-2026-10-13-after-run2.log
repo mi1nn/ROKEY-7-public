@@ -1,0 +1,23 @@
+[WARN] [1791887095.355923299] [e3_fake_executor]: New subscription discovered on topic '/rescue/target_locations', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: DURABILITY
+[WARN] [1791887095.356499099] [e3_target_locator_probe]: New publisher discovered on topic '/rescue/target_locations', offering incompatible QoS. No messages will be received from it. Last incompatible policy: DURABILITY
+[SAVED_MAP] graph ready=True
+PASS A1 DISASTER_SIGN -> DISASTER -> DB (0.0 s) mode=DISASTER
+PASS A2 console START_SEARCH enabled (0.0 s) reason='재난 감지 — 아직 수색 전'
+PASS A3 HTTP START_SEARCH -> TB-6 SEARCH_AREA (0.1 s) http=200 None
+PASS B1 observation + TF -> target_locator -> target (1.3 s) target=c0b01937-f5c2-47f0-ad4f-3c41d9e24970
+PASS B2 report_node PERSISTED -> DB persisted_report_id (0.2 s) persisted_report_id=563c5a5b-e590-43d5-9e68-92a94620922c
+PASS B3 TB-5 APPROACH_TARGET by itself; HTTP DISPATCH refused (0.1 s) approach_goal=(0.20, 3.00) http DISPATCH=200 {'accepted': False, 'request_id': '6ae9db86-7420-40aa-aebc-4204d9d5ac1d', 'reason': 'NOT_AUTHORIZED', 'request_state': 'REJECTED', 'created_task_id': None}
+PASS C1 TB-5 arrived -> wait -> RETURN_HOME exit (2.2 s) home_ref=home/robot_b
+PASS C2 HTTP SET_CAMERA_WATCH -> camera slot armed (0.1 s) http=200 slot_rev=1
+PASS C3 candidate -> REOBSERVE refused -> TASK_REFUSED -> new REOBSERVE (1.4 s) reobserve goals=2 refused=1 TASK_REFUSED seen=True
+PASS C4 recheck ABSENT/CLEAR/VALID -> DB RESCUE_CONFIRMED (1.2 s) rescue_state=RESCUE_CONFIRMED
+PASS C5 TB-6 RETURN_HOME dock approach -> DB FINISHED (1.2 s) home_ref=home/robot_a mission=MISSION_FINISHED/FINISHED
+PASS [SAVED_MAP] children exit {'coordinator': 0, 'target_locator': 0, 'db_writer': 0, 'report_node': 0}
+[WARN] [1791887106.976528257] [e3_fake_executor]: New subscription discovered on topic '/rescue/target_locations', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: DURABILITY
+[WARN] [1791887106.977177157] [e3_target_locator_probe]: New publisher discovered on topic '/rescue/target_locations', offering incompatible QoS. No messages will be received from it. Last incompatible policy: DURABILITY
+[SLAM_FREEZE] graph ready=True
+PASS F1 SLAM_FREEZE: target on R0 PERSISTED -> one freeze call (2.7 s) target=260b5a27-1ab3-4e09-b1b0-7b89ca51b025 saved=True freeze calls=1
+PASS F2 frozen grid + TB-6 MapState R0+1 -> frozen; R0 target holds (0.1 s) TARGET_NOT_ON_FROZEN_MAP seen=True sha256=88bd92f9d1c4
+PASS F3 target seen on R0+1 PERSISTED, TB-5 localized -> APPROACH_TARGET on R0+1 (1.7 s) resaved=True SUPPORT_NOT_LOCALIZED seen=True approach map_revision=1
+PASS [SLAM_FREEZE] children exit {'coordinator': 0, 'target_locator': 0, 'db_writer': 0, 'report_node': 0}
+PASS 16 FAIL 0 of 16 (stages after a FAIL are not run) logs=['<RUN_DIR>/rehearsal-saved_map-ee2ec2f6-80f6-4e0c-baf8-cba3a2f25895', '<RUN_DIR>/rehearsal-slam_freeze-537486f5-50b1-4849-acc3-bb556da8b473']
