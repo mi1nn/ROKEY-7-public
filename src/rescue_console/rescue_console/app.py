@@ -54,7 +54,7 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
     if map_source is not None:   # --live-map: the SLAM map as last written, with its age and state
         map_image, live = map_source.current()
     if map_image is not None:
-        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
+        view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'], view['exit'])
         for where in view['map']['frame_mismatch']:
             view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
         for where in view['map']['off_map']:
