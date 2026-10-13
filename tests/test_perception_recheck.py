@@ -75,6 +75,32 @@ class ScanStateTests(unittest.TestCase):
                          scan_state(scan([6.0] * 101), MAP_FROM_LASER, (-2.0, 0.0, 0.0), POLICY))
 
 
+class ScanEdgeTests(unittest.TestCase):
+    """#165 review (CDX-165-01·02, 2026-10-13): CLEAR is evidence for rescue completion, so a ray only
+    counts as passing when it truly went beyond the disc."""
+
+    def test_negative_infinity_is_never_clear(self):   # REP-117: -inf = something closer than range_min
+        self.assertNotEqual('CLEAR', scan_state(scan([-math.inf] * 101), MAP_FROM_LASER, (2.0, 0.0, 0.0), POLICY)[0])
+
+    def test_nan_or_below_range_min_is_never_clear(self):
+        for bad in (math.nan, 0.05):
+            with self.subTest(bad=bad):
+                ranges = [6.0] * 101
+                ranges[50] = bad   # one unreadable ray toward the point
+                self.assertNotEqual('CLEAR', scan_state(scan(ranges), MAP_FROM_LASER, (2.0, 0.0, 0.0), POLICY)[0])
+
+    def test_return_in_front_of_the_disc_entry_is_occluded(self):   # CDX-165-02 reproduction
+        # Rays at 0.100-0.102 rad meet the disc (centre (2, 0), r 0.3) at about 1.766 m; 1.72 m is in front.
+        state = scan_state(dict(ranges=[1.72] * 3, angle_min=0.1, angle_increment=0.001, range_min=0.1,
+                                range_max=8.0), MAP_FROM_LASER, (2.0, 0.0, 0.0), POLICY)
+        self.assertEqual(('UNKNOWN', 'OCCLUDED'), state)
+
+    def test_any_hidden_part_of_the_disc_prevents_clear(self):
+        ranges = [6.0] * 101
+        ranges[50] = 1.0   # one ray stopped well before the disc
+        self.assertEqual(('UNKNOWN', 'OCCLUDED'), scan_state(scan(ranges), MAP_FROM_LASER, (2.0, 0.0, 0.0), POLICY))
+
+
 class WindowTests(unittest.TestCase):
     def window(self):
         return RecheckWindow(POINT, POLICY, start_ns=1_000)
