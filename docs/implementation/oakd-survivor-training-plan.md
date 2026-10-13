@@ -6,6 +6,8 @@ updated: 2026-10-11
 
 # OAK-D survivor 학습 계획
 
+> **기록 (2026-10-11).** 학습 계획 기록이다. 학습은 끝났다. 지금 로봇 카메라 모델은 100 epoch best.pt 다([manifest](../../assets/manifest/yolo26n-survivor-v2.json), [v2 결과](yolo26n-v2-results.md)). 지금 인식 흐름은 [인식 구현 문서](implementation-perception.md)를 본다.
+
 ## 사용자 결정과 현재 상태
 
 [사용자 요구, 2026-10-11] “학습을 진행할거고 amr pc 카메라인 oakd/image_raw로 진행할거고 영상 촬영후 1초마다 프레임별로 이미지를 받아서 이 데이터를 전처리 후 이제 학습을 진행하고 각각 파라미터를 비교해서 docs로 올릴 예정”. 추가 지시: “이전에 클래스는 person인데 새로운 기준에 맞춰서 survivor로 진행”. 적용 범위는 이번 AMR 카메라 데이터셋·학습 실험·결과 문서다.

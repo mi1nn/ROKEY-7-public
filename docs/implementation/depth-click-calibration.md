@@ -6,6 +6,8 @@ updated: 2026-10-13
 
 # Depth 클릭 확인 도구와 82cm 보정 기록
 
+> **기록 (2026-10-12 ~ 2026-10-13).** 깊이 보정 측정 기록이다. 지금 쓰는 깊이 보정은 TB-5·TB-6 공통 파일 [robot_depth.json](../../src/rescue_perception/rescue_perception/config/robot_depth.json)이다. 쓰는 법은 [인식 README](../../src/rescue_perception/README.md)를 본다.
+
 [사용자 요구, 2026-10-12] “오케이 그러면 그렇게 해서 PR 올려줘.”에 따라 사용자가 실행한 depth 확인 코드와 보정 계산·측정 로그를 별도 PR에 보존한다. [도구](../../tools/depth_click_check.py)는 원본 ROS depth 토픽을 읽고 화면 클릭 지점의 Raw와 보정 거리를 출력한다. 주행 명령, 센서 설정 변경, 보정 depth 재발행은 하지 않는다.
 
 ## 보정 근거
