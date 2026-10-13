@@ -29,9 +29,9 @@ def grid(known_cols=20):
     return NS(fields=dict(frame='map', width=W, height=H, resolution=RES, origin=(0., 0., 0.), data=data))
 
 
-def scout_pose(xy=(1., 1.8), *, age_ns=10**8, status='VALID', **frame_changes):
+def scout_pose(xy=(1., 1.8), *, at=NOW, age_ns=10**8, status='VALID', **frame_changes):
     return NS(robot_id=SCOUT, mission_pose_status=status, frame_ref=frame(robot_id=SCOUT, **frame_changes),
-              time=NS(observed_at_ns=NOW - age_ns),
+              time=NS(observed_at_ns=at - age_ns),
               mission_pose=NS(pose=NS(pose=NS(position=NS(x=xy[0], y=xy[1], z=0.)))))
 
 
@@ -92,7 +92,9 @@ class FrontierPickTests(Base):
         self.finish(fields, 'UNREACHABLE')
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
+            self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
             self.assertEqual([], self.searches(NOW + DELAY + k + 1))
+            self.assertEqual(k + 1, self.core.frontier_empty)
         self.assertTrue(self.core.exploration_complete)
         self.assertEqual('EXPLORATION_COMPLETE', self.reason(NOW + DELAY + 3))
         self.assertIn('EXPLORATION_COMPLETE', ' '.join(self.core.drain_notes()))
@@ -105,7 +107,9 @@ class FrontierPickTests(Base):
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)
         self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
         self.assertEqual([], self.searches(NOW + DELAY + 1))
+        self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
     def test_the_same_map_is_counted_once(self):
         self.core.on_scout_map(grid(known_cols=W))  # all known: no frontier

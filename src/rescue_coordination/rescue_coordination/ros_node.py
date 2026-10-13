@@ -36,6 +36,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
+from rescue_contracts.grid_search import clear_mask, find_frontiers, grid_path, path_lengths
 from rescue_contracts.occupancy import compose_planar, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
@@ -84,9 +85,13 @@ MAP_FREEZE_REASONS = ('MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', '
                       'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN', 'START_POSE_CONFLICT')
 # TB-6 search (owner decision 2026-10-13 evening, OPS-136·139): PATROL = the field's patrol points, given in TB-6's
 # start pose; AREAS = the profile search areas. Never both.
-SEARCH_MODES = ('PATROL', 'AREAS')
+# FRONTIER (owner decision 2026-10-13 night, OPS-154): TB-6 explores the whole map frontier by frontier.
+SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')
 PATROL_BASIS = 'PATROL_POINT'  # MissionSite.basis of a patrol point; must be in executable_bases
 PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_point')
+FRONTIER_BASIS = 'FRONTIER'    # MissionSite.basis of a frontier goal; must be in executable_bases
+FRONTIER_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/frontier')
+SCOUT_MAP_TOPIC = '/robot6/map'  # TB-6 live SLAM OccupancyGrid (통합-로봇 OPS-159 ④) [추정: 실기 미확인]
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
 START_POSE_TOPIC = '/rescue/map/start_pose/'  # + SCOUT robot_id; PoseWithCovarianceStamped, map, TRANSIENT_LOCAL
@@ -105,6 +110,24 @@ def start_pose_from_msg(msg, mission_frame):
         return planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w)
     except ValueError as exc:
         raise CoordinationError('INVALID_INPUT', f'start pose: {exc}') from exc
+
+
+def _along(points, limit_m):
+    """(x, y, yaw) ``limit_m`` along a path of points (its end when shorter), heading along the path there."""
+    points = [tuple(map(float, p)) for p in points]
+    if len(points) == 1:
+        return (*points[0], 0.0)
+    walked, yaw = 0.0, 0.0
+    for a, b in zip(points, points[1:]):
+        step = math.dist(a, b)
+        if step == 0:
+            continue
+        yaw = math.atan2(b[1] - a[1], b[0] - a[0])
+        if walked + step >= limit_m:
+            t = (limit_m - walked) / step
+            return a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), yaw
+        walked += step
+    return (*points[-1], yaw)
 
 
 def patrol_site_id(map_session_id, index):
@@ -281,7 +304,9 @@ class CoordinatorCore:
                  target_max_future_ns, support_dispatch, approach_standoff_m, support_pose_max_age_ns,
                  support_exit_wait_ns, recheck_max_clock_error_ns, map_mode, freeze_clearance_m,
                  map_freeze_timeout_ns, map_snapshot_id, search_start, search_mode, patrol_points,
-                 patrol_rounds, exit_standoff_m, new_id=None):
+                 patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
+                 frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
+                 new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -361,6 +386,34 @@ class CoordinatorCore:
         self.patrol_round, self.patrol_exhausted = 1, False
         if search_mode == 'PATROL':  # no area until the start pose places the points (OPS-141)
             mission.search.policy = replace(mission.search.policy, areas=())
+        if search_mode == 'FRONTIER':  # one area at a time, each picked from the live map (OPS-154)
+            if FRONTIER_BASIS not in mission.search.policy.executable_bases:
+                raise CoordinationError('INVALID_POLICY', f'FRONTIER needs {FRONTIER_BASIS} executable')
+            mission.search.policy = replace(mission.search.policy, areas=())
+        for name, value in (('frontier_min_cells', frontier_min_cells),
+                            ('exploration_empty_checks', exploration_empty_checks)):
+            if type(value) is not int or value < 1:
+                raise CoordinationError('INVALID_POLICY', f'{name} must be an integer >= 1')
+        for name, value in (('frontier_reach_m', frontier_reach_m), ('frontier_goal_max_m', frontier_goal_max_m),
+                            ('frontier_blacklist_m', frontier_blacklist_m)):
+            finite(value, name)
+            if value <= 0:
+                raise CoordinationError('INVALID_POLICY', f'{name} must be positive')
+        contract_value(duration_ns, frontier_issue_delay_ns)
+        contract_value(duration_ns, exploration_timeout_ns)
+        if exploration_timeout_ns <= 0:
+            raise CoordinationError('INVALID_POLICY', 'exploration_timeout must be positive')
+        self.frontier_min_cells, self.frontier_reach_m = frontier_min_cells, frontier_reach_m
+        self.frontier_goal_max_m, self.frontier_blacklist_m = frontier_goal_max_m, frontier_blacklist_m
+        self.frontier_issue_delay_ns, self.exploration_empty_checks = frontier_issue_delay_ns, exploration_empty_checks
+        self.exploration_timeout_ns = exploration_timeout_ns
+        self.scout_grid, self.scout_grid_seq = None, 0  # TB-6 live SLAM grid (``fields``), counted per update
+        self.scout_pose = None      # like support_pose, for TB-6
+        self.frontier = None        # dict(site_id, goal, centroid) of the frontier being sent / run
+        self.frontier_hold_until = None
+        self.frontier_tried = []    # goals and centroids tried once (completed or not): not picked again
+        self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
+        self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -544,6 +597,8 @@ class CoordinatorCore:
     def _search_reason(self):
         if self.start_pose_conflict:
             return 'START_POSE_CONFLICT'
+        if self.search_mode == 'FRONTIER' and self.exploration_complete:
+            return self.exploration_reason
         if self.search_queued() and self.search_mode == 'PATROL' and self.start_pose is None:
             return 'START_POSE_UNKNOWN'
         if self.search_queued():
@@ -551,6 +606,90 @@ class CoordinatorCore:
         if self.search_mode == 'PATROL' and self.mission.search_started:
             return 'PATROL_EXHAUSTED' if self.patrol_exhausted else f'PATROL_ROUND_{self.patrol_round}'
         return ''
+
+    # -- frontier exploration (owner decision 2026-10-13 night, OPS-154·156) ----------------------------------
+    def on_scout_map(self, grid):
+        """TB-6's live SLAM grid (``fields`` as rescue_contracts.occupancy); each update may hold new frontiers."""
+        self.scout_grid, self.scout_grid_seq = grid, self.scout_grid_seq + 1
+        return self.scout_grid_seq
+
+    def _scout_xy(self, now_ns):
+        """TB-6's mission xy when its pose is fresh, VALID and on the search basis, else None."""
+        pose = self.scout_pose
+        if (pose is None or pose[3] != 'VALID' or not pose[4] <= now_ns
+                or now_ns - pose[4] > self.support_pose_max_age_ns or pose[1] != self._search_basis()
+                or pose[2] != self.search.policy.mission_frame_id):
+            return None
+        return pose[0]
+
+    def _tried(self, xy):
+        return any(math.dist(xy, t) <= self.frontier_blacklist_m for t in self.frontier_tried)
+
+    def _exploration_done(self, reason):
+        self.exploration_complete, self.exploration_reason = True, reason
+        self.search.policy = replace(self.search.policy, areas=())
+        self.notes.append(f'EXPLORATION_COMPLETE reason={reason} frontiers_sent={self.frontier_count}')
+
+    def _frontier_tick(self, now_ns):
+        """Pick the next frontier for TB-6 when it has none (FRONTIER). The site goes to ~/task_inputs now and the
+        SEARCH_AREA after frontier_issue_delay_ns, once the robot has read it (a new ref is refused before)."""
+        if (self.search_mode != 'FRONTIER' or not self.mission.search_authorized or self.mission.mode != 'DISASTER'
+                or self.exploration_complete):
+            return
+        if self.map_mode == 'SLAM_FREEZE' and self._target_saved():
+            return  # TB-6 stops for the doll's freeze; exploring on afterwards needs the second freeze (OPS-154)
+        if self.exploration_started_ns is None:
+            self.exploration_started_ns = now_ns
+        if now_ns - self.exploration_started_ns > self.exploration_timeout_ns:
+            self._exploration_done('EXPLORATION_TIMEOUT')
+            return
+        if self.frontier is not None or self.search.assignment(self.roles['SCOUT']) is not None:
+            return
+        if self.scout_grid is None:
+            self.issue_block = 'EXPLORATION_MAP_UNKNOWN'
+            return
+        start = self._scout_xy(now_ns)
+        if start is None:
+            self.issue_block = 'SCOUT_POSE_UNKNOWN'
+            return
+        if self.frontier_checked_seq == self.scout_grid_seq:
+            return  # this map had nothing to pick; wait for the next update
+        fields, radius = self.scout_grid.fields, self.freeze_clearance_m
+        mask = clear_mask(**fields, radius=radius)
+        candidates = [f for f in find_frontiers(**fields, radius=radius, min_cells=self.frontier_min_cells,
+                                                max_goal_distance_m=self.frontier_reach_m, mask=mask)
+                      if f.goal is not None and not self._tried(f.goal) and not self._tried(f.centroid)]
+        lengths = path_lengths(**fields, radius=radius, start=start, goals=[f.goal for f in candidates], mask=mask)
+        reachable = sorted((length, i) for i, length in enumerate(lengths) if length is not None)
+        if not reachable:
+            self.frontier_checked_seq = self.scout_grid_seq
+            self.frontier_empty += 1
+            self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
+                              f'({self.frontier_empty}/{self.exploration_empty_checks})')
+            if self.frontier_empty >= self.exploration_empty_checks:
+                self._exploration_done('EXPLORATION_COMPLETE')
+            return
+        self.frontier_empty = 0
+        chosen = candidates[reachable[0][1]]
+        path = grid_path(**fields, radius=radius, start=start, goal=chosen.goal, mask=mask)
+        x, y, yaw = _along(path.points, self.frontier_goal_max_m)
+        session, rev, transform = self._search_basis()
+        site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/{self.frontier_count}'))
+        self.frontier_count += 1
+        site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
+        self.search.policy = replace(self.search.policy, areas=(site,))
+        self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid)
+        self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
+        self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
+                          f'path_m={path.length_m:.2f} start_moved_m={path.start_moved_m:.2f} '
+                          f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
+
+    def _frontier_done(self):
+        """A frontier task ended (any outcome): it is not picked again (a frontier still there after TB-6 reached it
+        cannot be cleared from there)."""
+        self.frontier_tried += [self.frontier['goal'], self.frontier['centroid']]
+        self.frontier = None
+        self.search.policy = replace(self.search.policy, areas=())
 
     # -- QR exit (안 「나」, OPS-136·138·139) ------------------------------------------------------------------
     def on_exit_location(self, msg, *, now_ns):
@@ -799,11 +938,13 @@ class CoordinatorCore:
         """RobotPose of the SUPPORT (its current mission pose); other robots are not used here."""
         if msg.robot_id not in self.roles.values():
             raise CoordinationError('WRONG_ROBOT', 'pose from a robot outside the policy')
-        if msg.robot_id != self.roles['SUPPORT']:
-            return False
         f, p = msg.frame_ref, msg.mission_pose.pose.pose.position
-        self.support_pose = ((float(p.x), float(p.y)), (f.map_session_id, f.map_revision, f.transform_revision),
-                             f.mission_frame, msg.mission_pose_status, msg.time.observed_at_ns)
+        pose = ((float(p.x), float(p.y)), (f.map_session_id, f.map_revision, f.transform_revision),
+                f.mission_frame, msg.mission_pose_status, msg.time.observed_at_ns)
+        if msg.robot_id == self.roles['SCOUT']:
+            self.scout_pose = pose  # frontier exploration starts from it (OPS-154)
+        else:
+            self.support_pose = pose
         return True
 
     def on_admission(self, msg):
@@ -838,6 +979,9 @@ class CoordinatorCore:
         stop = bool(result.stop_confirmed)
         if not self.search.finish(item, outcome=result.outcome, stop_confirmed=stop):
             return False
+        if self.search_mode == 'FRONTIER' and self.search.kind_of(item) == 'SEARCH_AREA' and self.frontier:
+            self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome}')
+            self._frontier_done()
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):
             self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
@@ -1099,6 +1243,7 @@ class CoordinatorCore:
         self._issue_segment(now_ns)
         self._issue_rechecks(now_ns)
         self._patrol_tick()
+        self._frontier_tick(now_ns)
         self._issue_search(now_ns)
         sent, self.outbox = self.outbox, []
         return sent
@@ -1524,6 +1669,8 @@ class CoordinatorCore:
             return  # TB-6 stops for the doll's freeze (Q-29 ⑦); exploring on afterwards comes with OPS-154
         if self.patrol_exhausted:
             return
+        if self.search_mode == 'FRONTIER' and (self.frontier is None or now_ns < self.frontier_hold_until):
+            return  # the destination is in ~/task_inputs; the task waits until the robot has read it
         state = self.ready(scout, now_ns)
         if state is None:
             return
@@ -1803,7 +1950,14 @@ def build_core(values, *, map_snapshot_id):
                            map_snapshot_id=map_snapshot_id, search_start=values['search_start'],
                            search_mode=values['search_mode'],
                            patrol_points=patrol_points(values['patrol_points']),
-                           patrol_rounds=values['patrol_rounds'], exit_standoff_m=values['exit_standoff_m'])
+                           patrol_rounds=values['patrol_rounds'], exit_standoff_m=values['exit_standoff_m'],
+                           frontier_min_cells=values['frontier_min_cells'],
+                           frontier_reach_m=values['frontier_reach_m'],
+                           frontier_goal_max_m=values['frontier_goal_max_m'],
+                           frontier_blacklist_m=values['frontier_blacklist_m'],
+                           frontier_issue_delay_ns=seconds_to_ns(str(values['frontier_issue_delay_s'])),
+                           exploration_empty_checks=values['exploration_empty_checks'],
+                           exploration_timeout_ns=seconds_to_ns(str(values['exploration_timeout_s'])))
 
 
 def patrol_points(flat):
@@ -1872,7 +2026,13 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # TB-6 search start (owner decision 2026-10-13 evening, OPS-136): AUTO (the disaster sign) | OPERATOR (button).
     'search_start': 'STRING',
     # TB-6 search (OPS-136·139): PATROL | AREAS; rounds of the patrol points; TB-5's exit approach standoff.
-    'search_mode': 'STRING', 'patrol_rounds': 'INTEGER', 'exit_standoff_m': 'DOUBLE'}
+    'search_mode': 'STRING', 'patrol_rounds': 'INTEGER', 'exit_standoff_m': 'DOUBLE',
+    # FRONTIER (OPS-154): smallest frontier cluster, how far from it a goal cell may be, TB-6 goal cut along the
+    # path, no second try within this of a tried frontier, wait for ~/task_inputs to be read, map updates in a
+    # row with nothing to pick before EXPLORATION_COMPLETE, and the exploration time limit (OPS-156 ①).
+    'frontier_min_cells': 'INTEGER', 'frontier_reach_m': 'DOUBLE', 'frontier_goal_max_m': 'DOUBLE',
+    'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
+    'exploration_timeout_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
@@ -2145,6 +2305,23 @@ def main(args=None):
             node.create_subscription(OccupancyGrid, FROZEN_MAP_TOPIC, guarded('frozen_map', on_frozen_map), latched)
         node.create_subscription(RobotPose, ROBOT_PREFIX + core.roles['SUPPORT'] + '/pose',
                                  guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
+        node.create_subscription(RobotPose, ROBOT_PREFIX + core.roles['SCOUT'] + '/pose',
+                                 guarded('scout_pose', core.on_pose), 1)  # frontier start (OPS-154)
+        if core.search_mode == 'FRONTIER':
+            from nav_msgs.msg import OccupancyGrid
+
+            def on_scout_map(msg):
+                try:
+                    grid = FrozenGrid(msg)  # the same field reading as the frozen grid (rescue_contracts rules)
+                except ValueError as exc:
+                    log.error(f'SCOUT_MAP invalid: {exc}; frontiers wait for a valid map')
+                    return
+                seq = core.on_scout_map(grid)
+                if seq % 30 == 1:
+                    log.info(f'SCOUT_MAP update {seq} {grid.fields["width"]}x{grid.fields["height"]} '
+                             f'res={grid.fields["resolution"]}')
+            node.create_subscription(OccupancyGrid, SCOUT_MAP_TOPIC, guarded('scout_map', on_scout_map), latched)
+            log.info(f'search_mode=FRONTIER map={SCOUT_MAP_TOPIC} executable_bases include {FRONTIER_BASIS}')
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)
         # QR exit (안 「나」, OPS-136·138): same message as targets, class_label exit_qr only.

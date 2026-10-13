@@ -40,6 +40,7 @@
 - 고정 때 재기준(OPS-138·139): 고정 지도가 같은 map_session 이면 탐색 revision 의 대상·출구 최신 위치를 고정 revision 으로 옮긴다. 대상은 revision+1 로 최신 위치를 다시 보고하고 PERSISTED 될 때까지 `TARGET_REBASED_ON_FREEZE`, 로그 `TARGET_REBASED_ON_FREEZE`·`EXIT_REBASED_ON_FREEZE`. 다른 session 은 옮기지 않는다(`TARGET_NOT_ON_FROZEN_MAP`·`EXIT_NOT_ON_FROZEN_MAP`).
 - TB-6 출발 자세(OPS-141·142): `/rescue/map/start_pose/<TB-6>`(PoseWithCovarianceStamped, map, latched)를 TB-6 의 VALID MapState(탐색 basis)와 묶어 한 번 받는다(같은 회차 다른 값은 `START_POSE_CONFLICT`). 순찰 지점과(SLAM_FREEZE 의) TB-6 도킹 접근 지점은 출발 자세 기준 좌표이고 `rescue_contracts.occupancy.compose_planar` 로 map 좌표가 된다. 없으면 순찰·TB-6 복귀를 내지 않는다(`START_POSE_UNKNOWN`).
 - `~/task_inputs` 목적지에 `home/<TB-5>`(출구 접근점)·`home/<TB-6>`(도킹 접근점)을 고정 basis 로 넣는다(로봇 #232 가 자기 `home/<id>` 키를 받음).
+- 지도 전체 탐색(`search_mode=FRONTIER`, 저장소 소유자 결정 2026-10-13 밤, 작전 OPS-154·156): TB-6 실시간 SLAM 지도(`/robot6/map`)와 TB-6 RobotPose 로 frontier 덩어리(`frontier_min_cells` 이상, 목표 칸은 `frontier_reach_m` 안)를 찾고(`rescue_contracts.grid_search`, 통합-인식 #241), 이미 시도한 곳(`frontier_blacklist_m` 안) 말고 TB-6 에서 격자 경로가 가장 짧은 것을 고른다. 목표는 그 경로 위 `frontier_goal_max_m` 지점(짧은 목표). SEARCH_AREA 자리(uuid5, 탐색 basis)를 `~/task_inputs` 에 먼저 넣고 `frontier_issue_delay_s`(≥ 로봇 poll 주기) 뒤에 task 를 낸다. 끝난 frontier 는 결과와 무관하게 다시 고르지 않는다. 고를 것이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE`, `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT`(완료로 넘어감). 지도·pose 가 없으면 `EXPLORATION_MAP_UNKNOWN`·`SCOUT_POSE_UNKNOWN`. 노드 로그 `FRONTIER …`·`FRONTIER_DONE …`·`EXPLORATION_COMPLETE …`. 인형을 찾은 뒤 계속 탐색·두 번 고정은 다음 PR.
 - 순찰(`search_mode=PATROL`, OPS-139, 지점 방식은 재범 확인 대기): `patrol_points`(출발 자세 기준 [x, y, yaw]*N)를 순서대로 SEARCH_AREA(지점 id = uuid5(map_session, 순번))로 내고, 끝나지 않은 지점은 넘긴다. `patrol_rounds` 바퀴 뒤 `PATROL_EXHAUSTED`, 도는 동안 `PATROL_ROUND_<n>`. RViz 목표 선택과 함께 쓰지 않는다(현장 launch 가 거절). `AREAS` 는 프로파일 구역.
 
 **지금 안 되는 것**
@@ -227,6 +228,8 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `search_mode` | string | `PATROL`(현장 파일 순찰 지점) 또는 `AREAS`(프로파일 search_areas). 둘 중 하나만. 현장 지금 `AREAS`(RViz 목표) [근거: 작전 OPS-139, 순찰 방식은 재범 확인 대기] |
 | `patrol_points` | double[] | 생략 가능. TB-6 출발 자세 기준 [x, y, yaw]*N. `PATROL` 이면 필요하고 `executable_bases` 에 `PATROL_POINT` 가 있어야 한다 |
 | `patrol_rounds` | int | 순찰 바퀴 수(1 이상). 다 돌면 `PATROL_EXHAUSTED` [근거: 작전 OPS-139] |
+| `frontier_min_cells`·`frontier_reach_m`·`frontier_goal_max_m`·`frontier_blacklist_m` | int·double | `FRONTIER`: 가장 작은 frontier 덩어리(칸), 덩어리에서 목표 칸까지 최대 거리, TB-6 목표를 자르는 경로 길이, 시도한 frontier 근처 재선택 금지 반경. 현장 10·1.0·1.5·0.5 [제안: 통합-조정 2026-10-13, 미측정] |
+| `frontier_issue_delay_s`·`exploration_empty_checks`·`exploration_timeout_s` | double·int·double | 목적지를 `~/task_inputs` 에 넣고 task 를 내기까지(현장 launch 가 ≥ `live_inputs.poll_period_s` 검사), 빈 지도 갱신 횟수, 탐색 시간 상한(작전 OPS-156 ①). 현장 2.0·3·600 [제안] |
 | `exit_standoff_m` | double | TB-5 가 QR 출구 앞, 대상 쪽으로 멈추는 거리. 현장 0.5 [제안: 통합-조정 2026-10-13, 미측정] |
 | `map_mode` | string | `SLAM_FREEZE`(탐색 SLAM → 대상 저장 뒤 지도 고정 → 고정 지도에서만 TB-5 출동) 또는 `SAVED_MAP`(launch `goal_map_*` 기준 하나). 현장 `SLAM_FREEZE` [근거: 저장소 소유자 결정 2026-10-13, scope Q-29] |
 | `freeze_clearance_m` | double | 고정 지도에서 접근 지점·출구·도킹 접근 지점이 비어 있어야 하는 반지름. 로봇 `task.live.auto_target.goal_clear_radius_m` 과 같아야 한다(현장 launch 가 검사). 현장 0.2 |

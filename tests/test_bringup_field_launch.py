@@ -175,6 +175,10 @@ class CoordinatorParameters(FieldCase):
         expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
         # Added after #132: TB-6 search mode and TB-5's exit approach (OPS-136·139); patrol_points [] is left unset
         expected.update(search_mode='AREAS', patrol_rounds=1, exit_standoff_m=0.5)
+        # Added after #132: frontier exploration values (OPS-154, proposed)
+        expected.update(frontier_min_cells=10, frontier_reach_m=1.0, frontier_goal_max_m=1.5,
+                        frontier_blacklist_m=0.5, frontier_issue_delay_s=2.0, exploration_empty_checks=3,
+                        exploration_timeout_s=600.0)
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
@@ -450,6 +454,13 @@ class FieldFile(FieldCase):
             'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'map mode unknown': lambda r: r['coordinator'].update({'map_mode': 'SLAM'}),
             'search mode unknown': lambda r: r['coordinator'].update({'search_mode': 'LOOP'}),
+            'frontier with the RViz goal pick': lambda r: r['coordinator'].update(
+                {'search_mode': 'FRONTIER', 'executable_bases': ['FRONTIER']}),
+            'frontier basis not executable': lambda r: r['coordinator'].update(
+                {'search_mode': 'FRONTIER', 'live_inputs.search_goal_topic': ''}),
+            'frontier issue before the robot reads it': lambda r: r['coordinator'].update(
+                {'frontier_issue_delay_s': 0.5}),
+            'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
             'patrol without points': lambda r: r['coordinator'].update({'search_mode': 'PATROL'}),
             'patrol points not triples': lambda r: r['coordinator'].update({'patrol_points': [1.0, 2.0]}),
             'patrol rounds below one': lambda r: r['coordinator'].update({'patrol_rounds': 0}),
