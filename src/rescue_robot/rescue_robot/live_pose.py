@@ -42,22 +42,32 @@ def mission_from_native(transform, x, y, yaw, covariance):
 
 
 def pose_record(*, robot_id, boot_id, observed_at_ns, pose_valid_ns, native, amcl_valid, map_loaded,
-                transform, basis, clock, clock_domain_id):
-    """Fields of one RobotPose. ``transform`` None = no current alignment; ``clock`` from the live clock."""
+                transform, basis, clock, clock_domain_id, sensor_clock):
+    """Fields of one RobotPose. ``transform`` None = no current alignment; ``clock`` from the live clock.
+
+    ``sensor_clock`` is the robot Pi (the AMCL stamp follows the scan it stamps): its clock domain
+    and its error bound measured on the Pi, -1 when not measured. The pose time bound is this PC's
+    measured bound plus the Pi's; another domain or an unmeasured Pi gives UNKNOWN.
+    """
     if type(observed_at_ns) is not int or observed_at_ns <= 0 or type(pose_valid_ns) is not int or pose_valid_ns <= 0:
         raise ValueError('positive observation time and pose validity required')
     x, y, yaw, covariance = native
     _finite(x, y, yaw, *covariance)
     if len(covariance) != 36:
         raise ValueError('6x6 covariance required')
-    synced = clock['clock_state'] == 'SYNCED' and clock.get('error_bound_ns') is not None
+    sensor_domain, sensor_bound = sensor_clock['domain_id'], sensor_clock['error_bound_ns']
+    if not isinstance(sensor_domain, str) or not sensor_domain or type(sensor_bound) is not int or sensor_bound < -1:
+        raise ValueError('sensor host clock domain and error bound (>= 0, or -1 = not measured) required')
+    synced = (clock['clock_state'] == 'SYNCED' and clock.get('error_bound_ns') is not None
+              and sensor_domain == clock_domain_id and sensor_bound >= 0)
     valid = bool(amcl_valid and map_loaded and transform is not None and synced)
     return dict(
         robot_id=robot_id, source_boot_id=boot_id,
         time=dict(observed_at_ns=observed_at_ns, valid_until_ns=observed_at_ns + pose_valid_ns,
                   stamp_semantics='CAPTURE',  # AMCL stamps its pose with the laser scan it used
                   clock_domain_id=clock_domain_id, clock_state='SYNCED' if synced else 'UNKNOWN',
-                  has_clock_error_bound=synced, clock_error_bound_ns=clock['error_bound_ns'] if synced else 0),
+                  has_clock_error_bound=synced,
+                  clock_error_bound_ns=clock['error_bound_ns'] + sensor_bound if synced else 0),
         native_frame=basis['native_frame'], native_pose=(x, y, yaw, list(covariance)),
         mission_frame=basis['mission_frame'],
         mission_pose=mission_from_native(transform, x, y, yaw, covariance) if valid else None,
@@ -97,12 +107,12 @@ def _fill_pose(stamped, frame, stamp_ns, pose):
 class LivePosePublisher:
     """Publishes this robot's RobotPose on each AMCL update and MapState when it changes."""
 
-    def __init__(self, runtime, *, pose_valid_ns):
+    def __init__(self, runtime, *, pose_valid_ns, sensor_clock):
         from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
         from rescue_interfaces.msg import MapState, RobotPose
         if type(pose_valid_ns) is not int or pose_valid_ns <= 0:
             raise ValueError('task.live.pose_valid_ns must be a positive integer')
-        self.runtime, self.pose_valid_ns = runtime, pose_valid_ns
+        self.runtime, self.pose_valid_ns, self.sensor_clock = runtime, pose_valid_ns, dict(sensor_clock)
         self.robot = runtime.adapter.robot_id
         self.RobotPose, self.MapState = RobotPose, MapState
 
@@ -147,7 +157,8 @@ class LivePosePublisher:
             observed_at_ns=observed_at_ns, pose_valid_ns=self.pose_valid_ns,
             native=(x, y, yaw, [float(v) for v in message.pose.covariance]), amcl_valid=valid,
             map_loaded=self.robot in r.saved_maps.maps, transform=self._transform(), basis=self._basis(),
-            clock=self._clock(), clock_domain_id=r.inputs.lease_policy.clock_domain_id)
+            clock=self._clock(), clock_domain_id=r.inputs.lease_policy.clock_domain_id,
+            sensor_clock=self.sensor_clock)
         msg = self.RobotPose()
         r.server.stamp_envelope(msg.envelope)
         msg.robot_id, msg.source_boot_id = record['robot_id'], record['source_boot_id']
