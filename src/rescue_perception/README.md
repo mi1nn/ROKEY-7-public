@@ -46,7 +46,7 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
 | [target_location.py](rescue_perception/target_location.py) | 확정 TargetObservation + 촬영 시각 TF map←camera → TargetLocation(VALID) 좌표·공분산·frame_ref. ROS 없음 |
 | [target_locator.py](rescue_perception/target_locator.py) | 위 변환의 ROS 노드: `/rescue/observations` 구독 → 촬영 시각 TF 조회 → `/rescue/target_locations` 발행 |
-| [exit_qr.py](rescue_perception/exit_qr.py) | 출구 QR 판정(내용 정확 일치·N 프레임 연속·위치 허용 범위·깊이)과 출구 TargetObservation 채우기. ROS 없음, amr_target 이 프레임마다 부름 |
+| [exit_qr.py](rescue_perception/exit_qr.py) | 출구 QR 판정(허용 목록과 정확 일치·출구별 N 프레임 연속·위치 허용 범위·깊이)과 출구 TargetObservation 채우기. ROS 없음, amr_target 이 프레임마다 부름 |
 | [headroom.py](rescue_perception/headroom.py) | TB-5 머리 위 여유 실기 반복 판정 기록 도구 `headroom_record`(OPS-115). 판정·발행·정지 명령 없음 |
 | [robot_depth.json](rescue_perception/config/robot_depth.json) | robot5·robot6 공통 보정계수·offset·허용 로봇 ID·입력 단위/상태. 설치본에도 포함 |
 
@@ -263,15 +263,17 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 시험: `tests/test_perception_headroom.py`(판정·점 변환·요약), `tests/ros/e3_headroom_probe.py`(LOCALHOST ROS, 합성 깊이·정적 TF → 판정 기록, E3). 실제 TB-5 깊이·가로판·보이는 거리는 NOT_RUN 이다.
 
-### 출구 QR (OPS-136/138)
+### 출구 QR (OPS-136/138, 여러 출구 OPS-154/157)
 
-[저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-138 설계 승인] TB-6 가 순찰 중 출구 QR 을 보면 그 위치가 출구다. amr_target 이 대상과 같은 RGB-D 프레임에서 OpenCV `QRCodeDetector` 로 읽는다. 같은 시계·CameraInfo·왜곡 보정(#164)·깊이 보정을 쓴다. 내용이 `exit_qr_payload` 와 정확히 같은 프레임이 `exit_qr_required_frames` 번 연속이어야 출구로 인정한다. 그 프레임들의 위치가 모두 있어야 하고, 첫 위치에서 `exit_qr_position_tolerance_m` 안이어야 한다. QR 이 없거나, 내용이 다르거나, 깊이가 모자란(`exit_qr_min_valid_depth_ratio`) 프레임이 하나라도 끼면 처음부터 다시 센다. 위치는 QR 네 꼭짓점을 왜곡 보정하고, 코드 안쪽 절반의 깊이 중앙값으로 중심을 역투영한 점이다. 시각 근거(stamp 의미)나 RGB-깊이 정렬 근거가 없으면 위치를 내지 않는다. 대상과 같은 규칙이다.
+[저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-138 설계 승인. 여러 출구는 OPS-154, 정확 일치는 재범 확정 OPS-155] TB-6 가 지도를 탐색하다 출구 QR 을 보면 그 위치가 그 출구다. 출구는 여러 개일 수 있다(예 EXIT-1, EXIT-2). amr_target 이 대상과 같은 RGB-D 프레임에서 OpenCV `QRCodeDetector.detectAndDecodeMulti` 로 한 프레임의 QR 을 모두 읽는다. 같은 시계·CameraInfo·왜곡 보정(#164)·깊이 보정을 쓴다.
 
-인정되면 `/rescue/exit_observations` 에 TargetObservation 하나를 낸다(새 IDL 없음). `class_label` 은 `exit_qr` 이다. `confidence` 1.0 은 확률이 아니라 내용 일치를 뜻한다. `model_id` 는 `opencv.QRCodeDetector/<cv2 버전>`, `model_sha256` 은 설치된 cv2 바이너리의 sha256 이고, 둘 다 기동 로그에 남는다. `tracking_mode` 는 `DETECTION_ONLY` 다. TB-6 지도(session, revision)마다 한 번만 내고, revision 이 바뀌면 같은 QR 도 다시 낸다. launch 의 두 번째 target_locator(`exit_locator`)가 이것을 `/rescue/exit_location` TargetLocation 으로 바꾼다. 지도 기준은 대상과 같다(MapRevisionTracker). 조정기는 `class_label == 'exit_qr'` 만 출구로 쓴다. 지도 고정 때 이전 revision 의 위치를 재기준하는 일과 출구 앞 접근점 계산은 조정기 몫이다.
+내용이 `exit_qr_payloads` 목록의 한 값과 정확히 같아야 한다. 대소문자도 같아야 하고 앞뒤 공백도 그대로 비교한다. 출구마다 따로 센다. 검사한 프레임이 그 출구를 `exit_qr_required_frames` 번 연속 읽어야 인정한다. 그 프레임들의 위치가 모두 있어야 하고, 첫 위치에서 `exit_qr_position_tolerance_m` 안이어야 한다. 검사한 프레임에 그 출구가 없거나, 깊이가 모자라거나(`exit_qr_min_valid_depth_ratio`), 한 프레임에서 두 번 읽히면 그 출구만 처음부터 다시 센다. 다른 출구의 연속 횟수는 그대로다. 목록에 없는 내용은 출구가 아니고 로그(5초 간격)만 남는다. 위치는 QR 네 꼭짓점을 왜곡 보정하고, 코드 안쪽 절반의 깊이 중앙값으로 중심을 역투영한 점이다. 시각 근거(stamp 의미)나 RGB-깊이 정렬 근거가 없으면 위치를 내지 않는다. 대상과 같은 규칙이다.
 
-필수 파라미터(기본값 없음): `exit_qr_payload`, `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_qr_every_n_frames`([제안] 6: 30 Hz 에서 5 Hz 검사, 704×704 프레임당 약 35 ms 라서(OPS-141). 연속 횟수는 검사한 프레임 기준이고 건너뛴 프레임은 연속을 끊지 않는다), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
+인정되면 `/rescue/exit_observations` 에 TargetObservation 하나를 낸다(새 IDL 없음). `class_label` 은 `exit_qr` 이다. `confidence` 1.0 은 확률이 아니라 내용 일치를 뜻한다. `model_id` 는 `opencv.QRCodeDetector/<cv2 버전>`, `model_sha256` 은 설치된 cv2 바이너리의 sha256 이고, 둘 다 기동 로그에 남는다. 어느 출구인지는 `track_id` 에 QR 내용 그대로 싣는다(`has_track_id` true, `tracking_mode` `TRACKING`, OPS-157). 같은 출구는 프레임이나 revision 이 바뀌어도 같은 이름이다. `evidence.evidence_id` 는 계속 프레임 근거다. 출구마다, 그리고 TB-6 지도(session, revision)마다 한 번만 낸다. revision 이 바뀌면 같은 QR 도 다시 낸다. launch 의 두 번째 target_locator(`exit_locator`)가 이것을 `/rescue/exit_location` TargetLocation 으로 바꾼다. 지도 기준은 대상과 같다(MapRevisionTracker). 조정기는 `class_label == 'exit_qr'` 만 출구로 쓰고, `observation.track_id` 로 출구를 구분한다. 지도 고정 때 이전 revision 의 위치를 재기준하는 일과 출구 앞 접근점 계산은 조정기 몫이다.
 
-시험: `tests/test_perception_exit_qr.py`(판정·위치·메시지·송신), `tests/ros/e3_amr_target_probe.py` 5–7번(합성 RGB-D 의 QR → 출구 관측). 실제 TB-6 영상의 QR, exit_locator → `/rescue/exit_location` 연결, 검출 처리 시간은 NOT_RUN 이다.
+필수 파라미터(기본값 없음): `exit_qr_payloads`(STRING_ARRAY. launch 인자는 쉼표로 나눈 `exit_qr_payloads:=EXIT-1,EXIT-2` 이다. 빈 항목이나 중복이 있으면 기동하지 않는다. QR 내용에 쉼표를 쓰지 않는다. 예전 `exit_qr_payload` 는 없어졌다), `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_qr_every_n_frames`([제안] 6: 30 Hz 에서 5 Hz 검사. 704×704 프레임 한 장에 QR 0개 15 ms, 1개 35–37 ms, 2개 45–49 ms 걸린다(detectAndDecodeMulti, OPS-141/154 실측). 이전의 한 개 검출은 QR 이 2개 보이면 하나도 읽지 못했다. 연속 횟수는 검사한 프레임 기준이고 건너뛴 프레임은 연속을 끊지 않는다), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
+
+시험: `tests/test_perception_exit_qr.py`(목록·출구별 판정·위치·메시지·송신), `tests/ros/e3_amr_target_probe.py` 5–8번(합성 RGB-D 의 QR → 출구 관측, 두 번째 출구는 자기 track_id). 실제 TB-6 영상의 QR, exit_locator → `/rescue/exit_location` 연결, 검출 처리 시간은 NOT_RUN 이다.
 
 ### 검증과 범위
 

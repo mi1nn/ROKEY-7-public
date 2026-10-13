@@ -17,8 +17,9 @@ TF map -> base_link -> camera optical, map -> laser, and LaserScan. All values a
 TargetObservation with a located camera point and the host's measured clock (SYNCED when timesyncd
 answers); 3. ObserveTarget with the doll at the point -> PRESENT, LiDAR BLOCKED, coverage VALID;
 4. doll gone -> ABSENT, CLEAR, VALID; 5. a QR with other content -> no exit observation (OPS-136);
-6. the exit QR -> one exit TargetObservation (class exit_qr, point at the QR depth), not repeated
-while it stays in view; 7. a new TB-6 map revision -> one more. Exit code 0 = all held.
+6. the exit QR EXIT-1 -> one exit TargetObservation (class exit_qr, track_id EXIT-1, point at the QR
+depth), not repeated while it stays in view; 7. a new TB-6 map revision -> one more; 8. the second
+listed exit EXIT-2 -> one observation with track_id EXIT-2 (OPS-154/157). Exit code 0 = all held.
 """
 import math
 import os
@@ -48,7 +49,7 @@ FAR_MM, DOLL_MM = 4000, 2000
 ACTION = '/rescue/robots/robot_a/observe_target'
 SCALE = 0.9594383775351013             # robot_depth.json, applied by amr_target
 POINT = (DOLL_MM / 1000 * SCALE, 0.0, 0.3)   # doll centre in the map: straight ahead of the camera
-EXIT_PAYLOAD, QR_MM = 'ROKEY7-EXIT', 1500
+EXIT_PAYLOADS, QR_MM = ('EXIT-1', 'EXIT-2'), 1500
 MAP_STATE = '/rescue/robots/robot_a/map_state'
 COMPRESSED_DEPTH = '--compressed-depth' in sys.argv
 
@@ -76,7 +77,7 @@ def amr_args(with_recheck=True):
                   'recheck_min_scans': '3', 'recheck_min_lidar_rays': '3', 'recheck_min_lidar_hits': '2',
                   'recheck_image_margin_px': '5', 'recheck_min_depth_m': '0.2', 'recheck_max_depth_m': '5.0',
                   'recheck_occlusion_tolerance_m': '0.3', 'recheck_depth_window_px': '2'})
-        p.update({'exit_qr_payload': EXIT_PAYLOAD, 'exit_qr_required_frames': '5',
+        p.update({'exit_qr_payloads': list(EXIT_PAYLOADS), 'exit_qr_required_frames': '5',
                   'exit_qr_position_tolerance_m': '0.2', 'exit_qr_min_valid_depth_ratio': '0.5', 'exit_qr_every_n_frames': '2',
                   'exit_map_state_topic': MAP_STATE})
     flags = []
@@ -246,10 +247,10 @@ def main():
               f'coverage={p.coverage_state} {p.detector_health} clock={p.time.clock_state}')
         checks['doll gone -> ABSENT / CLEAR / VALID'] = (r.outcome, p.camera_state, p.lidar_state,
                                                          p.coverage_state) == ('OBSERVED', 'ABSENT', 'CLEAR', 'VALID')
-        scene['qr'] = 'ROKEY7-OTHER'
+        scene['qr'] = 'exit-1'   # not exactly a listed exit
         pump(2.0)
         checks['other QR content -> no exit observation'] = not exits
-        scene['qr'] = EXIT_PAYLOAD
+        scene['qr'] = EXIT_PAYLOADS[0]
         pump(3.0)
         e = exits[0] if exits else None
         if e:
@@ -257,13 +258,18 @@ def main():
                   f'{e.sensor_position.z:.3f}) clock={e.time.clock_state}')
         checks['exit QR -> one exit_qr observation at the QR depth'] = len(exits) == 1 and e.class_label == 'exit_qr' \
             and e.localization_status == 'VALID' and abs(e.sensor_position.z - QR_MM / 1000 * SCALE) < 0.05 \
-            and e.confidence == 1.0 and e.model_id.startswith('opencv.QRCodeDetector/')
+            and e.confidence == 1.0 and e.model_id.startswith('opencv.QRCodeDetector/') \
+            and (e.tracking_mode, e.has_track_id, e.track_id) == ('TRACKING', True, 'EXIT-1')
         map_state = MapState(robot_id='robot_a', map_session_id='e3-session', map_revision=1,
                              localization_quality='VALID', current_native_map_frame='map')
         map_state.generated_at_ns = node.get_clock().now().nanoseconds
         map_pub.publish(map_state)
         pump(3.0)
-        checks['new map revision -> one more exit observation'] = len(exits) == 2
+        checks['new map revision -> one more exit observation'] = len(exits) == 2 and exits[1].track_id == 'EXIT-1'
+        scene['qr'] = EXIT_PAYLOADS[1]
+        pump(3.0)
+        checks['second listed exit -> one observation with its own track_id'] = (
+            [x.track_id for x in exits] == ['EXIT-1', 'EXIT-1', 'EXIT-2'])
     finally:
         executor.shutdown()
         node.destroy_node()

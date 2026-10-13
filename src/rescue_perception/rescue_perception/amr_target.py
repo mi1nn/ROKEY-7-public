@@ -34,8 +34,8 @@ from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, SensorHostClock
     PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png, localization_blockers)
 from .adapter import camera_intrinsics, rgb_frame, stamp_ns
-from .exit_qr import (EXIT_OBSERVATIONS_TOPIC, EXIT_PARAMS, ExitQrConfirmer, ExitSender, detect_qr, detector_identity,
-    exit_values, fill_exit_observation, qr_point)
+from .exit_qr import (EXIT_OBSERVATIONS_TOPIC, EXIT_PARAMS, ExitQrConfirmer, ExitSender, detect_qrs, detector_identity,
+    exit_values, fill_exit_observation, qr_point, split_qrs)
 from .recheck import CameraModel, scan_state
 from .recheck_feed import (RECHECK_PARAMS, Candidate, depth_median, depth_rows_m, frame_evidence, recheck_values,
     rigid_from_tf, scan_fields)
@@ -218,36 +218,37 @@ def create_node(*, model_factory=None, transform_lookup=None):
                                    f'base_xyz=({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) capture_stamp={o.observed_at_ns}')
 
         def feed_exit(found, rgb, stamp, info, depth):
-            """One frame for the exit QR run; a confirmed run publishes once per map revision."""
+            """One checked frame with listed exits {content: corners}; each confirmed exit is published once per
+            map revision."""
             try:
-                point = None
-                if found is not None and found[0] == exit_policy.payload and not exit_blockers:
+                readings = dict.fromkeys(found)   # no position yet: breaks that exit's run unless placed below
+                if not exit_blockers:
                     intrinsics = camera_intrinsics(info, pipeline.binding, rectified=v['rgb_rectified'])
                     if intrinsics.rectified or intrinsics.undistort is not None:
                         rows = depth_rows_m(bridge.imgmsg_to_cv2(depth, desired_encoding='passthrough'),
                                             depth.encoding, depth_policy.scale, depth_policy.offset_m)
-                        point = qr_point(found[1], rows, fx=intrinsics.fx, fy=intrinsics.fy, cx=intrinsics.cx,
-                                         cy=intrinsics.cy, undistort=intrinsics.undistort,
-                                         min_valid_ratio=exit_policy.min_valid_depth_ratio)
-                elif found is not None and found[0] != exit_policy.payload:
-                    node.get_logger().warning(f'QR {found[0]!r} is not the exit QR', throttle_duration_sec=5.0)
-                if not exit_confirmer.add(found[0] if found else None, point):
-                    return
-                if not exit_sender.send(state['exit_map']):
-                    return
-                message = fill_exit_observation(
-                    TargetObservation(), observation_id=str(uuid4()), binding=pipeline.binding,
-                    frame_id=rgb.header.frame_id, observed_at_ns=stamp, validity_ns=expiry.validity_ns,
-                    corners=found[1], point=point, covariance=covariance, model_id=exit_model_id,
-                    model_sha256=exit_model_sha256, evidence_id=f'{boot_id}/{stamp}/frame',
-                    evidence_sha256=rgb_frame(rgb, pipeline.binding)[1])
-                envelope(message.envelope, 'exit_seq', node.get_clock().now().nanoseconds)
-                exit_pub.publish(message)
-                p = message.sensor_position
-                node.get_logger().info(f'exit QR confirmed observation={message.observation_id} map={state["exit_map"]} '
-                                       f'sensor=({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) clock={message.time.clock_state}')
-            except Exception as exc:   # the frame says nothing about the exit
-                exit_confirmer.add(None, None)
+                        for payload, corners in found.items():
+                            readings[payload] = qr_point(corners, rows, fx=intrinsics.fx, fy=intrinsics.fy,
+                                                         cx=intrinsics.cx, cy=intrinsics.cy,
+                                                         undistort=intrinsics.undistort,
+                                                         min_valid_ratio=exit_policy.min_valid_depth_ratio)
+                for payload in exit_confirmer.add(readings):
+                    if not exit_sender.send(payload, state['exit_map']):
+                        continue
+                    message = fill_exit_observation(
+                        TargetObservation(), observation_id=str(uuid4()), binding=pipeline.binding,
+                        frame_id=rgb.header.frame_id, observed_at_ns=stamp, validity_ns=expiry.validity_ns,
+                        payload=payload, corners=found[payload], point=readings[payload], covariance=covariance,
+                        model_id=exit_model_id, model_sha256=exit_model_sha256, evidence_id=f'{boot_id}/{stamp}/frame',
+                        evidence_sha256=rgb_frame(rgb, pipeline.binding)[1])
+                    envelope(message.envelope, 'exit_seq', node.get_clock().now().nanoseconds)
+                    exit_pub.publish(message)
+                    p = message.sensor_position
+                    node.get_logger().info(f'exit QR {payload!r} confirmed observation={message.observation_id} '
+                                           f'map={state["exit_map"]} sensor=({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) '
+                                           f'clock={message.time.clock_state}')
+            except Exception as exc:   # the frame says nothing about the exits
+                exit_confirmer.add({})
                 node.get_logger().warning(f'exit QR frame {stamp} skipped: {type(exc).__name__}: {exc}')
 
         requests = SelectiveDepth(capacity=v['sync_queue_size'], slop_ns=v['sync_slop_ns'],
@@ -296,7 +297,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 node.get_logger().info(f'depth stamp_delta_ns={delta} decoded={counters["depth_decoded"]}')
             except Exception as exc:
                 if found is not None:
-                    exit_confirmer.add(None, None)
+                    exit_confirmer.add({})
                 node.get_logger().error(f'AMR target frame failed (no fabricated coordinates): {type(exc).__name__}: {exc}')
 
         def on_rgb(message):
@@ -315,11 +316,13 @@ def create_node(*, model_factory=None, transform_lookup=None):
                     cv2.waitKey(1)
                 found = None
                 if exit_confirmer.due():
-                    found = detect_qr(frame)
-                    if found is None or found[0] != exit_policy.payload:
-                        exit_confirmer.add(None, None)
-                        if found is not None:
-                            node.get_logger().warning(f'QR {found[0]!r} is not the exit QR', throttle_duration_sec=5.0)
+                    found, unknown, duplicated = split_qrs(detect_qrs(frame), exit_policy.payloads)
+                    if unknown or duplicated:
+                        node.get_logger().warning(f'QR not used as an exit: other content {list(unknown)}, '
+                                                  f'read twice in one frame {list(duplicated)}',
+                                                  throttle_duration_sec=5.0)
+                    if not found:
+                        exit_confirmer.add({})
                         found = None
                 rechecking = server.watched_point() is not None
                 outputs = inference.outputs if sender.state != 'SENT' else ()
@@ -359,7 +362,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
         node.get_logger().info(f'amr_target git={git_sha()} boot={boot_id} model_sha256={model_hash} '
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '
             f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id} '
-            f'exit_qr model_id={exit_model_id} model_sha256={exit_model_sha256} '
+            f'exit_qr payloads={list(exit_policy.payloads)} model_id={exit_model_id} model_sha256={exit_model_sha256} '
             f'every_n_frames={exit_policy.every_n_frames} required_frames={exit_policy.required_frames} '
             f'exit_blockers={",".join(exit_blockers) or "none"}')
         return node
