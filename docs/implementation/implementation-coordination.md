@@ -20,7 +20,7 @@
 **TB-5 자동 출동·출구 (이 PR 뒤, 저장소 소유자 결정 2026-10-13 1B·2B·Q1-b·5A)**
 
 - `support_dispatch=AUTO` 면 대상이 CONFIRMED 이고 지금 revision 의 보고가 PERSISTED 일 때 TB-5 에 `APPROACH_TARGET` 하나(`has_approval=false`, route.approach_goal = standoff 접근 지점, frame_ref = 대상의 것). 한 임무에 한 번. 거절되면 `TASK_REFUSED` 대기 뒤 새 task(#167).
-- 접근이 COMPLETED·정지 확인으로 끝나면 `support_exit_wait_s` 뒤 `RETURN_HOME`(`home_ref=home/<robot_id>`, 좌표는 로봇이 프로파일에서 가짐) 하나. 재난 모드가 끝나면 취소(`SUPPORT_EXIT_CANCELED`), 구출 판정은 취소하지 않는다(5A). 접근 실패면 `APPROACH_FAILED` 로 보이고 출구로 보내지 않는다.
+- 접근이 COMPLETED·정지 확인으로 끝나면 `support_exit_wait_s` 뒤 `RETURN_HOME`(`home_ref=home/<robot_id>`, 좌표는 로봇이 프로파일에서 가짐) 하나. 재난 모드가 끝나면 취소(`SUPPORT_EXIT_CANCELED`), 구출 판정은 취소하지 않는다(5A). 접근 실패면 `APPROACH_FAILED_<사유>`(실행기 결과 `terminal_reason`, 비어 있으면 outcome; 예 `APPROACH_FAILED_PASSAGE_BLOCKED`) 로 보이고 출구로 보내지 않는다(작전 OPS-119).
 - `SystemState.reason`: `SUPPORT_EXIT_IN_<n>S` → `SUPPORT_EXITING` → `SUPPORT_AT_EXIT`(실패 `SUPPORT_EXIT_FAILED`).
 
 **지금 안 되는 것**
