@@ -31,6 +31,8 @@ class DbWriterParameters(unittest.TestCase):
             'robot_roles': ['SCOUT', 'SUPPORT'],
             'status_topics': ['/rescue/robots/robot_a/status', '/rescue/robots/robot_b/status'],
             'pose_topics': ['/rescue/robots/robot_a/pose', '/rescue/robots/robot_b/pose'],
+            'overhead_passages_topics': ['/rescue/robots/robot_a/overhead_passages',
+                                         '/rescue/robots/robot_b/overhead_passages'],
             'site_events_topic': '/rescue/site_events',
             'system_state_topic': '/rescue/system_state',
             'targets_topic': '/rescue/targets',
@@ -55,6 +57,12 @@ class DbWriterParameters(unittest.TestCase):
                          (params['site_events_topic'], params['system_state_topic'], params['targets_topic'],
                           params['operator_command_service']))
         self.assertTrue(all(t.startswith(coordinator.ROBOT_PREFIX) for t in params['status_topics']))
+
+    def test_tunnel_topics_are_the_contract_s(self):
+        from rescue_contracts.overhead import overhead_passages_topic
+        params = build()
+        self.assertEqual([overhead_passages_topic(r) for r in params['allowed_robot_ids']],
+                         params['overhead_passages_topics'])
 
     def test_api_listens_on_loopback_only(self):
         """The API has no login of its own; the console on the same PC does that (#125)."""
