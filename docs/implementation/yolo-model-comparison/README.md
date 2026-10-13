@@ -1,5 +1,7 @@
 # AMR Vision: survivor nano 모델 비교와 채택
 
+> **기록 (2026-10-12).** 모델 비교 기록이다. 지금 로봇 카메라 모델은 여기서 채택한 YOLO26n 100 epoch best.pt 다([manifest](../../../assets/manifest/yolo26n-survivor-v2.json)). 지금 인식 흐름은 [인식 구현 문서](../implementation-perception.md)를 본다.
+
 [설정·측정, 2026-10-12] AMR 카메라의 시연 인형을 `survivor` 1클래스로 탐지한다. 최종 채택은 **YOLO26n의 100 epoch 실험 `best.pt`**다. 같은 v2 데이터로 YOLOv8n·YOLO11n·YOLO26n을 비교하고 최종 모델의 GPU 통계를 보충했다.
 
 [PDF 상세 보고서](report/amr-vision-detailed.pdf) · [HTML 상세 보고서](report/amr-vision-detailed.html)

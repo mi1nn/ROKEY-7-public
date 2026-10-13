@@ -1,5 +1,7 @@
 # 탐색 알고리즘 3종 주행 관측 — 2026-10-13
 
+> **기록 (2026-10-13).** 탐색 알고리즘 주행 관측 기록이다. 지금 현장 탐색은 explore_lite 가 아니다. 조정기가 `search_mode` FRONTIER 로 TB-6 의 다음 목표를 직접 고른다(`rescue_coordination/ros_node.py`, `rescue_contracts.grid_search`, 현장 파일 [search_area.field.json](../../config/field/search_area.field.json)). 현장 실행은 [rescue_bringup README](../../src/rescue_bringup/README.md)를 본다. 아래의 robot6 은 TB-6 이다.
+
 현재 상태는 단독 주행 관측 기록이다. 전체 지도 완성·독립 정확도·세 알고리즘의 최종 성능 우열은 검증하지 않았다. [선정안](exploration-algorithm-selection-2026-10-13.md)과 함께 검토한다.
 
 ## 범위와 공통 조건
