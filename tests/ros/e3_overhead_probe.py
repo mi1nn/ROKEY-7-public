@@ -16,7 +16,10 @@ VALID TB-6 MapState. All values are synthetic test values. Checks:
 1. a missing value -> exit 2; 2. an empty list at start (latched); 3. plate 0.47 m -> one PASSABLE
 item, lowest 0.47, at the map point under the plate; 4. plate 0.40 m at the same place -> the same
 item BLOCKED 0.40; 5. a wall from the floor -> no new item; 6. a new map revision -> a second item
-with that revision, the first kept. Exit code 0 = all held.
+with that revision, the first kept; 7-9. the camera view (OPS-189, grey RGB frames with the cloud
+stamps): JPEG at view_width, the space under the plate grey before the confirmation, green once
+PASSABLE, red once BLOCKED. It prints the time from the plate appearing to the confirmed list.
+Exit code 0 = all held.
 """
 import json
 import math
@@ -31,7 +34,8 @@ from geometry_msgs.msg import TransformStamped
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_contracts.overhead import parse_overhead_passages
 from rescue_interfaces.msg import MapState
-from sensor_msgs.msg import PointCloud2, PointField
+import cv2
+from sensor_msgs.msg import CameraInfo, CompressedImage, PointCloud2, PointField
 from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
@@ -43,9 +47,13 @@ MAP_STATE = '/rescue/robots/robot_a/map_state'
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 PARAMS = dict(points_topic='/e3robot/passage_points', base_frame='base_link', map_frame='map', robot_id='robot_a',
               map_robot_id='robot_a', map_state_topic=MAP_STATE, clock_error_bound_ns=0, process_period_s=0.3,
-              max_cloud_age_s=1.0, stride=1, clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4,
+              max_cloud_age_s=1.0, stride=1, camera_info_topic='/e3robot/camera_info',
+              view_image_topic='/e3robot/rgb/compressed', view_width=88, view_quality=90, view_slop_ns=20_000_000,
+              view_font_path=next(iter(sorted(__import__('pathlib').Path('/usr/share/fonts').glob('**/NotoSansCJK-*.ttc'))),
+                                  '/missing-cjk-font'), clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4,
               front_far_m=1.0, half_width_m=0.2, lidar_plane_m=0.23, top_m=1.0, min_points=5, floor_min_points=20,
               confirm_frames=3, position_tolerance_m=0.3, merge_radius_m=0.5)
+PARAMS['process_period_s'] = 0.2   # the field value (5 judgements and views per second)
 
 
 def command(params):
@@ -53,7 +61,7 @@ def command(params):
     for name, value in params.items():
         flags += ['-p', f'{name}:={value!r}' if isinstance(value, float) else f'{name}:={value}']
     code = 'from rescue_perception.overhead import main; raise SystemExit(main())'
-    return [sys.executable, '-c', code, '--ros-args'] + flags + ['-r', '/tf:=/e3robot/tf',
+    return [sys.executable, '-c', code, '--ros-args'] + flags + ['-r', '__ns:=/e3robot', '-r', '/tf:=/e3robot/tf',
                                                                  '-r', '/tf_static:=/e3robot/tf_static']
 
 
@@ -107,8 +115,23 @@ def main():
                                       QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
     static_pub = node.create_publisher(TFMessage, '/e3robot/tf_static', LATCHED)
     map_pub = node.create_publisher(MapState, MAP_STATE, LATCHED)
-    lists = []
-    node.create_subscription(String, TOPIC, lambda m: lists.append(parse_overhead_passages(m.data)), LATCHED)
+    sensor = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+    rgb_pub = node.create_publisher(CompressedImage, '/e3robot/rgb/compressed', sensor)
+    info_pub = node.create_publisher(CameraInfo, '/e3robot/camera_info', sensor)
+    lists, views, times = [], [], {}
+
+    def on_list(m):
+        lists.append(parse_overhead_passages(m.data))
+        times.setdefault(len(lists), time.monotonic())
+
+    def on_view(m):
+        image = cv2.imdecode(np.frombuffer(bytes(m.data), np.uint8), cv2.IMREAD_COLOR)
+        b, g, r = (int(c) for c in image[44, 44])   # under the plate: about 0.2 m up at 1 m ahead, half scale
+        views.append((time.monotonic(), m.format, image.shape, 'green' if g > r + 40 and g > b + 40 else
+                      'red' if r > g + 40 and r > b + 40 else 'grey' if abs(r - g) < 20 and abs(g - b) < 20 else 'other'))
+    node.create_subscription(String, TOPIC, on_list, LATCHED)
+    node.create_subscription(CompressedImage, '/e3robot/rescue/passage_view/compressed', on_view, sensor)
+    gray = cv2.imencode('.jpg', np.full((SIZE, SIZE, 3), 128, np.uint8))[1].tobytes()
     yaw = math.pi / 2
     static_pub.publish(TFMessage(transforms=[
         static_tf('map', 'base_link', (2.0, 1.0, 0.0), (0.0, 0.0, math.sin(yaw / 2), math.cos(yaw / 2))),
@@ -127,14 +150,33 @@ def main():
     def pump(seconds):
         end = time.monotonic() + seconds
         while time.monotonic() < end:
-            cloud_pub.publish(cloud(scene['now'], node.get_clock().now().nanoseconds))
+            now = node.get_clock().now().nanoseconds
+            stamp = divmod(now, 10**9)
+            info = CameraInfo(width=SIZE, height=SIZE, k=[F, 0.0, SIZE / 2, 0.0, F, SIZE / 2, 0.0, 0.0, 1.0])
+            info.header.frame_id, (info.header.stamp.sec, info.header.stamp.nanosec) = OPTICAL, stamp
+            image = CompressedImage(format='jpeg', data=gray)
+            image.header.frame_id, (image.header.stamp.sec, image.header.stamp.nanosec) = OPTICAL, stamp
+            info_pub.publish(info)
+            rgb_pub.publish(image)
+            cloud_pub.publish(cloud(scene['now'], now))
             rclpy.spin_once(node, timeout_sec=0.1)
 
     try:
         pump(4.0)
         checks['empty list at start (latched)'] = bool(lists) and lists[-1]['items'] == []
         scene['now'] = ('plate', 0.47)
+        shown, before = time.monotonic(), len(lists)
         pump(4.0)
+        confirmed_at = times.get(before + 1)
+        seen = [c for t, _, _, c in views if t >= shown]
+        first_green = next((t for t, _, _, c in views if t >= shown and c == 'green'), None)
+        print(f'  plate shown -> list {None if confirmed_at is None else round(confirmed_at - shown, 2)} s, '
+              f'green view {None if first_green is None else round(first_green - shown, 2)} s '
+              f'(process_period {PARAMS["process_period_s"]} s x confirm_frames {PARAMS["confirm_frames"]}); views {seen[:12]}')
+        checks['camera view: jpeg at view_width'] = bool(views) and all(
+            f == 'jpeg' and shape[1] == PARAMS['view_width'] for _, f, shape, _ in views)
+        checks['camera view: grey before the confirmation, then green'] = (
+            'grey' in seen and first_green is not None and seen.index('grey') < seen.index('green'))
         items = lists[-1]['items'] if lists else []
         first = items[0] if items else None
         if first:
@@ -147,6 +189,7 @@ def main():
         scene['now'] = ('plate', 0.40)
         pump(4.0)
         items = lists[-1]['items']
+        checks['camera view: red once BLOCKED'] = views[-1][3] == 'red'
         checks['plate 0.40 at the same place -> the same item BLOCKED'] = (
             len(items) == 1 and items[0]['id'] == first['id'] and items[0]['state'] == 'BLOCKED'
             and abs(items[0]['lowest_m'] - 0.40) < 0.01)
