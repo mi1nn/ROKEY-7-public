@@ -236,7 +236,8 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 
 **좌표 기준: TB-6 출발 자세(OPS-141).** SLAM 지도 원점은 Create3 odom 원점이다. 바닥 표시 출발 자리와 다를 수 있다[추정, 실기 확인 항목: SLAM 시작 직후 `/robot6/pose` 가 (0,0,0) 인지 본다. 맞으면 아래 변환이 항등일 뿐 틀리지 않는다].
 - 그래서 미리 재는 좌표는 모두 TB-6 출발 자세 기준으로 적는다: 순찰 지점, TB-6 도킹 접근 지점, TB-5 출발값.
-- `map_freeze` 는 SLAM 시작 뒤 처음 받은 유효한 TB-6 SLAM 위치를 회차마다 한 번 `output_dir/start_pose.json` 에 남기고, `/rescue/map/start_pose/robot_a`(TRANSIENT_LOCAL)로 낸다.
+- `map_freeze` 의 TB-6 위치도 실행기처럼 TF `map→base_link`(`/robot6/tf`, 0.2 s 마다)이고, 공분산은 마지막 `/robot6/pose` 값이다(30 s 넘으면 세지 않음, OPS-179). 그래서 서 있는 TB-6 도 고정할 수 있다. 공분산이 오래되면 고정은 `MAP_FREEZE_FAILED SLAM pose covariance is too old` 다.
+- `map_freeze` 는 SLAM 시작 뒤 처음 받은 유효한 TB-6 위치를 회차마다 한 번 `output_dir/start_pose.json` 에 남기고, `/rescue/map/start_pose/robot_a`(TRANSIENT_LOCAL)로 낸다.
 - 그래서 **`map_freeze` 는 TB-6 이 움직이기 전에 띄운다.** 노드를 다시 띄우면 저장한 값을 다시 낸다(새로 잡지 않음). 새 회차는 새 `output_dir` 로 띄운다.
 - TB-5 위치 추정 launch 는 이 출발 자세로 `robots.robot_b.initial_pose_xy_yaw` 를 map 좌표로 바꾼다. 순찰·도킹 접근 지점은 조정기가 바꾼다(통합-조정).
 

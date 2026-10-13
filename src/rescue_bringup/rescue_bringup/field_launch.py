@@ -564,7 +564,11 @@ def map_freeze_parameters(deployment, *, field, output_dir):
     params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
               'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
               'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
-              'output_dir': output_dir}
+              'output_dir': output_dir,
+              # TB-6 pose = TF map -> base_link like the executor; covariance from <ns>/pose (OPS-179)
+              'tf_topic': robot.readiness.tf_topic, 'odom_frame': robot.readiness.odom_frame,
+              'base_frame': SLAM_BASE_FRAME,
+              'covariance_max_age_ns': section['task.saved_map.slam_covariance_max_age_ns']}
     return params
 
 
