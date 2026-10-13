@@ -2,7 +2,7 @@
 
 > 이 문서의 앞 절들은 계획 PR 8 이후 쌓인 기록이다. 지금 코드가 무엇을 하는지는 바로 아래 「지금 상태」가 기준이고, 뒤 절과 어긋나면 이 절이 맞다(2026-10-13).
 
-## 지금 상태 (2026-10-13, main `b1f53f7` 기준)
+## 지금 상태 (2026-10-13, main `2550f1d` 기준)
 
 **되는 것 — 로봇 없이 A·B 단계가 코드로 이어진다** [측정 2026-10-13]
 
@@ -14,7 +14,7 @@
   - 스크립트 `tests/ros/e3_rehearsal_ab.py` 는 #142 머지 뒤 PR 로 올린다.
 - 출동 승인 관문: 확정(CONFIRMED)이고, 지금 revision 의 보고가 PERSISTED 이고, 운영자가 그 revision 으로 누를 때만 열린다.
   - 단위 시험: `tests/test_coordination_ros_targets.py` `DispatchGateTests`(#139).
-  - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 #151.
+  - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 `tests/ros/e3_report_gate_probe.py`(#151, 머지됨).
 - 보고 크기(#139): 보고에는 아직 PERSISTED 영수증에 들어가지 않은 위치만 싣는다(SDD 391 기록 중복 제거). 같은 대상의 위치가 42개일 때 가장 큰 보고는 고치기 전 59,944 B, 고친 뒤 4,021 B [측정 2026-10-13].
 
 **지금 안 되는 것**
@@ -36,7 +36,6 @@
   - 머지 전 main 에서는 `SET_CAMERA_WATCH` 가 아래 대응표대로 `INVALID_INPUT` 이다.
 - #154: SIGTERM 으로 끌 때 context 가 이미 닫힌 뒤 나는 RCLError 를 정상 종료로 본다. 그 밖의 오류는 그대로 낸다.
   - 리허설에서 고치기 전에는 조정기가 8회 중 4회 exit 1 로 끝났고, 고친 뒤 5회 모두 exit 0 이었다 [측정 2026-10-13].
-- #151: 실제 조정기와 report_node 로 출동 승인까지 잇는 E3 probe.
 
 **현장 연동(#132)**: `live_inputs.*` 파라미터·`~/task_inputs`·`~/refresh_state`·RViz 목적지 선택은 [rescue_coordination README](../../src/rescue_coordination/README.md)「현장 연동」에 있다. 아래 파라미터 표에는 아직 없다.
 

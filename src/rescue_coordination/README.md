@@ -28,7 +28,7 @@
 
 ## 현장 연동 (#132, 2026-10-12)
 
-## 늦게 접속한 로봇의 세션 등록 (2026-10-12 현장 오류)
+### 늦게 접속한 로봇의 세션 등록 (2026-10-12 현장 오류)
 
 [현장 관측] 중앙 NORMAL/IDLE 기동 후 로봇이 나중에 접속하면 초기 시계 미준비로
 SystemState를 거절하고, 시계 공급이 준비된 뒤에도 새 상태 발행이 없어 세션 등록이
@@ -42,7 +42,7 @@ sequence/published_at_ns만 실제 새 발행에 맞춰 변경한다. 반복 hea
 중앙 실측 clock이 UNKNOWN/만료면 거절한다. 로봇의 실제 clock/신원/boot/나이 검사와
 DISARMED 및 watchdog 관문은 유지한다. 새 노드나 IDL은 추가하지 않았다.
 
-## RViz에서 SEARCH_AREA 목적지 선택 (2026-10-12)
+### RViz에서 SEARCH_AREA 목적지 선택 (2026-10-12)
 
 [사용자 요구, 2026-10-12] “아 아니다 고르는 식으로 해줘.”
 `live_inputs.search_goal_topic`에 전용 절대 토픽을 지정하면 기존 중앙 노드가
@@ -59,7 +59,7 @@ START_SEARCH 전 재선택은 허용하고, 수색 승인 후 또는 pending/act
 지도/AMCL/TF 정합과 lease/watchdog 준비는 로봇의 기존 관문이 계속 확인한다.
 목적점을 클릭한 것으로 지도 기준 검증이나 안전한 통로를 입증했다고 주장하지 않는다.
 
-## 2026-10-12 현장 수정: 로봇에 직접 공급하는 입력
+### 2026-10-12 현장 수정: 로봇에 직접 공급하는 입력
 
 기존 mission_coordinator에서 `live_inputs.enabled=true`로 켜면 `~/task_inputs`
 표준 GetParameters 서비스를 추가한다. 새 노드/IDL은 없다. 로봇의 LIVE_ROS가 이

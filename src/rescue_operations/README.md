@@ -38,8 +38,8 @@ operations DB의 소유자는 operations 호스트다. 다른 PC는 DB 파일을
   - 보고 하나의 한도는 1 MiB 다. 조정기가 저장 안 된 위치만 싣게 된 뒤(#139) 위치 42개 대상의 가장 큰 보고가 4,021 B 였다 [측정 2026-10-13].
   - 이 장부는 위의 `ReportLedger`(schema 1.0 보고)와 다르다. IDL 보고에는 없는 필드를 지어내지 않으려고 따로 둔다.
   - 조정기가 보내는 `task_id=''`·`generation=0`·`evidence_refs=[]` 는 그대로 저장한다. 증거는 `locations[].observation.evidence` 에 있다(작전 결정 2026-10-13, 채우지 않음).
-- 종료: Ctrl-C 를 두 번 받아도(launch + 터미널) 정리를 마치고 exit 0 으로 끝나게 하는 수정이 PR #143 에 있다. 그 전 main 에서는 두 번째 SIGINT 가 정리 중에 오면 traceback 과 exit -2 로 끝난다 [측정 2026-10-13].
-- 읽기: 관제 웹은 `site_state.read_*`(읽기 전용, `mode=ro`)로 DB 를 읽는다. 배치 로봇 목록 `read_allowed_robot_ids` 는 PR #149 머지 뒤에 생긴다.
+- 종료: Ctrl-C 를 두 번 받아도(launch + 터미널) 정리를 마치고 exit 0 으로 끝난다(#143, `ros_node.teardown`). 고치기 전에는 두 번째 SIGINT 가 정리 중에 오면 traceback 과 exit -2 로 끝났다 [측정 2026-10-13].
+- 읽기: 관제 웹은 `site_state.read_*`(읽기 전용, `mode=ro`)로 DB 를 읽는다. 배치 로봇 목록은 `read_allowed_robot_ids`(#149)로 읽는다.
 
 원본 코드를 복사하지 않은 새 구현이다. 패키지 버전 `0.0.0`, `LicenseRef-Unspecified`, 미지정 maintainer는 기존 기초 구조의 미결정 메타데이터를 유지한다. 배포 권한이나 라이선스 허가를 뜻하지 않는다.
 
