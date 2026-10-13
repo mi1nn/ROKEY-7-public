@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
 
-from .mission import ALL_COMMAND_FIELDS, MissionCoordinator, OperatorCommand
+from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
 from .search import SearchCoordinator, SearchPolicy, mission_sites
 from .watch import CameraWatchBook, roi_value
@@ -857,8 +857,11 @@ def build_core(values):
                           mission_frame_id=values['mission_frame_id'])
     robot_ids = tuple(robot for robot, _ in deployment.mission.roles)
     search = SearchCoordinator(Allocator(values['authority_epoch'], allowed_robot_ids=robot_ids), policy)
-    # No profile home positions yet: RETURN_HOME stays NO_HOME_POSITION (assignment is Q-22, later).
-    mission = MissionCoordinator(search, home_positions=())
+    # home_poses: TB-6 (SCOUT) docking approach point, TB-5 (SUPPORT) exit; launch fills it from the profile
+    # (owner decision 2026-10-13, 5A). Left out = no home: RETURN_HOME stays NO_HOME_POSITION.
+    basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
+    roles = {role: robot_id for robot_id, role in deployment.mission.roles}
+    mission = MissionCoordinator(search, home_positions=home_positions(values['home_poses'], roles, basis))
     cameras = [c.id for c in deployment.site_cameras if 'TARGET_WATCH' in c.roles]
     if len(cameras) > 1:
         raise CoordinationError('INVALID_POLICY', 'SET_CAMERA_WATCH needs exactly one TARGET_WATCH camera')
@@ -867,7 +870,6 @@ def build_core(values):
         cameras[0], roi=tuple(roi) if roi else None,
         request_timeout_ns=seconds_to_ns(str(values['camera_watch_timeout_s'])),
         new_id=lambda: str(uuid4())) if cameras else None
-    basis = (values['goal_map_session_id'], values['goal_map_revision'], values['goal_transform_revision'])
     flat = list(values['route_segment_goals'])
     if len(flat) % 3 or len(values['observe_goal']) != 3:
         raise CoordinationError('INVALID_POLICY', 'goals are [x, y, yaw] triples in the mission frame')
@@ -882,6 +884,22 @@ def build_core(values):
                            segment_passage_free=tuple(values['route_segment_passage_free']),
                            lease_message_ttl_ns=seconds_to_ns(str(values['lease_message_ttl_s'])),
                            camera_watch=camera_watch)
+
+
+def home_positions(flat, roles, basis):
+    """``home_poses`` [x, y, yaw] per role robot (SCOUT, then SUPPORT) -> HomePosition tuple.
+
+    Same mission frame and map basis as the other configured goals (goal_map_*). Left out or
+    empty = no home: RETURN_HOME stays NO_HOME_POSITION. Any other length is refused at start.
+    """
+    flat = list(flat or [])
+    if not flat:
+        return ()
+    order = [roles[role] for role in ('SCOUT', 'SUPPORT')]
+    if len(flat) != 3 * len(order):
+        raise CoordinationError('INVALID_POLICY', 'home_poses must be [x, y, yaw] for the SCOUT then the SUPPORT')
+    return tuple(HomePosition(robot_id, (flat[3 * i], flat[3 * i + 1]), flat[3 * i + 2], *basis)
+                 for i, robot_id in enumerate(order))
 
 
 def camera_watch_service(camera_id):
@@ -912,8 +930,9 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'camera_watch_timeout_s': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
-# camera_watch_roi: no deployment ROI, only the operator's.
-UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY'}
+# camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT
+# on the goal_map_* basis (TB-6 docking approach point, TB-5 exit); none = RETURN_HOME refused.
+UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY'}
 
 
 def main(args=None):
