@@ -57,7 +57,11 @@ ROBOT_KEYS = {
     'task.saved_map.position_error_m': F, 'task.saved_map.rotation_error_rad': F,
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
 }
-ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S}
+# Per robot: identity, and the automatic target moves this robot's role may take without an
+# operator approval (C1, least privilege per robot, 2026-10-13; enabled false = rejected).
+ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
+                       'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
+                       'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S}
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
@@ -217,6 +221,11 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
         # launch_ros refuses it and --params-file / -p leave it unset (measured 2026-10-13).
         raise FieldLaunchError('route_segment_passage_free cannot be [] through ROS parameters; '
                                'give one true/false per segment end')
+    if len(passage) != len(goals) // 3:
+        # The coordinator holds every segment on a length mismatch (PASSAGE_ASSESSMENT_REQUIRED);
+        # a mismatch is never meant, so refuse it here instead of at run time.
+        raise FieldLaunchError(f'route_segment_passage_free needs one true/false per segment end: '
+                               f'{len(goals) // 3} segments, {len(passage)} flags')
     if not profile_path:
         raise FieldLaunchError('profile_path is required')
     roi = {}

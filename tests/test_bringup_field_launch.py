@@ -152,6 +152,18 @@ class CoordinatorParameters(FieldCase):
         expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=2.0, target_max_future_s=0.05)
         self.assertEqual(expected, self.coordinator())
 
+    def test_one_passage_flag_per_segment_end(self):
+        """A length other than the segment count holds every segment (PASSAGE_ASSESSMENT_REQUIRED) at run time;
+        it is never what the operator meant, so the launch refuses it before start."""
+        from rescue_bringup.field_launch import FieldLaunchError
+        two = '[1.0, 2.0, 0.0, 3.0, 4.0, 0.0]'
+        self.assertEqual([True, False], self.coordinator(route_segment_goals=two,
+                                                         route_segment_passage_free='[true, false]')
+                         ['route_segment_passage_free'])
+        for flags in ('[true]', '[true, false, false]'):
+            with self.subTest(flags=flags), self.assertRaisesRegex(FieldLaunchError, 'one true/false per segment'):
+                self.coordinator(route_segment_goals=two, route_segment_passage_free=flags)
+
     def test_camera_watch_roi_is_an_optional_site_argument(self):
         """Unset by default: the coordinator then refuses camera watch requests (no whole-frame default)."""
         from rescue_bringup.field_launch import FieldLaunchError
@@ -194,7 +206,7 @@ class CoordinatorParameters(FieldCase):
                     dict(route_segment_goals='[]'), dict(observe_goal='[0.0, 0.0, 0.0, 1.0]'),
                     dict(observe_goal='[0, 0, nan]'), dict(observe_goal='0,0,0'),
                     dict(route_segment_passage_free='[0]'), dict(route_segment_passage_free='false'),
-                    dict(route_segment_passage_free='[]')):
+                    dict(route_segment_passage_free='[]'), dict(route_segment_passage_free='[false, false]')):
             with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
                 self.coordinator(**bad)
 
@@ -205,6 +217,12 @@ class RobotParameters(FieldCase):
         expected.update({'task.saved_map.occupancy_sha256': SHA,
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
+        # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
+        # SCOUT) takes no automatic approach; its REOBSERVE_TARGET comes with C1-b.
+        expected.update({'task.live.auto_target.enabled': False,
+                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                         'task.live.auto_target.goal_clear_radius_m': 0.2,
+                         'task.live.auto_target.policy_version': 'auto-target-20261013'})
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -240,8 +258,15 @@ class RobotParameters(FieldCase):
 
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}
+                                        'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                        'task.live.auto_target.enabled': True,
+                                        'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                                        'task.live.auto_target.goal_clear_radius_m': 0.2,
+                                        'task.live.auto_target.policy_version': 'p'}
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        # Least privilege per robot: each robot's own automatic kinds (decision 2026-10-13)
+        self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
+        self.assertFalse(self.robot()['task_input']['task.live.auto_target.enabled'])
         self.assertEqual('/robot5', values['namespace'])
         self.assertEqual('/robot5/navigate_to_pose', values['task_input']['nav_action'])
         self.assertEqual('/robot5/map', values['task_input']['task.saved_map.map_topic'])
@@ -334,6 +359,10 @@ class FieldFile(FieldCase):
             'target age not positive': lambda r: r['coordinator'].update({'target_max_age_s': 0.0}),
             'target future negative': lambda r: r['coordinator'].update({'target_max_future_s': -0.01}),
             'target clock domain differs': lambda r: r['coordinator'].update({'target_clock_domain_id': 'other'}),
+            'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
+                {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
+            'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
+            'auto target shared, not per robot': lambda r: r['robot'].update({'task.live.auto_target.enabled': True}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),

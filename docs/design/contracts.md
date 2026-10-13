@@ -238,7 +238,7 @@ IDL 규칙:
 | 1 | `target_id` | coordination 의 발견 사건 UUID 이며, coordination 코드의 discovery `event_id` 와 같은 값이다(이름은 바꾸지 않는다). SET_CAMERA_WATCH, SetCameraWatch, 소실 후보, REOBSERVE_TARGET 의 goal, RecheckObservation, 판정이 모두 같은 값을 쓴다 | `INVALID_INPUT` |
 | 2 | `watch_id` | coordination 이 발급한다. 입력은 운영자 `SET_CAMERA_WATCH`(SubmitOperatorCommand, 1차)다. SetCameraWatch 요청을 보낼 때 기록하고, 카메라가 거절하면 지운다. (camera_id, target_id, ROI) 는 watch_id 에 고정이고, 바꾸려면 새 watch_id 를 쓴다. `watch_revision` 은 카메라 슬롯의 교체·해제 횟수일 뿐 같은 watch_id 를 다시 묶는 데 쓰지 않는다. 카메라당 ACTIVE watch 는 1개이고, 프로파일 `TARGET_WATCH` 역할 카메라에만 무장한다. watch 가 끝나는 때: 교체·해제, 대상 판정 종료, 후보 1건을 받거나 거절했을 때, 카메라 어댑터 재시작 | 같은 watch_id 에 다른 결합 → `ID_CONTENT_CONFLICT`(C-09 예외) |
 | 3 | 후보 `event_id` | 카메라 어댑터가 발급한다. 재전송은 같은 ID·같은 내용이다(C-02). 생산자는 watch 하나에 후보 하나만 낸다. event_id 검사(멱등·충돌)를 watch 상태 검사보다 먼저 한다 | 같은 ID·같은 내용 → 멱등(새 임무 없음). 같은 ID·다른 내용, 또는 같은 watch_id 에 다른 event_id → `ID_CONTENT_CONFLICT` |
-| 4 | 후보 수용 | 기록된 watch 가 있고, `camera_id`·`target_id` 가 그 watch 와 같고, `time_basis_declared` 가 참이다. `stamp_semantics` 는 CAPTURE 나 DRIVER_RECEIVE 를 실제 값대로 쓴다 | `CANDIDATE_NOT_LINKED`·`CANDIDATE_TIME_BASIS_UNUSABLE` → 출동하지 않는다. 그 watch 를 끝내고 "재무장 필요" 를 관제에 드러낸다 |
+| 4 | 후보 수용 | 조정기가 DISASTER 모드일 때만 받는다(아니면 기록만, #124). 기록된 watch 가 있고, `camera_id`·`target_id` 가 그 watch 와 같고, `time_basis_declared` 가 참이다. `stamp_semantics` 는 CAPTURE 나 DRIVER_RECEIVE 를 실제 값대로 쓴다 | `CANDIDATE_NOT_DISASTER` → 기록만 하고 출동하지 않는다. `CANDIDATE_NOT_LINKED`·`CANDIDATE_TIME_BASIS_UNUSABLE` → 출동하지 않는다. 그 watch 를 끝내고 "재무장 필요" 를 관제에 드러낸다 |
 | 5 | 재관측 `task_id` | 받은 후보마다 SCOUT 의 REOBSERVE_TARGET 을 자동 예약하고, `후보 event_id → {task_id}` 를 coordination 이 기록한다. 열린 재관측은 후보당 1개다. 결과가 COMPLETED 가 아니면 같은 후보로 새 task_id·generation 을 다시 예약한다. COMPLETED 뒤에는 운영자 `REQUEST_RECHECK`(SCOUT 지정)만 받고, 그 대상의 가장 최근 수용 후보에 연결한다. 후보 없이 들어온 재관측과 SUPPORT 의 재관측은 기록만 하고 판정 근거가 아니다. 접근 완료와 출구 카운트는 조건이 아니다 | 기록에 없는 task 의 재관측 → 7행 `CANDIDATE_NOT_LINKED` |
 | 6 | `target_revision` | 연결 키가 아니다. REOBSERVE goal 의 `target_estimate_revision` 과 같은 값이다(C-06) | — |
 | 7 | 판정 연결 | 판정은 coordination 기록에서 그 대상의 후보와 연결된 task_id 들을 받는다. 재관측은 task_id 별로 보관하고, 연결된 task 의 재관측만 판정에 쓴다. 연결되지 않은 재관측은 판정 근거의 버전을 올리지 않는다. 확정 조건: 그 후보, `candidate.target_id == target_id`, 재관측 task 가 연결 목록에 있음, 로봇이 SCOUT, frame_ref 의 map session·revision 이 맞고 정렬 VALID, 카메라 ABSENT·LiDAR CLEAR·관측 범위 VALID. 판정 기록에는 쓴 후보 event_id 와 재관측 observation_id 를 남긴다 | `CANDIDATE_NOT_LINKED` 등 → `RECHECK_NEEDED` |
@@ -250,7 +250,7 @@ IDL 규칙:
 남은 의존 (2026-10-10, 10·11행은 2026-10-11):
 - 11행도 8행과 같은 시간 기준이 필요하다. 아래 시각 오차 상한(Q-06)이 없으면 운영자 경로도 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다.
 - 10행의 운영자 경로는 관제 웹에 "웹캠 판정 불가 + 인형 안 보임" 알림과 그 대상의 재확인 지시 버튼이 있어야 쓸 수 있다(관제·화면). `REQUEST_RECHECK` 는 1차 IDL 에 있어 IDL 변경은 없다.
-- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 #77 로 1차가 됐다(2026-10-11). 남은 것은 ROI 출처(#76)와 카메라 노드·coordinator 의 watch 생명주기 구현이다.
+- coordinator 가 카메라에 watch 를 주는 `SetCameraWatch`(IF-078)는 #77 로 1차가 됐다(2026-10-11). 남은 것은 ROI 출처(#76·Q-13)와 카메라 노드 재시작 감지다. 조정기 쪽 watch 생명주기는 #148 로 생겼다.
 - 시각 오차 상한 값과 웹캠 PC·AMR1 의 오차 측정(Q-06)이 없으면 모든 판정이 `CANDIDATE_TIME_BASIS_UNUSABLE` 로 `RECHECK_NEEDED` 가 된다. 설계대로지만 시연이 막힌다.
 
 <a id="c-12"></a>
