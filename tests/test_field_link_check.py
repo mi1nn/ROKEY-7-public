@@ -4,6 +4,7 @@ The ROS part (subscribe only, nothing published) is exercised by tests/ros/e3_li
 """
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace as NS
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
@@ -86,11 +87,39 @@ class TopicChoiceTests(unittest.TestCase):
         self.assertEqual(('/robot6/rescue/executor_heartbeat', 'command line'),
                          (t['executor_heartbeat'].topic, t['executor_heartbeat'].source))
 
+    def test_tf_counts_only_the_profile_map_to_odom_transform(self):
+        t = self.topics()
+        self.assertEqual(('map', 'odom'), t['tf'].frames)
+
+    def test_unconfigured_topics_stay_as_not_run_rows(self):
+        robot = NS(id='robot_a', namespace='/robot_a', parameters_file='robot_a.v2.json',
+                   parameters=NS(odom_topic=None, readiness=None))
+        t = {s.role: s for s in link.select_topics(NS(robots=[robot], site_cameras=[]), 'robot_a', {},
+                                                   heartbeat_max_age_s=0.5)}
+        for role in ('odom', 'scan', 'tf'):
+            self.assertEqual('', t[role].topic, role)
+            self.assertEqual('NOT_RUN', link.verdict(t[role], None), role)
+        self.assertEqual(3, link.summarize(['PASSED', link.verdict(t['odom'], None)]))
+
     def test_unknown_robot_or_role_is_refused(self):
         with self.assertRaises(link.LinkCheckError):
             self.topics('robot_x')
         with self.assertRaises(link.LinkCheckError):
             self.topics(overrides={'nope': '/x'})
+
+
+class TransformFilterTests(unittest.TestCase):
+    @staticmethod
+    def tf(*pairs):
+        return NS(transforms=[NS(header=NS(frame_id=p), child_frame_id=c) for p, c in pairs])
+
+    def test_only_messages_with_the_transform_count(self):
+        frames = ('map', 'odom')
+        self.assertFalse(link.has_transform(self.tf(('odom', 'base_link')), frames))  # the fast odom TF
+        self.assertTrue(link.has_transform(self.tf(('odom', 'base_link'), ('map', 'odom')), frames))
+        self.assertTrue(link.has_transform(self.tf(('/map', '/odom')), frames))  # a leading slash is the same frame
+        self.assertFalse(link.has_transform(self.tf(('odom', 'map')), frames))   # reversed is another transform
+        self.assertTrue(link.has_transform(self.tf(('odom', 'base_link')), None))  # other topics: every message
 
 
 class VerdictTests(unittest.TestCase):
