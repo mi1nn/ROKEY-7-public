@@ -186,7 +186,8 @@ class SavedMapSources:
         self.maps[robot]=grid
         start=self.reinit.pop(robot,None)
         if start is not None:
-            self.valid_after[robot]=self.runtime.adapter.wall_clock_ns()
+            # AMCL poses until now were on the previous grid, even those stamped after the adoption (REV-242-01)
+            self.valid_after[robot]=self.runtime.adapter.wall_clock_ns(); self.poses.pop(robot,None)
             if self.reinitialize is not None: self.reinitialize(robot,start)
             x,y,yaw=planar(start.pose.pose)
             self.runtime.node.get_logger().info(f'MAP_REALIGN {robot} R{self.adopted[robot]} AMCL start = its last '
