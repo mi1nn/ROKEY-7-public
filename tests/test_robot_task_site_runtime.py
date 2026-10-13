@@ -29,7 +29,8 @@ def records(f):
             localization_status='VALID', transform_revision=1,
             authority_id='test-mapping', clock_domain_id='test-clock',
             valid_from_ns=now-1_000_000_000, transform_valid_until_ns=now+60_000_000_000,
-            transform_xy_yaw=[2.,0.,0.], position_error_m=.01, rotation_error_rad=.01)},
+            transform_xy_yaw=[2.,0.,0.], position_error_m=.01, rotation_error_rad=.01,
+            evidence_id='synthetic-calibration')},
         targets={g.target_id:dict(revision=g.target_estimate_revision)},
         approvals={a.approval_id:vars(a).copy()},
         protected_routes={g.route.route_id:dict(route_revision=g.route.route_revision,
@@ -37,7 +38,8 @@ def records(f):
             target_id=g.target_id, target_revision=g.target_estimate_revision,
             endpoint=[3.,0.,0.], map_session_id=g.frame_ref.map_session_id,
             map_revision=0, transform_revision=1, valid_until_ns=g.deadline_ns,
-            observed_at_ns=now, protection_loaded=True, passage_free=True)},
+            observed_at_ns=now, protection_loaded=True, passage_free=True,
+            evidence_id='synthetic-protected-route')},
         destinations={})
 
 
@@ -133,6 +135,37 @@ class SiteRuntimeTests(unittest.TestCase):
         self.assertEqual(self.runtime.server.on_goal(self.f.g),'reject')
         self.data=records(self.f); self.data['approvals']={}
         self.assertEqual(self.runtime.server.on_goal(self.f.g),'reject')
+
+    def test_file_alignment_requires_calibration_evidence(self):
+        # OPS-97-01: a file-supplied calibration record without evidence is not an authority (C-04).
+        g=self.f.g
+        for value in ('', None):
+            with self.subTest(evidence_id=value):
+                self.data['maps'][g.robot_id]['evidence_id']=value
+                with self.assertRaises(ContractError) as caught:
+                    self.store.current_alignment(g.robot_id,now_ns=self.adapter.wall_clock_ns())
+                self.assertEqual(caught.exception.code,'NOT_AUTHORIZED')
+        del self.data['maps'][g.robot_id]['evidence_id']
+        self.assertEqual(self.runtime.server.on_goal(g),'reject')
+        self.assertFalse(self.f.r.f.port.goals)
+
+    def test_same_transform_revision_with_other_evidence_conflicts(self):
+        g=self.f.g; now=self.adapter.wall_clock_ns()
+        self.store.current_alignment(g.robot_id,now_ns=now)
+        self.data['maps'][g.robot_id]['evidence_id']='other-calibration'
+        with self.assertRaises(ContractError) as caught:
+            self.store.current_alignment(g.robot_id,now_ns=now)
+        self.assertEqual(caught.exception.code,'ID_CONTENT_CONFLICT')
+
+    def test_protected_route_requires_evidence(self):
+        g=self.f.g
+        self.assertTrue(self.store.passage_guard(g))
+        for value in ('', None, 7):
+            with self.subTest(evidence_id=value):
+                self.data['protected_routes'][g.route.route_id]['evidence_id']=value
+                self.assertFalse(self.store.passage_guard(g))
+        del self.data['protected_routes'][g.route.route_id]['evidence_id']
+        self.assertFalse(self.store.passage_guard(g))
 
     def test_changed_source_map_or_revoked_authority_cancels_active_task(self):
         self.assertEqual(self.runtime.server.on_goal(self.f.g),'accept')
