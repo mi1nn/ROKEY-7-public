@@ -1,8 +1,8 @@
 """Occupancy-grid identity and free-footprint rule shared by robot and coordinator (OPS-117).
 
-Pure functions on the OccupancyGrid fields (frame, size, resolution, planar origin x/y/yaw,
-cell values); no ROS. The robot (rescue_robot.live_sources.Grid, map_occupancy_sha256.py) and
-the coordinator's frozen-map check call these, so the same grid gives the same hash and the
+Pure functions on the OccupancyGrid fields (frame, size, resolution, planar origin x/y/yaw from
+planar_origin, cell values); no ROS. The robot (rescue_robot.live_sources.Grid and planar,
+map_occupancy_sha256.py) and the coordinator's frozen-map check call these, so the same grid gives the same hash and the
 same MapState snapshot id on both sides. Invalid grids raise ValueError.
 """
 import hashlib
@@ -11,6 +11,15 @@ import math
 import uuid
 
 SNAPSHOT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_robot/map_state/snapshot')  # same map -> same id
+
+
+def planar_origin(px, py, pz, qx, qy, qz, qw):
+    """(x, y, yaw) of a planar pose (z 0, rotation about z only, unit quaternion); else ValueError."""
+    if (not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                for v in (px, py, pz, qx, qy, qz, qw))
+            or pz != 0 or qx != 0 or qy != 0 or not math.isclose(qz * qz + qw * qw, 1., abs_tol=1e-6)):
+        raise ValueError('finite normalized planar pose required')
+    return float(px), float(py), 2 * math.atan2(qz, qw)
 
 
 def _checked(frame, width, height, resolution, origin, data):

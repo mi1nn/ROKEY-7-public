@@ -7,7 +7,7 @@ from copy import deepcopy
 import math
 
 from rescue_contracts import ros_time_to_ns
-from rescue_contracts.occupancy import footprint_clear, occupancy_sha256
+from rescue_contracts.occupancy import footprint_clear, occupancy_sha256, planar_origin
 from rescue_robot.executor import ContractError
 
 
@@ -17,10 +17,8 @@ def stamp(message):
 
 def planar(pose):
     p,q=pose.position,pose.orientation
-    if (not all(math.isfinite(v) for v in (p.x,p.y,p.z,q.x,q.y,q.z,q.w))
-            or p.z!=0 or q.x!=0 or q.y!=0 or not math.isclose(q.z*q.z+q.w*q.w,1.,abs_tol=1e-6)):
-        raise ContractError('finite normalized planar pose required')
-    return float(p.x),float(p.y),2*math.atan2(q.z,q.w)
+    try: return planar_origin(p.x,p.y,p.z,q.x,q.y,q.z,q.w)
+    except ValueError as exc: raise ContractError(str(exc)) from None
 
 
 class Grid:
