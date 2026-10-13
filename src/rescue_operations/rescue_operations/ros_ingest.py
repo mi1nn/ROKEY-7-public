@@ -10,6 +10,7 @@ The DB file failing itself cannot be written to that same DB; the caller logs it
 import math
 
 from rescue_contracts import RescueError, SiteEvent
+from rescue_contracts.overhead import parse_overhead_passages
 
 from .schema import OperationsError, require
 
@@ -162,6 +163,29 @@ def exit_location_from_msg(msg, *, received_at_ns):
         raise _invalid(exc, "exit_location") from exc
 
 
+def overhead_passages_from_msg(msg, *, robot_id, received_at_ns):
+    """std_msgs/String on /rescue/robots/<robot_id>/overhead_passages -> site_state list (C-04b).
+
+    Read only through parse_overhead_passages; the list must name the robot whose topic it came on.
+    """
+    try:
+        listing = parse_overhead_passages(msg.data)
+        require(listing["robot_id"] == robot_id, f"list of {listing['robot_id']!r} on {robot_id!r}'s topic")
+        listing.pop("format", None)
+        return listing | {"received_at_ns": received_at_ns}
+    except (OperationsError, AttributeError, TypeError, ValueError) as exc:
+        raise _invalid(exc, "overhead_passages") from exc
+
+
+def current_map_from_msg(msg, *, received_at_ns):
+    """rescue_interfaces/MapState of the SLAM robot -> site_state current_map (validated when recorded)."""
+    try:
+        return dict(robot_id=msg.robot_id, map_session_id=msg.map_session_id, map_revision=msg.map_revision,
+                    generated_at_ns=msg.generated_at_ns, received_at_ns=received_at_ns)
+    except AttributeError as exc:
+        raise _invalid(exc, "map_state") from exc
+
+
 class SiteStateIngest:
     """Writes converted messages through one SiteStateLedger; failures go to error_log."""
 
@@ -216,6 +240,24 @@ class SiteStateIngest:
             return self.ledger.record_exit_location(exit_location_from_msg(msg, received_at_ns=received_at_ns))
         except OperationsError as exc:
             self._log(exc, received_at_ns, f"exit_location {getattr(msg, 'location_id', None)!r}")
+            return None
+
+    def on_overhead_passages(self, msg, *, robot_id, received_at_ns):
+        """True the robot's list replaced, False the same or an older list, None refused (and logged)."""
+        try:
+            return self.ledger.record_overhead_passages(
+                overhead_passages_from_msg(msg, robot_id=robot_id, received_at_ns=received_at_ns))
+        except OperationsError as exc:
+            self._log(exc, received_at_ns, "overhead_passages", robot_id=robot_id)
+            return None
+
+    def on_map_state(self, msg, *, received_at_ns):
+        """True a newer map state, False a resend or older, None refused (and logged)."""
+        try:
+            return self.ledger.record_current_map(current_map_from_msg(msg, received_at_ns=received_at_ns))
+        except OperationsError as exc:
+            self._log(exc, received_at_ns, f"map_state revision {getattr(msg, 'map_revision', None)!r}",
+                      robot_id=getattr(msg, 'robot_id', None))
             return None
 
     def on_target_snapshot(self, msg, *, received_at_ns):

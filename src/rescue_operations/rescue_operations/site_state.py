@@ -19,14 +19,16 @@ import sqlite3
 import time
 
 from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SYSTEM_MODES, SiteEvent
+from rescue_contracts.overhead import overhead_passages_text
 
 from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.3"
+SCHEMA_VERSION = "1.4"
 # A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
-UPGRADES_FROM = frozenset({"1.0", "1.1", "1.2"})  # 1.1 -> 1.2 rebuilds mission_state; 1.3 adds exit_locations
+# 1.1 -> 1.2 rebuilds mission_state; 1.3 adds exit_locations; 1.4 adds the overhead passage tables
+UPGRADES_FROM = frozenset({"1.0", "1.1", "1.2", "1.3"})
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
@@ -72,6 +74,14 @@ MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
 EXIT_CLASS_LABEL = "exit_qr"
 EXIT_KEYS = {"location_id", "observed_at_ns", "received_at_ns", "map_session_id", "map_revision",
              "transform_revision", "mission_frame", "x", "y", "class_label"}
+# 1.4: each robot's current overhead passage (tunnel) list, C-04b (통합-인식 #259, 작전 OPS-194). The header
+# keys of the list text without "format", plus when it arrived; the items exactly as C-04b has them.
+OVERHEAD_HEADER = ("robot_id", "generated_at_ns", "received_at_ns", "map_frame", "clearance_m", "floor_noise_m",
+                   "lidar_plane_m")
+OVERHEAD_ITEM = ("id", "state", "lowest_m", "x", "y", "map_session_id", "map_revision", "frames", "first_seen_ns",
+                 "last_seen_ns", "reason")
+# 1.4: the SLAM robot's latest MapState; both robots' passages are measured on its map (hv-06 bold/faint).
+CURRENT_MAP_KEYS = ("robot_id", "map_session_id", "map_revision", "generated_at_ns", "received_at_ns")
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 # The AMR2 dispatch (schema 1.2): all None without a dispatch, all present with one.
 DISPATCH_DEFAULTS = {"target_id": None, "target_revision": None, "route_revision": None, "segment_index": None,
@@ -88,7 +98,7 @@ MISSION_DDL = """CREATE TABLE IF NOT EXISTS mission_state (
         target_id TEXT, target_revision INTEGER, route_revision INTEGER, segment_index INTEGER,
         segment_count INTEGER, segment_phase TEXT, reason TEXT)"""
 # 1.0: robot_status, site_events, target_states. 1.1 adds four (db-schema 4절); 1.2 reshapes mission_state;
-# 1.3 adds exit_locations (a 1.2 file only gets the new table).
+# 1.3 adds exit_locations (a 1.2 file only gets the new table); 1.4 adds the last three (OPS-194).
 TABLES = (
     """CREATE TABLE IF NOT EXISTS robot_status (
         robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
@@ -113,6 +123,18 @@ TABLES = (
         location_id TEXT PRIMARY KEY, observed_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL,
         map_session_id TEXT NOT NULL, map_revision INTEGER NOT NULL, transform_revision INTEGER NOT NULL,
         mission_frame TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, class_label TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS overhead_passage_lists (
+        robot_id TEXT PRIMARY KEY, generated_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL,
+        map_frame TEXT NOT NULL, clearance_m REAL NOT NULL, floor_noise_m REAL NOT NULL,
+        lidar_plane_m REAL NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS overhead_passages (
+        robot_id TEXT NOT NULL, id TEXT NOT NULL, state TEXT NOT NULL, lowest_m REAL, x REAL NOT NULL,
+        y REAL NOT NULL, map_session_id TEXT NOT NULL, map_revision INTEGER NOT NULL, frames INTEGER NOT NULL,
+        first_seen_ns INTEGER NOT NULL, last_seen_ns INTEGER NOT NULL, reason TEXT NOT NULL,
+        PRIMARY KEY (robot_id, id))""",
+    """CREATE TABLE IF NOT EXISTS current_map (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), robot_id TEXT NOT NULL, map_session_id TEXT NOT NULL,
+        map_revision INTEGER NOT NULL, generated_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL)""",
 )
 
 
@@ -319,6 +341,32 @@ def _exit_location(value):
     return exit_
 
 
+def _overhead_passages(value, allowed):
+    """One robot's list: parse_overhead_passages fields + received_at_ns, checked again by the contract."""
+    require(isinstance(value, Mapping), "overhead passages must be an object")
+    keys = set(OVERHEAD_HEADER) | {"items"}
+    listing = exact(value, keys, "overhead passages")
+    _member(listing["robot_id"], allowed, "robot_id")
+    timestamp(listing["received_at_ns"], "received_at_ns")
+    fields = {k: v for k, v in listing.items() if k != "received_at_ns"}
+    try:
+        overhead_passages_text(**fields)  # every C-04b rule, the one place they live
+    except (TypeError, ValueError) as exc:
+        raise OperationsError("INVALID_INPUT", str(exc)) from exc
+    listing["items"] = sorted((dict(item) for item in listing["items"]), key=lambda item: item["id"])
+    return listing
+
+
+def _current_map(value, allowed):
+    current = exact(value, set(CURRENT_MAP_KEYS), "current map")
+    _member(current["robot_id"], allowed, "robot_id")
+    uid(current["map_session_id"], "map_session_id")
+    uint(current["map_revision"], "map_revision")
+    timestamp(current["generated_at_ns"], "generated_at_ns")
+    timestamp(current["received_at_ns"], "received_at_ns")
+    return current
+
+
 class SiteStateLedger(_Database):
     """Operations-owned writer for the screen's site state; never share this file between PCs."""
 
@@ -455,6 +503,46 @@ class SiteStateLedger(_Database):
                                                 "class_label")))
         return True
 
+    def record_overhead_passages(self, value):
+        """Replace one robot's whole list with a newer one (``generated_at_ns``): an item missing from it is
+        removed, the robot's list is the record (C-04b). The same list again or an older one: False."""
+        listing = _overhead_passages(value, self.allowed_robot_ids)
+        robot = listing["robot_id"]
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM overhead_passage_lists WHERE robot_id = ?", (robot,)).fetchone()
+            if row is not None:
+                if listing["generated_at_ns"] == row["generated_at_ns"]:
+                    stored = {k: row[k] for k in OVERHEAD_HEADER if k != "received_at_ns"}
+                    stored["items"] = _overhead_items(db, robot)
+                    require(stored == {k: v for k, v in listing.items() if k != "received_at_ns"},
+                            "same list time with different content", "ID_CONTENT_CONFLICT")
+                    return False
+                if listing["generated_at_ns"] < row["generated_at_ns"]:
+                    return False
+            db.execute(f"INSERT OR REPLACE INTO overhead_passage_lists VALUES (?{', ?' * (len(OVERHEAD_HEADER) - 1)})",
+                       [listing[k] for k in OVERHEAD_HEADER])
+            db.execute("DELETE FROM overhead_passages WHERE robot_id = ?", (robot,))
+            db.executemany(f"INSERT INTO overhead_passages VALUES (?{', ?' * len(OVERHEAD_ITEM)})",
+                           [[robot, *(item[k] for k in OVERHEAD_ITEM)] for item in listing["items"]])
+        return True
+
+    def record_current_map(self, value):
+        """Replace the SLAM robot's map state with a newer one (``generated_at_ns``); a resend or older: False."""
+        current = _current_map(value, self.allowed_robot_ids)
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM current_map WHERE singleton = 1").fetchone()
+            if row is not None:
+                if current["generated_at_ns"] == row["generated_at_ns"]:
+                    same = [k for k in CURRENT_MAP_KEYS if k != "received_at_ns"]
+                    require(all(row[k] == current[k] for k in same), "same map state time with different content",
+                            "ID_CONTENT_CONFLICT")
+                    return False
+                if current["generated_at_ns"] < row["generated_at_ns"]:
+                    return False
+            db.execute(f"INSERT OR REPLACE INTO current_map VALUES (1{', ?' * len(CURRENT_MAP_KEYS)})",
+                       [current[k] for k in CURRENT_MAP_KEYS])
+        return True
+
     def record_mission_state(self, mission):
         """Replace the single mission row. Only a newer ``updated_at_ns`` replaces it."""
         mission = _mission(mission)
@@ -470,6 +558,11 @@ class SiteStateLedger(_Database):
             db.execute(f"INSERT OR REPLACE INTO mission_state (singleton, {', '.join(MISSION_COLUMNS)}) "
                        f"VALUES (1{', ?' * len(MISSION_COLUMNS)})", [mission[key] for key in MISSION_COLUMNS])
         return True
+
+
+def _overhead_items(db, robot, order="id ASC"):
+    rows = db.execute(f"SELECT * FROM overhead_passages WHERE robot_id = ? ORDER BY {order}", (robot,)).fetchall()
+    return [{k: row[k] for k in OVERHEAD_ITEM} for row in rows]
 
 
 def _command_row(row):
@@ -582,4 +675,17 @@ def read_exit_locations(db_path, *, limit=100):
         rows = db.execute("SELECT * FROM exit_locations ORDER BY observed_at_ns DESC, location_id ASC LIMIT ?",
                           (limit,)).fetchall()
         return {"exits": [dict(row) for row in rows]}
+    return _read(db_path, query)
+
+
+def read_overhead_passages(db_path):
+    """Each robot's latest overhead passage list by robot_id (a robot never heard is absent), items newest
+    ``last_seen_ns`` first, ties by ``id``; and ``current_map``, the SLAM robot's latest map state or None (hv-06)."""
+    def query(db):
+        robots = {}
+        for row in db.execute("SELECT * FROM overhead_passage_lists ORDER BY robot_id").fetchall():
+            robots[row["robot_id"]] = {k: row[k] for k in OVERHEAD_HEADER} | {
+                "items": _overhead_items(db, row["robot_id"], "last_seen_ns DESC, id ASC")}
+        row = db.execute("SELECT * FROM current_map WHERE singleton = 1").fetchone()
+        return {"robots": robots, "current_map": None if row is None else {k: row[k] for k in CURRENT_MAP_KEYS}}
     return _read(db_path, query)
