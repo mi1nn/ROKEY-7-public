@@ -425,6 +425,8 @@ class SiteRuntime:
 
     def resolve_goal(self,goal):
         if goal.kind=='HOLD': return None
+        # D2 (OPS-159): a newer frozen map waits for this robot to stop; no new goal on the old one
+        if self.saved_maps is not None: self.saved_maps.check_new_goal(self.adapter.robot_id)
         if self._auto(goal.kind): return self._resolve_auto_target(goal)
         if goal.kind not in ('SEARCH_AREA','RETURN_HOME'):
             raise ContractError('target movement requires phase-one route; automatic approach unavailable','NOT_AUTHORIZED')

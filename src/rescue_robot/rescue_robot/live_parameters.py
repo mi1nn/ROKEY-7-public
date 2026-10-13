@@ -6,13 +6,23 @@ production threshold, calibration or identity is inferred from a goal.
 import math
 
 from rescue_robot.executor import ContractError
+from rescue_robot.live_sources import FREEZES
 
-FROZEN_MAP_TOPIC = '/rescue/map/frozen'   # the one frozen TB-6 map (map_freeze on compute_a, OPS-113)
+FROZEN_MAP_TOPIC = '/rescue/map/frozen'   # the latest frozen TB-6 map (map_freeze on compute_a, OPS-113)
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # its revision (rescue_contracts.occupancy, OPS-159)
 
 
 def frozen_revision(saved_map):
-    """The revision homes are on: the declared one for a saved map, R0 + 1 (the frozen map) otherwise."""
-    return saved_map['map_revision'] + (0 if saved_map['mode'] == 'SAVED_MAP_AMCL' else 1)
+    """The revision a launch home is on: the declared one for a saved map, R0 + 2 for TB-6.
+
+    The map is frozen twice (OPS-154); TB-6 uses its home (docking approach) only after the last
+    freeze, R0 + 2. A FROZEN_MAP_AMCL robot moves from R0 + 1 to R0 + 2, so a fixed launch home
+    cannot be right on both: its home (TB-5 exit) comes from the coordinator (home/<id>, OPS-139).
+    """
+    mode = saved_map['mode']
+    if mode == 'FROZEN_MAP_AMCL':
+        raise ContractError('a FROZEN_MAP_AMCL robot has no launch home; the coordinator sends home/<robot_id>')
+    return saved_map['map_revision'] + (0 if mode == 'SAVED_MAP_AMCL' else FREEZES)
 
 
 def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revision, transform_revision):
@@ -100,7 +110,14 @@ def read_config(node, adapter):
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.parameter import Parameter
     if m['mode'] != 'SAVED_MAP_AMCL':
-        m['frozen_topic'] = FROZEN_MAP_TOPIC
+        m['frozen_topic'], m['frozen_revision_topic'] = FROZEN_MAP_TOPIC, FROZEN_REVISION_TOPIC
+    # TB-5 AMCL initial pose topic: re-aligning on a newer frozen map starts from its own last pose
+    node.declare_parameter('task.saved_map.initial_pose_topic', Parameter.Type.STRING)
+    try:
+        m['initial_pose_topic'] = node.get_parameter('task.saved_map.initial_pose_topic').value
+    except ParameterUninitializedException:
+        if m['mode'] == 'FROZEN_MAP_AMCL':
+            raise ContractError('FROZEN_MAP_AMCL needs task.saved_map.initial_pose_topic') from None
     # TB-6 SLAM pose while searching (slam_toolbox), only in SLAM_THEN_FROZEN
     node.declare_parameter('task.saved_map.slam_localization_topic', Parameter.Type.STRING)
     try:

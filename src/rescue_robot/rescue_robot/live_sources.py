@@ -8,7 +8,8 @@ from copy import deepcopy
 import math
 
 from rescue_contracts import ros_time_to_ns
-from rescue_contracts.occupancy import footprint_clear, occupancy_sha256, planar_origin
+from rescue_contracts.occupancy import (footprint_clear, occupancy_sha256, paired_revision,
+                                        parse_frozen_revision, planar_origin)
 from rescue_robot.executor import ContractError
 
 
@@ -58,27 +59,42 @@ class Grid:
 
 
 MAP_MODES=('SAVED_MAP_AMCL','SLAM_THEN_FROZEN','FROZEN_MAP_AMCL')
+FREEZES=2  # per run (OPS-154): R0 + 1 doll found (TB-5 goes), R0 + 2 search done (TB-6 SLAM -> AMCL)
 
 
 class SavedMapSources:
     """This robot's map and localization inputs, one of three declared modes (no fallback between them).
 
-    SAVED_MAP_AMCL: a saved map with a measured hash (tests without robots). SLAM_THEN_FROZEN
-    (TB-6): its live SLAM map and SLAM pose at revision R0 while searching, then the frozen map
-    with AMCL at R0+1. FROZEN_MAP_AMCL (TB-5): nothing before the freeze, then the frozen map
-    with AMCL at R0+1. The frozen map (/rescue/map/frozen) is loaded only when this robot's own
-    map topic carries exactly that grid; a second, different frozen map blocks the map.
+    SAVED_MAP_AMCL: a saved map with a measured hash (tests without robots). The TB-6 map is
+    frozen twice per run; a frozen grid (/rescue/map/frozen) has a revision only through its
+    pair on /rescue/map/frozen_revision (same hash, rescue_contracts.occupancy). SLAM_THEN_FROZEN
+    (TB-6): its live SLAM map and SLAM pose at R0 until the last freeze (R0 + 2), then that map
+    with AMCL. FROZEN_MAP_AMCL (TB-5): nothing before the first freeze, then the highest frozen
+    revision with AMCL. A higher revision is taken only with no task and odometry STOPPED
+    (else MAP_REVISION_DEFERRED, retried on tick); TB-5 re-aligning then restarts AMCL from its
+    own last valid pose (``reinitialize``) once its map topic carries the new grid. A frozen
+    map is loaded only when this robot's own map topic carries exactly that grid; another grid
+    for a revision already known blocks the map (new run).
     """
     def __init__(self,runtime,settings):
         self.runtime=runtime; self.settings=deepcopy(settings); self.maps={}; self.poses={}; self.faults={}
-        self.slam_maps={}; self.received={}; self.frozen=None
+        self.slam_maps={}; self.received={}
+        self.frozen_grids={}; self.frozen_info=None  # received grids by hash, latest pair: matched in _pair
+        self.known={}         # revision -> Grid, frozen maps of this run
+        self.adopted={}       # robot -> frozen revision it uses
+        self.valid_after={}   # robot -> wall ns; localization poses stamped before do not count
+        self.last_valid={}    # robot -> last valid localization pose message (re-alignment start)
+        self.reinit={}        # robot -> pose message to put on its AMCL once its map topic carries the grid
+        self.deferred={}      # robot -> reason last logged
         self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
+        self.reinitialize=None  # (robot, PoseWithCovarianceStamped-like) -> publishes <ns>/initialpose
         if not settings: raise ContractError('saved_maps requires measured robot settings')
         for robot,c in self.settings.items():
             if c['mode'] not in MAP_MODES: raise ContractError('SLAM backend correction adapter not configured')
             topics=['map_topic','localization_topic']
-            if c['mode']!='SAVED_MAP_AMCL': topics.append('frozen_topic')
+            if c['mode']!='SAVED_MAP_AMCL': topics+=['frozen_topic','frozen_revision_topic']
             if c['mode']=='SLAM_THEN_FROZEN': topics.append('slam_localization_topic')
+            if c['mode']=='FROZEN_MAP_AMCL': topics.append('initial_pose_topic')
             for name in topics:
                 if not isinstance(c.get(name),str) or not c[name].startswith('/'):
                     raise ContractError('absolute saved-map input topic required')
@@ -89,10 +105,13 @@ class SavedMapSources:
             for name in ('max_position_variance_m2','max_yaw_variance_rad2'):
                 if not math.isfinite(c[name]) or c[name]<=0: raise ContractError('explicit localization variance policy')
 
+    def _frozen_robots(self):
+        return [robot for robot,c in self.settings.items() if c['mode']!='SAVED_MAP_AMCL']
+
     def phase(self,robot):
         mode=self.settings[robot]['mode']
         if mode=='SAVED_MAP_AMCL': return 'SAVED'
-        if self.frozen is not None: return 'FROZEN'
+        if robot in self.adopted: return 'FROZEN'
         return 'SLAM' if mode=='SLAM_THEN_FROZEN' else 'UNFROZEN'
 
     def loaded(self,robot):
@@ -102,24 +121,81 @@ class SavedMapSources:
         """The basis this robot publishes now; occupancy_key = the map hash, or what stands in for it."""
         c=self.settings[robot]; phase=self.phase(robot)
         key={'SAVED':c['occupancy_sha256'],'SLAM':'slam','UNFROZEN':'unfrozen'}.get(phase)
+        frozen=phase=='FROZEN'
         return dict(map_frame=c['map_frame'],map_session_id=c['map_session_id'],
-                    map_revision=c['map_revision']+(1 if phase=='FROZEN' else 0),
+                    map_revision=self.adopted[robot] if frozen else c['map_revision'],
                     transform_revision=c['transform_revision'],
-                    occupancy_key=self.frozen.sha256 if phase=='FROZEN' else key)
+                    occupancy_key=self.known[self.adopted[robot]].sha256 if frozen else key)
+
+    def _target(self,robot):
+        """The frozen revision this robot should be on: TB-6 only the last, TB-5 the highest so far."""
+        c=self.settings[robot]
+        if c['mode']=='SLAM_THEN_FROZEN':
+            last=c['map_revision']+FREEZES
+            return last if last in self.known else None
+        return max(self.known) if self.known else None
+
+    def pending(self,robot):
+        """A higher frozen revision this robot has not taken yet (it is not stopped, or has a task)."""
+        if self.settings[robot]['mode']=='SAVED_MAP_AMCL' or robot in self.faults: return False
+        target=self._target(robot)
+        return target is not None and target!=self.adopted.get(robot)
+
+    def check_new_goal(self,robot):
+        """D2 (OPS-159): no new goal on the old revision while a newer one waits; the task in progress goes on."""
+        if self.runtime.adapter.executor.active is None and self.pending(robot):
+            raise ContractError(f'map revision pending (R{self._target(robot)}); new goals wait until it is taken',
+                                'FRAME_REVISION_MISMATCH')
+
+    def tick(self):
+        """Take a pending revision once the robot is stopped with no task (the timer of attach_sources)."""
+        with self.runtime.adapter.lock:
+            for robot in self._frozen_robots(): self._try_adopt(robot)
+
+    def _try_adopt(self,robot):
+        if not self.pending(robot): return
+        r=self.runtime; executor=r.adapter.executor; target=self._target(robot)
+        reason=('task active' if executor.active is not None else
+                None if executor.motion=='STOPPED' else f'not stopped (motion={executor.motion})')
+        if reason is not None:
+            if self.deferred.get(robot)!=reason:
+                self.deferred[robot]=reason
+                r.node.get_logger().warning(f'MAP_REVISION_DEFERRED {robot} R{self.adopted.get(robot)} -> R{target}: '
+                                            f'{reason}; taken once stopped with no task')
+            return
+        previous=self.adopted.get(robot)
+        self.deferred.pop(robot,None)
+        self.adopted[robot]=target
+        self.valid_after[robot]=r.adapter.wall_clock_ns()
+        self.maps.pop(robot,None); self.slam_maps.pop(robot,None); self.poses.pop(robot,None)
+        if previous is not None and robot in self.last_valid:   # TB-5 re-aligning: start from where it stands
+            self.reinit[robot]=self.last_valid[robot]
+        r.node.get_logger().info(f'MAP_REVISION_ADOPTED {robot} R{previous} -> R{target} '
+                                 f'sha256={self.known[target].sha256}')
+        grid=self.received.get(robot)
+        if grid is not None and grid.sha256==self.known[target].sha256: self._load(robot)  # else: its relay copies it
+        self._publish_map_state(robot)   # the relay copies the grid of the revision this MapState names
 
     def _load(self,robot):
-        """Frozen phase: load this robot's last received map only if it is exactly the frozen grid."""
-        grid=self.received.get(robot)
-        if robot in self.faults or grid is None or grid.sha256!=self.frozen.sha256:
+        """Frozen phase: load this robot's last received map only if it is exactly its frozen grid."""
+        grid=self.received.get(robot); expected=self.known[self.adopted[robot]]
+        if robot in self.faults or grid is None or grid.sha256!=expected.sha256:
             if self.maps.pop(robot,None) is not None or grid is not None:
                 self.runtime.node.get_logger().error(f'{robot} map is not the frozen map; not loaded')
             return
         self.maps[robot]=grid
+        start=self.reinit.pop(robot,None)
+        if start is not None:
+            self.valid_after[robot]=self.runtime.adapter.wall_clock_ns()
+            if self.reinitialize is not None: self.reinitialize(robot,start)
+            x,y,yaw=planar(start.pose.pose)
+            self.runtime.node.get_logger().info(f'MAP_REALIGN {robot} R{self.adopted[robot]} AMCL start = its last '
+                                                f'valid pose ({x:.3f}, {y:.3f}, {yaw:.3f})')
 
     def receive_frozen(self,message):
         r=self.runtime
         with r.adapter.lock:
-            frozen_robots=[robot for robot,c in self.settings.items() if c['mode']!='SAVED_MAP_AMCL']
+            frozen_robots=self._frozen_robots()
             if not frozen_robots: return
             try:
                 grid=Grid(message)
@@ -127,18 +203,47 @@ class SavedMapSources:
                     raise ContractError('frozen map is not in the map frame')
             except (ContractError,ValueError,TypeError) as exc:
                 r.node.get_logger().error('frozen map refused: '+str(exc)); return
-            if self.frozen is not None and self.frozen.sha256!=grid.sha256:
+            self.frozen_grids[grid.sha256]=grid
+            self._pair()
+
+    def receive_frozen_revision(self,message):
+        r=self.runtime
+        with r.adapter.lock:
+            frozen_robots=self._frozen_robots()
+            if not frozen_robots: return
+            try:
+                info=parse_frozen_revision(message.data)
                 for robot in frozen_robots:
-                    self.faults[robot]='frozen map changed; new run required'; self.maps.pop(robot,None)
-                r.node.get_logger().error('frozen map changed after the freeze; map blocked (new run required)')
-            elif self.frozen is None:
-                self.frozen=grid
-                for robot in frozen_robots:
-                    self.slam_maps.pop(robot,None); self.poses.pop(robot,None)
-                r.node.get_logger().info(f'MAP_FROZEN sha256={grid.sha256} {grid.width}x{grid.height} '
-                                         f'res={grid.resolution}')
+                    c=self.settings[robot]
+                    if info['map_session_id']!=c['map_session_id'] or info['map_revision'] not in range(
+                            c['map_revision']+1,c['map_revision']+FREEZES+1):
+                        raise ContractError(f'frozen revision R{info["map_revision"]} of session '
+                                            f'{info["map_session_id"]} is not a freeze of this run')
+            except (ContractError,ValueError,TypeError,AttributeError) as exc:
+                r.node.get_logger().error('frozen revision refused: '+str(exc)); return
+            self.frozen_info=info
+            self._pair()
+
+    def _pair(self):
+        """A frozen grid becomes revision R only with its pair (same hash); never guessed."""
+        r=self.runtime; info=self.frozen_info
+        grid=None if info is None else self.frozen_grids.get(info['occupancy_sha256'])
+        if grid is None: return
+        revision=paired_revision(info,grid.sha256)
+        frozen_robots=self._frozen_robots()
+        old=self.known.get(revision)
+        if old is not None and old.sha256!=grid.sha256:
             for robot in frozen_robots:
-                self._load(robot); self._publish_map_state(robot)
+                self.faults[robot]=f'frozen map R{revision} changed; new run required'; self.maps.pop(robot,None)
+            r.node.get_logger().error(f'frozen map R{revision} changed after the freeze; map blocked (new run required)')
+        elif old is None:
+            self.known[revision]=grid
+            r.node.get_logger().info(f'MAP_FROZEN R{revision} sha256={grid.sha256} {grid.width}x{grid.height} '
+                                     f'res={grid.resolution}')
+        for robot in frozen_robots:
+            self._try_adopt(robot)
+            if robot in self.adopted: self._load(robot)
+            self._publish_map_state(robot)
 
     def receive_map(self,robot,message):
         r=self.runtime
@@ -172,6 +277,7 @@ class SavedMapSources:
                 if observed<=0 or observed>r.adapter.wall_clock_ns()+r.inputs.bound:
                     raise ContractError('AMCL stamp missing or future')
                 if observed<=self.poses.get(robot,(0,False))[0]: return
+                if source=='localization' and observed<=self.valid_after.get(robot,0): return  # before the map switch
                 planar(message.pose.pose); covariance=message.pose.covariance
                 valid=message.header.frame_id==c['map_frame'] and len(covariance)==36 and all(math.isfinite(v) for v in covariance)
                 if valid:
@@ -180,6 +286,7 @@ class SavedMapSources:
                         and cxy*cxy<=vx*vy and (vx+vy+math.hypot(vx-vy,2*cxy))/2<=c['max_position_variance_m2']
                         and 0<=covariance[35]<=c['max_yaw_variance_rad2'])
                 self.poses[robot]=(observed,valid)
+                if valid and self.phase(robot)=='FROZEN': self.last_valid[robot]=deepcopy(message)
                 if self.publisher is not None and robot==self.publisher.robot:
                     self.publisher.on_pose(message,observed,valid)
             except (ContractError,ValueError,TypeError) as exc:
@@ -220,9 +327,28 @@ def attach_sources(runtime):
         r.input_handles.append(('destroy_subscription',handle))
 
     if r.saved_maps is not None:
-        if any(c['mode']!='SAVED_MAP_AMCL' for c in r.saved_maps.settings.values()):
-            topic=next(c['frozen_topic'] for c in r.saved_maps.settings.values() if c['mode']!='SAVED_MAP_AMCL')
-            subscribe(OccupancyGrid,topic,r.saved_maps.receive_frozen,snapshot,lambda:None)
+        frozen=[c for c in r.saved_maps.settings.values() if c['mode']!='SAVED_MAP_AMCL']
+        if frozen:
+            from std_msgs.msg import String
+            subscribe(OccupancyGrid,frozen[0]['frozen_topic'],r.saved_maps.receive_frozen,snapshot,lambda:None)
+            subscribe(String,frozen[0]['frozen_revision_topic'],r.saved_maps.receive_frozen_revision,snapshot,
+                      lambda:None)
+            # a pending revision is taken once the robot is stopped with no task
+            timer=r.node.create_timer(r.config['poll_period_s'],r.saved_maps.tick)
+            r.input_handles.append(('destroy_timer',timer))
+        publishers={robot:r.node.create_publisher(PoseWithCovarianceStamped,c['initial_pose_topic'],10)
+                    for robot,c in r.saved_maps.settings.items() if c['mode']=='FROZEN_MAP_AMCL'}
+        for handle in publishers.values(): r.input_handles.append(('destroy_publisher',handle))
+
+        def reinitialize(robot,last):
+            """AMCL start on the newer frozen map = this robot's last valid pose (same SLAM frame)."""
+            message=PoseWithCovarianceStamped()
+            message.header.frame_id=last.header.frame_id
+            message.header.stamp=r.node.get_clock().now().to_msg()
+            message.pose.pose=last.pose.pose
+            message.pose.covariance=[float(v) for v in last.pose.covariance]
+            publishers[robot].publish(message)
+        if publishers: r.saved_maps.reinitialize=reinitialize
         for robot,c in r.saved_maps.settings.items():
             if c['mode']=='SLAM_THEN_FROZEN':
                 subscribe(PoseWithCovarianceStamped,c['slam_localization_topic'],

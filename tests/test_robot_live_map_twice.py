@@ -138,6 +138,18 @@ class Twice(unittest.TestCase):
         self.assertEqual(('UNKNOWN', R2), self.state())
         self.assertFalse(s.pending('robot_b'))
 
+    def test_map_state_says_the_new_revision_when_a_deferred_one_is_taken(self):
+        """The relay copies the grid of the revision in this MapState: taking it on tick must publish it."""
+        s = self.tb5_on_r1()
+        said = []
+        s.publisher = NS(robot='robot_b', on_pose=lambda *a: None,
+                         publish_map_state=lambda **_: said.append(s.basis('robot_b')['map_revision']))
+        self.r.adapter.executor.motion = 'MOVING'
+        self.freeze(G2, R2)
+        self.r.adapter.executor.motion = 'STOPPED'
+        s.tick()
+        self.assertEqual(R2, said[-1])
+
     def test_a_new_goal_is_refused_while_a_revision_is_pending(self):
         s = self.tb5_on_r1()
         s.check_new_goal('robot_b')               # nothing pending

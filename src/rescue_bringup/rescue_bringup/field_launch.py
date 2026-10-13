@@ -86,6 +86,7 @@ ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
 SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshness at the freeze
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # which revision FROZEN_TOPIC is (OPS-159)
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
 START_POSE_TOPIC = '/rescue/map/start_pose/'            # + SLAM robot id: origin of coordinates measured in advance
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
@@ -400,6 +401,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     }
     if mode == 'SLAM_THEN_FROZEN':
         task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
+    if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
+        task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
     # (OPS-139); a profile home here would be used until the first coordinator record.
@@ -454,6 +457,8 @@ def frozen_localization_values(deployment, *, field, robot_id):
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
             'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
+            # the relay copies the frozen grid of the revision this robot's executor is on (OPS-154)
+            'frozen_revision_topic': FROZEN_REVISION_TOPIC, 'map_state_topic': f'/rescue/robots/{robot_id}/map_state',
             'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
             # initial_pose_xy_yaw is relative to the TB-6 start pose (OPS-141); the launch places it on the map
             'start_pose_topic': START_POSE_TOPIC + _slam_robot(field) if mode == 'FROZEN_MAP_AMCL' else None}
