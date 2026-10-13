@@ -6,9 +6,10 @@ SEARCH_AREA sites on the search basis (site ids are UUIDs: the executor takes on
 passed. After the last point the next round starts, ``patrol_rounds`` rounds in all (PATROL_ROUND_<n>), then
 PATROL_EXHAUSTED. No start pose: no patrol (START_POSE_UNKNOWN). ``AREAS`` keeps the profile search areas.
 
-Exit (안 「나」): /rescue/exit_location (TargetLocation, class_label exit_qr) registers TB-5's exit; a person
-target never comes from it and an exit_qr is never a person target. With SLAM_FREEZE the freeze waits for the
-exit (MAP_FREEZE_WAITING_EXIT) and TB-6 keeps patrolling meanwhile. Before the freeze only the search basis is
+Exit (안 「나」): /rescue/exit_location (TargetLocation, class_label exit_qr) registers exits; a person target
+never comes from it and an exit_qr is never a person target. Several exits are kept, one per QR id
+(observation.track_id, OPS-157·158; the allow list is checked by perception only): the latest position counts. The freeze does not wait for an
+exit (OPS-156: the first freeze is the doll's); TB-5 leaves without one and only its exit move needs one. Before the freeze only the search basis is
 accepted, after it only the frozen one. At the freeze the target and exit of the search revision are re-based
 only when the frozen map is the same map session; another session is refused as before.
 """
@@ -54,17 +55,21 @@ class ExitRegistrationTests(unittest.TestCase):
         with self.assertRaises(RescueError) as caught:
             self.core.on_target_location(exit_msg(1), now_ns=NOW)
         self.assertEqual('INVALID_INPUT', caught.exception.code)
-        with self.assertRaises(RescueError) as caught:
-            self.core.on_exit_location(exit_msg(2, label='survivor'), now_ns=NOW)
-        self.assertEqual('INVALID_INPUT', caught.exception.code)
-        self.assertIsNone(self.core.exit)
+        for bad in (exit_msg(2, label='survivor'), exit_msg(4, track=None)):  # no QR id is no exit
+            with self.subTest(msg=bad), self.assertRaises(RescueError) as caught:
+                self.core.on_exit_location(bad, now_ns=NOW)
+            self.assertEqual('INVALID_INPUT', caught.exception.code)
+        self.assertEqual([], self.core.exits)
 
-    def test_an_exit_registers_once_per_location(self):
+    def test_one_exit_per_qr_id_and_several_are_kept(self):
         msg = exit_msg(1)
         self.core.on_exit_location(msg, now_ns=NOW)
         self.core.on_exit_location(msg, now_ns=NOW)  # replay
-        self.assertEqual(((MAP, SEARCH_REV, TRANSFORM), (0., 6.), 1),
-                         (self.core.exit['basis'], self.core.exit['xy'], self.core.exit['revision']))
+        self.core.on_exit_location(exit_msg(2, (0., 6.3)), now_ns=NOW)                 # EXIT-1 seen again
+        self.core.on_exit_location(exit_msg(3, (5., 5.), track='EXIT-2'), now_ns=NOW)  # another exit
+        self.assertEqual([('EXIT-1', (MAP, SEARCH_REV, TRANSFORM), (0., 6.3), 2),
+                          ('EXIT-2', (MAP, SEARCH_REV, TRANSFORM), (5., 5.), 1)],
+                         [(e['exit_id'], e['basis'], e['xy'], e['revision']) for e in self.core.exits])
         self.assertIn('EXIT_REGISTERED', ' '.join(self.core.drain_notes()))
 
     def test_an_exit_on_another_basis_before_the_freeze_is_refused(self):
@@ -72,17 +77,9 @@ class ExitRegistrationTests(unittest.TestCase):
             self.core.on_exit_location(exit_msg(1, revision=SEARCH_REV + 7), now_ns=NOW)
         self.assertEqual('FRAME_REVISION_MISMATCH', caught.exception.code)
 
-    def test_the_freeze_waits_for_the_exit_and_the_patrol_goes_on(self):
-        self.core.on_status(status_msg(SCOUT))
-        self.core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+    def test_the_freeze_does_not_wait_for_an_exit(self):
+        # OPS-156 (main 477eac2 waited): without a QR exit seen, the doll's freeze must still go.
         self.save_target()
-        self.assertEqual(1, len(ticks(self.core, 'SEARCH_AREA')))
-        self.assertFalse(self.core.take_freeze_request())
-        self.assertEqual('MAP_FREEZE_WAITING_EXIT', reason(self.core))
-
-    def test_the_exit_lets_the_freeze_go(self):
-        self.save_target()
-        self.core.on_exit_location(exit_msg(1), now_ns=NOW)
         ticks(self.core)
         self.assertTrue(self.core.take_freeze_request())
 
@@ -97,7 +94,7 @@ class ExitRegistrationTests(unittest.TestCase):
         with self.assertRaises(RescueError):
             self.core.on_exit_location(exit_msg(2, (0., 6.5)), now_ns=NOW)
         self.core.on_exit_location(exit_msg(3, (0., 6.5), revision=FROZEN_REV), now_ns=NOW)
-        self.assertEqual((FROZEN, (0., 6.5)), (self.core.exit['basis'], self.core.exit['xy']))
+        self.assertEqual([(FROZEN, (0., 6.5))], [(e['basis'], e['xy']) for e in self.core.exits])
 
     def test_a_frozen_map_of_another_session_rebases_nothing(self):
         self.save_target()
@@ -109,7 +106,7 @@ class ExitRegistrationTests(unittest.TestCase):
         self.core.on_map_state(map_state(SCOUT, map_session_id=OTHER_MAP,
                                          snapshot_id=snapshot_id('c' * 64, OTHER_MAP, FROZEN_REV, TRANSFORM)))
         self.assertEqual((OTHER_MAP, FROZEN_REV, TRANSFORM), self.core.frozen)
-        self.assertEqual((MAP, SEARCH_REV, TRANSFORM), self.core.exit['basis'])
+        self.assertEqual([(MAP, SEARCH_REV, TRANSFORM)], [e['basis'] for e in self.core.exits])
         self.assertEqual([], ticks(self.core, 'APPROACH_TARGET'))
         self.assertEqual('TARGET_NOT_ON_FROZEN_MAP', reason(self.core))
 
@@ -222,7 +219,8 @@ class ParameterTests(unittest.TestCase):
                 make_core(**changes)
 
     def test_reasons_are_listed(self):
-        self.assertTrue({'MAP_FREEZE_WAITING_EXIT', 'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
+        self.assertNotIn('MAP_FREEZE_WAITING_EXIT', ros_node.MAP_FREEZE_REASONS)  # OPS-156: no longer a wait
+        self.assertTrue({'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
                          'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN', 'START_POSE_CONFLICT'}
                         <= set(ros_node.MAP_FREEZE_REASONS))
 

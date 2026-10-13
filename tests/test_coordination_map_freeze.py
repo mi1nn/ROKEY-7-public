@@ -41,10 +41,11 @@ EXIT_XY, DOCK_XY = (0., 6.), (1., 0.)
 EXIT_STANDOFF = 0.5
 
 
-def exit_msg(n, xy=EXIT_XY, revision=SEARCH_REV, session=MAP, label='exit_qr'):
-    """A TargetLocation on /rescue/exit_location (통합-인식, class_label exit_qr; 작전 OPS-138)."""
+def exit_msg(n, xy=EXIT_XY, revision=SEARCH_REV, session=MAP, label='exit_qr', track='EXIT-1'):
+    """A TargetLocation on /rescue/exit_location (통합-인식, class_label exit_qr, the QR id in track_id; OPS-157)."""
     return location(900 + n, xy, frame_ref=frame(map_revision=revision, map_session_id=session),
-                    observation=NS(time=obs_time(), class_label=label))
+                    observation=NS(time=obs_time(), class_label=label, has_track_id=bool(track),
+                                   track_id=track or ''))
 
 
 def exit_point(target_xy=(4., 4.)):
@@ -225,7 +226,7 @@ class AfterFreezeTests(Base):
     def test_the_search_revision_target_and_exit_are_rebased_at_the_freeze(self):
         self.assertEqual(FROZEN, self.core.target_geo[self.target][0])
         self.assertEqual((1, True, False), self.core.mission.targets[self.target])
-        self.assertEqual(FROZEN, self.core.exit['basis'])
+        self.assertEqual([FROZEN], [e['basis'] for e in self.core.exits])
         (report,) = self.core.reports_due(NOW)  # the rebased revision is saved again, with its latest location
         self.assertEqual((self.target, 1, [location(1).location_id]),
                          (report['target_id'], report['target_revision'], report['record_ids']))
@@ -296,10 +297,32 @@ class FreeCellTests(Base):
         self.go(FakeGrid(blocked=[(3.25, 4.)]))
         self.assertEqual(([], 'SUPPORT_APPROACH_NOT_FREE'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
 
-    def test_exit_approach_not_free_holds_the_dispatch(self):
-        # OPS-138: TB-5 does not leave for a target it could not lead out from.
+    def arrive(self):
+        (approach,) = self.tick(kind='APPROACH_TARGET')
+        self.core.on_admission(admission_msg(approach))
+        self.core.on_result(approach['task_id'], NS(outcome='COMPLETED', stop_confirmed=True, terminal_reason=''))
+
+    def test_exit_approach_not_free_holds_only_the_exit_move(self):
+        # OPS-154·156: TB-5 leaves for the doll at once; a blocked exit holds its way out, not the dispatch.
         self.go(FakeGrid(blocked=[exit_point((4.2, 4.))]))
-        self.assertEqual(([], 'SUPPORT_EXIT_NOT_FREE'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
+        self.arrive()
+        self.assertEqual(([], 'SUPPORT_EXIT_NOT_FREE'), (self.tick(NOW, 'RETURN_HOME'), self.reason()))
+
+    def test_no_exit_seen_tb5_still_goes_and_its_exit_move_waits(self):
+        self.core.exits = []
+        self.go(FakeGrid())
+        self.arrive()
+        self.assertEqual(([], 'SUPPORT_EXIT_UNREGISTERED'), (self.tick(NOW, 'RETURN_HOME'), self.reason()))
+
+    def test_tb5_takes_the_nearer_of_two_exits(self):
+        # Interim rule until the grid path length (OPS-154 3): straight-line distance from the doll.
+        self.go(FakeGrid())
+        self.core.on_exit_location(exit_msg(5, (5., 4.), revision=FROZEN_REV, track='EXIT-2'), now_ns=NOW)
+        self.arrive()
+        self.tick(NOW, 'RETURN_HOME')
+        home = self.core.live_destinations()[f'home/{SUPPORT}']
+        self.assertEqual([round(v, 9) for v in ros_node.approach_point((5., 4.), (4.2, 4.), EXIT_STANDOFF)[0]],
+                         [round(v, 9) for v in home['xy_yaw'][:2]])
 
     def test_tb5_exit_is_the_registered_exit_on_the_frozen_map(self):
         # OPS-136 4: home/<TB-5> is the registered exit approach in ~/task_inputs, not the profile home.
@@ -433,7 +456,7 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual({'MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', 'MAP_FREEZE_FAILED',
                           'MAP_NOT_FROZEN', 'TARGET_NOT_ON_FROZEN_MAP', 'SCOUT_NOT_LOCALIZED',
                           'SUPPORT_NOT_LOCALIZED', 'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE',
-                          'SCOUT_HOME_NOT_FREE', 'MAP_FREEZE_WAITING_EXIT', 'TARGET_REBASED_ON_FREEZE',
+                          'SCOUT_HOME_NOT_FREE', 'TARGET_REBASED_ON_FREEZE',
                           'EXIT_NOT_ON_FROZEN_MAP', 'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN',
                           'START_POSE_CONFLICT'}, set(ros_node.MAP_FREEZE_REASONS))
 
