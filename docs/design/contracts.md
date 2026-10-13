@@ -91,6 +91,20 @@ revision 생성은 실제 선택한 SLAM backend의 보정 이벤트·pose graph
 `Projection.status`의 공통 어휘는 `VALID`, `STALE_DERIVATION`, `NEEDS_REOBSERVATION`, `EXPIRED`다. 유효한 map→mission 정렬만 변경되어 같은 원 관측·sensor-time TF로 재계산할 수 있는 파생 위치는 `STALE_DERIVATION`이다. map session/map revision 변경 또는 정렬 무효화로 원 관측의 새 위치를 증명할 수 없으면 `NEEDS_REOBSERVATION`이다. 상태 확인에서 VERSION_MISMATCH를 감지한 경우에도 같은 기준을 적용한다. STALE_DERIVATION 뒤 지도 보정·세션 교체·무효화가 발생하면 NEEDS_REOBSERVATION으로 승격한다. 원 관측/파생 위치 유효기한이 끝나면 EXPIRED이며 중계가 기한을 연장하지 않는다. VALID 이외의 상태는 기존 goal의 유효 근거가 아니며, 새 파생 위치 또는 새 관측 확인 후 별도 generation으로 재배정한다. VALID만으로 실제 backend 검증/자동 접근 자격을 승인하지 않는다.
 
 
+### C-04a. 고정 지도의 revision 짝 (`/rescue/map/frozen_revision`, 2026-10-13, OPS-154/159)
+
+TB-6 SLAM 지도는 회차마다 두 번 고정한다: R0+1(인형 발견, TB-5 출동·TB-6 은 SLAM 계속)과 R0+2(탐색 완료, TB-6 SLAM→AMCL·TB-5 정지 상태에서 재정합). 두 고정 모두 `/rescue/map/frozen`(nav_msgs/OccupancyGrid, RELIABLE·TRANSIENT_LOCAL·depth 1, 마지막 고정)으로 나가고, OccupancyGrid 에는 revision 칸이 없으므로 고정 노드(`map_freeze`)가 짝을 함께 낸다.
+
+| 항목 | 값 |
+| --- | --- |
+| 토픽 | `/rescue/map/frozen_revision` |
+| 형식 | std_msgs/String, RELIABLE·TRANSIENT_LOCAL·depth 1. 새 IDL 없음 |
+| 내용 | JSON 객체 하나, 필드는 정확히 `format`(`"rescue-map-frozen/1"`), `map_session_id`(UUID 문자열), `map_revision`(정수 ≥ 1), `occupancy_sha256`(소문자 hex 64자, `rescue_contracts.occupancy.occupancy_sha256`) |
+| 해석 | `rescue_contracts.occupancy.parse_frozen_revision` 하나로만 한다(로봇·조정기 공용). 다른 형식, 빠진·남는 필드, 잘못된 값은 거절(ValueError) |
+| 짝 규칙 | 받은 grid 의 해시가 짝의 `occupancy_sha256` 과 같을 때만 그 grid 가 짝의 `map_revision` 이다(`paired_revision`). 다르면 revision 을 추정하지 않고 맞는 짝이 올 때까지 기다린다 |
+
+같은 revision 에 다른 해시가 오면 지도를 막고 새 회차를 요구한다. 낮은 revision 이 늦게 오면 쓰지 않는다. 짝·grid 가 latched depth 1 이므로 R0+2 뒤에 붙은 구독자는 R0+1 grid 를 받지 못한다. 고정 노드가 재시작하면 그 회차 기록을 R0+1→R0+2 순으로 다시 낸다.
+
 ## C-05. 관측·사건·보고의 논리 스키마
 
 실제 ROS 정의 파일 이름·배열 상한·직렬화 형식은 아래 의미를 보존하며 구현 PR에서 고정한다.

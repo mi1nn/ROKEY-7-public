@@ -481,21 +481,21 @@ def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):
     return params
 
 
-def map_freeze_parameters(deployment, *, field, output_dir, record_path):
-    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0)."""
+def map_freeze_parameters(deployment, *, field, output_dir):
+    """map_freeze (compute_a): the SLAM robot's map and SLAM pose on the profile map basis (revision R0).
+
+    A restarted node reloads this run's freezes from output_dir (two per run, OPS-154).
+    """
     deployment, basis = _deployment(deployment)
     slam = [robot_id for robot_id, section in field.robots.items()
             if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
     if not slam:
         raise FieldLaunchError('no SLAM_THEN_FROZEN robot in the field run file; nothing to freeze')
     _, robot, section = _robot(deployment, field, slam[0])
-    for name, value in (('output_dir', output_dir), ('record_path', record_path)):
-        if not isinstance(value, str) or (value and not value.startswith('/')) or (name == 'output_dir' and not value):
-            raise FieldLaunchError(f'{name} must be an absolute path' + ('' if name == 'output_dir' else ' or empty'))
+    if not isinstance(output_dir, str) or not output_dir.startswith('/'):
+        raise FieldLaunchError('output_dir must be an absolute path')
     params = {'map_topic': robot.namespace + '/map', 'pose_topic': robot.namespace + '/pose',
               'map_frame': basis.frame_id, 'map_session_id': basis.map_session_id,
               'map_revision': basis.map_revision, 'pose_max_age_ns': section['map_freeze.pose_max_age_ns'],
               'output_dir': output_dir}
-    if record_path:
-        params['record_path'] = record_path   # restart: republish the saved freeze
     return params

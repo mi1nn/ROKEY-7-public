@@ -260,7 +260,7 @@ ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}  
    - AMCL 이 자리를 못 잡으면(공분산 초과) `quality=UNKNOWN` 이고 TB-5 는 출동하지 않는다.
    - 고정이 실패하면(`MAP_FREEZE_FAILED`) 아무것도 바뀌지 않는다. TB-5 도 출동하지 않는다.
 5. 정지: `ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}` 로 하고, 실제로 멈췄는지 눈으로 확인한다. watchdog 이 세운 경우(`watchdog STOP_LATCHED`)는 rescue_robot README 의 리셋 절을 본다.
-6. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다. 고정은 회차마다 한 번이다. 새 회차는 `tb6_slam` 부터 다시 띄우고, 고정 노드는 `record_path` 없이 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 `record_path:=<저장된 .json>` 로 같은 지도를 다시 낸다.
+6. 다시 하려면 조정기·로봇 launch 를 다시 띄우고 새 목표를 고른다. 고정은 회차마다 두 번까지다(R0+1 인형 발견, R0+2 탐색 완료, OPS-154). 새 회차는 `tb6_slam` 부터 다시 띄우고, 고정 노드는 **새 `output_dir`** 로 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 같은 `output_dir` 로 띄우면 그 회차의 출발 자세와 고정 기록(`frozen-r<revision>-*.json`)을 순서대로 다시 낸다(`record_path` 인자는 없어졌다). 기록이 한 회차로 맞지 않으면(같은 revision 두 개, R0+1 없는 R0+2) `MAP_FREEZE_RESTORE_FAILED` 로 기동하지 않는다.
 
 ### 참고
 
