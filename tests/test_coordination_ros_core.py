@@ -37,11 +37,12 @@ def make_core(policy_changes=None, **changes):
                   target_max_age_ns=TARGET_AGE, target_max_future_ns=TARGET_FUTURE, support_dispatch='OPERATOR',
                   approach_standoff_m=1.0, support_pose_max_age_ns=MAX_AGE, support_exit_wait_ns=0,
                   recheck_max_clock_error_ns=20_000_000, map_mode='SAVED_MAP', freeze_clearance_m=0.2,
-                  map_freeze_timeout_ns=5_000_000_000, map_snapshot_id=lambda *basis: ':'.join(map(str, basis)),
+                  map_freeze_timeout_ns=5_000_000_000,
                   search_mode='AREAS', patrol_points=(), patrol_rounds=1, exit_standoff_m=0.5,
                   frontier_min_cells=3, frontier_reach_m=1.0, frontier_goal_max_m=1.0, frontier_blacklist_m=0.5,
                   frontier_issue_delay_ns=2_000_000_000, exploration_empty_checks=2,
                   exploration_timeout_ns=600_000_000_000,
+                  completion_mode='RECHECK', support_start_pose=None,
                   search_start='OPERATOR',
                   new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))

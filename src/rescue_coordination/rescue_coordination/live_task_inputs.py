@@ -92,6 +92,12 @@ def destinations(core):
     return out | core.live_destinations()
 
 
+def goal_pick_topic(core, topic):
+    """The RViz search goal topic when this run uses the pick (AREAS: it replaces the configured areas), else None.
+    FRONTIER and PATROL make their own areas; the pick stays off even if the field gives a topic (OPS-174)."""
+    return topic if topic and core.search_mode == 'AREAS' else None
+
+
 def attach(node, core, values, boot_id):
     from rcl_interfaces.msg import ParameterType, ParameterValue
     from rcl_interfaces.msg import ParameterDescriptor
@@ -118,7 +124,11 @@ def attach(node, core, values, boot_id):
     last_reason = [None]
     node.declare_parameter('live_inputs.search_goal_topic', '', descriptor=ParameterDescriptor(
         type=ParameterType.PARAMETER_STRING, read_only=True))
-    goal_topic = node.get_parameter('live_inputs.search_goal_topic').value
+    given_topic = node.get_parameter('live_inputs.search_goal_topic').value
+    goal_topic = goal_pick_topic(core, given_topic)
+    if given_topic and goal_topic is None:
+        node.get_logger().info(f'RViz search goal pick off: search_mode={core.search_mode} makes its own areas '
+                               f'({given_topic} not subscribed)')
     selector = None
     if goal_topic:
         if not isinstance(goal_topic, str) or not goal_topic.startswith('/'):
