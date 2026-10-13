@@ -48,6 +48,38 @@ class ReasonWordTests(unittest.TestCase):
                 r = mission_reason(code, 'TB-5', 'TB-6')
                 self.assertEqual((text, level, 'support'), (r['text'], r['level'], r['scope']))
 
+    def test_approach_failed_with_a_reason_of_216(self):   # APPROACH_FAILED_<executor terminal reason> (OPS-127)
+        cases = {
+            'APPROACH_FAILED_PASSAGE_BLOCKED': ('TB-5 접근 실패: 통로 막힘 — 다시 보내지 않음', 'alert'),
+            'APPROACH_FAILED_UNREACHABLE': ('TB-5 접근 실패: 갈 수 없는 위치 — 다시 보내지 않음', 'alert'),
+            'APPROACH_FAILED_FAILED': ('TB-5 접근 실패: 실행 실패 — 다시 보내지 않음', 'alert'),
+            # an unknown reason is shown as its code, never hidden
+            'APPROACH_FAILED_WHEEL_DROP': ('TB-5 접근 실패: WHEEL_DROP — 다시 보내지 않음', 'alert'),
+        }
+        for code, (text, level) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': 'support'},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
+    def test_map_freeze_gates_of_214(self):   # TB-5 dispatch gates on the frozen map (#214, OPS-127)
+        cases = {
+            'MAP_FREEZE_WAITING_SCOUT_STOP': ('TB-6 이 멈추기를 기다림 — 멈추면 지도 고정', 'info', None),
+            'MAP_FREEZE_REQUESTED': ('지도 고정 요청함 — 고정 지도 확인 중', 'info', None),
+            'MAP_NOT_FROZEN': ('지도가 아직 고정되지 않음 — TB-5 출동 대기', 'caution', None),
+            'MAP_FREEZE_FAILED': ('지도 고정 실패 — 다시 요청하지 않음', 'alert', None),
+            'TARGET_NOT_ON_FROZEN_MAP': ('고정 지도 기준 대상 위치가 아직 없음 — TB-5 출동 대기', 'caution', None),
+            'SCOUT_NOT_LOCALIZED': ('TB-6 이 고정 지도에서 위치를 못 잡음', 'caution', 'scout'),
+            'SUPPORT_NOT_LOCALIZED': ('TB-5 가 고정 지도에서 위치를 못 잡음 — 출동 대기', 'caution', 'support'),
+            'SUPPORT_APPROACH_NOT_FREE': ('TB-5 접근 지점이 막힘 — 출동 보류', 'caution', 'support'),
+            'SUPPORT_EXIT_NOT_FREE': ('TB-5 출구 지점이 막힘 — 출동 보류', 'caution', 'support'),
+            'SCOUT_HOME_NOT_FREE': ('TB-6 복귀 지점이 막힘 — TB-5 출동 보류', 'caution', 'scout'),
+            'NO_HOME_POSITION': ('복귀 위치 없음 — TB-5 출동 안 함', 'caution', None),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])
