@@ -80,7 +80,7 @@ MAP_FREEZE_REASONS = ('MAP_FREEZE_WAITING_SCOUT_STOP', 'MAP_FREEZE_REQUESTED', '
                       'TARGET_NOT_ON_FROZEN_MAP', 'SCOUT_NOT_LOCALIZED', 'SUPPORT_NOT_LOCALIZED',
                       'SUPPORT_APPROACH_NOT_FREE', 'SUPPORT_EXIT_NOT_FREE', 'SCOUT_HOME_NOT_FREE',
                       # QR exit, re-basing at the freeze, TB-6 start pose (OPS-136·138·139·141·142)
-                      'MAP_FREEZE_WAITING_EXIT', 'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
+                      'TARGET_REBASED_ON_FREEZE', 'EXIT_NOT_ON_FROZEN_MAP',
                       'SUPPORT_EXIT_UNREGISTERED', 'START_POSE_UNKNOWN', 'START_POSE_CONFLICT')
 # TB-6 search (owner decision 2026-10-13 evening, OPS-136·139): PATROL = the field's patrol points, given in TB-6's
 # start pose; AREAS = the profile search areas. Never both.
@@ -364,7 +364,9 @@ class CoordinatorCore:
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
-        self.exit = None                # dict(basis, xy, revision, location_id): TB-5's registered exit
+        # Registered exits, one per QR id (observation.track_id, OPS-157·158), in first-seen order:
+        # dict(exit_id, basis, xy, revision, location_id). The latest position of an id counts.
+        self.exits = []
         self.exit_locations = {}        # location_id -> (basis, xy): replays and conflicts
         self.rebased = set()            # targets re-based at the freeze, shown until that revision is saved
         self.rebase_reports = []        # (target_id, revision, location) reports to queue at the next reports_due
@@ -552,46 +554,61 @@ class CoordinatorCore:
 
     # -- QR exit (안 「나」, OPS-136·138·139) ------------------------------------------------------------------
     def on_exit_location(self, msg, *, now_ns):
-        """A VALID exit_qr TargetLocation registers TB-5's exit: the search basis before the freeze, the frozen one
-        after it. The latest one counts; never merged with a person target."""
+        """A VALID exit_qr TargetLocation with its QR id (track_id) registers or moves that exit: the search basis
+        before the freeze, the frozen one after it. Never merged with a person target. The allow list of QR ids is
+        perception's (OPS-158), not checked twice here."""
         contract_value(timestamp_ns, now_ns)
         if msg.observation.class_label != EXIT_CLASS_LABEL:
             raise CoordinationError('INVALID_INPUT', f'{EXIT_LOCATION_TOPIC} carries {EXIT_CLASS_LABEL} only')
         if msg.projection_status != 'VALID':
             raise CoordinationError('STALE_OBSERVATION', 'only VALID projections register an exit')
+        if not msg.observation.has_track_id or not msg.observation.track_id:
+            raise CoordinationError('INVALID_INPUT', 'an exit needs its QR id in observation.track_id')
+        exit_id = msg.observation.track_id
         uid(msg.location_id)
         f = msg.frame_ref
         basis = (uid(f.map_session_id), revision(f.map_revision), revision(f.transform_revision))
         xy = point((float(msg.mission_position.x), float(msg.mission_position.y)))
         seen = self.exit_locations.get(msg.location_id)
         if seen is not None:
-            if seen != (basis, xy):
+            if seen != (exit_id, basis, xy):
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'exit content differs for the same location_id')
             return False
         self._check_observation_time(msg.observation.time, now_ns)
         if (basis != self.basis() or f.mission_frame != self.search.policy.mission_frame_id
                 or f.alignment_status != 'VALID'):
             raise CoordinationError('FRAME_REVISION_MISMATCH', 'exit is not on the current map basis')
-        self.exit_locations[msg.location_id] = (basis, xy)
-        self.exit = dict(basis=basis, xy=xy, revision=(self.exit['revision'] + 1) if self.exit else 1,
-                         location_id=msg.location_id)
-        self.notes.append(f'EXIT_REGISTERED revision={self.exit["revision"]} xy={xy} basis={basis} '
+        self.exit_locations[msg.location_id] = (exit_id, basis, xy)
+        known = next((e for e in self.exits if e['exit_id'] == exit_id), None)
+        entry = dict(exit_id=exit_id, basis=basis, xy=xy, revision=known['revision'] + 1 if known else 1,
+                     location_id=msg.location_id)
+        self.exits = [entry if e is known else e for e in self.exits] if known else self.exits + [entry]
+        self.notes.append(f'EXIT_REGISTERED {exit_id} revision={entry["revision"]} xy={xy} basis={basis} '
                           f'location={msg.location_id}')
         return True
 
-    def _exit_point(self, target_id):
+    def _chosen_exit(self, target_id):
+        """The exit TB-5 leads out by: the nearest one on the frozen map to the doll. Straight-line distance for
+        now; the grid path length replaces it with the second freeze (OPS-154 3)."""
+        frozen = [e for e in self.exits if e['basis'] == self.frozen]
+        xy = self.target_geo[target_id][1]
+        return min(frozen, key=lambda e: (math.dist(e['xy'], xy), e['exit_id'])) if frozen else None
+
+    def _exit_point(self, target_id, exit_):
         """(xy, yaw) exit_standoff_m before the exit on the side of the target TB-5 comes from, facing the exit."""
-        return approach_point(self.exit['xy'], self.target_geo[target_id][1], self.exit_standoff_m)
+        return approach_point(exit_['xy'], self.target_geo[target_id][1], self.exit_standoff_m)
 
     def _exit_ready(self, target_id):
-        """The exit is registered on the frozen map and its approach is free (before TB-5 leaves, OPS-138)."""
-        if self.exit is None:
+        """TB-5's exit move: an exit registered on the frozen map, its approach free. Held with the reason otherwise;
+        the dispatch itself never waits for an exit (OPS-154·156)."""
+        if not self.exits:
             self.issue_block = 'SUPPORT_EXIT_UNREGISTERED'
             return False
-        if self.exit['basis'] != self.frozen:
+        exit_ = self._chosen_exit(target_id)
+        if exit_ is None:
             self.issue_block = 'EXIT_NOT_ON_FROZEN_MAP'
             return False
-        point_ = self._exit_point(target_id)
+        point_ = self._exit_point(target_id, exit_)
         if point_ is None:
             self.issue_block = 'SUPPORT_EXIT_NOT_FREE'
             return False
@@ -611,8 +628,9 @@ class CoordinatorCore:
                                         map_session_id=self.frozen[0], map_revision=self.frozen[1],
                                         transform_revision=self.frozen[2])
         target = self.mission.dispatch_target
-        if self.exit is not None and self.exit['basis'] == self.frozen and target in self.target_geo:
-            point_ = self._exit_point(target)
+        exit_ = self._chosen_exit(target) if target in self.target_geo else None
+        if exit_ is not None:
+            point_ = self._exit_point(target, exit_)
             if point_ is not None:
                 out[f'home/{support}'] = dict(robot_id=support, frame_id=frame_id, xy_yaw=[*point_[0], point_[1]],
                                               map_session_id=self.frozen[0], map_revision=self.frozen[1],
@@ -645,15 +663,15 @@ class CoordinatorCore:
             return
         if self.freeze in ('REQUESTED', 'AWAITING_MAP') and now_ns > self.freeze_due_ns:
             self._freeze_failed(f'no frozen map matching TB-6 MapState within the timeout (state {self.freeze})')
-        if self.freeze is not None or not self._target_saved() or self.exit is None:
-            return  # OPS-136: the freeze waits for the registered exit too (MAP_FREEZE_WAITING_EXIT)
+        if self.freeze is not None or not self._target_saved():
+            return  # the doll's freeze; it never waits for an exit (OPS-156)
         scout = self.roles['SCOUT']
         state, detail = self.ready(scout, now_ns), self.status_detail.get(scout)
         if (state is None or not state[1] or detail is None or detail[2] != 'STOPPED'
                 or self.search.assignment(scout) is not None):
             return  # the approach gate shows MAP_FREEZE_WAITING_SCOUT_STOP
         self.freeze, self.freeze_due_ns, self.freeze_send = 'REQUESTED', now_ns + self.map_freeze_timeout_ns, True
-        self.notes.append('MAP_FREEZE requested: target saved, exit registered, TB-6 stopped')
+        self.notes.append('MAP_FREEZE requested: target saved, TB-6 stopped')
 
     def take_freeze_request(self):
         """True once when the node must call MAP_FREEZE_SERVICE."""
@@ -723,9 +741,11 @@ class CoordinatorCore:
             self.rebase_reports.append((target_id, rev + 1, locations[-1]))
             self.notes.append(f'TARGET_REBASED_ON_FREEZE target={target_id} revision={rev + 1} xy={xy} '
                               f'from={search} to={self.frozen}')
-        if self.exit is not None and self.exit['basis'] == search:
-            self.exit = self.exit | dict(basis=self.frozen)
-            self.notes.append(f'EXIT_REBASED_ON_FREEZE xy={self.exit["xy"]} from={search} to={self.frozen}')
+        for i, exit_ in enumerate(self.exits):
+            if exit_['basis'] == search:
+                self.exits[i] = exit_ | dict(basis=self.frozen)
+                self.notes.append(f'EXIT_REBASED_ON_FREEZE {exit_["exit_id"]} xy={exit_["xy"]} from={search} '
+                                  f'to={self.frozen}')
 
     def _freeze_failed(self, detail):
         self.freeze, self.freeze_send = 'FAILED', False
@@ -735,9 +755,6 @@ class CoordinatorCore:
         """TB-5 goes only on the frozen map: target observed there, both robots localized there (SLAM_FREEZE)."""
         if self.map_mode != 'SLAM_FREEZE':
             return True
-        if self.freeze is None and self.exit is None:
-            self.issue_block = 'MAP_FREEZE_WAITING_EXIT'  # TB-6 keeps patrolling (OPS-136)
-            return False
         if self.freeze != 'FROZEN':
             self.issue_block = {None: 'MAP_FREEZE_WAITING_SCOUT_STOP', 'REQUESTED': 'MAP_FREEZE_REQUESTED',
                                 'AWAITING_MAP': 'MAP_NOT_FROZEN', 'FAILED': 'MAP_FREEZE_FAILED'}[self.freeze]
@@ -749,7 +766,7 @@ class CoordinatorCore:
             if self.mission.map_basis.get(self.roles[role]) != self.frozen:
                 self.issue_block = f'{role}_NOT_LOCALIZED'
                 return False
-        return self._exit_ready(target_id)
+        return True  # the exit is the exit move's matter (_home_free), not the dispatch's (OPS-156)
 
     def _free_cell(self, xy, reason):
         """True when ``xy`` is free on the frozen grid within freeze_clearance_m (always True in SAVED_MAP)."""
@@ -1503,8 +1520,8 @@ class CoordinatorCore:
 
     def _issue_search(self, now_ns):
         scout = self.roles['SCOUT']
-        if self.map_mode == 'SLAM_FREEZE' and self._target_saved() and self.exit is not None:
-            return  # TB-6 stops for the freeze; until the exit is seen it keeps patrolling (OPS-136)
+        if self.map_mode == 'SLAM_FREEZE' and self._target_saved():
+            return  # TB-6 stops for the doll's freeze (Q-29 ⑦); exploring on afterwards comes with OPS-154
         if self.patrol_exhausted:
             return
         state = self.ready(scout, now_ns)
