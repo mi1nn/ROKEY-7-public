@@ -390,6 +390,9 @@ def _mission(site_events, row):
                    'trigger_ns': signs[0].observed_at_ns if signs else None}
 
 
+SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch; the coordinator's field value
+
+
 def _command_words(support_name):
     """Command labels; the dispatch carries the SUPPORT robot's display name (owner 2026-10-13: TB-5)."""
     words = dict(COMMANDS)
@@ -480,24 +483,33 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
-def command_gates(mission, targets, words=None):
+def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None):
     """Every command with the state of its button. A mirror of the coordinator gate for the screen,
     not the gate: an enabled command may still be rejected, and that answer is shown as it comes."""
     words = dict(COMMANDS) if words is None else words
     rows = []
     for name, _ in COMMANDS:
         enabled, reason, args, choices = _gate(name, mission, targets)
+        if name == 'DISPATCH_SUPPORT' and support_dispatch == 'AUTO':
+            # The coordinator sends the support robot itself and refuses this command (NOT_AUTHORIZED):
+            # a state, not a button (owner decision 2026-10-13).
+            auto = f'{support_name or "SUPPORT"} 자동 출동'
+            rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
+                         'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
+            continue
         rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
                      'reason': reason, 'args': args, 'choices': choices})
     return rows
 
 
-def build_view(ledger, status, *, built_at_ns, robot_names=None):
+def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None):
     """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
     2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
     'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
     _require(type(built_at_ns) is int and built_at_ns >= 0, 'built_at_ns must be int ns')
     names = dict(robot_names or {})   # robot_id -> display name (--robot-name); none: the ID itself
+    _require(support_dispatch in (None,) + SUPPORT_DISPATCH_MODES,
+             f'support_dispatch must be one of {SUPPORT_DISPATCH_MODES} or unset')
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
     allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
@@ -556,7 +568,9 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None):
         'events': events,
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
-        'commands': command_gates(mission, targets, words),
+        'commands': command_gates(mission, targets, words, support_dispatch,
+                                  support[0] if len(support) == 1 else None),
+        'support_dispatch': support_dispatch,
         'history': _history(status, words),
         'warnings': warnings,
     }

@@ -45,6 +45,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 - `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 카드는 현장 상태 DB 가 정한 배치 로봇 목록(`read_allowed_robot_ids`, #149)으로 그린다. 상태를 아직 안 보낸 로봇도 카드가 있다. 그 목록이 없는 입력(픽스처)에서만 상태가 들어온 로봇만 그리고, 그 사실을 「확인할 것」 줄에 적는다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
 - `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
+- `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 

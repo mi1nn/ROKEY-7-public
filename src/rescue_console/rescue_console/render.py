@@ -305,6 +305,8 @@ def _targets(view):
         dispatched = view['mission'].get('dispatch') or {}
         if dispatched.get('target_id') == target['target_id']:
             support += _scoped_reason(view, 'support', 'target', tag='span')
+        elif not dispatched and view.get('support_dispatch') == 'AUTO' and target['stage'] == 'NOT_RESCUED':
+            support += _scoped_reason(view, 'support', tag='span')   # why the automatic dispatch has not gone
         receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
                    f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         mark = target['disappeared_candidate']
@@ -419,6 +421,10 @@ def _commands(view, access, csrf):
     allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
     for command in view['commands']:
+        if command.get('auto'):   # automatic support dispatch: a state line, no button (no data-command)
+            groups[command['group']].append(f'<p class="cmd-auto" title="{escape(command["reason"])}">'
+                                            f'{escape(command["label"])}</p>')
+            continue
         name, reason = escape(command['name']), escape(command['reason'])
         off = '' if allowed and command['enabled'] else ' disabled'
         groups[command['group']].append(
@@ -505,6 +511,7 @@ dl{margin:0}
 /* ---- warnings ---- */
 .reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
 .scoped-reason{margin:4px 0 0;font-weight:600}
+.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
 #warnings.empty{display:none}
 #warnings h2{display:inline;margin-right:12px;font-size:14px}

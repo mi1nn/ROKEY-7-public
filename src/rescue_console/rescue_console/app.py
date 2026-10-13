@@ -43,12 +43,12 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
-                 robot_names=None):
+                 robot_names=None, support_dispatch=None):
     """One poll. Status comes from the site-state DB, or (E2, no operations) from a fixture."""
     _check_sources(ledger_path, status_path, site_state_path)
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
-    view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names)
+    view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch)
     if map_image is not None:
         view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'])
         for where in view['map']['frame_mismatch']:
@@ -84,7 +84,8 @@ def parse_camera(text):
 
 
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
-               map_path=None, login_throttle=None, robot_names=None, operations_url=None, command_transport=None):
+               map_path=None, login_throttle=None, robot_names=None, support_dispatch=None, operations_url=None,
+               command_transport=None):
     """`operations_url`: base URL of operations' HTTP API. Without it the command buttons stay off
     (no default address). `command_transport` replaces the HTTP POST in tests."""
     try:
@@ -115,7 +116,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     def view():
         return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
-                            robot_names=robot_names)
+                            robot_names=robot_names, support_dispatch=support_dispatch)
 
     def user():
         """The account behind this session, or None.

@@ -27,6 +27,9 @@ def main(argv=None):
     parser.add_argument('--robot-name', action='append', default=[], metavar='ID=NAME',
                         help='name shown for a robot, e.g. robot_a=TB-6 (repeat per robot). No default: '
                              'without it the robot ID is shown')
+    parser.add_argument('--support-dispatch', choices=('AUTO', 'OPERATOR'),
+                        help="the coordinator's support_dispatch (field value). AUTO: no dispatch button, the "
+                             'automatic dispatch state instead. Unset: the button as before')
     parser.add_argument('--map', help='map_server map YAML (binary PGM) drawn under robot and target markers')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
@@ -48,7 +51,8 @@ def main(argv=None):
         robot_names = robot_name_map(parse_robot_name(text) for text in args.robot_name)
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
-                         operations_url=args.operations, robot_names=robot_names)
+                         operations_url=args.operations, robot_names=robot_names,
+                         support_dispatch=args.support_dispatch)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2
