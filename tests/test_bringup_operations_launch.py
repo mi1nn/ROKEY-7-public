@@ -228,7 +228,11 @@ class RobotWatchParameters(unittest.TestCase):
         from rescue_bringup.operations_launch import LaunchSettingError, robot_watch_parameters
         for ns, path in (('robot_a=/robot6', ''), ('', '/srv/w.json'), ('robot_a=robot6', '/srv/w.json'),
                          ('robot_x=/robot6', '/srv/w.json'), ('robot_a', '/srv/w.json'),
-                         ('robot_a=/robot6,robot_a=/robot5', '/srv/w.json')):
+                         ('robot_a=/robot6,robot_a=/robot5', '/srv/w.json'),
+                         # not a usable ROS namespace, or one namespace for two robots (REV-251-04)
+                         ('robot_a=/', '/srv/w.json'), ('robot_a=/robot6/', '/srv/w.json'),
+                         ('robot_a=/robot 6', '/srv/w.json'), ('robot_a=//robot6', '/srv/w.json'),
+                         ('robot_a=/robot6,robot_b=/robot6', '/srv/w.json')):
             with self.subTest(ns=ns, path=path), self.assertRaises(LaunchSettingError):
                 robot_watch_parameters(robot_namespaces=ns, robot_watch_path=path, robot_ids=['robot_a', 'robot_b'])
 

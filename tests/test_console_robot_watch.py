@@ -64,6 +64,12 @@ class RobotWatchTests(LedgerFixture):
         self.assertTrue(all(r['watch']['stale'] for r in view['robots']))
         self.assertIn('로봇 직접 관측 파일이 10초 동안 갱신 안 됨', ' '.join(view['warnings']))
 
+    def test_a_watched_robot_outside_the_deployment_is_said_not_dropped(self):
+        data = watch()
+        data['robots']['robot_z'] = dict(data['robots']['robot_b'], namespace='/robot9')
+        view = self.view(data)
+        self.assertIn("배치 밖 로봇 직접 관측 무시: 'robot_z'", ' '.join(view['warnings']))   # REV-251-03
+
     def test_missing_or_broken_file_is_a_warning_not_a_crash(self):
         view = self.view(None, problem='로봇 직접 관측 파일 없음')
         self.assertIn('로봇 직접 관측 파일 없음', ' '.join(view['warnings']))

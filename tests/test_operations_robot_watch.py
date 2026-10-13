@@ -36,3 +36,17 @@ class WriteWatch(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SubscribeOnly(unittest.TestCase):
+    """재범 허용은 구독만이다(OPS-176): 로봇 망에 발행자·서비스·액션을 하나도 만들지 않는다 (REV-251-01)."""
+
+    def test_the_node_creates_nothing_but_subscriptions(self):
+        import rescue_operations.robot_watch as module
+        source = Path(module.__file__).read_text(encoding='utf-8')
+        # tf2_ros Buffer(node=...) creates the tf2_frames service on that node; Buffer() does not
+        for made in ('create_publisher', 'create_service', 'create_client', 'ActionClient', 'ActionServer',
+                     'Buffer(node', 'TransformBroadcaster'):
+            with self.subTest(made=made):
+                self.assertNotIn(made, source)
+
