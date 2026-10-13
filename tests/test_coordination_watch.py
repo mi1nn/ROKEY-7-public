@@ -194,6 +194,15 @@ class CandidateTests(WatchTestCase):
             self.core.on_site_event(candidate(2, fields['watch_id'], self.target))
         self.assertEqual('ID_CONTENT_CONFLICT', caught.exception.code)
 
+    def test_replay_of_a_conflicting_candidate_is_the_same_conflict_not_a_crash(self):
+        # A KeyError here is not a RescueError: the node's guarded() would not catch it (found on review 2026-10-13).
+        fields = self.armed()
+        self.core.on_site_event(candidate(1, fields['watch_id'], self.target))
+        for attempt in ('first', 'replay'):
+            with self.subTest(attempt), self.assertRaises(RescueError) as caught:
+                self.core.on_site_event(candidate(2, fields['watch_id'], self.target))
+            self.assertEqual('ID_CONTENT_CONFLICT', caught.exception.code)
+
     def test_unlinked_or_untimed_candidates_are_refused_and_end_the_watch(self):
         cases = (('other target', dict(target_id=uid(999)), 'CANDIDATE_NOT_LINKED'),
                  ('unknown watch', dict(watch_id=uid(998)), 'CANDIDATE_NOT_LINKED'),
