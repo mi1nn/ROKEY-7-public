@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the editable 00 proposal against JSON/CSV and byte-preserved historical pages.
+"""Validate both 00 pages and synchronized 01-11 details against JSON/CSV.
 
 This is E1 artifact verification, not ROS/runtime or physical-safety validation.
 """
@@ -47,6 +47,27 @@ def normalized_root(page):
     return root
 
 
+def check_web_provenance(root):
+    adjacency = collections.defaultdict(set)
+    for obj in root.findall('object'):
+        cell = obj.find('mxCell')
+        if cell.get('edge') == '1':
+            adjacency[cell.get('source')].add(cell.get('target'))
+    paths = [
+        ['node-central.coordinator', 'if-IF-071', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-mission', 'node-central.web', 'panel-disaster'],
+        ['node-central.web', 'panel-refresh'],
+        ['node-cam.capture', 'if-IF-074', 'node-cam.video', 'if-IF-082', 'panel-webcam'],
+        ['node-amr1.mapping', 'if-IF-010', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-robot', 'node-central.web', 'panel-map'],
+        ['node-amr1.executor', 'if-IF-011', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-robot', 'node-central.web', 'panel-robots'],
+        ['node-central.coordinator', 'if-IF-070', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-targets', 'node-central.web', 'panel-targets'],
+        ['node-cam.quake', 'if-IF-076', 'node-central.coordinator', 'if-IF-072', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-reports', 'node-central.web', 'panel-events'],
+        ['panel-commands', 'node-central.web', 'if-IF-080', 'node-central.operations', 'if-IF-079', 'node-central.coordinator'],
+    ]
+    for path in paths:
+        for a, b in zip(path, path[1:]):
+            require(b in adjacency[a], 'web provenance: ' + a + ' -> ' + b)
+
+
 def check_graph(data, xml, page_index=0):
     pages = ET.fromstring(xml)
     variant = data['metadata']['placement_variants']['three_pc']
@@ -77,19 +98,7 @@ def check_graph(data, xml, page_index=0):
             port = next(o for o in objects if o.get('sddInterfaceId') == iid)
             require(port.get('endpoint') == spec['endpoint'] and port.get('interfaceType') == spec['type'], iid + ' label metadata')
         require(actual == {(a, b) for a in spec['sources'] for b in spec['targets']}, iid + ' source/target coverage')
-    paths = [
-        ['node-central.coordinator', 'if-IF-071', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-mission', 'node-central.web', 'panel-disaster'],
-        ['node-central.web', 'panel-refresh'],
-        ['node-cam.capture', 'if-IF-074', 'node-cam.video', 'if-IF-082', 'panel-webcam'],
-        ['node-amr1.mapping', 'if-IF-010', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-robot', 'node-central.web', 'panel-map'],
-        ['node-amr1.executor', 'if-IF-011', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-robot', 'node-central.web', 'panel-robots'],
-        ['node-central.coordinator', 'if-IF-070', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-targets', 'node-central.web', 'panel-targets'],
-        ['node-cam.quake', 'if-IF-076', 'node-central.coordinator', 'if-IF-072', 'node-central.operations', 'if-IF-085', 'node-central.db', 'query-reports', 'node-central.web', 'panel-events'],
-        ['panel-commands', 'node-central.web', 'if-IF-080', 'node-central.operations', 'if-IF-079', 'node-central.coordinator'],
-    ]
-    for path in paths:
-        for a, b in zip(path, path[1:]):
-            require(b in adjacency[a], 'web provenance: ' + a + ' -> ' + b)
+    check_web_provenance(root)
     require(len([o for o in objects if o.get('webPanel')]) == 8, 'web panels')
     hosts = {o.get('hostId'): o.get('id') for o in objects if o.get('hostId')}
     expected_hosts = {'BROWSER', 'PC1', 'PC2', 'PC3', 'PC4', 'AMR1', 'AMR2'}
@@ -128,6 +137,7 @@ def check_graph(data, xml, page_index=0):
 
 
 def check_geometry(root, edges):
+    root_ids = {root[0].get('id'), root[1].get('id')}
     cells = {}
     for entry in root:
         cell = entry if entry.tag == 'mxCell' else entry.find('mxCell')
@@ -142,13 +152,16 @@ def check_geometry(root, edges):
         geo = cell.find('mxGeometry')
         x, y = float(geo.get('x', 0)), float(geo.get('y', 0))
         parent = cell.get('parent')
-        if parent not in (None, '0', '1'):
+        if parent not in {None, '0', '1'} | root_ids:
             px, py, _, _ = rectangle(parent)
             x, y = x + px, y + py
         rectangles[iid] = (x, y, float(geo.get('width', 0)), float(geo.get('height', 0)))
         return rectangles[iid]
 
-    obstacle_ids = [iid for iid, c in cells.items() if c.get('vertex') == '1' and iid.startswith(('node-', 'if-'))]
+    entries = {entry.get('id'): entry for entry in root}
+    obstacle_ids = [iid for iid, c in cells.items() if c.get('vertex') == '1'
+                    and (iid.startswith(('node-', 'if-')) or entries[iid].get('sddNodeId')
+                         or entries[iid].get('sddInterfaceId'))]
     spans = collections.defaultdict(list)
     for obj, cell in edges:
         style = dict(s.split('=', 1) for s in cell.get('style').split(';') if '=' in s)
@@ -179,9 +192,84 @@ def check_geometry(root, edges):
                 require(edge == other or group == other_group or min(hi, hh) - max(lo, ll) <= 1e-6, 'unrelated collinear overlap: ' + edge + '/' + other)
 
 
+def check_details(data, xml):
+    pages = ET.fromstring(xml)
+    definitions = data['metadata']['detail_pages']['pages']
+    require({p.get('id') for p in pages[2:]} == set(definitions), 'detail page coverage')
+    specs = {i['id']: i for i in data['interfaces']}
+    nodes = {n['id']: n for n in data['nodes']}
+    overrides = data['metadata']['placement_variants']['three_pc']['node_host_overrides']
+    covered = set()
+    for page in pages[2:]:
+        definition = definitions[page.get('id')]
+        require(page.get('name') == definition['name'] and page.get('basisPage') == data['metadata']['detail_pages']['basis_page'], 'detail page name/basis')
+        root = page.find('./mxGraphModel/root')
+        entries = {e.get('id'): e for e in root}
+        require(len(entries) == len(root), 'duplicate cell ID')
+        roots = {root[0].get('id'), root[1].get('id')}
+        objects = root.findall('object')
+        edges = [(o, o.find('mxCell')) for o in objects if o.find('mxCell').get('edge') == '1']
+        actual_if = [o.get('sddInterfaceId') for o in objects if o.get('sddInterfaceId')]
+        require(set(actual_if) == set(definition['interfaces']) and len(actual_if) == len(set(actual_if)), 'detail IF coverage: ' + page.get('id'))
+        covered.update(actual_if)
+        for obj in objects:
+            nid = obj.get('sddNodeId')
+            if not nid:
+                continue
+            require(nid in nodes and (nodes[nid]['name'] in obj.get('label', '')
+                    or nid == 'central.discovery' and 'TurtleBot4 Discovery Server' in obj.get('label', '')), 'detail node identity')
+            ancestor = obj.find('mxCell').get('parent')
+            seen = set()
+            actual_host = None
+            while ancestor not in roots:
+                require(ancestor in entries and ancestor not in seen, 'detail parent reference')
+                seen.add(ancestor)
+                parent = entries[ancestor]
+                if parent.get('hostId') in {'PC1', 'PC2', 'PC3', 'PC4', 'AMR1', 'AMR2'}:
+                    actual_host = parent.get('hostId')
+                    break
+                cell = parent if parent.tag == 'mxCell' else parent.find('mxCell')
+                ancestor = cell.get('parent')
+            require(actual_host == overrides.get(nid, nodes[nid]['host']), 'detail node placement: ' + nid)
+        for iid in actual_if:
+            spec = specs[iid]
+            selected = [(o, c) for o, c in edges if o.get('interfaceRef') == iid]
+            logical = lambda cell_id: entries[cell_id].get('sddNodeId')
+            if iid == 'IF-081':
+                actual = {(logical(c.get('source')), logical(c.get('target'))) for o, c in selected}
+            else:
+                port = next(o for o in objects if o.get('sddInterfaceId') == iid)
+                require(port.get('endpoint') == spec['endpoint'] and port.get('interfaceType') == spec['type'], 'detail IF type/endpoint')
+                ins = {logical(c.get('source')) for o, c in selected if o.get('direction') == 'IN'}
+                outs = {logical(c.get('target')) for o, c in selected if o.get('direction') == 'OUT'}
+                require(all(c.get('target') == port.get('id') for o, c in selected if o.get('direction') == 'IN')
+                        and all(c.get('source') == port.get('id') for o, c in selected if o.get('direction') == 'OUT'), 'detail bus endpoint')
+                actual = {(a, b) for a in ins for b in outs}
+            require(actual == {(a, b) for a in spec['sources'] for b in spec['targets']}, 'detail IF relations: ' + iid)
+        require(all(o.get('interfaceRef') in actual_if for o, c in edges if o.get('interfaceRef')), 'undeclared detail IF edge')
+        for o, c in edges:
+            require(c.get('source') in entries and c.get('target') in entries, 'dangling detail edge')
+        check_geometry(root, edges)
+        if definition.get('web_provenance'):
+            require({o.get('webPanel') for o in objects if o.get('webPanel')} == {'disaster', 'refresh', 'webcam', 'map', 'robots', 'targets', 'events', 'commands'}, 'detail web panels')
+            check_web_provenance(normalized_root(page))
+        if definition['kind'] == 'SCENARIO_WORKFLOW':
+            steps = {o.get('workflowStep'): o for o in objects if o.get('workflowStep')}
+            require(set(steps) == set(definition['workflow_steps']), 'workflow step coverage')
+            for step in steps.values():
+                require(set(filter(None, step.get('sddInterfaceRefs', '').split(','))) <= set(specs), 'workflow IF references')
+            require('IF-021' in steps['AMR1_RECHECK_TASK'].get('sddInterfaceRefs') and 'IF-023' in steps['FRESH_RECHECK'].get('sddInterfaceRefs'), 'mandatory workflow recheck')
+            guard = steps['COMPLETION_GUARD'].get('label')
+            require(all(s in guard for s in ('ABSENT', 'CLEAR', 'VALID', 'fresh', 'task/target/frame')), 'workflow completion guard')
+            adjacency = {(c.get('source'), c.get('target')) for o, c in edges}
+            for a, b in [('AMR1_RECHECK_TASK', 'FRESH_RECHECK'), ('FRESH_RECHECK', 'COMPLETION_GUARD'), ('COMPLETION_GUARD', 'COMPLETION_PERSISTED')]:
+                require((steps[a].get('id'), steps[b].get('id')) in adjacency, 'workflow recheck sequence')
+    require(covered == set(specs), 'all active IFs covered in details')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', help='Git ref for exact preservation of historical 01-11 pages')
+    parser.add_argument('--base', help='Git ref for exact preservation of both unified 00 pages')
     parser.add_argument('--self-test', action='store_true', help='also reject intentionally missing nodes/IFs/links and wrong completion mode')
     args = parser.parse_args()
     data = json.loads((DESIGN / 'sdd-node-contracts-v0.1.json').read_text())
@@ -189,6 +277,7 @@ def main():
     for page_index in (0, 1):
         root, edges = check_graph(data, xml, page_index)
         check_geometry(root, edges)
+    check_details(data, xml)
     expected = {(i['id'], a, b, i['endpoint'], i['type']) for i in data['interfaces'] for a in i['sources'] for b in i['targets']}
     rows = list(csv.DictReader((DESIGN / 'sdd-node-connections-v0.1.csv').open(encoding='utf-8-sig')))
     got = {(r['interface_id'], r['source_node_id'], r['target_node_id'], r['endpoint'], r['type']) for r in rows}
@@ -197,9 +286,9 @@ def main():
     require(set(re.findall(r'^\| (IF-\d{3}) \|', md, re.M)) == {i['id'] for i in data['interfaces']}, 'Markdown IF coverage')
     for node in data['nodes']:
         require('| ' + node['id'] + ' | ' + node['host'] + ' | ' + node['name'] + ' |' in md, 'Markdown node metadata')
-    base = args.base or data['metadata']['repository_head']
+    base = args.base or data['metadata']['detail_pages']['preserved_unified_commit']
     original = subprocess.check_output(['git', 'show', base + ':docs/design/rokey7-sdd.drawio'], cwd=ROOT)
-    require(CHUNKS.findall(xml)[2:] == CHUNKS.findall(original)[1:], '01-11 not byte-identical to base')
+    require(CHUNKS.findall(xml)[:2] == CHUNKS.findall(original)[:2], '00 pages not byte-identical to preserved head')
     if args.self_test:
         # These mutations exercise coverage and latest-decision checks, not runtime behavior.
         for mutation in ('node', 'interface', 'edge', 'completion', 'placement', 'browser', 'discovery', 'pc_count'):
@@ -228,7 +317,28 @@ def main():
             else:
                 raise ValueError('negative case accepted: ' + mutation)
         print('PASS self-test: missing node/interface/edge, wrong completion/count/PC3 placement and misplaced Discovery rejected')
-    print(f'PASS XML/JSON/CSV/Markdown; pages=13; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8/page; hosts=7/7; physical_PC=4; application_PC=3; dedicated_discovery_PC=1; original_pages=11; unrelated_overlap=0')
+        for mutation in ('detail_if', 'detail_type', 'detail_edge', 'workflow_recheck', 'web_source'):
+            tree = ET.fromstring(xml)
+            index = 12 if mutation == 'workflow_recheck' else 9 if mutation == 'web_source' else 3
+            entry_root = tree[index].find('./mxGraphModel/root')
+            if mutation == 'workflow_recheck':
+                entry_root.remove(next(o for o in entry_root.findall('object') if o.get('workflowStep') == 'FRESH_RECHECK'))
+            elif mutation == 'detail_type':
+                next(o for o in entry_root.findall('object') if o.get('sddInterfaceId')).set('interfaceType', 'WRONG')
+            elif mutation == 'web_source':
+                queries = {o.get('id') for o in entry_root.findall('object') if o.get('queryFunction') == 'read_mission_state'}
+                entry_root.remove(next(o for o in entry_root.findall('object') if o.find('mxCell').get('source') in queries))
+            else:
+                key = 'sddInterfaceId' if mutation == 'detail_if' else 'interfaceRef'
+                entry_root.remove(next(o for o in entry_root.findall('object') if o.get(key)))
+            try:
+                check_details(data, ET.tostring(tree))
+            except ValueError:
+                pass
+            else:
+                raise ValueError('negative case accepted: ' + mutation)
+        print('PASS detail self-test: missing IF/edge, wrong type, absent recheck and disconnected web source rejected')
+    print(f'PASS XML/JSON/CSV/Markdown; pages=13; nodes={len(data["nodes"])}; active_IF={len(data["interfaces"])}; pairs={len(expected)}; web=8; physical_PC=4; application_PC=3; dedicated_discovery_PC=1; synchronized_details=11; preserved_unified=2; unrelated_overlap=0')
 
 
 if __name__ == '__main__':
