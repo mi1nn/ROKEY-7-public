@@ -19,10 +19,11 @@ from tf2_ros import Buffer, TransformListener
 from rclpy.time import Time
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-from sensor_msgs.msg import CameraInfo, CompressedImage, Image
+from rclpy.callback_groups import ReentrantCallbackGroup
+from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
 from rescue_interfaces.msg import TargetObservation
 from ultralytics import YOLO
-from rclpy.executors import ExternalShutdownException
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 
 from .camera_utils import (PreviewProcessor, field_values, git_sha, read_field_parameters,
     validate_labels, verify_model)
@@ -32,7 +33,11 @@ from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, SensorHostClock
     target_config,
     PreparedDetector, OneShotTarget, fill_envelope,
     fill_observation, fill_base_point, inference_from_result, decode_depth_png)
-from .adapter import stamp_ns
+from .adapter import camera_intrinsics, stamp_ns
+from .recheck import CameraModel, scan_state
+from .recheck_feed import (RECHECK_PARAMS, Candidate, depth_median, depth_rows_m, frame_evidence, recheck_values,
+    rigid_from_tf, scan_fields)
+from .recheck_server import RecheckServer
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
 
@@ -44,6 +49,8 @@ def create_node(*, model_factory=None, transform_lookup=None):
     try:
         v = field_values(SETTINGS, read_field_parameters(node, FIELD_PARAMS), FIELD_PARAMS)
         v.update(clock_values(read_field_parameters(node, CLOCK_PARAMS)))
+        recheck_policy, recheck = recheck_values(read_field_parameters(node, RECHECK_PARAMS))
+        v.update(recheck)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
@@ -108,6 +115,54 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 clock['logged'] = shown
                 node.get_logger().info(f'clock {shown[0]} backend={v["clock_backend"]} '
                                        f'error_bound_ns={clock["record"].get("error_bound_ns")} reason={shown[1]}')
+        # TB-6 recheck (ObserveTarget, #165): the window counts what this node sees after the goal.
+        # Sample times are this host's receive times, so the window uses this host's measured clock only.
+        server = RecheckServer(node, action_name=v['recheck_action_name'], robot_id=v['robot_id'],
+                               map_frame=v['recheck_map_frame'], policy=recheck_policy,
+                               max_window_ns=v['recheck_max_window_ns'], validity_ns=v['recheck_validity_ns'],
+                               clock_domain_id=v['clock_domain_id'], clock_record=lambda: clock['record'],
+                               publisher_id=v['publisher_id'], envelope_version=v['envelope_version'],
+                               callback_group=ReentrantCallbackGroup())
+
+        def feed_recheck(stamp, info, depth, findings):
+            point = server.watched_point()
+            if point is None:
+                return
+            received = server.now_ns()
+            try:
+                optical = rigid_from_tf(transform_lookup(v['recheck_map_frame'], v['rgb_optical_frame'], stamp))
+                intrinsics = camera_intrinsics(info, pipeline.binding, rectified=v['rgb_rectified'])
+                camera = CameraModel(info.width, info.height, intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy)
+                rows = depth_rows_m(bridge.imgmsg_to_cv2(depth, desired_encoding='passthrough'), depth.encoding,
+                                    depth_policy.scale, depth_policy.offset_m)
+                candidates = [Candidate(c.status, c.observation.localization.point_optical, c.observation.detection.bbox)
+                              for c in findings.candidates]
+                coverage, points, unconfirmed = frame_evidence(point, optical, camera,
+                                                               lambda u, w, k: depth_median(rows, u, w, k),
+                                                               candidates, recheck_policy)
+            except Exception as exc:   # no TF / bad input: the frame says nothing about the point
+                node.get_logger().warning(f'recheck frame {stamp} UNKNOWN: {type(exc).__name__}: {exc}')
+                coverage, points, unconfirmed = 'UNKNOWN', [], False
+            server.add_frame(received_ns=received, coverage=coverage, confirmed_points=points,
+                             unconfirmed_at_point=unconfirmed)
+
+        def on_scan(scan):
+            point = server.watched_point()
+            if point is None:
+                return
+            received = server.now_ns()
+            try:
+                laser = rigid_from_tf(transform_lookup(v['recheck_map_frame'], scan.header.frame_id,
+                                                       stamp_ns(scan.header, 'scan')))
+                state_ = scan_state(scan_fields(scan), laser, point, recheck_policy)[0]
+            except Exception as exc:
+                node.get_logger().warning(f'recheck scan UNKNOWN: {type(exc).__name__}: {exc}')
+                state_ = 'UNKNOWN'
+            server.add_scan(received_ns=received, state=state_)
+
+        node.create_subscription(LaserScan, v['recheck_scan_topic'], on_scan,
+                                 QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT,
+                                            durability=DurabilityPolicy.VOLATILE))
         if sampler is not None:
             poll_clock()
             node.create_timer(v['clock_poll_period_s'], poll_clock)
@@ -156,6 +211,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 if findings.status != 'PROCESSED':
                     node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
                     return
+                feed_recheck(stamp, info, depth, findings)
                 canvas = result.plot(labels=True, conf=True)
                 annotated = bridge.cv2_to_imgmsg(canvas, encoding='bgr8')
                 annotated.header = rgb.header
@@ -210,7 +266,10 @@ def main(args=None):
     try:
         rclpy.init(args=args)
         node = create_node()
-        rclpy.spin(node)
+        # The ObserveTarget goal waits for its window in its own callback group, so frames keep coming.
+        executor = MultiThreadedExecutor(num_threads=3)
+        executor.add_node(node)
+        executor.spin()
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as exc:

@@ -13,7 +13,9 @@ and target_locator (capture-time TF -> TargetLocation on /rescue/target_location
         clock_drift_ppm:=<ppm> clock_poll_period_s:=<s> \
         sensor_host_clock_error_bound_ns:=<ns measured on the camera driver host> sensor_host_clock_domain_id:=<domain> \
         profile_path:=<profile.json> tf_wait_s:=<seconds> \
-        alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns>
+        alignment_authority_id:=<who declared the map alignment> alignment_valid_from_ns:=<ns> alignment_valid_until_ns:=<ns> \
+        recheck_action_name:=<ObserveTarget action> recheck_map_frame:=<map frame> recheck_scan_topic:=<robot scan> \
+        recheck_*:=<recheck window policy, see rescue_perception.recheck_feed.RECHECK_PARAMS>
 
 Every argument is a field value read from the robot (`ros2 topic list`, the message header
 frame_id); none has a default. The robot's TF is namespaced, so /tf and /tf_static are
@@ -28,6 +30,7 @@ from launch_ros.actions import Node
 
 from rescue_bringup.profile import load_deployment, require_map_basis
 from rescue_perception.target_locator import profile_parameters
+from rescue_perception.recheck_feed import RECHECK_PARAMS
 
 FIELD_ARGUMENTS = {
     'image_topic': 'RGB image topic, e.g. as listed on the robot',
@@ -99,6 +102,12 @@ def _nodes(context):
                                                'image_type', 'depth_transport')}
     parameters.update({name: _flag(name, arg(name)) for name in FLAGS})
     parameters.update({name: _integer(name, arg(name)) for name in INTEGERS})
+    for name, kind in RECHECK_PARAMS.items():   # TB-6 recheck window (ObserveTarget server in amr_target)
+        text = arg(name)
+        try:
+            parameters[name] = {'STRING': str, 'INTEGER': int, 'DOUBLE': float}[kind](text)
+        except ValueError as exc:
+            raise ValueError(f'{name} must be {kind}, got {text!r}') from exc
     for name, kind in CLOCK_TYPES.items():
         try:
             parameters[name] = kind(arg(name))
@@ -120,5 +129,7 @@ def _nodes(context):
 
 
 def generate_launch_description():
+    recheck = [DeclareLaunchArgument(name, description=f'TB-6 recheck: {kind} (recheck_feed.RECHECK_PARAMS)')
+               for name, kind in RECHECK_PARAMS.items()]
     return LaunchDescription([DeclareLaunchArgument(name, description=text)
-                              for name, text in FIELD_ARGUMENTS.items()] + [OpaqueFunction(function=_nodes)])
+                              for name, text in FIELD_ARGUMENTS.items()] + recheck + [OpaqueFunction(function=_nodes)])

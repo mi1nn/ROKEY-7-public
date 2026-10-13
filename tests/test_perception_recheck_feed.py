@@ -63,5 +63,39 @@ class HelperTests(unittest.TestCase):
                          scan_fields(scan))
 
 
+class SettingsTests(unittest.TestCase):
+    def values(self, **changes):
+        from rescue_perception.recheck_feed import RECHECK_PARAMS
+        v = {name: {'STRING': 'x', 'INTEGER': 3, 'DOUBLE': 0.5}[kind] for name, kind in RECHECK_PARAMS.items()}
+        v.update(recheck_max_window_ns=10_000_000_000, recheck_validity_ns=5_000_000_000, recheck_min_depth_m=0.2,
+                 recheck_max_depth_m=5.0, recheck_image_margin_px=10, recheck_depth_window_px=2)
+        v.update(changes)
+        return v
+
+    def test_policy_comes_from_the_parameters(self):
+        from rescue_perception.recheck_feed import recheck_values
+        policy, other = recheck_values(self.values())
+        self.assertEqual((0.5, 3, 5.0), (policy.presence_radius_m, policy.min_frames, policy.max_depth_m))
+        self.assertEqual(10_000_000_000, other['recheck_max_window_ns'])
+
+    def test_missing_or_bad_values_stop_the_node(self):
+        from rescue_perception.recheck_feed import recheck_values
+        for bad in (dict(recheck_scan_topic=None), dict(recheck_map_frame=''), dict(recheck_max_window_ns=0),
+                    dict(recheck_min_frames=0), dict(recheck_presence_radius_m=-1.0)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                recheck_values(self.values(**bad))
+
+    def test_depth_rows_use_the_calibration_and_drop_invalid(self):
+        try:
+            import numpy  # noqa: F401
+        except ImportError:
+            self.skipTest('NumPy not installed')
+        from rescue_perception.recheck_feed import depth_rows_m
+        rows = depth_rows_m([[0, 1000, 2000]], '16UC1', 0.5, 0.1)
+        self.assertTrue(math.isnan(rows[0][0]))
+        self.assertAlmostEqual(0.6, rows[0][1])
+        self.assertAlmostEqual(1.1, depth_median(rows, 2, 0, 0))   # 2000 mm * 0.5 + 0.1 m
+
+
 if __name__ == '__main__':
     unittest.main()
