@@ -201,6 +201,11 @@ class RobotParameters(FieldCase):
         expected.update({'task.saved_map.occupancy_sha256': SHA,
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
+        # Added after #132: automatic target approach policy (C1-a, 2026-10-13)
+        expected.update({'task.live.auto_target.enabled': True,
+                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                         'task.live.auto_target.goal_clear_radius_m': 0.2,
+                         'task.live.auto_target.policy_version': 'auto-target-20261013'})
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -324,6 +329,8 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'auto target kinds not a list': lambda r: r['robot'].update({'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
+            'auto target enabled not bool': lambda r: r['robot'].update({'task.live.auto_target.enabled': 1}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
             'int for double': lambda r: r['watchdog'].update({'watchdog.max_linear_mps': 1}),
             'double for int': lambda r: r['robot'].update({'task.poll_period_s': 1}),
