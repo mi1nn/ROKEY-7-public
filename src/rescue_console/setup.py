@@ -17,7 +17,7 @@ setup(
     python_requires=">=3.10",
     maintainer="Maintainer not yet assigned",
     maintainer_email="maintainer@example.invalid",
-    description='Read-only operator console view over the operations ledger; no ROS, no commands.',
+    description='Operator console: read-only view of the operations site state; sends operator commands to operations once; no ROS.',
     license="LicenseRef-Unspecified",
     entry_points={"console_scripts": ["rescue-console = rescue_console.__main__:main"]},
 )

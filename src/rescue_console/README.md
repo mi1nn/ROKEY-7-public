@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 임무 상태 배지, 명령 버튼의 관문 거울 | 표준 라이브러리, `rescue_contracts` |
 | `commands.py` | 운영자 명령 요청 만들기·한 번 보내기·응답 읽기(`POST /api/operator-commands`) | 표준 라이브러리 |
-| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 넷으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
+| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 일곱(배치 로봇·로봇 상태·현장 사건·대상 상태·임무 상태·운영자 명령·오류 기록)으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
@@ -90,7 +90,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 화면 배치 (1920×1080 한 화면)
 
-[관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 5절의 자리 배치를 따른다. 가로 1400px·세로 820px 이상이면 칸 배치가 고정되고 페이지 전체는 스크롤되지 않는다. 1920×1080 모니터의 실제 브라우저 창(탭바를 뺀 약 1853×963)에서 모든 칸이 한 화면에 보인다. 창이 더 낮으면 로봇 카드 칸이 먼저 줄어 그 안에서 스크롤되고, 요구조자 칸은 목록 두 줄이 보이는 높이(240px)를 지킨다. 사건 기록 줄은 내용만큼(최대 230px) 차지한다(#64). 가로 1400px 또는 세로 820px 미만이면 한 줄로 쌓여 페이지가 스크롤된다.
+[관제 웹·DB 계획](../../docs/design/console-and-db-plan.md) 5절의 자리 배치를 따른다. 가로 1400px·세로 820px 이상이면 칸 배치가 고정되고 페이지 전체는 스크롤되지 않는다. 1920×1080 모니터의 실제 브라우저 창(탭바를 뺀 약 1853×963)에서 모든 칸이 한 화면에 보인다. 창이 더 낮으면 로봇 카드 칸이 먼저 줄어 그 안에서 스크롤되고, 요구조자 칸은 목록 두 줄이 보이는 높이(240px)를 지킨다. 사건 기록 줄은 내용만큼(최대 230px) 차지한다(#64). 가로 1399px 이하이면 한 줄로 쌓여 페이지가 스크롤된다. 가로 1400px 이상이고 세로 820px 미만이면 세 열은 그대로이고 페이지가 세로로 스크롤된다.
 
 ```text
 ┌ 재난 띠: 모드 · 트리거 · 경과 · 단계 · 구간 · 사유 ──────────┬ 갱신 상태 · 사용자 ┐
@@ -172,7 +172,7 @@ TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운�
 - **기록 위치:** 이벤트 표에 이벤트 시각·장부 기록 시각(`received_at_ns`)·화면 표시 시각·지연을 같이 둔다. 브라우저 `window.kpi04` 배열에 행을 처음 그린 순서대로 `{ref_id, kind, clock_domain_id, event_ns, received_at_ns, rendered_ms, latency_s, live}` 가 쌓인다. 서버 집계 시각은 `data-built-ns` 에 있다.
 - **실시간 사건만 센다:** 페이지를 열 때 이미 있던 행은 지난 기록이라 `live: false` 이고 요약에서 뺀다. 페이지를 연 뒤 새로 나타난 행만 `live: true` 다.
 - **요약과 저장:** 오른쪽 위에 「KPI-04: 실시간 사건 n건 중 3초 이내 m건, 최대 x」가 보인다. 모두 3초(`render.KPI04_BUDGET_S`) 이내면 초록, 하나라도 넘으면 빨강이다. 「지연 기록 저장」을 누르면 같은 기록을 CSV(`kpi04-<시각>.csv`)로 내려받는다. 파일은 브라우저 안에서 만들고 서버로는 아무것도 보내지 않는다. 시험 회차가 끝나면 이 파일을 증거로 남긴다.
-- **폴링:** 브라우저가 `POLL_INTERVAL_MS = 1000` 마다 `GET fragment` 를 받아 바꾼다. 3초 예산 중 폴링 대기 최대 1초, 나머지가 장부 기록·읽기·전송이다. 갱신이 실패하면 화면 위에 「갱신 실패 — 표시 값이 낡았을 수 있음」을 띄운다.
+- **폴링:** 브라우저가 `POLL_INTERVAL_MS = 1000` 마다 `GET fragment` 를 받아 바꾼다. 3초 예산 중 폴링 대기 최대 1초, 나머지가 장부 기록·읽기·전송이다. 갱신이 실패하면 화면 위에 「갱신 끊김: {이유}, {n} 전 값을 보는 중」을 띄우고 명령 버튼을 모두 끈다(화면이 최신이 아니므로).
 - 지연 구간 나누기: 이벤트 → 장부 기록(`received_at_ns − event_ns`, 장부 PC 시계) / 장부 기록 → 화면(`rendered_ms − received_at_ns`, 화면과 장부가 같은 PC 일 때). CSV 에 두 시각이 다 있어 회차 뒤에 나눠 볼 수 있다. 현장 사건 행은 `received_at_ns` 가 비어 있다(`read_site_events` 가 돌려주지 않음, 협업·관제 요청 중).
 
 ## 운영자 명령

@@ -26,6 +26,28 @@ updated: 2026-10-13
 
 기준 코드: main `bd4bfa5`(2026-10-13). 그 뒤 main 이 바뀌면 줄 번호가 밀린다. 리뷰 화면에서는 함수 이름으로 찾는다.
 
+### 리뷰 때 열 파일 (확정)
+
+관제 웹 범위는 아래 파일이 전부다. 위에서부터 이 순서로 연다. 경로는 모두 `src/rescue_console/` 아래다.
+
+| 순서 | 파일 | 슬라이드의 말로 | 이 파일에서 보여 줄 것 |
+| --- | --- | --- | --- |
+| 1 | `README.md` | README.md | 로봇 없이 띄우는 명령(「실행 (로봇 없이, E2)」), 화면 칸 설명 |
+| 2 | `rescue_console/__main__.py` | Main() | 실행 인자 검사 → `create_app` → 서버 기동. 실패하면 서버를 띄우지 않고 종료코드 2 |
+| 3 | `rescue_console/app.py` | Node/Class | 라우트 전부, 로그인·세션 무효화·CSRF, `POST /commands` 가 명령을 넘기는 곳 |
+| 4 | `rescue_console/sources.py` | 입력 Topic | 현장 상태 DB 를 읽기 전용으로 여는 곳(웹은 DB 에 쓰지 않음) |
+| 5 | `rescue_console/view.py` | Function(핵심) | 입력 → 화면 모델: 대상 4단계 규칙, 낡음 판정, 버튼 관문 거울 `_gate`·`command_gates` |
+| 6 | `rescue_console/commands.py` | 출력 Topic | operations 로 한 번 POST, 재시도 없음, 답 검사 |
+| 7 | `rescue_console/render.py` | Function(화면) | HTML 조각, 1초 폴링·명령 확인 칸·영상 끊김 감지 JS |
+| 8 | `rescue_console/mapimage.py` | Function | 지도 PGM → PNG, 로봇·대상 위치 표시, 실시간 지도 낡음 |
+| 9 | `rescue_console/accounts.py`, `rescue_console/throttle.py` | Function | 계정·비밀번호 해시·역할, 로그인 연속 실패 잠금 |
+| 10 | `rescue_console/labels.py` | 변수 | 코드 → 한국어 낱말 표 |
+
+- **시험(Test Code):** `tests/test_console_web.py`, `tests/test_console_commands.py`, `tests/test_console_view.py` 셋을 보여 준다. 나머지 7개(`test_console_*.py`)는 질문이 나오면 4절 표로 답한다.
+- **설계·증거 문서:** [관제 웹 설계 명세](../design/console-spec.md)(순서도는 8절), 이 문서, [스크린샷·시험 로그](../evidence/console-2026-10-13/README.md).
+- **보지 않는 것:** `src/rescue_operations/`(operations API·DB 쓰기)는 다른 담당이다. 웹이 기대는 약속만 [설계 명세](../design/console-spec.md) 「웹이 기대는 인터페이스」로 설명한다. `rescue_console/__init__.py` 는 빈 파일이다.
+- 슬라이드의 말과 웹의 대응: 웹은 ROS 노드가 아니라서 「입력 Topic」은 HTTP 요청과 현장 상태 DB 표, 「출력 Topic」은 HTTP 응답과 operations 로 보내는 POST 다. 「Node/Class」 자리는 `app.py` 의 `create_app`(Flask 앱)이 맡는다.
+
 ## 1. 설계도에서 관제 웹 찾기
 
 [시스템 전체 설계도](../design/rokey7-system-overview.drawio)의 「관제 웹 — 영상·지도·로봇 상태 / 출동·계속·정지 버튼」 상자와 화살표 셋이다.
