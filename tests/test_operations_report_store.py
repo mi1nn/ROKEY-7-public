@@ -81,6 +81,22 @@ class ReportStoreTests(unittest.TestCase):
         self.assertEqual(self.store.save(missing).reason_code, "INVALID_INPUT")
         self.assertEqual(self.store.list_reports(), [])
 
+    def test_report_with_many_locations_is_persisted(self):
+        # 2026-10-13 실측: 조정기는 같은 대상의 위치를 모두 담아 새 보고를 보낸다. 위치 1개 약 1.8 KB 라
+        # 64 KiB(schema.MAX_JSON_BYTES) 로는 34개째부터 거절돼 출동 승인이 열리지 않았다(사용자 결정: 한도 1 MiB).
+        ids = [str(UUID(int=100 + i)) for i in range(60)]
+        locs = [{"location_id": i, "observation": {"pad": "x" * 1800}} for i in ids]
+        r = self.store.save(report(record_ids=ids, locations=locs))
+        self.assertEqual((r.state, r.reason_code), ("PERSISTED", ""))
+        self.assertEqual(len(r.included_record_ids), 60)
+
+    def test_report_over_size_limit_is_rejected(self):
+        from rescue_operations.report_store import REPORT_MAX_BYTES
+        locs = [{"location_id": str(UUID(int=10)), "observation": {"pad": "x" * REPORT_MAX_BYTES}}]
+        r = self.store.save(report(record_ids=[str(UUID(int=10))], locations=locs))
+        self.assertEqual((r.state, r.reason_code), ("REJECTED", "INVALID_INPUT"))
+        self.assertEqual(self.store.list_reports(), [])
+
     def test_storage_failure_is_rejected_not_persisted(self):
         self.store.close()
         r = self.store.save(report())
