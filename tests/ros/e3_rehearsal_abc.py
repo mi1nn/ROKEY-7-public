@@ -469,8 +469,9 @@ def run(repo, scratch, map_mode):
                     ('C5 TB-6 RETURN_HOME dock approach -> DB FINISHED', c5))
         else:
             plan = (('F1 SLAM_FREEZE: QR exit + target on R0 PERSISTED -> one freeze call', f1),
-                    ('F2 frozen grid + TB-6 MapState R0+1 -> frozen; R0 target and exit re-based', f2),
-                    ('F3 target seen on R0+1 PERSISTED, TB-5 localized -> APPROACH_TARGET on R0+1', f3))
+                    ('F2 frozen grid + frozen_revision R0+1 -> frozen; R0 target and exit re-based', f2),
+                    ('F3 TB-6 (SLAM R0) sees the target again, PERSISTED, TB-5 on R0+1 -> APPROACH_TARGET on R0+1',
+                     f3))
         for name, check in plan:
             if not stage(name, check):
                 break
