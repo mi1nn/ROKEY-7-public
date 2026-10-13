@@ -152,6 +152,8 @@ class CoordinatorParameters(FieldCase):
         expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=2.0, target_max_future_s=0.05)
         # Added after #132: TB-5 wait at the target before leaving for the exit (placeholder, user decision pending)
         expected['support_exit_wait_s'] = 5.0
+        # Added after #132: recheck -> verdict clock check (coordination; placeholder, value under review)
+        expected['recheck_max_clock_error_s'] = 0.5
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
@@ -372,6 +374,7 @@ class FieldFile(FieldCase):
             'target future negative': lambda r: r['coordinator'].update({'target_max_future_s': -0.01}),
             'target clock domain differs': lambda r: r['coordinator'].update({'target_clock_domain_id': 'other'}),
             'exit wait negative': lambda r: r['coordinator'].update({'support_exit_wait_s': -1.0}),
+            'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
                 {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
             'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
