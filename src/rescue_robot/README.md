@@ -10,8 +10,8 @@
 
 | 무엇 | 왜 / 어디 |
 | --- | --- |
-| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET·RETURN_HOME 은 다음 PR(C1-b·C1-c) |
-| robot_b(robot5) 실행 | 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority`)가 없다. #132 에 값이 없어 지어내지 않았다. 없으면 `robot.launch.py robot_id:=robot_b` 가 멈춘다 |
+| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절, #166)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET 은 PR #179 머지 뒤, RETURN_HOME 은 다음 PR(C1-c). MOVE_SEGMENT 는 FILES 경로만 |
+| TB-5(robot_b, /robot5) 실행 | 현장 실행 파일에 `robots.robot_b`(`task.publisher_id`·`task.mapping_authority` 등)가 없다. #132 에 값이 없어 지어내지 않았다. 없으면 `robot.launch.py robot_id:=robot_b` 가 멈춘다. TB-5 실행 값 PR 에서 넣는다 |
 | 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
 | watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
 
@@ -56,7 +56,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 
 | 토픽 | QoS | 언제 | 내용 |
 | --- | --- | --- | --- |
-| `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN` |
+| `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN`. 현장 값 150 ms: 2026-10-13 `chronyc tracking` 으로 `clock_measurement.parse_chrony` 식(차이 + root delay/2 + root dispersion + 갱신 간격 × 100 ppm)을 계산하면 TB-6 약 109 ms, TB-5 약 107 ms 다. 재부팅·재동기화 뒤 값이 바뀌므로 실기 당일 다시 잰다 |
 | `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 을 스스로 올리지 않는다 |
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
