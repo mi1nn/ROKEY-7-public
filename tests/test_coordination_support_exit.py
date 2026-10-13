@@ -49,6 +49,7 @@ class SupportExitTests(unittest.TestCase):
         goal = ros_node.fill_execute_task_goal(goal_template(), fields, coordinator_id='coord')
         self.assertEqual(('RETURN_HOME', f'home/{SUPPORT}', False, False),
                          (goal.kind, goal.home_ref, goal.has_route, goal.has_approval))
+        self.core.on_admission(admission_msg(fields))
         self.assertEqual([], self.tasks('RETURN_HOME', NOW + 2 * WAIT))  # once
         self.assertEqual('SUPPORT_EXITING', self.core.system_state_change(NOW + 2 * WAIT)['reason'])
 
@@ -84,7 +85,7 @@ class SupportExitTests(unittest.TestCase):
                 else:
                     self.core.mission.mode = 'NORMAL'
                 self.assertEqual([], self.tasks('RETURN_HOME', NOW + WAIT))
-                self.assertEqual('SUPPORT_EXIT_CANCELED', self.core.issue_block or self.core.support_exit)
+                self.assertEqual('SUPPORT_EXIT_CANCELED', self.core.exit_reason(NOW + WAIT))
 
     def test_wait_is_a_typed_required_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['support_exit_wait_s'])
