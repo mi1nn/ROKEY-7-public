@@ -68,12 +68,12 @@ class Base(unittest.TestCase):
         self.core.system_state_change(now)
         return self.core.last_state['reason']
 
-    def freeze(self, revision, sha=None):
+    def freeze(self, revision, sha=None, grid=None):
         self.assertTrue(self.core.take_freeze_request())
         self.core.on_freeze_reply(True, 'frozen')
-        sha = sha or ('c' * 63 + str(revision))
-        self.core.on_frozen_map(FakeGrid(sha256=sha))
-        self.core.on_frozen_revision(revision_info(revision, sha))
+        grid = grid or FakeGrid(sha256=sha or ('c' * 63 + str(revision)))
+        self.core.on_frozen_map(grid)
+        self.core.on_frozen_revision(revision_info(revision, grid.sha256))
 
     def dispatch(self, now=NOW):
         self.core.on_map_state(map_state(SUPPORT, revision=R1))

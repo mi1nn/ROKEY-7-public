@@ -42,6 +42,7 @@ def make_core(policy_changes=None, **changes):
                   frontier_min_cells=3, frontier_reach_m=1.0, frontier_goal_max_m=1.0, frontier_blacklist_m=0.5,
                   frontier_issue_delay_ns=2_000_000_000, exploration_empty_checks=2,
                   exploration_timeout_ns=600_000_000_000,
+                  completion_mode='RECHECK', support_start_pose=None,
                   search_start='OPERATOR',
                   new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
