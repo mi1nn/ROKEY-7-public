@@ -460,7 +460,14 @@ def run(repo, scratch, map_mode):
     finally:
         for child in children.values():
             child.terminate()
-        codes = {name: child.wait(timeout=15) for name, child in children.items()}
+        codes = {}
+        for name, child in children.items():
+            try:
+                codes[name] = child.wait(timeout=15)
+            except subprocess.TimeoutExpired:  # a node that ignores SIGTERM is a FAIL, never left running
+                child.kill()
+                child.wait()
+                codes[name] = 'NO_EXIT_15S_KILLED'
         robots.destroy_node()
         tb6_camera.destroy_node()
         rclpy.try_shutdown()
