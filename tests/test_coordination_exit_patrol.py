@@ -2,7 +2,7 @@
 
 Patrol (``search_mode=PATROL``): the field gives patrol points [x, y, yaw]*N in TB-6's start pose (the SLAM map
 origin is not that pose, OPS-141). Once /rescue/map/start_pose/robot_a arrives the coordinator turns them into
-SEARCH_AREA sites ``patrol/<i>`` on the search basis and sends them in order; a point that does not complete is
+SEARCH_AREA sites on the search basis (site ids are UUIDs: the executor takes only canonical UUID refs) and sends them in order; a point that does not complete is
 passed. After the last point the next round starts, ``patrol_rounds`` rounds in all (PATROL_ROUND_<n>), then
 PATROL_EXHAUSTED. No start pose: no patrol (START_POSE_UNKNOWN). ``AREAS`` keeps the profile search areas.
 
@@ -138,7 +138,7 @@ class PatrolTests(unittest.TestCase):
     def test_points_are_turned_by_the_start_pose(self):
         self.start((1., 2., math.pi / 2))
         sites = self.core.search.policy.areas
-        self.assertEqual(['patrol/0', 'patrol/1', 'patrol/2'], [s.site_id for s in sites])
+        self.assertEqual([ros_node.patrol_site_id(MAP, i) for i in range(3)], [s.site_id for s in sites])
         self.assertEqual([(1., 3.), (1., 4.), (0., 4.)],
                          [tuple(round(v, 9) for v in s.mission_xy) for s in sites])
         self.assertAlmostEqual(math.pi, sites[2].entry_yaw)
@@ -147,8 +147,8 @@ class PatrolTests(unittest.TestCase):
     def test_rounds_in_order_then_exhausted(self):
         self.start((0., 0., 0.))
         order = [self.run_point() for _ in range(3)]
-        self.assertEqual(['patrol/0', 'patrol/1', 'patrol/2'], order)
-        self.assertEqual('patrol/0', self.run_point())
+        self.assertEqual([ros_node.patrol_site_id(MAP, i) for i in range(3)], order)
+        self.assertEqual(ros_node.patrol_site_id(MAP, 0), self.run_point())
         self.assertEqual('PATROL_ROUND_2', reason(self.core))
         self.run_point()
         self.run_point()
@@ -157,8 +157,8 @@ class PatrolTests(unittest.TestCase):
 
     def test_a_point_that_does_not_complete_is_passed(self):
         self.start((0., 0., 0.))
-        self.assertEqual('patrol/0', self.run_point('UNREACHABLE'))
-        self.assertEqual('patrol/1', self.run_point())
+        self.assertEqual(ros_node.patrol_site_id(MAP, 0), self.run_point('UNREACHABLE'))
+        self.assertEqual(ros_node.patrol_site_id(MAP, 1), self.run_point())
 
 
 class StartPoseTests(unittest.TestCase):
