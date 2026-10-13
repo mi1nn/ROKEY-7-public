@@ -53,9 +53,11 @@ ROBOT_KEYS = {
     'task.saved_map.max_position_variance_m2': F, 'task.saved_map.max_yaw_variance_rad2': F,
     'task.live.pose_valid_ns': I,  # RobotPose validity after the AMCL stamp (live_pose, 2026-10-13)
 }
-# Per robot: identity, and its own Pi clock (stamps the scans behind AMCL poses; measured on that Pi,
-# -1 = not measured yet, then the robot pose stays UNKNOWN; decision 2026-10-13).
+# Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
+# Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
 ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
+                       'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
+                       'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S,
                        'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,

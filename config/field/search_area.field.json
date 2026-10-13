@@ -1,6 +1,6 @@
 {
   "format": "rescue-field-run/1",
-  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); task.live.pose_valid_ns 2 s (RobotPose validity, = coordinator support_pose_max_age_s proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock (error bound -1 until measured on the Pi; RobotPose stays UNKNOWN until then)",
+  "source": "#132 scripts/field/search-area start_coordinator.sh, start_robot.sh, start_navigation.sh (provisional policy, user 2026-10-12); map basis (frame, map session, revisions) is the profile map_basis; camera_watch_timeout_s 2.0 is the coordination proposal for SetCameraWatch (2026-10-13); robots.<id>.task.live.auto_target.* per robot (least privilege): TB-6 takes no automatic approach; radius 0.2 m proposed; task.live.pose_valid_ns 2 s (coordinator age proposal); robots.<id>.task.live.sensor_host_clock_* = that robot Pi clock, -1 until measured and RobotPose stays UNKNOWN (2026-10-13)",
   "coordinator": {
     "policy_version": "search-live-20261012",
     "executable_bases": ["PRIOR_MAP"],
@@ -69,6 +69,10 @@
     "robot_a": {
       "task.publisher_id": "99999999-9999-4999-8999-999999999999",
       "task.mapping_authority": "88888888-8888-4888-8888-888888888888",
+      "task.live.auto_target.enabled": false,
+      "task.live.auto_target.kinds": ["APPROACH_TARGET"],
+      "task.live.auto_target.goal_clear_radius_m": 0.2,
+      "task.live.auto_target.policy_version": "auto-target-20261013",
       "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
       "task.live.sensor_host_clock_error_bound_ns": -1
     }

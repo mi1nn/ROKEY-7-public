@@ -24,6 +24,27 @@ from rescue_robot.task_policy import ClockBasis, LeasePolicy, validate_clock_bas
 from rescue_robot.task_server import attach_task_runtime
 from rescue_robot.task_wire import COMPLETION_SCOPES
 
+# Target moves the coordinator may send without an operator approval (C1, 2026-10-13).
+AUTO_TARGET_KINDS = ('APPROACH_TARGET',)
+
+
+def auto_target_policy(value):
+    """Check the explicit LIVE_ROS automatic target-move policy; no field has a default."""
+    if not isinstance(value,dict) or set(value)!={'enabled','kinds','goal_clear_radius_m','policy_version'}:
+        raise ContractError('auto_target needs exactly enabled, kinds, goal_clear_radius_m, policy_version')
+    kinds=value['kinds']
+    if type(value['enabled']) is not bool:
+        raise ContractError('auto_target.enabled must be a bool')
+    if (not isinstance(kinds,list) or not kinds or len(set(kinds))!=len(kinds)
+            or any(kind not in AUTO_TARGET_KINDS for kind in kinds)):
+        raise ContractError('auto_target.kinds must be distinct kinds from '+str(list(AUTO_TARGET_KINDS)))
+    radius=value['goal_clear_radius_m']
+    if type(radius) not in (int,float) or not math.isfinite(radius) or radius<=0:
+        raise ContractError('auto_target.goal_clear_radius_m must be finite and positive')
+    if not isinstance(value['policy_version'],str) or not value['policy_version']:
+        raise ContractError('auto_target.policy_version required')
+    return deepcopy(value)
+
 
 def atomic_json(path, value):
     """Publish a complete local IPC record; never silently replace its timestamps."""
@@ -212,6 +233,7 @@ class SiteRuntime:
         if unsupported:
             raise ContractError('optional non-SEARCH live extensions not installed: '+', '.join(sorted(unsupported)))
         self.last_lease_rejection=''
+        self.auto_target=auto_target_policy(config['auto_target']) if 'auto_target' in config else None
         self.input_handles=[]; self._coordinator=None
         self._retired_coordinators=set(); self._input_error=''
         self.saved_maps=None
@@ -252,8 +274,15 @@ class SiteRuntime:
         return dict(a,robot_boot_id=self.adapter.executor.robot_boot_id,
                     publisher_id=self._coordinator[0],publisher_boot_id=self._coordinator[1])
 
+    def _auto(self,kind):
+        """This kind may move to a target without an operator approval (explicit LIVE_ROS policy)."""
+        policy=self.auto_target
+        return (self.config.get('input_mode')=='LIVE_ROS' and policy is not None
+                and policy['enabled'] is True and kind in policy['kinds'])
+
     def _issuer_rejection(self,message,*,boot_field):
-        if self.config.get('input_mode')=='LIVE_ROS' and getattr(message,'kind','SEARCH_AREA')!='SEARCH_AREA':
+        kind=getattr(message,'kind','SEARCH_AREA')
+        if self.config.get('input_mode')=='LIVE_ROS' and kind!='SEARCH_AREA' and not self._auto(kind):
             return 'LIVE_SEARCH_ONLY'
         a=self._authority(); e=message.envelope
         checks=((message.robot_id==self.adapter.robot_id,'ROBOT_ID_MISMATCH'),
@@ -289,8 +318,35 @@ class SiteRuntime:
         self.leases[lease.lease_id]=deepcopy(lease)
         return True
 
+    def _resolve_auto_target(self,goal):
+        """Automatic target move (C1): the coordinator's approach goal on this robot's own map basis.
+
+        One shared map (profile map_basis): the goal's frame_ref must be this robot's current
+        declared alignment; the target source robot's live map is not read (another PC may not
+        see it). Path basis: the goal footprint is free in the saved map this robot loaded and
+        hashed. Nav2 plans the real path on its live costmap (scene changes after the quake);
+        an unplannable goal ends UNREACHABLE. No operator approval is read or recorded.
+        """
+        if goal.has_route is not True or goal.has_approval is not False:
+            raise ContractError('automatic target move needs a route and no operator approval','NOT_AUTHORIZED')
+        pose=phase1_endpoint(goal)  # no planner evidence, passage UNKNOWN, planar mission-frame goal
+        a=self.inputs.current_alignment(goal.robot_id,now_ns=self.adapter.wall_clock_ns())
+        f=goal.frame_ref
+        if (f.mission_frame,f.map_session_id,f.map_revision,f.transform_revision)!=(
+                self.inputs.mission_frame,a.map_session_id,a.map_revision,a.transform_revision):
+            raise ContractError('target goal is not on this robot\'s current map basis','FRAME_REVISION_MISMATCH')
+        grid=(self.saved_maps.maps.get(goal.robot_id) if self.saved_maps is not None else None)
+        if grid is None:
+            raise ContractError('saved map not loaded; cannot check the goal footprint','LOCALIZATION_UNCERTAIN')
+        x,y,_=a.transform.inverse().apply((pose.x,pose.y,0.))
+        if grid.clear(x,y,self.auto_target['goal_clear_radius_m']) is not True:
+            raise ContractError('goal footprint is not free in the saved map','UNREACHABLE')
+        return GoalPose(self.inputs.mission_frame,pose.x,pose.y,pose.yaw,a.map_session_id,a.map_revision,
+                        a.transform_revision)
+
     def resolve_goal(self,goal):
         if goal.kind=='HOLD': return None
+        if self._auto(goal.kind): return self._resolve_auto_target(goal)
         if goal.kind not in ('SEARCH_AREA','RETURN_HOME'):
             raise ContractError('target movement requires phase-one route; automatic approach unavailable','NOT_AUTHORIZED')
         ref=goal.search_area_ref if goal.kind=='SEARCH_AREA' else goal.home_ref
@@ -312,6 +368,8 @@ class SiteRuntime:
         # attach_task_runtime runs ingress.check (the live Phase1RouteGate)
         # before the binder. Do not run that same gate a second time here.
         request=self.server.ingress.requests.get(task.command_id)
+        if request and self._auto(task.kind):
+            return True  # resolved again by guard() on every step (_resolve_auto_target)
         return bool(request and task.kind in ('MOVE_SEGMENT','REOBSERVE_TARGET')
                     and task.command_id in self.gate.requests)
 
@@ -339,7 +397,7 @@ class SiteRuntime:
         try:
             if not self.authorize(request[0],None): return False
             # RETURN_HOME is resolved continuously by TaskIngress.check.
-            if task.kind=='SEARCH_AREA' and self.resolve_goal(request[0])!=task.goal_pose:
+            if (task.kind=='SEARCH_AREA' or self._auto(task.kind)) and self.resolve_goal(request[0])!=task.goal_pose:
                 raise ContractError('destination changed; require a new command','FRAME_REVISION_MISMATCH')
             return self._base_guard(task)
         except Exception as exc:

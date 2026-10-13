@@ -23,21 +23,27 @@ def _finite(*values):
 
 
 def mission_from_native(transform, x, y, yaw, covariance):
-    """Native map pose -> mission pose under a planar rigid alignment; xy covariance rotated."""
+    """Native map pose -> mission pose; rotate the full 6x6 fixed-axis pose covariance."""
     _finite(x, y, yaw, *covariance)
     if len(covariance) != 36:
         raise ValueError('6x6 covariance required')
     mx, my, _ = transform.apply((x, y, 0.))
     qx, qy, qz, qw = transform.rotation_xyzw
     turn = 2 * math.atan2(qz, qw)
-    c, s = math.cos(turn), math.sin(turn)
     cov = list(covariance)
-    vx, vy, cxy = cov[0], cov[7], cov[1]
-    cov[0] = c * c * vx - 2 * c * s * cxy + s * s * vy
-    cov[7] = s * s * vx + 2 * c * s * cxy + c * c * vy
-    cov[1] = cov[6] = c * s * (vx - vy) + (c * c - s * s) * cxy
-    if turn == 0:  # keep the measured numbers exactly on the identity alignment
-        cov = list(covariance)
+    if turn != 0:  # identity keeps every measured number exactly
+        c, s = math.cos(turn), math.sin(turn)
+        # C_mission = J C_native J^T, J = diag(Rz, Rz).
+        # Rotate rows, then columns; preserve position/orientation cross terms too.
+        for a, b in ((0, 1), (3, 4)):
+            for k in range(6):
+                cov[6*a+k] = c*covariance[6*a+k] - s*covariance[6*b+k]
+                cov[6*b+k] = s*covariance[6*a+k] + c*covariance[6*b+k]
+        rows = list(cov)
+        for a, b in ((0, 1), (3, 4)):
+            for k in range(6):
+                cov[6*k+a] = c*rows[6*k+a] - s*rows[6*k+b]
+                cov[6*k+b] = s*rows[6*k+a] + c*rows[6*k+b]
     return mx, my, math.atan2(math.sin(yaw + turn), math.cos(yaw + turn)), cov
 
 

@@ -213,6 +213,12 @@ class RobotParameters(FieldCase):
         expected.update({'task.saved_map.occupancy_sha256': SHA,
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
+        # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
+        # SCOUT) takes no automatic approach; its REOBSERVE_TARGET comes with C1-b.
+        expected.update({'task.live.auto_target.enabled': False,
+                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                         'task.live.auto_target.goal_clear_radius_m': 0.2,
+                         'task.live.auto_target.policy_version': 'auto-target-20261013'})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
         # The robot Pi clock (sensor host of the AMCL stamps), per robot: -1 until measured on the Pi (2026-10-13)
@@ -254,9 +260,16 @@ class RobotParameters(FieldCase):
         def add_b(raw):
             raw['robots']['robot_b'] = {'task.publisher_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                                         'task.mapping_authority': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                        'task.live.auto_target.enabled': True,
+                                        'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+                                        'task.live.auto_target.goal_clear_radius_m': 0.2,
+                                        'task.live.auto_target.policy_version': 'p',
                                         'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
                                         'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
+        # Both policy and sensor clock must stay local to this robot.
+        self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
+        self.assertFalse(self.robot()['task_input']['task.live.auto_target.enabled'])
         # Each robot Pi has its own measured clock bound (decision 2026-10-13)
         self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
         self.assertEqual(-1, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
@@ -346,6 +359,10 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
+                {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
+            'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
+            'auto target shared, not per robot': lambda r: r['robot'].update({'task.live.auto_target.enabled': True}),
             'pi clock shared, not per robot': lambda r: r['robot'].update(
                 {'task.live.sensor_host_clock_error_bound_ns': 5}),
             'extra': lambda r: r['robot'].update({'policy.unknown': 1.0}),
