@@ -272,6 +272,32 @@ class FreeCellTests(Base):
                           for h in self.core.mission.homes.values()})
 
 
+class NodeWiringTests(Base):
+    def test_the_node_tick_calls_the_freeze_once_and_logs_it(self):
+        from test_coordination_ros_tick import Recorder
+        self.save()
+        out = Recorder()
+        ros_node.node_tick(self.core, NOW, out)
+        self.assertEqual(1, out.events.count(('freeze',)))
+        self.assertIn(('note', 'MAP_FREEZE'), out.events)
+        out = Recorder()
+        ros_node.node_tick(self.core, NOW + 1, out)
+        self.assertNotIn(('freeze',), out.events)
+
+    def test_an_invalid_frozen_grid_while_waiting_fails_the_freeze(self):
+        self.save()
+        self.tick()
+        self.core.take_freeze_request()
+        self.core.on_freeze_reply(True, 'frozen')
+        self.core.on_frozen_map_invalid('invalid occupancy grid')
+        self.tick()
+        self.assertEqual('MAP_FREEZE_FAILED', self.reason())
+
+    def test_an_invalid_grid_before_any_request_is_only_logged(self):
+        self.core.on_frozen_map_invalid('invalid occupancy grid')
+        self.assertIsNone(self.core.freeze)
+
+
 class ParameterTests(unittest.TestCase):
     def test_typed_required_parameters(self):
         self.assertEqual(('STRING', 'DOUBLE', 'DOUBLE'),
