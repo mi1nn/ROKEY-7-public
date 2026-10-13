@@ -116,7 +116,7 @@ class CameraWatchBook:
             else:
                 self.bindings.pop(watch.watch_id, None)  # row 2: refused -> not recorded
                 self.rearm = 'WATCH_REARM_NEEDED'
-        elif accepted or reason_code != 'REVISION_MISMATCH':
+        elif accepted or reason_code == 'WATCH_MISMATCH':
             # Released, or the camera does not hold this watch (WATCH_MISMATCH, restart): nothing to release.
             if self.active is watch:
                 self.active, self.ended = None, False
