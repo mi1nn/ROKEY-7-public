@@ -16,14 +16,14 @@ STALE_S = 0.3
 class RelayFixture(unittest.TestCase):
     def setUp(self):
         self.hub = FrameHub(STALE_S)
-        self.server = make_server(self.hub, '127.0.0.1', 0, '/stream')
+        self.server = make_server(self.hub, 'localhost', 0, '/stream')
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
         self.addCleanup(self.hub.close)
 
     def get(self, path='/stream'):
-        connection = http.client.HTTPConnection('127.0.0.1', self.server.server_address[1], timeout=5)
+        connection = http.client.HTTPConnection('localhost', self.server.server_address[1], timeout=5)
         self.addCleanup(connection.close)
         connection.request('GET', path)
         return connection.getresponse()
