@@ -37,7 +37,7 @@ from .adapter import camera_intrinsics, stamp_ns
 from .recheck import CameraModel, scan_state
 from .recheck_feed import (RECHECK_PARAMS, Candidate, depth_median, depth_rows_m, frame_evidence, recheck_values,
     rigid_from_tf, scan_fields)
-from .recheck_server import RecheckServer
+from .recheck_server import RecheckServer, SensorClock
 from .core import ModelManifest
 from .person_pipeline import PersonPipeline
 
@@ -116,19 +116,21 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 node.get_logger().info(f'clock {shown[0]} backend={v["clock_backend"]} '
                                        f'error_bound_ns={clock["record"].get("error_bound_ns")} reason={shown[1]}')
         # TB-6 recheck (ObserveTarget, #165): the window counts what this node sees after the goal.
-        # Sample times are this host's receive times, so the window uses this host's measured clock only.
+        # Sample times are the capture stamps (RGB, scan); the window margin and the observation bound add this
+        # host's measured bound and the sensor host's (OPS-108).
         server = RecheckServer(node, action_name=v['recheck_action_name'], robot_id=v['robot_id'],
                                map_frame=v['recheck_map_frame'], policy=recheck_policy,
                                max_window_ns=v['recheck_max_window_ns'], validity_ns=v['recheck_validity_ns'],
                                clock_domain_id=v['clock_domain_id'], clock_record=lambda: clock['record'],
                                publisher_id=v['publisher_id'], envelope_version=v['envelope_version'],
+                               sensor_clock=SensorClock(v['sensor_host_clock_error_bound_ns'],
+                                                        v['sensor_host_clock_domain_id']),
                                callback_group=ReentrantCallbackGroup())
 
         def feed_recheck(stamp, info, depth, findings):
             point = server.watched_point()
             if point is None:
                 return
-            received = server.now_ns()
             try:
                 optical = rigid_from_tf(transform_lookup(v['recheck_map_frame'], v['rgb_optical_frame'], stamp))
                 intrinsics = camera_intrinsics(info, pipeline.binding, rectified=v['rgb_rectified'])
@@ -143,22 +145,21 @@ def create_node(*, model_factory=None, transform_lookup=None):
             except Exception as exc:   # no TF / bad input: the frame says nothing about the point
                 node.get_logger().warning(f'recheck frame {stamp} UNKNOWN: {type(exc).__name__}: {exc}')
                 coverage, points, unconfirmed = 'UNKNOWN', [], False
-            server.add_frame(received_ns=received, coverage=coverage, confirmed_points=points,
+            server.add_frame(stamp_ns=stamp, coverage=coverage, confirmed_points=points,
                              unconfirmed_at_point=unconfirmed)
 
         def on_scan(scan):
             point = server.watched_point()
             if point is None:
                 return
-            received = server.now_ns()
+            captured = stamp_ns(scan.header, 'scan')
             try:
-                laser = rigid_from_tf(transform_lookup(v['recheck_map_frame'], scan.header.frame_id,
-                                                       stamp_ns(scan.header, 'scan')))
+                laser = rigid_from_tf(transform_lookup(v['recheck_map_frame'], scan.header.frame_id, captured))
                 state_ = scan_state(scan_fields(scan), laser, point, recheck_policy)[0]
             except Exception as exc:
                 node.get_logger().warning(f'recheck scan UNKNOWN: {type(exc).__name__}: {exc}')
                 state_ = 'UNKNOWN'
-            server.add_scan(received_ns=received, state=state_)
+            server.add_scan(stamp_ns=captured, state=state_)
 
         node.create_subscription(LaserScan, v['recheck_scan_topic'], on_scan,
                                  QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT,

@@ -107,11 +107,11 @@ class WindowTests(unittest.TestCase):
 
     def feed(self, w, *, frames=3, coverage='VALID', near=False, unconfirmed_at_point=False, scans=3, lidar='CLEAR'):
         for i in range(frames):
-            w.add_frame(received_ns=2_000 + i, coverage=coverage,
+            w.add_frame(stamp_ns=2_000 + i, coverage=coverage,
                         confirmed_points=[(2.1, 0.0, 0.3)] if near else [(5.0, 4.0, 0.3)],
                         unconfirmed_at_point=unconfirmed_at_point)
         for i in range(scans):
-            w.add_scan(received_ns=2_000 + i, state=lidar)
+            w.add_scan(stamp_ns=2_000 + i, state=lidar)
         return w
 
     def test_rescued_spot_is_absent_clear_valid(self):
@@ -132,15 +132,15 @@ class WindowTests(unittest.TestCase):
     def test_lidar_needs_enough_scans_and_any_block_wins(self):
         self.assertEqual('UNKNOWN', window_states(self.feed(self.window(), scans=2))[1])
         w = self.feed(self.window())
-        w.add_scan(received_ns=3_000, state='BLOCKED')
+        w.add_scan(stamp_ns=3_000, state='BLOCKED')
         self.assertEqual('BLOCKED', window_states(w)[1])
         self.assertEqual('UNKNOWN', window_states(self.feed(self.window(), lidar='UNKNOWN'))[2])
 
     def test_samples_received_before_the_window_are_ignored(self):
         w = self.window()
         for i in range(5):
-            w.add_frame(received_ns=500 + i, coverage='VALID', confirmed_points=[], unconfirmed_at_point=False)
-            w.add_scan(received_ns=500 + i, state='CLEAR')
+            w.add_frame(stamp_ns=500 + i, coverage='VALID', confirmed_points=[], unconfirmed_at_point=False)
+            w.add_scan(stamp_ns=500 + i, state='CLEAR')
         self.assertEqual(('UNKNOWN', 'UNKNOWN', 'UNKNOWN'), window_states(w))
 
 

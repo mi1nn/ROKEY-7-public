@@ -137,29 +137,38 @@ def scan_state(scan, map_from_laser, point_map, policy):
 
 @dataclass
 class RecheckWindow:
-    """Samples received at or after ``start_ns`` (goal accepted) for one watched point."""
+    """Samples of one watched point, timed by their capture stamps (OPS-108).
+
+    The goal is accepted at ``start_ns`` on this host's clock; the stamps come from the sensor host.
+    A sample counts only from ``start_ns + start_margin_ns`` (both clocks' error bounds), so nothing
+    captured before the instruction gets in (C-11 rows 8·11)."""
     point_map: tuple
     policy: RecheckPolicy
     start_ns: int
-    frames: list = field(default_factory=list)   # (received_ns, coverage, near_confirmed, unconfirmed_at_point)
-    scans: list = field(default_factory=list)    # (received_ns, state)
+    start_margin_ns: int = 0
+    frames: list = field(default_factory=list)   # (stamp_ns, coverage, near_confirmed, unconfirmed_at_point)
+    scans: list = field(default_factory=list)    # (stamp_ns, state)
 
-    def add_frame(self, *, received_ns, coverage, confirmed_points, unconfirmed_at_point):
-        if received_ns < self.start_ns:
+    def first_ns(self):
+        return self.start_ns + self.start_margin_ns
+
+    def add_frame(self, *, stamp_ns, coverage, confirmed_points, unconfirmed_at_point):
+        if stamp_ns < self.first_ns():
             return False
         near = any(math.dist(p, self.point_map) <= self.policy.presence_radius_m for p in confirmed_points)
-        self.frames.append((received_ns, coverage, near, bool(unconfirmed_at_point)))
+        self.frames.append((stamp_ns, coverage, near, bool(unconfirmed_at_point)))
         return True
 
-    def add_scan(self, *, received_ns, state):
-        if received_ns < self.start_ns:
+    def add_scan(self, *, stamp_ns, state):
+        if stamp_ns < self.first_ns():
             return False
-        self.scans.append((received_ns, state))
+        self.scans.append((stamp_ns, state))
         return True
 
-    def end_ns(self):
+    def span_ns(self):
+        """(first, last) capture stamp counted, or None when nothing counted."""
         stamps = [f[0] for f in self.frames] + [s[0] for s in self.scans]
-        return max(stamps) if stamps else None
+        return (min(stamps), max(stamps)) if stamps else None
 
 
 def window_states(window):
