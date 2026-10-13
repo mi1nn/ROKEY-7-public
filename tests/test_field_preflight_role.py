@@ -127,7 +127,11 @@ class Duties(RoleCase):
                 self.assertEqual({}, failed)
 
     def test_robot_b_without_field_values_fails(self):
-        self.assertStatus(self.run_role('compute_b'), 'field.robot.robot_b', pr.FAILED)
+        raw = json.loads(self.field.read_text())
+        raw['robots'].pop('robot_b')
+        field = self.dir / 'field_no_b.json'
+        field.write_text(json.dumps(raw))
+        self.assertStatus(self.run_role('compute_b', field_path=field), 'field.robot.robot_b', pr.FAILED)
 
     def test_unknown_role_is_a_failure_not_an_empty_report(self):
         checks = self.run_role('camera')
