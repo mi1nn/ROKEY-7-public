@@ -9,6 +9,7 @@ import ast
 import json
 from pathlib import Path
 import re
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -77,6 +78,20 @@ def field_profile(directory, *, entry_yaws=(0.0, 0.0)):
 
 
 class DependencyTests(unittest.TestCase):
+    def test_installed_input_copy_keeps_field_parity_fixtures_without_package_sources(self):
+        wheel_check = REPO / 'scripts' / 'check_wheels.py'
+        if not wheel_check.is_file():
+            self.skipTest('wheel builder is not part of the installed test checkout')
+        copy_inputs = runpy.run_path(str(wheel_check))['copy_test_inputs']
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / 'check'
+            copy_inputs(target)
+            self.assertFalse((target / 'src').exists())
+            for name in ('start_coordinator.sh', 'start_robot.sh', 'start_navigation.sh',
+                         'nav2_watchdog.launch.py'):
+                copied = target / 'scripts' / 'field' / 'search-area' / name
+                self.assertEqual((SCRIPTS / name).read_bytes(), copied.read_bytes())
+
     def test_suite_imports_without_pyyaml(self):
         code = """
 import importlib.abc
