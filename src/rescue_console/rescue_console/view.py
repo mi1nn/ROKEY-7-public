@@ -361,6 +361,10 @@ MISSION_REASONS = {
     'SUPPORT_EXIT_NOT_FREE': ('{support} 출구 지점이 막힘 — 출구 이동 보류(대상 옆 대기)', 'caution'),
     'SCOUT_HOME_NOT_FREE': ('{scout} 도킹 접근 지점이 막힘 — {scout} 복귀 보류', 'caution'),
     'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
+    # search_start AUTO (#228, OPS-140) and the exit QR before the freeze (OPS-136).
+    'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
+    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
 }
 # APPROACH_FAILED_<why> (#216): the executor's terminal reason, or its outcome when there is none.
 # An unknown why is shown as its code (OPS-127: never hidden).
@@ -432,6 +436,7 @@ def _mission(site_events, row):
 
 
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch; the coordinator's field value
+SEARCH_START_MODES = ('AUTO', 'OPERATOR')       # --search-start; the coordinator's field value (#228)
 
 
 def _command_words(support_name):
@@ -524,7 +529,8 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
-def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None):
+def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None, search_start=None,
+                  scout_name=None):
     """Every command with the state of its button. A mirror of the coordinator gate for the screen,
     not the gate: an enabled command may still be rejected, and that answer is shown as it comes."""
     words = dict(COMMANDS) if words is None else words
@@ -538,12 +544,19 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
             continue
+        if name == 'START_SEARCH' and search_start == 'AUTO':
+            # The disaster sign starts the search and the coordinator refuses this command (AUTO_SEARCH_ENABLED).
+            auto = f'{scout_name or "SCOUT"} 자동 출발'
+            rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
+                         'reason': f'{auto} — 지진 감지로 조정기가 수색 시작', 'args': {}, 'choices': [],
+                         'auto': True})
+            continue
         rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
                      'reason': reason, 'args': args, 'choices': choices})
     return rows
 
 
-def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None):
+def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
     """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
     2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
     'operator_commands', 'error_log'}, each the matching operations read API result (or None when not available yet)."""
@@ -551,6 +564,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     names = dict(robot_names or {})   # robot_id -> display name (--robot-name); none: the ID itself
     _require(support_dispatch in (None,) + SUPPORT_DISPATCH_MODES,
              f'support_dispatch must be one of {SUPPORT_DISPATCH_MODES} or unset')
+    _require(search_start in (None,) + SEARCH_START_MODES, f'search_start must be one of {SEARCH_START_MODES} or unset')
     warnings = []
     robot_section = _section(status, 'robot_status', 'robots')
     allowed_section = _section(status, 'allowed_robots', 'allowed_robot_ids')
@@ -598,6 +612,11 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     scout = [row['name'] for row in robots if row['role'] == 'SCOUT']
     mission['reason_view'] = mission_reason(mission['reason'], support[0] if len(support) == 1 else None,
                                             scout[0] if len(scout) == 1 else None)
+    history = _history(status, words)
+    refused = [row['reason'] for row in (history or {'rows': []})['rows']] + [mission['reason']]
+    if search_start != 'AUTO' and 'AUTO_SEARCH_ENABLED' in refused:
+        # The coordinator runs search_start AUTO; this console still offers the button it refuses.
+        warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
     return {
         'built_at_ns': built_at_ns,
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],
@@ -610,8 +629,10 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         'event_total': event_total,
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
         'commands': command_gates(mission, targets, words, support_dispatch,
-                                  support[0] if len(support) == 1 else None),
+                                  support[0] if len(support) == 1 else None, search_start,
+                                  scout[0] if len(scout) == 1 else None),
         'support_dispatch': support_dispatch,
-        'history': _history(status, words),
+        'search_start': search_start,
+        'history': history,
         'warnings': warnings,
     }
