@@ -94,7 +94,11 @@ RGB·Depth는 원 stamp로 동기화한다. CameraInfo frame/해상도·최신�
 | TF | `map_frame ← sensor_frame` 을 관측의 `observed_at_ns`(RGB stamp)로 조회한다. 최신 TF로 바꾸지 않는다. `tf_wait_s` 안에 그 시각 TF가 없으면 내지 않고 ERROR 로그를 남긴다. 로봇 TF는 namespace 아래라 launch 에서 `/tf`·`/tf_static` 을 remap 한다 |
 | 좌표 | 카메라 점에 TF를 적용한 뒤, 선언된 정렬 `alignment_xy_yaw`(mission ← map)를 적용한다. 공분산은 관측 공분산을 같은 회전으로 돌리고 선언된 정렬 오차(위치 + 회전 lever arm)를 더한다. AMCL 위치 불확실성은 들어가지 않는다 [미확인] |
 | frame_ref | `robot_id`·`map_frame`·`mission_frame`·`map_session_id`·`map_revision`·`transform_revision` 파라미터 그대로. 조정기의 `mission_frame_id`·`goal_map_session_id`·`goal_map_revision`·`goal_transform_revision` 과 같아야 조정기가 경로를 낸다(다르면 `ROUTE_BASIS_MISMATCH`). 이 노드는 그 값을 측정하지 않는다 |
-| 출력 | `target_locations_topic` 에 `projection_status=VALID` 하나. `location_id` 는 (observation_id, session, revision, transform revision)의 uuid5라 같은 관측은 같은 ID다. 거절된 입력은 VALID 아닌 상태로도 내지 않는다(조정기가 VALID 만 받는다) |
+| 출력 | `target_locations_topic` 에 `projection_status=VALID` 하나. 같은 관측·같은 정렬은 같은 `location_id` 다(아래). 거절된 입력은 VALID 아닌 상태로도 내지 않는다(조정기가 VALID 만 받는다) |
+| 시간 기준 (C-03, OPS-103) | 관측이 `clock_state=SYNCED`·오차 상한 있음·`stamp_semantics` 가 UNKNOWN 아님·`clock_domain_id` 가 설정값과 같음이어야 한다. 이 호스트 시각으로 만료(`now > valid_until_ns`)거나 미래 stamp(`observed_at_ns > now + 오차`)면 내지 않는다. 이유는 로그(`CLOCK_NOT_SYNCED` 등)에 남는다 |
+| 정렬 권한 (C-04, OPS-103) | `alignment_authority_id`·`alignment_valid_from_ns`·`alignment_valid_until_ns` 를 실행 인자로 받는다(권한 출처: 프로파일 `map_basis` + 로봇의 saved-map 선언, #132·#145). 촬영 시각이 창 안이고 지금이 창 끝 전일 때만 VALID 다. 설정값만으로 VALID 를 채우지 않는다 |
+| 공분산 (C-02) | 입력·출력 공분산이 유한·대칭·대각 비음수·양의 준정부호(주소행렬식 모두 ≥ 0)가 아니면 `COVARIANCE_INVALID` 로 내지 않는다 |
+| location_id | (observation_id, session, revision, transform revision, 정렬 권한, 정렬값)의 uuid5. 정렬을 바꾸면 새 ID 라서 조정기의 `ID_CONTENT_CONFLICT` 가 나지 않는다 |
 | 파라미터 | 모두 기본값 없는 타입 명시 파라미터. 없거나 틀리면 exit 2. 기동 로그에 git SHA·적용 값 |
 
 시험: `tests/test_perception_target_location.py`(합성 TF·관측, E2), `tests/ros/e3_target_locator_probe.py`(LOCALHOST ROS, 가짜 관측·TF → target_locator → 조정기 대상, E3). 실제 로봇 TF·카메라는 NOT_RUN이다.

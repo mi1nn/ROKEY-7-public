@@ -23,6 +23,11 @@ PARAMS = {  # name -> rcl_interfaces ParameterType name; every one is required, 
     'alignment_xy_yaw': 'DOUBLE_ARRAY',  # mission <- map, [x, y, yaw]; identity is [0.0, 0.0, 0.0]
     'alignment_position_error_m': 'DOUBLE', 'alignment_rotation_error_rad': 'DOUBLE',
     'tf_wait_s': 'DOUBLE',  # how long to wait for the TF at the capture time to arrive
+    # C-03 (OPS-103): observations must carry this measured clock domain, SYNCED with an error bound.
+    'clock_domain_id': 'STRING',
+    # C-04 (OPS-103): who declared the alignment (profile map_basis + the robot's saved-map identity,
+    # #132/#145) and the window it holds for. Outside it nothing is VALID.
+    'alignment_authority_id': 'STRING', 'alignment_valid_from_ns': 'INTEGER', 'alignment_valid_until_ns': 'INTEGER',
     'publisher_id': 'STRING', 'envelope_schema_version': 'STRING',
 }
 
@@ -93,7 +98,7 @@ def main(args=None):
                 del pending[observation_id]
                 handled.add(observation_id)
                 try:
-                    located = locate(msg, tf, basis)
+                    located = locate(msg, tf, basis, now_ns=time.time_ns())
                 except LocationRefused as exc:
                     log.warning(f'observation {observation_id} refused, not published: {exc}')
                     continue

@@ -13,7 +13,8 @@ Run on an isolated graph, never a robot's domain, with no Discovery Server:
 Both nodes run as child processes: the coordinator with the e3_coordinator_probe parameters
 (mission_frame_id map, the #132 map basis), target_locator with the same basis and its TF
 remapped to a namespaced robot TF. This probe publishes the robot TF and TargetObservations.
-Checks: 1. target_locator refuses to start without parameters (exit 2); 2. an observation
+Observations carry a SYNCED clock in the configured domain (OPS-103); one with an unmeasured
+clock is refused. Checks: 1. target_locator refuses to start without parameters (exit 2); 2. an observation
 with capture-time TF -> one VALID TargetLocation at the expected map point with the
 coordinator's basis; 3. the coordinator makes a target of it (RescueReport naming that
 location, TargetSnapshot with one target); 4. an observation with no TF at its capture
@@ -45,8 +46,15 @@ LOCATOR_ARGS = ['-p', 'robot_id:=robot_a', '-p', 'observations_topic:=/rescue/ob
                 '-p', 'transform_revision:=1', '-p', 'alignment_xy_yaw:=[0.0, 0.0, 0.0]',
                 '-p', 'alignment_position_error_m:=0.0', '-p', 'alignment_rotation_error_rad:=0.0',
                 '-p', 'tf_wait_s:=1.0', '-p', 'publisher_id:=amr.target_locator',
-                '-p', "envelope_schema_version:='0.1'",
+                '-p', "envelope_schema_version:='0.1'", '-p', 'clock_domain_id:=e3-clock',
+                '-p', 'alignment_authority_id:=e3-saved-map-identity',
                 '-r', f'/tf:={TF_TOPIC}', '-r', f'/tf_static:={TF_STATIC_TOPIC}']
+
+
+def window_args():
+    now = time.time_ns()   # the alignment declaration holds for this run only
+    return ['-p', f'alignment_valid_from_ns:={now - 60_000_000_000}',
+            '-p', f'alignment_valid_until_ns:={now + 3_600_000_000_000}']
 
 
 def locator_command(extra):
@@ -92,13 +100,14 @@ class Probe(Node):
         self.tf.publish(TFMessage(transforms=[transform('map', 'odom', s, (1.0, 2.0, 0.0), math.pi / 2)
                                               for s in (stamp_ns - 50_000_000, stamp_ns + 50_000_000)]))
 
-    def publish_observation(self, stamp_ns, status='VALID'):
+    def publish_observation(self, stamp_ns, status='VALID', clock_state='SYNCED'):
         msg = TargetObservation(observation_id=str(uuid4()), source_robot='robot_a', source_camera='amr_rgbd',
                                 source_boot_id=str(uuid4()), class_label='survivor', confidence=0.9,
                                 model_id='e3', model_sha256='a' * 64, tracking_mode='DETECTION_ONLY',
                                 sensor_frame=CAMERA, localization_status=status, depth_status='LOCATED')
         msg.time.observed_at_ns, msg.time.valid_until_ns = stamp_ns, stamp_ns + 2_000_000_000
-        msg.time.stamp_semantics, msg.time.clock_state = 'UNKNOWN', 'UNKNOWN'
+        msg.time.stamp_semantics, msg.time.clock_state, msg.time.clock_domain_id = 'CAPTURE', clock_state, 'e3-clock'
+        msg.time.has_clock_error_bound, msg.time.clock_error_bound_ns = clock_state == 'SYNCED', 5_000_000
         msg.sensor_position.x, msg.sensor_position.y, msg.sensor_position.z = (
             (1.0, 0.0, 0.0) if status == 'VALID' else (math.nan,) * 3)
         msg.position_covariance = [0.04, 0., 0., 0., 0.04, 0., 0., 0., 0.04]
@@ -128,7 +137,7 @@ def main():
     profile = os.path.join(repo, 'config', 'deployment.v2.example.json')
     coordinator = subprocess.Popen(node_command(repo, coordinator_args(profile)),
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    locator = subprocess.Popen(locator_command(LOCATOR_ARGS), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    locator = subprocess.Popen(locator_command(LOCATOR_ARGS + window_args()), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True)
     rclpy.init()
     probe = Probe()
@@ -160,8 +169,13 @@ def main():
         before = len(probe.locations)
         probe.publish_observation(probe.get_clock().now().nanoseconds + 30_000_000_000)  # no TF then
         probe.publish_observation(stamp, status='UNKNOWN')
+        probe.publish_map_odom(probe.get_clock().now().nanoseconds)
+        unmeasured = probe.get_clock().now().nanoseconds - 60_000_000
+        probe.publish_map_odom(unmeasured)
+        probe.publish_observation(unmeasured, clock_state='UNKNOWN')   # TF is there, the clock is not measured
         wait(executor, lambda: False, 2.5)
         checks['no TF at capture / no camera point -> nothing published'] = len(probe.locations) == before
+        checks['unmeasured clock (C-03) -> nothing published'] = len(probe.locations) == before
     finally:
         executor.shutdown()
         probe.destroy_node()
