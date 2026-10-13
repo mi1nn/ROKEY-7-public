@@ -26,7 +26,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts import RescueError, SiteEvent, TaskAdmission, duration_ns, seconds_to_ns, timestamp_ns
+from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, MissionCoordinator, OperatorCommand
 from .planning import Allocator, CoordinationError, GoalPoint, contract_value, finite, point, revision, uid
@@ -418,7 +418,8 @@ class CoordinatorCore:
         until a location is accepted.
         """
         checks = (
-            (t.stamp_semantics != 'UNKNOWN' and t.clock_state == 'SYNCED' and bool(t.has_clock_error_bound),
+            (t.stamp_semantics in STAMP_SEMANTICS - {'UNKNOWN'} and t.clock_state == 'SYNCED'
+             and bool(t.has_clock_error_bound),
              'CLOCK_UNCERTAIN', 'TARGET_TIME_BASIS_UNUSABLE'),
             (t.clock_domain_id == self.target_clock_domain_id, 'CLOCK_UNCERTAIN', 'TARGET_CLOCK_DOMAIN_MISMATCH'),
             (t.observed_at_ns - now_ns <= self.target_max_future_ns + int(t.clock_error_bound_ns),
