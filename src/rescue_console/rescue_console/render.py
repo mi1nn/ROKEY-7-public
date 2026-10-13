@@ -117,6 +117,20 @@ def _victim_icon(stage):
 
 # ---- band (fragment) ------------------------------------------------------------------------
 
+def _reason(reason):
+    """Coordinator reason in words, with the code beside it when the words are not the code."""
+    level = f' {reason["level"]}' if reason['level'] else ''
+    code = '' if reason['text'] == reason['code'] else f' <code>{escape(reason["code"])}</code>'
+    return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
+
+
+def _scoped_reason(view, *scopes, tag='p'):
+    reason = view['mission'].get('reason_view')
+    if reason is None or reason['scope'] not in scopes:
+        return ''
+    return f'<{tag} class="scoped-reason">{_reason(reason)}</{tag}>'
+
+
 def _band(view):
     """Mission mode across the top. The exit count is not drawn: one fixed camera (db-schema 2절)."""
     mission = view['mission']
@@ -134,8 +148,8 @@ def _band(view):
     if dispatch is not None:
         facts.append(('구간', f'<span title="끝낸 구간 / 전체 구간">{dispatch["segment_index"]}/{dispatch["segment_count"]}</span> '
                               f'{_word("segment", dispatch["segment_phase"])}'))
-    if mission['reason'] is not None:
-        facts.append(('사유', f'<span class="reason">{escape(mission["reason"])}</span>'))
+    if mission.get('reason_view') is not None:
+        facts.append(('사유', _reason(mission['reason_view'])))
     if source == 'mission_state':
         note = f'조정기 임무 상태, {_age((built - mission["updated_at_ns"]) / 1e9)} 전 바뀜'
     elif mode == 'DISASTER':
@@ -271,7 +285,7 @@ def _robots(view):
             + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
             f'<div><dt>작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
             f'<div><dt>수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
-            + stale + '</section>')
+            + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale + '</section>')
     return f'<section id="robots"><h2>로봇</h2>{"".join(units)}</section>'
 
 
@@ -288,6 +302,11 @@ def _targets(view):
             support = (f'<span class="support">지원 {_word("support", target["support_state"])}'
                        + (f' {escape(target["support_robot_id"])}' if target['support_robot_id'] else '') + '</span>')
         notes = ''.join(f'<li>{escape(n)}</li>' for n in target['warnings'] + target['rescue_reasons'])
+        dispatched = view['mission'].get('dispatch') or {}
+        if dispatched.get('target_id') == target['target_id']:
+            support += _scoped_reason(view, 'support', 'target', tag='span')
+        elif not dispatched and view.get('support_dispatch') == 'AUTO' and target['stage'] == 'NOT_RESCUED':
+            support += _scoped_reason(view, 'support', tag='span')   # why the automatic dispatch has not gone
         receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
                    f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         mark = target['disappeared_candidate']
@@ -402,6 +421,10 @@ def _commands(view, access, csrf):
     allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
     for command in view['commands']:
+        if command.get('auto'):   # automatic support dispatch: a state line, no button (no data-command)
+            groups[command['group']].append(f'<p class="cmd-auto" title="{escape(command["reason"])}">'
+                                            f'{escape(command["label"])}</p>')
+            continue
         name, reason = escape(command['name']), escape(command['reason'])
         off = '' if allowed and command['enabled'] else ' disabled'
         groups[command['group']].append(
@@ -486,6 +509,9 @@ dl{margin:0}
 .mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
 
 /* ---- warnings ---- */
+.reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
+.scoped-reason{margin:4px 0 0;font-weight:600}
+.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
 #warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
 #warnings.empty{display:none}
 #warnings h2{display:inline;margin-right:12px;font-size:14px}

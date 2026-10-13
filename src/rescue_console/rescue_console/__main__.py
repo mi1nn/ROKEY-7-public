@@ -27,6 +27,9 @@ def main(argv=None):
     parser.add_argument('--robot-name', action='append', default=[], metavar='ID=NAME',
                         help='name shown for a robot, e.g. robot_a=TB-6 (repeat per robot). No default: '
                              'without it the robot ID is shown')
+    parser.add_argument('--support-dispatch', choices=('AUTO', 'OPERATOR'),
+                        help="the coordinator's support_dispatch (field value). AUTO: no dispatch button, the "
+                             'automatic dispatch state instead. Unset: the button as before')
     parser.add_argument('--camera-stale-s', type=float, metavar='S',
                         help='with --camera: seconds without a new frame before the stream shows 영상 끊김 and '
                              'is reconnected. No default')
@@ -51,7 +54,8 @@ def main(argv=None):
         robot_names = robot_name_map(parse_robot_name(text) for text in args.robot_name)
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
-                         operations_url=args.operations, robot_names=robot_names, camera_stale_s=args.camera_stale_s)
+                         operations_url=args.operations, robot_names=robot_names,
+                         support_dispatch=args.support_dispatch, camera_stale_s=args.camera_stale_s)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2
