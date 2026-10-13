@@ -56,7 +56,10 @@ class SelectedSearchGoal:
     def select(self, message):
         core, mission = self.core, self.core.mission
         allocator = core.search.allocator
-        if (mission.search_authorized or mission.search_started or allocator.pending
+        # OPERATOR: START_SEARCH needs the pick first, so an accepted start locks it. AUTO: the disaster sign
+        # authorizes without a pick, so the pick stays open until the first area is reserved (OPS-136).
+        started = mission.search_authorized if core.search_start == 'OPERATOR' else mission.search_started
+        if (started or mission.search_started or allocator.pending
                 or allocator.active or core.outbox or core.leases):
             raise ValueError('goal selection locked after START_SEARCH or while a task is reserved')
         policy = core.search.policy

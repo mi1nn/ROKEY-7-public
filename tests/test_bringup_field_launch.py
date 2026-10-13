@@ -168,6 +168,8 @@ class CoordinatorParameters(FieldCase):
         expected.update(map_mode='SLAM_FREEZE', freeze_clearance_m=0.2, map_freeze_timeout_s=10.0)
         # Added after #132: TB-6 search mode and TB-5's exit approach (OPS-136·139); patrol_points [] is left unset
         expected.update(search_mode='AREAS', patrol_rounds=1, exit_standoff_m=0.5)
+        # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
+        expected['search_start'] = 'AUTO'
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
@@ -444,6 +446,7 @@ class FieldFile(FieldCase):
                 {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'executable_bases': ['PATROL_POINT']}),
             'patrol point basis not executable': lambda r: r['coordinator'].update(
                 {'search_mode': 'PATROL', 'patrol_points': [1.0, 0.0, 0.0], 'live_inputs.search_goal_topic': ''}),
+            'search start unknown': lambda r: r['coordinator'].update({'search_start': 'auto'}),
             'freeze timeout not positive': lambda r: r['coordinator'].update({'map_freeze_timeout_s': 0.0}),
             # The coordinator checks the approach point and homes with the radius the robot checks its goal with.
             'freeze clearance differs from a robot goal radius': lambda r: r['robots']['robot_b'].update(

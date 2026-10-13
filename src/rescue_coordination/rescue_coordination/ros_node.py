@@ -113,6 +113,8 @@ APPROACH_STATES = {'APPROVED': 'ASSIGNED', 'MOVING': 'IN_PROGRESS', 'AWAITING_AP
 AUTO_APPROACH_STATES = {'ISSUED': ('ASSIGNED', 'EXECUTING'), 'MOVING': ('IN_PROGRESS', 'EXECUTING'),
                         'ARRIVED': ('APPROACH_COMPLETE', 'STOPPED'), 'FAILED': ('FAILED', 'STOPPED')}
 SUPPORT_DISPATCH_MODES = frozenset({'AUTO', 'OPERATOR'})
+# TB-6 search start (owner decision 2026-10-13 evening, OPS-136; #85 changed): AUTO = the disaster sign starts it.
+SEARCH_START_MODES = frozenset({'AUTO', 'OPERATOR'})
 
 
 def system_mode(mode, phase):
@@ -269,8 +271,8 @@ class CoordinatorCore:
                  lease_message_ttl_ns, camera_watch, target_clock_domain_id, target_max_age_ns,
                  target_max_future_ns, support_dispatch, approach_standoff_m, support_pose_max_age_ns,
                  support_exit_wait_ns, recheck_max_clock_error_ns, map_mode, freeze_clearance_m,
-                 map_freeze_timeout_ns, map_snapshot_id, search_mode, patrol_points, patrol_rounds,
-                 exit_standoff_m, new_id=None):
+                 map_freeze_timeout_ns, map_snapshot_id, search_start, search_mode, patrol_points,
+                 patrol_rounds, exit_standoff_m, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -297,6 +299,9 @@ class CoordinatorCore:
         if camera_watch is not None and not isinstance(camera_watch, CameraWatchBook):
             raise CoordinationError('INVALID_POLICY', 'camera_watch must be a CameraWatchBook or None')
         self.camera_watch = camera_watch  # None: the profile has no TARGET_WATCH camera
+        if not isinstance(search_start, str) or search_start not in SEARCH_START_MODES:
+            raise CoordinationError('INVALID_POLICY', 'search_start must be AUTO or OPERATOR')
+        self.search_start = search_start
         if support_dispatch not in SUPPORT_DISPATCH_MODES:
             raise CoordinationError('INVALID_POLICY', 'support_dispatch must be AUTO or OPERATOR')
         finite(approach_standoff_m, 'approach_standoff_m')
@@ -528,8 +533,10 @@ class CoordinatorCore:
     def _search_reason(self):
         if self.start_pose_conflict:
             return 'START_POSE_CONFLICT'
+        if self.search_queued() and self.search_mode == 'PATROL' and self.start_pose is None:
+            return 'START_POSE_UNKNOWN'
         if self.search_queued():
-            return 'START_POSE_UNKNOWN' if self.search_mode == 'PATROL' and self.start_pose is None else 'SEARCH_QUEUED'
+            return self._search_wait_reason()
         if self.search_mode == 'PATROL' and self.mission.search_started:
             return 'PATROL_EXHAUSTED' if self.patrol_exhausted else f'PATROL_ROUND_{self.patrol_round}'
         return ''
@@ -1052,6 +1059,11 @@ class CoordinatorCore:
             self._cancel_queued_search('MODE_NOT_DISASTER')
         elif detail is not None and detail[2] in STOPPING_MOTION:
             self._cancel_queued_search('SCOUT_STOPPING')
+        elif self.search_start == 'AUTO' and not self.mission.search_authorized:
+            # The disaster sign is the start (OPS-136): the same authorization START_SEARCH gives; READY, lease,
+            # clock and stop gates stay in mission.plan. Withdrawn by a stop or the end of DISASTER as before.
+            self.mission.search_authorized = True
+            self.notes.append('SEARCH_AUTO_STARTED on DISASTER')
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
         self._freeze_tick(now_ns)
@@ -1085,6 +1097,11 @@ class CoordinatorCore:
             first = seen[1]
             self.last_reason = 'DUPLICATE'
             return self._reply(first['accepted'], 'DUPLICATE', first['reason_code'], first['created_task_id'])
+        if command.kind == 'START_SEARCH' and self.search_start == 'AUTO':
+            self.last_reason = 'AUTO_SEARCH_ENABLED'  # the disaster sign starts the search (OPS-136)
+            reply = self._reply(False, 'REJECTED', 'NOT_AUTHORIZED')
+            self.replies[command.command_id] = (command, reply)
+            return reply
         if command.kind == 'DISPATCH_SUPPORT' and self.support_dispatch == 'AUTO':
             # 1B: the coordinator dispatches the SUPPORT itself; the operator path is for OPERATOR mode only.
             self.last_reason = 'AUTO_DISPATCH_ENABLED'
@@ -1558,6 +1575,12 @@ class CoordinatorCore:
         """TARGET_REBASED_ON_FREEZE while a target re-based at the freeze waits for that revision to be saved."""
         return 'TARGET_REBASED_ON_FREEZE' if any(
             not self.mission.targets[t][2] for t in self.rebased if t in self.mission.targets) else ''
+    def _search_wait_reason(self):
+        """SEARCH_QUEUED while an accepted start waits; SEARCH_GOAL_NOT_SELECTED when there is no area to send
+        (the RViz pick is still missing, live_task_inputs.SelectedSearchGoal)."""
+        if not self.search_queued():
+            return ''
+        return 'SEARCH_QUEUED' if self.search.policy.areas else 'SEARCH_GOAL_NOT_SELECTED'
 
     def search_queued(self):
         """START_SEARCH accepted but the first area not reserved yet (the SCOUT is busy); shown as SEARCH_QUEUED."""
@@ -1751,7 +1774,8 @@ def build_core(values, *, map_snapshot_id):
                            recheck_max_clock_error_ns=seconds_to_ns(str(values['recheck_max_clock_error_s'])),
                            map_mode=values['map_mode'], freeze_clearance_m=values['freeze_clearance_m'],
                            map_freeze_timeout_ns=seconds_to_ns(str(values['map_freeze_timeout_s'])),
-                           map_snapshot_id=map_snapshot_id, search_mode=values['search_mode'],
+                           map_snapshot_id=map_snapshot_id, search_start=values['search_start'],
+                           search_mode=values['search_mode'],
                            patrol_points=patrol_points(values['patrol_points']),
                            patrol_rounds=values['patrol_rounds'], exit_standoff_m=values['exit_standoff_m'])
 
@@ -1819,6 +1843,8 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # Map (owner decision 2026-10-13, Q-29 ⑦): SLAM_FREEZE | SAVED_MAP; free radius around the approach point and
     # the homes on the frozen map (= the robots' goal_clear_radius_m); wait for the frozen map after the request.
     'map_mode': 'STRING', 'freeze_clearance_m': 'DOUBLE', 'map_freeze_timeout_s': 'DOUBLE',
+    # TB-6 search start (owner decision 2026-10-13 evening, OPS-136): AUTO (the disaster sign) | OPERATOR (button).
+    'search_start': 'STRING',
     # TB-6 search (OPS-136·139): PATROL | AREAS; rounds of the patrol points; TB-5's exit approach standoff.
     'search_mode': 'STRING', 'patrol_rounds': 'INTEGER', 'exit_standoff_m': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)

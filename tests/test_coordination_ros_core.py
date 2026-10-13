@@ -39,6 +39,7 @@ def make_core(policy_changes=None, **changes):
                   recheck_max_clock_error_ns=20_000_000, map_mode='SAVED_MAP', freeze_clearance_m=0.2,
                   map_freeze_timeout_ns=5_000_000_000, map_snapshot_id=lambda *basis: ':'.join(map(str, basis)),
                   search_mode='AREAS', patrol_points=(), patrol_rounds=1, exit_standoff_m=0.5,
+                  search_start='OPERATOR',
                   new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))
 

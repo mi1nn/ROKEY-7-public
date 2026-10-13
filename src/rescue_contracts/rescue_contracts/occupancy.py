@@ -61,3 +61,30 @@ def footprint_clear(*, frame, width, height, resolution, origin, data, x, y, rad
                 if not (0 <= cx < width and 0 <= cy < height) or data[cy * width + cx] != 0:
                     return False
     return True
+
+
+def _xy_yaw(value):
+    if (len(value) != 3 or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                                   for v in value)):
+        raise ValueError('planar pose must be three finite numbers (x, y, yaw)')
+    return tuple(float(v) for v in value)
+
+
+def compose_planar(start, relative):
+    """Map pose of ``relative`` given in the frame of ``start`` (both (x, y, yaw)); yaw in [-pi, pi].
+
+    Coordinates measured in advance are relative to the TB-6 start pose (OPS-141); the start pose
+    (first TB-6 SLAM pose of the run, map frame) turns them into map coordinates.
+    """
+    (sx, sy, syaw), (rx, ry, ryaw) = _xy_yaw(start), _xy_yaw(relative)
+    c, s = math.cos(syaw), math.sin(syaw)
+    yaw = syaw + ryaw
+    return sx + c * rx - s * ry, sy + s * rx + c * ry, math.atan2(math.sin(yaw), math.cos(yaw))
+
+
+def relative_planar(start, pose):
+    """Inverse of compose_planar: ``pose`` (map) expressed relative to ``start``."""
+    (sx, sy, syaw), (px, py, pyaw) = _xy_yaw(start), _xy_yaw(pose)
+    c, s = math.cos(syaw), math.sin(syaw)
+    dx, dy, yaw = px - sx, py - sy, pyaw - syaw
+    return c * dx + s * dy, -s * dx + c * dy, math.atan2(math.sin(yaw), math.cos(yaw))

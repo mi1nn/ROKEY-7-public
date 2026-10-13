@@ -46,10 +46,13 @@ COORDINATOR_KEYS = {
     'recheck_max_clock_error_s': F,
     # SLAM map frozen before TB-5 goes (owner decision 2026-10-13, Q-29 ⑦; coordination OPS-119)
     'map_mode': S, 'freeze_clearance_m': F, 'map_freeze_timeout_s': F,
+    # TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
+    'search_start': S,
     # TB-6 search (OPS-136·139): PATROL (points in TB-6's start pose) | AREAS; TB-5 exit approach standoff
     'search_mode': S, 'patrol_points': FL, 'patrol_rounds': I, 'exit_standoff_m': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
+SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS')  # rescue_coordination.ros_node.SEARCH_MODES
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
@@ -84,6 +87,7 @@ SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshne
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
+START_POSE_TOPIC = '/rescue/map/start_pose/'            # + SLAM robot id: origin of coordinates measured in advance
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
 WATCHDOG_KEYS = {'watchdog.version': S, 'step_period': F, 'watchdog.heartbeat_max_age_s': F,
                  'watchdog.command_max_age_s': F, 'watchdog.max_linear_mps': F, 'watchdog.max_angular_rps': F}
@@ -192,6 +196,8 @@ def load_field(path):
             raise FieldLaunchError('coordinator.search_mode PATROL needs PATROL_POINT in executable_bases')
     if coordinator['patrol_rounds'] < 1:
         raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
+    if coordinator['search_start'] not in SEARCH_START_MODES:
+        raise FieldLaunchError(f'coordinator.search_start must be one of {list(SEARCH_START_MODES)}')
     if coordinator['map_mode'] not in MAP_MODES:
         raise FieldLaunchError(f'coordinator.map_mode must be one of {list(MAP_MODES)}')
     _pair_map_modes(coordinator['map_mode'], robot_modes)
@@ -395,7 +401,9 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     if mode == 'SLAM_THEN_FROZEN':
         task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose while searching
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
-    if home is not None:
+    # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
+    # (OPS-139); a profile home here would be used until the first coordinator record.
+    if home is not None and mode != 'FROZEN_MAP_AMCL':
         task_input['task.live.home_xy_yaw'] = list(home)
     upstream = ns + '/cmd_vel_watchdog_in'
     watchdog = {'namespace': ns, 'cmd_vel_in_topic': upstream, 'cmd_vel_out_topic': ns + '/cmd_vel',
@@ -441,11 +449,22 @@ def frozen_localization_values(deployment, *, field, robot_id):
         if 'initial_pose_xy_yaw' not in section:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw is not measured yet: click the start on '
                                    f'the TB-6 map in a trial run, then python3 scripts/field/capture_initial_pose.py '
-                                   f'{ns}/amcl_pose map and add its line to the field run file')
+                                   f'{ns}/amcl_pose map and add its line (relative to the TB-6 start pose) to the '
+                                   f'field run file')
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
             'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
-            'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None}
+            'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
+            # initial_pose_xy_yaw is relative to the TB-6 start pose (OPS-141); the launch places it on the map
+            'start_pose_topic': START_POSE_TOPIC + _slam_robot(field) if mode == 'FROZEN_MAP_AMCL' else None}
+
+
+def _slam_robot(field):
+    slam = [robot_id for robot_id, section in field.robots.items()
+            if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
+    if len(slam) != 1:
+        raise FieldLaunchError('one SLAM_THEN_FROZEN robot is needed for the start pose')
+    return slam[0]
 
 
 def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):

@@ -21,7 +21,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
-from rescue_interfaces.msg import TargetObservation
+from rescue_interfaces.msg import MapState, TargetObservation
 from ultralytics import YOLO
 from rclpy._rclpy_pybind11 import RCLError
 from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
@@ -33,8 +33,10 @@ from rescue_contracts.clock_measurement import ClockSampler
 from .target_utils import (CLOCK_PARAMS, FIELD_PARAMS, SETTINGS, SensorHostClock, clock_binding, clock_values,
     target_config,
     PreparedDetector, OneShotTarget, fill_envelope,
-    fill_observation, fill_base_point, inference_from_result, decode_depth_png)
-from .adapter import camera_intrinsics, stamp_ns
+    fill_observation, fill_base_point, inference_from_result, decode_depth_png, localization_blockers)
+from .adapter import camera_intrinsics, rgb_frame, stamp_ns
+from .exit_qr import (EXIT_OBSERVATIONS_TOPIC, EXIT_PARAMS, ExitQrConfirmer, ExitSender, detect_qr, detector_identity,
+    exit_values, fill_exit_observation, qr_point)
 from .recheck import CameraModel, scan_state
 from .recheck_feed import (RECHECK_PARAMS, Candidate, depth_median, depth_rows_m, frame_evidence, recheck_values,
     rigid_from_tf, scan_fields)
@@ -53,11 +55,15 @@ def create_node(*, model_factory=None, transform_lookup=None):
         v.update(clock_values(read_field_parameters(node, CLOCK_PARAMS)))
         recheck_policy, recheck = recheck_values(read_field_parameters(node, RECHECK_PARAMS))
         v.update(recheck)
+        exit_fields = read_field_parameters(node, EXIT_PARAMS)
+        exit_policy, exit_map_state_topic = exit_values(exit_fields)
+        v.update(exit_fields)
         boot_id = str(uuid4())
         binding, alignment, depth_policy, expiry, confirmation, covariance = target_config(v, boot_id)
         topic_keys = ('image_topic', 'depth_topic', 'camera_info_topic', 'annotated_topic',
                       'observations_topic', 'base_point_topic')
         topics = {key: node.resolve_topic_name(v[key]) for key in topic_keys}
+        topics['exit_observations_topic'] = node.resolve_topic_name(EXIT_OBSERVATIONS_TOPIC)
         if len(set(topics.values())) != len(topics):
             raise ValueError('remapped input/output topics must differ')
         path, model_hash = verify_model(v['model_path'], v['model_sha256'])
@@ -90,7 +96,21 @@ def create_node(*, model_factory=None, transform_lookup=None):
                 target, source, Time(nanoseconds=stamp))
         image_pub = node.create_publisher(Image, topics['annotated_topic'], 1)
         state = {'info': None, 'last_success': time.monotonic(),
-                 'warning': 0., 'frames': 0, 'observation_seq': 0}
+                 'warning': 0., 'frames': 0, 'observation_seq': 0, 'exit_seq': 0, 'exit_map': None}
+        # Exit QR (OPS-136/138): same frames, clock and undistortion as the targets; its own sender.
+        exit_pub = node.create_publisher(TargetObservation, topics['exit_observations_topic'],
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                       durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        exit_confirmer, exit_sender = ExitQrConfirmer(exit_policy), ExitSender()
+        exit_model_id, exit_model_sha256 = detector_identity()
+        exit_blockers = localization_blockers(v)
+
+        def on_exit_map_state(msg):   # which TB-6 map the next exit observation is for (one per revision)
+            if msg.robot_id == v['robot_id']:
+                state['exit_map'] = ((msg.map_session_id, int(msg.map_revision))
+                                     if msg.localization_quality == 'VALID' else None)
+        node.create_subscription(MapState, exit_map_state_topic, on_exit_map_state, QoSProfile(  # IF-009, latched
+            depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
         sender = OneShotTarget()
         # Observation clock measured on this host (OPS-103 decision 1, like the webcam #146).
@@ -196,6 +216,42 @@ def create_node(*, model_factory=None, transform_lookup=None):
                     f'base point unavailable; camera observation {o.observation_id} retained: '
                     f'{type(exc).__name__}: {exc}')
 
+        def feed_exit(frame, rgb, stamp, info, depth):
+            """One frame for the exit QR run; a confirmed run publishes once per map revision."""
+            if not exit_confirmer.due():   # one frame in exit_qr_every_n_frames (CPU, OPS-141)
+                return
+            try:
+                found = detect_qr(frame)
+                point = None
+                if found is not None and found[0] == exit_policy.payload and not exit_blockers:
+                    intrinsics = camera_intrinsics(info, pipeline.binding, rectified=v['rgb_rectified'])
+                    if intrinsics.rectified or intrinsics.undistort is not None:
+                        rows = depth_rows_m(bridge.imgmsg_to_cv2(depth, desired_encoding='passthrough'),
+                                            depth.encoding, depth_policy.scale, depth_policy.offset_m)
+                        point = qr_point(found[1], rows, fx=intrinsics.fx, fy=intrinsics.fy, cx=intrinsics.cx,
+                                         cy=intrinsics.cy, undistort=intrinsics.undistort,
+                                         min_valid_ratio=exit_policy.min_valid_depth_ratio)
+                elif found is not None and found[0] != exit_policy.payload:
+                    node.get_logger().warning(f'QR {found[0]!r} is not the exit QR', throttle_duration_sec=5.0)
+                if not exit_confirmer.add(found[0] if found else None, point):
+                    return
+                if not exit_sender.send(state['exit_map']):
+                    return
+                message = fill_exit_observation(
+                    TargetObservation(), observation_id=str(uuid4()), binding=pipeline.binding,
+                    frame_id=rgb.header.frame_id, observed_at_ns=stamp, validity_ns=expiry.validity_ns,
+                    corners=found[1], point=point, covariance=covariance, model_id=exit_model_id,
+                    model_sha256=exit_model_sha256, evidence_id=f'{boot_id}/{stamp}/frame',
+                    evidence_sha256=rgb_frame(rgb, pipeline.binding)[1])
+                envelope(message.envelope, 'exit_seq', node.get_clock().now().nanoseconds)
+                exit_pub.publish(message)
+                p = message.sensor_position
+                node.get_logger().info(f'exit QR confirmed observation={message.observation_id} map={state["exit_map"]} '
+                                       f'sensor=({p.x:.3f}, {p.y:.3f}, {p.z:.3f}) clock={message.time.clock_state}')
+            except Exception as exc:   # the frame says nothing about the exit
+                exit_confirmer.add(None, None)
+                node.get_logger().warning(f'exit QR frame {stamp} skipped: {type(exc).__name__}: {exc}')
+
         def on_pair(rgb_message, depth_message):
             try:
                 info = state['info']
@@ -211,6 +267,7 @@ def create_node(*, model_factory=None, transform_lookup=None):
                          if v['depth_transport'] == 'compressedDepth' else depth_message)
                 detector.prepare(stamp, inference_from_result(result, manifest))
                 pipeline.binding = clock_binding(binding, clock['record'], stamp, sensor_host)
+                feed_exit(frame, rgb, stamp, info, depth)
                 findings = pipeline.process(rgb, depth, info)
                 if findings.status != 'PROCESSED':
                     node.get_logger().warning(f'RGB-D frame skipped: {findings.status}')
@@ -258,7 +315,10 @@ def create_node(*, model_factory=None, transform_lookup=None):
         node.create_timer(v['no_frame_warn_s'], warn_stalled)
         node.get_logger().info(f'amr_target git={git_sha()} boot={boot_id} model_sha256={model_hash} '
             f'parameters={json.dumps(v, sort_keys=True)} depth_scale={depth_policy.scale} '
-            f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id}')
+            f'depth_offset_m={depth_policy.offset_m} calibration_id={binding.calibration_id} '
+            f'exit_qr model_id={exit_model_id} model_sha256={exit_model_sha256} '
+            f'every_n_frames={exit_policy.every_n_frames} required_frames={exit_policy.required_frames} '
+            f'exit_blockers={",".join(exit_blockers) or "none"}')
         return node
     except Exception:
         node.destroy_node()
