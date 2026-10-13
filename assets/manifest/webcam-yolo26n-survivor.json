@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-12",
+  "purpose": "Fixed webcam survivor detection (webcam_node, target disappearance candidate)",
+  "not_for": "AMR OAK-D camera (use assets/models/best.pt, assets/manifest/yolo26n-survivor-v2.json)",
+  "model": {
+    "path": "assets/models/webcam-yolo26n-best.pt",
+    "sha256": "8b61f691f17a538410c80d6d8ef7aad7ad80b77365f76a9963e6164e797f18d5",
+    "size_bytes": 5396485,
+    "architecture": "yolo26n",
+    "class_labels": ["survivor"],
+    "imgsz": 640,
+    "checkpoint_date": "2026-10-11T13:26:01Z"
+  },
+  "source": {
+    "notebook": "tools/colab/survivor_model_compare.ipynb",
+    "drive_path": "survivor_model_compare/results/runs/yolo26n/weights/best.pt",
+    "dataset_zip": "survivor-v2-merged.zip",
+    "dataset_zip_sha256": "46d901fc3756488a4547a7fd4c9578f47ad2e71394ec1fa8a8521edb3327ee7a",
+    "training": "100 epoch, patience 30, imgsz 640, batch 16, seed 0, Colab T4"
+  },
+  "results": "docs/implementation/webcam-survivor-compare/",
+  "selection": "docs/implementation/implementation-perception.md, 고정 웹캠 인형 탐지 모델 비교 (test mAP50-95 0.920)",
+  "authority": "User approved adding webcam weights to repository (2026-10-12); exception to AGENTS.md section 8 (files outside repository), owner confirmation requested in PR"
+}

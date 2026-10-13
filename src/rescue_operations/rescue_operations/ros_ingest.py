@@ -18,6 +18,10 @@ VISIBLE = "VALID"
 # RobotPose.MISSION_POSE_STATUS_VALID: only a valid mission-frame pose is shown.
 POSE_VALID = "VALID"
 UNKNOWN_ROLE = "UNKNOWN"
+CONFIRMED = "CONFIRMED"  # TargetEstimate.CONFIRMATION_STATE_CONFIRMED
+# TargetEstimate.approach_state -> target_states.support_state (#96 comment default [제안]).
+SUPPORT_STATES = {"UNASSIGNED": "NONE", "CANCELED": "NONE", "ASSIGNED": "ASSIGNED", "IN_PROGRESS": "ASSIGNED",
+                  "APPROACH_COMPLETE": "ARRIVED", "BLOCKED": "FAILED", "UNREACHABLE": "FAILED", "FAILED": "FAILED"}
 MAX_DETAIL = 1024
 
 
@@ -109,6 +113,36 @@ def mission_from_msg(msg):
         raise _invalid(exc, "system state") from exc
 
 
+def target_from_msg(msg, *, published_at_ns, support_robot_id):
+    """rescue_interfaces/TargetEstimate (#96) -> site_state target row (validated when recorded).
+
+    Defaults asked on #96 [제안]: the snapshot's publish time orders the rows (latest_observed_at_ns
+    stays put when only the approach changes, estimate_revision restarts with the coordinator); the
+    map basis is the last location's frame_ref; the SUPPORT robot of the profile is the support
+    robot. estimate_revision is kept as target_revision (#115: the console sends it back with
+    DISPATCH_SUPPORT); persisted_report_id is kept, empty -> None (#118: the console enables dispatch
+    only with it). Not in the message, so empty: rescue_reasons, verdict_id. Dropped: locations
+    beyond the last frame_ref, latest_observed_at_ns, valid_until_ns, covariance and segment_phase
+    (in mission_state).
+    """
+    try:
+        support = SUPPORT_STATES.get(msg.approach_state)
+        require(support is not None, f"approach_state {msg.approach_state!r} is not a TargetEstimate value")
+        position = None
+        if msg.locations:
+            frame = msg.locations[-1].frame_ref
+            point = msg.mission_position
+            position = {"x": float(point.x), "y": float(point.y), "frame_id": frame.mission_frame,
+                        "map_session_id": frame.map_session_id, "map_revision": frame.map_revision}
+        return dict(target_id=msg.target_id, position=position,
+                    detection_confirmed=msg.confirmation_state == CONFIRMED, rescue_state=msg.rescue_state,
+                    rescue_reasons=[], verdict_id=None, support_state=support,
+                    support_robot_id=None if support == "NONE" else support_robot_id, updated_at_ns=published_at_ns,
+                    target_revision=msg.estimate_revision, persisted_report_id=_optional(msg.persisted_report_id))
+    except (OperationsError, AttributeError, TypeError, ValueError) as exc:
+        raise _invalid(exc, "target") from exc
+
+
 class SiteStateIngest:
     """Writes converted messages through one SiteStateLedger; failures go to error_log."""
 
@@ -156,6 +190,30 @@ class SiteStateIngest:
         except OperationsError as exc:
             self._log(exc, received_at_ns, f"system_state seq {getattr(msg, 'state_sequence', None)!r}")
             return None
+
+    def on_target_snapshot(self, msg, *, received_at_ns):
+        """True any target stored, False all older or identical, None any target refused (each logged).
+
+        Targets are written one by one, so a refused target does not hold back the others.
+        """
+        supports = [robot for robot, role in self.roles.items() if role == "SUPPORT"]
+        support_robot_id = supports[0] if supports else None
+        stored, refused = False, False
+        try:
+            published_at_ns, targets = msg.envelope.published_at_ns, list(msg.targets)
+        except (AttributeError, TypeError) as exc:
+            self._log(_invalid(exc, "target snapshot"), received_at_ns,
+                      f"target_snapshot {getattr(msg, 'snapshot_id', None)!r}")
+            return None
+        for item in targets:
+            target = getattr(item, "target_id", None)
+            try:
+                stored |= self.ledger.record_target_state(
+                    target_from_msg(item, published_at_ns=published_at_ns, support_robot_id=support_robot_id))
+            except OperationsError as exc:
+                self._log(exc, received_at_ns, f"target {target!r}")
+                refused = True
+        return None if refused else stored
 
     def _log(self, exc, received_at_ns, what, robot_id=None, task_id=None):
         detail = f"{what}: {exc.detail_code}: {exc.detail}"[:MAX_DETAIL]

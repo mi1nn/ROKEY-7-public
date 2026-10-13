@@ -103,7 +103,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 ## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
 
-웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 가중치·영상·데이터셋은 저장소에 넣지 않는다(선정 뒤 `assets/manifest/` 에 출처·해시 기록). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
+웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 영상·데이터셋은 저장소에 넣지 않는다. 선정한 yolo26n 가중치는 `assets/models/webcam-yolo26n-best.pt`, 출처·해시는 [`assets/manifest/webcam-yolo26n-survivor.json`](../../assets/manifest/webcam-yolo26n-survivor.json) 이다(2026-10-12 사용자 승인, AGENTS 8절 예외). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
 
 - #95 와의 관계: #95 는 **AMR 카메라(OAK-D)** 용 yolo26n 이고, 이 절은 **고정 웹캠** 용이다. 같은 모델 구조지만 학습 데이터(카메라·화각·장면)가 달라 가중치를 서로 바꿔 쓰지 않는다.
 - 노트북: `tools/colab/survivor_model_compare.ipynb` — Colab 한 번 실행으로 학습·평가·속도·오탐/미탐·bootstrap 95% 구간·요약. 끝난 모델은 건너뛰고, 한 모델이 실패해도 나머지를 계속하며 실패를 기록한다.
@@ -142,10 +142,11 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 | 있음 | 점수 ≥ `score_min` 이고 상자 면적 중 ROI 안 비율 ≥ `roi_overlap_min` 인 상자가 하나라도 있으면 PRESENT |
 | 무장 | `present_confirm_frames` 연속 있음 뒤에만 소실을 잰다. 한 번도 못 보면 UNKNOWN(`NOT_YET_SEEN`) — ROI 오류를 드러낸다 |
 | 소실 | 무장 뒤 VALID 프레임에서 "없음"이 `absent_hold_ns` 이상·`absent_min_frames` 이상 이어지면 ABSENT_CANDIDATE. 사건은 watch 하나에 하나(같은 watch → 같은 event_id) |
+| 출구 방향 | 소실 시간을 채워도 **감시 중인 인형이 출구 쪽으로 사라졌을 때만** 후보(사용자 결정 2026-10-12, Q-26 추가 항목). 인형은 직전 위치에서 `track_max_jump` 이내의 가장 가까운 상자로 따라가고, 화면 가림 중에도 모델 상자로 따라간다. 사라질 때 마지막 중심이 `exit_roi_xyxy_normalized` 안이면 후보, 아니면(반대쪽·제자리에서 사라짐, 화면 안 다른 곳) UNKNOWN(`NOT_VIA_EXIT`) — 운영자 판단 |
 | 판정 불가 | 가림(OCCLUDED)·영상 상태 불명·탐지기 결과 없음은 UNKNOWN, 소실 시간을 다시 잰다. 후보를 만들지 않고 관제 웹의 운영자 판단(REQUEST_RECHECK, C-11 10행)으로 넘긴다. 간격 > `max_gap_ns` 도 다시 잰다 |
 | 순서 | 중복·역순 프레임은 상태를 바꾸지 않는다. 재생하면 같은 결과·같은 ID |
 
-`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(15개, 합성 상자)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
+`visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(21개, 합성 상자. 출구 방향 6개 추가 2026-10-12)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
 
 ## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
 
@@ -164,13 +165,18 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
 - 시각은 프레임을 받은 직후 system time(`DRIVER_RECEIVE`), 시계 상태는 동기 확인 전 `UNKNOWN`. 증거 sha256 은 그 프레임 원 픽셀(bgr8)의 해시이고, 사진 바이트를 operations 로 올리는 일은 후속이다.
 - 파라미터는 기본값이 없다. 예시와 시작값은 `src/rescue_perception/rescue_perception/config/webcam_node.example.yaml`(설치하면 `share/rescue_perception/config/` 에도 있다) [제안, 2026-10-12] 이고 확정은 PC3 실측 뒤 배포 프로파일로 옮긴다. 의존: `rclpy`·`rescue_interfaces`·`python3-opencv`(package.xml), `ultralytics`(pip).
 - 스모크 [측정, 2026-10-12, 개발 Mac·ROS 없음]: 노드와 같은 호출 순서(지진 판정 → yolo26n → 소실 판정)를 녹화 TEST 영상(약 4분, 5 fps 로 솎음)에 넣었다. 첫 프레임 인형 둘레를 ROI 로 감시를 걸자 ACCEPTED, 인형을 옮긴 7.8 초에 소실 후보 1개, 지진 사건 0, 화면 가림 42 프레임은 UNKNOWN(OCCLUDED). 프레임당 중앙값: 지진 판정 25 ms, yolo26n 32 ms(Apple M3 Pro CPU). PC3 값이 아니다.
+- 출구 방향 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠, 출구 = 프레임 왼쪽 `[0.0, 0.0, 0.2, 1.0]`]: 왼쪽으로 들고 나감 → 후보 1건(`last_seen_center=(0.030,0.707)`), 오른쪽으로 들고 나감 → 후보 없음·UNKNOWN, 화면 안 다른 곳으로 옮김 → 후보 없음·UNKNOWN. 처음엔 옮기는 사람 때문에 화면 전체가 OCCLUDED 인 동안 추적이 멈춰 출구로 나가도 NOT_VIA_EXIT 였다 → 가림 중에도 상자로 추적(기록 470 프레임 재생으로 확인). 감시는 인형이 ROI 안에서 3 프레임 연속 보여야 시작하므로, 시험 때는 PRESENT 확인 뒤 옮긴다.
+- 판정 화면용 영상: `debug_image_topic`(빈 문자열이면 끔)에 지진 판정(4×4 블록 격자·화면 이동 화살표·방향 전환 횟수)과 출구 영역·인형 상자·추적 선·상태를 그린 JPEG(`sensor_msgs/CompressedImage`, BEST_EFFORT)을 낸다. 판정에는 쓰지 않는다. 약 6 Hz, 640×480 한 장 35 kB [측정, 2026-10-12].
+- 카메라 상태: SDD `CameraStatus` 계약("정지 영상·끊김·가림은 UNKNOWN")대로, 지진 판정이 화면 가림(`OCCLUDED`·`SCENE_CHANGED`·`QUADRANT_COVERED`)을 보면 `UNKNOWN` 과 그 이유(`quality_reason`)를 낸다. 전에는 가려도 `ONLINE` 이라 감시가 없는 평상시 가림이 드러나지 않았다(2026-10-12 실기).
+- 파이프라인 실기 [측정, 2026-10-12, ROS 시험 PC·USB 웹캠]: 시험용 대시보드(저장소 밖)가 조정기 대신 `DISASTER_SIGN` 을 받자마자 `SetCameraWatch`(화면 전체 ROI)를 걸었다. 흔들기 → 지진 감지 → 자동 감시 → 인형 있음 → 출구로 나감 → 구출 후보 1건, 반대쪽으로 나감 → 후보 없음. 손으로 렌즈를 가리거나 사람이 카메라 바로 앞을 지나가면 카메라 상태 `UNKNOWN`·판정 보류로 지진 사건 없음, 감시 중 사람이 인형 뒤로 지나가면 PRESENT 유지.
+- USB 끊김: 웹캠을 손으로 흔들다 USB 연결이 끊긴 기록이 있다(커널 로그 2026-10-12 20:26:43). 이 PR 의 노드(장치 경로 #119·종료 처리 #121 포함)로 USB 를 소프트웨어로 끊었다가(`/sys/bus/usb/devices/<포트>/authorized` 0→1) 10초 뒤 다시 붙이면, 감시가 없을 때와 있을 때 모두 `OFFLINE`(READ_FAILED → 2초마다 OPEN_FAILED)을 내고 다시 붙은 지 1초 안에 `ONLINE` 으로 돌아왔다. 감시도 그대로 이어졌다 [측정, 2026-10-12]. 그 전 빌드(장치 번호로 열던 때)에서 손으로 뽑았을 때는 OFFLINE 없이 멈춘 적이 두 번 있다 — 물리적으로 뽑는 경우는 이 빌드로 다시 확인해야 한다(NOT_RUN).
 - ROS 실행 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인]: `ROS_DOMAIN_ID` 를 로봇과 다른 값으로, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 설정 해제. USB 웹캠(640×480), 모델 sha256 `8b61f691…` 일치.
   - 기동 로그: git SHA·boot id·모델 경로·sha256·카메라·해상도·주기·정책 값 전부 한 줄. SIGINT 종료 로그 남음.
   - status·site_events·presence 토픽과 set_watch 서비스가 뜬다. status ONLINE, 5.00 fps(목표 5).
   - CPU(코어 1개 기준 `top`): 감시 없음 약 33%(지진 판정만), 감시 중 약 42%(+ yolo26n). RSS 약 600 MB. 감시를 건 직후 첫 10초 구간만 4.1 fps(첫 추론 준비), 이후 5.00.
   - 감시 걸기(OPERATOR_ROI, 인형 둘레 ROI) → ACCEPTED·revision 1, presence PRESENT/VALID. 인형을 치우자 마지막으로 본 뒤 약 3.3 초(17 프레임)에 `TARGET_DISAPPEARED_CANDIDATE` 1건, presence ABSENT_CANDIDATE. 웹캠을 흔들자 `DISASTER_SIGN` 1건(방향 전환 4/4).
   - 고친 것: `watch_id` 가 UUID 가 아닌 요청이 INVALID_INPUT 으로만 남고 이유가 로그에 없었다 → 거절 이유를 로그에 붙인다(`detail=watch_id: canonical nonzero UUID required`).
-  - 주의: `device_index` 는 꽂는 순서로 바뀐다(이 PC 는 내장 카메라가 0, USB 웹캠이 2). 현장에서 다른 카메라를 열 수 있다.
+  - 카메라 번호는 꽂는 순서로 바뀌었다(이 PC 는 내장 카메라가 0, USB 웹캠이 2) → 파라미터를 `device_index`(번호) 대신 `device_path`(`/dev/v4l/by-id/...` 고정 경로)로 바꿨다(2026-10-12). 기동 로그에 실제 장치(`/dev/videoN`)를 함께 남긴다.
 - NOT_RUN: PC3 에서의 실행, 장시간·오탐률 측정, coordinator 의 SetCameraWatch 호출과 연결, 실기.
 
 ## 공개 API와 E2 실행
