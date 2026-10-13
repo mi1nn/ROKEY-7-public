@@ -26,9 +26,9 @@ from test_coordination_approach import pose_msg
 from test_coordination_frontier import scout_pose
 from test_coordination_map_freeze import map_state
 from test_coordination_mission_end import ORIGIN, RES, H, W, RealGrid
-from test_coordination_ros_core import SCOUT, SUPPORT, admission_msg, make_core
-from test_coordination_search import NOW
-from test_coordination_two_freezes import R1, Base
+from test_coordination_ros_core import SCOUT, SUPPORT, admission_msg, make_core, request, site_msg, status_msg
+from test_coordination_search import NOW, uid
+from test_coordination_two_freezes import R1, Base, core_
 
 S = 1_000_000_000
 MIN_SEP, CLEAR, YIELD_MAX, STOP_TIMEOUT = 0.6, 0.6, 2.0, 3 * S
@@ -125,12 +125,25 @@ class UnmeasuredTb5StartTests(TrafficBase):
         self.scout_at((1., 4.2))
         first = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
         self.assertIn(f'TRAFFIC_SEPARATION_UNCHECKED task={first["task_id"]}', ' '.join(self.core.drain_notes()))
-        self.assertEqual('TRAFFIC_SEPARATION_UNCHECKED', self.reason(NOW))
         self.finish(first)
-        self.scout_at((2., 4.2), NOW + 1)
+        self.scout_at((2., 4.2), NOW + 1, grid=scout_grid(unknown=lambda x, y: y < 1.))  # another frontier
         second = self.sent(NOW + 1)[(SCOUT, 'SEARCH_AREA')]
         self.assertIn(f'TRAFFIC_SEPARATION_UNCHECKED task={second["task_id"]}', ' '.join(self.core.drain_notes()))
-        self.assertEqual('TRAFFIC_SEPARATION_UNCHECKED', self.reason(NOW + 1))
+
+    def test_system_state_shows_it_when_nothing_else_holds(self):
+        # Before the doll's freeze nothing else is held: SystemState.reason shows the check is off.
+        core = core_(**self.CORE)
+        core.on_map_state(map_state(SCOUT, revision=3))
+        core.on_start_pose((0., 0., 0.))
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_status(status_msg(SUPPORT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(scout_grid())
+        core.on_pose(scout_pose((1., 4.2)))
+        self.assertIn('SEARCH_AREA', [f['kind'] for f in core.tick(NOW)])
+        core.system_state_change(NOW)
+        self.assertEqual('TRAFFIC_SEPARATION_UNCHECKED', core.last_state['reason'])
 
 
 class StopThenStepAsideTests(TrafficBase):

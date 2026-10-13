@@ -109,7 +109,8 @@ TRAFFIC_REASONS = ('TRAFFIC_SUPPORT_WAITING_SCOUT_STOP',   # TB-6 canceled for T
                    'TRAFFIC_SCOUT_HELD_FOR_SUPPORT',       # a new TB-6 goal near TB-5's path while TB-5 goes
                    'TRAFFIC_ROBOTS_TOO_CLOSE',             # under traffic_min_separation_m (now, or at the goal)
                    'TRAFFIC_SUPPORT_PATH_UNKNOWN',         # no clear grid path for TB-5 on the frozen map
-                   'TRAFFIC_SCOUT_POSE_UNKNOWN', 'TRAFFIC_SUPPORT_POSE_UNKNOWN')  # cannot tell where the other is
+                   'TRAFFIC_SCOUT_POSE_UNKNOWN', 'TRAFFIC_SUPPORT_POSE_UNKNOWN',  # cannot tell where the other is
+                   'TRAFFIC_SEPARATION_UNCHECKED')  # TB-6 goes, TB-5's start spot not measured (shown, not a hold)
 SCOUT_MAP_TOPIC = '/robot6/map'  # TB-6 live SLAM OccupancyGrid (통합-로봇 OPS-159 ④) [추정: 실기 미확인]
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
@@ -478,7 +479,7 @@ class CoordinatorCore:
         self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
         self.yield_count = 0
-        self.separation_unchecked_noted = False
+        self.separation_unchecked = False  # TB-6 goes without the separation check (TB-5 start not measured)
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -1321,7 +1322,8 @@ class CoordinatorCore:
             policy_version=self.search.policy.version,
             reason=self.issue_block or self._rebase_reason() or self.mission_reason(now_ns) or self._search_reason() or (
                 self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
-                self.location_refusal or ''),
+                self.location_refusal or '') or (
+                'TRAFFIC_SEPARATION_UNCHECKED' if self.separation_unchecked else ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -1392,6 +1394,7 @@ class CoordinatorCore:
         self.last_tick_ns = now_ns
         self.issue_block = None  # only holds that still stand (OPS-70-01); the issuers below set them again
         held_before, self.traffic_hold, self.traffic_wait_path = self.traffic_hold, {}, None
+        self.separation_unchecked = False  # set again below while it still holds
         self._expire_unadmitted(now_ns)
         self._watch_tick(now_ns)
         detail = self.status_detail.get(self.roles['SCOUT'])
@@ -1753,6 +1756,10 @@ class CoordinatorCore:
 
     def _moving(self, role, task_id, goal_xy):
         self.task_goal[task_id] = goal_xy
+        if role == 'SCOUT' and self.separation_unchecked:
+            self.notes.append(f'TRAFFIC_SEPARATION_UNCHECKED task={task_id} goal=({goal_xy[0]:.2f}, {goal_xy[1]:.2f}): '
+                              'TB-5 has not moved and its start spot is not measured (support_start_pose), so TB-6 '
+                              'is not kept traffic_min_separation_m from it')
         if role == 'SUPPORT' and self._traffic_on():
             self.support_path, self.traffic_wait_path = self.traffic_wait_path, None
 
@@ -1880,10 +1887,8 @@ class CoordinatorCore:
         if support_xy is None and self._tb5_never_sent():
             # TB-5 stands where it started and has no path. Its start spot is not measured yet (field file
             # robots.<TB-5>.initial_pose_xy_yaw): holding TB-6 would hold the doll's freeze and so TB-5 itself.
-            if not self.separation_unchecked_noted:
-                self.separation_unchecked_noted = True
-                self.notes.append('TRAFFIC_SEPARATION_UNCHECKED TB-5 has not moved and its start spot is not measured '
-                                  '(support_start_pose); TB-6 is not kept traffic_min_separation_m from it')
+            # Never silent (team rule 6): each TB-6 goal sent so is logged (_moving) and SystemState shows it.
+            self.separation_unchecked = True
             return True
         if support_xy is None:
             return self._hold('SCOUT', 'TRAFFIC_SUPPORT_POSE_UNKNOWN')
