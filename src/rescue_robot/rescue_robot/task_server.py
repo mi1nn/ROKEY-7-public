@@ -68,7 +68,8 @@ def ros_bindings():
 class TaskActionServer:
     def __init__(self, node, ingress, *, action_name, lease_topic, admission_topic, status_topic,
                  poll_period_s, schema_version, publisher_id, lookup_lease,
-                 accept_lease, encode_result, bindings=None, lease_rejection_reason=None, before_result=None):
+                 accept_lease, encode_result, bindings=None, lease_rejection_reason=None, before_result=None,
+                 feedback_reason=None):
         for value in (action_name, lease_topic, admission_topic, status_topic, schema_version, publisher_id):
             if not isinstance(value, str) or not value:
                 raise ContractError('explicit endpoint and envelope settings required')
@@ -88,6 +89,7 @@ class TaskActionServer:
         # before encoding (e.g. the recheck observation after a confirmed stop). It never changes
         # the executor outcome or stop evidence; the encoder still checks those.
         self.before_result = before_result
+        self.feedback_reason = feedback_reason  # () -> non-latched reason_code for feedback, '' when none
         self.schema_version, self.publisher_id = schema_version, publisher_id
         self.sequence = 0
         self.status_sequence = 0
@@ -268,7 +270,7 @@ class TaskActionServer:
                     feedback.segment_index = (handle.request.route.segment_index
                                               if getattr(handle.request, 'has_route', False) else 0)
                     feedback.distance_remaining_known = False
-                    feedback.reason_code = ''
+                    feedback.reason_code = self.feedback_reason() if self.feedback_reason is not None else ''
                     pose = feedback.current_pose
                     pose.robot_id, pose.source_boot_id = executor.robot_id, executor.robot_boot_id
                     pose.mission_pose_status = 'UNKNOWN'

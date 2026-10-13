@@ -25,6 +25,15 @@ def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revisio
                                       xy_yaw=[float(v) for v in xy_yaw])}
 
 
+def passage_from_parameters(polygon_name, result_window_ns):
+    """TB-5 passage reporting (live_passage): both values or neither; half a setting is refused."""
+    if polygon_name is None and result_window_ns is None:
+        return None
+    if polygon_name is None or result_window_ns is None:
+        raise ContractError('task.live.passage.polygon_name and task.live.passage.result_window_ns go together')
+    return dict(polygon_name=polygon_name, result_window_ns=result_window_ns)
+
+
 def read_config(node, adapter):
     from rcl_interfaces.msg import ParameterType as T
     from rescue_robot.ros_node import declare_required
@@ -118,6 +127,17 @@ def read_config(node, adapter):
         c['configured_destinations'] = home_destinations(adapter.robot_id, list(home), frame_id=c['mission_frame'],
             map_session_id=m['map_session_id'], map_revision=frozen_revision(m),
             transform_revision=m['transform_revision'])
+    # Optional (TB-5): the collision_monitor polygon that stops it before a low passage (OPS-128)
+    passage = []
+    for name, kind in (('polygon_name', Parameter.Type.STRING), ('result_window_ns', Parameter.Type.INTEGER)):
+        node.declare_parameter('task.live.passage.' + name, kind)
+        try:
+            passage.append(node.get_parameter('task.live.passage.' + name).value)
+        except ParameterUninitializedException:
+            passage.append(None)
+    passage = passage_from_parameters(*passage)
+    if passage is not None:
+        c['passage'] = passage
     if not 0 < c['poll_period_s'] * 1e9 < c['live_clock']['max_age_ns']:
         raise ContractError('clock polling period must be positive and shorter than measurement age budget')
     if c['live_clock']['backend'] not in ('chrony','timesyncd') or c['live_clock']['drift_ppm'] <= 0:
