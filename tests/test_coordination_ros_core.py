@@ -214,7 +214,8 @@ class ScoutDispatchTests(CoreTestCase):
         self.finish(recheck)
         (search,) = self.core.tick(NOW)
         self.assertEqual('SEARCH_AREA', search['kind'])
-        self.assertEqual('', self.core.system_state_change(NOW)['reason'])
+        # The recheck completed without an observation: judged RECHECK_NEEDED (C-11 row 5), shown in place of the queue.
+        self.assertEqual('RECHECK_NEEDED_RECHECK_OBSERVATION_MISSING', self.core.system_state_change(NOW)['reason'])
 
     def test_stop_cancels_the_waiting_search(self):
         for stop in ('status', 'canceled', 'mode'):

@@ -111,11 +111,19 @@ class RescueFlowTests(unittest.TestCase):
         self.core.on_result(fields['task_id'], result(fields, obs=recheck(fields, sensor_window_start_ns=early)))
         self.assertEqual('RECHECK_NEEDED_ORDER_VIOLATION', self.core.system_state_change(NOW)['reason'])
 
-    def test_completed_without_a_recheck_observation_is_issued_again(self):
+    def test_completed_without_a_recheck_observation_is_recheck_needed_not_reissued(self):
+        # Row 5: no new task after COMPLETED; nothing to judge closes the recheck for an operator REQUEST_RECHECK.
         self.accepted_candidate()
         first = self.reobserve()
         self.core.on_result(first['task_id'], result(first))
-        self.assertNotIn(self.target, self.core.mission.verdicts)
+        self.assertEqual('RECHECK_NEEDED', self.core.mission.verdicts[self.target])
+        self.assertEqual('RECHECK_NEEDED_RECHECK_OBSERVATION_MISSING', self.core.system_state_change(NOW)['reason'])
+        self.assertEqual([], self.tasks('REOBSERVE_TARGET'))
+
+    def test_a_recheck_that_did_not_complete_is_issued_again(self):
+        self.accepted_candidate()
+        first = self.reobserve()
+        self.core.on_result(first['task_id'], result(first, outcome='FAILED'))
         (again,) = self.tasks('REOBSERVE_TARGET')
         self.assertNotEqual(first['task_id'], again['task_id'])
 
