@@ -1,21 +1,33 @@
 {
   "metadata": {
-    "version": "0.1",
-    "status": "DESIGN_PROPOSAL_NOT_IMPLEMENTED",
-    "date": "2026-10-09",
-    "repository_head": "d03b6c8d70db49e098818b4d8463b22c258d9065",
-    "scope": "2 AMR / 4 PC / 1 fixed webcam viewing dummy rescue site; existing segment wire contracts plus camera leg-skeleton continuous-following requirement pending Q-27",
+    "version": "0.2-design",
+    "status": "POST_E2E_PM_SCENARIO_PROPOSAL_NOT_IMPLEMENTED",
+    "date": "2026-10-13",
+    "repository_head": "d54c9ad",
+    "scope": "AMR1 live shared SLAM map; AMR2 automatic dispatch after valid persisted target; person follows AMR2; mandatory AMR1 field recheck after exit candidate; AMR1 docking and AMR2 exit stop",
     "diagram_stage": "NATIVE_EDITABLE_DIAGRAM_DEFINED",
     "qos_values": "PROPOSAL",
     "physical_validation": "NOT_RUN",
-    "applicability": "Separate single-camera, operator-approved segment design proposal; does not replace the current BRD/contracts or constitute a runtime deployment profile.",
+    "applicability": "00 is post-E2E PM proposal. OPS-87 keeps main approval/segment/recheck execution for 10-13 E2E. 01-11 pages preserve historical 0.1 snapshot; active JSON/CSV describe 00 only. No runtime/IDL/config change.",
     "baseline_documents": [
       "docs/requirements/scope.md",
       "docs/design/contracts.md",
       "docs/design/state-machines.md",
       "docs/design/network-discovery.md"
     ],
-    "amr2_escort_requirement": {
+    "amr1_dispatch_requirement": {
+      "date": "2026-10-11",
+      "source": "scope.md RQ-11 / Q-28; PM user clarification and repository-owner adoption (#85, 2026-10-11)",
+      "source_quote": "AMR1 출동 방식은 관제 모니터의 버튼으로 신호를 받아 출동하는거야",
+      "mode": "OPERATOR_CONSOLE_BUTTON",
+      "event_behavior": "Validate disaster event, display and persist evidence; await operator dispatch command.",
+      "start_command": "START_SEARCH; operator button remains. Transport status refers to baseline code, runtime not verified here.",
+      "sequence": "Operator dispatch command -> PrepareMapping(START) readiness -> ExecuteTask(SEARCH_AREA)",
+      "execution_status": "PARTIAL_IMPLEMENTATION",
+      "wire_contract": "START_SEARCH_PRESENT; CONSOLE_OPERATIONS_TRANSPORT_PENDING_Q28",
+      "historical_policy": "The 2026-10-10 owner automatic-start record remains in scope Q-12; this PM requirement is not a claim of completed owner/team review."
+    },
+    "legacy_amr2_escort_requirement": {
       "date": "2026-10-11",
       "source": "scope.md RQ-10 / Q-27; PM user request",
       "mode": "CAMERA_LEG_SKELETON_FOLLOW_BEHIND",
@@ -24,18 +36,50 @@
       "wire_contract": "UNDEFINED_PENDING_Q27",
       "legacy_segment_interfaces": "Existing MOVE_SEGMENT/CONTINUE_SEGMENT/ONE_SEGMENT definitions below describe segment navigation, not continuous following."
     },
-    "amr1_dispatch_requirement": {
-      "date": "2026-10-11",
-      "source": "scope.md RQ-11 / Q-28; PM user clarification and repository-owner adoption (#85, 2026-10-11)",
-      "source_quote": "AMR1 출동 방식은 관제 모니터의 버튼으로 신호를 받아 출동하는거야",
-      "mode": "OPERATOR_CONSOLE_BUTTON",
-      "event_behavior": "Validate disaster event, display and persist evidence; await operator dispatch command.",
-      "start_command": "START_SEARCH (present in SubmitOperatorCommand IDL; coordinator command core is in main; console placeholder is disabled and operations transport is pending)",
-      "sequence": "Operator dispatch command -> PrepareMapping(START) readiness -> ExecuteTask(SEARCH_AREA)",
-      "execution_status": "PARTIAL_IMPLEMENTATION",
-      "wire_contract": "START_SEARCH_PRESENT; CONSOLE_OPERATIONS_TRANSPORT_PENDING_Q28",
-      "historical_policy": "The 2026-10-10 owner automatic-start record remains in scope Q-12; this PM requirement is not a claim of completed owner/team review."
-    }
+    "amr2_escort_requirement": {
+      "date": "2026-10-12",
+      "source": "PM request in #133 / scope branch docs/scenario-decisions-1012; owner adoption pending",
+      "mode": "ROBOT_LEADS_PERSON_FOLLOWS",
+      "approval": "AUTOMATIC_DISPATCH_AFTER_VALID_TARGET_AND_PERSISTED_RECEIPT",
+      "execution_status": "PROPOSAL_NOT_IMPLEMENTED",
+      "wire_contract": "Reuse ExecuteTask type candidate; automatic admission/task-kind contract review pending. Never forge OperatorApproval or bypass MOVE_SEGMENT guards."
+    },
+    "scenario_revision": "PM-20261013-FIELD_RECHECK_REQUIRED",
+    "completion_requirement": {
+      "date": "2026-10-13",
+      "speaker": "PM (Codex user conversation), not repository owner",
+      "source_quote": "AMR1의 현장 재확인이 있어야 구조 완료 판정으로 이어져서 해당 로직은 필요함",
+      "supersedes_same_day_quote": "AMR1의 현장 재확인은 없애는 방향으로 진행할게",
+      "mode": "EXIT_CANDIDATE_AND_FRESH_AMR1_FIELD_RECHECK",
+      "candidate_is_completion": false,
+      "guards": "Validate exit candidate target/watch/boot/revision, timestamps and camera quality; dispatch linked AMR1 REOBSERVE_TARGET, move and stop, acquire fresh ObserveTarget camera ABSENT + LiDAR CLEAR + coverage VALID after candidate/accepted request; coordinator verifies matching task/target/frame and evidence then reports completion. UNKNOWN/present/invalid evidence never completes. Completion and docking/exit remain separately recorded."
+    },
+    "shared_map_requirement": {
+      "source": "PM #133 RQ-13/Q-29",
+      "publisher": "amr1.slam",
+      "consumers": [
+        "amr2.localization",
+        "amr2.global_costmap",
+        "amr2.mapping",
+        "central.operations"
+      ],
+      "amr2_publishes_map": false,
+      "initialization": "A: measured AMR1 map to AMR2 odom initial transform; B: LiDAR-based correction (AMCL candidate)",
+      "tf_authority": "One map->amr2.odom owner. A/B handover must stop/fence previous publisher; no parallel fixed and localization TF writers. Loop-closure/revision invalidation requires pause/revalidation.",
+      "rate": "UNDECIDED",
+      "localization_validation": "NOT_RUN"
+    },
+    "terminal_requirement": {
+      "amr1": "dock approach, stopped, native Dock request, fresh is_docked=true and stopped",
+      "amr2": "configured exit pose, arrived within validated tolerance and stopped, mission end; no return to initial pose",
+      "execute_task_mapping": "Existing RETURN_HOME/home_ref may map to role-specific terminal reference only after C-06 admission semantics review. Exit is not silently treated as current home.",
+      "configuration": "dock_ref/exit_ref/arrival tolerance unresolved; absent => hold/reject"
+    },
+    "historical_pages": "01-11 byte-preserved; old bindings and requirements do not govern new 00 proposal",
+    "retired_interface_ids": [
+      "IF-040"
+    ],
+    "external_reference": "Dock/DockStatus type: https://github.com/iRobotEducation/create3_examples/blob/jazzy/create3_republisher/bringup/params.yaml; native installed version/QoS/namespace NOT_RUN"
   },
   "nodes": [
     {
@@ -82,7 +126,7 @@
       "id": "amr1.slam",
       "host": "PC1",
       "name": "slam_toolbox",
-      "responsibility": "scan·TF로 local map 및 map→odom 제공. backend 채택 제안",
+      "responsibility": "사전 지도 없이 scan·TF로 SLAM 지도를 생성·갱신하고 AMR2와 중앙에 직접 제공. 갱신 주기/지도 보정 실측 전",
       "kind": "ROS_NODE",
       "status": "STANDARD_CANDIDATE"
     },
@@ -207,12 +251,12 @@
       "status": "PROPOSED_NOT_INSTALLED"
     },
     {
-      "id": "amr2.slam",
+      "id": "amr2.localization",
       "host": "PC2",
-      "name": "slam_toolbox",
-      "responsibility": "scan·TF로 local map 및 map→odom 제공. backend 채택 제안",
+      "name": "shared_map_localization_adapter",
+      "responsibility": "AMR1 지도 수신, 실측 초기 정렬 A 후 LiDAR 보정 B(AMCL 후보). 지도 발행 없음; map→AMR2 odom 단일 TF 권한; lifecycle/공유 갱신 지도 동작 검증 전",
       "kind": "ROS_NODE",
-      "status": "STANDARD_CANDIDATE"
+      "status": "POST_E2E_LOCALIZATION_PROPOSAL_UNVERIFIED"
     },
     {
       "id": "amr2.perception",
@@ -226,7 +270,7 @@
       "id": "amr2.mapping",
       "host": "PC2",
       "name": "mapping_adapter_node",
-      "responsibility": "SLAM 준비 요청·원 관측 시각 TF·mission 위치·지도 revision·지도 변화 표시 자료·pose snapshot",
+      "responsibility": "수신한 AMR1 지도 session/revision 검증, 관측 좌표 변환, 공통 frame RobotPose 보고. 자기 지도 생성/발행 없음",
       "kind": "ROS_NODE",
       "status": "PROPOSED"
     },
@@ -330,7 +374,7 @@
       "id": "cam.presence",
       "host": "PC3",
       "name": "target_presence_node",
-      "responsibility": "연결된 target/ROI 감시; 가림·유효 시야를 검사해 소실 후보 발행",
+      "responsibility": "target/watch 감시·인형 추적·출구 ROI에서 마지막으로 본 뒤 유효 소실 후보 발행. 가림/끊김 UNKNOWN; 완료 권한 없음",
       "kind": "ROS_NODE",
       "status": "PROPOSED"
     },
@@ -346,7 +390,7 @@
       "id": "central.frames",
       "host": "PC4",
       "name": "frame_registry_node",
-      "responsibility": "공통 mission 정렬의 단일 authority. 로봇별 map session/revision 변화에 정렬 무효화",
+      "responsibility": "AMR1 공유 지도 frame/session/revision과 로봇별 위치 정렬 유효성 관리. AMR2 초기 정렬/보정 TF 발행 소유권 전환 검증 전",
       "kind": "ROS_NODE",
       "status": "PROPOSED"
     },
@@ -354,7 +398,7 @@
       "id": "central.coordinator",
       "host": "PC4",
       "name": "mission_coordinator_node",
-      "responsibility": "사건 연결·대상 ID·출동/구간 승인·임무 세대·완료 시연 판정",
+      "responsibility": "AMR1 버튼 출동, 유효 대상 저장 receipt 뒤 AMR2 자동 배정, 출구 소실 후보 뒤 AMR1 현장 재확인(camera ABSENT·LiDAR CLEAR·coverage VALID)을 확인해 완료 판정, 역할별 종료. 실행 계약 검토 전",
       "kind": "ROS_NODE",
       "status": "PROPOSED"
     },
@@ -536,9 +580,13 @@
       "targets": [
         "amr1.global_costmap",
         "amr1.mapping",
-        "amr1.search"
+        "amr1.search",
+        "amr2.localization",
+        "amr2.global_costmap",
+        "amr2.mapping",
+        "central.operations"
       ],
-      "purpose": "자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음",
+      "purpose": "AMR1 갱신 SLAM OccupancyGrid를 AMR2와 중앙에 직접 전달. 공통 frame·fresh map/revision 확인 전 주행 금지; 주기 미정. AMR2는 지도 발행 안 함",
       "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
       "status": "STANDARD_BINDING_PROPOSED"
     },
@@ -569,9 +617,10 @@
       ],
       "targets": [
         "central.coordinator",
-        "central.operations"
+        "central.operations",
+        "amr2.mapping"
       ],
-      "purpose": "mission pose + native pose + 정렬/시각/불확실성",
+      "purpose": "AMR1 공통 지도 frame pose를 중앙과 AMR2에 전달. raw odom과 공통 pose를 혼동하지 않음",
       "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
       "status": "PROPOSED"
     },
@@ -743,7 +792,7 @@
       "targets": [
         "amr1.executor"
       ],
-      "purpose": "수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result",
+      "purpose": "AMR1 수색·출구 소실 후보 이후 REOBSERVE_TARGET·도킹 접근 복귀의 Goal→Feedback→Result. 재확인 임무와 후보/target/frame 연결 검증",
       "qos": "N/A",
       "status": "PROPOSED"
     },
@@ -773,9 +822,10 @@
       "targets": [
         "amr1.perception"
       ],
-      "purpose": "관측 창을 실제 취득해 카메라·LiDAR·시야 유효성을 결과로 반환",
+      "purpose": "출구 소실 후보 이후 AMR1 현장 정지·새 관측 창에서 camera ABSENT·LiDAR CLEAR·coverage VALID 보고. 새 00 구조 완료 필수 관문",
       "qos": "N/A",
-      "status": "PROPOSED"
+      "status": "PROPOSED",
+      "scenario_usage": "MANDATORY_COMPLETION_GATE"
     },
     {
       "id": "IF-024",
@@ -922,7 +972,7 @@
         "amr2.lidar"
       ],
       "targets": [
-        "amr2.slam",
+        "amr2.localization",
         "amr2.executor",
         "amr2.perception",
         "amr2.global_costmap",
@@ -1009,10 +1059,10 @@
       "type": "tf2_msgs/msg/TFMessage",
       "sources": [
         "amr2.base",
-        "amr2.slam"
+        "amr2.localization"
       ],
       "targets": [
-        "amr2.slam",
+        "amr2.localization",
         "amr2.mapping",
         "amr2.executor",
         "amr2.perception",
@@ -1023,7 +1073,7 @@
         "amr2.collision",
         "amr2.passage"
       ],
-      "purpose": "각 로봇 전용 TF buffer; edge authority 중복 금지",
+      "purpose": "AMR2 odom→base TF와 공유 map→AMR2 odom 정렬. 초기 A/보정 B의 TF 중복 발행 금지; 실제 전환 검증 전",
       "qos": "표준 TF QoS; 설치 확인",
       "status": "STANDARD_BINDING_PROPOSED"
     },
@@ -1036,7 +1086,7 @@
         "amr2.static_tf"
       ],
       "targets": [
-        "amr2.slam",
+        "amr2.localization",
         "amr2.mapping",
         "amr2.executor",
         "amr2.perception",
@@ -1052,22 +1102,6 @@
       "status": "STANDARD_BINDING_PROPOSED"
     },
     {
-      "id": "IF-040",
-      "kind": "TOPIC",
-      "endpoint": "/amr2/map",
-      "type": "nav_msgs/msg/OccupancyGrid",
-      "sources": [
-        "amr2.slam"
-      ],
-      "targets": [
-        "amr2.global_costmap",
-        "amr2.mapping"
-      ],
-      "purpose": "자기 local map. AMR1 지도를 AMR2에 그대로 goal로 적용하지 않음",
-      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
-      "status": "STANDARD_BINDING_PROPOSED"
-    },
-    {
       "id": "IF-041",
       "kind": "TOPIC",
       "endpoint": "/rescue/robots/amr2/map_state",
@@ -1080,7 +1114,7 @@
         "central.coordinator",
         "central.operations"
       ],
-      "purpose": "session/revision/quality; map 단독 stamp와 구분",
+      "purpose": "AMR2가 사용 중인 AMR1 공유 지도 revision 및 자기 위치 추정 품질. MapState는 새 지도 발행이 아님",
       "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
       "status": "PROPOSED"
     },
@@ -1094,9 +1128,10 @@
       ],
       "targets": [
         "central.coordinator",
-        "central.operations"
+        "central.operations",
+        "amr1.mapping"
       ],
-      "purpose": "mission pose + native pose + 정렬/시각/불확실성",
+      "purpose": "AMR2 공통 지도 frame pose를 중앙과 AMR1에 전달. 교차 로봇 공유의 stale/revision 검증 필요",
       "qos": "RELIABLE / VOLATILE / KEEP_LAST 1; stamp/boot/유효기한 검사",
       "status": "PROPOSED"
     },
@@ -1253,7 +1288,7 @@
       "targets": [
         "amr2.mapping"
       ],
-      "purpose": "baseline map/profile로 SLAM 준비·시작 요청 후 fresh map/TF 확인. 주행 없음",
+      "purpose": "AMR2 수신 지도·TF·위치 추정 준비 [제안]; legacy PrepareMapping START를 자기 SLAM 시작으로 해석하지 않음. backend binding 검토 전",
       "qos": "N/A",
       "status": "PROPOSED"
     },
@@ -1268,7 +1303,7 @@
       "targets": [
         "amr2.executor"
       ],
-      "purpose": "수색/재관측/접근/한 구간 이동/복귀의 Goal→Feedback→Result",
+      "purpose": "AMR2 자동 접근/도착 관측/역할별 종료 요청 [제안]. 자동 발급 kind·approval·exit terminal 참조 계약 검토 전; 기존 승인 값 위조 금지",
       "qos": "N/A",
       "status": "PROPOSED"
     },
@@ -1465,9 +1500,10 @@
         "amr2.mapping"
       ],
       "targets": [
-        "central.coordinator"
+        "central.coordinator",
+        "amr2.mapping"
       ],
-      "purpose": "첫 발견·중요 좌표 변화·원 관측/근거; 저장 receipt까지 outbox 재전송",
+      "purpose": "AMR1 탐지 위치를 중앙과 AMR2에 직접 공유. shared topic은 source_robot/역할·target/frame/revision으로 필터. 수신 자체는 이동 명령 아님; coordinator의 저장 확인·자동 배정이 실행 계기",
       "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
       "status": "PROPOSED"
     },
@@ -1634,7 +1670,7 @@
       "targets": [
         "central.coordinator"
       ],
-      "purpose": "DISASTER_SIGN 또는 TARGET_DISAPPEARED_CANDIDATE 증거",
+      "purpose": "지진 징후 또는 출구를 통한 대상 소실 후보. 후보만으로 완료하지 않고 연결된 AMR1 현장 재확인 후 coordinator가 완료를 기록",
       "qos": "RELIABLE / VOLATILE / KEEP_LAST 10; 중요 사건 outbox + 저장 receipt",
       "status": "PROPOSED"
     },
@@ -1650,7 +1686,7 @@
         "central.coordinator",
         "central.operations"
       ],
-      "purpose": "target/ROI 별 PRESENT/ABSENT_CANDIDATE/UNKNOWN; 가림 상태 포함",
+      "purpose": "target/watch별 PRESENT/ABSENT_CANDIDATE/UNKNOWN과 시각·유효성. 출구 영역 소실 근거·가림/끊김 검증; 완료 수락 정책 미정",
       "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
       "status": "PROPOSED"
     },
@@ -1680,7 +1716,7 @@
       "targets": [
         "central.coordinator"
       ],
-      "purpose": "출동·계속·재확인·복귀/종료 요청 접수; 긴 실행은 ExecuteTask로 연결",
+      "purpose": "AMR1 START_SEARCH·REQUEST_RECHECK·정지해제·복귀/종료·감시 설정 운영자 요청. 새 00 AMR2 초기 출동은 DISPATCH_SUPPORT/CONTINUE_SEGMENT에 의존하지 않음. REQUEST_RECHECK는 UNKNOWN 시 영상 판단 기록/재확인 요청이며 완료 승인 자체 아님",
       "qos": "N/A",
       "status": "PROPOSED"
     },
@@ -1754,13 +1790,12 @@
       "endpoint": "PUT /api/maps/{snapshot_id}",
       "type": "MapSnapshot: grid + MapState + baseline-diff + sha256",
       "sources": [
-        "amr1.mapping",
-        "amr2.mapping"
+        "amr1.mapping"
       ],
       "targets": [
         "central.operations"
       ],
-      "purpose": "지도 내용/metadata/변화 표시 자료를 같은 snapshot ID로 원자적으로 저장",
+      "purpose": "AMR1 공유 지도의 snapshot/metadata/hash를 중앙에 저장하는 HTTP 계획. AMR2의 자기 지도 업로드 없음; 브라우저 live map 렌더는 미구현",
       "qos": "N/A",
       "status": "PROPOSED"
     },
@@ -1806,7 +1841,7 @@
         "amr2.rgbd",
         "amr2.static_tf",
         "amr2.watchdog",
-        "amr2.slam",
+        "amr2.localization",
         "amr2.perception",
         "amr2.mapping",
         "amr2.executor",
@@ -1832,6 +1867,68 @@
       "purpose": "참여자 ↔ 서버 발견 정보. Topic/Service/Action 데이터 흐름과 분리",
       "qos": "N/A",
       "status": "DEPLOYMENT_PROPOSED"
+    },
+    {
+      "id": "IF-087",
+      "kind": "ACTION",
+      "endpoint": "/amr1/dock",
+      "type": "irobot_create_msgs/action/Dock",
+      "sources": [
+        "amr1.executor"
+      ],
+      "targets": [
+        "amr1.base"
+      ],
+      "purpose": "도킹 위치 도착·실제 정지·fresh driver/도킹 준비 뒤 rescue_robot 운영 어댑터만 요청. 액션 응답은 물리 도킹 완료 아님",
+      "qos": "N/A",
+      "status": "STANDARD_BINDING_PROPOSED_UNVERIFIED"
+    },
+    {
+      "id": "IF-088",
+      "kind": "TOPIC",
+      "endpoint": "/amr1/dock_status",
+      "type": "irobot_create_msgs/msg/DockStatus",
+      "sources": [
+        "amr1.base"
+      ],
+      "targets": [
+        "amr1.executor",
+        "central.coordinator",
+        "central.operations"
+      ],
+      "purpose": "fresh is_docked=true와 실제 정지로 도킹 완료 확인. 이름/QoS/profile/native binding 검증 전",
+      "qos": "표준 native QoS/profile 검증 전; 새 runtime 값 미정",
+      "status": "STANDARD_BINDING_PROPOSED_UNVERIFIED"
+    },
+    {
+      "id": "IF-089",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/initialpose",
+      "type": "geometry_msgs/msg/PoseWithCovarianceStamped",
+      "sources": [
+        "amr2.mapping"
+      ],
+      "targets": [
+        "amr2.localization"
+      ],
+      "purpose": "실측 초기 공통 frame pose/covariance로 B 보정 초기화 [AMCL 후보]; A→B TF 소유권 전환·freshness·AMR2 정지 검증 전",
+      "qos": "표준 native QoS/profile 검증 전; 새 runtime 값 미정",
+      "status": "STANDARD_BINDING_PROPOSED_UNVERIFIED"
+    },
+    {
+      "id": "IF-090",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/amcl_pose",
+      "type": "geometry_msgs/msg/PoseWithCovarianceStamped",
+      "sources": [
+        "amr2.localization"
+      ],
+      "targets": [
+        "amr2.mapping"
+      ],
+      "purpose": "공유 AMR1 지도 위 AMR2 LiDAR 위치 추정 결과 [AMCL 후보]. 동적 지도 갱신 수용·공분산·지도 보정 검증 전",
+      "qos": "표준 native QoS/profile 검증 전; 새 runtime 값 미정",
+      "status": "STANDARD_BINDING_PROPOSED_UNVERIFIED"
     }
   ],
   "message_schemas": {
@@ -1897,13 +1994,13 @@
       "Goal": "envelope:Envelope, request_id:UUID, robot_id:string, operation:string(PREPARE/START), baseline_map_ref:string, mapping_profile_id:string, expected_map_session_id:string, issued_at_ns:int64, deadline_ns:int64.",
       "Result": "envelope:Envelope, outcome:string(READY/FAILED/UNKNOWN), map_state:MapState, reason_code:string.",
       "Feedback": "envelope:Envelope, request_id:UUID, phase:string(CHECKING_PROFILE/STARTING_BACKEND/WAITING_FRESH_MAP_TF), reason_code:string.",
-      "Rules": "mapping 소유 adapter가 bringup의 지정 backend 기동/activation 절차를 요청하고 fresh map/scan/TF로 준비 결과를 확인. 단순 process 시작을 READY로 표시하지 않음. 실제 slam_toolbox lifecycle/process API는 설치 버전 확인 후 binding을 고정하며 임의의 표준 service 이름을 가정하지 않음. 활성 이동 중 session reset/기준 지도 교체 금지. PREPARE는 사전 점검, START는 지진 이후 SLAM 시작 요청. Nav2 이동은 별도 executor guard."
+      "Rules": "AMR1은 사전 지도 없이 scan·TF 기반 SLAM 준비/시작. AMR2는 AMR1의 fresh map/session/revision과 자기 정렬 TF·LiDAR 위치 추정 준비를 확인하고 지도를 발행하지 않는다 [POST_E2E 제안]. 기존 PREPARE/START fields는 호환 보존; 로봇 역할별 backend binding 계약 확정 전 적용 불가. 단순 process/토픽 수신을 READY로 표시하지 않음."
     },
     "ExecuteTask": {
       "Goal": "envelope:Envelope, command_id:UUID, task_id:UUID, robot_id:string, expected_robot_boot_id:UUID, coordinator_id:string, authority_epoch:UUID, generation:uint64, kind:string(SEARCH_AREA/APPROACH_TARGET/REOBSERVE_TARGET/HOLD/MOVE_SEGMENT/RETURN_HOME), issued_at_ns:int64, deadline_ns:int64, lease_id:UUID, target_id:string, target_estimate_revision:uint64, search_area_ref:string, home_ref:string, frame_ref:FrameRef, route:RouteCandidate, has_route:bool, approval:OperatorApproval, has_approval:bool, policy_version:string.",
       "Result": "envelope:Envelope, result:TaskResult.",
       "Feedback": "envelope:Envelope, task_id:UUID, generation:uint64, state:string(VALIDATING/PLANNING/NAVIGATING/VERIFYING/STOPPING), segment_index:uint32, current_pose:RobotPose, distance_remaining_known:bool, distance_remaining_m:float64, reason_code:string. UNKNOWN pose/distance는 status/known=false로 명시하고 숫자 사용 금지.",
-      "Rules": "로봇당 활성 이동 task 1개. MOVE_SEGMENT는 APPROACH와 별도 새 kind: 한 구간 도착·실제 정지 뒤 Result(COMPLETED, scope=SEGMENT). coordinator는 다음 구간을 자동 발급하지 않음. 최종 구간 뒤 REOBSERVE_TARGET로 AMR2 카메라 재확인. RETURN_HOME은 현재 유효 home_ref를 재해석하며 초기 pose를 stale goal로 재사용하지 않음. 수락 전 거절은 action Result가 아니라 accepted=false + TaskAdmission. 이동 출력이 있었던 모든 종료 경로는 stop 관문."
+      "Rules": "로봇당 활성 이동 1개와 권한/lease·준비·취소→실제 정지 관문 유지. POST_E2E PM 요구안은 AMR2 자동 접근이며 kind/approval admission 계약 개정 전 실행 불가. 기존 MOVE_SEGMENT·ONE_SEGMENT/CONTINUE_SEGMENT는 10-13 E2E/과거 wire 정의로 보존하고 무승인 의미로 재해석하지 않음. AMR1 RETURN_HOME은 도킹 접근, 실제 Dock는 별도 운영 절차; AMR2 출구 종료는 역할별 terminal reference/task mapping 계약 미정. 목표 좌표/종료 참조/정지 허용치 불명은 거절·보류."
     },
     "EvaluateRoute": {
       "Goal": "envelope:Envelope, request_id:UUID, robot_id:string, target_id:string, target_estimate_revision:uint64, purpose:string(APPROACH/SEGMENT/RECHECK/RETURN), segment_index:uint32, candidate_goal:geometry_msgs/PoseStamped, has_candidate_goal:bool, home_ref:string, frame_ref:FrameRef, footprint_profile_id:string, policy_version:string, deadline_ns:int64.",
@@ -1915,7 +2012,7 @@
       "Goal": "envelope:Envelope, request_id:UUID, task_id:UUID, target_id:UUID, robot_id:string, watched_native_point:geometry_msgs/Point, frame_ref:FrameRef, requested_window_ns:uint64, policy_version:string, deadline_ns:int64.",
       "Result": "envelope:Envelope, outcome:string(OBSERVED/UNKNOWN/FAILED), observation:RecheckObservation, reason_code:string.",
       "Feedback": "envelope:Envelope, request_id:UUID, phase:string(COLLECTING/CHECKING_COVERAGE/FINALIZING), camera_state:string, lidar_state:string.",
-      "Rules": "perception은 센서 취득·판정만 수행. target point의 실제 시야/거리/검출기/TF 유효성이 충족돼야 ABSENT 또는 CLEAR를 발행. 고정 카메라 소실 이후 완료 판정용 AMR1 관측 창이 새로 확보돼야 함. 취소/timeout은 UNKNOWN이며 부재 성공으로 만들지 않음."
+      "Rules": "AMR1 완료 재확인과 AMR2 도착 인형 재탐지에 재사용. 완료용 AMR1 관측은 연결된 출구 소실 후보 또는 수락된 REQUEST_RECHECK 이후에 현장 이동·정지한 뒤 새 관측 창에서 취득한다. target/frame/task/시각·시야 유효성 확인 뒤 camera ABSENT·LiDAR CLEAR·coverage VALID를 각각 보고하며 coordinator가 이 세 조건과 후보 연결을 검증한다. 취소/timeout/가림/불확실은 UNKNOWN, 부재 성공으로 위조하지 않음."
     },
     "EvaluatePassage": {
       "Goal": "envelope:Envelope, request_id:UUID, route_id:UUID, route_revision:uint64, segment_index:uint32, path:nav_msgs/Path, frame_ref:FrameRef, footprint_profile_id:string, policy_version:string, deadline_ns:int64.",
@@ -1928,5 +2025,23 @@
     "nav2_msgs/action/NavigateToPose": "Goal은 stamped 목표 pose와 BT 선택, Feedback은 현재 pose·진행 시간/거리, Result는 오류 코드/메시지. 성공과 실제 정지·대상 재확인은 분리.",
     "nav2_msgs/action/ComputePathToPose": "Goal은 목표·시작 pose와 planner 선택/시작 사용 여부, Result는 path·계산 시간·오류. Jazzy feedback에는 사용자 필드 없음. 경로 조회는 로봇 이동 아님.",
     "nav2_msgs/action/FollowPath": "Goal은 경로 및 controller/checker 선택, Feedback은 추종 거리/속도, Result는 오류. Nav2 내부 bt→controller 연결."
-  }
+  },
+  "retired_interfaces": [
+    {
+      "id": "IF-040",
+      "kind": "TOPIC",
+      "endpoint": "/amr2/map",
+      "type": "nav_msgs/msg/OccupancyGrid",
+      "sources": [
+        "amr2.slam"
+      ],
+      "targets": [
+        "amr2.global_costmap",
+        "amr2.mapping"
+      ],
+      "purpose": "새 00은 AMR1 공유 지도만 사용. AMR2 지도 발행 경로는 과거 01~11쪽에만 보존하고 번호를 재사용하지 않음.",
+      "qos": "RELIABLE / TRANSIENT_LOCAL / KEEP_LAST 1; 최신 전체 snapshot",
+      "status": "HISTORICAL_01_11_ONLY"
+    }
+  ]
 }
