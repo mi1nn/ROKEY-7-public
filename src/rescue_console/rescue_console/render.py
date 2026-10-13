@@ -1,4 +1,4 @@
-"""Screen model -> HTML. Standard library only, so the page is tested without Flask."""
+"""화면 모델 -> HTML. 표준 라이브러리만 쓰므로 Flask 없이 페이지를 시험한다."""
 
 from datetime import datetime
 from html import escape
@@ -9,24 +9,24 @@ from .labels import label
 from .mapimage import MAP_FRAME
 from .view import STAGES, ConsoleError
 
-# Browser polling period. KPI-04 budget is 3 s (BRD v0.1); 1 s polling leaves 2 s for
-# ledger write, read and transfer ([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
+# 브라우저 폴링 주기. KPI-04 예산은 3 s(BRD v0.1)이고, 1 s 폴링이면 2 s 가 남아
+# 장부 기록·읽기·전송에 쓴다([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
 POLL_INTERVAL_MS = 1000
-# KPI-04 budget: event time -> shown on the operator screen (BRD v0.1 KPI-04, 3 s).
+# KPI-04 예산: 사건 시각부터 운영자 화면에 보일 때까지(BRD v0.1 KPI-04, 3 s).
 KPI04_BUDGET_S = 3.0
 MISSING = '—'
-# Map marker sizes in map pixels (0.05 m/px for the pre-quake map): robot arrow half-width and
-# nose length, victim V half-width. Display only ([제안] 관제·화면, 2026-10-10).
+# 지도 표식 크기, 지도 픽셀 단위(재난 전 지도는 0.05 m/px): 로봇 화살표의 반폭과
+# 앞코 길이, 요구조자 V 의 반폭. 표시 전용이다([제안] 관제·화면, 2026-10-10).
 ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.6, 4.8, 2.0
 
 
 def _text(value):
-    """Any value as escaped text; None shows MISSING."""
+    """아무 값이나 이스케이프한 글자로 바꾼다. None 은 MISSING 으로 보인다."""
     return MISSING if value is None else escape(str(value))
 
 
 def _time(ns, ref_ns=None):
-    """Clock time of a ns stamp; the date is added when it is not the day of `ref_ns`."""
+    """ns 시각을 시계 시각으로 보인다. `ref_ns` 와 날짜가 다르면 날짜를 붙인다."""
     if ns is None:
         return MISSING
     moment = datetime.fromtimestamp(ns / 1e9)
@@ -36,7 +36,7 @@ def _time(ns, ref_ns=None):
 
 
 def _age(seconds):
-    """Short age text: 0.4s, 12.0s, 3분 05초, 2시간 10분, 41일. Negative means a clock ahead of this host."""
+    """짧은 나이 글자: 0.4s, 12.0s, 3분 05초, 2시간 10분, 41일. 음수는 시계가 이 호스트보다 앞섰다는 뜻이다."""
     if seconds is None:
         return MISSING
     sign, value = ('-', -seconds) if seconds < 0 else ('', seconds)
@@ -51,28 +51,28 @@ def _age(seconds):
     return sign + text
 
 
-# Characters of a UUID shown on screen; the full ID stays in the title tooltip.
+# 화면에 보이는 UUID 글자 수. 전체 ID 는 title 툴팁에 남는다.
 SHORT_ID = 8
-# Battery bar colours switch below these percentages ([제안] 관제·화면, 2026-10-10; display only).
+# 배터리 막대 색은 이 백분율 아래에서 바뀐다([제안] 관제·화면, 2026-10-10; 표시 전용).
 BATTERY_LOW, BATTERY_WARN = 25, 50
-# Survey grid spacing on the map, metres.
+# 지도 위 측량 격자 간격, 미터 단위.
 GRID_M = 1.0
 STAGE_ORDER = ('UNCONFIRMED', 'NOT_RESCUED', 'SUPPORTING', 'RESCUED')
-# What the operator checks when the console cannot read its inputs, by ConsoleError code.
+# 콘솔이 입력을 읽지 못할 때 운영자가 확인할 것, ConsoleError 코드별.
 FAILURE_HINTS = {
     'STORAGE_ERROR': '운영 장부나 현장 상태 DB 를 읽지 못했습니다. 실행 인자의 파일 경로와 operations 프로세스가 돌고 있는지 확인하세요.',
     'INVALID_INPUT': '읽은 데이터의 형식이 화면이 기대한 것과 다릅니다. operations 와 콘솔이 같은 버전인지 확인하세요.',
     'POLICY_MISMATCH': '연 파일이 기대한 DB 가 아닙니다(역할·스키마가 다름). 실행 인자의 경로를 확인하세요.',
 }
 FAILURE_HINT_OTHER = '콘솔을 띄운 터미널의 로그를 확인하세요.'
-# The failure page reloads itself this often, so the screen comes back once the input is readable.
+# 실패 페이지는 이 주기로 스스로 다시 읽으므로, 입력을 읽을 수 있게 되면 화면이 돌아온다.
 FAILURE_RETRY_S = 5
 
 
 def _short(ident):
-    """Short ID for tables: up to SHORT_ID + 1 characters shown whole, longer ones cut to SHORT_ID.
+    """표에 쓰는 짧은 ID: SHORT_ID + 1 자까지는 그대로 보이고, 더 길면 SHORT_ID 자로 자른다.
 
-    The full ID stays in the title tooltip; None shows MISSING. The page script's shortId uses the same rule.
+    전체 ID 는 title 툴팁에 남고, None 은 MISSING 으로 보인다. 페이지 스크립트의 shortId 도 같은 규칙을 쓴다.
     """
     if ident is None:
         return MISSING
@@ -82,14 +82,14 @@ def _short(ident):
 
 
 def _word(kind, code):
-    """A code as its Korean word (labels.label), escaped; an unknown code shows as itself, None as MISSING."""
+    """코드를 한국어 낱말(labels.label)로 바꿔 이스케이프한다. 모르는 코드는 그대로, None 은 MISSING 으로 보인다."""
     return _text(label(kind, code))
 
 
 def _elapsed(seconds):
-    """Mission elapsed time in whole seconds: 분/초 under an hour, 시간/분 under a day, then 일/시간.
+    """임무 경과 시간, 초 단위 정수: 1시간 미만은 분/초, 하루 미만은 시간/분, 그 이상은 일/시간.
 
-    Unlike `_age`, None or a negative value (trigger later than the build time) shows MISSING.
+    `_age` 와 달리 None 이나 음수(트리거가 집계 시각보다 늦음)는 MISSING 으로 보인다.
     """
     if seconds is None or seconds < 0:
         return MISSING
@@ -102,9 +102,9 @@ def _elapsed(seconds):
 
 
 def _pose(pose):
-    """Pose text `(x, y) m` with the yaw in whole degrees when known, escaped; None shows MISSING.
+    """자세 글자 `(x, y) m`. yaw 를 알면 정수 도로 붙이고 이스케이프한다. None 은 MISSING 으로 보인다.
 
-    A frame other than MAP_FRAME is named in brackets, so the numbers are not read as map coordinates.
+    MAP_FRAME 이 아닌 좌표계는 대괄호 안에 이름을 적어, 숫자를 지도 좌표로 읽지 않게 한다.
     """
     if pose is None:
         return MISSING
@@ -117,29 +117,29 @@ def _pose(pose):
 
 
 def _victim_path(x, y, size):
-    """INSARAG-style victim mark: a V whose point sits on the reported position."""
+    """INSARAG 식 요구조자 표식: 꼭짓점이 보고된 위치에 놓인 V."""
     return (f'M{x - size:.2f},{y - 1.6 * size:.2f} L{x:.2f},{y:.2f} '
             f'L{x + size:.2f},{y - 1.6 * size:.2f}')
 
 
 def _victim_icon(stage):
-    """Small V for lists and the legend, same shape and colour as on the map."""
+    """목록과 범례에 쓰는 작은 V. 모양과 색은 지도 위와 같다."""
     strike = '<line x1="2" y1="7" x2="14" y2="7"/>' if stage == 'RESCUED' else ''
     return (f'<svg class="vicon {stage.lower()}" viewBox="0 0 16 16" aria-hidden="true">'
             f'<path d="{_victim_path(8, 13, 5)}"/>{strike}</svg>')
 
 
-# ---- band (fragment) ------------------------------------------------------------------------
+# ---- 임무 띠 (조각) ------------------------------------------------------------------------------
 
 def _reason(reason):
-    """Coordinator reason in words, with the code beside it when the words are not the code."""
+    """조정기 사유를 낱말로 보이고, 낱말이 코드와 다르면 옆에 코드를 붙인다."""
     level = f' {reason["level"]}' if reason['level'] else ''
     code = '' if reason['text'] == reason['code'] else f' <code>{escape(reason["code"])}</code>'
     return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
 
 
 def _scoped_reason(view, *scopes, tag='p'):
-    """The coordinator reason as one element, only when its scope is one of `scopes`; otherwise ''."""
+    """조정기 사유를 요소 하나로 만든다. 범위가 `scopes` 중 하나일 때만 만들고, 아니면 ''."""
     reason = view['mission'].get('reason_view')
     if reason is None or reason['scope'] not in scopes:
         return ''
@@ -147,7 +147,7 @@ def _scoped_reason(view, *scopes, tag='p'):
 
 
 def _band(view):
-    """Mission mode across the top. The exit count is not drawn: one fixed camera (db-schema 2절)."""
+    """맨 위를 가로지르는 임무 모드 띠. 출구 누적은 그리지 않는다: 고정 카메라가 하나다(db-schema 2절)."""
     mission = view['mission']
     mode, source = mission['mode'], mission['source']
     built = view['built_at_ns']
@@ -187,10 +187,10 @@ def _warnings(view):
     return f'<section id="warnings"><h2>확인할 것 {len(view["warnings"])}</h2><ul>{items}</ul></section>'
 
 
-# ---- map (fragment) -------------------------------------------------------------------------
+# ---- 지도 (조각) --------------------------------------------------------------------------------
 
 def _grid(layer):
-    """Metre grid and axis numbers in image pixels (survey-plan look)."""
+    """미터 격자와 축 숫자를 이미지 픽셀 단위로 그린다(측량 도면 모양)."""
     width, height, res = layer['width_px'], layer['height_px'], layer['resolution']
     x0, y0 = layer['origin'][0], layer['origin'][1]
     lines, numbers = [], []
@@ -209,7 +209,7 @@ def _grid(layer):
 
 
 def _map(view):
-    """Pre-quake map as the background of one SVG, so marks and image always scale together."""
+    """재난 전 지도를 SVG 하나의 바탕으로 깔아, 표식과 이미지가 늘 함께 확대·축소되게 한다."""
     layer = view['map']
     live = layer.get('live')
     if not layer.get('available') and live is not None:
@@ -247,7 +247,7 @@ def _map(view):
         if robot['yaw'] is None:
             body = f'<circle class="body" cx="{x}" cy="{y}" r="{ROBOT_MARK_PX}"/>'
         else:
-            # Image rows grow downwards, so +yaw (counter-clockwise in the map) is -y here.
+            # 이미지 행은 아래로 자라므로, +yaw(지도에서 반시계 방향)는 여기서 -y 다.
             points = []
             for angle, reach in ((0.0, HEADING_PX), (2.5, ROBOT_MARK_PX), (-2.5, ROBOT_MARK_PX)):
                 a = robot['yaw'] + angle
@@ -287,13 +287,13 @@ def _map(view):
             + '</section>')
 
 
-# ---- units and victims (fragment) -----------------------------------------------------------
+# ---- 로봇과 요구조자 (조각) --------------------------------------------------------------------------
 
 def _battery(robot):
-    """Battery bar for a robot card: colour by BATTERY_LOW / BATTERY_WARN, the value and the reading's age.
+    """로봇 카드의 배터리 막대: BATTERY_LOW / BATTERY_WARN 에 따른 색, 값, 그 측정값의 나이.
 
-    No reading shows 「배터리 값 없음」, not an empty or 0 % bar. Only the bar width is clamped to 0-100;
-    the number shows the value as received.
+    값이 없으면 빈 막대나 0 % 막대가 아니라 「배터리 값 없음」을 보인다. 막대 폭만 0-100 으로 자르고,
+    숫자는 받은 값 그대로 보인다.
     """
     percent = robot['battery_percent']
     if percent is None:
@@ -306,11 +306,11 @@ def _battery(robot):
 
 
 def _robots(view):
-    """Robot cards in deployment order (view['robots']).
+    """배치 순서(view['robots'])대로 로봇 카드를 그린다.
 
-    A robot with no status yet gets a warning card, not empty values. Otherwise: motion and readiness words,
-    battery, pose, active task, time since operations received the status, the coordinator reason scoped to
-    its role, and a stale note when that status is old (the last values stay, dimmed by the `stale` class).
+    아직 상태가 없는 로봇은 빈 값이 아니라 경고 카드를 받는다. 그 밖에는 이동·준비 낱말,
+    배터리, 위치, 진행 중 작업, operations 가 상태를 받은 뒤 지난 시간, 역할 범위에 맞는 조정기
+    사유, 상태가 오래됐으면 낡음 안내(마지막 값은 남기고 `stale` 클래스로 흐리게 한다)를 보인다.
     """
     units = []
     for robot in view['robots']:
@@ -340,12 +340,12 @@ def _robots(view):
 
 
 def _targets(view):
-    """Victims panel: a count per stage, then one row per target in the view's order.
+    """요구조자 칸: 단계별 개수, 그 아래에 화면 모델 순서대로 대상마다 한 줄.
 
-    A row shows the stage and its rule ID, position, rescue and approach words, support, a disappearance
-    candidate (a fixed-camera hint only; a robot re-check decides rescue) and the report count, which reads
-    「보고 장부 입력 없음」 without a ledger rather than 0. The coordinator reason goes on the dispatched target,
-    or, under AUTO dispatch with nothing dispatched yet, on every NOT_RESCUED target.
+    한 줄에는 단계와 그 규칙 ID, 위치, 구조·접근 낱말, 지원, 소실 후보(고정 카메라의 단서일 뿐이고
+    구출은 로봇 재확인이 판정한다), 보고 건수를 보인다. 보고 건수는 장부가 없으면 0 이 아니라
+    「보고 장부 입력 없음」이다. 조정기 사유는 출동한 대상에 붙이고, AUTO 출동인데 아직 출동한
+    대상이 없으면 NOT_RESCUED 대상마다 붙인다.
     """
     counts = ''.join(
         f'<li class="{stage.lower()}">{_victim_icon(stage)}<span>{escape(STAGES[stage])}</span>'
@@ -363,7 +363,7 @@ def _targets(view):
         if dispatched.get('target_id') == target['target_id']:
             support += _scoped_reason(view, 'support', 'target', tag='span')
         elif not dispatched and view.get('support_dispatch') == 'AUTO' and target['stage'] == 'NOT_RESCUED':
-            support += _scoped_reason(view, 'support', tag='span')   # why the automatic dispatch has not gone
+            support += _scoped_reason(view, 'support', tag='span')   # 자동 출동이 아직 나가지 않은 이유
         receipt = ('<span class="receipt">보고 장부 입력 없음</span>' if target['report_count'] is None else
                    f'<span class="receipt">보고 {target["report_count"]}건 {_word("receipt", target["receipt_status"])}</span>')
         mark = target['disappeared_candidate']
@@ -384,13 +384,13 @@ def _targets(view):
             f'<ul class="stage-counts">{counts}</ul><ul class="victims">{body}</ul></section>')
 
 
-# ---- event log (fragment) -------------------------------------------------------------------
+# ---- 사건 기록 (조각) -----------------------------------------------------------------------------
 
 def _event_text(event):
-    """Content cell of an event row.
+    """사건 행의 내용 칸.
 
-    A REPORT reads its confirmation, approach and receipt words; a site event its confidence and note.
-    Nothing to show gives MISSING.
+    REPORT 는 확정·접근·영수증 낱말을, 현장 사건은 신뢰도와 메모를 보인다.
+    보일 것이 없으면 MISSING 이다.
     """
     if event['kind'] == 'REPORT':
         return (f'{_word("confirmation", event["confirmation"])}, {_word("approach", event["approach"])}, '
@@ -402,17 +402,17 @@ def _event_text(event):
 
 
 def _events(view):
-    """Event log table in the view's order (newest first); the header says when only the latest rows are shown.
+    """사건 기록 표, 화면 모델 순서(최신이 위). 최근 행만 보일 때는 제목에 그렇게 적는다.
 
-    Each row carries data-* attributes (ref, event and received ns, kind, clock domain) for the page script,
-    which fills the 화면 표시 and 지연 cells (KPI-04) and keeps them across polls; the server sends MISSING there.
+    행마다 페이지 스크립트가 쓸 data-* 속성(ref, 사건·수신 ns, 종류, 시계 영역)을 단다. 스크립트가
+    화면 표시·지연 칸(KPI-04)을 채우고 폴링 사이에도 유지한다. 서버는 그 칸에 MISSING 을 보낸다.
     """
     rows = []
     built = view['built_at_ns']
     for event in view['events']:
         rows.append(
             f'<tr class="event {event["kind"].lower()}" data-ref="{escape(event["ref_id"])}" '
-            # Site event rows have no ledger time (read_site_events does not return one), so it stays empty.
+            # 현장 사건 행에는 장부 시각이 없어(read_site_events 가 돌려주지 않음) 빈 값으로 둔다.
             f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
             f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}">'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
@@ -429,10 +429,10 @@ def _events(view):
             f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
-# ---- command and error history (fragment) ---------------------------------------------------
+# ---- 명령·오류 기록 (조각) --------------------------------------------------------------------------
 
 def _reply(code):
-    """Reason word with its code; an unknown code is shown once, as itself."""
+    """사유 낱말과 그 코드. 모르는 코드는 코드 그대로 한 번만 보인다."""
     if code is None:
         return ''
     word = label('reply', code)
@@ -440,11 +440,11 @@ def _reply(code):
 
 
 def _history(view):
-    """Operator command and operations error history (operator_commands and error_log, from --site-state).
+    """운영자 명령과 operations 오류 기록(--site-state 에서 읽은 operator_commands 와 error_log).
 
-    None (e.g. a --status fixture) shows how to get it instead of an empty table. A command row shows
-    접수/거절 with the reason word and code and the target; an error row shows its code and detail.
-    Inputs that are missing are listed by name.
+    None(예: --status 고정 입력)이면 빈 표 대신 기록을 보는 방법을 보인다. 명령 행은
+    접수/거절과 사유 낱말·코드, 대상을 보이고, 오류 행은 코드와 상세를 보인다.
+    없는 입력은 이름으로 나열한다.
     """
     history = view['history']
     head = '<h2>명령·오류 기록</h2>'
@@ -472,30 +472,30 @@ def _history(view):
 
 
 def _gates(view):
-    """The command gate mirror for the buttons outside the fragment; the page script applies it after each poll."""
+    """조각 밖 버튼을 위한 명령 관문 거울. 페이지 스크립트가 폴링마다 적용한다."""
     gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
     return f'<div id="gates" hidden data-gates="{escape(json.dumps(gates, ensure_ascii=False))}"></div>'
 
 
 def render_fragment(view):
-    """The part of the page that the browser replaces on every poll (its children sit in the page grid)."""
+    """브라우저가 폴링마다 갈아 끼우는 페이지 부분(그 자식들이 페이지 격자에 놓인다)."""
     return (_band(view) + _warnings(view) + _map(view) + '<div id="middle">' + _robots(view) + _targets(view)
             + '</div>' + _events(view) + _history(view) + _gates(view))
 
 
-# ---- page-level parts (outside the polled fragment) -----------------------------------------
+# ---- 페이지 단위 부분 (폴링 조각 밖) --------------------------------------------------------------------
 
 def _commands(view, access, csrf):
-    """Buttons grouped by consequence, a confirm step and the answers of this page's commands.
+    """결과의 무게에 따라 묶은 버튼, 확인 칸, 이 페이지에서 보낸 명령의 답.
 
-    `access` is (allowed, reason) for the logged-in role (commands.command_access). A button needs
-    the access and its gate (view.command_gates); the page script re-applies the gates after each
-    poll. The panel is outside the polled fragment, so a poll never redraws it under the cursor.
+    `access` 는 로그인한 역할의 (allowed, reason)이다(commands.command_access). 버튼이 켜지려면
+    권한과 그 관문(view.command_gates)이 모두 있어야 하고, 페이지 스크립트가 폴링마다 관문을
+    다시 적용한다. 이 칸은 폴링 조각 밖에 있어서 폴링이 커서 아래에서 다시 그리지 않는다.
     """
     allowed, access_reason = access
     groups = {'approve': [], 'mission': [], 'stop': []}
     for command in view['commands']:
-        if command.get('auto'):   # automatic support dispatch: a state line, no button (no data-command)
+        if command.get('auto'):   # 자동 지원 출동: 버튼 없이 상태 줄만 둔다(data-command 없음)
             groups[command['group']].append(f'<p class="cmd-auto" title="{escape(command["reason"])}">'
                                             f'{escape(command["label"])}</p>')
             continue
@@ -539,7 +539,7 @@ a{color:var(--info)}
 .id{font-variant-numeric:tabular-nums;letter-spacing:.02em}
 dl{margin:0}
 
-/* ---- console grid ---- */
+/* ---- 관제 화면 격자 ---- */
 .console{display:grid;gap:10px;padding:10px;min-height:100vh;
   grid-template-columns:minmax(0,1fr) 400px 470px;
   grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
@@ -554,11 +554,11 @@ dl{margin:0}
 }
 #map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
 #middle{display:flex;flex-direction:column;gap:10px;min-height:0}
-/* Robot cards give way (and scroll) before the victims list does (#64). */
+/* 칸이 모자라면 요구조자 목록보다 로봇 카드가 먼저 줄고 그 안에서 스크롤된다(#64). */
 #robots{min-height:0;overflow:auto}
 #side{display:flex;flex-direction:column;gap:10px;min-height:0}
 
-/* ---- band ---- */
+/* ---- 임무 띠 ---- */
 .band{display:flex;align-items:center;gap:28px;padding:10px 18px;border:1px solid var(--rule);background:var(--panel)}
 .band .mode-word{font-size:30px;font-weight:700;letter-spacing:.04em;min-width:3.2em}
 .band .facts{display:flex;gap:24px}
@@ -582,7 +582,7 @@ dl{margin:0}
 #kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:700}
 .mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
 
-/* ---- warnings ---- */
+/* ---- 확인할 것 ---- */
 .reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
 .scoped-reason{margin:4px 0 0;font-weight:600}
 .cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
@@ -593,7 +593,7 @@ dl{margin:0}
 #warnings li{display:inline}
 #warnings li+li::before{content:"／";margin:0 8px;color:var(--ink-2)}
 
-/* ---- map ---- */
+/* ---- 지도 ---- */
 #map{display:flex;flex-direction:column;min-height:0}
 #map header{display:flex;align-items:baseline;gap:16px}
 .legend{display:flex;gap:14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2)}
@@ -621,7 +621,7 @@ dl{margin:0}
 .unplotted .head{font-weight:700}
 #map.placeholder p{margin-top:40px;text-align:center;color:var(--ink-2)}
 
-/* ---- small V icon ---- */
+/* ---- 작은 V 표식 ---- */
 .vicon{width:16px;height:16px;flex:none;vertical-align:-3px}
 .vicon path,.vicon line{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .vicon.unconfirmed path{stroke:var(--pending);stroke-dasharray:2.2 1.6}
@@ -629,7 +629,7 @@ dl{margin:0}
 .vicon.rescued path,.vicon.rescued line{stroke:var(--safe)}
 .vicon.robot polygon{fill:var(--ink)}
 
-/* ---- robots ---- */
+/* ---- 로봇 ---- */
 .unit{border-left:6px solid var(--ink);padding:6px 0 8px 10px}
 .unit+.unit{margin-top:8px;border-top:1px solid var(--rule);padding-top:10px}
 .unit.support{border-left-color:var(--info)}
@@ -650,7 +650,7 @@ dl{margin:0}
 .unit.stale,.unit.missing{border-left-color:var(--caution)}
 .unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.55}
 
-/* ---- victims ---- */
+/* ---- 요구조자 ---- */
 #targets{display:flex;flex-direction:column;min-height:240px;flex:1}
 .stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:0 0 8px;padding:0;list-style:none}
 .stage-counts li{display:flex;align-items:center;gap:6px;padding:3px 8px;background:#fff;border-left:4px solid var(--pending);font-size:13px}
@@ -670,7 +670,7 @@ dl{margin:0}
 .victim-row .notes{grid-column:2;margin:4px 0 0;padding:2px 8px;list-style:none;background:var(--caution-tint);font-size:12.5px}
 .victims .none{padding:12px 0;color:var(--ink-2)}
 
-/* ---- events ---- */
+/* ---- 사건 기록 ---- */
 #events{display:flex;flex-direction:column;min-height:0}
 #events .scroll{overflow:auto;min-height:0;flex:1}
 #events table{border-collapse:collapse;width:100%;font-size:13px}
@@ -681,7 +681,7 @@ dl{margin:0}
 #events tr.disaster_sign td.kind{color:var(--signal);font-weight:700}
 #events tr.target_disappeared_candidate td.kind{color:var(--safe);font-weight:700}
 #events tr.fresh td{background:var(--caution-tint)}
-/* ---- command and error history: beside the event log, under the victims; scrolls inside ---- */
+/* ---- 명령·오류 기록: 사건 기록 옆, 요구조자 아래. 안에서 스크롤 ---- */
 #history{min-height:0;overflow:auto}
 #history table{border-collapse:collapse;width:100%;font-size:13px}
 #history th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2)}
@@ -691,7 +691,7 @@ dl{margin:0}
 #history tr.accepted .outcome{color:var(--safe)}
 #history .missing,#history.empty p{color:var(--ink-2)}
 
-/* ---- side: cameras and commands ---- */
+/* ---- 옆 칸: 웹캠과 명령 ---- */
 #cameras figure{margin:0;position:relative}
 #cameras img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#26343a;color:transparent}
 #cameras .nosignal{display:none;position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;align-items:center;
@@ -716,10 +716,10 @@ dl{margin:0}
 .cmd.approve .cmd-label{font-size:17px} .cmd.approve .why{font-size:12.5px;color:#dbe9f4}
 .cmd.stop{width:100%;padding:8px 12px;background:var(--signal);border-color:var(--signal);color:#fff}
 .cmd.stop .cmd-label{font-size:17px} .cmd.stop .why{color:#ffd9de}
-/* Off buttons stay readable: the reason under the label is the point. */
+/* 꺼진 버튼도 읽히게 둔다: 낱말 아래 꺼진 이유가 핵심이다. */
 .cmd:disabled{cursor:not-allowed;background:#e9edec;border-color:var(--rule);color:var(--ink-2)}
 .cmd:disabled .why{color:var(--ink-2)}
-/* The pressed command while its confirm step is open. */
+/* 확인 칸이 열려 있는 동안 누른 명령. */
 .cmd.armed:disabled{background:var(--info-tint);border:2px solid var(--info);color:var(--info)}
 #cmd-confirm{border:2px solid var(--info);background:#fff;padding:8px 10px;margin-bottom:8px}
 #cmd-confirm .what{font-weight:700;margin-bottom:6px}
@@ -738,7 +738,7 @@ dl{margin:0}
 #cmd-log li.failed{border-left-color:var(--signal);font-weight:500}
 .estop{font-size:12.5px;padding:6px 8px;border-left:6px solid var(--signal);background:#fff}
 
-/* ---- forms (login, accounts) ---- */
+/* ---- 폼(로그인, 계정) ---- */
 .card{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--rule)}
 .card h1{font-size:22px;margin-bottom:12px}
 .failure{border-left:8px solid var(--signal)} .failure p{margin-top:10px}
@@ -754,22 +754,22 @@ form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}
 .admin th,.admin td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
 """
 
-# Stamps each event row with the browser time it first appeared (KPI-04), and runs the command panel.
-# GET for the fragment; the one POST is an operator command to this console's /commands.
+# 사건 행마다 처음 나타난 브라우저 시각을 찍고(KPI-04), 명령 칸을 돌린다.
+# 조각은 GET 으로 받고, 유일한 POST 는 이 콘솔의 /commands 로 보내는 운영자 명령이다.
 _SCRIPT = """
-// Page state: firstSeen maps an event ref_id to the browser time its row was first drawn; window.kpi04
-// holds one latency record per event (saved as CSV by saveKpi); loaded turns true after the first stamp();
-// lastOk is the time of the last good poll; FRESH_MS is how long a newly arrived row stays highlighted.
+// 페이지 상태: firstSeen 은 사건 ref_id 를 그 행을 처음 그린 브라우저 시각에 잇는다. window.kpi04 는
+// 사건마다 지연 기록 하나를 담는다(saveKpi 가 CSV 로 저장). loaded 는 첫 stamp() 뒤에 참이 된다.
+// lastOk 는 마지막 성공 폴링 시각, FRESH_MS 는 새로 들어온 행을 강조해 두는 시간이다.
 const firstSeen = new Map();
 window.kpi04 = [];
 const FRESH_MS = 3000;
 let lastOk = Date.now(), loaded = false;
-// Same formats as render.py _time / _age, so the server and browser columns read alike.
+// render.py _time / _age 와 같은 형식이라 서버 칸과 브라우저 칸이 똑같이 읽힌다.
 function clock(ms) {
   const d = new Date(ms), pad = (n, w) => String(n).padStart(w || 2, '0');
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(d.getMilliseconds(), 3);
 }
-// Age text like render.py _age, except two decimals (not one) under a minute.
+// render.py _age 와 같은 나이 글자. 다만 1분 미만은 소수 한 자리가 아니라 두 자리로 쓴다.
 function age(s) {
   const sign = s < 0 ? '-' : '', v = Math.abs(s);
   if (v < 60) return sign + v.toFixed(2) + 's';
@@ -777,18 +777,18 @@ function age(s) {
   if (v < 86400) return sign + Math.floor(v / 3600) + '시간 ' + Math.floor(v % 3600 / 60) + '분';
   return sign + Math.floor(v / 86400) + '일';
 }
-// Fills the 화면 표시 and 지연 cells of every event row; runs after each poll, because each new fragment
-// arrives with those cells unfilled (—). A ref_id seen for the first time gets the current browser time in firstSeen
-// and one KPI-04 record, so an event's latency is measured once, when its row first appears. The latency
-// is browser clock minus event clock, so it means something only when the two clocks agree (C-03).
+// 모든 사건 행의 화면 표시·지연 칸을 채운다. 새 조각은 그 칸이 빈 채(—)로 오므로 폴링마다 돈다.
+// 처음 본 ref_id 는 firstSeen 에 지금 브라우저 시각을 받고 KPI-04 기록 하나를 얻는다. 그래서 사건의
+// 지연은 그 행이 처음 나타날 때 한 번만 잰다. 지연은 브라우저 시계에서 사건 시계를 뺀 값이라,
+// 두 시계가 맞을 때만 의미가 있다(C-03).
 function stamp() {
   const now = Date.now();
   for (const row of document.querySelectorAll('tr.event')) {
     const ref = row.dataset.ref, eventMs = Number(row.dataset.eventNs) / 1e6;
     if (!firstSeen.has(ref)) {
       firstSeen.set(ref, now);
-      // live: the row arrived while this page was open. Rows already there at load are history,
-      // not display latency, and stay out of the KPI-04 summary.
+      // live: 이 페이지가 열려 있는 동안 들어온 행이다. 로드 때 이미 있던 행은 표시 지연이 아니라
+      // 지난 기록이므로 KPI-04 요약에서 뺀다.
       window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
                          event_ns: row.dataset.eventNs, received_at_ns: row.dataset.receivedNs || '',
                          rendered_ms: now, latency_s: (now - eventMs) / 1000, live: loaded});
@@ -797,13 +797,13 @@ function stamp() {
     row.dataset.renderedMs = shown;
     row.querySelector('.rendered').textContent = clock(shown);
     row.querySelector('.latency').textContent = age((shown - eventMs) / 1000);
-    // Rows that arrived while the page was open stay highlighted for a moment (no animation).
+    // 페이지가 열린 뒤 들어온 행은 잠시 강조해 둔다(애니메이션 없음).
     row.classList.toggle('fresh', loaded && now - shown < FRESH_MS);
   }
   loaded = true;
   kpiSummary();
 }
-// The #kpi line: over live records only, how many are within the KPI-04 budget and the worst latency.
+// #kpi 줄: live 기록만 대상으로, KPI-04 예산 안에 든 건수와 가장 긴 지연을 보인다.
 function kpiSummary() {
   const el = document.getElementById('kpi');
   if (!el) return;
@@ -818,12 +818,12 @@ function kpiSummary() {
   el.className = within === live.length ? 'ok' : 'over';
   el.textContent = 'KPI-04: 실시간 사건 ' + live.length + '건 중 ' + KPI_BUDGET_S + '초 이내 ' + within + '건, 최대 ' + age(worst);
 }
-// One CSV cell, quoted (with inner quotes doubled) when it holds a quote, a comma or a newline.
+// CSV 칸 하나. 따옴표·쉼표·줄바꿈이 있으면 따옴표로 감싼다(안의 따옴표는 두 번 쓴다).
 function csvCell(value) {
   const text = String(value);
   return /[",\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
-// Saves the records as a CSV file in the browser (Blob); nothing is sent to the server.
+// 기록을 브라우저 안에서 CSV 파일(Blob)로 저장한다. 서버로는 아무것도 보내지 않는다.
 function saveKpi() {
   const keys = ['ref_id', 'kind', 'clock_domain_id', 'event_ns', 'received_at_ns', 'rendered_ms', 'latency_s', 'live'];
   const lines = window.kpi04.map(r => keys.map(k => csvCell(k === 'latency_s' ? r[k].toFixed(3) : r[k])).join(','));
@@ -834,14 +834,14 @@ function saveKpi() {
   link.click();
   URL.revokeObjectURL(url);
 }
-// The tab title carries the state too, so a background tab still says 재난 or 갱신 끊김.
+// 탭 제목에도 상태를 실어, 뒤에 깔린 탭도 재난이나 갱신 끊김을 알린다.
 function title(lost) {
   const band = document.getElementById('mission');
   const tag = lost ? '[갱신 끊김] ' : band && band.dataset.mode === 'DISASTER' ? '[재난] ' : '';
   document.title = tag + '구조 관제';
 }
-// Shows the result of a poll in the tab title and #poll. It also re-applies the command gates, since a
-// lost screen turns every command button off. On failure lastOk is kept, so the text says how old the view is.
+// 폴링 결과를 탭 제목과 #poll 에 보인다. 갱신 끊김이면 모든 명령 버튼이 꺼져야 하므로 명령 관문도
+// 다시 적용한다. 실패 때는 lastOk 를 그대로 두어, 화면이 얼마나 오래된 값인지 문구가 말해 준다.
 function pollStatus(ok, message) {
   title(!ok);
   screenLost = !ok;
@@ -857,21 +857,21 @@ function pollStatus(ok, message) {
   }
 }
 let timer = null;
-// One poll, started by setInterval at the bottom without waiting for the previous one to finish: GET the
-// fragment, swap #live, then stamp the event rows, read the new gates and mark the screen live. Any
-// failure only marks the screen lost; the last good fragment stays on screen.
+// 폴링 한 번. 맨 아래 setInterval 이 앞 폴링이 끝나기를 기다리지 않고 시작한다: 조각을 GET 하고
+// #live 를 바꾼 뒤 사건 행에 시각을 찍고 새 관문을 읽고 화면을 실시간으로 표시한다. 401·다른 주소로 재지정이면
+// 폴링을 멈추고 로그인 화면(재지정이면 그 주소)으로 간다. 그 밖의 실패는 갱신 끊김 표시뿐이고 마지막 조각은 남는다.
 async function poll() {
   try {
     const response = await fetch('fragment', {cache: 'no-store'});
     if (response.status === 401 || response.redirected) {
-      // Session ended (logout elsewhere, account changed): stop polling and go to the login page
-      // instead of pasting whatever came back into the console (AST-50-02).
+      // 세션이 끝났다(다른 곳에서 로그아웃, 계정 변경): 돌아온 내용을 콘솔에 붙이지 않고
+      // 폴링을 멈춘 뒤 로그인 페이지로 간다(AST-50-02).
       clearInterval(timer);
       location.href = response.status === 401 ? '/login' : response.url;
       return;
     }
     if (!response.ok) {
-      // The server says what failed (render.failure_text); show it instead of a bare status code.
+      // 서버가 무엇이 실패했는지 알려 준다(render.failure_text). 상태 코드만 보이지 말고 그 글을 보인다.
       const reason = (await response.text()).slice(0, 200);
       throw new Error('HTTP ' + response.status + (reason ? ' ' + reason : ''));
     }
@@ -885,68 +885,68 @@ async function poll() {
 }
 document.getElementById('kpi-save').addEventListener('click', saveKpi);
 
-// ---- operator commands ----
-// The gates come with every fragment (#gates). A button needs this page's access (ADMIN, operations
-// address) and its gate; while the screen is not updating every button is off. One press arms a confirm
-// step that shows what will be sent; only 보내기 sends, once. Nothing is ever resent automatically.
+// ---- 운영자 명령 ----
+// 관문은 조각마다 함께 온다(#gates). 버튼이 켜지려면 이 페이지의 권한(ADMIN, operations 주소)과
+// 그 관문이 있어야 하고, 화면이 갱신되지 않는 동안에는 모든 버튼이 꺼진다. 한 번 누르면 보낼 내용을
+// 보이는 확인 칸이 열리고, 보내기만 한 번 보낸다. 자동으로 다시 보내는 일은 없다.
 const panel = document.getElementById('commands');
 const allowed = panel.dataset.allowed === '1';
 const confirmBox = document.getElementById('cmd-confirm'), pick = document.getElementById('cmd-pick');
 const sendButton = document.getElementById('cmd-send'), cancelButton = document.getElementById('cmd-cancel');
 const LOG_ROWS = 6;
-// gates: the latest gate mirror; armed: the command whose confirm step is open ({kind, name, args as a
-// JSON string, choices}); sending: a POST is in flight; screenLost: the last poll failed.
+// gates: 최신 관문 거울. armed: 확인 칸이 열린 명령({kind, name, JSON 문자열인 args,
+// choices}). sending: POST 가 가는 중. screenLost: 마지막 폴링이 실패했다.
 let gates = {}, armed = null, sending = false, screenLost = false;
-// Reads the gate JSON from the fragment's hidden #gates. A missing or unreadable mirror means no gates,
-// so every button goes off instead of keeping the previous gates.
+// 조각의 숨은 #gates 에서 관문 JSON 을 읽는다. 거울이 없거나 읽히지 않으면 관문이 없는 것으로 보고,
+// 이전 관문을 유지하지 않고 모든 버튼을 끈다.
 function readGates() {
   const el = document.getElementById('gates');
   try { gates = el ? JSON.parse(el.dataset.gates) : {}; } catch (error) { gates = {}; }
 }
-// Button label of a command kind, for the confirm step and the answer list; the kind itself without a button.
+// 명령 종류의 버튼 글자(확인 칸과 답 목록에 쓴다). 버튼이 없으면 종류 그대로.
 function nameOf(kind) {
   const button = panel.querySelector('button[data-command="' + kind + '"] .cmd-label');
   return button ? button.textContent : kind;
 }
-// Same shortening as render.py _short.
+// render.py _short 와 같은 줄임 규칙.
 function shortId(id) { return String(id).length > 9 ? String(id).slice(0, 8) : String(id); }
-// The target picked in the confirm step, or null when the armed command has no choices.
+// 확인 칸에서 고른 대상. 열린 명령에 선택지가 없으면 null.
 function chosen() { return armed && armed.choices.length ? armed.choices[pick.selectedIndex] : null; }
-// True while the open confirm step still matches the latest gate: the gate is on, its args are unchanged
-// and the picked target is still among its choices. Otherwise what the operator confirmed is out of date.
+// 열린 확인 칸이 아직 최신 관문과 맞으면 참: 관문이 켜져 있고, args 가 그대로이고,
+// 고른 대상이 아직 선택지에 있다. 아니면 운영자가 확인한 내용이 낡은 것이다.
 function sameArmed(gate) {
   if (!gate || !gate.enabled || JSON.stringify(gate.args) !== armed.args) return false;
   const choice = chosen();
   return !choice || gate.choices.some(c => JSON.stringify(c) === JSON.stringify(choice));
 }
-// Sets every command button from its gate and writes the reason under it. A button is on only with this
-// page's access, its gate on, a live screen, nothing sending and no confirm step open.
+// 모든 명령 버튼을 그 관문에 맞춰 켜고 끄며 아래에 사유를 쓴다. 버튼은 이 페이지에 권한이 있고,
+// 관문이 켜져 있고, 화면이 실시간이고, 보내는 중이 아니고, 확인 칸이 닫혀 있을 때만 켜진다.
 function applyGates() {
   for (const button of panel.querySelectorAll('button[data-command]')) {
     const gate = gates[button.dataset.command] || {enabled: false, reason: '관문 정보 없음'};
-    // While polls fail the gates may be old, so no command is offered from a screen that is not current.
+    // 폴링이 실패하는 동안 관문은 낡았을 수 있으므로, 최신이 아닌 화면에서는 명령을 내주지 않는다.
     const reason = screenLost ? '갱신 끊김 — 화면이 최신이 아니라 꺼 둠' : gate.reason;
     button.disabled = !allowed || !gate.enabled || screenLost || sending || armed !== null;
     button.classList.toggle('armed', armed !== null && armed.kind === button.dataset.command);
     button.querySelector('.why').textContent = reason;
     button.title = reason;
   }
-  // An open confirm step is cancelled when its gate changed or the screen went stale, and the operator is
-  // told to press again. Never while sending: the POST is already out and cancelling would not stop it.
+  // 열린 확인 칸은 그 관문이 바뀌었거나 화면이 낡으면 취소하고, 운영자에게 다시 누르라고 알린다.
+  // 보내는 중에는 취소하지 않는다: POST 는 이미 나갔고 취소해도 멈추지 않는다.
   if (armed && !sending && (screenLost || !sameArmed(gates[armed.kind]))) {
     disarm('상태가 바뀌어 ' + armed.name + ' 확인을 취소했습니다. 다시 누르세요.');
   }
 }
-// Lists in the confirm step what goes with the command besides the picked target: its revision for
-// DISPATCH_SUPPORT and each gate arg under a Korean label. Runs again when another target is picked.
-// Values are set with textContent, so nothing from the gates is parsed as HTML.
+// 확인 칸에 고른 대상 말고 명령과 함께 가는 값을 나열한다: DISPATCH_SUPPORT 면 대상 revision,
+// 그리고 관문 arg 마다 한국어 이름표를 붙여 보인다. 다른 대상을 고르면 다시 돈다.
+// 값은 textContent 로 넣으므로 관문에서 온 어떤 값도 HTML 로 해석되지 않는다.
 function showArgs() {
   const rows = [], args = JSON.parse(armed.args), choice = chosen();
   const labels = {target_id: '대상', target_revision: '대상 revision', route_revision: '경로 revision',
                   segment_index: '승인할 구간'};
   if (choice && armed.kind === 'DISPATCH_SUPPORT') rows.push(['대상 revision', choice.target_revision]);
   for (const key of Object.keys(args)) {
-    // segment_index counts finished segments, so it is also the 0-based index of the next one.
+    // segment_index 는 끝낸 구간 수이므로, 다음 구간을 0부터 센 번호이기도 하다.
     rows.push([labels[key] || key, key === 'segment_index'
       ? (args[key] + 1) + '번째 구간 (segment_index ' + args[key] + ')' : args[key]]);
   }
@@ -960,8 +960,8 @@ function showArgs() {
     list.append(dt, dd);
   }
 }
-// First press: opens the confirm step for one command and turns every command button off. The gate's args and
-// choices are copied into armed now, so a later poll cannot change what is sent (sameArmed cancels instead).
+// 첫 번째 누름: 명령 하나의 확인 칸을 열고 모든 명령 버튼을 끈다. 관문의 args 와 choices 를 지금
+// armed 에 복사하므로 뒤의 폴링이 보낼 내용을 바꿀 수 없다(바뀌면 sameArmed 가 대신 취소한다).
 function arm(kind) {
   const gate = gates[kind];
   if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
@@ -979,7 +979,7 @@ function arm(kind) {
   applyGates();
   sendButton.focus();
 }
-// Closes the confirm step and resets its buttons; a message says in the answer list why it was closed.
+// 확인 칸을 닫고 그 버튼을 되돌린다. message 가 있으면 왜 닫았는지 답 목록에 적는다.
 function disarm(message) {
   armed = null;
   confirmBox.hidden = true;
@@ -988,8 +988,8 @@ function disarm(message) {
   if (message) log('info', message);
   applyGates();
 }
-// Adds one timestamped line (class accepted, rejected, failed or info) on top of this page's answer list
-// and keeps the newest LOG_ROWS. It shows only this page's presses; the history table is the shared record.
+// 이 페이지의 답 목록 맨 위에 시각을 붙인 줄 하나(클래스 accepted, rejected, failed, info)를 더하고
+// 최신 LOG_ROWS 줄만 남긴다. 이 페이지에서 누른 것만 보이고, 함께 보는 기록은 명령·오류 기록 표다.
 function log(kind, text) {
   const item = document.createElement('li'), time = document.createElement('time');
   item.className = kind;
@@ -999,9 +999,9 @@ function log(kind, text) {
   list.prepend(item);
   while (list.children.length > LOG_ROWS) list.lastChild.remove();
 }
-// Turns the console's answer into [class, text] for the answer list. sent === true: operations answered
-// (accepted means 접수, not done). sent === false: not delivered, or delivery unknown with the command_id to
-// look up. Anything else (an unexpected HTTP answer) is a failure whose delivery is unknown.
+// 콘솔의 답을 답 목록용 [클래스, 글자]로 바꾼다. sent === true: operations 가 답했다
+// (accepted 는 접수이지 완료가 아니다). sent === false: 전달 안 됨이거나, 전달 여부를 모르고 찾아볼
+// command_id 가 함께 온다. 그 밖(예상 못 한 HTTP 답)은 전달 여부를 모르는 실패다.
 function describe(name, status, result) {
   if (result && result.sent === true) {
     const id = ' — request_id ' + result.request_id + (result.request_state ? ' (' + result.request_state + ')' : '');
@@ -1016,9 +1016,9 @@ function describe(name, status, result) {
   }
   return ['failed', name + ': 보내지 못함 — 콘솔 응답 HTTP ' + status + ', 전달됐는지 모름'];
 }
-// Second press (보내기): exactly one POST to this console's commands route with the CSRF token, kind, picked
-// target and args; the answer or the failure is logged and the confirm step closed. There is no retry
-// (AGENTS.md 7절): the console gives every POST a new command_id, so a resend would be a second command.
+// 두 번째 누름(보내기): 이 콘솔의 commands 경로로 CSRF 토큰, kind, 고른 대상, args 를 담아 정확히
+// 한 번 POST 한다. 답이나 실패를 기록에 적고 확인 칸을 닫는다. 다시 시도하지 않는다
+// (AGENTS.md 7절): 콘솔은 POST 마다 새 command_id 를 주므로, 다시 보내면 두 번째 명령이 된다.
 async function send() {
   if (!armed || sending) return;
   const body = new URLSearchParams({csrf: panel.dataset.csrf, kind: armed.kind});
@@ -1047,8 +1047,8 @@ async function send() {
   sending = false;
   disarm();
 }
-// One click listener on the panel (event delegation) for every command button; 취소 and Escape close the
-// confirm step, but Escape does nothing while a command is being sent.
+// 모든 명령 버튼을 위한 클릭 리스너 하나를 칸에 단다(이벤트 위임). 취소와 Escape 는 확인 칸을
+// 닫지만, 명령을 보내는 중에는 Escape 가 아무것도 하지 않는다.
 panel.addEventListener('click', event => {
   const button = event.target.closest('button[data-command]');
   if (button && !button.disabled) arm(button.dataset.command);
@@ -1058,8 +1058,8 @@ sendButton.addEventListener('click', send);
 cancelButton.addEventListener('click', () => disarm());
 confirmBox.addEventListener('keydown', event => { if (event.key === 'Escape' && !sending) disarm(); });
 
-// Start: the page arrived with a server-drawn fragment, so stamp it (as history, not live) and apply its
-// gates, then poll on a fixed interval.
+// 시작: 페이지는 서버가 그린 조각을 품고 오므로, 그 행에 시각을 찍고(live 가 아닌 지난 기록으로)
+// 관문을 적용한 뒤 일정한 간격으로 폴링한다.
 stamp();
 readGates();
 pollStatus(true);
@@ -1068,7 +1068,7 @@ timer = setInterval(poll, POLL_MS);
 
 
 def _head(title):
-    """Document start with the stylesheet inline: pages load nothing from outside (the field may have no internet)."""
+    """스타일시트를 안에 넣은 문서 머리. 페이지는 바깥에서 아무것도 읽지 않는다(현장에 인터넷이 없을 수 있다)."""
     return ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{escape(title)}</title><style>{_STYLE}</style></head><body>')
@@ -1079,7 +1079,7 @@ def _flashes(messages):
 
 
 def _user_nav(user, csrf):
-    """Who is logged in and where they may go. The only form on the dashboard is logout (POST + CSRF)."""
+    """누가 로그인했고 어디로 갈 수 있는지. 관제 화면의 유일한 폼은 로그아웃(POST + CSRF)이다."""
     if user is None:
         return ''
     admin = ' <a href="/admin/accounts">계정 관리</a>' if user['role'] == 'ADMIN' else ''
@@ -1089,12 +1089,12 @@ def _user_nav(user, csrf):
 
 
 def _header(user, csrf):
-    """Plain page header for the account pages."""
+    """계정 페이지에 쓰는 단순한 페이지 머리."""
     return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
 
 
 def camera_stale_ms(cameras, stale_s):
-    """Milliseconds without a new frame before a stream is shown lost; required with cameras, no default."""
+    """영상을 끊김으로 보이기 전까지 새 프레임 없이 기다리는 ms. 카메라가 있으면 꼭 필요하고 기본값은 없다."""
     if not cameras:
         return None
     if stale_s is None:
@@ -1104,24 +1104,24 @@ def camera_stale_ms(cameras, stale_s):
     return round(stale_s * 1000)
 
 
-# A multipart stream that ends normally fires no error and leaves its last frame on screen (measured
-# 2026-10-13, Firefox: one load event per frame, none after the close). So each frame's load event is
-# timed; past the stale time the figure shows 「영상 끊김」 and the stream is opened again with a
-# cache-busting query, at most once per stale time. onerror still marks it at once.
+# 정상으로 끝난 multipart 영상은 오류를 내지 않고 마지막 프레임을 화면에 남긴다(측정
+# 2026-10-13, Firefox: 프레임마다 load 이벤트 하나, 닫힌 뒤에는 없음). 그래서 프레임마다 load 이벤트
+# 시각을 재고, 끊김 판정 시간을 넘기면 칸에 「영상 끊김」을 보이고 캐시를 피하는 쿼리를 붙여 영상을
+# 다시 연다. 다시 열기는 끊김 판정 시간마다 많아야 한 번이다. onerror 는 여전히 바로 표시한다.
 _CAMERA_SCRIPT = """
 function watchCameras() {
   document.querySelectorAll('#cameras figure[data-stale-ms]').forEach(figure => {
     const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
     const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
     let last = Date.now(), retried = Date.now();
-    // A frame's load event is the sign of life; it also clears the lost mark.
+    // 프레임의 load 이벤트가 살아 있다는 신호이고, 끊김 표시도 지운다.
     img.addEventListener('load', () => {
       last = Date.now();
       if (figure.classList.contains('lost')) {
         figure.classList.remove('lost'); note.textContent = ''; note.className = '';
       }
     });
-    // Checked every stale / 2 ms, kept within 100-500 ms.
+    // stale / 2 ms 마다 검사하되, 100-500 ms 안으로 둔다.
     setInterval(() => {
       const now = Date.now();
       if (now - last < stale) return;
@@ -1138,10 +1138,10 @@ watchCameras();
 
 
 def _cameras(cameras, stale_ms=None):
-    """Camera streams embedded straight from the camera PC's MJPEG gateway (IF-082).
+    """카메라 PC 의 MJPEG 게이트웨이(IF-082)에서 바로 받는 영상을 넣는다.
 
-    Outside the polled fragment, so a poll never restarts a stream. The console does not relay
-    video. A broken or stalled stream is shown as lost, not hidden, and reconnected (_CAMERA_SCRIPT).
+    폴링 조각 밖에 있으므로 폴링이 영상을 다시 시작하지 않는다. 콘솔은 영상을 중계하지
+    않는다. 깨지거나 멈춘 영상은 숨기지 않고 끊김으로 보이며 다시 연결한다(_CAMERA_SCRIPT).
     """
     if not cameras:
         return ('<section class="camera-empty"><h2>웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
@@ -1158,19 +1158,19 @@ def _cameras(cameras, stale_ms=None):
 
 
 def page_title(view):
-    """Tab title at load; the page script's title() keeps it current after each poll."""
+    """로드 때의 탭 제목. 그 뒤에는 페이지 스크립트의 title() 이 폴링마다 최신으로 유지한다."""
     return ('[재난] ' if view['mission']['mode'] == 'DISASTER' else '') + '구조 관제'
 
 
 def failure_text(code, message):
-    """One line for the poll status: the code, what to check, and the raw detail."""
+    """갱신 상태에 쓸 한 줄: 코드, 확인할 것, 원문 상세."""
     return f'{code}: {FAILURE_HINTS.get(code, FAILURE_HINT_OTHER)} ({message})'
 
 
 def render_failure(code, message):
-    """Whole-page failure (503): what failed and what to check, retried every FAILURE_RETRY_S.
+    """페이지 전체 실패(503): 무엇이 실패했고 무엇을 확인할지 보이고, FAILURE_RETRY_S 마다 다시 시도한다.
 
-    Never an empty but healthy-looking console (AGENTS.md 7절: failures must show).
+    비어 있으면서 정상처럼 보이는 콘솔은 절대 내지 않는다(AGENTS.md 7절: 실패는 드러나야 한다).
     """
     return (_head('[화면 오류] 구조 관제').replace(
                 '<meta charset="utf-8">', f'<meta charset="utf-8"><meta http-equiv="refresh" content="{FAILURE_RETRY_S}">')
@@ -1182,9 +1182,9 @@ def render_failure(code, message):
 
 
 def render_page(view, user=None, csrf=None, cameras=(), command_access=None, camera_stale_s=None):
-    """`cameras`: ((camera_id, http(s) URL), ...) from the launch arguments; with them `camera_stale_s`
-    (seconds without a new frame before 「영상 끊김」, no default). `command_access`:
-    (allowed, reason) from commands.command_access; without it no command can be sent from the page."""
+    """`cameras`: 실행 인자에서 온 ((camera_id, http(s) URL), ...). 이것이 있으면 `camera_stale_s` 도
+    필요하다(「영상 끊김」 전까지 새 프레임 없이 기다리는 초, 기본값 없음). `command_access`:
+    commands.command_access 의 (allowed, reason). 없으면 이 페이지에서 명령을 보낼 수 없다."""
     access = command_access or (False, '명령 연결 없음')
     stale_ms = camera_stale_ms(cameras, camera_stale_s)
     script = _SCRIPT.replace('POLL_MS', str(POLL_INTERVAL_MS)).replace('KPI_BUDGET_S', f'{KPI04_BUDGET_S:g}')
@@ -1202,7 +1202,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
 
 
 def render_login(csrf, messages=()):
-    """Login page (tutor day5 requirement: login page backed by login data in SQLite)."""
+    """로그인 페이지(강사 day5 요구: SQLite 의 로그인 데이터를 쓰는 로그인 페이지)."""
     return (_head('구조 관제 로그인') + '<div class="card"><h1>구조 관제 로그인</h1>' + _flashes(messages)
             + '<form method="post" action="/login">'
             f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
@@ -1213,7 +1213,7 @@ def render_login(csrf, messages=()):
 
 
 def render_accounts(accounts, user, csrf, messages=()):
-    """ADMIN only: list accounts, create a customer, update or delete one."""
+    """ADMIN 전용: 계정 목록, 고객 계정 만들기, 계정 수정·삭제."""
     hidden = f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
     rows = []
     for account in accounts:

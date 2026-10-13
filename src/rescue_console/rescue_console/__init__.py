@@ -1,1 +1,1 @@
-"""Read-only operator console: ledger + status snapshots -> one screen (no ROS, no commands)."""
+"""운영자 관제 웹: 현장 상태를 읽기 전용으로 한 화면에 보이고, 운영자 명령은 operations 로 한 번 넘긴다(ROS 없음)."""
