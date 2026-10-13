@@ -143,6 +143,13 @@ class FieldCase(unittest.TestCase):
         return robot_launch_values(self.deployment, field=field or self.field(saved_maps), **values)
 
 
+def tb5_depth(raw):
+    """TB-5 passage depth image (not measured in the repository file yet: TB-5 does not start without it)."""
+    raw['robots']['robot_b'].update({'passage.depth_topic': '/robot5/oakd/stereo/image_raw',
+                                     'passage.camera_info_topic': '/robot5/oakd/stereo/camera_info',
+                                     'passage.depth_transport': 'compressedDepth'})
+
+
 def saved_maps(raw):
     """Both robots on a saved map with a measured hash (SAVED_MAP_AMCL), as the #132 field scripts."""
     raw['coordinator']['map_mode'] = 'SAVED_MAP'
@@ -247,6 +254,10 @@ class RobotParameters(FieldCase):
         expected['task.live.sensor_host_clock_domain_id'] = 'rokey7-utc-field'
         # TB-6 Pi measured 2026-10-13 (chronyc tracking, about 109 ms by the parse_chrony bound) -> 150 ms
         expected['task.live.sensor_host_clock_error_bound_ns'] = 150_000_000
+        # Overhead passage stop (OPS-128/135): reported by the executor; the depth image is a readiness camera
+        expected.update({'task.live.passage.polygon_name': 'PassageStop',
+                         'task.live.passage.result_window_ns': 5_000_000_000})
+        expected['camera_topics'] = expected['camera_topics'] + ['/robot6/oakd/stereo/image_raw']
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -277,7 +288,8 @@ class RobotParameters(FieldCase):
     def test_tb5_values_in_the_repository_field_file(self):
         """TB-5 (robot_b, SUPPORT): its own publisher, the same mapping authority as TB-6, approach and return
         only, Pi clock measured (150 ms). Decided 2026-10-13; #132 had no robot_b values."""
-        b, a = self.robot(robot_id='robot_b')['task_input'], self.robot()['task_input']
+        tb5 = self.field(lambda raw: (saved_maps(raw), tb5_depth(raw)))
+        b, a = self.robot(field=tb5, robot_id='robot_b')['task_input'], self.robot()['task_input']
         self.assertEqual('/robot5/navigate_to_pose', b['nav_action'])
         self.assertNotEqual(a['task.publisher_id'], b['task.publisher_id'])
         self.assertEqual(a['task.mapping_authority'], b['task.mapping_authority'])
@@ -301,7 +313,8 @@ class RobotParameters(FieldCase):
                                         'task.live.auto_target.policy_version': 'p',
                                         'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
                                         'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
-        values = self.robot(field=self.field(lambda raw: (add_b(raw), saved_maps(raw))), robot_id='robot_b')
+        values = self.robot(field=self.field(lambda raw: (add_b(raw), saved_maps(raw), tb5_depth(raw))),
+                            robot_id='robot_b')
         # Both policy and sensor clock must stay local to this robot.
         self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
         self.assertEqual(['REOBSERVE_TARGET', 'RETURN_HOME'], self.robot()['task_input']['task.live.auto_target.kinds'])

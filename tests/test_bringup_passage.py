@@ -115,7 +115,8 @@ class CollisionMonitor(unittest.TestCase):
         stop = p['PassageStop']
         self.assertEqual(('polygon', 'stop', 5, ['passage_depth'], True),
                          (stop['type'], stop['action_type'], stop['min_points'], stop['sources_names'], stop['enabled']))
-        self.assertEqual([[1.0, 0.2], [1.0, -0.2], [0.4, -0.2], [0.4, 0.2]], stop['points'])
+        # one string, as nav2.yaml footprints: ROS parameters cannot hold nested arrays
+        self.assertEqual([[1.0, 0.2], [1.0, -0.2], [0.4, -0.2], [0.4, 0.2]], json.loads(stop['points']))
         depth = p['passage_depth']
         self.assertEqual(('pointcloud', 'passage_points', 0.05, 0.46, True),
                          (depth['type'], depth['topic'], depth['min_height'], depth['max_height'], depth['enabled']))

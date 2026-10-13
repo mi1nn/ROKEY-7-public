@@ -66,6 +66,11 @@ ROBOT_KEYS = {
     # ObserveTarget after a REOBSERVE_TARGET stop (C1-b, 2026-10-13)
     'task.live.recheck.window_ns': I, 'task.live.recheck.deadline_ns': I,
     'task.live.pose_valid_ns': I,  # RobotPose validity after the AMCL stamp (live_pose, 2026-10-13)
+    # Overhead passage stop, the same for every robot (owner decisions 2026-10-13: 46 cm, scope Q-25;
+    # both robots, OPS-135). robot.launch.py adds it to the Nav2 collision_monitor (nav2_with_passage).
+    'passage.min_height_m': F, 'passage.max_height_m': F, 'passage.front_m': FL, 'passage.half_width_m': F,
+    'passage.min_points': I,
+    'task.live.passage.polygon_name': S, 'task.live.passage.result_window_ns': I,
 }
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
 # Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
@@ -79,6 +84,10 @@ ROBOT_IDENTITY_KEYS['task.saved_map.mode'] = S
 ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
 SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I}     # TB-6 SLAM pose freshness at the freeze
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
+# This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
+PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
+DEPTH_TRANSPORTS = ('raw', 'compressedDepth')
+PASSAGE_POINTS = '/passage_points'   # <ns> + this: depth_image_proc output, collision_monitor input
 FROZEN_TOPIC = '/rescue/map/frozen'                     # rescue_robot map_freeze / live_parameters
 FROZEN_POSE_TOPIC = '/rescue/map/frozen_pose/'          # + SLAM robot id
 ALIGNMENT_KEYS = {'backdate_s': F, 'window_s': F}
@@ -199,6 +208,15 @@ def load_field(path):
         raise FieldLaunchError(f'robot.task.coordinator_state_topic must be {SYSTEM_STATE_TOPIC}')
     if len(robot['task.saved_map.transform_xy_yaw']) != 3:
         raise FieldLaunchError('robot.task.saved_map.transform_xy_yaw must be [x, y, yaw]')
+    front = robot['passage.front_m']
+    if not (0 <= robot['passage.min_height_m'] < robot['passage.max_height_m']):
+        raise FieldLaunchError('robot.passage heights must be 0 <= min_height_m < max_height_m')
+    if len(front) != 2 or not 0 <= front[0] < front[1]:
+        raise FieldLaunchError('robot.passage.front_m must be [near, far] with 0 <= near < far')
+    if robot['passage.half_width_m'] <= 0 or robot['passage.min_points'] < 1:
+        raise FieldLaunchError('robot.passage.half_width_m must be positive and passage.min_points at least 1')
+    if robot['task.live.passage.result_window_ns'] <= 0:
+        raise FieldLaunchError('robot.task.live.passage.result_window_ns must be positive')
     return FieldRun(raw)
 
 
@@ -214,11 +232,15 @@ def _robot_map_modes(robots):
             keys.update(SLAM_ROBOT_KEYS)
         if mode == 'FROZEN_MAP_AMCL' and 'initial_pose_xy_yaw' in section:
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
+        if any(key in section for key in PASSAGE_DEPTH_KEYS):
+            keys.update(PASSAGE_DEPTH_KEYS)
         _section(robots, robot_id, keys)
         if mode == 'SLAM_THEN_FROZEN' and section['map_freeze.pose_max_age_ns'] <= 0:
             raise FieldLaunchError(f'robots.{robot_id}.map_freeze.pose_max_age_ns must be positive')
         if 'initial_pose_xy_yaw' in section and len(section['initial_pose_xy_yaw']) != 3:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw must be [x, y, yaw]')
+        if 'passage.depth_transport' in section and section['passage.depth_transport'] not in DEPTH_TRANSPORTS:
+            raise FieldLaunchError(f'robots.{robot_id}.passage.depth_transport must be one of {list(DEPTH_TRANSPORTS)}')
         modes[robot_id] = mode
     slam = [robot_id for robot_id, mode in modes.items() if mode == 'SLAM_THEN_FROZEN']
     frozen = [robot_id for robot_id, mode in modes.items() if mode == 'FROZEN_MAP_AMCL']
@@ -352,6 +374,7 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         raise FieldLaunchError(f'robot {robot_id} readiness.camera_topics is empty: ROS cannot pass an empty '
                                f'array parameter, so task_input would see it as missing')
     ns = robot.namespace
+    passage = _passage(field, robot_id, ns)
     executor_heartbeat, watchdog_heartbeat = ns + '/rescue/executor_heartbeat', ns + '/rescue/watchdog_heartbeat'
     backdate_ns = round(field.alignment['backdate_s'] * 1e9)
     window_ns = round(field.alignment['window_s'] * 1e9)
@@ -363,9 +386,12 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         'scan_topic': readiness.scan_topic, 'tf_topic': readiness.tf_topic, 'map_frame': readiness.map_frame,
         'odom_frame': readiness.odom_frame, 'readiness.version': readiness.version,
         **{'readiness.max_age_s.' + source: seconds for source, seconds in readiness.max_age_s},
-        'camera_topics': list(readiness.camera_topics), 'wheel_status_topic': readiness.wheel_status_topic or '',
+        # the passage depth image is a readiness camera too: lost depth = NOT_READY (OPS-115)
+        'camera_topics': list(dict.fromkeys([*readiness.camera_topics, passage['depth_topic']])),
+        'wheel_status_topic': readiness.wheel_status_topic or '',
         'executor_heartbeat_topic': executor_heartbeat, 'watchdog_heartbeat_topic': watchdog_heartbeat,
-        **field.robot, **_task_keys(field.robots[robot_id]), 'task.mission_frame': basis.frame_id,
+        **{k: v for k, v in field.robot.items() if not k.startswith('passage.')},
+        **_task_keys(field.robots[robot_id]), 'task.mission_frame': basis.frame_id,
         'task.saved_map.map_session_id': basis.map_session_id, 'task.saved_map.map_revision': basis.map_revision,
         'task.saved_map.transform_revision': basis.transform_revision,
         'task.saved_map.map_topic': ns + '/map', 'task.saved_map.localization_topic': ns + '/amcl_pose',
@@ -385,6 +411,7 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     # Nav2's final velocity writers go to the watchdog, which alone writes <ns>/cmd_vel (#132).
     remaps = [('collision_monitor:' + ns + '/cmd_vel', upstream), ('docking_server:' + ns + '/cmd_vel', upstream)]
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'task_input': task_input, 'watchdog': watchdog,
+            'passage': passage,
             'nav2_remaps': remaps}
 
 
@@ -461,3 +488,60 @@ def map_freeze_parameters(deployment, *, field, output_dir, record_path):
     if record_path:
         params['record_path'] = record_path   # restart: republish the saved freeze
     return params
+
+
+def _passage(field, robot_id, ns):
+    """The shared passage stop values + this robot's depth image; no depth image = no start (OPS-137 A)."""
+    section = field.robots[robot_id]
+    if 'passage.depth_topic' not in section:
+        raise FieldLaunchError(f'robots.{robot_id} has no passage depth image (passage.depth_topic, '
+                               'passage.camera_info_topic, passage.depth_transport): without the overhead passage '
+                               'check this robot does not start (OPS-137)')
+    for key in ('passage.depth_topic', 'passage.camera_info_topic'):
+        if not section[key].startswith(ns + '/'):
+            raise FieldLaunchError(f'robots.{robot_id}.{key} must be a topic of this robot ({ns}/...)')
+    r = field.robot
+    return {'min_height_m': r['passage.min_height_m'], 'max_height_m': r['passage.max_height_m'],
+            'front_m': list(r['passage.front_m']), 'half_width_m': r['passage.half_width_m'],
+            'min_points': r['passage.min_points'], 'polygon_name': r['task.live.passage.polygon_name'],
+            'depth_topic': section['passage.depth_topic'], 'camera_info_topic': section['passage.camera_info_topic'],
+            'depth_transport': section['passage.depth_transport'], 'points_topic': ns + PASSAGE_POINTS}
+
+
+def nav2_with_passage(params, passage):
+    """Nav2 parameters + the passage stop polygon and depth source in collision_monitor (dicts, no YAML here).
+
+    Existing polygons keep the sources they read before (sources_names); only the new polygon reads
+    the depth points <ns>/passage_points in the height band. Anything unexpected is refused.
+    """
+    try:
+        cm = params['collision_monitor']['ros__parameters']
+        polygons, sources = list(cm['polygons']), list(cm['observation_sources'])
+        cm['state_topic']
+    except (KeyError, TypeError):
+        raise ValueError('Nav2 parameters need collision_monitor polygons, observation_sources and state_topic '
+                         '(the executor reads collision_monitor_state)') from None
+    name, source = passage['polygon_name'], 'passage_depth'
+    if name in polygons or name in cm or source in sources or source in cm:
+        raise ValueError(f'Nav2 parameters already define {name} or {source}')
+    for polygon in polygons:
+        cm[polygon] = dict(cm[polygon], sources_names=list(sources))
+    near, far = passage['front_m']
+    half = passage['half_width_m']
+    # Jazzy polygon points are one string: ROS parameters cannot hold nested arrays (like footprint in nav2.yaml)
+    points = json.dumps([[far, half], [far, -half], [near, -half], [near, half]])
+    cm[name] = {'type': 'polygon', 'action_type': 'stop', 'points': points,
+                'min_points': passage['min_points'], 'visualize': True, 'polygon_pub_topic': 'passage_stop_polygon',
+                'enabled': True, 'sources_names': [source]}
+    cm[source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'), 'min_height': passage['min_height_m'],
+                  'max_height': passage['max_height_m'], 'enabled': True}
+    cm['polygons'], cm['observation_sources'] = polygons + [name], sources + [source]
+    return params
+
+
+def passage_points_launch_values(deployment, *, field, robot_id):
+    """depth_image_proc for this robot's passage depth source (passage_points.launch.py)."""
+    _, robot, _ = _robot(deployment, field, robot_id)
+    p = _passage(field, robot_id, robot.namespace)
+    return {'namespace': robot.namespace, 'image_rect': p['depth_topic'], 'camera_info': p['camera_info_topic'],
+            'points': p['points_topic'], 'depth_transport': p['depth_transport']}
