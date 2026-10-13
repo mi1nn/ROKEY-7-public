@@ -47,6 +47,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
 - `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
+- `--camera` 를 주면 `--camera-stale-s S` 도 줘야 한다(기본값 없음, 없으면 시작하지 않음). 새 프레임이 S 초 동안 오지 않으면 그 칸에 「영상 끊김」을 띄우고, 캐시 무효화 쿼리(`_r=`)를 붙여 S 초마다 한 번 다시 연결한다. 프레임이 다시 오면 표시를 지운다. 정상으로 닫힌 multipart 스트림은 `onerror` 없이 마지막 프레임을 남기기 때문이다 [측정, 2026-10-13, Firefox: 프레임마다 load 1회, 닫힌 뒤 error 0회]. `onerror` 표시도 그대로 둔다. Chrome 의 프레임별 load 동작은 [미확인]이다.
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 
 - 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.

@@ -18,7 +18,7 @@ from rescue_robot.phase1_route import Phase1RouteGate
 
 def attach_task_runtime(node, adapter, *, registry, target_gate, authorize, resolve_goal,
                         clock_error_bound_ns, lease_policy, clock_basis,
-                        segment_gate=None, phase1_gate=None, **server_settings):
+                        segment_gate=None, phase1_gate=None, auto_resolve=None, **server_settings):
     """Explicit integration hook for ros_node.main(task_runtime_factory=...).
 
     The registry must receive authoritative alignment updates continuously.
@@ -40,7 +40,8 @@ def attach_task_runtime(node, adapter, *, registry, target_gate, authorize, reso
                 raise ContractError('route gate and motion binder must share authoritative mapping input')
         ingress = TaskIngress(adapter, authorize=authorize, resolve_goal=resolve_goal,
                               clock_error_bound_ns=clock_error_bound_ns, segment_gate=segment_gate,
-                              phase1_gate=phase1_gate, lease_policy=lease_policy, clock_basis=clock_basis)
+                              phase1_gate=phase1_gate, lease_policy=lease_policy, clock_basis=clock_basis,
+                              auto_resolve=auto_resolve)
         server = TaskActionServer(node, ingress, **server_settings)
         def guards(task):
             if not ingress.check(task):
@@ -67,7 +68,7 @@ def ros_bindings():
 class TaskActionServer:
     def __init__(self, node, ingress, *, action_name, lease_topic, admission_topic, status_topic,
                  poll_period_s, schema_version, publisher_id, lookup_lease,
-                 accept_lease, encode_result, bindings=None, lease_rejection_reason=None):
+                 accept_lease, encode_result, bindings=None, lease_rejection_reason=None, before_result=None):
         for value in (action_name, lease_topic, admission_topic, status_topic, schema_version, publisher_id):
             if not isinstance(value, str) or not value:
                 raise ContractError('explicit endpoint and envelope settings required')
@@ -83,6 +84,10 @@ class TaskActionServer:
         self.lookup_lease, self.accept_lease = lookup_lease, accept_lease
         self.lease_rejection_reason = lease_rejection_reason
         self.encode_result = encode_result
+        # async (report, request) awaited after the terminal report, outside the adapter lock,
+        # before encoding (e.g. the recheck observation after a confirmed stop). It never changes
+        # the executor outcome or stop evidence; the encoder still checks those.
+        self.before_result = before_result
         self.schema_version, self.publisher_id = schema_version, publisher_id
         self.sequence = 0
         self.status_sequence = 0
@@ -209,6 +214,8 @@ class TaskActionServer:
                 self.waiting.setdefault(command_id, []).append((handle, future))
         if report is None:
             report = await future
+        if self.before_result is not None:
+            await self.before_result(report, handle.request)
         with self.ingress.adapter.lock:
             response = self.encode_result(report, handle.request)
             wire = response.result

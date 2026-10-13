@@ -42,7 +42,7 @@ from rescue_interfaces.msg import (ReportReceipt, RescueReport, RobotStatus, Sit
                                    TaskAdmission)
 from rescue_interfaces.srv import SubmitOperatorCommand
 
-from e3_coordinator_probe import MAP, NODE_ARGS, SCOUT, SUPPORT, call, node_command, wait
+from e3_coordinator_probe import MAP, NODE_ARGS, SCOUT, SUPPORT, call, fill_observation_time, node_command, wait
 
 REPORT_ARGS = ['-p', 'reports_topic:=/rescue/reports', '-p', 'receipts_topic:=/rescue/report_receipts',
                '-p', 'envelope_schema_version:=e3', '-p', 'publisher_id:=ops-e3']
@@ -91,8 +91,7 @@ class Field(Node):
         f.robot_id, f.native_frame, f.mission_frame, f.map_session_id = SCOUT, 'map', 'mission', MAP
         f.map_revision, f.transform_revision, f.alignment_status = 0, 1, 'VALID'
         msg.mission_position.x, msg.mission_position.y = x, 0.5
-        now = self.get_clock().now().nanoseconds
-        msg.observation.time.observed_at_ns, msg.observation.time.valid_until_ns = now, now + 10**10
+        fill_observation_time(msg.observation.time, self.get_clock().now().nanoseconds)
         self.location.publish(msg)
         return msg.location_id
 

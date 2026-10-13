@@ -1,5 +1,5 @@
 """Run the console: python -m rescue_console [LEDGER] --accounts ACCOUNTS
-[--site-state DB | --status FIXTURE] [--camera ID=URL ...] [--map MAP_YAML] [--operations URL] [--port N].
+[--site-state DB | --status FIXTURE] [--camera ID=URL ... --camera-stale-s S] [--map MAP_YAML] [--operations URL] [--port N].
 
 LEDGER (the old ReportLedger) is optional with --site-state; without it the page says report rows
 are missing. The session secret comes from the environment (RESCUE_CONSOLE_SECRET by default); the
@@ -30,6 +30,9 @@ def main(argv=None):
     parser.add_argument('--support-dispatch', choices=('AUTO', 'OPERATOR'),
                         help="the coordinator's support_dispatch (field value). AUTO: no dispatch button, the "
                              'automatic dispatch state instead. Unset: the button as before')
+    parser.add_argument('--camera-stale-s', type=float, metavar='S',
+                        help='with --camera: seconds without a new frame before the stream shows 영상 끊김 and '
+                             'is reconnected. No default')
     parser.add_argument('--map', help='map_server map YAML (binary PGM) drawn under robot and target markers')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
@@ -52,7 +55,7 @@ def main(argv=None):
         app = create_app(args.ledger, args.status, accounts_path=args.accounts, secret_key=secret,
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
                          operations_url=args.operations, robot_names=robot_names,
-                         support_dispatch=args.support_dispatch)
+                         support_dispatch=args.support_dispatch, camera_stale_s=args.camera_stale_s)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2

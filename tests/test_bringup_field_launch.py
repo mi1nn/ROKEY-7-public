@@ -146,6 +146,14 @@ class CoordinatorParameters(FieldCase):
         expected = script_parameters('start_coordinator.sh')
         expected['profile_path'] = str(self.profile_path)
         expected['camera_watch_timeout_s'] = 2.0  # added after #132 (SetCameraWatch, coordination C2)
+        # Added after #132: TB-5 automatic dispatch (user decision 1B, 2026-10-13)
+        expected.update(support_dispatch='AUTO', approach_standoff_m=0.8, support_pose_max_age_s=2.0)
+        # Added after #132: TargetLocation time checks (coordination OPS-103, 2026-10-13)
+        expected.update(target_clock_domain_id='rokey7-utc-field', target_max_age_s=3.0, target_max_future_s=0.05)
+        # Added after #132: TB-5 wait at the target before leaving for the exit (placeholder, user decision pending)
+        expected['support_exit_wait_s'] = 5.0
+        # Added after #132: recheck -> verdict clock check (coordination, from measured clock bounds)
+        expected['recheck_max_clock_error_s'] = 2.0
         self.assertEqual(expected, self.coordinator())
 
     def test_one_passage_flag_per_segment_end(self):
@@ -214,9 +222,11 @@ class RobotParameters(FieldCase):
                          'task.saved_map.valid_from_ns': NOW_NS - 3_000_000_000,
                          'task.saved_map.transform_valid_until_ns': NOW_NS + 3_600_000_000_000})
         # Added after #132: automatic target move policy per robot (C1, 2026-10-13). TB-6 (robot_a,
-        # SCOUT) takes no automatic approach; its REOBSERVE_TARGET comes with C1-b.
-        expected.update({'task.live.auto_target.enabled': False,
-                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
+        # SCOUT) takes only REOBSERVE_TARGET (C1-b) and asks the recheck server after the stop.
+        expected.update({'task.live.auto_target.enabled': True,
+                         'task.live.auto_target.kinds': ['REOBSERVE_TARGET'],
+                         'task.live.recheck.window_ns': 3_000_000_000,
+                         'task.live.recheck.deadline_ns': 10_000_000_000,
                          'task.live.auto_target.goal_clear_radius_m': 0.2,
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
@@ -269,7 +279,8 @@ class RobotParameters(FieldCase):
         values = self.robot(field=self.field(add_b), robot_id='robot_b')
         # Both policy and sensor clock must stay local to this robot.
         self.assertTrue(values['task_input']['task.live.auto_target.enabled'])
-        self.assertFalse(self.robot()['task_input']['task.live.auto_target.enabled'])
+        self.assertEqual(['REOBSERVE_TARGET'], self.robot()['task_input']['task.live.auto_target.kinds'])
+        self.assertEqual(['APPROACH_TARGET'], values['task_input']['task.live.auto_target.kinds'])
         # Each robot Pi has its own measured clock bound (decision 2026-10-13)
         self.assertEqual(9_000_000, values['task_input']['task.live.sensor_host_clock_error_bound_ns'])
         self.assertEqual(-1, self.robot()['task_input']['task.live.sensor_host_clock_error_bound_ns'])
@@ -359,6 +370,14 @@ class FieldFile(FieldCase):
         from rescue_bringup.field_launch import FieldLaunchError
         changes = {
             'missing': lambda r: r['coordinator'].pop('tick_period_s'),
+            'dispatch mode': lambda r: r['coordinator'].update({'support_dispatch': 'auto'}),
+            'standoff not positive': lambda r: r['coordinator'].update({'approach_standoff_m': 0.0}),
+            'pose age not positive': lambda r: r['coordinator'].update({'support_pose_max_age_s': -1.0}),
+            'target age not positive': lambda r: r['coordinator'].update({'target_max_age_s': 0.0}),
+            'target future negative': lambda r: r['coordinator'].update({'target_max_future_s': -0.01}),
+            'target clock domain differs': lambda r: r['coordinator'].update({'target_clock_domain_id': 'other'}),
+            'exit wait negative': lambda r: r['coordinator'].update({'support_exit_wait_s': -1.0}),
+            'recheck clock error not positive': lambda r: r['coordinator'].update({'recheck_max_clock_error_s': 0.0}),
             'auto target kinds not a list': lambda r: r['robots']['robot_a'].update(
                 {'task.live.auto_target.kinds': 'APPROACH_TARGET'}),
             'auto target enabled not bool': lambda r: r['robots']['robot_a'].update({'task.live.auto_target.enabled': 1}),
