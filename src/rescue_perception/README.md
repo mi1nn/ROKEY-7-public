@@ -159,7 +159,7 @@ ros2 launch rescue_bringup amr_perception.launch.py \
 [사용자 요구, 2026-10-13] “인형이 detect되서 정확히 감지된 1개의 프레임만
 depth를 뽑는게 어떨까? 나머지때는 depth를 사용하지 않고 있는거야 … 그렇게 코드를 수정해봐”.
 RGB 추론·화면은 Depth·CameraInfo 없이도 계속 실행한다. 좌표 처리 조건은 confidence
-0.9 이상과 화면 내부 bbox이며, 여러 탐지가 있으면 조건을 만족한 최고 confidence 하나를
+`confirm_confidence_min`(지금 0.8) 이상과 화면 내부 bbox이며, 여러 탐지가 있으면 조건을 만족한 최고 confidence 하나를
 선택한다. RGB의 원 stamp에서 `sync_slop_ns` 이내의 Depth 하나만 해제·검사한다.
 탐지 전 Depth는 압축 상태(raw 입력은 원 메시지 상태)로 `sync_queue_size`개만 보관한다.
 대기 RGB는 하나이고 `depth_wait_s`가 지나면 해제하며 다음 탐지에서 재시도한다.
@@ -177,7 +177,7 @@ Depth 구독과 계산을 중단하고 RGB 표시만 계속한다. TF 실패 시
 거리 추정·좌표 변환은 모두 로봇 제어용 PC에서 수행한다. 이 선택 처리 노드도 PC에서
 실행하며 로봇에 계산 프로세스를 배포하거나 카메라 설정을 변경하지 않는다.
 
-탐지 confidence와 좌표 유효성은 별도로 표시한다. `amr_target`은 시작할 때
+탐지 confidence와 좌표 유효성은 별도로 표시한다. `amr_target_selective`는 시작할 때
 `CLOCK_UNCERTAIN`·`ALIGNMENT_UNVERIFIED` 설정 관문을 경고하고, 후보의 실제
 실패 이유와 confidence를 화면·로그에 함께 표시한다. 같은 이유의 로그는
 `no_frame_warn_s` 주기로 제한한다. `UNCONFIRMED`만으로 탐지 실패라고 판단하지 않는다.
@@ -247,7 +247,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 ### 단일 인형·회차별 1회 전송
 
-[사용자 요구, 2026-10-12, confidence 기준은 2026-10-13 갱신] 한 회차에는 인형 하나만 사용한다. 화면 표시 기준은 model_conf 설정을 따르지만, 관측/좌표 전송은 첫 CONFIRMED(confidence 0.9 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.
+[사용자 요구, 2026-10-12] 한 회차에는 인형 하나만 사용한다. 화면 표시 기준은 model_conf 설정을 따르지만, 관측/좌표 전송은 첫 CONFIRMED(현재 `confirm_confidence_min` 0.8 이상 및 유효 위치)이며 bbox가 화면 내부에 완전히 들어온 경우만 수행한다. x0>0, y0>0, x1<width, y1<height를 요구하며 어느 경계에든 닿으면 전송을 보류한다. 이 검사는 화면 가장자리에서 잘린 박스를 거절하며 중앙 가림이나 인형 전체 노출을 증명하지 않는다.
 
 상태는 SEARCHING→SENT다. 최초 카메라 관측의 로컬 publish 성공 뒤 SENT로 고정하며 같은 회차의 카메라 관측·base 점을 다시 발행하지 않는다. TF 실패 시에는 카메라 관측만 한 번 남기고 base 점 실패를 로그로 드러낸다. publish 자체가 예외로 실패하면 SEARCHING을 유지한다. 영상 추론·annotated Image는 계속 처리하고 AMR1의 auto SLAM이나 주행을 변경하지 않는다. 인형이 사라졌다 다시 보여도 재무장하지 않는다. 현재 회차 경계는 amr_target의 기동이며 다시 기동하면 새 회차로 시작한다.
 
@@ -280,7 +280,7 @@ robot5로 명시했다. 재사용 근거를 파일에 기록했으며 robot5에�
 최신 main의 amr_target과 clock/recheck 경로는 유지한다. 로컬 테스트용
 [amr_target_selective.py](rescue_perception/amr_target_selective.py)는 최신 adapter/core의
 점 왜곡 보정을 사용하며 RGB만 계속 표시하고 조건을 만족한 한 탐지에만 Depth를 처리한다.
-기본 amr_target과 이 선택 시험 모듈을 동시에 실행하지 않는다. 선택 시험의 관측 clock은
+기본 amr_target과 이 선택 시험 모듈을 동시에 실행하지 않는다. 노드 이름은 `amr_target_selective`이고, 관측은 `/rescue/selective_test/observations`, 로봇 기준 점은 `perception/selective_test/target_base_point`에 낸다(실제 토픽이 필요하면 ROS remap, #205 검토 REV-205-02). 재확인 서버(#200)와 시계 경로가 없어 TB-6 구출 완료 판정을 대신할 수 없다. 선택 시험의 관측 clock은
 UNKNOWN을 유지하며 별도 로봇 제어 입력을 만들지 않는다. 실제 실행 인자는 최신 FIELD_PARAMS와
 clock_domain_id를 명시한다. rgb_rectified=False라도 지원되는 K/D/P 점 보정 모델이면 계산할
 수 있으며, 공간 정합 미검증은 계속 차단한다. 위 선택 처리 설명은 이 로컬 시험 모듈에 적용한다.
