@@ -28,18 +28,26 @@ class NodeConfig(unittest.TestCase):
         self.assertIs(original, rescue_operations.ros_node)
 
     def test_module_imports_without_rclpy(self):
+        import rescue_operations
+        absent = object()
+        original_node = getattr(rescue_operations, 'ros_node', absent)
         blocked = {name: None for name in ('rclpy', 'rescue_interfaces', 'rescue_interfaces.msg')}
-        saved = {name: sys.modules.get(name) for name in blocked}
+        saved = {name: sys.modules.get(name, absent)
+                 for name in (*blocked, 'rescue_operations.ros_node')}
         sys.modules.update(blocked)  # a None entry makes `import name` fail
         try:
             sys.modules.pop('rescue_operations.ros_node', None)
             importlib.import_module('rescue_operations.ros_node')
         finally:
             for name, module in saved.items():
-                if module is None:
+                if module is absent:
                     sys.modules.pop(name, None)
                 else:
                     sys.modules[name] = module
+            if original_node is absent:
+                del rescue_operations.ros_node
+            else:
+                rescue_operations.ros_node = original_node
 
     def test_parallel_lists_become_one_entry_per_robot(self):
         from rescue_operations.ros_node import node_config
