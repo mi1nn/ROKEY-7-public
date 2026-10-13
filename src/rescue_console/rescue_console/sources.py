@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
-from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_mission_state, read_operator_commands,
-                                          read_robot_status, read_site_events, read_target_states)
+from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_exit_locations, read_mission_state,
+                                          read_operator_commands, read_robot_status, read_site_events, read_target_states)
 
 from .view import HISTORY_ROWS, ConsoleError
 
@@ -18,7 +18,7 @@ LEDGER_READ_LIMIT = 1000
 # asks for the cap; past 1000 site events the newest are missing (README 「후속」).
 SITE_EVENT_READ_LIMIT = 1000
 STATUS_KEYS = frozenset({'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
-                         'error_log'})
+                         'error_log', 'exit_locations'})
 
 
 def load_ledger(db_path):
@@ -65,6 +65,7 @@ def load_site_state(db_path):
             'mission_state': read_mission_state(db_path),
             'operator_commands': read_operator_commands(db_path, limit=HISTORY_ROWS),
             'error_log': read_error_log(db_path, limit=HISTORY_ROWS),
+            'exit_locations': read_exit_locations(db_path, limit=1),   # #237: the newest exit_qr observation only
         }
     except OperationsError as exc:
         raise ConsoleError('STORAGE_ERROR', f'site-state read failed: {exc}') from exc

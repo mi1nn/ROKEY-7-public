@@ -566,6 +566,16 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
     return rows
 
 
+def _exit(section):
+    """The newest exit_qr observation (#237, read newest first; VALID only), or None. An observation, not the exit
+    the coordinator registered (that one shows only as its reasons, e.g. SUPPORT_EXIT_UNREGISTERED)."""
+    if section is None or not section['exits']:
+        return None
+    row = section['exits'][0]
+    return {'location_id': row['location_id'], 'x': row['x'], 'y': row['y'], 'frame_id': row['mission_frame'],
+            'observed_at_ns': row['observed_at_ns'], 'map_revision': row['map_revision']}
+
+
 def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatch=None, search_start=None):
     """ledger: read_reports() result, or None when no report ledger was given (--site-state without it,
     2026-10-13): report rows and counts are then not shown, said so in the warnings. status: {'robot_status', 'site_events', 'target_states', 'mission_state',
@@ -627,8 +637,10 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     if search_start != 'AUTO' and 'AUTO_SEARCH_ENABLED' in refused:
         # The coordinator runs search_start AUTO; this console still offers the button it refuses.
         warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
+    exits = _section(status, 'exit_locations', 'exits')
     return {
         'built_at_ns': built_at_ns,
+        'exit': _exit(exits),
         'evidence_policy': None if ledger is None else ledger['evidence_policy'],
         'mission': mission,
         'robots': robots,
