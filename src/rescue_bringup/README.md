@@ -204,7 +204,7 @@ F=$PWD/config/field/search_area.field.json
 ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
 ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
-ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<절대 경로>
+ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<회차마다 새 절대 경로>
 
 # compute_b: TB-5 는 고정 지도를 기다린다(그 전에는 지도 없음, MapState UNKNOWN)
 ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
@@ -217,15 +217,21 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - `TB-6 SLAM robot_a ns=/robot6`
 - `robot <id> ns=<ns> ... map_mode=SLAM_THEN_FROZEN`(또는 `FROZEN_MAP_AMCL`) `map_sha256=(decided by the freeze)`
 - `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
-- `rescue_map_freeze`: `git_sha=... parameters=...`
+- `rescue_map_freeze`: `git_sha=... parameters=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번(TB-6 출발 자세)
 - TB-6 `MAP_STATE robot_a ... rev=<R0> quality=VALID`(SLAM 위치가 잡힌 뒤). TB-5 는 고정 전 `quality=UNKNOWN` 이 정상이다.
+
+**좌표 기준: TB-6 출발 자세(OPS-141).** SLAM 지도 원점은 Create3 odom 원점이다. 바닥 표시 출발 자리와 다를 수 있다[추정, 실기 확인 항목: SLAM 시작 직후 `/robot6/pose` 가 (0,0,0) 인지 본다. 맞으면 아래 변환이 항등일 뿐 틀리지 않는다].
+- 그래서 미리 재는 좌표는 모두 TB-6 출발 자세 기준으로 적는다: 순찰 지점, TB-6 도킹 접근 지점, TB-5 출발값.
+- `map_freeze` 는 SLAM 시작 뒤 처음 받은 유효한 TB-6 SLAM 위치를 회차마다 한 번 `output_dir/start_pose.json` 에 남기고, `/rescue/map/start_pose/robot_a`(TRANSIENT_LOCAL)로 낸다.
+- 그래서 **`map_freeze` 는 TB-6 이 움직이기 전에 띄운다.** 노드를 다시 띄우면 저장한 값을 다시 낸다(새로 잡지 않음). 새 회차는 새 `output_dir` 로 띄운다.
+- TB-5 위치 추정 launch 는 이 출발 자세로 `robots.robot_b.initial_pose_xy_yaw` 를 map 좌표로 바꾼다. 순찰·도킹 접근 지점은 조정기가 바꾼다(통합-조정).
 
 `occupancy_sha256` 는 주지 않는다(고정이 해시를 정함). 탐색 중 TB-6 위치는 slam_toolbox 의 `/robot6/pose` 로 받는다[추정, 실기 확인 항목]. 안 나오면 TB-6 MapState 가 UNKNOWN 이고 수색 목표를 거절한다(다른 값으로 대체하지 않음).
 
 **TB-5 출발값 재기(시험 회차, 한 번):** 고정 지도가 나온 뒤에 한다.
 1. TB-5 를 출발 자리에 둔다.
 2. 출발값 없이는 위 TB-5 launch 가 거절하므로, 이 회차만 turtlebot4 기본 위치 추정을 쓴다. `ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot5 map:=<고정 지도 .yaml>` 을 띄우고, RViz `2D Pose Estimate` 로 TB-6 지도 위 자리를 찍는다. 고정 노드가 `output_dir` 에 남긴 `.yaml` 을 쓴다.
-3. AMCL 이 맞춘 뒤 `python3 scripts/field/capture_initial_pose.py /robot5/amcl_pose map` 을 돌린다. stdout 한 줄을 현장 실행 파일 `robots.robot_b` 에 넣는다(코드에 박지 않음).
+3. AMCL 이 맞춘 뒤 `python3 scripts/field/capture_initial_pose.py /robot5/amcl_pose map /rescue/map/start_pose/robot_a` 를 돌린다. stdout 한 줄(TB-6 출발 자세 기준 값)을 현장 실행 파일 `robots.robot_b` 에 넣는다(코드에 박지 않음).
 4. 출구(TB-5)·TB-6 도킹 접근 지점(프로파일 `home_positions`)도 같은 지도에서 같은 도구로 잰다.
 
 compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 실행 노드가 생긴 뒤(통합-인식 다음 PR) 띄운다. 코드(#165)만으로는 띄울 실행 파일이 없다.

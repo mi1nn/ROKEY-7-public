@@ -88,7 +88,8 @@ class Freeze(unittest.TestCase):
                 with self.assertRaises(FreezeError):
                     f.freeze()
                 self.assertIsNone(f.frozen)
-                self.assertEqual([], list(Path(self.dir.name).iterdir()))
+                # only the TB-6 start pose (OPS-141) may be there; no freeze file
+                self.assertEqual([], list(Path(self.dir.name).glob('frozen-*')))
 
     def test_nothing_is_frozen_without_a_fresh_slam_pose_on_the_map(self):
         for p in (None, pose(stamp_ns=NOW - 3_000_000_000), pose(frame='odom'), pose(stamp_ns=NOW + 3_000_000_000),

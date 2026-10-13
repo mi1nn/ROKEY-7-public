@@ -1,7 +1,8 @@
-"""Wait for the TB-6 frozen pose at launch time (frozen_localization.launch.py, robot_a only).
+"""Wait for a latched TB-6 pose at launch time (frozen_localization.launch.py).
 
 map_freeze publishes /rescue/map/frozen_pose/<robot> (PoseWithCovarianceStamped,
-TRANSIENT_LOCAL) when it freezes the TB-6 map: TB-6 starts AMCL there. A private rclpy
+TRANSIENT_LOCAL) when it freezes the TB-6 map (TB-6 starts AMCL there), and
+/rescue/map/start_pose/<robot> once per run (TB-5's measured start is relative to it, OPS-141). A private rclpy
 context reads one message; no frozen pose within the wait = the launch fails (no AMCL start
 is made up).
 """
@@ -32,8 +33,8 @@ def wait_frozen_pose(topic, *, timeout_s, map_frame):
         while not got and time.monotonic() < deadline:
             executor.spin_once(timeout_sec=0.2)
         if not got:
-            raise RuntimeError(f'no frozen pose on {topic} within {timeout_s} s: freeze the map first '
-                               '(/rescue/map/freeze), no AMCL start is made up')
+            raise RuntimeError(f'no pose on {topic} within {timeout_s} s (frozen pose: freeze the map first; start '
+                               'pose: map_freeze must see TB-6 SLAM); no AMCL start is made up')
         if got[0].header.frame_id != map_frame:
             raise RuntimeError(f'frozen pose frame {got[0].header.frame_id!r} is not {map_frame!r}')
         try:
