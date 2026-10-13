@@ -204,15 +204,14 @@ def load_field(path):
     if coordinator['search_mode'] == 'PATROL':
         if not coordinator['patrol_points']:
             raise FieldLaunchError('coordinator.search_mode PATROL needs patrol_points')
-        if coordinator['live_inputs.search_goal_topic']:
-            raise FieldLaunchError('coordinator.search_mode PATROL replaces the RViz search goal pick: '
-                                   'live_inputs.search_goal_topic must be empty')
         if 'PATROL_POINT' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode PATROL needs PATROL_POINT in executable_bases')
+    if coordinator['map_mode'] == 'SLAM_FREEZE' and coordinator['search_mode'] != 'FRONTIER':
+        # The final map's freeze waits for EXPLORATION_COMPLETE, which only FRONTIER gives; otherwise TB-6 waits
+        # MAP_NOT_FINAL and TB-5 at the doll forever (작전 OPS-174).
+        raise FieldLaunchError('coordinator.map_mode SLAM_FREEZE needs search_mode FRONTIER (the whole map)')
     if coordinator['search_mode'] == 'FRONTIER':
-        if coordinator['live_inputs.search_goal_topic']:
-            raise FieldLaunchError('coordinator.search_mode FRONTIER replaces the RViz search goal pick: '
-                                   'live_inputs.search_goal_topic must be empty')
+        # the RViz goal pick (live_inputs.search_goal_topic) is the coordinator's to switch off (AREAS only)
         if 'FRONTIER' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode FRONTIER needs FRONTIER in executable_bases')
     for key in ('frontier_min_cells', 'exploration_empty_checks'):
