@@ -50,7 +50,7 @@ updated: 2026-10-13
 
 ## 2. 설계 (Design) — [관제 웹 설계 명세](../design/console-spec.md)
 
-명세는 「이 문서만 보고 같은 웹을 다시 짤 수 있게」를 목표로, 모듈(PGM.py)마다 책임·실행 단위·파라미터·상태·입력·출력·처리 규칙·순서도·오류 처리·시험을 적었다. 리뷰에서 설명하는 순서:
+명세는 「이 문서만 보고 같은 웹을 다시 짤 수 있게」를 목표로 10절로 적었다: 1 책임과 경계 · 2 실행 단위 · 3 실행 인자와 코드 상수 · 4 내부 상태(로그인 세션·명령 칸·갱신 표시·실시간 지도·카메라 칸 상태 기계) · 5 입력(HTTP 경로 11개, 폼 검사, 파일, operations 답) · 6 출력(화면 모델 JSON, 명령 응답, operations 요청, 로그, 화면 칸 배치) · 7 처리 규칙(대상 4단계 규칙표, 사유 문구표, 명령×단계 버튼 관문표 포함) · 8 순서도 2개(폴링 한 번, 명령 한 번) · 9 오류·예외 표 · 10 시험. 끝에 「웹이 기대는 인터페이스」(operations 명령 API·현장 상태 DB·`live_map.yaml` 계약)와 「문서와 코드의 차이」를 두었다. 리뷰에서 설명하는 순서:
 
 1. 설계도의 관제 웹 상자와 화살표 셋(1절) → 「웹은 보여 주고 명령을 전달만 한다. DB 쓰기·ROS 직접 구독·로봇 명령은 없다」(AGENTS.md 2절 관제·화면 레인).
 2. 화면 한 장([스크린샷](../evidence/console-2026-10-13/02-dashboard.png))의 칸마다 어느 모듈이 그리는지.
@@ -105,7 +105,7 @@ docstring 이 빠진 42곳(`파일:줄`):
 | 종류 | 무엇 | 결과 | 위치 |
 | --- | --- | --- | --- |
 | 시험 코드 | `tests/test_console_*.py` 10 파일, 198개 | Flask 3.1.3 설치 상태에서 198 OK, skip 0, exit 0 [측정, 2026-10-13, Python 3.13] | [시험 로그](../evidence/console-2026-10-13/console-tests-flask.log) |
-| CI | `foundation`(Python 3.10 ~ 3.12) | 이 PR 전에는 CI 에 Flask 가 없어 웹 경로 시험 23건이 skip(NOT_RUN)이었다. 이 PR 이 `flask==3.1.3` 설치를 더한다 | [.github/workflows/foundation.yml](../../.github/workflows/foundation.yml) |
+| CI | `foundation`(Python 3.10 ~ 3.12) | 이 PR 전에는 CI 에 Flask 가 없어 웹 경로 시험 23건이 skip(NOT_RUN)이었다. 이 PR 이 `flask==3.1.3` 설치를 더했고, 커밋 `484c492` 의 3.10 작업에서 `Ran 1514 tests` · `OK (skipped=15)` [측정, 2026-10-13]. skip 15 는 로컬 Flask 환경의 skip 15(NumPy·OpenCV·PyYAML·ROS 없음)와 수가 같다. CI 쪽 이유별 내역은 로그에 없어 [미확인] | [.github/workflows/foundation.yml](../../.github/workflows/foundation.yml) |
 | 스크린샷 | 로그인, 관제 화면(합성 데이터) | 2장 | [console-2026-10-13](../evidence/console-2026-10-13/README.md) |
 | 현장 기록 | 운영 PC 에서 관제 웹 기동(장부 없이 #147), `--camera` 로 MJPEG 수신(#158) | PASS [측정, 2026-10-13 12:42·12:54] | [10-13 운영 PC 기록](../evidence/field-2026-10-13-operations-host.md) 25·27줄 |
 | 영상 | 화면 녹화 | 없음 | NOT_RUN |
@@ -142,6 +142,11 @@ docstring 이 빠진 42곳(`파일:줄`):
 ## 6. 리뷰 전 확인
 
 - [ ] docstring 42곳 채우기(관제·화면 레인 PR). `python3 -I scripts/check_comments.py --strict src/rescue_console` 가 exit 0.
+- [ ] 명세를 쓰며 찾은 코드 문제 2개(코드 읽기, 시험 없음) — 리뷰에서 튜터가 먼저 찾기 전에 고치거나 「알려진 한계」로 말한다:
+  - `accounts.py:274` `exc_type is sqlite3.Error` 는 하위 클래스(`OperationalError` 등)와 맞지 않아, 계정 DB 트랜잭션 중 sqlite 오류가 `STORAGE_ERROR`(503) 대신 Flask 500 이 된다. 중복 계정은 미리 검사하므로 DB 잠김·디스크 오류 때의 경로다.
+  - `render.py:959` `setInterval(poll, 1000)` 은 앞 요청을 기다리지 않는다. 서버가 1초 넘게 늦으면 늦게 온 옛 조각이 새 조각을 덮을 수 있다(다음 폴링에서 바로잡힘).
+- [ ] 기동 로그에 git SHA 가 없다(AGENTS.md 8절 「노드는 기동할 때 git SHA … 를 로그에 남긴다」, [명세](../design/console-spec.md) 6.5). 웹은 ROS 노드가 아니지만 같은 이유로 남길지 정한다.
+- [ ] 관제 웹 레인 문서의 낡은 곳 고치기([명세](../design/console-spec.md) 끝 「문서와 코드의 차이」): `src/rescue_console/README.md` 14·93·175줄, `setup.py` 20줄 설명("no commands"), `labels.py:8-12` 주석. `docs/design/console-and-db-plan.md`·`docs/process/ops-db-tables.md`·`docs/design/db-schema.md` 의 낡은 곳은 작전 레인에 요청.
 - [ ] 이 PR 의 CI(`foundation`, Flask 포함)가 초록인지. 웹 경로 시험 23건이 3.10 ~ 3.12 에서 실제로 돌았는지 로그로 확인.
 - [ ] 현장에서 찍을 것: 실제 operations·조정기에 연결해 명령 접수·거절이 보이는 화면, 웹캠 영상이 나오는 화면, `--live-map` 실시간 지도 화면. 날짜·커밋과 함께 `docs/evidence/` 에.
 - [ ] 화면 녹화 1개: 지진 표시 → 수색 시작 → 대상 표시 → 자동 출동 → 판정.
