@@ -121,12 +121,16 @@ class UnmeasuredTb5StartTests(TrafficBase):
     def test_tb6_still_explores_before_tb5_ever_moved_and_says_the_check_is_off(self):
         # The field file has no robots.<TB-5>.initial_pose_xy_yaw until it is measured; holding TB-6 then would
         # also hold the doll's freeze and so TB-5 itself. TB-5 has not moved and has no path: only the separation
-        # check is off, and the log says so once.
+        # check is off. Never silent (team rule 6): a note for every TB-6 goal sent so, and SystemState shows it.
         self.scout_at((1., 4.2))
-        self.assertIn((SCOUT, 'SEARCH_AREA'), self.sent(NOW))
-        self.assertEqual(1, ' '.join(self.core.drain_notes()).count('TRAFFIC_SEPARATION_UNCHECKED'))
-        self.sent(NOW + 1)
-        self.assertNotIn('TRAFFIC_SEPARATION_UNCHECKED', ' '.join(self.core.drain_notes()))
+        first = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+        self.assertIn(f'TRAFFIC_SEPARATION_UNCHECKED task={first["task_id"]}', ' '.join(self.core.drain_notes()))
+        self.assertEqual('TRAFFIC_SEPARATION_UNCHECKED', self.reason(NOW))
+        self.finish(first)
+        self.scout_at((2., 4.2), NOW + 1)
+        second = self.sent(NOW + 1)[(SCOUT, 'SEARCH_AREA')]
+        self.assertIn(f'TRAFFIC_SEPARATION_UNCHECKED task={second["task_id"]}', ' '.join(self.core.drain_notes()))
+        self.assertEqual('TRAFFIC_SEPARATION_UNCHECKED', self.reason(NOW + 1))
 
 
 class StopThenStepAsideTests(TrafficBase):
