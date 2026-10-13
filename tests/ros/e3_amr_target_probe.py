@@ -16,7 +16,9 @@ TF map -> camera optical / laser, and LaserScan. All values are synthetic test v
 1. without recheck values the node refuses to start (exit 2); 2. the doll is sent once as a
 TargetObservation with a located camera point and the host's measured clock (SYNCED when timesyncd
 answers); 3. ObserveTarget with the doll at the point -> PRESENT, LiDAR BLOCKED, coverage VALID;
-4. doll gone -> ABSENT, CLEAR, VALID. Exit code 0 = all held.
+4. doll gone -> ABSENT, CLEAR, VALID; 5. a QR with other content -> no exit observation (OPS-136);
+6. the exit QR -> one exit TargetObservation (class exit_qr, point at the QR depth), not repeated
+while it stays in view; 7. a new TB-6 map revision -> one more. Exit code 0 = all held.
 """
 import math
 import os
@@ -33,7 +35,7 @@ from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.action import ObserveTarget
-from rescue_interfaces.msg import TargetObservation
+from rescue_interfaces.msg import MapState, TargetObservation
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
 from tf2_msgs.msg import TFMessage
 
@@ -44,6 +46,14 @@ FAR_MM, DOLL_MM = 4000, 2000
 ACTION = '/rescue/robots/robot_a/observe_target'
 SCALE = 0.9594383775351013             # robot6_depth.json, applied by amr_target
 POINT = (DOLL_MM / 1000 * SCALE, 0.0, 0.3)   # doll centre in the map: straight ahead of the camera
+EXIT_PAYLOAD, QR_MM = 'ROKEY7-EXIT', 1500
+MAP_STATE = '/rescue/robots/robot_a/map_state'
+
+
+def qr_image(text):
+    """(code image (3 px per module, white quiet zone), placed at its top-left) for the 160x120 frame."""
+    code = cv2.resize(cv2.QRCodeEncoder.create().encode(text), None, fx=3, fy=3, interpolation=cv2.INTER_NEAREST)
+    return code, ((W - code.shape[1]) // 2, (H - code.shape[0]) // 2)
 
 
 def amr_args(with_recheck=True):
@@ -62,6 +72,9 @@ def amr_args(with_recheck=True):
                   'recheck_min_scans': '3', 'recheck_min_lidar_rays': '3', 'recheck_min_lidar_hits': '2',
                   'recheck_image_margin_px': '5', 'recheck_min_depth_m': '0.2', 'recheck_max_depth_m': '5.0',
                   'recheck_occlusion_tolerance_m': '0.3', 'recheck_depth_window_px': '2'})
+        p.update({'exit_qr_payload': EXIT_PAYLOAD, 'exit_qr_required_frames': '5',
+                  'exit_qr_position_tolerance_m': '0.2', 'exit_qr_min_valid_depth_ratio': '0.5',
+                  'exit_map_state_topic': MAP_STATE})
     flags = []
     for name, value in p.items():
         flags += ['-p', f'{name}:={value}']
@@ -116,10 +129,15 @@ def main():
     observations = []
     node.create_subscription(TargetObservation, '/rescue/observations', observations.append, QoSProfile(
         depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    exits = []
+    node.create_subscription(TargetObservation, '/rescue/exit_observations', exits.append, QoSProfile(
+        depth=10, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    map_pub = node.create_publisher(MapState, MAP_STATE, QoSProfile(
+        depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     client = ActionClient(node, ObserveTarget, ACTION)
     executor = SingleThreadedExecutor()
     executor.add_node(node)
-    scene = {'doll': True}
+    scene = {'doll': True, 'qr': None}
 
     def publish_frame():
         now, (sec, nsec) = stamp_of(node)
@@ -129,6 +147,10 @@ def main():
             x0, y0, x1, y1 = DOLL
             image[y0:y1, x0:x1] = (0, 0, 255)
             depth[y0:y1, x0:x1] = DOLL_MM
+        if scene['qr']:
+            code, (x, y) = qr_image(scene['qr'])
+            image[y:y + code.shape[0], x:x + code.shape[1]] = cv2.cvtColor(code, cv2.COLOR_GRAY2BGR)
+            depth[y:y + code.shape[0], x:x + code.shape[1]] = QR_MM
         rgb = CompressedImage(format='jpeg', data=cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])[1].tobytes())
         d = Image(height=H, width=W, encoding='16UC1', is_bigendian=0, step=W * 2, data=depth.tobytes())
         info = CameraInfo(width=W, height=H, distortion_model='plumb_bob', d=[0.0] * 5,
@@ -202,6 +224,24 @@ def main():
               f'coverage={p.coverage_state} {p.detector_health} clock={p.time.clock_state}')
         checks['doll gone -> ABSENT / CLEAR / VALID'] = (r.outcome, p.camera_state, p.lidar_state,
                                                          p.coverage_state) == ('OBSERVED', 'ABSENT', 'CLEAR', 'VALID')
+        scene['qr'] = 'ROKEY7-OTHER'
+        pump(2.0)
+        checks['other QR content -> no exit observation'] = not exits
+        scene['qr'] = EXIT_PAYLOAD
+        pump(3.0)
+        e = exits[0] if exits else None
+        if e:
+            print(f'  exit: {e.class_label} {e.model_id} point=({e.sensor_position.x:.3f}, {e.sensor_position.y:.3f}, '
+                  f'{e.sensor_position.z:.3f}) clock={e.time.clock_state}')
+        checks['exit QR -> one exit_qr observation at the QR depth'] = len(exits) == 1 and e.class_label == 'exit_qr' \
+            and e.localization_status == 'VALID' and abs(e.sensor_position.z - QR_MM / 1000 * SCALE) < 0.05 \
+            and e.confidence == 1.0 and e.model_id.startswith('opencv.QRCodeDetector/')
+        map_state = MapState(robot_id='robot_a', map_session_id='e3-session', map_revision=1,
+                             localization_quality='VALID', current_native_map_frame='map')
+        map_state.generated_at_ns = node.get_clock().now().nanoseconds
+        map_pub.publish(map_state)
+        pump(3.0)
+        checks['new map revision -> one more exit observation'] = len(exits) == 2
     finally:
         executor.shutdown()
         node.destroy_node()

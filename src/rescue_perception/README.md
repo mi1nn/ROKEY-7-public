@@ -46,6 +46,7 @@ API·제한·원본 근거는 [구현 문서](../../docs/implementation/implemen
 | [map_projection.py](rescue_perception/map_projection.py) | 지도 상태·정렬·관측 시각 TF 검사, 지도/mission 좌표·공분산 변환. 코드와 합성 시험만 보존하며 실행 노드에 연결하지 않음 |
 | [target_location.py](rescue_perception/target_location.py) | 확정 TargetObservation + 촬영 시각 TF map←camera → TargetLocation(VALID) 좌표·공분산·frame_ref. ROS 없음 |
 | [target_locator.py](rescue_perception/target_locator.py) | 위 변환의 ROS 노드: `/rescue/observations` 구독 → 촬영 시각 TF 조회 → `/rescue/target_locations` 발행 |
+| [exit_qr.py](rescue_perception/exit_qr.py) | 출구 QR 판정(내용 정확 일치·N 프레임 연속·위치 허용 범위·깊이)과 출구 TargetObservation 채우기. ROS 없음, amr_target 이 프레임마다 부름 |
 | [headroom.py](rescue_perception/headroom.py) | TB-5 머리 위 여유 실기 반복 판정 기록 도구 `headroom_record`(OPS-115). 판정·발행·정지 명령 없음 |
 | [robot6_depth.json](rescue_perception/config/robot6_depth.json) | robot6 실행용 보정계수·offset·로봇/보정 ID·입력 단위/상태. 설치본에도 포함 |
 
@@ -262,6 +263,16 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 [작전 OPS-113/115, 2026-10-13] TB-5 를 실제로 세우는 것은 Nav2 collision_monitor 의 깊이 점구름 소스다(통합-로봇 담당). 이 도구는 그 소스가 볼 것을 같은 방식으로 세어 기록만 한다. 깊이 영상마다 base_link 앞 상자(`box_x_min_m`~`box_x_max_m`, 좌우 `box_half_width_m`) 안에서 바닥 잡음(`floor_noise_m`, 제안 0.05 m) 위·여유 높이(`clearance_m`) 아래 점 수가 `min_points` 이상이면 STOP 이고, 아니면 PASS 다. 46 cm 여유 높이는 저장소 소유자 결정(2026-10-13)이다. 깊이·CameraInfo 가 없거나 오래됐거나 base_frame TF 가 없으면 UNKNOWN 이고, PASS 로 세지 않는다. 결과 JSON 에는 git SHA·여유 높이 출처·적용 파라미터·회차별 판정(점 수·가장 낮은 높이·이유)·요약(판정 수, 가장 낮은 높이 최소/최대)이 들어간다. 파라미터는 모두 기본값이 없다. 쓰는 법은 [headroom.py](rescue_perception/headroom.py) 맨 위에 있다. 가로판 앞 한 자리에서 10회 돌려 분포를 보고한다.
 
 시험: `tests/test_perception_headroom.py`(판정·점 변환·요약), `tests/ros/e3_headroom_probe.py`(LOCALHOST ROS, 합성 깊이·정적 TF → 판정 기록, E3). 실제 TB-5 깊이·가로판·보이는 거리는 NOT_RUN 이다.
+
+### 출구 QR (OPS-136/138)
+
+[저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-138 설계 승인] TB-6 가 순찰 중 출구 QR 을 보면 그 위치가 출구다. amr_target 이 대상과 같은 RGB-D 프레임에서 OpenCV `QRCodeDetector` 로 읽는다. 같은 시계·CameraInfo·왜곡 보정(#164)·깊이 보정을 쓴다. 내용이 `exit_qr_payload` 와 정확히 같은 프레임이 `exit_qr_required_frames` 번 연속이어야 출구로 인정한다. 그 프레임들의 위치가 모두 있어야 하고, 첫 위치에서 `exit_qr_position_tolerance_m` 안이어야 한다. QR 이 없거나, 내용이 다르거나, 깊이가 모자란(`exit_qr_min_valid_depth_ratio`) 프레임이 하나라도 끼면 처음부터 다시 센다. 위치는 QR 네 꼭짓점을 왜곡 보정하고, 코드 안쪽 절반의 깊이 중앙값으로 중심을 역투영한 점이다. 시각 근거(stamp 의미)나 RGB-깊이 정렬 근거가 없으면 위치를 내지 않는다. 대상과 같은 규칙이다.
+
+인정되면 `/rescue/exit_observations` 에 TargetObservation 하나를 낸다(새 IDL 없음). `class_label` 은 `exit_qr` 이다. `confidence` 1.0 은 확률이 아니라 내용 일치를 뜻한다. `model_id` 는 `opencv.QRCodeDetector/<cv2 버전>`, `model_sha256` 은 설치된 cv2 바이너리의 sha256 이고, 둘 다 기동 로그에 남는다. `tracking_mode` 는 `DETECTION_ONLY` 다. TB-6 지도(session, revision)마다 한 번만 내고, revision 이 바뀌면 같은 QR 도 다시 낸다. launch 의 두 번째 target_locator(`exit_locator`)가 이것을 `/rescue/exit_location` TargetLocation 으로 바꾼다. 지도 기준은 대상과 같다(MapRevisionTracker). 조정기는 `class_label == 'exit_qr'` 만 출구로 쓴다. 지도 고정 때 이전 revision 의 위치를 재기준하는 일과 출구 앞 접근점 계산은 조정기 몫이다.
+
+필수 파라미터(기본값 없음): `exit_qr_payload`, `exit_qr_required_frames`([제안] 5), `exit_qr_position_tolerance_m`([제안] 0.2), `exit_qr_min_valid_depth_ratio`([제안] 0.5), `exit_map_state_topic`(launch 가 프로파일 SCOUT 의 MapState 로 채움). 실기 확인 항목: QR 크기(한 변 20 cm 이상·무광 [제안]), 높이(카메라 높이 근처), TB-6 에서 읽히는 거리·각도, QR 면의 깊이.
+
+시험: `tests/test_perception_exit_qr.py`(판정·위치·메시지·송신), `tests/ros/e3_amr_target_probe.py` 5–7번(합성 RGB-D 의 QR → 출구 관측). 실제 TB-6 영상의 QR, exit_locator → `/rescue/exit_location` 연결, 검출 처리 시간은 NOT_RUN 이다.
 
 ### 검증과 범위
 
