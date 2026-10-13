@@ -1,7 +1,7 @@
 ---
 title: Fast DDS Discovery Server 조사와 채택안
 status: draft
-updated: 2026-10-08
+updated: 2026-10-13
 ---
 
 # Fast DDS Discovery Server 조사와 채택안 (작전, 2026-10-08 · 실기·배포 보강 같은 날)
@@ -11,6 +11,9 @@ updated: 2026-10-08
 > 실기·배포가 더한 것: 3.1 재측정, 8 PC 별 설정 절차와 되돌리기, 9 오프라인 시험 규칙, 10 실행 전 점검 `scripts/field/preflight.py`.
 
 ## 0. 결론
+
+> [!IMPORTANT]
+> **2026-10-13 현장 적용: 권고안 A 로 전환했다(재범 결정).** 운영 PC 중앙 서버(ID 0)가 멈춘 뒤, 각 PC 가 로봇 Pi 온보드 서버에 직접 붙는다. 로봇 설정은 바꾸지 않았다. 측정값과 남은 확인은 [11절](#11-현장-적용-기록-2026-10-13).
 
 > [!NOTE]
 > 2026-10-10 현장 확인 전 권고다. 운영 PC(PC4 역할)는 **중앙 Discovery Server(서버 ID 0, 11811)** 를 손으로 띄워 쓰고 있고 클라이언트 목록에 자기 서버만 있다는 측정이 있다([운영 PC 현황 기록](../process/ops-host-record.md), PR #49, 웹마스터). 로봇 쪽 설정(온보드 서버·오프보드 서버 지정)은 [미확인]이라, 아래 2번(권고안 A)과 현장 구성 중 어느 쪽이 팀 결정인지는 로봇 설정을 읽은 뒤 정한다(실기·배포 → 작전).
@@ -172,6 +175,50 @@ ros2 daemon stop; ros2 daemon start             # 낡은 목록을 버린다 (4�
 결과는 표준 출력 JSON, 사람이 읽는 표는 표준 오류. JSON 의 `host_facts` 에 OS 이름·Python 버전·`/opt/ros/<distro>` 목록을 판정 없이 남긴다(현장 PC 를 고를 때의 입력, Q-02·Q-15). 종료 코드 0 = 전부 `PASSED`, 2 = `FAILED` 하나 이상, 3 = 실패는 없고 `NOT_RUN` 이 있음. 아직 없는 것: 최근 수신 시각(생존 판정), 서버 CPU, 참가자 수 — 다음 PR(4-PC 기동 탐침, AC-01).
 
 이 PC 에서 잰 값 [측정 2026-10-08]: 호스트 셸(Ubuntu 26.04.1, Python 3.14, `/opt/ros` 없음)은 ROS 미설치로 종료 코드 2([preflight-host](../evidence/field-2026-10-08-preflight-host.log)), Jazzy 컨테이너(`--network none`)는 `nav2_msgs`·`irobot_create_msgs` 미설치로 종료 코드 2([preflight-container](../evidence/field-2026-10-08-preflight-container.log)). 둘 다 서버·그래프는 `NOT_RUN`(로봇 없음). [측정 2026-10-12] Jazzy 가 설치된 개발 PC(현장 PC 아님, 격리 도메인·LOCALHOST)에서 예시 파일로 다시 돌린 결과: `operations` 는 종료 코드 3(배포판·RMW·패키지·fastdds 통과, 서버·도메인·그래프 `NOT_RUN`), `central` 은 종료 코드 2(`irobot_create_msgs` 미설치)([preflight-host 10-12](../evidence/field-2026-10-12-preflight-host.log)).
+
+## 11. 현장 적용 기록 (2026-10-13)
+
+### 11.1 무엇이 바뀌었나
+- 오전에 운영 PC 의 중앙 Discovery Server(ID 0, 11811, 손으로 띄운 프로세스, [운영 PC 현황 기록](../process/ops-host-record.md))가 멈췄다. 원인은 [미확인]이다.
+- 재범 결정(2026-10-13): 중앙 서버를 다시 쓰지 않고 **권고안 A**(0절 2번, 5절)로 간다. 각 PC 가 로봇 Pi 의 온보드 서버에 직접 붙는다. **로봇 설정은 바꾸지 않는다.**
+- 옛 중앙 서버는 더 쓰지 않는다. 그 PC 에서 끌지는 정하지 않았다.
+
+### 11.2 역할별로 붙을 서버
+배포 프로파일의 `hosts[].network.discovery_servers` 와 같은 값이어야 한다. 실행 전 점검 `scripts/field/preflight_role.py`(PR #156)가 셸 값과 프로파일 값을 비교한다.
+
+| 프로파일 호스트 | 붙을 서버 | 이유 |
+| --- | --- | --- |
+| `compute_a` (robot_a = AMR1) | robot_a 의 실제 로봇 서버 1개 | 자기 로봇 |
+| `compute_b` (robot_b = AMR2) | robot_b 의 실제 로봇 서버 1개 | 자기 로봇 |
+| `coordination` | 두 로봇 서버 모두 | 두 로봇과 통신(조정기) |
+| `operations` | 두 로봇 서버 모두 | 두 로봇 상태 수신, 웹캠 사건 발행(현장 배치에서 웹캠은 이 호스트) |
+
+`ROS_DISCOVERY_SERVER` 는 세미콜론으로 나눈 **자리 번호가 서버 ID** 다(2절). 그래서 **두 로봇의 서버 ID 가 서로 달라야** 이 구성이 된다. 같으면 `coordination`·`operations` 가 한 자리에 두 서버를 적을 수 없고, 프로파일도 거절한다(`server_id must be unique`). 그때는 로봇 설정 변경(등급 4)이 필요하다.
+
+### 11.3 측정 (2026-10-13)
+| 무엇 | 값 | 출처 |
+| --- | --- | --- |
+| 현장 PC 한 대의 `/etc/turtlebot4_discovery/setup.bash` | `ROS_DOMAIN_ID=6`, `ROS_DISCOVERY_SERVER=";;;;;<ROBOT_B_IP>:11811;"`(서버 ID 5, robot_b 의 Pi 로 [추정]), 대화형 터미널만 `ROS_SUPER_CLIENT=True` | [측정, 재범 화면] |
+| robot_a 서버 ID·주소 | — | [미확인] 로봇에서 `grep ROS_DISCOVERY_SERVER /etc/turtlebot4/setup.bash` 로 읽는다(읽기만) |
+| 현장 PC → robot_b Pi, ping 6회 | 손실 0 %, 평균 17 ms, 최대 44 ms | [측정, 표본 작음] |
+| 현장 PC → 옛 중앙 서버 PC, ping 3회 | 손실 67 %, 594 ms | [측정, 표본 작음] |
+
+- 현장 PC 들은 8절 권고(현장 터미널에서만 source)와 달리 TB4 방식대로 `.bashrc` 가 `/etc/turtlebot4_discovery/setup.bash` 를 읽는다 [측정]. 그래서 그 PC 에서 로봇 없이 시험할 때는 9절대로 `ROS_DISCOVERY_SERVER` 를 비우고 다른 `ROS_DOMAIN_ID`·`LOCALHOST` 로 한다.
+- 와이파이 지연·손실이 실행기 생존 신호를 끊는지는 ping 이 아니라 토픽 간격으로 본다. 도구는 `scripts/field/link_check.py`(PR #155)다. watchdog 은 생존 신호가 `heartbeat_max_age_s`(지금 0.5 s) 넘게 끊기면 영구 정지한다(`rescue_robot/watchdog.py`).
+
+### 11.4 PC 마다 바꾼 뒤 확인
+1. `source /etc/turtlebot4_discovery/setup.bash` (바꾸기 전 백업과 전후 sha256 은 8절과 팀 AGENTS.md 6절대로 남긴다)
+2. `ros2 daemon stop; ros2 daemon start`
+3. 대화형 터미널에서 `ros2 topic list | grep -c '^/robot'` — 그 PC 가 붙은 로봇의 토픽이 보여야 한다
+4. `python3 scripts/field/preflight_role.py --role <호스트 id> --profile <현장 프로파일>` (PR #156)
+
+### 11.5 남은 확인
+| 무엇 | 왜 | 누가 |
+| --- | --- | --- |
+| robot_a 서버 ID·주소, 두 ID 가 다른지 | 11.2 구성의 전제 | 재범(로봇에서 읽기만) |
+| 로봇 Pi 두 대 주소의 공유기 예약 | 모든 PC 가 로봇 주소를 가리킨다 | 재범 |
+| 로봇 Pi 서버 CPU 부하 | 이제 PC 4대의 발견을 로봇 서버가 받는다(0절 5번 (b)) | 실기 때 `top` |
+| 현장 프로파일 `hosts[].network` 를 11.2 대로 | 실행 전 점검이 비교한다 | 프로파일 담당 |
 
 ## 출처
 

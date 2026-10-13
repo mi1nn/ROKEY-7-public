@@ -1,5 +1,44 @@
 # 계획 PR 8 — 접근·배정·통로 점유 코어
 
+> 이 문서의 앞 절들은 계획 PR 8 이후 쌓인 기록이다. 지금 코드가 무엇을 하는지는 바로 아래 「지금 상태」가 기준이고, 뒤 절과 어긋나면 이 절이 맞다(2026-10-13).
+
+## 지금 상태 (2026-10-13, main `2550f1d` 기준)
+
+**되는 것 — 로봇 없이 A·B 단계가 코드로 이어진다** [측정 2026-10-13]
+
+- 로봇 없는 리허설: 재난 신호(DISASTER_SIGN) → 관제 웹 START_SEARCH → AMR1 SEARCH_AREA → 탑재 카메라 탐지 → TargetLocation → 대상 생성 → 보고 저장 영수증(PERSISTED) → 관제 웹 출동 승인 버튼 켜짐 → DISPATCH_SUPPORT 수락 → AMR2 MOVE_SEGMENT.
+  - 결과: 7단계가 3회 모두 PASS, 단계마다 1 s 안쪽.
+  - 조건: `ROS_DOMAIN_ID` 47·LOCALHOST. 코드는 main `a578d23` + #142 `c2fb926` + #147 `6762a2e` 를 로컬에서만 합쳤다.
+  - 실제로 돈 노드: `mission_coordinator`, `target_locator`, `db_writer`(+HTTP API), `report_node`. 관제 웹 화면은 같은 DB 로 만들었다.
+  - **가짜였던 것**: 웹캠 DISASTER_SIGN(SYNCED·오차 5 ms 는 시험값), 두 로봇의 실행기와 RobotStatus, AMR 카메라 TargetObservation 과 TF. 영수증·TargetLocation·SystemState 는 가짜가 아니라 실제 노드가 냈다.
+  - 스크립트 `tests/ros/e3_rehearsal_ab.py` 는 #142 머지 뒤 PR 로 올린다.
+- 출동 승인 관문: 확정(CONFIRMED)이고, 지금 revision 의 보고가 PERSISTED 이고, 운영자가 그 revision 으로 누를 때만 열린다.
+  - 단위 시험: `tests/test_coordination_ros_targets.py` `DispatchGateTests`(#139).
+  - 실제 report_node 와 함께 한 E3: PASS 6/0 [측정 2026-10-13]. probe 는 `tests/ros/e3_report_gate_probe.py`(#151, 머지됨).
+- 보고 크기(#139): 보고에는 아직 PERSISTED 영수증에 들어가지 않은 위치만 싣는다(SDD 391 기록 중복 제거). 같은 대상의 위치가 42개일 때 가장 큰 보고는 고치기 전 59,944 B, 고친 뒤 4,021 B [측정 2026-10-13].
+
+**지금 안 되는 것**
+
+- 실제 로봇에서는 AMR2 가 움직이지 않는다. 로봇 실행기의 LIVE_ROS 입력은 지금 `SEARCH_AREA` 만 받는다(`src/rescue_robot/rescue_robot/task_site_runtime.py:256`). 조정기가 내는 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 은 실제 실행기가 거절한다. 위 리허설의 MOVE_SEGMENT 는 가짜 실행기가 받은 것이다(C1 보류, AMR2 시나리오 #131·#133 결정 대기).
+- RETURN_HOME 은 지금 항상 거절된다.
+  - 복귀 위치가 없어 `NO_HOME_POSITION` 이다. 복귀 위치 파라미터 `home_poses` 는 #148 머지 뒤 별도 PR 로 올린다.
+  - 복귀 위치를 넣어도 `HOME_BASIS_MISMATCH` 다. 로봇의 현재 지도 기준을 받는 곳(`record_map_basis` 호출)이 없다. 그 기준을 내는 노드(MapState)가 아직 없기 때문이다.
+  - 배치 기준으로 대신하지 않는다(작전 결정 2026-10-13, 측정된 기준이 생길 때까지 보류). 수락돼도 task 는 발급하지 않는다(C단계 시나리오 결정 뒤).
+- 웹캠 소실 후보 → AMR1 재확인 → 구출 판정 연결: `record_rescue_verdict` 를 부르는 실제 코드가 없다(C4 보류).
+- `route_segment_passage_free` 는 ROS 파라미터로 빈 배열을 줄 수 없다(`-p`·`--params-file` 모두 값 없음 → 기동 거절) [측정, 통합-로봇 2026-10-13]. 모든 구간을 보류하려면 모두 `false` 로 준다. 아래 파라미터 표의 문구는 #148 머지 때 함께 고쳐진다.
+
+**열려 있는 PR (이 레인)**
+
+- #148: 웹캠 감시 지정(SetCameraWatch).
+  - 운영자 `SET_CAMERA_WATCH` 마다 `watch_id` 를 발급한다. 재난 모드에서만 받는다.
+  - 소실 후보를 받을지 판단한다(C-11 2~4행). 끝나면 해제한다.
+  - 새 파라미터 `camera_watch_timeout_s`(필수)·`camera_watch_roi`(생략 가능, 생략하면 요청 ROI 만).
+  - 머지 전 main 에서는 `SET_CAMERA_WATCH` 가 아래 대응표대로 `INVALID_INPUT` 이다.
+- #154: SIGTERM 으로 끌 때 context 가 이미 닫힌 뒤 나는 RCLError 를 정상 종료로 본다. 그 밖의 오류는 그대로 낸다.
+  - 리허설에서 고치기 전에는 조정기가 8회 중 4회 exit 1 로 끝났고, 고친 뒤 5회 모두 exit 0 이었다 [측정 2026-10-13].
+
+**현장 연동(#132)**: `live_inputs.*` 파라미터·`~/task_inputs`·`~/refresh_state`·RViz 목적지 선택은 [rescue_coordination README](../../src/rescue_coordination/README.md)「현장 연동」에 있다. 아래 파라미터 표에는 아직 없다.
+
 계획 PR 8(실제 GitHub PR 9)의 현재 범위는 접근 후보·배정 수락·대상 확인·통로 점유의 Python 정책 코어다. **수색 구역 분할·SEARCH_AREA 구역 배정·D-05 B안 frontier 후보 어댑터·자동 역할 교대는 F-01 후속 작업이며 GitHub PR 미발행**이다. 해당 기능을 이 PR이나 통합 리허설의 완료에 포함하지 않는다. 실제 Nav2 path service·ROS 임무 전송도 미구현이다. `PathCandidate`는 외부 planner가 제공할 증거이며 후보 선택이 이동 허가는 아니다. 실제 SLAM 보정 연동이 없어 mapping의 `auto_approach_eligible`은 false다.
 
 ## 구현한 경계
@@ -47,7 +86,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 재배정은 (1) 현재 구역 결과 수신·정지 확인 (2) `withdraw_area`로 구역 근거 철회(`RELEASE_REQUIRED`) (3) 로봇 부적격 뒤 실행기 정지 결과에서만 일어난다. SUPPORT가 접근 중일 때 SCOUT는 기본적으로 다음 구역 수색을 계속하고(`scout_continues_during_approach=True`), False면 새 구역 제안만 멈춘다. 반환 사유는 `DECISION_REASONS` 닫힌 집합이다.
 
-`Reservation.task_kind`가 추가됐다. `APPROACH_TARGET`·`REOBSERVE_TARGET`은 `PathCandidate`가 필수이고(기본값이 `APPROACH_TARGET`이라 기존 호출도 후보가 필요), `SEARCH_AREA`·`HOLD`만 `candidate=None`을 허용한다. 예약은 PENDING이며 후보는 접근 전용 경로 증거다. `HOLD`는 실행기 의미대로 제자리 정지 유지이며, 대기 위치로의 이동은 기반 레인 후속이다. `task_fields`는 #14의 `search_area_ref`(SEARCH_AREA는 구역 ID, 그 외 None)와 `goal_pose`(SEARCH_AREA는 구역 mission 좌표와 근거 map session/revision, APPROACH는 후보 `goal_xy`와 후보 map session/revision, HOLD는 None)를 채운다. frame은 정책의 `mission_frame_id`다. yaw는 리터럴로 채우지 않는다: SEARCH_AREA는 구역의 필수 입력 `MissionSite.entry_yaw`(프로파일 v2.1 예정), APPROACH는 후보 지점에서 대상을 바라보는 각도 `atan2(target − goal)`(재관측 카메라가 대상을 향함)이다. 후보 지점과 대상이 같으면 방향이 없으므로 예약하지 않는다. `goal_pose`는 일반 dict로 주고 로봇 레인이 `GoalPose(**d)`로 바꾼다. coordination이 `rescue_robot`을 import하지 않게 하기 위해서다. 실제 지도 좌표 근거·frontier·전송·두 AMR·4 PC는 미실행이다.
+`Reservation.task_kind`가 추가됐다. `SEARCH_AREA`·`HOLD`는 `candidate=None`을 허용한다. `APPROACH_TARGET`은 `PathCandidate`가 필수다(기본값이 `APPROACH_TARGET`이라 기존 호출도 후보가 필요). 2026-10-11(#88) 경로 증거 Phase 1 규칙부터, ONE_SEGMENT 승인과 구간 끝 `GoalPoint` 가 있는 `MOVE_SEGMENT`, 고정 관측 지점이 있는 `REOBSERVE_TARGET` 도 후보 없이 받는다(아래 「임무 조정기 ROS 노드」, `planning.py` `Reservation.__post_init__`). 예약은 PENDING이며 후보는 접근 전용 경로 증거다. `HOLD`는 실행기 의미대로 제자리 정지 유지이며, 대기 위치로의 이동은 기반 레인 후속이다. `task_fields`는 #14의 `search_area_ref`(SEARCH_AREA는 구역 ID, 그 외 None)와 `goal_pose`(SEARCH_AREA는 구역 mission 좌표와 근거 map session/revision, APPROACH는 후보 `goal_xy`와 후보 map session/revision, HOLD는 None)를 채운다. frame은 정책의 `mission_frame_id`다. yaw는 리터럴로 채우지 않는다: SEARCH_AREA는 구역의 필수 입력 `MissionSite.entry_yaw`(프로파일 v2.1 예정), APPROACH는 후보 지점에서 대상을 바라보는 각도 `atan2(target − goal)`(재관측 카메라가 대상을 향함)이다. 후보 지점과 대상이 같으면 방향이 없으므로 예약하지 않는다. `goal_pose`는 일반 dict로 주고 로봇 레인이 `GoalPose(**d)`로 바꾼다. coordination이 `rescue_robot`을 import하지 않게 하기 위해서다. 실제 지도 좌표 근거·frontier·전송·두 AMR·4 PC는 미실행이다.
 
 공통 어휘와 로더(OPS-01, 2026-10-08): `planning.TASK_KINDS`·`TARGET_TASK_KINDS`와 `search.ROLES`는 복제하지 않고 `rescue_contracts`의 `TASK_KINDS`·`TARGET_TASK_KINDS`·`ROBOT_ROLES`를 그대로 쓴다. `search.mission_sites(areas, *, entry_yaws)`는 프로파일 v2 `mission.search_areas`를 순서대로 `MissionSite`로 옮긴다. 구역 ID·mission 좌표·근거 종류·map session/revision·transform revision을 그대로 복사하고, 실행 가능 여부는 판단하지 않는다(`SearchPolicy.executable_bases`가 정한다). 프로파일 v2에는 아직 `entry_yaw`가 없으므로 구역 ID마다 도착 방향을 `entry_yaws`로 따로 받는다. 빠지거나 남거나 유한하지 않으면 거부하고 기본값으로 채우지 않는다. 프로파일 v2.1이 `search_areas[].entry_yaw`를 갖게 되면 호출하는 쪽이 그 값을 넘긴다. coordination은 `rescue_bringup`을 import하지 않고 속성으로만 읽는다.
 
@@ -91,7 +130,14 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 | `record_route(target, route_revision, segment_count)` | 새 revision은 정지해 승인을 기다릴 때(또는 출동 전)만 바꿀 수 있고, 바뀌면 구간 0부터 다시 센다. 낮은 revision은 거절 | 이전 revision으로 누른 "계속"은 `ROUTE_REVISION_STALE` |
 | `phase()`·`view()` | 1절의 표시 단계(`MISSION_PHASES`)를 계산한다. 화면은 읽기만 한다 | `CANDIDATE`는 `TARGET_DISAPPEARED_CANDIDATE`(#48) 전까지 나오지 않는다 |
 
-`MOVE_SEGMENT`·`RETURN_HOME`은 아직 `rescue_contracts.TASK_KINDS`에 없다(#65). 그래서 이 모듈의 승인은 상태만 바꾸고 `Task`를 발급하지 않는다. `MOVE_SEGMENT`는 대상 임무로 정할 예정이라(#65, C-06) 후속 발급은 `approval`의 네 키를 그대로 `Task`에 싣는다. 복귀 위치는 프로파일 v2에 아직 없어(SUPPORT의 `hold_positions`만 있음) 호출하는 쪽이 넘긴다. 발급과 실행기 결과 연결, 재확인·복귀의 자동 시작, 카메라 후보(`TARGET_DISAPPEARED_CANDIDATE`) 수용과 출처 `CAMERA` 경로, 11행의 수락 시각 clock domain·오차 기록은 후속이다. 실제 ROS·DB·웹 연결은 미실행이다.
+`MOVE_SEGMENT`·`RETURN_HOME`은 이제 `rescue_contracts.TASK_KINDS`에 있다(`MOVE_SEGMENT` 는 대상 임무). 이 모듈(`MissionCoordinator`)은 승인 상태만 바꾸고, 발급은 노드 코어(`CoordinatorCore`, 아래 절)가 한다.
+
+- `MOVE_SEGMENT`: 승인 한 건마다 SUPPORT 에 하나를 발급한다. `approval` 의 네 키를 그대로 싣는다.
+- `REOBSERVE_TARGET`: 열린 재확인마다 SCOUT 에 하나를 발급한다.
+- `RETURN_HOME`: 수락해도 상태만 바뀌고 task 는 없다. 복귀 위치와 현재 지도 기준이 없어 지금은 늘 거절된다(위 「지금 상태」).
+- 후속: 카메라 후보(`TARGET_DISAPPEARED_CANDIDATE`) 수용과 출처 `CAMERA` 경로(#148 머지 뒤 수용 판단까지; 재관측 자동 예약은 C-11 5행 후속), 11행의 수락 시각 clock domain·오차 기록, 판정 연결.
+
+ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」).
 
 ## 임무 조정기 ROS 노드 — 얇은 버전 (10-13 전 구간, 2026-10-11)
 
@@ -151,4 +197,24 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 ## 검증
 
-`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다. `tests/test_coordination_mission.py`는 재난 전·START_SEARCH 전 SCOUT 수색 차단, 사건·명령 ID 멱등과 내용 충돌, 시각 기준 없는 사건 거절, 명령마다의 관문 사유, 정지 확인 없는 구간 종료 거절, 다음 구간 자동 승인 없음, 승인 키(대상·경로 revision·구간) 불일치 거절, 재확인 지시의 C-11 10행 순서(모르는 대상·판정 끝난 대상·열린 재관측)와 대상별 기록, 경로 교체 뒤 이전 revision 거절, 복귀 위치 없음·지도 불일치 거절, 시나리오 순서의 표시 단계를 확인한다. `tests/test_coordination_target_goal.py`는 경로 증거 Phase 1 규칙(승인 없는 MOVE_SEGMENT·관측 지점 없는 REOBSERVE·APPROACH 거절)을, `tests/test_coordination_ros_core.py`·`test_coordination_ros_targets.py`는 노드 코어(메시지 변환, START_SEARCH 뒤 SCOUT 발급, 운영자 서비스와 공통 코드, MOVE_SEGMENT·REOBSERVE 발급, 대상 병합, 보고 저장 확인, route frame, SystemState)를 ROS 없이 확인한다.
+`tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다. `tests/test_coordination_mission.py`는 재난 전·START_SEARCH 전 SCOUT 수색 차단, 사건·명령 ID 멱등과 내용 충돌, 시각 기준 없는 사건 거절, 명령마다의 관문 사유, 정지 확인 없는 구간 종료 거절, 다음 구간 자동 승인 없음, 승인 키(대상·경로 revision·구간) 불일치 거절, 재확인 지시의 C-11 10행 순서(모르는 대상·판정 끝난 대상·열린 재관측)와 대상별 기록, 경로 교체 뒤 이전 revision 거절, 복귀 위치 없음·지도 불일치 거절, 시나리오 순서의 표시 단계를 확인한다. `tests/test_coordination_target_goal.py`는 경로 증거 Phase 1 규칙(승인 없는 MOVE_SEGMENT·관측 지점 없는 REOBSERVE·APPROACH 거절)을, `tests/test_coordination_ros_core.py`·`test_coordination_ros_targets.py`는 노드 코어(메시지 변환, START_SEARCH 뒤 SCOUT 발급, 운영자 서비스와 공통 코드, MOVE_SEGMENT·REOBSERVE 발급, 대상 병합, 보고 저장 확인, 저장 안 된 위치만 싣는 보고, 출동 승인 관문, route frame, SystemState)를 ROS 없이 확인한다.
+
+나머지 시험 파일(2026-10-13 `ls tests/test_coordination*.py` 기준):
+
+| 파일 | 확인하는 것 |
+| --- | --- |
+| `tests/test_coordination_ros_passage.py` | 구간마다 "통로 판정 불필요"가 아니면 MOVE_SEGMENT 를 보류(`PASSAGE_ASSESSMENT_REQUIRED`) |
+| `tests/test_coordination_ros_snapshot.py` | TargetSnapshot: 대상마다 TargetEstimate 하나, `persisted_report_id` 는 지금 revision 의 저장된 보고만 |
+| `tests/test_coordination_loader.py` | 공통 어휘(TASK_KINDS·ROBOT_ROLES)를 그대로 쓰는지, 프로파일 수색 구역 → MissionSite, 구역별 도착 방향 |
+| `tests/test_coordination_search.py` | 역할 입력 수색·대기·예약(SearchCoordinator) |
+| `tests/test_coordination_dispatch.py` | 출동 대상 선택(`select_dispatch_target`) |
+
+로봇 없는 E3(ROS 필요, `scripts/run_tests.py` 는 모으지 않는다; `ROS_DOMAIN_ID` 10 이상·LOCALHOST·Discovery Server 해제):
+
+| 파일 | 확인하는 것 |
+| --- | --- |
+| `tests/ros/e3_coordinator_probe.py` | 실제 조정기 + 가짜 실행기 2대: 모드 관문, START_SEARCH, lease, 보고·영수증, MOVE_SEGMENT, REOBSERVE 재발급 |
+| `tests/ros/e3_report_gate_probe.py` (#151) | 실제 조정기 + 실제 report_node: PERSISTED → `persisted_report_id` → DISPATCH_SUPPORT 수락, 보고 크기 |
+| `tests/ros/e3_target_locator_probe.py` (#142) | 가짜 관측 + TF → target_locator → 조정기 대상 |
+| `tests/ros/e3_camera_watch_probe.py` (#148) | 실제 조정기 + 웹캠 `WatchSlot` 그대로: 재난 모드에서만, ROI 없으면 거절, 후보 → 해제 |
+| `tests/ros/e3_rehearsal_ab.py` (#142 머지 뒤 PR) | A·B 전체(위 「지금 상태」) |

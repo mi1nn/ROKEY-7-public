@@ -11,7 +11,7 @@ import time
 from uuid import uuid4
 
 from .report_store import RescueReportStore, receipt_fields
-from .ros_node import git_sha
+from .ros_node import git_sha, teardown
 from .schema import OperationsError
 
 PARAMS = {'db_path': 'STRING', 'reports_topic': 'STRING', 'receipts_topic': 'STRING',
@@ -81,8 +81,6 @@ def main(args=None):
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
-        log.info('rescue_report_node stopping')
-    finally:
-        store.close()
-        node.destroy_node()
-        rclpy.try_shutdown()
+        pass
+    finally:  # a second SIGINT (launch + terminal) must not abort the cleanup (ros_node.teardown)
+        teardown(lambda: log.info('rescue_report_node stopping'), store.close, node.destroy_node, rclpy.try_shutdown)

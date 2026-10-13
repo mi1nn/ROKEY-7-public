@@ -438,6 +438,45 @@ class NoLedgerTests(LedgerFixture):
         self.assertIn('INVALID_INPUT', err.getvalue())
 
 
+def candidate_event(label, target_label, offset=20):
+    event = site_event(label, 'DISASTER_SIGN', offset)
+    event.update(kind='TARGET_DISAPPEARED_CANDIDATE', camera_id='cam_fixed', target_id=uid(target_label),
+                 watch_id=uid(label + '/watch'), confidence=0.8)
+    return event
+
+
+class DisappearedCandidateTests(LedgerFixture):
+    """The fixed camera's TARGET_DISAPPEARED_CANDIDATE shows on the target row and in the event table.
+    It is only a candidate: rescue is confirmed by the robot's re-observation (SiteEvent docstring)."""
+
+    def view_with(self, *events):
+        self.status['site_events']['site_events'].extend(events)
+        return self.view()
+
+    def test_candidate_names_its_target_row_and_event_subject(self):
+        view = self.view_with(candidate_event('gone-1', 'waiting'))
+        rows = {row['target_id']: row for row in view['targets']}
+        mark = rows[uid('waiting')]['disappeared_candidate']
+        self.assertEqual((uid('gone-1'), T0 + 20 * SECOND, 'cam_fixed'),
+                         (mark['event_id'], mark['observed_at_ns'], mark['camera_id']))
+        self.assertTrue(all(row['disappeared_candidate'] is None for tid, row in rows.items() if tid != uid('waiting')))
+        event = [e for e in view['events'] if e['kind'] == 'TARGET_DISAPPEARED_CANDIDATE'][0]
+        self.assertEqual(uid('waiting'), event['subject'])
+        html = render_page(view)
+        row_html = html[html.index(f'<li class="victim-row'):]
+        self.assertIn('소실 후보', row_html)
+        self.assertIn('대상 소실 후보', html)
+
+    def test_latest_candidate_wins(self):
+        view = self.view_with(candidate_event('gone-1', 'waiting', 20), candidate_event('gone-2', 'waiting', 25))
+        mark = {row['target_id']: row for row in view['targets']}[uid('waiting')]['disappeared_candidate']
+        self.assertEqual(uid('gone-2'), mark['event_id'])
+
+    def test_candidate_for_an_unknown_target_is_a_warning(self):
+        view = self.view_with(candidate_event('gone-x', 'nobody'))
+        self.assertIn(f"소실 후보의 대상이 목록에 없음: {uid('nobody')}", view['warnings'])
+
+
 class AllowedRobotsTests(LedgerFixture):
     """Without the report ledger the deployment's robots come from the site-state DB metadata
     (read_allowed_robot_ids, #149): a card per robot even before its first status."""
