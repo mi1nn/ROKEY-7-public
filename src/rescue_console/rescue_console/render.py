@@ -321,7 +321,7 @@ def _watch(robot):
     age = '수신 없음' if w['age_s'] is None else f'{_age(w["age_s"])} 전'
     flag = '직접 관측 낡음' if w['stale'] else '직접 관측'
     return (f'<p class="watch{" alert" if w["stale"] else ""}" title="{escape(w["namespace"] or "")} 구독만">'
-            f'{flag} · {age} · {battery} · {dock}</p>')
+            f'{flag} · {age} · {battery} · {dock}{" · 위치는 자기 지도 기준, 이 지도와 다름" if w["own_map"] else ""}</p>')
 
 
 def _robots(view):

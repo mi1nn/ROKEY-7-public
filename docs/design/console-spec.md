@@ -57,8 +57,9 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `--map` | 경로 | — | `assets/maps/pre_quake/map.yaml`(`README:159`) | 선택 | 기동 때 `load_map` 으로 한 번 읽고, 실패하면 기동이 실패한다(`app.py:145`) | 고정 지도 |
 | `--live-map` | 경로 | — | `<map_dir>/live_map.yaml`(`launch/operations.launch.py:76`) | 선택. `--map` 과 함께 쓸 수 없고(`app.py:146-147`), `--live-map-stale-s` 와 함께 줘야 한다(`__main__.py:78-79`) | 파일이 아직 없어도 된다 | 실시간 SLAM 지도 |
 | `--live-map-stale-s` | float | s | [미확인]. map_snapshot 의 alive 주기 2초보다 커야 한다(`rescue_operations/map_snapshot.py:24`) | `--live-map` 과 함께 줘야 한다. 기본값 없음 | 유한한 양수여야 한다(`mapimage.py:226-227`). 아니면 `INVALID_INPUT` 오류 | 지도를 오래된(stale) 상태로 판정하는 기준 |
-| `--robot-watch` | 경로 | — | 운영 launch 의 인자 `robot_watch_path`(노드 `rescue_robot_watch`, `launch/operations.launch.py:88-90`) | 선택, 기본값 없음. `--robot-watch-stale-s` 와 함께 줘야 한다(`__main__.py:76-77`) | 기동 때는 열지 않는다. 파일이 아직 없어도 된다(요청마다 읽고, 없으면 경고한다) | 로봇 기본 토픽을 직접 관측한 JSON(I-5) |
+| `--robot-watch` | 경로 | — | 운영 launch 의 인자 `robot_watch_path`(노드 `rescue_robot_watch`, `launch/operations.launch.py:88-90`) | 선택, 기본값 없음. `--robot-watch-stale-s`·`--robot-watch-map-robot` 와 함께 줘야 한다(`__main__.py`) | 기동 때는 열지 않는다. 파일이 아직 없어도 된다(요청마다 읽고, 없으면 경고한다) | 로봇 기본 토픽을 직접 관측한 JSON(I-5) |
 | `--robot-watch-stale-s` | float | s | [미확인]. robot_watch 의 쓰기 주기 1초(`rescue_operations/robot_watch.py:19`)보다 커야 한다 | `--robot-watch` 와 함께 줘야 한다. 기본값 없음 | argparse 의 float 변환만 한다. 유한·양수 검사가 **없다**(`--live-map-stale-s` 와 다르다) [관찰, 코드 읽기]. 9절 참고 | 이 시간보다 오래 아무것도 받지 못하면 「직접 관측 낡음」을 표시한다 |
+| `--robot-watch-map-robot` | robot_id | — | 보이는 지도의 주인 로봇(실시간 SLAM 지도를 만드는 TB-6, `robot_a`) | `--robot-watch` 와 함께 줘야 한다. 기본값 없음 | 값이 배치 로봇인지는 검사하지 않는다 | 이 로봇의 직접 관측 위치만 지도에 그린다. 다른 로봇은 frame 을 `<ns> map` 으로 바꿔 「지도에 안 그림」으로 보낸다 |
 | `--robot-camera URL` | 문자열 | — | launch 로그에 나오는 `http://<video_bind_host>:<video_port + 1>/robot_view.mjpg`(인자 `robot_views`, `rescue_bringup/operations_launch.py:203-224`) | 선택, 기본값 없음 | scheme 이 http·https 이고 host 가 있어야 한다. 아니면 `INVALID_INPUT` 오류(`app.py:113-118`). 카메라 선택 요청 주소는 같은 host:port 의 `/select` 다(`app.py:152-153`). `--camera-stale-s` 가 필요하지만 **기동 때 확인하지 않는다**. 그래서 `--camera` 없이 주면 `GET /` 가 매번 503 으로 끝난다(9절) [측정] | 로봇 카메라 칸(7.12) |
 | `--operations URL` | 문자열 | — | `http://127.0.0.1:<api_port>`(`launch/operations.launch.py:19`, `rescue_bringup/operations_launch.py:26`) | 선택. 없으면 명령 버튼이 꺼지고 표준 오류에 한 줄을 남긴다(`__main__.py:93-95`) | scheme 이 http·https 이고, host 가 있고, query·fragment 가 없어야 한다. 아니면 `INVALID_INPUT` 오류. 끝의 `/` 는 제거한다(`commands.py:61-66`) | operations API 의 기준 주소 |
 | `--secret-env` | 문자열 | — | 기본값 그대로 쓴다 | 기본값 `RESCUE_CONSOLE_SECRET` | 그 환경 변수가 없거나 비어 있으면 `CONFIG_MISSING`(`__main__.py:69-71`), 값이 16자 미만이어도 `CONFIG_MISSING` 오류(`app.py:141-142`) | 세션 서명용 비밀값이 든 환경 변수의 이름 |
@@ -332,7 +333,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 1. 3절 표에 따라 인자를 읽는다. argparse 오류는 argparse 기본 동작대로 처리한다(사용법을 출력하고 종료코드 2 로 끝낸다).
 2. `--secret-env` 가 가리키는 환경 변수를 읽는다. 변수가 없거나 빈 문자열이면 `CONFIG_MISSING` 「set {변수} to a random string of 16+ characters」 오류를 낸다.
 3. `LEDGER` 와 `--site-state` 가 둘 다 없으면 `INVALID_INPUT` 오류를 낸다.
-4. `--robot-watch` 와 `--robot-watch-stale-s`, `--live-map` 과 `--live-map-stale-s` 는 각각 둘 중 하나만 주면 `INVALID_INPUT` 오류를 낸다(`__main__.py:76-79`).
+4. `--robot-watch`·`--robot-watch-stale-s`·`--robot-watch-map-robot` 은 셋 다 주거나 셋 다 빼야 하고, `--live-map` 과 `--live-map-stale-s` 는 둘 중 하나만 주면 `INVALID_INPUT` 오류를 낸다(`__main__.py`).
 5. `--camera` 값마다 `parse_camera` 를 적용하고, `--robot-name` 값마다 `parse_robot_name` 을 적용한 뒤 중복을 검사한다.
 6. `create_app` 을 호출한다(7.2).
 7. 2 ~ 6 단계에서 `ConsoleError` 가 나면 표준 오류에 `CONSOLE FAILED: …` 를 쓰고 2 를 반환한다. 서버는 띄우지 않는다.

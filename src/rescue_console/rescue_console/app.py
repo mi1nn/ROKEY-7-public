@@ -51,7 +51,7 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
                  map_source=None, robot_names=None, support_dispatch=None, search_start=None, robot_watch_path=None,
-                 robot_watch_stale_s=None):
+                 robot_watch_stale_s=None, robot_watch_map_robot=None):
     """단일 폴링 뷰 구성. 상태 정보는 현장 상태 DB 또는 (E2 모드, operations 부재 시) 픽스처에서 읽어온다.
 
     입력 소스를 캐시 없이 새로 읽어 `build_view`로 화면 모델을 생성하며, 지도가 지정된 경우 로봇, 타깃,
@@ -63,7 +63,7 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
     watch = None if robot_watch_path is None else dict(zip(('data', 'problem'), load_robot_watch(robot_watch_path)),
-                                                       stale_s=robot_watch_stale_s)
+                                                       stale_s=robot_watch_stale_s, map_robot=robot_watch_map_robot)
     view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch,
                       search_start=search_start, robot_watch=watch)
     live = None
@@ -121,7 +121,7 @@ def parse_robot_camera(url):
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
                map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
                command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None,
-               robot_camera=None):
+               robot_watch_map_robot=None, robot_camera=None):
     """설정 유효성을 사전에 검증한 후 로그인·관제·명령·계정 관리 라우트를 등록한 Flask 앱을 생성한다.
 
     모든 설정 오류는 이 단계에서 즉시 ConsoleError로 실패하여, 잘못된 옵션 지정 시 첫 요청이 아닌
@@ -177,7 +177,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
                             map_source=live_map,
                             robot_names=robot_names, support_dispatch=support_dispatch,
                             search_start=search_start, robot_watch_path=robot_watch_path,
-                            robot_watch_stale_s=robot_watch_stale_s)
+                            robot_watch_stale_s=robot_watch_stale_s, robot_watch_map_robot=robot_watch_map_robot)
 
     def user():
         """현재 세션의 유효 계정 정보를 반환하며, 유효하지 않으면 None을 반환한다.

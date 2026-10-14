@@ -681,7 +681,9 @@ def _exit(section):
 
 def _apply_watch(robots, watch, built_at_ns, warnings):
     """--robot-watch: 로봇 기본 토픽 직접 관측을 행마다 ``watch`` 로 붙인다(재범 2026-10-13). 프로젝트 상태가 먼저이고,
-    상태가 없는 로봇은 낡지 않은 직접 관측 위치를 ``pose`` 로 쓴다. 낡음은 이 호스트 시계로 잰다(관측 노드와 같은 PC)."""
+    상태가 없는 로봇은 낡지 않은 직접 관측 위치를 ``pose`` 로 쓴다. 낡음은 이 호스트 시계로 잰다(관측 노드와 같은 PC).
+    직접 관측의 'map' 은 로봇마다 자기 localization 의 map 이다. 보이는 지도의 주인(``map_robot``)이 아닌 로봇은
+    frame 을 ``<ns> map`` 으로 바꿔 지도에 그리지 않는다(현장 2026-10-14, TB-5 가 TB-6 지도 원점에 겹침)."""
     for row in robots:
         row['watch'] = None
     if watch is None:
@@ -705,7 +707,10 @@ def _apply_watch(robots, watch, built_at_ns, warnings):
         pose_age = None if seen.get('pose_seen_ns') is None else (built_at_ns - seen['pose_seen_ns']) / 1e9
         stale = dead or age is None or age > stale_s
         pose = seen.get('pose') if not dead and pose_age is not None and pose_age <= stale_s else None
-        row['watch'] = {'namespace': seen.get('namespace'), 'age_s': age, 'stale': stale,
+        own_map = pose is not None and row['robot_id'] != watch['map_robot']
+        if own_map:
+            pose = dict(pose, frame_id=f"{seen.get('namespace')} {pose['frame_id']}")   # 옮기지 않음
+        row['watch'] = {'namespace': seen.get('namespace'), 'age_s': age, 'stale': stale, 'own_map': own_map,
                         'battery_percent': seen.get('battery_percent'), 'docked': seen.get('docked'), 'pose': pose}
         if not row['has_status'] and pose is not None:
             row['pose'] = pose
