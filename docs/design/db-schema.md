@@ -1,10 +1,29 @@
 ---
 title: DB 스키마 — 운영 장부·현장 상태·콘솔 계정
 status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2·1.3·1.4)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # DB 스키마
+
+## 한눈에 (2026-10-14, main 3278a3e)
+
+이 문서가 답하는 질문은 「현장 상태 DB(스키마 1.4)의 표마다 누가 쓰고 누가 읽는가」다. 쓰는 프로세스는 운영 PC 의 `db_writer` 하나이고, 관제 웹은 읽기 전용(`mode=ro`)으로만 연다.
+
+| 표 | 담는 것 | 쓰는 함수 (입력) | 읽는 쪽 |
+| --- | --- | --- | --- |
+| `robot_status` | 로봇당 최신 상태 1행 | `record_robot_status`·`record_robot_pose` (`/rescue/robots/<id>/status`·`/pose`) | 관제 웹 `read_robot_status` |
+| `site_events` | 고정 카메라 사건(진동 감지·대상 소실 후보) | `record_site_event` (`/rescue/site_events`) | 관제 웹 `read_site_events` |
+| `target_states` | 대상당 최신 상태 1행 | `record_target_state` (`/rescue/targets`) | 관제 웹 `read_target_states` |
+| `mission_state` | 임무 상태 1행(모드·단계·출동·사유) | `record_mission_state` (`/rescue/system_state`) | 관제 웹 `read_mission_state` |
+| `operator_commands` | 운영자 명령과 답(거절 포함) | `CommandGate` (`POST /api/operator-commands`) | 관제 웹 `read_operator_commands` |
+| `error_log` | 실패·거절 기록(추가 전용) | 수신 노드(ROS 입력 거절)·`CommandGate`·`WebcamSwitch` | 관제 웹 `read_error_log` |
+| `exit_locations` | 출구(QR) 관측(VALID 만) | `record_exit_location` (`/rescue/exit_location`) | 관제 웹 `read_exit_locations`(최신 1건) |
+| `overhead_passage_lists`·`overhead_passages` | 로봇별 터널 판정 목록 | `record_overhead_passages` (`/rescue/robots/<id>/overhead_passages`) | 관제 웹 `read_overhead_passages` |
+| `current_map` | TB-6(SCOUT) 최신 지도 revision 1행 | `record_current_map` (`/rescue/robots/<TB-6 id>/map_state`) | 관제 웹 `read_overhead_passages` |
+| `map_snapshots` | 지도 이미지 경로·해시 | 쓰는 코드 없음 | 읽는 코드 없음(관제 웹 지도는 `map_snapshot` 노드가 쓰는 파일을 직접 읽음) |
+
+다른 SQLite 파일은 세 가지다. 운영 장부(`operations-ledger`)와 보고 송신 대기열(`report-outbox`)은 `rescue_operations/ledger.py`, 관제 웹 계정(`console-accounts`)은 `rescue_console/accounts.py` 가 쓴다. 구조 보고 저장 장부(`report_node`, `report_store.py`)는 이 문서 밖이다([운영 구현](../implementation/implementation-operations.md)).
 
 SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할마다 별도 파일을 쓴다. **쓰는 쪽은 파일마다 하나**이고, 다른 쪽은 읽기 전용(`mode=ro`, `query_only`)으로만 연다. 파일 경로는 코드에 두지 않고 인자·프로파일로 받으며, 네트워크 공유 폴더에 두지 않는다([implementation-operations](../implementation/implementation-operations.md) 운영 경로 규칙). 테이블을 바꾸는 사람은 상태 감시 담당이고 이 문서를 같은 PR 에서 바꾼다([console-and-db-plan](console-and-db-plan.md) 2절).
 
@@ -39,7 +58,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | --- | --- | --- |
 | `robot_status` | `robot_id TEXT PK`, `robot_boot_id`, `state_sequence INTEGER`, `stamp_ns`, `status_json`, `received_at_ns` | 로봇당 최신 1행. 같은 boot 는 `state_sequence` 가 클 때만 교체(같은 sequence 에 다른 내용이면 `ID_CONTENT_CONFLICT`), 다른 boot 는 `stamp_ns` 가 클 때만. `status_json` 키: robot_id, robot_boot_id, state_sequence, role(SCOUT/SUPPORT/UNKNOWN), stamp_ns, pose{x,y,yaw,frame_id}, motion_state, readiness, battery_percent, battery_stamp_ns, active_task_id, generation, 그리고 선택 키 dock_state(DOCKED/UNDOCKED/UNKNOWN)·segment_index(1차 IDL `RobotStatus`, 2026-10-11; 없는 옛 행은 None 으로 읽음). pose 는 `record_robot_pose` 로 따로 바뀌고(받은 시각 `received_at_ns` 는 그대로) 같은 sequence 의 동일성 비교에서 빠진다 |
 | `site_events` | `event_id TEXT PK`, `kind`, `observed_at_ns`, `event_json`, `received_at_ns` | 고정 카메라 사건 추가 전용(`SiteEvent` 를 `asdict` 로 저장). 같은 내용 재전송은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 현재 Python 계약 어휘는 `DISASTER_SIGN`·`TARGET_DISAPPEARED_CANDIDATE`(#48, `target_id`·`watch_id` 를 함께 저장)·`EXIT_PASS`(카메라 1대 결정으로 생산자 없음)다. #48 전에 저장된 행에는 `target_id`·`watch_id` 키가 없다. 행을 고쳐 쓰지 않고, 읽을 때와 재전송을 비교할 때 계약 기본값(None)으로 채운다 |
-| `target_states` | `target_id TEXT PK`, `updated_at_ns`, `state_json` | 대상당 최신 1행. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함. `state_json` 키: target_id, position{x,y,frame_id,map_session_id,map_revision}, detection_confirmed, rescue_state(계약 `RESCUE_STATES`), rescue_reasons(RECHECK_NEEDED 일 때만, 비어도 됨 — `TargetEstimate` 에 사유 없음), verdict_id, support_state(NONE/ASSIGNED/ARRIVED/FAILED [제안]), support_robot_id, updated_at_ns, 그리고 선택 키 target_revision(조정기 `TargetEstimate.estimate_revision`, #115 콘솔이 AMR2 출동 승인에 그대로 보냄)·persisted_report_id(조정기가 그 revision 의 보고 저장 영수증을 받았을 때의 보고 ID, 빈 값은 None. #115 콘솔은 이 값이 있는 대상만 출동 승인에서 고름). 두 선택 키 모두 없는 옛 행은 None 으로 읽고 같은 내용 재전송은 멱등 |
+| `target_states` | `target_id TEXT PK`, `updated_at_ns`, `state_json` | 대상당 최신 1행. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함. `state_json` 키: target_id, position{x,y,frame_id,map_session_id,map_revision}, detection_confirmed, rescue_state(계약 `RESCUE_STATES`), rescue_reasons(RECHECK_NEEDED 일 때만, 비어도 됨 — `TargetEstimate` 에 사유 없음), verdict_id, support_state(NONE/ASSIGNED/ARRIVED/FAILED [제안]), support_robot_id, updated_at_ns, 그리고 선택 키 target_revision(조정기 `TargetEstimate.estimate_revision`, #115 콘솔이 TB-5 출동 승인에 그대로 보냄)·persisted_report_id(조정기가 그 revision 의 보고 저장 영수증을 받았을 때의 보고 ID, 빈 값은 None. #115 콘솔은 이 값이 있는 대상만 출동 승인에서 고름). 두 선택 키 모두 없는 옛 행은 None 으로 읽고 같은 내용 재전송은 멱등 |
 
 읽기: `read_robot_status`, `read_site_events(limit)`, `read_target_states`. `exit_pass_count` 는 저장된 서로 다른 `EXIT_PASS` 수다. 카메라 1대 구성의 화면에서는 출구 카운트를 숨기지만, 기존·합성 기록이 있으면 DB 집계는 0이 아닐 수 있다. 구조 4단계(미확정/미구조/지원 중/구출 완료)는 저장하지 않고 콘솔이 합성한다(Q-20, #37 규칙표).
 
@@ -60,7 +79,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
 | `error_log` | `seq INTEGER PK`, `at_ns`, `robot_id NULL`, `task_id NULL`, `code`, `detail` | 실패 경로마다 한 행(3.7.4). **추가 전용**이고 같은 실패가 반복되면 새 행이다. `code` 는 C-09 공통 코드(`rescue_contracts.CANONICAL_CODES`)만 받고, `rescue_robot.NAV2_INACTIVE` 같은 세부 원인은 `detail`(1~1024자)에 쓴다. `robot_id` 는 배치 허용 로봇 또는 None(시스템 오류), `task_id` 는 UUID 또는 None |
-| `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation NULL`, `updated_at_ns`, 1.2: `target_id NULL`, `target_revision NULL`, `route_revision NULL`, `segment_index NULL`, `segment_count NULL`, `segment_phase NULL`, `reason NULL` | `mode` ∈ 계약 `SYSTEM_MODES`(S-00: NORMAL / DISASTER / CLEARING — 오탐 해제 중) 와 `MISSION_FINISHED`(phase FINISHED 일 때만, C-10 `SystemState`), `phase` ∈ 계획 1절의 표시용 상태 14개. 출동 칸 여섯은 AMR2 출동이 없으면 모두 None, 있으면 모두 있고 `segment_index` ≤ `segment_count`, `segment_phase` ∈ `SystemState.SEGMENT_PHASE_*` 7개. `generation` 은 `SystemState` 에 없어 None 일 수 있다. `reason` 은 조정기가 임무를 붙잡을 때의 사유 코드(#91 CLA-02, 예: 접근 막힘)이고 없으면 None. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
+| `mission_state` (1행) | `singleton INTEGER PK (=1)`, `mode`, `phase`, `trigger_event_id NULL`, `started_at_ns NULL`, `generation NULL`, `updated_at_ns`, 1.2: `target_id NULL`, `target_revision NULL`, `route_revision NULL`, `segment_index NULL`, `segment_count NULL`, `segment_phase NULL`, `reason NULL` | `mode` ∈ 계약 `SYSTEM_MODES`(S-00: NORMAL / DISASTER / CLEARING — 오탐 해제 중) 와 `MISSION_FINISHED`(phase FINISHED 일 때만, C-10 `SystemState`), `phase` ∈ 계획 1절의 표시용 상태 14개. 출동 칸 여섯은 TB-5 출동이 없으면 모두 None, 있으면 모두 있고 `segment_index` ≤ `segment_count`, `segment_phase` ∈ `SystemState.SEGMENT_PHASE_*` 7개. `generation` 은 `SystemState` 에 없어 None 일 수 있다. `reason` 은 조정기가 임무를 붙잡을 때의 사유 코드(#91 CLA-02, 예: 접근 막힘)이고 없으면 None. `trigger_event_id`·`started_at_ns` 는 짝으로만 있다. `updated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함(`ID_CONTENT_CONFLICT`). 판정은 coordinator 가 하고 이 행은 화면 표시용이다 |
 | `operator_commands` | `command_id TEXT PK`, `kind`, `operator_id`, `robot_id NULL`, `target_id NULL`, `segment_index NULL`, `route_revision NULL`, `requested_at_ns`, `accepted INTEGER`, `result NULL`, `reason NULL` | 콘솔 명령 한 건과 그 응답, **거절도 기록**. `kind` 는 1차 IDL `SubmitOperatorCommand` 의 operation 8개와 콘솔 계획의 PAUSE·RESUME·CANCEL·STOP_ROBOT. 거절(`accepted=0`)이면 `reason` 필수. 같은 ID 같은 내용은 멱등, 다른 내용은 `ID_CONTENT_CONFLICT`. 관문 판정은 operations API 몫이고 이 표는 요청·응답만 남긴다 |
 | `map_snapshots` | `snapshot_id TEXT PK`, `robot_id`, `revision`, `path`, `sha256`, `at_ns` | 지도 이미지 한 장(IF-084). 이미지 bytes 는 DB 에 넣지 않고 `path`·`sha256`(소문자 64자)만 둔다. 같은 ID 같은 내용은 멱등 |
 | `exit_locations` (1.3) | `location_id TEXT PK`, `observed_at_ns`, `received_at_ns`, `map_session_id`, `map_revision`, `transform_revision`, `mission_frame`, `x REAL`, `y REAL`, `class_label` | 출구(QR) 관측 하나(`/rescue/exit_location`, 통합-인식 안 「나」, 작전 OPS-144·150). **VALID 만** 기록하고(아니면 거절해 `error_log`), `class_label` 은 늘 `exit_qr`. 관측 원본이지 조정기가 등록·재기준한 출구가 아니다(관제 웹은 「관측」으로 표시). 같은 ID 같은 관측은 멱등이고 처음 받은 `received_at_ns` 를 유지, 관측 내용이 다르면 `ID_CONTENT_CONFLICT` |
@@ -77,6 +96,13 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 ## 5. 바꿀 때 지키는 것
 
 - 쓰는 쪽은 파일마다 하나. 콘솔은 장부·현장 상태에 쓰지 않는다.
-- 같은 ID 재전송은 같은 내용이면 멱등, 다른 내용이면 거절. 오래된 것(낮은 sequence·이른 시각)은 조용히 버린다(`False` 반환).
+- 같은 ID 재전송은 같은 내용이면 멱등, 다른 내용이면 거절. 오래된 것(낮은 sequence·이른 시각)은 기록하지 않고 `False` 를 돌려준다.
 - JSON 열의 키를 더할 때는 읽는 쪽이 없는 키를 기본값으로 읽을 수 있어야 한다. 키 삭제·이름 변경은 schema 버전을 올리고 마이그레이션 함수를 둔다.
 - 개인 경로·호스트·비밀을 DB 나 문서에 쓰지 않는다. 운영 파일은 로컬 디스크.
+
+## 기록 (2026-10-14)
+
+- 맨 위 「한눈에」 표를 더했다(작전 OPS-219). 본문 표와 규칙은 2026-10-13 판 그대로다.
+- 로봇 이름 「AMR2」를 「TB-5」로 바꿨다(재범 규칙 2026-10-13).
+- `map_snapshots` 는 1.1 에서 만든 표이지만 2026-10-14 main 에는 쓰는 코드와 읽는 코드가 없다. 관제 웹의 실시간 지도는 `map_snapshot` 노드가 쓰는 지도 파일(`live_map.yaml`)을 직접 읽는다(#209).
+
