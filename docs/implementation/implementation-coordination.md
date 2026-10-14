@@ -1,8 +1,226 @@
-# 계획 PR 8 — 접근·배정·통로 점유 코어
+---
+title: 임무 조정기 구현 기록 — 조정기 코드 기준
+status: current   # 본문은 main d217680 의 rescue_coordination 코드 기준. 아래 「기록」 절은 2026-10-13 판 전문
+updated: 2026-10-14
+---
+
+# 임무 조정기 구현 기록
+
+## 한눈에 (2026-10-14, main `d217680`)
+
+이 문서가 답하는 질문은 하나다. **조정기 코드는 어느 파일이 무엇을 맡고, 현장에서 어떤 값으로 돌며, 무엇으로 시험했나?**
+
+| 파일(`src/rescue_coordination/rescue_coordination/`) | 맡은 일 | 현장 노드가 쓰나 |
+| --- | --- | --- |
+| `ros_node.py` | 판단 코어 `CoordinatorCore` 와 ROS 노드 `mission_coordinator`(`main()`). 판단은 코어가 하고 `main()` 은 메시지만 옮긴다 | 씀 |
+| `mission.py` | 임무 한 건의 상태 `MissionCoordinator`. 재난 모드, 운영자 명령 관문, 임무 단계(`phase()`) | 씀 |
+| `search.py` | 역할별 예약 `SearchCoordinator`. TB-6 수색 자리(`SEARCH_AREA`) 예약과 실행기 수락 기록 | 씀 |
+| `planning.py` | 예약 장부 `Allocator`·`Reservation`, 발급 세대(generation), 공통 오류 `CoordinationError` | 장부, 오류, 값 검사 함수만 씀 |
+| `live_task_inputs.py` | `~/task_inputs`(로봇이 읽는 목적지), RViz 수색 목표, `~/refresh_state` | 씀(RViz 목표는 `AREAS` 에서만) |
+| `watch.py` | 웹캠 감시 지정(`SetCameraWatch`) 장부 | 씀 |
+| `verdict.py` | TB-6 재확인 관측으로 구출 판정 | `completion_mode=RECHECK` 에서만 |
+| `dispatch.py` | 확정 대상이 여럿일 때 TB-5 가 갈 대상 고르기 | 노드는 쓰지 않음(`search.py` 의 `select_approach_target` 만 감쌈) |
+| `planning.py` 의 `select_candidate`·`ApproachTracker`·`Corridor` | 접근 후보, 접근 추적, 통로 점유 | 노드는 쓰지 않음 |
+
+- 현장 설정은 지도 고정(`map_mode=SLAM_FREEZE`), 지도 전체 탐색(`search_mode=FRONTIER`), 출구 도착으로 구출 완료(`completion_mode=EXIT_ARRIVAL`), 자동 탐색 시작(`search_start=AUTO`), 자동 출동(`support_dispatch=AUTO`), 교통 관제(`traffic_control=TB5_PRIORITY`)다. 값은 [현장 파일](../../config/field/search_area.field.json) `coordinator` 절에 있다.
+- 임무 단계와 이유 코드는 [상태 전이](../design/state-machines.md)에, 토픽 계약은 [인터페이스 계약](../design/contracts.md)에, 기능별 구현 상태는 [rescue_coordination README](../../src/rescue_coordination/README.md)에 있다. 로봇과 PC 이름은 [용어집](../glossary.md)을 따른다.
+- 모든 기능은 로봇 없는 시험(단위 시험, E3 리허설)만 통과했다. 실기 시험은 하지 않았다(NOT_RUN).
+
+## 한 번의 판단 주기
+
+조정기는 `tick_period_s`(현장 0.1 s)마다 `node_tick` 을 한 번 돈다. 보내는 순서는 아래와 같다(`ros_node.py` `node_tick`).
+
+1. 바뀐 대상 목록(`/rescue/targets`). 로봇은 임무에 적힌 대상 revision 을 이 목록에서 찾으므로 임무보다 먼저 보낸다.
+2. 코어의 `tick()` 이 이번에 낼 임무를 정한다. 순서는 지도 고정 → TB-5 접근 → TB-5 출구 → TB-6 복귀 → TB-5 구간 이동 → TB-6 재확인 → 순찰 → 미탐색 경계(frontier) → TB-6 수색이다.
+3. 교통 관제가 멈추게 한 TB-6 임무의 취소(`ExecuteTask` goal 취소). 새 임무보다 먼저 보낸다.
+4. 새 임무(`ExecuteTask` goal), 지도 고정 호출, 노드 로그, 웹캠 감시 요청, 보고(`RescueReport`), 명령 임대 갱신(`CommandLease`).
+5. 대상 목록을 한 번 더 보내고(임무로 바뀐 접근 상태), 바뀌었으면 `SystemState` 를 보낸다.
+
+이번 주기에 임무를 막은 이유(`issue_block`)는 주기마다 다시 계산한다. 막은 조건이 풀리면 이유도 지운다.
+
+## ROS 연결
+
+| 이름 | 종류 | 방향 | 조정기가 하는 일 |
+| --- | --- | --- | --- |
+| `/rescue/site_events` | `SiteEvent` | 받음 | 웹캠 재난 신호(`DISASTER_SIGN`)로 재난 모드를 켠다. 시각 기준이 선언된 신호만 받는다 |
+| `/rescue/robots/<id>/status` | `RobotStatus` | 받음 | `READY` 이고 `status_max_age_s` 안이어야 새 임무를 낸다 |
+| `/rescue/robots/<id>/pose` | `RobotPose` | 받음 | TB-5 위치는 접근 방향과 교통 관제에, TB-6 위치는 frontier 출발점과 교통 관제에 쓴다 |
+| `/rescue/robots/<id>/map_state` | `MapState` | 받음 | 로봇이 지금 어느 지도에서 위치를 잡았는지 기록한다. TB-5 는 고정 지도 revision 이어야 출동한다 |
+| `/rescue/robots/<id>/execute_task` | `ExecuteTask` 액션 | 보냄 | 임무를 보낸다. 교통 관제는 TB-6 임무를 여기서 취소한다 |
+| `/rescue/robots/<id>/task_admission` | `TaskAdmission` | 받음 | 실행기가 수락해야 임무가 진행 중(ACTIVE)이 된다 |
+| `/rescue/robots/<id>/command_lease` | `CommandLease` | 보냄 | 임무마다 `lease_renew_period_s` 로 갱신한다. 갱신을 멈추면 실행기가 스스로 선다 |
+| `/rescue/target_locations` | `TargetLocation` | 받음 | 인형 위치. `merge_distance_m` 안이면 같은 대상으로 합친다 |
+| `/rescue/exit_location` | `TargetLocation` | 받음 | QR 코드(`class_label=exit_qr`) 출구. QR id 마다 최신 위치를 기록한다 |
+| `/rescue/reports` · `/rescue/report_receipts` | `RescueReport` · `ReportReceipt` | 보냄 · 받음 | 대상 revision 마다 보고를 보내고 저장 확인(`PERSISTED`)을 받는다 |
+| `/rescue/targets` | `TargetSnapshot` | 보냄 | 바뀔 때만 보낸다. 늦게 붙은 구독자도 마지막 값을 받는다(QoS 설정 TRANSIENT_LOCAL) |
+| `/rescue/system_state` | `SystemState` | 보냄 | 임무 모드·단계·이유. 바뀔 때만 보낸다 |
+| `/rescue/operator_command` | `SubmitOperatorCommand` 서비스 | 받음 | 운영자 명령 관문 |
+| `/rescue/cameras/<camera>/set_watch` | `SetCameraWatch` 서비스 | 부름 | 운영자 `SET_CAMERA_WATCH` 마다 웹캠 감시를 건다 |
+| `/rescue/map/freeze` | `std_srvs/Trigger` 서비스 | 부름 | `SLAM_FREEZE` 에서 지도 고정을 요청한다 |
+| `/rescue/map/frozen` · `/rescue/map/frozen_revision` | `OccupancyGrid` · `String`(JSON) | 받음 | 고정 지도와 그 revision |
+| `/rescue/map/start_pose/<TB-6 id>` | `PoseWithCovarianceStamped` | 받음 | TB-6 출발 자세. 도킹 접근점과 TB-5 출발 자리의 기준이다 |
+| `/robot6/map` | `OccupancyGrid` | 받음 | `FRONTIER` 에서 TB-6 실시간 SLAM(동시 위치 추정과 지도 작성) 지도 [추정: 토픽 이름 실기 미확인] |
+| `~/task_inputs` | `GetParameters` 서비스 | 제공 | 로봇이 읽는 목적지 목록(수색 자리, `home/<id>`) |
+| `~/refresh_state` | `std_srvs/Trigger` 서비스 | 제공 | 마지막 `SystemState` 를 다시 보낸다 |
+
+## 현장 흐름 (코드 기준)
+
+### 탐색 (`search_mode=FRONTIER`)
+
+- 재난 신호를 받으면 TB-6 탐색이 자동으로 시작된다(`search_start=AUTO`, 로그 `SEARCH_AUTO_STARTED`). 운영자 `START_SEARCH` 는 `NOT_AUTHORIZED` 로 거절한다.
+- TB-6 실시간 지도와 TB-6 위치로 미탐색 경계 덩어리를 찾는다(`rescue_contracts.grid_search.find_frontiers`). 덩어리는 `frontier_min_cells` 칸 이상이고, 목표 칸은 덩어리에서 `frontier_reach_m` 안이다.
+- 이미 시도한 곳에서 `frontier_blacklist_m` 안은 고르지 않는다. 남은 것 중 TB-6 에서 격자 경로가 가장 짧은 것을 고르고, 그 경로 위 `frontier_goal_max_m` 지점을 목표로 삼는다.
+- 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
+- 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
+
+### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
+
+- 고정 revision 은 `/rescue/map/frozen_revision`(지도 해시, map session, revision)으로 확인한다. 해시와 빈 칸 규칙은 로봇과 같은 함수(`rescue_contracts.occupancy`)다.
+- 1차 고정(R0+1)은 인형 보고가 저장되고(`PERSISTED`) TB-6 이 섰을 때 한 번 요청한다. TB-5 는 이 지도로만 출동한다. TB-6 은 SLAM 지도(R0)로 탐색을 이어 간다.
+- 2차 고정(R0+2)은 `EXPLORATION_COMPLETE` 뒤 TB-6 이 섰을 때 요청한다. 대상과 출구를 R0+2 로 옮기고, 보고는 다시 보내지 않는다.
+- 같은 map session 이면 고정 때 대상과 출구의 최신 위치를 고정 revision 으로 옮긴다(로그 `TARGET_REBASED_ON_FREEZE`·`EXIT_REBASED_ON_FREEZE`). 다른 session 이면 옮기지 않는다.
+- 응답 실패, 잘못된 지도, `map_freeze_timeout_s` 초과는 `MAP_FREEZE_FAILED` 이고 다시 요청하지 않는다.
+- 고정 지도에서 목표 자리가 `freeze_clearance_m` 반지름 안에 비어 있지 않으면 보내지 않는다. 다른 자리를 만들지 않고 이유만 낸다(`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`).
+
+### TB-5 출동과 출구
+
+- 대상이 확정이고 지금 revision 의 보고가 저장되면 TB-5 에 `APPROACH_TARGET` 을 한 번 낸다(`support_dispatch=AUTO`). 운영자 승인은 받지 않는다. 접근점은 인형에서 TB-5 쪽으로 `approach_standoff_m` 떨어진 자리이고, 도착 방향은 인형을 바라본다.
+- 접근이 실패하면 다시 시도하지 않고 `APPROACH_FAILED_<사유>` 를 보인다. 출구로도 보내지 않는다.
+- 도착 뒤 `support_exit_wait_s` 가 지나고 2차 고정이 끝나면 출구로 간다(`RETURN_HOME`, 목적지 `home/<TB-5 id>`).
+- 출구는 최종 지도에서 격자 경로가 가장 짧은 QR 출구의 접근점(출구에서 인형 쪽으로 `exit_standoff_m`)이다(로그 `EXIT_CHOSEN`). QR 출구가 없으면 TB-5 출발 자리(`support_start_pose`)로 간다. 둘 다 없으면 `SUPPORT_START_UNKNOWN`, 출구가 있으나 경로가 없으면 `SUPPORT_EXIT_UNREACHABLE` 이다.
+- TB-5 가 출구에 도착하면 구출 판정을 `RESCUE_CONFIRMED`(출처 `EXIT_ARRIVAL`)로 기록한다.
+
+### TB-6 복귀와 임무 끝
+
+- TB-6 은 최종 지도 뒤 도킹 접근점으로 간다(`RETURN_HOME`, 목적지 `home/<TB-6 id>`). 도킹은 사람이 한다. 도킹 접근점은 TB-6 출발 자세 기준 좌표이고 `compose_planar` 로 지도 좌표가 된다. 출발 자세가 없으면 `START_POSE_UNKNOWN` 이다.
+- 두 로봇이 모두 도착하면 단계가 `FINISHED`, 모드가 `MISSION_FINISHED` 다.
+- 탐색을 끝냈는데 인형이 없으면 고정은 그대로 하고 TB-6 만 복귀한다. TB-5 는 출발 자리에 남고 이유는 `NO_SURVIVOR_FOUND` 다.
+
+### 교통 관제 (`traffic_control=TB5_PRIORITY`)
+
+TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 따라가기 때문이다. 교통 관제는 `SLAM_FREEZE` 에서만 켜고 `FRONTIER` 가 필요하다(비켜서기 자리를 frontier 자리로 보냄). 이유 코드 10개는 [상태 전이](../design/state-machines.md) 「교통 관제 이유 코드」 표에 있다.
+
+- TB-5 새 명령 전에 고정 지도에서 TB-5 격자 경로를 구한다(`grid_path`).
+- TB-6 이 서 있는데 그 경로에서 `traffic_path_clearance_m` 안이거나 TB-5 와 `traffic_min_separation_m` 보다 가까우면 먼저 비키게 한다. 비킬 자리는 TB-6 실시간 지도에서 경로와 TB-5 로부터 그만큼 떨어진 빈 칸 가운데 격자 경로가 가장 짧은 곳(`nearest_clear_outside`)이고, `traffic_yield_max_m` 안이어야 한다. 도착 방향은 TB-6 에서 자리 쪽이다(제자리 회전 뒤 전진, 후진 없음).
+- TB-6 이 움직이는 중이고 지금 위치나 목표가 그 경로 근처이면 그 임무를 취소한다. 실행기는 취소를 받으면 로봇을 세우고 CANCELED 로 끝낸다. 취소한 frontier 는 시도로 치지 않고, 취소한 TB-6 복귀는 다시 낸다.
+- TB-5 가 움직이거나 출발을 기다리는 동안 TB-5 경로 근처로 가는 TB-6 새 목표는 보류한다. 다른 곳으로 가는 목표는 보낸다.
+- 두 로봇이 `traffic_min_separation_m` 보다 가깝거나 새 목표가 상대 로봇과 그만큼 가까우면 새 명령을 막는다. 움직이는 임무를 이 이유로 취소하지는 않는다.
+- TB-5 는 첫 임무 전에는 출발 자리에 있다. 출발 자리를 아직 재지 않았으면(현장 파일 `robots.robot_b.initial_pose_xy_yaw` 없음) TB-6 을 막지 않고 간격 검사만 끈다. TB-6 을 막으면 1차 고정이 막히고, 그러면 TB-5 출동도 막히기 때문이다. 이 상태에서 TB-6 목표를 보낼 때마다 로그 `TRAFFIC_SEPARATION_UNCHECKED task=… goal=…` 을 남긴다.
+- 로그는 `TRAFFIC_YIELD`·`TRAFFIC_YIELD_DONE`·`TRAFFIC_SCOUT_CANCELED`·`FRONTIER_STOPPED_FOR_TB5`·`SCOUT_RETURN_STOPPED_FOR_TB5` 다. 보류가 바뀔 때만 `TRAFFIC_HOLD <역할> <이유>`·`TRAFFIC_RELEASE <역할>` 을 남긴다.
+
+### 현장 설정에서 쓰지 않는 길
+
+- `completion_mode=RECHECK` 이면 웹캠 소실 후보가 TB-6 재확인(`REOBSERVE_TARGET`)을 열고, 재확인 관측을 `verdict.judge` 로 판정한다([계약](../design/contracts.md) C-11). 현장(`EXIT_ARRIVAL`)에서는 소실 후보를 기록만 한다.
+- `support_dispatch=OPERATOR` 이면 운영자 `DISPATCH_SUPPORT` 와 `CONTINUE_SEGMENT` 로 TB-5 를 구간(`MOVE_SEGMENT`)마다 승인해 보낸다.
+- `search_mode=PATROL` 은 `patrol_points` 를 `patrol_rounds` 바퀴 돈다. `AREAS` 는 프로파일 수색 구역이나 RViz 에서 고른 목표로 간다.
+- `map_mode=SAVED_MAP` 은 launch 의 `goal_map_*` 기준 지도 하나로 끝까지 간다.
+
+## 운영자 명령 거절 코드
+
+운영자 서비스(`/rescue/operator_command`)의 `reason_code` 는 [계약](../design/contracts.md) C-09 공통 코드다. 임무 관문의 자세한 이유는 노드 로그에 남긴다. 대응표는 `ros_node.py` 의 `REASON_CODES` 와 `on_command` 다.
+
+| 임무 관문 이유 | `reason_code` |
+| --- | --- |
+| `MODE_NOT_DISASTER` | `NOT_AUTHORIZED` |
+| `AUTO_SEARCH_ENABLED`(`search_start=AUTO` 의 `START_SEARCH`), `AUTO_DISPATCH_ENABLED`(`support_dispatch=AUTO` 의 `DISPATCH_SUPPORT`) | `NOT_AUTHORIZED` |
+| `UNKNOWN_TARGET`, `NO_HOME_POSITION` | `NOT_FOUND` |
+| `TARGET_NOT_CONFIRMED`, `NO_ROUTE`, `NO_VERDICT` | `PENDING_EVIDENCE` |
+| `ALREADY_DISPATCHED`, `NOT_AWAITING_APPROVAL`, `RECHECK_ALREADY_REQUESTED`, `ALREADY_RETURNING`, `SEARCH_ALREADY_STARTED` | `TASK_BUSY` |
+| `TARGET_REVISION_STALE`, `ROUTE_REVISION_STALE`, `SEGMENT_INDEX_MISMATCH`, `NOT_DISPATCHED_TARGET`, `TARGET_ALREADY_JUDGED` | `INVALID_INPUT` |
+| `HOME_BASIS_MISMATCH` | `FRAME_REVISION_MISMATCH` |
+| `SCOUT_NOT_READY`(TB-6 상태를 모르거나 준비 전의 `START_SEARCH`) | `NAV_NOT_READY` |
+
+같은 `command_id` 와 같은 내용이 다시 오면 `DUPLICATE` 로 첫 응답을 돌려준다. 내용이 다르면 `ID_CONTENT_CONFLICT` 다.
+
+## 파라미터
+
+`PARAMETERS` 의 값은 모두 필수이고 기본값이 없다. 하나라도 빠지면 `missing parameters` FATAL 로 exit 2 다. `camera_watch_roi`·`home_poses`·`patrol_points`·`support_start_pose` 는 비워 둘 수 있다(`UNSET_OK_PARAMETERS`). `route_segment_passage_free` 는 넘기지 않아도 된다(`OPTIONAL_PARAMETERS`). 기동 때 git SHA, boot id, 적용한 값, 역할을 로그에 남긴다. 현장 값 칸은 [현장 파일](../../config/field/search_area.field.json) `coordinator` 절 값이고, 「—」는 현장 launch 가 프로파일이나 다른 절에서 넣는 값이다.
+
+| 파라미터 | 뜻 | 현장 값 |
+| --- | --- | --- |
+| `profile_path`, `entry_yaws` | 배포 프로파일과 수색 구역별 도착 방향 | — |
+| `policy_version`, `executor_policy_version`, `mission_frame_id`, `authority_epoch`, `coordinator_id`, `envelope_schema_version` | 정책·goal·메시지 머리말(envelope) 값 | 현장 파일 값 |
+| `executable_bases` | 실행해도 되는 자리 근거 종류 | `PRIOR_MAP`, `FRONTIER` |
+| `task_duration_s`, `status_max_age_s`, `tick_period_s`, `report_retry_s` | 임무 기한, 로봇 상태 나이 상한, 판단 주기, 보고 재전송 주기 | 120.0, 3.0, 0.1, 0.5 |
+| `lease_duration_s`, `lease_renew_period_s`, `lease_message_ttl_s` | 실행기와 같은 임대 길이, 갱신 주기(길이의 절반 이하), 갱신 메시지 수신 만료 | 3.0, 0.5, 4.0 |
+| `admission_timeout_s` | 실행기 수락을 기다리는 시간. 넘으면 임대 갱신을 멈추고, 거절한 임무는 이만큼 기다린 뒤 다시 낸다 | 10.0 |
+| `route_segment_goals`, `route_revision`, `route_segment_passage_free` | `OPERATOR` 출동의 구간 끝 `[x, y, yaw]`×N, 그 목록의 revision, 구간별 「통로 판정 불필요」 | — |
+| `observe_goal` | 재확인 관측 지점 `[x, y, yaw]` | — |
+| `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | `SAVED_MAP` 목표의 지도 기준 | — |
+| `merge_distance_m` | 같은 대상으로 합치는 거리 | 0.5 |
+| `target_clock_domain_id`, `target_max_age_s`, `target_max_future_s` | 인형 위치의 시계 도메인, 최대 나이, 앞선 시각 허용 | `rokey7-utc-field`, 3.0, 0.05 |
+| `camera_watch_timeout_s`, `camera_watch_roi` | 웹캠 감시 요청 마감, 요청에 관심 영역(ROI)이 없을 때 쓸 값 | 2.0, 없음 |
+| `home_poses` | `SAVED_MAP` 의 복귀 위치. TB-6, TB-5 순 `[x, y, yaw]` | — |
+| `support_dispatch`, `approach_standoff_m`, `support_pose_max_age_s` | TB-5 출동 방식, 인형 앞 접근 거리, TB-5 위치 최대 나이 | `AUTO`, 0.8, 2.0 |
+| `support_exit_wait_s` | TB-5 가 인형 앞에서 출구로 떠나기까지 기다리는 시간 | 15.0 |
+| `recheck_max_clock_error_s` | 재확인 판정의 시계 오차 합 상한(C-11 8행) | 2.0 |
+| `map_mode`, `freeze_clearance_m`, `map_freeze_timeout_s` | 지도 방식, 고정 지도 빈 칸 반지름(로봇 `goal_clear_radius_m` 과 같아야 함), 고정 대기 상한 | `SLAM_FREEZE`, 0.2, 10.0 |
+| `search_start`, `search_mode` | 탐색 시작 방식, 탐색 방식(`PATROL`·`AREAS`·`FRONTIER`) | `AUTO`, `FRONTIER` |
+| `patrol_points`, `patrol_rounds` | 순찰 지점(TB-6 출발 자세 기준)과 바퀴 수 | 비움, 1 |
+| `frontier_min_cells`, `frontier_reach_m`, `frontier_goal_max_m`, `frontier_blacklist_m` | 경계 덩어리 최소 칸 수, 덩어리에서 목표 칸까지 거리, 목표를 자르는 경로 길이, 다시 고르지 않는 반경 | 10, 1.0, 1.5, 0.5 [추정, 실측 아님] |
+| `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 2.0, 3, 600.0 [추정] |
+| `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
+| `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |
+| `completion_mode` | 구출 완료 방식(`EXIT_ARRIVAL`·`RECHECK`) | `EXIT_ARRIVAL` |
+| `traffic_control` | `TB5_PRIORITY` 또는 `DISABLED`(로봇 없는 시험용). `OFF` 는 ROS 명령줄에서 YAML 참거짓으로 읽혀 쓰지 않는다. 현장 launch 는 `SLAM_FREEZE` 에서 `DISABLED` 를 거절한다 | `TB5_PRIORITY` |
+| `traffic_min_separation_m`, `traffic_path_clearance_m`, `traffic_yield_max_m`, `traffic_stop_timeout_s` | 새 명령을 막는 두 로봇 거리, TB-6 이 TB-5 경로와 둘 거리(최소 간격 이상), 비켜서기 최대 경로 길이, 취소한 TB-6 정지 대기 상한 | 0.6, 0.6, 2.0, 3.0 [추정, 실측 아님] |
+
+`live_inputs.*`(시계, 목적지 갱신 주기, RViz 목표 토픽)는 `live_task_inputs.py` 가 읽는다. 설명은 [rescue_coordination README](../../src/rescue_coordination/README.md) 「현장 연동 세부」에 있다.
+
+## 시험
+
+ROS 없는 단위 시험은 `scripts/run_tests.py` 가 모두 모은다. 파일은 2026-10-14 main `d217680` 의 `ls tests/test_coordination*.py` 기준이다.
+
+| 파일 | 확인하는 것 |
+| --- | --- |
+| `test_coordination.py`, `test_coordination_review.py` | 예약 장부, 실행기 수락, 접근 후보와 통로 점유(노드 밖 코어) |
+| `test_coordination_search.py`, `test_coordination_loader.py`, `test_coordination_dispatch.py` | 역할별 예약, 프로파일 수색 구역 읽기, 출동 대상 고르기 |
+| `test_coordination_mission.py` | 재난 모드, 운영자 명령 관문, 임무 단계 |
+| `test_coordination_ros_core.py`, `test_coordination_ros_targets.py`, `test_coordination_ros_tick.py`, `test_coordination_ros_snapshot.py`, `test_coordination_ros_passage.py`, `test_coordination_ros_refusal.py` | 노드 코어의 메시지 변환, 대상 병합, 보고, 대상 목록, 발급 순서, 실행기 거절 |
+| `test_coordination_target_goal.py`, `test_coordination_target_time.py` | 목표 경로 증거 규칙, 인형 위치 시각 검사 |
+| `test_coordination_auto_search.py`, `test_coordination_frontier.py` | 자동 탐색 시작, 미탐색 경계 탐색 |
+| `test_coordination_map_freeze.py`, `test_coordination_two_freezes.py` | 지도 고정 한 번과 두 번 |
+| `test_coordination_approach.py`, `test_coordination_support_exit.py` | TB-5 자동 출동, 인형 앞 대기 뒤 출구 이동 |
+| `test_coordination_exit_patrol.py` | 순찰, QR 출구 기록, TB-6 출발 자세 |
+| `test_coordination_mission_end.py` | `FRONTIER` 임무 끝. 최종 지도의 출구 선택, TB-6 복귀, 인형 없음 |
+| `test_coordination_home.py` | `home_poses` 복귀 위치 |
+| `test_coordination_rescue_flow.py` | `RECHECK` 흐름. 웹캠 후보, TB-6 재확인, 판정, 복귀 |
+| `test_coordination_traffic.py` | 교통 관제 |
+| `test_coordination_watch.py`, `test_coordination_verdict.py` | 웹캠 감시 지정, 재확인 판정 |
+| `test_coordination_shutdown.py` | SIGTERM 종료 |
+
+로봇 없는 E3 시험은 ROS 가 필요해 `run_tests.py` 가 모으지 않는다. `ROS_DOMAIN_ID` 는 10 이상, `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, Discovery Server 해제로 돌린다.
+
+| 파일 | 확인하는 것 |
+| --- | --- |
+| `tests/ros/e3_rehearsal_abc.py` | 실제 조정기·target_locator·db_writer·report_node 와 가짜 로봇으로 재난 신호부터 임무 끝까지 |
+| `tests/ros/e3_coordinator_probe.py` | 실제 조정기와 가짜 실행기 2대. 모드 관문, 임대, 보고, 구간 이동, 재확인 |
+| `tests/ros/e3_report_gate_probe.py` | 실제 조정기와 report_node. 저장 확인 뒤 출동 관문 |
+| `tests/ros/e3_camera_watch_probe.py` | 실제 조정기와 웹캠 `WatchSlot`. 감시 지정과 해제 |
+
+## 아직 없는 것
+
+- 조정기 상태 영속. 상태는 메모리에만 있어 조정기를 다시 켜면 임무를 처음부터 센다.
+- 운영자 `RETURN_HOME` 명령은 수락해도 임무를 내지 않는다([#233](https://github.com/jaebeom/ROKEY-7/issues/233), `RECHECK` 에서만 닿는 길).
+- 실기 시험. 위 시험은 모두 로봇 없이 돌았다.
+
+## 기록 (2026-10-14 옮김)
+
+아래는 2026-10-13 판 이 문서의 전문이다(옛 제목 「계획 PR 8 — 접근·배정·통로 점유 코어」). 위 본문으로 대체했고, 이력 확인용으로만 남긴다. 아래와 위가 다르면 위가 맞다. 2026-10-14 main `d217680` 코드와 견주어 찾은 차이는 아래와 같다.
+
+- 「지금 안 되는 것」의 「실제 로봇에서는 AMR2(TB-5)가 움직이지 않는다. 실행기는 `SEARCH_AREA` 만 받는다」는 지금 맞지 않는다. 현장 파일의 실행기 허용 목록은 TB-6 이 `REOBSERVE_TARGET`·`RETURN_HOME`, TB-5 가 `APPROACH_TARGET`·`RETURN_HOME` 이다.
+- 「RETURN_HOME 은 수락돼도 task 를 발급하지 않는다」와 「아직 하지 않은 것」의 `RETURN_HOME` 배정은 지금 TB-5 출구 이동과 TB-6 복귀로 자동 발급한다. 운영자 `RETURN_HOME` 명령만 아직 임무를 내지 않는다(#233).
+- 「열려 있는 PR」의 #148(웹캠 감시 지정)과 #154(SIGTERM 종료)는 머지됐다. 교통 관제(#272)도 머지됐다.
+- `search_mode` 파라미터 줄의 「`PATROL` 또는 `AREAS`」와 「현장 지금 `AREAS`」는 지금 `FRONTIER` 가 더해졌고 현장 값도 `FRONTIER` 다.
+- 「인형을 찾은 뒤 계속 탐색·두 번 고정은 다음 PR」과 「출구는 지금 직선 거리, 격자 경로 길이는 2차 고정 PR」은 구현됐다. 출구는 최종 지도의 격자 경로 길이로 고른다.
+- 「아직 하지 않은 것」의 소실 후보 → TB-6 재확인 자동 예약과 판정 연결은 `completion_mode=RECHECK` 에서 구현됐다.
+- 로봇 이름 AMR1·AMR2 는 TB-6·TB-5 다([용어집](../glossary.md)).
+
+### 2026-10-13 판 원문
 
 > 이 문서의 앞 절들은 계획 PR 8 이후 쌓인 기록이다. 지금 코드가 무엇을 하는지는 바로 아래 「지금 상태」가 기준이고, 뒤 절과 어긋나면 이 절이 맞다(2026-10-13).
 
-## 지금 상태 (2026-10-13, main `2550f1d` 기준)
+#### 지금 상태 (2026-10-13, main `2550f1d` 기준)
 
 **되는 것 — 로봇 없이 A·B 단계가 코드로 이어진다** [측정 2026-10-13]
 
@@ -76,7 +294,7 @@
 
 계획 PR 8(실제 GitHub PR 9)의 현재 범위는 접근 후보·배정 수락·대상 확인·통로 점유의 Python 정책 코어다. **수색 구역 분할·SEARCH_AREA 구역 배정·D-05 B안 frontier 후보 어댑터·자동 역할 교대는 F-01 후속 작업이며 GitHub PR 미발행**이다. 해당 기능을 이 PR이나 통합 리허설의 완료에 포함하지 않는다. 실제 Nav2 path service·ROS 임무 전송도 미구현이다. `PathCandidate`는 외부 planner가 제공할 증거이며 후보 선택이 이동 허가는 아니다. 실제 SLAM 보정 연동이 없어 mapping의 `auto_approach_eligible`은 false다.
 
-## 구현한 경계
+#### 구현한 경계
 
 | API | 입력·판정 | 결과 |
 | --- | --- | --- |
@@ -90,7 +308,7 @@
 | `ApproachTracker.complete` | 종료 시각 이후 재관측, 나이·거리·불확실성, 경로 성공·정지 확인 | 모든 조건을 만족할 때만 접근 확인 true |
 | `Corridor.confirm_vacant(holder=...)` | 현재 revision, fresh 이탈 확인, 점유자의 command/task/robot/boot/authority/generation 일치 | HELD와 holder를 보존한 UNKNOWN 모두 동일 holder 확인이 필요. 최초 holder 없는 UNKNOWN은 holder=None과 fresh 비움 증거로만 FREE |
 
-## generation과 실행기 수락
+#### generation과 실행기 수락
 
 세대의 발급 주체는 coordinator다. `issued_generations`는 발급 번호를 재사용하지 않는 로컬 장부이고, `accepted_generations`는 실행기 admission의 수락 이력이다. 실행기 자체의 최고 수락 세대 검사는 유지한다. coordinator가 예약했다고 실행기 카운터와 수락 결과를 가정하지 않는다. `Reservation`에는 `command_id`와 `robot_boot_id`가 필수이고 `rescue_contracts.TaskAdmission`과 같은 여섯 신원 필드를 비교한다.
 
@@ -98,7 +316,7 @@ PENDING도 사건·로봇을 독점한다. 거절 receipt는 pending을 제거�
 
 이 상태는 메모리 안에 있으며 durable coordinator·재시작 세대 복구·권한 인증을 구현하지 않는다. 살아 있는 실행기와 연결한 채 coordinator만 재시작해서 0부터 발급하는 것은 유효한 복구 절차가 아니다. 후속 운영 어댑터는 명시적 authority 재등록·정지 관문과 영속 발급 이력/실행기 수락 이력 조정을 구현해야 한다. E2 receipt 객체 자체가 네트워크 발신자 인증은 아니다.
 
-## 시각·오류·외부 입력 책임
+#### 시각·오류·외부 입력 책임
 
 `PathCandidate.valid_until_ns`, `select_candidate(now_ns=...)`, `ApproachTracker.observe(observed_at_ns, valid_until_ns, now_wall_ns, ...)`, `guard(now_wall_ns, ...)`, `complete(now_wall_ns, navigation_finished_at_ns, ...)`는 양의 int64 ns다. `confirmation_max_age_ns`는 음수 아닌 int64 ns duration이다. float·bool·범위 밖 정수는 거절한다. 실제 센서의 sec/nanosec은 공통 `ros_time_to_ns`로 옮기며 epoch float로 만든 뒤 정밀도를 복원하지 않는다. `received_steady`, `now_steady`, `short_loss_max`와 통로 `now`/`duration`만 프로세스 로컬 monotonic 초다.
 
@@ -108,7 +326,7 @@ C-03/06/07, CT-06/09/10/11의 일부 E2 불변식을 구현한다. 호출자는 
 
 거리·속도·유실 시간을 장비값으로 확정하지 않는다. 메모리 통로 상태는 처음부터 UNKNOWN이며 lease 만료와 pose 손실 뒤에도 holder를 보존한다. 분산 election/lease 인증·영속 배정·분할 통로 deadlock 해결·실제 수색 분담은 후속 과제다.
 
-## 역할 입력 수색·대기·접근 예약 (F-01 축소분, 2026-10-08)
+#### 역할 입력 수색·대기·접근 예약 (F-01 축소분, 2026-10-08)
 
 BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정책이 `rescue_coordination/search.py`에 있다. 역할은 `SearchPolicy.roles`(`SCOUT`/`SUPPORT`) 입력이며 코드에 로봇 ID를 고정하지 않는다. 역할 입력을 바꾸면 두 로봇의 임무가 뒤집힌다. 수락 판정과 세대 장부는 두지 않고 위 `Allocator`만 읽고 쓴다.
 
@@ -127,14 +345,14 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 `goal_pose` dict에는 `transform_revision`도 넣는다(APPROACH는 후보의 값, SEARCH_AREA는 구역 근거의 값). `GoalPose.transform_revision`은 필수 필드다. 이 변경은 로봇·지도의 지도 보호 PR #22에서 들어왔고, 협업·관제가 그 부분을 검토했다.
 
-## 출처와 변경 이유
+#### 출처와 변경 이유
 
 - P4 [배정기](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/dispatcher.py#L253-L276)는 배정 책임을 한 곳에 둔 원리만 참고한다. 도킹한 로봇만 선택하거나 도크와 구역의 직선거리로 비용을 계산하는 정책은 사용하지 않는다.
 - AMR [목표 갱신·도착](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L388-L446), [만료](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L517-L528)의 갱신 억제/유실 경험을 참고했다. 목표 자체로 접근하는 정책을 거리 구간·불확실성 조건으로 대체하고 도착을 fresh 재관측·정지와 분리했다.
 
 원본 소스 복사 없이 새로 작성했다. 실제 길찾기 성공이나 사람 신원 판별 성능을 증명하지 않는다.
 
-## 출동 대상 선택 (BRD Part I 3.4.3·3.4.5, Q-19, 2026-10-08)
+#### 출동 대상 선택 (BRD Part I 3.4.3·3.4.5, Q-19, 2026-10-08)
 
 `rescue_coordination/dispatch.py`의 `select_dispatch_target`은 확정된 대상이 여럿일 때 SUPPORT가 다음에 갈 대상을 고른다. `SearchCoordinator.select_approach_target`이 이를 감싸며, 이미 접근 예약이 있는 사건(`approach_tasks`)을 넘겨준다. 고르기만 하고 예약은 하지 않는다. 고른 결과를 `request_approach`에 넘기면 사건당 접근 하나가 지켜진다.
 
@@ -152,7 +370,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
   - `BASIS_MISMATCH`
 - `RECHECK_NEEDED` 대상은 다시 갈 수 있다. 접근이 실패해 해제된 사건도 `approach_tasks`에 남으므로 자동으로 다시 고르지 않는다. 재출동 규칙은 미결정이다.
 
-## 임무 모드·운영자 명령 관문 (scope Q-12, 2026-10-10)
+#### 임무 모드·운영자 명령 관문 (scope Q-12, 2026-10-10)
 
 `rescue_coordination/mission.py`의 `MissionCoordinator`는 `SearchCoordinator` 위에 얹은 임무 한 건의 상태다. 세대 장부는 두지 않고 예약은 `SearchCoordinator.plan`에 맡긴다. 흐름과 관문은 [관제 웹·DB 계획](../design/console-and-db-plan.md) 1·4절과 [상태 전이](../design/state-machines.md) S-00을 따른다.
 
@@ -174,7 +392,7 @@ BRD v0.1 시나리오(TB1 정찰, TB2 구조 지원)에 맞춘 최소 배정 정
 
 ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」).
 
-## 임무 조정기 ROS 노드 — 얇은 버전 (10-13 전 구간, 2026-10-11)
+#### 임무 조정기 ROS 노드 — 얇은 버전 (10-13 전 구간, 2026-10-11)
 
 `rescue_coordination/ros_node.py`의 `mission_coordinator`(console_scripts)는 SDD `central.coordinator`의 얇은 버전이다. 판단은 ROS 없이 시험하는 `CoordinatorCore`가 하고, `main()`은 메시지만 옮긴다. ROS 패키지는 함수 안에서 import 하므로 ROS 없는 환경에서도 모듈과 코어를 시험할 수 있다. 로봇을 움직이는 것은 실행기이고, 이 노드는 `ExecuteTask` goal 을 보낼 뿐이다.
 
@@ -257,7 +475,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 
 아직 하지 않은 것: `HomePosition` 파라미터와 `RETURN_HOME` 배정(Q-22), 수용 후보 → SCOUT `REOBSERVE_TARGET` 자동 예약(C-11 5행)·`REQUEST_RECHECK` 의 후보 연결(10행 ④)·판정 연결(#80·#32), 카메라 재시작 감지(CameraStatus 를 받지 않아서 재시작으로 끝난 감시를 모름), 진행 중 수색 구역의 선점. E3 확인: `tests/ros/e3_coordinator_probe.py`, `tests/ros/e3_camera_watch_probe.py`(웹캠의 `WatchSlot` 을 그대로 쓰는 감시 서버)(가짜 실행기 2대, 로봇 없음, `ROS_DOMAIN_ID` 10 이상·`LOCALHOST`·Discovery Server 해제).
 
-## 검증
+#### 검증
 
 `tests/test_coordination.py`는 후보 보호 거리·경로/footprint/불확실성 거절, 비가용 관측 로봇, 중복 예약, 관측 원 기한·유실·확인, 통로 UNKNOWN/lease를 확인한다. `tests/test_coordination_review.py`는 profile ID 주입, PENDING→정확한 실행기 수락→ACTIVE, 거절·지연·충돌·재전송·세대 재사용 차단, HELD와 UNKNOWN의 holder 신원, 큰 epoch에서 1 ns 만료/종료 경계, 공통 오류를 확인한다. 이 PR의 수락 receipt 시험은 직접 만든 DTO를 사용한다. 실제 executor 연결 통합 경로와 E3/E4는 별도 검증이다. `tests/test_coordination_mission.py`는 재난 전·START_SEARCH 전 SCOUT 수색 차단, 사건·명령 ID 멱등과 내용 충돌, 시각 기준 없는 사건 거절, 명령마다의 관문 사유, 정지 확인 없는 구간 종료 거절, 다음 구간 자동 승인 없음, 승인 키(대상·경로 revision·구간) 불일치 거절, 재확인 지시의 C-11 10행 순서(모르는 대상·판정 끝난 대상·열린 재관측)와 대상별 기록, 경로 교체 뒤 이전 revision 거절, 복귀 위치 없음·지도 불일치 거절, 시나리오 순서의 표시 단계를 확인한다. `tests/test_coordination_target_goal.py`는 경로 증거 Phase 1 규칙(승인 없는 MOVE_SEGMENT·관측 지점 없는 REOBSERVE·APPROACH 거절)을, `tests/test_coordination_ros_core.py`·`test_coordination_ros_targets.py`는 노드 코어(메시지 변환, START_SEARCH 뒤 SCOUT 발급, 운영자 서비스와 공통 코드, MOVE_SEGMENT·REOBSERVE 발급, 대상 병합, 보고 저장 확인, 저장 안 된 위치만 싣는 보고, 출동 승인 관문, route frame, SystemState)를 ROS 없이 확인한다.
 
