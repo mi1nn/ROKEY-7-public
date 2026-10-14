@@ -14,8 +14,10 @@ import tempfile
 import unittest
 
 from rescue_robot.map_freeze import FreezeError, MapFreeze, tf_pose_fields
+from rescue_robot.slam_tf_pose import SlamTfPose
 
 from test_robot_map_freeze import NOW, SESSION, grid
+from test_robot_slam_tf_pose import measured_tb6_tf
 
 COV = [0.0] * 36
 COV[0] = COV[7] = COV[35] = 0.01
@@ -38,6 +40,18 @@ class TfPose(unittest.TestCase):
         self.assertEqual(('map', NOW - 100_000_000, (1.0, 2.0, 0.0)), (p['frame'], p['stamp_ns'], p['position']))
         self.assertAlmostEqual(math.sin(math.pi / 4), p['orientation'][2])
         self.assertEqual(COV, p['covariance'])
+
+    def test_measured_spatial_tf_can_record_start_and_freeze_the_map(self):
+        source = SlamTfPose(map_frame='map', odom_frame='odom', base_frame='base_link',
+                            covariance_max_age_ns=30_000_000_000)
+        source.on_tf(measured_tb6_tf(NOW))
+        source.on_covariance(NOW, COV)  # synthetic covariance; raw TF alone is not field readiness
+        pose = source.pose(now_ns=NOW)
+        self.assertIsNotNone(pose)
+        self.f.on_tf_pose(tf_pose_fields(pose, 'map'), covariance_fresh=pose['covariance_fresh'])
+        self.assertIsNotNone(self.f.start_pose)
+        self.f.on_map(grid())
+        self.assertEqual(1, self.f.freeze()['map_revision'])
 
     def test_a_stopped_tb6_is_frozen_from_its_tf_pose(self):
         self.f.on_tf_pose(tf_pose_fields(tf_pose(x=0.5), 'map'), covariance_fresh=True)

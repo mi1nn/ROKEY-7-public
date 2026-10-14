@@ -35,6 +35,31 @@ def tf_message(*edges):
     return NS(transforms=transforms)
 
 
+def spatial_tf_message(*edges):
+    """TFMessage-like: (parent, child, stamp_ns, xyz, xyzw), without flattening."""
+    message = tf_message(*((parent, child, stamp, 0, 0, 0)
+                           for parent, child, stamp, xyz, xyzw in edges))
+    for transform, (_, _, _, xyz, xyzw) in zip(message.transforms, edges):
+        transform.transform.translation = NS(**dict(zip(('x', 'y', 'z'), xyz)))
+        transform.transform.rotation = NS(**dict(zip(('x', 'y', 'z', 'w'), xyzw)))
+    return message
+
+
+def measured_tb6_tf(stamp_ns):
+    """[측정, 2026-10-14] TB-6 map-freeze failure, stationary after undocking.
+
+    Native TF values are unchanged; timestamps are rebased for deterministic E2 tests.
+    This fixture supplies no field covariance or readiness evidence.
+    """
+    return spatial_tf_message(
+        ('map', 'odom', stamp_ns,
+         (0.02000981357266791, 1.4404437134362097e-05, 0.0014779624437087533),
+         (-0.004797844888163447, 0.0025875895498232732, -1.2195844091517151e-05, 0.9999851423476311)),
+        ('odom', 'base_link', stamp_ns - S // 10,
+         (-0.14913737773895264, -0.0034079807810485363, -0.002282583387568593),
+         (-0.0023667090572416782, -0.00456047710031271, 0.9999651908874512, 0.006571151316165924)))
+
+
 class Compose(unittest.TestCase):
     def setUp(self):
         self.p = SlamTfPose(map_frame='map', odom_frame='odom', base_frame='base_link', covariance_max_age_ns=AGE)
@@ -47,6 +72,28 @@ class Compose(unittest.TestCase):
         self.assertAlmostEqual(1.0, pose['x']); self.assertAlmostEqual(1.0, pose['y'])
         self.assertAlmostEqual(math.pi / 2, pose['yaw'])
         self.assertEqual((10 * S, COV, True), (pose['stamp_ns'], pose['covariance'], pose['covariance_fresh']))
+
+    def test_measured_tb6_spatial_edges_produce_a_map_pose(self):
+        self.assertEqual(0, self.p.on_tf(measured_tb6_tf(10 * S)))
+        self.p.on_covariance(9 * S, COV)  # synthetic covariance; not an E4 observation
+        pose = self.p.pose(now_ns=11 * S)
+        self.assertIsNotNone(pose)
+        self.assertEqual(10 * S - S // 10, pose['stamp_ns'])
+        self.assertTrue(pose['covariance_fresh'])
+
+    def test_compose_spatial_edges_before_projecting_to_the_map_plane(self):
+        # Ry(30 deg) and Ry(-30 deg) cancel, but the second edge's height contributes
+        # to map x. Flattening each edge first loses that contribution.
+        s, c = math.sin(math.pi / 12), math.cos(math.pi / 12)
+        self.p.on_tf(spatial_tf_message(
+            ('map', 'odom', 10 * S, (1., 2., 0.3), (0., s, 0., c)),
+            ('odom', 'base_link', 10 * S, (2., 1., 0.4), (0., -s, 0., c))))
+        self.p.on_covariance(9 * S, COV)
+        pose = self.p.pose(now_ns=11 * S)
+        self.assertIsNotNone(pose)
+        self.assertAlmostEqual(1 + 2 * math.cos(math.pi / 6) + 0.4 * math.sin(math.pi / 6), pose['x'])
+        self.assertAlmostEqual(3., pose['y'])
+        self.assertAlmostEqual(0., pose['yaw'])
 
     def test_the_older_edge_dates_the_pose(self):
         self.p.on_tf(tf_message(('map', 'odom', 20 * S, 0, 0, 0), ('odom', 'base_link', 15 * S, 0, 0, 0)))
