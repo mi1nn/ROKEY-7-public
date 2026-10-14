@@ -39,78 +39,106 @@ updated: 2026-10-14
 
 ## 2. 흐름 그림
 
+화살표에는 짧은 이름만 적었다. 실제 토픽 이름과 HTTP 경로는 그림 아래 표와 3절, 4절 표에 있다.
+
 ### ① 상태와 조회
 
 ```mermaid
+%%{init: {"flowchart": {"rankSpacing": 70, "nodeSpacing": 30}}}%%
 flowchart LR
   subgraph ROS["ROS 쪽 노드"]
-    R1["rescue_command_adapter<br/>(rescue_robot task_input)"]
+    R1["rescue_command_adapter"]
     P1["webcam_node"]
-    P2["amr_target → exit_locator"]
+    P2["exit_locator"]
     P3["overhead_passage"]
     C1["mission_coordinator"]
-    R2["TurtleBot4 기본 토픽<br/>battery_state·dock_status·tf"]
-    R3["SLAM /robot6/map"]
+    R2["TurtleBot4 기본 토픽"]
+    R3["SLAM 지도"]
   end
   subgraph OPS["운영 PC"]
     W["rescue_db_writer"]
-    DB[("현장 상태 DB<br/>SQLite schema 1.4")]
+    DB[("현장 상태 DB")]
     RW["rescue_robot_watch"]
     MS["rescue_map_snapshot"]
   end
-  F["관제 웹 Flask<br/>sources → view → render → app<br/>mapimage"]
+  F["관제 웹 Flask"]
   B["브라우저"]
-  R1 -- "status·pose·map_state" --> W
-  P1 -- "/rescue/site_events" --> W
-  P2 -- "/rescue/exit_location" --> W
-  P3 -- "overhead_passages" --> W
-  C1 -- "/rescue/system_state<br/>/rescue/targets" --> W
+  R1 -- "로봇 상태" --> W
+  P1 -- "사건" --> W
+  P2 -- "출구 위치" --> W
+  P3 -- "터널 목록" --> W
+  C1 -- "임무·대상" --> W
   W --> DB
-  DB -- "요청마다 읽기 전용<br/>표 9개 따로" --> F
+  DB -- "읽기만" --> F
   R2 --> RW -- "JSON 파일" --> F
-  R3 --> MS -- "live_map 파일" --> F
-  B -- "1초마다 GET /fragment" --> F
-  F -- "HTML 조각 · /map.png" --> B
+  R3 --> MS -- "지도 파일" --> F
+  B -- "1초마다 요청" --> F
+  F -- "화면" --> B
 ```
+
+토픽은 3절 표(A1 ~ A8), JSON 파일과 지도 파일은 4절 표(B1, B2)에 있다. 웹은 요청이 올 때마다 현장 상태 DB 의 표 9개를 따로 읽는다(8절). 브라우저는 1초마다 `GET /fragment` 를 보내고, 웹은 HTML 조각과 `/map.png` 를 돌려준다.
 
 ### ② 명령과 웹캠 변경 — 응답은 요청과 같은 경로로 돌아온다
 
 ```mermaid
+%%{init: {"flowchart": {"rankSpacing": 70, "nodeSpacing": 30}}}%%
 flowchart LR
   B["브라우저"]
-  F["관제 웹 Flask<br/>app.py → commands.py"]
-  subgraph DBW["rescue_db_writer 프로세스"]
-    API["operations HTTP API<br/>127.0.0.1"]
-  end
+  F["관제 웹 Flask"]
+  API["operations HTTP API<br/>(rescue_db_writer 안)"]
   C1["mission_coordinator"]
   P1["webcam_node"]
   DB[("현장 상태 DB")]
-  B -- "POST /commands (ADMIN)<br/>POST /webcam (ADMIN)" --> F
-  F -- "POST /api/operator-commands<br/>GET·POST /api/webcam<br/>한 번만" --> API
-  API -- "ROS 서비스<br/>/rescue/operator_command" --> C1
-  API -- "set_parameters<br/>device_path" --> P1
-  C1 -. "수락 · 거절" .-> API
-  API -. "응답 그대로" .-> F
-  F -. "결과 표시" .-> B
-  API -- "operator_commands · error_log 기록" --> DB
+  B -- "명령·웹캠 변경" --> F
+  F -- "한 번 전달" --> API
+  API -- "서비스 호출" --> C1
+  API -- "장치 변경" --> P1
+  API -- "기록" --> DB
+  C1 -. "수락·거절" .-> API
+  API -. "응답" .-> F
+  F -. "결과" .-> B
 ```
+
+| 화살표 | 보내는 쪽 → 받는 쪽 | 실제로 오가는 것 |
+| --- | --- | --- |
+| 명령·웹캠 변경 | 브라우저 → 관제 웹 | `POST /commands`, `POST /webcam`. ADMIN 사용자만 |
+| 한 번 전달 | 관제 웹 → operations API | `POST /api/operator-commands`, `GET·POST /api/webcam`. `app.py` 가 `commands.py` 를 불러 보낸다. 주소는 `127.0.0.1` 이고, 한 번만 보내며 재시도하지 않는다 |
+| 서비스 호출 | operations API → 조정기 | ROS 서비스 `/rescue/operator_command` |
+| 장치 변경 | operations API → webcam_node | `set_parameters` 로 `device_path` 를 바꾼다 |
+| 기록 | operations API → 현장 상태 DB | `operator_commands`, `error_log` 표에 기록한다 |
+| 수락·거절 | 조정기 → operations API | 수락 또는 거절 |
+| 응답 | operations API → 관제 웹 | 조정기의 응답을 그대로 돌려준다 |
+| 결과 | 관제 웹 → 브라우저 | 결과를 화면에 표시한다 |
 
 ### ③ 영상 — 웹 서버를 거치지 않는다
 
 ```mermaid
+%%{init: {"flowchart": {"rankSpacing": 70, "nodeSpacing": 30}}}%%
 flowchart LR
-  WN["webcam_node<br/>판정을 그린 영상"]
-  OP["overhead_passage (로봇 PC)<br/>ns/rescue/passage_view/compressed"]
-  MJ["mjpeg_relay<br/>/cam_id.mjpg"]
-  RV["robot_view_relay<br/>선택한 로봇 하나만 구독<br/>/robot_view.mjpg"]
+  WN["webcam_node"]
+  OP["overhead_passage<br/>(로봇 PC)"]
+  MJ["mjpeg_relay"]
+  RV["robot_view_relay"]
   F["관제 웹 Flask"]
   B["브라우저"]
-  WN --> MJ -- "MJPEG" --> B
-  OP --> RV -- "MJPEG" --> B
-  F -- "영상 주소만 HTML 에" --> B
-  B -- "POST /robot-camera (로그인 사용자)" --> F
-  F -- "GET·POST /select" --> RV
+  WN -- "판정 영상" --> MJ
+  MJ -- "MJPEG" --> B
+  OP -- "터널 영상" --> RV
+  RV -- "MJPEG" --> B
+  F -- "영상 주소" --> B
+  B -- "로봇 선택" --> F
+  F -- "/select" --> RV
 ```
+
+| 화살표 | 보내는 쪽 → 받는 쪽 | 실제로 오가는 것 |
+| --- | --- | --- |
+| 판정 영상 | webcam_node → mjpeg_relay | 판정 결과를 그린 웹캠 영상(`CompressedImage`) |
+| MJPEG | mjpeg_relay → 브라우저 | MJPEG 영상 `/<camera_id>.mjpg` |
+| 터널 영상 | overhead_passage → robot_view_relay | 터널 판정 영상 `<ns>/rescue/passage_view/compressed`. robot_view_relay 는 선택한 로봇 한 대만 구독한다 |
+| MJPEG | robot_view_relay → 브라우저 | MJPEG 영상 `/robot_view.mjpg` |
+| 영상 주소 | 관제 웹 → 브라우저 | 영상 주소만 HTML 에 넣는다. 영상 자체는 웹을 거치지 않는다 |
+| 로봇 선택 | 브라우저 → 관제 웹 | `POST /robot-camera`. 로그인한 사용자가 볼 로봇을 고른다 |
+| /select | 관제 웹 → robot_view_relay | `GET /select`(선택할 수 있는 로봇과 현재 로봇 조회), `POST /select`(로봇 바꾸기) |
 
 ## 3. 들어오는 것 ① — ROS 토픽 → 현장 상태 DB → 웹
 
