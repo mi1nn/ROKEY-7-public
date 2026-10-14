@@ -12,7 +12,7 @@ updated: 2026-10-10
 
 위 내용은 `[제안]`이다. 이 PR은 원본 코드를 이식하거나 실행하지 않는다. 아래 `[원본 코드]` 근거는 정적 읽기이며, 위험은 해당 구현을 새 요구에 적용할 때의 추론이다. 실제 사고를 재현했거나 전체 저장소에 다른 구현이 없다는 주장이 아니다. 최종 채택과 상세 알고리즘은 계획 PR 2·3, 동작 검증은 각 이식 PR에서 수행한다.
 
-2026-10-08에 강사 예제 저장소 to_students를 세 번째 원본으로 더했다(TS-01~11). 강사 예제는 실기 실패 기록이 없는 교육용 코드라 [레슨런](lessons-learned.md)이 아니라 선별 후보로 다루며, 시험으로 바뀌는 한 가지만 LL-11로 옮겼다. `scripts/check_docs.py`의 고정 SHA·줄 범위 검사는 위 두 원본만 대상으로 하므로 to_students 링크는 작성자가 손으로 확인했다.
+2026-10-08에 강사 예제 저장소 to_students를 세 번째 원본으로 더했다(TS-01 ~ 11). 강사 예제는 실기 실패 기록이 없는 교육용 코드라 [레슨런](lessons-learned.md)이 아니라 선별 후보로 다루며, 시험으로 바뀌는 한 가지만 LL-11로 옮겼다. `scripts/check_docs.py`의 고정 SHA·줄 범위 검사는 위 두 원본만 대상으로 하므로 to_students 링크는 작성자가 손으로 확인했다.
 
 ## 조사 기준과 범위
 
@@ -85,12 +85,12 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 ## to_students(강사 예제)에서 가져올 후보
 
-강사 저장소 `kimandreas/to_students` 의 `ad411c4` 에 고정했다(2026-10-08). Day1~5 슬라이드와 `day1`·`day2`·`day3`·`day5` 예제이며, 저장소 루트에 LICENSE 파일이 없다. 코드를 통째로 옮기지 않고 원리와 호출 순서만 가져오며, 아래 "반드시 바꿀 부분" 은 ROKEY-7 계약(관측 시각, 취소·정지 분리, 프로파일 값, 조용한 대체 금지)에 맞추기 위한 조건이다. ROKEY-7 에는 이미 P4 를 거쳐 Day2~3 의 깊이 역투영·지도 변환·YOLO 입출력이 들어와 있으므로(P4-05~07), 여기서는 [작업 묶음](work-bundles.md)의 미구현 칸을 채우는 것 위주로 골랐다.
+강사 저장소 `kimandreas/to_students` 의 `ad411c4` 에 고정했다(2026-10-08). Day1 ~ 5 슬라이드와 `day1`·`day2`·`day3`·`day5` 예제이며, 저장소 루트에 LICENSE 파일이 없다. 코드를 통째로 옮기지 않고 원리와 호출 순서만 가져오며, 아래 "반드시 바꿀 부분" 은 ROKEY-7 계약(관측 시각, 취소·정지 분리, 프로파일 값, 조용한 대체 금지)에 맞추기 위한 조건이다. ROKEY-7 에는 이미 P4 를 거쳐 Day2 ~ 3 의 깊이 역투영·지도 변환·YOLO 입출력이 들어와 있으므로(P4-05 ~ 07), 여기서는 [작업 묶음](work-bundles.md)의 미구현 칸을 채우는 것 위주로 골랐다.
 
 | ID / 기능 | 분류와 원본 근거 | 가져올 부분 / 반드시 바꿀 부분 | 관련 요구 / 레인 |
 | --- | --- | --- | --- |
 | TS-01 고정 카메라 2대 Flask 스트리밍 | **조건부 후보** · [2_two_camera.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/2_two_camera.py#L6-L32), [3_two_camera_box.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/3_two_camera_box.py#L27-L31) | 웹캠 2대를 각각 MJPEG 로 내보내는 구조와 프레임 위 표시. 카메라 식별은 프로파일(`site_cameras`, 작전 v2.1)에서 받고 프레임마다 관측 시각을 붙인다. `VideoCapture` 실패를 예외로 끝내지 않고 상태로 드러낸다. 디버그 서버 기본값은 운영 설정이 아니다 | UC-01(카메라 A)·UC-06(카메라 B, 2026-10-09 카메라 1대 결정으로 제외)·FR-25 / 협업·관제, 인식 |
-| TS-02 DB 표의 웹 표시 | **원리 참고** · [9_TBL_on_Web.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/9_TBL_on_Web.py#L78-L116) | 조회→템플릿 표의 최소 구조만. 테이블은 강사 예제(`detection_table`, `violation_detected`)가 아니라 `rescue_operations` ledger 스키마를 따르고, 요청마다 DB 를 여닫는 대신 operations API 뒤에 둔다. [7_create_DB_TBL.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/7_create_DB_TBL.py#L4) 의 개인 홈 절대 경로는 가져오지 않는다 | FR-25~27 / 협업·관제 |
+| TS-02 DB 표의 웹 표시 | **원리 참고** · [9_TBL_on_Web.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/9_TBL_on_Web.py#L78-L116) | 조회→템플릿 표의 최소 구조만. 테이블은 강사 예제(`detection_table`, `violation_detected`)가 아니라 `rescue_operations` ledger 스키마를 따르고, 요청마다 DB 를 여닫는 대신 operations API 뒤에 둔다. [7_create_DB_TBL.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/7_create_DB_TBL.py#L4) 의 개인 홈 절대 경로는 가져오지 않는다 | FR-25 ~ 27 / 협업·관제 |
 | TS-03 SocketIO 프레임 push | **조건부 후보** · [socketio_two_cam.html](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day5/templates/socketio_two_cam.html#L14-L22) | 서버가 프레임을 밀어 주는 클라이언트. 짝이 되는 서버 코드는 저장소에 없다(`day5/*.py` 에 socketio 없음, 2026-10-08 확인). 폴링·MJPEG 로 KPI-04 를 만족하면 쓰지 않는다 | KPI-04 / 협업·관제 |
 | TS-04 YOLO 추적 ID | **원리 참고** · [Day4 슬라이드](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/Day4_new_v2.pdf) p.54 "YOLO Obj. Det. vs. YOLO Tracking" | 같은 사람을 한 번만 세는 데 track ID 를 쓴다. 중복 집계 방지(FR-19)의 책임은 인식의 카메라 B 어댑터가 지고, 통과 한 건당 `SiteEvent` 하나를 내며 track ID 는 `detail` 에 기록한다 `[제안, 작전 2026-10-08]` — 계약 필드는 늘리지 않는다. ID 끊김·재부여를 중복 방지 완료로 보지 않는다. 사람 탐지 모델 부재(Q-18)는 그대로다. 2026-10-09 카메라 1대 결정으로 카메라 B·출구 카운트가 빠져 위 카메라 B 배정은 쓰지 않는다 | UC-06·FR-19(2026-10-09 카메라 1대 결정으로 제외) / 인식 |
 | TS-05 배터리 임계값 순찰·도킹 루프 | **원리 참고** · [3_1_f_patrol_loop.py](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L32-L34), [같은 파일 L118-L145](https://github.com/kimandreas/to_students/blob/ad411c4ee4dd99fa4c9e2c62d487103099918b6e/day3/3_1_f_patrol_loop.py#L118-L145) | 대기 중 도킹·충전 뒤 다시 나가는 흐름만. 0.95/0.2/0.1 은 예시값이며 Q-14 로 정한다. 도킹 중 센서가 꺼질 수 있으므로(OI-10) 출동 가능 판정은 수신 시각으로 하고, 언도킹 시간을 출동 지연 측정에 넣는다 | UC-05·NFR-02·OI-10 / 협업·관제, 로봇·지도 |
@@ -121,7 +121,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 `[원본 코드]` P4-07은 **관측 시각의 TF**를 조회한다. 최신 TF로 대체한다고 해석하면 잘못이다. 그러나 [수신 콜백](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/node.py#L163-L187)은 `time.monotonic()` 값을 얻고 [controller](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_amr/rokey_amr/controller.py#L161)가 어댑터에 전달하여 `rx`로 보존한다. `rx`는 헤더 `stamp`와 다른 시계이므로 둘을 빼서 관측 나이를 계산할 수 없다. 상대 저장소의 웹캠은 유지 중인 과거 좌표를 새 헤더 시각으로 재발행하며, [수신기](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/rc_car_follower.py#L290-L304)는 수신 시각으로 freshness를 기록한다.
 
-`[제안]` 관측·수신·처리 시각과 공통 시계 조건을 정의한다. P4 변환기는 전달받은 헤더를 조회에 사용하므로 헤더 시각 자체의 유효성 검사도 필요하다. 0·미래·과도하게 오래된 헤더, 지연·역순·TF 유실·시계 오차를 시험하고 재발행이 관측의 수명을 연장하지 않게 한다. 지도 보정 뒤 저장 좌표의 처리도 별도 계약으로 정한다. 연결: AC-02·06, PR 3·6~9.
+`[제안]` 관측·수신·처리 시각과 공통 시계 조건을 정의한다. P4 변환기는 전달받은 헤더를 조회에 사용하므로 헤더 시각 자체의 유효성 검사도 필요하다. 0·미래·과도하게 오래된 헤더, 지연·역순·TF 유실·시계 오차를 시험하고 재발행이 관측의 수명을 연장하지 않게 한다. 지도 보정 뒤 저장 좌표의 처리도 별도 계약으로 정한다. 연결: AC-02·06, PR 3·6 ~ 9.
 
 ### F-03 만료된 대상과 접근 목표를 함께 관리해야 한다
 
@@ -129,7 +129,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 `[원본 코드]` P4 [mission의 NAVIGATE](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/mission.py#L123-L139)는 웹캠 좌표 소실만으로 goal을 취소하지 않고 nav 실패·임무 시간 초과에서 취소한다. [소실 시 유지 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/test/test_webcam_trigger.py#L68-L75)이 이 동작을 고정한다. 이는 위 AMR의 만료 반환과 구별한다. 원본 mission의 임무 timeout을 파이널의 관측 최신성 timeout과 동일시하지 않는다.
 
-`[제안]` 짧은 소실에는 최신성·정지 조건이 유효한 제한 시간 동안 기존 goal만 유지하고 새 goal은 내지 않는다. 관측 만료 시에는 취소·정지 확인을 요구한다. 대상 만료 시 활성 goal 처리, 취소 완료·실제 정지 관측, 도달 가능한 접근점, 제한된 재시도를 한 제어 흐름으로 설계한다. 위 코드는 정적 위험 근거이며 실기 충돌을 재현했다는 주장은 아니다. 연결: AC-05~07, PR 3·5·8.
+`[제안]` 짧은 소실에는 최신성·정지 조건이 유효한 제한 시간 동안 기존 goal만 유지하고 새 goal은 내지 않는다. 관측 만료 시에는 취소·정지 확인을 요구한다. 대상 만료 시 활성 goal 처리, 취소 완료·실제 정지 관측, 도달 가능한 접근점, 제한된 재시도를 한 제어 흐름으로 설계한다. 위 코드는 정적 위험 근거이며 실기 충돌을 재현했다는 주장은 아니다. 연결: AC-05 ~ 07, PR 3·5·8.
 
 ### F-04 직접 속도 명령과 충돌 설정을 승계하지 않는다
 
@@ -137,7 +137,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 
 `[원본 코드]` 별도 [car_follower](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/rokey_mini/car_follower.py#L1-L14)는 기본 `cmd_vel` 직접 발행과 `predict_s` 동안의 소실 예측을 사용한다. `[원본 기록]` [실기 명령](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L45-L59)은 `follow.launch.py`였으며, [미니 안내](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/README.md#L3-L5)는 웹 정지가 이 노드를 멈추지 못한다고 명시한다. `follow_nav` 쪽은 [주석과 기본 인자](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/rokey_mini/launch/follow_nav.launch.py#L1-L34)에 collision monitor 사용 시 `cmd_vel_smoothed`로 지정하라는 안내가 이미 있다. 실제 실행 노드와 배선을 따로 확인해야 한다. P4-11의 통째 이식 제외 판단은 유지한다.
 
-`[제안]` 로봇별 명령·정지 경로와 발행 책임을 정의한다. UI·탐지·협업이 별도로 같은 로봇을 움직이지 않게 하며, 모든 활성 경로에서 정지가 적용되는지 실제 그래프로 검증한다. 연결: AC-01·06, PR 2~5·8.
+`[제안]` 로봇별 명령·정지 경로와 발행 책임을 정의한다. UI·탐지·협업이 별도로 같은 로봇을 움직이지 않게 하며, 모든 활성 경로에서 정지가 적용되는지 실제 그래프로 검증한다. 연결: AC-01·06, PR 2 ~ 5·8.
 
 ### F-05 화면 탐지·대상 식별·협업 배정은 서로 다른 기능이다
 
@@ -181,7 +181,7 @@ P4의 `scripts/preflight.py`와 학습·평가 도구는 배포/평가 구현 �
 Claude는 전체 로직·계획, Cursor는 원본 대조·검증·수정·머지를 맡는다. 같은 base/head에서 다음을 각 역할에 맞게 확인하고, 수정 이후 재검토·머지는 [검토 지침](review-workflow.md)에 따른다.
 
 1. 선별 결론이 링크한 실제 코드와 일치하며 원본 성능을 새 성능으로 확대하지 않았는가.
-2. P4-01~11, AMR-01~06, TS-01~11에 더 적합한 원본 구현이나 빠진 핵심 의존성·시험이 있는가.
-3. F-01~06의 수정 조건이 충분한가. 관측 시각 TF, 수신 최신성, 액션 취소와 실제 정지를 혼동하지 않았는가.
-4. [범위의 AC-01~07](../requirements/scope.md)과 [레슨런 LL-01~10](lessons-learned.md)이 새로 구현할 기능과 연결되는가.
+2. P4-01 ~ 11, AMR-01 ~ 06, TS-01 ~ 11에 더 적합한 원본 구현이나 빠진 핵심 의존성·시험이 있는가.
+3. F-01 ~ 06의 수정 조건이 충분한가. 관측 시각 TF, 수신 최신성, 액션 취소와 실제 정지를 혼동하지 않았는가.
+4. [범위의 AC-01 ~ 07](../requirements/scope.md)과 [레슨런 LL-01 ~ 10](lessons-learned.md)이 새로 구현할 기능과 연결되는가.
 5. PR 2에서 결정할 디렉터리·배포·알고리즘을 PR 1에서 확정한 것처럼 쓰거나, 불필요한 기존 과제 기능을 필수로 만든 부분이 있는가.

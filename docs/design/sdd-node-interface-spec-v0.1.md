@@ -8,7 +8,7 @@ updated: 2026-10-13
 
 상태: **[제안, 2026-10-09] 논리 계약 초안**. 실제 `.msg/.srv/.action` 생성·컴파일 또는 ROS 연결 검증 결과가 아니다.
 
-이 문서의 새 **00 통합도**는 E2E 이후 PM 요구안(지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료)이다. **01~11쪽도 「00 통합 시스템 설계도_PC3대」에 맞춘 상세 설계**다. 이전 상세도는 Git 이력에 보존한다. 현재 ROS IDL 필드·enum·실행 코드·프로파일은 변경하지 않는다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
+이 문서의 새 **00 통합도**는 E2E 이후 PM 요구안(지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료)이다. **01 ~ 11쪽도 「00 통합 시스템 설계도_PC3대」에 맞춘 상세 설계**다. 이전 상세도는 Git 이력에 보존한다. 현재 ROS IDL 필드·enum·실행 코드·프로파일은 변경하지 않는다. [기계 판독 명세 JSON](sdd-node-contracts-v0.1.json), [발행·수신 연결표 CSV](sdd-node-connections-v0.1.csv), [편집 가능한 draw.io 다이어그램](rokey7-sdd.drawio)을 함께 제공한다. JSON의 `nodes`·`interfaces`가 노드와 연결의 원본이며 CSV는 source×target 관계를 한 행씩 펼친 것이다. 이 JSON은 현재 `config/` 배포 프로파일이나 이미 생성된 ROS IDL이 아니다.
 
 ## 00 통합도 적용 시나리오 (PM 요구안, 2026-10-13)
 
@@ -30,7 +30,7 @@ updated: 2026-10-13
 
 ### 인터페이스·역사 페이지의 적용 범위
 
-새 00/JSON/CSV는 논리 노드 **44개**, 활성 인터페이스 **89개**, source×target 관계 **266개**다. IF-040은 `retired_interfaces`에 보존하고 새 00/CSV의 활성 연결에 넣지 않는다. IF-023은 새 00의 AMR1 구조 완료 재확인 필수 경로다. 01~11쪽은 이 활성 연결과 `three_pc` 배치를 적용한다. 과거 정적 증거와 Git 이전 상세도는 예전 44/86/255 및 승인/추종 계약의 기록이다.
+새 00/JSON/CSV는 논리 노드 **44개**, 활성 인터페이스 **89개**, source×target 관계 **266개**다. IF-040은 `retired_interfaces`에 보존하고 새 00/CSV의 활성 연결에 넣지 않는다. IF-023은 새 00의 AMR1 구조 완료 재확인 필수 경로다. 01 ~ 11쪽은 이 활성 연결과 `three_pc` 배치를 적용한다. 과거 정적 증거와 Git 이전 상세도는 예전 44/86/255 및 승인/추종 계약의 기록이다.
 
 IF-079의 DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK 등 기존 enum, 모든 1차 msg/srv/action의 필드·순서는 호환 보존한다. 새 00에서는 AMR2 초기 승인·구간 ‘계속’의 필수 관문으로 쓰지 않는다. AMR1 완료 재확인과 REQUEST_RECHECK는 유지한다. C-06/C-11/C-12·상태 전이·관제 명령·IDL 의미의 소비자 변경은 담당 검토 후 별도 구현이다. 배포 QoS/주소/임계값은 이 PR에서 확정하지 않는다.
 
@@ -42,7 +42,7 @@ IF-079의 DISPATCH_SUPPORT/CONTINUE_SEGMENT/REQUEST_RECHECK 등 기존 enum, 모
 
 ### 응용 PC 3대 + 전용 Discovery PC 1대 (PM 정정, 2026-10-13)
 
-PM 최신 정정 원문: “PC1은 AMR1, PC2는 AMR2, PC3은 웹캠 및 웹, PC4는 discovery server 역할이다.” 같은 날 앞선 PC3 Discovery 동거·총 PC 3대 설명은 이 정정으로 대체한다. 적용 범위는 **`00 통합 시스템 설계도_PC3대` 및 이를 기준으로 한 01~11 상세도의 하드웨어 배치**다. 페이지 이름은 유지하며, 물리 PC는 **총 4대(응용 PC 3대 + 전용 Discovery PC 1대)**다. 이번 상세도 정합 작업에서 두 00 페이지는 바이트 보존한다. 01~11쪽은 최신 PM 요청으로 수정한다.
+PM 최신 정정 원문: “PC1은 AMR1, PC2는 AMR2, PC3은 웹캠 및 웹, PC4는 discovery server 역할이다.” 같은 날 앞선 PC3 Discovery 동거·총 PC 3대 설명은 이 정정으로 대체한다. 적용 범위는 **`00 통합 시스템 설계도_PC3대` 및 이를 기준으로 한 01 ~ 11 상세도의 하드웨어 배치**다. 페이지 이름은 유지하며, 물리 PC는 **총 4대(응용 PC 3대 + 전용 Discovery PC 1대)**다. 이번 상세도 정합 작업에서 두 00 페이지는 바이트 보존한다. 01 ~ 11쪽은 최신 PM 요청으로 수정한다.
 
 | 물리 PC | 함께 실행하는 역할 |
 | --- | --- |
@@ -55,28 +55,28 @@ PC3 큰 박스 안에 웹캠 처리·관제 처리·로컬 브라우저를 함�
 
 JSON `metadata.placement_variants.three_pc.node_host_overrides`가 기존 PC4의 `central.*` 중 Discovery를 제외한 5개 노드를 PC3로 옮긴다. `central.discovery`는 PC4다. `three_pc` 키와 페이지 이름은 응용 PC 3대의 복제본이라는 의미이며 `physical_pc_count=4`, `application_pc_count=3`, `dedicated_discovery_pc_count=1`로 총수를 구분한다. 기본 `nodes.host`와 CSV/노드 표는 원본 4-PC 배치다. variant를 적용해도 논리 ID·타입·endpoint·발행/수신자는 바꾸지 않는다.
 
-IF-074~078(웹캠↔관제), IF-080~085(웹·운영·영상·DB)는 PC3 내부 연결을 포함한다. IF-082 영상은 PC3 gateway→PC3 브라우저의 HTTP 응답이며 ROS/DB 직접 연결이 아니다. IF-081은 기존대로 계획·미구현이다. IF-086은 PC1/PC2/PC3/로봇의 ROS 참여자가 PC4 서버와 교환하는 **발견 정보**다. Topic/Service/Action의 영상·지도·명령·상태 payload를 PC4가 중앙 중계한다는 뜻이 아니다.
+IF-074 ~ 078(웹캠↔관제), IF-080 ~ 085(웹·운영·영상·DB)는 PC3 내부 연결을 포함한다. IF-082 영상은 PC3 gateway→PC3 브라우저의 HTTP 응답이며 ROS/DB 직접 연결이 아니다. IF-081은 기존대로 계획·미구현이다. IF-086은 PC1/PC2/PC3/로봇의 ROS 참여자가 PC4 서버와 교환하는 **발견 정보**다. Topic/Service/Action의 영상·지도·명령·상태 payload를 PC4가 중앙 중계한다는 뜻이 아니다.
 
 web은 SQLite 읽기 전용 조회, operations만 DB 쓰기, 로컬 브라우저는 HTTP 영상과 1초 폴링을 동시에 받는다. 이는 배치 제안이며 실제 launch·주소/포트/remap·DB 경로·서버/client ID·네트워크/Discovery 설정 채택이나 실행 코드 변경이 아니다. PC3 동시 부하, PC4 발견 연결·서버 장애/재시작 및 E3/E4는 **NOT_RUN**이다.
 
 ### 상세도 기준 통일 (PM 요청, 2026-10-13)
 
-최신 원문: “나머지 01~11페이지의 sdd도 00 통합 시스템 설계도_PC3대를 베이스로 수정해줘.” 이 요청으로 이전 01~11 바이트 보존 범위를 해제한다. 두 00은 그대로 두고 01~11의 배치·노드/endpoint/type·발행/수신·자동 지원·필수 재확인·종료 로직을 맞춘다. 기본 nodes.host/CSV의 원본 00 배치는 유지하며 상세도는 `three_pc` override를 적용한다.
+최신 원문: “나머지 01 ~ 11페이지의 sdd도 00 통합 시스템 설계도_PC3대를 베이스로 수정해줘.” 이 요청으로 이전 01 ~ 11 바이트 보존 범위를 해제한다. 두 00은 그대로 두고 01 ~ 11의 배치·노드/endpoint/type·발행/수신·자동 지원·필수 재확인·종료 로직을 맞춘다. 기본 nodes.host/CSV의 원본 00 배치는 유지하며 상세도는 `three_pc` override를 적용한다.
 
-페이지별 인터페이스 범위와 요구 상태는 JSON `metadata.detail_pages`에 기록한다. `check_sdd_unified.py`는 두 00 보존, 모든 상세도의 IF 범위·정확한 source/target 관계·노드 호스트·89IF 전체 포함·선 geometry·11 재확인 관문을 검사한다. 02~07·09의 반복 박스는 인터페이스별 동일한 논리 노드다. 01/08/10은 기준 페이지의 검증된 geometry를 복제·선별해 사용한다. 11의 요구 단계 박스는 추가 ROS 노드가 아니다.
+페이지별 인터페이스 범위와 요구 상태는 JSON `metadata.detail_pages`에 기록한다. `check_sdd_unified.py`는 두 00 보존, 모든 상세도의 IF 범위·정확한 source/target 관계·노드 호스트·89IF 전체 포함·선 geometry·11 재확인 관문을 검사한다. 02 ~ 07·09의 반복 박스는 인터페이스별 동일한 논리 노드다. 01/08/10은 기준 페이지의 검증된 geometry를 복제·선별해 사용한다. 11의 요구 단계 박스는 추가 ROS 노드가 아니다.
 
 Discovery 최종 구성과 시험 중 구성 (재범 결정, 2026-10-13): **최종은 PC4 Discovery 전용**(이 문서의 배치)이고, **시험 중에는 권고안 A**(각 PC가 로봇 Pi 서버에 직접 연결)를 쓴다. 실습 1회가 성공하면 바로 PC4로 바꾼다. 로봇 노드가 PC4 서버에 보이게 하는 방법(로봇 Pi에 외부 서버 추가 = 등급 4, 또는 서버끼리 연결)은 결정 대기다. 근거: [network-discovery.md](network-discovery.md) 0절·11절(#197·#201). 로봇 이름: AMR1 = TB-6(robot_a, SCOUT), AMR2 = TB-5(robot_b, SUPPORT)(재범 결정 2026-10-13). 노드 ID `amr1.*`·`amr2.*`는 그대로 둔다.
 
 ## 기존 팀 설계와의 적용 경계 (과거 v0.1 기록)
 
 
-**이 문서 등록은 기존 팀 BRD·실행 계약의 채택 결정을 바꾸지 않는다.** 이 PR의 base `d03b6c8`에 머지된 팀 문서 기준은 [범위 RQ-08·RQ-09와 Q](../requirements/scope.md), [BRD Part I](../requirements/brd-part1-v0.1.md), [계약 C-01~C-09](contracts.md), [상태 전이](state-machines.md), [네트워크 채택안](network-discovery.md)이다. 아래 차이는 단일 웹캠 시연을 검토하기 위한 별도 제안이며, 기존 Python 계약에 바로 넣을 수 있는 호환 타입이라고 주장하지 않는다.
+**이 문서 등록은 기존 팀 BRD·실행 계약의 채택 결정을 바꾸지 않는다.** 이 PR의 base `d03b6c8`에 머지된 팀 문서 기준은 [범위 RQ-08·RQ-09와 Q](../requirements/scope.md), [BRD Part I](../requirements/brd-part1-v0.1.md), [계약 C-01 ~ C-09](contracts.md), [상태 전이](state-machines.md), [네트워크 채택안](network-discovery.md)이다. 아래 차이는 단일 웹캠 시연을 검토하기 위한 별도 제안이며, 기존 Python 계약에 바로 넣을 수 있는 호환 타입이라고 주장하지 않는다.
 
 | 항목 | 기존 문서·Phase 1 배치안 | 이 v0.1의 검토안 | 채택 전 필요한 작업 |
 | --- | --- | --- | --- |
 | 고정 카메라·구출 조건 | 카메라 A 재난 징후 + B 출구 카운트 + AMR1 재관측, 부재만으로 완료 금지(Q-10·Q-15) | 구조 지점을 계속 촬영하는 웹캠 하나의 소실 후보 + fresh AMR1 관측. 사람 이송을 증명하지 않는 **시연 판정** | 카메라 1대 결정에 맞춘 scope·SiteEvent·완료 상태/정책·인수 시험 개정은 소유자의 SoT PR과 연결. 이 PR은 기존 실행 코드를 직접 바꾸지 않음 |
 | AMR2 출동·이동 | 자동 출동을 기본 후보로 두고 승인 버튼은 선택(Q-12), 기존 task kind 집합(C-06) | 관리자 출동 승인 + `MOVE_SEGMENT`마다 “계속” 승인, `RETURN_HOME` 추가 | 명령/승인·TaskResult·상태 전이·프로파일 및 실행기/관제 소비자 개정 |
-| 중앙 배치 | 로봇 담당 PC 둘 + coordination/operations 분리 후보 | PC3 웹캠, PC4 coordination·operations·웹·DB 동거 | 4-PC 부하·장애 검증과 프로파일 개정. PC1~4는 도면의 논리 배치이며 실제 호스트 이름이 아님 |
+| 중앙 배치 | 로봇 담당 PC 둘 + coordination/operations 분리 후보 | PC3 웹캠, PC4 coordination·operations·웹·DB 동거 | 4-PC 부하·장애 검증과 프로파일 개정. PC1 ~ 4는 도면의 논리 배치이며 실제 호스트 이름이 아님 |
 | Discovery Server | 로봇별 온보드 서버 토폴로지 A 권고 | PC4 서버 하나에 참여자를 연결한 논리 발견 상세도 | 최종 = PC4 전용, 시험 중 = 토폴로지 A(재범 결정 2026-10-13). 로봇 Pi 쪽 연결 방법·서버 목록·고유 ID는 결정 대기. domain ID만으로 격리된다고 가정하지 않음 |
 | watchdog 위치 | 로봇 담당 PC에서 실행하는 Phase 1 방향([#35 OPS-17 결정](https://github.com/jaebeom/ROKEY-7/pull/35#issuecomment-6058147235)) | 도면의 AMR1·AMR2 온보드 watchdog(`PROPOSED_NOT_INSTALLED`) | 온보드 배치는 채택·설치 검증이 필요한 별도 제안. PC↔로봇 링크 단절을 처리하는 Create 3 timeout은 실측 전이며 TR-11·T-05에서 확인. 도면으로 Phase 1 배치 결정을 변경하지 않음 |
 | ROS 타입·HTTP | C-08의 토픽/API 제안과 현재 Python DTO 의미 | 필드·서비스·액션·HTTP 경로의 상세 초안 | IDL 생성/컴파일, Python DTO 변환과 인증·배선·QoS 검증. 경로 이름을 곧바로 실제 서버의 주소로 사용하지 않음 |
@@ -89,13 +89,13 @@ PM 측 Codex 세션의 문서 등록 요청(2026-10-09): “해당 인터페이�
 
 `CameraStatus`·`TargetPresence`·`SetCameraWatch`는 [#77](https://github.com/jaebeom/ROKEY-7/pull/77)의 1차 IDL 정의를 재사용한다. 필드 정의·순서와 CMake 등록은 그대로이며 아래 표·JSON Rules·draw.io 표시를 정합시켰다. 노드 연결·변환기·ROS 실행 완료를 뜻하지 않는다.
 
-`[사용자 요구]` 사용자 원문(2026-10-11, PM 측 Codex 대화): “사람과 나란히 이동하는 게 아닌 캠으로 사람의 다리를 스켈레톤으로 추종해 뒤따라 가는 방식으로 수정해서 PR에 같이 첨부해.” 승인 정책 확인 답변: “출동 승인 후 목적지까지 연속 추종”. 적용 범위는 AMR2 동행 요구와 설계 검토다. 실제 사람인 구조대원이 앞서고 AMR2가 탑재 카메라로 다리 스켈레톤을 추적해 뒤따른다. 요구조자는 인형이며 이 추종 대상과 구분한다. 구간별 ‘계속’ 승인은 새 동행 시나리오에서 제외한다. 모델·추종 입력/액션·거리 기준·재시작 계약과 실기 검증은 Q-27의 후속이다. 기존 실행 코드를 연속 추종 구현으로 보지 않는다. [contracts C-12](contracts.md#c-12)를 따른다. 아래 기존 `MOVE_SEGMENT`·`CONTINUE_SEGMENT`·`ONE_SEGMENT` 필드는 구간 이동 계약으로 보존한다. **연속 추종 입력·액션은 아직 정의되지 않았고**, 01~10쪽은 기존 연결을 보존하며 11쪽은 변경 요구 흐름을 구분해 그린다.
+`[사용자 요구]` 사용자 원문(2026-10-11, PM 측 Codex 대화): “사람과 나란히 이동하는 게 아닌 캠으로 사람의 다리를 스켈레톤으로 추종해 뒤따라 가는 방식으로 수정해서 PR에 같이 첨부해.” 승인 정책 확인 답변: “출동 승인 후 목적지까지 연속 추종”. 적용 범위는 AMR2 동행 요구와 설계 검토다. 실제 사람인 구조대원이 앞서고 AMR2가 탑재 카메라로 다리 스켈레톤을 추적해 뒤따른다. 요구조자는 인형이며 이 추종 대상과 구분한다. 구간별 ‘계속’ 승인은 새 동행 시나리오에서 제외한다. 모델·추종 입력/액션·거리 기준·재시작 계약과 실기 검증은 Q-27의 후속이다. 기존 실행 코드를 연속 추종 구현으로 보지 않는다. [contracts C-12](contracts.md#c-12)를 따른다. 아래 기존 `MOVE_SEGMENT`·`CONTINUE_SEGMENT`·`ONE_SEGMENT` 필드는 구간 이동 계약으로 보존한다. **연속 추종 입력·액션은 아직 정의되지 않았고**, 01 ~ 10쪽은 기존 연결을 보존하며 11쪽은 변경 요구 흐름을 구분해 그린다.
 
 AMR1 최초 정찰은 [RQ-11·Q-28](../requirements/scope.md)의 관제 출동 버튼 명령으로 시작한다(사용자 요구 및 저장소 소유자 채택 2026-10-11, [#85 결정](https://github.com/jaebeom/ROKEY-7/pull/85#issuecomment-6106387180), contracts C-13). 재난 이벤트는 표시·근거 저장만 한다. `START_SEARCH`는 #98의 1차 IDL과 main의 coordinator 명령 처리에 반영됐다. 관제 화면의 명령 항목은 있으나 비활성 placeholder이고 operations POST·ROS 왕복은 미연결이다(Q-28). 아래 필드 목록은 현재 IDL 정의를 따른다.
 
 ## 적용 시나리오와 현재 증거
 
-새 00의 요구·미구현 관문은 앞의 2026-10-13 절을 따른다. 기존 코드·1차 IDL 필드와 실제 배포는 별도이며 E3/E4 자동 출동·완료·동시 주행·종료 검증은 NOT_RUN이다. 현재 01~11쪽은 새 00_PC3대 요구를 설명하며 이전 상세도는 Git의 과거 기록으로 구분한다.
+새 00의 요구·미구현 관문은 앞의 2026-10-13 절을 따른다. 기존 코드·1차 IDL 필드와 실제 배포는 별도이며 E3/E4 자동 출동·완료·동시 주행·종료 검증은 NOT_RUN이다. 현재 01 ~ 11쪽은 새 00_PC3대 요구를 설명하며 이전 상세도는 Git의 과거 기록으로 구분한다.
 
 ## 이름과 통신 원칙
 
@@ -491,9 +491,9 @@ IDL: 2차 ([contracts C-10](contracts.md)).
 | 10 | 최신 활성 `rescue_interfaces` 관측·요청·상태·저장 receipt 흐름. 패키지 README의 과거 승인/구간 정책과 구분 |
 | 11 | AMR2 자동 출동·사람 후행·공유 지도·도착 관측·소실 후보→AMR1 새 재확인→완료 저장·역할별 종료 |
 
-포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01~09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 2026-10-11 변경은 감시 3종의 1차 표시와 별도 11쪽 요구 흐름을 추가한다. XML/연결 정합 검사와 화면 검증은 이번 PR 검증 기록에 별도로 남긴다.
+포트 박스의 `rescue_interfaces` 타입 뒤 `[1차]`·`[2차]`는 위 표의 `IDL` 열과 같다(2026-10-10 추가). `[2차]` 박스와 10쪽의 `[2차]` 선은 점선이다. 이 추가로 draw.io 해시가 2026-10-09 [정적 검사 기록](../evidence/sdd-node-interface-validation.json)의 값과 달라졌다 — 그 기록은 그날 파일의 것이고, 01 ~ 09 쪽의 연결(셀 id·source·target)은 바꾸지 않았다. 2026-10-11 변경은 감시 3종의 1차 표시와 별도 11쪽 요구 흐름을 추가한다. XML/연결 정합 검사와 화면 검증은 이번 PR 검증 기록에 별도로 남긴다.
 
-새 00은 IF-001~090 중 퇴역 IF-040을 제외한 89개 활성 연결을 표시한다. 상세 01~10도 같은 89개 활성 연결을 페이지별 범위에 맞춰 표시하고, 11쪽은 실제 IF 번호를 참조하는 요구 상태 흐름을 설명한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
+새 00은 IF-001 ~ 090 중 퇴역 IF-040을 제외한 89개 활성 연결을 표시한다. 상세 01 ~ 10도 같은 89개 활성 연결을 페이지별 범위에 맞춰 표시하고, 11쪽은 실제 IF 번호를 참조하는 요구 상태 흐름을 설명한다. `[T]`는 PUB→SUB, `[S]`·`[A]`는 client→server 요청이며 response/feedback/result는 역방향으로 돌아온다. HTTP snapshot/SSE/video의 선은 **응답 데이터 흐름**이며 브라우저의 GET 요청 방향과 반대다. 내부 costmap/DB 호출과 DDS discovery는 ROS 토픽·서비스·액션과 분리한다. Discovery 선은 참여자↔서버의 발견 정보만 뜻하고 application data 중계가 아니다. 논리 ROS 노드 수는 DDS participant 프로세스 수의 실측이 아니다.
 
 Nav2 내부 action은 [NavigateToPose Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/NavigateToPose.action), [ComputePathToPose Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/ComputePathToPose.action), [FollowPath Jazzy](https://github.com/ros-navigation/navigation2/blob/jazzy/nav2_msgs/action/FollowPath.action)를 사용한다. endpoint는 native namespace에 remap한 제안이며 설치된 action 이름을 조회해 확인한다. Context7의 rolling/main 결과에 있는 새 필드를 Jazzy 계약에 추가하지 않았다. Collision Monitor 연결은 [Jazzy 공식 지침](https://docs.nav2.org/jazzy/tutorials/general_tutorials/using_collision_monitor/using_collision_monitor/)을 따르고, 별도 장치 watchdog은 프로젝트의 미설치 설계다.
 

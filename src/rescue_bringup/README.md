@@ -9,8 +9,8 @@
 | 현장 launch: `operations`·`coordinator`·`robot`·`tb6_slam`·`frozen_localization`·`map_freeze`·`passage_points`·`overhead_passage` | 구현됨, 실기 NOT_RUN(전체 회차) | `launch/*.launch.py`, `rescue_bringup/field_launch.py`, #144·#152 |
 | 현장 정지 스크립트 | 구현됨 | `scripts/field/stop_robot.sh`, #256 |
 | `<ns>/map` 에 이미 발행자가 있으면 SLAM 기동 거절 | 구현됨, 실기 NOT_RUN | `rescue_bringup/map_guard.py:check_no_map_publisher`, #256 |
-| 통로 정지 `PassageStop`: 깊이 점 0.05~0.46 m, 앞 0.4~1.0 m, 폭 ±0.2 m, 5점 | 구현됨, 실기 NOT_RUN | `field_launch.py:nav2_with_passage`, 현장 파일 `robot` 절 `passage.*`, #226 |
-| 통로 감속 `PassageSlow`: 깊이 점 0.23~1.0 m, 앞 0.4~1.2 m, 속도 ×0.3 | 구현됨, 실기 NOT_RUN | 같은 함수, `passage.slow.*`·`passage.overhead.*`, #260 |
+| 통로 정지 `PassageStop`: 깊이 점 0.05 ~ 0.46 m, 앞 0.4 ~ 1.0 m, 폭 ±0.2 m, 5점 | 구현됨, 실기 NOT_RUN | `field_launch.py:nav2_with_passage`, 현장 파일 `robot` 절 `passage.*`, #226 |
+| 통로 감속 `PassageSlow`: 깊이 점 0.23 ~ 1.0 m, 앞 0.4 ~ 1.2 m, 속도 ×0.3 | 구현됨, 실기 NOT_RUN | 같은 함수, `passage.slow.*`·`passage.overhead.*`, #260 |
 | 깊이 점 `<ns>/passage_points`(depth_image_proc) | 구현됨, 실기 NOT_RUN | `launch/passage_points.launch.py`, `field_launch.py:passage_points_launch_values`, #226 |
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
@@ -262,7 +262,7 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - **지도에 터널 표시(OPS-185/186):** `overhead_passage.launch.py` 가 같은 깊이 점, 같은 상자와 높이(`passage.*`)로 머리 위 구조물을 판정한다. 결과는 `/rescue/robots/<id>/overhead_passages`(JSON, contracts C-04b)로 나간다. 추가 값은 `passage.overhead.*` 에 있다. 판정을 그린 카메라 영상 `<ns>/rescue/passage_view/compressed` 는 `passage.view.*` 와 로봇별 `passage.view_image_topic`·`passage.view_camera_info_topic`(각 Pi 의 RGB 미리보기와 그 camera_info. 전체 RGB 는 인형 탐지 입력이라 구독을 늘리지 않음, OPS-198. 둘 다 지우면 그 로봇 영상 끔)으로 정한다. 라이다 높이 `lidar_plane_m` 0.23 m 는 TB-5 줄자 실측이고 TB-6 은 같다고 본 추정이다. 판정 규칙은 `src/rescue_perception/README.md` 「지도의 머리 위 구조물」 절에 있다.
 - 멈춘 동안 실행기 feedback 이 `PASSAGE_BLOCKED` 다. 그 뒤 Nav2 가 포기하면 결과도 `PASSAGE_BLOCKED` 다(#219).
 - **`robots.<id>.passage.*` 가 없는 로봇은 `robot.launch.py` 가 띄우지 않는다**(OPS-137 A). 두 로봇 모두 OAK-D 깊이 `/<ns>/oakd/stereo/image_raw` + `camera_info`, 전송 `compressedDepth` 다.
-  - TB-5 측정(2026-10-13 20:19~20:21, OPS-165~167): raw 5.1~5.5 Hz(최대 간격 0.449 s), compressedDepth 6.9~9.2 Hz(최대 간격 0.302 s), camera_info 10.0 Hz. 그래서 compressedDepth. `collision_monitor` 의 source_timeout 1 s 안이다.
+  - TB-5 측정(2026-10-13 20:19 ~ 20:21, OPS-165 ~ 167): raw 5.1 ~ 5.5 Hz(최대 간격 0.449 s), compressedDepth 6.9 ~ 9.2 Hz(최대 간격 0.302 s), camera_info 10.0 Hz. 그래서 compressedDepth. `collision_monitor` 의 source_timeout 1 s 안이다.
   - TB-5 깊이 `camera_info` 의 `header.frame_id` 는 `oakd_rgb_camera_optical_frame`(깊이가 RGB 에 정렬, TB-6 과 같음)이고 `base_link` 에서 TF 가 있다(x -0.060, z 0.244 m, 2026-10-13 확인). 확인 명령: `ros2 run tf2_ros tf2_echo base_link oakd_rgb_camera_optical_frame` (`/tf`·`/tf_static` 을 `<ns>/tf`·`<ns>/tf_static` 으로 remap). TF 가 없으면 깊이 점이 `base_link` 로 바뀌지 않아 통로 정지가 동작하지 않는다.
 - 필요한 것: 로봇 PC 의 `depth_image_proc`. TB-5 PC 에는 설치돼 있다(`ros-jazzy-depth-image-proc` 5.0.13, 2026-10-13 확인). 시험 중처럼 두 로봇을 그 PC 한 대에서 돌리면 TB-6 도 설치된 것이고, TB-6 을 다른 PC 에서 돌리면 그 PC 는 확인 전이다.
 - **복구 동작에 후진 없음(OPS-207, 재범 승인 2026-10-14 「오케이 그럼 빼자」):** 시나리오 ⑧ 「후진 없음」(원형 로봇이라 제자리 회전 + 전진), TB-5 뒤에는 따라오는 사람이 있다. `robot.launch.py`·`mapping_navigation.launch.py`·`localization_navigation.launch.py` 가 TurtleBot4 `nav2.yaml` 에서 `backup` 플러그인을 빼고, `bt_navigator` 를 이 패키지의 BT(`rescue_bringup/behavior_trees/*_no_backup.xml`, Nav2 Jazzy 기본 BT 에서 `BackUp` 한 줄만 뺀 것)로 바꾼다. 복구는 비용 지도 지우기 → 제자리 회전(1.57 rad) → 5 s 대기 순서다. 플러그인만 빼면 기본 BT 의 `BackUp` 노드가 없는 action server 를 기다리다 BT 를 못 올리므로 둘을 같이 바꾼다[Nav2 jazzy 소스 `bt_action_node.hpp`]. 로그: `+ no BackUp recovery`. `drive_on_heading`·`assisted_teleop` 은 남아 있다(음수 속도면 뒤로 갈 수 있지만, 우리 BT 와 코드는 부르지 않음). 이 경로 밖에서 Nav2 를 띄우는 `scripts/field/search-area/nav2_watchdog.launch.py`, `rescue_perception` 탐색 실습 `exploration/nav2.yaml` 에는 아직 후진이 있다. (이전 기록 2026-10-13: 복구 동작은 turtlebot4 기본 그대로, 작전 답.)
@@ -345,13 +345,13 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 
 코드와 로봇 없는 시험은 있지만 실제 로봇에서 확인하지 않은 것이다. 실기 회차에 하나씩 지운다.
 
-- 현장 회차 전체(위 0~3단계를 실제 로봇으로)와 두 번 고정 흐름.
+- 현장 회차 전체(위 0 ~ 3단계를 실제 로봇으로)와 두 번 고정 흐름.
 - TB-6 `/robot6/tf` 에 `map→odom`·`odom→base_link` 가 오는지, 서 있는 TB-6 에서 `/robot6/pose` 가 끊기는지(OPS-177 [추정]).
 - `map_guard` 가 Discovery 서버 아래에서 앞 SLAM 을 찾는지(#256).
 - Create3 `cmd_vel` 형식(`TwistStamped`)과 watchdog 종료 0 이 로봇에 닿는지.
 - Jazzy collision_monitor 의 `slowdown`·`sources_names` 동작(#260), 깊이 점이 실제로 `PassageStop`·`PassageSlow` 를 켜는지.
 - TB-6 라이다 높이 0.23 m(TB-5 줄자 실측을 같은 모델로 본 [추정]).
-- **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22~−0.19 m 였다. 정지 띠(0.05~0.46 m)·감속 띠(0.23~1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25~0.66 m 다. 바닥 위 약 0.05~0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
+- **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22 ~ −0.19 m 였다. 정지 띠(0.05 ~ 0.46 m)·감속 띠(0.23 ~ 1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25 ~ 0.66 m 다. 바닥 위 약 0.05 ~ 0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
 - Nav2 후진 복구. main 은 아직 turtlebot4 기본(후진 있음)이다. #267 이 머지된 뒤에도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
 - slam_toolbox 지도 리셋 서비스(Jazzy 판)가 있는지(위 「SLAM 지도 새로 시작」).
 - **정상 완료 뒤 자동으로 다시 준비(OPS-231, 재범 4등급 승인 2026-10-14).** 이동이 정상으로 끝나고 정지가 확인되면 실행기가 스스로 다시 준비한다(`rescue_robot/executor.py:rearm_after_completion`). 그래서 3단계의 arm 은 처음 한 번이면 된다. 실기에서 두 가지를 본다. TB-6 이 탐색 지점마다 멈추지 않고 이어 가는지, TB-5 가 사람 앞에 선 뒤 15 s(`support_exit_wait_s`)가 지나 출구로 출발하는지. 실패·취소·정지 버튼 뒤에는 지금처럼 `task_arm` 이 필요하다. 다시 준비가 거절되면 `RobotStatus.stop_reason` 에 `REARM_REFUSED_<이유>` 가 보인다. 이슈 #233 3번.
