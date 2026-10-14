@@ -5,6 +5,7 @@
 """
 import json
 import unittest
+from types import SimpleNamespace
 
 from rescue_console.app import current_view
 from rescue_console.mapimage import map_overlay
@@ -95,6 +96,26 @@ class RobotWatchTests(LedgerFixture):
     def test_off_by_default(self):
         view = build_view(load_ledger(self.db), self.status, built_at_ns=NOW, robot_names=NAMES)
         self.assertTrue(all(r['watch'] is None for r in view['robots']))
+
+    def test_unplotted_robots_are_said_by_display_name(self):
+        # 사람이 보는 글에는 TB-5/TB-6 만(팀 규칙): 경고 줄과 「지도에 안 그림」 목록도 --robot-name 이름
+        data = watch()
+        data['robots']['robot_a']['pose'] = {'x': 9.0, 'y': 9.0, 'yaw': 0.0, 'frame_id': 'map'}   # 지도 밖
+        data['robots']['robot_b'].update(pose={'x': -0.13, 'y': 0.0, 'yaw': -3.03, 'frame_id': 'map'},
+                                         pose_seen_ns=NOW - SECOND)                          # 자기 지도
+        path = self.dir / 'robot_watch.json'
+        path.write_text(json.dumps(data), encoding='utf-8')
+        status_path = self.dir / 'status.json'
+        status_path.write_text(json.dumps(dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})),
+                               encoding='utf-8')
+        meta = {'origin': [-1.0, -1.0, 0.0], 'resolution': 0.05, 'width_px': 100, 'height_px': 100, 'source': 'live'}
+        view = current_view(self.db, status_path, clock=lambda: NOW, robot_names=NAMES, map_image=SimpleNamespace(meta=meta),
+                            robot_watch_path=path, robot_watch_stale_s=5.0, robot_watch_map_robot='robot_a')
+        said = ' '.join(view['warnings'])
+        self.assertIn("지도에 안 그림: robot TB-5 frame '/robot5 map'", said)
+        self.assertIn('지도 밖 좌표: robot TB-6 (9.00, 9.00)', said)
+        self.assertNotIn('robot_a', said)
+        self.assertNotIn('robot_b', said)
 
     def test_load_robot_watch(self):
         path = self.dir / 'robot_watch.json'
