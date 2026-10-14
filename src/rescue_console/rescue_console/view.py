@@ -423,7 +423,8 @@ MISSION_REASONS = {
     # 두 로봇 교통 관제(#272, OPS-235). 두 로봇이 다 멈추는 YIELD_NO_SPACE·STOP_TIMEOUT 은 빨강(#272 웹 요청).
     # SEPARATION_UNCHECKED 는 멈춤이 아니라 간격 검사가 꺼진 것을 알리는 표시다.
     'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP': ('{scout} 정지 확인 기다림 — {support} 대기', 'caution'),
-    'TRAFFIC_SCOUT_STOP_TIMEOUT': ('{scout} 정지 확인 시간 초과 — 두 로봇 모두 대기', 'alert'),
+    # 정지를 확인하지 못했을 뿐이라 TB-6 이 아직 움직일 수 있다(OPS-237): 현장 확인을 문구에 넣는다.
+    'TRAFFIC_SCOUT_STOP_TIMEOUT': ('{scout} 정지 확인 안 됨(시간 초과) — {support} 대기, 현장 확인', 'alert'),
     'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD': ('{scout} 이 {support} 경로 밖으로 비키는 중 — {support} 대기', 'caution'),
     'TRAFFIC_SCOUT_YIELD_NO_SPACE': ('{scout} 이 비킬 자리 없음 — 두 로봇 모두 정지', 'alert'),
     'TRAFFIC_SCOUT_HELD_FOR_SUPPORT': ('{support} 경로와 겹쳐 {scout} 명령 보류', 'caution'),
