@@ -21,7 +21,7 @@ updated: 2026-10-14
 | `exit_locations` | 출구(QR) 관측(VALID 만) | `record_exit_location` (`/rescue/exit_location`) | 관제 웹 `read_exit_locations`(최신 1건) |
 | `overhead_passage_lists`·`overhead_passages` | 로봇별 터널 판정 목록 | `record_overhead_passages` (`/rescue/robots/<id>/overhead_passages`) | 관제 웹 `read_overhead_passages` |
 | `current_map` | TB-6(SCOUT) 최신 지도 revision 1행 | `record_current_map` (`/rescue/robots/<TB-6 id>/map_state`) | 관제 웹 `read_overhead_passages` |
-| `map_snapshots` | 지도 이미지 경로·해시 | 쓰는 코드 없음 | 읽는 코드 없음(관제 웹 지도는 `map_snapshot` 노드가 쓰는 파일을 직접 읽음) |
+| `map_snapshots` | 지도 이미지 경로·해시 | 함수 `record_map_snapshot` 은 있으나 부르는 노드가 없음 | 함수 `read_map_snapshots` 는 있으나 쓰는 화면이 없음(관제 웹 지도는 `map_snapshot` 노드가 쓰는 파일을 직접 읽음) |
 
 다른 SQLite 파일은 세 가지다. 운영 장부(`operations-ledger`)와 보고 송신 대기열(`report-outbox`)은 `rescue_operations/ledger.py`, 관제 웹 계정(`console-accounts`)은 `rescue_console/accounts.py` 가 쓴다. 구조 보고 저장 장부(`report_node`, `report_store.py`)는 이 문서 밖이다([운영 구현](../implementation/implementation-operations.md)).
 
@@ -104,5 +104,5 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 - 맨 위 「한눈에」 표를 더했다(작전 OPS-219). 본문 표와 규칙은 2026-10-13 판 그대로다.
 - 로봇 이름 「AMR2」를 「TB-5」로 바꿨다(재범 규칙 2026-10-13).
-- `map_snapshots` 는 1.1 에서 만든 표이지만 2026-10-14 main 에는 쓰는 코드와 읽는 코드가 없다. 관제 웹의 실시간 지도는 `map_snapshot` 노드가 쓰는 지도 파일(`live_map.yaml`)을 직접 읽는다(#209).
+- `map_snapshots` 는 1.1 에서 만든 표다. 쓰기·읽기 함수(`record_map_snapshot`·`read_map_snapshots`)는 있지만, 2026-10-14 main 에는 쓰기 함수를 부르는 노드와 읽기 함수를 쓰는 화면이 없다. 관제 웹의 실시간 지도는 `map_snapshot` 노드가 쓰는 지도 파일(`live_map.yaml`)을 직접 읽는다(#209).
 

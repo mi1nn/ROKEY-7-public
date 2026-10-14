@@ -8,7 +8,7 @@ updated: 2026-10-14
 
 ## 한눈에 (2026-10-14, main 3278a3e)
 
-이 문서가 답하는 질문은 「운영 PC 의 `rescue_operations` 노드가 무엇을 받아 어디에 쓰고, 관제 웹은 그것을 어떻게 읽는가」다.
+이 문서가 답하는 질문은 「운영 PC 의 `rescue_operations` 노드가 무엇을 받아 어디에 쓰고, 관제 웹은 이 DB 를 어떻게 읽는가」다.
 
 ```mermaid
 flowchart LR
