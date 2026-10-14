@@ -18,6 +18,9 @@ def fill_robot_status(msg, adapter, ingress, *, state_sequence):
         msg.motion_state = 'STOPPING' if executor.state == 'STOPPING' else executor.motion
         if msg.motion_state == 'STOP_REQUESTED': msg.motion_state = 'STOPPING'
         msg.stop_reason = executor.stop_cause if executor.state in ('STOPPING', 'FINISHED') else ''
+        if executor.state == 'FINISHED' and executor.rearm_refused:
+            # Completed, but the automatic re-arm was refused (OPS-231): task_arm is needed.
+            msg.stop_reason = 'REARM_REFUSED_' + executor.rearm_refused
         request = ingress.requests.get(active.command_id) if active else None
         msg.segment_index = (request[0].route.segment_index
                              if request and request[0].has_route else 0)

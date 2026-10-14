@@ -61,6 +61,9 @@ class CommandAdapter:
         self.status = {}
         self.events = []
         self._reported = set()
+        # Site runtime hook (OPS-231): called once after a COMPLETED task with a confirmed stop;
+        # None = never re-arm by itself (operator task_arm only).
+        self.rearm = None
 
     @property
     def robot_id(self):
@@ -217,3 +220,5 @@ class CommandAdapter:
             if command_id not in self._reported:
                 self._reported.add(command_id)
                 self.events.append(('RESULT', command_id, result.outcome, result.stop_confirmed))
+        if self.rearm is not None and self.executor.rearm_due:
+            self.events.append(('REARM', self.rearm() or 'ARMED'))

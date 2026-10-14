@@ -17,7 +17,7 @@
 | 지도 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·짝 토픽 `frozen_revision`·TB-5 재정합 | 구현됨, 실기 NOT_RUN | `map_freeze.py`, `live_sources.py:SavedMapSources`, `frozen_map_relay.py`, #242·#255 |
 | 통로 정지 알림 `PASSAGE_BLOCKED` | 구현됨, 실기 NOT_RUN | `live_passage.py:PassageMonitor`, `task_site_runtime.py:feedback_reason`, #219 |
 | watchdog 영구 정지·리셋, 끝날 때 `cmd_vel` 0 세 번 | 구현됨 | `watchdog.py`, `watchdog_node.py:zero_commands`, #256 |
-| 임무가 끝난 뒤 다시 READY | 미구현. 임무마다 `~/task_arm` 이 필요하다(자동 재arm 없음, 결정 대기, 이슈 #233 3번) | `executor.py:_finish`·`arm`, `task_status.py` |
+| 임무가 끝난 뒤 다시 READY | 구현됨, 실기 NOT_RUN. 이동이 정상으로 끝나고(`COMPLETED`) 정지가 확인되면 스스로 다시 준비한다(`ARMED`). 준비 조건은 `~/task_arm` 과 같다. 조건이 맞지 않으면 다시 준비하지 않고, 로그와 `RobotStatus.stop_reason`(`REARM_REFUSED_<이유>`)에 이유를 남긴다. 실패·만료·취소·정지 버튼·정지 미확인 뒤에는 지금처럼 `~/task_arm` 을 기다린다. 로봇마다 `task.live.auto_rearm` 으로 켜고, 두 로봇 모두 켰다(재범 4등급 승인 2026-10-14, 이슈 #233 3번) | `executor.py:rearm_after_completion`, `nav2_adapter.py:_after`, `task_site_runtime.py:rearm_after_completion`, `task_status.py`, OPS-231 |
 | watchdog 현장 값 | 임시값(#132), 확정 안 됨(#94) | `config/field/search_area.field.json` `watchdog` 절 |
 | `command_adapter` 단독 실행 | 임무 입력이 없어 로봇을 움직이지 않는다. 현장은 `task_input` | `setup.py` console_scripts, `task_input_node.py:main` |
 | 빈 배열 ROS 파라미터 | 넘길 수 없다(launch 가 거절) | launch_ros. 아래 「실행」 |

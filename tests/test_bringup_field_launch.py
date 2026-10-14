@@ -271,6 +271,8 @@ class RobotParameters(FieldCase):
                          'task.live.recheck.deadline_ns': 10_000_000_000,
                          'task.live.auto_target.goal_clear_radius_m': 0.2,
                          'task.live.auto_target.policy_version': 'auto-target-20261013'})
+        # Added after #132: arm again after a COMPLETED task with a confirmed stop (OPS-231, 2026-10-14)
+        expected['task.live.auto_rearm'] = True
         # Added after #132: RobotPose validity (pose publisher, 2026-10-13)
         expected['task.live.pose_valid_ns'] = 2_000_000_000
         # The robot Pi clock (sensor host of the AMCL stamps), per robot (2026-10-13)
@@ -321,6 +323,17 @@ class RobotParameters(FieldCase):
         # TB-5 Pi measured 2026-10-13 (chronyc tracking, about 107 ms by the parse_chrony bound) -> 150 ms
         self.assertEqual(150_000_000, b['task.live.sensor_host_clock_error_bound_ns'])
 
+    def test_both_robots_re_arm_after_a_completed_task(self):
+        """OPS-231 (owner 2026-10-14, grade 4): TB-6 and TB-5 arm again by themselves only after
+        COMPLETED + stop confirmed. The field file names it per robot; no default."""
+        from rescue_bringup.field_launch import FieldLaunchError
+        tb5 = self.field(lambda raw: (saved_maps(raw), tb5_depth(raw)))
+        self.assertIs(True, self.robot()['task_input']['task.live.auto_rearm'])
+        self.assertIs(True, self.robot(field=tb5, robot_id='robot_b')['task_input']['task.live.auto_rearm'])
+        with self.assertRaisesRegex(FieldLaunchError, 'auto_rearm'):
+            self.robot(field=self.field(lambda raw: (raw['robots']['robot_a'].pop('task.live.auto_rearm'),
+                                                     saved_maps(raw))))
+
     def test_robot_b_needs_its_own_identity_in_the_field_file(self):
         """No publisher_id / mapping_authority is made up for a robot the field file does not name."""
         from rescue_bringup.field_launch import FieldLaunchError
@@ -334,6 +347,7 @@ class RobotParameters(FieldCase):
                                         'task.live.auto_target.kinds': ['APPROACH_TARGET'],
                                         'task.live.auto_target.goal_clear_radius_m': 0.2,
                                         'task.live.auto_target.policy_version': 'p',
+                                        'task.live.auto_rearm': False,
                                         'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
                                         'task.live.sensor_host_clock_error_bound_ns': 9_000_000}
         values = self.robot(field=self.field(lambda raw: (add_b(raw), saved_maps(raw), tb5_depth(raw))),
