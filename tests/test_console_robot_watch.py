@@ -7,6 +7,7 @@ import json
 import unittest
 
 from rescue_console.app import current_view
+from rescue_console.mapimage import map_overlay
 from rescue_console.render import render_fragment
 from rescue_console.sources import load_robot_watch
 from rescue_console.view import build_view
@@ -27,12 +28,28 @@ def watch(*, seen=NOW - SECOND, written=NOW - SECOND, pose=True):
 
 
 class RobotWatchTests(LedgerFixture):
-    def view(self, data, *, with_status=False, problem=None):
+    def view(self, data, *, with_status=False, problem=None, map_robot='robot_a'):
         status = dict(self.status)
         if not with_status:
             status['robot_status'] = {'schema_version': '1.1', 'robots': []}
         return build_view(load_ledger(self.db), status, built_at_ns=NOW, robot_names=NAMES,
-                          robot_watch={'stale_s': 5.0, 'data': data, 'problem': problem})
+                          robot_watch={'stale_s': 5.0, 'data': data, 'problem': problem, 'map_robot': map_robot})
+
+    def test_only_the_map_robot_direct_pose_is_drawn(self):
+        # 현장 2026-10-14 18:57: 각자 자기 SLAM 의 'map' 이라 TB-5 가 TB-6 지도 원점에 겹쳐 그려졌다
+        data = watch()
+        data['robots']['robot_a']['pose'] = {'x': -0.0, 'y': 0.0, 'yaw': 0.0, 'frame_id': 'map'}
+        data['robots']['robot_b'].update(pose={'x': -0.13, 'y': 0.0, 'yaw': -3.03, 'frame_id': 'map'},
+                                         pose_seen_ns=NOW - SECOND)
+        view = self.view(data)
+        rows = {r['robot_id']: r for r in view['robots']}
+        self.assertEqual('/robot5 map', rows['robot_b']['pose']['frame_id'])   # 옮기지 않고 frame 만 자기 것으로
+        self.assertEqual((-0.13, 0.0), (rows['robot_b']['pose']['x'], rows['robot_b']['pose']['y']))
+        meta = {'origin': [-1.0, -1.0, 0.0], 'resolution': 0.05, 'width_px': 100, 'height_px': 100, 'source': 'live'}
+        layer = map_overlay(meta, view['robots'], [])
+        self.assertEqual(['robot_a'], [r['id'] for r in layer['robots']])
+        self.assertEqual(['robot_b'], [w['id'] for w in layer['frame_mismatch']])
+        self.assertIn('자기 지도 기준, 이 지도와 다름', render_fragment(view))
 
     def test_without_project_status_the_watch_fills_the_card(self):
         view = self.view(watch())
@@ -95,7 +112,7 @@ class RobotWatchTests(LedgerFixture):
         status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})
         status_path.write_text(json.dumps(status), encoding='utf-8')
         view = current_view(self.db, status_path, clock=lambda: NOW, robot_names=NAMES,
-                            robot_watch_path=path, robot_watch_stale_s=5.0)
+                            robot_watch_path=path, robot_watch_stale_s=5.0, robot_watch_map_robot='robot_a')
         self.assertEqual(81.0, {r['robot_id']: r for r in view['robots']}['robot_b']['watch']['battery_percent'])
 
 
