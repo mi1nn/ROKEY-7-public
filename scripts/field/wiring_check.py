@@ -92,6 +92,8 @@ def node(name, namespace=''):
 def link(lid, kind, name, writers=(), readers=(), *, source, external_writer=False, external_reader=False):
     if kind not in KINDS or not name.startswith('/'):
         raise WiringError(f'{lid}: bad expectation {kind} {name!r}')
+    if not writers and not external_writer:
+        raise WiringError(f'{lid}: no writer expected for {name}')   # zero writers would always pass
     return Link(lid, kind, name, tuple(writers), tuple(readers), external_writer, external_reader, source)
 
 
@@ -236,6 +238,13 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
         link('operator_command', 'service', co.OPERATOR_COMMAND_SERVICE, [coord], [db],
              source='OPERATOR_COMMAND_SERVICE'),
     ]
+    # FRONTIER: the coordinator reads the SCOUT live map under a fixed name (rescue_coordination SCOUT_MAP_TOPIC);
+    # a profile namespace other than that name leaves it without a publisher, which this row shows
+    if field.coordinator.get('search_mode') == 'FRONTIER':
+        for r in (r for r in scout if r in picked):
+            own = next(lk for lk in links if lk.id == f'{r}.map')
+            links.append(link(f'{r}.coordinator_map', 'topic', co.SCOUT_MAP_TOPIC, own.writers, [coord],
+                              source='rescue_coordination SCOUT_MAP_TOPIC (search_mode FRONTIER)'))
     if field.coordinator.get('map_mode') == 'SLAM_FREEZE':
         links += [
             link('map_freeze', 'service', co.MAP_FREEZE_SERVICE, [freeze], [coord], source='MAP_FREEZE_SERVICE'),
@@ -259,7 +268,12 @@ def merge(links):
             raise WiringError(f'{lk.name}: two writer expectations ({old.id}, {lk.id})')
         # a shared row keeps its id; rows of several robots become one robot-free id (robot_a.x + robot_b.x -> x)
         shared = [i for i in (old.id, lk.id) if '.' not in i]
-        lid = shared[0] if shared else lk.id.split('.', 1)[1]
+        if shared:
+            lid = shared[0]
+        elif old.id.split('.', 1)[0] == lk.id.split('.', 1)[0]:
+            lid = old.id   # one robot's row read by another node too (robot_a.map + robot_a.coordinator_map)
+        else:
+            lid = lk.id.split('.', 1)[1]
         rows[key] = Link(lid, lk.kind, lk.name, lk.writers, tuple(dict.fromkeys(old.readers + lk.readers)),
                          lk.external_writer, old.external_reader or lk.external_reader,
                          '; '.join(dict.fromkeys(old.source.split('; ') + lk.source.split('; '))))
@@ -461,6 +475,8 @@ def main(argv=None, *, graph_reader=read_graph):
         graph = graph_reader(links, args.spin_time)
     except ImportError as exc:
         error = f'ROS 를 가져오지 못함 (NOT_RUN): {exc}'
+    except Exception as exc:   # rclpy.init, RMW or Discovery Server failure: no graph, so nothing is judged
+        error = f'그래프를 읽지 못함 (NOT_RUN): {type(exc).__name__}: {exc}'
     rows, nodes, code = check(links, graph)
     result = dict(tool='scripts/field/wiring_check.py', profile=str(args.profile), field=str(args.field),
                   robots=args.robot or None, slam_phase=args.slam_phase, spin_time_s=args.spin_time,

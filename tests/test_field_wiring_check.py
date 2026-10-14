@@ -151,6 +151,20 @@ class Expectations(Case):
         text = json.dumps([[lk.name, lk.writers, lk.readers] for lk in self.links(slam_phase='FROZEN')])
         self.assertIsNone(re.search(r'/amr[12]\b|PC[1-4]|/tb[12]\b', text))
 
+    def test_frontier_coordinator_reads_the_scout_live_map(self):
+        from rescue_coordination.ros_node import SCOUT_MAP_TOPIC
+        self.assertEqual('FRONTIER', self.field.coordinator['search_mode'])
+        for phase, writer in (('SEARCHING', '/robot6/slam_toolbox'), ('FROZEN', '/robot6/rescue_frozen_map_relay')):
+            row = next(lk for lk in self.links(slam_phase=phase) if lk.name == SCOUT_MAP_TOPIC)
+            with self.subTest(phase=phase):
+                self.assertIn('/mission_coordinator', row.readers)
+                self.assertEqual((writer,), row.writers)
+        self.assertFalse(any(lk.name == SCOUT_MAP_TOPIC for lk in self.links(robots=['robot_b'])))
+
+    def test_a_row_without_a_writer_is_refused(self):
+        with self.assertRaisesRegex(wc.WiringError, 'no writer'):
+            wc.link('x', 'topic', '/x', [], ['/reader'], source='t')
+
     def test_two_writer_expectations_for_one_name_are_refused(self):
         a = wc.link('a', 'topic', '/x', ['/n1'], source='t')
         b = wc.link('b', 'topic', '/x', ['/n2'], source='t')
@@ -265,6 +279,15 @@ class Main(Case):
         code, result, table = self.run_main(no_ros)
         self.assertEqual(3, code)
         self.assertIn('rclpy', result['graph_error'])
+        self.assertEqual({wc.NOT_RUN}, {r['status'] for r in result['connections']})
+
+    def test_a_graph_failure_is_not_run(self):
+        def broken(links, spin):
+            raise RuntimeError('rcl_init failed: discovery server unreachable')
+        code, result, table = self.run_main(broken)
+        self.assertEqual((3, 3), (code, result['exit_code']))
+        self.assertIn('RuntimeError: rcl_init failed', result['graph_error'])
+        self.assertIn('그래프를 읽지 못함', table)
         self.assertEqual({wc.NOT_RUN}, {r['status'] for r in result['connections']})
 
     def test_an_unreadable_expectation_is_not_run(self):

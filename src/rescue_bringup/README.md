@@ -318,9 +318,12 @@ python3 scripts/field/wiring_check.py --profile <profile.json> \
 
 - 기대 연결표는 코드에서 만든다. 프로파일과 현장 파일을 `field_launch` 함수(`robot_launch_values` 등)에 넣고, 조정 노드 상수와 launch 파일의 노드 이름을 쓴다(`wiring_check.py` `expected_links`). `docs/design/sdd-node-connections-v0.1.csv` 는 이름이 지금과 달라(`/amr1` 등) 쓰지 않는다.
 - 로봇 Pi 쪽 토픽(odom, scan, 카메라 등)은 노드 이름을 보지 않고, 발행자가 하나인지만 본다.
+- 같은 이름 노드 줄은 그 이름을 쓰는 프로그램이 두 곳에서 떠 있다는 뜻이다. 우리 노드면 한쪽 launch 를 끈다. 우리 노드가 아니면(예: 두 PC 에서 띄운 `/rviz2`) 한쪽을 끄거나 `--ros-args -r __node:=<다른 이름>` 으로 이름을 바꾼다.
+- `search_mode` 가 FRONTIER 이면 조정 노드도 TB-6 지도를 구독한다. 이 이름은 조정 노드 상수 `SCOUT_MAP_TOPIC`(`/robot6/map`)으로 고정돼 있다. 프로파일의 TB-6 namespace 가 다르면 이 줄이 발행자 없음으로 FAILED 다.
+- 그래프를 읽다가 오류가 나면(rclpy 시작 실패, RMW·Discovery 오류) JSON `graph_error` 에 적고 모든 줄을 NOT_RUN 으로 둔다(종료 코드 3).
 - 기대를 모르거나 그래프를 못 읽으면 NOT_RUN 이다(PASSED 아님). 종료 코드는 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음. 표는 stderr, JSON 은 stdout 으로 나간다.
 - 그래프만 읽는다. 구독·발행·서비스 호출을 하지 않고 로봇을 움직이지 않는다. 이 프로세스만 `ROS_SUPER_CLIENT=True` 로 띄워 Discovery Server 아래 전체를 본다.
-- 이 도구가 보지 않는 것은 메시지가 실제로 오는 간격(`link_check.py`), TF 내용, 표에 없는 연결(조정 노드의 TB-6 지도 구독, 판정 영상 중계 등)이다.
+- 이 도구가 보지 않는 것은 메시지가 실제로 오는 간격(`link_check.py`), TF 내용, 표에 없는 연결(판정 영상 중계, 웹캠 감시 서비스, 재확인 action 등)이다.
 - 시험은 `tests/test_field_wiring_check.py`(ROS 없이)와 `tests/ros/e3_wiring_check_probe.py`(가짜 노드 그래프, 도메인 193, LOCALHOST)다. 실제 PC 4대에서는 아직 돌리지 않았다(NOT_RUN).
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
