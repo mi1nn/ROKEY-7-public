@@ -354,7 +354,7 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 - **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22~−0.19 m 였다. 정지 띠(0.05~0.46 m)·감속 띠(0.23~1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25~0.66 m 다. 바닥 위 약 0.05~0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
 - Nav2 후진 복구. main 은 아직 turtlebot4 기본(후진 있음)이다. #267 이 머지된 뒤에도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
 - slam_toolbox 지도 리셋 서비스(Jazzy 판)가 있는지(위 「SLAM 지도 새로 시작」).
-- **임무마다 다시 arm.** 임무가 끝나면 실행기는 `STOP_LATCHED` 이고 `task_arm` 전까지 READY 가 아니다(`rescue_robot/executor.py:_finish`, `task_status.py`). 그런데 3단계는 arm 을 한 번만 한다. FRONTIER 의 짧은 목표마다(TB-6), 접근 뒤 출구 이동 전(TB-5) 다시 arm 해야 하는지 실기로 본다[코드 읽기]. 이슈 #233 3번, 결정 대기.
+- **정상 완료 뒤 자동으로 다시 준비(OPS-231, 재범 4등급 승인 2026-10-14).** 이동이 정상으로 끝나고 정지가 확인되면 실행기가 스스로 다시 준비한다(`rescue_robot/executor.py:rearm_after_completion`). 그래서 3단계의 arm 은 처음 한 번이면 된다. 실기에서 두 가지를 본다. TB-6 이 탐색 지점마다 멈추지 않고 이어 가는지, TB-5 가 사람 앞에 선 뒤 15 s(`support_exit_wait_s`)가 지나 출구로 출발하는지. 실패·취소·정지 버튼 뒤에는 지금처럼 `task_arm` 이 필요하다. 다시 준비가 거절되면 `RobotStatus.stop_reason` 에 `REARM_REFUSED_<이유>` 가 보인다. 이슈 #233 3번.
 
 ## 기록
 

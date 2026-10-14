@@ -27,7 +27,7 @@ SYNCED = {'state': 'SYNCED', 'error_bound_ns': 1_000_000}
 # A robot's own field values (robots.<id>): identity and its automatic target-move policy (#166).
 ROBOT_B = {'task.publisher_id': 'p', 'task.mapping_authority': 'm', 'task.live.auto_target.enabled': True,
            'task.live.auto_target.kinds': ['APPROACH_TARGET'], 'task.live.auto_target.goal_clear_radius_m': 0.2,
-           'task.live.auto_target.policy_version': 'p',
+           'task.live.auto_target.policy_version': 'p', 'task.live.auto_rearm': True,
            'task.live.sensor_host_clock_domain_id': 'rokey7-utc-field',
            'task.live.sensor_host_clock_error_bound_ns': -1,
            'task.saved_map.mode': 'FROZEN_MAP_AMCL', 'initial_pose_xy_yaw': [0.4, -0.3, 0.1],
