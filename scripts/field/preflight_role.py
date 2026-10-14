@@ -43,7 +43,9 @@ MODULES = {
     'slam': ('nav_msgs',),
     'perception': ('rescue_perception.amr_target', 'cv2', 'ultralytics'),
 }
-PACKAGES = {'command': ('turtlebot4_navigation',), 'slam': ('turtlebot4_navigation',)}  # launch includes
+# launch includes; robot.launch.py's FollowPath is Rotation Shim + RPP (rescue_bringup.nav2_field, 2026-10-14)
+PACKAGES = {'command': ('turtlebot4_navigation', 'nav2_rotation_shim_controller', 'nav2_regulated_pure_pursuit_controller'),
+            'slam': ('turtlebot4_navigation',)}
 PLACEHOLDER_GOAL = '[0.0, 0.0, 0.0]'
 
 

@@ -70,7 +70,8 @@ class RoleCase(unittest.TestCase):
         self.profile.write_text(json.dumps(raw))
         # A fake sourced install: <prefix>/share/<pkg>/package.xml
         self.prefix = self.dir / 'install'
-        for package in ('rescue_bringup', 'turtlebot4_navigation'):
+        for package in ('rescue_bringup', 'turtlebot4_navigation', 'nav2_rotation_shim_controller',
+                        'nav2_regulated_pure_pursuit_controller'):
             (self.prefix / 'share' / package).mkdir(parents=True)
             (self.prefix / 'share' / package / 'package.xml').write_text('<package/>')
         self.env = {'ROS_DISTRO': 'jazzy', 'AMENT_PREFIX_PATH': str(self.prefix), 'ROS_DOMAIN_ID': '7',
@@ -183,6 +184,13 @@ class Failures(RoleCase):
         checks = self.run_role('coordination', env={})
         self.assertStatus(checks, 'ros.distro', pr.FAILED)
         self.assertStatus(checks, 'ros.workspace', pr.FAILED)
+
+    def test_command_pc_needs_the_field_follow_path_controllers(self):
+        # robot.launch.py replaces DWB with Rotation Shim + RPP (재범 2026-10-14); both ship in Jazzy navigation2
+        for package in ('nav2_rotation_shim_controller', 'nav2_regulated_pure_pursuit_controller'):
+            self.assertStatus(self.run_role('compute_a'), 'pkg.' + package, pr.PASSED)
+            shutil.rmtree(self.prefix / 'share' / package)
+            self.assertStatus(self.run_role('compute_a'), 'pkg.' + package, pr.FAILED)
 
     def test_missing_module_or_package(self):
         checks = self.run_role('compute_a', specs=FakeSpecs(missing={'nav2_msgs'}))

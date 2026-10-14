@@ -15,7 +15,8 @@
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
 | TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | 없음(현장 파일 `robots.robot_b` 에서 찾음). 시험 회차에 잰다 | 아래 2단계 「TB-5 출발값 재기」 |
-| Nav2 복구에서 후진 빼기 | 미구현. main 은 turtlebot4 기본 복구(제자리 회전·후진)를 쓴다. PR #267 머지 대기 | #267(재범 승인 2026-10-14) |
+| Nav2 복구에서 후진 빼기 | 구현됨(#267 머지), 실기 NOT_RUN. 복구는 비용 지도 지우기 → 제자리 회전 → 대기 | `nav2_recovery.py`, #267(재범 승인 2026-10-14) |
+| Nav2 경로 따라가기(FollowPath) | 구현됨, 실기 NOT_RUN. DWB 대신 Rotation Shim + Regulated Pure Pursuit, 후진 없음. 값은 [제안] | `nav2_field.py`, 아래 「경로 따라가기」 |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |
 | 정적 프로파일 검사(`check_deployment`)·합성 리허설(`offline_demo`) | 구현됨. ROS·로봇 이동 없음 | `rescue_bringup/cli.py`, `offline_demo.py` |
 
@@ -268,6 +269,14 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
   - TB-5 깊이 `camera_info` 의 `header.frame_id` 는 `oakd_rgb_camera_optical_frame`(깊이가 RGB 에 정렬, TB-6 과 같음)이고 `base_link` 에서 TF 가 있다(x -0.060, z 0.244 m, 2026-10-13 확인). 확인 명령: `ros2 run tf2_ros tf2_echo base_link oakd_rgb_camera_optical_frame` (`/tf`·`/tf_static` 을 `<ns>/tf`·`<ns>/tf_static` 으로 remap). TF 가 없으면 깊이 점이 `base_link` 로 바뀌지 않아 통로 정지가 동작하지 않는다.
 - 필요한 것: 로봇 PC 의 `depth_image_proc`. TB-5 PC 에는 설치돼 있다(`ros-jazzy-depth-image-proc` 5.0.13, 2026-10-13 확인). 시험 중처럼 두 로봇을 그 PC 한 대에서 돌리면 TB-6 도 설치된 것이고, TB-6 을 다른 PC 에서 돌리면 그 PC 는 확인 전이다.
 - **복구 동작에 후진 없음(OPS-207, 재범 승인 2026-10-14 「오케이 그럼 빼자」):** 시나리오 ⑧ 「후진 없음」(원형 로봇이라 제자리 회전 + 전진), TB-5 뒤에는 따라오는 사람이 있다. `robot.launch.py`·`mapping_navigation.launch.py`·`localization_navigation.launch.py` 가 TurtleBot4 `nav2.yaml` 에서 `backup` 플러그인을 빼고, `bt_navigator` 를 이 패키지의 BT(`rescue_bringup/behavior_trees/*_no_backup.xml`, Nav2 Jazzy 기본 BT 에서 `BackUp` 한 줄만 뺀 것)로 바꾼다. 복구는 비용 지도 지우기 → 제자리 회전(1.57 rad) → 5 s 대기 순서다. 플러그인만 빼면 기본 BT 의 `BackUp` 노드가 없는 action server 를 기다리다 BT 를 못 올리므로 둘을 같이 바꾼다[Nav2 jazzy 소스 `bt_action_node.hpp`]. 로그: `+ no BackUp recovery`. `drive_on_heading`·`assisted_teleop` 은 남아 있다(음수 속도면 뒤로 갈 수 있지만, 우리 BT 와 코드는 부르지 않음). 이 경로 밖에서 Nav2 를 띄우는 `scripts/field/search-area/nav2_watchdog.launch.py`, `rescue_perception` 탐색 실습 `exploration/nav2.yaml` 에는 아직 후진이 있다. (이전 기록 2026-10-13: 복구 동작은 turtlebot4 기본 그대로, 작전 답.)
+- **경로 따라가기: DWB 대신 Rotation Shim + Regulated Pure Pursuit(재범 요청 2026-10-14 저녁, 실습 중 발견):**
+  - 무엇이 있었나. TB-6 을 RViz 로 ㄷ자 막다른 곳 안에서 그 뒷벽 너머 목표로 보내면, ㄷ 안에서 좌우로 고개만 돌리다 갇혔다. 전역 경로(초록)는 ㄷ 입구로 나가서 돌아가는 맞는 경로였다.
+  - 왜 그런가[추정]. TurtleBot4 `nav2.yaml` 의 DWB 는 목표 쪽 점수(GoalDist·GoalAlign 각 24)와 경로 쪽 점수(PathAlign·PathDist 각 32)를 같이 본다. 그래서 목표가 벽 너머면 두 쪽이 다툰다. 좌우로 흔들리다 진행 검사(10 s 에 0.5 m)에 걸리고, 복구는 회전과 대기뿐이다(후진 없음).
+  - 무엇을 바꿨나. `robot.launch.py`·`mapping_navigation.launch.py`·`localization_navigation.launch.py` 가 후진 제거와 같은 자리(`rescue_bringup/nav2_field.py`)에서 `controller_server.FollowPath` 를 통째로 바꾼다. RPP 는 경로 자체를 따라가고, 경로가 뒤로 시작하면 shim 이 먼저 제자리에서 돈다. TurtleBot4 원본 `nav2.yaml` 과 `config/robots` 기준 파일은 고치지 않았다.
+  - 값(모두 [제안], 근거는 바꾸기 전 DWB 값). `desired_linear_vel` 0.2 m/s(DWB 최고 0.26 이하), lookahead 0.3~0.6 m(기본 0.4), `angular_dist_threshold` 0.785 rad, 회전 1.0 rad/s(DWB `max_vel_theta`), 각가속 3.2(DWB `acc_lim_theta`), `use_collision_detection` true, `allow_reversing` false(OPS-207), `use_rotate_to_heading` false(shim 과 같이 쓸 때 끔, Nav2 문서). `controller_server` 공통 값(`enable_stamped_cmd_vel`, 진행 검사, 목표 판정 0.25 m·0.25 rad)은 그대로다.
+  - 현장 PC 확인. `ros2 pkg prefix nav2_rotation_shim_controller nav2_regulated_pure_pursuit_controller` 가 두 경로를 내야 한다(Jazzy navigation2 에 들어 있음, 현장 PC 설치 여부 미확인). `preflight_role.py` 가 `command` 역할 PC 에서 두 패키지를 본다. 로봇 Pi 에는 아무것도 설치하지 않는다.
+  - 로그: `+ no BackUp recovery + FollowPath Rotation Shim/RPP`.
+  - 확정 절차. 로봇 움직임이 바뀌는 설정이다. 재범 님 감독 아래 같은 ㄷ 자리에서 바꾸기 전(DWB, 이 변경 이전 main)과 후(Rotation Shim + RPP)를 같은 목표로 비교하고, 그 회차 기록 뒤에 확정한다(실기 NOT_RUN).
 
 성공 로그:
 - `TB-6 SLAM robot_a ns=/robot6`
@@ -407,7 +416,8 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 - Jazzy collision_monitor 의 `slowdown`·`sources_names` 동작(#260), 깊이 점이 실제로 `PassageStop`·`PassageSlow` 를 켜는지.
 - TB-6 라이다 높이 0.23 m(TB-5 줄자 실측을 같은 모델로 본 [추정]).
 - **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22 ~ −0.19 m 였다. 정지 띠(0.05 ~ 0.46 m)·감속 띠(0.23 ~ 1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25 ~ 0.66 m 다. 바닥 위 약 0.05 ~ 0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
-- Nav2 후진 복구. main 은 아직 turtlebot4 기본(후진 있음)이다. #267 이 머지된 뒤에도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
+- Nav2 후진 복구. #267 로 우리 launch 세 곳은 후진이 없다. 그래도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).
+- Nav2 경로 따라가기(Rotation Shim + RPP). ㄷ자 막다른 곳에서 바꾸기 전·후 비교, 좁은 통로·터널 앞 감속(`PassageSlow`)과 함께 도는지, `desired_linear_vel` 0.2 m/s 로 탐색 시간이 얼마나 늘어나는지를 본다. 위 두 경로(`nav2_watchdog.launch.py`, `exploration/nav2.yaml`)는 DWB 그대로다.
 - slam_toolbox 지도 리셋 서비스(Jazzy 판)가 있는지(위 「SLAM 지도 새로 시작」).
 - **정상 완료 뒤 자동으로 다시 준비(OPS-231, 재범 4등급 승인 2026-10-14).** 이동이 정상으로 끝나고 정지가 확인되면 실행기가 스스로 다시 준비한다(`rescue_robot/executor.py:rearm_after_completion`). 그래서 3단계의 arm 은 처음 한 번이면 된다. 실기에서 두 가지를 본다. TB-6 이 탐색 지점마다 멈추지 않고 이어 가는지, TB-5 가 사람 앞에 선 뒤 15 s(`support_exit_wait_s`)가 지나 출구로 출발하는지. 실패·취소·정지 버튼 뒤에는 지금처럼 `task_arm` 이 필요하다. 다시 준비가 거절되면 `RobotStatus.stop_reason` 에 `REARM_REFUSED_<이유>` 가 보인다. 이슈 #233 3번.
 

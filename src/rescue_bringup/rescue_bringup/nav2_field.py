@@ -1,0 +1,91 @@
+"""The Nav2 parameters our launches run with, on both robots; no ROS.
+
+TurtleBot4's nav2.yaml is read as is and changed here only:
+- no backup recovery (nav2_recovery, OPS-207);
+- controller_server.FollowPath = Rotation Shim + Regulated Pure Pursuit instead of DWB (재범 request,
+  2026-10-14 evening). Sent to a goal behind the back wall of a U-shaped dead end, TB-6 turned its head
+  left and right inside the U and got stuck although the global path went out through the entrance. DWB
+  scores GoalDist and GoalAlign (24 each) toward the goal against PathAlign and PathDist (32) along the
+  path [추정]; RPP follows the path itself, the shim turns in place first when the path starts behind.
+Anything unexpected is refused, never patched around. The values are [제안] until a supervised
+before/after run at the same spot (NOT_RUN).
+"""
+import copy
+
+from rescue_bringup.nav2_recovery import nav2_without_backup
+
+DWB = 'dwb_core::DWBLocalPlanner'
+SHIM = 'nav2_rotation_shim_controller::RotationShimController'
+RPP = 'nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController'
+# [제안] Nav2 Jazzy parameter names (Rotation Shim / Regulated Pure Pursuit configuration pages); the DWB block
+# it replaces: max_vel_x 0.26, max_vel_theta 1.0, acc_lim_theta 3.2, sim_time 1.7, xy_goal_tolerance 0.25.
+FOLLOW_PATH = {
+    'plugin': SHIM,
+    'primary_controller': RPP,
+    # shim: turn in place while the path heading is more than 45 deg off (Nav2 example value)
+    'angular_dist_threshold': 0.785,
+    'forward_sampling_distance': 0.5,
+    'rotate_to_heading_angular_vel': 1.0,      # = DWB max_vel_theta
+    'max_angular_accel': 3.2,                  # = DWB acc_lim_theta
+    'simulate_ahead_time': 1.0,                # collision check of the in-place turn
+    'rotate_to_goal_heading': False,           # the goal checker's 0.25 rad tolerance stays the judge
+    # RPP
+    'desired_linear_vel': 0.2,                 # under DWB max_vel_x 0.26; the watchdog limit is 0.3
+    'lookahead_dist': 0.4,
+    'min_lookahead_dist': 0.3,
+    'max_lookahead_dist': 0.6,
+    'lookahead_time': 1.5,
+    'use_velocity_scaled_lookahead_dist': False,
+    'transform_tolerance': 0.1,
+    'min_approach_linear_velocity': 0.05,
+    'approach_velocity_scaling_dist': 0.6,
+    'use_collision_detection': True,
+    'max_allowed_time_to_collision_up_to_carrot': 1.0,
+    'use_regulated_linear_velocity_scaling': True,
+    'use_cost_regulated_linear_velocity_scaling': False,
+    'regulated_linear_scaling_min_radius': 0.9,
+    'regulated_linear_scaling_min_speed': 0.1,
+    'use_rotate_to_heading': False,            # must be off with the shim (Nav2 docs)
+    'allow_reversing': False,                  # no reversing (OPS-207)
+    'max_robot_pose_search_dist': 10.0,
+}
+
+
+class Nav2FieldError(ValueError):
+    pass
+
+
+def nav2_with_rotation_shim(params):
+    """A copy of the Nav2 parameters whose FollowPath is Rotation Shim + RPP (the DWB block replaced whole)."""
+    params = copy.deepcopy(params)
+    try:
+        controller = params['controller_server']['ros__parameters']
+        plugins = list(controller['controller_plugins'])
+        follow = controller['FollowPath']
+    except (KeyError, TypeError):
+        raise Nav2FieldError('Nav2 parameters need controller_server controller_plugins and FollowPath') from None
+    if 'FollowPath' not in plugins:
+        raise Nav2FieldError(f'controller_server controller_plugins {plugins} has no FollowPath')
+    if not isinstance(follow, dict) or follow.get('plugin') != DWB:
+        raise Nav2FieldError(f'FollowPath is {follow.get("plugin") if isinstance(follow, dict) else follow!r}, '
+                             f'expected the TurtleBot4 {DWB} to replace')
+    controller['FollowPath'] = dict(FOLLOW_PATH)
+    return params
+
+
+def field_nav2(params):
+    """TurtleBot4 Nav2 parameters (dicts) -> the ones our launches run: no backup, Rotation Shim + RPP."""
+    return nav2_with_rotation_shim(nav2_without_backup(params))
+
+
+def write_field_nav2(base_path, *, prefix):
+    """Read the Nav2 yaml at ``base_path``, apply field_nav2, write a temporary yaml; returns its path."""
+    import tempfile
+    from pathlib import Path
+
+    import yaml
+
+    params = field_nav2(yaml.safe_load(Path(base_path).read_text()))
+    with tempfile.NamedTemporaryFile('w', prefix=prefix, suffix='.yaml', delete=False) as out:
+        yaml.safe_dump(params, out, sort_keys=False)
+    return out.name

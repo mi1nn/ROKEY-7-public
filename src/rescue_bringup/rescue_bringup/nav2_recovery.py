@@ -58,14 +58,3 @@ def nav2_without_backup(params, *, trees=None):
         navigator[key] = str(path)
     return params
 
-
-def write_nav2_without_backup(base_path, *, prefix):
-    """Read the Nav2 yaml at ``base_path``, strip the backup, write a temporary yaml; returns its path."""
-    import tempfile
-
-    import yaml
-
-    params = nav2_without_backup(yaml.safe_load(Path(base_path).read_text()))
-    with tempfile.NamedTemporaryFile('w', prefix=prefix, suffix='.yaml', delete=False) as out:
-        yaml.safe_dump(params, out, sort_keys=False)
-    return out.name

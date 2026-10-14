@@ -10,15 +10,15 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
-from rescue_bringup.nav2_recovery import write_nav2_without_backup
+from rescue_bringup.nav2_field import write_field_nav2
 
 
 def _nav2(context, shared_arguments):
     """TurtleBot4 Nav2 with nav2_params_file minus the backup recovery (OPS-207)."""
     base = LaunchConfiguration('nav2_params_file').perform(context)
-    params = write_nav2_without_backup(base, prefix='nav2_no_backup_')
+    params = write_field_nav2(base, prefix='nav2_field_')
     return [
-        LogInfo(msg=f'nav2_params={base} + no BackUp recovery -> {params}'),
+        LogInfo(msg=f'nav2_params={base} + no BackUp recovery + FollowPath Rotation Shim/RPP -> {params}'),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution([FindPackageShare('turtlebot4_navigation'), 'launch', 'nav2.launch.py'])
