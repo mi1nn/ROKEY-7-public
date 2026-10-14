@@ -43,6 +43,9 @@ def make_core(policy_changes=None, **changes):
                   frontier_issue_delay_ns=2_000_000_000, exploration_empty_checks=2,
                   exploration_timeout_ns=600_000_000_000,
                   completion_mode='RECHECK', support_start_pose=None,
+                  # traffic control DISABLED in the fixture; tests/test_coordination_traffic.py turns it on
+                  traffic_control='DISABLED', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
+                  traffic_yield_max_m=2.0, traffic_stop_timeout_ns=3_000_000_000,
                   search_start='OPERATOR',
                   new_id=lambda: uid(next(ids)))
     return ros_node.CoordinatorCore(mission.MissionCoordinator(search, home_positions=()), **(values | changes))

@@ -55,11 +55,15 @@ COORDINATOR_KEYS = {
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,
+    # Traffic control stage 1 (owner decision 2026-10-14, OPS-204·205): TB-5 first, it leads the rescuer
+    'traffic_control': S, 'traffic_min_separation_m': F, 'traffic_path_clearance_m': F, 'traffic_yield_max_m': F,
+    'traffic_stop_timeout_s': F,
 }
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
 COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')  # rescue_coordination.ros_node.COMPLETION_MODES
+TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'DISABLED')  # rescue_coordination.ros_node.TRAFFIC_CONTROLS
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
@@ -241,6 +245,13 @@ def load_field(path):
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
     if coordinator['completion_mode'] not in COMPLETION_MODES:
         raise FieldLaunchError(f'coordinator.completion_mode must be one of {list(COMPLETION_MODES)}')
+    if coordinator['traffic_control'] not in TRAFFIC_CONTROLS:
+        raise FieldLaunchError(f'coordinator.traffic_control must be one of {list(TRAFFIC_CONTROLS)}')
+    if coordinator['map_mode'] == 'SLAM_FREEZE' and coordinator['traffic_control'] != 'TB5_PRIORITY':
+        # two robots on one live map cross in the field; TB-5 leads the rescuer, so it goes first (OPS-204)
+        raise FieldLaunchError('coordinator.map_mode SLAM_FREEZE needs traffic_control TB5_PRIORITY')
+    if coordinator['traffic_path_clearance_m'] < coordinator['traffic_min_separation_m']:
+        raise FieldLaunchError('coordinator.traffic_path_clearance_m must be at least traffic_min_separation_m')
     if coordinator['patrol_rounds'] < 1:
         raise FieldLaunchError('coordinator.patrol_rounds must be 1 or more')
     if coordinator['search_start'] not in SEARCH_START_MODES:
@@ -256,7 +267,8 @@ def load_field(path):
                                    'task.live.auto_target.goal_clear_radius_m')
     for key in ('approach_standoff_m', 'support_pose_max_age_s', 'target_max_age_s', 'recheck_max_clock_error_s',
                 'freeze_clearance_m', 'map_freeze_timeout_s', 'exit_standoff_m', 'frontier_reach_m',
-                'frontier_goal_max_m', 'frontier_blacklist_m', 'exploration_timeout_s'):
+                'frontier_goal_max_m', 'frontier_blacklist_m', 'exploration_timeout_s', 'traffic_min_separation_m',
+                'traffic_path_clearance_m', 'traffic_yield_max_m', 'traffic_stop_timeout_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['support_exit_wait_s'] < 0:

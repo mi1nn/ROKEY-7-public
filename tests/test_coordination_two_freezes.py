@@ -26,11 +26,11 @@ R0, R1, R2, TRANSFORM = 3, 4, 5, 1
 B0, B1, B2 = (MAP, R0, TRANSFORM), (MAP, R1, TRANSFORM), (MAP, R2, TRANSFORM)
 
 
-def core_():
-    core = make_core(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
-                     map_mode='SLAM_FREEZE', freeze_clearance_m=CLEARANCE, map_freeze_timeout_ns=TIMEOUT,
-                     exit_standoff_m=EXIT_STANDOFF, search_mode='FRONTIER', frontier_issue_delay_ns=0,
-                     policy_changes=dict(executable_bases=frozenset({'FRONTIER'})))
+def core_(**changes):
+    core = make_core(**(dict(support_dispatch='AUTO', approach_standoff_m=1.0, support_pose_max_age_ns=POSE_AGE,
+                             map_mode='SLAM_FREEZE', freeze_clearance_m=CLEARANCE, map_freeze_timeout_ns=TIMEOUT,
+                             exit_standoff_m=EXIT_STANDOFF, search_mode='FRONTIER', frontier_issue_delay_ns=0,
+                             policy_changes=dict(executable_bases=frozenset({'FRONTIER'}))) | changes))
     core.mission.homes = {h.robot_id: h for h in (HomePosition(SCOUT, DOCK_XY, 0., MAP, R0, TRANSFORM),
                                                   HomePosition(SUPPORT, EXIT_XY, 0., MAP, R0, TRANSFORM))}
     return core
@@ -38,9 +38,10 @@ def core_():
 
 class Base(unittest.TestCase):
     START = (0., 0., 0.)  # TB-6 start pose in the map (OPS-141)
+    CORE = {}  # core_ changes of a subclass (traffic control)
 
     def setUp(self):
-        self.core = core_()
+        self.core = core_(**self.CORE)
         if self.START is not None:
             self.core.on_map_state(map_state(SCOUT, revision=R0))
             self.core.on_start_pose(self.START)
