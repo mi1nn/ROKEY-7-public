@@ -73,9 +73,9 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
         view['map'] = map_overlay(map_image.meta, view['robots'], view['targets'], view['exit'], view['passages'])
         # 마커 좌표를 임의로 보정하거나 누락하지 않음: map_overlay 투영 실패 항목은 화면에 경고로 노출한다.
         for where in view['map']['frame_mismatch']:
-            view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['id']} frame {where['frame_id']!r} ≠ 지도 frame")
+            view['warnings'].append(f"지도에 안 그림: {where['kind']} {where['name']} frame {where['frame_id']!r} ≠ 지도 frame")
         for where in view['map']['off_map']:
-            view['warnings'].append(f"지도 밖 좌표: {where['kind']} {where['id']} ({where['x']:.2f}, {where['y']:.2f})")
+            view['warnings'].append(f"지도 밖 좌표: {where['kind']} {where['name']} ({where['x']:.2f}, {where['y']:.2f})")
     if live is not None:
         # 실시간 지도가 미수신 상태일 때도 포함: 지도 패널에 실시간 지도 상태 메시지(MISSING / ERROR)를 표시한다.
         view['map']['live'] = live
