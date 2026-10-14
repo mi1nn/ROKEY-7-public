@@ -74,10 +74,10 @@ def _nodes(context):
         nodes += [Node(package='rescue_operations', executable='map_snapshot', name='rescue_map_snapshot',
                        output='screen', parameters=[_text_as_text(snapshot)]),
                   LogInfo(msg=f'console --live-map {snapshot["out_dir"]}/live_map.yaml --live-map-stale-s <s>')]
+    scout = next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SCOUT')
     view = robot_view_relay_parameters(
         robot_views=arg('robot_views'), bind_host=arg('video_bind_host'), port=arg('video_port'),
-        stale_s=arg('video_stale_s'), robot_ids=[robot.id for robot in deployment.robots],
-        default_robot=next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SCOUT'))
+        stale_s=arg('video_stale_s'), robot_ids=[robot.id for robot in deployment.robots], default_robot=scout)
     if view:   # 로봇 카메라 칸(OPS-191): 고른 로봇 하나의 판정 영상만 구독
         nodes += [Node(package='rescue_perception', executable='robot_view_relay', name='robot_view_relay',
                        output='screen', parameters=[_text_as_text(view)]),
@@ -87,7 +87,8 @@ def _nodes(context):
     if watch:   # 구독만(재범 허용 2026-10-13): 로봇 기본 토픽 직접 관측
         nodes += [Node(package='rescue_operations', executable='robot_watch', name='rescue_robot_watch',
                        output='screen', parameters=[_text_as_text(watch)]),
-                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s>')]
+                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s> '
+                              f'--robot-watch-map-robot {scout}')]   # 실시간 SLAM 지도 주인 = SCOUT
     return nodes
 
 
