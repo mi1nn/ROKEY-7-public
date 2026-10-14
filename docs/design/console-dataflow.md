@@ -6,7 +6,7 @@ updated: 2026-10-13
 
 # 관제 웹 데이터 흐름
 
-> 기준: main `4163a25`(2026-10-13, 웹캠 고르기·로봇 카메라 칸 머지 뒤). 줄 번호는 이 커밋 기준이다. 처리 규칙·문구·오류의 자세한 내용은 [관제 웹 설계 명세](console-spec.md), 리뷰 순서는 [관제 웹 코드 리뷰 준비](../process/console-code-review.md)에 있다.
+> 기준: main `4163a25`(2026-10-13, 웹캠 고르기·로봇 카메라 칸 머지 뒤). 줄 번호는 이 커밋 기준이다. 처리 규칙·문구·오류의 자세한 내용은 [관제 웹 설계 명세](console-spec.md)에 있다.
 > 이 문서는 코드를 읽어 적었다(E1). 로봇·ROS 를 띄워 토픽을 확인하지 않았다(NOT_RUN).
 
 ## 0. 먼저 한 줄
@@ -142,7 +142,7 @@ flowchart LR
 
 경로는 `src/rescue_console/rescue_console/` 아래다.
 
-| 파일 | 받는 것 | 하는 것 | 내보내는 것 | 리뷰 때 볼 곳 |
+| 파일 | 받는 것 | 하는 것 | 내보내는 것 | 볼 함수(줄) |
 | --- | --- | --- | --- | --- |
 | `__main__.py` | 명령행 인자, 환경 변수 `RESCUE_CONSOLE_SECRET` | 인자끼리 맞는지 검사(`--live-map`↔`--live-map-stale-s`, `--robot-watch`↔`--robot-watch-stale-s`, 장부 또는 `--site-state`), `create_app` 호출, 서버 기동 | 실패하면 stderr `CONSOLE FAILED: …` + 종료코드 2(서버를 띄우지 않음) | `main`(`__main__.py:17-98`) |
 | `app.py` | HTTP 요청(쿠키 세션, 폼), 기동 설정 | 라우트 13개, 로그인·세션 무효화·CSRF·보안 헤더, 폴링마다 `current_view` 로 화면 모델을 새로 만듦, 명령 중계 전 권한 검사, 페이지를 그릴 때 웹캠 목록·로봇 카메라 상태를 물음 | HTTP 응답(HTML·JSON·PNG), 로그 | `current_view`(`app.py:52-84`), `create_app`(`app.py:121-470`), `GET /`(`app.py:303-323`), `POST /commands`(`app.py:377-409`), `POST /webcam`(`app.py:338-349`), `POST /robot-camera`(`app.py:325-336`) |
@@ -181,4 +181,4 @@ flowchart LR
 - QoS 는 적지 않았다. 각 구독 줄(`rescue_operations/ros_node.py:211-230`)과 [계약](contracts.md)이 기준이다.
 - 직접 관측(B2)과 터널 판정(A7·A8)의 처리 규칙·문구는 [관제 웹 설계 명세](console-spec.md) 7.4.7·7.4.8·7.9·7.10·I-2·I-5, 웹캠 고르기(B7)와 로봇 카메라 칸(B6)은 7.12·I-6·I-7 에 있다.
 - [측정] `--robot-camera` 만 주고 `--camera`·`--camera-stale-s` 를 안 주면 기동은 되고 `GET /` 가 매번 503 `CONFIG_MISSING` 이다(설계 명세 9절).
-- 웹 시험 `tests/test_console_*.py` 14 파일 235 OK(skip 0) — 파일별 개수는 [관제 웹 코드 리뷰 준비](../process/console-code-review.md) 4절 [측정, 2026-10-13, main `4163a25` 합친 뒤, Python 3.13, Flask 3.1.3]. 이 문서의 사슬을 끝에서 끝까지 잇는 시험(ROS 발행 → 장부 → 화면)은 없다(NOT_RUN).
+- 웹 시험 `tests/test_console_*.py` 14 파일 235 OK(skip 0) [측정, 2026-10-13, main `4163a25` 합친 뒤, Python 3.13, Flask 3.1.3]. 이 문서의 사슬을 끝에서 끝까지 잇는 시험(ROS 발행 → 장부 → 화면)은 없다(NOT_RUN).

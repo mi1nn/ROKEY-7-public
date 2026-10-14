@@ -6,7 +6,7 @@ updated: 2026-10-13
 
 # 관제 웹(rescue_console) 설계 명세
 
-> 코드 리뷰에서 이 문서를 쓰는 순서와 주석·시험 증거는 [관제 웹 코드 리뷰 준비](../process/console-code-review.md)에 있다. 화면 예시는 [합성 데이터 스크린샷](../evidence/console-2026-10-13/02-dashboard.png)이다.
+> 노드·토픽에서 화면까지의 흐름 요약은 [관제 웹 데이터 흐름](console-dataflow.md), 화면 예시와 시험 기록은 [관제 웹 화면·시험 기록](../evidence/console-2026-10-13/README.md)에 있다.
 
 이 문서는 관제 웹 `rescue_console`(Flask 웹 서비스이고 ROS 노드가 아니다)을 **이 명세만 보고 같은 동작으로 다시 짤 수 있게** 적는다. 코드는 옮기지 않고 규칙·조건·문구·순서를 문장과 표로 적는다. 처음에는 `bd4bfa5` 를 보고 썼고 `32e8ee1` 에서 다시 확인했다. 2026-10-13 main `ede7f8b` 에서 그 뒤 들어온 로봇 직접 관측(`--robot-watch`)과 터널 판정 표시를 더했고(7.4.7·7.4.8·I-5), 이어 main `4163a25` 의 웹캠 고르기·로봇 카메라 칸을 더했다(7.12·I-6·I-7). **모든 줄 표기는 `4163a25` 기준이다**: 옛 표기가 가리키던 줄(웹·`rescue_operations/site_state.py`·`rescue_operations/ros_ingest.py` 는 `32e8ee1`, 그 밖은 `bd4bfa5`)을 diff 로 `ede7f8b` 에, 다시 `4163a25` 에 맞춰 옮기고, 옛 줄과 새 줄의 글자가 크게 다른 끝점은 손으로 열어 봤다(달라진 것은 주석 문장뿐이고 구조가 바뀐 3곳은 고쳤다). 노드·토픽에서 웹 화면까지의 사슬과 파일별 입출력 요약은 [관제 웹 데이터 흐름](console-dataflow.md)이다. 줄 표기 규칙: 접두어 없는 `app.py:…`·`view.py:…` 등은 `src/rescue_console/rescue_console/` 아래 파일, `rescue_operations/…` 는 `src/rescue_operations/rescue_operations/`, `rescue_bringup/…` 는 `src/rescue_bringup/rescue_bringup/`, `launch/…` 는 `src/rescue_bringup/launch/`, `README:…` 는 `src/rescue_console/README.md` 다. operations 쪽 노드(db_writer·report_node·map_snapshot)의 내부는 다루지 않고, 마지막 「웹이 기대는 인터페이스」 절에 웹이 기대는 계약(명령 API·현장 상태 DB 의 쓰는 열·`live_map.yaml`)만 적는다. 값의 출처 태그는 팀 `AGENTS.md` 5절을 따른다.
 
@@ -854,7 +854,7 @@ flowchart TD
 - `tests/test_console_webcam_switch.py` — ADMIN 은 꽂힌 카메라 목록(지금 것 선택)을 보고 CUSTOMER 는 못 봄, 재난 모드면 한 번 더 묻기, 바꾸기는 한 번 보내고 답을 그대로, 거절도 그대로, CUSTOMER 는 바꾸기 403, operations 꺼짐은 문구.
 - `tests/test_console_robot_camera.py` — http(s) 주소만, 칸에 고른 로봇 영상·선택지, 누구나 확인 창 없이 바꿈, CSRF 검사, 중계 꺼짐은 문구.
 - `tests/test_console_tunnel_map.py` — 세 상태의 낱말·색, 옛 revision 흐림, `current_map` 모름은 모두 진하게 + 경고, 지도 밖 터널은 목록, 표가 없으면 아무것도 안 그림.
-- 이 명세를 쓰면서 시험은 실행하지 않았다(미실행). 시험 실행 기록은 [관제 웹 코드 리뷰 준비](../process/console-code-review.md) 4절.
+- 웹 시험 `tests/test_console_*.py` 14 파일 235 OK(skip 0) [측정, 2026-10-13, main `4163a25` 합친 뒤, Python 3.13, Flask 3.1.3]. 그 전 기록은 [관제 웹 화면·시험 기록](../evidence/console-2026-10-13/README.md).
 - E3/E4: 운영 PC 에서 장부 없이 기동 PASS, 로봇 카드 2개 PASS, MJPEG 중계와 `--camera` PASS [측정 2026-10-13, `docs/evidence/field-2026-10-13-operations-host.md:25-27`, `:162-181`]. Firefox 눈 확인·웹캠 가림 「영상 끊김」·진동 → 재난 모드는 [대기](같은 문서 `:28-30`). 콘솔 → operations → 조정기 명령 왕복은 기록 없음 = NOT_RUN(검색: `docs/evidence`·`docs/process` 에서 `operator-commands`, `operator_command`, `/commands` — 운영 PC 기록의 db_writer 기동 로그 한 줄 말고 없음).
 
 ## 웹이 기대는 인터페이스 (operations 쪽)
