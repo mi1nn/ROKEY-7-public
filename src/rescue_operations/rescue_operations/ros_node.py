@@ -197,6 +197,10 @@ def main(args=None):
         return QoSProfile(depth=depth, reliability=getattr(ReliabilityPolicy, reliability),
                           durability=getattr(DurabilityPolicy, durability))
 
+    # 구독 콜백 공통 틀: 받은 메시지에 이 PC 의 수신 시각을 붙여 ingest 의 on_* 로 넘긴다.
+    # on_* 는 기록 결과(True/False)를 돌려주고, 형식이 틀려 거절했으면 None 을 돌려준다.
+    # 거절 사유는 on_* 가 error_log 표에 남기고(관제 웹의 명령·오류 기록에 보임), 여기서는 경고 로그만 쓴다.
+    # DB 자체가 실패하면 error_log 에도 쓸 수 없으므로 오류 로그만 남긴다.
     def handler(method, label):
         def on_message(msg):
             try:
@@ -208,6 +212,14 @@ def main(args=None):
                 log.warning(f'{label}: refused, see error_log')
         return on_message
 
+    # 구독 목록: 받는 토픽(메시지 타입, 보내는 노드) → ingest 함수 → 기록하는 현장 상태 DB 표.
+    # 관제 웹은 이 표들을 읽기 전용으로만 읽는다. 토픽 이름은 모두 launch 파라미터에서 온다.
+    #   site_events_topic   (SiteEvent, 고정 웹캠 webcam_node)          → on_site_event      → site_events
+    #   system_state_topic  (SystemState, mission_coordinator)          → on_system_state    → mission_state(1행)
+    #   targets_topic       (TargetSnapshot, mission_coordinator)       → on_target_snapshot → target_states
+    #   exit_location_topic (TargetLocation, QR 출구 exit_locator)      → on_exit_location   → exit_locations
+    #   map_state_topic     (MapState, SLAM 로봇의 task_input)          → on_map_state       → current_map(1행)
+    # 아래 두 반복문은 로봇마다 구독한다(터널 판정 목록, 로봇 상태·위치).
     subscriptions = [node.create_subscription(SiteEvent, config['site_events_topic'],
                                               handler(ingest.on_site_event, 'site_event'), qos('site_events')),
                      node.create_subscription(SystemState, config['system_state_topic'],
@@ -219,10 +231,14 @@ def main(args=None):
                                               qos('exit_location')),
                      node.create_subscription(MapState, config['map_state_topic'],
                                               handler(ingest.on_map_state, 'map_state'), qos('map_state'))]
+    # 로봇마다 터널 판정 목록(String JSON, overhead_passage 노드) → overhead_passage_lists·overhead_passages.
+    # 메시지가 어느 로봇의 목록인지 콜백이 알아야 해서 robot 을 람다 기본 인자로 묶는다(반복문 변수 늦은 바인딩 방지).
     for robot, topic in config['overhead_passages_topics'].items():
         on_list = handler(lambda msg, received_at_ns, robot=robot: ingest.on_overhead_passages(
             msg, robot_id=robot, received_at_ns=received_at_ns), robot + ' overhead_passages')
         subscriptions.append(node.create_subscription(String, topic, on_list, qos('overhead_passages')))
+    # 로봇마다 상태(RobotStatus)와 위치(RobotPose), 둘 다 로봇 PC 의 task_input(rescue_command_adapter)이 보낸다.
+    # 상태는 robot_status 표의 그 로봇 행을 통째로 바꾸고, 위치는 같은 행의 위치만 고친다(VALID 위치만 보이게).
     for robot, status_topic, pose_topic in config['robots']:
         subscriptions.append(node.create_subscription(
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))
