@@ -1,6 +1,6 @@
 ---
 title: 임무 상태 전이 — 조정기 코드 기준
-status: current   # 본문은 main 4163a25 의 조정기 코드 기준. 아래 「기록」 절은 2026-10-11 초안
+status: current   # 본문은 main 4163a25 의 조정기 코드 기준. 교통 관제 이유 코드는 main d217680 기준. 아래 「기록」 절은 2026-10-11 초안
 updated: 2026-10-14
 ---
 
@@ -78,11 +78,12 @@ TB-5 가 출구 대기(`WAITING`)에 들어가려면 도착 뒤 `support_exit_wa
 
 이유 칸에는 값 하나만 들어간다. 우선순위는 아래 순서다(`system_state_change`).
 
-1. 이번 tick 에 임무 발급을 막은 이유(`issue_block`)
+1. 이번 tick 에 임무 발급을 막은 이유(`issue_block`). 교통 관제 보류도 여기 들어간다. 두 로봇이 함께 보류되면 TB-5 의 이유를 보인다(`_hold`).
 2. 재기준한 인형의 재보고 대기(`TARGET_REBASED_ON_FREEZE`)
 3. 임무 끝 단계(`mission_reason`: 생존자 없음, TB-6 복귀, 판정, TB-5 출구)
 4. 탐색 상태(`_search_reason`)
 5. 웹캠 감시 재설정, 위치 관측 거절
+6. 두 로봇 간격 검사를 끈 채 TB-6 이 움직임(`TRAFFIC_SEPARATION_UNCHECKED`)
 
 | 단계 | 이유 코드 | 뜻 | 풀리는 조건 |
 | --- | --- | --- | --- |
@@ -109,7 +110,25 @@ TB-5 가 출구 대기(`WAITING`)에 들어가려면 도착 뒤 `support_exit_wa
 | 종료 | `NO_SURVIVOR_FOUND` | 탐색을 끝냈는데 인형이 없음 | — |
 | 공통 | `TASK_REFUSED` | 실행기가 임무를 거절해 잠시 대기 | `admission_timeout_s` 뒤 새 임무 |
 
-교통 관제 보류 코드(`TRAFFIC_*`)는 PR #272 에 있다. 머지되면 이 표에 더한다.
+### 교통 관제 이유 코드
+
+교통 관제(`traffic_control=TB5_PRIORITY`)는 지도 고정 현장 설정에서만 켠다. TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 따라가기 때문이다. 코드 목록은 `ros_node.py` 의 `TRAFFIC_REASONS` 10개다. 웹 문구는 `rescue_console/view.py` 의 `MISSION_REASONS` 에 있다(PR #286). 거리 값과 설정 이름은 [조정기 구현 기록](../implementation/implementation-coordination.md)에 있다.
+
+| 이유 코드 | 막는 로봇 | 뜻 | 풀리는 조건 |
+| --- | --- | --- | --- |
+| `TRAFFIC_SUPPORT_WAITING_SCOUT_STOP` | TB-5 | TB-5 경로 근처를 가던 TB-6 임무를 취소하고 정지를 기다림 | TB-6 임무 끝(CANCELED 등) |
+| `TRAFFIC_SCOUT_STOP_TIMEOUT` | TB-5 | 취소한 TB-6 이 `traffic_stop_timeout_s` 안에 서지 않음 | TB-6 정지. 현장 확인 필요 |
+| `TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD` | TB-5 | TB-6 을 TB-5 경로 밖으로 비키게 보냄 | TB-6 이 경로에서 `traffic_path_clearance_m` 밖 |
+| `TRAFFIC_SCOUT_YIELD_NO_SPACE` | TB-5, TB-6 | TB-6 이 비킬 자리가 `traffic_yield_max_m` 안에 없음. 두 로봇 모두 섬 | — (대체 동작 없음. 사람이 확인) |
+| `TRAFFIC_SCOUT_HELD_FOR_SUPPORT` | TB-6 | TB-6 의 새 목표가 TB-5 경로와 가까움 | TB-5 도착 또는 경로 변경 |
+| `TRAFFIC_ROBOTS_TOO_CLOSE` | TB-5, TB-6 | 두 로봇(또는 새 목표와 상대 로봇)이 `traffic_min_separation_m` 미만 | 거리가 벌어짐. TB-6 이 서 있으면 먼저 비킴 |
+| `TRAFFIC_SUPPORT_PATH_UNKNOWN` | TB-5 | 고정 지도에서 TB-5 격자 경로를 찾지 못함 | 경로가 생김 |
+| `TRAFFIC_SCOUT_POSE_UNKNOWN` | TB-5, TB-6 | TB-6 위치가 없거나 오래됨 | 새 TB-6 위치 |
+| `TRAFFIC_SUPPORT_POSE_UNKNOWN` | TB-6 | TB-5 위치가 없거나 오래됨 | 새 TB-5 위치 |
+| `TRAFFIC_SEPARATION_UNCHECKED` | (막지 않음) | TB-5 가 아직 움직인 적 없고 출발 자리도 측정하지 않아, TB-6 을 간격 검사 없이 보냄 | 현장 파일에 TB-5 출발 자리 측정값 |
+
+- 보류 코드는 새 명령만 막는다. 움직이는 명령을 취소하는 경우는 TB-5 경로 근처를 가는 TB-6 하나다.
+- `TRAFFIC_SEPARATION_UNCHECKED` 는 보류가 아니다. TB-6 목표를 보낼 때마다 조정기 기록에 `TRAFFIC_SEPARATION_UNCHECKED task=… goal=…` 을 남기고, 다른 이유가 없을 때 이유 칸에 보인다(팀 규칙 6, 조용한 대체 금지).
 
 ## 로봇 실행기 상태 (확인 필요: 통합-로봇)
 
