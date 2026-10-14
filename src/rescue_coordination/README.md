@@ -57,7 +57,7 @@
 - 조정기를 재기동하면 발급 장부·대상·보고·고정 단계가 사라진다(영속 복구 없음).
 - `ros_node.py` 가 약 2,500줄이다. 통합이 안정되면 기능별(지도 고정, 탐색, 출구, 교통 관제) 모듈로 나눌 후보다.
 
-토픽·파라미터·`reason_code` 대응표는 [구현 기록](../../docs/implementation/implementation-coordination.md)「임무 조정기 ROS 노드」에 있다.
+토픽은 [구현 기록](../../docs/implementation/implementation-coordination.md)「ROS 연결」, 파라미터와 현장 값은 「파라미터」, `reason_code` 대응표는 「운영자 명령 거절 코드」 절에 있다.
 
 ## 현장 연동 세부 (#132, 2026-10-12, 지금도 유효)
 
@@ -152,7 +152,7 @@ API와 시험용 fixture는 [`tests/test_coordination.py`](../../tests/test_coor
   - 보고에는 아직 저장 확인이 안 된 위치만 싣는다(#139).
   - report_node 의 `ReportReceipt` PERSISTED 가 와야 그 revision 의 `persisted_report_id` 가 생긴다. 그래야 AMR2 출동 승인(`DISPATCH_SUPPORT`)이 열린다.
 - **운영자 명령 관문**: `/rescue/operator_command`(SubmitOperatorCommand). 같은 command_id 는 첫 응답 그대로(`DUPLICATE`)다.
-- 확인 [측정 2026-10-13]: 로봇 없는 A·B 리허설에서 재난 신호부터 출동 승인 수락까지 7단계가 3회 모두 PASS 했다. 로봇 실행기·웹캠·AMR 카메라는 가짜였다. 자세한 것은 [구현 기록](../../docs/implementation/implementation-coordination.md)「지금 상태」에 있다.
+- 확인 [측정 2026-10-13]: 로봇 없는 A·B 리허설에서 재난 신호부터 출동 승인 수락까지 7단계가 3회 모두 PASS 했다. 로봇 실행기·웹캠·AMR 카메라는 가짜였다. 자세한 것은 [구현 기록](../../docs/implementation/implementation-coordination.md) 「기록」 절의 「지금 상태」에 있다.
 
 #### 지금 안 되는 것 (2026-10-13)
 
@@ -162,7 +162,7 @@ API와 시험용 fixture는 [`tests/test_coordination.py`](../../tests/test_coor
 - 소실 후보 → 재관측 자동 예약 → 구출 판정 연결은 없다(C-11 5·7행, C4 보류).
 - 상태는 메모리 안에만 있다. 조정기를 다시 띄우면 발급 장부·대상·보고가 사라진다(영속 복구 없음).
 
-토픽·파라미터·`reason_code` 대응표는 [구현 기록](../../docs/implementation/implementation-coordination.md)「임무 조정기 ROS 노드」에, 정책 코어(후보 선택·배정·통로 점유)는 같은 문서 앞 절에 있다.
+토픽은 [구현 기록](../../docs/implementation/implementation-coordination.md)「ROS 연결」, 파라미터는 「파라미터」, `reason_code` 대응표는 「운영자 명령 거절 코드」 절에 있다. 정책 코어(후보 선택·배정·통로 점유)의 옛 설명은 같은 문서 「기록」 절에 있다.
 
 ### 2026-10-08 기준 정책 코어 설명의 뒷부분 (일부는 지금 아님)
 
