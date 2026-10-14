@@ -238,10 +238,12 @@ class ParameterTests(unittest.TestCase):
     def test_values_stay_text_on_the_ros_command_line(self):
         # E3 rehearsal 2026-10-14: `-p traffic_control:=OFF` is read as YAML, OFF is the boolean false, and the
         # coordinator refused to start (InvalidParameterTypeException: BOOL, expecting STRING).
-        import yaml
+        # YAML 1.1 booleans (what the ROS command line reads), checked without PyYAML: CI has no yaml module.
+        yaml_booleans = {'y', 'n', 'yes', 'no', 'true', 'false', 'on', 'off'}
         for value in ros_node.TRAFFIC_CONTROLS:
             with self.subTest(value=value):
-                self.assertIsInstance(yaml.safe_load(value), str)
+                self.assertNotIn(value.lower(), yaml_booleans)
+        self.assertIn('off', yaml_booleans)   # the old name OFF, the one that failed in the rehearsal
         self.assertLessEqual({'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP', 'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD',
                               'TRAFFIC_SCOUT_YIELD_NO_SPACE', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT',
                               'TRAFFIC_ROBOTS_TOO_CLOSE', 'TRAFFIC_SUPPORT_PATH_UNKNOWN', 'TRAFFIC_SCOUT_POSE_UNKNOWN',
