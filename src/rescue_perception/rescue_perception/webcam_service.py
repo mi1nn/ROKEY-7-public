@@ -73,12 +73,15 @@ class WatchSlot:
         """요청 하나 처리. 같은 command_id 가 다시 오면(재전송) 처음 응답을 그대로 돌려줘 감시가 두 번 걸리지 않게 한다."""
         if req.command_id in self._replies:
             return self._replies[req.command_id]
+        # 처음 보는 요청이면 판단하고
         reply = self._decide(req, now_ns)
+        # 응답을 command_id 로 기억해 둔다 (빈 ID 는 기억하지 않음)
         if req.command_id:
             self._replies[req.command_id] = reply
         return reply
 
     def _reject(self, req, code, detail=""):
+        """거절 응답. 칸 번호는 지금 값 그대로 알려 준다."""
         return WatchReply(False, req.watch_id, self.revision, code, detail)
 
     def _decide(self, req, now_ns):
@@ -91,11 +94,13 @@ class WatchSlot:
             return self._reject(req, "INVALID_INPUT", "command_id empty or unknown association_method")
         if req.expected_watch_revision != self.revision:  # 요청자가 알고 있는 칸 번호가 지금과 다름
             return self._reject(req, "REVISION_MISMATCH")
+        # ROI 를 비교·저장하기 좋게 튜플로 바꾼다
         roi = tuple(req.roi_xyxy_normalized)
         # 해제: 지금 걸린 감시와 watch_id·ROI 가 정확히 같아야 한다
         if not req.enable:
             if self.watch is None or req.watch_id != self.watch.watch_id or roi != self.watch.roi_xyxy_normalized:
                 return self._reject(req, "WATCH_MISMATCH")
+            # 감시를 지우고 칸 번호 +1
             self._clear()
             return WatchReply(True, req.watch_id, self.revision, "ACCEPTED")
         # 걸기: ID·ROI 형식을 검사하고, 칸 번호를 1 올리고, 새 출구 판정기를 만든다(이전 무장·추적 상태는 버림)
@@ -104,6 +109,7 @@ class WatchSlot:
                               roi_xyxy_normalized=roi, watch_revision=self.revision + 1)
         except PerceptionError as exc:
             return self._reject(req, "INVALID_INPUT", exc.detail)
+        # 칸 번호 +1, 새 감시와 새 판정기로 바꾼다
         self.revision += 1
         self.watch = watch
         self.detector = TargetWatchDetector(self._binding, self._policy, watch)
@@ -112,9 +118,11 @@ class WatchSlot:
     def camera_changed(self):
         """카메라를 바꿨다(OPS-183): ROI 가 다른 화면을 가리키므로 활성 감시를 푼다."""
         self._clear()
+        # 새 카메라의 첫 프레임 크기를 새로 기록하도록 비운다
         self._image_size = None
 
     def _clear(self):
+        """감시를 지운다. 해제도 '바뀜'이라 칸 번호는 1 올린다."""
         self.revision += 1
         self.watch = None
         self.detector = None
@@ -125,6 +133,7 @@ class WatchSlot:
         ROI 는 화면 비율 좌표라 해상도가 바뀌면 다른 곳을 가리키게 된다. 그래서 감시를 지운다.
         """
         size = (width, height)
+        # 처음 보는 크기면 '바뀐 것'이 아니다
         changed = self._image_size is not None and size != self._image_size
         self._image_size = size
         if changed and self.watch is not None:
@@ -187,6 +196,7 @@ def boxes_from_xyxyn(rows, scores):
     for row, score in zip(rows, scores):
         if len(row) != 4:
             raise PerceptionError("INVALID_INPUT", "box must have 4 coordinates")
+        # 좌표 네 개를 검사하고 0 ~ 1 로 맞춘다
         x0, y0, x1, y1 = (_coord(v) for v in row)
         if x0 >= x1 or y0 >= y1:
             continue
