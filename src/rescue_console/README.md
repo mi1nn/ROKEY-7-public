@@ -21,7 +21,7 @@
 | 자동 출동(`--support-dispatch AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates` |
 | 운영자 명령 보내기 | 구현됨 · 실기 NOT_RUN | `commands.py:send_command`, `app.py:command` |
 | 조정기 사유 한국어 문구 | 구현됨 | `view.py:MISSION_REASONS`·`mission_reason` |
-| 교통 관제 사유(`TRAFFIC_*`) 한국어 문구 | 미구현(조정기 쪽은 #272 로 main 에 있음, 관제 웹 문구 추가만 남음) | #272 |
+| 교통 관제 사유(`TRAFFIC_*`) 한국어 문구 | 구현됨 | `view.py:MISSION_REASONS`, #272(조정기), #286 |
 
 ## 다른 기기에서 접속하기
 
