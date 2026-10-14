@@ -12,8 +12,8 @@
   - 실제로 돈 노드: `mission_coordinator`, `target_locator`, `db_writer`(+HTTP API), `report_node`. 관제 웹 화면은 같은 DB 로 만들었다.
   - **가짜였던 것**: 웹캠 DISASTER_SIGN(SYNCED·오차 5 ms 는 시험값), 두 로봇의 실행기와 RobotStatus, AMR 카메라 TargetObservation 과 TF. 영수증·TargetLocation·SystemState 는 가짜가 아니라 실제 노드가 냈다.
   - 스크립트 `tests/ros/e3_rehearsal_abc.py`(A·B·C 와 지도 고정 F 단계). 아래 결과는 main `782371d` 위에서 잰 것이다 [측정 2026-10-13, 3회]:
-    - SAVED_MAP A1~C5 11단계: 3회 모두 PASS, 단계마다 2.5 s 안쪽. 재난 신호부터 임무 FINISHED 까지 실제 조정기·target_locator·db_writer·report_node 가 이어진다.
-    - SLAM_FREEZE F1~F3: 3회 모두 PASS. 대상 저장 → 고정 호출 1회 → 고정 grid·TB-6 MapState R0+1 → R0 대상 보류(`TARGET_NOT_ON_FROZEN_MAP`) → R0+1 관측 다시 저장 → `SUPPORT_NOT_LOCALIZED` → TB-5 `APPROACH_TARGET`(map_revision 1).
+    - SAVED_MAP A1 ~ C5 11단계: 3회 모두 PASS, 단계마다 2.5 s 안쪽. 재난 신호부터 임무 FINISHED 까지 실제 조정기·target_locator·db_writer·report_node 가 이어진다.
+    - SLAM_FREEZE F1 ~ F3: 3회 모두 PASS. 대상 저장 → 고정 호출 1회 → 고정 grid·TB-6 MapState R0+1 → R0 대상 보류(`TARGET_NOT_ON_FROZEN_MAP`) → R0+1 관측 다시 저장 → `SUPPORT_NOT_LOCALIZED` → TB-5 `APPROACH_TARGET`(map_revision 1).
     - 가짜: 웹캠(DISASTER_SIGN·소실 후보·감시 슬롯은 실제 WatchSlot 규칙), 두 로봇 실행기·상태·TB-5 RobotPose, TB-6 카메라 관측·TF·MapState, 고정 서비스·고정 grid. 시계는 시험값(SYNCED, 5 ms).
     - 3회 중 1회 SLAM_FREEZE 실행 끝에 target_locator 가 SIGTERM 때 RCLError(context 무효)로 exit 1 이었다. 조정기 #154 와 같은 종류의 종료 경합이다(통합-인식 레인).
 - 출동 승인 관문: 확정(CONFIRMED)이고, 지금 revision 의 보고가 PERSISTED 이고, 운영자가 그 revision 으로 누를 때만 열린다.
@@ -59,14 +59,14 @@
 - RETURN_HOME: 복귀 위치는 `home_poses`(TB-6 도킹 접근 지점, TB-5 출구; 저장소 소유자 결정 2026-10-13 5A)로 받고, 로봇의 현재 지도 기준은 각 로봇의 MapState(#176)에서 받는다(이 PR 뒤).
   - 복귀 위치가 없으면 `NO_HOME_POSITION`, 로봇의 MapState 가 VALID 가 아니거나 지도 기준이 복귀 위치와 다르면 `HOME_BASIS_MISMATCH` 다. 다른 위치나 배치 기준으로 대신하지 않는다.
   - 수락돼도 task 는 아직 발급하지 않는다(C단계 판정 → 복귀 연결 뒤).
-- 웹캠 소실 후보 → TB-6 재확인 → 구출 판정 → TB-6 복귀(이 PR 뒤, 저장소 소유자 결정 2026-10-13 4A·5A): 수용된 후보가 그 대상의 CAMERA 재확인을 연다(C-11 5행, 운영자 재확인이 열려 있으면 기록만 10행). REOBSERVE_TARGET 이 COMPLETED 면 RecheckObservation 을 `verdict.judge` 로 판정한다(7~9행: 연결된 task·frame_ref·시각 기준과 순서(`recheck_max_clock_error_s`)·카메라 ABSENT·LiDAR CLEAR·범위 VALID). 관측이 없으면 `RECHECK_NEEDED`(`RECHECK_OBSERVATION_MISSING`)로 닫고, COMPLETED 가 아니면 새 task. 판정마다 노드 로그에 `VERDICT target=… state=… reason=… source=… link=… task=…` 한 줄, `SystemState.reason` 은 `RECHECK_NEEDED_<이유>`. RESCUE_CONFIRMED 뒤 TB-6 에 `RETURN_HOME`(`home/<robot_id>`, 도킹 접근 지점, 도킹은 사람이 함) 하나 → `SCOUT_RETURNING` → `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND`. TB-6 도착과 TB-5 출구 도착이 모두면 phase `FINISHED`·mode `MISSION_FINISHED`. 운영자 재확인(11행)은 조정기 자신의 시계를 이 경로에서 재지 않아 늘 `CANDIDATE_TIME_BASIS_UNUSABLE`(동결 뒤 후보: live_inputs 시계 사용).
+- 웹캠 소실 후보 → TB-6 재확인 → 구출 판정 → TB-6 복귀(이 PR 뒤, 저장소 소유자 결정 2026-10-13 4A·5A): 수용된 후보가 그 대상의 CAMERA 재확인을 연다(C-11 5행, 운영자 재확인이 열려 있으면 기록만 10행). REOBSERVE_TARGET 이 COMPLETED 면 RecheckObservation 을 `verdict.judge` 로 판정한다(7 ~ 9행: 연결된 task·frame_ref·시각 기준과 순서(`recheck_max_clock_error_s`)·카메라 ABSENT·LiDAR CLEAR·범위 VALID). 관측이 없으면 `RECHECK_NEEDED`(`RECHECK_OBSERVATION_MISSING`)로 닫고, COMPLETED 가 아니면 새 task. 판정마다 노드 로그에 `VERDICT target=… state=… reason=… source=… link=… task=…` 한 줄, `SystemState.reason` 은 `RECHECK_NEEDED_<이유>`. RESCUE_CONFIRMED 뒤 TB-6 에 `RETURN_HOME`(`home/<robot_id>`, 도킹 접근 지점, 도킹은 사람이 함) 하나 → `SCOUT_RETURNING` → `SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND`. TB-6 도착과 TB-5 출구 도착이 모두면 phase `FINISHED`·mode `MISSION_FINISHED`. 운영자 재확인(11행)은 조정기 자신의 시계를 이 경로에서 재지 않아 늘 `CANDIDATE_TIME_BASIS_UNUSABLE`(동결 뒤 후보: live_inputs 시계 사용).
 - `route_segment_passage_free` 는 ROS 파라미터로 빈 배열을 줄 수 없다(`-p`·`--params-file` 모두 값 없음 → 기동 거절) [측정, 통합-로봇 2026-10-13]. 모든 구간을 보류하려면 모두 `false` 로 준다. 아래 파라미터 표의 문구는 #148 머지 때 함께 고쳐진다.
 
 **열려 있는 PR (이 레인)**
 
 - #148: 웹캠 감시 지정(SetCameraWatch).
   - 운영자 `SET_CAMERA_WATCH` 마다 `watch_id` 를 발급한다. 재난 모드에서만 받는다.
-  - 소실 후보를 받을지 판단한다(C-11 2~4행). 끝나면 해제한다.
+  - 소실 후보를 받을지 판단한다(C-11 2 ~ 4행). 끝나면 해제한다.
   - 새 파라미터 `camera_watch_timeout_s`(필수)·`camera_watch_roi`(생략 가능, 생략하면 요청 ROI 만).
   - 머지 전 main 에서는 `SET_CAMERA_WATCH` 가 아래 대응표대로 `INVALID_INPUT` 이다.
 - #154: SIGTERM 으로 끌 때 context 가 이미 닫힌 뒤 나는 RCLError 를 정상 종료로 본다. 그 밖의 오류는 그대로 낸다.
@@ -248,7 +248,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `map_mode` | string | `SLAM_FREEZE`(탐색 SLAM → 대상 저장 뒤 지도 고정 → 고정 지도에서만 TB-5 출동) 또는 `SAVED_MAP`(launch `goal_map_*` 기준 하나). 현장 `SLAM_FREEZE` [근거: 저장소 소유자 결정 2026-10-13, scope Q-29] |
 | `freeze_clearance_m` | double | 고정 지도에서 접근 지점·출구·도킹 접근 지점이 비어 있어야 하는 반지름. 로봇 `task.live.auto_target.goal_clear_radius_m` 과 같아야 한다(현장 launch 가 검사). 현장 0.2 |
 | `map_freeze_timeout_s` | double | 고정 요청 뒤 응답·고정 지도·TB-6 MapState 가 맞기까지 기다리는 시간. 넘으면 `MAP_FREEZE_FAILED`. 현장 10.0 [제안: 통합-조정 2026-10-13, 미측정] |
-| `recheck_max_clock_error_s` | double | C-11 8행: 후보와 재확인 관측의 시계 오차 합 상한. 넘으면 `CANDIDATE_TIME_BASIS_UNUSABLE`. 현장 제안 2.0 [근거: 측정 웹캠 PC 271~365 ms + TB-6 탐지 PC 385~465 ms + Pi, 2026-10-13] |
+| `recheck_max_clock_error_s` | double | C-11 8행: 후보와 재확인 관측의 시계 오차 합 상한. 넘으면 `CANDIDATE_TIME_BASIS_UNUSABLE`. 현장 제안 2.0 [근거: 측정 웹캠 PC 271 ~ 365 ms + TB-6 탐지 PC 385 ~ 465 ms + Pi, 2026-10-13] |
 | `observe_goal` | double[] | 재관측 지점 `[x, y, yaw]` |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | string, int, int | 위 목표들의 지도 기준 |
 | `merge_distance_m` | double | 대상 병합 거리(Q-21) |
@@ -279,4 +279,4 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `tests/ros/e3_report_gate_probe.py` (#151) | 실제 조정기 + 실제 report_node: PERSISTED → `persisted_report_id` → DISPATCH_SUPPORT 수락, 보고 크기 |
 | `tests/ros/e3_target_locator_probe.py` (#142) | 가짜 관측 + TF → target_locator → 조정기 대상 |
 | `tests/ros/e3_camera_watch_probe.py` (#148) | 실제 조정기 + 웹캠 `WatchSlot` 그대로: 재난 모드에서만, ROI 없으면 거절, 후보 → 해제 |
-| `tests/ros/e3_rehearsal_abc.py` | A·B·C 전체(SAVED_MAP)와 지도 고정 F1~F3(SLAM_FREEZE), 위 「지금 상태」 |
+| `tests/ros/e3_rehearsal_abc.py` | A·B·C 전체(SAVED_MAP)와 지도 고정 F1 ~ F3(SLAM_FREEZE), 위 「지금 상태」 |

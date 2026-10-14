@@ -6,7 +6,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 
 ## 현재 단계
 
-범위·구조·계약 설계에 이어 **배포 프로파일 검사, 로봇 명령/정지 판정, 3D 좌표·지도 revision, RGB-D 관측, 임무 배정/통로, 보고 영속 저장의 Python 코어**를 구현했다. 두 논리 로봇을 연결한 합성 입력 리허설도 실행할 수 있다. 공통 ROS 메시지·서비스·액션은 [rescue_interfaces](src/rescue_interfaces/README.md)에 1차 IDL을 정의했다. 실제 SLAM·Nav2·센서/모델 추론·ROS 노드·원격 통신 연결은 미구현이다. 자동 접근은 백엔드 미연동으로 차단한다. 원본 코드는 복사하지 않고 선택한 원리와 실패 경험을 고정 URL로 추적했다. **계획 PR 5~10의 E2 부분 구현이며 두 실제 AMR·4 PC 시연 완료가 아니다.**
+범위·구조·계약 설계에 이어 **배포 프로파일 검사, 로봇 명령/정지 판정, 3D 좌표·지도 revision, RGB-D 관측, 임무 배정/통로, 보고 영속 저장의 Python 코어**를 구현했다. 두 논리 로봇을 연결한 합성 입력 리허설도 실행할 수 있다. 공통 ROS 메시지·서비스·액션은 [rescue_interfaces](src/rescue_interfaces/README.md)에 1차 IDL을 정의했다. 실제 SLAM·Nav2·센서/모델 추론·ROS 노드·원격 통신 연결은 미구현이다. 자동 접근은 백엔드 미연동으로 차단한다. 원본 코드는 복사하지 않고 선택한 원리와 실패 경험을 고정 URL로 추적했다. **계획 PR 5 ~ 10의 E2 부분 구현이며 두 실제 AMR·4 PC 시연 완료가 아니다.**
 
 | 문서 | 확인할 내용 |
 | --- | --- |
@@ -25,8 +25,8 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [AMR1 자율 탐색 후보](docs/implementation/amr1-exploration-candidates.md) | 무지도 환경의 탐색 알고리즘 5개, 구현·논문 근거, 비교 순서와 미검증 관문 |
 | [AMR1 explore_lite 단독 시험](docs/implementation/amr1-explore-lite-field-test.md) | robot6 단독 탐색의 실행·중단 절차, 미실행 관문과 PR 결과 댓글 양식 |
 | [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
-| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 00 통합도: AMR1 지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료 위치의 E2E 이후 PM 요구안. PC3대 복제 00은 웹캠·관제·DB·로컬 브라우저를 PC3에 통합하고 전용 Discovery PC4를 추가(응용 PC 3 + 서버 PC 1). JSON·CSV·그림 정합 검사, 두 00은 보존, 01~11 상세도는 PC3대 기준으로 통일 |
-| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
+| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 00 통합도: AMR1 지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료 위치의 E2E 이후 PM 요구안. PC3대 복제 00은 웹캠·관제·DB·로컬 브라우저를 PC3에 통합하고 전용 Discovery PC4를 추가(응용 PC 3 + 서버 PC 1). JSON·CSV·그림 정합 검사, 두 00은 보존, 01 ~ 11 상세도는 PC3대 기준으로 통일 |
+| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ① ~ ⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01 ~ 11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
 | [관제 웹 설계 명세](docs/design/console-spec.md) | 관제 웹(`rescue_console`) 모듈별 책임·인자·라우트·상태·입출력·처리 규칙·순서도·오류 처리. 이 문서만 보고 다시 짤 수 있는 수준이 목표 |
 | [관제 웹 아키텍처](docs/design/console-architecture.md) | 관제 웹의 구성 요소와 프로세스 경계, 흐름 그림 3장(상태·조회 / 명령 / 영상), 관제 웹으로 오는 사슬(발행 노드 → 토픽 → db_writer → 현장 상태 DB 표 → 웹 파일 → 화면 칸)과 DB 를 거치지 않는 입력, 웹이 내보내는 것, 웹 파일·핵심 클래스와 함수·상수, 설계 판단, 알려진 한계 |

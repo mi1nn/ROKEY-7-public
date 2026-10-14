@@ -179,7 +179,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | --- | --- | --- | --- |
 | 로그인 | `username` | 문자열 | 계정 DB 의 `username` 과 정확히 같아야 한다(대소문자 구분). 잠금 키에는 소문자로 바꾸고 앞뒤 공백을 뺀 값을 쓴다(`throttle.py:40-42`) |
 | 로그인 | `password` | 문자열 | PBKDF2 로 비교한다(7.7) |
-| 계정 추가·수정 | `username` | 문자열 | 정규식 검사. 소문자로 시작하고, 그 뒤에 소문자·숫자·`_` `.` `-` 가 2~31자 온다. 전체 3~32자(`accounts.py:30`, `:93-96`) |
+| 계정 추가·수정 | `username` | 문자열 | 정규식 검사. 소문자로 시작하고, 그 뒤에 소문자·숫자·`_` `.` `-` 가 2 ~ 31자 온다. 전체 3 ~ 32자(`accounts.py:30`, `:93-96`) |
 | 계정 추가·수정 | `password` | 문자열 | 8자 이상(`accounts.py:63-70`). 수정할 때 빈 값이면 바꾸지 않는다(`app.py:462`) |
 | 계정 추가·수정 | `role` | 문자열 | ADMIN 또는 CUSTOMER(`accounts.py:28`) |
 | 계정 수정 | `status` | 문자열 | ACTIVE 또는 INACTIVE(`accounts.py:29`) |
@@ -187,7 +187,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | 계정 추가·수정 | `email` | 문자열 | 128자 이하, 줄바꿈 없음. 빈 값이거나 `이름@호스트.최상위` 형태(`accounts.py:32`, `:104-107`) |
 | 명령 | `kind` | 문자열 | `COMMAND_FIELDS` 의 다섯 종류 중 하나(`commands.py:27-33`, `:98-100`) |
 | 명령 | 그 밖의 키 | — | `csrf`·`kind`·해당 종류의 필드 외에 다른 키가 하나라도 있으면 거절한다(`commands.py:101-104`) |
-| 명령 | `target_id` | 문자열 | 1~128자, 출력 가능한 문자, 공백 없음(`commands.py:78-81`). UUID 인지는 operations 가 검사한다 |
+| 명령 | `target_id` | 문자열 | 1 ~ 128자, 출력 가능한 문자, 공백 없음(`commands.py:78-81`). UUID 인지는 operations 가 검사한다 |
 | 명령 | `target_revision`, `route_revision`, `segment_index` | 10진 숫자 문자열 | ASCII 숫자만 허용하고(음수·소수 불가) 정수로 바꾼다(`commands.py:84-89`). 상한은 operations 가 검사한다 |
 
 #### 5.3 파일 입력
@@ -314,7 +314,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | 임무 배너 `#mission` | band | 1행, 왼쪽 두 열 | 모드 표시 문구(큰 글씨), 사실 줄(트리거·경과·진동 감지 건수·단계·구간·사유), 모드 설명, 오른쪽 끝의 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
 | 위쪽 막대 `#topbar` | top | 1행, 오른쪽 열 | 갱신 상태, KPI-04 요약·저장, 사용자 |
 | 확인할 것 `#warnings` | warn | 2행, 왼쪽 두 열 | 경고가 없으면 숨긴다. 「확인할 것 {n}」 뒤에 경고들을 「／」로 이어 한 줄로 표시 |
-| 옆 칸 `#side` | side | 2~4행, 오른쪽 열 | 위에 웹캠, 가운데에 로봇 카메라, 아래에 명령 칸 |
+| 옆 칸 `#side` | side | 2 ~ 4행, 오른쪽 열 | 위에 웹캠, 가운데에 로봇 카메라, 아래에 명령 칸 |
 | 지도 `#map` | map | 3행, 왼쪽 열 | 범례, SVG 지도(요구조자·출구(QR) 관측·로봇 마커), 지도 설명 줄, 「지도에 그리지 못한 위치」 목록 |
 | 가운데 `#middle` | middle | 3행, 가운데 열 | 위에 로봇 카드(넘치면 칸 안에서 스크롤), 아래에 요구조자(최소 240px) |
 | 사건 기록 `#events` | log | 4행, 왼쪽 열 | 사건 표(칸 안에서 스크롤) |
@@ -335,7 +335,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 4. `--robot-watch` 와 `--robot-watch-stale-s`, `--live-map` 과 `--live-map-stale-s` 는 각각 둘 중 하나만 주면 `INVALID_INPUT` 오류를 낸다(`__main__.py:76-79`).
 5. `--camera` 값마다 `parse_camera` 를 적용하고, `--robot-name` 값마다 `parse_robot_name` 을 적용한 뒤 중복을 검사한다.
 6. `create_app` 을 호출한다(7.2).
-7. 2~6 단계에서 `ConsoleError` 가 나면 표준 오류에 `CONSOLE FAILED: …` 를 쓰고 2 를 반환한다. 서버는 띄우지 않는다.
+7. 2 ~ 6 단계에서 `ConsoleError` 가 나면 표준 오류에 `CONSOLE FAILED: …` 를 쓰고 2 를 반환한다. 서버는 띄우지 않는다.
 8. `--operations` 가 없으면 표준 오류에 안내 한 줄을 쓴다.
 9. Flask 개발 서버를 디버그 모드를 끈 채 `--host`·`--port` 로 띄운다. 서버가 끝나면 0 을 반환한다.
 
@@ -370,7 +370,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 6. 지도가 있으면 `map` 을 `map_overlay`(지도 meta, 로봇 행, 대상 행, 화면 모델의 `exit`, 화면 모델의 `passages`)의 결과로 바꾼다(`app.py:73`). 지도와 frame 이 다른 좌표마다 경고 「지도에 안 그림: {robot·target·exit·passage} {ID} frame '{frame}' ≠ 지도 frame」를 붙이고, 지도 밖 좌표마다 경고 「지도 밖 좌표: {kind} {ID} ({x}, {y})」를 붙인다(좌표는 소수 둘째 자리까지). 출구는 ID 자리에 「출구(QR)」를 쓴다.
 7. live 상태가 있으면 `map.live` 로 붙인다. 그 `message` 가 비어 있지 않으면 경고에도 붙인다.
 - `load_site_state` 는 읽기 9개를 하나씩 따로 열어 차례로 실행한다(5.3). 그래서 한 번의 폴링 안에서도 표끼리 한 행씩 어긋날 수 있고, 이 어긋남은 다음 폴링에서 맞춰진다(`sources.py:78-82`). 읽기 중 하나라도 `OperationsError` 를 내면 전체가 `STORAGE_ERROR` 가 된다. 역할이나 스키마가 다른 DB(`POLICY_MISMATCH`)도 화면에는 `STORAGE_ERROR` 로 표시된다.
-- 폴링 한 번에 드는 비용은 현장 상태 DB 연결 9번 + (장부 1번) + (직접 관측 파일 읽기 1번) + 계정 DB 연결 1번(`user()`) + 실시간 지도 stat 1~2번이다.
+- 폴링 한 번에 드는 비용은 현장 상태 DB 연결 9번 + (장부 1번) + (직접 관측 파일 읽기 1번) + 계정 DB 연결 1번(`user()`) + 실시간 지도 stat 1 ~ 2번이다.
 
 #### 7.4 `build_view` (`view.py:692-790`) — 입력에서 화면 모델 만들기
 
@@ -527,12 +527,12 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 2. 임무의 `source` 가 `mission_state` 가 아니면(임무 행이 없으면) 「임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐」으로 끈다.
 3. 모드가 DISASTER 가 아니면 「재난 모드 아님 ({모드 낱말})」으로 끈다.
 4. 명령별 규칙(아래)을 적용한다.
-5. `command_gates`(`view.py:604-622`)는 명령마다 먼저 1~4 로 판정한 뒤 두 AUTO 검사를 아래 순서로 본다. AUTO 검사에 걸리면 앞의 판정 결과를 버리고 상태 행으로 바꾼다(`args` {}, `choices` [], 꺼짐, `auto: true`). 화면은 이 행을 버튼 대신 점선 상자 한 줄로 그린다.
+5. `command_gates`(`view.py:604-622`)는 명령마다 먼저 1 ~ 4 로 판정한 뒤 두 AUTO 검사를 아래 순서로 본다. AUTO 검사에 걸리면 앞의 판정 결과를 버리고 상태 행으로 바꾼다(`args` {}, `choices` [], 꺼짐, `auto: true`). 화면은 이 행을 버튼 대신 점선 상자 한 줄로 그린다.
    - 명령이 DISPATCH_SUPPORT 이고 `--support-dispatch AUTO` 이면(`view.py:606-613`) 표시 문구를 「{S} 자동 출동」, 사유를 「{S} 자동 출동 — 조정기가 보냄」으로 둔다.
    - 명령이 START_SEARCH 이고 `--search-start AUTO` 이면(`view.py:614-620`) 표시 문구를 「{C} 자동 출발」({C} 는 정찰 로봇 이름이고, 없으면 「SCOUT」), 사유를 「{C} 자동 출발 — 지진 감지로 조정기가 수색 시작」으로 둔다. 이때 조정기는 운영자가 보낸 START_SEARCH 를 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절한다(`README:50`).
    - 두 검사는 확인하는 행 이름이 서로 달라서 한 행이 두 검사에 모두 걸리지는 않는다. 행은 `COMMANDS` 순서를 그대로 따르므로, 승인 묶음에서는 수색 시작 상태 줄이 출동 승인(버튼 또는 상태 줄)보다 위에 온다.
 
-아래 표는 모드가 DISASTER 이고 임무 행이 있을 때 명령과 phase 에 따른 판정이다. 「D」「C」「R」 은 phase 와 상관없는 조건이고 표 아래에 적었다. `--search-start AUTO` 이면 「수색 시작」 열이, `--support-dispatch AUTO` 이면 「출동 승인」 열이 모드·phase 와 상관없이 5번의 상태 행이 된다. 1~3 에서 꺼진 경우에도 마찬가지다.
+아래 표는 모드가 DISASTER 이고 임무 행이 있을 때 명령과 phase 에 따른 판정이다. 「D」「C」「R」 은 phase 와 상관없는 조건이고 표 아래에 적었다. `--search-start AUTO` 이면 「수색 시작」 열이, `--support-dispatch AUTO` 이면 「출동 승인」 열이 모드·phase 와 상관없이 5번의 상태 행이 된다. 1 ~ 3 에서 꺼진 경우에도 마찬가지다.
 
 | phase | 수색 시작 | 출동 승인 | 다음 구간 계속 | 재확인 지시 | 복귀 |
 | --- | --- | --- | --- | --- | --- |
@@ -631,7 +631,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 1. YAML 을 byte 로 읽는다(실패하면 `STORAGE_ERROR` 「map file unreadable: …」). UTF-8 이 아니면 `INVALID_INPUT` 이다.
 2. `parse_map_yaml`(`mapimage.py:49-77`)은 줄마다 `#` 뒤를 버리고 빈 줄은 건너뛴다. 들여쓴 줄, `:` 가 없는 줄, 값이 빈 줄은 거절한다. 키는 `image`·`mode`·`resolution`·`origin`·`negate`·`occupied_thresh`·`free_thresh` 만 받는다(다른 키와 중복 키는 거절한다). 값이 `[` 로 시작하면 `]` 로 끝나야 하고, 쉼표로 나눈 스칼라 목록으로 읽는다. 스칼라는 따옴표 문자열 → int → float → 문자열 순서로 해석한다. `image`·`resolution`·`origin` 이 없으면 거절한다.
 3. `origin` 은 수 3개의 목록이어야 하고, 셋째 값(yaw)은 정확히 0.0 이어야 한다. `resolution` 은 유한한 양수여야 한다. `negate` 는 0 또는 1 이다(없으면 0). `image` 는 빈 값이 아닌 문자열이고, 상대 경로면 YAML 이 있는 폴더를 기준으로 한다.
-4. PGM(`mapimage.py:86-121`)의 헤더 토큰은 4개다(주석 `#…` 은 건너뛴다). 차례로 `P5`, 폭, 높이, maxval(1~255)이다. 헤더 뒤 공백 1 byte 다음부터가 화소이고, 화소 개수는 정확히 폭 × 높이여야 한다. 그렇지 않으면 `INVALID_INPUT` 이다.
+4. PGM(`mapimage.py:86-121`)의 헤더 토큰은 4개다(주석 `#…` 은 건너뛴다). 차례로 `P5`, 폭, 높이, maxval(1 ~ 255)이다. 헤더 뒤 공백 1 byte 다음부터가 화소이고, 화소 개수는 정확히 폭 × 높이여야 한다. 그렇지 않으면 `INVALID_INPUT` 이다.
 5. maxval 이 255 가 아니면 화소 값을 화소 × 255 ÷ maxval 로 환산한다(내림). `negate` 이면 255 − 화소로 뒤집는다.
 6. PNG(`mapimage.py:124-136`)는 8-bit 회색조이고, 각 행 앞에 필터 0 을 두며, zlib 9 로 압축하고, IHDR·IDAT·IEND 로 구성한다.
 7. meta 는 {source(YAML 이름), image(PGM 이름), width_px, height_px, resolution, origin, frame_id = `map`, mode, yaml_sha256, pgm_sha256, url = `map.png?v={pgm_sha256 앞 12자}`}이다.
@@ -678,7 +678,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 로봇 카드(`render.py:327-365`)는 배치된 로봇마다 하나씩 그린다. 카드 헤더에는 표시 이름(큰 글씨), 역할 표시 문구, robot_id 를 쓴다.
 - 상태가 없고 직접 관측이 있으면(7.4.7) `unit watch` 카드로 그린다(직접 관측이 오래되었으면 `stale`). 카드에는 「프로젝트 상태 없음 — 로봇 기본 토픽 직접 관측만 보임」, 직접 관측 줄, 「위치」를 넣는다(`render.py:340-345`).
 - 상태도 직접 관측도 없으면 카드에 노랑 테두리를 두르고 「상태를 한 번도 받지 못했습니다. 로봇 상태 발행과 operations 연결을 확인하세요.」를 표시한다.
-- 상태가 있으면 다음을 표시한다. 이동 상태 표시 문구(STOP_UNCONFIRMED 는 빨강)와 준비 상태 표시 문구, 배터리 막대(값이 없으면 「배터리 값 없음」. 25 % 미만은 빨강, 50 % 미만은 노랑, 그 밖은 초록이다. 폭은 0~100 범위로 자른다. 값은 정수 % 로 쓰고 「{나이} 전」을 붙인다), 「위치」 = 「(x, y) m {yaw 도}°」(좌표는 소수 둘째 자리, 각도는 정수, frame 이 `map` 이 아니면 뒤에 「 [frame]」), 「작업」 = 짧은 `active_task_id`, 「수신」 = 「{received_age} 전」, 그리고 범위가 맞는 사유를 쓴다. 상태가 오래되었으면 카드를 흐리게 하고 「낡음: {나이} 동안 새 상태 없음」을 표시한다. 직접 관측이 있으면 맨 아래에 직접 관측 줄을 붙인다.
+- 상태가 있으면 다음을 표시한다. 이동 상태 표시 문구(STOP_UNCONFIRMED 는 빨강)와 준비 상태 표시 문구, 배터리 막대(값이 없으면 「배터리 값 없음」. 25 % 미만은 빨강, 50 % 미만은 노랑, 그 밖은 초록이다. 폭은 0 ~ 100 범위로 자른다. 값은 정수 % 로 쓰고 「{나이} 전」을 붙인다), 「위치」 = 「(x, y) m {yaw 도}°」(좌표는 소수 둘째 자리, 각도는 정수, frame 이 `map` 이 아니면 뒤에 「 [frame]」), 「작업」 = 짧은 `active_task_id`, 「수신」 = 「{received_age} 전」, 그리고 범위가 맞는 사유를 쓴다. 상태가 오래되었으면 카드를 흐리게 하고 「낡음: {나이} 동안 새 상태 없음」을 표시한다. 직접 관측이 있으면 맨 아래에 직접 관측 줄을 붙인다.
 - 직접 관측 줄(`_watch`, `render.py:316-324`)의 형식은 「{직접 관측 | 직접 관측 낡음} · {나이} 전(받은 것이 없으면 「수신 없음」) · 배터리 {정수}%(없으면 「배터리 값 없음」) · {도킹 | 도킹 아님 | 도킹 모름}」이다. 직접 관측이 오래되었으면 경고 색으로 쓰고, title 은 「{namespace} 구독만」이다.
 
 요구조자 칸(`render.py:368-410`)에는 「요구조자 {n}명」, 네 단계별 개수 칸(2열), 대상 줄을 그린다. 대상 줄에는 V 아이콘·짧은 ID·단계 표시 문구·규칙 ID, 위치 「(x, y) m」, 「구조 {구조 낱말}」, 접근 표시 문구, 지원(지원 상태가 None·NONE 이 아니면 「지원 {낱말} {지원 로봇 ID}」), 범위가 맞는 사유, 소실 후보(「소실 후보 {시각}」, title 「고정 웹캠 {카메라} 사건 {ID} — 후보일 뿐, 로봇 재확인으로 구출을 판정」), 보고(장부가 없으면 「보고 장부 입력 없음」, 있으면 「보고 {n}건 {영수증 낱말}」), 그리고 경고·재확인 사유 목록이 들어간다. 대상이 없으면 「아직 보고된 요구조자가 없습니다.」를 표시한다.
@@ -802,7 +802,7 @@ flowchart TD
 | 계정 DB 가 없거나 계정 DB 가 아닌 파일 | 기동하지 않는다 | `STORAGE_ERROR`·`POLICY_MISMATCH` | `accounts.py:160-177` |
 | `--map` 파일을 읽지 못하거나 형식이 틀림 | 기동하지 않는다(지도를 임의 값으로 채우지 않는다) | `STORAGE_ERROR`·`INVALID_INPUT` 「map: …」 | `mapimage.py:29-30`, `:149-153` |
 | 카메라를 지정했지만 끊김 판정 시간이 없음 | 기동하지 않는다 | `CONFIG_MISSING` 「cameras need --camera-stale-s …」 | `render.py:1130-1131` |
-| 현장 상태 DB 가 없거나, 잠겨 있거나, 역할이 다르거나, schema 가 1.4 가 아님(새 db_writer 가 한 번 열어 올리기 전의 1.0~1.3 파일도 여기에 해당) | 해당 요청이 503 으로 실패한다(페이지는 안내를 표시하고 5초 뒤 새로고침, 조각은 한 줄, API 는 JSON). 파일을 만들지 않는다 | `STORAGE_ERROR` 「site-state read failed: …」 | `sources.py:96-99`, `app.py:242-256`, `rescue_operations/site_state.py:581-582` |
+| 현장 상태 DB 가 없거나, 잠겨 있거나, 역할이 다르거나, schema 가 1.4 가 아님(새 db_writer 가 한 번 열어 올리기 전의 1.0 ~ 1.3 파일도 여기에 해당) | 해당 요청이 503 으로 실패한다(페이지는 안내를 표시하고 5초 뒤 새로고침, 조각은 한 줄, API 는 JSON). 파일을 만들지 않는다 | `STORAGE_ERROR` 「site-state read failed: …」 | `sources.py:96-99`, `app.py:242-256`, `rescue_operations/site_state.py:581-582` |
 | 장부를 지정했지만 읽지 못함 | 해당 요청이 503 으로 실패한다 | `STORAGE_ERROR` 「ledger read failed: …」 | `sources.py:26-31` |
 | 입력 형식이 틀림(로봇·대상 중복, 사건 계약 위반, revision 타입이나 임무 행 키가 틀림) | 해당 요청이 503 으로 실패한다 | `INVALID_INPUT` | `view.py:122-133`, `:202`, `:207`, `:250`, `:285-297`, `:355-358`, `:735` |
 | 배치에 없는 로봇의 상태 | 그 상태를 버리고 경고를 표시한다 | 「배치 밖 로봇 상태 무시: …」 | `view.py:247-249` |
@@ -864,7 +864,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 의존하는 인터�
 ### I-1. 운영자 명령 API — `POST /api/operator-commands`
 
 - 주소: db_writer 프로세스 안에서 도는 HTTP 서버다. `api_host` 는 `127.0.0.1` 이라 운영 PC 안에서만 접근할 수 있고, 포트는 launch 가 정하는 `api_port` 다(`rescue_bringup/operations_launch.py:26`, `:73-74`; `rescue_operations/ros_node.py:289`). 이 API 에는 로그인이 없다. ADMIN 확인은 같은 PC 의 콘솔이 맡는다(`rescue_bringup/operations_launch.py:25`).
-- 요청: 메서드는 POST 이고 `Content-Length` 헤더가 있어야 하며, 본문은 0~8192 byte 여야 한다(`rescue_operations/command_api.py:26`, `:245-249`). 경로가 다르면 404 를 돌려준다. `Content-Type` 은 검사하지 않는다.
+- 요청: 메서드는 POST 이고 `Content-Length` 헤더가 있어야 하며, 본문은 0 ~ 8192 byte 여야 한다(`rescue_operations/command_api.py:26`, `:245-249`). 경로가 다르면 404 를 돌려준다. `Content-Type` 은 검사하지 않는다.
 - 본문 JSON 은 객체여야 하고, 키 집합은 기본 키 3개에 종류별 필드를 더한 것과 **정확히** 같아야 한다(`rescue_operations/command_api.py:31-39`, `:52-74`):
 
 | kind | 키 | 콘솔이 보내는가 |
@@ -876,7 +876,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 의존하는 인터�
 | RETURN_HOME | 기본 키만 | 예 |
 | SET_CAMERA_WATCH | 기본 + target_id | 아니오(콘솔의 명령 표에 없음, `commands.py:27-33`) |
 
-- 값 검사: `command_id`·`target_id` 는 정규 형식의 UUID 문자열, `operator_id` 는 NUL 이 없는 1~256자 문자열, `target_revision`·`route_revision` 은 0~2^64−1 정수(bool 은 안 됨), `segment_index` 는 0~2^32−1 정수여야 한다.
+- 값 검사: `command_id`·`target_id` 는 정규 형식의 UUID 문자열, `operator_id` 는 NUL 이 없는 1 ~ 256자 문자열, `target_revision`·`route_revision` 은 0 ~ 2^64−1 정수(bool 은 안 됨), `segment_index` 는 0 ~ 2^32−1 정수여야 한다.
 - 응답은 JSON 이고 헤더는 `Content-Type: application/json` 이다(`rescue_operations/command_api.py:108-150`, `:241-252`). HTTP 상태별 내용은 아래 표와 같다.
 
 | HTTP | 조건 | 본문 | 콘솔 `read_reply` 의 해석 | 화면 표시 |
@@ -895,13 +895,13 @@ operations 노드의 내부는 다루지 않는다. 웹이 의존하는 인터�
 ### I-2. 현장 상태 DB — 웹이 읽는 표와 열
 
 - 파일: 경로는 launch 의 `db_path` 다(`launch/operations.launch.py:19`). 이 파일에 쓰는 프로세스는 db_writer 하나뿐이다. db_writer 는 `journal_mode=WAL`, `synchronous=FULL`, `busy_timeout=1000` 으로 설정하고, 쓸 때마다 `BEGIN IMMEDIATE` 로 시작한다(`rescue_operations/ledger.py:78-82`, `:104-115`). 그래서 읽는 쪽은 쓰는 쪽을 막지 않고, 커밋된 행만 본다.
-- 열기 규칙(`rescue_operations/site_state.py:572-592`, 경로 규칙은 `rescue_operations/ledger.py:39-48`): 경로가 빈 값이거나 `:memory:` 이거나 NUL 을 포함하면 거절한다. 경로를 절대 경로로 풀었을 때 상위 폴더가 있어야 하고, 경로 자체는 폴더가 아니어야 한다. 그 뒤 순서는 다음과 같다. `file:{절대 경로}?mode=ro` URI 로 열고 대기 시간은 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` 이 `operations-site-state` 이고 `schema` 가 `1.4` 인 경우가 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 서로 다른 프로파일 로봇 ID 2개를 담은 JSON 이 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.4"` 를 붙여 반환 → 끝나면 항상 닫음. sqlite 오류는 `STORAGE_ERROR` 가 된다. 파일을 새로 만들지 않는다. 1.0~1.3 파일은 db_writer 가 한 번 열어 1.4 로 올리기 전에는 읽을 수 없다(`rescue_operations/site_state.py:28-31`; 1.2 → 1.3 에서 `exit_locations` 표를, 1.3 → 1.4 에서 터널 표 3개 `overhead_passage_lists`·`overhead_passages`·`current_map` 을 더한다).
+- 열기 규칙(`rescue_operations/site_state.py:572-592`, 경로 규칙은 `rescue_operations/ledger.py:39-48`): 경로가 빈 값이거나 `:memory:` 이거나 NUL 을 포함하면 거절한다. 경로를 절대 경로로 풀었을 때 상위 폴더가 있어야 하고, 경로 자체는 폴더가 아니어야 한다. 그 뒤 순서는 다음과 같다. `file:{절대 경로}?mode=ro` URI 로 열고 대기 시간은 1.0 s → `PRAGMA query_only = ON` → `metadata` 의 `role` 이 `operations-site-state` 이고 `schema` 가 `1.4` 인 경우가 아니면 `POLICY_MISMATCH` → `allowed_robot_ids` 가 서로 다른 프로파일 로봇 ID 2개를 담은 JSON 이 아니면 `POLICY_MISMATCH` → 질의 → 결과에 `schema_version: "1.4"` 를 붙여 반환 → 끝나면 항상 닫음. sqlite 오류는 `STORAGE_ERROR` 가 된다. 파일을 새로 만들지 않는다. 1.0 ~ 1.3 파일은 db_writer 가 한 번 열어 1.4 로 올리기 전에는 읽을 수 없다(`rescue_operations/site_state.py:28-31`; 1.2 → 1.3 에서 `exit_locations` 표를, 1.3 → 1.4 에서 터널 표 3개 `overhead_passage_lists`·`overhead_passages`·`current_map` 을 더한다).
 - 그래서 콘솔과 db_writer 는 같은 버전의 `rescue_operations` 를 써야 한다. 콘솔만 1.4 코드로 올리고 예전 db_writer 가 1.3 파일을 계속 쓰거나 그 반대인 경우, 모든 폴링이 `STORAGE_ERROR` 503 으로 실패한다 [관찰, 코드 읽기].
 
 | 표(읽기 함수) | 정렬·한도 | 웹이 사용하는 열·키 | 사용하지 않는 열·키 |
 | --- | --- | --- | --- |
 | `metadata`(`read_allowed_robot_ids`) | 정렬된 목록 | `allowed_robot_ids` → 로봇 카드 목록 | — |
-| `robot_status`(`read_robot_status`) | robot_id 순 | `status_json` 의 robot_id, role(SCOUT·SUPPORT·UNKNOWN), stamp_ns, pose{x,y,yaw,frame_id} 또는 null, motion_state, readiness, battery_percent(0~100) 또는 null, battery_stamp_ns, active_task_id. 그리고 열 `received_at_ns` | robot_boot_id, state_sequence, generation, dock_state, segment_index |
+| `robot_status`(`read_robot_status`) | robot_id 순 | `status_json` 의 robot_id, role(SCOUT·SUPPORT·UNKNOWN), stamp_ns, pose{x,y,yaw,frame_id} 또는 null, motion_state, readiness, battery_percent(0 ~ 100) 또는 null, battery_stamp_ns, active_task_id. 그리고 열 `received_at_ns` | robot_boot_id, state_sequence, generation, dock_state, segment_index |
 | `site_events`(`read_site_events`, limit 1000) | `observed_at_ns`, `event_id` 기준 **오래된 순**. 1000건을 넘으면 최신 사건이 빠진다 | `event_json`(SiteEvent 의 모든 필드로 다시 만든 뒤 계약을 검사한다. 필드: event_id, camera_id, kind, observed_at_ns, evidence_id, evidence_sha256, confidence, clock_domain_id, stamp_semantics, clock_state, clock_error_bound_ns, detail, target_id, watch_id), 집계값 `exit_pass_count`(EXIT_PASS 사건의 서로 다른 event_id 수) | 열 `received_at_ns`(반환하지 않음) |
 | `target_states`(`read_target_states`) | target_id 순 | `state_json` 의 target_id, position{x,y,frame_id,map_revision} 또는 null, detection_confirmed, rescue_state, rescue_reasons, support_state, support_robot_id, target_revision(선택 키), persisted_report_id(선택 키) | verdict_id, updated_at_ns, position.map_session_id |
 | `mission_state`(`read_mission_state`) | 1행 또는 null | mode, phase, trigger_event_id, started_at_ns, updated_at_ns, reason, target_id, target_revision, route_revision, segment_index, segment_count, segment_phase | generation |
@@ -946,7 +946,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 의존하는 인터�
 | 항목 | 규칙 | 쓰는 쪽 근거 | 웹 쪽 근거 |
 | --- | --- | --- | --- |
 | 형식 | UTF-8 JSON 객체 `{schema: "robot_watch/1", written_at_ns: int, robots: {robot_id: 행}}` | `rescue_operations/robot_watch.py:18`, `:35-40` | `sources.py:69-71`(robots 가 객체인지와 `written_at_ns` 가 int 인지만 검사하고, `schema` 는 보지 않음) |
-| 로봇 행 | `namespace`, `last_seen_ns`(네 토픽 중 어느 것이든 마지막으로 받은 시각) 또는 null, `battery_percent`(0~100. NaN 이나 범위 밖 값은 null), `docked`(bool 또는 null), `pose`{x, y, yaw, frame_id = map_frame} 또는 null, `pose_seen_ns` 또는 null | `rescue_operations/robot_watch.py:82-83`, `:24-28`, `:113-119` | `view.py:679-687` |
+| 로봇 행 | `namespace`, `last_seen_ns`(네 토픽 중 어느 것이든 마지막으로 받은 시각) 또는 null, `battery_percent`(0 ~ 100. NaN 이나 범위 밖 값은 null), `docked`(bool 또는 null), `pose`{x, y, yaw, frame_id = map_frame} 또는 null, `pose_seen_ns` 또는 null | `rescue_operations/robot_watch.py:82-83`, `:24-28`, `:113-119` | `view.py:679-687` |
 | 위치 | tf 에 `map_frame -> base_frame`(launch 값으로는 `map` → `base_link`)이 있을 때만 채운다. 없으면 null 로 두고 임의 값으로 채우지 않는다 | `rescue_operations/robot_watch.py:110-119`, `rescue_bringup/operations_launch.py:196-197` | `view.py:685` |
 | 주기·원자성 | 1.0 s 마다 임시 파일에 쓴 뒤 rename 한다 | `rescue_operations/robot_watch.py:19`, `:35-40`, `:127` | `sources.py:58-59`(쓰다 만 파일을 읽지 않음) |
 | 시계 | 모든 ns 값은 관측 노드의 ROS 시계(운영 PC) 기준이다. 웹은 이를 자기 `time.time_ns` 와 비교한다. 같은 PC 라고 전제한다 [추정] | `rescue_operations/robot_watch.py:87-88`, `:109` | `view.py:671`, `:682-683` |

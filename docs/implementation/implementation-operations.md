@@ -53,7 +53,7 @@ flowchart LR
 
 | 기록의 설명 | 지금 (2026-10-14) |
 | --- | --- |
-| 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.4. 1.0~1.3 파일은 새 `db_writer` 가 열 때 1.4 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
+| 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.4. 1.0 ~ 1.3 파일은 새 `db_writer` 가 열 때 1.4 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
 | 받는 명령 다섯 종 | 여섯 종(`SET_CAMERA_WATCH` 포함, `command_api.py:COMMAND_FIELDS`) |
 | 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)만 받는다 |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
@@ -103,7 +103,7 @@ flowchart LR
 | `approach_result` | `APPROACH_COMPLETE`, `UNREACHABLE`, `FAILED`, `CANCELED`, `NOT_ATTEMPTED`. 의료·물리적 구조 결과 없음 |
 | `position` | null 또는 아래 위치 객체. APPROACH_COMPLETE이면 위치와 CONFIRMED가 필수 |
 | `observed_at_ns`, `reported_at_ns` | 원 발견과 최초 보고 생성 시각. `observed <= confirmed <= reported`; 재전송 때 바꾸지 않음 |
-| `reason` | 1~1024자. 관측한 결과·실패 사유 |
+| `reason` | 1 ~ 1024자. 관측한 결과·실패 사유 |
 | `evidence_refs` | 아래 증거 객체 최대 8개. evidence_id 중복 금지 |
 | `model_id`, `model_sha256`, `deployment_version` | 모델 식별자·소문자 SHA-256과 배포 버전. 다른 source 의미를 새 ID에 연결하는 provenance |
 
@@ -119,7 +119,7 @@ flowchart LR
 
 정확한 필드는 `evidence_id`, `sha256`, `media_type`, `observation_id`, `acquired_at_ns`다. media_type은 image/png 또는 image/jpeg다. URI나 다른 PC의 로컬 파일 경로는 허용하지 않는다. evidence ID가 API 조회의 키다. 참조의 observation ID와 획득 시각은 보고에 기록된 최초 관측 또는 재확인 관측에 정확하게 대응해야 한다. 오래된 사진에 새 확인 시각만 붙이는 입력은 거절한다.
 
-`store_evidence(ref, content)`는 1~4,194,304 bytes의 실제 bytes를 받고 SHA-256을 직접 계산한 뒤 metadata와 BLOB을 같은 SQLite transaction에 저장한다. 해시 불일치·DB 실패이면 성공 결과를 돌려주지 않는다. 같은 evidence_id의 다른 metadata는 충돌이다. 이 함수는 영상 디코딩·카메라 서명·실제 인물 여부를 검증하지 않는다. MIME 선언과 hash는 그 검증을 대신하지 않는다. 시험 bytes는 문장 fixture이며 인물 사진은 포함하지 않았다.
+`store_evidence(ref, content)`는 1 ~ 4,194,304 bytes의 실제 bytes를 받고 SHA-256을 직접 계산한 뒤 metadata와 BLOB을 같은 SQLite transaction에 저장한다. 해시 불일치·DB 실패이면 성공 결과를 돌려주지 않는다. 같은 evidence_id의 다른 metadata는 충돌이다. 이 함수는 영상 디코딩·카메라 서명·실제 인물 여부를 검증하지 않는다. MIME 선언과 hash는 그 검증을 대신하지 않는다. 시험 bytes는 문장 fixture이며 인물 사진은 포함하지 않았다.
 
 사진 필수 여부 Q-07은 결정하지 않았다. 생성자가 다음 정책 중 하나를 명시하고 DB metadata에 보존한다. 재오픈 때 다른 정책을 적용하면 `POLICY_MISMATCH`로 거절한다.
 
@@ -139,7 +139,7 @@ flowchart LR
 | `receive(payload, envelope) -> Receipt` | 검증된 불변 보고 저장 후 RECEIVED. 재전송이면 이미 저장된 가장 최근 receipt. 같은 ID의 다른 의미는 ID_CONTENT_CONFLICT |
 | `store_evidence(ref, bytes) -> dict` | hash 검증 후 실제 증거 저장. 보고 상태를 암묵적으로 전진시키지 않음 |
 | `persist(report_id) -> Receipt` | 필수 payload·증거 확인 후 PERSISTED, 부족하면 PENDING_EVIDENCE. 저장 실패는 예외이며 PERSISTED receipt 없음 |
-| `get(report_id)`, `list_reports(limit=100)` | payload·receipt·첫 envelope·수신 시각. 목록 상한 1~1000 |
+| `get(report_id)`, `list_reports(limit=100)` | payload·receipt·첫 envelope·수신 시각. 목록 상한 1 ~ 1000 |
 | `ReportOutbox(path, allowed_robot_ids=...).enqueue(payload)` | 송신 PC의 별도 로컬 DB에 QUEUED 보존. 동일 ID 의미 충돌 거절 |
 | `deliver(report_id, envelope, transport)` | 시도 횟수를 먼저 저장하고 callable 1회 호출. 유효한 PERSISTED receipt만 완료. 전송 실패/잘못된 receipt는 RETRY_PENDING·오류 기록·None 반환 |
 | `pending(limit=100)`, `get(report_id)` | 재시작 뒤 재전송 목록과 상태/시도 횟수/receipt 조회 |
@@ -215,7 +215,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 `OperationsError`는 공통 `RescueError`이며 `.code`는 C-09, `.detail_code`는 `rescue_operations.<원 세부 코드>`다. 예를 들어 저장 실패는 `REPORT_NOT_PERSISTED`/`rescue_operations.STORAGE_ERROR`로 표현한다. `tests/test_review_operations.py`는 사용자 지정 ID, 알 수 없는 원본/수행 로봇, 정책 불변·재오픈 불일치·기존 metadata 부재를 실제 임시 SQLite로 검사한다. 기존 실행 증거·source hash는 수정하지 않는다.
 
-### 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1~3.7.4, 2026-10-08, 1.1·1.2 는 2026-10-11)
+### 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1 ~ 3.7.4, 2026-10-08, 1.1·1.2 는 2026-10-11)
 
 관제·화면이 읽을 로봇 상태, 현장 사건·출구 카운트, 대상 상태를 `rescue_operations/site_state.py`에 둔다. 보고 장부와는 **다른 SQLite 파일**(metadata `role=operations-site-state`, `schema=1.2`)이다. 쓰는 쪽이 이전 파일을 열면 같은 트랜잭션에서 빠진 표를 더하고(1.1 은 `mission_state` 를 새 모양으로 다시 만들어) schema 를 올린다(기존 행 보존, [db-schema](../design/db-schema.md) 4절). 읽기 함수는 1.1 파일만 받는다. 보고 스키마 1.0과 재오픈 정책은 바꾸지 않는다. 쓰는 쪽은 operations 하나다. 읽는 쪽은 `mode=ro`·`query_only`로 열고, 없는 파일을 만들지 않는다. 단, WAL 모드 DB를 읽기 전용으로 열어도 SQLite가 빈 `-wal`·`-shm` 파일을 만들 수 있다. 본문 파일 바이트는 바뀌지 않는다(관제·화면 확인, 2026-10-08). 시험은 본문 바이트 불변과 없는 DB 미생성만 검사한다.
 
@@ -310,7 +310,7 @@ E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드�
 
 503·504 에 `accepted` 를 넣지 않는 것은, 조정기가 실제로 받았을 수 있는데 콘솔이 「거절」로 보이면 운영자가 새 명령을 다시 누르기 때문이다. 콘솔은 이 본문을 「전달됐는지 모름」으로 보인다(#115 `read_reply`). 같은 `command_id` 로 다시 보내면 조정기가 처음 답을 돌려준다.
 
-노드 파라미터(기본값 없음)에 `api_host`·`api_port`(1~65535)·`operator_command_service`·`command_timeout_s`(0 초과, 콘솔 5초 미만, 3.0 [제안])가 늘었다. **API 자체에는 로그인 확인이 없다.** 로그인·ADMIN 확인은 콘솔이 하므로 `api_host` 는 `127.0.0.1` 로 두고, 콘솔은 `--operations http://127.0.0.1:<api_port>` 로 연결한다. 다른 경로는 404, 본문이 너무 크면 413 이다.
+노드 파라미터(기본값 없음)에 `api_host`·`api_port`(1 ~ 65535)·`operator_command_service`·`command_timeout_s`(0 초과, 콘솔 5초 미만, 3.0 [제안])가 늘었다. **API 자체에는 로그인 확인이 없다.** 로그인·ADMIN 확인은 콘솔이 하므로 `api_host` 는 `127.0.0.1` 로 두고, 콘솔은 `--operations http://127.0.0.1:<api_port>` 로 연결한다. 다른 경로는 404, 본문이 너무 크면 413 이다.
 
 | 검증 | 결과 |
 | --- | --- |
