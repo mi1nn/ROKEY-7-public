@@ -1,10 +1,18 @@
 ---
 title: 관제 웹·DB 구성 계획 — PC4(operations·web·DB)
 status: draft   # 테이블·API·화면 구성은 [제안]. 담당자(오케스트레이터·웹, 상태 감시) 확인과 PR 머지로 확정한다
-updated: 2026-10-11
+updated: 2026-10-14
 ---
 
 # 관제 웹·DB 구성 계획
+
+> **기록 문서 (2026-10-11 계획, 2026-10-14 표시).** 이 문서는 구현 전에 쓴 계획이다. 지금 구조와 맞지 않는 곳이 많다. 예를 들어 「현재 콘솔 버튼은 비활성 placeholder」는 지금 사실이 아니고(운영자 명령 API 구현됨, #115), 로봇 이름 AMR1·AMR2 는 지금 TB-6·TB-5 다.
+> 지금 구조는 아래 문서를 본다.
+> - 관제 웹이 어떤 입력을 받아 무엇을 그리는지: [관제 웹 데이터 흐름](console-dataflow.md)
+> - DB 표마다 누가 쓰고 누가 읽는지: [DB 스키마](db-schema.md) 「한눈에」
+> - 기능별 구현 상태: [관제 웹 README](../../src/rescue_console/README.md) 「현재 상태」
+>
+> 아래 본문은 기록으로 남기고 고치지 않는다.
 
 [SDD 노드·인터페이스 검토안](sdd-node-interface-spec-v0.1.md)의 PC4 몫(central.operations · central.web · central.db, IF-080 ~ IF-084)을 **지금 코드 위에 어떻게 올릴지** 적는다. 시나리오는 [BRD Part I](../requirements/brd-part1-v0.1.md)과 2026-10-09 팀 결정(고정 카메라 1대, AMR2 승인 관문)을 따른다. 날짜·담당은 [일정](../process/schedule.md)과 PM 의 일정 v2(10-10 ~ 10-13 웹 줄) 기준이다.
 

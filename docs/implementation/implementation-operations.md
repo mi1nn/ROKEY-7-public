@@ -1,12 +1,74 @@
 ---
-title: PR 9 로컬 관제 보고·증거 저장·outbox 구현
+title: 운영(operations) 구현 — 현장 상태 DB·명령 API·보고 저장·지도와 로봇 관측 파일
 status: implemented-local-only
-updated: 2026-10-08
+updated: 2026-10-14
 ---
 
-# PR 9 로컬 관제 보고·증거 저장·outbox 구현
+# 운영(operations) 구현
 
-## 목적과 완료 범위
+## 한눈에 (2026-10-14, main 3278a3e)
+
+이 문서가 답하는 질문은 「운영 PC 의 `rescue_operations` 노드가 무엇을 받아 어디에 쓰고, 관제 웹은 이 DB 를 어떻게 읽는가」다.
+
+```mermaid
+flowchart LR
+  subgraph ROS["ROS 토픽·서비스"]
+    R["로봇 상태·위치<br/>(/rescue/robots/&lt;id&gt;/status·pose)"]
+    E["고정 카메라 사건<br/>(/rescue/site_events)"]
+    S["조정기 임무 상태·대상<br/>(/rescue/system_state·targets)"]
+    X["출구(QR)·터널 판정·TB-6 지도 상태"]
+  end
+  R & E & S & X --> W["db_writer<br/>(ros_node.py)"]
+  W --> DB[("현장 상태 DB<br/>스키마 1.4")]
+  C["관제 웹<br/>(rescue_console)"] -- "읽기 전용" --> DB
+  C -- "POST /api/operator-commands" --> W
+  W -- "SubmitOperatorCommand" --> K["조정기"]
+  C -- "GET·POST /api/webcam" --> W
+  W -- "set_parameters(device_path)" --> V["webcam_node"]
+  K -- "RescueReport" --> RN["report_node"] --> RDB[("보고 저장 DB")]
+  RN -- "ReportReceipt" --> K
+  M["SLAM 지도<br/>(OccupancyGrid)"] --> MS["map_snapshot"] --> MF["지도 파일<br/>(live_map.yaml)"]
+  B["로봇 기본 토픽<br/>(battery_state·dock_status·tf)"] --> RW["robot_watch"] --> WF["로봇 관측 파일<br/>(robot_watch.json)"]
+  C -- "읽기" --> MF & WF
+```
+
+### 지금 구조
+
+| 노드 (실행 이름) | 받는 것 | 쓰는 것 | 띄우는 조건 (`operations.launch.py`) |
+| --- | --- | --- | --- |
+| DB 기록 (`db_writer`, `ros_node.py`) | 로봇 상태·위치, 고정 카메라 사건, 조정기 `SystemState`·`TargetSnapshot`, 출구(QR) `TargetLocation`, 로봇별 터널 판정(JSON), TB-6 `MapState`. 같은 프로세스가 HTTP API(`127.0.0.1`)를 연다 | 현장 상태 DB(유일한 쓰기 프로세스) | 늘 |
+| 보고 저장 (`report_node`) | 조정기 `RescueReport`(`/rescue/reports`) | 보고 저장 DB(현장 상태 DB 와 다른 파일), `ReportReceipt`(`/rescue/report_receipts`) | 늘 |
+| 지도 파일 (`map_snapshot`) | SLAM 지도(`map_topic`, 예: `/robot6/map`) | 관제 웹 `--live-map` 이 읽는 지도 파일 | 인자 `map_topic`·`map_dir` |
+| 로봇 관측 (`robot_watch`) | `<ns>/battery_state`·`dock_status`·`tf`·`tf_static`(구독만) | 관제 웹 `--robot-watch` 가 읽는 파일 | 인자 `robot_namespaces`·`robot_watch_path` |
+
+| HTTP 경로 | 하는 일 | 코드 |
+| --- | --- | --- |
+| `POST /api/operator-commands` | 운영자 명령 6종(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH`)을 조정기로 넘기고 답을 기록 | `command_api.py:CommandGate` |
+| `GET /api/webcam` | 운영 PC 에 꽂힌 카메라 목록과 지금 장치 | `command_api.py:WebcamSwitch.state` |
+| `POST /api/webcam` | 웹캠 장치 바꾸기. 꽂히지 않은 장치는 거절, 결과는 `error_log` | `command_api.py:WebcamSwitch.switch` |
+
+표마다 누가 쓰고 누가 읽는지는 [DB 스키마](../design/db-schema.md) 「한눈에」에 있다.
+
+### 아래 기록과 달라진 점
+
+| 기록의 설명 | 지금 (2026-10-14) |
+| --- | --- |
+| 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.4. 1.0~1.3 파일은 새 `db_writer` 가 열 때 1.4 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
+| 받는 명령 다섯 종 | 여섯 종(`SET_CAMERA_WATCH` 포함, `command_api.py:COMMAND_FIELDS`) |
+| 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)만 받는다 |
+| `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
+| 로봇 이름 AMR1·AMR2 | TB-6·TB-5 |
+| HTTP 경로는 명령 하나 | 명령과 웹캠 고르기 둘(#257) |
+
+실기(로봇 망에서 실제 로봇과 함께)는 대부분 NOT_RUN 이다. 2026-10-13 에 운영 PC 에서 시험용 TB-5 SLAM 지도, TB-5·TB-6 직접 관측, 웹캠 2대 전환을 측정했다(관제 웹 README 「현재 상태」).
+
+## 기록 (2026-10-08 ~ 2026-10-13)
+
+아래는 각 단계에서 쓴 구현 기록이다. 그때의 설명을 그대로 두었다. 지금과 다른 곳은 위 「아래 기록과 달라진 점」을 본다.
+
+### PR 9 로컬 관제 보고·증거 저장·outbox 구현 (2026-10-08)
+
+#### 목적과 완료 범위
 
 보고를 받았다는 사실을 영속 보고 완료와 구분한다. 동일 report_id 재전송, ops 재시작, 업로드 실패, DB 쓰기 실패, 저장 뒤 receipt 유실을 처리하는 새 Python 표준 라이브러리 구현이다. [계약 C-02·C-05·C-08](../design/contracts.md)과 [시험 CT-12](../process/acceptance-plan.md)를 로컬 SQLite로 연결한다. 원본 실행 코드·사진·모델을 복사하지 않았다.
 
@@ -14,7 +76,7 @@ updated: 2026-10-08
 
 공개 네트워크 서버는 추가하지 않았다. `ReportTransport` Protocol과 `LedgerTransport` callable이 API 경계를 제공한다. 원격 어댑터는 인증·전송 크기 상한·연결 및 응답 timeout을 구현하고 아래 고정 스키마와 receipt 검증을 유지해야 한다. 어댑터 호출 1회가 끝나지 않는 경우를 로컬 outbox가 강제로 중단하지는 않는다.
 
-## 파일과 책임
+### 파일과 책임
 
 | 파일 | 책임 |
 | --- | --- |
@@ -23,11 +85,11 @@ updated: 2026-10-08
 | `src/rescue_operations/rescue_operations/__main__.py` | 기존 DB를 읽기 전용으로 열어 JSON 내보내기. 성공 0, 입력·저장소 오류 2 |
 | `tests/test_operations.py` | 재시작, 실제 DB rollback, 증거 실패, receipt 유실·역순·잘못된 ID, 중복·동시 요청, CLI 오류 |
 
-## 스키마 1.0
+### 스키마 1.0
 
 미선언 필드는 거절한다. `schema_version`은 현재 정확히 `1.0`만 허용하며 minor 확장을 암묵적으로 수용하지 않는다. ID는 소문자 표준 UUID 문자열, generation/revision/sequence는 bool을 제외한 uint64다. wall timestamp는 양수 uint64 **ns**다. 좌표는 유한한 m 값이고 정규화 시 float로 변환한다. NaN/Inf·누락 ID·잘못된 UUID·음수/0 timestamp·역순 시각을 거절한다. 출력 저장 시각은 operations 호스트의 `time.time_ns()`이며 다른 호스트 시계 동기화의 증거가 아니다.
 
-### 의미 payload: 모든 필드가 해시에 포함됨
+#### 의미 payload: 모든 필드가 해시에 포함됨
 
 | 필드 | 형식과 의미 |
 | --- | --- |
@@ -49,11 +111,11 @@ updated: 2026-10-08
 
 기본 문자열 상한은 256자, UUID 36자, SHA-256 64자다. 정규화 JSON은 UTF-8 65,536 bytes 이하이다. 객체 키는 정렬하고 공백을 제거하며 숫자 좌표를 정규화한다. 배열 순서는 의미 payload의 일부다. 전송 성공에 따라 필드·evidence_refs 순서를 바꾸지 않는다. 수정된 보고는 새 report_id를 사용한다. 현재 같은 target/task에 대한 서로 다른 report_id를 자동으로 하나의 최종 결과로 병합하거나 성공률로 집계하지 않는다.
 
-### 전송 envelope: 의미 payload 해시에서 전부 제외
+#### 전송 envelope: 의미 payload 해시에서 전부 제외
 
 `schema_version`, `publisher_id`, `publisher_boot_id`, `sequence`, `published_at_ns`만 허용한다. boot는 프로세스별 UUID, sequence는 그 boot 내 uint64이고, 발행 시각은 양수 ns다. outbox 재전송은 이 envelope만 바꿀 수 있다. 저장소는 첫 envelope를 감사 정보로 보존하며, 동일 ID/동일 payload의 이후 envelope로 원본 보고를 덮어쓰지 않는다. 역순·중복 보고를 받아 복구해야 하므로 이 수신기는 envelope sequence 역순을 이유로 보고를 버리지 않는다. 센서 watchdog·lease가 요구하는 live sequence 정책과 구별한다.
 
-### evidence_ref와 byte 저장
+#### evidence_ref와 byte 저장
 
 정확한 필드는 `evidence_id`, `sha256`, `media_type`, `observation_id`, `acquired_at_ns`다. media_type은 image/png 또는 image/jpeg다. URI나 다른 PC의 로컬 파일 경로는 허용하지 않는다. evidence ID가 API 조회의 키다. 참조의 observation ID와 획득 시각은 보고에 기록된 최초 관측 또는 재확인 관측에 정확하게 대응해야 한다. 오래된 사진에 새 확인 시각만 붙이는 입력은 거절한다.
 
@@ -69,7 +131,7 @@ updated: 2026-10-08
 
 실패 보고도 유실 없이 보존한다. CONFIRMATION 정책에서 UNCONFIRMED 보고는 완료될 수 없으므로 실패 보고 완료까지 요구하는 운영에는 정책을 그대로 채택하면 안 된다. 현재 구현은 사진 정책의 최종 결정을 숨기거나 누락 증거를 있다고 간주하지 않는다. 필요한 참조를 보고에 빠뜨린 경우에는 불변 report_id를 수정하지 않고 올바른 refs를 가진 새 보고를 발행해야 한다.
 
-## 공개 API와 상태 전이
+### 공개 API와 상태 전이
 
 | 호출 | 의미 |
 | --- | --- |
@@ -88,7 +150,7 @@ updated: 2026-10-08
 
 송신기는 receipt의 report ID·payload hash·상태·revision·영속 시각을 확인한다. 낮은 revision의 늦은 receipt나 늦은 실패로 이미 확인한 PERSISTED를 덮어쓰지 않는다. remote commit 뒤 응답만 유실되거나 송신 outbox의 receipt 쓰기가 실패하면, 다음 시도에서 같은 report_id를 보내 기존 receipt를 회수한다. DB 파일 자체 삭제/손상과 증거 백업·보존 기간·disk quota 관리·outbox 자동 retry scheduler는 후속 운영 작업이다. 자동 무한 재시도는 없다. 보존한 보고는 오래되었다는 이유로 새로운 관측이 되지 않는다.
 
-## 실행 가능한 로컬 예시
+### 실행 가능한 로컬 예시
 
 아래 값은 synthetic fixture다. 실제 로봇·관측 성공의 예가 아니다. 부모 폴더가 있고 기존 DB가 다른 정책으로 만들어지지 않은 로컬 경로에서 실행한다.
 
@@ -126,13 +188,13 @@ with ReportLedger("operations.sqlite3", evidence_policy="OPTIONAL", allowed_robo
 
 PERSISTED와 APPROACH_COMPLETE는 서로 다른 축이다. 위 예시는 실패 결과를 영속 보고한 것이며 접근 성공으로 집계하지 않는다.
 
-## 소유권·transaction·배포 경계
+### 소유권·transaction·배포 경계
 
 operations만 operations DB를 쓴다. 네 PC가 파일을 NFS/SMB 등으로 공유하지 않는다. 이 코드가 네트워크 파일 시스템을 자동 탐지하는 것은 아니므로 운영 경로를 로컬 디스크로 설정해야 한다. 여러 호출은 프로세스 내 RLock과 SQLite BEGIN IMMEDIATE로 직렬화하고 다른 연결의 write lock은 최대 약 1초 기다린 뒤 STORAGE_ERROR로 반환한다. SQLite WAL와 synchronous=FULL을 설정한다. with 블록/close로 연결을 닫고 예외에서 rollback한다. 전송 callable 실행 중에는 DB write transaction을 붙잡지 않는다.
 
 라이브 도메인 어댑터·DDS QoS·웹 로그인·공개 HTTP·실시간 영상 스트림·운영자 명령은 없다. operations API는 현재 로컬 함수 경계이며 4-PC 네트워크 API 완료로 표기하지 않는다. 현 단계의 공개 export는 read-only CLI다. PR 10은 이 callable과 임시 로컬 DB로 소프트웨어 통합을 검증할 수 있다.
 
-## 검증과 한계
+### 검증과 한계
 
 ```bash
 PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m unittest discover -s tests -p test_operations.py -v
@@ -141,11 +203,11 @@ PYTHONPATH=src/rescue_contracts:src/rescue_operations python3 -m rescue_operatio
 
 실제 실행 증거는 [PR9 로컬 검증 기록](../evidence/pr09-local-validation.md)에 별도로 남긴다. 주요 시험은 DB close/reopen, 두 연결 동시 중복 수신, 보고/증거/receipt 쓰기 실패 rollback, commit 뒤 응답 유실, 송신 receipt DB 쓰기 실패, 필수 증거 누락·hash 불일치, 늦은 receipt, ID 충돌, 잘못된 schema·UUID·NaN·시각, 읽기 전용 CLI다. 외부 네트워크를 열지 않았고 장비·ROS·실기 시험을 실행하지 않았다.
 
-## 원리 참고
+### 원리 참고
 
 고정 원본의 [P4 evidence 관측 시각 매칭](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_sysmon/rokey_sysmon/evidence.py#L24-L104), [P4 가짜 두 로봇 시험](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/src/rokey_sysmon/test/test_integration_fake_robots.py#L1-L52), [AMR 재발행 관측 시각 문제](https://github.com/mi1nn/amr-mini-project/blob/ee355d0b5896ea58bccac73ce1a7857f62e96024/src/rokey_pjt/rokey_pjt/webcam_detector.py#L109-L159)를 선별 근거로 삼았다. SQLite·outbox 코드를 해당 파일에서 이식한 것이 아니다. 과거 가짜 로봇 시험 결과는 이번 2 AMR 실기 증거가 아니다. 기존 저작권·라이선스가 새 구현에 자동 승계되었다고 추정하지 않는다.
 
-## 프로파일 ID와 오류 계약
+### 프로파일 ID와 오류 계약
 
 `source_robot`와 `robot_id`의 형식은 공통 `rescue_contracts.robot_id`로 검사한다. 저장소·outbox 생성자는 검증된 프로파일에서 정확히 두 개의 서로 다른 ID를 `allowed_robot_ids`로 받아야 하며 기본값은 없다. `robot3`/`robot7` 같은 ID도 가능하고, 두 필드 중 하나라도 허용 집합 밖이면 `WRONG_ROBOT`으로 쓰기 전에 거절한다. 허용 집합은 정렬한 불변 tuple로 보존하고 읽기 전용 속성으로 제공한다.
 
@@ -153,7 +215,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 `OperationsError`는 공통 `RescueError`이며 `.code`는 C-09, `.detail_code`는 `rescue_operations.<원 세부 코드>`다. 예를 들어 저장 실패는 `REPORT_NOT_PERSISTED`/`rescue_operations.STORAGE_ERROR`로 표현한다. `tests/test_review_operations.py`는 사용자 지정 ID, 알 수 없는 원본/수행 로봇, 정책 불변·재오픈 불일치·기존 metadata 부재를 실제 임시 SQLite로 검사한다. 기존 실행 증거·source hash는 수정하지 않는다.
 
-## 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1~3.7.4, 2026-10-08, 1.1·1.2 는 2026-10-11)
+### 관제 화면 읽기 API: 현장 상태 (BRD Part I 3.7.1~3.7.4, 2026-10-08, 1.1·1.2 는 2026-10-11)
 
 관제·화면이 읽을 로봇 상태, 현장 사건·출구 카운트, 대상 상태를 `rescue_operations/site_state.py`에 둔다. 보고 장부와는 **다른 SQLite 파일**(metadata `role=operations-site-state`, `schema=1.2`)이다. 쓰는 쪽이 이전 파일을 열면 같은 트랜잭션에서 빠진 표를 더하고(1.1 은 `mission_state` 를 새 모양으로 다시 만들어) schema 를 올린다(기존 행 보존, [db-schema](../design/db-schema.md) 4절). 읽기 함수는 1.1 파일만 받는다. 보고 스키마 1.0과 재오픈 정책은 바꾸지 않는다. 쓰는 쪽은 operations 하나다. 읽는 쪽은 `mode=ro`·`query_only`로 열고, 없는 파일을 만들지 않는다. 단, WAL 모드 DB를 읽기 전용으로 열어도 SQLite가 빈 `-wal`·`-shm` 파일을 만들 수 있다. 본문 파일 바이트는 바뀌지 않는다(관제·화면 확인, 2026-10-08). 시험은 본문 바이트 불변과 없는 DB 미생성만 검사한다.
 
@@ -181,7 +243,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 후속: `state_json` 의 키 추가(`segment_phase`·`candidate_event_id`)는 미뤘다([db-schema](../design/db-schema.md) 4절 「보류」). 로봇 상태의 `dock_state`·`segment_index` 와 ROS 수신은 아래 「DB 쓰기 어댑터」 절. 판정 이력 영속화와 재시작 복구, 관제 화면 연결은 이 절 밖이다. `tests/test_operations_site_state.py`가 위 규칙을 실제 임시 SQLite로 검사한다.
 
-### 오프라인 리허설: 현장 상태 DB 의 BRD 흐름 (E2, 2026-10-11)
+#### 오프라인 리허설: 현장 상태 DB 의 BRD 흐름 (E2, 2026-10-11)
 
 `tests/test_operations_site_flow.py` 가 [console-and-db-plan](../design/console-and-db-plan.md) 1절 흐름(웹캠 1대)을 합성 데이터로 현장 상태 DB 에 차례로 기록하고, 단계마다 operations 읽기 함수로 화면에 나갈 값을 확인한다. 실제 로봇 0대, ROS·카메라·coordination 판정 없음. 언제 재난인지, 출동을 받을지, 구출 완료인지는 coordination 몫이라 **정해진 결과를 넣는다**. 이 리허설이 검증하는 것은 DB 와 읽기 API 가 흐름을 빠짐없이 담고 보여 주는지다. E3·E4 는 NOT_RUN 이다.
 
@@ -204,7 +266,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 `FLOW` 는 데이터, `apply` 하나만 DB 에 쓴다. [통합 리허설](implementation-integration.md)의 `offline_demo`(기반 레인)로 옮길 때는 이 둘을 가져가 summary 검사로 잇고, coordination 코어가 main 에 들어오면 정해진 결과 자리를 코어 출력으로 바꾼다.
 
-## DB 쓰기 어댑터 (ROS → 현장 상태 DB, 2026-10-11)
+### DB 쓰기 어댑터 (ROS → 현장 상태 DB, 2026-10-11)
 
 현장 상태 DB 의 유일한 쓰기 프로세스다. 담당은 상태 감시([일정](../process/schedule.md) 2절 담당표, 10-11 팀 공지). 변환 코어 `rescue_operations/ros_ingest.py` 는 ROS 를 import 하지 않고 필드 이름으로만 읽어 E2 로 시험한다. `rescue_operations/ros_node.py`(실행 이름 `db_writer`)는 구독만 하고 코어를 부른다. 발행·명령은 없다.
 
@@ -227,7 +289,7 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 
 E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드와의 연결은 NOT_RUN 이다. 지도는 아직 받지 않는다(운영자 명령은 아래 절). 마지막 VALID 위치는 새 위치가 올 때까지 유지된다(위치 토픽이 끊기면 낡은 위치, 나이 상한은 후속).
 
-## 운영자 명령 API (관제 웹 → 조정기, 2026-10-12)
+### 운영자 명령 API (관제 웹 → 조정기, 2026-10-12)
 
 공지(10-12)의 「운영자 명령 API」다. 관제 웹(#115)이 `POST /api/operator-commands` 로 보낸 명령을 조정기 서비스 `SubmitOperatorCommand`(`/rescue/operator_command`)로 넘기고, 답을 돌려주고, `operator_commands` 에 남긴다. 요청·응답 모양은 #115 에서 맞췄다([코멘트](https://github.com/jaebeom/ROKEY-7/pull/115#issuecomment-6118222924)). 핵심은 `rescue_operations/command_api.py`(ROS 를 import 하지 않음, E2 시험)이고, `ros_node.py` 가 db_writer 와 **같은 프로세스**에서 HTTP 서버와 서비스 클라이언트를 띄운다([관제 웹·DB 계획](../design/console-and-db-plan.md) 2절 operations_node). 현장 상태 DB 에 쓰는 프로세스는 계속 하나이고, 구독 콜백과 HTTP 요청은 잠금으로 한 번에 하나씩 쓴다.
 
@@ -259,7 +321,7 @@ E3 범위 밖: 실제 로봇·다른 PC·Discovery Server·실제 발행 노드�
 
 E3 범위 밖: 콘솔 웹 화면(Flask)에서 버튼을 누르는 것, 실제 로봇·다른 PC, 실기는 NOT_RUN 이다. 위 실행에서 조정기는 가짜 실행기가 없어 `execute_task server not ready` 오류를 한 번 남겼다(명령 접수와 무관). RequestStop·지도·증거 업로드 같은 다른 HTTP 경로(계획 4절)는 아직 없다.
 
-## 구조 보고 저장 노드 (조정기 RescueReport → ReportReceipt, 2026-10-13)
+### 구조 보고 저장 노드 (조정기 RescueReport → ReportReceipt, 2026-10-13)
 
 조정기는 대상을 찾으면 `/rescue/reports`(IF-072)로 `RescueReport` 를 보내고, `/rescue/report_receipts`(IF-073)로 PERSISTED 영수증이 보고의 `record_ids` 를 전부 담아 올 때까지 `report_retry_s` 마다 다시 보낸다. 그 영수증을 받아야 대상의 `persisted_report_id` 가 채워지고 관제의 AMR2 출동 승인이 열린다("보고 저장 대기" 해제). 이 노드가 그 영수증을 낸다.
 
