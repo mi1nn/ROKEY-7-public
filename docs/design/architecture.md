@@ -1,16 +1,196 @@
 ---
-title: 두 AMR 재난 수색 시스템의 구조와 배포 제안
-status: draft
-updated: 2026-10-10
+title: 시스템 구조
+status: current
+updated: 2026-10-14
 ---
 
-# 두 AMR 재난 수색 시스템의 구조와 배포 제안
+# 시스템 구조
+
+## 한눈에 (2026-10-14, main `4163a25`)
+
+**이 문서가 답하는 질문:** 어느 PC 에서 무엇이 돌고, 웹캠과 두 로봇의 정보는 어디로 흐르나?
+
+로봇·PC·약어 이름은 용어집(`docs/glossary.md`, #273)을 따른다. 임무 흐름(지진 → 탐색 → 인형 → 출구)은 [scope.md 「지금 시나리오」](../requirements/scope.md)에 있다. 이 문서는 그 흐름을 맡은 프로그램과 연결만 다룬다.
+
+```mermaid
+flowchart LR
+  subgraph OPS[운영 PC]
+    WEBCAM[웹캠 판정<br/>webcam_node]
+    COORD[임무 조정기<br/>mission_coordinator]
+    DB[현장 상태 DB 기록<br/>db_writer]
+    REP[보고 저장<br/>report_node]
+    RELAY[영상 중계<br/>mjpeg_relay · robot_view_relay]
+    WEB[관제 웹<br/>rescue_console]
+  end
+  subgraph PC6[TB-6 담당 PC]
+    SLAM6[SLAM → 2차 고정 뒤 AMCL]
+    NAV6[Nav2 + 통로 정지·감속]
+    EXEC6[실행기<br/>task_input · command_watchdog]
+    DET[인형·QR 탐지<br/>amr_target · target_locator]
+    FREEZE[지도 고정<br/>map_freeze]
+    OH6[터널 판정<br/>overhead_passage]
+  end
+  subgraph PC5[TB-5 담당 PC]
+    AMCL5[고정 지도 + AMCL]
+    NAV5[Nav2 + 통로 정지·감속]
+    EXEC5[실행기<br/>task_input · command_watchdog]
+    OH5[터널 판정<br/>overhead_passage]
+  end
+  TB6((TB-6))
+  TB5((TB-5))
+  CAM[[고정 웹캠]]
+
+  CAM --> WEBCAM -- 지진 징후 --> COORD
+  DET -- 인형·출구 지도 좌표 --> COORD
+  COORD -- 임무 --> EXEC6
+  COORD -- 임무 --> EXEC5
+  COORD -- 고정 요청 --> FREEZE
+  FREEZE -- 고정 지도 --> AMCL5
+  EXEC6 -- 속도 명령 --> TB6
+  EXEC5 -- 속도 명령 --> TB5
+  COORD -- 보고 --> REP -- 저장 확인 --> COORD
+  COORD -- 상태 --> DB
+  OH6 -- 구조물 목록 --> DB
+  OH5 -- 구조물 목록 --> DB
+  DB --> WEB
+  RELAY --> WEB
+  WEB -- 운영자 명령 --> DB -- 명령 전달 --> COORD
+```
+
+| 원칙 | 내용 |
+| --- | --- |
+| 로봇을 움직이는 곳은 하나 | 로봇마다 실행기(task_input)만 Nav2 목표를 보낸다. 속도 명령은 감시 노드(command_watchdog)만 로봇에 보낸다 |
+| 임무를 정하는 곳은 하나 | 임무 조정기 하나가 두 로봇의 임무를 정한다. 관제 웹은 운영자 명령을 조정기에 전달만 한다 |
+| 관제 웹은 ROS 노드가 아니다 | 관제 웹은 현장 상태 DB 와 파일만 읽고, 명령은 운영 PC 의 HTTP API 로 보낸다 |
+| 무거운 영상은 로봇 담당 PC 에서 처리 | RGB·깊이 원본은 로봇 담당 PC 만 받는다. 운영 PC 에는 판정 결과와 작은 미리보기 영상만 보낸다 |
+| 모르면 움직이지 않는다 | 위치·지도·시각을 확인하지 못하면 새 명령을 막고 이유를 남긴다(팀 규칙 6절) |
+
+## 1. PC 별로 도는 것
+
+현장 실행 순서와 명령은 [bringup README](../../src/rescue_bringup/README.md)에 있다. 시험 중에는 TB-6 담당 PC 와 TB-5 담당 PC 를 한 PC 에서 돌리기도 한다.
+
+| PC | launch | 노드 | 하는 일 |
+| --- | --- | --- | --- |
+| 운영 PC | `operations.launch.py` | db_writer, report_node, webcam_node, mjpeg_relay, robot_view_relay, map_snapshot, robot_watch | 현장 상태 DB 기록과 명령 API, 보고 저장, 웹캠 지진·소실 판정, 영상 중계, 실시간 지도 파일 저장, 로봇 배터리·도킹 직접 관측 |
+| 운영 PC | `coordinator.launch.py` | mission_coordinator | 두 로봇의 임무 결정, 지도 고정 요청. 교통 관제는 #272(머지 전, 지금 코드에 없음) |
+| 운영 PC | (launch 없음, 직접 실행) | rescue_console (Flask) | 관제 웹 |
+| TB-6 담당 PC | `tb6_slam.launch.py` | slam_toolbox | 탐색 중 SLAM. 2차 고정 뒤 사람이 끄고 아래 위치 추정으로 바꾼다 |
+| TB-6 담당 PC | `frozen_localization.launch.py` (robot_a) | frozen_map_relay, amcl | 2차 고정 뒤 고정 지도 위치 추정 |
+| TB-6 담당 PC | `robot.launch.py` (robot_a) | Nav2, command_watchdog, task_input | 주행, 통로 정지·감속, 임무 실행 |
+| TB-6 담당 PC | `passage_points.launch.py`, `overhead_passage.launch.py` | depth_image_proc, overhead_passage | 깊이 영상 → 점구름 → 통로·터널 판정 |
+| TB-6 담당 PC | `map_freeze.launch.py` | map_freeze | 지도 고정 서비스. TB-6 가 움직이기 전에 띄운다 |
+| TB-6 담당 PC | `amr_perception.launch.py` | amr_target, target_locator, exit_locator | 인형 탐지, 출구 QR, 지도 좌표 변환 |
+| TB-5 담당 PC | `frozen_localization.launch.py` (robot_b) | frozen_map_relay, amcl | 처음부터 고정 지도 위치 추정 |
+| TB-5 담당 PC | `robot.launch.py` (robot_b) | Nav2, command_watchdog, task_input | 주행, 통로 정지·감속, 임무 실행 |
+| TB-5 담당 PC | `passage_points.launch.py`, `overhead_passage.launch.py` | depth_image_proc, overhead_passage | 통로·터널 판정 |
+| Discovery 서버 PC | — | Fast DDS Discovery Server | 최종 구성에서만 쓴다. 시험 중에는 각 PC 가 두 로봇의 서버를 직접 적는다([network-discovery.md](network-discovery.md)) |
+
+`mapping_navigation.launch.py`, `localization_navigation.launch.py` 는 혼자 연습하거나 TB-5 출발값을 잴 때만 쓴다. 감시 노드와 통로 정지가 없으므로 임무 회차에서는 쓰지 않는다. `scripts/field/search-area/` 는 2026-10-12 한 대 시험 묶음이라 지금 경로가 아니다.
+
+## 2. 주요 데이터 흐름
+
+| 무엇 | 보내는 쪽 | 토픽·경로 (형식) | 받는 쪽 |
+| --- | --- | --- | --- |
+| 지진 징후, 인형 소실 후보 | webcam_node | `/rescue/site_events` (SiteEvent) | 조정기, db_writer |
+| 인형 관측 | amr_target | `/rescue/observations` (TargetObservation) | target_locator |
+| 인형 지도 좌표 | target_locator | `/rescue/target_locations` (TargetLocation) | 조정기 |
+| 출구 QR 지도 좌표 | exit_locator | `/rescue/exit_location` (TargetLocation) | 조정기, db_writer |
+| TB-6 실시간 지도 | slam_toolbox | `/robot6/map` (OccupancyGrid) | 조정기(탐색 경계), map_snapshot(웹 지도) |
+| 고정 지도와 판 번호 | map_freeze | `/rescue/map/frozen`, `/rescue/map/frozen_revision` (OccupancyGrid, JSON) | frozen_map_relay, 조정기, 실행기 |
+| TB-6 출발 자세 | map_freeze | `/rescue/map/start_pose/robot_a` (PoseWithCovarianceStamped) | 조정기, TB-5 위치 추정 |
+| 임무 | 조정기 | `/rescue/robots/<id>/execute_task` (ExecuteTask action) | 각 로봇 실행기 |
+| 로봇 상태·위치·지도 판 | 실행기 | `/rescue/robots/<id>/status`, `.../pose`, `.../map_state` | 조정기, db_writer |
+| 임무 상태 | 조정기 | `/rescue/system_state` (SystemState) | 실행기, db_writer |
+| 보고와 저장 확인 | 조정기 ↔ report_node | `/rescue/reports` (RescueReport) → `/rescue/report_receipts` (ReportReceipt) | TB-5 출동은 저장 확인 뒤에만 |
+| 터널 판정 목록 | overhead_passage | `/rescue/robots/<id>/overhead_passages` (JSON) | db_writer → 웹 지도 |
+| 터널 판정 영상 | overhead_passage | `<ns>/rescue/passage_view/compressed` | robot_view_relay → 웹 로봇 카메라 칸 |
+| 웹캠 판정 화면 | webcam_node | `/rescue/cameras/cam_fixed/debug_image/compressed` | mjpeg_relay → 웹 웹캠 칸 |
+| 운영자 명령 | 관제 웹 | HTTP `POST /api/operator-commands` → `/rescue/operator_command` (SubmitOperatorCommand) | db_writer → 조정기 |
+| 웹캠 장치 바꾸기 | 관제 웹 | HTTP `GET`·`POST /api/webcam` | db_writer → webcam_node 파라미터 |
+| 관제 화면 자료 | db_writer | 현장 상태 SQLite (스키마 1.4) | 관제 웹(읽기 전용) |
+
+웹이 무엇을 어떤 함수로 읽는지는 관제 웹 데이터 흐름 문서(console-dataflow.md, 열린 #265)에 있다. 메시지 모양과 시각·좌표 규칙은 [contracts.md](contracts.md)에 있다.
+
+## 3. 지도 흐름
+
+기준 지도는 없다. TB-6 의 SLAM 지도가 두 로봇의 공통 지도다(scope Q-29 ⑦).
+
+```mermaid
+sequenceDiagram
+  participant TB6 as TB-6 (SLAM)
+  participant C as 임무 조정기
+  participant F as 지도 고정 (map_freeze)
+  participant TB5 as TB-5 (AMCL)
+  TB6->>C: 실시간 지도 /robot6/map
+  Note over C: 인형 확정 + 보고 저장
+  C->>F: 1차 고정 요청 (TB-6 정지 상태)
+  F-->>TB5: 고정 지도 판 1
+  Note over TB5: 출발 자리 기준으로 위치를 잡고 인형 앞으로
+  Note over TB6: SLAM 을 계속하며 탐색
+  Note over C: 탐색 완료 (갈 경계 없음)
+  C->>F: 2차 고정 요청
+  F-->>TB5: 고정 지도 판 2 (멈춘 채 위치 다시 맞춤)
+  F-->>TB6: 고정 자세 (사람이 SLAM 을 끄고 AMCL 로 바꿈)
+  C->>TB5: 가장 가까운 출구로
+  C->>TB6: 도킹 접근 지점으로
+```
+
+| 규칙 | 근거 |
+| --- | --- |
+| 고정은 한 회차에 두 번까지다. 세 번째 요청은 거절한다 | `rescue_robot/map_freeze.py` |
+| 판 번호·해시·세션이 모두 맞아야 고정 완료로 본다 | `rescue_coordination/ros_node.py` (`_rebase_on_freeze` 앞) |
+| 판이 바뀌면 인형·출구 좌표를 새 판으로 옮기고, 빈 칸 검사를 다시 한다 | 같은 파일 `_rebase_on_freeze` |
+| 실행기는 임무가 없고 멈췄을 때만 새 판을 받는다 | `rescue_robot/live_sources.py` |
+| TB-5 위치 추정은 출발값(`robots.robot_b.initial_pose_xy_yaw`)이 없으면 시작을 거절한다 | `frozen_localization.launch.py` |
+
+## 4. 명령과 정지
+
+| 경로 | 동작 |
+| --- | --- |
+| 속도 명령 | Nav2 와 도킹 서버의 출력은 `<ns>/cmd_vel_watchdog_in` 으로 가고, 감시 노드만 `<ns>/cmd_vel` 에 보낸다. 실행기 생존 신호(heartbeat)가 끊기거나 한도(0.3 m/s, 1.2 rad/s [설정])를 넘으면 정지 상태로 잠근다 |
+| 통로 정지 | 앞 0.4~1.0 m, 높이 0.05~0.46 m 에 깊이 점이 5개 이상이면 멈춘다(PassageStop) |
+| 터널 앞 감속 | 앞 0.4~1.2 m, 높이 0.23~1.0 m 에 점이 있으면 0.3 배로 줄인다(PassageSlow) |
+| 후진 | 복구 동작에서 뒤로 가기(BackUp)를 뺀다(#267, 재범 승인 2026-10-14) |
+| 임무 사이 잠금 | 임무 하나가 끝나면 실행기는 정지 잠금 상태가 되고, `task_arm` 전까지 새 임무를 받지 않는다(이슈 #233 3번, 재범 결정 대기) |
+| 현장 정지 | `scripts/field/stop_robot.sh <ns>`. 임무 정지 → Nav2 목표 취소 → 0 속도 5번 → 남은 프로세스 확인 |
+
+통로 값은 모두 [현장 파일](../../config/field/search_area.field.json)의 `passage.*` 한 곳에서 온다.
+
+## 5. 패키지
+
+| 패키지 | 하는 일 |
+| --- | --- |
+| `rescue_interfaces` | ROS 메시지·서비스·액션 정의 |
+| `rescue_contracts` | ROS 없이 쓰는 공통 규칙. 오류, ID, 지도 해시, 판 번호 형식, 탐색 경계·격자 경로 계산 |
+| `rescue_mapping` | ROS 없이 쓰는 좌표 변환과 지도 판 검사 |
+| `rescue_perception` | 웹캠 판정, 인형·QR 탐지, 지도 좌표 변환, 터널 판정, 영상 중계 |
+| `rescue_robot` | 실행기, 감시 노드, 지도 고정, 고정 지도 중계 |
+| `rescue_coordination` | 임무 조정기 |
+| `rescue_operations` | 현장 상태 DB 기록과 명령 API, 보고 저장, 실시간 지도 파일, 로봇 직접 관측 |
+| `rescue_console` | 관제 웹(Flask, ROS 없음) |
+| `rescue_bringup` | launch 파일, 프로파일·현장 파일 검사 |
+| `vendor/` | TurtleBot4 내비게이션·시각화, explore_lite(현장에서는 띄우지 않음) |
+
+## 6. 실기 전에 확인할 것
+
+| 무엇 | 왜 | 상태 |
+| --- | --- | --- |
+| 바닥 높이 기준 | TB-6 바닥 점이 `base_link` 기준 약 −0.2 m 로 보였다(#254). 맞다면 통로·터널 높이가 약 0.2 m 어긋난다 [계산] | NOT_RUN |
+| TB-5 출발값 | 현장 파일에 아직 없다. 시험 회차에서 재서 넣는다 | NOT_RUN |
+| 임무마다 arm | 탐색 목표마다 사람이 arm 해야 할 수 있다 | 재범 결정 대기 |
+| TB-6 지도 토픽 이름 | 조정기는 `/robot6/map` 을 고정값으로 쓴다. 실기 이름과 같은지 확인한다 | NOT_RUN |
+| Nav2 동작 순서표 | 후진을 뺀 사본이 설치된 Nav2 판과 같은지 실기 날 비교한다(#267 댓글) | NOT_RUN |
+| 웹 지도 입력 | 관제 웹을 `--live-map`(실시간)으로 띄울지 확인한다. README 예시는 `--map`(저장 지도)이다 | 확인 필요 |
+
+## 기록 (2026-10-10 판)
+
+아래는 2026-10-10 판 본문을 지우지 않고 옮긴 것이다(제목 단계만 한 칸 내림). 이전 이름을 그대로 둔다. PC1·PC2 = 로봇 담당 PC, PC3(웹캠) = 지금은 운영 PC, PC4 = 운영 PC, A·B = 로봇 두 대다(용어집(`docs/glossary.md`, #273)). 지금과 다른 점은 위 1~6절이 맞다. 특히 웹캠은 운영 PC 에서 돌고, Discovery 는 [network-discovery.md](network-discovery.md)의 2026-10-13 결정을 따른다.
 
 이 문서는 [범위](../requirements/scope.md)의 **AMR 2대 필수 조건**과 **PC 4대 예정 자원(고사양 2·중간 사양 2)**을 바탕으로 책임과 배포를 제안한다. 고사양 PC 두 대(PC1·PC2)를 로봇별 처리에, 중간 사양 PC 두 대를 고정 웹캠 처리(PC3)와 임무 조정·관제·DB(PC4)에 두는 4호스트 구성을 현재 설계 기준으로 삼는다([SDD 검토안](sdd-node-interface-spec-v0.1.md)의 PM 요구 2026-10-09, [SRD v0.2](../requirements/srd-v0.2.md) 2절). PC1~PC4는 논리 배치 이름이며, 실제 호스트·프로세스 배치는 동시 부하 측정 뒤 Q-02에서 정한다. 네 PC 모두의 사용을 사용자가 확정한 인수 의무로 해석하지 않는다. 발견·접근·보고의 최종 인수 범위와 PC 사용 조건은 scope의 미결정 사항을 따른다. P4에 기록된 기존 장비·운용 근거는 아래에 보존하고, 파이널에 실제 배치할 장비와 달라진 조건을 재확인한다. 이 문서의 구조는 실행 성능이나 실기 안전 검증 결과가 아니다.
 
 원본 근거는 [선별표](../process/source-selection.md)의 고정 SHA를 따른다. 패키지 이름과 아래 흐름은 신규 설계 제안이다. 상세 메시지·상태 전이·수치·시험 계약은 계획 PR 3에서 정하고, [알고리즘 결정](algorithm-decisions.md)의 실험 관문을 통과한 구성만 실행 기본값으로 승격한다.
 
-## 기존 환경의 근거와 파이널에서 확인할 차이
+### 기존 환경의 근거와 파이널에서 확인할 차이
 
 아래 `[원본 기록: 측정]`은 P4가 당시 환경에서 측정했다고 기록한 사실이다. 이번 문서 수정에서 재측정했다는 뜻이나 파이널 두 로봇·네 PC가 이미 검증됐다는 뜻이 아니다. `[설정]`, `[강의]`, `[문서]`, `[추정]`을 측정과 구분한다.
 
@@ -26,7 +206,7 @@ updated: 2026-10-10
 
 TF의 접두 없는 frame 이름과 namespace remap은 아래 좌표 절의 `[설정]` 근거를 사용한다. 해당 코드만으로 실기 TF 성공이나 `frame_prefix` 활성화 지원을 판정하지 않는다.
 
-## 배포 후보와 책임
+### 배포 후보와 책임
 
 | 배치 후보 | 실행 책임 | 다른 호스트에 전달할 것 | 확인할 전제 |
 | --- | --- | --- | --- |
@@ -61,7 +241,7 @@ flowchart LR
 
 대용량 RGB/Depth는 필요한 로봇 담당 PC에서 처리하고, 중앙에는 결과와 제한된 표시 자료·사건 증거를 보낸다. 모든 PC가 모든 원본 영상에 구독하는 구성을 기본값으로 만들지 않는다. 실험 기록은 필요한 호스트에서 수집하고 공통 실행 ID로 묶는다. DDS 발견은 Fast DDS Discovery Server로 한다([네트워크 채택안](network-discovery.md)). Discovery Server에서는 domain ID가 격리를 주지 않아(로컬 `[측정]`, 실기 확인 전) 위 DEC-010의 도메인 A/B 구도를 배포 선택지로 쓰지 않는다. 지금 현장은 운영 PC(PC4 역할)가 중앙 서버(ID 0, 포트 11811)를 돌리는 구성이고([운영 PC 현황 기록](../process/ops-host-record.md), `[측정, 2026-10-10]`), 로봇 쪽 서버 설정을 읽은 뒤 서버 목록·ID를 정한다. QoS·압축·시간 동기화도 적용한 설정과 측정 조건을 프로파일에 기록한다. A1/A4에서는 Discovery Server(운영 PC 서버와 로봇 Pi 서버)의 CPU와 participant/구독자 수, 메시지 수신 단절, 제어 RTT, RGB/Depth 관측 지연을 함께 남긴다.
 
-## 저장소와 패키지 경계
+### 저장소와 패키지 경계
 
 ```text
 src/
@@ -92,7 +272,7 @@ docs/                    # 범위·선별·설계·계약·실험 기록
 
 `rescue_mapping`의 로봇별 SLAM/TF adapter는 PC1/PC2에, 공통 정렬 registry는 PC4에 둔다. 패키지 하나가 호스트 하나를 의미하지 않는다. coordination의 임무 상태와 operations의 보고 DB는 같은 PC4에 있어도 서로 다른 논리 책임이며 공유 파일로 합치지 않는다. 보고 DB는 operations 단일 서비스가 쓰고 다른 컴포넌트는 API/메시지로 접근한다. 임무·보고 ID의 재전송은 동일 사건을 중복 생성하지 않게 하며, 영속 저장 확인을 받기 전에는 `보고 완료`로 표시하지 않는다.
 
-## 좌표와 지도 소유권
+### 좌표와 지도 소유권
 
 기본 검증 후보는 **독립 SLAM 두 개 + 측정한 공통 기준점**이다. A/B의 로컬 지도는 각각 주행에 사용하고, 교환하는 관측·목표만 공통 `mission` 기준으로 변환한다. 이 `mission`은 프로젝트의 좌표 계약 제안이며 두 occupancy grid를 하나로 자동 합쳤다는 뜻이 아니다. 정렬되지 않은 지도는 관제에서 별도 화면으로 보여 주고 교차 로봇 접근 배정은 제한한다.
 
@@ -113,7 +293,7 @@ P4는 `[설정]`으로 `/tf`·`/tf_static`을 노드 namespace의 상대 토픽�
 
 보정 감지·대상 영향 범위를 확신할 수 없으면 해당 지도의 접근 임무 전체를 보수적으로 보류한다. 새 배정 중지 → 기존 goal 취소 → 별도 정지 관측 → 정렬 재확인/재관측 → 새 임무 세대의 순서를 사용한다. 정확한 메시지·정지 시한·재개 권한은 PR 3에서 정한다.
 
-## 명령·정지 경계
+### 명령·정지 경계
 
 `rescue_robot`의 단독 명령 권한은 **프로젝트에서 주행/도킹 요청을 시작·취소하는 진입점을 하나로 둔다는 뜻**이다. Nav2가 내부에서 planner/controller를 호출하고, controller·선택한 smoother·충돌 감시기가 명시된 속도 처리 연결 안에서 발행하는 동작과 구분한다. 외부 후보 채점을 위한 `compute_path_to_pose` 요청도 실행기의 adapter로 모으지만 이는 경로 조회이고 주행 goal 전송이 아니다. 인식·협업·관제의 임의 속도 발행을 허용하지 않는다. 수동 조작을 넣는 경우도 명령 중재와 마지막 정지 경로를 통과하게 한다.
 
@@ -134,7 +314,7 @@ Collision Monitor를 사용하는 구성에서는 모든 일반 속도 경로를
 
 시간 비교는 관측 source time, 처리 시각, 각 수신자의 local monotonic elapsed time을 구분한다. 서로 다른 PC의 monotonic 수치를 직접 빼지 않는다. source clock의 오차가 계약 범위를 넘으면 위치 변환·접근에 쓰지 않고 명시적으로 품질 저하를 보고한다. 이 경로는 관제 화면의 온라인 표시와 별개로 로봇 실행기에서 적용한다.
 
-## 구현 전에 통과할 관문
+### 구현 전에 통과할 관문
 
 | 관문 | 확인할 결과 | 막는 후속 작업 |
 | --- | --- | --- |
