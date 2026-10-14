@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | `view.py` | 장부 + 상태 → 화면 모델(dict). 4단계 합성 규칙표, 임무 상태 배지, 명령 버튼의 관문 거울 | 표준 라이브러리, `rescue_contracts` |
 | `commands.py` | 운영자 명령 요청 만들기·한 번 보내기·응답 읽기(`POST /api/operator-commands`) | 표준 라이브러리 |
-| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 여덟(배치 로봇·로봇 상태·현장 사건·대상 상태·임무 상태·운영자 명령·오류 기록·최신 출구(QR) 관측)으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
+| `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 아홉(배치 로봇·로봇 상태·현장 사건·대상 상태·임무 상태·운영자 명령·오류 기록·최신 출구(QR) 관측·터널 판정)으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
