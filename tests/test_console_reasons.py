@@ -107,6 +107,41 @@ class ReasonWordTests(unittest.TestCase):
                                  mission_reason(code, 'TB-5', 'TB-6'))
         self.assertEqual('PATROL_ROUND_X', mission_reason('PATROL_ROUND_X', 'TB-5', 'TB-6')['text'])   # unknown stays
 
+    def test_traffic_codes_of_272(self):   # 두 로봇 교통 관제(#272, OPS-235). 두 로봇이 다 멈추는 둘은 빨강
+        cases = {
+            'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP': ('TB-6 정지 확인 기다림 — TB-5 대기', 'caution', None),
+            # TB-6 정지를 확인 못 함: TB-6 이 아직 움직일 수 있다(작전 OPS-237 제안)
+            'TRAFFIC_SCOUT_STOP_TIMEOUT': ('TB-6 정지 확인 안 됨(시간 초과) — TB-5 대기, 현장 확인', 'alert', None),
+            'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD': ('TB-6 이 TB-5 경로 밖으로 비키는 중 — TB-5 대기', 'caution', None),
+            'TRAFFIC_SCOUT_YIELD_NO_SPACE': ('TB-6 이 비킬 자리 없음 — 두 로봇 모두 정지', 'alert', None),
+            'TRAFFIC_SCOUT_HELD_FOR_SUPPORT': ('TB-5 경로와 겹쳐 TB-6 명령 보류', 'caution', None),
+            'TRAFFIC_ROBOTS_TOO_CLOSE': ('두 로봇이 너무 가까움 — 새 명령 보류', 'caution', None),
+            'TRAFFIC_SUPPORT_PATH_UNKNOWN': ('고정 지도에서 TB-5 경로를 찾지 못함 — 대기', 'caution', None),
+            'TRAFFIC_SCOUT_POSE_UNKNOWN': ('TB-6 위치 확인 안 됨 — 대기', 'caution', None),
+            'TRAFFIC_SUPPORT_POSE_UNKNOWN': ('TB-5 위치 확인 안 됨 — 대기', 'caution', None),
+            'TRAFFIC_SEPARATION_UNCHECKED': ('TB-5 출발 자리 미측정 — 두 로봇 간격 검사 꺼짐', 'info', None),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
+    def test_frontier_exploration_and_final_map_of_248(self):   # #247/#248 (OPS-174)
+        cases = {
+            'MAP_NOT_FINAL': ('완성 지도(두 번째 고정) 대기 — TB-6 복귀·TB-5 출구 이동 보류', 'caution', None),
+            'SUPPORT_START_UNKNOWN': ('출구(QR) 없음·TB-5 시작점 모름 — TB-5 출구 이동 보류', 'caution', 'support'),
+            'SUPPORT_EXIT_UNREACHABLE': ('출구로 갈 길 없음 — TB-5 출구 이동 보류', 'caution', 'support'),
+            'NO_SURVIVOR_FOUND': ('생존자 없음 — 탐색 완료, TB-5 출동 안 함', 'info', None),
+            'EXPLORATION_COMPLETE': ('TB-6 지도 전체 탐색 완료', 'info', None),
+            'EXPLORATION_TIMEOUT': ('탐색 시간 초과 — 탐색 종료', 'caution', None),
+            'EXPLORATION_MAP_UNKNOWN': ('TB-6 탐색 지도 아직 없음 — 탐색 보류', 'caution', None),
+            'SCOUT_POSE_UNKNOWN': ('TB-6 위치 모름 — 탐색 보류', 'caution', 'scout'),
+        }
+        for code, (text, level, scope) in cases.items():
+            with self.subTest(code):
+                self.assertEqual({'code': code, 'text': text, 'level': level, 'scope': scope},
+                                 mission_reason(code, 'TB-5', 'TB-6'))
+
     def test_target_time_refusals_and_unknown_codes(self):
         self.assertEqual('caution', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['level'])
         self.assertIn('시각', mission_reason('TARGET_TIME_BASIS_UNUSABLE', 'TB-5', 'TB-6')['text'])

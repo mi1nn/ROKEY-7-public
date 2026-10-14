@@ -411,6 +411,28 @@ MISSION_REASONS = {
     'START_POSE_UNKNOWN': ('{scout} 출발 자세 모름 — 순찰·{scout} 복귀 보류', 'caution'),
     'START_POSE_CONFLICT': ('{scout} 출발 자세가 다른 값으로 다시 옴 — 처음 값 유지, 확인 필요', 'alert'),
     'PATROL_EXHAUSTED': ('{scout} 순찰 끝(정한 바퀴 다 돎) — 더 돌지 않음', 'caution'),
+    # #247/#248 (OPS-174): 프런티어 탐색, 완성 지도(두 번째 고정), TB-5 출구 길(격자 경로).
+    'MAP_NOT_FINAL': ('완성 지도(두 번째 고정) 대기 — {scout} 복귀·{support} 출구 이동 보류', 'caution'),
+    'SUPPORT_START_UNKNOWN': ('출구(QR) 없음·{support} 시작점 모름 — {support} 출구 이동 보류', 'caution'),
+    'SUPPORT_EXIT_UNREACHABLE': ('출구로 갈 길 없음 — {support} 출구 이동 보류', 'caution'),
+    'NO_SURVIVOR_FOUND': ('생존자 없음 — 탐색 완료, {support} 출동 안 함', 'info'),
+    'EXPLORATION_COMPLETE': ('{scout} 지도 전체 탐색 완료', 'info'),
+    'EXPLORATION_TIMEOUT': ('탐색 시간 초과 — 탐색 종료', 'caution'),
+    'EXPLORATION_MAP_UNKNOWN': ('{scout} 탐색 지도 아직 없음 — 탐색 보류', 'caution'),
+    'SCOUT_POSE_UNKNOWN': ('{scout} 위치 모름 — 탐색 보류', 'caution'),
+    # 두 로봇 교통 관제(#272, OPS-235). 두 로봇이 다 멈추는 YIELD_NO_SPACE·STOP_TIMEOUT 은 빨강(#272 웹 요청).
+    # SEPARATION_UNCHECKED 는 멈춤이 아니라 간격 검사가 꺼진 것을 알리는 표시다.
+    'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP': ('{scout} 정지 확인 기다림 — {support} 대기', 'caution'),
+    # 정지를 확인하지 못했을 뿐이라 TB-6 이 아직 움직일 수 있다(OPS-237): 현장 확인을 문구에 넣는다.
+    'TRAFFIC_SCOUT_STOP_TIMEOUT': ('{scout} 정지 확인 안 됨(시간 초과) — {support} 대기, 현장 확인', 'alert'),
+    'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD': ('{scout} 이 {support} 경로 밖으로 비키는 중 — {support} 대기', 'caution'),
+    'TRAFFIC_SCOUT_YIELD_NO_SPACE': ('{scout} 이 비킬 자리 없음 — 두 로봇 모두 정지', 'alert'),
+    'TRAFFIC_SCOUT_HELD_FOR_SUPPORT': ('{support} 경로와 겹쳐 {scout} 명령 보류', 'caution'),
+    'TRAFFIC_ROBOTS_TOO_CLOSE': ('두 로봇이 너무 가까움 — 새 명령 보류', 'caution'),
+    'TRAFFIC_SUPPORT_PATH_UNKNOWN': ('고정 지도에서 {support} 경로를 찾지 못함 — 대기', 'caution'),
+    'TRAFFIC_SCOUT_POSE_UNKNOWN': ('{scout} 위치 확인 안 됨 — 대기', 'caution'),
+    'TRAFFIC_SUPPORT_POSE_UNKNOWN': ('{support} 위치 확인 안 됨 — 대기', 'caution'),
+    'TRAFFIC_SEPARATION_UNCHECKED': ('{support} 출발 자리 미측정 — 두 로봇 간격 검사 꺼짐', 'info'),
 }
 # APPROACH_FAILED_<why> (#216): 실행기 종료 사유, 미정의 시 실행 결과 코드.
 # 정의되지 않은 사유 코드는 코드명을 그대로 노출하여 정보를 은폐하지 않는다(OPS-127).
