@@ -57,6 +57,7 @@ def _contract(check, value, label):
         raise PerceptionError("INVALID_INPUT", f"{label}: {exc.detail}") from exc
 
 
+# 0 ~ 1 사이의 유한한 숫자인지 검사 (좌표·점수용)
 def _unit(value, name, low=0.0, high=1.0):
     _require(type(value) in (int, float) and math.isfinite(value) and low <= value <= high, "INVALID_INPUT", name)
 
@@ -168,10 +169,12 @@ def _inside_fraction(box, roi):
     """상자 면적 중 ROI 와 겹친 부분의 비율. 예) 상자의 절반이 ROI 안이면 0.5"""
     ix = max(0.0, min(box.x1, roi[2]) - max(box.x0, roi[0]))  # 겹친 부분의 가로 길이
     iy = max(0.0, min(box.y1, roi[3]) - max(box.y0, roi[1]))  # 겹친 부분의 세로 길이
+    # 겹친 넓이 ÷ 상자 넓이
     return (ix * iy) / ((box.x1 - box.x0) * (box.y1 - box.y0))
 
 
 def _center(box):
+    """상자의 가운데 점 (x, y)."""
     return ((box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2)
 
 
@@ -179,11 +182,13 @@ class TargetWatchDetector:
     """출구 판정기. 감시 하나에 하나(감시를 새로 걸면 새로 만든다). update() 에 프레임을 시간 순서대로 넣는다."""
 
     def __init__(self, binding, policy, watch):
+        # 고정 카메라(로봇 아님)인지, 설정·감시 형식이 맞는지 검사
         _require(isinstance(binding, SourceBinding) and binding.source_robot is None, "INVALID_INPUT",
                  "fixed camera binding must have source_robot=None")
         _require(isinstance(policy, TargetWatchPolicy), "INVALID_INPUT", "policy")
         _require(isinstance(watch, WatchSpec), "INVALID_INPUT", "watch")
         cam = _contract(camera_id, binding.source_camera, "camera_id")
+        # 다른 카메라의 감시면 거절
         _require(watch.camera_id == cam, "INVALID_INPUT", "watch camera_id differs from the camera binding")
         self.binding, self.policy, self.watch, self.camera_id = binding, policy, watch, cam
         # 프레임 사이에 기억하는 값들
@@ -207,10 +212,13 @@ class TargetWatchDetector:
         boxes      : 이 프레임의 인형 상자들(DetectionBox 튜플). YOLO 가 실패했으면 None.
         visibility : VALID / OCCLUDED / UNKNOWN. webcam_node 가 지진 판정 결과로 정해 넣는다.
         """
+        # 입력 형식 검사 + 증거용 해시
         frame, evidence_sha256 = rgb_frame(rgb, self.binding)
+        # 시야 값과 상자 목록 형식 검사
         _require(visibility in VISIBILITY_STATES, "INVALID_INPUT", "visibility")
         _require(boxes is None or (type(boxes) is tuple and all(isinstance(b, DetectionBox) for b in boxes)),
                  "INVALID_INPUT", "boxes must be a tuple of DetectionBox or None")
+        # stamp = 이 프레임의 시각(나노초)
         stamp = frame.observed_at_ns
         # 같은 시각·더 이른 시각 프레임은 무시한다(상태를 바꾸지 않음).
         if self._last_ns is not None and stamp <= self._last_ns:
@@ -218,7 +226,9 @@ class TargetWatchDetector:
                                  self._absent_frames, self._absent_ns(stamp), self._valid_run, None)
         # 프레임이 1초 넘게 끊겼으면 그 사이를 모르므로 사라진 시간을 처음부터 잰다.
         gap = self._last_ns is not None and stamp - self._last_ns > self.policy.max_gap_ns
+        # 이 프레임을 '마지막으로 처리한 프레임'으로 기록
         self._last_ns = stamp
+        # 끊겼으면 사라진 시간 기록을 지운다
         if gap:
             self._restart_absence()
         # (1) 인형 상자 고르기: 점수 ≥ 0.25 인 상자(scored) → 그중 면적의 50% 이상이 ROI 안인 상자(in_roi)
@@ -233,9 +243,11 @@ class TargetWatchDetector:
         # (3) 판정 불가: 화면 가림·영상 상태 모름·YOLO 실패 → UNKNOWN, 사라진 시간 리셋.
         #     애매한 프레임에서는 후보를 만들지 않는다. 운영자가 영상을 보고 판단한다.
         if visibility != "VALID" or boxes is None:
+            # 연속 '잘 보임'·'인형 보임' 장수를 0 으로, 사라진 시간도 처음부터
             self._valid_run = 0
             self._present_run = 0
             self._restart_absence()
+            # 이유: 화면 가림 → OCCLUDED, 영상 상태 모름 → VISIBILITY_UNKNOWN, 그 외(YOLO 실패) → DETECTOR_UNAVAILABLE
             reason = ("OCCLUDED" if visibility == "OCCLUDED" else "VISIBILITY_UNKNOWN" if visibility == "UNKNOWN"
                       else "DETECTOR_UNAVAILABLE")
             return self._result("UNKNOWN", visibility, reason, stamp, None)
@@ -248,7 +260,9 @@ class TargetWatchDetector:
             self._present_run += 1
             if self._present_run >= self.policy.present_confirm_frames:
                 self._armed = True
+            # 보였으니 사라진 시간 기록을 지운다
             self._restart_absence()
+            # reason 은 보통 None. 프레임이 끊겼다 돌아온 첫 장이면 FRAME_GAP
             return self._result("PRESENT", visibility, "FRAME_GAP" if gap else None, stamp, None)
 
         # (5) 인형이 안 보임. 아직 무장 전이면 후보를 내지 않는다(NOT_YET_SEEN).
@@ -260,8 +274,10 @@ class TargetWatchDetector:
         #     0.2초마다 1장이면 3초 = 15장이라 10장 조건은 저절로 넘는다. 프레임이 느려질 때를 위해 둘 다 본다.
         if self._absent_since is None:
             self._absent_since = stamp
+        # 안 보인 장수 +1, absent_ns = 안 보이기 시작한 뒤 흐른 시간
         self._absent_frames += 1
         absent_ns = stamp - self._absent_since
+        # 3초 미만이거나 10장 미만이면 아직 결론을 내지 않는다
         if absent_ns < self.policy.absent_hold_ns or self._absent_frames < self.policy.absent_min_frames:
             return self._result("PRESENT", visibility, "FRAME_GAP" if gap else None, stamp, None)
         # (7) ★ 출구 판정: 충분히 오래 안 보였다. 마지막으로 본 위치가 출구 영역 안인가?
@@ -269,12 +285,15 @@ class TargetWatchDetector:
         #     self._track : 마지막으로 본 중심 (x, y)
         event = None
         if not self._emitted:
+            # 출구 영역 좌표. 예) [0, 0, 0.2, 1] → 마지막 중심의 x 가 0 ~ 0.2 이면 출구 쪽
             x0, y0, x1, y1 = self.policy.exit_roi_xyxy_normalized
             via_exit = not seen and self._track is not None and x0 <= self._track[0] <= x1 and y0 <= self._track[1] <= y1
+            # 출구 쪽이 아니면 후보 없이 UNKNOWN(NOT_VIA_EXIT). 운영자가 영상을 보고 판단한다
             if not via_exit:
                 return self._result("UNKNOWN", visibility, "NOT_VIA_EXIT", stamp, None)
             self._emitted = True  # 후보 사건은 감시 하나당 한 번만 낸다(인형이 다시 보이면 상태는 PRESENT 로 돌아간다).
             event = self._event(frame, evidence_sha256, absent_ns)
+        # 출구로 사라짐 → ABSENT_CANDIDATE (사건 event 는 처음 한 번만 실린다)
         return self._result("ABSENT_CANDIDATE", visibility, None, stamp, event)
 
     def _follow(self, in_roi, scored):
@@ -286,25 +305,32 @@ class TargetWatchDetector:
         예) 직전 위치 (0.40, 0.60), 이번 상자 중심이 (0.35, 0.62) 와 (0.90, 0.20)
             → 가까운 (0.35, 0.62) 를 고르고, 거리 약 0.05 ≤ 0.3 이라 같은 인형으로 본다.
         """
+        # 1) ROI 안 상자가 있으면 그중 최고 점수 상자의 중심으로
         if in_roi:
             self._track = _center(max(in_roi, key=lambda b: b.score))
             return True
+        # 2) 아직 한 번도 못 봤거나 화면에 상자가 하나도 없으면 '안 보임'
         if self._track is None or not scored:
             return False
         tx, ty = self._track
+        # 점수를 통과한 모든 상자 중 직전 위치와 가장 가까운 것
         nearest = min(scored, key=lambda b: math.dist(_center(b), (tx, ty)))
         if math.dist(_center(nearest), (tx, ty)) > self.policy.track_max_jump:
             return False
+        # 충분히 가까우면 같은 인형으로 보고 위치를 옮긴다
         self._track = _center(nearest)
         return True
 
     def _restart_absence(self):
+        """사라진 시간 기록(시작 시각·장수)을 지운다."""
         self._absent_since, self._absent_frames = None, 0
 
     def _absent_ns(self, stamp):
+        """지금까지 안 보인 시간(ns). 재고 있지 않으면 0."""
         return 0 if self._absent_since is None else max(0, stamp - self._absent_since)
 
     def _result(self, state, visibility, reason, stamp, event):
+        """PresenceFrame 만들기. 상태·시야·이유와 함께 지금까지 센 값(안 보인 장수·시간, 연속 VALID 장수)을 담는다."""
         return PresenceFrame("PROCESSED", state, visibility, reason, self._absent_frames, self._absent_ns(stamp),
                              self._valid_run, event)
 

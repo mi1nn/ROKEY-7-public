@@ -247,6 +247,10 @@ class SiteRuntime:
         if unsupported:
             raise ContractError('optional non-SEARCH live extensions not installed: '+', '.join(sorted(unsupported)))
         self.last_lease_rejection=''
+        # Re-arm after a COMPLETED task with a confirmed stop (OPS-231, owner 2026-10-14). The field
+        # launch requires task.live.auto_rearm per robot (live_parameters); without it, no re-arm.
+        self.auto_rearm=config.get('auto_rearm',False)
+        if type(self.auto_rearm) is not bool: raise ContractError('auto_rearm must be a bool')
         self.auto_target=auto_target_policy(config['auto_target']) if 'auto_target' in config else None
         self.recheck=recheck_settings(config['recheck']) if 'recheck' in config else None
         if self.auto_target is not None and 'REOBSERVE_TARGET' in self.auto_target['kinds'] and self.recheck is None:
@@ -292,6 +296,7 @@ class SiteRuntime:
             **config['endpoints'])
         self.services=[]
         self.install_live_authority_guard()
+        if self.auto_rearm: adapter.rearm=self.rearm_after_completion
 
     def _authority(self):
         a=self.inputs.current()['authority']
@@ -514,6 +519,32 @@ class SiteRuntime:
             self.inputs.clock_basis()
             now=self.adapter.clock()
             return self.adapter.executor.arm(a['authority_epoch'],now=now,readiness=self.adapter.readiness(now))
+
+    def rearm_after_completion(self):
+        """Called by the adapter once after a COMPLETED, stop-confirmed task: the task_arm checks again.
+
+        A refusal keeps the stop latched with its reason in the log and RobotStatus.stop_reason;
+        nothing else is tried (an operator task_arm decides). Returns the reason, or None when armed.
+        """
+        executor=self.adapter.executor
+        with self.adapter.lock:
+            try:
+                a=self._authority()
+                if (a['robot_boot_id'],a['authority_epoch'])!=(executor.robot_boot_id,executor.authority_epoch):
+                    raise ContractError('coordinator authority differs from this executor','NOT_AUTHORIZED')
+                self.inputs.clock_basis()
+                now=self.adapter.clock()
+                reason=executor.rearm_after_completion(a['authority_epoch'],now=now,readiness=self.adapter.readiness(now))
+                detail=reason or ''
+            except (RescueError,OSError,ValueError,TypeError,KeyError) as exc:
+                reason=getattr(exc,'code',None) or type(exc).__name__; detail=str(exc)
+                executor.refuse_rearm(reason)
+        if reason is None:
+            self.node.get_logger().info('completed with stop confirmed: re-armed for the next task')
+        else:
+            self.node.get_logger().error(f'completed, automatic re-arm refused ({reason}) {detail}; '
+                                         'task_arm needed')
+        return reason
 
     def attach_services(self):
         from std_srvs.srv import Trigger

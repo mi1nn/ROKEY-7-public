@@ -1,18 +1,34 @@
 # rescue_robot
 
-## 2026-10-13 현재: 실행 방법과 안 되는 것
+## 현재 상태 (2026-10-14, main 4163a25)
 
-**실행.** 로봇 쪽은 `rescue_bringup` 의 `robot.launch.py`(#152)로 띄운다. TurtleBot4 Nav2(최종 `cmd_vel` 을 watchdog 입력으로 remap) + `command_watchdog` + `task_input` 을 한 번에 띄운다. 값은 배포 프로파일, 현장 실행 파일 `config/field/search_area.field.json`(#132 값), 현장에서 잰 지도 해시(`scripts/field/map_occupancy_sha256.py`)에서 온다. 명령·순서는 [rescue_bringup README](../rescue_bringup/README.md) 「SEARCH_AREA 현장 실행」 절에 있다. #132 의 `scripts/field/search-area/start_*.sh` 는 같은 값의 원본으로 남아 있고, 시험(`tests/test_bringup_field_launch.py`)이 launch 값과 대조한다.
+코드 기준이다. 「실기 NOT_RUN」은 코드와 로봇 없는 시험(`scripts/run_tests.py`)은 있지만 실제 로봇에서 확인하지 않았다는 뜻이다. 맨 아래 「기록」 절은 당시 설명이다. 이 표와 다르면 이 표가 지금 상태다.
+
+| 기능 | 상태 | 근거 |
+| --- | --- | --- |
+| 로봇 쪽 실행(Nav2 + `command_watchdog` + `task_input` 한 번에) | 구현됨, 실기 NOT_RUN | `rescue_bringup/launch/robot.launch.py`, #152 |
+| 임무 입력 LIVE_ROS `SEARCH_AREA` | 구현됨 | `task_site_runtime.py:_issuer_rejection`, `live_sources.py` |
+| LIVE_ROS 자동 대상 이동: TB-5 `APPROACH_TARGET`, TB-6 `REOBSERVE_TARGET`, 두 로봇 `RETURN_HOME` | 구현됨, 실기 NOT_RUN | `task_site_runtime.py:_allowed`·`target_gate`, #166·#179·#192. 종류는 현장 파일 `robots.<id>.task.live.auto_target.kinds` |
+| LIVE_ROS `MOVE_SEGMENT` | 미구현(`LIVE_SEARCH_ONLY` 로 거절, FILES 경로만) | `task_site_runtime.py:_issuer_rejection` |
+| 재확인 관측(ObserveTarget) 호출 | 구현됨. 서버는 통합-인식 몫 | `live_recheck.py:RecheckClient` |
+| 자동 도킹 | 미구현(사람이 감독하는 절차) | 아래 「복귀」 |
+| RobotPose·MapState 발행 | 구현됨 | `live_pose.py:LivePosePublisher` |
+| TB-6 탐색 중 위치 = TF `map→base_link`, 공분산은 마지막 `/robot6/pose`(30 s 넘으면 무효) | 구현됨, 실기 NOT_RUN | `slam_tf_pose.py:SlamTfPose`, `live_sources.py:attach_slam_tf_pose`, #253 |
+| 지도 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·짝 토픽 `frozen_revision`·TB-5 재정합 | 구현됨, 실기 NOT_RUN | `map_freeze.py`, `live_sources.py:SavedMapSources`, `frozen_map_relay.py`, #242·#255 |
+| 통로 정지 알림 `PASSAGE_BLOCKED` | 구현됨, 실기 NOT_RUN | `live_passage.py:PassageMonitor`, `task_site_runtime.py:feedback_reason`, #219 |
+| watchdog 영구 정지·리셋, 끝날 때 `cmd_vel` 0 세 번 | 구현됨 | `watchdog.py`, `watchdog_node.py:zero_commands`, #256 |
+| 임무가 끝난 뒤 다시 READY | 구현됨, 실기 NOT_RUN. 이동이 정상으로 끝나고(`COMPLETED`) 정지가 확인되면 스스로 다시 준비한다(`ARMED`). 준비 조건은 `~/task_arm` 과 같다. 조건이 맞지 않으면 다시 준비하지 않고, 로그와 `RobotStatus.stop_reason`(`REARM_REFUSED_<이유>`)에 이유를 남긴다. 실패·만료·취소·정지 버튼·정지 미확인 뒤에는 지금처럼 `~/task_arm` 을 기다린다. 로봇마다 `task.live.auto_rearm` 으로 켜고, 두 로봇 모두 켰다(재범 4등급 승인 2026-10-14, 이슈 #233 3번) | `executor.py:rearm_after_completion`, `nav2_adapter.py:_after`, `task_site_runtime.py:rearm_after_completion`, `task_status.py`, OPS-231 |
+| watchdog 현장 값 | 임시값(#132), 확정 안 됨(#94) | `config/field/search_area.field.json` `watchdog` 절 |
+| `command_adapter` 단독 실행 | 임무 입력이 없어 로봇을 움직이지 않는다. 현장은 `task_input` | `setup.py` console_scripts, `task_input_node.py:main` |
+| 빈 배열 ROS 파라미터 | 넘길 수 없다(launch 가 거절) | launch_ros. 아래 「실행」 |
+
+## 실행
+
+**실행.** 로봇 쪽은 `rescue_bringup` 의 `robot.launch.py`(#152)로 띄운다. TurtleBot4 Nav2(최종 `cmd_vel` 을 watchdog 입력으로 remap) + `command_watchdog` + `task_input` 을 한 번에 띄운다. 값은 배포 프로파일, 현장 실행 파일 `config/field/search_area.field.json`(#132 값), 현장에서 잰 지도 해시(`scripts/field/map_occupancy_sha256.py`)에서 온다. 명령·순서는 [rescue_bringup README](../rescue_bringup/README.md) 「지금 현장 실행 순서」·「현장 실행 순서: PC 역할별」 절에 있다. #132 의 `scripts/field/search-area/start_*.sh` 는 같은 값의 원본으로 남아 있고, 시험(`tests/test_bringup_field_launch.py`)이 launch 값과 대조한다.
 
 **실행 전 점검.** `scripts/field/preflight_role.py --role <host id>`(#156)가 이 PC 의 패키지(`nav2_msgs`·`turtlebot4_navigation`)·현장 파일·지도·시계·Discovery 설정을 미리 본다.
 
-**지금 안 되는 것**
-
-| 무엇 | 왜 / 어디 |
-| --- | --- |
-| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절, #166)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET 은 PR #179 머지 뒤, RETURN_HOME 은 다음 PR(C1-c). MOVE_SEGMENT 는 FILES 경로만 |
-| 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
-| watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
+**안 되는 것**은 위 「현재 상태」 표의 미구현 줄이다. 그 밖에 ROS 파라미터로 빈 배열을 넘길 수 없어(launch_ros 거절, `-p`·`--params-file` 은 미설정) 빈 `camera_topics` 는 launch 가 거절한다.
 
 **자동 대상 접근(APPROACH_TARGET, LIVE_ROS, 2026-10-13)**
 
@@ -56,7 +72,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | 토픽 | QoS | 언제 | 내용 |
 | --- | --- | --- | --- |
 | `/rescue/robots/<robot_id>/pose` | RELIABLE·VOLATILE·1 (IF-010) | 받아들인 AMCL 자세마다 | `native_pose` = AMCL 원값. `mission_pose` 는 선언 정합으로 변환한 값이고, AMCL 유효·지도 적재·정합 유효·시계 SYNCED 가 모두 맞을 때만 `VALID`, 아니면 `UNKNOWN` 이며 숫자를 넣지 않는다. `time.valid_until_ns` = AMCL stamp + `task.live.pose_valid_ns`. 시각 오차 상한 = 이 PC 측정값 + 로봇 Pi 값(`task.live.sensor_host_clock_error_bound_ns`, 현장 실행 파일 `robots.<id>` 절, AMCL stamp 는 Pi 가 찍은 scan 시각). Pi 시계 영역(`task.live.sensor_host_clock_domain_id`)이 다르거나 Pi 값이 -1(측정 전)이면 `UNKNOWN`. 현장 값 150 ms: 2026-10-13 `chronyc tracking` 으로 `clock_measurement.parse_chrony` 식(차이 + root delay/2 + root dispersion + 갱신 간격 × 100 ppm)을 계산하면 TB-6 약 109 ms, TB-5 약 107 ms 다. 재부팅·재동기화 뒤 값이 바뀌므로 실기 당일 다시 잰다 |
-| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 은 지도 고정 때 한 번만 R0 → R0+1 로 오른다(아래) |
+| `/rescue/robots/<robot_id>/map_state` | RELIABLE·TRANSIENT_LOCAL·1 (IF-009) | 의미가 바뀔 때(지도 적재·위치 품질) | 선언된 map session·revision, `map_update_sequence` 0, `snapshot_id` = 지도 해시·기준의 UUIDv5, `localization_quality` VALID/UNKNOWN, `correction_detection_status` UNKNOWN. revision 은 고정할 때마다 R0 → R0+1 → R0+2 로 오른다(아래) |
 
 **지도 수명 주기: TB-6 SLAM → 고정 지도(2026-10-13 저녁, scope Q-29 ⑦, OPS-113)**
 
@@ -101,48 +117,14 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 - 리셋은 로봇을 다시 움직일 수 있게 하는 조작이다. 원인을 확인하고 로봇이 멈춘 것을 눈으로 본 뒤 사람이 판단해서 한다. 실행기 쪽 STOP latch·새 generation 규칙은 따로다. 같은 임무를 이어 가는 대신, #132 규칙대로 조정기·로봇 launch 를 다시 켜고 새 목표를 고르는 것이 확인된 절차다.
 - 입력 명령이 `command_max_age_s` 넘게 끊기면 0 을 한 번 보낼 뿐 래치하지 않는다(로그 없음). 이것으로는 영구 정지가 생기지 않는다.
 
-## 2026-10-12 현장 수정: 파일 없는 SEARCH_AREA 입력
 
-현재 권장 실행 경로는 `task.input_mode=LIVE_ROS`다. 아래의 FILES/task_prepare 설명은
-기존 설정 호환용이며 이 경로의 선행 조건이 아니다. LIVE_ROS는 runtime.json,
-inputs.json, input-sources.json, clock_basis_file, task.params.yaml을 읽거나 생성하지 않는다.
-기존 `task_input` 하나에 지도/AMCL/SystemState 구독, ExecuteTask 수신, CommandLease 갱신을 연결한다.
-
-고정 정책과 측정된 지도 정합은 타입을 명시한 ROS 파라미터로 준다(`live_parameters.py`).
-정책·좌표·시각 기본값은 없다. YAML은 필수가 아니며 `--ros-args -p` 또는 launch의
-parameters로 줄 수 있다. 기존 command_adapter와 동시에 실행하지 않는다.
-
-중앙도 `live_inputs.enabled=true`로 실행해야 한다. 중앙의 `~/task_inputs`
-(`rcl_interfaces/srv/GetParameters`, request.names=['source'])를 비동기 조회한다.
-STRING 응답은 `rescue-live-task-source/1`의 메모리 기록이며 파일 교환용 JSON이 아니다.
-응답에는 coordinator_id/publisher_boot_id/authority_epoch/schema_version/clock_domain_id,
-실측 clock, 중앙 정책의 lease_duration_s/lease_renew_period_s 및 수색 목적점이 있다.
-중앙 core에서 생성한 목적점과 양 PC의 실제 NTP 측정만 사용하고, 수신 시각으로 관측
-시각·만료를 연장하지 않는다. 서비스 timeout은 lease.max_age_ns로 제한하며 cache를
-무효화한다. SystemState의 새 boot 등록과 명시적 arm은 별도로 유지한다.
-
-이 로컬 LIVE_ROS 모드는 SEARCH_AREA만 받는다. MOVE_SEGMENT·대상 접근은 기존 FILES
-경로에서 유지하며 새 모드의 수색 조건으로 우회하지 않는다. 원래의 watchdog READY,
-lease 수신 나이/만료·오차, 지도 session/revision/정합, Nav2 terminal + fresh odom
-정지 관문은 유지한다. 시계 daemon 재시작/검출된 clock step은 epoch를 바꾸며 기존
-TaskIngress 규칙대로 runtime 재시작을 요구한다.
-
-clock backend는 `chrony` 또는 `timesyncd`를 명시한다. timesyncd는 systemd D-Bus
-NTPMessage 원 reply stamp, root delay/dispersion, peer delay/offset, jitter/precision,
-명시한 drift 정책을 사용한다. `timedatectl`의 synchronized=yes 한 줄을 오차 증거로
-대체하지 않는다. 관련 OS 조회는 worker에서 실행하며 ROS callback은 기다리지 않는다.
-
-확인: 파일 의존 실패를 원 첨부본에서 재현했고 Python 회귀 12건을 통과했다.
-ROS/DDS 실송수신, colcon 빌드, 실제 두 PC의 D-Bus 반환, watchdog 배선, 로봇 주행은
-이 작업 환경에 ROS가 없으므로 NOT_RUN이다. 고정 정책·지도 정합 수치가 미정이면
-missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정을 대신하지 않는다.
-
+## 실행기 코어 (`executor.py`)
 
 명령 수락·단일 활성 임무·임대·취소·정지 확인의 순수 Python 코어(`executor.py`)와, 그 코어를 Nav2 `NavigateToPose` 에 잇는 명령 어댑터(`nav2_adapter.py`, ROS 경계 `ros_node.py`)다. SLAM 실행·언도킹은 하지 않는다.
 
 공개 API는 `Policy`, `Readiness`, `Task`, `GoalPose`, `Executor`, `CommandAdapter`, `MissionGoalBinder`, `ReadinessPolicy`, `ReadinessMonitor`다. 인수와 시간 진행 예시는 [`tests/test_executor.py`](../../tests/test_executor.py)와 [`tests/test_nav2_adapter.py`](../../tests/test_nav2_adapter.py)를 참고한다. 모든 운용 임계값은 호출자가 명시해야 한다. 시험값은 실기 기본값이 아니다.
 
-자세한 구현 경계·출처·남은 검증은 [구현 기록](../../docs/implementation/implementation-robot.md)에 있다. 이 코어를 단독으로 로봇에 연결하지 않는다. 인증된 단일 어댑터, 시각/센서 증거, 장비측 watchdog이 필요한 상태다.
+자세한 구현 경계·출처·남은 검증은 [구현 기록](../../docs/implementation/implementation-robot.md)에 있다. 현장에서 이 코어는 `task_input`(인증·lease·지도·정합 입력)과 `command_watchdog`(마지막 속도 경로) 뒤에서만 로봇에 닿는다(`robot.launch.py`).
 
 ## Nav2 명령 어댑터
 
@@ -160,10 +142,10 @@ missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정
 
 - 이 어댑터가 보내지 않은 `command_id` 의 콜백(`FOREIGN_*`)은 실행기에 넘기지 않는다. 로봇마다 어댑터·포트·네임스페이스가 따로라서 한 로봇의 콜백이 다른 로봇의 취소를 만들지 않는다.
 - `Readiness` 는 여섯 상태(`driver`, `sensors`, `slam`, `nav2`, `undocked`, `watchdog`)가 모두 들어와야 하고 가장 오래된 수신 시각을 쓴다. 하나라도 없으면 준비 안 됨이다.
-- `guards(task) -> bool` 은 호출자가 주입하고 SEND 직전과 매 `step` 에 다시 본다(지도 revision 등; mapping 연결은 후속).
+- `guards(task) -> bool` 은 호출자가 주입하고 SEND 직전과 매 `step` 에 다시 본다(지도 revision 등). LIVE_ROS 에서는 `live_sources.SavedMapSources` 가 지도·정합을 준다.
 - **goal frame**: `bind_goal` 을 주지 않으면 `task.goal_pose` 를 그대로 보낸다. 지도 guard(아래)를 쓰면 mission 좌표를 로봇 map 좌표로 바꿔 보낸다. 어느 경우든 `Task` 자체는 바꾸지 않는다.
 - **odom 시각 [미확인]**: `sample_steady = received_steady − (wall_now − header_ns)/1e9`. 로봇과 PC 시계가 `clock_error_bound_s`(로컬 float 초; C-03 의 int `clock_error_bound_ns` 와 다름) 안에서 맞는다고 전제한다(측정 전). |차이| 가 상한을 넘거나 stamp 가 무효이면 표본으로 쓰지 않고 `Executor.invalidate_stop_evidence` 로 정지 창을 초기화한다 → 증거 부족은 `STOP_EVIDENCE_STALE`·`STOP_UNCONFIRMED` 로 드러난다.
-- 두 로봇은 같은 어댑터를 쓰고 task kind 만 다르다(SCOUT: `SEARCH_AREA`·`REOBSERVE_TARGET`, SUPPORT: `HOLD`·`APPROACH_TARGET`). 역할은 설정에서 오고 코드에 두지 않는다. `HOLD` 는 goal 없이 정지 확인 뒤 `COMPLETED` 다.
+- 두 로봇은 같은 어댑터를 쓰고 task kind 만 다르다(SCOUT: `SEARCH_AREA`·`REOBSERVE_TARGET`·`RETURN_HOME`, SUPPORT: `HOLD`·`APPROACH_TARGET`·`RETURN_HOME`. LIVE_ROS 에서 자동으로 받는 종류는 로봇별 `task.live.auto_target.kinds`). 역할은 설정에서 오고 코드에 두지 않는다. `HOLD` 는 goal 없이 정지 확인 뒤 `COMPLETED` 다.
 
 ## 지도 guard (`goal_binding.MissionGoalBinder`)
 
@@ -171,7 +153,7 @@ missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정
 
 - `bind(task)`(dispatch 직전): 버전이 현재와 같으면 정렬의 역변환으로 mission → 로봇 map 좌표·방향을 만들어 SEND 에만 쓴다. 실패하면 아무것도 보내지 않고 guard 실패(`GUARD_INVALID`)다.
 - `check(task)`(매 `step`): goal 의 frame 이 mission 이 아님, 버전 불일치(지도 보정·세션 교체·정렬 변경), 정렬 없음·만료·오차 초과 중 하나면 False → 취소 → 정지 관문. 주행 중 정렬이 바뀐 경우도 여기서 잡힌다(C-04).
-- `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 호출자가 GoalSnapshot 검증(`coordinates_valid`)과 `auto_approach_eligible`(지금은 항상 False)을 묶어 넣는다. 그래서 backend 보정 검증 전에는 대상 지점 SEND 가 나가지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
+- `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 현장 runtime 은 `task_site_runtime.target_gate` 로 판단한다. 로봇별 자동 대상 정책이 그 종류를 받으면 True 이고 매 step `_resolve_auto_target` 로 다시 확인한다. 정책이 없으면 Phase 1 보호 경로 관문을 통과한 `MOVE_SEGMENT`·`REOBSERVE_TARGET` 만 True 다. 정책 없는 `APPROACH_TARGET` 은 SEND 하지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
 
 ## 준비 신호 (`readiness.ReadinessMonitor`)
 
@@ -186,7 +168,7 @@ missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정
 | `undocked` | dock status | 기존 |
 | `watchdog` | 명령 watchdog(`command_watchdog`)의 heartbeat | `watchdog_heartbeat_topic` 이 비면 출처 없음 → 움직이지 않음. watchdog 이 `ARMED` 일 때만 발행. Create 3 의 cmd_vel timeout 은 검증된 증거가 아님 |
 
-최대 나이 값은 정해지지 않았다 [미확인]. 시험값만 있다.
+최대 나이 현장 값은 배포 프로파일 로봇별 `readiness.max_age_s`(저장소 밖)와 현장 파일 `robot` 절 `readiness.max_age_s.watchdog_heartbeat` 0.5 s 에서 온다(`rescue_bringup/field_launch.py`). 측정으로 정한 값은 아니다 [제안].
 
 ## ROS 노드 (`command_adapter`)
 
@@ -196,14 +178,14 @@ missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정
 | --- | --- |
 | `allowed_robot_ids`(문자열 배열), `robot_id`, `namespace` | 프로파일의 두 로봇 ID 와 해당 로봇 namespace. 노드 namespace 와 다르면 기동 거부 |
 | `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(#17)가 들어오면 그 값을 쓴다 |
-| `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 실기 값 미정(T-01) |
+| `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 현장 값은 현장 파일 `robot` 절(`policy_version` search-live-20261012, `clock_error_bound_s` 2.0 등). 측정 근거로 확정한 값은 아니다(T-01) |
 | `scan_topic`, `tf_topic`, `map_frame`, `odom_frame` | 준비 신호 출처(필수) |
 | `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음. `/compressed` 로 끝나는 카메라 토픽은 `CompressedImage`, 그 밖은 `Image` 로 구독(TB4 OAK-D 기본 발행이 compressed, P4 DEC-004) |
 | `watchdog_heartbeat_topic` | 명령 watchdog 의 heartbeat(`std_msgs/Header`). 비워 둘 수 있으나 그러면 `watchdog` flag 가 없어 이동 불가 |
 | `executor_heartbeat_topic` | 이 노드가 step 마다 발행하는 heartbeat(`std_msgs/Header`). 명령 watchdog 이 듣는다(필수) |
-| `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf,watchdog_heartbeat}`(초) | 준비 신호 정책. 값 미정 [미확인] |
+| `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf,watchdog_heartbeat}`(초) | 준비 신호 정책. 출처는 위 「준비 신호」 [제안] |
 
-이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력이 없고(`ExecuteTask` IDL 은 `rescue_interfaces` 에 있음(#62), ExecuteTask 입력 노드는 미구현), 이 프로세스에 정렬 입력(mapping ROS 어댑터)이 없어 guard 가 모든 dispatch 를 거절한다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
+`command_adapter`(`ros_node.main`)만 띄우면 임무 입력이 없어 로봇을 움직이지 않는다. 현장은 같은 노드에 임무 입력·지도·정합을 붙이는 `task_input`(`task_input_node.main` → `ros_node.main(task_runtime_factory=...)`)을 `robot.launch.py` 로 띄운다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
 
 파라미터는 `declare_required` 로 타입만 선언한다(jazzy rclpy 는 값 없는 `descriptor=` 선언을 거부해 이전 코드는 기동하지 못했다). 빠진 값은 `missing parameters` 로 기동 거부한다.
 
@@ -243,7 +225,68 @@ python3 tests/ros/e3_watchdog_probe.py
 
 E3 탐침은 실제 토픽이 네임스페이스별로 섞이지 않는지 본다: odom 탐침은 `/robot_a/odom`·`/robot_b/odom` 정지 증거, 준비 신호 탐침은 odom·LaserScan·`map → odom` TF, watchdog 탐침은 전달·heartbeat 만료 latch·회복 뒤에도 latch 유지·`~/reset`·robot_b 격리와 어댑터 `watchdog` flag. `NavigateToPose` action 은 다루지 않는다.
 
-## 설치 가능한 임무 입력 진입점 (`task_input`, 2026-10-11)
+## 기록
+
+아래는 당시 설명을 날짜와 함께 그대로 옮긴 것이다. 지금 상태는 맨 위 「현재 상태」 표를 본다. 예를 들어 「LIVE_ROS 는 SEARCH_AREA 만」은 2026-10-13 자동 대상 이동(#166·#179·#192) 전의 설명이다.
+
+### 2026-10-13 (낮): 「지금 안 되는 것」 표
+
+**지금 안 되는 것**
+
+| 무엇 | 왜 / 어디 |
+| --- | --- |
+| LIVE_ROS 입력의 MOVE_SEGMENT·REOBSERVE_TARGET·RETURN_HOME | LIVE_ROS 는 SEARCH_AREA 와, 정책이 켜진 자동 대상 접근(APPROACH_TARGET, 아래 절, #166)만 받는다. 나머지는 `LIVE_SEARCH_ONLY` 로 거절하고 FILES 경로에만 있다. REOBSERVE_TARGET 은 PR #179 머지 뒤, RETURN_HOME 은 다음 PR(C1-c). MOVE_SEGMENT 는 FILES 경로만 |
+| 빈 배열 파라미터 | ROS 파라미터로 빈 배열을 넘길 수 없다(launch_ros 거절, `-p`·`--params-file` 은 미설정). 그래서 빈 `camera_topics` 는 launch 가 거절한다 |
+| watchdog 현장 값 확정 | 지금 값은 #132 임시값(아래 표). 결정 방식은 #94, 미확정 |
+
+### 2026-10-08~10: 바뀐 문장
+
+- 2026-10-10, 「ROS 노드」 절: 이 노드는 아직 **로봇을 움직이지 못한다**: 임무 입력이 없고(`ExecuteTask` IDL 은 `rescue_interfaces` 에 있음(#62), ExecuteTask 입력 노드는 미구현), 이 프로세스에 정렬 입력(mapping ROS 어댑터)이 없어 guard 가 모든 dispatch 를 거절한다. 필요한 ROS 패키지: `rclpy`, `rcl_interfaces`, `nav_msgs`, `nav2_msgs`, `irobot_create_msgs`.
+- 2026-10-08, 「실행기 코어」: 이 코어를 단독으로 로봇에 연결하지 않는다. 인증된 단일 어댑터, 시각/센서 증거, 장비측 watchdog이 필요한 상태다.
+- 2026-10-08, 「Nav2 명령 어댑터」: `guards(task) -> bool` 은 호출자가 주입하고 SEND 직전과 매 `step` 에 다시 본다(지도 revision 등; mapping 연결은 후속).
+- 2026-10-08, 「Nav2 명령 어댑터」: 두 로봇은 같은 어댑터를 쓰고 task kind 만 다르다(SCOUT: `SEARCH_AREA`·`REOBSERVE_TARGET`, SUPPORT: `HOLD`·`APPROACH_TARGET`).
+- 2026-10-08, 「지도 guard」: `REOBSERVE_TARGET`·`APPROACH_TARGET` 은 `target_gate(task)` 가 True 여야 한다. 호출자가 GoalSnapshot 검증(`coordinates_valid`)과 `auto_approach_eligible`(지금은 항상 False)을 묶어 넣는다. 그래서 backend 보정 검증 전에는 대상 지점 SEND 가 나가지 않는다. `SEARCH_AREA` 는 지도 guard 만으로 출발하고, `HOLD` 는 지도와 무관하다.
+- 2026-10-08, 「준비 신호」: 최대 나이 값은 정해지지 않았다 [미확인]. 시험값만 있다.
+- 2026-10-08, 「ROS 노드」 표: `policy.*` 등 「운용 정책. 실기 값 미정(T-01)」, `readiness.*` 「준비 신호 정책. 값 미정 [미확인]」.
+
+### 2026-10-12 현장 수정: 파일 없는 SEARCH_AREA 입력
+
+현재 권장 실행 경로는 `task.input_mode=LIVE_ROS`다. 아래의 FILES/task_prepare 설명은
+기존 설정 호환용이며 이 경로의 선행 조건이 아니다. LIVE_ROS는 runtime.json,
+inputs.json, input-sources.json, clock_basis_file, task.params.yaml을 읽거나 생성하지 않는다.
+기존 `task_input` 하나에 지도/AMCL/SystemState 구독, ExecuteTask 수신, CommandLease 갱신을 연결한다.
+
+고정 정책과 측정된 지도 정합은 타입을 명시한 ROS 파라미터로 준다(`live_parameters.py`).
+정책·좌표·시각 기본값은 없다. YAML은 필수가 아니며 `--ros-args -p` 또는 launch의
+parameters로 줄 수 있다. 기존 command_adapter와 동시에 실행하지 않는다.
+
+중앙도 `live_inputs.enabled=true`로 실행해야 한다. 중앙의 `~/task_inputs`
+(`rcl_interfaces/srv/GetParameters`, request.names=['source'])를 비동기 조회한다.
+STRING 응답은 `rescue-live-task-source/1`의 메모리 기록이며 파일 교환용 JSON이 아니다.
+응답에는 coordinator_id/publisher_boot_id/authority_epoch/schema_version/clock_domain_id,
+실측 clock, 중앙 정책의 lease_duration_s/lease_renew_period_s 및 수색 목적점이 있다.
+중앙 core에서 생성한 목적점과 양 PC의 실제 NTP 측정만 사용하고, 수신 시각으로 관측
+시각·만료를 연장하지 않는다. 서비스 timeout은 lease.max_age_ns로 제한하며 cache를
+무효화한다. SystemState의 새 boot 등록과 명시적 arm은 별도로 유지한다.
+
+이 로컬 LIVE_ROS 모드는 SEARCH_AREA만 받는다. MOVE_SEGMENT·대상 접근은 기존 FILES
+경로에서 유지하며 새 모드의 수색 조건으로 우회하지 않는다. 원래의 watchdog READY,
+lease 수신 나이/만료·오차, 지도 session/revision/정합, Nav2 terminal + fresh odom
+정지 관문은 유지한다. 시계 daemon 재시작/검출된 clock step은 epoch를 바꾸며 기존
+TaskIngress 규칙대로 runtime 재시작을 요구한다.
+
+clock backend는 `chrony` 또는 `timesyncd`를 명시한다. timesyncd는 systemd D-Bus
+NTPMessage 원 reply stamp, root delay/dispersion, peer delay/offset, jitter/precision,
+명시한 drift 정책을 사용한다. `timedatectl`의 synchronized=yes 한 줄을 오차 증거로
+대체하지 않는다. 관련 OS 조회는 worker에서 실행하며 ROS callback은 기다리지 않는다.
+
+확인: 파일 의존 실패를 원 첨부본에서 재현했고 Python 회귀 12건을 통과했다.
+ROS/DDS 실송수신, colcon 빌드, 실제 두 PC의 D-Bus 반환, watchdog 배선, 로봇 주행은
+이 작업 환경에 ROS가 없으므로 NOT_RUN이다. 고정 정책·지도 정합 수치가 미정이면
+missing parameters로 거절한다. 입력 연결 수정이 현장 정책 확정을 대신하지 않는다.
+
+
+### 설치 가능한 임무 입력 진입점 (`task_input`, 2026-10-11)
 
 `ros2 run rescue_robot task_input`은 기존 `ros_node.main`과 동일한 프로세스에서
 `task.runtime_factory`의 설치된 `module:callable`을 호출한다. 별도 Nav2 발행자나
@@ -264,7 +307,8 @@ E3 탐침은 실제 토픽이 네임스페이스별로 섞이지 않는지 본�
 위치·frame·revision이 바뀌거나 조회가 실패하면 취소·정지 관문으로 들어가며
 새 귀환 임무를 받아야 한다. 구간/귀환 cache 오류는 기동 중 로그에 남기고 guard를
 거부한다. resolver와 검증 콜백은 검증된 로컬 cache를 읽으며 동기 RPC를 호출하지 않는다.
-## 임무 입력 런타임과 watchdog 독립 개발 (2026-10-11)
+
+### 임무 입력 런타임과 watchdog 독립 개발 (2026-10-11)
 
 [사용자 요구, 2026-10-11] “watchdog 없는 상태에서 구현을 완료하고 watchdog을 나중에
 추가하는게 맞지 않아? … 필요한거 너가 제작해.” 적용 범위는 임무 입력 구현·개발 검증이다.
@@ -330,7 +374,7 @@ UNKNOWN/거절이다. formula는 [chrony 공식 문서](https://chrony-project.o
 IDL/Jazzy, 중앙/지도/clock/protection 입력, Nav2 종료와 fresh odom 정지, watchdog 최종 속도
 배선을 현장에서 확인해야 한다. 별도 사이트 runtime 코드 작성 요청으로 미루지 않는다.
 
-## 현장 입력 구성과 범위
+### 현장 입력 구성과 범위 (2026-10-12)
 
 `task_input`과 `task.runtime_factory` 선택 구조는 유지한다. 전용 SearchRuntime을
 추가하지 않았다. FILES의 RETURN_HOME·MOVE_SEGMENT·REOBSERVE_TARGET은 기존
@@ -351,4 +395,4 @@ revision과 관측 만료를 확인한다. 기존 파일 입력은 호환 경로
 현장 실행 순서·명시적 시험 설정은
 [실행 안내](../../scripts/field/search-area/START_HERE.txt)에 있다. 스크립트는
 단일 로봇 시험 fixture이며 일반 배포 기본값이 아니다. 같은 값을 launch 로 띄우는
-방법(#152)은 맨 위 「2026-10-13 현재」 절을 본다.
+방법(#152)은 맨 위 「실행」 절을 본다.

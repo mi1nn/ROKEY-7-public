@@ -30,6 +30,7 @@ from launch_ros.actions import Node, SetRemap
 import yaml
 
 from rescue_bringup.field_launch import load_field, nav2_with_passage, robot_launch_values
+from rescue_bringup.nav2_recovery import nav2_without_backup
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
 
@@ -47,7 +48,8 @@ def _nodes(context):
     # The passage stop (field run file robot.passage.*, the same for both robots) is added to collision_monitor
     # here, so no yaml carries its own copy of 0.46 m (OPS-135).
     passage = values['passage']
-    params = nav2_with_passage(yaml.safe_load(Path(base_params).read_text()), passage)
+    # no backing up in recovery, both robots (OPS-207): backup plugin removed, bt_navigator on our trees
+    params = nav2_with_passage(nav2_without_backup(yaml.safe_load(Path(base_params).read_text())), passage)
     with tempfile.NamedTemporaryFile('w', prefix=f'nav2_{arg("robot_id")}_', suffix='.yaml', delete=False) as out:
         yaml.safe_dump(params, out, sort_keys=False)
     nav2_params = out.name
@@ -64,7 +66,7 @@ def _nodes(context):
                     f'{passage["min_height_m"]}..{passage["max_height_m"]} m front {passage["front_m"]} '
                     f'+ passage slow x{passage["slow_ratio"]} {passage["overhead_lidar_plane_m"]}..'
                     f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
-                    f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) -> {nav2_params} '
+                    f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) + no BackUp recovery -> {nav2_params} '
                     f'map_mode={task["task.saved_map.mode"]} '
                     f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(decided by the freeze)"} '
                     f'declared alignment window '

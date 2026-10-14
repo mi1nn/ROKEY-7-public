@@ -141,8 +141,11 @@ def frame_image(frame, stamp_ns, frame_id):
 
 
 def device_change_refusal(name, value):
-    """실행 중 파라미터 바꾸기의 거절 이유(받으면 None). 관제 웹 카메라 고르기(OPS-183)용으로 device_path 만 바꾼다.
-    없는 장치는 거절한다: 조용히 이전 장치로 두지 않고 거절 이유가 관제 웹까지 간다."""
+    """실행 중에 파라미터를 바꾸려 할 때의 거절 이유. 받아들이면 None.
+
+    관제 웹에서 웹캠을 고를 때 쓴다. 바꿀 수 있는 것은 device_path 하나뿐이다.
+    없는 장치 경로면 거절한다. 조용히 이전 장치로 두지 않고, 거절 이유가 관제 웹까지 전달된다.
+    """
     if name != 'device_path':
         return f'{name} is fixed at start; only device_path can change'
     if not isinstance(value, str) or not value:
@@ -171,6 +174,7 @@ def main(args=None):
     # ── 기동 준비 ①: 파라미터 읽기. 빠진 값은 모아서 한 번에 알리고 종료한다(exit 2).
     values = {}
     for name, kind in PARAMS.items():
+        # 기본값 없이 선언 → YAML 에 없으면 값을 읽을 때 오류가 나서 None 으로 둔다
         node.declare_parameter(name, getattr(Parameter.Type, kind))
         try:
             values[name] = node.get_parameter(name).value
@@ -428,11 +432,14 @@ def main(args=None):
                 association_method=request.association_method,
                 association_evidence_id=request.association_evidence_id, enable=bool(request.enable),
                 issued_at_ns=int(request.issued_at_ns), deadline_ns=int(request.deadline_ns))
+            # 수락·거절 판단 (지금 시각으로 기한을 확인)
             reply = slot.handle(req, now_ns=time.time_ns())
+        # 요청 칸 형식이 틀려 WatchRequest 를 못 만들면 여기서 INVALID_INPUT 응답을 만든다
         except (PerceptionError, TypeError, ValueError) as exc:
             log.error(f'SetCameraWatch rejected (bad request): {exc}')
             reply = NS(accepted=False, watch_id=request.watch_id, watch_revision=slot.revision,
                        reason_code='INVALID_INPUT', detail=str(exc))
+        # 응답 메시지 채우기
         envelope(response.envelope, 'srv')
         response.accepted = reply.accepted
         response.watch_id = reply.watch_id
@@ -450,6 +457,10 @@ def main(args=None):
     switch = {'to': None}
 
     def on_set_parameters(params):
+        """파라미터 바꾸기 요청 처리. 하나라도 거절이면 전부 거절, 모두 통과하면 바꿀 장치를 switch['to'] 에 적어 둔다.
+
+        실제로 카메라를 바꾸는 일은 다음 step() 에서 한다(타이머 콜백과 같은 스레드에서 안전하게).
+        """
         from rcl_interfaces.msg import SetParametersResult
         for param in params:
             refusal = device_change_refusal(param.name, param.value)
@@ -481,11 +492,14 @@ def main(args=None):
     def step():
         """★ 핵심: 타이머가 0.2초마다 부른다. 프레임 1장을 읽어 두 판정에 넣고 결과를 발행한다.
 
-        (1) 카메라 열기 → (2) 프레임 읽기 → (3) 크기 확인 → (4) 지진 판정 → (5) 카메라 상태·지진 사건 발행
+        (0) 카메라 바꾸기 요청 처리 → (1) 카메라 열기 → (2) 프레임 읽기 → (3) 크기 확인 → (4) 지진 판정 → (5) 카메라 상태·지진 사건 발행
         → (6) 감시가 없으면 여기서 끝 → (7) YOLO 로 인형 찾기 → (8) 시야 정하기 → (9) 출구 판정 → (10) 결과 발행
         """
+        # 카메라를 바꿀 때 quake 를 새 판정기로 바꿔 넣으려고 바깥 변수로 선언
         nonlocal quake
         now = time.time_ns()
+        # (0) 카메라 바꾸기 요청이 있으면: 지금 카메라를 닫고, 지진 판정을 처음부터 다시 하고(화면이 바뀜),
+        #     감시를 푼 뒤(감시 영역이 다른 화면을 가리킴) OFFLINE / CAMERA_SWITCHED 를 보낸다. 새 카메라는 다음 틱 (1) 에서 연다.
         if switch['to'] is not None:
             old, v['device_path'], switch['to'] = v['device_path'], switch['to'], None
             if camera['cap'] is not None:
@@ -511,6 +525,7 @@ def main(args=None):
         #     실패하면(USB 빠짐 등) 카메라를 닫고 OFFLINE 을 보낸다. 다음 틱에 (1) 에서 다시 연다.
         ok, frame = camera['cap'].read()
         stamp = time.time_ns()
+        # 읽기 실패이거나 컬러 3채널 영상이 아니면 실패로 본다
         if not ok or frame is None or frame.ndim != 3 or frame.shape[2] != 3:
             camera['cap'].release()
             camera['cap'] = None
@@ -519,6 +534,7 @@ def main(args=None):
             return
         # (3) 영상 크기가 바뀌면 감시를 해제한다(감시 영역이 다른 곳을 가리키게 되므로).
         seq['frame'] += 1
+        # frame.shape = (세로, 가로, 3)
         height, width = frame.shape[:2]
         if slot.observe_image_size(width, height):
             log.warning(f'image size changed to {width}x{height}; watch cleared (revision {slot.revision})')
@@ -562,6 +578,7 @@ def main(args=None):
             return
         # (10) 판정 화면과 인형 상태를 발행하고, 구조 후보 사건이 있으면 발행한다.
         publish_debug(frame, stamp, sign, boxes, presence)
+        # 이 프레임 원 픽셀의 해시 = presence 메시지의 증거
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
         if presence.event is not None:

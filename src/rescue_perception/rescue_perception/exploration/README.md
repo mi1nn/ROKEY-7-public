@@ -1,5 +1,7 @@
 # explore_lite 단독 실기 인계
 
+> **현재 관계 (2026-10-14, main 4163a25, OPS-210):** 이 문서는 explore_lite 를 혼자 띄워 보는 단독 실험용이다. 현장 실행은 [rescue_bringup README](../../../rescue_bringup/README.md)를 따른다. 현장에서는 조정기가 `search_mode` FRONTIER 로 TB-6 탐색 목표를 직접 고른다(`rescue_coordination/ros_node.py` 가 `rescue_contracts.grid_search.find_frontiers` 로 고르고, FRONTIER 작업을 로봇 실행기로 보냄). 현장 파일 `config/field/search_area.field.json` 의 `search_mode` 가 FRONTIER 이고, `field_launch.py` 는 그 값과 `executable_bases` 의 FRONTIER 를 검사한다. rescue_bringup 의 launch 는 explore_lite 를 띄우지 않는다(`src/rescue_bringup` 에서 `explore_lite` 를 찾아 없음을 확인). 아래 구성을 현장 흐름과 같이 띄우면 Nav2 목표를 두 곳이 보내게 된다.
+
 [사용자 요구, 2026-10-13] “1번에 대해서 slam, nav, 알고리즘까지 깃에 올리고 그거를 팀원이 다운받아서 사용할 수 있도록 하면 좋을거 같아.” 설정과 실행 파일 위치는 사용자가 지정한 이 폴더다. 단독 실기 인계용이며 `rescue_perception`의 Python 노드나 설치 진입점을 바꾸지 않는다.
 
 이 구성은 SLAM으로 지도를 만들고, Nav2가 경로와 속도를 계산하며, explore_lite가 탐색 목표를 고른다. upstream 탐색기는 Nav2 액션을 직접 발행한다. 팀 협업 실행기와 동시에 사용하지 않는다. 협업 배포는 [D-05](../../../../docs/design/algorithm-decisions.md)의 frontier 후보 → rescue_robot 연결이 별도로 필요하다.

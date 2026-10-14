@@ -5,7 +5,8 @@ field measuring tool: from one depth image, the points in a box ahead of TB-5 be
 and the clearance height (owner decision 46 cm) are counted the way collision_monitor counts them
 (min_points), and the lowest point height is kept, so ten judgements at one spot show whether the
 47 cm crossbar stays above 46 cm under depth noise. No depth, no fresh depth or no CameraInfo is
-UNKNOWN, never PASS.
+UNKNOWN, never PASS. Fewer than min_points points above the floor in the box is UNKNOWN too: the
+crossbar was not seen.
 """
 import math
 import unittest
@@ -29,11 +30,22 @@ class JudgeTests(unittest.TestCase):
         self.assertEqual(('STOP', 3), (judge(points, POLICY)['decision'], judge(points, POLICY)['points_below']))
 
     def test_fewer_points_than_min_points_do_not_stop(self):   # same rule as collision_monitor min_points
-        self.assertEqual('PASS', judge([(0.8, 0.0, 0.45)] * 2, POLICY)['decision'])
+        points = [(0.8, 0.0, 0.45)] * 2 + [(0.8, 0.0, 0.47)] * 3
+        self.assertEqual(('PASS', 2, 5), tuple(judge(points, POLICY)[k] for k in ('decision', 'points_below',
+                                                                                   'points_seen')))
 
     def test_points_outside_the_box_or_floor_are_ignored(self):
         points = [(0.1, 0.0, 0.40), (2.0, 0.0, 0.40), (0.8, 0.5, 0.40), (0.8, 0.0, 0.03)] * 3
-        self.assertEqual(('PASS', None), (judge(points, POLICY)['decision'], judge(points, POLICY)['lowest_m']))
+        self.assertEqual(('UNKNOWN', 0, None), tuple(judge(points, POLICY)[k] for k in ('decision', 'points_seen',
+                                                                                         'lowest_m')))
+
+    def test_empty_observation_is_unknown_not_pass(self):
+        # Nothing above the floor in the box says nothing about the crossbar (robot6 2026-10-13: PASS, lowest None).
+        floor_only = [(0.8, 0.0, -0.2)] * 2287
+        too_few = [(0.8, 0.0, 0.47), (0.8, 0.0, 0.45)]   # 2 < min_points 3
+        for name, points in (('empty', []), ('floor only', floor_only), ('fewer than min_points', too_few)):
+            with self.subTest(name):
+                self.assertEqual('UNKNOWN', judge(points, POLICY)['decision'])
 
     def test_no_depth_is_unknown_not_pass(self):
         self.assertEqual('UNKNOWN', judge(None, POLICY)['decision'])

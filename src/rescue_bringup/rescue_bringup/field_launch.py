@@ -104,6 +104,7 @@ ROBOT_KEYS = {
 ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
                        'task.live.auto_target.enabled': B, 'task.live.auto_target.kinds': SL,
                        'task.live.auto_target.goal_clear_radius_m': F, 'task.live.auto_target.policy_version': S,
+                       'task.live.auto_rearm': B,   # re-arm after COMPLETED + stop confirmed (OPS-231)
                        'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
 # Map lifecycle (scope Q-29 ⑦, OPS-113/124/126): every robot names its map mode; the SLAM robot
 # also the freeze pose age, a FROZEN_MAP_AMCL robot its measured AMCL start (once measured).

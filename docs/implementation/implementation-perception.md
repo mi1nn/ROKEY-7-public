@@ -1,18 +1,190 @@
 ---
-title: 기록 입력 기반 인식 코어 구현
-status: draft-implementation-e2
-updated: 2026-10-12
+title: 인식 구현 (지금 코드)
+status: current
+updated: 2026-10-14
 ---
 
-# 기록 입력 기반 인식 코어
+# 인식 구현
+
+## 한눈에 (2026-10-14, main 4163a25)
+
+**이 문서가 답하는 질문:** 웹캠과 로봇 카메라로 무엇을 판정하고, 판정 결과는 어디로 가나?
+
+```mermaid
+flowchart LR
+  subgraph OPS[운영 PC]
+    W[웹캠 노드<br/>webcam_node]
+    MJ[웹캠 영상 중계<br/>mjpeg_relay]
+    RV[로봇 영상 중계<br/>robot_view_relay]
+    DB[DB 기록<br/>db_writer]
+  end
+  subgraph PC6[TB-6 담당 PC]
+    T[인형 탐지와 위치<br/>amr_target]
+    L[지도 좌표<br/>target_locator]
+    XL[출구 지도 좌표<br/>exit_locator]
+    O6[머리 위 구조물<br/>overhead_passage]
+  end
+  subgraph PC5[TB-5 담당 PC]
+    O5[머리 위 구조물<br/>overhead_passage]
+  end
+  C[조정기<br/>coordinator]
+  WEB[관제 웹]
+  W -- 지진 징후 DISASTER_SIGN --> C
+  W -- 인형 소실 후보 --> C
+  W -- 판정 화면 --> MJ --> WEB
+  T -- 확정 관측 --> L -- 인형 지도 좌표 --> C
+  T -- 출구 QR 관측 --> XL -- 출구 지도 좌표 --> C
+  O6 -- 구조물 목록 --> DB
+  O5 -- 구조물 목록 --> DB
+  DB -- 지도 표시 --> WEB
+  O6 -- 판정 영상 --> RV
+  O5 -- 판정 영상 --> RV
+  RV --> WEB
+```
+
+| 부분 | 하는 일 | 상태 | 자세한 곳 |
+| --- | --- | --- | --- |
+| 지진 판정 | 웹캠 화면 전체가 여러 번 흔들리면 지진 징후 사건을 낸다. 조정기가 이것으로 TB-6 탐색을 자동으로 시작한다(#228) | 구현됨. 실물 웹캠 1회 확인 [측정, 2026-10-12]. 오탐률 NOT_RUN | [1절](#1-웹캠-고정-카메라-1대) |
+| 인형 소실 후보 | 웹캠 감시 영역에서 인형이 출구 쪽으로 사라지면 후보를 낸다 | 구현됨. 실물 웹캠 확인 [측정, 2026-10-12]. 지금 시나리오에서는 기록만 한다(완료 판정은 TB-5 출구 도착) | [1절](#1-웹캠-고정-카메라-1대) |
+| 인형 탐지와 위치 | TB-6 카메라 영상에서 인형(`survivor`)을 찾고 깊이로 위치를 잰다 | 구현됨. robot5 깊이 1회 확인(사용자). 노드 전체 실기 NOT_RUN | [2절](#2-tb-6-인형-탐지와-위치) |
+| 지도 좌표 | 확정 관측을 촬영 시각의 TF 로 지도 좌표로 바꾼다 | 구현됨. 실기 NOT_RUN | [3절](#3-지도-좌표-target_locator) |
+| 출구 QR | 출구 QR 을 읽어 출구 위치를 낸다. 여러 출구, 정확히 같은 내용만 | 구현됨. 실기 NOT_RUN | [4절](#4-출구-qr) |
+| 머리 위 구조물 | 터널 같은 구조물의 가장 낮은 높이를 재서 통과 가능·불가·판정 불가로 판정한다. 운영 PC 의 DB 기록(db_writer)이 목록을 받아 관제 웹 지도에 그린다(#262·#263). 판정 영상은 로봇 영상 중계(robot_view_relay)가 관제 웹으로 보낸다 | 구현됨. 실기 NOT_RUN. 높이 기준 확인 필요 | [5절](#5-머리-위-구조물-overhead_passage) |
+| 머리 위 여유 기록 | TB-5 앞 깊이 점을 세어 기록만 하는 도구 | 구현됨. 실기 NOT_RUN. 바닥 위 점이 모자라면 UNKNOWN | [6절](#6-머리-위-여유-기록-headroom_record) |
+| 재확인 관측 | TB-6 이 한 지점을 다시 보고 있음·없음을 낸다 | 구현됨. 지금 시나리오에서는 쓰지 않는다 | [7절](#7-지금-쓰지-않는-기능) |
+
+시나리오 단계는 [scope.md](../requirements/scope.md)의 「지금 시나리오」 절(#268)이 정한다. 현장 값은 [현장 파일](../../config/field/search_area.field.json) 하나에만 있다. 이 문서는 값을 다시 적지 않는다. 노드 실행 인자와 로그 읽는 법은 [인식 README](../../src/rescue_perception/README.md)에 있다.
+
+로봇 이름. TB-6 = 탐색 로봇(코드 값 `robot_a`, 네임스페이스 `/robot6`). TB-5 = 지원 로봇(`robot_b`, `/robot5`).
+
+## 1. 웹캠 (고정 카메라 1대)
+
+웹캠 노드(webcam_node) 하나가 한 프레임을 세 판정에 같은 시각으로 넣는다. 운영 PC 에서 operations launch 가 띄운다.
+
+| 판정 | 규칙 (한 줄) | 코드 |
+| --- | --- | --- |
+| 지진 징후 | 화면을 블록으로 나눠 직전 프레임과 비교한다(정규화 상호상관, ZNCC). 화면 **전체**가 같은 방향으로 움직이고, 정해진 시간 안에 방향이 여러 번 바뀌면 사건 1개 | `disaster_sign.py:DisasterSignDetector` |
+| 가림 | 화면 대부분이 가려지면 판정 불가(UNKNOWN). 판정 불가는 흔들림 횟수를 더하지도 지우지도 않는다 | 같은 파일 |
+| 인형 소실 후보 | 감시 영역에서 인형이 몇 프레임 보인 뒤에만 잰다. 사라진 시간이 충분하고, 마지막 위치가 출구 영역이면 후보 1개 | `target_watch.py:TargetWatchDetector` |
+| 감시 설정 | 조정기가 감시 영역을 건다(SetCameraWatch). 수락·거절과 이유를 돌려준다 | `webcam_service.py:WatchSlot` |
+| 카메라 상태 | 열기·읽기 실패는 OFFLINE, 가림은 UNKNOWN 과 이유 | `webcam_node.py` |
+| 시계 | 이 PC 시계를 주기적으로 잰다. 측정이 없거나 오래되면 UNKNOWN. 조정기는 UNKNOWN 사건을 쓰지 않는다 | `rescue_contracts.clock_measurement` |
+
+- 모델: 웹캠 전용 yolo26n([manifest](../../assets/manifest/webcam-yolo26n-survivor.json)). 7개 모델 비교 결과는 기록 절에 있다.
+- 판정 화면 영상은 판정에 쓰지 않는다. 웹캠 영상 중계(mjpeg_relay)가 관제 웹으로 보낸다.
+- 정책 값은 모두 기본값이 없다. 값은 실행 설정에서 온다.
+- 확인 [측정, 2026-10-12, ROS 시험 PC, USB 웹캠]: 흔들기 1회에 지진 사건 1건. 인형을 출구 쪽으로 옮기면 후보 1건, 반대쪽이면 후보 없음. 5.00 fps.
+- NOT_RUN: 현장 웹캠 PC 에서의 측정, 오탐률, 장시간 동작.
+
+## 2. TB-6 인형 탐지와 위치
+
+인형 탐지 노드(amr_target)는 TB-6 담당 PC 에서 돈다. 로봇은 영상만 보내고, 계산은 모두 PC 에서 한다.
+
+| 단계 | 하는 일 | 코드 |
+| --- | --- | --- |
+| 탐지 | RGB 마다 YOLO 1회. 클래스는 `survivor` 하나 | `amr_target.py:create_node`, `camera_utils.py` |
+| 고르기 | 신뢰도가 기준 이상이고 상자가 화면 안에 완전히 들어온 탐지 중 가장 높은 것 하나 | `amr_target.py` |
+| 깊이 | 선택한 RGB 프레임과 시각이 가장 가까운 깊이 영상 한 장만 디코딩한다. 상자 중심 작은 영역의 깊이 중앙값을 쓴다 | `selective_depth.py`, `target_utils.py` |
+| 왜곡 | RGB 가 보정 안 된 영상이면 상자 점만 CameraInfo 로 보정한다 | `amr_target.py` |
+| 확정 | 신뢰도 충족 + 위치 성공이면 확정(CONFIRMED). 아니면 이유와 함께 미확정 | `person_pipeline.PersonPipeline` |
+| 내보내기 | 첫 확정 관측 1개를 `/rescue/observations` 로 낸다. 같은 회차에 다시 내지 않는다 | `amr_target.py` |
+
+- 모델: 로봇 카메라용 100 epoch best.pt([manifest](../../assets/manifest/yolo26n-survivor-v2.json), 2026-10-11 선택). 웹캠 모델과 바꿔 쓰지 않는다.
+- 시계·정렬 근거·토픽 이름은 기본값 없는 실행 인자다. 하나라도 빠지면 노드가 시작하지 않는다.
+- 시각·정렬·깊이 품질 검사는 기록 입력 코어(`core.py`, `adapter.py`)의 규칙을 그대로 쓴다(`person_pipeline` 경유). 코어의 자세한 계약은 기록 절에 있다.
+- 위치 계산에 실패하면 좌표를 임의로 만들지 않고 실패 이유를 로그에 남긴다(원인 표는 [인식 README](../../src/rescue_perception/README.md) 「원인 가르기」).
+- 확인: robot5 에서 깊이 약 1.350 m 를 사용자가 확인했다 [사용자 실기, 2026-10-13].
+- NOT_RUN: 고친 노드 전체를 TB-6 에서 돌린 시험(E4).
+
+## 3. 지도 좌표 (target_locator)
+
+| 항목 | 규칙 |
+| --- | --- |
+| 입력 | 확정 관측(위치 VALID) |
+| 변환 | 촬영 시각의 TF(map ← 카메라)를 쓴다. 최신 TF 로 바꾸지 않는다 |
+| 지도 판 | TB-6 MapState 의 session·revision 을 붙인다. 해당 지도 판보다 먼저 촬영한 관측은 거절한다 |
+| 시계 | 관측 시계가 SYNCED 이고 오차 상한이 있어야 한다 |
+| 출력 | `/rescue/target_locations` 에 VALID 위치 하나를 발행한다. 거절한 관측은 발행하지 않는다 |
+
+같은 노드를 출구용으로 한 번 더 띄운다(exit_locator → `/rescue/exit_location`). 코드: `target_locator.py:main`, `target_location.py`. 실기 NOT_RUN.
+
+## 4. 출구 QR
+
+| 항목 | 규칙 |
+| --- | --- |
+| 읽기 | 인형 탐지와 같은 프레임에서 QR 을 모두 읽는다(`detectAndDecodeMulti`) |
+| 인정 | 내용이 허용 목록의 한 값과 정확히 같아야 한다. 출구마다 정해진 프레임 수만큼 연속으로, 같은 자리에서 읽혀야 한다 |
+| 이름 | 어느 출구인지는 `track_id` 에 QR 내용 그대로 |
+| 내보내기 | 출구마다, 지도 판마다 한 번 |
+
+코드: `exit_qr.py:detect_qrs`·`ExitQrConfirmer`(#245). 처리 시간: QR 0개 15 ms, 2개 45–49 ms [측정, 704×704]. 실기 NOT_RUN.
+
+## 5. 머리 위 구조물 (overhead_passage)
+
+로봇마다 하나씩 돈다. Nav2 의 통로 정지와 같은 깊이 점·같은 상자를 본다.
+
+| 판정 | 뜻 |
+| --- | --- |
+| 통과 가능 (PASSABLE) | 가장 낮은 높이 ≥ 0.46 m(재범 결정) |
+| 통과 불가 (BLOCKED) | 가장 낮은 높이 < 0.46 m |
+| 판정 불가 (UNKNOWN) | 구조물 아래 바닥을 못 봄. 높이를 내지 않는다 |
+
+- 라이다 평면보다 낮은 물체는 보통 장애물이라 내지 않는다.
+- 같은 판정이 연속 몇 번 나와야 확정한다. 확정된 목록을 `/rescue/robots/<id>/overhead_passages` 로 낸다(JSON, 해석은 `parse_overhead_passages` 하나).
+- 판정 영상: 미리보기 RGB 위에 빈 공간을 초록·빨강·회색으로 칠한다(#264).
+- 코드: `overhead.py:judge`·`PassageRegistry`·`render_view`(#259, #264).
+- **높이 기준 확인 필요(OPS-203):** 높이는 base_link 의 z 다. 라이다 높이 값은 바닥에서 잰 값이다. 열린 PR #254 의 측정대로 바닥이 base_link 아래 약 0.2 m 라면 높이가 약 0.2 m 낮게 나온다 [계산].
+- NOT_RUN: 실제 OAK-D 점구름, 현장 PC 처리 시간, TB-6 라이다 높이.
+
+## 6. 머리 위 여유 기록 (headroom_record)
+
+TB-5 앞 상자 안에서 낮은 깊이 점을 세어 STOP·PASS 를 JSON 으로 기록만 한다. 로봇을 멈추지 않는다.
+
+**판정.** 상자 안 바닥 위 점 중 `clearance_m` 보다 낮은 점이 `min_points` 개 이상이면 STOP 이다. 그렇지 않고 바닥 위 점이 `min_points` 개 이상이면 PASS, 그보다 적으면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다. CameraInfo 가 없거나 깊이가 오래된 프레임은 UNKNOWN 으로 기록한다. TF 가 없는 프레임은 건너뛰고, 마감 시각까지 표본을 다 못 모으면 남은 회차를 UNKNOWN(`NO_TF`, `NO_DEPTH`)으로 채운다. 2026-10-13 까지는 빈 관측도 PASS 로 나왔다. 2026-10-14 재범 결정으로 고쳤다.
+
+실기 NOT_RUN.
+
+## 7. 지금 쓰지 않는 기능
+
+| 기능 | 코드 | 왜 안 쓰나 |
+| --- | --- | --- |
+| 재확인 관측 (ObserveTarget) | `recheck_server.py:RecheckServer`, `recheck.py` | 완료 판정이 TB-5 출구 도착이라 TB-6 재확인을 하지 않는다(scope Q-10, 현장 파일 `completion_mode`) |
+| 녹화 재생 도구 | `bag_replay.py`, `bag_replay_cli.py`, `tools/perception_bag_replay.py` | 현장 경로 밖의 오프라인 진단 도구다. 실제 녹화로 돌린 기록은 없다(NOT_RUN) |
+| 단독 카메라 노드 | `amr_camera.py` | 현장 launch 가 띄우지 않는다. 탐지 화면만 따로 볼 때 쓴다 |
+
+## 8. 시험
+
+| 범위 | 명령·파일 |
+| --- | --- |
+| 단위 (ROS 없음) | `python3 -I scripts/run_tests.py` (인식은 `tests/test_perception_*.py`) |
+| 격리 ROS (E3) | `tests/ros/e3_amr_target_probe.py`, `e3_target_locator_probe.py`, `e3_overhead_probe.py`, `e3_headroom_probe.py`, `e3_camera_watch_probe.py` |
+| 실기 | 위 표의 NOT_RUN 항목 |
+
+## 기록 (2026-10-08 ~ 2026-10-13)
+
+아래는 2026-10-14 전까지 이 문서의 본문이다. 지우지 않고 그대로 옮겼다(제목 단계만 한 칸 내림). 그때의 이름을 그대로 둔다: AMR1 = TB-6, AMR2 = TB-5, PC3 = 웹캠 PC.
+
+**지금과 다른 점** — 아래 글이 이렇게 말하면, 지금은 화살표 뒤가 맞다.
+
+| 아래 글 (당시) | 지금 |
+| --- | --- |
+| RGB 에서 사람을 찾는 모델이 없고, YOLO·ROS·TF 를 실행하지 않았다(2026-10-08) | amr_target 이 YOLO 를 돌리고, 촬영 시각 TF 를 조회한다(2절) |
+| 모델 추론·학습 결과는 NOT_RUN, Detector 가중치는 Q-18 로 열림(2026-10-11) | 학습을 마쳤고 로봇 카메라 best.pt 를 골랐다([manifest](../../assets/manifest/yolo26n-survivor-v2.json)) |
+| 압축 영상 해제 어댑터는 후속(2026-10-08) | amr_target 이 compressed RGB 와 compressedDepth 를 푼다 |
+| 웹캠 모델은 실물 웹캠으로 시험하지 않았다(2026-10-11) | 2026-10-12 실물 웹캠으로 확인했다(같은 기록의 뒤쪽 「고정 웹캠 노드」) |
+| 실제 카메라의 stamp 의미는 재기 전 UNKNOWN(원본 P4 로봇 기록) | TB-6 은 CAPTURE 로 측정해 실행 인자로 넣는다([인식 README](../../src/rescue_perception/README.md)) |
+| 소실 후보는 재확인 트리거이고 AMR1 재관측이 확정한다 | 지금 시나리오는 TB-5 출구 도착으로 끝난다. 재확인 관측은 쓰지 않는다(7절) |
+| ROS 구독 노드는 후속 | 노드 목록은 한눈에 그림 |
+
+### 기록 입력 기반 인식 코어 (2026-10-08)
 
 계획 PR 7은 [C-02·03·05](../design/contracts.md), [D-06](../design/algorithm-decisions.md), [CT-01·02·03·10](../process/acceptance-plan.md)의 일부를 실행 가능한 순수 Python 로직으로 구현한다. RGB 픽셀에서 사람을 찾는 모델은 아직 없다. 입력은 이미 얻은 탐지 bbox/class와 RGB/Depth 메타데이터, 복호화된 깊이 배열이다. 이 PR에서 실제 YOLO, 가중치, ROS, CameraInfo 구독, TF, 카메라, 두 로봇을 실행하지 않았다.
 
-## AMR 학습 클래스 변경(2026-10-11)
+### AMR 학습 클래스 변경(2026-10-11)
 
 [사용자 요구] 이번 OAK-D 영상 학습의 단일 클래스는 기존 `person` 대신 `survivor`(class ID `0`)다. [수집·전처리·학습 계획](oakd-survivor-training-plan.md)에 `oakd/image_raw` 영상 촬영과 1초 간격 추출, 파라미터 비교·결과 docs 제출을 정리했다. 모델 추론과 학습 결과는 아직 NOT_RUN이다. 후속 연동은 모델 metadata·`ModelManifest.class_labels`·`ConfirmationPolicy.person_labels`·Detector 출력 label을 `survivor`로 일치시킨다. 기존 API 이름과 과거 person 합성 시험은 유지하며, survivor는 개별 인형 신원이나 생존 판정이 아니다.
 
-## 입력과 광학 위치
+### 입력과 광학 위치
 
 `FrameMeta`는 frame·원 `observed_at_ns`·clock domain·stamp 의미·해상도·보정 ID다. `DepthFrame`은 `16UC1`/mm 또는 `32FC1`/m와 직사각형 Python sequence를 받는다. 16비트 자료는 범위 안 정수만 허용한다. 32비트 깊이의 NaN/Inf/0/범위 밖 값은 센서 결측으로 제외하며, scalar 설정/시간·bbox의 NaN/Inf/bool은 오류다. 압축 이미지나 bytes를 디코딩하는 adapter는 후속이다.
 
@@ -24,7 +196,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 `LocalizationResult`는 위치 또는 실패 이유·유효 표본 수·정렬 근거를 갖는다. sensor covariance를 추정하거나 0으로 꾸미지 않는다. 공분산, 외부 파라미터, 관측 시각 TF, 공통 frame/session/revision은 mapping adapter와 추가 검증의 책임이다. `LOCATED`는 optical point 계산에 성공했다는 뜻이며 접근 허가는 아니다.
 
-## 불변 관측과 최신성
+### 불변 관측과 최신성
 
 `ModelManifest`는 모델 ID·SHA-256 형식·중복 없는 class 순서를 검증한다. Detection의 class ID와 label이 manifest에 동시에 맞아야 한다. 가중치를 로드/검사하지 않으므로 제공된 SHA가 실제 파일과 일치하는지는 adapter의 책임이다. `Detection.tracking_mode`는 기본값 없이 필수이며 `DETECTION_ONLY`(처음부터 탐지만), `TRACKING`(유효 track ID가 있는 추적), `TRACKING_FALLBACK`(추적 실패 뒤 탐지로 저하)을 구분한다. TRACKING에는 비어 있지 않은 track_id가 필수이고 숫자 문자열 `"0"`도 유효하다. 나머지 두 모드의 track_id는 None이어야 한다. 모드도 원 관측의 의미 payload hash에 포함되므로 같은 관측 ID에서 상태를 조용히 바꿀 수 없다. track 없이 같은 class만으로 동일 인물이라고 확정하지 않는다.
 
@@ -46,7 +218,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 이 registry는 단일 프로세스의 E2 기록이다. 영속 dedup, 재시작 복구, 시계의 순방향 급변 감지, 소스 재등록/활성 boot fencing, 수신 메모리 상한·감사 저장·transport 재연결은 미구현이다. 소비자는 admission 당시의 유효성을 영구 허가로 쓰지 않고 실제 사용 시점에 freshness·좌표·권한을 다시 검사해야 한다. 인터페이스 dataclass는 신뢰 경계나 서명이 아니며 외부 입력 adapter의 검증을 대체하지 않는다.
 
-## 로봇 카메라 사람 탐지 파이프라인 (E2)
+### 로봇 카메라 사람 탐지 파이프라인 (E2)
 
 `rescue_perception.person_pipeline`은 로봇 카메라 한 스트림의 프레임마다 탐지기 → 위치 → 관측 → 확정 여부를 잇는다. 주행·임무·관측 간 병합은 하지 않는다.
 
@@ -60,7 +232,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 관측들 사이의 「일정 거리 이내 좌표 병합」(Part I 3.3.4)은 협업·관제의 `TargetEstimate`가 한다(작전 결정 [제안], 2026-10-08). 시험은 `tests/test_perception_person_pipeline.py`(14개, 합성 프레임과 녹화 형식의 탐지)다. 모델 추론·bag 재생·실시간 성능은 NOT_RUN이다.
 
-## 탐지 클래스 이름: `survivor` (2026-10-11)
+### 탐지 클래스 이름: `survivor` (2026-10-11)
 
 요구조자(시연 인형)를 탐지하는 YOLO 모델의 클래스 이름은 **`survivor` 하나로 통일한다.** 고정 카메라 담당 지시(2026-10-11, 원문 "클래스명은 survivor로 한다", 적용 범위: 이 저장소의 모든 인형 탐지 모델과 학습 데이터).
 
@@ -75,13 +247,13 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 기존 시험의 `"person"`·`"dummy"`·`"doll"` 은 합성 입력의 임의 이름이라 그대로 둔다(클래스 이름이 설정으로만 들어온다는 것을 시험한다).
 
-## 보수적 사건 후보
+### 보수적 사건 후보
 
 `ConservativeEventRegistry.register(admission, event_id=..., candidate_event_ids=...)`는 수신한 관측별로 별도 CANDIDATE를 만든다. 같은 관측을 재등록하면 같은 사건을 반환하며 event ID/연결 목록 또는 원 payload가 달라지면 충돌이다. REORDERED 관측은 새 사건 입력으로 수락하지 않는다. 같은 frame의 다른 사람, 다른 로봇의 같은 track ID, track 없는 관측은 각각 별도 사건이다.
 
 `candidate_event_ids`는 이미 존재하는 사건과의 **미확인 연결 후보**다. 사건을 합치거나 CONFIRMED로 올리지 않는다. 공통 좌표·시간·불확실성·다중 관측/재확인 근거로 동일성을 판정하는 후속 coordination 정책이 필요하다. 현재는 같은 실제 사람의 연속 프레임도 별도 후보가 될 수 있으며, 이 보수적 과분리를 사람 수/구조 성공 통계로 집계하면 안 된다.
 
-## 고정 웹캠 지진 징후 (E2, 실측 전)
+### 고정 웹캠 지진 징후 (E2, 실측 전)
 
 `rescue_perception.disaster_sign`은 고정 웹캠 영상만으로(모델 없이) `rescue_contracts.SiteEvent(kind="DISASTER_SIGN")`를 만든다. 사건은 증거이고 재난 모드 전환은 협업·관제의 정책이 한다([계약](../design/contracts.md) C-01, [S-00](../design/state-machines.md)). 판정 방식은 PR #33 설계 v3 합의(2026-10-09)다. 화면 **전체**가 앞뒤로 여러 번 흔들리면 지진 징후로 본다.
 
@@ -101,7 +273,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 **한계:** 횟수만 보고 세기는 보지 않는다(시연용 판정). 순수 Python 이라 해상도·`sample_stride`·`search_cells`에 따라 처리 시간이 커진다. 웹캠 자동 초점은 화면 배율을 바꿔 전체 이동처럼 보일 수 있으므로 고정한다. 실물 USB 웹캠에서 `webcam_node` 로 흔들기 1회에 `DISASTER_SIGN` 1건(방향 전환 4/4)을 확인했다 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). 오탐률·장시간 측정은 NOT_RUN 이다.
 
-## 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
+### 고정 웹캠 인형 탐지 모델 비교 (E2, 2026-10-11)
 
 웹캠이 구조 지점에서 인형이 사라졌는지 판정할 때(Q-26: 지진 감지 + 대상 소실 후보) 쓸 `survivor` 탐지 모델을 같은 데이터·같은 설정으로 비교했다. 영상·데이터셋은 저장소에 넣지 않는다. 선정한 yolo26n 가중치는 `assets/models/webcam-yolo26n-best.pt`, 출처·해시는 [`assets/manifest/webcam-yolo26n-survivor.json`](../../assets/manifest/webcam-yolo26n-survivor.json) 이다(2026-10-12 사용자 승인, AGENTS 8절 예외). **실물 웹캠으로는 아직 시험하지 않았다** — 아래 수치는 녹화 영상에서 뽑은 프레임으로 잰 값이다.
 
@@ -132,7 +304,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 - 실물 웹캠 실시간: 5.00 fps 유지, 인형 탐지 신뢰도 0.96, 소실 후보 정상 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인](아래 「고정 웹캠 노드」 절). NOT_RUN: PC3 에서의 측정, 조건별(저조도·원거리) 측정, 실기(E3·E4).
 - 상세 보고서(학습 곡선 7개 비교·실패 이미지·그림): 팀 Notion [「[perception] Webcam 출구 구조 판정」](https://www.notion.so/3f6d8f79f52d80929ae1c089a194a6cc). 저장소의 수치 근거는 위 결과 원본 파일이다.
 
-## 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
+### 고정 웹캠 구조 지점 소실 판정 (E2, 2026-10-11)
 
 `rescue_perception.target_watch`는 Q-26 결정(웹캠 = 지진 감지 + 구조 지점 대상 소실 후보)과 [C-11](../design/contracts.md)에 따라, 감시 영역(ROI) 안의 인형 유무로 `SiteEvent(kind="TARGET_DISAPPEARED_CANDIDATE")`를 만든다. 인형 상자는 웹캠 survivor 탐지기가 주고, 이 모듈은 상자와 ROI 만 본다. ROS·모델 없이 시험된다.
 
@@ -148,7 +320,7 @@ bbox는 `[x0,y0,x1,y1)`의 영상 경계 좌표다. 정수로 감싼 bbox 전체
 
 `visibility`(VALID/OCCLUDED/UNKNOWN)는 웹캠 노드가 정해 넣는다. 정책 값은 기본값이 없다. 시험은 `tests/test_perception_target_watch.py`(21개, 합성 상자. 출구 방향 6개 추가 2026-10-12)이고 구현 전 커밋에서 실패함을 남겼다. 웹캠 노드(SetCameraWatch 수신·TargetPresence 발행)와 실제 탐지기 연결, 실물 웹캠 실시간 시험은 [측정, 2026-10-12, ROS 시험 PC: Ubuntu 24.04·Jazzy·i7-12700H CPU, PC3 여부 미확인] 에서 확인했다(아래 절). NOT_RUN: PC3 에서의 시험, 실기.
 
-## 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
+### 고정 웹캠 노드 `webcam_node` (E2, ROS 실행 2026-10-12)
 
 SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로세스 하나로 묶었다. 10-13 얇은 전 구간 실기에 웹캠 소실 후보가 들어가야 해서, 노드를 셋으로 나누지 않고 프레임 하나를 같은 시각으로 세 판정에 넣는다. 원 영상 토픽(IF-074)과 영상 게이트웨이(cam.video)는 없다.
 
@@ -179,7 +351,7 @@ SDD v0.1 의 cam.capture·cam.quake·cam.presence(IF-075 ~ IF-078)를 PC3 프로
   - 카메라 번호는 꽂는 순서로 바뀌었다(이 PC 는 내장 카메라가 0, USB 웹캠이 2) → 파라미터를 `device_index`(번호) 대신 `device_path`(`/dev/v4l/by-id/...` 고정 경로)로 바꿨다(2026-10-12). 기동 로그에 실제 장치(`/dev/videoN`)를 함께 남긴다.
 - NOT_RUN: PC3 에서의 실행, 장시간·오탐률 측정, coordinator 의 SetCameraWatch 호출과 연결, 실기.
 
-## 공개 API와 E2 실행
+### 공개 API와 E2 실행
 
 공개 항목은 `rescue_perception.__init__`에서 가져올 수 있다. 호출 예시는 `tests/test_perception.py`의 setUp/observation/ingest helper에 있다. 모든 정책 수치는 그 시험의 합성 입력 전용이다.
 
@@ -201,7 +373,7 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 저장소 루트에서 `PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discover -s tests -p test_perception.py -v`로 실행한다. 34개 unittest는 등록 깊이의 수학·단위, 잘못된 정합/해상도/시각, 깊이 결측·불연속, 모델 class, UUID·NaN/Inf/bool, 관측 불변·중복/충돌/역순/만료, receiver 시계 역행 latch·거절 입력 뒤 역행 감지, 복수 대상과 로봇별 사건 분리, 실제 epoch ns 경계·공통 오류·tracking_mode·역순 이력을 다룬다. 이는 CT의 E2 일부이며 ROS/센서/모델 성능·실제 표적 위치/접근 검증은 NOT_RUN이다. TF 누락/SLAM revision은 이 코어의 PASS로 대신하지 않는다.
 
-## 입력 어댑터 (기록 입력, E2)
+### 입력 어댑터 (기록 입력, E2)
 
 `rescue_perception.adapter`는 `sensor_msgs/Image`(RGB·Depth)·`CameraInfo`·`vision_msgs/Detection2D`와 **필드 이름이 같은 객체**를 받아 위 코어로 넘긴다. ROS를 import하지 않으므로 rclpy 메시지, bag에서 역직렬화한 메시지, 시험용 객체를 똑같이 받는다.
 
@@ -218,7 +390,7 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 시험은 `tests/test_perception_adapter.py`(14개)다. 2026-10-08 기준 녹화 bag이 없어 **모든 입력이 합성**이다. 실제 epoch `1700000000123456789` ns가 헤더 → `FrameMeta` → `Observation`까지 리터럴로 같은지, 정렬·시각·깊이 실패 7종이 위치 없이 관측으로 남는지, 중복·역순 입력이 `last_new_receive`와 `valid_until_ns`를 바꾸지 않는지를 확인한다. **실시간 성능은 미검증(NOT_RUN)이다:** Depth 바이트 전수 디코딩과 `DepthFrame` 전수 검사가 모두 Python 루프다.
 
-## 녹화(rosbag2) 재생 도구
+### 녹화(rosbag2) 재생 도구
 
 `tools/perception_bag_replay.py`는 rosbag2 녹화를 위 입력 어댑터에 그대로 넣는다. 로봇·ROS 그래프·모델 없이 돈다. bag을 읽으려면 ROS 2 Python 패키지(`rosbag2_py`, `rclpy`, `rosidl_runtime_py`, `vision_msgs`)가 필요하다.
 
@@ -229,7 +401,7 @@ event = ConservativeEventRegistry().register(admission, event_id=new_event_uuid)
 
 실제 녹화 bag은 저장소 밖에 두고 출처·해시·취득 절차를 `assets/manifest/`에 적는다.
 
-### 오프라인 시각·동기화 진단 (2026-10-12, E2)
+#### 오프라인 시각·동기화 진단 (2026-10-12, E2)
 
 [사용자 요구] 2026-10-12 원문: “add the smallest offline rosbag replay adapter … reports unusable timestamps or synchronization gaps. Keep it E2-only … Do not assume a bag is present; make the input path configurable.” 적용 범위는 인식 레인의 기존 `bag_replay.py`와 CLI·해당 시험·이 구현 기록이다. 최신 `main`에 이미 있는 재생 경로를 재사용하며 공통 계약·운용 정책을 바꾸지 않는다.
 
@@ -255,7 +427,7 @@ PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discov
 **처리 한계:** 짝짓기는 녹화 전체를 메모리에 보관하고 Depth 최근접 검색을 하며, 메시지가 탐지 배열 뒤에 저장돼도 헤더로 매칭할 수 있다. 실제 도착 지연/온라인 queue·메모리/처리 예산을 검증하지 않는다. Depth 한 장을 여러 배열이 쓸 수 있고 같은 RGB stamp의 반복은 마지막 기록을 쓴다. CameraInfo는 배열 전에 본 마지막 유효 기록이며 보정 변경의 시간적 유효성/실물 정합을 인증하지 않는다. 탐지 배열이 없는 RGB/Depth 기록은 `EMPTY_REPLAY`이며 미사용 프레임의 누락률이나 탐지 성능은 계산하지 않는다. timestamp 역순·시계 되감김의 세션 분할, 원본 bag 해시·영속 observation dedup·transport 손실률은 제공하지 않는다. 재생 namespace·binding은 입력마다 출처에 맞게 제공하고 재생 결과를 주행 허가로 쓰지 않는다.
 
 
-## 실제 카메라 연결 조건
+### 실제 카메라 연결 조건
 
 아래는 원본 P4 로봇 3번의 당시 기록이다. 파이널 로봇(`Q-01`)에서 다시 재야 하며, 재기 전에는 `SourceBinding`의 stamp 의미를 `UNKNOWN`으로 둔다.
 
@@ -272,7 +444,7 @@ PYTHONPATH=src/rescue_contracts:src/rescue_perception python3 -m unittest discov
 
 후속: 로봇·지도가 로봇 배정 뒤 녹화한 bag으로 같은 시험을 다시 돌린다(bag과 해시는 `assets/manifest/`). 압축 영상 해제, ROI/array 실시간 어댑터, ROS 구독 노드는 그 뒤다.
 
-## 원리 참고와 남는 관문
+### 원리 참고와 남는 관문
 
 새 구현은 원본 함수를 복사하지 않았다. 다음 고정 원본을 읽고 실패 조건과 필요한 수학 원리를 새 데이터 계약으로 작성했다.
 

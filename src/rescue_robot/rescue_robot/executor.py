@@ -216,6 +216,8 @@ class Executor:
         self.motion = 'STOP_UNCONFIRMED'
         self.latch = 'DISARMED'
         self.session_fault = False
+        self.rearm_due = False      # the last task ended COMPLETED with a confirmed stop (OPS-231)
+        self.rearm_refused = ''     # why the automatic re-arm after it was refused; '' = not refused
         self.highest_generation = -1
         self.results = {}
         self.seen = {}
@@ -287,15 +289,52 @@ class Executor:
         self.stop_start = None
         self.motion = 'STOP_UNCONFIRMED'
 
+    def _arm_refusal(self, authority_epoch, now, readiness):
+        """Why arming is refused now, or None. One list for task_arm and the automatic re-arm."""
+        fresh_stop = self.last_sample is not None and 0 <= now - self.last_sample <= self.policy.evidence_max_age
+        if authority_epoch != self.authority_epoch:
+            return 'NOT_AUTHORIZED'
+        if self.active is not None:
+            return 'TASK_BUSY'
+        if self.latch == 'FAULT_LATCHED' or self.session_fault:
+            return 'SESSION_FAULT'
+        if not self.fenced or self.motion != 'STOPPED' or not fresh_stop:
+            return 'STOP_EVIDENCE_STALE'
+        if not readiness.valid(now, self.policy):
+            return 'NAV_NOT_READY'
+        return None
+
     def arm(self, authority_epoch, *, now, readiness):
         now = self._time(now)
-        fresh_stop = self.last_sample is not None and 0 <= now - self.last_sample <= self.policy.evidence_max_age
-        if (authority_epoch != self.authority_epoch or self.active is not None
-                or not self.fenced or self.motion != 'STOPPED' or not fresh_stop
-                or not readiness.valid(now, self.policy) or self.latch == 'FAULT_LATCHED' or self.session_fault):
+        if self._arm_refusal(authority_epoch, now, readiness) is not None:
             return False
         self.latch, self.state = 'ARMED', 'IDLE'
+        self.rearm_due, self.rearm_refused = False, ''
         return True
+
+    def rearm_after_completion(self, authority_epoch, *, now, readiness):
+        """Arm again right after a COMPLETED task whose stop was confirmed (OPS-231).
+
+        Owner approval 2026-10-14 (grade 4): TB-6 goes on searching and TB-5 leaves for the exit
+        without an operator task_arm. Once per such task, on arm()'s own conditions. A refusal
+        keeps STOP_LATCHED, as after every other outcome, and its reason stays in rearm_refused
+        until an operator task_arm. Returns that reason, or None when armed.
+        """
+        if not self.rearm_due:
+            raise ContractError('no completed task with a confirmed stop to re-arm after', 'STOP_LATCHED')
+        self.rearm_due = False
+        now = self._time(now)
+        reason = self._arm_refusal(authority_epoch, now, readiness)
+        if reason is None:
+            self.latch, self.state = 'ARMED', 'IDLE'
+        self.rearm_refused = reason or ''
+        return reason
+
+    def refuse_rearm(self, reason):
+        """The caller's own check refused the re-arm (authority, clock): latch kept, reason recorded."""
+        if not isinstance(reason, str) or not reason:
+            raise ContractError('re-arm refusal reason')
+        self.rearm_due, self.rearm_refused = False, reason
 
     def register_authority(self, previous_epoch, new_epoch, *, now, readiness):
         # Explicit revoke/register; never lexicographic UUID ordering.
@@ -491,6 +530,9 @@ class Executor:
         self.state = 'FINISHED'
         self.active = None
         self.latch = 'STOP_LATCHED' if confirmed and not self.session_fault else 'FAULT_LATCHED'
+        # Only this end may arm again by itself (OPS-231); the site runtime decides, once.
+        self.rearm_due = outcome == 'COMPLETED' and self.latch == 'STOP_LATCHED'
+        self.rearm_refused = ''
 
     def drain_intents(self):
         result, self.intents = tuple(self.intents), []

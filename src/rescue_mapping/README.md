@@ -1,5 +1,24 @@
 # rescue_mapping
 
+## 현재 상태 (2026-10-14, main 4163a25)
+
+이 패키지는 좌표 변환과 지도 버전 검사의 순수 Python 라이브러리다. 현장의 지도 흐름(TB-6 SLAM → 두 번 고정 → AMCL)은 **이 패키지에 없다.** 아래 표의 다른 패키지에 있다. 코드 기준이며, 이 패키지 코드는 2026-10-08 뒤로 바뀌지 않았다(`git log -- src/rescue_mapping`).
+
+| 기능 | 상태 | 근거 |
+| --- | --- | --- |
+| 3D 강체 변환·지도→임무 정렬(`RigidTransform`·`FrameAlignment`) | 구현됨. 현장 코드가 씀 | `geometry.py`·`models.py`. 쓰는 곳은 `rescue_robot/task_site_runtime.py`, `rescue_perception` `map_projection.py`·`target_location.py`·`recheck.py` 등 |
+| 관측 보존·목표 snapshot 검사(`MappingRegistry`) | 구현됨. 현장 실행 경로에서는 안 씀(합성 리허설 `rescue_bringup/offline_demo.py` 만) | `registry.py`. `rescue_robot`·`rescue_coordination` 에서 import 없음 |
+| `auto_approach_eligible` | 이 패키지 출력은 항상 `False`. TB-5 자동 접근은 이 값이 아니라 로봇별 정책(`task.live.auto_target.*`)으로 받는다 | `registry.py`, `rescue_robot/task_site_runtime.py:target_gate` |
+| 조정기 지도 방식 `SLAM_FREEZE`(기준 지도 없음) | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_coordination/ros_node.py`(`MAP_MODES`), 현장 파일 coordinator `map_mode` |
+| 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·고정 기록 | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_robot/map_freeze.py`, #242·#255 |
+| 짝 토픽 `/rescue/map/frozen_revision`(고정 지도가 몇 번째 revision 인지) | 구현됨. 이 패키지 밖 | `rescue_contracts/occupancy.py:frozen_revision_text`·`parse_frozen_revision`, `docs/design/contracts.md` C-04a, #242 |
+| TB-6 출발 자세 `start_pose`(미리 재는 좌표의 기준) | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_robot/map_freeze.py`(`/rescue/map/start_pose/robot_a`, `output_dir/start_pose.json`), OPS-141 |
+| 로봇 쪽 고정 지도 받기·재정합 | 구현됨, 실기 NOT_RUN. 이 패키지 밖 | `rescue_robot/live_sources.py:SavedMapSources`, `frozen_map_relay.py`, [rescue_robot README](../rescue_robot/README.md) 「지도 수명 주기」 |
+
+실행 방법은 [rescue_bringup README](../rescue_bringup/README.md) 「지금 현장 실행 순서」를 본다.
+
+## 라이브러리 (2026-10-08 작성, 지금도 코드와 같음)
+
 Python 표준 라이브러리로 3D 좌표 변환, 원 관측 보존, 로봇별 지도 세션·보정·정렬 버전과 목표 snapshot의 유효성을 검사한다. 네트워크·ROS·TF·SLAM을 실행하거나 로봇에 명령하지 않는다.
 
 **`VALID` / `coordinates_valid=True`는 입력된 기하·시각·버전의 일관성만 뜻한다. `auto_approach_eligible`은 모든 출력에서 항상 `False`다.** 실제 backend 보정 감지, 센서 시각/TF 검증, 실행기 정지·재개 연동이 없으며 이를 활성화하는 boolean 옵션도 제공하지 않는다.
