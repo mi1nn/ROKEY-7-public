@@ -15,11 +15,11 @@ main 4163a25 의 코드를 읽고 적었다(작전 OPS-210). 「구현됨」은 
 | 출구 QR (여러 출구, 정확히 같은 내용만) | 구현됨. 실기 NOT_RUN | #245, `exit_qr.py:detect_qrs`·`ExitQrConfirmer` |
 | 머리 위 구조물(터널) 판정 overhead_passage | 구현됨. 실기 NOT_RUN. 높이 기준을 먼저 확인해야 한다(아래 절) | #259, `overhead.py:judge`·`PassageRegistry` |
 | 터널 판정 영상 passage_view | 구현됨. 실기 NOT_RUN(미리보기 해상도·속도, 각 PC 글꼴) | #264, `overhead.py:render_view` |
-| TB-5 머리 위 여유 기록 headroom_record | 구현됨. 실기 NOT_RUN. **빈 관측도 PASS 가 나온다. PASS 를 통과해도 된다는 근거로 읽으면 안 된다. 고칠 후보다**(아래) | `headroom.py:judge` |
-| 관측이 모자랄 때 UNKNOWN (headroom) | 미구현 | `headroom.py:judge` 에 그 분기가 없다 |
+| TB-5 머리 위 여유 기록 headroom_record | 구현됨. 실기 NOT_RUN. 상자 안 바닥 위 점이 `min_points` 개 미만이면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다(2026-10-14, 재범 결정) | `headroom.py:judge` |
+| 관측이 모자랄 때 UNKNOWN (headroom) | 구현됨(점 수 기준만). 가림·시야 밖 구분과 46 cm 근처 오차 보류는 실측 뒤에 정한다 | `headroom.py:judge` |
 | 판정 영상 중계 (mjpeg_relay, robot_view_relay) | 구현됨. 실기 NOT_RUN | `mjpeg_relay.py`, #261 `robot_view_relay.py` |
 
-**headroom `judge` 의 빈 관측 PASS** [외부 검토 재현, 이 PR 에서 다시 확인]: `headroom.judge(points, policy)` 는 `points` 가 `None` 일 때만 UNKNOWN 이다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 잡음(`floor_noise_m`) 아래 점만 있는 목록을 주면 `{'decision': 'PASS', 'points_below': 0, 'lowest_m': None}` 이 나온다. 즉 PASS 는 「낮은 점을 `min_points` 개 못 셌다」는 뜻일 뿐이다. 아래가 비어 있다는 것을 본 것이 아니다. `lowest_m=None` 인 PASS 는 통과 근거가 아니다. 코드를 고칠지는 재범이 정한다. 이 PR 은 문서만 고친다.
+**headroom `judge` 의 관측 부족 UNKNOWN** (2026-10-14 고침, 재범 결정): 예전에는 `points` 가 `None` 일 때만 UNKNOWN 이었다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 잡음(`floor_noise_m`) 아래 점만 있는 목록도 `PASS`, `lowest_m None` 이 나왔다(robot6 2026-10-13 기록 3회가 이 경우). 이제는 상자 안 바닥 위 점이 `min_points` 개 이상일 때만 PASS 다. 그보다 적으면 가로대를 보지 못한 것이라 UNKNOWN 으로 기록하고, 이유에 `FEW_POINTS_ABOVE_FLOOR seen=<개수>` 를 남긴다. 새 숫자는 만들지 않고 낮은 점을 세는 `min_points` 를 그대로 쓴다. 결과에 `points_seen`(상자 안 바닥 위 점 수)을 더했다. 그래서 가로대가 없는 빈 통로에서 재면 PASS 가 아니라 UNKNOWN 이 나온다. 이 도구는 가로대 앞에서 쓰는 측정 도구라 그렇게 둔다.
 
 ## 패키지 개요
 

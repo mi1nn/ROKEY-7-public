@@ -50,7 +50,7 @@ flowchart LR
 | 지도 좌표 | 확정 관측을 촬영 시각의 TF 로 지도 좌표로 바꾼다 | 구현됨. 실기 NOT_RUN | [3절](#3-지도-좌표-target_locator) |
 | 출구 QR | 출구 QR 을 읽어 출구 위치를 낸다. 여러 출구, 정확히 같은 내용만 | 구현됨. 실기 NOT_RUN | [4절](#4-출구-qr) |
 | 머리 위 구조물 | 터널 같은 구조물의 가장 낮은 높이를 재서 통과 가능·불가·판정 불가로 판정한다. 운영 PC 의 DB 기록(db_writer)이 목록을 받아 관제 웹 지도에 그린다(#262·#263). 판정 영상은 로봇 영상 중계(robot_view_relay)가 관제 웹으로 보낸다 | 구현됨. 실기 NOT_RUN. 높이 기준 확인 필요 | [5절](#5-머리-위-구조물-overhead_passage) |
-| 머리 위 여유 기록 | TB-5 앞 깊이 점을 세어 기록만 하는 도구 | 구현됨. 실기 NOT_RUN. **빈 관측도 PASS** | [6절](#6-머리-위-여유-기록-headroom_record) |
+| 머리 위 여유 기록 | TB-5 앞 깊이 점을 세어 기록만 하는 도구 | 구현됨. 실기 NOT_RUN. 바닥 위 점이 모자라면 UNKNOWN | [6절](#6-머리-위-여유-기록-headroom_record) |
 | 재확인 관측 | TB-6 이 한 지점을 다시 보고 있음·없음을 낸다 | 구현됨. 지금 시나리오에서는 쓰지 않는다 | [7절](#7-지금-쓰지-않는-기능) |
 
 시나리오 단계는 [scope.md](../requirements/scope.md)의 「지금 시나리오」 절(#268)이 정한다. 현장 값은 [현장 파일](../../config/field/search_area.field.json) 하나에만 있다. 이 문서는 값을 다시 적지 않는다. 노드 실행 인자와 로그 읽는 법은 [인식 README](../../src/rescue_perception/README.md)에 있다.
@@ -140,7 +140,7 @@ flowchart LR
 
 TB-5 앞 상자 안에서 낮은 깊이 점을 세어 STOP·PASS 를 JSON 으로 기록만 한다. 로봇을 멈추지 않는다.
 
-**주의.** 빈 관측도 PASS 로 처리한다. `headroom.judge` 는 점 목록이 `None` 일 때만 UNKNOWN 이다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 점만 있는 목록은 `PASS`, `lowest_m None` 이 나온다 [외부 검토 재현, 2026-10-14 다시 확인]. 이 PASS 는 통과 근거가 아니다. 고칠 후보이고, 고칠지는 재범이 정한다.
+**판정.** 상자 안 바닥 위 점 중 `clearance_m` 보다 낮은 점이 `min_points` 개 이상이면 STOP 이다. 그렇지 않고 바닥 위 점이 `min_points` 개 이상이면 PASS, 그보다 적으면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다. CameraInfo 가 없거나 깊이가 오래된 프레임은 UNKNOWN 으로 기록한다. TF 가 없는 프레임은 건너뛰고, 마감 시각까지 표본을 다 못 모으면 남은 회차를 UNKNOWN(`NO_TF`, `NO_DEPTH`)으로 채운다. 2026-10-13 까지는 빈 관측도 PASS 로 나왔다. 2026-10-14 재범 결정으로 고쳤다.
 
 실기 NOT_RUN.
 

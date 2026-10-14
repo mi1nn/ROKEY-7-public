@@ -4,7 +4,8 @@ The stop is Nav2 collision_monitor with a depth point-cloud source (통합-로�
 what that source will see: from each depth image, points in a box ahead of TB-5 between the floor
 noise and the clearance height are counted the way collision_monitor counts them (min_points), and
 the lowest point height is kept. Run at one spot (e.g. 10 times) it shows whether the crossbar stays
-above the clearance under depth noise. Missing, stale or unusable depth is UNKNOWN, never PASS.
+above the clearance under depth noise. Missing, stale or unusable depth is UNKNOWN, never PASS, and so
+is a box with fewer than min_points points above the floor (the crossbar was not seen).
 
     ros2 run rescue_perception headroom_record --ros-args -p depth_topic:=... -p camera_info_topic:=... \
         -p base_frame:=base_link -p samples:=10 -p max_depth_age_s:=0.5 -p output_path:=<file.json> \
@@ -41,13 +42,17 @@ class HeadroomPolicy:
 
 
 def judge(points, policy):
-    """{decision PASS|STOP|UNKNOWN, points_below, lowest_m} for base_link points (x, y, z) or None."""
+    """{decision PASS|STOP|UNKNOWN, points_below, points_seen, lowest_m} for base_link points (x, y, z) or None.
+
+    PASS needs at least min_points points above the floor in the box: an empty box, floor points only or a few
+    stray points did not see the crossbar, so they are UNKNOWN (robot6 2026-10-13 gave PASS with lowest None)."""
     if points is None:
-        return {'decision': 'UNKNOWN', 'points_below': None, 'lowest_m': None}
+        return {'decision': 'UNKNOWN', 'points_below': None, 'points_seen': None, 'lowest_m': None}
     inside = [z for x, y, z in points if policy.box_x_min_m <= x <= policy.box_x_max_m
               and abs(y) <= policy.box_half_width_m and z > policy.floor_noise_m]
     below = sum(1 for z in inside if z < policy.clearance_m)
-    return {'decision': 'STOP' if below >= policy.min_points else 'PASS', 'points_below': below,
+    decision = 'STOP' if below >= policy.min_points else 'PASS' if len(inside) >= policy.min_points else 'UNKNOWN'
+    return {'decision': decision, 'points_below': below, 'points_seen': len(inside),
             'lowest_m': round(min(inside), 4) if inside else None}
 
 
@@ -154,6 +159,8 @@ def main(args=None):
                                           optical_to_base=((t.x, t.y, t.z), (q.x, q.y, q.z, q.w)),
                                           stride=values['stride'])
                     result = judge(points, policy)
+                    if result['decision'] == 'UNKNOWN':
+                        reason = f'FEW_POINTS_ABOVE_FLOOR seen={result["points_seen"]} min_points={policy.min_points}'
                 except Exception as exc:   # unusable image: says nothing about the passage
                     result, reason = judge(None, policy), f'{type(exc).__name__}: {exc}'
             run = dict(result, stamp_ns=stamp, age_s=round(age, 3), reason=reason)
