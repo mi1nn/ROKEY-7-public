@@ -109,7 +109,7 @@ flowchart LR
 | 웹캠 장치 바꾸기 | 관제 웹 | HTTP `GET`·`POST /api/webcam` | db_writer → webcam_node 파라미터 |
 | 관제 화면 자료 | db_writer | 현장 상태 SQLite (스키마 1.4) | 관제 웹(읽기 전용) |
 
-웹이 무엇을 어떤 함수로 읽는지는 관제 웹 데이터 흐름 문서(console-dataflow.md, 열린 #265)에 있다. 메시지 모양과 시각·좌표 규칙은 [contracts.md](contracts.md)에 있다.
+웹이 무엇을 어떤 함수로 읽는지는 [관제 웹 아키텍처](console-architecture.md)에 있다. 메시지 모양과 시각·좌표 규칙은 [contracts.md](contracts.md)에 있다.
 
 ## 3. 지도 흐름
 

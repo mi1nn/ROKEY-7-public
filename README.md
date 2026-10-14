@@ -29,7 +29,7 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ①~⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01~11쪽 |
 | [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
 | [관제 웹 설계 명세](docs/design/console-spec.md) | 관제 웹(`rescue_console`) 모듈별 책임·인자·라우트·상태·입출력·처리 규칙·순서도·오류 처리. 이 문서만 보고 다시 짤 수 있는 수준이 목표 |
-| [관제 웹 데이터 흐름](docs/design/console-dataflow.md) | 관제 웹으로 오는 사슬(발행 노드 → 토픽 → db_writer → 현장 상태 DB 표 → 웹 파일 → 화면 칸)과 DB 를 거치지 않는 입력(지도 파일·직접 관측 파일·MJPEG), 웹이 내보내는 것, 웹 파일마다 받는 것·하는 것·내보내는 것 |
+| [관제 웹 아키텍처](docs/design/console-architecture.md) | 관제 웹의 구성 요소와 프로세스 경계, 흐름 그림 3장(상태·조회 / 명령 / 영상), 관제 웹으로 오는 사슬(발행 노드 → 토픽 → db_writer → 현장 상태 DB 표 → 웹 파일 → 화면 칸)과 DB 를 거치지 않는 입력, 웹이 내보내는 것, 웹 파일·핵심 클래스와 함수·상수, 설계 판단, 알려진 한계 |
 | [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
 | [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
 | [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
