@@ -56,7 +56,7 @@ operations DB의 소유자는 operations 호스트다. 다른 PC는 DB 파일을
 
 ## ROS 노드
 
-운영 PC 에서 `rescue_bringup` 의 `operations.launch.py` 가 띄운다(#144). `db_writer`·`report_node` 는 늘 뜨고, `map_snapshot`(인자 `map_topic`·`map_dir`)과 `robot_watch`(인자 `robot_namespaces`·`robot_watch_path`)는 인자를 줄 때만 뜬다. 두 DB 는 서로 다른 파일이어야 한다(파일당 쓰는 프로세스 하나).
+운영 PC 에서 `rescue_bringup` 의 `operations.launch.py` 가 띄운다(#144). `db_writer`·`report_node` 는 늘 뜨고, `map_snapshot`(인자 `map_topic`·`map_dir`)과 `robot_watch`(인자 `robot_namespaces`·`robot_watch_path`)는 인자를 줄 때만 뜬다. 같은 launch 가 인식 패키지(`rescue_perception`)의 `webcam_node`·`mjpeg_relay`·`robot_view_relay` 도 띄운다(인자를 줄 때). 두 DB 는 서로 다른 파일이어야 한다(파일당 쓰는 프로세스 하나).
 
 - `db_writer`(`ros_node.py`): 현장 상태 DB 를 쓰는 유일한 프로세스다.
   - 받는 것: 로봇 상태·위치, 고정 카메라 사건, 조정기 `SystemState`·`TargetSnapshot`, 출구(QR) 관측 `TargetLocation`, 로봇별 터널 판정(`overhead_passages`, JSON 문자열), TB-6 지도 상태 `MapState`. 대상 행에 `target_revision`·`persisted_report_id` 를 남긴다.

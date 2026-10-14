@@ -21,7 +21,7 @@
 | 자동 출동(`--support-dispatch AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates` |
 | 운영자 명령 보내기 | 구현됨 · 실기 NOT_RUN | `commands.py:send_command`, `app.py:command` |
 | 조정기 사유 한국어 문구 | 구현됨 | `view.py:MISSION_REASONS`·`mission_reason` |
-| 교통 관제 사유(`TRAFFIC_*`) 문구 | 미구현(통합-조정 PR 대기) | — |
+| 교통 관제 사유(`TRAFFIC_*`) 한국어 문구 | 미구현(조정기 쪽은 #272 로 main 에 있음, 관제 웹 문구 추가만 남음) | #272 |
 
 ## 다른 기기에서 접속하기
 
@@ -40,7 +40,7 @@
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(누구나) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
@@ -166,7 +166,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 로봇 카메라 (OPS-191, 재범 결정)
 
-웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-6/TB-5 를 고른다(기본 TB-6 = 프로파일의 SCOUT). 운영 명령이 아니라 보기 설정이라 누구나 바꾸고 확인 창이 없다.
+웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-6/TB-5 를 고른다(기본 TB-6 = 프로파일의 SCOUT). 운영 명령이 아니라 보기 설정이라 로그인한 모든 계정(보기 전용 포함)이 바꾸고 확인 창이 없다.
 
 - 영상은 통합-인식이 로봇 PC 에서 만든 판정 그린 영상 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT depth 1, 352×352 초당 5장 [제안])이다. 원본 RGB 를 Wi-Fi 로 또 끌지 않는다.
 - 운영 launch `robot_views:=robot_a=/robot6,robot_b=/robot5` 를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
