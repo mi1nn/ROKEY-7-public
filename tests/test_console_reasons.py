@@ -110,7 +110,8 @@ class ReasonWordTests(unittest.TestCase):
     def test_traffic_codes_of_272(self):   # 두 로봇 교통 관제(#272, OPS-235). 두 로봇이 다 멈추는 둘은 빨강
         cases = {
             'TRAFFIC_SUPPORT_WAITING_SCOUT_STOP': ('TB-6 정지 확인 기다림 — TB-5 대기', 'caution', None),
-            'TRAFFIC_SCOUT_STOP_TIMEOUT': ('TB-6 정지 확인 시간 초과 — 두 로봇 모두 대기', 'alert', None),
+            # TB-6 정지를 확인 못 함: TB-6 이 아직 움직일 수 있다(작전 OPS-237 제안)
+            'TRAFFIC_SCOUT_STOP_TIMEOUT': ('TB-6 정지 확인 안 됨(시간 초과) — TB-5 대기, 현장 확인', 'alert', None),
             'TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD': ('TB-6 이 TB-5 경로 밖으로 비키는 중 — TB-5 대기', 'caution', None),
             'TRAFFIC_SCOUT_YIELD_NO_SPACE': ('TB-6 이 비킬 자리 없음 — 두 로봇 모두 정지', 'alert', None),
             'TRAFFIC_SCOUT_HELD_FOR_SUPPORT': ('TB-5 경로와 겹쳐 TB-6 명령 보류', 'caution', None),
