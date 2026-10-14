@@ -5,6 +5,31 @@
 - 데이터의 진실은 협업·관제의 운영 장부(`rescue_operations`)다. 이 패키지는 운영 DB 에 쓰지 않고, DB 파일을 만들지 않고, ROS 를 구독하지 않고, 로봇에 직접 명령하지 않는다. 운영자 명령은 operations HTTP API(`POST /api/operator-commands`)로만 넘기고, 받을지는 조정기가 정한다(아래 「운영자 명령」).
 - **현장 정지 수단을 웹 연결에만 의존시키지 않는다**(팀 `AGENTS.md` 7절). 이 화면이 꺼지거나 멈춰도 로봇 쪽 정지(통신 단절 watchdog, 현장 비상 정지)는 따로 동작해야 하고, 화면은 그 대체물이 아니다.
 
+## 현재 상태 (2026-10-14, main 3278a3e)
+
+| 기능 | 상태 | 근거 |
+| --- | --- | --- |
+| 로그인·계정(관리자 ADMIN, 보기 전용 CUSTOMER) | 구현됨 | `accounts.py`, `app.py` `login`·`accounts_*` |
+| 현장 상태 DB 읽기(스키마 1.4) | 구현됨 | `sources.py:load_site_state`, #262 |
+| 실시간 SLAM 지도(`--live-map`) | 구현됨 · 실기 일부: 시험용 TB-5 SLAM 지도 표시 [측정 2026-10-13]. TB-6 지도는 NOT_RUN | `mapimage.py:LiveMap`, `rescue_operations` `map_snapshot`, #209 |
+| 로봇 직접 관측(`--robot-watch`) | 구현됨 · 실기 일부: TB-5·TB-6 배터리·도킹, TB-5 지도 위치 수신 [측정 2026-10-13] | `view.py:_apply_watch`, `rescue_operations` `robot_watch`, #251 |
+| 터널 표시(통과 가능/불가/판정 불가) | 구현됨 · 실기 NOT_RUN | `view.py:_passages`, `mapimage.py:map_overlay`, #263 |
+| 출구(QR) 관측 표시 | 구현됨 · 실기 NOT_RUN | `view.py:_exit`, #238 |
+| 웹캠 고르기(관리자) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `app.py:webcam`, `commands.py:switch_webcam`, #257 |
+| 로봇 카메라 칸(TB-6/TB-5 고르기) | 구현됨 · 실기 NOT_RUN(로봇 판정 영상 노드 미기동) | `render.py:_robot_camera`, `app.py:robot_camera_pick`, #261 |
+| 자동 출발(`--search-start AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates`, #230 |
+| 자동 출동(`--support-dispatch AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates` |
+| 운영자 명령 보내기 | 구현됨 · 실기 NOT_RUN | `commands.py:send_command`, `app.py:command` |
+| 조정기 사유 한국어 문구 | 구현됨 | `view.py:MISSION_REASONS`·`mission_reason` |
+| 교통 관제 사유(`TRAFFIC_*`) 문구 | 미구현(통합-조정 PR 대기) | — |
+
+## 다른 기기에서 접속하기
+
+- 기본 바인드는 `127.0.0.1` 이다. 이 값이면 관제 웹을 띄운 PC 의 브라우저에서만 열린다.
+- 다른 기기(노트북 등)에서 보려면 `--host <운영 PC 주소>` 로 띄운다. 주소는 배포 프로파일 값(`operations_host`)을 쓴다. 저장소와 문서에 실제 주소를 적지 않는다.
+- 웹캠·로봇 카메라 영상은 브라우저가 중계 주소에서 직접 받는다. 그래서 `--camera`·`--robot-camera` 주소도 그 기기에서 닿는 주소여야 한다(운영 launch `video_bind_host`).
+- 접속하는 기기와 운영 PC 는 같은 망(또는 같은 VPN)에 있어야 한다.
+
 ## 구성
 
 | 모듈 | 하는 일 | 의존 |
@@ -15,7 +40,7 @@
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, 명령은 `POST /commands` 하나(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(누구나) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
@@ -44,7 +69,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 ```
 
 - `<운영 장부>`(옛 `ReportLedger`)는 `--site-state` 와 함께면 생략할 수 있다(2026-10-13). 지금 그 파일을 쓰는 운영 코드가 없고, #137 `report_node` 는 다른 형식의 별도 장부를 쓴다. 생략하면 「확인할 것」 줄과 각 대상 줄에 「보고 장부 입력 없음」이 보이고, 구조 보고 행·건수는 그리지 않는다(빈 목록으로 보이지 않는다). 로봇 카드는 현장 상태 DB 가 정한 배치 로봇 목록(`read_allowed_robot_ids`, #149)으로 그린다. 상태를 아직 안 보낸 로봇도 카드가 있다. 그 목록이 없는 입력(픽스처)에서만 상태가 들어온 로봇만 그리고, 그 사실을 「확인할 것」 줄에 적는다. 출동 승인 버튼은 장부가 아니라 대상 상태의 `persisted_report_id` 로 켜지므로 그대로 동작한다. 장부 경로를 줬는데 못 열면 지금처럼 오류다. 픽스처(`--status`)로 띄울 때는 장부가 필요하다.
-- **새 회차는 새 현장 상태 DB 로 띄운다(OPS-183).** 재난 모드·사건 기록·임무 상태는 DB 에 남아 있어서, 같은 `--site-state`(운영 launch 의 `db_path`)로 다시 띄우면 지난 회차의 재난(예: 오전 15:13 진동 감지)이 그대로 보인다. 회차마다 새 폴더(예: `~/rokey7-field/run<날짜시각>/site_state.sqlite3`)를 운영 launch `db_path` 와 관제 웹 `--site-state` 에 같이 준다. 지난 DB 는 지우지 않고 증거로 둔다.
+- **새 회차는 새 현장 상태 DB 로 띄운다(OPS-183).** 재난 모드·사건 기록·임무 상태는 DB 에 남아 있어서, 같은 `--site-state`(운영 launch 의 `db_path`)로 다시 띄우면 지난 회차의 재난(예: 오전 15:13 진동 감지)이 그대로 보인다. 회차마다 새 폴더(예: `<회차 폴더>/site_state.sqlite3`)를 운영 launch `db_path` 와 관제 웹 `--site-state` 에 같이 준다. 지난 DB 는 지우지 않고 증거로 둔다.
 - `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
 - `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
 - `--search-start AUTO|OPERATOR` 는 조정기의 `search_start` 와 같은 현장 값이다(#228, OPS-140). AUTO 이면 지진 감지(DISASTER)가 곧 TB-6 수색 시작이고 조정기는 운영자의 수색 시작을 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절하므로, 수색 시작 버튼 대신 「TB-6 자동 출발」 상태를 보인다. OPERATOR 이거나 인자가 없으면 버튼이다. 값이 어긋나면: 조정기가 AUTO 인데 관제 웹이 버튼이면 버튼을 눌렀을 때의 거절(또는 임무 띠의 `AUTO_SEARCH_ENABLED`)을 보고 경고 줄에 「관제 웹을 --search-start AUTO 로 다시 띄우세요」가 나온다. 반대로 관제 웹이 AUTO 인데 조정기가 OPERATOR 이면 화면은 자동 출발이라 하지만 수색이 시작되지 않는다 — 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없으므로, 두 값은 같은 현장 파일에서 가져온다.
@@ -284,3 +309,11 @@ SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드�
 - 오류: `ConsoleError` 는 화면 안의 지역 오류이고 `RescueError`(계약 오류)가 아니다. `rescue_contracts.DETAIL_CATEGORIES` 에 등록하지 않는다 — 계약 코드 목록은 로봇·판정·보고 경로에만 쓴다(작전 결정, 2026-10-08).
 - 후속: 일시정지·재개·취소(Q-22 뒤), 정지 버튼(RequestStop 경로), 재난 뒤 SLAM 지도 갱신 표시(IF-084·`map_snapshots`), 카메라 주소를 프로파일에서 받기(#39), 장부 이어 읽기(`read_reports` 커서).
 - 강사 day5 예제는 [docs/process/source-selection.md](../../docs/process/source-selection.md) TS-02(조회 → 표의 최소 구조, DB 는 operations API 뒤)·TS-03(폴링으로 KPI-04 를 만족하면 push 를 쓰지 않음)의 판단만 따랐다. 로그인 페이지·로그인 데이터 DB 라는 **요구**는 따르고(4_login.py·welcome 표의 역할·상태 열), 하드코딩 자격 증명·고정 secret·평문 비교는 쓰지 않았다. 옮긴 줄은 없다.
+
+## 기록 (2026-10-14)
+
+지금 코드와 맞지 않게 된 설명을 옮겨 둔다(OPS-211).
+
+- 2026-10-13 까지 「구성」 표의 `app.py` 줄: 「데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, 명령은 `POST /commands` 하나」. 웹캠 고르기(#257)와 로봇 카메라 고르기(#261)가 쓰기 경로를 하나씩 더했다.
+- 2026-10-13 의 「새 회차는 새 현장 상태 DB 로 띄운다」 예시는 개인 작업 폴더 경로를 적었다. 지금은 `<회차 폴더>` 자리표시자로 쓴다.
+
