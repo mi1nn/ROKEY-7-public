@@ -1,10 +1,56 @@
 ---
 title: 운영 DB 파일과 테이블 관계도
-status: record   # main 8e7c784 의 코드와 운영 PC 의 실제 DB 파일에서 뽑은 현재 구조. 스키마 결정 문서가 아니다
-updated: 2026-10-10
+status: current   # 맨 위 「한눈에」는 main 3278a3e 코드 기준. 아래 「기록」은 2026-10-10 판 그대로
+updated: 2026-10-14
 ---
 
-# 운영 DB 파일과 테이블 관계도 (웹마스터, 2026-10-10)
+# 운영 DB 파일과 테이블 관계도
+
+## 한눈에 (2026-10-14, main 3278a3e)
+
+이 문서가 답하는 질문은 「운영 PC 에 어떤 데이터 파일이 있고, 누가 쓰고 누가 읽는가」다. 파일마다 쓰는 프로세스는 하나다.
+
+```mermaid
+flowchart LR
+  subgraph OPS["운영 PC"]
+    W["DB 기록<br/>(db_writer)"]
+    RN["보고 저장<br/>(report_node)"]
+    MS["지도 파일 쓰기<br/>(map_snapshot)"]
+    RW["로봇 관측<br/>(robot_watch)"]
+    C["관제 웹<br/>(rescue_console)"]
+    SITE[("현장 상태 DB<br/>스키마 1.4")]
+    REP[("보고 저장 DB<br/>rescue-report-store")]
+    ACC[("관제 웹 계정 DB<br/>console-accounts")]
+    MAP["지도 파일<br/>live_map.yaml + PGM"]
+    WATCH["로봇 관측 파일<br/>robot_watch.json"]
+  end
+  W -- "쓰기(유일)" --> SITE
+  RN -- "쓰기(유일)" --> REP
+  MS -- "쓰기" --> MAP
+  RW -- "쓰기" --> WATCH
+  C -- "쓰기(유일)" --> ACC
+  C -. "읽기 전용" .-> SITE
+  C -. "읽기" .-> MAP
+  C -. "읽기" .-> WATCH
+```
+
+| 파일 | 쓰는 쪽 | 읽는 쪽 | 표·내용 |
+| --- | --- | --- | --- |
+| 현장 상태 DB(`operations-site-state`, 1.4) | `db_writer` | 관제 웹(`mode=ro`) | 표 11개. 표마다 쓰는 함수와 입력은 [DB 스키마](../design/db-schema.md) 「한눈에」 |
+| 보고 저장 DB(`rescue-report-store`) | `report_node` | 없음(영수증은 ROS 로 조정기에 감) | 조정기 `RescueReport` 와 영수증 |
+| 관제 웹 계정 DB(`console-accounts`) | 관제 웹 | 관제 웹 | `accounts` |
+| 지도 파일(`live_map.yaml` + `map_<해시>.pgm`, `live_map.alive`) | `map_snapshot` | 관제 웹 `--live-map` | SQLite 아님. 최신과 직전 그림만 남김 |
+| 로봇 관측 파일(`robot_watch.json`) | `robot_watch` | 관제 웹 `--robot-watch` | SQLite 아님. 1초마다 통째로 바꿔 씀 |
+| 운영 장부(`operations-ledger`)·보고 송신 대기열(`report-outbox`) | `ReportLedger`·`ReportOutbox` | 관제 웹(운영 장부 인자를 줄 때) | 2026-10-14 현장 실행에서는 쓰는 노드가 없다. 관제 웹은 운영 장부 없이 뜬다(「보고 장부 입력 없음」) |
+
+- 외래 키는 없다. 표 사이 관계는 `target_id`·`report_id` 같은 ID 를 대조해 읽는다(아래 기록 2절 그림).
+- 실제 파일 경로는 저장소에 적지 않는다. 회차마다 새 현장 상태 DB 경로를 쓴다.
+
+## 기록 (2026-10-10)
+
+아래는 2026-10-10 판이다. 그때 현장 상태 DB 는 아직 없었고 표가 셋뿐이었다. 지금 구조는 위 「한눈에」를 본다.
+
+### 2026-10-10 판: 운영 DB 파일과 테이블 관계도
 
 관제 웹과 operations 가 쓰는 SQLite 파일이 넷이고, 파일마다 쓰는 쪽이 하나다. 이 문서는 **어느 파일에 어떤 테이블이 있고, 테이블끼리 어떤 ID 로 이어지는지**를 그림으로 보여 준다. 표·열 정의는 [DB 스키마](../design/db-schema.md)와 아래 「기준 코드」에서 확인한다. 설명이 어긋나면 해당 커밋의 코드를 기준으로 바로잡는다. 이 문서는 관계 그림과 읽기 전용으로 여는 법을 다룬다. 스키마를 바꾸는 것은 각 담당 레인이고, 이 문서는 바뀐 뒤 따라 고친다.
 
@@ -12,7 +58,7 @@ updated: 2026-10-10
 - 모든 파일에 `metadata(key, value)` 테이블이 있고, `role` 값으로 어떤 파일인지 구분한다. 다른 역할의 파일을 잘못 열면 코드가 `POLICY_MISMATCH` 로 거절한다.
 - 시각 열(`*_ns`)은 전부 나노초 정수다(`int64`).
 
-## 1. 파일과 쓰는 쪽
+#### 1. 파일과 쓰는 쪽
 
 ```mermaid
 flowchart LR
@@ -44,7 +90,7 @@ flowchart LR
 - 실제 파일 경로는 운영 PC 의 로컬 설정이라 저장소에 적지 않는다([AGENTS.md](../../AGENTS.md) 9절). 네트워크 공유 폴더에 두지 않는다([implementation-operations.md](../implementation/implementation-operations.md)).
 - 송신 대기열은 원래 보고를 보내는 PC 의 로컬 파일이다. 지금 운영 PC 에 있는 것은 오프라인 리허설이 한 PC 안에서 보내는 쪽과 받는 쪽을 함께 흉내 낸 결과다.
 
-## 2. 테이블 관계
+#### 2. 테이블 관계
 
 표 제목의 앞부분이 파일(1절 표의 이름)이다. 이 그림에서는 **실선은 같은 파일 안, 점선은 다른 파일 사이**의 ID 대응을 뜻한다. 외래 키나 식별 관계를 선언하는 선은 아니다. 선 이름표의 `payload.*`·`state.*` 는 JSON 열 안의 필드다. 로봇·대상 상태를 아직 받지 않았다면 보고에 ID 가 있어도 대응 상태 행은 0개일 수 있다.
 
@@ -126,17 +172,17 @@ erDiagram
 - **현장 사건의 사진:** `site_events.event_json` 에도 `evidence_id` 가 있지만, 그 사진을 운영 장부 `evidence` 에 넣는 코드는 main 에 없다. 둘이 같은 ID 체계인지는 [미확인]이라 그림에 선을 긋지 않았다.
 - **웹 계정**은 다른 테이블과 이어지지 않는다. 보고·현장 상태 쪽 DB 에는 쓰지 않는다.
 
-## 3. 앞으로 늘어날 테이블 [제안]
+#### 3. 앞으로 늘어날 테이블 [제안]
 
 [관제 웹·DB 구성 계획](../design/console-and-db-plan.md) 3절이 현장 상태 DB 스키마 1.1 에 `mission_state`, `operator_commands`, `error_log`, `map_snapshots` 를 더하는 안을 적어 두었다. 아직 코드에 없어 그림에 넣지 않았다. 스키마 PR 이 main 에 들어가면 이 문서를 같이 고친다.
 
-## 4. 직접 열어 보기
+#### 4. 직접 열어 보기
 
 - 운영 PC 에서 **DB Browser for SQLite** 를 **읽기 전용**으로 연다(`sqlitebrowser -R <파일>`, 메뉴로는 File → Open Database Read Only). 운영 장부와 현장 상태는 operations 만 쓰는 파일이라, 쓰기 모드로 열어 고치면 단일 쓰기 규칙이 깨진다.
 - 터미널에서는 `sqlite3 -readonly "file:<파일>?mode=ro" .schema` 로 이 문서의 스키마를 다시 확인할 수 있다.
 - JSON 열은 `json_extract` 로 꺼내 본다. 예: `SELECT report_id, json_extract(payload_json, '$.target_id') FROM reports;`
 
-## 기준 코드
+#### 기준 코드
 
 | 파일 | 스키마가 있는 곳 (main `8e7c784`) |
 | --- | --- |
