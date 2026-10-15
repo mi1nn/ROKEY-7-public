@@ -1,7 +1,7 @@
 """scripts/sim/wall_clock_relay.py pure parts (no ROS): frame names, restamping, TF edges (2026-10-15).
 
 The simulator publishes <ns>/odom -> <ns>/base_link and a Gazebo lidar frame, stamped with simulation time; the
-field robot publishes odom -> base_link and rplidar_link on the wall clock [측정 2026-10-15 mu-03]. The relay
+field robot publishes odom -> base_link and rplidar_link on the wall clock [측정 2026-10-15]. The relay
 renames those frames, drops the simulator's identity links that become self loops, and restamps.
 """
 import importlib.util
