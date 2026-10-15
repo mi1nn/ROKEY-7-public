@@ -132,7 +132,8 @@ class PageTests(LedgerFixture):
     def test_page_loads_nothing_from_outside(self):
         # The field network may have no internet: no CDN, web font, external stylesheet or script.
         html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.0)
-        self.assertNotRegex(html, r'<link|@import|url\(|<script[^>]+src=')
+        # url(#id) points inside the page (the map colour filter, 2026-10-15); any other url( is outside
+        self.assertNotRegex(html, r'<link|@import|url\((?!#)|<script[^>]+src=')
         external = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
         self.assertEqual(external, ['http://camera.invalid:8081/stream'])   # only the camera the operator gave
 
@@ -550,3 +551,31 @@ class SiteStateWebTests(AccountsFixture):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SystemNameTests(unittest.TestCase):
+    """2026-10-15 사용자 지시: 화면 위 시스템 이름은 문서에 적힌 이름(팀 BRD Part I 제목)을 쓴다."""
+
+    def test_system_name_is_the_brd_title_on_every_page(self):
+        from pathlib import Path
+        from rescue_console.render import SYSTEM_NAME
+        brd = Path(__file__).resolve().parents[1] / 'docs' / 'requirements' / 'brd-part1-v0.1.md'
+        if not brd.exists():
+            self.skipTest('source checkout only: the BRD is not installed')
+        self.assertIn(f'\n## {SYSTEM_NAME}\n', brd.read_text(encoding='utf-8'))
+        self.assertIn(SYSTEM_NAME, render_login('csrf'))
+        self.assertIn(SYSTEM_NAME, render_accounts([], {'username': 'a', 'display_name': 'A', 'role': 'ADMIN'}, 'csrf'))
+
+
+class HistoryToggleTests(LedgerFixture):
+    """2026-10-15 사용자 요청: 보낸 명령 · 오류 칸은 눌러서 펴 본다. 펼침 상태는 1초 갱신(#live 교체)에도 남아야 한다."""
+
+    def test_toggle_lives_outside_the_polled_fragment_and_history_is_still_rendered(self):
+        from rescue_console.render import _STYLE
+        html = render_page(self.view())
+        live = html[html.index('<div id="live">'):]
+        self.assertIn('id="show-history"', html[:html.index('<div id="live">')])
+        self.assertNotIn('id="show-history"', live)
+        self.assertIn('id="history"', live)   # the panel is still drawn; only CSS folds it
+        self.assertIn('#history{display:none}', _STYLE)
+        self.assertIn('.console:has(#show-history:checked) #history{display:block}', _STYLE)

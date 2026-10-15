@@ -15,6 +15,9 @@ POLL_INTERVAL_MS = 1000
 # KPI-04 레이턴시 예산: 사건 발생 시각부터 운영자 화면에 렌더링될 때까지의 시간(BRD v0.1 KPI-04, 3초).
 KPI04_BUDGET_S = 3.0
 MISSING = '—'
+# 화면 위에 보이는 시스템 이름: 팀 BRD Part I 제목(docs/requirements/brd-part1-v0.1.md, 범위 RQ-09).
+# 탭 제목·「구조 관제」 문구는 화면 이름이라 그대로 둔다(2026-10-15 사용자 지시: 「시스템명은 문서에 명시된 이름으로」).
+SYSTEM_NAME = '지진 재난 현장 대응형 실내 탐색 로봇'
 # 지도 표식 크기(지도 픽셀 단위, 재난 전 기준 지도는 0.05 m/px): 로봇 화살표 반폭 및
 # 전방 꼭짓점 길이, 요구조자 V 표식 반폭. 화면 표시 전용이다([제안] 관제·화면, 2026-10-10).
 ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.6, 4.8, 2.0
@@ -31,8 +34,9 @@ def _time(ns, ref_ns=None):
         return MISSING
     moment = datetime.fromtimestamp(ns / 1e9)
     same_day = ref_ns is None or moment.date() == datetime.fromtimestamp(ref_ns / 1e9).date()
-    stamp = moment.strftime('%H:%M:%S.%f' if same_day else '%Y-%m-%d %H:%M:%S.%f')[:-3]
-    return f'<span title="{ns}">{stamp}</span>'
+    stamp = moment.strftime('%H:%M:%S' if same_day else '%Y-%m-%d %H:%M:%S')
+    # 밀리초는 따로 감싸 화면에서는 숨긴다(2026-10-15 화면 개선). 전체 값은 title(ns)에 있다.
+    return f'<span title="{ns}">{stamp}<span class="ms">.{moment.microsecond // 1000:03d}</span></span>'
 
 
 def _age(seconds):
@@ -135,7 +139,7 @@ def _reason(reason):
     """조정기 사유를 읽기 쉬운 레이블로 렌더링하며, 코드가 다른 경우 <code>로 병기한다."""
     level = f' {reason["level"]}' if reason['level'] else ''
     code = '' if reason['text'] == reason['code'] else f' <code>{escape(reason["code"])}</code>'
-    return f'<span class="reason{level}" title="조정기 SystemState.reason">{escape(reason["text"])}</span>{code}'
+    return f'<span class="reason{level}" title="조정기가 알려 준 지금 상태의 이유">{escape(reason["text"])}</span>{code}'
 
 
 def _scoped_reason(view, *scopes, tag='p'):
@@ -153,18 +157,18 @@ def _band(view):
     built = view['built_at_ns']
     facts = []
     if mission['trigger_ns'] is not None:
-        facts += [('트리거', _time(mission['trigger_ns'], built)),
-                  ('경과', _elapsed((built - mission['trigger_ns']) / 1e9))]
+        facts += [('재난 감지 시각', _time(mission['trigger_ns'], built)),
+                  ('경과 시간', _elapsed((built - mission['trigger_ns']) / 1e9))]
     if mode == 'DISASTER' and mission['sign_count']:
-        facts.append(('진동 감지', f'{mission["sign_count"]}건'))
+        facts.append(('진동 감지 횟수', f'{mission["sign_count"]}건'))
     if mission['phase'] is not None:
-        facts.append(('단계', _word('phase', mission['phase'])))
+        facts.append(('임무 단계', _word('phase', mission['phase'])))
     dispatch = mission['dispatch']
     if dispatch is not None:
-        facts.append(('구간', f'<span title="끝낸 구간 / 전체 구간">{dispatch["segment_index"]}/{dispatch["segment_count"]}</span> '
+        facts.append(('이동 구간', f'<span title="끝낸 구간 수 / 전체 구간 수">{dispatch["segment_index"]}/{dispatch["segment_count"]}</span> '
                               f'{_word("segment", dispatch["segment_phase"])}'))
     if mission.get('reason_view') is not None:
-        facts.append(('사유', _reason(mission['reason_view'])))
+        facts.append(('상태 사유', _reason(mission['reason_view'])))
     if source == 'mission_state':
         note = f'조정기 임무 상태, {_age((built - mission["updated_at_ns"]) / 1e9)} 전 바뀜'
     elif mode == 'DISASTER':
@@ -174,17 +178,18 @@ def _band(view):
     else:
         note = '현장 사건을 읽지 못해 모드를 알 수 없음'
     dl = ''.join(f'<div><dt>{name}</dt><dd>{value}</dd></div>' for name, value in facts)
-    return (f'<section id="mission" class="band {(mode or "unknown").lower()}" data-mode="{escape(mode or "")}">'
+    return (f'<section id="mission" class="band {(mode or "unknown").lower()}" data-mode="{escape(mode or "")}" '
+            f'title="{escape(note)}">'
             f'<h1 class="mode-word">{escape(mission["label"])}</h1>'
             f'<dl class="facts">{dl}</dl><p class="mode-note">{note}</p>'
-            f'<p id="built" data-built-ns="{built}">서버 집계 {_time(built)}</p></section>')
+            f'<p id="built" data-built-ns="{built}">서버 기준 시각 {_time(built)}</p></section>')
 
 
 def _warnings(view):
     if not view['warnings']:
         return '<section id="warnings" class="empty"></section>'
     items = ''.join(f'<li>{escape(w)}</li>' for w in view['warnings'])
-    return f'<section id="warnings"><h2>확인할 것 {len(view["warnings"])}</h2><ul>{items}</ul></section>'
+    return f'<section id="warnings"><h2>확인 필요 {len(view["warnings"])}건</h2><ul>{items}</ul></section>'
 
 
 # ---- 지도 뷰 (조각 렌더링) ----------------------------------------------------------------------
@@ -213,10 +218,10 @@ def _map(view):
     layer = view['map']
     live = layer.get('live')
     if not layer.get('available') and live is not None:
-        return (f'<section id="map" class="placeholder"><h2>지도</h2><p>{escape(live["message"])}</p>'
+        return (f'<section id="map" class="placeholder"><h2>현장 지도</h2><p>{escape(live["message"])}</p>'
                 '<p>운영 launch 의 <code>map_topic</code>·<code>map_dir</code> 와 SLAM 지도 발행을 확인하세요.</p></section>')
     if not layer.get('available'):
-        return ('<section id="map" class="placeholder"><h2>지도</h2>'
+        return ('<section id="map" class="placeholder"><h2>현장 지도</h2>'
                 '<p>기준 지도가 없습니다. 실행할 때 <code>--map assets/maps/pre_quake/map.yaml</code> 을 주세요.</p>'
                 '</section>')
     width, height = layer['width_px'], layer['height_px']
@@ -270,7 +275,7 @@ def _map(view):
     unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
     notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
     legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
-    legend += '<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true"><polygon points="14,8 3,2.5 3,13.5"/></svg>로봇과 진행 방향</li>'
+    legend += '<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true"><polygon points="14,8 3,2.5 3,13.5"/></svg>로봇 · 진행 방향</li>'
     pad_left, pad_top, pad_bottom = 5, 2, 9
     if live is None:
         note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
@@ -283,16 +288,24 @@ def _map(view):
                 f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
                 + (f' — {live["message"]}' if live['message'] else ''))
         state = '' if live['state'] == 'OK' else ' stale'
-    return (f'<section id="map" class="map{state}"><header><h2>지도</h2><ul class="legend">{legend}</ul></header>'
+    return (f'<section id="map" class="map{state}"><header><h2>현장 지도</h2><ul class="legend">{legend}</ul></header>'
             f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="기준 지도 위 로봇과 요구조자 위치">'
-            f'<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
+            f'{_MAP_TONE}<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
             f'preserveAspectRatio="none"/>'
             f'<rect class="frame" x="0" y="0" width="{width}" height="{height}"/>'
             f'{_grid(layer)}{"".join(marks)}</svg>'
             f'<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
             + (f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else '')
             + '</section>')
+
+
+# 지도 그림(PGM 회색조)의 화면 색: 벽(0) 차콜, 미탐색(205) 지도 바탕과 같은 연회색, 빈 곳(254) 흰색.
+# 지도 값은 바꾸지 않고 화면 색만 정한다(2026-10-15 화면 개선). SVG 안에 두어 외부 파일이 없다.
+_MAP_TONE = ('<defs><filter id="map-tone" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/>'
+             '<feComponentTransfer><feFuncR type="table" tableValues=".25 .42 .6 .77 .91 1"/>'
+             '<feFuncG type="table" tableValues=".28 .45 .63 .8 .925 1"/>'
+             '<feFuncB type="table" tableValues=".32 .49 .66 .82 .937 1"/></feComponentTransfer></filter></defs>')
 
 
 # ---- 로봇 및 요구조자 현황 (조각 렌더링) --------------------------------------------------------
@@ -349,7 +362,7 @@ def _robots(view):
                          '</section>')
             continue
         motion = robot['motion_state']
-        stale = (f'<p class="alert" title="표시 값은 마지막으로 받은 상태입니다">낡음: '
+        stale = (f'<p class="alert" title="새 상태가 오지 않아 마지막으로 받은 값을 보여 주는 중입니다">낡음: '
                  f'{_age(robot["received_age_s"])} 동안 새 상태 없음</p>') if robot['stale'] else ''
         units.append(
             f'<section class="unit {(role or "unknown").lower()}{" stale" if robot["stale"] else ""}" '
@@ -357,12 +370,12 @@ def _robots(view):
             f'<p class="state"><span class="motion {escape((motion or "unknown").lower())}">{_word("motion", motion)}</span>'
             f'<span class="ready">{_word("readiness", robot["readiness"])}</span></p>'
             + _battery(robot)
-            + f'<dl><div><dt>위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
-            f'<div><dt>작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
-            f'<div><dt>수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
+            + f'<dl><div><dt>현재 위치</dt><dd>{_pose(robot["pose"])}</dd></div>'
+            f'<div><dt>진행 작업</dt><dd>{_short(robot["active_task_id"])}</dd></div>'
+            f'<div><dt>마지막 수신</dt><dd>{_age(robot["received_age_s"])} 전</dd></div></dl>'
             + _scoped_reason(view, {'SUPPORT': 'support', 'SCOUT': 'scout'}.get(role)) + stale
             + (_watch(robot) if robot.get('watch') else '') + '</section>')
-    return f'<section id="robots"><h2>로봇</h2>{"".join(units)}</section>'
+    return f'<section id="robots"><h2>로봇 상태</h2>{"".join(units)}</section>'
 
 
 def _targets(view):
@@ -401,7 +414,7 @@ def _targets(view):
             f'<li class="victim-row {target["stage"].lower()}" data-stage="{target["stage"]}">'
             f'{_victim_icon(target["stage"])}'
             f'<div class="who">{_short(target["target_id"])}<span class="stage-word">{escape(target["stage_label"])}</span>'
-            f'<span class="rule" title="표시 규칙 (README 구조 상태 4단계)">{target["rule"]}</span></div>'
+            f'<span class="rule" title="이 단계를 정한 규칙 번호(R1 ~ R4, 관제 웹 README 「구조 상태 4단계」)">{target["rule"]}</span></div>'
             f'<div class="what"><span>{where}</span><span>구조 {_word("rescue", target["rescue_state"])}</span>'
             f'<span>{_word("approach", target["approach_result"])}</span>{support}{candidate}{receipt}</div>'
             + (f'<ul class="notes">{notes}</ul>' if notes else '') + '</li>')
@@ -450,8 +463,9 @@ def _events(view):
     shown = len(view['events'])
     more = f' (최근 {shown}건 표시)' if view['event_total'] > shown else ''
     return (f'<section id="events"><h2>사건 기록 {view["event_total"]}건{more}</h2><div class="scroll">'
-            '<table><thead><tr><th>발생</th><th>종류</th><th>출처</th><th>대상</th><th>내용</th>'
-            '<th>장부 기록</th><th>화면 표시</th><th title="화면 표시 − 발생 (KPI-04)">지연</th></tr></thead>'
+            '<table><thead><tr><th>발생 시각</th><th>종류</th><th>보낸 곳</th><th>대상</th><th>내용</th>'
+            '<th title="운영 장부에 기록된 시각">기록 시각</th><th title="이 화면에 처음 그린 시각">화면 표시</th>'
+            '<th title="발생부터 이 화면에 뜨기까지 걸린 시간 (목표 3초, KPI-04)">표시 지연</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table></div></section>')
 
 
@@ -473,7 +487,7 @@ def _history(view):
     누락된 입력 소스가 있으면 명칭을 함께 안내한다.
     """
     history = view['history']
-    head = '<h2>명령·오류 기록</h2>'
+    head = '<h2>보낸 명령 · 오류</h2>'
     if history is None:
         return (f'<section id="history" class="empty">{head}<p>기록 입력 없음 — <code>--site-state</code> 로 '
                 '띄우면 운영자 명령의 접수·거절과 operations 오류가 보입니다.</p></section>')
@@ -492,7 +506,7 @@ def _history(view):
                         f'<td class="t">{_time(row["at_ns"], built)}</td><td>오류</td>'
                         f'<td><b class="outcome">{escape(row["what"])}</b> {escape(row["detail"])}</td></tr>')
     missing = ''.join(f'<p class="missing">{escape(key)} 입력 없음</p>' for key in history['missing'])
-    body = ('<table><thead><tr><th>시각</th><th>무엇</th><th>결과 · 사유</th></tr></thead>'
+    body = ('<table><thead><tr><th>시각</th><th>내용</th><th>결과 · 이유</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table>') if rows else '<p>아직 기록 없음</p>'
     return f'<section id="history">{head}{missing}{body}</section>'
 
@@ -531,7 +545,7 @@ def _commands(view, access, csrf):
             f'<button type="button" class="cmd {command["group"]}"{off} data-command="{name}" title="{reason}">'
             f'<span class="cmd-label">{escape(command["label"])}</span><span class="why">{reason}</span></button>')
     data = f' data-allowed="1" data-csrf="{escape(csrf or "")}"' if allowed else ' data-allowed="0"'
-    return (f'<section id="commands"{data}><header><h2>명령</h2>'
+    return (f'<section id="commands"{data}><header><h2>운영 명령</h2>'
             f'<p class="cmd-access {"on" if allowed else "off"}">{escape(access_reason)}</p></header>'
             f'<div class="cmd-group approve">{"".join(groups["approve"])}</div>'
             f'<div class="cmd-group mission">{"".join(groups["mission"])}</div>'
@@ -542,97 +556,157 @@ def _commands(view, access, csrf):
             '<button type="button" id="cmd-send" class="cmd send">보내기</button>'
             '<button type="button" id="cmd-cancel" class="cmd">취소</button></div></div>'
             '<ol id="cmd-log" aria-live="polite"></ol>'
-            '<p class="estop">위험할 때는 현장 비상 정지 장치를 쓰세요. 이 화면의 명령은 보조 수단이고, '
-            '받을지는 조정기가 정합니다.</p></section>')
+            '<p class="estop">위험할 때는 현장 비상 정지 장치를 쓰세요.</p></section>')
 
 
 _STYLE = """
+/* 2026-10-15 사용자 지시 「지진 재난 감지·대응 시스템 Web UI 개선」과 후속(「레이아웃은 기존처럼」, 「현대적이고 모던하게, 색 바꿔도 됨」,
+   군더더기 문구 빼기): 밝은 바탕 위 그림자 카드, 인디고 강조, 또렷한 숫자, 부드러운 색 배지.
+   색의 뜻(빨강 재난·정지, 주황 미구조, 파랑 지원·승인, 초록 구출, 회색 미확정, 노랑 주의)과 칸 배치·클래스·ID·스크립트는 그대로다.
+   외부 글꼴·CSS 없음(오프라인). */
 :root{
-  --concrete:#dde2e1; --panel:#f4f6f5; --ink:#17252b; --ink-2:#4a5a60; --rule:#b4bebd;
-  --signal:#c8102e; --rescue:#d9480f; --rescue-tint:#fbe1d3; --info:#005a9c; --info-tint:#dbe9f4;
-  --safe:#00784a; --safe-tint:#d7eee3; --pending:#7a878a; --caution:#f2b600; --caution-tint:#fff3c4;
-  --font:"Noto Sans CJK KR","Noto Sans KR","Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --bg:#f3f5f9; --card:#ffffff; --soft:#f6f8fb; --raise:#eef2f7; --line:#e7ecf2; --line-2:#d8dfe8;
+  --ink:#0f172a; --ink-2:#475569; --ink-3:#6b778a;   /* --ink-3: 흰 바탕 대비 약 4.6:1(작은 라벨도 읽히게) */ --accent:#4f46e5; --accent-soft:#eef0ff;
+  --blue:#2563eb; --blue-hover:#1d4ed8; --map-bg:#eef2f6;
+  --signal:#e5484d; --signal-strong:#dc2f35; --rescue:#f76b15; --info:#2563eb; --safe:#16a34a; --pending:#94a3b8; --caution:#d99a06;
+  --signal-tint:#fff0f0; --rescue-tint:#fff3eb; --info-tint:#eef4ff; --safe-tint:#ecfaf1; --caution-tint:#fff8e6; --pending-tint:#f1f5f9;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 2px 8px rgba(15,23,42,.05);
+  --r:14px; --r-in:10px; --pill:999px; --gap:14px;
+  --font:"Pretendard","Noto Sans CJK KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{font-family:var(--font);font-size:14px;line-height:1.45;color:var(--ink);background:var(--concrete);
-  font-variant-numeric:tabular-nums}
+body{font-family:var(--font);font-size:14px;line-height:1.5;color:var(--ink);background:var(--bg);letter-spacing:-.005em;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 h1,h2,h3,p{margin:0}
-h2{font-size:15px;font-weight:700;margin-bottom:8px}
-code{font-size:13px;background:var(--panel);padding:0 4px}
-a{color:var(--info)}
-:focus-visible{outline:3px solid var(--info);outline-offset:2px}
-.id{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+h2{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em;margin-bottom:12px}
+code{font-size:12.5px;background:var(--raise);color:var(--ink-2);padding:1px 6px;border-radius:6px}
+a{color:var(--accent);text-decoration:none;font-weight:600} a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.id{font-variant-numeric:tabular-nums}
+.ms{display:none}   /* 밀리초는 화면에서 숨김(전체 값은 마우스를 올리면 title) */
 dl{margin:0}
+select,input{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line-2);border-radius:8px}
+select{padding:5px 10px}
+select:focus,input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+button{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:#d4dbe5;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
 
-/* ---- 관제 화면 격자 ---- */
-.console{display:grid;gap:10px;padding:10px;min-height:100vh;
-  grid-template-columns:minmax(0,1fr) 400px 470px;
-  grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
-  grid-template-areas:"band band top" "warn warn side" "map middle side" "log hist side"}
+/* ---- 관제 화면 격자 (배치는 기존 그대로, 맨 위에 이름 줄) ---- */
+.console{display:grid;gap:var(--gap);padding:0 16px 16px;min-height:100vh;
+  grid-template-columns:minmax(0,1fr) 390px 470px;
+  grid-template-rows:auto auto auto minmax(0,1fr) fit-content(230px);
+  grid-template-areas:"head head head" "band band top" "warn warn side" "map middle side" "log middle side"}
 #live{display:contents}
+/* 보낸 명령 · 오류 칸은 평소 접어 두고(그 자리는 로봇 상태에), 위쪽 막대의 「보낸 명령 · 오류」를 누르면 편다.
+   펼침 상태는 갱신 영역(#live) 밖 체크박스라 1초 갱신에도 유지된다. 스크립트는 바꾸지 않는다(2026-10-15 사용자 요청). */
+#history{display:none}
+.console:has(#show-history:checked){grid-template-areas:"head head head" "band band top" "warn warn side" "map middle side" "log hist side"}
+.console:has(#show-history:checked) #history{display:block}
+#show-history{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.history-toggle{font-size:12.5px;font-weight:600;padding:4px 12px;border-radius:var(--pill);background:var(--raise);color:var(--ink-2);
+  cursor:pointer;user-select:none;white-space:nowrap;transition:background-color .15s}
+.history-toggle:hover{background:var(--line-2)}
+#show-history:focus-visible+.history-toggle{outline:2px solid var(--accent);outline-offset:2px}
+#show-history:checked+.history-toggle{background:var(--accent);color:#fff}
+#masthead{grid-area:head}
 #mission{grid-area:band} #warnings{grid-area:warn} #map{grid-area:map} #middle{grid-area:middle}
 #events{grid-area:log} #history{grid-area:hist} #topbar{grid-area:top} #side{grid-area:side}
-@media (min-width:1400px) and (min-height:820px){ .console{height:100vh;overflow:hidden} }
+@media (min-width:1400px) and (min-height:820px){ .console{height:100vh;overflow:hidden}
+  /* 한 화면 고정 배치: 카메라 영상 높이를 화면 높이에 묶어 명령 칸이 남는 높이를 쓰게 한다. */
+  #cameras img,#robot-camera img,#cameras .nosignal,#robot-camera .nosignal{max-height:16vh}
+  /* 로봇 카메라 칸이 없으면 웹캠을 크게 */
+  #side:not(:has(#robot-camera)) #cameras img,#side:not(:has(#robot-camera)) #cameras .nosignal{max-height:27vh} }
 @media (max-width:1399px){
   .console{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
-    grid-template-areas:"top" "band" "warn" "map" "side" "middle" "log" "hist"}
+    grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
+  .console:has(#show-history:checked){grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
+  .band{display:flex;flex-wrap:wrap;row-gap:12px} .band .facts>div,#built{flex:1 1 140px}
 }
-#map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
-#middle{display:flex;flex-direction:column;gap:10px;min-height:0}
+#map,#middle>section,#events,#history,#side>section{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+#middle{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
 /* 칸이 부족하면 요구조자 목록보다 로봇 카드가 먼저 축소되며 내부 스크롤된다(#64). */
 #robots{min-height:0;overflow:auto}
-#side{display:flex;flex-direction:column;gap:10px;min-height:0}
+#side{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
+#side>section{flex:none}
 
-/* ---- 임무 띠 ---- */
-.band{display:flex;align-items:center;gap:28px;padding:10px 18px;border:1px solid var(--rule);background:var(--panel)}
-.band .mode-word{font-size:30px;font-weight:700;letter-spacing:.04em;min-width:3.2em}
-.band .facts{display:flex;gap:24px}
-.band dt{font-size:12px;color:var(--ink-2)} .band dd{margin:0;font-size:18px;font-weight:500}
-.band .mode-note{color:var(--ink-2)} #built{margin-left:auto;font-size:12px;color:var(--ink-2)}
-.band.disaster{background:var(--signal);border-color:var(--signal);color:#fff}
-.band.disaster dt,.band.disaster .mode-note,.band.disaster #built{color:#ffd9de}
+/* ---- 이름 줄 ---- */
+#masthead{display:flex;align-items:center;gap:12px;margin:0 -16px;padding:0 24px;height:54px;background:#fff;
+  border-bottom:1px solid var(--line);min-width:0}
+#masthead .sys{order:1;font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#masthead .sys::before{content:"";display:inline-block;width:22px;height:22px;margin-right:10px;border-radius:7px;vertical-align:-6px;
+  background:var(--accent);box-shadow:inset 0 0 0 6px var(--accent),inset 0 0 0 9px #fff}
+#masthead .screen{order:2;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:var(--pill);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+
+/* ---- 임무 카드 ---- */
+.band{display:grid;grid-template-columns:auto;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:center;
+  padding:14px 8px 14px 18px;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
+.band .mode-word{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:800;padding:8px 18px;border-radius:var(--pill);
+  background:var(--pending-tint);color:var(--ink-2)}
+.band .mode-word::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+/* 지표 줄: 모드 배지 뒤로 값마다 같은 폭의 칸과 얇은 구분선(값 개수가 바뀌어도 띠가 고르게 찬다) */
+.band .facts{display:contents}
+.band .facts>div,#built{min-width:0;padding:2px 18px;border-left:1px solid var(--line)}
+.band .mode-word{margin-right:16px;justify-self:start}
+.band dt{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:2px}
+.band dd{margin:0;font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band .mode-note{display:none}   /* 모드 출처 설명은 띠에 마우스를 올리면(title) */
+/* 서버 기준 시각은 다른 값처럼 「작은 라벨 + 큰 값」으로 사실 줄 바로 뒤에 둔다(오른쪽 끝으로 밀지 않는다). */
+#built{display:flex;flex-direction:column;font-size:12.5px;font-weight:500;color:var(--ink-3);line-height:1.25}
+#built>span{display:block;margin-top:2px;font-size:21px;font-weight:700;letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
+.band.normal .mode-word{background:var(--safe-tint);color:var(--safe)}
+.band.disaster{background:#fff4f4;box-shadow:var(--shadow),inset 0 0 0 1px #ffd7d8}
+.band.disaster .facts>div,.band.disaster #built{border-left-color:#ffdcdd}
+.band.disaster .mode-word{background:var(--signal);color:#fff}
 .band.unknown .mode-word{color:var(--pending)}
-.band.clearing{border-left:10px solid var(--caution)}
-.band.mission_finished{border-left:10px solid var(--safe)} .band.mission_finished .mode-word{color:var(--safe)}
-.band .reason{font-size:15px;font-weight:700}
-#topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:6px 10px;
-  padding:8px 12px;background:var(--panel);border:1px solid var(--rule)}
-#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.band.clearing .mode-word{background:var(--caution-tint);color:var(--caution)}
+.band.mission_finished .mode-word{background:var(--safe-tint);color:var(--safe)}
+.band .reason{font-size:15px;font-weight:600}
+#topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:8px 10px;padding:12px 18px;
+  background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
+#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
 #topbar .kpi{grid-column:1/-1;grid-row:2}
-#poll{font-size:13px;display:flex;gap:6px;align-items:center}
-#poll::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--safe)}
-#poll.lost{color:var(--signal);font-weight:700} #poll.lost::before{background:var(--signal)}
-#poll.wait::before{background:var(--pending)}
-#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2)}
-#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:700}
-.mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
+#poll{font-size:13.5px;display:flex;gap:8px;align-items:center;font-weight:600}
+#poll::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--safe);box-shadow:0 0 0 4px var(--safe-tint)}
+#poll.lost{color:var(--signal)} #poll.lost::before{background:var(--signal);box-shadow:0 0 0 4px var(--signal-tint)}
+#poll.wait::before{background:var(--pending);box-shadow:none}
+/* KPI-04 요약 문구는 화면에서 숨긴다(스크립트는 계속 계산하고 「지연 기록 저장」으로 받는다, 2026-10-15 사용자 요청).
+   둘째 줄은 보조 버튼 둘을 오른쪽 정렬로 둔다. */
+#topbar .kpi{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+#kpi{display:none}
+#show-history+.history-toggle{order:-1}
+#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:600}
+.mini{font:inherit;font-size:12.5px;font-weight:600;padding:4px 12px;border:0;background:var(--raise);color:var(--ink-2);
+  border-radius:var(--pill);cursor:pointer;transition:background-color .15s}
+.mini:hover{background:var(--line-2)}
 
 /* ---- 확인할 것 ---- */
-.reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
-.scoped-reason{margin:4px 0 0;font-weight:600}
-.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
-#warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
+.reason.alert{color:var(--signal);font-weight:600} .reason.caution{color:#946200;background:var(--caution-tint);padding:1px 8px;border-radius:6px}
+.scoped-reason{margin:6px 0 0;font-weight:600}
+.cmd-auto{margin:0;padding:12px 14px;border-radius:var(--r-in);background:var(--info-tint);color:var(--info);font-weight:600}
+#warnings{background:var(--caution-tint);border-radius:var(--r);padding:11px 18px;font-size:13.5px;color:#7a5200;box-shadow:inset 0 0 0 1px #fde7b0}
 #warnings.empty{display:none}
-#warnings h2{display:inline;margin-right:12px;font-size:14px}
+#warnings h2{display:inline;margin-right:12px;font-size:13.5px;color:#7a5200}
 #warnings ul{display:inline;margin:0;padding:0;list-style:none}
 #warnings li{display:inline}
-#warnings li+li::before{content:"／";margin:0 8px;color:var(--ink-2)}
+#warnings li+li::before{content:"·";margin:0 10px}
 
 /* ---- 지도 ---- */
 #map{display:flex;flex-direction:column;min-height:0}
-#map header{display:flex;align-items:baseline;gap:16px}
-.legend{display:flex;gap:14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2)}
-.legend li{display:flex;align-items:center;gap:4px}
-.plan{flex:1;min-height:0;width:100%;background:#fff}
-.plan image{image-rendering:pixelated;opacity:.5}
-.plan .frame{fill:none;stroke:var(--ink);stroke-width:.25}
-.plan .grid{stroke:var(--info);stroke-width:.08;opacity:.45}
-.plan .axis{stroke:var(--info);stroke-width:.16;opacity:.7}
-.plan .tick{font-size:2.1px;fill:var(--ink-2)}
-.plan .scale line{stroke:var(--ink);stroke-width:.5} .plan .scale text{font-size:2.3px;fill:var(--ink)}
-.plan .label{font-size:2.6px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:.6}
-.victim .mark,.victim .strike{fill:none;stroke-width:.75;stroke-linecap:round;stroke-linejoin:round}
+#map header{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+#map header h2{margin:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:5px;padding:3px 10px;background:var(--soft);border-radius:var(--pill)}
+.plan{flex:1;min-height:0;width:100%;background:var(--map-bg);border-radius:var(--r-in)}
+.plan image{image-rendering:pixelated;filter:url(#map-tone)}
+.plan .frame{fill:none;stroke:var(--line-2);stroke-width:.25}
+.plan .grid{stroke:var(--ink);stroke-width:.06;opacity:.06}
+.plan .axis{stroke:var(--accent);stroke-width:.14;opacity:.4}
+.plan .tick{font-size:2.1px;fill:var(--ink-3)}
+.plan .scale line{stroke:var(--ink-2);stroke-width:.5} .plan .scale text{font-size:2.3px;fill:var(--ink-2)}
+.plan .label{font-size:2.6px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:.7}
+.victim .mark,.victim .strike{fill:none;stroke-width:.85;stroke-linecap:round;stroke-linejoin:round}
 .victim.unconfirmed .mark{stroke:var(--pending);stroke-dasharray:.9 .6} .victim.unconfirmed .label{fill:var(--pending)}
 .victim.not_rescued .mark{stroke:var(--rescue)} .victim.not_rescued .label{fill:var(--rescue)}
 .victim.supporting .mark{stroke:var(--info)} .victim.supporting .label{fill:var(--info)}
@@ -645,143 +719,195 @@ dl{margin:0}
 .passage.unknown .mark{stroke:var(--pending)} .passage.unknown .label{fill:var(--pending)}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
-.map-note{font-size:12px;color:var(--ink-2);margin-top:4px}
-#map.stale .plan{opacity:.45} #map.stale .map-note{color:var(--signal);font-weight:700}
-.unplotted{margin:6px 0 0;padding:6px 10px;list-style:none;background:var(--caution-tint);border-left:6px solid var(--caution);font-size:13px}
+/* 지도 설명 줄은 평소 숨기고(마우스를 올리면 지도 정보는 title), 실시간 지도가 낡았을 때만 빨간 경고로 보인다. */
+.map-note{display:none;font-size:12.5px;margin-top:10px}
+#map.stale .plan{opacity:.45} #map.stale .map-note{display:block;color:var(--signal);font-weight:600}
+.unplotted{margin:10px 0 0;padding:10px 14px;list-style:none;background:var(--caution-tint);border-radius:var(--r-in);font-size:13px;color:#7a5200}
 .unplotted .head{font-weight:700}
-#map.placeholder p{margin-top:40px;text-align:center;color:var(--ink-2)}
+#map.placeholder p{margin-top:40px;text-align:center;color:var(--ink-3)}
 
 /* ---- 작은 V 표식 ---- */
 .vicon{width:16px;height:16px;flex:none;vertical-align:-3px}
-.vicon path,.vicon line{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vicon path,.vicon line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .vicon.unconfirmed path{stroke:var(--pending);stroke-dasharray:2.2 1.6}
 .vicon.not_rescued path{stroke:var(--rescue)} .vicon.supporting path{stroke:var(--info)}
 .vicon.rescued path,.vicon.rescued line{stroke:var(--safe)}
 .vicon.robot polygon{fill:var(--ink)}
 
 /* ---- 로봇 ---- */
-.unit{border-left:6px solid var(--ink);padding:6px 0 8px 10px}
-.unit+.unit{margin-top:8px;border-top:1px solid var(--rule);padding-top:10px}
-.unit.support{border-left-color:var(--info)}
-.unit h3{display:flex;align-items:baseline;gap:8px}
-.unit-name{font-size:20px;font-weight:700} .unit-role{font-weight:500} .unit-id{color:var(--ink-2);font-size:12.5px;margin-left:auto}
-.unit .state{display:flex;gap:12px;margin:2px 0 6px;font-size:15px}
-.motion{font-weight:700} .motion.stop_unconfirmed{color:var(--signal)}
-.battery{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.battery .bar{flex:1;height:10px;background:#fff;border:1px solid var(--rule);overflow:hidden}
-.battery .bar span{display:block;height:100%;background:var(--safe)}
+.unit{background:var(--soft);border-radius:12px;padding:12px 14px}
+.unit+.unit{margin-top:10px}
+.unit h3{display:flex;align-items:center;gap:8px}
+.unit-name{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.unit-role{font-size:12px;font-weight:700;padding:1px 9px;border-radius:var(--pill);background:#fff;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2)}
+.unit.support .unit-role{background:var(--info-tint);color:var(--info);box-shadow:none}
+.unit-id{color:var(--ink-3);font-size:12px;margin-left:auto}
+.unit .state{display:flex;gap:6px;margin:9px 0 10px;font-size:12.5px}
+.unit .state span{padding:2px 10px;border-radius:var(--pill);background:#fff;color:var(--ink-2);font-weight:600;box-shadow:inset 0 0 0 1px var(--line-2)}
+.unit .state .motion{background:var(--ink);color:#fff;box-shadow:none}
+.unit .state .motion.stop_unconfirmed{background:var(--signal);color:#fff}
+.battery{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.battery .bar{flex:1;height:8px;background:#e3e9f0;border-radius:4px;overflow:hidden}
+.battery .bar span{display:block;height:100%;background:var(--safe);border-radius:4px}
 .battery.warn .bar span{background:var(--caution)} .battery.low .bar span{background:var(--signal)}
-.battery.low .value{color:var(--signal);font-weight:700}
-.battery .value{min-width:3.2em;text-align:right;font-weight:500} .battery .age{font-size:12px;color:var(--ink-2)}
-.battery.none .value{color:var(--ink-2);text-align:left}
-.unit dl{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:10px;font-size:13px}
-.unit dl div{display:contents} .unit dt{color:var(--ink-2)} .unit dd{margin:0}
-.unit .alert{margin-top:6px;padding:4px 8px;background:var(--caution-tint);font-size:13px}
-.unit.stale,.unit.missing{border-left-color:var(--caution)}
+.battery.low .value{color:var(--signal)}
+.battery .value{min-width:3em;text-align:right;font-size:16px;font-weight:700} .battery .age{font-size:12px;color:var(--ink-3)}
+.battery.none .value{color:var(--ink-3);text-align:left;font-size:13px;font-weight:500}
+.unit dl{display:grid;grid-template-columns:auto auto auto 1fr;column-gap:10px;row-gap:3px;font-size:12.5px}
+.unit dl div{display:contents} .unit dt{color:var(--ink-3)} .unit dd{margin:0;color:var(--ink-2)}
+.unit .alert{margin-top:10px;padding:7px 11px;background:var(--caution-tint);border-radius:8px;font-size:12.5px;color:#7a5200}
+.unit.stale,.unit.missing{box-shadow:inset 3px 0 0 var(--caution)}
 .unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.55}
 
-/* ---- 요구조자 ---- */
+/* ---- 요구조자: 색 타일 + 큰 숫자 ---- */
 #targets{display:flex;flex-direction:column;min-height:240px;flex:1}
-.stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:0 0 8px;padding:0;list-style:none}
-.stage-counts li{display:flex;align-items:center;gap:6px;padding:3px 8px;background:#fff;border-left:4px solid var(--pending);font-size:13px}
-.stage-counts li b{margin-left:auto;font-size:18px}
-.stage-counts .not_rescued{border-left-color:var(--rescue)} .stage-counts .supporting{border-left-color:var(--info)}
-.stage-counts .rescued{border-left-color:var(--safe)}
+.stage-counts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 12px;padding:0;list-style:none}
+.stage-counts li{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"icon label" "num num";column-gap:5px;align-items:center;
+  padding:9px 11px 10px;border-radius:12px;background:var(--pending-tint);font-size:12px;font-weight:600;color:var(--ink-2)}
+.stage-counts li .vicon{grid-area:icon;width:13px;height:13px}
+.stage-counts li span{grid-area:label;white-space:nowrap}
+.stage-counts li b{grid-area:num;font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.stage-counts .not_rescued{background:var(--rescue-tint)} .stage-counts .not_rescued b{color:var(--rescue)}
+.stage-counts .supporting{background:var(--info-tint)} .stage-counts .supporting b{color:var(--info)}
+.stage-counts .rescued{background:var(--safe-tint)} .stage-counts .rescued b{color:var(--safe)}
 .victims{margin:0;padding:0;list-style:none;overflow:auto;min-height:0}
-.victim-row{display:grid;grid-template-columns:20px 1fr;column-gap:6px;padding:6px 0;border-top:1px solid var(--rule)}
-.victim-row .vicon{grid-row:span 3;margin-top:2px}
-.victim-row .who{display:flex;gap:8px;align-items:baseline}
-.victim-row .stage-word{font-weight:700} .victim-row .rule{font-size:11px;color:var(--ink-2)}
-.victim-row.not_rescued .stage-word{color:var(--rescue)} .victim-row.supporting .stage-word{color:var(--info)}
-.victim-row.rescued .stage-word{color:var(--safe)} .victim-row.unconfirmed .stage-word{color:var(--pending)}
-.victim-row .what{display:flex;flex-wrap:wrap;column-gap:12px;font-size:13px;color:var(--ink-2)}
-.victim-row .support{color:var(--info);font-weight:500}
-.victim-row .candidate{color:var(--ink);background:var(--caution-tint);border:1px solid var(--caution);padding:0 6px;font-weight:600}
-.victim-row .notes{grid-column:2;margin:4px 0 0;padding:2px 8px;list-style:none;background:var(--caution-tint);font-size:12.5px}
-.victims .none{padding:12px 0;color:var(--ink-2)}
+.victim-row{display:grid;grid-template-columns:22px 1fr;column-gap:8px;padding:9px 8px;border-radius:10px}
+.victim-row:hover{background:var(--soft)}
+.victim-row .vicon{grid-row:span 3;margin-top:3px}
+.victim-row .who{display:flex;gap:8px;align-items:center;font-weight:700}
+.victim-row .stage-word{font-size:12px;font-weight:700;padding:1px 9px;border-radius:var(--pill);background:var(--pending-tint);color:var(--ink-2)}
+.victim-row .rule{font-size:11.5px;color:var(--ink-3)}
+.victim-row.not_rescued .stage-word{background:var(--rescue-tint);color:var(--rescue)}
+.victim-row.supporting .stage-word{background:var(--info-tint);color:var(--info)}
+.victim-row.rescued .stage-word{background:var(--safe-tint);color:var(--safe)}
+.victim-row .what{display:flex;flex-wrap:wrap;column-gap:12px;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.victim-row .support{color:var(--info);font-weight:600}
+.victim-row .candidate{color:#7a5200;background:var(--caution-tint);border-radius:6px;padding:0 7px;font-weight:600}
+.victim-row .notes{grid-column:2;margin:6px 0 0;padding:6px 10px;list-style:none;background:var(--caution-tint);border-radius:8px;font-size:12.5px;color:#7a5200}
+.victims .none{padding:16px 0;color:var(--ink-3)}
 
 /* ---- 사건 기록 ---- */
 #events{display:flex;flex-direction:column;min-height:0}
 #events .scroll{overflow:auto;min-height:0;flex:1}
-#events table{border-collapse:collapse;width:100%;font-size:13px}
-#events th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2);
-  border-bottom:1px solid var(--ink);padding:2px 8px;white-space:nowrap}
-#events td{padding:3px 8px;border-bottom:1px solid #d5dbda;vertical-align:top}
-#events td.t{white-space:nowrap}
-#events tr.disaster_sign td.kind{color:var(--signal);font-weight:700}
-#events tr.target_disappeared_candidate td.kind{color:var(--safe);font-weight:700}
+#events table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+#events th{position:sticky;top:0;background:#fff;text-align:left;font-weight:600;font-size:12px;color:var(--ink-3);
+  padding:0 10px 8px;white-space:nowrap;border-bottom:1px solid var(--line)}
+#events td{padding:8px 10px;vertical-align:top;color:var(--ink-2);border-bottom:1px solid var(--line)}
+#events tbody tr:last-child td{border-bottom:0}
+#events tbody tr:hover td{background:var(--soft)}
+/* 화면 표시·표시 지연 열(KPI-04)은 숨긴다. 스크립트는 그대로 채우고 「지연 기록 저장」으로 받을 수 있다. */
+#events th:nth-child(7),#events td:nth-child(7),#events th:nth-child(8),#events td:nth-child(8){display:none}
+#events td.t{white-space:nowrap;color:var(--ink-3)}
+#events td.kind{white-space:nowrap;font-weight:700;color:var(--ink)}
+#events td.kind::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--pending);vertical-align:1px}
+#events tr.report td.kind::before{background:var(--accent)}
+#events tr.disaster_sign td.kind{color:var(--signal)} #events tr.disaster_sign td.kind::before{background:var(--signal)}
+#events tr.target_disappeared_candidate td.kind{color:var(--safe)}
+#events tr.target_disappeared_candidate td.kind::before,#events tr.exit_pass td.kind::before{background:var(--safe)}
 #events tr.fresh td{background:var(--caution-tint)}
 /* ---- 명령·오류 기록: 사건 기록 옆, 요구조자 아래. 안에서 스크롤 ---- */
 #history{min-height:0;overflow:auto}
-#history table{border-collapse:collapse;width:100%;font-size:13px}
-#history th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2)}
-#history td{padding:3px 6px;border-bottom:1px solid #d5dbda;vertical-align:top}
+#history table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+#history th{position:sticky;top:0;background:#fff;text-align:left;font-weight:600;font-size:12px;color:var(--ink-3);padding:0 8px 8px;border-bottom:1px solid var(--line)}
+#history td{padding:8px;vertical-align:top;color:var(--ink-2);border-bottom:1px solid var(--line)}
 #history td.t,#history td:nth-child(2){white-space:nowrap}
 #history tr.refused .outcome,#history tr.error .outcome{color:var(--signal);font-weight:700}
-#history tr.accepted .outcome{color:var(--safe)}
-#history .missing,#history.empty p{color:var(--ink-2)}
+#history tr.accepted .outcome{color:var(--safe);font-weight:600}
+#history .missing,#history.empty p{color:var(--ink-3);font-size:13px}
 
 /* ---- 옆 칸: 웹캠과 명령 ---- */
-#cameras figure,#robot-camera figure{margin:0;position:relative}
-#cameras img,#robot-camera img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#26343a;color:transparent}
+#cameras figure,#robot-camera figure{margin:0;position:relative;border-radius:var(--r-in);overflow:hidden;background:#0b1220}
+#cameras img,#robot-camera img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#0b1220;color:transparent}
 #cameras .nosignal,#robot-camera .nosignal{display:none;position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;align-items:center;
-  justify-content:center;text-align:center;padding:0 24px;color:#e8eeee;font-size:14px}
+  justify-content:center;text-align:center;padding:0 24px;color:#cbd5e1;font-size:13.5px}
 #cameras figure.lost .nosignal,#robot-camera figure.lost .nosignal{display:flex}
-#cameras figure.lost img,#robot-camera figure.lost img{visibility:hidden} #cameras figure,#robot-camera figure{background:#26343a}
-#cameras figcaption,#robot-camera figcaption{display:flex;justify-content:space-between;font-size:13px;padding-top:4px;background:var(--panel)}
-#cameras figcaption .lost,#robot-camera figcaption .lost{color:var(--signal);font-weight:700}
-.camera-empty p{color:var(--ink-2);font-size:13px}
-#commands{overflow:auto;min-height:0}
-#commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+#cameras figure.lost img,#robot-camera figure.lost img{visibility:hidden}
+/* 영상 이름표는 영상 왼쪽 아래 작은 배지(판정 화면 위쪽 상태창을 가리지 않게) */
+#cameras figcaption,#robot-camera figcaption{position:absolute;left:10px;bottom:10px;display:flex;gap:8px;align-items:center;
+  max-width:calc(100% - 20px);font-size:12px;font-weight:600;padding:2px 10px;background:rgba(11,18,32,.72);border-radius:var(--pill);color:#e2e8f0}
+#cameras figcaption span:empty,#robot-camera figcaption span:empty{display:none}
+#cameras figcaption .lost,#robot-camera figcaption .lost{color:#ff9b9e;font-weight:700}
+.camera-empty p{color:var(--ink-3);font-size:13px}
+.webcam-pick,.robot-cam-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--ink-2)}
+.webcam-pick button{font:inherit;font-size:12.5px;font-weight:600;padding:5px 12px;border:0;background:var(--raise);
+  color:var(--ink-2);border-radius:var(--pill);cursor:pointer}
+.webcam-pick button:hover{background:var(--line-2)}
+.webcam-notice{width:100%;color:var(--ink-3)}
+#side .alert{color:#a16207;font-size:12.5px;margin-top:8px}
+#side>#commands{overflow:auto;min-height:0;flex:1 1 auto}
+#commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
 #commands header h2{margin:0}
-.cmd-access{font-size:12.5px;color:var(--ink-2)} .cmd-access.off{color:var(--signal);font-weight:500}
-.cmd-group{display:grid;gap:6px;margin-bottom:8px}
-.cmd-group.approve{grid-template-columns:1fr}
+.cmd-access{font-size:12.5px;color:var(--ink-3)} .cmd-access.on{display:none} .cmd-access.off{color:var(--signal);font-weight:600}
+.cmd-group{display:grid;gap:8px;margin-bottom:10px}
+.cmd-group.approve{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 .cmd-group.mission{grid-template-columns:repeat(3,1fr)}
-.cmd{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:6px 8px;border-radius:3px;
-  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.cmd{font:inherit;border:0;background:#fff;color:var(--ink);padding:10px 12px;border-radius:var(--r-in);box-shadow:inset 0 0 0 1px var(--line-2);
+  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;
+  transition:background-color .15s,box-shadow .15s,transform .08s}
+.cmd:not(:disabled):hover{box-shadow:inset 0 0 0 1px var(--accent),0 2px 6px rgba(79,70,229,.12)}
+.cmd:not(:disabled):active{transform:scale(.985)}
 .cmd .cmd-label{font-weight:700}
-.cmd .why{font-size:11.5px;line-height:1.3;color:var(--ink-2)}
-.cmd.approve{padding:8px 12px;background:var(--info);border-color:var(--info);color:#fff}
-.cmd.approve .cmd-label{font-size:17px} .cmd.approve .why{font-size:12.5px;color:#dbe9f4}
-.cmd.stop{width:100%;padding:8px 12px;background:var(--signal);border-color:var(--signal);color:#fff}
-.cmd.stop .cmd-label{font-size:17px} .cmd.stop .why{color:#ffd9de}
+.cmd .why{font-size:12px;line-height:1.35;color:var(--ink-3)}
+.cmd.approve{padding:11px 13px;background:var(--blue);color:#fff;box-shadow:0 1px 2px rgba(37,99,235,.3)}
+.cmd.approve:not(:disabled):hover{background:var(--blue-hover);box-shadow:0 4px 12px rgba(37,99,235,.3)}
+.cmd.approve .cmd-label{font-size:15px} .cmd.approve .why{font-size:12px;color:rgba(255,255,255,.85)}
+.cmd.stop{width:100%;padding:12px 16px;background:var(--signal);color:#fff;box-shadow:0 1px 2px rgba(229,72,77,.3)}
+.cmd.stop:not(:disabled):hover{background:var(--signal-strong);box-shadow:0 4px 12px rgba(229,72,77,.3)}
+.cmd.stop .cmd-label{font-size:15px} .cmd.stop .why{color:rgba(255,255,255,.88)}
 /* 비활성화된 버튼도 가독성을 유지한다: 버튼 레이블 하단의 비활성화 사유 안내가 핵심 정보다. */
-.cmd:disabled{cursor:not-allowed;background:#e9edec;border-color:var(--rule);color:var(--ink-2)}
-.cmd:disabled .why{color:var(--ink-2)}
+.cmd:disabled,.cmd.approve:disabled,.cmd.stop:disabled{cursor:not-allowed;background:var(--soft);color:#a3afbf;box-shadow:none}
+.cmd:disabled .why,.cmd.approve:disabled .why,.cmd.stop:disabled .why{color:#a3afbf}
 /* 2단계 승인 대화상자가 활성화되어 있는 동안 선택된 명령 버튼. */
-.cmd.armed:disabled{background:var(--info-tint);border:2px solid var(--info);color:var(--info)}
-#cmd-confirm{border:2px solid var(--info);background:#fff;padding:8px 10px;margin-bottom:8px}
-#cmd-confirm .what{font-weight:700;margin-bottom:6px}
-#cmd-confirm label{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
+.cmd.armed:disabled{background:var(--info-tint);box-shadow:inset 0 0 0 2px var(--info);color:var(--info)}
+#cmd-confirm{border-radius:var(--r-in);background:var(--info-tint);padding:12px 14px;margin-bottom:10px;box-shadow:inset 0 0 0 1px #c9dafc}
+#cmd-confirm .what{font-size:14.5px;font-weight:700;margin-bottom:8px}
+#cmd-confirm label{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--ink-2)}
 #cmd-confirm label[hidden]{display:none}
 #cmd-confirm select{font:inherit;flex:1}
-#cmd-confirm .args{display:grid;grid-template-columns:auto 1fr;column-gap:10px;font-size:13px;margin-bottom:8px}
-#cmd-confirm .args dt{color:var(--ink-2)} #cmd-confirm .args dd{margin:0}
+#cmd-confirm .args{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:2px;font-size:13px;margin-bottom:10px}
+#cmd-confirm .args dt{color:var(--ink-3)} #cmd-confirm .args dd{margin:0}
 #cmd-confirm .row{display:flex;gap:8px}
 #cmd-confirm .row .cmd{align-items:center;flex:1}
-.cmd.send{background:var(--info);border-color:var(--info);color:#fff;font-weight:700}
-#cmd-log{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px}
-#cmd-log li{padding:3px 8px;border-left:5px solid var(--pending);background:#fff;margin-bottom:3px}
-#cmd-log li time{color:var(--ink-2);margin-right:6px}
-#cmd-log li.accepted{border-left-color:var(--safe)} #cmd-log li.rejected{border-left-color:var(--caution)}
-#cmd-log li.failed{border-left-color:var(--signal);font-weight:500}
-.estop{font-size:12.5px;padding:6px 8px;border-left:6px solid var(--signal);background:#fff}
+.cmd.send{background:var(--blue);color:#fff;box-shadow:none}
+.cmd.send:not(:disabled):hover{background:var(--blue-hover)}
+#cmd-log{list-style:none;margin:0 0 10px;padding:0;font-size:12.5px}
+#cmd-log li{padding:7px 12px;background:var(--soft);border-radius:8px;margin-bottom:4px;box-shadow:inset 3px 0 0 var(--pending)}
+#cmd-log li time{color:var(--ink-3);margin-right:8px}
+#cmd-log li.accepted{box-shadow:inset 3px 0 0 var(--safe)} #cmd-log li.rejected{box-shadow:inset 3px 0 0 var(--caution)}
+#cmd-log li.failed{box-shadow:inset 3px 0 0 var(--signal);font-weight:600}
+.estop{font-size:12.5px;font-weight:600;padding:9px 12px;background:var(--signal-tint);border-radius:var(--r-in);color:#b4232a}
 
 /* ---- 폼(로그인, 계정) ---- */
-.card{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--rule)}
-.card h1{font-size:22px;margin-bottom:12px}
-.failure{border-left:8px solid var(--signal)} .failure p{margin-top:10px}
-.failure .detail{font-size:13px;color:var(--ink-2);word-break:break-all} .failure .retry{font-size:13px} .card button{margin-top:16px}
-.card label{display:block;margin:12px 0 4px}.card input{width:100%;padding:8px;font:inherit;border:1px solid var(--rule)}
-.card button,form.inline button{font:inherit;padding:8px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:3px;cursor:pointer}
-#topbar form.inline button{padding:3px 10px;background:#fff;color:var(--ink)}
-.flash{padding:8px 12px;margin:8px 0;border-left:6px solid var(--ink-2);background:#fff}
-.flash.danger{border-color:var(--signal)}.flash.success{border-color:var(--safe)}.flash.info{border-color:var(--info)}
-form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}form.inline select{margin-right:4px;font:inherit}
-.admin{max-width:1200px;margin:0 auto;padding:16px}
-.admin table{border-collapse:collapse;width:100%;background:var(--panel);margin-top:12px}
-.admin th,.admin td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
+.card{max-width:400px;margin:14vh auto;padding:36px 34px 34px;background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(15,23,42,.08)}
+.card .sys{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink-3);margin-bottom:10px}
+.card .sys::before{content:"";width:22px;height:22px;border-radius:7px;flex:none;background:var(--accent);
+  box-shadow:inset 0 0 0 6px var(--accent),inset 0 0 0 9px #fff}
+.card h1{font-size:25px;font-weight:800;letter-spacing:-.03em;margin-bottom:20px}
+.failure{box-shadow:0 10px 30px rgba(15,23,42,.08),inset 4px 0 0 var(--signal)} .failure p{margin-top:12px}
+.failure .detail{font-size:13px;color:var(--ink-3);word-break:break-all} .failure .retry{font-size:13px}
+.card label{display:block;margin:14px 0 6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.card input{width:100%;padding:12px 13px;font-size:14.5px;background:var(--soft);border-color:transparent}
+.card input:focus{background:#fff}
+.card button,form.inline button{font:inherit;font-weight:700;border:0;background:var(--accent);color:#fff;border-radius:var(--r-in);cursor:pointer;
+  transition:background-color .15s}
+.card button{width:100%;margin-top:24px;padding:13px 16px;font-size:15px}
+form.inline button{padding:6px 14px}
+.card button:hover,form.inline button:hover{background:#4338ca}
+#topbar form.inline button,.admin-head form.inline button{padding:4px 12px;font-size:12.5px;font-weight:600;background:var(--raise);color:var(--ink-2);border-radius:var(--pill)}
+#topbar form.inline button:hover,.admin-head form.inline button:hover{background:var(--line-2)}
+.flash{padding:10px 14px;margin:10px 0;background:var(--soft);border-radius:var(--r-in);box-shadow:inset 3px 0 0 var(--ink-3)}
+.flash.danger{box-shadow:inset 3px 0 0 var(--signal)}.flash.success{box-shadow:inset 3px 0 0 var(--safe)}.flash.info{box-shadow:inset 3px 0 0 var(--info)}
+form.inline{display:inline}form.inline input{width:9em;padding:6px 9px}form.inline select{margin-right:4px}
+.admin{max-width:1200px;margin:0 auto;padding:24px 20px}
+.admin-head{display:flex;align-items:center;gap:14px;padding:4px 0 18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.admin-head h1{font-size:24px;font-weight:800;letter-spacing:-.03em}
+.admin-head .sys{font-size:13px;color:var(--ink-3)}
+.admin-head .who{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:var(--ink-2)}
+.admin h2{margin-top:20px}
+.admin table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;margin-top:12px;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.admin caption{text-align:left;color:var(--ink-3);padding:4px 0 8px}
+.admin th,.admin td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line)}
+.admin th{font-weight:600;font-size:12.5px;color:var(--ink-3)}
 """
 
 # 사건 행마다 브라우저 최초 렌더링 시각을 기록하고(KPI-04), 명령 패널 동작을 관리한다.
@@ -1120,7 +1246,7 @@ def _user_nav(user, csrf):
 
 def _header(user, csrf):
     """관리자 전용 계정 관리 페이지 상단 헤더."""
-    return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
+    return f'<header class="admin-head"><h1>구조 관제</h1><p class="sys">{SYSTEM_NAME}</p>{_user_nav(user, csrf)}</header>'
 
 
 def camera_stale_ms(cameras, stale_s):
@@ -1175,7 +1301,7 @@ def _cameras(cameras, stale_ms=None, webcam=None, csrf=None, mode=None):
     콘솔 서버는 영상을 중계하지 않고 클라이언트가 직접 스트림을 수신한다. 영상 두절 시 자동으로 감지 및 재시도된다.
     """
     if not cameras:
-        return ('<section class="camera-empty"><h2>웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
+        return ('<section class="camera-empty"><h2>현장 웹캠</h2><p>웹캠 주소가 없습니다. 실행할 때 '
                 '<code>--camera cam_a=http://…</code> 로 카메라 PC 의 영상 주소를 주세요.</p></section>')
     figures = ''.join(
         f'<figure data-stale-ms="{stale_ms}"><img src="{escape(url)}" '
@@ -1185,7 +1311,7 @@ def _cameras(cameras, stale_ms=None, webcam=None, csrf=None, mode=None):
         '<p class="nosignal">영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.</p>'
         f'<figcaption><span>{escape(camera_id)}</span><span></span></figcaption></figure>'
         for camera_id, url in cameras)
-    return f'<section id="cameras"><h2>웹캠</h2>{figures}{_webcam_picker(webcam, csrf, mode)}</section>'
+    return f'<section id="cameras"><h2>현장 웹캠</h2>{figures}{_webcam_picker(webcam, csrf, mode)}</section>'
 
 
 def _webcam_picker(webcam, csrf, mode):
@@ -1267,10 +1393,13 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
     if cameras or robot_camera:
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
+            + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p></header>'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
-            '<button type="button" id="kpi-save" class="mini">지연 기록 저장</button></div>'
+            '<button type="button" id="kpi-save" class="mini" title="사건별 화면 표시 지연을 파일로 저장">지연 기록 저장</button>'
+            '<input type="checkbox" id="show-history"><label for="show-history" class="history-toggle" '
+            'title="운영자가 보낸 명령의 접수·거절과 operations 오류 기록을 펴거나 접습니다">보낸 명령 · 오류</label></div>'
             + _user_nav(user, csrf) + '</section>'
             + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view["mission"]["mode"])}'
             + f'{_robot_camera(robot_camera, csrf, stale_ms)}{_commands(view, access, csrf)}</aside>'
@@ -1280,7 +1409,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
 
 def render_login(csrf, messages=()):
     """로그인 폼 렌더링(SQLite 사용자 계정 데이터베이스 인증 연동)."""
-    return (_head('구조 관제 로그인') + '<div class="card"><h1>구조 관제 로그인</h1>' + _flashes(messages)
+    return (_head('구조 관제 로그인') + f'<div class="card"><p class="sys">{SYSTEM_NAME}</p><h1>구조 관제 로그인</h1>' + _flashes(messages)
             + '<form method="post" action="/login">'
             f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
             '<label for="username">아이디</label><input id="username" name="username" autocomplete="username" required>'
