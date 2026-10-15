@@ -48,7 +48,7 @@ def _age(at_ns, now_ns):
     return f'({seconds}초 전, 낡음)' if seconds > STALE_S else f'({seconds}초 전)'
 
 
-def _mission(db, now_ns):
+def _mission(db, now_ns, run):
     m = site_state.read_mission_state(db)['mission']
     if m is None:
         return '임무 기록 없음'
@@ -58,7 +58,7 @@ def _mission(db, now_ns):
     return f'{text} {_age(m["updated_at_ns"], now_ns)}'
 
 
-def _robots(db, now_ns):
+def _robots(db, now_ns, run):
     heard = {r['robot_id']: r for r in site_state.read_robot_status(db)['robots']}
     parts = []
     for robot in site_state.read_allowed_robot_ids(db)['allowed_robot_ids']:
@@ -74,18 +74,27 @@ def _robots(db, now_ns):
     return ' | '.join(parts)
 
 
-def _maps(db, now_ns):
+def _kept_maps(db, run):
+    """Every kept map of the open run: the oldest RANGE_LIMIT_MAX and the newest 100, so neither an early
+    frozen map nor a late one drops out of a long run."""
+    if run is None:
+        return []
+    oldest = site_state.read_map_snapshots_range(db, run_id=run)['maps']
+    return oldest + site_state.read_map_snapshots(db)['maps']
+
+
+def _maps(db, now_ns, run):
     current = site_state.read_overhead_passages(db)['current_map']
     live = '지도 상태 없음' if current is None else \
         f'지도 r{current["map_revision"]} {_age(current["received_at_ns"], now_ns)}'
-    kept = site_state.read_map_snapshots(db)['maps']
+    kept = _kept_maps(db, run)
     if not kept:
         return f'{live} | 지도 보관 꺼짐 — 고정 여부 모름'
     frozen = sorted({m['revision'] for m in kept if Path(m['path']).name.startswith('frozen-')})
     return f'{live} | ' + ('고정 지도 없음' if not frozen else '고정 지도 ' + ','.join(f'r{r}' for r in frozen))
 
 
-def _targets(db, now_ns):
+def _targets(db, now_ns, run):
     targets = site_state.read_target_states(db)['targets']
     if not targets:
         return '대상 없음'
@@ -93,7 +102,7 @@ def _targets(db, now_ns):
         f'{t["target_id"][:8]} {t["rescue_state"]}/{t["support_state"]}' for t in targets)
 
 
-def _checklist(db, now_ns):
+def _checklist(db, now_ns, run):
     c = site_state.read_reset_checklist(db)
     if c['previous_run_id'] is None:
         return None
@@ -112,7 +121,7 @@ def snapshot(db, *, now_ns):
     parts = [f'{clock} ' + ('회차 없음' if run is None else f'회차 {run[:8]}')]
     for part in (_mission, _robots, _maps, _targets, _checklist):
         try:
-            text = part(db, now_ns)
+            text = part(db, now_ns, run)
         except OperationsError as exc:
             text = f'DB 읽기 실패: {exc.detail}'
         if text is not None:
