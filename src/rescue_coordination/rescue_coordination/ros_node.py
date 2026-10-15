@@ -342,7 +342,8 @@ class CoordinatorCore:
                  frontier_goal_clearance_m, frontier_potential_scale, frontier_gain_scale, frontier_blacklist_m,
                  frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
                  completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
-                 traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, new_id=None):
+                 traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, frontier_look_turns,
+                 new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -433,6 +434,10 @@ class CoordinatorCore:
                             ('exploration_empty_checks', exploration_empty_checks)):
             if type(value) is not int or value < 1:
                 raise CoordinationError('INVALID_POLICY', f'{name} must be an integer >= 1')
+        if type(frontier_look_turns) is not int or frontier_look_turns < 0:
+            raise CoordinationError('INVALID_POLICY', 'frontier_look_turns must be an integer >= 0')
+        # turns in place of 90 degrees at each frontier's own goal, 0 none (camera sweep, 재범 decision 2026-10-16)
+        self.frontier_look_turns = frontier_look_turns
         for name, value in (('frontier_reach_m', frontier_reach_m), ('frontier_goal_max_m', frontier_goal_max_m),
                             ('frontier_blacklist_m', frontier_blacklist_m)):
             finite(value, name)
@@ -468,6 +473,7 @@ class CoordinatorCore:
         self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
         self.scout_wait_logged = None  # (frontier site, stop reason) of the last SCOUT_NOT_READY log line
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
+        self.frontier_look, self.look_count = None, 0  # the next turn in place: (the frontier reached, k)
         self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
         # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL = TB-5 at the exit, no TB-6 recheck; RECHECK = C-11 flow.
         if completion_mode not in COMPLETION_MODES:
@@ -750,6 +756,14 @@ class CoordinatorCore:
             return
         if self.frontier is not None or self.search.assignment(self.roles['SCOUT']) is not None:
             return
+        if self.frontier_look is not None:
+            origin, k = self.frontier_look
+            self.frontier_look = None
+            if self.target_geo:
+                self._look_done(origin, k - 1, 'a doll was reported')
+            else:
+                self._look(origin, k, now_ns)
+                return
         if self.scout_grid is None:
             self.issue_block = 'EXPLORATION_MAP_UNKNOWN'
             return
@@ -838,12 +852,34 @@ class CoordinatorCore:
         site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
         self.search.policy = replace(self.search.policy, areas=(site,))
         self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y), cut=cut,
-                             path_m=path.length_m)
+                             path_m=path.length_m, yaw=yaw)
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
                           f'path_m={path.length_m:.2f} cost={picked_cost:.2f} cut={cut} '
                           f'start_moved_m={path.start_moved_m:.2f} '
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
+
+    def _look(self, origin, k, now_ns):
+        """The k-th turn in place at a frontier's goal: the same spot, its yaw turned k x 90 degrees (camera sweep
+        option 1, 재범 decision 2026-10-16: TB-6's camera sees round it at each frontier, not only ahead)."""
+        x, y = origin['site_xy']
+        yaw = math.remainder(origin['yaw'] + k * math.pi / 2, 2 * math.pi)
+        session, rev, transform = self.scout_basis()
+        site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/look/{self.look_count}'))
+        self.look_count += 1
+        self.search.policy = replace(self.search.policy, areas=(
+            MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw),))
+        self.frontier = dict(site_id=site_id, goal=origin['goal'], centroid=origin['centroid'], site_xy=(x, y),
+                             cut=False, path_m=0.0, yaw=yaw, look=(origin, k))
+        self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
+        self.notes.append(f'FRONTIER_LOOK_SENT {site_id} turn {k}/{self.frontier_look_turns} at {origin["site_id"]} '
+                          f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
+
+    def _look_done(self, origin, turned, why):
+        """The turning at ``origin`` ended: the frontier counts as reached (its goal was COMPLETED before)."""
+        self.notes.append(f'FRONTIER_LOOK_DONE {origin["site_id"]} turned {turned}/{self.frontier_look_turns}: {why}')
+        self.frontier = origin
+        self._frontier_done(True)
 
     def _frontier_plan(self, fields, mask, roomy, start, frontier, tb5=None):
         """(path, (x, y, yaw) sent, cut) for a frontier, or None (TIGHT). The path keeps ``freeze_clearance_m`` so a
@@ -1333,6 +1369,8 @@ class CoordinatorCore:
                 # neither is a tried frontier: a step aside is no frontier, a stopped one was not tried
                 done = 'TRAFFIC_YIELD_DONE' if self.frontier.get('step_aside') else 'FRONTIER_STOPPED_FOR_TB5'
                 self.notes.append(f'{done} {item.target_id} outcome={result.outcome}')
+                if self.frontier.get('look'):
+                    self.frontier_look = self.frontier['look']  # the same turn again once TB-5 is past
                 self.frontier = None
                 self.search.policy = replace(self.search.policy, areas=())
             elif result.terminal_reason in NOT_STARTED_REASONS:
@@ -1340,12 +1378,35 @@ class CoordinatorCore:
                 self.scout_not_started = result.terminal_reason
                 self.notes.append(f'FRONTIER_NOT_STARTED {item.target_id} outcome={result.outcome} '
                                   f'reason={result.terminal_reason}')
+                if self.frontier.get('look'):
+                    self.frontier_look = self.frontier['look']  # the same turn again
                 self.frontier = None
                 self.search.policy = replace(self.search.policy, areas=())
+            elif self.frontier.get('look'):
+                # a turn in place: a failed one ends the turning and counts nothing (the frontier was reached); a
+                # doll report sends no more, the turn in progress has finished
+                (origin, k), turns = self.frontier['look'], self.frontier_look_turns
+                self.notes.append(f'FRONTIER_LOOK {k}/{turns} {item.target_id} outcome={result.outcome} '
+                                  f'reason={result.terminal_reason or "-"}')
+                if result.outcome != 'COMPLETED':
+                    self._look_done(origin, k - 1, f'turn {k} {result.outcome}')
+                elif self.target_geo:
+                    self._look_done(origin, k, 'a doll was reported')
+                elif k >= turns:
+                    self._look_done(origin, k, 'round')
+                else:
+                    self.frontier_look, self.frontier = (origin, k + 1), None
+                    self.search.policy = replace(self.search.policy, areas=())
             else:
                 self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome} '
                                   f'reason={result.terminal_reason or "-"}' + self._frontier_left(result.outcome))
-                self._frontier_done(result.outcome == 'COMPLETED')
+                if (result.outcome == 'COMPLETED' and not self.frontier['cut'] and self.frontier_look_turns
+                        and not self.target_geo):
+                    # at the frontier's own goal: turn round in place before it counts (camera sweep option 1)
+                    self.frontier_look, self.frontier = (self.frontier, 1), None
+                    self.search.policy = replace(self.search.policy, areas=())
+                else:
+                    self._frontier_done(result.outcome == 'COMPLETED')
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):
             self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
@@ -2581,6 +2642,7 @@ def build_core(values):
                            frontier_issue_delay_ns=seconds_to_ns(str(values['frontier_issue_delay_s'])),
                            exploration_empty_checks=values['exploration_empty_checks'],
                            exploration_timeout_ns=seconds_to_ns(str(values['exploration_timeout_s'])),
+                           frontier_look_turns=values['frontier_look_turns'],
                            completion_mode=values['completion_mode'],
                            support_start_pose=list(values['support_start_pose']) if values['support_start_pose']
                            else None,
@@ -2667,6 +2729,7 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # the pick's explore_lite cost weights (path length and frontier size; 5회차 2026-10-16)
     'frontier_potential_scale': 'DOUBLE', 'frontier_gain_scale': 'DOUBLE',
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
+    'frontier_look_turns': 'INTEGER',
     'exploration_timeout_s': 'DOUBLE',
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).
     'completion_mode': 'STRING',

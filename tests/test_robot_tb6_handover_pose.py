@@ -96,5 +96,48 @@ class NoNewGoalDuringHandover(unittest.TestCase):
         s.check_new_goal('robot_a')   # no exception
 
 
+class GoalsWaitForAmclTf(unittest.TestCase):
+    """Run 11 (#436, C17): 0.70 s after MAP_HANDOVER the executor admitted RETURN_HOME (its pose was VALID from the
+    latched amcl_pose, #430), but Nav2's TF buffer had AMCL's map -> odom only from ...898.137 while the goal asked
+    for ...897.295: `Extrapolation Error` in planner_server, `Initial robot pose is not available`, ACTION_ABORTED.
+    AMCL sends map -> odom stamped ahead by its transform_tolerance, so Nav2 has a map -> odom for "now" only once now
+    has passed the first stamp AMCL sent after the switch. A new goal waits for that, after the handover check (#426).
+    """
+    make, freeze, pose, state = twice.Twice.make, twice.Twice.freeze, twice.Twice.pose, twice.Twice.state
+
+    def tf(self, map_odom_stamp):
+        from test_robot_slam_tf_pose import tf_message
+        self.s.receive_tf('robot_a', tf_message(('map', 'odom', map_odom_stamp, 0.0, 0.0, 0.0),
+                                                ('odom', 'base_link', self.r.now, 0.0, 0.0, 0.0)))
+
+    def test_a_new_goal_waits_until_now_passes_amcls_first_map_odom(self):
+        from rescue_robot.executor import ContractError
+        from test_robot_amcl_tf_pose import AMCL_KEYS
+        from test_robot_slam_tf_pose import S
+        self.s = s = self.make('SLAM_THEN_FROZEN')
+        s.settings['robot_a'].update(AMCL_KEYS, amcl_tf_topic='/robot6/tf')
+        from rescue_robot.slam_tf_pose import AmclTfPose
+        s.amcl_tf['robot_a'] = AmclTfPose(map_frame='map', odom_frame='odom', base_frame='base_link',
+                                          update_min_d=0.25, update_min_a=0.2)
+        s.receive_map('robot_a', grid_message({9: 100}))
+        self.tf(self.r.now - S)                       # SLAM's map -> odom, before the switch
+        self.freeze(G1, R1)
+        self.freeze(G2, R2)
+        self.r.now += S
+        s.receive_map('robot_a', G2)                  # handover over
+        self.pose()                                   # the latched amcl_pose: VALID
+        self.assertEqual(('VALID', R2), self.state())
+        with self.assertRaises(ContractError) as caught:
+            s.check_new_goal('robot_a')               # no AMCL map -> odom yet
+        self.assertIn('map -> odom', str(caught.exception))
+        first = self.r.now + S                        # AMCL's first one, stamped ahead by its tolerance
+        self.tf(first)
+        with self.assertRaises(ContractError):
+            s.check_new_goal('robot_a')               # now is still before it
+        self.r.now = first + 1
+        self.tf(first + S // 15)
+        s.check_new_goal('robot_a')                   # Nav2 has map -> odom for now
+
+
 if __name__ == '__main__':
     unittest.main()

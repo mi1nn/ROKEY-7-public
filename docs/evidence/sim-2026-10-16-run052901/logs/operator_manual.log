@@ -1,0 +1,4 @@
+OPERATOR 05:34:05 (수동, 가제보 실습, 작전 지시) 런북 7.5.1 대신: 운영자 대역 TERM 뒤 slam_toolbox(PID 1042495) 남음 → SIGINT
+OPERATOR 05:34:06 (수동) slam_toolbox(PID 1042495) 끝남
+OPERATOR 05:34:18 (수동) 런북 7.5.1 /robot6/map 발행자 수 0(--no-daemon)
+OPERATOR 05:34:18 (수동) 런북 7.5.2 frozen_localization robot_a 띄움(PID 1055437)

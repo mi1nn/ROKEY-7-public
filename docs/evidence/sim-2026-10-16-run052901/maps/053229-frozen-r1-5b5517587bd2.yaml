@@ -1,0 +1,7 @@
+image: 053229-frozen-r1-5b5517587bd2.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-3.9456176237501985, -0.9092964356606823, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
