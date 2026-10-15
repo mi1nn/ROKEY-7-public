@@ -74,13 +74,13 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
   --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
 ```
 
-- **Discovery 값.** 시험 중에는 권고안 A 다. 모든 PC(로봇 담당 PC 포함)가 두 로봇 Pi 서버를 둘 다 적는다. 세미콜론 자리 번호가 서버 ID 다(TB-5 Pi = 5, TB-6 Pi = 6).
+- **Discovery 값.** 2026-10-15 부터 전용 Discovery 서버 PC 하나를 쓴다(재범 결정 2026-10-15, [Discovery 전용 PC 운영 안내](discovery-host.md)). 모든 PC(로봇 담당 PC, 운영 PC 포함)가 그 서버 하나만 적는다. 서버 ID 는 0 이라 세미콜론 없이 적는다. 로봇 Pi 의 Discovery 설정은 바꾸지 않는다.
   ```text
-  ;;;;;<TB-5 Pi 주소>:11811;<TB-6 Pi 주소>:11811
+  <전용 Discovery PC 주소>:11811
   ```
-  최종 구성(전용 Discovery 서버 PC)은 로봇이 그 서버에 붙는 방법이 정해지기 전에는 쓰지 않는다([네트워크·Discovery Server](../design/network-discovery.md)).
+  권고안 A(두 로봇 Pi 서버 `;;;;;<TB-5 Pi 주소>:11811;<TB-6 Pi 주소>:11811`)는 전용 PC 가 꺼졌을 때 로봇 쪽을 직접 조회하는 데만 쓴다([Discovery 전용 PC 운영 안내](discovery-host.md) 5절).
 - `--role` 은 프로파일의 host id 다. 운영 PC 는 프로파일에 operations 호스트와 coordination 호스트로 따로 올라 있으므로, 두 host id 로 각각 한 번씩 돌린다. 둘 다 PASSED 여야 한다.
-- 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다.
+- 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 전용 서버 하나면 모든 host 가 `[{"server_id": 0, "address": "<전용 Discovery PC 주소>", "port": 11811}]` 다. 프로파일이 아직 권고안 A 값이면 셸이 아니라 프로파일을 고친다(바꾸기 전 백업, 전후 sha256 기록).
 - 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 배선 점검 도구만 super client 로 띄운다.
 - `preflight_role.py` 가 FAILED 를 내면 고치기 전에는 다음 단계로 가지 않는다. NOT_RUN 을 통과로 적지 않는다.
 
