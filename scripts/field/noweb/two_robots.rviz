@@ -50,6 +50,7 @@ Visualization Manager:
         Depth: 1
         Reliability Policy: Reliable
         Durability Policy: Transient Local
+      TF Prefix: robot6
       Visual Enabled: true
       Collision Enabled: false
       Alpha: 1
@@ -58,7 +59,7 @@ Visualization Manager:
       Enabled: true
       Value: true
       Topic:
-        Value: /robot6/scan
+        Value: /rviz/robot6/scan
         Depth: 5
         Reliability Policy: Best Effort
         Durability Policy: Volatile
@@ -79,6 +80,34 @@ Visualization Manager:
       Line Style: Lines
       Line Width: 0.03
       Color: 0; 220; 80
+    - Class: rviz_default_plugins/RobotModel
+      Name: TB-5 model
+      Enabled: true
+      Value: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot5/robot_description
+        Depth: 1
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+      TF Prefix: robot5
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1
+    - Class: rviz_default_plugins/LaserScan
+      Name: TB-5 scan
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /rviz/robot5/scan
+        Depth: 5
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: FlatColor
+      Color: 80; 160; 255
+      Position Transformer: XYZ
     - Class: rviz_default_plugins/PoseWithCovariance
       Name: TB-5 pose (AMCL)
       Enabled: true
