@@ -166,9 +166,16 @@ class SavedMapSources:
         return target is not None and target!=self.adopted.get(robot)
 
     def check_new_goal(self,robot):
-        """D2 (OPS-159): no new goal on the old revision while a newer one waits; the task in progress goes on."""
+        """D2 (OPS-159): no new goal on the old revision while a newer one waits; the task in progress goes on.
+        Nor during TB-6's handover (_handover): its pose source changes under the goal."""
         if self.runtime.adapter.executor.active is None and self.pending(robot):
             raise ContractError(f'map revision pending (R{self._target(robot)}); new goals wait until it is taken',
+                                'FRAME_REVISION_MISMATCH')
+        if self._handover(robot):
+            # run 9, 2026-10-16: a goal taken during the handover lost its pose when the frozen grid arrived
+            # (MAP_HANDOVER) and the guard canceled it; it waits for AMCL on the frozen grid instead
+            raise ContractError(f'map handover in progress (R{self.adopted[robot]}: SLAM pose until the frozen grid '
+                                'is on the map topic, then AMCL); new goals wait for it (runbook 7.5)',
                                 'FRAME_REVISION_MISMATCH')
 
     def tick(self):
