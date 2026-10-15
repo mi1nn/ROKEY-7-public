@@ -13,7 +13,8 @@ from rescue_coordination import ros_node
 import test_coordination_mission_end as mission_end  # its test classes are not collected here
 from test_coordination_ros_core import SCOUT, SUPPORT, admission_msg, status_msg
 from test_coordination_search import NOW
-from test_coordination_two_freezes import Base
+from test_coordination_approach import pose_msg
+from test_coordination_two_freezes import R2, Base
 
 S = 1_000_000_000
 HOLD = 3 * S  # admission_timeout_ns of the test core (test_coordination_ros_core ACCEPT)
@@ -41,7 +42,8 @@ class ScoutReturnAgainTests(unittest.TestCase):
         t = NOW + 10
         self.assertEqual([], self.returns(core, t))  # the hold starts here
         core.system_state_change(t)
-        self.assertEqual(('RETURNING', 'SCOUT_RETURNING'), (core.last_state['phase'], core.last_state['reason']))
+        # as while it moves: no doll, so NO_SURVIVOR_FOUND, not a failure yet
+        self.assertEqual(('RETURNING', 'NO_SURVIVOR_FOUND'), (core.last_state['phase'], core.last_state['reason']))
         self.assertEqual([], self.returns(core, t + HOLD))
         (again,) = self.returns(core, t + HOLD + 1)
         self.assertEqual(SCOUT, again['robot_id'])
@@ -80,6 +82,7 @@ class SupportExitAgainTests(Base):
         self.assertEqual([], self.support_home(t)[0])
         self.assertEqual('SUPPORT_EXITING', self.reason(t))
         self.assertEqual([], self.support_home(t + HOLD)[0])
+        self.core.on_pose(pose_msg((3., 4.), map_revision=R2, age_ns=-(t + HOLD + 1 - NOW) + 10**8))  # still there
         (again,) = self.support_home(t + HOLD + 1)[0]
         self.core.on_admission(admission_msg(again))
         fail(self.core, again)
