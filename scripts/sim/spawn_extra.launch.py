@@ -1,17 +1,23 @@
-# Extra TurtleBot 4 in a running simulation, for run_sim.sh --also (2026-10-15).
+# A TurtleBot 4 and its dock in a running simulation: every robot of run_sim.sh and sim_robots.sh (2026-10-15, -16).
 #
 # Same as turtlebot4_gz_bringup turtlebot4_spawn.launch.py (turtlebot4_simulator 2.0.2, Copyright 2023
-# Clearpath Robotics, Apache License 2.0) without its optional SLAM/Nav2/RViz, with one change: the robot is
-# created from robot_description_sim, which strip_sensors.py republishes without the Gazebo Sensors system.
-# A second Sensors system aborts the server (see strip_sensors.py); the first robot's one renders all sensors.
+# Clearpath Robotics, Apache License 2.0) without its optional SLAM/Nav2/RViz, with two changes:
+# - strip_sensors:=true (default, the second and later robots): the robot is created from robot_description_sim,
+#   which strip_sensors.py republishes without the Gazebo Sensors system. A second Sensors system aborts the
+#   server (see strip_sensors.py); the first robot's one renders all sensors. The first robot uses strip_sensors:=false.
+# - The dock is made with visualize_rays:=false. Its IR emitter rays are for looking at only (irobot_create_description
+#   ir_emitter.urdf.xacro: "not attached to any plugin"), the real dock has nothing like them, and with them on another
+#   robot's lidar passes through walls near the dock: 50 of 3200 rays in a still scene, 0 with them off
+#   [측정 2026-10-16, scripts/sim/lidar_probe.py, config/sim/README.md S10].
 from pathlib import Path
 
 from irobot_create_common_bringup.namespace import GetNamespacedName
 from irobot_create_common_bringup.offset import OffsetParser, RotationalOffsetX, RotationalOffsetY
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node, PushRosNamespace
 from launch_ros.substitutions import FindPackageShare
 
@@ -20,6 +26,8 @@ ARGUMENTS = [
     DeclareLaunchArgument('model', default_value='standard', choices=['standard', 'lite']),
     DeclareLaunchArgument('namespace', description='Robot namespace, no leading slash'),
     DeclareLaunchArgument('world', description='Gazebo world name'),
+    DeclareLaunchArgument('strip_sensors', default_value='true', choices=['true', 'false'],
+                          description='false only for the first robot: it keeps the Sensors system that renders all'),
 ]
 for pose_element in ['x', 'y', 'z', 'yaw']:
     ARGUMENTS.append(DeclareLaunchArgument(pose_element, default_value='0.0'))
@@ -44,10 +52,12 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution(
                 [FindPackageShare('irobot_create_common_bringup'), 'launch', 'dock_description.launch.py'])),
-            launch_arguments={'gazebo': 'ignition'}.items()),
+            launch_arguments={'gazebo': 'ignition', 'visualize_rays': 'false'}.items()),
         Node(package='ros_gz_sim', executable='create', output='screen',
              arguments=['-name', robot_name, '-x', x, '-y', y, '-z', OffsetParser(z, -0.0025), '-Y', yaw,
-                        '-topic', 'robot_description_sim']),
+                        '-topic', PythonExpression(["'robot_description_sim' if '",
+                                                    LaunchConfiguration('strip_sensors'),
+                                                    "' == 'true' else 'robot_description'"])]),
         Node(package='ros_gz_sim', executable='create', output='screen',
              arguments=['-name', dock_name,
                         '-x', OffsetParser(x, RotationalOffsetX(0.157, yaw)),
@@ -80,7 +90,8 @@ def generate_launch_description():
              remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')]),
     ])
     strip = ExecuteProcess(cmd=['python3', STRIP, '--ros-args', '-r', ['__ns:=/', namespace],
-                                '-p', 'use_sim_time:=true'], output='screen')
+                                '-p', 'use_sim_time:=true'], output='screen',
+                           condition=IfCondition(LaunchConfiguration('strip_sensors')))
     ld = LaunchDescription(ARGUMENTS)
     ld.add_action(strip)
     ld.add_action(group)

@@ -86,7 +86,7 @@ RUN_SIM_GUI=0 scripts/sim/run_sim.sh --world arena --no-rviz    # 창 없이(사
 | `RUN_SIM_DOMAIN_ID` | 77 | ROS 도메인. 70~99 만 받는다. 지도 자리 77, 전체 흐름 자리는 따로 준다 |
 | `RUN_SIM_GZ_PARTITION` | `sim_map` | gz transport 파티션. 자리마다 달라야 같은 PC 의 두 Gazebo 가 섞이지 않는다 |
 | `RUN_SIM_NAMESPACE` | `robot6` | 로봇 이름(슬래시 없이). `--namespace` 가 이긴다 |
-| `RUN_SIM_GUI` | 1 | 0 이면 Gazebo 창 없이 서버만(`gz sim -s`, `headless_gz.launch.py`). 두 시뮬레이션을 한 PC 에서 같이 돌리면 창이 코어 하나를 먹는다 |
+| `RUN_SIM_GUI` | 1 | 0 이면 Gazebo 창 없이 서버만(`gz sim -s`, `sim_world.launch.py gui:=false`). 두 시뮬레이션을 한 PC 에서 같이 돌리면 창이 코어 하나를 먹는다 |
 | `RUN_SIM_WORLD_DIR`, `RUN_SIM_LOG_DIR` | `config/sim/worlds`, `~/sim-logs/<시각>` | 시험용 |
 
 - Fast DDS: `scripts/sim/fastdds_localhost.xml` 을 모든 시뮬레이션 프로세스에 준다. 시뮬레이터 한 대에 ROS 프로세스가 약 50 개라, 기본 LOCALHOST 탐색 범위(앞쪽 참가자 번호 몇십 개)를 넘는 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 본다. UDP 초기 피어 범위를 120 으로 넓힌다[측정 2026-10-15 시뮬레이션 PC]. 다른 터미널에서 조회할 때도 같은 파일을 `FASTRTPS_DEFAULT_PROFILES_FILE` 로 준다(스크립트가 마지막에 명령을 찍는다).

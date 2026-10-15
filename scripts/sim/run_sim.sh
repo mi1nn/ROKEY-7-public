@@ -8,7 +8,7 @@
 #   RUN_SIM_DOMAIN_ID     ROS 도메인. 기본 77(지도 자리). 70~99 만 받는다(실기는 6)
 #   RUN_SIM_GZ_PARTITION  gz transport 파티션. 기본 sim_map. 자리마다 달라야 같은 PC 의 두 Gazebo 가 섞이지 않는다
 #   RUN_SIM_NAMESPACE     로봇 이름(슬래시 없이). 기본 robot6. --namespace 가 이긴다
-#   RUN_SIM_GUI           0 이면 Gazebo 창 없이 서버만(gz sim -s) 띄운다. 기본 1. RViz 는 --no-rviz 로 끈다
+#   RUN_SIM_GUI           0 이면 Gazebo 창 없이 서버만(gz sim -s, sim_world.launch.py gui:=false) 띄운다. 기본 1. RViz 는 --no-rviz 로 끈다
 #   RUN_SIM_WORLD_DIR     world 폴더(기본 config/sim/worlds). 시험용 임시 world 에 쓴다
 #   RUN_SIM_LOG_DIR       로그 폴더(기본 ~/sim-logs/<시각>)
 #
@@ -186,13 +186,10 @@ trap 'exit 129' HUP   # 터미널 창을 닫아도 정리한다
 echo "run_sim: world=$world namespace=$namespace x=$x y=$y yaw=$yaw 도메인=$ROS_DOMAIN_ID 파티션=$GZ_PARTITION 로그=$log_dir"
 
 # gz 는 world 파일을 현재 폴더에서 '<이름>.sdf' 로 찾는다(sim.launch.py 가 world 이름에 .sdf 를 붙인다).
-if [ "$gui" = 1 ]; then
-    launch_cmd=(ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py)
-else
-    launch_cmd=(ros2 launch "$HERE/headless_gz.launch.py")
-fi
-( cd "$world_dir" && exec setsid "${launch_cmd[@]}" \
-    "world:=$world" "namespace:=$namespace" "x:=$x" "y:=$y" "yaw:=$yaw" $([ "$gui" = 1 ] && echo rviz:=false) ) \
+# sim_world.launch.py: Gazebo(창 있음/없음) + 첫 로봇. 도크는 IR 에미터 광선 없이 만든다(S10, spawn_extra.launch.py 주석).
+gui_arg=true; [ "$gui" = 1 ] || gui_arg=false
+( cd "$world_dir" && exec setsid ros2 launch "$HERE/sim_world.launch.py" \
+    "world:=$world" "namespace:=$namespace" "x:=$x" "y:=$y" "yaw:=$yaw" "gui:=$gui_arg" ) \
     > "$log_dir/gz.log" 2>&1 &
 pids+=($!)
 
