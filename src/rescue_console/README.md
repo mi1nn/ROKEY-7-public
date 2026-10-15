@@ -18,6 +18,7 @@
 | 웹캠 고르기(관리자) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `app.py:webcam`, `commands.py:switch_webcam`, #257 |
 | 로봇 카메라 칸(TB-6/TB-5 고르기) | 구현됨 · 실기 NOT_RUN(로봇 판정 영상 노드 미기동) | `render.py:_robot_camera`, `app.py:robot_camera_pick`, #261 |
 | 자동 출발(`--search-start AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates`, #230 |
+| 재난 선포(`DECLARE_DISASTER`, 지진 감지 대신 버튼) | 구현됨 · 실기 NOT_RUN | `view.py:_gate`·`_declare_confirm` |
 | 자동 출동(`--support-dispatch AUTO`) | 구현됨 · 실기 NOT_RUN | `view.py:command_gates` |
 | 운영자 명령 보내기 | 구현됨 · 실기 NOT_RUN | `commands.py:send_command`, `app.py:command` |
 | 조정기 사유 한국어 문구 | 구현됨 | `view.py:MISSION_REASONS`·`mission_reason` |
@@ -76,7 +77,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - **새 회차는 새 현장 상태 DB 로 띄운다(OPS-183).** 재난 모드·사건 기록·임무 상태는 DB 에 남아 있어서, 같은 `--site-state`(운영 launch 의 `db_path`)로 다시 띄우면 지난 회차의 재난(예: 오전 15:13 진동 감지)이 그대로 보인다. 회차마다 새 폴더(예: `<회차 폴더>/site_state.sqlite3`)를 운영 launch `db_path` 와 관제 웹 `--site-state` 에 같이 준다. 지난 DB 는 지우지 않고 증거로 둔다.
 - `--robot-name ROBOT_ID=NAME` 은 로봇마다 줄 수 있다(예: `--robot-name robot_a=TB-6 --robot-name robot_b=TB-5`, 재범 결정 2026-10-13). 기본값이 없고, 주지 않으면 로봇 ID 를 그대로 보인다. 이름은 역할에 묶지 않는다. 출동 승인 버튼과 명령 기록에는 상태가 SUPPORT 인 로봇의 이름이 들어간다(예: 「TB-5 출동 승인」). 그 로봇의 상태가 아직 없으면 어느 robot_id 인지 모르므로 역할 코드로 「SUPPORT 출동 승인」이다(「AMR·로봇」 같은 일반 명칭은 쓰지 않음, 재범 규칙 2026-10-13).
 - `--support-dispatch AUTO|OPERATOR` 는 조정기의 `support_dispatch` 와 같은 현장 값이다(작전 결정 2026-10-13). AUTO 이면 조정기가 지원 로봇을 스스로 보내고 운영자의 출동 승인은 NOT_AUTHORIZED 로 거절하므로, 출동 승인 버튼 대신 「TB-5 자동 출동」 상태를 보인다. 아직 출동하지 않은 동안의 지원 사유(SUPPORT_*)는 미구조 대상 줄에 나온다. OPERATOR 이거나 인자가 없으면 지금처럼 버튼이다. IDL 을 바꾸지 않으려고 조정기가 SystemState 에 방식을 싣지 않아서 이 인자로 받는다.
-- `--search-start AUTO|OPERATOR` 는 조정기의 `search_start` 와 같은 현장 값이다(#228, OPS-140). AUTO 이면 지진 감지(DISASTER)가 곧 TB-6 수색 시작이고 조정기는 운영자의 수색 시작을 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절하므로, 수색 시작 버튼 대신 「TB-6 자동 출발」 상태를 보인다. OPERATOR 이거나 인자가 없으면 버튼이다. 값이 어긋나면: 조정기가 AUTO 인데 관제 웹이 버튼이면 버튼을 눌렀을 때의 거절(또는 임무 띠의 `AUTO_SEARCH_ENABLED`)을 보고 경고 줄에 「관제 웹을 --search-start AUTO 로 다시 띄우세요」가 나온다. 반대로 관제 웹이 AUTO 인데 조정기가 OPERATOR 이면 화면은 자동 출발이라 하지만 수색이 시작되지 않는다 — 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없으므로, 두 값은 같은 현장 파일에서 가져온다.
+- `--search-start AUTO|OPERATOR` 는 조정기의 `search_start` 와 같은 현장 값이다(#228, OPS-140). AUTO 이면 지진 감지나 재난 선포(DISASTER)가 곧 TB-6 수색 시작이고 조정기는 운영자의 수색 시작을 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절하므로, 수색 시작 버튼 대신 「TB-6 자동 출발」 상태를 보인다. OPERATOR 이거나 인자가 없으면 버튼이다. 값이 어긋나면: 조정기가 AUTO 인데 관제 웹이 버튼이면 버튼을 눌렀을 때의 거절(또는 임무 띠의 `AUTO_SEARCH_ENABLED`)을 보고 경고 줄에 「관제 웹을 --search-start AUTO 로 다시 띄우세요」가 나온다. 반대로 관제 웹이 AUTO 인데 조정기가 OPERATOR 이면 화면은 자동 출발이라 하지만 수색이 시작되지 않는다 — 조정기가 방식을 SystemState 에 싣지 않아 화면이 알 수 없으므로, 두 값은 같은 현장 파일에서 가져온다.
 - `--camera ID=URL` 은 여러 번 줄 수 있다. URL 은 `http`·`https` 만 받는다.
 - `--camera` 를 주면 `--camera-stale-s S` 도 줘야 한다(기본값 없음, 없으면 시작하지 않음). 페이지가 영상 중계기의 `/health`(마지막 프레임 나이 `age_s`)를 S/2 주기로 묻고, 나이가 S 초 이상이거나 답이 없으면 그 칸에 「영상 끊김」을 띄우고 캐시 무효화 쿼리(`_r=`)를 붙여 S 초마다 한 번 다시 연결한다. 새 프레임이 다시 오면 표시를 지우고 한 번 다시 연다. 정상으로 닫힌 multipart 스트림은 `onerror` 없이 마지막 프레임을 남긴다 [측정, 2026-10-13, Firefox]. 예전에는 프레임마다 오는 `load` 이벤트로 봤는데 Chrome 은 첫 프레임에만 load 를 내서(8초 40장에 1번 [측정, 2026-10-15, Chromium]) 살아 있는 영상을 S 초마다 끊고 다시 연결했다(2026-10-15 고침). `onerror` 표시도 그대로 둔다.
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
@@ -252,22 +253,24 @@ TB-6 SLAM 지도를 큰 지도 칸에 띄운다(재범 결정 2026-10-13). 운�
 
 | 묶음 | 버튼 | 보냄 |
 | --- | --- | --- |
-| 승인 (크게, 파랑) — 임무 흐름의 사람 승인 지점 순서 | 수색 시작(`START_SEARCH`), 출동 승인(`DISPATCH_SUPPORT`, 예: 「TB-5 출동 승인」), 다음 구간 계속(`CONTINUE_SEGMENT`) | 보냄 |
+| 승인 (크게, 파랑) — 임무 흐름의 사람 승인 지점 순서 | 재난 선포(`DECLARE_DISASTER`), 수색 시작(`START_SEARCH`), 출동 승인(`DISPATCH_SUPPORT`, 예: 「TB-5 출동 승인」), 다음 구간 계속(`CONTINUE_SEGMENT`) | 보냄 |
 | 임무 | 재확인 지시(`REQUEST_RECHECK`), 복귀(`RETURN_HOME`) | 보냄 |
 | 임무 | 일시정지·재개·작업 취소 | 꺼 둠 — Q-22 재개 관문 미결 |
 | 정지 (따로, 빨강) | 정지(`STOP_ROBOT`) | 꺼 둠 — RequestStop 별도 경로, 현장 정지는 별도 수단 |
 
-- **켜지는 때 (조정기 관문의 거울, `view.command_gates`):** 버튼 활성은 관문이 아니다. 켜진 명령도 조정기가 거절할 수 있고, 그 답을 그대로 보인다. 아래 조건 모두 `mission_state` 행이 있고 모드가 `DISASTER` 일 때만이다. 버튼 아래 작은 글씨가 지금 꺼진(켜진) 이유다.
+- **켜지는 때 (조정기 관문의 거울, `view.command_gates`):** 버튼 활성은 관문이 아니다. 켜진 명령도 조정기가 거절할 수 있고, 그 답을 그대로 보인다. 아래 조건 모두 `mission_state` 행이 있어야 하고, 재난 선포만 모드가 `NORMAL` 일 때, 나머지는 `DISASTER` 일 때만이다. 버튼 아래 작은 글씨가 지금 꺼진(켜진) 이유다.
 
   | 명령 | 켜짐 | 보내는 값 |
   | --- | --- | --- |
+  | 재난 선포 | 모드 `NORMAL`(이미 재난이면 「이미 재난 모드」로 꺼짐) | 없음 |
   | 수색 시작 | 단계 `DISASTER`(아직 수색 전) | 없음 |
   | 출동 승인(`DISPATCH_SUPPORT`) | 출동 없음, 확정·미구출 대상 중 대상 revision 과 저장된 보고(`persisted_report_id`)가 둘 다 있는 대상이 있음(운영자가 고름) | 고른 대상의 `target_id`·`target_revision` |
   | 다음 구간 계속 | `segment_phase == AWAITING_APPROVAL` | `mission_state` 의 `target_id`·`target_revision`·`route_revision`·`segment_index` |
   | 재확인 지시 | 구출 확인 전 대상이 있음(운영자가 고름) | 고른 대상의 `target_id` |
   | 복귀 | 단계 `RESCUE_CONFIRMED`·`RECHECK_NEEDED`(판정 뒤) | 없음 |
 
-  보내는 값은 **운영자가 화면에서 본 값**이다. revision·구간을 모르면 `null` 로 보내지 않고 버튼을 끈다(대상 revision 은 대상 상태에 기록되면 켜짐). 종류별 필드는 조정기 `rescue_coordination.mission.COMMAND_FIELDS` 와 같다(시험이 대조).
+  보내는 값은 **운영자가 화면에서 본 값**이다. revision·구간을 모르면 `null` 로 보내지 않고 버튼을 끈다(대상 revision 은 대상 상태에 기록되면 켜짐). 종류별 필드는 조정기 `rescue_coordination.mission.COMMAND_FIELDS` 와 같고, 재난 선포는 `MODE_COMMAND_FIELDS` 와 같다(시험이 대조).
+  재난 선포(재범 결정·작전 설계 2026-10-15)는 지진 감지 대신 운영자가 재난 모드로 넣는 버튼이다. 지진 감지와 버튼 가운데 먼저 온 쪽이 재난 모드를 열고, 나중 것은 조정기가 `ALREADY_DISASTER`(이미 재난 모드)로 거절한다. `--search-start AUTO` 이면 재난 모드가 되자마자 TB-6 이 탐색을 시작하므로, 확인 칸 첫 줄이 「재난 선포 — 재난 모드로 들어가고 TB-6 이 바로 탐색을 시작합니다」다. OPERATOR 이면 「… TB-6 탐색은 수색 시작 버튼으로 시작합니다」, 인자가 없으면 「재난 선포 — 재난 모드로 들어갑니다」다.
   출동 승인은 조정기가 그 revision 의 보고 저장 영수증(`ReportReceipt` PERSISTED)을 받은 대상만 고를 수 있다. 조정기는 확인됨과 저장 영수증을 둘 다 요구하는데(`mission.py` `_dispatch_support`), thin 버전 `TargetSnapshot` 은 모든 대상을 확인됨으로 보낸다. 저장 여부는 대상 상태의 선택 키 `persisted_report_id`(#118)로 읽고, 키가 없는 옛 행은 저장 전으로 본다(「보고 저장 대기」). 장부의 영수증 상태로 대신 추정하지 않는다 — 장부에 PERSISTED 로 있어도 조정기가 그 영수증을 받았다는 뜻은 아니다.
 - **누르기:** ADMIN 만 누를 수 있다. 버튼을 누르면 아래에 확인 칸이 열려 무엇을 보내는지(대상·revision·「n번째 구간」) 보인다. 「보내기」를 눌러야 보낸다. 확인 칸이 열린 동안 관문 값이 바뀌면(1초 폴링) 확인을 취소하고 「상태가 바뀌어 … 다시 누르세요」를 남긴다. 갱신이 끊기면 모든 버튼을 끈다(최신이 아닌 화면으로 승인하지 않음). 한 번에 한 명령만 보낸다.
 - **보내기:** 브라우저 → 콘솔 `POST /commands`(로그인·CSRF·ADMIN 확인, 폼에 없는 키는 거절) → operations `POST /api/operator-commands` 로 **한 번** 보낸다(`commands.py`, 대기 `COMMAND_TIMEOUT_S = 5` 초 [제안]). 콘솔은 `command_id`(UUID4) 를 새로 만들고 `operator_id` 에 로그인 아이디를 넣는다. 콘솔은 어떤 DB 에도 쓰지 않는다 — 명령 기록(`operator_commands`)은 operations 몫이다.

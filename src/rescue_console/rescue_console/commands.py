@@ -31,7 +31,11 @@ COMMAND_FIELDS = {
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
 }
-SENDABLE = tuple(COMMAND_FIELDS)
+# 재난 선포: 평시에 운영자가 재난 모드로 넣는다. 조정기는 COMMAND_FIELDS 와 따로 둔다
+# (rescue_coordination.mission.MODE_COMMAND_FIELDS, 작전 2026-10-15). 이미 재난이면 ALREADY_DISASTER 로 거절한다.
+MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
+SENDABLE = tuple(COMMAND_FIELDS)   # 재난 모드에서 켜지는 명령. 재난 선포는 MODE_COMMAND_FIELDS 에 따로 둔다
+_ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS
 # revision 및 segment 값은 운영자가 화면에서 확인한 당시 기준값이다. 따라서 승인 직후 변경된 대상이나 경로에
 # 오적용되지 않도록 방지한다(SubmitOperatorCommand의 expected_* 필드). 값을 알 수 없으면 None을 전송하지 않고
 # 버튼 자체를 비활성화한다(작전 #115, 2026-10-12).
@@ -96,9 +100,9 @@ def build_request(form, *, operator_id, command_id):
     로봇 ID, 타 운영자 ID, 임의 명령 파라미터가 비정상 주입되는 것을 차단한다.
     """
     kind = form.get('kind', '')
-    if kind not in COMMAND_FIELDS:
+    if kind not in _ALL_FIELDS:
         raise _invalid(f'command {kind!r} is not sendable from the console')
-    fields = COMMAND_FIELDS[kind]
+    fields = _ALL_FIELDS[kind]
     extra = sorted(key for key in form if key not in FORM_KEYS | set(fields))
     if extra:
         raise _invalid(f'{kind} does not take {", ".join(extra)}')

@@ -36,6 +36,7 @@ STAGE_RULES = (
 # (Part I 3.7.6의 명령에 임무 상태 전이를 위한 사람 승인 관문을 통합한 구성). 상위 5개는 operations로 전달하며
 # (rescue_console.commands), 하위 명령들은 상태와 무관하게 비활성화 상태를 유지한다.
 COMMANDS = (
+    ('DECLARE_DISASTER', '재난 선포'),   # 평시에 지진 감지 대신 운영자가 재난 모드로 넣는다(재범 결정 2026-10-15)
     ('START_SEARCH', '수색 시작'),
     ('DISPATCH_SUPPORT', 'SUPPORT 출동 승인'),   # 상태가 SUPPORT 로봇을 알려 주면 그 로봇 이름으로 바뀐다(_command_words)
     ('CONTINUE_SEGMENT', '다음 구간 계속'),
@@ -49,7 +50,7 @@ COMMANDS = (
 # 버튼 그룹 분류: 사람 승인 관문(#85 수색 시작, 지원 출동, 구간별 계속 진행)을 상단에 순서대로 배치하고,
 # 비상 정지는 오작동 방지를 위해 다른 명령과 분리한다.
 COMMAND_GROUPS = {
-    'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
+    'DECLARE_DISASTER': 'approve', 'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
     'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
     'CANCEL': 'mission',
     'STOP_ROBOT': 'stop',
@@ -561,6 +562,11 @@ def _gate(name, mission, targets):
     #    (source 'site_events') 배지에는 표시되나 명령 버튼을 활성화하지 않는다.
     if mission['source'] != 'mission_state':
         return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
+    # 재난 선포는 평시(NORMAL)에만 켠다. 조정기는 이미 재난이면 ALREADY_DISASTER 로 거절한다(작전 2026-10-15).
+    if name == 'DECLARE_DISASTER':
+        if mission['mode'] == 'NORMAL':
+            return True, '평시 — 누르면 재난 모드로 들어감', {}, []
+        return off('이미 재난 모드' if mission['mode'] == 'DISASTER' else f"평시 아님 ({mission['label']})")
     # 3. DISASTER 모드가 아니면 handle_command가 모든 요청에 대해 MODE_NOT_DISASTER로 거부한다.
     if mission['mode'] != 'DISASTER':
         return off(f"재난 모드 아님 ({mission['label']})")
@@ -617,6 +623,15 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
+def _declare_confirm(search_start, scout_name):
+    scout = scout_name or 'SCOUT'
+    if search_start == 'AUTO':
+        return f'재난 선포 — 재난 모드로 들어가고 {scout} 이 바로 탐색을 시작합니다'
+    if search_start == 'OPERATOR':
+        return f'재난 선포 — 재난 모드로 들어갑니다. {scout} 탐색은 수색 시작 버튼으로 시작합니다'
+    return '재난 선포 — 재난 모드로 들어갑니다'
+
+
 def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None, search_start=None,
                   scout_name=None):
     """모든 운영자 명령의 버튼 활성화 상태를 계산한다. 이는 프론트엔드 안내용 게이트 복제본이며
@@ -634,14 +649,18 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
             continue
         if name == 'START_SEARCH' and search_start == 'AUTO':
-            # 지진 감지 시 수색이 자동 시작되므로 수동 명령은 거부된다(AUTO_SEARCH_ENABLED).
+            # 지진 감지나 재난 선포로 재난 모드가 되면 수색이 자동 시작되므로 수동 명령은 거부된다(AUTO_SEARCH_ENABLED).
             auto = f'{scout_name or "SCOUT"} 자동 출발'
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
-                         'reason': f'{auto} — 지진 감지로 조정기가 수색 시작', 'args': {}, 'choices': [],
+                         'reason': f'{auto} — 지진 감지나 재난 선포로 조정기가 수색 시작', 'args': {}, 'choices': [],
                          'auto': True})
             continue
-        rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
-                     'reason': reason, 'args': args, 'choices': choices})
+        row = {'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
+               'reason': reason, 'args': args, 'choices': choices}
+        if name == 'DECLARE_DISASTER':
+            # 확인 창 첫 줄. 무엇이 움직이는지 보내기 전에 한 번 더 보인다(작전 2026-10-15).
+            row['confirm'] = _declare_confirm(search_start, scout_name)
+        rows.append(row)
     return rows
 
 

@@ -513,7 +513,8 @@ def _history(view):
 
 def _gates(view):
     """명령 패널 동기화를 위한 게이트 상태 미러. 브라우저 스크립트가 폴링마다 동기화한다."""
-    gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
+    gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices', 'confirm') if key in c}
+             for c in view['commands']}
     return f'<div id="gates" hidden data-gates="{escape(json.dumps(gates, ensure_ascii=False))}"></div>'
 
 
@@ -1123,7 +1124,7 @@ function arm(kind) {
   const gate = gates[kind];
   if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
   armed = {kind: kind, name: nameOf(kind), args: JSON.stringify(gate.args), choices: gate.choices};
-  confirmBox.querySelector('.what').textContent = armed.name + ' — 아래 내용으로 보냅니다';
+  confirmBox.querySelector('.what').textContent = gate.confirm || (armed.name + ' — 아래 내용으로 보냅니다');
   pick.replaceChildren(...gate.choices.map(c => {
     const option = document.createElement('option');
     option.textContent = shortId(c.target_id) + ' ' + c.stage_label;

@@ -254,7 +254,7 @@ class GateTests(LedgerFixture):
         commands = self.view()['commands']
         self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS])
         self.assertEqual([c['name'] for c in commands if c['group'] == 'approve'],
-                         ['START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT'])
+                         ['DECLARE_DISASTER', 'START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT'])
         self.assertEqual([c['name'] for c in commands if c['group'] == 'stop'], ['STOP_ROBOT'])
 
     def test_without_a_mission_row_nothing_is_enabled(self):
