@@ -332,6 +332,7 @@ curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: applica
 
 이 순서를 처음부터 끝까지 실제 로봇으로 돌린 회차는 아직 없다. 실기에서 볼 항목은 [rescue_bringup README](../../src/rescue_bringup/README.md) 「실기 NOT_RUN」 절에 모여 있다. 그중 이 순서에 바로 걸리는 것은 아래다.
 
+- 시뮬레이션에서 찾아 고친 것(C1~C9)의 실기 확인. 목록과 상태는 [시뮬레이션에서 찾은 것을 현장 코드로 옮기기](sim-to-field.md)에 있다. 실기 전에 「실기」 칸이 빈 줄을 본다.
 - TB-6 출발 자세와 지도 고정. 2026-10-14 현장에서 실패했고 #291 이 고쳤다. 한 PC 리허설(현장 TF 값)에서는 통과했고, 실기는 아직이다.
 - 권고안 A 에서 TB-5 담당 PC 가 `/rescue/map/frozen` 을 받는지 [추정, 실측 전].
 - 후진 없는 BT 가 설치된 Nav2 에서 올라오는지(2단계 대조).
