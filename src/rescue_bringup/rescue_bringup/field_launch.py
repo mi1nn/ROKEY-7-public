@@ -56,6 +56,8 @@ COORDINATOR_KEYS = {
     'frontier_goal_clearance_m': F,  # the frontier goal's free radius, at least freeze_clearance_m (2026-10-15)
     'frontier_potential_scale': F, 'frontier_gain_scale': F,  # the pick's explore_lite cost weights (2026-10-16)
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
+    'return_home_attempts': I,  # a FAILED return (TB-6 home, TB-5 exit) goes again until this many failed
+    'frontier_look_turns': I,  # 90-degree turns in place at each frontier's goal, 0 none (2026-10-16)
     'nav2_xy_goal_tolerance_m': F,  # the robots' Nav2 goal checker, step-aside spots go that much farther (C19)
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,
@@ -257,9 +259,11 @@ def load_field(path):
         # the RViz goal pick (live_inputs.search_goal_topic) is the coordinator's to switch off (AREAS only)
         if 'FRONTIER' not in coordinator['executable_bases']:
             raise FieldLaunchError('coordinator.search_mode FRONTIER needs FRONTIER in executable_bases')
-    for key in ('frontier_min_cells', 'exploration_empty_checks'):
+    for key in ('frontier_min_cells', 'exploration_empty_checks', 'return_home_attempts'):
         if coordinator[key] < 1:
             raise FieldLaunchError(f'coordinator.{key} must be 1 or more')
+    if coordinator['frontier_look_turns'] < 0:
+        raise FieldLaunchError('coordinator.frontier_look_turns must be zero or more')
     if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
         # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')

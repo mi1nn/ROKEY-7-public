@@ -5,6 +5,7 @@
 관제 웹은 operations 원장에 일체 직접 쓰기를 하지 않는다. 모든 폼과 명령 요청은 세션별 CSRF 토큰을 검증한다.
 """
 
+import datetime
 import functools
 import secrets
 import time
@@ -33,6 +34,9 @@ from .view import ConsoleError, build_view
 DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment', '/reset/fragment')
 # 기억해 두는 닫힌 회차 시간 막대 수([제안] 관제·화면, 2026-10-15). 넘치면 가장 먼저 넣은 것을 버린다.
 REPLAY_CACHE_RUNS = 4
+# 로그인 쿠키가 남는 날 수(재범 2026-10-16: 폰에서 들어갈 때마다 로그인하지 않게). 만료 시각이 없는 쿠키는
+# 폰 브라우저가 탭이나 앱을 닫을 때 버린다. 로그아웃, 비밀번호·역할 변경(auth_version)은 그 전에도 쿠키를 무효로 만든다.
+SESSION_DAYS = 7
 # 모든 응답에 적용할 보안 헤더([제안] 관제·화면, 2026-10-10). 타 사이트 iframe 임베딩 방지,
 # MIME 타입 추측(content-sniffing) 차단, 외부 카메라 URL에 referrer 누출 방지 등을 포함한다. 완전한 스크립트 실행 차단 CSP는
 # 인라인 script 및 style에 사전 nonce가 적용된 후 적용할 수 있다(README 「후속」).
@@ -171,7 +175,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     app.secret_key = secret_key
     # HttpOnly: 클라이언트 스크립트의 세션 쿠키 접근 차단. SameSite=Lax: 타 사이트 출발 POST 요청에 쿠키 전송 차단
     # (추가로 아래 CSRF 토큰을 이중 검증함). Secure 플래그는 미적용: 관제 웹 콘솔은 평문 http 환경에서 운영된다.
-    app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
+    app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
+                      PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=SESSION_DAYS))
     throttle = LoginThrottle() if login_throttle is None else login_throttle
     if accounts.upgraded_from is not None:   # 작전 2026-10-15: 올림은 되돌릴 수 없으니 언제 일어났는지 남긴다
         app.logger.warning('계정 DB %s -> %s 올림(되돌릴 수 없음): %s', accounts.upgraded_from, ACCOUNTS_SCHEMA,
@@ -310,6 +315,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         # 않는다. 인증 성공 후 세션은 계정 ID, auth_version, 신규 CSRF 토큰만 보관하며, `user` 함수가
         # 매 요청마다 계정 DB의 최신 정보와 일치 여부를 엄격히 대조한다.
         session.clear()
+        session.permanent = True   # 만료 시각(SESSION_DAYS)을 붙여 브라우저를 닫아도 남게 한다
         session['account_id'] = account['account_id']
         session['auth_version'] = account['auth_version']
         csrf_token()               # 신규 세션 전용 신규 CSRF 토큰 생성

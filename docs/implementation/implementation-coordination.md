@@ -106,7 +106,7 @@ updated: 2026-10-14
 
 - TB-6 은 최종 지도 뒤 도킹 접근점으로 간다(`RETURN_HOME`, 목적지 `home/<TB-6 id>`). 도킹은 사람이 한다. 도킹 접근점은 TB-6 출발 자세 기준 좌표이고 `compose_planar` 로 지도 좌표가 된다. 출발 자세가 없으면 `START_POSE_UNKNOWN` 이다.
 - 두 로봇이 모두 도착하면 단계가 `FINISHED`, 모드가 `MISSION_FINISHED` 다.
-- 탐색을 끝냈는데 인형이 없으면 고정은 그대로 하고 TB-6 만 복귀한다. TB-5 는 출발 자리에 남고 이유는 `NO_SURVIVOR_FOUND` 다. 다만 TB-6 복귀가 실패하면(결과 COMPLETED 아님) 이유는 `SCOUT_RETURN_FAILED` 로 바뀌고 로그에 `SCOUT_RETURN_FAILED task= outcome= reason=` 이 남는다. 복귀는 다시 보내지 않는다(#194). 11회차(2026-10-16)에 Nav2 TF 오류로 복귀가 실패했는데 `NO_SURVIVOR_FOUND` 에 가려 웹에 안 보였다.
+- 탐색을 끝냈는데 인형이 없으면 고정은 그대로 하고 TB-6 만 복귀한다. TB-5 는 출발 자리에 남고 이유는 `NO_SURVIVOR_FOUND` 다. 다만 TB-6 복귀가 실패하면(결과 COMPLETED 아님) 이유는 `SCOUT_RETURN_FAILED` 로 바뀌고 로그에 `SCOUT_RETURN_FAILED task= outcome= reason=` 이 남는다. `return_home_attempts` 번 실패한 뒤에는 다시 보내지 않는다(#194, 그 전에는 보류 뒤 다시 보냄). 11회차(2026-10-16)에 Nav2 TF 오류로 복귀가 실패했는데 `NO_SURVIVOR_FOUND` 에 가려 웹에 안 보였다.
 
 ### 교통 관제 (`traffic_control=TB5_PRIORITY`)
 
@@ -172,6 +172,8 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `frontier_min_cells`, `frontier_reach_m`, `frontier_goal_max_m`, `frontier_blacklist_m` | 경계 덩어리 최소 칸 수, 덩어리에서 목표 칸까지 거리, 목표를 자르는 경로 길이, 다시 고르지 않는 반경 | 10, 1.0, 1.5, 0.5 [추정, 실측 아님] |
 | `frontier_goal_clearance_m` | 보내는 탐색 목표점이 벽에서 떨어질 거리. `freeze_clearance_m` 보다 작을 수 없다 | 0.35 (재범 결정 2026-10-16). 로봇 반지름 0.189 + costmap 칸 0.042 + 잡음 한 칸 0.06 + 위치 오차 0.05 [추정 포함] |
 | `frontier_potential_scale`, `frontier_gain_scale` | 경계 고르기 비용의 거리 가중치와 경계 크기 가중치. 비용은 (가중치 × 경로 길이 − 가중치 × 칸 수) × 해상도 | 3.0, 1.0 [문서: explore_lite 기본값, 저장소 `explore.yaml`] |
+| `return_home_attempts` | 복귀(TB-6 도킹 접근 지점, TB-5 출구)가 FAILED 로 끝나면 `admission_timeout_s` 보류 뒤 다시 보낸다. 이만큼 실패하면 더 보내지 않고 `SCOUT_RETURN_FAILED`/`SUPPORT_EXIT_FAILED` 로 사람에게 넘긴다. 기다리는 동안 이유는 `SCOUT_RETURNING`/`SUPPORT_EXITING`, 로그는 `…_AGAIN failed n/N`. CANCELED(멈춤)는 다시 보내지 않는다 | 2 (재범 결정 2026-10-16 「2번까지 다시 보내기」, 값은 `FRONTIER_ATTEMPTS` 2 에 맞춘 제안) |
+| `frontier_look_turns` | 경계 자체 목표에 도착(COMPLETED, 잘리지 않음)한 뒤 같은 자리에서 방향만 90°씩 돌리는 목표 수. 0이면 안 돈다. 회전이 실패하면 거기서 멈추고 아무것도 세지 않는다. 인형 보고가 들어오면 진행 중인 회전만 마치고 더 돌지 않는다 | 4 (재범 결정 2026-10-16 「목표마다 제자리 한 바퀴(90°×4)」, 횟수는 조정 제안) |
 | `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 2.0, 3, 600.0 [추정] |
 | `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
 | `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |
