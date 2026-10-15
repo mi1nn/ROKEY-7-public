@@ -14,7 +14,7 @@ import unittest
 from unittest.mock import patch
 
 import test_bringup_field_launch as fixtures
-from rescue_bringup.field_launch import load_field, robot_launch_values
+from rescue_bringup.field_launch import amcl_update_thresholds, load_field, robot_launch_values
 from rescue_bringup.profile import load_deployment
 from rescue_robot.executor import ContractError
 
@@ -56,6 +56,9 @@ class FakeNode:
         return NS(value=self.values[name])
 
 
+TB4_AMCL = {'amcl': {'ros__parameters': {'update_min_d': 0.25, 'update_min_a': 0.2}}}  # turtlebot4 localization.yaml
+
+
 class ReadsTheLaunchValues(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -63,10 +66,14 @@ class ReadsTheLaunchValues(unittest.TestCase):
         self.deployment = load_deployment(fixtures.field_profile(Path(self.tmp.name)))
         self.field = load_field(fixtures.FIELD)
 
-    def read(self, robot, *, field=None, sha='', change=None):
+    def read(self, robot, *, field=None, sha='', change=None, drop=()):
         task = robot_launch_values(self.deployment, field=field or self.field, robot_id=robot,
                                    occupancy_sha256=sha, now_ns=fixtures.NOW_NS)['task_input']
+        if task['task.saved_map.mode'] != 'SAVED_MAP_AMCL':   # robot.launch.py adds AMCL's update thresholds
+            task.update(amcl_update_thresholds(TB4_AMCL))
         task.update(change or {})
+        for name in drop:
+            del task[name]
         adapter = NS(robot_id=robot, executor=NS(authority_epoch=task['authority_epoch']
                                                   if 'authority_epoch' in task else
                                                   '66666666-6666-4666-8666-666666666666'))
@@ -81,6 +88,15 @@ class ReadsTheLaunchValues(unittest.TestCase):
                 saved = config['saved_maps'][robot]
                 self.assertEqual((mode, ''), (saved['mode'], saved['occupancy_sha256']))
                 self.assertIs(True, config['auto_rearm'])
+
+    def test_frozen_map_modes_read_the_tf_pose_values(self):
+        """The frozen-phase TF pose (a standing robot has no amcl_pose): topic, frames, AMCL thresholds."""
+        saved = self.read('robot_b')['saved_maps']['robot_b']
+        self.assertEqual(('/robot5/tf', 'odom', 'base_link', 0.25, 0.2),
+                         tuple(saved[k] for k in ('amcl_tf_topic', 'amcl_odom_frame', 'amcl_base_frame',
+                                                  'amcl_update_min_d', 'amcl_update_min_a')))
+        with self.assertRaisesRegex(ContractError, 'amcl_update_min_d'):
+            self.read('robot_b', drop=('task.saved_map.amcl_update_min_d',))
 
     def test_a_frozen_map_mode_refuses_a_hash(self):
         with self.assertRaisesRegex(ContractError, 'occupancy_sha256'):

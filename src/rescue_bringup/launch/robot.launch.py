@@ -32,7 +32,7 @@ from launch_ros.actions import Node, SetRemap
 
 import yaml
 
-from rescue_bringup.field_launch import load_field, nav2_with_passage, robot_launch_values
+from rescue_bringup.field_launch import amcl_update_thresholds, load_field, nav2_with_passage, robot_launch_values
 from rescue_bringup.nav2_field import field_nav2
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
@@ -46,6 +46,12 @@ def _nodes(context):
                                  robot_id=arg('robot_id'), occupancy_sha256=arg('occupancy_sha256'),
                                  now_ns=time.time_ns())
     ns, task = values['namespace'], values['task_input']
+    localization_params = None
+    if task['task.saved_map.mode'] != 'SAVED_MAP_AMCL':
+        # the frozen-phase TF pose uses AMCL's own update thresholds: the same file frozen_localization.launch.py uses
+        localization_params = arg('localization_params_file') or str(
+            Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'localization.yaml')
+        task = {**task, **amcl_update_thresholds(yaml.safe_load(Path(localization_params).read_text()))}
     base_params = arg('nav2_params_file') or str(
         Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'nav2.yaml')
     # The passage stop (field run file robot.passage.*, the same for both robots) is added to collision_monitor
@@ -81,6 +87,9 @@ def _nodes(context):
                     f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
                     f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) + no BackUp recovery + FollowPath Rotation Shim/RPP -> {nav2_params} '
                     f'map_mode={task["task.saved_map.mode"]} '
+                    + (f'frozen pose TF {task["task.saved_map.amcl_tf_topic"]} with AMCL covariance while moved < '
+                       f'{task["task.saved_map.amcl_update_min_d"]} m / {task["task.saved_map.amcl_update_min_a"]} rad '
+                       f'({localization_params}) ' if localization_params else '') +
                     f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(decided by the freeze)"} '
                     f'declared alignment window '
                     f'{task["task.saved_map.valid_from_ns"]}..{task["task.saved_map.transform_valid_until_ns"]} ns'),
@@ -103,5 +112,8 @@ def generate_launch_description():
                                           'empty for the SLAM -> frozen map modes'),
         DeclareLaunchArgument('nav2_params_file', default_value='',
                               description='Nav2 parameters; empty = turtlebot4_navigation config/nav2.yaml (as #132)'),
+        DeclareLaunchArgument('localization_params_file', default_value='',
+                              description='AMCL parameters frozen_localization.launch.py uses (give the same file); '
+                                          'empty = turtlebot4_navigation config/localization.yaml'),
         OpaqueFunction(function=_nodes),
     ])

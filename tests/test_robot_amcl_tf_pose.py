@@ -14,7 +14,7 @@ moved less than AMCL's update thresholds since then (AMCL has not updated, so no
 them without a new amcl_pose it is not valid. An amcl_pose from before a map switch never counts. Nothing
 else stands in for a missing value.
 
-The tests marked expectedFailure describe this and fail on main.
+Fixed here: SavedMapSources.receive_tf / tick_tf_pose with slam_tf_pose.AmclTfPose.
 """
 from types import SimpleNamespace as NS
 import unittest
@@ -44,7 +44,9 @@ class StandingOnTheFrozenMap(unittest.TestCase):
                                                 ('odom', 'base_link', self.r.now, odom_x, 0.0, odom_yaw)))
 
     def amcl(self):
-        self.s.receive_pose('robot_b', pose_message(self.r.now - S // 10))
+        """An amcl_pose stamped by its scan a little before it arrives (after the map switch)."""
+        self.r.now += S // 5
+        self.s.receive_pose('robot_b', pose_message(self.r.now - S // 20))
 
     def wait(self, seconds):
         self.r.now += int(seconds * S)
@@ -52,7 +54,6 @@ class StandingOnTheFrozenMap(unittest.TestCase):
     def record(self):
         return self.s.records()['robot_b']
 
-    @unittest.expectedFailure
     def test_a_standing_robot_keeps_a_fresh_valid_pose(self):
         self.tf()
         self.amcl()
@@ -64,7 +65,6 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.assertEqual('VALID', record['localization_status'])
         self.assertEqual(self.r.now, record['observed_at_ns'])
 
-    @unittest.expectedFailure
     def test_the_tf_pose_is_map_odom_then_odom_base(self):
         self.tf()
         self.amcl()
@@ -79,7 +79,6 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.assertEqual((1.1, 2.0), (round(message.pose.pose.position.x, 6), message.pose.pose.position.y))
         self.assertTrue(valid)
 
-    @unittest.expectedFailure
     def test_moved_past_the_amcl_threshold_without_a_new_amcl_pose_is_not_valid(self):
         self.tf()
         self.amcl()
@@ -96,13 +95,11 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.amcl()                                    # AMCL updates: valid again
         self.assertEqual('VALID', self.record()['localization_status'])
 
-    @unittest.expectedFailure
     def test_no_amcl_pose_yet_gives_no_tf_pose(self):
         self.tf()
         self.s.tick_tf_pose('robot_b')
         self.assertEqual(('UNKNOWN', 0), (self.record()['localization_status'], self.record()['observed_at_ns']))
 
-    @unittest.expectedFailure
     def test_an_amcl_pose_from_before_a_map_switch_does_not_count(self):
         self.tf()
         self.amcl()
@@ -113,7 +110,6 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.s.tick_tf_pose('robot_b')
         self.assertEqual(('UNKNOWN', R2), (self.record()['localization_status'], self.record()['map_revision']))
 
-    @unittest.expectedFailure
     def test_nothing_while_tb6_is_still_searching(self):
         """SLAM_THEN_FROZEN before its last freeze: the SLAM TF pose is the source (OPS-177), not this one."""
         r = Runtime()
@@ -123,6 +119,32 @@ class StandingOnTheFrozenMap(unittest.TestCase):
                                            ('odom', 'base_link', r.now, 0.0, 0.0, 0.0)))
         s.tick_tf_pose('robot_a')
         self.assertEqual((0, R0), (s.records()['robot_a']['observed_at_ns'], s.records()['robot_a']['map_revision']))
+
+
+class Values(unittest.TestCase):
+    def test_thresholds_must_be_positive_numbers(self):
+        from rescue_robot.executor import ContractError
+        from rescue_robot.slam_tf_pose import AmclTfPose
+        for d, a in ((0.0, 0.2), (0.25, -1.0), (None, 0.2), (True, 0.2), (float('nan'), 0.2)):
+            with self.subTest(d=d, a=a), self.assertRaises(ContractError):
+                AmclTfPose(map_frame='map', odom_frame='odom', base_frame='base_link', update_min_d=d, update_min_a=a)
+
+    def test_launch_takes_amcls_own_thresholds(self):
+        from rescue_bringup.field_launch import FieldLaunchError, amcl_update_thresholds
+        from test_bringup_no_backup import REPO, load_yaml
+        vendor = REPO / 'src' / 'vendor' / 'turtlebot4' / 'turtlebot4_navigation' / 'config' / 'localization.yaml'
+        if vendor.exists():   # the TurtleBot4 file frozen_localization.launch.py uses by default
+            self.assertEqual({'task.saved_map.amcl_update_min_d': 0.25, 'task.saved_map.amcl_update_min_a': 0.2},
+                             amcl_update_thresholds(load_yaml(vendor)))
+        for bad in ({}, {'amcl': {'ros__parameters': {'update_min_d': 0.25}}},
+                    {'amcl': {'ros__parameters': {'update_min_d': 0.0, 'update_min_a': 0.2}}}):
+            with self.subTest(bad=bad), self.assertRaises(FieldLaunchError):
+                amcl_update_thresholds(bad)
+        launch = REPO / 'src' / 'rescue_bringup' / 'launch' / 'robot.launch.py'
+        if launch.exists():
+            text = launch.read_text()
+            self.assertIn('amcl_update_thresholds(yaml.safe_load(Path(localization_params).read_text()))', text)
+            self.assertIn("DeclareLaunchArgument('localization_params_file'", text)
 
 
 if __name__ == '__main__':
