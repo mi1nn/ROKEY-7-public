@@ -120,13 +120,32 @@ class Compose(unittest.TestCase):
         self.assertTrue(self.p.pose(now_ns=90 * S)['covariance_fresh'])
         self.assertFalse(self.p.pose(now_ns=91 * S)['covariance_fresh'])
 
-    def test_a_non_planar_edge_is_not_used(self):
-        message = tf_message(('map', 'odom', 10 * S, 0, 0, 0))
+    def test_an_invalid_edge_is_not_used(self):
+        for name, rotation in (('not a unit rotation', NS(x=0.3, y=0.0, z=0.0, w=0.3)),
+                               ('not finite', NS(x=0.0, y=0.0, z=float('nan'), w=1.0))):
+            with self.subTest(name):
+                p = SlamTfPose(map_frame='map', odom_frame='odom', base_frame='base_link', covariance_max_age_ns=AGE)
+                message = tf_message(('map', 'odom', 10 * S, 0, 0, 0))
+                message.transforms[0].transform.rotation = rotation
+                self.assertEqual(1, p.on_tf(message))                 # refused edges, counted for the log
+                p.on_tf(tf_message(('odom', 'base_link', 10 * S, 0, 0, 0)))
+                p.on_covariance(10 * S, COV)
+                self.assertIsNone(p.pose(now_ns=11 * S))
+
+    def test_a_tilted_robot_has_no_pose(self):
+        # map -> base_link rolled 35 deg: the map-plane heading means nothing, no pose is made up
+        message = tf_message(('map', 'odom', 10 * S, 0, 0, 0), ('odom', 'base_link', 10 * S, 0, 0, 0))
         message.transforms[0].transform.rotation = NS(x=0.3, y=0.0, z=0.0, w=math.sqrt(1 - 0.09))
-        self.assertEqual(1, self.p.on_tf(message))                    # refused edges, counted for the log
-        self.p.on_tf(tf_message(('odom', 'base_link', 10 * S, 0, 0, 0)))
+        self.assertEqual(0, self.p.on_tf(message))
         self.p.on_covariance(10 * S, COV)
         self.assertIsNone(self.p.pose(now_ns=11 * S))
+        self.assertAlmostEqual(2 * math.asin(0.3), self.p.tilt_rad)  # for the log
+
+    def test_a_small_measured_tilt_is_kept(self):
+        self.p.on_tf(measured_tb6_tf(10 * S))
+        self.p.on_covariance(10 * S, COV)
+        self.assertIsNotNone(self.p.pose(now_ns=11 * S))
+        self.assertLess(self.p.tilt_rad, math.radians(1))           # [측정, 2026-10-14] about 0.5 deg
 
     def test_settings_are_checked(self):
         for bad in (dict(map_frame=''), dict(base_frame=None), dict(covariance_max_age_ns=0),
