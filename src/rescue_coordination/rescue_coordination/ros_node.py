@@ -446,6 +446,7 @@ class CoordinatorCore:
         self.frontier_hold_until = None
         self.frontier_tried = []    # goals and centroids tried once (completed or not): not picked again
         self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
+        self.scout_wait_logged = None  # (frontier site, stop reason) of the last SCOUT_NOT_READY log line
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
         self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
         # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL = TB-5 at the exit, no TB-6 recheck; RECHECK = C-11 flow.
@@ -2115,6 +2116,16 @@ class CoordinatorCore:
         if state is None:
             return
         frontier = self.frontier if self.search_mode == 'FRONTIER' else None
+        if frontier is not None and not state[1]:
+            # e.g. DISARMED after a FAILED task (the executor arms again by itself only after COMPLETED, OPS-231):
+            # the frontier waits for task_arm, shown and logged once per frontier and stop reason.
+            self.issue_block = 'SCOUT_NOT_READY'
+            why = (self.status_detail.get(scout) or (None, ''))[1] or '-'
+            if self.scout_wait_logged != (frontier['site_id'], why):
+                self.scout_wait_logged = (frontier['site_id'], why)
+                self.notes.append(f'SCOUT_NOT_READY frontier={frontier["site_id"]} stop_reason={why}: '
+                                  'TB-6 needs task_arm (or Nav2/readiness) before its next frontier')
+            return
         if frontier is not None and not frontier.get('step_aside') and self.search.assignment(scout) is None and (
                 not self._traffic_scout(frontier['site_xy'], now_ns)):
             # held; or the frontier became a step aside, TB-6 getting out of TB-5's way (never held by it)

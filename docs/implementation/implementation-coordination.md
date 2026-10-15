@@ -73,6 +73,7 @@ updated: 2026-10-14
 - 경로는 `freeze_clearance_m` 여유로 찾는다. 그래서 0.7 m 폭 통로도 지나갈 수 있는 길로 본다. 보내는 목표점만 벽에서 `frontier_goal_clearance_m` 떨어진 가장 가까운 칸으로 옮긴다(로그 `FRONTIER_GOAL_MOVED`). 옮길 칸이 없는 좁은 곳에서는 목표를 그대로 두고 로그 `FRONTIER_GOAL_TIGHT` 를 남긴다. 2026-10-15 시뮬레이션에서 벽 바로 안쪽 목표가 Nav2 충돌 검사에 걸려 FAILED 로 끝난 일 때문이다. 현장 값은 아직 `freeze_clearance_m` 와 같은 0.2 라서 동작이 바뀌지 않는다.
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
 - 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.
+- 목표를 골랐는데 TB-6 이 READY 가 아니면(예: FAILED 로 끝난 뒤 실행기가 스스로 다시 arm 하지 않음, OPS-231) 목표는 기다리고 `SCOUT_NOT_READY` 를 보인다. 로그 `SCOUT_NOT_READY frontier=… stop_reason=…` 는 목표·정지 사유마다 한 번 남긴다. 기다리는 동안에도 `exploration_timeout_s` 는 흐른다.
 - 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
 
 ### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
