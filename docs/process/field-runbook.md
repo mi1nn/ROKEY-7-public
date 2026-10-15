@@ -103,12 +103,13 @@ done
 
 | 확인 | 명령 | 맞는 값 |
 | --- | --- | --- |
-| 무선 절전 | `iw dev wlan0 get power_save` | `Power save: off`. 재부팅하면 켜지므로 켤 때마다 `sudo iw dev wlan0 set power_save off` |
+| 무선 절전 | `iw dev wlan0 get power_save` | `Power save: off`. 재부팅하면 켜지므로 켤 때마다 `sudo iw dev wlan0 set power_save off`. 2026-10-15 에는 이 줄을 빠뜨려 TB-6 이 `on` 이었고 ping 이 1초 넘게 튀었다([실습 기록](../evidence/field-2026-10-15-run1015.md) B5) |
+| Create3 연결 | 로봇 담당 PC 에서 `timeout 10 ros2 topic echo --once <ns>/dock_status` | 10초 안에 온다. Pi 의 turtlebot4 서비스를 다시 시작한 뒤에는 꼭 다시 본다. 안 오면 Create3 통신 LED 가 꺼져 있고 언도킹·도킹이 「Waiting for an action server」에서 멈춘다(2026-10-15 두 로봇 모두, 같은 기록 B6). 이때는 Create3 를 다시 시작한다(재범 승인) |
 | 자동 업데이트 | `systemctl is-enabled apt-daily.timer apt-daily-upgrade.timer unattended-upgrades` | 셋 다 `disabled` |
 | Pi 시계 | `chronyc tracking` | 계산한 오차가 현장 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 안. 넘으면 값을 바꾸고 기록한다 |
 
 - 로봇 Pi 에는 아무것도 설치하지 않는다. 로봇 설정을 바꾸려면 재범 승인이 필요하다(등급 4).
-- 카메라는 도킹 중 꺼져 있다. TB-6 카메라 확인(`ros2 topic hz /robot6/oakd/rgb/image_raw/compressed`)은 언도킹 뒤에 한다.
+- 카메라는 도킹 중 꺼져 있다. 카메라 확인은 언도킹 뒤에 두 로봇 모두 한다. RGB 만 보지 말고 깊이도 본다: `ros2 topic hz <ns>/oakd/rgb/image_raw/compressed` 와 `ros2 topic hz <ns>/oakd/stereo/camera_info`. 깊이 camera_info 가 0 이면 깊이만 멈춘 것이다. 터널 정지와 준비 점검이 막히므로 `ros2 service call <ns>/oakd/stop_camera std_srvs/srv/Trigger {}` 뒤 `start_camera` 로 카메라만 다시 켠다(재범 승인, 2026-10-15 TB-6 에서 이것으로 복구, 같은 기록 B8).
 
 ## 3단계 — 운영 PC
 
@@ -159,7 +160,7 @@ ros2 launch rescue_bringup amr_perception.launch.py <인자는 rescue_perception
 
 성공 로그를 차례로 본다.
 
-- `TB-6 SLAM robot_a ns=/robot6`
+- `TB-6 SLAM robot_a ns=/robot6`. 그 뒤 `ros2 lifecycle get /robot6/slam_toolbox` 가 `active [3]` 인지 본다. `inactive [2]` 에 머물면 `ros2 lifecycle set /robot6/slam_toolbox activate` 로 켠다(2026-10-15, 같은 기록 B4)
 - `passage points /robot6/oakd/stereo/image_raw (compressedDepth) + ... -> /robot6/passage_points`
 - `robot robot_a ns=/robot6 ... + passage stop 0.05..0.46 m ... + no BackUp recovery ... map_mode=SLAM_THEN_FROZEN map_sha256=(decided by the freeze)`
 - `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
@@ -197,7 +198,7 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 
 ## 6단계 — 배선 점검
 
-모든 launch 를 띄운 뒤, 로봇이 움직이기 전에 아무 PC 한 대에서 한다. Discovery 설정은 1단계와 같게 둔다.
+모든 launch 를 띄운 뒤, 로봇이 움직이기 전에 아무 PC 한 대에서 한다. Discovery 설정은 1단계와 같게 둔다. 로봇이 하나도 안 보이면 먼저 Discovery 전용 PC 의 서버가 떠 있는지 본다([Discovery 전용 PC 운영 안내](discovery-host.md) 3절). 2026-10-15 에는 그 PC 를 재부팅한 뒤 서버가 30분 꺼져 있었다([실습 기록](../evidence/field-2026-10-15-run1015.md) B1).
 
 ```bash
 ros2 daemon stop && ros2 daemon start
@@ -239,7 +240,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 ## 8단계 — 끝내기와 다시 하기
 
 - 끝낼 때는 각 PC 의 launch 를 Ctrl+C 로 끈다. 로봇은 로봇 감독이 도킹하고 끈다(자동 도킹 없음).
-- 같은 회차에서 지도 고정 노드만 다시 띄울 때는 같은 `output_dir` 를 쓴다.
+- 같은 회차에서 지도 고정 노드만 다시 띄울 때는 같은 `output_dir` 를 쓴다. 단 **TB-6 이 그 사이 움직였으면 새 회차로 하고 조정기도 다시 띄운다**(아래 「초기화하고 새 회차로 다시 하기」 ②·④). 조정기는 프로세스 하나에 출발 자세를 한 번만 받는다. 새 출발 자세가 잡히면 조정기는 처음 받은 값과 달라 `START_POSE_CONFLICT` 로 거절한다(2026-10-15 17:42, [실습 기록](../evidence/field-2026-10-15-run1015.md) B11).
 
 ### 초기화하고 새 회차로 다시 하기
 
