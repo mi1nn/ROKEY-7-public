@@ -9,6 +9,7 @@
 | 초기화 API(`POST /api/runs/reset`) | 구현됨 · 실기 NOT_RUN | `command_api.py:RunReset`, `site_state.py:SiteStateLedger.reset_run` |
 | 리플레이 지도 보관(`map_dir/<run_id>/`) | 구현됨 · 실기 NOT_RUN | `map_archive.py`, `db_writer` 파라미터 `map_archive_topic`·`map_archive_dir` |
 | 운영자 명령 API(`POST /api/operator-commands`) | 구현됨 · 실기 NOT_RUN | `command_api.py:CommandGate`, #115 |
+| 터널 통과 승인 API(`POST /api/passages/approve`) | 구현됨 · 실기 NOT_RUN | `command_api.py:PassageApproval`, console-spec I-8 |
 | 웹캠 고르기 API(`GET`·`POST /api/webcam`) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `command_api.py:WebcamSwitch`, #257 |
 | 구조 보고 저장(`report_node`) | 구현됨 | `report_node.py`, `report_store.py`, #137 |
 | SLAM 지도 파일 쓰기(`map_snapshot`) | 구현됨 · 실기 일부: 시험용 TB-5 SLAM 지도 [측정 2026-10-13] | `map_snapshot.py`, #209 |
@@ -30,6 +31,7 @@
 | `GET /api/webcam` | 운영 PC 에 꽂힌 카메라(`/dev/v4l/by-id/*-video-index0`)와 지금 장치를 준다 | `command_api.py:WebcamSwitch.state` |
 | `POST /api/webcam` | `{device, operator_id}` 로 `webcam_node` 의 `device_path` 를 바꾼다. 꽂혀 있지 않은 장치는 거절한다(`UNKNOWN_DEVICE`). 결과는 `error_log` 에 남는다 | `command_api.py:WebcamSwitch.switch` |
 | `POST /api/runs/reset` | 관제 웹의 초기화 버튼. `{command_id, operator_id[, note]}` 를 받아 두 로봇이 쉬고 있으면 새 회차를 연다. 거절 이유는 `ROBOT_STATUS_STALE`·`ROBOT_MOVING`·`TASK_ACTIVE`·`ROBOT_NOT_DOCKED`. 답은 운영자 명령과 같은 모양에 `run_id` 를 더한다. 로봇 쪽 재기동은 사람이 한다([운영 구현](../../docs/implementation/implementation-operations.md) 「초기화」) | `command_api.py:RunReset` |
+| `POST /api/passages/approve` | 관제 웹의 터널 통과 승인 버튼. `{command_id, kind: APPROVE_PASSAGE, operator_id, item_id}` 를 받아 터널 진입 금지 노드의 `/rescue/passage_keepout/approve` 를 한 번 부른다(`approved_by` 는 `operator_id`, `issued_at_ns` 는 받은 시각). 답은 운영자 명령 모양에 `item_id`·`message` 를 더한다. `operator_commands` 에 `kind=APPROVE_PASSAGE`, `target_id=item_id` 로 남는다 | `command_api.py:PassageApproval` |
 
 웹캠 고르기는 운영 launch 가 `webcam_params_file` 로 웹캠을 띄울 때만 켜진다(`db_writer` 파라미터 `webcam_node`, 빈 값이면 끔).
 

@@ -5,7 +5,8 @@ subscribes to RobotStatus and RobotPose per robot, the fixed camera's SiteEvent 
 coordinator's SystemState and TargetSnapshot (1차 IDL), each robot's overhead passage list (C-04b) and the SLAM
 robot's MapState (the current map the web compares passages to, OPS-194). It also serves the operator command API
 (command_api.py, #115): the console posts a command, this calls the coordinator's
-SubmitOperatorCommand service and records the answer. It publishes nothing. ROS packages are imported inside
+SubmitOperatorCommand service and records the answer; a tunnel pass approval (console-spec I-8) calls the keepout
+node's ApproveOverheadPassage service the same way. It publishes nothing. ROS packages are imported inside
 main() so this module imports without ROS. Topic names, roles and the DB path come
 from parameters (launch/profile); nothing here has a default (AGENTS 8절).
 
@@ -124,6 +125,7 @@ def node_config(values):
             'frozen_map_topic': values['frozen_map_topic'], 'frozen_revision_topic': values['frozen_revision_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
             'operator_command_service': text(values['operator_command_service'], 'operator_command_service'),
+            'passage_approve_service': text(values['passage_approve_service'], 'passage_approve_service'),
             'command_timeout_ns': round(timeout_s * 1e9),
             'roles': dict(zip(ids, roles)),
             'robots': list(zip(ids, values['status_topics'], values['pose_topics']))}
@@ -162,9 +164,10 @@ def main(args=None):
                                        TargetSnapshot)
     from nav_msgs.msg import OccupancyGrid
     from std_msgs.msg import String
-    from rescue_interfaces.srv import SubmitOperatorCommand
+    from rescue_interfaces.srv import ApproveOverheadPassage, SubmitOperatorCommand
 
-    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, RunReset, WebcamSwitch, make_server
+    from .command_api import (CommandGate, CommandTimeout, CommandUnavailable, PassageApproval, RunReset,
+                              WebcamSwitch, make_server)
 
     from .ros_ingest import SiteStateIngest
     from .site_state import SiteStateLedger
@@ -180,6 +183,7 @@ def main(args=None):
              'overhead_passages_topics': Parameter.Type.STRING_ARRAY, 'map_state_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
              'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE,
+             'passage_approve_service': Parameter.Type.STRING,
              'webcam_node': Parameter.Type.STRING, 'map_archive_topic': Parameter.Type.STRING,
              'map_archive_dir': Parameter.Type.STRING, 'frozen_map_topic': Parameter.Type.STRING,
              'frozen_revision_topic': Parameter.Type.STRING}
@@ -208,6 +212,7 @@ def main(args=None):
              f'exit_location={config["exit_location_topic"]} '
              f'overhead_passages={config["overhead_passages_topics"]} map_state={config["map_state_topic"]} '
              f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]} '
+             f'passage_approve={config["passage_approve_service"]} '
              f'map_archive={config["map_archive_topic"] or "off"}->{config["map_archive_dir"] or "-"} '
              f'frozen={config["frozen_map_topic"]}+{config["frozen_revision_topic"]}')
 
@@ -310,6 +315,26 @@ def main(args=None):
                     created_task_id=res.created_task_id)
 
     gate = CommandGate(ledger, send, timeout_ns=config['command_timeout_ns'])
+    approve_client = node.create_client(ApproveOverheadPassage, config['passage_approve_service'])
+
+    def send_approval(fields):
+        """One ApproveOverheadPassage call from an HTTP thread (console-spec I-8); the executor delivers it."""
+        if not approve_client.service_is_ready():
+            raise CommandUnavailable(f'{config["passage_approve_service"]} not available')
+        req = ApproveOverheadPassage.Request(**fields)
+        sequence[0] += 1
+        env = req.envelope
+        env.schema_version, env.publisher_id, env.publisher_boot_id = '1.0', 'rescue_operations', boot_id
+        env.sequence, env.published_at_ns = sequence[0], time.time_ns()
+        done = threading.Event()
+        future = approve_client.call_async(req)
+        future.add_done_callback(lambda _: done.set())
+        if not done.wait(config['command_timeout_ns'] / 1e9):
+            approve_client.remove_pending_request(future)
+            raise CommandTimeout(f'no answer within {config["command_timeout_ns"] / 1e9:g} s')
+        res = future.result()
+        return dict(accepted=res.accepted, item_id=res.item_id, reason_code=res.reason_code, message=res.message)
+
     webcam = None
     if config['webcam_node']:   # the console's camera pick (OPS-183): webcam_node's own parameter services
         from rcl_interfaces.msg import Parameter as ParameterMsg, ParameterType, ParameterValue
@@ -343,7 +368,8 @@ def main(args=None):
         # The reset runs on this process's one ledger (the file's only writer) and reads the coordinator boot
         # the ingest heard last, so the new run stops recording that coordinator (초기화, 1.5).
         reset = RunReset(ledger, coordinator_boot_id=lambda: ingest.coordinator_boot_id)
-        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam, reset=reset)
+        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam, reset=reset,
+                             passages=PassageApproval(ledger, send_approval))
     except OSError as exc:
         log.fatal(f'cannot serve the command API on {config["api_host"]}:{config["api_port"]}: {exc}')
         ledger.close()

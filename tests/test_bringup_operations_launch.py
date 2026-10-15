@@ -43,6 +43,7 @@ class DbWriterParameters(unittest.TestCase):
             'api_host': '127.0.0.1',
             'api_port': 8090,
             'operator_command_service': '/rescue/operator_command',
+            'passage_approve_service': '/rescue/passage_keepout/approve',
             'command_timeout_s': 3.0,
             'webcam_node': '/webcam_node',
             'map_archive_topic': '',

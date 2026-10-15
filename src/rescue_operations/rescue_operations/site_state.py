@@ -57,7 +57,9 @@ OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINU
                                     # the operator's manual disaster declaration (재범님 결정 2026-10-15)
                                     "DECLARE_DISASTER",
                                     # the console's scenario reset, answered by operations itself (1.5)
-                                    "RESET_RUN"})
+                                    "RESET_RUN",
+                                    # a person lets a tunnel keepout go; target_id = the item (console-spec I-8)
+                                    "APPROVE_PASSAGE"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 # Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.

@@ -24,6 +24,9 @@ from .site_state import OPERATOR_COMMAND_KINDS, list_runs, read_operator_command
 COMMAND_PATH = "/api/operator-commands"
 WEBCAM_PATH = "/api/webcam"  # GET: plugged cameras; POST {device, operator_id}: switch webcam_node (OPS-183)
 RESET_PATH = "/api/runs/reset"  # POST {command_id, operator_id[, note]}: the scenario reset (초기화, 1.5)
+# POST {command_id, kind, operator_id, item_id}: a person lets a tunnel keepout go (console-spec I-8, #412)
+PASSAGE_PATH = "/api/passages/approve"
+PASSAGE_FIELDS = ("command_id", "kind", "operator_id", "item_id")
 # A robot status older than this cannot show the robot is at rest: the reset is refused. Same value as the
 # console's stale robot card (rescue_console view.STATUS_STALE_S) [제안, 2026-10-15].
 RESET_STATUS_STALE_NS = 5_000_000_000
@@ -290,12 +293,11 @@ class RunReset:
 
     def _first_answer(self, command_id):
         """A resend gets the first answer (DUPLICATE) and does not reset again."""
-        for run in self._runs():
-            for row in read_operator_commands_range(self.ledger.path, run_id=run["run_id"])["commands"]:
-                if row["command_id"] == command_id:
-                    created = self._next_run(run["run_id"]) if row["accepted"] else None
-                    return self._answer(command_id, row["accepted"], row["reason"], "DUPLICATE", created)
-        return None
+        run_id, row = find_command(self.ledger.path, command_id)
+        if row is None:
+            return None
+        created = self._next_run(run_id) if row["accepted"] else None
+        return self._answer(command_id, row["accepted"], row["reason"], "DUPLICATE", created)
 
     def _runs(self):
         return list_runs(self.ledger.path)["runs"]
@@ -311,9 +313,107 @@ class RunReset:
                 "created_task_id": None, "run_id": run_id}
 
 
-def make_server(host, port, gate, *, log=None, webcam=None, reset=None):
+def find_command(db_path, command_id):
+    """(run_id, operator_commands row) of ``command_id`` in any run, or (None, None)."""
+    for run in list_runs(db_path)["runs"]:
+        for row in read_operator_commands_range(db_path, run_id=run["run_id"])["commands"]:
+            if row["command_id"] == command_id:
+                return run["run_id"], row
+    return None, None
+
+
+class PassageApproval:
+    """The console's tunnel pass approval (console-spec I-8, #412): one ApproveOverheadPassage call.
+
+    ``send(fields)`` gets item_id, approved_by (the console's login name, sent as operator_id) and issued_at_ns
+    (the time the request came in), and returns the node's answer dict (accepted, item_id, reason_code, message)
+    or raises CommandUnavailable / CommandTimeout. The answer has the operator command shape plus item_id and
+    the node's message; request_state is ACCEPTED or REJECTED (the service has no state of its own). One
+    operator_commands row keeps it: kind APPROVE_PASSAGE, target_id = item_id. A resend with the same command_id
+    gets the kept answer as DUPLICATE without a second call (its message is not kept, so it is null); the same
+    id with other content is refused with ID_CONTENT_CONFLICT. No answer is 503/504 without ``accepted``, as for
+    CommandGate. The approval does not go through the coordinator and moves no robot.
+    """
+
+    def __init__(self, ledger, send):
+        self.ledger = ledger
+        self.send = send
+
+    def handle(self, raw, *, received_at_ns):
+        try:
+            command = self._parse(raw)
+        except (OperationsError, UnicodeDecodeError, ValueError) as exc:
+            code = exc.code if isinstance(exc, OperationsError) else "INVALID_INPUT"
+            return self._refuse(raw, code, str(exc), received_at_ns)
+        command_id, item_id = command["command_id"], command["item_id"]
+        _, first = find_command(self.ledger.path, command_id)
+        if first is not None:
+            if (first["kind"], first["operator_id"], first["target_id"]) != ("APPROVE_PASSAGE",
+                                                                             command["operator_id"], item_id):
+                return 400, {"accepted": False, "request_id": command_id, "reason": "ID_CONTENT_CONFLICT",
+                             "detail": "command_id was used for another command"}
+            return 200, self._answer(command_id, first["accepted"], first["reason"], "DUPLICATE", item_id, None)
+        try:
+            reply = self.send(dict(item_id=item_id, approved_by=command["operator_id"], issued_at_ns=received_at_ns))
+        except (CommandUnavailable, CommandTimeout) as exc:
+            status = 503 if isinstance(exc, CommandUnavailable) else 504
+            self._log(received_at_ns, f"passage_approve {command_id} {item_id}: no keepout answer ({status}): {exc}",
+                      NO_ANSWER)
+            return status, {"error": NO_ANSWER, "request_id": command_id, "detail": str(exc)}
+        accepted = bool(reply["accepted"])
+        reason = None if accepted else (_optional(reply["reason_code"]) or "UNKNOWN")
+        state = "ACCEPTED" if accepted else "REJECTED"
+        self._record(command_id, command["operator_id"], item_id, received_at_ns, accepted=accepted, result=state,
+                     reason=reason)
+        return 200, self._answer(command_id, accepted, reason, state, item_id, _optional(reply["message"]))
+
+    @staticmethod
+    def _parse(raw):
+        require(isinstance(raw, bytes) and len(raw) <= MAX_BODY_BYTES, f"body must be at most {MAX_BODY_BYTES} bytes")
+        value = json.loads(raw)
+        require(isinstance(value, dict) and set(value) == set(PASSAGE_FIELDS),
+                f"APPROVE_PASSAGE takes exactly {sorted(PASSAGE_FIELDS)}")
+        require(value["kind"] == "APPROVE_PASSAGE", "kind must be APPROVE_PASSAGE")
+        return dict(command_id=uid(value["command_id"], "command_id"),
+                    operator_id=text(value["operator_id"], "operator_id"), item_id=uid(value["item_id"], "item_id"))
+
+    def _refuse(self, raw, code, detail, received_at_ns):
+        """400. Kept as a row when it has a usable id and operator and asked for APPROVE_PASSAGE."""
+        try:
+            value = json.loads(raw)
+            command_id = uid(value["command_id"], "command_id")
+            require(value["kind"] == "APPROVE_PASSAGE", "kind")
+            operator = text(value["operator_id"], "operator_id")
+        except Exception:  # noqa: BLE001 - anything unusable just means no command row
+            command_id = None
+        if command_id is None:
+            self._log(received_at_ns, f"passage_approve refused: {code}: {detail}", code)
+        else:
+            self._record(command_id, operator, None, received_at_ns, accepted=False, result="REFUSED_BY_OPERATIONS",
+                         reason=code)
+        return 400, {"accepted": False, "request_id": command_id, "reason": code, "detail": detail}
+
+    def _record(self, command_id, operator, item_id, at_ns, *, accepted, result, reason):
+        row = dict(command_id=command_id, kind="APPROVE_PASSAGE", operator_id=operator, robot_id=None,
+                   target_id=item_id, segment_index=None, route_revision=None, requested_at_ns=at_ns,
+                   accepted=accepted, result=result, reason=reason)
+        try:
+            self.ledger.record_operator_command(row)
+        except OperationsError as exc:
+            self._log(at_ns, f"passage_approve {command_id}: {exc.detail}", exc.code)
+
+    def _log(self, at_ns, detail, code):
+        self.ledger.record_error(dict(at_ns=at_ns, robot_id=None, task_id=None, code=code, detail=detail[:1024]))
+
+    @staticmethod
+    def _answer(command_id, accepted, reason, state, item_id, message):
+        return {"accepted": accepted, "request_id": command_id, "reason": reason, "request_state": state,
+                "item_id": item_id, "message": message}
+
+
+def make_server(host, port, gate, *, log=None, webcam=None, reset=None, passages=None):
     """A threading HTTP server: POST COMMAND_PATH -> gate.handle; with ``webcam`` also GET/POST WEBCAM_PATH;
-    with ``reset`` also POST RESET_PATH. Not started."""
+    with ``reset`` also POST RESET_PATH; with ``passages`` also POST PASSAGE_PATH. Not started."""
 
     class Handler(BaseHTTPRequestHandler):
         def _answer(self, status, body):
@@ -335,6 +435,8 @@ def make_server(host, port, gate, *, log=None, webcam=None, reset=None):
                 served[WEBCAM_PATH] = webcam.switch
             if reset is not None:
                 served[RESET_PATH] = reset.handle
+            if passages is not None:
+                served[PASSAGE_PATH] = passages.handle
             if self.path not in served:
                 return self._answer(404, {"error": "NOT_FOUND"})
             try:
