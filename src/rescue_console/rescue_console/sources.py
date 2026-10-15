@@ -8,7 +8,7 @@ from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
 from rescue_operations.site_state import (list_runs, read_error_log_range, read_exit_locations_range,
-                                          read_operator_commands_range, read_robot_status_history,
+                                          read_operator_commands_range, read_reset_checklist, read_robot_status_history,
                                           read_site_events_range, read_target_state_history)
 from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_exit_locations, read_mission_state,
                                           read_operator_commands, read_overhead_passages, read_robot_status, read_site_events,
@@ -148,3 +148,14 @@ def load_replay(db_path, run_id):
     except OperationsError as exc:
         # 회차 ID 는 app 이 list_runs 목록과 맞춰 본 뒤에 넘기므로 여기 실패는 저장소 쪽 문제다.
         raise ConsoleError('STORAGE_ERROR', f'replay read failed: {exc}') from exc
+
+
+def load_reset_state(db_path):
+    """초기화 화면 입력: 배치 로봇, 로봇 상태(미리 보기 거울), 회차 목록, 다시 띄우기 자동 확인(mode=ro)."""
+    try:
+        return {'allowed_robots': read_allowed_robot_ids(db_path)['allowed_robot_ids'],
+                'robots': read_robot_status(db_path)['robots'],
+                'runs': list_runs(db_path),
+                'checklist': read_reset_checklist(db_path)}
+    except OperationsError as exc:
+        raise ConsoleError('STORAGE_ERROR', f'reset state read failed: {exc}') from exc

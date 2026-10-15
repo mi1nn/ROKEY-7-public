@@ -332,7 +332,8 @@ class FlaskBoundaryTests(AccountsFixture):
         app = self.app()
         # POST /commands is the operator command path (test_console_commands.py).
         data_rules = {rule.rule: rule.methods - {'HEAD', 'OPTIONS'} for rule in app.url_map.iter_rules()
-                      if not rule.rule.startswith(('/login', '/logout', '/admin', '/static', '/commands', '/webcam', '/robot-camera'))}
+                      if not rule.rule.startswith(('/login', '/logout', '/admin', '/static', '/commands', '/webcam', '/robot-camera',
+                                                            '/reset/send', '/reset/check'))}
         self.assertEqual({frozenset(methods) for methods in data_rules.values()}, {frozenset({'GET'})})
         client = app.test_client()
         self.assertEqual(client.get('/').status_code, 302)

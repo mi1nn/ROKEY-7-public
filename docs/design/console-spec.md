@@ -156,7 +156,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 #### 5.1 HTTP 경로(브라우저 → 콘솔)
 
-모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 따로 정하지 않았으면 `Cache-Control: no-store` 도 붙인다(`app.py:30-35`, `app.py:162-172`). 로그인하지 않은 상태에서 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands`·`/replay/fragment` 중 하나이면 401 JSON `{"error": "login required"}` 를 돌려주고, 그 밖의 경로는 302 `/login` 으로 보낸다(`app.py:26`, `app.py:211-227`). 등록되지 않은 경로는 Flask 기본 404, 허용하지 않는 메서드는 405 로 응답한다.
+모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 따로 정하지 않았으면 `Cache-Control: no-store` 도 붙인다(`app.py:30-35`, `app.py:162-172`). 로그인하지 않은 상태에서 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands`·`/replay/fragment`·`/reset/fragment` 중 하나이면 401 JSON `{"error": "login required"}` 를 돌려주고, 그 밖의 경로는 302 `/login` 으로 보낸다(`app.py:26`, `app.py:211-227`). 등록되지 않은 경로는 Flask 기본 404, 허용하지 않는 메서드는 405 로 응답한다.
 
 | 메서드·경로 | 로그인 | 역할 | 입력 | 성공 응답 | 실패 응답 | 근거 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -167,8 +167,12 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `POST /robot-camera` | 필요(없으면 302) | 모두 | 폼 `csrf`, `robot` | 302 `/`(실패하면 flash 「로봇 카메라 …」) | CSRF 가 틀리면 400. `--robot-camera` 가 없으면 404 | `app.py:325-336` |
 | `POST /webcam` | 필요(없으면 302) | ADMIN(아니면 403) | 폼 `csrf`, `device` | 302 `/` + flash(성공·실패 모두 문구를 남김) | CSRF 가 틀리면 400. `--operations` 가 없으면 503 | `app.py:338-349` |
 | `GET /fragment` | 필요(없으면 401) | 모두 | 없음 | 200 `text/html` 조각 | 503 `text/plain` 한 줄 `{코드}: {확인할 것} ({원문})` | `app.py:351-355`, `app.py:256` |
-| `GET /replay` | 필요(없으면 302) | 모두 | 쿼리 `run`(회차 ID, 없으면 열린 회차 또는 마지막 회차) | 200 HTML 리플레이 페이지. 처음에는 그 회차의 마지막 시점을 그린다(7.13) | `--site-state` 가 없거나, 목록에 없는 회차이거나, 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:388-394` |
-| `GET /replay/fragment` | 필요(없으면 401) | 모두 | 쿼리 `run`(위와 같음), `offset_ns`(회차 첫 시각부터의 ns, 0 이상 ASCII 정수) | 200 `text/html` 조각 | 숫자가 아니거나 기록 범위 밖이면 503 `text/plain` 한 줄. 가장자리로 당기지 않는다 | `app.py:396-406` |
+| `GET /replay` | 필요(없으면 302) | 모두 | 쿼리 `run`(회차 ID, 없으면 열린 회차 또는 마지막 회차) | 200 HTML 리플레이 페이지. 처음에는 그 회차의 마지막 시점을 그린다(7.13) | `--site-state` 가 없거나, 목록에 없는 회차이거나, 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:391-397` |
+| `GET /replay/fragment` | 필요(없으면 401) | 모두 | 쿼리 `run`(위와 같음), `offset_ns`(회차 첫 시각부터의 ns, 0 이상 ASCII 정수) | 200 `text/html` 조각 | 숫자가 아니거나 기록 범위 밖이면 503 `text/plain` 한 줄. 가장자리로 당기지 않는다 | `app.py:399-409` |
+| `GET /reset` | 필요(없으면 302) | 모두 | 없음 | 200 HTML 회차 초기화 페이지(7.14). 보내기 칸은 ADMIN 이고 `--operations` 가 있을 때만 켜진다 | `--site-state` 가 없거나 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:438-444` |
+| `GET /reset/fragment` | 필요(없으면 401) | 모두 | 없음 | 200 `text/html` 조각(로봇 미리 보기, 다시 띄우기 체크 목록) | 503 `text/plain` 한 줄 | `app.py:446-449` |
+| `POST /reset/send` | 필요(없으면 302) | ADMIN(아니면 403) | 폼 `csrf`, `confirm`(= `yes`), `note`(선택, 200자까지) | 302 `/reset` + flash(접수 초록, 거절 빨강, 결과 모름 노랑). operations `POST /api/runs/reset` 에 한 번만 보낸다 | CSRF 가 틀리면 400. 확인 칸이 없거나 `--operations` 가 없으면 보내지 않고 flash 빨강 | `app.py:451-469` |
+| `POST /reset/check` | 필요(없으면 302) | ADMIN(아니면 403) | 폼 `csrf`, `item`(사람 확인 칸 이름), `checked`(`0`·`1`) | 302 `/reset`. 지금 열린 회차에 묶어 계정 DB `reset_checks` 에 쓴다 | 모르는 칸이나 값이면 503 `INVALID_INPUT`. 초기화한 적이 없으면 쓰지 않고 flash 빨강 | `app.py:471-488` |
 | `GET /api/view` | 필요(없으면 401) | 모두 | 없음 | 200 JSON 화면 모델 | 503 JSON `{error, message, hint}` | `app.py:357-361`, `app.py:253-255` |
 | `GET /map.png` | 필요(없으면 401) | 모두 | 쿼리 `v` 는 무시한다(캐시 키 역할만 함) | 200 `image/png`, `Cache-Control: private, max-age=3600` | 지도가 없으면 404 | `app.py:363-374` |
 | `POST /commands` | 필요(없으면 401 JSON) | ADMIN | 폼 `csrf`, `kind`, 명령별 필드(5.2) | 200 JSON `sent: true` | 400·403·503·502 JSON `sent: false`(7.6 절) | `app.py:377-409` |
@@ -282,7 +286,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 #### 6.4 계정 DB 쓰기
 
-계정 추가·수정·삭제와 `init` 때 계정 DB 에 쓴다. 표 정의는 7.7 에 있다. 다른 DB 에는 쓰지 않는다.
+계정 추가·수정·삭제와 `init` 때 계정 DB 에 쓴다. 회차 초기화 화면의 사람 확인 칸 체크도 같은 파일의 `reset_checks` 표에 쓴다(7.14). 1.0 파일은 처음 열 때 1.1 로 올린다. 표 정의는 7.7 에 있다. 다른 DB 에는 쓰지 않는다.
 
 #### 6.5 로그
 
@@ -598,7 +602,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 | 표 | 열 | 타입·키 | 규칙 |
 | --- | --- | --- | --- |
-| `metadata` | `key` | TEXT PRIMARY KEY | 행은 두 개다. `role` = `console-accounts`, `schema_version` = `1.0` |
+| `metadata` | `key` | TEXT PRIMARY KEY | 행은 두 개다. `role` = `console-accounts`, `schema_version` = `1.1` |
 | `metadata` | `value` | TEXT NOT NULL | — |
 | `accounts` | `username` | TEXT PRIMARY KEY | 5.2 의 정규식을 따른다 |
 | `accounts` | `account_id` | TEXT NOT NULL UNIQUE | 만들 때마다 새 UUID4 를 쓴다. 같은 이름을 지웠다가 다시 만들면 다른 값이 된다 |
@@ -608,12 +612,14 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `accounts` | `password_hash` | TEXT NOT NULL | `pbkdf2_sha256${반복}${솔트 hex}${해시 hex}` |
 | `accounts` | `auth_version` | INTEGER NOT NULL | 처음 값은 1이다. 비밀번호·역할·상태가 실제로 바뀔 때마다 +1 한다 |
 | `accounts` | `created_at_ns`, `updated_at_ns` | INTEGER NOT NULL | 서버 시각(ns) |
+| `reset_checks` | `run_id`, `item` | TEXT NOT NULL, PRIMARY KEY(`run_id`, `item`) | 1.1. 초기화로 열린 회차와 사람 확인 칸 이름(7.14) |
+| `reset_checks` | `checked`, `by_username`, `at_ns` | INTEGER(0/1), TEXT, INTEGER NOT NULL | 마지막으로 바꾼 값과 사람, 서버 시각 |
 
 - 해시(`accounts.py:63-73`)는 비밀번호가 8자 이상인지 확인하고, 솔트(salt) 16 byte 를 만든 뒤(`secrets`), PBKDF2-HMAC-SHA256(UTF-8 비밀번호, 솔트, 200000회)으로 계산해 위 형식의 문자열을 만든다. 평문은 저장하지도 로그에 남기지도 않는다.
 - 확인(`accounts.py:76-90`)은 저장값을 `$` 로 나눠 4조각을 얻는다. scheme 이 `pbkdf2_sha256` 이 아니면 거짓이다. 반복 수는 **저장값에 적힌 값**을 써서 해시를 다시 계산하고, hex 문자열을 상수 시간으로 비교한다. 형식이 틀리면 거짓이다.
 - `authenticate`(`accounts.py:209-223`)는 아이디나 비밀번호가 문자열이 아니면 None 을 돌려준다. 그다음 행을 찾고, 행이 없으면 가짜 해시(프로세스에서 한 번 만든 무작위 비밀의 해시)로, 있으면 행의 해시로 항상 한 번 확인한다. 행이 없을 때, ACTIVE 가 아닐 때, 비밀번호가 틀릴 때 모두 같은 None 을 돌려준다(로그도 남기지 않는다).
 - `create`(`accounts.py:126-158`)는 파일이 이미 있으면 `ALREADY_EXISTS` 로 거절한다(덮어쓰지 않는다). 아이디·비밀번호를 검사한 뒤 두 표를 만들고 관리자 한 명(표시 이름 = 아이디, 이메일 빈 값, ADMIN, ACTIVE, auth_version 1)을 넣는다. sqlite 오류는 `STORAGE_ERROR` 다.
-- `open`(`accounts.py:160-177`)은 파일이 없으면 `STORAGE_ERROR` 를 낸다(새로 만들지 않는다). `metadata` 를 읽지 못하거나 `role`·`schema_version` 이 다르면 `POLICY_MISMATCH` 다.
+- `open` 은 파일이 없으면 `STORAGE_ERROR` 를 낸다(새로 만들지 않는다). `metadata` 를 읽지 못하거나 `role` 이 다르거나 `schema_version` 이 1.1 도 1.0 도 아니면 `POLICY_MISMATCH` 다. 1.0 이면 같은 트랜잭션에서 `reset_checks` 표를 만들고 1.1 로 올린다.
 - 모든 호출은 새 연결을 열고 `BEGIN IMMEDIATE` … `COMMIT`/`ROLLBACK` 으로 감싼다(`accounts.py:307-350`). 트랜잭션을 시작하지 못하면 `STORAGE_ERROR` 「accounts database busy or broken」이다.
 - `add`(`accounts.py:226-243`)는 아이디·표시 이름·이메일·역할·상태·비밀번호를 검사하고, 같은 아이디가 있으면 `ALREADY_EXISTS` 로 거절한 뒤, 행을 삽입한다(auth_version 1).
 - `update`(`accounts.py:245-283`)는 변경할 항목이 하나도 없으면 `INVALID_INPUT` 「nothing to update」다. 행이 없으면 `NOT_FOUND` 다. 지금 (ADMIN, ACTIVE)인 계정이 바뀐 뒤 (ADMIN, ACTIVE)가 아니게 되면 다른 ACTIVE ADMIN 이 하나 이상 있어야 하고, 없으면 `LAST_ADMIN` 이다. 비밀번호가 바뀌거나 역할·상태 값이 실제로 달라지면 `auth_version` 을 +1 한다. `updated_at_ns` 를 갱신한다.
@@ -761,6 +767,18 @@ KPI-04 측정(`render.py:814-866`)에서 `stamp` 는 사건 행마다 처음 본
 - 지도 그림은 operations 가 회차별로 남기기 전이라 「지도 이력 없음」으로 보인다(`NO_HISTORY`).
 - 재생 시계는 브라우저가 돌린다. 배속은 1·2·4·8배다. 시점이 바뀌면 `GET /replay/fragment?run=&offset_ns=` 로 조각만 받는다. 재생 중에는 250 ms 마다 한 번 받고, 받는 중이면 다음 틱은 건너뛴다(`REPLAY_FETCH_MS`). JavaScript 수는 epoch ns 를 정확히 다루지 못해서 브라우저는 첫 시각부터의 offset 만 쓴다. `offset_ns` 는 ASCII 숫자만 받는다(REV-06).
 - 후속: operations 가 지도를 회차별로 남기면(`map_snapshots`, `map_dir/<run_id>/`) 지도 칸에 그 시점의 지도를 그린다.
+
+#### 7.14 회차 초기화 — `reset.py`, `reset_page.py`, `sources.load_reset_state`, `app.py:411-488`
+
+초기화 범위는 (나) TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌리기이고, 지난 기록은 회차별로 남긴다(재범 결정 2026-10-15). 화면은 따로 페이지 `/reset` 이다(사용자 결정 2026-10-15). 관제 화면 맨 위 줄의 「회차 초기화」 링크는 ADMIN 에게만 보인다.
+
+- 보내기. ADMIN 이 확인 칸을 체크하고 「초기화 보내기」를 누르면 operations `POST /api/runs/reset` 에 `{command_id, operator_id[, note]}` 를 한 번 보낸다(#323). 다시 보내지 않는다. 답은 운영자 명령 모양(`commands.read_reply`)에 `run_id` 가 더 붙는다.
+- 답 보이기. 접수는 초록이다. 거절은 빨강으로 사유 문구, 코드, 「초기화는 두 로봇이 켜지고 도킹돼 있어야 됩니다」를 같이 보인다. 503 이나 시간 초과는 「결과 모름」(노랑)이고, 다시 누르기 전에 리플레이에서 회차가 바뀌었는지 보라고 적는다. 다시 누르면 새 `command_id` 라서 operations 가 안전 검사를 다시 한다.
+- 로봇 미리 보기. operations 거절 순서(`ROBOT_STATUS_STALE` → `ROBOT_MOVING` → `TASK_ACTIVE` → `ROBOT_NOT_DOCKED`)를 현장 상태 DB 의 로봇 상태로 거울처럼 보인다(`robot_precheck`). 미리 보기일 뿐이고 보내기를 막지 않는다. 서버가 같은 검사를 다시 한다.
+- 다음 회차 번호. `list_runs` 의 회차 수 + 1 이다. 화면 표시용 순번이고, 회차는 늘 `run_id` 로 가리킨다. 스키마 1.4 파일을 올릴 때 생긴 「이전 기록」 회차는 순번에서 뺀다(리플레이와 같다).
+- 다시 띄우기 체크 목록. 순서는 `docs/implementation/implementation-operations.md` 「초기화」 표와 같다(`RESET_STEPS`). 칸은 세 종류다. 「초기화 접수」는 `read_reset_checklist` 의 `previous_run_id` 가 있으면 체크된다. 「조정기 다시 뜸」은 `coordinator_restarted` 로, 「TB-6·TB-5 실행기 다시 뜸」은 그 표시 이름(`--robot-name`)인 로봇의 `restarted` 로 자동으로 체크된다. 그 이름의 로봇이 없으면 「모름」이다. 나머지 다섯 칸(조정기 끔, 두 로봇 launch 끔, TB-6 출발 표시, 지도 고정 새 output_dir, TB-5 언도킹·출발 정렬)은 사람이 체크한다.
+- 사람 칸 체크는 ADMIN 만 하고, 관제 웹 계정 DB 의 `reset_checks` 표에 지금 열린 회차의 `run_id` 로 묶어 쓴다. 그래서 모든 화면에 같게 보이고, 다음 초기화의 새 회차에서는 빈 칸으로 시작한다. 초기화한 적이 없으면 체크를 받지 않는다.
+- 미리 보기와 체크 목록은 1초마다 `/reset/fragment` 로 바꿔 끼운다. 현장 상태 DB 는 읽기만 한다(mode=ro).
 
 ### 8. 순서도
 

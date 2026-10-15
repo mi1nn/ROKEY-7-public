@@ -536,6 +536,8 @@ class CommandRouteTests(AccountsFixture):
         self.assertEqual(rules.pop('/commands'), {'POST'})
         self.assertEqual(rules.pop('/webcam'), {'POST'})   # 관리자 카메라 고르기(OPS-183)
         self.assertEqual(rules.pop('/robot-camera'), {'POST'})   # 로봇 카메라 보기 설정(OPS-191)
+        self.assertEqual(rules.pop('/reset/send'), {'POST'})   # 회차 초기화 한 번 보내기(관리자, #323)
+        self.assertEqual(rules.pop('/reset/check'), {'POST'})   # 초기화 체크(관리자, 관제 웹 계정 DB)
         self.assertEqual({frozenset(methods) for methods in rules.values()}, {frozenset({'GET'})})
 
 

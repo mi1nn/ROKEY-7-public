@@ -52,7 +52,11 @@ LABELS = {
     'reply': {'NOT_AUTHORIZED': '재난 모드가 아님', 'NOT_FOUND': '대상이나 복귀 위치를 모름',
               'PENDING_EVIDENCE': '확정·경로·판정이 아직 없음', 'TASK_BUSY': '이미 진행 중',
               'INVALID_INPUT': '화면의 값이 지금 상태와 다름', 'FRAME_REVISION_MISMATCH': '지도 기준이 다름',
-              'NAV_NOT_READY': '로봇 준비 안 됨 — 준비 뒤 다시 누르세요', 'ID_CONTENT_CONFLICT': '같은 ID 에 다른 내용'},
+              'NAV_NOT_READY': '로봇 준비 안 됨 — 준비 뒤 다시 누르세요', 'ID_CONTENT_CONFLICT': '같은 ID 에 다른 내용',
+              # 회차 초기화 거절(operations RunReset, #323)
+              'ROBOT_STATUS_STALE': '로봇 상태가 없거나 5초 넘게 끊김(로봇이 꺼져 있음)',
+              'ROBOT_MOVING': '로봇이 정지 상태가 아님', 'TASK_ACTIVE': '로봇에 임무가 남아 있음',
+              'ROBOT_NOT_DOCKED': '로봇이 도킹돼 있지 않음'},
 }
 
 

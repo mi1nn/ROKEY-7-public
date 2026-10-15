@@ -1395,7 +1395,9 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
             + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p>'
-            + '<a class="replay-link" href="/replay">지난 회차 다시 보기</a></header>'
+            + '<a class="replay-link" href="/replay">지난 회차 다시 보기</a>'
+            + ('<a class="replay-link" href="/reset">회차 초기화</a>' if user and user['role'] == 'ADMIN' else '')
+            + '</header>'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
