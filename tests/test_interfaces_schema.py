@@ -22,7 +22,8 @@ MESSAGES = ('Envelope', 'ObservationTime', 'FrameRef', 'EvidenceRef', 'RobotStat
             'TargetObservation', 'TargetLocation', 'MapState', 'ReportReceipt', 'RecheckObservation',
             'PassageAssessment', 'TargetPresence', 'CameraStatus', 'SystemState', 'RescueReport', 'TargetEstimate',
             'TargetSnapshot')
-SERVICES = ('RequestStop', 'RegisterAuthority', 'ResetStop', 'SubmitOperatorCommand', 'SetCameraWatch')
+SERVICES = ('RequestStop', 'RegisterAuthority', 'ResetStop', 'SubmitOperatorCommand', 'SetCameraWatch',
+            'ApproveOverheadPassage')   # tunnel keepout approval (2026-10-16, option A)
 ACTIONS = ('ExecuteTask', 'ObserveTarget')
 SECTIONS = {'msg': (None,), 'srv': ('Request', 'Response'), 'action': ('Goal', 'Result', 'Feedback')}
 ENUM = re.compile(r'[A-Z][A-Z0-9_]*(/[A-Z][A-Z0-9_]*)*')

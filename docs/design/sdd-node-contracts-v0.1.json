@@ -2353,6 +2353,11 @@
       "Request": "envelope:Envelope, command_id:UUID, camera_id:string, watch_id:UUID, target_id:UUID, expected_watch_revision:uint64, roi_xyxy_normalized:float64[4], association_method:string(CALIBRATED_PROJECTION/OPERATOR_ROI), association_evidence_id:string, enable:bool, issued_at_ns:int64, deadline_ns:int64.",
       "Response": "envelope:Envelope, accepted:bool, watch_id:UUID, watch_revision:uint64, reason_code:string.",
       "Rules": "ROI [xmin,ymin,xmax,ymax]는 0≤min<max≤1. 카메라별 활성 watch 1개이며 profile TARGET_WATCH 카메라가 정확히 1대일 때만 무장. watch_id는 (camera_id,target_id,ROI)에 고정하고 변경 시 새 UUID. watch_revision은 카메라 감시 슬롯의 교체·해제 번호, 0은 비어 있음이며 재결합 키가 아니다. 교체/해제는 expected_watch_revision을 검사하며 해제는 활성 watch_id·ROI도 일치해야 함. 빈 UUID·열거/기본 생성값은 거절. image_size/camera_pose 변경·어댑터 재시작 시 watch 무효화. 수락 응답의 publisher_boot_id와 revision을 저장하고 낡거나 boot/watch 불일치한 상태는 UNKNOWN. target_id 없이 소실 이벤트 발행하지 않음. 재관측 트리거는 SiteEvent(TARGET_DISAPPEARED_CANDIDATE)만이며 TargetPresence.ABSENT_CANDIDATE는 표시용. 카메라를 robot_id 목록에 넣지 않음."
+    },
+    "ApproveOverheadPassage": {
+      "Request": "envelope:Envelope, item_id:UUID, approved_by:string, issued_at_ns:int64.",
+      "Response": "envelope:Envelope, accepted:bool, item_id:UUID, reason_code:string(ACCEPTED/NO_SUCH_ITEM/NO_APPROVER), message:string.",
+      "Rules": "터널 진입 금지 해제(재범 결정 2026-10-16 A). overhead_passage 판정 목록에 지금 있는 item_id 만 받는다. approved_by(사람 이름)는 비면 거절. 수락하면 그 자리(merge_radius_m 안)를 이번 회차 동안 진입 금지 지도에서 빼고, 그 뒤 같은 자리에서 다시 BLOCKED 를 재도 빠진 채다. 누가·언제·어느 자리를 풀었는지 로그에 남긴다. 로봇을 움직이지 않는다."
     }
   },
   "actions": {

@@ -38,6 +38,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ResetStop.srv"
   "srv/SubmitOperatorCommand.srv"
   "srv/SetCameraWatch.srv"
+  "srv/ApproveOverheadPassage.srv"
   "action/ExecuteTask.action"
   "action/ObserveTarget.action"
   DEPENDENCIES geometry_msgs nav_msgs
