@@ -197,7 +197,7 @@ wait_for operations "rescue_db_writer git=" 60
 # 관제 웹은 RUN_FULL_WEB_REPO(기본 이 저장소)의 빌드로 띄운다. 웹만 더 새 main 으로 볼 때 쓴다(2026-10-15 #366).
 WEB_REPO="${RUN_FULL_WEB_REPO:-$REPO}"
 [ -f "$WEB_REPO/install/setup.bash" ] || die "$WEB_REPO/install 이 없습니다"
-start console "source $WEB_REPO/install/setup.bash; export RESCUE_CONSOLE_SECRET=\$(cat $WEB_STATE/secret); exec setsid $WEB_PY -m rescue_console --accounts $WEB_STATE/accounts.sqlite3 \
+start console "set +u; source $WEB_REPO/install/setup.bash; set -u; export RESCUE_CONSOLE_SECRET=\$(cat $WEB_STATE/secret); exec setsid $WEB_PY -m rescue_console --accounts $WEB_STATE/accounts.sqlite3 \
 --site-state $RUN/site_state.sqlite3 --operations http://127.0.0.1:18180 --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 \
 --host $web_host --port $web_port --live-map $RUN/maps/live_map.yaml --live-map-stale-s 15 --robot-watch $RUN/robot_watch.json \
 --robot-watch-stale-s 5 --robot-watch-map-robot robot_a --support-dispatch AUTO --search-start AUTO --field-file $F"
