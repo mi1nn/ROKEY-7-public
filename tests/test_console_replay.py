@@ -187,7 +187,9 @@ class ReplayWebTests(ReplayFixture, AccountsFixture):
     def test_bad_or_out_of_run_offset_is_a_503_line_not_a_clamped_page(self):
         client = self.client()
         self.login(client, *ADMIN)
-        for query in ('offset_ns=-1', 'offset_ns=abc', 'offset_ns=', f'offset_ns={61 * SECOND}'):
+        # '²' passes str.isdigit() but int() refuses it; '١' (Arabic-Indic one) would be read as 1 (REV-06).
+        for query in ('offset_ns=-1', 'offset_ns=abc', 'offset_ns=', f'offset_ns={61 * SECOND}',
+                      'offset_ns=%C2%B2', 'offset_ns=%D9%A1', 'offset_ns=%EF%BC%91', 'offset_ns=+1', 'offset_ns=1_0'):
             with self.subTest(query=query):
                 self.assertEqual(503, client.get('/replay/fragment?' + query).status_code)
 
