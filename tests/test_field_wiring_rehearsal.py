@@ -47,6 +47,21 @@ class RunScript(unittest.TestCase):
         self.assertIn('REHEARSAL_HOST_ID', node[:node.index('Node(') if 'Node(' in node else len(node)])
 
 
+class AmclThresholds(unittest.TestCase):
+    def test_the_executors_get_the_amcl_update_thresholds_robot_launch_adds(self):
+        # #392: a frozen-mode task_input refuses to start without task.saved_map.amcl_update_min_d / _a, which
+        # robot.launch.py adds from localization.yaml; the rehearsal adds them from the vendored copy
+        launch = (HERE / 'rehearsal.launch.py').read_text()
+        self.assertIn('amcl_update_thresholds(yaml.safe_load(LOCALIZATION.read_text()))', launch)
+        self.assertIn("parameters=[typed(task)]", launch)
+        import yaml
+        from rescue_bringup.field_launch import amcl_update_thresholds
+        vendored = (REPO / 'src' / 'vendor' / 'turtlebot4' / 'turtlebot4_navigation' / 'config' /
+                    'localization.yaml')
+        self.assertEqual({'task.saved_map.amcl_update_min_d': 0.25, 'task.saved_map.amcl_update_min_a': 0.2},
+                         amcl_update_thresholds(yaml.safe_load(vendored.read_text())))
+
+
 class Fakes(unittest.TestCase):
     def test_fakes_leave_every_node_of_ours_to_the_launch(self):
         sys.path.insert(0, str(HERE.parent))
