@@ -21,7 +21,7 @@ from rescue_perception.overhead import (OVERHEAD_PARAMS, OverheadConfirmer, Over
 
 POLICY = OverheadPolicy(clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                         lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
-                        position_tolerance_m=0.3, merge_radius_m=0.5)
+                        position_tolerance_m=0.3, merge_radius_m=0.5, near_end_m=0.05)
 SESSION = '22222222-2222-4222-8222-222222222222'
 
 
@@ -253,7 +253,7 @@ class ParamsTests(unittest.TestCase):
                       view_slop_ns=20_000_000, view_font_path='/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
                       clearance_m=0.46, floor_noise_m=0.05, front_near_m=0.4, front_far_m=1.0, half_width_m=0.2,
                       lidar_plane_m=0.19, top_m=1.0, min_points=5, floor_min_points=20, confirm_frames=3,
-                      position_tolerance_m=0.3, merge_radius_m=0.5)
+                      position_tolerance_m=0.3, merge_radius_m=0.5, near_end_m=0.05)
         self.assertEqual(set(values), set(OVERHEAD_PARAMS))
         policy, node = overhead_values(values)
         self.assertEqual(POLICY, policy)

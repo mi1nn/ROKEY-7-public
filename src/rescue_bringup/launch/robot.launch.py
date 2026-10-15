@@ -11,10 +11,12 @@ occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py /robot6/map ma
 turtlebot4_navigation localization.launch.py with the saved map. Nav2's final velocity writers
 (collision_monitor, docking_server) are remapped to <ns>/cmd_vel_watchdog_in; only the
 watchdog writes <ns>/cmd_vel. Remove any other final cmd_vel writer (e.g. joystick) first.
-The overhead passage stop (field run file robot.passage.*, OPS-135) is added to the Nav2
-collision_monitor parameters at launch; run passage_points.launch.py for the depth points, or
-collision_monitor stops the robot (no depth = no movement). A robot without robots.<id>.passage
-depth values does not start. A FROZEN_MAP_AMCL robot (TB-5) has no map frame before the first freeze,
+There is no depth stop (재범 decision 2026-10-16, option A): the passage slowdown (field run file
+robot.passage.*) is added to the Nav2 collision_monitor, and both costmaps read the tunnel keepout mask
+(KeepoutFilter) that rescue_robot passage_keepout paints from the vision judgement (overhead_passage
+BLOCKED). The robot_a launch also starts passage_keepout, one node for both robots. Run
+passage_points.launch.py for the depth points. A robot without robots.<id>.passage depth values does not
+start. A FROZEN_MAP_AMCL robot (TB-5) has no map frame before the first freeze,
 so its Nav2 starts with autostart false and nav2_start_after_map sends STARTUP once map -> base_link
 is on its TF (started at once, the global costmap gives up after 60 s and Nav2 stays inactive, #375).
 No arm, task or movement command is sent by this launch.
@@ -32,8 +34,9 @@ from launch_ros.actions import Node, SetRemap
 
 import yaml
 
-from rescue_bringup.field_launch import amcl_update_thresholds, load_field, nav2_with_passage, robot_launch_values
-from rescue_bringup.nav2_field import field_nav2
+from rescue_bringup.field_launch import (amcl_update_thresholds, load_field, nav2_with_passage,
+                                        passage_keepout_launch_values, robot_launch_values)
+from rescue_bringup.nav2_field import KEEPOUT_INFO_TOPIC, field_nav2, nav2_with_tunnel_keepout
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
 
@@ -54,11 +57,17 @@ def _nodes(context):
         task = {**task, **amcl_update_thresholds(yaml.safe_load(Path(localization_params).read_text()))}
     base_params = arg('nav2_params_file') or str(
         Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'nav2.yaml')
-    # The passage stop (field run file robot.passage.*, the same for both robots) is added to collision_monitor
-    # here, so no yaml carries its own copy of 0.46 m (OPS-135).
+    # The passage slowdown (field run file robot.passage.*, the same for both robots) is added to collision_monitor
+    # here, so no yaml carries its own copy (OPS-135). No depth stop: tunnels are kept out by the vision judgement.
     passage = values['passage']
     # no backing up in recovery (OPS-207) and FollowPath Rotation Shim + RPP instead of DWB (2026-10-14), both robots
-    params = nav2_with_passage(field_nav2(yaml.safe_load(Path(base_params).read_text())), passage)
+    params = nav2_with_tunnel_keepout(
+        nav2_with_passage(field_nav2(yaml.safe_load(Path(base_params).read_text())), passage))
+    keepout = []
+    if arg('robot_id') == 'robot_a':   # one mask for both robots; TB-6's launch always runs
+        k = passage_keepout_launch_values(load_deployment(arg('profile_path')), field=load_field(arg('field_path')))
+        keepout = [Node(package='rescue_robot', executable='passage_keepout', name='rescue_passage_keepout',
+                        output='screen', parameters=[typed(k)])]
     with tempfile.NamedTemporaryFile('w', prefix=f'nav2_{arg("robot_id")}_', suffix='.yaml', delete=False) as out:
         yaml.safe_dump(params, out, sort_keys=False)
     nav2_params = out.name
@@ -81,8 +90,8 @@ def _nodes(context):
              parameters=[typed({key: start[key] for key in (
                  'manage_service', 'map_frame', 'base_frame', 'poll_period_s', 'answer_wait_s')})])]
     return [
-        LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={base_params} + passage stop '
-                    f'{passage["min_height_m"]}..{passage["max_height_m"]} m front {passage["front_m"]} '
+        LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={base_params} + no depth stop '
+                    f'+ tunnel keepout {KEEPOUT_INFO_TOPIC}' + (' (passage_keepout here)' if keepout else '') + ' '
                     f'+ passage slow x{passage["slow_ratio"]} {passage["overhead_lidar_plane_m"]}..'
                     f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
                     f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) + no BackUp recovery + FollowPath Rotation Shim/RPP -> {nav2_params} '
@@ -94,6 +103,7 @@ def _nodes(context):
                     f'declared alignment window '
                     f'{task["task.saved_map.valid_from_ns"]}..{task["task.saved_map.transform_valid_until_ns"]} ns'),
         nav2,
+        *keepout,
         *nav2_start,
         Node(package='rescue_robot', executable='command_watchdog', name='rescue_command_watchdog', namespace=ns,
              output='screen', parameters=[typed(values['watchdog'])]),

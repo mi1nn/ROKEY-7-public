@@ -25,5 +25,6 @@ setup(
                                        "clock_capture = rescue_robot.clock_capture:main",
                                        "map_freeze = rescue_robot.map_freeze:main",
                                        "frozen_map_relay = rescue_robot.frozen_map_relay:main",
-                                       "start_align = rescue_robot.start_align:main"]},
+                                       "start_align = rescue_robot.start_align:main",
+            "passage_keepout = rescue_robot.passage_keepout:main"]},
 )

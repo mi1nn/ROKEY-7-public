@@ -17,8 +17,9 @@ collision_monitor_node.cpp, jazzy branch):
 A polygon acts when at least min_points points of its sources are inside it, with z between the
 source min_height and max_height (base_link). The scan source is not modelled (no scan points here).
 
-The tests marked expectedFailure describe the wanted behaviour and fail on the current field values.
-The fix (grade 4, after 재범's approval) removes the marks.
+재범 chose another way (2026-10-16, option A, grade 4): PassageStop is removed and tunnels are kept out by the
+vision judgement (overhead_passage -> rescue_robot.passage_keepout -> Nav2 keepout mask, test_tunnel_keepout).
+The tests below now describe that: nothing in the depth band stops the robot; above the lidar plane it slows.
 """
 import json
 import unittest
@@ -86,23 +87,22 @@ class FieldPassage(FieldCase):
         passage = self.robot(field=self.field(), robot_id='robot_a', occupancy_sha256='')['passage']
         self.cm = nav2_with_passage(json.loads(json.dumps(BASE)), passage)['collision_monitor']['ros__parameters']
 
-    def test_the_dock_stops_the_robot_now(self):
-        """What the simulation showed: a dock-height cloud ahead holds PassageStop, turn included."""
-        self.assertEqual((0.0, 0.0, 0.0), safe_velocity(self.cm, DOCK, TURN))
+    def test_the_dock_no_longer_stops_the_robot(self):
+        """The simulation case: the dock (below the lidar plane and the slow band) changes nothing now."""
+        self.assertEqual(TURN, safe_velocity(self.cm, DOCK, TURN))
+        self.assertEqual(FORWARD, safe_velocity(self.cm, DOCK, FORWARD))
 
-    def test_an_overhead_bar_still_stops_forward_motion(self):
-        """The reason for the band (scope Q-25, 46 cm): the lidar does not see this bar. Keep after the fix."""
-        self.assertEqual(0.0, safe_velocity(self.cm, TUNNEL, FORWARD)[0])
+    def test_an_overhead_bar_slows_the_robot_and_the_keepout_keeps_it_out(self):
+        """No depth stop: PassageSlow slows it so overhead_passage can judge; a BLOCKED judgement goes into the
+        Nav2 keepout mask (test_tunnel_keepout), which keeps the path out of it."""
+        self.assertAlmostEqual(0.2 * 0.3, safe_velocity(self.cm, TUNNEL, FORWARD)[0])
 
-    @unittest.expectedFailure
     def test_facing_the_dock_the_robot_can_turn_in_place(self):
         self.assertGreater(safe_velocity(self.cm, DOCK, TURN)[2], 0.0)
 
-    @unittest.expectedFailure
     def test_facing_a_wall_the_robot_can_turn_in_place(self):
         self.assertGreater(safe_velocity(self.cm, WALL, TURN)[2], 0.0)
 
-    @unittest.expectedFailure
     def test_under_an_overhead_bar_the_robot_can_turn_in_place(self):
         """Turning away from a real low passage lets Nav2 try another way or give up with PASSAGE_BLOCKED."""
         self.assertGreater(safe_velocity(self.cm, TUNNEL, TURN)[2], 0.0)

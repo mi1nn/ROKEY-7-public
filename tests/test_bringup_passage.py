@@ -129,20 +129,15 @@ class CollisionMonitor(unittest.TestCase):
         from rescue_bringup.field_launch import nav2_with_passage
         return nav2_with_passage(json.loads(json.dumps(base or BASE)), self.PASSAGE)
 
-    def test_adds_the_passage_polygon_and_depth_source_only(self):
+    def test_adds_the_passage_slowdown_only_no_depth_stop(self):
+        """PassageStop was removed (재범 decision 2026-10-16, option A): tunnels are the keepout mask's."""
         out = self.apply()
         self.assertEqual(BASE['controller_server'], out['controller_server'])
         p = out['collision_monitor']['ros__parameters']
-        self.assertEqual(['FootprintApproach', 'PassageStop', 'PassageSlow'], p['polygons'])
-        self.assertEqual(['scan', 'passage_depth', 'passage_overhead'], p['observation_sources'])
-        stop = p['PassageStop']
-        self.assertEqual(('polygon', 'stop', 5, ['passage_depth'], True),
-                         (stop['type'], stop['action_type'], stop['min_points'], stop['sources_names'], stop['enabled']))
-        # one string, as nav2.yaml footprints: ROS parameters cannot hold nested arrays
-        self.assertEqual([[1.0, 0.2], [1.0, -0.2], [0.4, -0.2], [0.4, 0.2]], json.loads(stop['points']))
-        depth = p['passage_depth']
-        self.assertEqual(('pointcloud', 'passage_points', 0.05, 0.46, True),
-                         (depth['type'], depth['topic'], depth['min_height'], depth['max_height'], depth['enabled']))
+        self.assertEqual(['FootprintApproach', 'PassageSlow'], p['polygons'])
+        self.assertEqual(['scan', 'passage_overhead'], p['observation_sources'])
+        self.assertNotIn('PassageStop', p)
+        self.assertNotIn('passage_depth', p)
         # existing polygons keep reading only what they read before (the lidar)
         self.assertEqual(['scan'], p['FootprintApproach']['sources_names'])
         self.assertEqual('collision_monitor_state', p['state_topic'])
