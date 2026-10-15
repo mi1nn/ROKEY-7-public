@@ -25,6 +25,8 @@
     {"name": "north_stub", "kind": "wall", "x1": 2.36, "y1": 5.57, "x2": 2.36, "y2": 4.65, "source": "plan line (236,0)-(236,92)"},
     {"name": "stub_pillar", "kind": "box", "x": 2.37, "y": 4.51, "yaw": 0.0, "size": [0.26, 0.28, 0.41],
      "color": [0.55, 0.38, 0.22], "estimate": true, "source": "plan (224..250, 92..120); height estimated = wall"},
+    {"name": "center_pillar", "kind": "box", "x": 1.80, "y": 3.585, "yaw": 0.0, "size": [0.50, 0.63, 0.41],
+     "color": [0.55, 0.38, 0.22], "estimate": true, "source": "plan box pillar (155..205, 167..230); height estimated = wall. Lost by mistake in #364 (tunnel 2 edit), restored 2026-10-16"},
     {"name": "tunnel2_lintel", "kind": "overhead", "x": 1.68, "y": 2.865, "yaw": 1.5708, "size": [0.81, 0.01, 0.41],
      "clearance_m": 0.30, "color": [0.55, 0.38, 0.22], "estimate": true,
      "source": "plan tunnel 2 (impassable), line x=168 from y 230 to 311. 재범 2026-10-15: lift it about 30 cm so that the vision, not the lidar, has to judge that the robot cannot pass. Panel size is copied from tunnel 1 [추정]"},
