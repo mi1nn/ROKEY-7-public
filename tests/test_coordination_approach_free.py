@@ -101,6 +101,8 @@ class NoneFreeTests(FreeDirectionBase):
 RUN15 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run073537/maps'
 
 
+@unittest.skipUnless((RUN15 / '073955-frozen-r2.yaml').exists(),
+                     f'installed-wheel checkout has no docs/evidence ({RUN15 / "073955-frozen-r2.yaml"})')
 class Run15Tests(unittest.TestCase):
     """The 15회차 frozen map R2 with its launch values (standoff 0.8 m, clearance 0.2 m) and logged positions."""
     DOLL, TB5 = (-2.5007, 0.3200), (-0.402, 1.765)  # TARGET_REBASED_ON_FREEZE; TB-5 RobotPose 07:39:59.72
