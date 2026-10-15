@@ -81,6 +81,7 @@ NODE_ARGS = ['-p', 'entry_yaws:=[0.0, 1.5]', '-p', 'policy_version:=e3-probe', '
              '-p', 'frontier_potential_scale:=3.0', '-p', 'frontier_gain_scale:=1.0',
              '-p', 'frontier_blacklist_m:=0.5', '-p', 'frontier_issue_delay_s:=2.0',
              '-p', 'exploration_empty_checks:=3', '-p', 'exploration_timeout_s:=600.0',
+             '-p', 'nav2_xy_goal_tolerance_m:=0.25',
              '-p', 'completion_mode:=RECHECK',  # the rehearsal's C stages run the recheck flow
              # traffic control DISABLED: the probe's fake robots do not publish TB-6's live map (OPS-204)
              '-p', 'traffic_control:=DISABLED', '-p', 'traffic_min_separation_m:=0.6',
