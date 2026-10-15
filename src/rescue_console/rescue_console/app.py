@@ -377,7 +377,8 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         """회차 시작부터 ``offset_ns`` 뒤 시점의 조각. 숫자가 아니거나 범위 밖이면 INVALID_INPUT(503 한 줄)."""
         timeline = replay_timeline()
         text = request.args.get('offset_ns', '')
-        if not text.isdigit() or timeline['start_ns'] is None:
+        # ASCII 숫자만 받는다. str.isdigit() 는 '²'(int() 가 거부, 500)와 '١'(1 로 읽힘)도 통과시킨다(REV-06).
+        if not (text.isascii() and text.isdigit()) or timeline['start_ns'] is None:
             raise ConsoleError('INVALID_INPUT', 'offset_ns must be a non-negative integer within the run')
         return Response(render_replay_fragment(replay_at(timeline, timeline['start_ns'] + int(text)), timeline),
                         mimetype='text/html')
