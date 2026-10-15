@@ -294,7 +294,7 @@ class StatusItemsTests(unittest.TestCase):
         self.assertEqual(self.items(quake_seen=True, boxes=None)[1], ("인형", "탐지기 오류"))
 
     def test_exit_title_says_view_or_watch(self):
-        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"))[2], ("출구 · 화면용", "출구로 사라짐"))
+        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"))[2], ("출구", "출구로 사라짐"))
         self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"), watched=True)[2],
                          ("출구 · 감시", "출구로 사라짐"))
         self.assertEqual(self.items(presence=self.presence("PRESENT", absent_ns=1_500_000_000))[2][1], "안 보인 지 1.5초")
