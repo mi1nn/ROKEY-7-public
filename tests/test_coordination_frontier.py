@@ -473,6 +473,8 @@ def sees_unknown(grid, xy, degrees):
     return hits
 
 
+@unittest.skipUnless((RUN9 / '035525-live-r0-6cf8199b4ae7.yaml').exists(),
+                     'installed-wheel checkout has no docs/evidence')
 class GapMouthTests(unittest.TestCase):
     """The frontier goal is the roomy cell nearest the frontier, not the one with the shortest path (9회차
     2026-10-16, C14). Its map (035525) is the start zone only; the one frontier (13 cells, centroid (-1.84, 2.20))
