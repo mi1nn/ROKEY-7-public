@@ -124,7 +124,8 @@ class ExitArrivalCompletionTests(Base):
 
 
 class NoSurvivorTests(unittest.TestCase):
-    def test_whole_map_and_no_doll_tb6_returns_and_the_mission_finishes(self):
+    def returning(self):
+        """Whole map, no doll: both freezes done, TB-6's RETURN_HOME sent (core, its fields)."""
         core = core_()
         core.completion_mode = 'EXIT_ARRIVAL'
         core.on_map_state(map_state(SCOUT, revision=3))
@@ -154,9 +155,26 @@ class NoSurvivorTests(unittest.TestCase):
         (ret,) = core.tick(NOW + 3)
         self.assertEqual((SCOUT, 'RETURN_HOME'), (ret['robot_id'], ret['kind']))
         core.on_admission(admission_msg(ret))
+        return core, ret
+
+    def test_whole_map_and_no_doll_tb6_returns_and_the_mission_finishes(self):
+        core, ret = self.returning()
         core.on_result(ret['task_id'], NS(outcome='COMPLETED', stop_confirmed=True, terminal_reason=''))
         core.system_state_change(NOW + 3)
         self.assertEqual(('FINISHED', 'NO_SURVIVOR_FOUND'), (core.last_state['phase'], core.last_state['reason']))
+
+    def test_a_failed_return_is_shown_over_no_survivor(self):
+        # 11회차 2026-10-16: RETURN_HOME ended FAILED (ACTION_ABORTED, a Nav2 TF error); SystemState kept
+        # NO_SURVIVOR_FOUND and the log had only the RESULT line, so nobody saw that TB-6 would not be sent again
+        core, ret = self.returning()
+        core.drain_notes()
+        core.on_result(ret['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason='ACTION_ABORTED'))
+        self.assertIn(f'SCOUT_RETURN_FAILED task={ret["task_id"]} outcome=FAILED reason=ACTION_ABORTED',
+                      core.drain_notes())
+        core.system_state_change(NOW + 4)
+        self.assertEqual(('RETURNING', 'SCOUT_RETURN_FAILED'), (core.last_state['phase'], core.last_state['reason']))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW + 20 * 10**9))
+        self.assertEqual([], [f for f in core.tick(NOW + 20 * 10**9) if f['kind'] == 'RETURN_HOME'])  # #194
 
 
 class ParameterTests(unittest.TestCase):

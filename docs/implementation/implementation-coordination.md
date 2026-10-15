@@ -106,7 +106,7 @@ updated: 2026-10-14
 
 - TB-6 은 최종 지도 뒤 도킹 접근점으로 간다(`RETURN_HOME`, 목적지 `home/<TB-6 id>`). 도킹은 사람이 한다. 도킹 접근점은 TB-6 출발 자세 기준 좌표이고 `compose_planar` 로 지도 좌표가 된다. 출발 자세가 없으면 `START_POSE_UNKNOWN` 이다.
 - 두 로봇이 모두 도착하면 단계가 `FINISHED`, 모드가 `MISSION_FINISHED` 다.
-- 탐색을 끝냈는데 인형이 없으면 고정은 그대로 하고 TB-6 만 복귀한다. TB-5 는 출발 자리에 남고 이유는 `NO_SURVIVOR_FOUND` 다.
+- 탐색을 끝냈는데 인형이 없으면 고정은 그대로 하고 TB-6 만 복귀한다. TB-5 는 출발 자리에 남고 이유는 `NO_SURVIVOR_FOUND` 다. 다만 TB-6 복귀가 실패하면(결과 COMPLETED 아님) 이유는 `SCOUT_RETURN_FAILED` 로 바뀌고 로그에 `SCOUT_RETURN_FAILED task= outcome= reason=` 이 남는다. 복귀는 다시 보내지 않는다(#194). 11회차(2026-10-16)에 Nav2 TF 오류로 복귀가 실패했는데 `NO_SURVIVOR_FOUND` 에 가려 웹에 안 보였다.
 
 ### 교통 관제 (`traffic_control=TB5_PRIORITY`)
 

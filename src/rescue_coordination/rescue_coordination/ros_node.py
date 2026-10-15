@@ -1375,6 +1375,9 @@ class CoordinatorCore:
             self.scout_return = 'AT_DOCK_APPROACH' if result.outcome == 'COMPLETED' else 'FAILED'
             if self.scout_return == 'AT_DOCK_APPROACH':
                 self._returned(self.roles['SCOUT'])
+            else:  # not sent again (#194): say so in the log, not only in the RESULT line
+                self.notes.append(f'SCOUT_RETURN_FAILED task={task_id} outcome={result.outcome} '
+                                  f'reason={result.terminal_reason or "-"}')
         elif meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_finished(completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
             self.approach_task = None  # ARRIVED or FAILED: never issued again
@@ -1935,7 +1938,7 @@ class CoordinatorCore:
 
     def mission_reason(self, now_ns):
         """The latest stage after dispatch for SystemState.reason: TB-6 return, the verdict, TB-5's exit."""
-        if self._no_survivor():
+        if self._no_survivor() and self.scout_return != 'FAILED':  # a failed return is shown over it (11회차)
             if self.exploration_reason == 'EXPLORATION_FRONTIERS_FAILED':
                 return self.exploration_reason  # no doll, but frontiers were given up: not a whole map (C9)
             return 'NO_SURVIVOR_FOUND'  # the whole map, no doll: TB-5 never leaves (OPS-155 ③)
