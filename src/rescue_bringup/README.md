@@ -16,6 +16,7 @@
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
 | TB-5 출발 정렬 노드(`rescue_start_align`). `frozen_localization.launch.py robot_id:=robot_b` 가 AMCL 옆에 띄운다. 로그 끝에 ` + start_align` 이 붙는다. TB-6 에는 띄우지 않는다 | 구현됨, 실기 NOT_RUN | `launch/frozen_localization.launch.py`, `field_launch.py:START_ALIGN_KEYS`, [rescue_robot README](../rescue_robot/README.md) |
 | TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | `[0.0, -1.86, 0.0]`(현장 파일 `robots.robot_b`). TB-6 오른쪽 1.86 m 를 줄자로 쟀다(2026-10-15, 둘 다 언독). 앞쪽 거리와 각도는 「옆에 있음」으로 읽은 값이다 | 아래 2단계 「TB-5 출발값 재기」 |
+| TB-5 Nav2 는 1차 고정 지도에서 위치가 잡힌 뒤 켬. `robot.launch.py` 가 FROZEN_MAP_AMCL 로봇의 Nav2 를 `autostart:=false` 로 띄우고, `nav2_start_after_map` 이 `map → base_link` 가 생기면 `manage_nodes` STARTUP 을 한 번 보낸다. 실패는 `NAV2_STARTUP_FAILED`·`NAV2_STARTUP_NO_ANSWER` 로 남고 실행기는 NOT_READY 그대로다 | 구현됨, 실기 NOT_RUN | `rescue_bringup/nav2_start.py`, `field_launch.py:robot_launch_values`, #375 |
 | Nav2 복구에서 후진 빼기 | 구현됨(#267 머지), 실기 NOT_RUN. 복구는 비용 지도 지우기 → 제자리 회전 → 대기 | `nav2_recovery.py`, #267(재범 승인 2026-10-14) |
 | Nav2 경로 따라가기(FollowPath) | 구현됨, 실기 NOT_RUN. DWB 대신 Rotation Shim + Regulated Pure Pursuit, 후진 없음. 값은 [제안] | `nav2_field.py`, 아래 「경로 따라가기」 |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |

@@ -120,6 +120,8 @@ FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/captur
 # Nav2 lifecycle manager of turtlebot4_navigation nav2.launch.py (nav2_bringup navigation_launch.py name), <ns>:
 # the executor counts nav2 READY only while its is_active (std_srvs/Trigger) answers success (field run1015b)
 NAV2_LIFECYCLE_MANAGER = 'lifecycle_manager_navigation'
+NAV2_START_POLL_S = 0.5           # [제안] how often nav2_start looks for map -> base_link
+NAV2_START_ANSWER_WAIT_S = 120.0  # [제안] STARTUP configures and activates every Nav2 node; then NO_ANSWER is logged
 START_ALIGN_STATUS = '/rescue_start_align'   # <ns> + this: start_align verdict, read by the executor
 START_ALIGN_KEYS = {'start_align.' + name: kind for name, kind in (
     ('initial_sigma_xy_m', F), ('initial_sigma_yaw_rad', F), ('update_period_s', F), ('max_updates', I),
@@ -543,9 +545,15 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
                 'watchdog_heartbeat_topic': watchdog_heartbeat, **field.watchdog}
     # Nav2's final velocity writers go to the watchdog, which alone writes <ns>/cmd_vel (#132).
     remaps = [('collision_monitor:' + ns + '/cmd_vel', upstream), ('docking_server:' + ns + '/cmd_vel', upstream)]
+    # TB-5 has no map frame before the first freeze: its Nav2 waits (autostart false) and nav2_start sends STARTUP
+    # once map -> base_link is on its TF; started at launch it gives up after 60 s for good (C8, #375)
+    nav2_start = None if mode != 'FROZEN_MAP_AMCL' else {
+        'manage_service': f'{ns}/{NAV2_LIFECYCLE_MANAGER}/manage_nodes', 'map_frame': readiness.map_frame,
+        'base_frame': SLAM_BASE_FRAME, 'tf_topic': readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
+        'poll_period_s': NAV2_START_POLL_S, 'answer_wait_s': NAV2_START_ANSWER_WAIT_S}
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'task_input': task_input, 'watchdog': watchdog,
             'passage': passage,
-            'nav2_remaps': remaps}
+            'nav2_remaps': remaps, 'nav2_autostart': nav2_start is None, 'nav2_start': nav2_start}
 
 
 def _task_keys(section):

@@ -14,7 +14,10 @@ watchdog writes <ns>/cmd_vel. Remove any other final cmd_vel writer (e.g. joysti
 The overhead passage stop (field run file robot.passage.*, OPS-135) is added to the Nav2
 collision_monitor parameters at launch; run passage_points.launch.py for the depth points, or
 collision_monitor stops the robot (no depth = no movement). A robot without robots.<id>.passage
-depth values does not start. No arm, task or movement command is sent by this launch.
+depth values does not start. A FROZEN_MAP_AMCL robot (TB-5) has no map frame before the first freeze,
+so its Nav2 starts with autostart false and nav2_start_after_map sends STARTUP once map -> base_link
+is on its TF (started at once, the global costmap gives up after 60 s and Nav2 stays inactive, #375).
+No arm, task or movement command is sent by this launch.
 """
 from pathlib import Path
 import tempfile
@@ -58,9 +61,19 @@ def _nodes(context):
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 str(Path(get_package_share_directory('turtlebot4_navigation')) / 'launch' / 'nav2.launch.py')),
+            # autostart reaches navigation_launch.py through the launch context (nav2.launch.py does not declare it)
             launch_arguments={'namespace': ns, 'use_sim_time': str(values['use_sim_time']).lower(),
-                              'params_file': nav2_params}.items()),
+                              'params_file': nav2_params,
+                              'autostart': str(values['nav2_autostart']).lower()}.items()),
     ])
+    start = values['nav2_start']
+    nav2_start = [] if start is None else [
+        LogInfo(msg=f'nav2 autostart false: {start["manage_service"]} STARTUP once {start["map_frame"]} -> '
+                    f'{start["base_frame"]} is on {start["tf_topic"]} (first frozen map localized)'),
+        Node(package='rescue_bringup', executable='nav2_start_after_map', name='rescue_nav2_start', namespace=ns,
+             output='screen', remappings=[('/tf', start['tf_topic']), ('/tf_static', start['tf_static_topic'])],
+             parameters=[typed({key: start[key] for key in (
+                 'manage_service', 'map_frame', 'base_frame', 'poll_period_s', 'answer_wait_s')})])]
     return [
         LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={base_params} + passage stop '
                     f'{passage["min_height_m"]}..{passage["max_height_m"]} m front {passage["front_m"]} '
@@ -72,6 +85,7 @@ def _nodes(context):
                     f'declared alignment window '
                     f'{task["task.saved_map.valid_from_ns"]}..{task["task.saved_map.transform_valid_until_ns"]} ns'),
         nav2,
+        *nav2_start,
         Node(package='rescue_robot', executable='command_watchdog', name='rescue_command_watchdog', namespace=ns,
              output='screen', parameters=[typed(values['watchdog'])]),
         Node(package='rescue_robot', executable='task_input', name='rescue_command_adapter', namespace=ns,
