@@ -30,7 +30,6 @@ class FollowPath(unittest.TestCase):
         self.assertIs(False, follow['use_rotate_to_heading'])  # the shim does the turning (Nav2 docs)
         self.assertIs(True, follow['use_collision_detection'])
 
-    @unittest.expectedFailure
     def test_the_shim_turns_to_the_goal_heading_at_the_goal(self):
         """Run 10 (2026-10-16): TB-6 reached 0.035 m from a goal and expired turning: with RPP's use_rotate_to_heading
         off (as the shim needs) and the shim's rotate_to_goal_heading off, nothing turned the robot to the goal yaw,

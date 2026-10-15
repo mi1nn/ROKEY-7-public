@@ -28,7 +28,10 @@ FOLLOW_PATH = {
     'rotate_to_heading_angular_vel': 1.0,      # = DWB max_vel_theta
     'max_angular_accel': 3.2,                  # = DWB acc_lim_theta
     'simulate_ahead_time': 1.0,                # collision check of the in-place turn
-    'rotate_to_goal_heading': False,           # the goal checker's 0.25 rad tolerance stays the judge
+    # at the goal the shim turns in place to the goal heading. With it off (2026-10-14, wrong comment: "the goal
+    # checker's 0.25 rad tolerance stays the judge") nothing turned the robot, since RPP's use_rotate_to_heading must be
+    # off with the shim: run 10 (2026-10-16) TB-6 expired 0.035 m from a goal. 재범 decision 2026-10-16 05:0x 「켜기」
+    'rotate_to_goal_heading': True,
     # RPP
     'desired_linear_vel': 0.2,                 # under DWB max_vel_x 0.26; the watchdog limit is 0.3
     'lookahead_dist': 0.4,
