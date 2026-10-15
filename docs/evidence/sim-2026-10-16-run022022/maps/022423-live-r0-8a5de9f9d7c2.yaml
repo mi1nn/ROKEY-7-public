@@ -1,0 +1,7 @@
+image: 022423-live-r0-8a5de9f9d7c2.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-2.5694334450912946, -1.1101247979195497, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
