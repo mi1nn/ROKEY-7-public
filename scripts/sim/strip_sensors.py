@@ -15,6 +15,11 @@ One Sensors system renders every sensor in the world, so the extra robots are sp
    effectively 0.248 m apart while odom uses 0.233 m [추정]. With spheres odom and truth agree to 0.01 deg
    [측정 2026-10-16, 3 undock + 3 dock + two 360 deg turns]. Whether the real Create3 odom has such an error is
    not recorded [미확인]; the real SLAM map has walls along its axes.
+3. --depth-near M: the OAK-D rgbd_camera's depth gets its own near clip (<camera><depth_camera><clip>); the RGB clip
+   stays. Nearer than M the depth is -inf (no return), as the real stereo gives 0. Real stereo cannot measure nearer than
+   about 0.40 m: fx 512 px x baseline 0.075 m / 96 disparities [계산; 704 px aligned depth and DISPARITY_96 from
+   docs/evidence/field-2026-10-13-oakd-robot6.log, OAK-D Pro baseline 7.5 cm]. Depth noise is added by
+   wall_clock_relay.py: Gazebo's <camera><noise> does not reach the rgbd depth image (measured std 0.0000 m).
 """
 import re
 import sys
@@ -44,9 +49,21 @@ def wheel_spheres(urdf):
     return WHEEL_COLLISION.subn(lambda m: f'{m.group(1)}<sphere radius="{m.group(2)}"/>', urdf)
 
 
-def patch(urdf, *, keep_sensors, wheel_sphere):
+RGBD_CAMERA = re.compile(r'(<sensor name="rgbd_camera" type="rgbd_camera">\s*<camera>)(.*?)(</camera>)', re.DOTALL)
+
+
+def real_depth(urdf, near_m):
+    """(text whose rgbd_camera depth has its own near clip, how many cameras were changed)."""
+    def change(m):
+        far = re.search(r'<far>([^<]*)</far>', m.group(2))
+        extra = f'<depth_camera><clip><near>{near_m:g}</near><far>{far.group(1) if far else 100}</far></clip></depth_camera>'
+        return m.group(1) + m.group(2) + extra + m.group(3)
+    return RGBD_CAMERA.subn(change, urdf)
+
+
+def patch(urdf, *, keep_sensors, wheel_sphere, depth_near_m=None):
     """The simulation copy, or ValueError when the description is not the one expected (nothing is guessed)."""
-    report = {'sensors_removed': 0, 'wheels_sphere': 0}
+    report = {'sensors_removed': 0, 'wheels_sphere': 0, 'depth_camera': 0}
     if not keep_sensors:
         urdf, report['sensors_removed'] = strip(urdf)
         if report['sensors_removed'] != 1:
@@ -55,24 +72,30 @@ def patch(urdf, *, keep_sensors, wheel_sphere):
         urdf, report['wheels_sphere'] = wheel_spheres(urdf)
         if report['wheels_sphere'] != 2:
             raise ValueError(f'expected 2 drive wheel cylinders, found {report["wheels_sphere"]}')
+    if depth_near_m is not None:
+        urdf, report['depth_camera'] = real_depth(urdf, depth_near_m)
+        if report['depth_camera'] != 1:
+            raise ValueError(f'expected 1 rgbd_camera, found {report["depth_camera"]}')
     return urdf, report
 
 
 class StripSensors(Node):
-    def __init__(self, keep_sensors, wheel_sphere):
+    def __init__(self, keep_sensors, wheel_sphere, depth_near_m=None):
         super().__init__('strip_sensors')
-        self.keep_sensors, self.wheel_sphere = keep_sensors, wheel_sphere
+        self.keep_sensors, self.wheel_sphere, self.depth_near_m = keep_sensors, wheel_sphere, depth_near_m
         self.pub = self.create_publisher(String, 'robot_description_sim', LATCHED)
         self.sub = self.create_subscription(String, 'robot_description', self.on_description, LATCHED)
 
     def on_description(self, msg):
         try:
-            text, report = patch(msg.data, keep_sensors=self.keep_sensors, wheel_sphere=self.wheel_sphere)
+            text, report = patch(msg.data, keep_sensors=self.keep_sensors, wheel_sphere=self.wheel_sphere,
+                                 depth_near_m=self.depth_near_m)
         except ValueError as exc:
             self.get_logger().error(f'STRIP_SENSORS {exc}; not publishing')
             return
         self.get_logger().info(f'STRIP_SENSORS robot_description_sim: Sensors system removed {report["sensors_removed"]}, '
-                               f'drive wheel spheres {report["wheels_sphere"]}')
+                               f'drive wheel spheres {report["wheels_sphere"]}, depth camera {report["depth_camera"]} '
+                               f'(near {self.depth_near_m})')
         self.pub.publish(String(data=text))
 
 
@@ -80,9 +103,10 @@ def main():
     args = rclpy.utilities.remove_ros_args(sys.argv)[1:]
     keep_sensors = '--keep-sensors-system' in args
     wheel_sphere = '--wheel-sphere' in args
+    value = lambda flag: float(args[args.index(flag) + 1]) if flag in args else None   # noqa: E731
     rclpy.init(args=sys.argv)
     try:
-        rclpy.spin(StripSensors(keep_sensors, wheel_sphere))
+        rclpy.spin(StripSensors(keep_sensors, wheel_sphere, value('--depth-near')))
     except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
 

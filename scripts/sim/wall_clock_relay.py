@@ -20,8 +20,12 @@ context each, and changes only what the real robot does differently [측정 2026
   oakd/stereo/image_raw/compressedDepth (16UC1 millimetres in PNG after a 12-byte header, as
   rescue_perception.target_utils.decode_depth_png reads it; robot readiness and passage points wait for it).
   TOPICS lists every relayed topic with its field name and the conversion, if any.
+- depth noise: the relayed depth gets gaussian noise sigma = k z^2 (--depth-noise k, default DEPTH_NOISE_PER_M2), as a
+  stereo camera's error grows with the distance squared. Gazebo's own <camera><noise> did not reach the rgbd depth
+  image (measured std 0.0000 m, 2026-10-16). Without noise the 1 cm margin of tunnel 1 (0.47 m against the 0.46 m
+  clearance) always passed in the simulation (작전 2026-10-16).
 
-Nothing else is added or computed: no Gazebo ground truth, no map. Undock/dock are not relayed; the robot
+Nothing else is added or computed (apart from the depth noise): no Gazebo ground truth, no map. Undock/dock are not relayed; the robot
 supervisor calls them in the simulation domain as on the real robot (runbook step 4).
 
     wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 [--namespace robot5]
@@ -144,6 +148,7 @@ def relay_message(msg, frames, stamps):
 DEPTH_HEADER = struct.Struct('<iff')   # mode 0, two unused floats (decode_depth_png reads mode 0 only)
 DEPTH_FORMAT = '16UC1; compressedDepth png'
 JPEG_QUALITY = 80   # [제안] 2026-10-15, preview 크기라 화질보다 크기
+DEPTH_NOISE_PER_M2 = 0.01   # sigma = k z^2: 1 cm at 1 m, 4 cm at 2 m [추정 2026-10-16; OAK-D Pro, 7.5 cm baseline, 96 disparities]
 
 
 def depth_mm(metres):
@@ -152,6 +157,19 @@ def depth_mm(metres):
     depth = np.asarray(metres, dtype=np.float32)
     mm = np.where(np.isfinite(depth) & (depth > 0), np.rint(depth * 1000.0), 0)
     return np.clip(mm, 0, 65535).astype(np.uint16)
+
+
+def noisy_depth(metres, k, rng):
+    """float32 metres with gaussian noise of sigma k * z^2 on the returns; no return (NaN/inf/<=0) stays as it is."""
+    import numpy as np
+    depth = np.asarray(metres, dtype=np.float32)
+    if k <= 0:
+        return depth
+    valid = np.isfinite(depth) & (depth > 0)
+    out = depth.copy()
+    z = depth[valid].astype(np.float64)
+    out[valid] = (z + rng.normal(0.0, 1.0, z.shape) * k * z * z).astype(np.float32)
+    return out
 
 
 def depth_payload(metres):
@@ -176,13 +194,15 @@ def _image_array(msg):
     return np.ascontiguousarray(row[:, :width_bytes]).view(dtype).reshape(msg.height, msg.width, channels).squeeze()
 
 
-def converted(msg, kind, compressed_type):
-    """CompressedImage for an Image (header kept, already restamped/renamed)."""
+def converted(msg, kind, compressed_type, depth_noise=0.0, rng=None):
+    """CompressedImage for an Image (header kept, already restamped/renamed); depth gets noise sigma depth_noise z^2."""
     import cv2
     out = compressed_type()
     out.header = msg.header
     image = _image_array(msg)
     if kind == 'depth_png':
+        if depth_noise > 0:
+            image = noisy_depth(image, depth_noise, rng)
         out.format, out.data = DEPTH_FORMAT, depth_payload(image)
     elif kind == 'jpeg':
         if msg.encoding == 'rgb8':
@@ -219,7 +239,11 @@ def main(argv=None):
     parser.add_argument('--sim-domain', type=int, required=True)
     parser.add_argument('--field-domain', type=int, required=True)
     parser.add_argument('--namespace', action='append', required=True, help='로봇 namespace, 슬래시 없이 (여러 번)')
+    parser.add_argument('--depth-noise', type=float, default=DEPTH_NOISE_PER_M2, metavar='K',
+                        help=f'깊이 잡음 sigma = K z^2 (m), 0 이면 없음 (기본 {DEPTH_NOISE_PER_M2} [추정])')
     args = parser.parse_args(argv)
+    if not args.depth_noise >= 0:
+        parser.error('--depth-noise must be >= 0')
     if args.sim_domain == args.field_domain:
         parser.error('sim and field domains must differ')
 
@@ -238,6 +262,9 @@ def main(argv=None):
     counts = {}
     keep = []
     stamps = StampMap(time.time_ns)   # one map for every robot and topic: same simulation stamp = same wall stamp
+    import numpy as np
+    noise_rng = np.random.default_rng()
+    log.info(f'RELAY depth noise sigma = {args.depth_noise} z^2 m')
 
     for ns in args.namespace:
         frames = frame_map(ns)
@@ -270,7 +297,7 @@ def main(argv=None):
                     out = relay_message(msg, frames, stamps)
                     if out is not None and kind:
                         try:
-                            out = converted(out, kind, out_type)
+                            out = converted(out, kind, out_type, args.depth_noise, noise_rng)
                         except ValueError as exc:
                             log.error(f'RELAY_CONVERT_FAILED {key}: {exc}')
                             return
