@@ -204,6 +204,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열넷째 회차 자료](sim-2026-10-16-run064205/README.md)에 있다. 빌드는 `a5d4d64`(#444·#447·#448·#450·#451·#452·#453)다. 첫 기동은 TB-6 Nav2 lifecycle 응답 시간 초과로 멈춰 다시 띄웠다. 경계 3개를 보냈지만 터널 1 입구에서 `collision ahead` 로 막혀 `EXPLORATION_FRONTIERS_FAILED` 로 끝났다. 넘김은 손 없이 됐고 C21·C22·C17 은 재현되지 않았다. RETURN_HOME 은 Nav2 까지 갔지만 RobotPose 가 0.02 ~ 0.09 s `UNKNOWN` 이 된 순간 `localization uncertain` 으로 두 번 취소돼 `SCOUT_RETURN_FAILED` 였다. 터널 PASSABLE 1행, TB-5 `ALIGNED`.
 
+## 19. 열다섯째 회차 (full-1016-073537)
+
+회차 표·단계별 결과는 [열다섯째 회차 자료](sim-2026-10-16-run073537/README.md)에 있다. 빌드는 `100a610`(#454·#456·#457·#458·#459)이다. TB-6 이 처음으로 터널 1 을 지나 메인 구역(정답 y 3.146)까지 갔고, 07:39:38 에 인형을 봤다. 2단계는 처음 통과했고, 3단계는 장부 기준으로 처음 통과했다(target 1, 터널 PASSABLE 2·BLOCKED 1). 4단계는 TB-5 접근 지점(인형에서 TB-5 쪽 0.8 m)이 흰 상자 안이라 `SUPPORT_APPROACH_NOT_FREE` 로 출동하지 못했다. TB-6 복귀는 14회차와 같이 `localization uncertain` 으로 두 번 취소됐다. RTF 0.5 미만 표본은 0 이었다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
