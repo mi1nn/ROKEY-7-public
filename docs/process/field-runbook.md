@@ -281,6 +281,40 @@ curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: applica
 - 회차마다 남길 것. 코드 SHA, 각 PC 의 `preflight_role.py`·`wiring_check.py` JSON, 지도 고정 `output_dir`, 단계별 로그, 결과(PASSED·FAILED·BLOCKED·NOT_RUN)와 원문 증거. 저장소에 올릴 때는 PC 이름·IP·개인 경로를 지운다(`docs/evidence/field-<날짜>-<역할>.*`).
 - 로봇을 재부팅하거나 네트워크를 바꾼 뒤에는 1단계 준비 점검과 6단계 배선 점검을 다시 한다.
 
+## 웹 없이 하기
+
+관제 웹 없이 RViz 와 터미널만으로 실기 회차를 돌린다(재범 결정 2026-10-15 저녁). Gazebo 는 쓰지 않는다. 1·2·4·5·6단계는 위와 같다. 3·7·8단계에서 관제 웹이 하던 일만 아래 도구가 대신한다. 도구 설명은 [`scripts/field/noweb/README.md`](../../scripts/field/noweb/README.md)에 있다.
+
+**3단계에서 바뀌는 것.**
+- 운영 launch 는 꼭 띄운다. 웹캠 흔들림 판정과 보고 저장이 여기에 있다. 3단계 명령 그대로 **`map_topic:=/robot6/map map_dir:=<실시간 지도 폴더>` 도 준다.** 빼면 `status_watch.py` 가 지도 고정 단계를 알 수 없어 「지도 보관 꺼짐 — 고정 여부 모름」을 찍는다.
+- 관제 웹(`python3 -m rescue_console ...`)은 띄우지 않는다.
+- 조정기는 3단계 명령 그대로 띄운다.
+
+**관제 웹 대신 쓰는 것.** 포트는 운영 launch 로그 `rescue_db_writer ... api=http://127.0.0.1:<port>` 의 값이다.
+
+| 할 일 | 도구 | 어디서 |
+| --- | --- | --- |
+| 상태 보기 | `python3 scripts/field/noweb/status_watch.py --db <site_state.sqlite3> --log <회차 폴더>/status.log` | 운영 PC |
+| 지도와 두 로봇 보기 | `rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static` | RViz 를 띄울 PC |
+| 재난 선포 | 웹캠 앞을 흔든다. 흔들기 어려우면 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> DECLARE_DISASTER` | 운영 PC |
+| 초기화 | 8단계 ①의 `curl` 대신 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> RESET_RUN` | 운영 PC |
+| 정지 | 「정지 방법」의 `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`) | 로봇 담당 PC |
+
+- `operator_command.py` 는 답 JSON 을 그대로 찍는다. 끝 코드는 0 접수, 1 거절, 2 보내지 않음, 3 답 없음이다. 3 이면 명령이 들어갔는지 모르니 `status_watch.py` 줄로 확인한 뒤 다시 보낸다. 다시 보내면 새 명령이다.
+- 7단계에서 「관제 화면이 DISASTER 가 되고」는 `status_watch.py` 줄의 `임무 DISASTER/...` 로 본다. 1차·2차 고정은 줄 끝의 `고정 지도 r<R0+1>`·`r<R0+2>` 와 로봇 담당 PC 로그로 본다.
+- 8단계 초기화 뒤의 재기동 확인은 `status_watch.py` 줄의 `초기화 확인 조정기=... robot_a=... robot_b=...` 로 본다. SLAM, 지도 고정, relay, AMCL 재기동은 운영 DB 에 남지 않으니 터미널마다 사람이 확인한다.
+- RViz 하나는 TF 를 하나만 읽는다. 위 명령은 TB-6 의 TF 를 읽으므로 TB-5 의 모델과 라이다는 그리지 않는다. TB-5 는 AMCL 자세 화살표와 경로로만 보인다. 1차 고정 전에는 TB-5 가 안 보이는 것이 정상이다.
+- Nav2 상태는 운영 DB 에 없다. 7단계 1번처럼 `ros2 lifecycle get /robot6/bt_navigator` 로 본다.
+
+**현장 폴더(저장소 밖).** 회차 이름은 `<날짜-noweb-순번>` 이다. 웹으로 하는 회차와 폴더·DB 를 나눈다.
+
+| PC | 폴더 | 들어가는 것 |
+| --- | --- | --- |
+| 로봇 담당 PC | `~/Dev/rokey7-field/runs/<날짜-noweb-순번>/` | `freeze/`(지도 고정 `output_dir`), `logs/`, `HEAD.txt`(코드 SHA) |
+| 운영 PC | `~/rokey7-field/noweb/<날짜-noweb-순번>/` | `site_state.sqlite3`(운영 launch `db_path`), `reports.sqlite3`(`report_db_path`), `logs/`, `status.log` |
+
+- RViz 화면 파일은 저장소에서 문법만 시험했다. 실제 화면은 실기에서 아직 보지 않았다(NOT_RUN).
+
 ## 실기에서 아직 확인하지 못한 것 (NOT_RUN)
 
 이 순서를 처음부터 끝까지 실제 로봇으로 돌린 회차는 아직 없다. 실기에서 볼 항목은 [rescue_bringup README](../../src/rescue_bringup/README.md) 「실기 NOT_RUN」 절에 모여 있다. 그중 이 순서에 바로 걸리는 것은 아래다.
