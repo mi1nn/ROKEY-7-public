@@ -43,7 +43,7 @@
 | 22:40:55~22:41:00 | 인형 대역 | `MapState VALID`, `FAKE_TARGET start_pose map=(…) doll map=(…)` | |
 | 22:41:08 | TB-6 arm | `ARMED` | |
 | 22:55:38 | 재난 선포(재범, 휴대폰 웹) | `DISASTER_DECLARED by operator admin` → `SEARCH_AUTO_STARTED on DISASTER` | |
-| 22:55:38 | 첫 탐색 경계 | `FRONTIER e2910… cells=12 centroid=(-1.30, -0.65) goal=(-1.00, -0.74, 3.14)` | 목표가 남쪽 벽 0.1~0.2 m 안쪽(C3) |
+| 22:55:38 | 첫 탐색 경계 | `FRONTIER e2910… cells=12 centroid=(-1.30, -0.65) goal=(-1.00, -0.74, 3.14)` | 목표가 서쪽 벽 0.1~0.2 m 안쪽(C3). 처음에 「남쪽 벽」으로 적은 것은 지도 원점을 잘못 잡은 계산이었다(2026-10-16 정정, [둘째 회차 자료](sim-2026-10-15-run232037/README.md) 「지도 좌표와 실습장 좌표」) |
 | 22:55:40~22:56:40 | TB-6 이동 | `SEND 473f572f GoalPose(x=-1.003, y=-0.738)` → `CommandLease STOPPING` | Nav2 `detected collision ahead!` 64, `Controller patience exceeded`·`spin failed` 14 |
 | 22:56:40 | 결과 | `RESULT task=21965219… outcome=FAILED` | 다시 arm 하지 않아 다음 경계 `a116…`(goal (-1.45, 0.57))는 안 나감(C4) |
 | 23:05:38 | 탐색 끝 | `EXPLORATION_COMPLETE reason=EXPLORATION_TIMEOUT frontiers_sent=2` | 600 s |
