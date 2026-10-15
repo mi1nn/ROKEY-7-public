@@ -22,7 +22,8 @@ process before rclpy starts so a Discovery Server shows every endpoint (docs/des
 
 Verdict per connection: FAILED when the writer is missing or there are two or more (also a duplicate
 node), an expected reader is missing, the endpoint types differ or a publisher/subscriber pair has
-incompatible QoS (reliability, durability); PASSED otherwise; NOT_RUN when the expectation or the graph
+incompatible QoS (reliability, durability); PASSED otherwise, with a note when the only extra writer (or repeated
+node name) is a robot Pi default node we cannot switch off (PI_DEFAULT_NODES); NOT_RUN when the expectation or the graph
 is unknown (never PASSED). Exit code as scripts/field/preflight.py: 0 = all PASSED, 2 = a FAILED,
 3 = nothing failed but a NOT_RUN. Table on stderr, JSON on stdout.
 
@@ -66,6 +67,16 @@ NODES = {
     'bt_navigator': 'bt_navigator',               # turtlebot4 nav2.yaml (navigate_to_pose server)
     'nav2_lifecycle': 'lifecycle_manager_navigation',   # nav2_bringup navigation_launch.py (is_active server)
     'slam_toolbox': 'slam_toolbox',               # turtlebot4 slam.yaml (tb6_slam.launch.py)
+}
+# Robot Pi default nodes we cannot switch off: name -> the topics (relative to the robot namespace) it may write
+# and why. A row passes with a note instead of failing for them; our own nodes stay FAILED when doubled.
+PI_DEFAULT_NODES = {
+    'teleop_twist_joy_node': dict(
+        topics=('cmd_vel',),
+        source='TurtleBot4 Pi standard.launch.py -> turtlebot4_bringup joy_teleop.launch.py (turtlebot4_robot '
+               'jazzy 28e115f, teleop_twist_joy teleop_node); seen on both Pis, field 2026-10-15 17:10',
+        note='writes <ns>/cmd_vel straight to the Create3, not through rescue_command_watchdog, while its '
+             'joystick enable button is held [teleop_twist_joy default]; keep the joystick away during a run'),
 }
 COLLISION_STATE = 'collision_monitor_state'     # nav2.yaml state_topic; rescue_robot task_site_runtime subscribes it
 ROBOT_VIEW = 'robot_view_relay'
@@ -303,6 +314,18 @@ def qos_problem(pub, sub):
     return ''
 
 
+def pi_default(node, topic=None):
+    """The PI_DEFAULT_NODES entry for a full node name, or None. With a topic, only when the node writes that
+    topic of its own namespace (another robot's Pi, or another topic, is not excused)."""
+    namespace, _, name = node.rpartition('/')
+    entry = PI_DEFAULT_NODES.get(name)
+    if entry is None or not namespace:
+        return None
+    if topic is not None and topic not in [f'{namespace}/{t}' for t in entry['topics']]:
+        return None
+    return entry
+
+
 def _missing_and_extra(want, seen):
     missing = [n for n in want if n not in seen]
     counted = {n: seen.count(n) for n in seen}
@@ -313,7 +336,7 @@ def _missing_and_extra(want, seen):
 
 def judge(lk, graph):
     """One connection against the graph snapshot (see read_graph for its shape)."""
-    row = dict(asdict(lk), status=NOT_RUN, problems=[], seen_writers=None, seen_readers=None, qos=[])
+    row = dict(asdict(lk), status=NOT_RUN, problems=[], notes=[], seen_writers=None, seen_readers=None, qos=[])
     if graph is None:
         row['problems'] = ['그래프를 읽지 못함']
         return row
@@ -336,6 +359,9 @@ def judge(lk, graph):
             problems.append(f'{what} 없음: {", ".join(missing)}')
         if duplicate:
             problems.append(f'{what} 중복: {", ".join(duplicate)}')
+        excused = [n for n in extra if lk.kind == 'topic' and pi_default(n, lk.name)]
+        row['notes'] += [f'로봇 Pi 기본 노드 {n}: {pi_default(n)["note"]}' for n in excused]
+        extra = [n for n in extra if n not in excused]
         if extra:
             problems.append(f'다른 {what}: {", ".join(extra)}')
     who = '구독' if lk.kind == 'topic' else '클라이언트'
@@ -362,13 +388,15 @@ def judge(lk, graph):
 
 def duplicate_nodes(graph):
     if graph is None:
-        return dict(id='graph.duplicate_nodes', status=NOT_RUN, problems=['그래프를 읽지 못함'], names=[])
+        return dict(id='graph.duplicate_nodes', status=NOT_RUN, problems=['그래프를 읽지 못함'], names=[], notes=[])
     counted = {}
     for name in graph['nodes']:
         counted[name] = counted.get(name, 0) + 1
-    names = sorted(n for n, k in counted.items() if k > 1)
+    repeated = sorted(n for n, k in counted.items() if k > 1)
+    names = [n for n in repeated if not pi_default(n)]
     return dict(id='graph.duplicate_nodes', status=FAILED if names else PASSED,
-                problems=[f'같은 이름 노드 {counted[n]}개: {n}' for n in names], names=names)
+                problems=[f'같은 이름 노드 {counted[n]}개: {n}' for n in names], names=names,
+                notes=[f'로봇 Pi 기본 노드 {n} {counted[n]}개' for n in repeated if n not in names])
 
 
 def summarize(statuses):
@@ -391,8 +419,10 @@ def table(rows, nodes):
     for r in rows:
         lines.append(f'{r["status"]:8} {r["kind"]:7} {r["id"]:40} {r["name"]}')
         lines += [f'{"":58}- {p}' for p in r['problems']]
+        lines += [f'{"":58}! {n}' for n in r.get('notes', [])]
     lines.append(f'{nodes["status"]:8} {"node":7} {nodes["id"]:40}')
     lines += [f'{"":58}- {p}' for p in nodes['problems']]
+    lines += [f'{"":58}! {n}' for n in nodes.get('notes', [])]
     return '\n'.join(lines)
 
 

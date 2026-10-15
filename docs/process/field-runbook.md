@@ -209,6 +209,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 
 - 표는 화면(stderr)에, 줄마다 결과는 JSON 에 남는다. 종료 코드가 0 이 아니면 다음으로 가지 않는다.
 - 같은 이름 노드 줄이 FAILED 면 같은 프로그램이 두 곳에서 떠 있다. 우리 노드면 한쪽 launch 를 끈다. 우리 노드가 아니면(예: 두 PC 의 `/rviz2`) 한쪽을 끄거나 `--ros-args -r __node:=<다른 이름>` 으로 이름을 바꾼다.
+- 우리가 끌 수 없는 로봇 Pi 기본 노드(`wiring_check.py` `PI_DEFAULT_NODES`, 지금은 `teleop_twist_joy_node` 하나)는 FAILED 대신 PASSED 에 `!` 줄(JSON `notes`)을 붙인다. 이 조이스틱 노드는 TurtleBot4 Pi 기본 launch 가 띄우고 `<ns>/cmd_vel` 에 직접 쓴다. 그래서 enable 버튼을 누르는 동안에는 watchdog 을 거치지 않고 로봇을 움직인다. 회차 중에는 조이스틱을 치워 둔다(2026-10-15 17:10 두 Pi 모두 이 줄이 FAILED 였다). 다른 로봇의 `cmd_vel` 이나 다른 토픽에 쓰면 그대로 FAILED 다.
 - 2차 고정 뒤 TB-6 을 다시 볼 때는 `--slam-phase FROZEN` 을 더한다. 한 로봇만 볼 때는 `--robot robot_b` 다.
 - 메시지 간격은 이 도구가 보지 않는다. 로봇이 자꾸 멈추면 `scripts/field/link_check.py` 로 끊김 길이를 본다.
 
