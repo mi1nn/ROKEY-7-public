@@ -17,7 +17,7 @@ from .commands import (build_request, command_access, parse_operations_url, post
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
-from .replay import build_timeline, replay_at, run_choices
+from .replay import ClosedRunCache, build_timeline, replay_at, run_choices
 from .replay_page import render_replay_fragment, render_replay_page
 from .sources import load_ledger, load_replay, load_robot_watch, load_runs, load_site_state, load_status
 from .throttle import LoginThrottle
@@ -359,7 +359,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         return Response(render_fragment(view()), mimetype='text/html')
 
     # ---- 리플레이 (로그인한 모든 역할, 읽기만) -------------------------------------------
-    closed_runs = {}   # 닫힌 회차의 시간 막대: 닫힌 뒤에는 행이 늘지 않으므로 다시 읽지 않는다(REPLAY_CACHE_RUNS 개까지)
+    closed_runs = ClosedRunCache(REPLAY_CACHE_RUNS)   # 닫힌 회차는 행이 늘지 않으므로 다시 읽지 않는다
 
     def replay_timeline(run_text):
         """(시간 막대, 회차 목록). ``run_text`` 가 비면 열린 회차, 없으면 마지막 회차. 회차가 없으면 시간 막대는 None.
@@ -376,13 +376,12 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         if not chosen:
             raise ConsoleError('INVALID_INPUT', 'run is not in this site-state DB')
         run = chosen[0]
-        if run['run_id'] in closed_runs and not run['open']:
-            return closed_runs[run['run_id']], runs
+        cached = None if run['open'] else closed_runs.get(run['run_id'])
+        if cached is not None:
+            return cached, runs
         timeline = build_timeline(load_replay(site_state_path, run['run_id']), run=run, robot_names=robot_names)
         if not run['open']:
-            if len(closed_runs) >= REPLAY_CACHE_RUNS:
-                closed_runs.pop(next(iter(closed_runs)))
-            closed_runs[run['run_id']] = timeline
+            closed_runs.put(run['run_id'], timeline)
         return timeline, runs
 
     @app.get('/replay')
