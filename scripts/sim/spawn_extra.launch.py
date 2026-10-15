@@ -7,7 +7,7 @@
 #   the server; the first robot's one renders all sensors; the first robot uses strip_sensors:=false), and for every
 #   robot the drive wheels collide as spheres (--wheel-sphere): with the 1.5 cm wide cylinders the simulated odom
 #   counted turns 6.4 % too large and tilted the TB-6 map 11.5 deg after undocking (strip_sensors.py); and the OAK-D
-#   depth nearest 0.40 m with gaussian noise 0.01 m like the real stereo (strip_sensors.py).
+#   depth nearest 0.40 m like the real stereo (strip_sensors.py; its noise is added by wall_clock_relay.py).
 # - The dock is made with visualize_rays:=false. Its IR emitter rays are for looking at only (irobot_create_description
 #   ir_emitter.urdf.xacro: "not attached to any plugin"), the real dock has nothing like them, and with them on another
 #   robot's lidar passes through walls near the dock: 50 of 3200 rays in a still scene, 0 with them off
@@ -89,7 +89,7 @@ def generate_launch_description():
                         [robot_name, '/oakd_rgb_camera_frame/rgbd_camera']],
              remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')]),
     ])
-    strip = ExecuteProcess(cmd=['python3', STRIP, '--wheel-sphere', '--depth-near', '0.40', '--depth-noise', '0.01',
+    strip = ExecuteProcess(cmd=['python3', STRIP, '--wheel-sphere', '--depth-near', '0.40',
                                 PythonExpression(["'' if '", LaunchConfiguration('strip_sensors'),
                                                   "' == 'true' else '--keep-sensors-system'"]),
                                 '--ros-args', '-r', ['__ns:=/', namespace], '-p', 'use_sim_time:=true'],
