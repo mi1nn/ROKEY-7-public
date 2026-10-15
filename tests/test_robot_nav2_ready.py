@@ -146,6 +146,37 @@ class Nav2Ready(unittest.TestCase):
         self.assertTrue(any('NAV2_LIFECYCLE' in line and 'inactive' in line for line in self.node.logs),
                         self.node.logs)
 
+    def logged(self, text):
+        return [line for line in self.node.logs if 'NAV2_LIFECYCLE' in line and text in line]
+
+    def test_an_answer_that_goes_old_is_logged_and_a_new_one_too(self):
+        """A manager that stops answering turns nav2 NOT_READY: the reason is logged once, and READY again too."""
+        self.port.server_ready()
+        self.answer(True)
+        self.assertTrue(self.port.server_ready())
+        self.service.available = False                             # no more questions, the answer ages
+        self.now += MAX_AGE + 0.1
+        self.assertFalse(self.port.server_ready())
+        self.port.server_ready()
+        self.assertEqual(1, len(self.logged('no answer')), self.node.logs)
+        self.service.available = True
+        self.port.server_ready()
+        self.answer(True)
+        self.assertTrue(self.port.server_ready())
+        self.assertEqual(2, len(self.logged(' active')), self.node.logs)
+
+    def test_each_not_ready_reason_is_logged_on_change(self):
+        self.service.available = False
+        self.port.server_ready()
+        self.assertEqual(1, len(self.logged('no service')), self.node.logs)
+        self.service.available = True
+        self.port.server_ready()
+        self.answer(True)
+        FakeActionClient.server = False
+        self.port.server_ready()
+        self.port.server_ready()
+        self.assertEqual(1, len(self.logged('no NavigateToPose server')), self.node.logs)
+
     def test_a_failed_call_is_no_answer(self):
         self.port.server_ready()
         self.service.calls[-1].finish(error=RuntimeError('service gone'))
