@@ -231,6 +231,37 @@ class SiteRuntimeTests(unittest.TestCase):
                 SiteRuntime(self.node, self.adapter, dict(self.cfg, **{key: {}}), self.store,
                             bindings=self.runtime.server.bindings)
 
+    def test_a_refused_task_arm_names_the_missing_signals(self):
+        """task_arm said only STOP_OR_READINESS_NOT_READY; which signal was missing was nowhere (#342 rehearsal)."""
+        from rescue_robot.readiness import ReadinessMonitor, ReadinessPolicy
+        g = self.f.g
+        source=deepcopy(self.data); source['format']='rescue-robot-sources/1'
+        for key in ('authority','targets','approvals'): source.pop(key)
+        self.cfg.pop('input_file'); self.cfg.update(input_source_file='/explicit/sources.json',
+            coordinator_targets_topic='/rescue/targets',
+            coordinator_authority=dict(coordinator_id=g.coordinator_id,authority_epoch=g.authority_epoch))
+        self.adapter.executor.latch='DISARMED'
+        self.store=InputStore(self.cfg,wall_clock_ns=self.adapter.wall_clock_ns)
+        self.runtime=SiteRuntime(self.node,self.adapter,self.cfg,self.store,bindings=self.runtime.server.bindings)
+        self.store.read=self.runtime._live_inputs
+        now = self.adapter.clock()
+        monitor = ReadinessMonitor(ReadinessPolicy('test-only', {'scan': 1.0, 'camera:/r/cam': 1.0},
+                                                   {'sensors': ('scan', 'camera:/r/cam')}))
+        monitor.arrived('scan', now)                     # the camera never came
+        self.adapter.readiness_monitor = monitor
+        self.adapter.observe_status(nav2=False, sensors=False)
+        envelope=NS(schema_version=g.envelope.schema_version,publisher_id=g.coordinator_id,
+            publisher_boot_id=phase.runtime.mapping.uid(995),sequence=1,published_at_ns=self.adapter.wall_clock_ns())
+        with patch('rescue_robot.task_site_runtime.load_json',return_value=source):
+            self.runtime._receive_coordinator(NS(envelope=envelope))
+            self.assertFalse(self.runtime.arm())
+        line = '\n'.join(self.node.errors)
+        self.assertIn('TASK_ARM refused NAV_NOT_READY', line)
+        self.assertIn("missing=['sensors', 'nav2']", line)
+        self.assertIn('camera:/r/cam(never)', line)
+        self.assertNotIn('scan', line.split('sources=')[1])
+        self.assertIn('NAV_NOT_READY', self.runtime.arm_refused)
+
     def test_reobserve_phase1_without_operator_approval(self):
         g=self.f.g; g.kind='REOBSERVE_TARGET'; g.has_approval=False
         source=deepcopy(self.data); source['format']='rescue-robot-sources/1'

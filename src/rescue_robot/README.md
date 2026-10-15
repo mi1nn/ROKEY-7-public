@@ -182,7 +182,7 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 | `nav_action`, `odom_topic`, `dock_status_topic` | namespace 기준 이름. 프로파일 v2(#17)가 들어오면 그 값을 쓴다 |
 | `authority_epoch`, `policy_version`, `policy.*`(7개), `step_period`, `clock_error_bound_s`(초) | 운용 정책. 현장 값은 현장 파일 `robot` 절(`policy_version` search-live-20261012, `clock_error_bound_s` 2.0 등). 측정 근거로 확정한 값은 아니다(T-01) |
 | `scan_topic`, `tf_topic`, `map_frame`, `odom_frame` | 준비 신호 출처(필수) |
-| `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음. `/compressed` 로 끝나는 카메라 토픽은 `CompressedImage`, 그 밖은 `Image` 로 구독(TB4 OAK-D 기본 발행이 compressed, P4 DEC-004) |
+| `camera_topics`(문자열 배열), `wheel_status_topic` | 준비 신호 출처. 비워 둘 수 있음. `/camera_info` 로 끝나는 카메라 토픽은 `CameraInfo`, `/compressed`·`/compressedDepth` 로 끝나면 `CompressedImage`, 그 밖은 `Image` 로 구독(TB4 OAK-D 기본 발행이 compressed, P4 DEC-004). 저장소 로봇 파일은 RGB `camera_info` 를 쓴다. 준비 점검은 도착만 보므로, 영상을 받으면 인형 탐지가 받는 RGB 가 Wi-Fi 로 한 번 더 온다(실습 기록 #339 B7) |
 | `watchdog_heartbeat_topic` | 명령 watchdog 의 heartbeat(`std_msgs/Header`). 비워 둘 수 있으나 그러면 `watchdog` flag 가 없어 이동 불가 |
 | `executor_heartbeat_topic` | 이 노드가 step 마다 발행하는 heartbeat(`std_msgs/Header`). 명령 watchdog 이 듣는다(필수) |
 | `readiness.version`, `readiness.max_age_s.{odom,scan,camera,wheel_status,map_to_odom_tf,watchdog_heartbeat}`(초) | 준비 신호 정책. 출처는 위 「준비 신호」 [제안] |

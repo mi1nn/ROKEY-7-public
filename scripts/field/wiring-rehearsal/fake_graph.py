@@ -133,7 +133,9 @@ def main(argv=None):
         if not writers and not readers:
             continue
         if lk.kind == 'topic':
-            name = (topic_types.get(lk.name) or [DEFAULT_TYPES.get(r, 'std_msgs/msg/String')])[0]
+            default = 'sensor_msgs/msg/CameraInfo' if r == 'camera' and lk.name.endswith('/camera_info') else \
+                DEFAULT_TYPES.get(r, 'std_msgs/msg/String')   # a readiness camera may be a camera_info (B7)
+            name = (topic_types.get(lk.name) or [default])[0]
             kind = get_message(name)
             for w in writers:
                 made.append(fake(w).create_publisher(kind, lk.name, qos(*FAKE_WRITER_QOS.get(r, ('RELIABLE', 'VOLATILE')))))

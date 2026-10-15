@@ -8,7 +8,8 @@ What slam_toolbox, AMCL and the robot Pis would publish, on the field names:
 - TB-5: /robot5/amcl_pose, /robot5/tf flat at the origin (TB-5 TF not measured), and the start alignment verdict
   /robot5/rescue_start_align ALIGNED (what rescue_robot start_align latches once TB-5 is aligned, #317; its own
   rehearsal is scripts/field/start-align-rehearsal).
-- Both: zero-velocity odom, undocked dock_status, scan and the readiness camera topics (empty payloads).
+- Both: zero-velocity odom, undocked dock_status, scan and the readiness camera topics, RGB image or camera_info
+  (empty payloads).
 """
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
@@ -47,9 +48,10 @@ class Feeder:
         self.sensors = []
         for ns in ('/robot6', '/robot5'):
             from irobot_create_msgs.msg import DockStatus
-            from sensor_msgs.msg import CompressedImage, LaserScan
+            from sensor_msgs.msg import CameraInfo, CompressedImage, LaserScan
             for kind, name in ((Odometry, '/odom'), (DockStatus, '/dock_status'), (LaserScan, '/scan'),
                                (CompressedImage, '/oakd/rgb/image_raw/compressed'),
+                               (CameraInfo, '/oakd/rgb/camera_info'),   # readiness camera of the robot files (B7)
                                (CompressedImage, '/oakd/stereo/image_raw/compressedDepth')):
                 self.sensors.append((kind, p(kind, ns + name, qos_profile_sensor_data)))
         self.grid = OccupancyGrid()

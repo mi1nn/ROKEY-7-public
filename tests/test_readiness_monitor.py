@@ -92,6 +92,32 @@ class ReadinessPolicyBuilderTests(unittest.TestCase):
         # image_transport compressedDepth is a CompressedImage too (passage depth, REV-226-01)
         self.assertEqual('CompressedImage', camera_message_type('/robot5/oakd/stereo/image_raw/compressedDepth'))
         self.assertEqual('Image', camera_message_type('camera/compressed_view'))
+        # a camera_info topic says the driver runs without a second image stream over Wi-Fi (실습 기록 #339 B7)
+        self.assertEqual('CameraInfo', camera_message_type('/robot6/oakd/rgb/camera_info'))
+
+    def test_readiness_subscribes_camera_info_as_camera_info(self):
+        import sys
+        from types import ModuleType, SimpleNamespace as NS
+        from unittest.mock import patch
+        kinds = {name: type(name, (), {}) for name in ('CompressedImage', 'Image', 'LaserScan', 'CameraInfo')}
+        msg, qos, tf2 = ModuleType('sensor_msgs.msg'), ModuleType('rclpy.qos'), ModuleType('tf2_msgs.msg')
+        for name, kind in kinds.items():
+            setattr(msg, name, kind)
+        qos.qos_profile_sensor_data, tf2.TFMessage = 'sensor', type('TFMessage', (), {})
+        made = []
+        node = NS(create_subscription=lambda kind, topic, callback, q: made.append((topic, kind)))
+        with patch.dict(sys.modules, {'rclpy': ModuleType('rclpy'), 'rclpy.qos': qos,
+                                      'sensor_msgs': ModuleType('sensor_msgs'), 'sensor_msgs.msg': msg,
+                                      'tf2_msgs': ModuleType('tf2_msgs'), 'tf2_msgs.msg': tf2}):
+            from rescue_robot.ros_node import bind_readiness
+            bind_readiness(node, NS(arrived=lambda *a: None), NS(clock=lambda: 0.0), scan_topic='/robot6/scan',
+                           camera_topics=('/robot6/oakd/rgb/camera_info',
+                                          '/robot6/oakd/stereo/image_raw/compressedDepth'),
+                           wheel_status_topic='', tf_topic='/robot6/tf', map_frame='map', odom_frame='odom',
+                           watchdog_heartbeat_topic='')
+        types = dict(made)
+        self.assertIs(kinds['CameraInfo'], types['/robot6/oakd/rgb/camera_info'])
+        self.assertIs(kinds['CompressedImage'], types['/robot6/oakd/stereo/image_raw/compressedDepth'])
 
 
 if __name__ == '__main__':
