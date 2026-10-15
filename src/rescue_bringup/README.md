@@ -272,6 +272,12 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - 두 로봇의 전역·지역 비용 지도에 Nav2 `KeepoutFilter`(`tunnel_keepout`, `/rescue/passage_keepout/filter_info`)를 더한다(`nav2_field.nav2_with_tunnel_keepout`, `robot.launch.py` 만). 경로가 칠한 자리를 지나지 않는다. 라이다가 덮개 아래를 지나도 지워지지 않는다.
 - 사람이 막힘을 푸는 것(통과 승인)은 판정 노드 안에 있고(`KeepoutCore.approve`), ROS 서비스는 다음 PR 이다(새 인터페이스를 SDD JSON 에 먼저 넣어야 함).
 - 실행기의 `PASSAGE_BLOCKED` 알림은 `PassageStop` 다각형을 보던 것이라 이제 켜지지 않는다(현장 파일 `task.live.passage.polygon_name` 은 남아 있음).
+- **라이다 아래 낮은 물체(재범 결정 2026-10-16 03:1x 「1 피하게 하자」, D, 등급 4):** 도크(0.1 m)나 바닥의 인형처럼 라이다 평면(0.23 m) 아래에 있는 것을 경로가 피한다.
+  - `overhead_passage` 가 깊이 점을 본 바닥 기준 높이로 바꿔 `<ns>/rescue/low_obstacle_points` 로 낸다. 바닥 점과 라이다 평면 아래 점만 담는다. 바닥이 안 보이면 내지 않는다.
+  - 두 비용 지도에 깊이 전용 `depth_low_layer`(ObstacleLayer)를 inflation 앞에 둔다. 관측원은 두 개다. `depth_low` 는 바닥 위 `passage.min_height_m` 0.05 ~ `passage.overhead.lidar_plane_m` 0.23 m 를 칠하고, `depth_floor` 는 바닥 점까지 raytrace 로 지운다.
+  - 라이다 scan 은 이 층의 관측원이 아니라 이 층을 지우지 못한다. 치운 인형 자리는 그 너머 바닥이 보이면 지워진다.
+  - 거리 값은 같은 비용 지도의 scan 값(칠하기 2.5 m, 지우기 3.0 m)이다. `observation_persistence`·`expected_update_rate` 는 Nav2 기본값 0.0 이다.
+  - **깊이가 끊기면 이 층은 칠한 것을 그대로 남긴다(안전 쪽).** 새 점이 없으면 지우지도 않는다. 카메라가 조용해도 비용 지도가 오래됨으로 멈추지는 않는다.
 - 로그: `+ no depth stop + tunnel keepout /rescue/passage_keepout/filter_info`, `PASSAGE_KEEPOUT <n> place(s) kept out`.
 - **감속(OPS-189):** 같은 깊이 점 중 라이다 평면 위(`passage.overhead.lidar_plane_m` 0.23 m [측정]~`passage.overhead.top_m` 1.0 m)에 있는 것이 앞 `passage.slow.front_m` [0.4, 1.2] m 안에 `passage.min_points` 개 이상이면 `PassageSlow` 가 속도를 `passage.slow.ratio` 0.3 배로 줄인다([제안]). 라이다가 못 보는 터널 천장 앞에서 높이 판정(약 1.5 s)이 나올 시간을 주려는 것이다. 0.46 m 이하는 `PassageStop` 이 그대로 멈춘다. 로그: `+ passage slow x0.3 0.23..1.0 m`. **벽 앞에서도 감속한다**: collision_monitor 는 벽과 터널을 구분하지 못해, 라이다 위 높이까지 올라온 벽이 앞 1.2 m 안에 있으면 똑같이 0.3 배로 줄인다. 그래서 감속 사유 코드는 두지 않는다(「측정 중」이 아님, 웹 「판정 중」은 터널 노드 UNKNOWN 으로 본다, OPS-193). 실기에서 벽 앞 감속 때문에 탐색이 너무 느리면 현장 파일 `robot` 절의 `passage.slow.ratio`(크게) 또는 `passage.slow.front_m`(먼 끝을 가깝게)을 고친다.
 - 깊이 점은 `passage_points.launch.py` 가 만든다. 깊이 영상 이름은 현장 실행 파일 `robots.<id>.passage.*` 에 있다. 이 노드가 없으면 깊이 점이 오지 않으므로 `collision_monitor` 가 1 s 뒤 로봇을 세운다. 깊이 영상은 준비 신호에도 들어가서, 끊기면 NOT_READY 다. 준비 신호도 깊이 점과 같은 transport 로 받는다(compressedDepth 이면 `<depth_topic>/compressedDepth`). 그래서 원본 깊이를 Wi-Fi 로 따로 끌어오지 않는다.

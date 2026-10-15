@@ -101,6 +101,51 @@ def nav2_with_tunnel_keepout(params):
     return params
 
 
+DEPTH_LOW_TOPIC = 'rescue/low_obstacle_points'   # rescue_perception overhead_passage, <ns>/... (relative)
+DEPTH_LOW_LAYER = 'depth_low_layer'
+
+
+def _scan_source(costmap):
+    """The lidar source of a costmap's obstacle or voxel layer: its ranges are the depth layer's."""
+    for name in costmap.get('plugins', []):
+        layer = costmap.get(name, {})
+        if 'scan' in str(layer.get('observation_sources', '')).split():
+            return layer['scan']
+    raise Nav2FieldError('costmap has no layer with a scan source to take the ranges from')
+
+
+def nav2_with_depth_low_layer(params, passage):
+    """A copy with a depth-only ObstacleLayer before the inflation layer of the global and local costmaps
+    (재범 decision 2026-10-16, option D): objects under the lidar plane (dock, doll) are kept out of paths.
+    Marking: heights min_height_m .. overhead_lidar_plane_m above the floor seen; clearing: raytrace to the floor
+    points. The scan is not a source, so it cannot clear it. Ranges are the scan source's; observation_persistence
+    and expected_update_rate are Nav2's defaults (0.0): without a cloud the layer keeps its marks.
+    robot.launch.py only (overhead_passage publishes the cloud)."""
+    params = copy.deepcopy(params)
+    low, top = passage['min_height_m'], passage['overhead_lidar_plane_m']
+    for costmap in ('global_costmap', 'local_costmap'):
+        try:
+            p = params[costmap][costmap]['ros__parameters']
+            plugins = list(p['plugins'])
+        except (KeyError, TypeError):
+            raise Nav2FieldError(f'Nav2 parameters need {costmap}.{costmap}.ros__parameters.plugins') from None
+        if DEPTH_LOW_LAYER in plugins or DEPTH_LOW_LAYER in p:
+            raise Nav2FieldError(f'{costmap} already has {DEPTH_LOW_LAYER}')
+        if not plugins or plugins[-1] != 'inflation_layer':
+            raise Nav2FieldError(f'{costmap} plugins {plugins} do not end with inflation_layer')
+        scan = _scan_source(p)
+        ranges = {k: scan.get(k, default) for k, default in (('obstacle_max_range', 2.5), ('obstacle_min_range', 0.0),
+                                                             ('raytrace_max_range', 3.0), ('raytrace_min_range', 0.0))}
+        common = dict(topic=DEPTH_LOW_TOPIC, data_type='PointCloud2', max_obstacle_height=top,
+                      observation_persistence=0.0, expected_update_rate=0.0, **ranges)
+        p[DEPTH_LOW_LAYER] = {
+            'plugin': 'nav2_costmap_2d::ObstacleLayer', 'enabled': True, 'observation_sources': 'depth_low depth_floor',
+            'depth_low': dict(common, marking=True, clearing=False, min_obstacle_height=low),
+            'depth_floor': dict(common, marking=False, clearing=True, min_obstacle_height=-low)}
+        p['plugins'] = plugins[:-1] + [DEPTH_LOW_LAYER, plugins[-1]]
+    return params
+
+
 def write_field_nav2(base_path, *, prefix):
     """Read the Nav2 yaml at ``base_path``, apply field_nav2, write a temporary yaml; returns its path."""
     import tempfile
