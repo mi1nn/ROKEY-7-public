@@ -5,6 +5,10 @@ pull_request: 132
 updated: 2026-10-13
 ---
 
+> **기록 문서 (2026-10-12 ~ 13, PR #132 기준).** 이 문서는 당시 단일 로봇 SEARCH_AREA 연결을 설명한다. 지금 코드와 다른 곳이 있다. 지금 구현은 [로봇 구현 기록](implementation-robot.md)을 본다.
+>
+> 지금 현장 실행 순서는 [현장 실행 안내](../process/field-runbook.md)를 따른다.
+
 # SEARCH_AREA 로봇 실행기 구현과 ROS 인터페이스
 
 ## 1. 기준 코드와 구현 범위
