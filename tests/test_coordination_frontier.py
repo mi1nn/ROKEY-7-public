@@ -579,6 +579,31 @@ class FrontierGainTests(unittest.TestCase):
         self.assertAlmostEqual(0.15, far - near)  # 3 x 1 m x 0.05
 
 
+class RefusedSearchHoldTests(Base):
+    """A refused TB-6 SEARCH_AREA (a frontier or a step aside) goes again only after admission_timeout_ns, as a
+    refused approval or recheck does (12회차 2026-10-16 C18: refused during the map handover, a step aside went
+    every 0.1 s, about 950 times in 110 s, all ADMISSION False)."""
+
+    HOLD = 3 * S  # admission_timeout_ns of the test core
+
+    def test_a_refused_frontier_task_waits_the_hold(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(NEAR))
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.core.on_admission(admission_msg(fields, accepted=False))
+        notes = self.core.drain_notes()
+        self.assertTrue(any(n.startswith('SCOUT_SEARCH_REFUSED') and 'NAV_NOT_READY' in n for n in notes), notes)
+        t = NOW + DELAY + 1
+        self.core.on_pose(scout_pose(NEAR, at=t))
+        for k in range(30):  # 0.1 s ticks for 3 s
+            self.assertEqual([], self.searches(t + k * self.HOLD // 30))
+        self.assertEqual('TASK_REFUSED', self.reason(t + self.HOLD // 2))
+        self.core.on_pose(scout_pose(NEAR, at=t + self.HOLD + 1))
+        (again,) = self.searches(t + self.HOLD + 1)
+        self.assertEqual(fields['search_area_ref'], again['search_area_ref'])  # the same frontier
+
+
 class CutGoalTests(Base):
     """A goal cut to ``frontier_goal_max_m`` on the way to a frontier is a step, not a visit (5회차 2026-10-16
     02:25, C11: TB-6 COMPLETED a goal 1.4 m short of the frontier a116, a116 was marked tried while it stayed on the
