@@ -142,6 +142,57 @@ class FrontierPickTests(Base):
         self.assertEqual(([], 'SCOUT_POSE_UNKNOWN'), (self.searches(), self.reason()))
 
 
+class RobotNotStartedTests(Base):
+    """A frontier goal the robot never started (Nav2 refused it, no acceptance in time, stale stop evidence) is
+    not a tried frontier: TB-6 did not go there. It is picked again and the reason shows TB-6 did not start
+    (현장 2026-10-15 17:54: bt_navigator inactive, then EXPLORATION_COMPLETE and NO_SURVIVOR_FOUND)."""
+
+    def reject(self, fields, cause='GOAL_REJECTED'):
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason=cause))
+
+    def first_goal(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        return fields
+
+    def test_a_rejected_first_goal_does_not_end_the_exploration(self):
+        self.reject(self.first_goal())
+        for k in range(3):  # TB-6's SLAM updates its map while it stands
+            self.core.on_scout_map(grid())
+            self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
+            self.searches(NOW + DELAY + k + 1)
+        self.assertFalse(self.core.exploration_complete)
+        self.assertEqual(0, self.core.frontier_empty)
+        self.assertEqual([], self.core.frontier_tried)
+        self.assertEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY + 4))
+        self.assertIn('FRONTIER_NOT_STARTED', ' '.join(self.core.drain_notes()))
+
+    def test_the_same_frontier_goes_again_after_the_delay(self):
+        first = self.first_goal()
+        self.reject(first)
+        later = NOW + DELAY + 1
+        self.assertEqual([], self.searches(later))  # picked again: its destination goes first
+        (again,) = self.searches(later + DELAY)
+        self.assertNotEqual(first['task_id'], again['task_id'])
+        self.core.on_admission(admission_msg(again))
+        self.assertEqual('', self.reason(later + DELAY))  # the robot took the new goal
+
+    def test_every_not_started_cause(self):
+        for cause in ('GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'):
+            with self.subTest(cause=cause):
+                self.setUp()
+                self.reject(self.first_goal(), cause)
+                self.assertEqual([], self.core.frontier_tried)
+
+    def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
+        self.reject(self.first_goal(), 'ACTION_ABORTED')
+        self.assertEqual(2, len(self.core.frontier_tried))
+        self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
+
+
 class GoalPickTests(unittest.TestCase):
     """The RViz search goal pick (#132) replaces the areas: only AREAS uses it. FRONTIER/PATROL keep it off even
     when the field gives the topic (a FRONTIER core has no area, the pick would refuse to start; OPS-174)."""
