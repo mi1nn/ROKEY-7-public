@@ -11,6 +11,7 @@ from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log
                                           read_operator_commands, read_overhead_passages, read_robot_status, read_site_events,
                                           read_target_states)
 
+from .replay import REPLAY_READ_LIMIT
 from .view import HISTORY_ROWS, ConsoleError
 
 # read_reports 및 read_site_events는 1회 조회 시 최대 1000개 행으로 제한된다(rescue_operations.ledger._limit).
@@ -97,3 +98,20 @@ def load_site_state(db_path):
         # 단일 조회라도 실패하면 전체 폴링이 실패 처리된다(503 응답, 불완전하게 부분 채움된 UI는 제공하지 않음). 다른 용도나
         # 스키마의 DB 파일 역시 읽기 API에 의해 거부되며, 동일하게 STORAGE_ERROR 예외로 변환된다.
         raise ConsoleError('STORAGE_ERROR', f'site-state read failed: {exc}') from exc
+
+
+def load_replay(db_path):
+    """리플레이용 읽기: 시각과 함께 쌓이는 네 표를 operations 읽기 API 상한까지 읽는다(mode=ro).
+
+    최신 한 줄만 남는 표(robot_status·target_states·mission_state)는 과거 시점 값이 아니므로 읽지 않는다.
+    상한까지 찬 표는 replay.build_timeline 이 잘림으로 드러낸다. 범위 읽기 API 는 operations 에 요청했다.
+    """
+    try:
+        return {
+            'site_events': read_site_events(db_path, limit=REPLAY_READ_LIMIT),
+            'operator_commands': read_operator_commands(db_path, limit=REPLAY_READ_LIMIT),
+            'error_log': read_error_log(db_path, limit=REPLAY_READ_LIMIT),
+            'exit_locations': read_exit_locations(db_path, limit=REPLAY_READ_LIMIT),
+        }
+    except OperationsError as exc:
+        raise ConsoleError('STORAGE_ERROR', f'replay read failed: {exc}') from exc
