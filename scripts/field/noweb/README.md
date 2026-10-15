@@ -54,7 +54,12 @@ rviz2 -d scripts/field/noweb/two_robots.rviz
   - 두 로봇의 모델·라이다·경로, TB-5 AMCL 자세
   - 인형과 출구 표시(`target_markers.py` 를 띄웠을 때)
 - 카메라와 목표 지정 도구는 넣지 않았다. 이 화면에서는 아무것도 발행하지 않는다.
-- **1차 고정 전에는 TB-5 가 안 보이는 것이 정상이다.** TB-5 는 고정 지도를 받아야 위치 추정을 시작한다.
+- **TB-5 는 지도 고정 전에도 출발 자리에 그려진다(재범 지적 2026-10-16 08:00).** TB-5 는 고정 지도를 받아 AMCL 이 켜져야 `map → odom` 을 낸다. 그 전에는 `tf_merge.py` 가 임시 `map → robot5/odom` 을 `/tf` 에 낸다. 값은 현장 파일의 TB-5 출발 값(`robots.robot_b.initial_pose_xy_yaw`, TB-6 출발 자세 기준, AMCL 시작값과 같은 값)을 TB-6 출발 자세(`/rescue/map/start_pose/robot_a`)에 더한 자리다.
+  - TB-6 출발 자세와 TB-5 의 `odom → base_link` 가 둘 다 와야 그린다. 출발 자세는 TB-6 지도 고정 노드가 회차에 한 번 낸다. 그 전에는 TB-5 가 안 보인다.
+  - TB-5 자신의 `map → odom` 이 한 번이라도 오면 임시 값을 다시 내지 않는다. 로그에 `TF_PROVISIONAL_OFF` 가 남는다. 초기화 뒤에는 `tf_merge.py` 를 다시 띄운다.
+  - 임시 값은 RViz 용 `/tf` 에만 나간다. 로봇 쪽 `/robot5/tf` 에는 아무것도 보내지 않는다.
+  - RViz 는 TF 로 모델 모양을 바꿀 수 없다. 그래서 임시 자리라는 표시는 로그(`TF_PROVISIONAL`)뿐이다.
+  - 다른 현장 파일은 `--field <파일>`, 다른 로봇은 `--provisional <ns>=<로봇 ID>` 로 준다. `--provisional ''` 이면 끈다. 출발 값이 없는 현장 파일이면 시작하지 않는다.
 - 저장소에서는 파일 문법(YAML, 토픽 이름)만 시험한다(`tests/test_field_noweb_rviz.py`). 실제 화면은 실기에서 아직 보지 않았다(NOT_RUN).
 
 ## 한 PC 리허설
