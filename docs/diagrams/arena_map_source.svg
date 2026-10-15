@@ -4,7 +4,7 @@ text{font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto 
 .dim{font-family:Menlo,Consolas,"IBM Plex Mono",monospace;font-size:11px;fill:#5d6b78}
 .lbl{font-size:11px;fill:#1d2a36}
 .lbl-s{font-size:9px;fill:#5d6b78}
-</style><rect width="483" height="672" fill="#ffffff"/><text x="70" y="652" class="lbl-s">MDF 경기장 평면도 · 1 unit = 1cm · A4 100% 인쇄 시 1:25</text>
+</style><rect width="483" height="672" fill="#ffffff"/><text x="70" y="652" class="lbl-s">작업대 배치 · 1 unit = 1cm · A4 100% 인쇄 시 1:25</text>
     <defs>
       <pattern id="g50" width="50" height="50" patternUnits="userSpaceOnUse" x="70" y="50">
         <path d="M50 0H0V50" fill="none" stroke="#dde3ea" stroke-width="0.8"/>

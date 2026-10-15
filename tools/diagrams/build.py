@@ -351,12 +351,12 @@ def hardware_stack():
 
 # ---------------------------------------------------------------------------
 def arena_map():
-    """MDF 경기장 평면도. 치수는 docs/diagrams/arena_map_source.svg (1 단위 = 1 cm)를 그대로 옮긴 것."""
+    """작업대 배치도. 치수는 docs/diagrams/arena_map_source.svg (1 단위 = 1 cm)를 그대로 옮긴 것."""
     BR = "#8A6A3F"          # 벽·박스 테두리
     TAN, TAN_L = "#E7DCCB", "#C9A978"
     c = Canvas(1500, 1370)
-    c.title("작업 환경 배치 — 경기장 평면도")
-    c.text(48, 76, "MDF 경기장 · 1 cm = 2 px · 343 × 557 cm", size=14.5, color=MUTED)
+    c.title("작업대 배치")
+    c.text(48, 76, "전체 343 × 557 cm · 격자 한 칸 50 cm", size=14.5, color=MUTED)
     S = 2.0
     OX, OY = 150, 190
 
