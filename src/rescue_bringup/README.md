@@ -15,7 +15,7 @@
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
 | TB-5 출발 정렬 노드(`rescue_start_align`). `frozen_localization.launch.py robot_id:=robot_b` 가 AMCL 옆에 띄운다. 로그 끝에 ` + start_align` 이 붙는다. TB-6 에는 띄우지 않는다 | 구현됨, 실기 NOT_RUN | `launch/frozen_localization.launch.py`, `field_launch.py:START_ALIGN_KEYS`, [rescue_robot README](../rescue_robot/README.md) |
-| TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | 없음(현장 파일 `robots.robot_b` 에서 찾음). 시험 회차에 잰다 | 아래 2단계 「TB-5 출발값 재기」 |
+| TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | `[0.0, -1.86, 0.0]`(현장 파일 `robots.robot_b`). TB-6 오른쪽 1.86 m 를 줄자로 쟀다(2026-10-15, 둘 다 언독). 앞쪽 거리와 각도는 「옆에 있음」으로 읽은 값이다 | 아래 2단계 「TB-5 출발값 재기」 |
 | Nav2 복구에서 후진 빼기 | 구현됨(#267 머지), 실기 NOT_RUN. 복구는 비용 지도 지우기 → 제자리 회전 → 대기 | `nav2_recovery.py`, #267(재범 승인 2026-10-14) |
 | Nav2 경로 따라가기(FollowPath) | 구현됨, 실기 NOT_RUN. DWB 대신 Rotation Shim + Regulated Pure Pursuit, 후진 없음. 값은 [제안] | `nav2_field.py`, 아래 「경로 따라가기」 |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |
@@ -435,7 +435,7 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 | TB-5 자동 접근(APPROACH_TARGET), TB-6 재관측(REOBSERVE_TARGET)+재확인 관측, 로봇 위치·지도 상태 발행 | 있음(#166·#179·#176). 재확인 서버: 판정·action 서버 코드는 있음(#165), 실행 노드와 센서 입력(프레임·스캔) 연결은 통합-인식 다음 PR 이다. 그 전에는 서버가 없어 재관측 결과가 `has_recheck=false` 다 |
 | 복귀(RETURN_HOME) | 있음(#192). 자동 도킹은 없다(도킹은 사람이 감독) |
 | TB-5 로봇 launch | 있음(현장 실행 파일 `robots.robot_b`: 접근·복귀만, Pi 시계 150 ms) |
-| 지도: 기준 지도 없이 TB-6 SLAM → 대상 확정 때 고정 → 두 로봇 AMCL(scope Q-29 ⑦) | 있음(#211 실행기, #213 고정 노드, #214 조정기, 이 launch 들). 현장 실행 파일: 조정기 `map_mode` `SLAM_FREEZE`, `robots.robot_a.task.saved_map.mode` `SLAM_THEN_FROZEN`, `robots.robot_b...` `FROZEN_MAP_AMCL`. 짝이 어긋나면 launch 가 거절한다. **TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` 는 아직 없다**(시험 회차에 잰다, 2단계). 그 전에는 TB-5 위치 추정 launch 가 거절하고 준비 점검 `field.initial_pose.robot_b` 가 FAILED 다 |
+| 지도: 기준 지도 없이 TB-6 SLAM → 대상 확정 때 고정 → 두 로봇 AMCL(scope Q-29 ⑦) | 있음(#211 실행기, #213 고정 노드, #214 조정기, 이 launch 들). 현장 실행 파일: 조정기 `map_mode` `SLAM_FREEZE`, `robots.robot_a.task.saved_map.mode` `SLAM_THEN_FROZEN`, `robots.robot_b...` `FROZEN_MAP_AMCL`. 짝이 어긋나면 launch 가 거절한다. TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` 는 `[0.0, -1.86, 0.0]` 이다(줄자, 2026-10-15). 이 값이 없는 현장 파일이면 TB-5 위치 추정 launch 가 거절하고 준비 점검 `field.initial_pose.robot_b` 가 FAILED 다 |
 | watchdog 현장 값 | #132 임시값(#94 미확정). 영구 정지와 리셋은 [rescue_robot README](../rescue_robot/README.md) |
 
 ### 2026-10-13: 바뀐 문장
