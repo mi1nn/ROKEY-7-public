@@ -1,4 +1,4 @@
-"""PassageStop deadlock (simulation 2026-10-15 22:2x, mu-03; no ROS).
+"""PassageStop deadlock (simulation 2026-10-15 22:2x; no ROS).
 
 TB-6 stood 120 s with the TB-5 dock (about 0.1 m high) 0.91-1.0 m ahead: robot.launch logged
 PASSAGE_BLOCKED polygon='PassageStop' action=1 and never moved again. The passage band in the field

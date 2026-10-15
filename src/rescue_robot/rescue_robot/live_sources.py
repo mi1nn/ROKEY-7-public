@@ -331,9 +331,10 @@ class SavedMapSources:
             aligned=status=='ALIGNED'
             changed=self.aligned.get(robot)!=aligned
             self.aligned[robot]=aligned
-            log=r.node.get_logger()
-            (log.info if aligned else log.warning)(f'START_ALIGN {robot} {status} {reason}'.strip()
-                                                   +('' if aligned else ': localization not VALID'))
+            log=r.node.get_logger(); line=f'START_ALIGN {robot} {status} {reason}'.strip()
+            # one severity per call site: rclpy raises when a site changes severity (simulation 2026-10-15)
+            if aligned: log.info(line)
+            else: log.warning(line+': localization not VALID')
             if changed: self._publish_map_state(robot)
 
     def _publish_map_state(self,robot):
