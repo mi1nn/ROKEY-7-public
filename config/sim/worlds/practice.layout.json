@@ -1,0 +1,14 @@
+{
+  "note": "Practice field, simulation stage 1 (2026-10-15). Walls come from config/sim/maps/live_map.yaml (TB-6 SLAM 2026-10-14 19:35). World frame = that map frame (TB-6 start pose of 10-14), so the field looks turned about 9 deg. Positions of the white boxes, dolls, exit QR board and overhead passage are not known yet, so objects is empty until they are measured.",
+  "wall": {"height_m": 0.41, "thickness_m": 0.01, "color": [0.55, 0.38, 0.22], "estimate": true,
+           "source": "height 0.41 m and board width 0.60 m measured by 재범 2026-10-15; thickness 0.01 m and MDF brown estimated from the photo"},
+  "floor": {"color": [0.5, 0.5, 0.5], "source": "grey floor tiles, colour estimated"},
+  "min_cells": 3,
+  "robots": {
+    "robot6": {"x": 0.0, "y": 0.0, "yaw": 0.0, "estimate": true,
+               "source": "[unconfirmed] temporary: the map origin, which is the odom origin when slam_toolbox started and need not be the start spot; it lies about 3 m east of the walls. In the photo both robots stand inside the walls at the right, next to their docks. Replace with the start measured from a wall corner"},
+    "robot5": {"x": 0.0, "y": -1.86, "yaw": 0.0, "estimate": true,
+               "source": "[unconfirmed] 1.86 m right of the temporary TB-6 start (재범 tape 2026-10-15, forward and yaw read as side by side)"}
+  },
+  "objects": []
+}

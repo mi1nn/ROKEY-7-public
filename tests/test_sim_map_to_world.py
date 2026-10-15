@@ -15,6 +15,7 @@ import xml.etree.ElementTree as ET
 REPO = Path(__file__).resolve().parents[1]
 TOOL = REPO / 'scripts' / 'sim' / 'map_to_world.py'
 sys.path.insert(0, str(TOOL.parent))
+HAS_TOOL = TOOL.exists()   # the installed-wheel check copies tests/ and config/ only
 
 # 6 x 4 cells, top row first (pgm order). 0 = occupied (black), 254 = free, 205 = unknown.
 #   row 0: # # # # # #
@@ -63,6 +64,7 @@ def layout(**changes):
     return raw
 
 
+@unittest.skipUnless(HAS_TOOL, 'installed-wheel checkout has no scripts/')
 class Tmp(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -146,6 +148,19 @@ class World(Tmp):
         z = float(tunnel.find('pose').text.split()[2])
         self.assertAlmostEqual(0.46 + 0.01, z)              # bottom face at the clearance
 
+    def test_a_measured_wall_segment_uses_the_wall_height_and_thickness(self):
+        """Walls the map did not see (measured outline) are segments; the MDF height and thickness apply."""
+        raw = layout(objects=[{'name': 'outline_south', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0, 'x2': 3.0,
+                               'y2': 4.0, 'estimate': True}])
+        world, _, estimates = self.build(raw)
+        model = next(m for m in ET.fromstring(world).iter('model') if m.get('name') == 'outline_south')
+        x, y, z, _, _, yaw = (float(v) for v in model.find('pose').text.split())
+        size = [float(v) for v in model.find('.//collision/geometry/box/size').text.split()]
+        self.assertEqual((1.5, 2.0, 0.3), (x, y, z))
+        self.assertAlmostEqual(math.atan2(4, 3), yaw, places=5)
+        self.assertEqual([5.0, 0.018, 0.6], size)
+        self.assertEqual(['wall', 'outline_south'], estimates)
+
     def test_spawn_and_estimates(self):
         _, spawn, estimates = self.build()
         self.assertEqual({'robot6': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
@@ -175,6 +190,27 @@ class World(Tmp):
         spawn = json.loads((out / 'practice.spawn.json').read_text())
         self.assertEqual('practice', spawn['world'])
         self.assertIn('[추정]', result.stdout)
+
+
+@unittest.skipUnless(HAS_TOOL, 'installed-wheel checkout has no scripts/')
+class RepositoryWorld(unittest.TestCase):
+    """config/sim/worlds/<name>.sdf and .spawn.json are what the tool makes from the map and layout now."""
+
+    def test_committed_worlds_are_up_to_date(self):
+        import map_to_world as mw
+        worlds = REPO / 'config' / 'sim' / 'worlds'
+        layouts = sorted(worlds.glob('*.layout.json')) if worlds.exists() else []
+        if not layouts:
+            self.skipTest('no config/sim (installed-wheel checkout)')
+        for path in layouts:
+            name = path.name[:-len('.layout.json')]
+            with self.subTest(world=name):
+                maps = REPO / 'config' / 'sim' / 'maps'
+                source = json.loads((worlds / f'{name}.sources.json').read_text())['map']
+                world, spawn, _ = mw.build(mw.read_map(maps / source), mw.load_layout(path), name=name,
+                                           source=source)
+                self.assertEqual(world, (worlds / f'{name}.sdf').read_text())
+                self.assertEqual(spawn, json.loads((worlds / f'{name}.spawn.json').read_text()))
 
 
 if __name__ == '__main__':
