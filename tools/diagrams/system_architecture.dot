@@ -1,0 +1,49 @@
+digraph G {
+  rankdir=LR; compound=true; nodesep=0.25; ranksep=0.7;
+  graph [fontname="Noto Sans CJK KR", fontsize=14, dpi=150, pad=0.3, bgcolor="white"];
+  node [fontname="Noto Sans CJK KR", fontsize=12, shape=box, style="rounded,filled", fillcolor="#F4F6F8", color="#5B6770", penwidth=1.2];
+  edge [fontname="Noto Sans CJK KR", fontsize=10, color="#5B6770", arrowsize=0.8];
+  CAM [label="고정 웹캠\nDRGO WC720", shape=box, fillcolor="#FFF3CD"];
+  TB6 [label="TB-6 (탐색)\n/robot6", shape=box, fillcolor="#D6EAF8"];
+  TB5 [label="TB-5 (구조)\n/robot5", shape=box, fillcolor="#D6EAF8"];
+
+  subgraph cluster_ops { label="운영 PC"; style="rounded,filled"; fillcolor="#FBFCFC"; color="#2E86C1";
+    WEBCAM [label="웹캠 판정\nwebcam_node"];
+    COORD [label="임무 조정기\nmission_coordinator", fillcolor="#D5F5E3"];
+    DB [label="현장 상태 DB 기록\ndb_writer"];
+    REP [label="보고 저장\nreport_node"];
+    RELAY [label="영상 중계\nmjpeg_relay · robot_view_relay"];
+    WEB [label="관제 웹\nrescue_console", fillcolor="#FDEBD0"];
+  }
+  subgraph cluster_pc6 { label="TB-6 담당 PC"; style="rounded,filled"; fillcolor="#FBFCFC"; color="#2E86C1";
+    SLAM6 [label="SLAM → 2차 고정 뒤 AMCL"];
+    NAV6 [label="Nav2 + 통로 정지·감속"];
+    EXEC6 [label="실행기\ntask_input · command_watchdog"];
+    DET [label="인형·출구 QR 탐지\namr_target · target_locator"];
+    FREEZE [label="지도 고정\nmap_freeze"];
+    OH6 [label="터널 판정\noverhead_passage"];
+  }
+  subgraph cluster_pc5 { label="TB-5 담당 PC"; style="rounded,filled"; fillcolor="#FBFCFC"; color="#2E86C1";
+    AMCL5 [label="고정 지도 + AMCL"];
+    NAV5 [label="Nav2 + 통로 정지·감속"];
+    EXEC5 [label="실행기\ntask_input · command_watchdog"];
+    OH5 [label="터널 판정\noverhead_passage"];
+  }
+  CAM -> WEBCAM;
+  WEBCAM -> COORD [label="지진 징후"];
+  DET -> COORD [label="인형·출구\n지도 좌표"];
+  COORD -> EXEC6 [label="임무"];
+  COORD -> EXEC5 [label="임무"];
+  COORD -> FREEZE [label="고정 요청"];
+  FREEZE -> AMCL5 [label="고정 지도"];
+  EXEC6 -> TB6 [label="속도 명령"];
+  EXEC5 -> TB5 [label="속도 명령"];
+  COORD -> REP [label="보고"];
+  REP -> COORD [label="저장 확인"];
+  COORD -> DB [label="상태"];
+  OH6 -> DB [label="구조물 목록"];
+  OH5 -> DB [label="구조물 목록"];
+  DB -> WEB;
+  RELAY -> WEB [label="영상"];
+  WEB -> DB [label="운영자 명령", style=dashed];
+}

@@ -1,77 +1,118 @@
-# ROKEY-7
+# ROKEY-7 — 지진 재난 현장 AMR 2대 협업 수색·구조 지원 시스템
 
-AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 대상자를 발견하면 접근 가능 여부를 판단해 위치와 현장 정보를 보고하는 파이널 프로젝트다.
+## 0. 프로젝트 개요
 
-마스터 PC는 고사양 2대와 중간 사양 2대, 총 4대가 예정되어 있다. 현재 1차 설계 범위는 **대상 발견 → 안전한 접근 → 위치·관측 정보·접근 결과 보고**다. 사람 이송, 안전지대 안내, 구호물품 전달은 이 설계에서 제외한다. 로봇 2대 사용은 필수 요구이며, 발견·접근·보고의 최종 인수 범위와 PC 4대 전부의 사용 의무는 아직 확정하지 않았다([범위 Q-08](docs/requirements/scope.md)).
+- **목표**: 지진이 난 실내에서 사람이 들어가기 전에 로봇 두 대가 먼저 현장을 파악하고 구조 대상자까지 길을 연다.
+  한 대는 지도를 만들며 대상자를 찾고, 다른 한 대는 대상자 앞까지 가서 구조대원을 출구로 이끈다.
+- **주요 기능**: 고정 웹캠이 지진 징후를 판정하면 운영자 버튼 없이 탐색이 시작된다.
+  `TB-6` SLAM 탐색 → 인형(구조 대상) 발견 → 보고 저장 → 지도 고정 → `TB-5` 자동 출동 → 탐색 완료 →
+  가장 가까운 출구로 이동. 머리 위 여유가 46 cm 미만인 통로·터널은 깊이 카메라로 재서 멈추고 보고한다.
+  운영자는 관제 웹에서 지도·로봇 카메라·웹캠 영상·사건 기록을 본다.
+- **사용 장비**: TurtleBot4 ×2 (Create 3 + Raspberry Pi 4B, OAK-D-Pro, RPLIDAR A1M8), 고정 웹캠 DRGO WC720, PC 4대 (운영 · TB-6 담당 · TB-5 담당 · Discovery 전용)
+- **개발 환경**: Ubuntu 24.04 LTS, ROS 2 Jazzy, Python 3.12
+- **주요 기술 스택**: ROS 2, Nav2, slam_toolbox · AMCL, Fast DDS Discovery Server, YOLO26n (ultralytics), OpenCV, Flask (관제 웹), SQLite
+- **기간**: 2026.10.08 ~ 2026.10.16
+- **상태**: 2026-10-14 기준 두 실제 로봇으로 처음부터 끝까지 돌린 기록은 아직 없다. 가짜 로봇을 쓴 ROS 통합 시험과 로봇 한 대씩의 실기 기록만 있다. 안전 때문에 위치·지도·시각을 모르면 로봇은 움직이지 않는다.
 
-## 현재 단계
+## 1. 시스템 설계
 
-범위·구조·계약 설계에 이어 **배포 프로파일 검사, 로봇 명령/정지 판정, 3D 좌표·지도 revision, RGB-D 관측, 임무 배정/통로, 보고 영속 저장의 Python 코어**를 구현했다. 두 논리 로봇을 연결한 합성 입력 리허설도 실행할 수 있다. 공통 ROS 메시지·서비스·액션은 [rescue_interfaces](src/rescue_interfaces/README.md)에 1차 IDL을 정의했다. 실제 SLAM·Nav2·센서/모델 추론·ROS 노드·원격 통신 연결은 미구현이다. 자동 접근은 백엔드 미연동으로 차단한다. 원본 코드는 복사하지 않고 선택한 원리와 실패 경험을 고정 URL로 추적했다. **계획 PR 5 ~ 10의 E2 부분 구현이며 두 실제 AMR·4 PC 시연 완료가 아니다.**
+![시스템 아키텍처](docs/diagrams/system_architecture.png)
 
-| 문서 | 확인할 내용 |
+로봇을 움직이는 곳은 하나다. 로봇마다 실행기(`task_input`)만 Nav2 목표를 보내고, 속도 명령은 감시 노드(`command_watchdog`)만 로봇에 보낸다.
+임무를 정하는 곳도 하나(임무 조정기)이고, 관제 웹은 ROS 노드가 아니라 운영자 명령을 전달만 한다.
+무거운 RGB·깊이 영상은 로봇 담당 PC 만 받고, 운영 PC 에는 판정 결과와 작은 미리보기 영상만 보낸다.
+
+### 1.1 통신 인터페이스
+
+```text
+Topic     /rescue/site_events (SiteEvent)                       웹캠 → 조정기 · db_writer
+          /rescue/observations (TargetObservation)              인형 관측 → target_locator
+          /rescue/target_locations · /rescue/exit_location      인형·출구 지도 좌표 → 조정기
+          /robot6/map (OccupancyGrid)                           TB-6 실시간 SLAM 지도
+          /rescue/map/frozen · /rescue/map/frozen_revision      고정 지도와 판 번호
+          /rescue/robots/<id>/status · pose · map_state         실행기 → 조정기 · db_writer
+          /rescue/system_state (SystemState)                    임무 상태
+          /rescue/reports (RescueReport) → /rescue/report_receipts (ReportReceipt)
+          /rescue/robots/<id>/overhead_passages (JSON)          터널 판정 목록
+          /rescue/cameras/cam_fixed/debug_image/compressed      웹캠 판정 화면
+Action    /rescue/robots/<id>/execute_task (ExecuteTask)        조정기 → 각 로봇 실행기
+Service   /rescue/operator_command (SubmitOperatorCommand)      db_writer → 조정기
+HTTP      운영 PC  POST /api/operator-commands · GET·POST /api/webcam
+          관제 웹   rescue_console (Flask) — 현장 상태 DB 는 읽기 전용
+```
+
+- 로봇 ID 는 `robot_a`(TB-6, 네임스페이스 `/robot6`), `robot_b`(TB-5, `/robot5`)다.
+- 메시지·서비스·액션 정의는 [rescue_interfaces](src/rescue_interfaces/README.md), 계약은 [contracts.md](docs/design/contracts.md)에 있다.
+
+### 1.2 네트워크 구성
+
+![네트워크 구성](docs/diagrams/network.png)
+
+PC 와 로봇은 같은 무선망에 있고, 노드 발견은 Fast DDS Discovery Server 로 한다.
+2026-10-15 부터 모든 PC 가 Discovery 전용 PC 의 서버(ID 0, UDP 11811)에 붙는다. 로봇 Pi 의 온보드 서버(TB-5 ID 5, TB-6 ID 6)는 바꾸지 않았다.
+로봇 토픽이 전용 서버로 보이는 경로는 [미확인]이다. 자세한 운영은 [Discovery 전용 PC 운영 안내](docs/process/discovery-host.md)를 따른다.
+
+### 1.3 PC 별로 도는 것
+
+| PC | launch | 하는 일 |
+| --- | --- | --- |
+| 운영 PC | `operations.launch.py` | 현장 상태 DB 기록·명령 API, 보고 저장, 웹캠 지진·소실 판정, 영상 중계, 실시간 지도 파일 저장 |
+| 운영 PC | `coordinator.launch.py` | 두 로봇의 임무 결정, 지도 고정 요청 |
+| 운영 PC | `python3 -m rescue_console` | 관제 웹 |
+| TB-6 담당 PC | `tb6_slam.launch.py` · `robot.launch.py` · `map_freeze.launch.py` | 탐색 중 SLAM, Nav2·정지 감시·임무 실행, 지도 고정 |
+| TB-6 담당 PC | `amr_perception.launch.py` · `passage_points` · `overhead_passage` | 인형 탐지·출구 QR·지도 좌표 변환, 통로·터널 판정 |
+| TB-5 담당 PC | `frozen_localization.launch.py` · `robot.launch.py` | 고정 지도 위에서 AMCL, Nav2·정지 감시·임무 실행 |
+| TB-5 담당 PC | `passage_points` · `overhead_passage` | 통로·터널 판정 |
+| Discovery 전용 PC | (`fastdds discovery --server-id 0`) | ROS 2 발견 서버 |
+
+### 1.4 지도 고정
+
+기준 지도는 없다. TB-6 의 SLAM 지도가 두 로봇의 공통 지도이고, 한 회차에 두 번까지 복사해 고정한다.
+
+![지도 고정 흐름](docs/diagrams/map_flow.png)
+
+### 1.5 인식 방식
+
+| 대상 | 방식 | 한계 |
+| --- | --- | --- |
+| 지진 징후 | 고정 웹캠 화면 전체의 왕복(방향 전환) 횟수를 센다. 손 가림·어두움·렌즈 막힘·영상 끊김은 지진 근거가 아니라 판단 보류로 둔다 | 판정 값은 현장에서 잰 ROI·임계에 의존한다. 일부 값은 [미측정] |
+| 인형(구조 대상) | OAK-D 영상에서 YOLO26n 으로 탐지(`assets/models/best.pt`, survivor v2), 깊이로 거리를 얻어 지도 좌표로 바꾼다 | 원거리 confidence 가 낮았다. 사람 오탐 재평가는 남아 있다 |
+| 인형 소실 감시 | 웹캠 영상에 YOLO26n (`assets/models/webcam-yolo26n-best.pt`) | 소실 후보만으로 구출 완료로 처리하지 않는다 |
+| 출구 | 탐색 중 QR 을 읽고, 허용 목록 글자와 정확히 같을 때만 출구로 기록한다 (예 `EXIT-1`, `EXIT-2`) | QR 이 없으면 TB-5 출발 자리가 출구다 |
+| 통로·터널 | 깊이 영상을 점구름으로 바꿔 머리 위 여유를 잰다. 46 cm 이상이면 통과, 미만이거나 판정 불가면 멈추고 보고 | 라이다가 못 보는 높이 띠를 깊이로만 막는다 |
+
+## 2. 플로우 차트
+
+### 2.1 명령 처리 시퀀스
+
+![명령 처리 시퀀스](docs/diagrams/command_flow.png)
+
+임무가 끝나거나 취소되면 반드시 정지 관문을 거친다. 취소한 뒤 실제 정지를 관측하지 못하면 `STOP_UNCONFIRMED` 로 남기고 새 임무를 막는다.
+
+### 2.2 동작 순서도
+
+![동작 순서도](docs/diagrams/mission_flow.png)
+
+| 실패 지점 | 처리 |
 | --- | --- |
-| [explore_lite 팀원 실행 안내](src/rescue_perception/rescue_perception/exploration/README.md) | 단독 SLAM·Nav2·RViz·탐색 빌드와 실행·중단 |
-| [탐색 알고리즘 3종 실기 기록](docs/implementation/exploration-field-results-2026-10-13.md) | robot6 공통 Nav2 조건의 주행·종료·정체 관측과 지도 정확도 미검증 한계 |
-| [탐색 알고리즘 선정안](docs/implementation/exploration-algorithm-selection-2026-10-13.md) | explore_lite 우선 채택 권고, 협업 통합 경계, 후속 검증 |
-| [프로젝트 범위](docs/requirements/scope.md) | 사용자 요구, 성공·실패 시나리오, 미결정 사항, 계획 PR 순서 |
-| [원본 자산 선별](docs/process/source-selection.md) | 고정한 원본 커밋, 이식 후보, 바꿔야 할 전제, 제외 근거 |
-| [레슨런](docs/process/lessons-learned.md) | 원본 코드·기록의 교훈과 새 프로젝트에서 확인할 시험 |
-| [원본 목록 집계](docs/evidence/source-audit.json) | 고정 커밋의 추적 파일·패키지·시험 파일 집계 |
-| [10-13 오전 현장 원문](docs/evidence/field-2026-10-13-situation.log) | Discovery 연결·도킹 상태의 시각별 측정 기록 |
-| [PR 진행과 검토 지침](docs/process/review-workflow.md) | 현재 검토 담당·인계·머지 조건, 계획 PR의 과거 운영 기록과 원본 URL |
-| [디렉터리와 이식 경계](docs/design/repository-layout.md) | 패키지 책임·원본 후보의 목적지·설정/자산/시험 경계 |
-| [구조와 배포](docs/design/architecture.md) | 2 AMR·4 PC의 책임·데이터 흐름·명령/TF·실행 관문 |
-| [알고리즘 결정](docs/design/algorithm-decisions.md) | SLAM·좌표·탐색·인식·접근·통행의 선택 근거와 대안 |
-| [AMR1 자율 탐색 후보](docs/implementation/amr1-exploration-candidates.md) | 무지도 환경의 탐색 알고리즘 5개, 구현·논문 근거, 비교 순서와 미검증 관문 |
-| [AMR1 explore_lite 단독 시험](docs/implementation/amr1-explore-lite-field-test.md) | robot6 단독 탐색의 실행·중단 절차, 미실행 관문과 PR 결과 댓글 양식 |
-| [인터페이스 계약](docs/design/contracts.md) | 관측·시간·좌표·임무·정지·보고·QoS/API의 의미 |
-| [SDD 노드·인터페이스 검토안 v0.1](docs/design/sdd-node-interface-spec-v0.1.md) | 00 통합도: AMR1 지도 직접 공유·AMR2 자동 출동/사람 후행·현장 재확인 필수·역할별 종료 위치의 E2E 이후 PM 요구안. PC3대 복제 00은 웹캠·관제·DB·로컬 브라우저를 PC3에 통합하고 전용 Discovery PC4를 추가(응용 PC 3 + 서버 PC 1). JSON·CSV·그림 정합 검사, 두 00은 보존, 01 ~ 11 상세도는 PC3대 기준으로 통일 |
-| [시스템 전체 설계도 (draw.io 한 장)](docs/design/rokey7-system-overview.drawio) | 4 PC·2 AMR·웹캠을 기능 묶음 22개와 의미 단위 화살표 20개로 그린 한 장 요약도. 시나리오 순서 ① ~ ⑦ 표시, 통합 노드·통신은 `rokey7-sdd.drawio` 00쪽, 상세는 01 ~ 11쪽 |
-| [관제 웹·DB 구성 계획](docs/design/console-and-db-plan.md) | PC4 의 operations·web·DB 를 지금 코드 위에 올리는 순서: 승인 관문 2곳, 프로세스·담당, site_state 1.1 테이블, HTTP API, 화면, 10-10 ~ 10-13 순서 |
-| [관제 웹 설계 명세](docs/design/console-spec.md) | 관제 웹(`rescue_console`) 모듈별 책임·인자·라우트·상태·입출력·처리 규칙·순서도·오류 처리. 이 문서만 보고 다시 짤 수 있는 수준이 목표 |
-| [관제 웹 아키텍처](docs/design/console-architecture.md) | 관제 웹의 구성 요소와 프로세스 경계, 흐름 그림 3장(상태·조회 / 명령 / 영상), 관제 웹으로 오는 사슬(발행 노드 → 토픽 → db_writer → 현장 상태 DB 표 → 웹 파일 → 화면 칸)과 DB 를 거치지 않는 입력, 웹이 내보내는 것, 웹 파일·핵심 클래스와 함수·상수, 설계 판단, 알려진 한계 |
-| [DB 스키마](docs/design/db-schema.md) | SQLite 파일 3개(운영 장부·현장 상태·콘솔 계정)의 표·열·멱등 규칙·쓰는 쪽, 현장 상태 1.1 추가분 [제안] |
-| [상태 전이](docs/design/state-machines.md) | 로봇·대상·접근·보고·정지와 실패/재시작 처리 |
-| [시험과 작업 분담](docs/process/acceptance-plan.md) | CT/AC 시험·수치 사전 고정·증거·세션 소유권 |
-| [이번 수정의 통합 증거](docs/evidence/pr11-round2-validation.md) | exact epoch·수락 인계·소스/설치본 검증과 E2 한계 |
-| [OAK-D survivor 학습 계획](docs/implementation/oakd-survivor-training-plan.md) | oakd/image_raw 영상 수집, 1초 간격 추출·전처리, survivor 단일 클래스 학습·파라미터 비교와 결과 문서화 (실행 예정) |
-| [YOLO26n·11n·v8n 모델 비교](docs/implementation/yolo-model-comparison/README.md) | 같은 v2 데이터·100 epoch 설정의 지표·추론 시간·곡선 비교 |
-| [Survivor v2 재학습 결과](docs/implementation/yolo26n-v2-results.md) | 별도 amr-mini-project 설정, 100/최대200 epoch 평가와 최종 채택 best.pt(100 epoch), 사람 오탐 재평가는 남음 |
-| [YOLO26n 학습 결과·비교](docs/implementation/yolo26n-training-results.md) | 무증강·scale_light 결과, 원거리 현장 관측(재학습 전 기록, 최종 모델은 v2) |
-| [Depth 클릭 보정 기록](docs/implementation/depth-click-calibration.md) | PC depth 확인 도구, 82cm 보정 근거와 사용자 측정 로그·검증 한계 |
-| [10-13 TB-6 카메라 기록](docs/evidence/field-2026-10-13-oakd-robot6.md) | OAK-D 파라미터·메시지·무선 측정과 설치 버전/정렬 미확인 범위 |
-| [개발과 로컬 검사](docs/implementation/development.md) | 현재 구현 범위·CLI·프로파일 형식·Python 검사 |
-| [BRD Part I v0.1 (팀 원문)](docs/requirements/brd-part1-v0.1.md) | 지진 재난 현장 대응형 실내 탐색 로봇: 카메라 A 재난 감지 → TB1 SLAM·탐색·사람 좌표 DB → TB2 구급상자 출동 → 출구 카운트 → TB1 재확인 → 구출 완료 → 복귀. Phase 1 범위·후순위·수락 기준의 기준 문서. 단, 출구 카메라 B·출구 카운트는 웹캠 1대 결정(2026-10-09, [#44 OPS-20 ②](https://github.com/jaebeom/ROKEY-7/pull/44#issuecomment-6078811090))으로 빠졌다. 웹캠 하나가 재난 징후와 대상 감시를 맡고, 재확인은 대상 소실 후보로 시작한다 |
-| [BRD v0.1 (팀 초안 원문)](docs/requirements/brd-v0.1.md) | 지진 트리거 → TB1 정찰 → TB2 구조 지원 → 출구 카운트 → 재확인 시나리오의 팀 요구 문서 |
-| [BRD v0.2 (제안)](docs/requirements/brd-v0.2.md) · [SRD v0.2 (제안)](docs/requirements/srd-v0.2.md) | 웹캠 1대·운영자 구간 승인·머리 위 기둥 통로·이중 확인 완료 판정 시나리오를 교육 양식 목차로 쓴 BRD·SRD. 채택 전 `[제안]`, 기준 문서는 Part I v0.1 |
-| [웹 없이 하는 회차의 도구](scripts/field/noweb/README.md) | 관제 웹 대신 쓰는 명령 보내기(`operator_command.py`), 상태 한 줄(`status_watch.py`), 두 로봇 RViz 화면(`two_robots.rviz`). 순서는 현장 실행 안내 「웹 없이 하기」 |
-| [네트워크·Discovery Server](docs/design/network-discovery.md) | Fast DDS Discovery Server 조사와 채택안(토폴로지 A), 로컬 측정, PC 별 설정·되돌리기, 오프라인 시험 규칙, 실행 전 점검 `scripts/field/preflight.py` |
-| [Discovery 전용 PC 운영 안내](docs/process/discovery-host.md) | 2026-10-15 전환한 전용 Discovery 서버(ID 0)의 현재 상태, 다른 PC 가 붙는 법(`--spin-time`), 살아 있는지 확인·다시 띄우기, 로봇 토픽이 안 보일 때 먼저 볼 것, 하지 말 것 |
-| [운영 PC 현황 기록](docs/process/ops-host-record.md) | 운영 PC 에 실제로 떠 있는 Discovery Server(서버 ID 0, 손으로 띄움, DHCP 주소)·관제 웹의 측정값, network-discovery 권고안 A 와의 차이, 로봇 Discovery 설정을 건드리지 않는 규칙 |
-| [운영 DB 파일과 테이블 관계도](docs/process/ops-db-tables.md) | SQLite 파일 넷(송신 대기열·운영 장부·현장 상태·웹 계정)의 쓰는 쪽·읽는 쪽, 테이블과 JSON 안 ID 로 이어지는 관계(Mermaid 그림), 읽기 전용으로 여는 법 |
-| [10-13 운영 PC 준비 기록](docs/evidence/field-2026-10-13-operations-host.md) | 격리 기동·웹캠·시계 측정과 로봇망 연결 차단 |
-| [작업 묶음](docs/process/work-bundles.md) | BRD 와 기존 설계의 대응, 세션별 첫 PR, 공통 규격, 사용자 확인 항목, 통합 순서 |
-| [일정과 담당](docs/process/schedule.md) · [일정표 CSV](docs/process/schedule-timeline.csv) | 10-08 ~ 10-16 작업일·관문·사람별 담당(임시안), 구글 시트로 가져올 칸 일정 |
-| [페이즈와 릴리즈 계획](docs/process/release-plan.md) | P0 ~ P5 페이즈, v0.1 ~ v1.0 릴리즈에 들어가는 것·빠지는 것·합격 조건, P1 후보 PR 대응, 대비책 |
-| [작업 규칙](AGENTS.md) | 사람·AI 세션 공통 규칙: 레인, 브랜치·PR, 머리말, 증거, 로봇, 실패 처리 |
+| 위치·지도·시각을 모름, 계약 시계 만료 | 새 명령을 막고 이유를 남긴다. 값을 지어내지 않는다 |
+| 두 로봇이 최소 간격보다 가까움 | 새 명령을 막는다. TB-5 가 우선이고, TB-6 는 목표를 취소하고 경로 밖으로 비킨다 |
+| 지도 고정 세 번째 요청 | 거절 |
+| 탐색이 끝났는데 인형이 없음 | TB-5 는 출발하지 않고 `NO_SURVIVOR_FOUND` |
+| 정지를 확인하지 못함 | `STOP_UNCONFIRMED`, 현장 물리 정지 수단 사용 |
 
-## 통합 리허설과 남은 실기 연결
+## 3. 운영체제 환경
 
-[통합 구현 기록](docs/implementation/implementation-integration.md)의 명령으로 `summary.json`과 SQLite 보고/재전송 DB를 새 출력 폴더에 생성한다. 합성 A→B/B→A 제안, 수색 취소·정지→새 generation→실행기 수락 receipt, 자동 접근 차단, 원 관측의 나노초 시각 보존, 지도 보정, 통로 점유, 보고 복구를 검증한다. 수색 구역 분담·frontier·자동 역할 교대는 [F-01 후속](docs/requirements/scope.md)에 남아 있다. [실기 연결 관문](docs/process/field-runbook.md)에 ROS·backend·2 AMR·4 PC 준비 및 E3/E4 미실행 항목을 모았다.
+| 항목 | 값 |
+| --- | --- |
+| OS | Ubuntu 24.04 LTS |
+| ROS 배포판 | ROS 2 Jazzy |
+| Python | 3.12 (CI 는 3.10 ~ 3.12) |
+| 빌드 | colcon (ROS 2 패키지) |
+| DB | SQLite (운영 장부 · 현장 상태 · 웹 계정 · 송신 대기열) |
+| 통신 | Fast DDS (`rmw_fastrtps_cpp`), Discovery Server |
 
-## 문서 판단 기준
-
-- `[사용자 요구]`는 2026-10-07 대화에서 정한 범위다. 요구의 기록은 [범위 문서](docs/requirements/scope.md)에 둔다.
-- `[원본 코드]`는 링크한 커밋의 정적 관찰이다. 실행 결과로 해석하지 않는다.
-- `[원본 기록]`은 과거 문서에 기록된 결과다. 이번 분석에서 재측정한 값이 아니다.
-- `[제안]`과 `[미확인]`은 머지된 문서 안에서도 구현·실기 확정 사항이 아니다.
-- 두 원본의 과제·미니 프로젝트를 통째로 옮기지 않는다. 필요한 코드와 그 동작을 검증하는 시험을 함께 선별한다.
-
-원본은 [jaebeom/ROKEY_P4](https://github.com/jaebeom/ROKEY_P4)와 [mi1nn/amr-mini-project](https://github.com/mi1nn/amr-mini-project)다. 이후 이식에서도 원본 커밋과 출처를 남긴다.
-
-## 개발 PC 환경
-
-아래는 2026-10-15에 이 저장소를 작업한 PC 한 대에서 명령으로 읽은 값이다 [측정 2026-10-15]. 4 PC 전체나 현장 운영 PC의 사양이 아니다. 프로젝트에서 쓰는 웹캠은 아래 표의 DRGO WC720이다. 4 PC 전체 사양은 [미확인]이다.
+### 개발 PC 실측값 (2026-10-15)
 
 | 항목 | 값 | 읽은 방법 |
 | --- | --- | --- |
@@ -79,43 +120,173 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 | CPU | Intel Core Ultra 9 185H, 22 스레드 | `lscpu` |
 | 메모리 | 31 GiB | `free -h` |
 | GPU | NVIDIA GeForce RTX 4070 Laptop (드라이버 580.178.04), 내장 Intel Arc Graphics | `nvidia-smi`, `lspci` |
-| 저장장치 | WD PC SN560 NVMe 1 TB (953.9 GB) | `lsblk` |
-| 프로젝트 웹캠 | DRGO(디알고) WC720 | 사용자 제공 [2026-10-15], 이 PC에서 연결을 읽지 않음 |
-| 내장 카메라 | 노트북 내장 Bison Integrated Camera (USB 5986:1196), MJPG·YUYV, 최대 1280×720. 프로젝트 웹캠이 아니다 | `lsusb -v`, `v4l2-ctl` |
+| 저장장치 | WD PC SN560 NVMe 1 TB | `lsblk` |
 | OS | Ubuntu 24.04.5 LTS, 커널 7.0.0-38-generic | `/etc/os-release`, `uname -r` |
 | ROS 2 | Jazzy (`ros-jazzy-desktop` 0.11.0, `navigation2` 1.3.13, `slam-toolbox` 2.8.5) | `dpkg -l` |
 | Python | 3.12.3 | `python3 --version` |
 
-Python 패키지(pip 설치본):
+이 값은 개발에 쓴 PC 한 대의 것이다. 현장 PC 4대의 사양은 [미확인]이다.
 
-| 패키지 | 버전 |
+### 워크스페이스 배치
+
+```text
+ROKEY-7/
+├── src/                     # ROS 2 패키지
+│   ├── rescue_contracts/    # 공통 오류·ID·정수 시각·임무 수락 계약 (ROS 없음)
+│   ├── rescue_interfaces/   # msg · srv · action 정의 (ament_cmake)
+│   ├── rescue_mapping/      # 3D 좌표·변환 유효성·지도 revision
+│   ├── rescue_perception/   # RGB-D 관측·탐지·웹캠 판정·출구 QR
+│   ├── rescue_robot/        # 로봇별 임무 실행·Nav2 어댑터·정지 판정·지도 고정
+│   ├── rescue_coordination/ # 임무 배정·접근 확인·통로 점유·임무 조정기
+│   ├── rescue_operations/   # 보고 장부·현장 상태 DB·db_writer·report_node
+│   ├── rescue_console/      # 관제 웹 (Flask, 읽기 전용 + 명령 전달)
+│   ├── rescue_bringup/      # launch·배포 프로파일 검사·합성 리허설
+│   └── vendor/              # 외부 패키지 (m-explore-ros2)
+├── config/                  # 배포 프로파일·로봇·현장 파일·Nav2 설정
+├── assets/
+│   ├── models/              # 학습한 YOLO26n 가중치 (best.pt, webcam-yolo26n-best.pt)
+│   └── manifest/            # 모델·지도·보정의 출처·해시·취득 절차
+├── scripts/                 # 검사·현장 도구 (preflight, wiring_check, stop_robot.sh)
+├── tools/                   # 탐지 평가·bag 재생·depth 보정 도구, diagrams/ (README 그림 원본)
+├── tests/                   # 단위·통합 시험
+└── docs/                    # 요구·설계·구현·현장 기록, diagrams/ (README 그림)
+```
+
+## 4. 사용한 장비 목록
+
+### 4.1 로봇 · 센서 · 카메라
+
+![장비 구성](docs/diagrams/hardware_stack.png)
+
+| 장비 | 모델 | 비고 |
+| --- | --- | --- |
+| 로봇 ×2 | TurtleBot4 (iRobot Create 3 + Raspberry Pi 4B) | TB-6 탐색 담당(`robot_a`, `/robot6`), TB-5 구조 담당(`robot_b`, `/robot5`). Discovery 서버 ID 는 각각 6, 5 |
+| 로봇 카메라 | OAK-D-Pro | RGB + depth. 인형 탐지·통로 높이 판정에 쓴다 |
+| 라이다 | RPLIDAR A1M8 | 360° 2D 스캔. SLAM·Nav2 장애물 |
+| 고정 웹캠 | DRGO(디알고) WC720 | 지진 징후 판정·인형 소실 감시. 운영 PC 에 USB 로 연결 |
+| 출구 표시 | QR 코드 | 허용 목록 글자(`EXIT-1`, `EXIT-2` …)와 정확히 같을 때만 출구 |
+| 구조 대상 | 인형 | 사람 대신 쓰는 대상 |
+| PC ×4 | 운영 PC · TB-6 담당 PC · TB-5 담당 PC · Discovery 전용 PC | 사양은 [미확인]. 시험 중에는 TB-6·TB-5 담당 PC 를 한 PC 에서 돌리기도 한다 |
+
+- 로봇 한 대는 한 번에 한 사람·한 세션만 움직인다. 언도크·도킹·이동 전후에 팀에 알린다.
+- 로봇에 패키지를 설치하거나 업그레이드하지 않는다. 로봇 설정 변경은 사용자 승인과 백업·해시·되돌리는 방법 기록을 거친다.
+
+## 5. 의존성
+
+### 5.1 ROS 2 (apt)
+
+```bash
+sudo apt install ros-jazzy-desktop ros-jazzy-navigation2 ros-jazzy-nav2-bringup \
+  ros-jazzy-slam-toolbox ros-jazzy-robot-localization ros-jazzy-depth-image-proc \
+  ros-jazzy-image-proc ros-jazzy-cv-bridge ros-jazzy-irobot-create-msgs \
+  ros-jazzy-rmw-fastrtps-cpp   # 개발 PC 에 설치된 패키지 목록(2026-10-15)
+```
+
+| 패키지 | 주요 의존 (`package.xml`) |
 | --- | --- |
-| ultralytics | 8.4.170 |
-| torch / torchvision | 2.14.1 / 0.29.1 |
-| opencv-python | 4.9.0.80 |
-| numpy | 1.26.4 |
-| Flask | 3.1.3 |
-| pydantic | 1.10.14 |
-| PyYAML | 6.0.1 |
-| pytest | 9.1.1 |
+| `rescue_interfaces` | `rosidl_default_generators`, `action_msgs`, `geometry_msgs`, `nav_msgs` |
+| `rescue_robot` | `rclpy`, `nav2_msgs`, `irobot_create_msgs`, `tf2_ros`, `rescue_interfaces` |
+| `rescue_perception` | `rclpy`, `cv_bridge`, `message_filters`, `tf2_ros`, `python3-opencv`, `rescue_interfaces` (+ ultralytics·torch 는 pip) |
+| `rescue_bringup` | `launch_ros`, `nav2_amcl`, `slam_toolbox`, `turtlebot4_navigation`, `turtlebot4_viz` |
 
-이 저장소에는 패키지 버전을 고정한 파일이 없다. 위 값은 설치된 버전을 읽은 것이지 요구 버전이 아니다. `rclpy`는 ROS 환경을 불러오지 않은 셸이라 pip 목록에 보이지 않았다.
+`turtlebot4_*` 패키지는 `src/vendor/turtlebot4`, `src/vendor/turtlebot4_desktop` 소스로 함께 빌드한다.
+`rescue_contracts`·`rescue_mapping`·`rescue_console` 은 ROS 없이 import 된다.
 
-## 로컬 프로파일 검사
+### 5.2 Python (pip)
+
+이 저장소에는 패키지 버전을 고정한 파일이 없다. 아래는 개발 PC 에 설치된 버전이고(2026-10-15), CI 가 고정하는 것은 `flask==3.1.3` 하나다.
+
+```text
+ultralytics 8.4.170 · torch 2.14.1 · torchvision 0.29.1
+opencv-python 4.9.0.80 · numpy 1.26.4 · scipy 1.11.4 · Pillow 10.2.0
+Flask 3.1.3 · pydantic 1.10.14 · PyYAML 6.0.1
+pytest 9.1.1
+```
+
+## 6. 실행 순서
+
+현장 명령은 [rescue_bringup README](src/rescue_bringup/README.md)의 「현장 실행 순서」가 기준이다. 아래는 순서 요약이다.
+
+### 0. 빌드와 환경 (모든 PC, 최초 1회)
+
+```bash
+colcon build --packages-up-to rescue_bringup
+source install/setup.bash
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<Discovery 전용 PC>:11811'   # 프로파일 hosts[<host id>].network 와 같게
+python3 scripts/field/preflight_role.py --role <host id>   # 모두 PASSED 여야 다음으로
+```
+
+### 1. Discovery 전용 PC
+
+```bash
+/usr/bin/fastdds discovery --server-id 0 --ip-address <DISCOVERY_HOST_IP> --port 11811
+```
+
+ROS 를 source 한 셸에서는 `/usr/bin/fastdds` 를 전체 경로로 쓴다. 그냥 `fastdds` 를 치면 실패한다.
+
+### 2. 운영 PC
+
+```bash
+ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> ...
+python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
+  --operations http://127.0.0.1:<api 포트> --camera <launch 로그의 값>
+ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> ...
+```
+
+조정기는 로봇 launch 를 띄운 PC 와 다른 PC 에서 띄운다.
+
+### 3. TB-6 담당 PC · TB-5 담당 PC
+
+```bash
+# TB-6 담당 PC (robot_a)
+ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup passage_points.launch.py ... robot_id:=robot_a
+ros2 launch rescue_bringup overhead_passage.launch.py ... robot_id:=robot_a
+ros2 launch rescue_bringup robot.launch.py ... robot_id:=robot_a
+ros2 launch rescue_bringup map_freeze.launch.py ... output_dir:=<회차마다 새 절대 경로>   # TB-6 이 움직이기 전에
+
+# TB-5 담당 PC (robot_b)
+ros2 launch rescue_bringup passage_points.launch.py ... robot_id:=robot_b
+ros2 launch rescue_bringup overhead_passage.launch.py ... robot_id:=robot_b
+ros2 launch rescue_bringup frozen_localization.launch.py ... robot_id:=robot_b
+ros2 launch rescue_bringup robot.launch.py ... robot_id:=robot_b
+```
+
+### 4. 배선 점검과 실행
+
+```bash
+ros2 daemon stop && ros2 daemon start
+python3 scripts/field/wiring_check.py ...    # 모든 연결이 PASSED 여야 로봇을 움직인다
+```
+
+두 로봇을 arm 한 뒤 웹캠 앞에서 흔들림을 만들면 TB-6 탐색이 저절로 시작된다.
+인형 발견 → 1차 고정(TB-5 자동 출동) → 탐색 완료 → 2차 고정(TB-6 은 `tb6_slam` 을 끄고 `frozen_localization.launch.py robot_id:=robot_a`)
+→ TB-5 가 출구에 도착하면 끝난다.
+
+### 정지
+
+```bash
+bash scripts/field/stop_robot.sh /robot6      # TB-5 는 /robot5
+```
+
+그래도 움직이면 사람이 로봇을 들어 올린다. 현장 정지 수단은 웹 연결에 의존하지 않는다.
+
+### 로컬 검사 (로봇 없이)
 
 ```bash
 python3 -I scripts/run_tests.py
+python3 -I scripts/check_docs.py
 PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.example.json
 ```
 
-`STATIC CONFIG VALID`는 정적 파일 검사 성공이다. 로봇·ROS 그래프·실제 시계·주행 준비를 검증한 결과가 아니다. 실행 환경·wheel 설치 검증과 미실행 항목은 [개발 안내](docs/implementation/development.md)를 따른다.
+`STATIC CONFIG VALID` 는 정적 파일 검사 성공이다. 로봇·ROS 그래프·실제 시계·주행 준비를 검증한 결과가 아니다.
 
-## 문서 검사
+## 7. 더 읽을 문서
 
-```bash
-python3 -I scripts/check_docs.py
-# 고정 SHA의 깨끗한 원본 체크아웃이 형제 폴더에 있을 때:
-python3 -I scripts/check_docs.py --sources ../ROKEY_P4 ../amr-mini-project
-```
-
-기본 검사와 `docs / docs-local` CI는 로컬 링크·원본 SHA 표기·줄 범위 형식을 검사한다. 비공개 원본 접근이 필요한 파일 존재·실제 줄 상한·목록 집계는 `--sources`로 검증하며 기본 모드에서는 `SKIP`이다. 문장의 의미·웹 가용성·로컬 제목 앵커·ROS·실기를 대신 검증하지 않는다.
+- [작업 규칙 (AGENTS.md)](AGENTS.md) — 브랜치·PR·증거 표기·로봇 안전 규칙
+- [범위와 결정 기록](docs/requirements/scope.md) — 사용자 요구, 지금 시나리오, 미결정 사항
+- [시스템 구조](docs/design/architecture.md) · [인터페이스 계약](docs/design/contracts.md) · [상태 전이](docs/design/state-machines.md)
+- [현장 실행 안내](src/rescue_bringup/README.md) · [네트워크·Discovery Server](docs/design/network-discovery.md)
+- [개발과 로컬 검사](docs/implementation/development.md) · [용어집](docs/glossary.md)
+- 그림 원본은 [tools/diagrams](tools/diagrams)의 Graphviz `.dot` 파일이다. `bash tools/diagrams/build.sh` 로 `docs/diagrams/*.png` 를 다시 만든다.

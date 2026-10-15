@@ -1,0 +1,29 @@
+digraph G {
+  rankdir=LR; nodesep=0.5; ranksep=1.0;
+  graph [fontname="Noto Sans CJK KR", dpi=150, pad=0.3, bgcolor="white"];
+  node [fontname="Noto Sans CJK KR", fontsize=12, shape=plain];
+  edge [fontname="Noto Sans CJK KR", fontsize=10, color="#5B6770", arrowsize=0.8];
+  TB [label=<<table border="1" color="#2E86C1" cellborder="1" cellspacing="6" cellpadding="6" bgcolor="#FBFCFC" style="rounded">
+    <tr><td border="0" bgcolor="#D6EAF8"><b>TurtleBot4 ×2 (TB-6 탐색 · TB-5 구조)</b></td></tr>
+    <tr><td bgcolor="#F4F6F8">iRobot Create 3<br/>구동 베이스 · 도킹</td></tr>
+    <tr><td bgcolor="#F4F6F8">Raspberry Pi 4B<br/>ROS 2 Jazzy · 온보드 Discovery 서버</td></tr>
+    <tr><td bgcolor="#F4F6F8">UI 보드<br/>LED · 버튼 · 128×64 디스플레이</td></tr>
+    <tr><td bgcolor="#D6EAF8">RPLIDAR A1M8<br/>360° 2D 라이다</td></tr>
+    <tr><td bgcolor="#D6EAF8">OAK-D-Pro<br/>RGB + depth 카메라</td></tr>
+  </table>>];
+  SITE [label=<<table border="1" color="#B9770E" cellborder="1" cellspacing="6" cellpadding="6" bgcolor="#FBFCFC">
+    <tr><td border="0" bgcolor="#FFF3CD"><b>현장 고정 장비</b></td></tr>
+    <tr><td bgcolor="#FFF3CD">웹캠 DRGO(디알고) WC720<br/>지진 징후 판정 · 인형 소실 감시</td></tr>
+    <tr><td bgcolor="#FFF3CD">출구 QR<br/>(허용 목록 글자와 정확히 일치)</td></tr>
+    <tr><td bgcolor="#FFF3CD">구조 대상 인형</td></tr>
+  </table>>];
+  PC [label=<<table border="1" color="#1E8449" cellborder="1" cellspacing="6" cellpadding="6" bgcolor="#FBFCFC">
+    <tr><td border="0" bgcolor="#D5F5E3"><b>PC (같은 무선망, Ubuntu 24.04 · ROS 2 Jazzy)</b></td></tr>
+    <tr><td bgcolor="#D5F5E3" port="ops">운영 PC<br/>조정기 · DB · 관제 웹 · 웹캠 판정</td></tr>
+    <tr><td bgcolor="#D5F5E3">TB-6 담당 PC<br/>SLAM · Nav2 · 인형 탐지 · 지도 고정</td></tr>
+    <tr><td bgcolor="#D5F5E3">TB-5 담당 PC<br/>AMCL · Nav2 · 통로 판정</td></tr>
+    <tr><td bgcolor="#D5F5E3">Discovery 전용 PC<br/>Fast DDS Discovery Server</td></tr>
+  </table>>];
+  SITE -> PC:ops [label="  USB 웹캠  "];
+  TB -> PC [label="  무선 · ROS 토픽  ", dir=both];
+}
