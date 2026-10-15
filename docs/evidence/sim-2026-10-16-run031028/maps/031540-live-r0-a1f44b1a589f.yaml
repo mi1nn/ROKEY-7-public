@@ -1,0 +1,7 @@
+image: 031540-live-r0-a1f44b1a589f.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-5.193315452907424, -0.876014422496334, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25

@@ -1,0 +1,67 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-03-18-34-517922-sim-pc-885053
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792088314.774383663] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[INFO] [launch.user]: frozen localization robot_a ns=/robot6 map=/robot6/map <- /rescue/map/frozen amcl_start=[-3.830391778812138, 0.9947749647629222, -2.9351031515966515] from /rescue/map/frozen_pose/robot_a params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml
+[INFO] [frozen_map_relay-1]: process started with pid [885139]
+[INFO] [amcl-2]: process started with pid [885140]
+[INFO] [lifecycle_manager-3]: process started with pid [885141]
+[lifecycle_manager-3] [INFO] [1792088316.323101933] [robot6.lifecycle_manager_localization]: Creating
+[lifecycle_manager-3] [INFO] [1792088316.330064401] [robot6.lifecycle_manager_localization]: Creating and initializing lifecycle service clients
+[amcl-2] [INFO] [1792088316.343575930] [robot6.amcl]: 
+[amcl-2] 	amcl lifecycle node launched. 
+[amcl-2] 	Waiting on external lifecycle transitions to activate
+[amcl-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-2] [INFO] [1792088316.344262448] [robot6.amcl]: Creating
+[frozen_map_relay-1] [INFO] [1792088317.051571478] [robot6.rescue_frozen_map_relay]: git_sha=9a3e274dbdf01b605dbdd9b12c000964ab3e2f6c parameters={'frozen_topic': '/rescue/map/frozen', 'frozen_revision_topic': '/rescue/map/frozen_revision', 'map_state_topic': '/rescue/robots/robot_a/map_state', 'map_topic': '/robot6/map'}
+[lifecycle_manager-3] [INFO] [1792088317.123377070] [robot6.lifecycle_manager_localization]: Starting managed nodes bringup...
+[lifecycle_manager-3] [INFO] [1792088317.123453761] [robot6.lifecycle_manager_localization]: Configuring amcl
+[amcl-2] [INFO] [1792088317.124153797] [robot6.amcl]: Configuring
+[amcl-2] [INFO] [1792088317.124354766] [robot6.amcl]: initTransforms
+[amcl-2] [INFO] [1792088317.143089907] [robot6.amcl]: initPubSub
+[amcl-2] [INFO] [1792088317.160752182] [robot6.amcl]: Subscribed to map topic.
+[lifecycle_manager-3] [INFO] [1792088317.166244812] [robot6.lifecycle_manager_localization]: Activating amcl
+[amcl-2] [INFO] [1792088317.166508194] [robot6.amcl]: Activating
+[amcl-2] [INFO] [1792088317.166556142] [robot6.amcl]: initialPoseReceived
+[amcl-2] [INFO] [1792088317.166718356] [robot6.amcl]: Setting pose (1792088317.166718): -3.830 0.995 -2.935
+[amcl-2] [INFO] [1792088317.167368151] [robot6.amcl]: Creating bond (amcl) to lifecycle manager.
+[lifecycle_manager-3] [INFO] [1792088317.283017504] [robot6.lifecycle_manager_localization]: Server amcl connected with bond.
+[lifecycle_manager-3] [INFO] [1792088317.283105116] [robot6.lifecycle_manager_localization]: Managed nodes are active
+[lifecycle_manager-3] [INFO] [1792088317.283125010] [robot6.lifecycle_manager_localization]: Creating bond timer...
+[amcl-2] [WARN] [1792088319.213310812] [robot6.amcl]: Waiting for map....
+[amcl-2] [WARN] [1792088321.228299747] [robot6.amcl]: Waiting for map....
+[amcl-2] [INFO] [1792088322.257076228] [robot6.amcl]: Received a 111 X 69 map @ 0.050 m/pix
+[frozen_map_relay-1] [INFO] [1792088322.258836761] [robot6.rescue_frozen_map_relay]: MAP_RELAYED /rescue/map/frozen R2 -> /robot6/map sha256=51230b9c40a676b509ca7180c42e49a6353a4eb3156f837c1f4004af4bd2c8aa
+[amcl-2] [INFO] [1792088322.264569083] [robot6.amcl]: createLaserObject
+[lifecycle_manager-3] [INFO] [1792088445.058811442] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-3] [INFO] [1792088445.058973780] [robot6.lifecycle_manager_localization]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_localization)
+[lifecycle_manager-3] [INFO] [1792088445.059028787] [robot6.lifecycle_manager_localization]: Terminating bond timer...
+[amcl-2] [INFO] [1792088445.067236217] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[amcl-2] [INFO] [1792088445.067340761] [robot6.amcl]: Running Nav2 LifecycleNode rcl preshutdown (amcl)
+[amcl-2] [INFO] [1792088445.067413914] [robot6.amcl]: Deactivating
+[amcl-2] [INFO] [1792088445.067441091] [robot6.amcl]: Destroying bond (amcl) to lifecycle manager.
+[amcl-2] [INFO] [1792088445.107811479] [robot6.amcl]: Cleaning up
+[lifecycle_manager-3] [INFO] [1792088445.345289183] [robot6.lifecycle_manager_localization]: Destroying lifecycle_manager_localization
+[amcl-2] [INFO] [1792088445.458245993] [robot6.amcl]: Destroying bond (amcl) to lifecycle manager.
+[amcl-2] [INFO] [1792088445.468227881] [robot6.amcl]: Destroying
+[INFO] [lifecycle_manager-3]: process has finished cleanly [pid 885141]
+[frozen_map_relay-1] Traceback (most recent call last):
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay", line 33, in <module>
+[frozen_map_relay-1]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'frozen_map_relay')())
+[frozen_map_relay-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/frozen_map_relay.py", line 125, in main
+[frozen_map_relay-1]     rclpy.spin(node)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[frozen_map_relay-1]     executor.spin_once()
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[frozen_map_relay-1]     self._spin_once_impl(timeout_sec)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[frozen_map_relay-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[frozen_map_relay-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[frozen_map_relay-1]     return next(self._cb_iter)
+[frozen_map_relay-1]            ^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[frozen_map_relay-1]     raise ExternalShutdownException()
+[frozen_map_relay-1] rclpy.executors.ExternalShutdownException
+[INFO] [amcl-2]: process has finished cleanly [pid 885140]
+[ERROR] [frozen_map_relay-1]: process has died [pid 885139, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay --ros-args -r __node:=rescue_frozen_map_relay -r __ns:=/robot6 --params-file /tmp/launch_params_56ombp0y'].
