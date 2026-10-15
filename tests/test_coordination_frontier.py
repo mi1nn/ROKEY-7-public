@@ -2,11 +2,12 @@
 
 ``search_mode=FRONTIER``: from TB-6's live SLAM grid and its pose the coordinator finds frontier clusters
 (rescue_contracts.grid_search, 통합-인식 #241), keeps those of at least ``frontier_min_cells`` whose goal is not
-near a frontier already tried, and picks the one with the shortest clear grid path from TB-6. The goal is cut to
-``frontier_goal_max_m`` along that path so TB-6's tasks stay short. It becomes one SEARCH_AREA site (UUID ref,
-search basis) in ~/task_inputs first and the task follows ``frontier_issue_delay_ns`` later, after the robot has
-read the destination. A frontier tried once (completed or not) is not picked again within
-``frontier_blacklist_m``; a goal the robot never started (NOT_STARTED_REASONS) is not a try.
+near a frontier already tried, and picks the one with the lowest explore_lite cost (grid path length from TB-6
+against frontier size, FrontierGainTests). The goal is cut to ``frontier_goal_max_m`` along that path so TB-6's
+tasks stay short. It becomes one SEARCH_AREA site (UUID ref, search basis) in ~/task_inputs first and the task
+follows ``frontier_issue_delay_ns`` later, after the robot has read the destination. A frontier whose own goal cell
+TB-6 reached is not picked again within ``frontier_blacklist_m`` (a cut goal is a step, CutGoalTests); a failed one
+is picked again once (FrontierRetryTests); a goal the robot never started (NOT_STARTED_REASONS) is not a try.
 ``exploration_empty_checks`` map updates in a row with nothing to pick, or
 ``exploration_timeout_ns`` since the first frontier, is EXPLORATION_COMPLETE (EXPLORATION_TIMEOUT shown).
 """
@@ -22,6 +23,7 @@ from test_coordination_search import MAP, NOW, uid
 S = 1_000_000_000
 DELAY = 2 * S
 RES, W, H = 0.2, 40, 20  # 8 m x 4 m
+NEAR = (3.2, 1.8)  # the frontier's goal cell within frontier_goal_max_m: a goal there is not cut (C11)
 
 
 def grid(known_cols=20):
@@ -87,30 +89,18 @@ class FrontierPickTests(Base):
 
     def test_a_tried_frontier_is_not_picked_again_and_exploration_completes(self):
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
+        self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)  # reached: not picked again (a failed one is picked again once, FrontierRetryTests)
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
-            self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
+            self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + k + 1))
             self.assertEqual([], self.searches(NOW + DELAY + k + 1))
             self.assertEqual(k + 1, self.core.frontier_empty)
         self.assertTrue(self.core.exploration_complete)
         self.assertEqual('EXPLORATION_COMPLETE', self.reason(NOW + DELAY + 3))
         self.assertIn('EXPLORATION_COMPLETE', ' '.join(self.core.drain_notes()))
-
-    def test_a_completed_frontier_counts_as_tried_too(self):
-        # A frontier still there after TB-6 reached it cannot be cleared from there; it is not chased forever.
-        self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
-        self.searches()
-        (fields,) = self.searches(NOW + DELAY)
-        self.finish(fields)
-        self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
-        self.assertEqual([], self.searches(NOW + DELAY + 1))
-        self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
     def test_the_same_map_is_counted_once(self):
         self.core.on_scout_map(grid(known_cols=W))  # all known: no frontier
@@ -365,6 +355,100 @@ class WallClearanceTests(unittest.TestCase):
             frontier_core(frontier_goal_clearance_m=-0.1)
 
 
+class FrontierGainTests(unittest.TestCase):
+    """A large unexplored zone goes before a small nook nearby (재범 2026-10-16, 5회차 02:23: TB-6 turned to the
+    side its LiDAR already saw). The pick ranks by the explore_lite cost (potential_scale x path length (m) -
+    gain_scale x frontier size (cells)) x resolution, the repository explore.yaml 3.0 / 1.0, as frontierCost in
+    src/vendor/m-explore-ros2 writes it; untried before retried first."""
+
+    def test_the_5th_run_candidates(self):
+        # 5회차 2026-10-16 02:23, the map before the declaration (#403 README 「선포 순간 후보」): cells and distance
+        # from TB-6. The coordinator took the 14-cell corner; the cost puts the large ones first.
+        core = frontier_core()
+        candidates = {'east of TB-5': (32, 2.24), 'tunnel 1 entrance': (31, 2.63), 'south-west corner': (14, 0.78),
+                      'north': (10, 2.51), 'west': (10, 1.29)}
+        cost = {name: core._cost(ros_node.Frontier(cells, (0., 0.), None), distance, dict(resolution=0.05))
+                for name, (cells, distance) in candidates.items()}
+        self.assertAlmostEqual(-1.16, cost['tunnel 1 entrance'], places=2)   # 3 x 2.63 x 0.05 - 31 x 0.05
+        self.assertAlmostEqual(-0.58, cost['south-west corner'], places=2)   # 3 x 0.78 x 0.05 - 14 x 0.05
+        self.assertEqual(['east of TB-5', 'tunnel 1 entrance', 'south-west corner'], sorted(cost, key=cost.get)[:3])
+
+    @staticmethod
+    def room():
+        """3.6 m x 3.0 m: walls south, north and west, a 0.2 m x 0.2 m nook in the west wall (12 frontier cells),
+        the unexplored zone beyond x = 3.0 (56 frontier cells)."""
+        def cell(x, y):
+            if y < 0.1 or y > 2.9 or x < 0.1:
+                return 100
+            if x > 3.0 or (x < 0.3 and 1.15 < y < 1.35):
+                return -1
+            return 0
+        return fine_grid(3.6, 3.0, cell)
+
+    def picked(self, start):
+        core = frontier_core()
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(self.room())
+        core.on_pose(scout_pose(start))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        return core.frontier['centroid']
+
+    def test_the_large_zone_a_little_farther_goes_before_the_near_nook(self):
+        # from (1.4, 1.5): the nook goal 0.97 m of path (12 cells), the zone goal 1.42 m (56 cells)
+        x, _ = self.picked((1.4, 1.5))
+        self.assertGreater(x, 2.9)  # the zone beyond x = 3.0, not the nook at x 0.24
+
+    def test_the_size_decides_even_when_the_zone_is_farther(self):
+        # from (1.2, 1.5): nook 0.77 m, zone 1.62 m; 3 x 0.85 = 2.55 path cells' worth against 44 cells more
+        x, _ = self.picked((1.2, 1.5))
+        self.assertGreater(x, 2.9)
+
+    def test_the_distance_splits_frontiers_of_one_size(self):
+        core = frontier_core()
+        near, far = (core._cost(ros_node.Frontier(20, (0., 0.), None), m, dict(resolution=0.05)) for m in (1.0, 2.0))
+        self.assertAlmostEqual(0.15, far - near)  # 3 x 1 m x 0.05
+
+
+class CutGoalTests(Base):
+    """A goal cut to ``frontier_goal_max_m`` on the way to a frontier is a step, not a visit (5회차 2026-10-16
+    02:25, C11: TB-6 COMPLETED a goal 1.4 m short of the frontier a116, a116 was marked tried while it stayed on the
+    map, and three empty map updates ended the exploration outside the main zone). Only a goal at the frontier's own
+    goal cell (within ``frontier_reach_m`` of it) makes it tried."""
+
+    def test_after_a_cut_goal_the_same_frontier_goes_on(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        site = live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw'][:2]
+        self.assertLess(site[0], 3.0)  # cut: 1 m along a 2.7 m path to the frontier at x = 4 m
+        self.finish(fields)
+        self.core.on_scout_map(grid())  # the frontier is still there
+        self.core.on_pose(scout_pose(tuple(site), at=NOW + DELAY + 1))
+        self.searches(NOW + DELAY + 1)
+        self.core.on_pose(scout_pose(tuple(site), at=NOW + 3 * DELAY))
+        (again,) = self.searches(NOW + 3 * DELAY)
+        nxt = live_task_inputs.destinations(self.core)[again['search_area_ref']]['xy_yaw'][:2]
+        self.assertGreater(nxt[0], site[0])  # on towards the same frontier
+        self.assertFalse(self.core.exploration_complete)
+        self.assertIn('FRONTIER_GOAL_CUT', ' '.join(self.core.drain_notes()))
+
+    def test_a_goal_at_the_frontier_still_makes_it_tried(self):
+        # A frontier still there after TB-6 reached it cannot be cleared from there; it is not chased forever.
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(NEAR))
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.finish(fields)
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
+        self.assertEqual([], self.searches(NOW + DELAY + 1))
+        self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
+
+
 class FrontierNoneWhyTests(Base):
     """``FRONTIER none`` says why each frontier was left out, largest first (시뮬레이션 2026-10-15 C9: two frontiers
     FAILED, then three empty map updates ended the exploration and nobody could tell why the main zone was not
@@ -377,12 +461,12 @@ class FrontierNoneWhyTests(Base):
 
     def test_a_tried_frontier_is_named_as_tried(self):
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
+        self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)  # reached once: tried
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
+        self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
         line = self.none_line()
         self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 no_path=0', line)

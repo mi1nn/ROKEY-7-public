@@ -40,7 +40,7 @@ def make_core(policy_changes=None, **changes):
                   map_freeze_timeout_ns=5_000_000_000,
                   search_mode='AREAS', patrol_points=(), patrol_rounds=1, exit_standoff_m=0.5,
                   frontier_min_cells=3, frontier_reach_m=1.0, frontier_goal_max_m=1.0, frontier_blacklist_m=0.5,
-                  frontier_goal_clearance_m=0.2,
+                  frontier_goal_clearance_m=0.2, frontier_potential_scale=3.0, frontier_gain_scale=1.0,
                   frontier_issue_delay_ns=2_000_000_000, exploration_empty_checks=2,
                   exploration_timeout_ns=600_000_000_000,
                   completion_mode='RECHECK', support_start_pose=None,
