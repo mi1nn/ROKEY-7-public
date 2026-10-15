@@ -17,13 +17,15 @@ from .commands import (build_request, command_access, parse_operations_url, post
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
-from .sources import load_ledger, load_robot_watch, load_site_state, load_status
+from .replay import build_timeline, replay_at
+from .replay_page import render_replay_fragment, render_replay_page
+from .sources import load_ledger, load_replay, load_robot_watch, load_site_state, load_status
 from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
 
 # 로그인 페이지로 리다이렉트하지 않고 401로 직접 응답할 경로 목록(폴링 데이터, 지도 이미지, 명령).
-DATA_PATHS = ('/fragment', '/map.png', '/commands')
+DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment')
 # 모든 응답에 적용할 보안 헤더([제안] 관제·화면, 2026-10-10). 타 사이트 iframe 임베딩 방지,
 # MIME 타입 추측(content-sniffing) 차단, 외부 카메라 URL에 referrer 누출 방지 등을 포함한다. 완전한 스크립트 실행 차단 CSP는
 # 인라인 script 및 style에 사전 nonce가 적용된 후 적용할 수 있다(README 「후속」).
@@ -248,7 +250,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         """
         # 페이지에는 점검 항목을 기술한 문서를, 조각 폴링에는 1줄 텍스트를, API에는 오류 코드를 반환한다.
         # 모두 503 상태 코드를 부여하여 오류 상태가 빈 정상 응답으로 오인되지 않도록 차단한다.
-        if request.path == '/':
+        if request.path in ('/', '/replay'):
             return Response(render_failure(exc.detail_code, exc.detail), status=503, mimetype='text/html')
         if request.path.startswith('/api/'):
             return jsonify({'error': exc.detail_code, 'message': exc.detail,
@@ -353,6 +355,32 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     def fragment(account):
         """주기적으로 갱신되는 화면 영역을 HTML 조각으로 렌더링한다. 프론트엔드 폴링 스크립트가 교체 삽입한다."""
         return Response(render_fragment(view()), mimetype='text/html')
+
+    # ---- 리플레이 (로그인한 모든 역할, 읽기만) -------------------------------------------
+    def replay_timeline():
+        """현장 상태 DB 를 매 요청 새로 읽어 시간 막대를 만든다. 픽스처·장부만으로는 이력이 없어 거부한다."""
+        if site_state_path is None:
+            raise ConsoleError('CONFIG_MISSING', 'replay needs --site-state')
+        return build_timeline(load_replay(site_state_path))
+
+    @app.get('/replay')
+    @login_required
+    def replay(account):
+        """지난 회차 다시 보기. 처음에는 끝 시점을 그린다. 명령 버튼·로봇 경로가 없다."""
+        timeline = replay_timeline()
+        state = None if timeline['end_ns'] is None else replay_at(timeline, timeline['end_ns'])
+        return Response(render_replay_page(timeline, state, account, csrf=csrf_token()), mimetype='text/html')
+
+    @app.get('/replay/fragment')
+    @login_required
+    def replay_fragment(account):
+        """회차 시작부터 ``offset_ns`` 뒤 시점의 조각. 숫자가 아니거나 범위 밖이면 INVALID_INPUT(503 한 줄)."""
+        timeline = replay_timeline()
+        text = request.args.get('offset_ns', '')
+        if not text.isdigit() or timeline['start_ns'] is None:
+            raise ConsoleError('INVALID_INPUT', 'offset_ns must be a non-negative integer within the run')
+        return Response(render_replay_fragment(replay_at(timeline, timeline['start_ns'] + int(text)), timeline),
+                        mimetype='text/html')
 
     @app.get('/api/view')
     @login_required

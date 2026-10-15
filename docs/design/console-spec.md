@@ -156,7 +156,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 #### 5.1 HTTP 경로(브라우저 → 콘솔)
 
-모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 따로 정하지 않았으면 `Cache-Control: no-store` 도 붙인다(`app.py:30-35`, `app.py:162-172`). 로그인하지 않은 상태에서 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands` 중 하나이면 401 JSON `{"error": "login required"}` 를 돌려주고, 그 밖의 경로는 302 `/login` 으로 보낸다(`app.py:26`, `app.py:211-227`). 등록되지 않은 경로는 Flask 기본 404, 허용하지 않는 메서드는 405 로 응답한다.
+모든 응답에 보안 헤더 4개(`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'`)를 붙이고, 응답이 따로 정하지 않았으면 `Cache-Control: no-store` 도 붙인다(`app.py:30-35`, `app.py:162-172`). 로그인하지 않은 상태에서 경로가 `/api/` 로 시작하거나 `/fragment`·`/map.png`·`/commands`·`/replay/fragment` 중 하나이면 401 JSON `{"error": "login required"}` 를 돌려주고, 그 밖의 경로는 302 `/login` 으로 보낸다(`app.py:26`, `app.py:211-227`). 등록되지 않은 경로는 Flask 기본 404, 허용하지 않는 메서드는 405 로 응답한다.
 
 | 메서드·경로 | 로그인 | 역할 | 입력 | 성공 응답 | 실패 응답 | 근거 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -167,6 +167,8 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `POST /robot-camera` | 필요(없으면 302) | 모두 | 폼 `csrf`, `robot` | 302 `/`(실패하면 flash 「로봇 카메라 …」) | CSRF 가 틀리면 400. `--robot-camera` 가 없으면 404 | `app.py:325-336` |
 | `POST /webcam` | 필요(없으면 302) | ADMIN(아니면 403) | 폼 `csrf`, `device` | 302 `/` + flash(성공·실패 모두 문구를 남김) | CSRF 가 틀리면 400. `--operations` 가 없으면 503 | `app.py:338-349` |
 | `GET /fragment` | 필요(없으면 401) | 모두 | 없음 | 200 `text/html` 조각 | 503 `text/plain` 한 줄 `{코드}: {확인할 것} ({원문})` | `app.py:351-355`, `app.py:256` |
+| `GET /replay` | 필요(없으면 302) | 모두 | 없음 | 200 HTML 리플레이 페이지. 처음에는 기록의 마지막 시점을 그린다(7.13) | `--site-state` 가 없거나 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:366-372` |
+| `GET /replay/fragment` | 필요(없으면 401) | 모두 | 쿼리 `offset_ns`(기록 첫 시각부터의 ns, 0 이상 정수) | 200 `text/html` 조각 | 숫자가 아니거나 기록 범위 밖이면 503 `text/plain` 한 줄. 가장자리로 당기지 않는다 | `app.py:374-383` |
 | `GET /api/view` | 필요(없으면 401) | 모두 | 없음 | 200 JSON 화면 모델 | 503 JSON `{error, message, hint}` | `app.py:357-361`, `app.py:253-255` |
 | `GET /map.png` | 필요(없으면 401) | 모두 | 쿼리 `v` 는 무시한다(캐시 키 역할만 함) | 200 `image/png`, `Cache-Control: private, max-age=3600` | 지도가 없으면 404 | `app.py:363-374` |
 | `POST /commands` | 필요(없으면 401 JSON) | ADMIN | 폼 `csrf`, `kind`, 명령별 필드(5.2) | 200 JSON `sent: true` | 400·403·503·502 JSON `sent: false`(7.6 절) | `app.py:377-409` |
@@ -745,6 +747,19 @@ KPI-04 측정(`render.py:814-866`)에서 `stamp` 는 사건 행마다 처음 본
 1. `--robot-camera` 가 있으면 `GET /` 요청마다 `robot_camera_state` 로 선택할 수 있는 로봇과 현재 로봇을 묻는다(`app.py:313-318`). 실패하면 「로봇 카메라 선택 상태를 못 받음: {사유}」 문구를 남긴다(`commands.py:196-205`). 로봇 이름은 화면 모델의 로봇 행 `name`(`--robot-name`)을 쓴다.
 2. 칸(`_robot_camera`, `render.py:1208-1231`)에는 제목 「로봇 카메라」, 영상 `<img src=--robot-camera>`(웹캠과 같은 끊김 감시를 쓰고, 끊기면 「카메라 영상 낡음」), 캡션 「{지금 로봇 이름} 카메라」를 둔다. 문구가 없으면 `<select name=robot>` 도 둔다(선택하면 바로 제출하고, 확인 창은 없다).
 3. `POST /robot-camera`(`app.py:325-336`)는 CSRF 를 확인하고, `--robot-camera` 가 없으면 404 를 돌려준다. 그다음 `select_robot_camera` 를 한 번 부른다(`commands.py:208-219`). 응답이 200 이고 `robot` 이 선택한 값과 같으면 성공이다(문구 없음). 그렇지 않으면 「로봇 카메라 바꾸기 실패({코드}): …」·「… 답을 못 읽음(HTTP {상태})」·「로봇 카메라 바꾸기 거절: {error}」 중 하나를 flash(`robot_camera`)로 남기고 303 으로 `/` 에 돌려보낸다.
+
+#### 7.13 리플레이 — `replay.py`, `replay_page.py`, `sources.py:103-117`, `app.py:359-383`
+
+지난 회차를 시각대로 다시 보는 페이지다(2026-10-15 사용자 요청, 배치는 사용자 결정 「좌우 두 칸」). 읽기만 하고 명령 버튼과 로봇에 닿는 경로가 없다.
+
+- 입력은 현장 상태 DB 에서 시각과 함께 쌓이는 표 넷(사건·운영자 명령·오류·출구 관측)이다. `load_replay` 가 operations 읽기 함수로 표마다 상한 1000건까지 읽는다(`REPLAY_READ_LIMIT`). 상한까지 찬 표는 페이지 위에 「일부만 보임」으로 드러낸다.
+- 로봇 상태·대상 상태·임무 상태는 최신 한 줄만 남는 표라서 읽지 않는다. 지금 값을 과거 시점에 그리면 틀린 그림이 되기 때문이다. 로봇 위치·배터리, 인형 구조 단계, 지도는 「이력 없음」으로 칸 이름만 보인다(`NO_HISTORY`). 지도 그림도 아직 시각별로 남지 않는다(`map_snapshots` 를 쓰는 코드가 없고 map_snapshot 노드는 그림 두 장만 남긴다).
+- 회차 구분이 아직 DB 에 없어서 DB 파일 하나를 회차 하나로 본다. 회차 고르기 칸은 꺼 둔다.
+- `build_timeline` 은 네 표를 한 줄 모양으로 합쳐 오래된 것부터 정렬하고, 첫 시각과 끝 시각을 정한다. 기록이 없으면 두 시각이 `None` 이고 페이지는 「기록 없음」을 보인다.
+- `replay_at` 은 고른 시각까지의 기록을 최신 순으로 최대 50줄(`REPLAY_ROWS`) 돌려준다. 그 시각까지의 최신 출구 관측과 출구 통과 수도 같이 돌려준다. 범위 밖 시각은 가장자리로 당기지 않고 `INVALID_INPUT` 으로 끝낸다.
+- 재생 시계는 브라우저가 돌린다. 배속은 1·2·4·8배다. 시점이 바뀌면 `GET /replay/fragment?offset_ns=` 로 조각만 받아 바꾼다. 재생 중에는 250 ms 마다 한 번 받고, 받는 중이면 다음 틱은 건너뛴다(`REPLAY_FETCH_MS`). JavaScript 수는 epoch ns 를 정확히 다루지 못해서 브라우저는 첫 시각부터의 offset 만 쓴다.
+- 시간 막대 아래에 기록마다 점을 찍는다(사건 빨강, 명령 파랑, 오류 노랑, 출구 초록). 점을 누르면 그 시각으로 간다.
+- 후속: operations 가 회차 표·이력 표·범위 읽기 함수(`list_runs`, `read_*_range`)를 만들면 회차 고르기를 켜고 로봇 위치·인형 단계·지도 칸을 채운다.
 
 ### 8. 순서도
 

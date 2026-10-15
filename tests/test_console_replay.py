@@ -8,9 +8,12 @@ import unittest
 
 from rescue_operations.site_state import SiteStateLedger
 from rescue_contracts import SiteEvent
+from rescue_console.render import render_page
+from rescue_console.replay_page import render_replay_fragment, render_replay_page
 from rescue_console.replay import REPLAY_READ_LIMIT, REPLAY_ROWS, build_timeline, replay_at
 from rescue_console.sources import load_replay
 from rescue_console.view import ConsoleError
+from test_console_web import ADMIN, CUSTOMER, HAS_FLASK, SECRET, AccountsFixture
 from test_console_view import ROBOTS, SECOND, T0, LedgerFixture, digest_dir, site_event, uid
 
 
@@ -117,6 +120,88 @@ class ReplayEdgeTests(unittest.TestCase):
         timeline = build_timeline({'error_log': {'schema_version': '1.4', 'errors': errors}})
         self.assertEqual(['site_events', 'operator_commands', 'exit_locations'], timeline['missing'])
         self.assertEqual(['error_log'], timeline['truncated'])
+
+
+class ReplayRenderTests(ReplayFixture):
+    def test_page_draws_the_end_of_the_run_with_a_mark_per_record_and_no_command_buttons(self):
+        timeline = self.timeline()
+        html = render_replay_page(timeline, replay_at(timeline, timeline['end_ns']))
+        self.assertEqual(7, html.count('data-offset="'))
+        self.assertIn(f'max="{70 * SECOND - 10 * SECOND}"', html)
+        self.assertIn('지도 이력 없음', html)
+        self.assertNotIn('action="/commands"', html)
+        self.assertNotIn('name="kind"', html)
+
+    def test_fragment_shows_refusal_reason_and_names_tables_without_history(self):
+        timeline = self.timeline()
+        html = render_replay_fragment(replay_at(timeline, timeline['end_ns']), timeline)
+        self.assertIn('거절', html)
+        self.assertIn('NOT_VERDICT', html)
+        self.assertEqual(2, html.count('<dd>이력 없음</dd>'))   # robots and targets; the map has its own note
+        self.assertIn('<dt>출구 통과</dt><dd>1</dd>', html)
+
+    def test_record_text_is_escaped(self):
+        with SiteStateLedger(self.site_db, allowed_robot_ids=ROBOTS) as ledger:
+            ledger.record_error(dict(at_ns=T0 + 65 * SECOND, robot_id=None, task_id=None, code='ACCEPT_TIMEOUT',
+                                     detail='<script>alert(1)</script>'))
+        timeline = self.timeline()
+        html = render_replay_fragment(replay_at(timeline, timeline['end_ns']), timeline)
+        self.assertNotIn('<script>alert', html)
+        self.assertIn('&lt;script&gt;', html)
+
+    def test_empty_run_page_says_so(self):
+        empty = build_timeline({})
+        html = render_replay_page(empty, None)
+        self.assertIn('기록 없음', html)
+        self.assertNotIn('id="replay-slider"', html)
+
+    def test_console_page_links_to_the_replay(self):
+        from rescue_console.sources import load_ledger
+        from rescue_console.view import build_view
+        html = render_page(build_view(load_ledger(self.db), {}, built_at_ns=T0))
+        self.assertIn('href="/replay"', html)
+
+
+@unittest.skipUnless(HAS_FLASK, 'Flask not installed: replay routes NOT_RUN')
+class ReplayWebTests(ReplayFixture, AccountsFixture):
+    def client(self, site_state=True):
+        from rescue_console.app import create_app
+        app = create_app(None if site_state else self.db, accounts_path=self.accounts, secret_key=SECRET,
+                         site_state_path=self.site_db if site_state else None)
+        return app.test_client()
+
+    def test_any_logged_in_role_reads_the_replay_and_nothing_is_written(self):
+        client = self.client()
+        self.assertEqual(302, client.get('/replay').status_code)
+        self.assertEqual(401, client.get('/replay/fragment?offset_ns=0').status_code)
+        self.login(client, *CUSTOMER)
+        before = digest_dir(self.dir)
+        page = client.get('/replay')
+        self.assertEqual(200, page.status_code)
+        self.assertIn('id="replay-slider"', page.get_data(as_text=True))
+        part = client.get(f'/replay/fragment?offset_ns={35 * SECOND}')
+        self.assertEqual(200, part.status_code)
+        self.assertIn('이 시점까지 4건', part.get_data(as_text=True))
+        self.assertEqual(before, digest_dir(self.dir))
+
+    def test_bad_or_out_of_run_offset_is_a_503_line_not_a_clamped_page(self):
+        client = self.client()
+        self.login(client, *ADMIN)
+        for query in ('offset_ns=-1', 'offset_ns=abc', 'offset_ns=', f'offset_ns={61 * SECOND}'):
+            with self.subTest(query=query):
+                self.assertEqual(503, client.get('/replay/fragment?' + query).status_code)
+
+    def test_replay_without_site_state_is_refused(self):
+        client = self.client(site_state=False)
+        self.login(client, *CUSTOMER)
+        self.assertEqual(503, client.get('/replay').status_code)
+        self.assertEqual(503, client.get('/replay/fragment?offset_ns=0').status_code)
+
+    def test_replay_routes_take_no_post(self):
+        client = self.client()
+        self.login(client, *ADMIN)
+        self.assertEqual(405, client.post('/replay').status_code)
+        self.assertEqual(405, client.post('/replay/fragment').status_code)
 
 
 if __name__ == '__main__':
