@@ -48,8 +48,8 @@ class SlowPolygon(unittest.TestCase):
     def test_adds_a_slowdown_polygon_on_the_overhead_band(self):
         from rescue_bringup.field_launch import nav2_with_passage
         p = nav2_with_passage(json.loads(json.dumps(BASE)), self.PASSAGE)['collision_monitor']['ros__parameters']
-        self.assertEqual(['FootprintApproach', 'PassageStop', 'PassageSlow'], p['polygons'])
-        self.assertEqual(['scan', 'passage_depth', 'passage_overhead'], p['observation_sources'])
+        self.assertEqual(['FootprintApproach', 'PassageSlow'], p['polygons'])   # no depth stop (2026-10-16, A)
+        self.assertEqual(['scan', 'passage_overhead'], p['observation_sources'])
         slow = p['PassageSlow']
         self.assertEqual(('polygon', 'slowdown', 0.3, 5, ['passage_overhead'], True),
                          (slow['type'], slow['action_type'], slow['slowdown_ratio'], slow['min_points'],
@@ -58,8 +58,6 @@ class SlowPolygon(unittest.TestCase):
         band = p['passage_overhead']
         self.assertEqual(('pointcloud', 'passage_points', 0.23, 1.0),
                          (band['type'], band['topic'], band['min_height'], band['max_height']))
-        self.assertEqual(['passage_depth'], p['PassageStop']['sources_names'])   # the stop band is unchanged
-        self.assertEqual((0.05, 0.46), (p['passage_depth']['min_height'], p['passage_depth']['max_height']))
 
 
 if __name__ == '__main__':

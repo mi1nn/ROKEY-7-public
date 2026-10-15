@@ -78,6 +78,29 @@ def field_nav2(params):
     return nav2_with_rotation_shim(nav2_without_backup(params))
 
 
+KEEPOUT_INFO_TOPIC = '/rescue/passage_keepout/filter_info'   # rescue_robot.passage_keepout (both robots read it)
+KEEPOUT_FILTER = 'tunnel_keepout'
+
+
+def nav2_with_tunnel_keepout(params):
+    """A copy with a Nav2 KeepoutFilter on the global and local costmaps reading the tunnel keepout mask
+    (재범 decision 2026-10-16, option A: tunnels the vision judgement found BLOCKED are kept out of paths).
+    robot.launch.py only: the manual launches have no overhead_passage and no mask."""
+    params = copy.deepcopy(params)
+    for costmap in ('global_costmap', 'local_costmap'):
+        try:
+            p = params[costmap][costmap]['ros__parameters']
+        except (KeyError, TypeError):
+            raise Nav2FieldError(f'Nav2 parameters need {costmap}.{costmap}.ros__parameters') from None
+        filters = list(p.get('filters', []))
+        if KEEPOUT_FILTER in filters or KEEPOUT_FILTER in p:
+            raise Nav2FieldError(f'{costmap} already has {KEEPOUT_FILTER}')
+        p['filters'] = filters + [KEEPOUT_FILTER]
+        p[KEEPOUT_FILTER] = {'plugin': 'nav2_costmap_2d::KeepoutFilter', 'enabled': True,
+                             'filter_info_topic': KEEPOUT_INFO_TOPIC}
+    return params
+
+
 def write_field_nav2(base_path, *, prefix):
     """Read the Nav2 yaml at ``base_path``, apply field_nav2, write a temporary yaml; returns its path."""
     import tempfile

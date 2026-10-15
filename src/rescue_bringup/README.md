@@ -9,7 +9,7 @@
 | 현장 launch: `operations`·`coordinator`·`robot`·`tb6_slam`·`frozen_localization`·`map_freeze`·`passage_points`·`overhead_passage` | 구현됨, 실기 NOT_RUN(전체 회차) | `launch/*.launch.py`, `rescue_bringup/field_launch.py`, #144·#152 |
 | 현장 정지 스크립트 | 구현됨 | `scripts/field/stop_robot.sh`, #256 |
 | `<ns>/map` 에 이미 발행자가 있으면 SLAM 기동 거절 | 구현됨, 실기 NOT_RUN | `rescue_bringup/map_guard.py:check_no_map_publisher`, #256 |
-| 통로 정지 `PassageStop`: 깊이 점 0.05 ~ 0.46 m, 앞 0.4 ~ 1.0 m, 폭 ±0.2 m, 5점 | 구현됨, 실기 NOT_RUN | `field_launch.py:nav2_with_passage`, 현장 파일 `robot` 절 `passage.*`, #226 |
+| 깊이 정지 `PassageStop` 없음(재범 결정 2026-10-16). 터널은 `overhead_passage` BLOCKED → `passage_keepout` 진입 금지 지도 → 두 로봇 Nav2 `KeepoutFilter` | 구현됨, 실기 NOT_RUN | `field_launch.py:nav2_with_passage`, 현장 파일 `robot` 절 `passage.*`, #226 |
 | 통로 감속 `PassageSlow`: 깊이 점 0.23 ~ 1.0 m, 앞 0.4 ~ 1.2 m, 속도 ×0.3 | 구현됨, 실기 NOT_RUN | 같은 함수, `passage.slow.*`·`passage.overhead.*`, #260 |
 | 깊이 점 `<ns>/passage_points`(depth_image_proc) | 구현됨, 실기 NOT_RUN | `launch/passage_points.launch.py`, `field_launch.py:passage_points_launch_values`, #226 |
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
@@ -53,8 +53,8 @@
 
 이 구성은 사람이 RViz에서 목표를 지정하는 단일 로봇 실습용이다. 기존 오프라인 CLI나 `runtime_enabled`를 활성화하지 않으며, 프로젝트 임무 명령·정지/권한·watchdog 및 `RobotPose`/`MapState` 연결은 포함하지 않는다. SLAM은 목표 없이 스스로 탐색하지 않는다. 복사해 둔 `rescue_perception` 내부 실습 파일은 이 launch에서 사용하지 않는다.
 
-> **⚠ 이 경로(mapping_navigation·localization_navigation·explore_lite)에는 머리 위 통로 정지(46 cm)가 없다.** 통로 정지는 `robot.launch.py`(Nav2 `collision_monitor` 에 넣음)와 `passage_points.launch.py` 를 **둘 다** 띄울 때만 켜진다(현장 실행 순서 2단계). 켜졌는지 확인:
-> - `robot.launch.py` 로그에 `+ passage stop 0.05..0.46 m` 가 있다.
+> **⚠ 이 경로(mapping_navigation·localization_navigation·explore_lite)에는 터널 감속과 진입 금지가 없다.** 둘은 `robot.launch.py`(Nav2 `collision_monitor` 감속, 비용 지도 `KeepoutFilter`)와 `passage_points.launch.py`·`overhead_passage.launch.py` 를 모두 띄울 때만 켜진다. 켜졌는지 확인:
+> - `robot.launch.py` 로그에 `+ no depth stop + tunnel keepout` 이 있다.
 > - `ros2 topic hz <ns>/passage_points` 가 나온다(깊이 점, 없으면 `collision_monitor` 가 1 s 뒤 멈춘다).
 >
 > **⚠ 정지:** 이 경로에는 실행기·watchdog 이 없다. 멈추려면 `bash scripts/field/stop_robot.sh <ns>`(Nav2 목표 전부 취소 + cmd_vel 0, 아래 3단계 정지 상자). explore_lite 를 Ctrl+C 로 끄면 노드가 끝나면서 목표 취소를 보내지만, 종료 중이라 그 요청이 Nav2 에 닿는지 보장되지 않는다[추정: upstream `Explore::~Explore()` → `stop()` → `async_cancel_all_goals()`]. Nav2 가 다른 터미널에서 계속 떠 있으면 **마지막 목표로 계속 간다.** explore 를 끈 뒤에는 반드시 정지 스크립트를 돌리거나 Nav2 launch 도 끈다.
@@ -266,9 +266,13 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - `slam_active_wait_s`(기본 15 s [제안]) 뒤 `tb6_slam_active_check` 가 slam_toolbox lifecycle 상태를 읽고 한 줄을 남긴다. active 면 `SLAM_ACTIVE /robot6/slam_toolbox`, 아니면 `SLAM_NOT_ACTIVE /robot6/slam_toolbox state=<상태>` 다(ERROR).
 - inactive 이고 `slam_activate_once:=true`(기본)이면 activate 를 한 번만 보낸다. 로그 `SLAM_ACTIVATE_SENT` 를 남기고 상태를 다시 읽는다. 백그라운드로 띄우면 launch 가 「inactive 가 됐다」 이벤트를 놓쳐 inactive 에 머문 일이 있었다[추정]. 그 밖의 상태(unconfigured 등)나 답이 없을 때는 로그만 남긴다. 이때는 `ros2 lifecycle get /robot6/slam_toolbox` 로 보고 손으로 다룬다.
 
-**머리 위 통로 정지(두 로봇, OPS-135):**
-- 기준은 현장 실행 파일 `robot` 공통 절의 `passage.*` 한 곳에만 있다. 깊이 점이 높이 0.05~`passage.max_height_m` 0.46 m(재범 결정 46 cm, scope Q-25) 띠 안에 있고, 로봇 앞 `passage.front_m` [0.4, 1.0] m 안에 `passage.min_points` 개 이상이면 멈춘다.
-- `robot.launch.py` 가 이 값을 Nav2 `collision_monitor` 에 넣는다(통로 다각형 `PassageStop`, 깊이 원 `passage_depth`). 그래서 저장소의 Nav2 yaml 에는 이 숫자를 쓰지 않는다. 로그: `+ passage stop 0.05..0.46 m`.
+**머리 위 터널(두 로봇): 깊이 정지 없음, 비전 판정으로 진입 금지(재범 결정 2026-10-16 01:4x 「터널 지나갈 때 비전으로 터널 높이 측정해서 지나가는 로직 짰잖아」, 01:5x 「A로 진행」, 등급 4):**
+- 예전의 깊이 정지 `PassageStop`(깊이 점 0.05~0.46 m, 앞 0.4~1.0 m → 정지, 회전까지 0)은 뺐다. 벽·도크 앞에서 로봇을 세워 교착이 났다(C1 #363, 4회차).
+- 터널은 `overhead_passage` 판정으로 다룬다. `rescue_robot` 의 `passage_keepout`(robot_a 의 `robot.launch.py` 가 하나만 띄움)이 두 로봇의 판정 목록을 모은다. 자리마다 가장 최근(`last_seen_ns`) 항목이 BLOCKED 이면, 반지름 `passage.keepout.radius_m` 0.3 m 원을 진입 금지 지도(`/rescue/passage_keepout/mask`, map 좌표)에 칠한다. UNKNOWN 은 구조물이 상자 가까운 끝(`passage.overhead.near_end_m` 0.05 m 안)에 왔는데도 바닥을 못 본 경우(`NO_FLOOR_NEAR`)만 칠한다. PASSABLE 과 그 밖의 UNKNOWN 은 칠하지 않는다. 값은 모두 [제안]이다.
+- 두 로봇의 전역·지역 비용 지도에 Nav2 `KeepoutFilter`(`tunnel_keepout`, `/rescue/passage_keepout/filter_info`)를 더한다(`nav2_field.nav2_with_tunnel_keepout`, `robot.launch.py` 만). 경로가 칠한 자리를 지나지 않는다. 라이다가 덮개 아래를 지나도 지워지지 않는다.
+- 사람이 막힘을 푸는 것(통과 승인)은 판정 노드 안에 있고(`KeepoutCore.approve`), ROS 서비스는 다음 PR 이다(새 인터페이스를 SDD JSON 에 먼저 넣어야 함).
+- 실행기의 `PASSAGE_BLOCKED` 알림은 `PassageStop` 다각형을 보던 것이라 이제 켜지지 않는다(현장 파일 `task.live.passage.polygon_name` 은 남아 있음).
+- 로그: `+ no depth stop + tunnel keepout /rescue/passage_keepout/filter_info`, `PASSAGE_KEEPOUT <n> place(s) kept out`.
 - **감속(OPS-189):** 같은 깊이 점 중 라이다 평면 위(`passage.overhead.lidar_plane_m` 0.23 m [측정]~`passage.overhead.top_m` 1.0 m)에 있는 것이 앞 `passage.slow.front_m` [0.4, 1.2] m 안에 `passage.min_points` 개 이상이면 `PassageSlow` 가 속도를 `passage.slow.ratio` 0.3 배로 줄인다([제안]). 라이다가 못 보는 터널 천장 앞에서 높이 판정(약 1.5 s)이 나올 시간을 주려는 것이다. 0.46 m 이하는 `PassageStop` 이 그대로 멈춘다. 로그: `+ passage slow x0.3 0.23..1.0 m`. **벽 앞에서도 감속한다**: collision_monitor 는 벽과 터널을 구분하지 못해, 라이다 위 높이까지 올라온 벽이 앞 1.2 m 안에 있으면 똑같이 0.3 배로 줄인다. 그래서 감속 사유 코드는 두지 않는다(「측정 중」이 아님, 웹 「판정 중」은 터널 노드 UNKNOWN 으로 본다, OPS-193). 실기에서 벽 앞 감속 때문에 탐색이 너무 느리면 현장 파일 `robot` 절의 `passage.slow.ratio`(크게) 또는 `passage.slow.front_m`(먼 끝을 가깝게)을 고친다.
 - 깊이 점은 `passage_points.launch.py` 가 만든다. 깊이 영상 이름은 현장 실행 파일 `robots.<id>.passage.*` 에 있다. 이 노드가 없으면 깊이 점이 오지 않으므로 `collision_monitor` 가 1 s 뒤 로봇을 세운다. 깊이 영상은 준비 신호에도 들어가서, 끊기면 NOT_READY 다. 준비 신호도 깊이 점과 같은 transport 로 받는다(compressedDepth 이면 `<depth_topic>/compressedDepth`). 그래서 원본 깊이를 Wi-Fi 로 따로 끌어오지 않는다.
 - **지도에 터널 표시(OPS-185/186):** `overhead_passage.launch.py` 가 같은 깊이 점, 같은 상자와 높이(`passage.*`)로 머리 위 구조물을 판정한다. 결과는 `/rescue/robots/<id>/overhead_passages`(JSON, contracts C-04b)로 나간다. 추가 값은 `passage.overhead.*` 에 있다. 판정을 그린 카메라 영상 `<ns>/rescue/passage_view/compressed` 는 `passage.view.*` 와 로봇별 `passage.view_image_topic`·`passage.view_camera_info_topic`(각 Pi 의 RGB 미리보기와 그 camera_info. 전체 RGB 는 인형 탐지 입력이라 구독을 늘리지 않음, OPS-198. 둘 다 지우면 그 로봇 영상 끔)으로 정한다. 라이다 높이 `lidar_plane_m` 0.23 m 는 TB-5 줄자 실측이고 TB-6 은 같다고 본 추정이다. 판정 규칙은 `src/rescue_perception/README.md` 「지도의 머리 위 구조물」 절에 있다.
@@ -290,7 +294,7 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 성공 로그:
 - `TB-6 SLAM robot_a ns=/robot6`
 - `passage points /robot6/oakd/stereo/image_raw (compressedDepth) + ... -> /robot6/passage_points`
-- `robot <id> ns=<ns> ... + passage stop 0.05..0.46 m ... map_mode=SLAM_THEN_FROZEN`(또는 `FROZEN_MAP_AMCL`) `map_sha256=(decided by the freeze)`
+- `robot <id> ns=<ns> ... + no depth stop + tunnel keepout ... map_mode=SLAM_THEN_FROZEN`(또는 `FROZEN_MAP_AMCL`) `map_sha256=(decided by the freeze)`
 - `[<ns 이름>.rescue_command_watchdog]: git_sha=...`, `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
 - `rescue_map_freeze`: `git_sha=... parameters=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번(TB-6 출발 자세)
 - TB-6 `MAP_STATE robot_a ... rev=<R0> quality=VALID`(SLAM 위치가 잡힌 뒤). TB-5 는 고정 전 `quality=UNKNOWN` 이 정상이다.
@@ -425,7 +429,7 @@ TB-6 탐색 중 RobotPose 는 TF `map→base_link`(`/robot6/tf`)를 실행기 po
 - TB-6 `/robot6/tf` 에 `map→odom`·`odom→base_link` 가 오는지, 서 있는 TB-6 에서 `/robot6/pose` 가 끊기는지(OPS-177 [추정]).
 - `map_guard` 가 Discovery 서버 아래에서 앞 SLAM 을 찾는지(#256).
 - Create3 `cmd_vel` 형식(`TwistStamped`)과 watchdog 종료 0 이 로봇에 닿는지.
-- Jazzy collision_monitor 의 `slowdown`·`sources_names` 동작(#260), 깊이 점이 실제로 `PassageStop`·`PassageSlow` 를 켜는지.
+- Jazzy collision_monitor 의 `slowdown`·`sources_names` 동작(#260), 깊이 점이 실제로 `PassageSlow` 를 켜는지, 터널 BLOCKED 가 진입 금지 지도로 들어가 경로가 피하는지(`KeepoutFilter`).
 - TB-6 라이다 높이 0.23 m(TB-5 줄자 실측을 같은 모델로 본 [추정]).
 - **#254 측정(2026-10-13, TB-6 정지 관측 한 번)이 높이 띠에 주는 영향(OPS-203):** TB-6 앞 바닥 점이 `base_link` 기준 z ≈ −0.22 ~ −0.19 m 였다. 정지 띠(0.05 ~ 0.46 m)·감속 띠(0.23 ~ 1.0 m)·터널 판정(바닥 ≤ 0.05 m, 여유 높이 0.46 m)은 모두 `base_link` 높이로 잰다. 그래서 바닥이 정말 그 높이라면 바닥 위로는 약 0.2 m 씩 올라간다[추정]. 정지 띠는 바닥 위 약 0.25 ~ 0.66 m 다. 바닥 위 약 0.05 ~ 0.25 m 의 낮은 물체는 깊이 정지 띠에서 빠진다(라이다 평면 아래면 라이다도 못 봄). 터널 판정은 바닥 높이가 아니라 `base_link` 높이로 여유를 잰다. 바닥·`base_link`·카메라 TF 관계를 줄자로 확인하기 전에는 값을 바꾸지 않는다.
 - Nav2 후진 복구. #267 로 우리 launch 세 곳은 후진이 없다. 그래도 `scripts/field/search-area/nav2_watchdog.launch.py` 와 `rescue_perception` 의 `exploration/nav2.yaml` 에는 후진 복구가 남는다. **이 두 경로는 현장에서 쓰지 않는다**(작전 결정 2026-10-14, OPS-215).

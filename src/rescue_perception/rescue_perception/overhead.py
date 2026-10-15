@@ -48,7 +48,7 @@ POLICY_PARAMS = {
     'clearance_m': 'DOUBLE', 'floor_noise_m': 'DOUBLE', 'front_near_m': 'DOUBLE', 'front_far_m': 'DOUBLE',
     'half_width_m': 'DOUBLE', 'lidar_plane_m': 'DOUBLE', 'top_m': 'DOUBLE', 'min_points': 'INTEGER',
     'floor_min_points': 'INTEGER', 'confirm_frames': 'INTEGER', 'position_tolerance_m': 'DOUBLE',
-    'merge_radius_m': 'DOUBLE'}
+    'merge_radius_m': 'DOUBLE', 'near_end_m': 'DOUBLE'}
 NODE_PARAMS = {
     'points_topic': 'STRING', 'base_frame': 'STRING', 'map_frame': 'STRING', 'robot_id': 'STRING',
     'map_robot_id': 'STRING', 'map_state_topic': 'STRING', 'clock_error_bound_ns': 'INTEGER',
@@ -77,11 +77,12 @@ class OverheadPolicy:
     confirm_frames: int           # agreeing processed frames before reporting
     position_tolerance_m: float   # spread allowed within one run (map frame)
     merge_radius_m: float         # same place as an item already reported (same map revision)
+    near_end_m: float             # no floor seen and the structure within this of front_near_m: NO_FLOOR_NEAR
 
     def __post_init__(self):
         _positive(self.floor_noise_m, 'floor_noise_m', zero=True)
         for name in ('clearance_m', 'front_near_m', 'front_far_m', 'half_width_m', 'lidar_plane_m', 'top_m',
-                     'position_tolerance_m', 'merge_radius_m'):
+                     'position_tolerance_m', 'merge_radius_m', 'near_end_m'):
             _positive(getattr(self, name), name, zero=name == 'front_near_m')
         if not self.floor_noise_m < self.lidar_plane_m < self.clearance_m < self.top_m:
             raise ValueError('need floor_noise_m < lidar_plane_m < clearance_m < top_m')
@@ -166,7 +167,9 @@ def judge(points, policy):
     floor = box & (z <= policy.floor_noise_m) & (x >= x0) & (x <= x1)
     cx, cy = float(xs.mean()), float(y[above].mean())
     if np.count_nonzero(floor) < policy.floor_min_points:
-        return Reading('UNKNOWN', None, cx, cy, 'NO_FLOOR_SEEN', x0, x1, lowest)
+        # at the box's near end with no floor seen: the robot is about to be under it without a height (A, 2026-10-16)
+        near = x0 <= policy.front_near_m + policy.near_end_m
+        return Reading('UNKNOWN', None, cx, cy, 'NO_FLOOR_NEAR' if near else 'NO_FLOOR_SEEN', x0, x1, lowest)
     return Reading('PASSABLE' if lowest >= policy.clearance_m else 'BLOCKED', lowest, cx, cy, '', x0, x1, lowest)
 
 

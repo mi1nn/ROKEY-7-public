@@ -173,7 +173,7 @@ ros2 launch rescue_bringup amr_perception.launch.py <인자는 rescue_perception
 
 - `TB-6 SLAM robot_a ns=/robot6`. 그 뒤 `ros2 lifecycle get /robot6/slam_toolbox` 가 `active [3]` 인지 본다. `inactive [2]` 에 머물면 `ros2 lifecycle set /robot6/slam_toolbox activate` 로 켠다(2026-10-15, 같은 기록 B4)
 - `passage points /robot6/oakd/stereo/image_raw (compressedDepth) + ... -> /robot6/passage_points`
-- `robot robot_a ns=/robot6 ... + passage stop 0.05..0.46 m ... + no BackUp recovery ... map_mode=SLAM_THEN_FROZEN map_sha256=(decided by the freeze)`
+- `robot robot_a ns=/robot6 ... + no depth stop + tunnel keepout /rescue/passage_keepout/filter_info (passage_keepout here) ... + no BackUp recovery ... map_mode=SLAM_THEN_FROZEN map_sha256=(decided by the freeze)`
 - `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
 - `rescue_map_freeze` 의 `git_sha=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번
 - `MAP_STATE robot_a ... rev=<R0> quality=VALID`
@@ -337,6 +337,7 @@ curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: applica
 
 이 순서를 처음부터 끝까지 실제 로봇으로 돌린 회차는 아직 없다. 실기에서 볼 항목은 [rescue_bringup README](../../src/rescue_bringup/README.md) 「실기 NOT_RUN」 절에 모여 있다. 그중 이 순서에 바로 걸리는 것은 아래다.
 
+- **터널 높이 기준(#254)을 실기 전에 잰다. 로봇은 움직이지 않는다.** 터널 판정은 깊이 점의 `base_link` 높이로 잰다. #254 측정처럼 `base_link` 가 바닥 위 약 0.2 m 이면 높이가 0.2 m 낮게 나와, 터널 1(0.47 m)이 늘 통과 불가로 칠해져 메인 구역이 막힌다. 언도킹한 TB-6 앞 0.5 ~ 0.9 m 에 높이를 줄자로 잰 판(예 0.30 m)을 두고, `/robot6/passage_points` 에서 그 판의 `base_link` z 를 읽어 줄자 값과 비교한다(`ros2 topic echo` 나 RViz). 바닥 점의 z 도 같이 본다. 차이가 1 cm 를 넘으면 이동에 판정을 쓰기 전에 높이 기준부터 고친다(작전에 보고).
 - 시뮬레이션에서 찾아 고친 것(C1~C9)의 실기 확인. 목록과 상태는 [시뮬레이션에서 찾은 것을 현장 코드로 옮기기](sim-to-field.md)에 있다. 실기 전에 「실기」 칸이 빈 줄을 본다.
 - TB-6 출발 자세와 지도 고정. 2026-10-14 현장에서 실패했고 #291 이 고쳤다. 한 PC 리허설(현장 TF 값)에서는 통과했고, 실기는 아직이다.
 - 권고안 A 에서 TB-5 담당 PC 가 `/rescue/map/frozen` 을 받는지 [추정, 실측 전].

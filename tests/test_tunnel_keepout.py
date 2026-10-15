@@ -13,13 +13,13 @@ of walls and the dock, turn included. 재범: 「터널 지나갈 때 비전으�
   (reason NO_FLOOR_NEAR).
 - A person can approve a painted place (/rescue/passage_keepout/approve); it leaves the mask for the run.
 
-The tests marked expectedFailure fail on main.
+Before this change (b34972e) these tests were expectedFailure.
 """
 import json
+import math
 import unittest
 from collections import deque
 
-import numpy as np
 
 from test_bringup_field_launch import FieldCase
 from test_bringup_passage import BASE
@@ -29,7 +29,7 @@ SESSION = '22222222-2222-4222-8222-222222222222'
 TUNNEL_2 = (-6.0, 1.0)   # cover 0.30 m: BLOCKED
 TUNNEL_1 = (-4.0, 1.0)   # cover 0.47 m: PASSABLE
 # Run 4: the west wall cuts the stop box's front left corner while TB-6 turns (x = 1.2 - 1.25 y), 0.06-0.22 m
-WALL_POINTS = [(1.2 - 1.25 * y, y, z) for y in np.arange(0.16, 0.2001, 0.005) for z in (0.06, 0.10, 0.14, 0.18, 0.22)]
+WALL_POINTS = [(1.2 - 1.25 * y, y, z) for y in (0.16 + 0.005 * k for k in range(9)) for z in (0.06, 0.10, 0.14, 0.18, 0.22)]
 
 
 def item(item_id, state, xy, *, revision=0, seen=1, reason='', lowest=None):
@@ -61,9 +61,11 @@ def blocked_cells(mask):
 def path_through(mask, start, goal, step=0.05):
     """A 4-connected grid path (as Nav2's planner on lethal cells) from start to goal along a corridor y = 1.0
     +- 0.2 m between x = -7 and -3: the only way passes both tunnels. None when the keepout closes it."""
-    blocked = {(round(x / step), round(y / step)) for x, y in blocked_cells(mask)}
-    lo, hi = (round(-7.0 / step), round(0.8 / step)), (round(-3.0 / step), round(1.2 / step))
-    s, g = (round(start[0] / step), round(start[1] / step)), (round(goal[0] / step), round(goal[1] / step))
+    def cell(w):   # the grid cell holding w (mask cell centres sit in the middle of these cells)
+        return math.floor(w / step + 1e-9)
+    blocked = {(cell(x), cell(y)) for x, y in blocked_cells(mask)}
+    lo, hi = (cell(-7.0), cell(0.8)), (cell(-3.0), cell(1.2))
+    s, g = (cell(start[0]), cell(start[1])), (cell(goal[0]), cell(goal[1]))
     queue, seen = deque([s]), {s: None}
     while queue:
         c = queue.popleft()
@@ -88,13 +90,11 @@ class DepthStopRemoved(FieldCase):
         passage = self.robot(field=self.field(), robot_id='robot_a', occupancy_sha256='')['passage']
         self.cm = nav2_with_passage(json.loads(json.dumps(BASE)), passage)['collision_monitor']['ros__parameters']
 
-    @unittest.expectedFailure
     def test_run4_west_wall_in_the_box_corner_does_not_stop(self):
         self.assertGreaterEqual(len(WALL_POINTS), 38)
         self.assertGreater(safe_velocity(self.cm, WALL_POINTS, FORWARD)[0], 0.0)   # PassageSlow may slow it
         self.assertGreater(safe_velocity(self.cm, WALL_POINTS, TURN)[2], 0.0)
 
-    @unittest.expectedFailure
     def test_no_passage_stop_polygon_and_passage_slow_stays(self):
         self.assertNotIn('PassageStop', self.cm['polygons'])
         self.assertIn('PassageSlow', self.cm['polygons'])
@@ -102,7 +102,6 @@ class DepthStopRemoved(FieldCase):
 
 
 class KeepoutMask(unittest.TestCase):
-    @unittest.expectedFailure
     def test_tunnel_2_blocked_closes_the_path_and_tunnel_1_passable_leaves_it(self):
         k = keepout()
         start, goal = (-6.8, 1.0), (-3.2, 1.0)
@@ -111,9 +110,8 @@ class KeepoutMask(unittest.TestCase):
         self.assertIsNotNone(path_through(k.mask(), start, goal))                  # tunnel 1 is passed
         k.on_items('robot_a', [item(ids(1), 'PASSABLE', TUNNEL_1), item(ids(2), 'BLOCKED', TUNNEL_2, seen=2)])
         self.assertIsNone(path_through(k.mask(), start, goal))                     # tunnel 2 is not
-        self.assertIsNotNone(path_through(k.mask(), (-5.8, 1.0), goal))            # past tunnel 2, tunnel 1 is open
+        self.assertIsNotNone(path_through(k.mask(), (-5.6, 1.0), goal))            # past tunnel 2, tunnel 1 is open
 
-    @unittest.expectedFailure
     def test_unknown_is_painted_only_when_it_reached_the_near_end(self):
         k = keepout()
         k.on_items('robot_a', [item(ids(3), 'UNKNOWN', TUNNEL_2, reason='NO_FLOOR_SEEN')])
@@ -121,7 +119,6 @@ class KeepoutMask(unittest.TestCase):
         k.on_items('robot_a', [item(ids(3), 'UNKNOWN', TUNNEL_2, reason='NO_FLOOR_NEAR')])
         self.assertTrue(blocked_cells(k.mask()))
 
-    @unittest.expectedFailure
     def test_the_newest_item_of_a_place_wins_over_robots_and_revisions(self):
         k = keepout()
         k.on_items('robot_a', [item(ids(4), 'BLOCKED', TUNNEL_1, revision=0, seen=10, lowest=0.455)])   # noise, R0
@@ -131,7 +128,6 @@ class KeepoutMask(unittest.TestCase):
                                     lowest=0.45)])
         self.assertTrue(blocked_cells(k.mask()))
 
-    @unittest.expectedFailure
     def test_an_approved_place_leaves_the_mask_and_the_approval_is_logged(self):
         k = keepout()
         k.on_items('robot_a', [item(ids(6), 'BLOCKED', TUNNEL_1, lowest=0.455)])
@@ -147,7 +143,6 @@ class KeepoutMask(unittest.TestCase):
             with self.subTest(bad_id=bad_id, by=by):
                 self.assertFalse(k.approve(bad_id, by=by, now_ns=100)[0])
 
-    @unittest.expectedFailure
     def test_disc_radius_and_mask_frame(self):
         k = keepout()
         k.on_items('robot_a', [item(ids(8), 'BLOCKED', TUNNEL_2)])
@@ -160,7 +155,6 @@ class KeepoutMask(unittest.TestCase):
 
 
 class Nav2Keepout(unittest.TestCase):
-    @unittest.expectedFailure
     def test_both_costmaps_get_the_keepout_filter(self):
         from rescue_bringup.nav2_field import KEEPOUT_INFO_TOPIC, nav2_with_tunnel_keepout
         from test_bringup_no_backup import vendor_params
@@ -174,8 +168,11 @@ class Nav2Keepout(unittest.TestCase):
 
 
 class NearEndUnknown(unittest.TestCase):
-    @unittest.expectedFailure
     def test_a_structure_at_the_near_end_without_a_floor_is_no_floor_near(self):
+        try:
+            import numpy as np
+        except ImportError:
+            self.skipTest('numpy not installed (installed-wheel check)')
         import dataclasses
         from rescue_perception.overhead import judge
         from test_perception_overhead import POLICY

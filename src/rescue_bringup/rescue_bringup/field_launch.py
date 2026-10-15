@@ -17,6 +17,7 @@ import math
 import re
 from pathlib import Path
 
+from .nav2_field import KEEPOUT_INFO_TOPIC
 from .profile import Deployment, ProfileError, require_map_basis
 
 FORMAT = 'rescue-field-run/1'
@@ -96,7 +97,9 @@ ROBOT_KEYS = {
     **{'passage.overhead.' + name: kind for name, kind in (
         ('lidar_plane_m', F), ('top_m', F), ('floor_min_points', I), ('confirm_frames', I),
         ('position_tolerance_m', F), ('merge_radius_m', F), ('process_period_s', F), ('max_cloud_age_s', F),
-        ('stride', I))},
+        ('stride', I), ('near_end_m', F))},
+    # Tunnel keepout mask (재범 decision 2026-10-16, option A): disc radius and cell size [제안]
+    'passage.keepout.radius_m': F, 'passage.keepout.resolution_m': F,
     # the judgement drawn on the robot camera (OPS-189): small JPEG, RGB frame within slop_ns of the cloud
     'passage.view.width': I, 'passage.view.quality': I, 'passage.view.slop_ns': I, 'passage.view.font_path': S,
 }
@@ -311,6 +314,8 @@ def load_field(path):
         raise FieldLaunchError('robot.passage.slow.front_m must be [near, far] with 0 <= near < far')
     if not 0 < robot['passage.slow.ratio'] < 1:
         raise FieldLaunchError('robot.passage.slow.ratio must be between 0 and 1 (exclusive)')
+    if min(robot['passage.keepout.radius_m'], robot['passage.keepout.resolution_m']) <= 0:
+        raise FieldLaunchError('robot.passage.keepout radius_m and resolution_m must be positive')
     if robot['task.live.passage.result_window_ns'] <= 0:
         raise FieldLaunchError('robot.task.live.passage.result_window_ns must be positive')
     o = {k[len('passage.overhead.'):]: v for k, v in robot.items() if k.startswith('passage.overhead.')}
@@ -703,10 +708,14 @@ def amcl_update_thresholds(localization_params):
 
 
 def nav2_with_passage(params, passage):
-    """Nav2 parameters + the passage stop polygon and depth source in collision_monitor (dicts, no YAML here).
+    """Nav2 parameters + the passage slowdown polygon and its depth source in collision_monitor (dicts).
 
-    Existing polygons keep the sources they read before (sources_names); only the new polygon reads
-    the depth points <ns>/passage_points in the height band. Anything unexpected is refused.
+    No depth stop: PassageStop (depth points 0.05-0.46 m ahead -> stop, turn included) held the robots in
+    front of walls and docks (C1 #363, run 4) and was removed (재범 decision 2026-10-16, option A). Tunnels are
+    the vision judgement's: overhead_passage -> rescue_robot.passage_keepout -> a Nav2 keepout mask
+    (nav2_field.nav2_with_tunnel_keepout). PassageSlow stays: it slows the robot in front of anything above the
+    lidar plane so the judgement has time. Existing polygons keep the sources they read before (sources_names).
+    Anything unexpected is refused.
     """
     try:
         cm = params['collision_monitor']['ros__parameters']
@@ -715,22 +724,14 @@ def nav2_with_passage(params, passage):
     except (KeyError, TypeError):
         raise ValueError('Nav2 parameters need collision_monitor polygons, observation_sources and state_topic '
                          '(the executor reads collision_monitor_state)') from None
-    name, source = passage['polygon_name'], 'passage_depth'
     slow_name, slow_source = SLOW_POLYGON, 'passage_overhead'
-    if any(key in polygons + sources or key in cm for key in (name, source, slow_name, slow_source)):
-        raise ValueError(f'Nav2 parameters already define {name}, {source}, {slow_name} or {slow_source}')
+    if any(key in polygons + sources or key in cm for key in (passage['polygon_name'], slow_name, slow_source)):
+        raise ValueError(f'Nav2 parameters already define {passage["polygon_name"]}, {slow_name} or {slow_source}')
     for polygon in polygons:
         cm[polygon] = dict(cm[polygon], sources_names=list(sources))
-    near, far = passage['front_m']
     half = passage['half_width_m']
+    # PassageSlow (OPS-189): anything above the lidar plane ahead slows the robot so the height can be judged.
     # Jazzy polygon points are one string: ROS parameters cannot hold nested arrays (like footprint in nav2.yaml)
-    points = json.dumps([[far, half], [far, -half], [near, -half], [near, half]])
-    cm[name] = {'type': 'polygon', 'action_type': 'stop', 'points': points,
-                'min_points': passage['min_points'], 'visualize': True, 'polygon_pub_topic': 'passage_stop_polygon',
-                'enabled': True, 'sources_names': [source]}
-    cm[source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'), 'min_height': passage['min_height_m'],
-                  'max_height': passage['max_height_m'], 'enabled': True}
-    # PassageSlow (OPS-189): anything above the lidar plane ahead slows the robot so the height can be judged
     near, far = passage['slow_front_m']
     cm[slow_name] = {'type': 'polygon', 'action_type': 'slowdown', 'slowdown_ratio': passage['slow_ratio'],
                      'points': json.dumps([[far, half], [far, -half], [near, -half], [near, half]]),
@@ -739,8 +740,8 @@ def nav2_with_passage(params, passage):
     cm[slow_source] = {'type': 'pointcloud', 'topic': PASSAGE_POINTS.lstrip('/'),
                        'min_height': passage['overhead_lidar_plane_m'], 'max_height': passage['overhead_top_m'],
                        'enabled': True}
-    cm['polygons'] = polygons + [name, slow_name]
-    cm['observation_sources'] = sources + [source, slow_source]
+    cm['polygons'] = polygons + [slow_name]
+    cm['observation_sources'] = sources + [slow_source]
     return params
 
 
@@ -765,6 +766,15 @@ def overhead_passage_launch_values(deployment, *, field, robot_id):
             raise FieldLaunchError(f'robots.{robot_id}.{key} must be a topic of this robot ({ns}/...)')
     return {'namespace': ns, 'tf_topic': robot.readiness.tf_topic, 'tf_static_topic': ns + '/tf_static',
             'parameters': parameters}
+
+
+def passage_keepout_launch_values(deployment, *, field):
+    """rescue_robot passage_keepout: one node for both robots (the overhead lists of every profile robot)."""
+    deployment, basis = _deployment(deployment)
+    r = field.robot
+    return {'robot_ids': [robot.id for robot in deployment.robots], 'map_frame': basis.frame_id,
+            'info_topic': KEEPOUT_INFO_TOPIC, 'radius_m': r['passage.keepout.radius_m'],
+            'resolution_m': r['passage.keepout.resolution_m'], 'merge_m': r['passage.overhead.merge_radius_m']}
 
 
 def passage_points_launch_values(deployment, *, field, robot_id):

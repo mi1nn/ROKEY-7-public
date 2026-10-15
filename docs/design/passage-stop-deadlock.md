@@ -1,5 +1,7 @@
 # 통로 정지 교착 분석 (2026-10-15)
 
+> **결정(2026-10-16):** 재범 님은 아래 A(limit) 대신 깊이 정지 `PassageStop` 을 아예 빼고, 터널은 비전 높이 판정(`overhead_passage`)의 통과 불가 자리를 Nav2 진입 금지 지도로 피하게 했다. 구현과 시험은 `rescue_robot/passage_keepout.py`, `tests/test_tunnel_keepout.py` 다. 아래는 당시 분석 그대로다.
+
 ## 한눈에
 
 시뮬레이션(2026-10-15 22시 20분대)에서 TB-6 이 앞 0.91 ~ 1.0 m 에 놓인 TB-5 도크(높이 약 0.1 m) 때문에 120 s 동안 서 있었다. 통로 정지 `PassageStop` 이 켜진 채 풀리지 않았다. 재현 기록은 가제보 실습 세션이 `docs/evidence/sim-2026-10-15-passage-deadlock.md` 로 따로 올린다.

@@ -304,7 +304,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 ### 지도의 머리 위 구조물 (overhead_passage, OPS-185/186)
 
-46 cm 통로 정지(Nav2 collision_monitor)는 로봇을 세우기만 하고, 어디에 얼마나 높은 구조물이 있는지는 남기지 않는다. `overhead_passage` 는 같은 깊이 점(`<ns>/passage_points`), 같은 상자(`passage.front_m`, `passage.half_width_m`), 같은 높이(`passage.min_height_m`, `passage.max_height_m`)로 구조물을 판정해 지도 좌표로 낸다. 로봇마다 하나씩 띄운다(`overhead_passage.launch.py`).
+깊이 정지는 2026-10-16 에 뺐다(재범 결정). 이제 이 판정이 로봇 이동을 정한다. BLOCKED 자리는 `rescue_robot` `passage_keepout` 이 Nav2 진입 금지 지도에 칠하고, 바닥을 못 본 채 상자 가까운 끝(`near_end_m`)에 온 UNKNOWN 은 `NO_FLOOR_NEAR` 로 내 같이 칠한다. `overhead_passage` 는 같은 깊이 점(`<ns>/passage_points`), 같은 상자(`passage.front_m`, `passage.half_width_m`), 같은 높이(`passage.min_height_m`, `passage.max_height_m`)로 구조물을 판정해 지도 좌표로 낸다. 로봇마다 하나씩 띄운다(`overhead_passage.launch.py`).
 
 - **가장 낮은 높이:** 상자 안에서 바닥 여유 위 ~ `top_m` 사이 점 중 `passage.min_points` 번째로 낮은 점의 높이다. collision_monitor 가 멈추는 데 필요한 점 수와 같으므로, 잡음 점 몇 개로는 높이가 내려가지 않는다.
 - **떠 있는 구조물만:** 그 높이가 라이다 평면(`passage.overhead.lidar_plane_m`) 위일 때만 구조물로 본다. 그 아래면 라이다가 보는 보통 장애물(벽, 상자)이라 내지 않는다(OPS-186 a).

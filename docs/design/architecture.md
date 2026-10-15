@@ -24,7 +24,7 @@ flowchart LR
   end
   subgraph PC6[TB-6 담당 PC]
     SLAM6[SLAM → 2차 고정 뒤 AMCL]
-    NAV6[Nav2 + 통로 정지·감속]
+    NAV6[Nav2 + 터널 감속·진입 금지]
     EXEC6[실행기<br/>task_input · command_watchdog]
     DET[인형·QR 탐지<br/>amr_target · target_locator]
     FREEZE[지도 고정<br/>map_freeze]
@@ -32,7 +32,7 @@ flowchart LR
   end
   subgraph PC5[TB-5 담당 PC]
     AMCL5[고정 지도 + AMCL]
-    NAV5[Nav2 + 통로 정지·감속]
+    NAV5[Nav2 + 터널 감속·진입 금지]
     EXEC5[실행기<br/>task_input · command_watchdog]
     OH5[터널 판정<br/>overhead_passage]
   end
@@ -76,12 +76,12 @@ flowchart LR
 | 운영 PC | (launch 없음, 직접 실행) | rescue_console (Flask) | 관제 웹 |
 | TB-6 담당 PC | `tb6_slam.launch.py` | slam_toolbox | 탐색 중 SLAM. 2차 고정 뒤 사람이 끄고 아래 위치 추정으로 바꾼다 |
 | TB-6 담당 PC | `frozen_localization.launch.py` (robot_a) | frozen_map_relay, amcl | 2차 고정 뒤 고정 지도 위치 추정 |
-| TB-6 담당 PC | `robot.launch.py` (robot_a) | Nav2, command_watchdog, task_input | 주행, 통로 정지·감속, 임무 실행 |
+| TB-6 담당 PC | `robot.launch.py` (robot_a) | Nav2, command_watchdog, task_input | 주행, 터널 감속·진입 금지, 임무 실행 |
 | TB-6 담당 PC | `passage_points.launch.py`, `overhead_passage.launch.py` | depth_image_proc, overhead_passage | 깊이 영상 → 점구름 → 통로·터널 판정 |
 | TB-6 담당 PC | `map_freeze.launch.py` | map_freeze | 지도 고정 서비스. TB-6 가 움직이기 전에 띄운다 |
 | TB-6 담당 PC | `amr_perception.launch.py` | amr_target, target_locator, exit_locator | 인형 탐지, 출구 QR, 지도 좌표 변환 |
 | TB-5 담당 PC | `frozen_localization.launch.py` (robot_b) | frozen_map_relay, amcl | 처음부터 고정 지도 위치 추정 |
-| TB-5 담당 PC | `robot.launch.py` (robot_b) | Nav2, command_watchdog, task_input | 주행, 통로 정지·감속, 임무 실행 |
+| TB-5 담당 PC | `robot.launch.py` (robot_b) | Nav2, command_watchdog, task_input | 주행, 터널 감속·진입 금지, 임무 실행. robot_a 만 `passage_keepout`(두 로봇의 진입 금지 지도) |
 | TB-5 담당 PC | `passage_points.launch.py`, `overhead_passage.launch.py` | depth_image_proc, overhead_passage | 통로·터널 판정 |
 | Discovery 서버 PC | — | Fast DDS Discovery Server | 최종 구성에서만 쓴다. 시험 중에는 각 PC 가 두 로봇의 서버를 직접 적는다([network-discovery.md](network-discovery.md)) |
 
@@ -148,7 +148,7 @@ sequenceDiagram
 | 경로 | 동작 |
 | --- | --- |
 | 속도 명령 | Nav2 와 도킹 서버의 출력은 `<ns>/cmd_vel_watchdog_in` 으로 가고, 감시 노드만 `<ns>/cmd_vel` 에 보낸다. 실행기 생존 신호(heartbeat)가 끊기거나 한도(0.3 m/s, 1.2 rad/s [설정])를 넘으면 정지 상태로 잠근다 |
-| 통로 정지 | 앞 0.4 ~ 1.0 m, 높이 0.05 ~ 0.46 m 에 깊이 점이 5개 이상이면 멈춘다(PassageStop) |
+| 터널 진입 금지 | 깊이 정지(PassageStop)는 없다(재범 결정 2026-10-16). 터널 판정(`overhead_passage`)이 통과 불가로 확정한 자리를 `passage_keepout` 이 반지름 0.3 m 원으로 칠해 두 로봇의 Nav2 비용 지도(진입 금지 필터)에 넣는다. 경로가 그 자리를 지나지 않는다 |
 | 터널 앞 감속 | 앞 0.4 ~ 1.2 m, 높이 0.23 ~ 1.0 m 에 점이 있으면 0.3 배로 줄인다(PassageSlow) |
 | 후진 | 복구 동작에서 뒤로 가기(BackUp)를 뺀다(#267, 재범 승인 2026-10-14) |
 | 임무 사이 잠금 | 임무 하나가 끝나면 실행기는 정지 잠금 상태가 되고, `task_arm` 전까지 새 임무를 받지 않는다(이슈 #233 3번, 재범 결정 대기) |
