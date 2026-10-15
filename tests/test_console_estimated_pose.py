@@ -3,6 +3,7 @@ robots.<id>.initial_pose_xy_yaw 를 compose_planar 로 더한 한 점을 「추�
 값은 저장소 현장 파일에 아직 없어서 시험은 그 키를 넣은 사본으로 한다(작전 2026-10-15)."""
 import json
 import math
+from pathlib import Path
 import unittest
 from types import SimpleNamespace
 
@@ -82,6 +83,10 @@ class FieldFileTests(LedgerFixture):
     def test_reads_only_robots_with_the_key(self):
         path = self.write({'robot_a': {'task': {}}, 'robot_b': {'initial_pose_xy_yaw': [0.0, -1.86, 0.0]}})
         self.assertEqual({'robot_b': (0.0, -1.86, 0.0)}, load_start_offsets(path))
+
+    def test_the_repository_field_file_reads(self):   # #334 이 값을 넣었다(통합-로봇, 2026-10-15)
+        field = Path(__file__).resolve().parents[1] / 'config' / 'field' / 'search_area.field.json'
+        self.assertEqual(OFFSETS, load_start_offsets(field))
 
     def test_bad_values_stop_the_start(self):
         for value in ([0.0, 1.0], [0.0, 'x', 0.0], [0.0, math.nan, 0.0], [True, 0.0, 0.0], '0,0,0'):
