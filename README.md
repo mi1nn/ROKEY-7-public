@@ -171,9 +171,9 @@ ROKEY-7/
 
 ### 4.2 작업대 · 작업물
 
-![경기장 평면도](docs/diagrams/arena_map.png)
+![작업대 배치](docs/diagrams/arena_map.png)
 
-MDF 경기장이다. 전체 343 × 557 cm이고 메인 구역(343 × 356 cm)과 로봇 구역(343 × 201 cm)으로 나뉜다. 원본 도면은 [arena_map_source.svg](docs/diagrams/arena_map_source.svg)다.
+작업대 전체는 343 × 557 cm이고 메인 구역(343 × 356 cm)과 로봇 구역(343 × 201 cm)으로 나뉜다. 치수 원본은 [arena_map_source.svg](docs/diagrams/arena_map_source.svg)다.
 
 | 번호 | 구성 | 크기 | 비고 |
 | --- | --- | --- | --- |
