@@ -1,0 +1,4 @@
+# 03:09:22 /rescue/passage_keepout/mask (grid)
+stamp 1792086940.072473712 frame map
+res 0.05000000074505806 size 1x1 origin (0.000, 0.000)
+cells >=99 (lethal/inscribed): 0

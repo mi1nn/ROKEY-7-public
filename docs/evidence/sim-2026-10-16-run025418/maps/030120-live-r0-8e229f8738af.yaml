@@ -1,0 +1,7 @@
+image: 030120-live-r0-8e229f8738af.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-5.603650698515695, -1.1098692293037224, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25

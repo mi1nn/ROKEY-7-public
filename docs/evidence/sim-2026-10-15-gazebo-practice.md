@@ -172,6 +172,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [여섯째 회차 자료](sim-2026-10-16-run023619/README.md)에 있다. 빌드 `4850a8f`(#401), `SIM_HOME=odom`, 선포는 재범 위임으로 가제보 실습이 웹에서 했다. 5회차와 같이 두 경계 `COMPLETED` 뒤 `EXPLORATION_COMPLETE frontiers_sent=2` 였다. TB-5 정렬 jump 는 0.008 m 였다. `RETURN_HOME` 은 TB-6 실행기에서 11번 `native frame` 으로 거절됐다.
 
+## 11. 일곱째 회차 (full-1016-025418)
+
+회차 표·단계별 결과는 [일곱째 회차 자료](sim-2026-10-16-run025418/README.md)에 있다. 빌드 `909097a`(#404·#405·#406), 이 회차부터 Gazebo·RViz 화면 녹화를 켰다. 첫 경계가 터널 1 입구 31칸이었고, `FRONTIER_GOAL_CUT … not tried yet` 로 탐색이 이어졌다. 터널 1 `overhead PASSABLE lowest=0.473` 가 처음 나왔다. TB-6 은 입구 (2.820, 1.703)에서 02:58:35 부터 멈춰 작업 4개가 만료됐고, 시간 초과로 끝났다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
