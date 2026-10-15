@@ -17,6 +17,7 @@ from test_coordination_mission_end import RealGrid
 from test_coordination_ros_core import (SCOUT, SUPPORT, admission_msg, location, make_core, receipt, request,
                                         site_msg, status_msg)
 from test_coordination_search import MAP, NOW, uid
+from test_coordination_traffic import TB5_START, TrafficBase
 from test_coordination_two_freezes import core_
 
 S = 1_000_000_000
@@ -208,6 +209,66 @@ class TrafficFixTests(unittest.TestCase):
         self.assertIsNone(c.frontier)
         self.assertIn((0.2, 1.1), c.frontier_tried)
         self.assertTrue(any('FRONTIER_SKIPPED_NEAR_IDLE_TB5' in n for n in c.drain_notes()))
+
+
+
+class TrafficRearmTests(TrafficBase):
+    """TB-6 canceled for TB-5 is armed again by the coordinator (rehearsal 2026-10-15 #19), and only then."""
+
+    def canceled_for_tb5(self):
+        self.scout_at((1., 4.2))
+        frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+        self.core.on_admission(admission_msg(frontier))
+        self.support_at(TB5_START, NOW + 1)
+        self.scout_at((1.5, 4.2), NOW + 1)
+        self.sent(NOW + 1)
+        self.assertEqual([frontier['task_id']], self.core.take_cancels())
+        self.core.drain_notes()
+        return frontier
+
+    def test_a_confirmed_stop_of_our_cancel_is_armed_again_once(self):
+        frontier = self.canceled_for_tb5()
+        self.core.on_result(frontier['task_id'], NS(outcome='CANCELED', stop_confirmed=True, terminal_reason=''))
+        self.assertEqual([SCOUT], self.core.take_rearms())
+        self.assertEqual([], self.core.take_rearms())
+        self.assertTrue(any(n.startswith('TRAFFIC_REARM_DUE') for n in self.core.drain_notes()))
+
+    def test_no_rearm_without_a_confirmed_stop_or_for_another_end(self):
+        for outcome, stop in (('CANCELED', False), ('FAILED', True)):
+            with self.subTest(outcome=outcome, stop=stop):
+                self.setUp()
+                frontier = self.canceled_for_tb5()
+                released = self.core.on_result(frontier['task_id'],
+                                               NS(outcome=outcome, stop_confirmed=stop, terminal_reason=''))
+                self.assertEqual([], self.core.take_rearms())
+                # an unconfirmed stop is not even released (Allocator rule); a confirmed FAILED says why not
+                self.assertEqual(stop, released)
+                self.assertEqual(stop, any(n.startswith('TRAFFIC_REARM_SKIPPED') for n in self.core.drain_notes()))
+
+    def test_a_cancel_that_was_not_ours_is_never_armed_again(self):
+        self.scout_at((5., 1.))  # far from TB-5's path: nothing canceled for traffic
+        frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+        self.core.on_admission(admission_msg(frontier))
+        self.core.on_result(frontier['task_id'], NS(outcome='CANCELED', stop_confirmed=True, terminal_reason=''))
+        self.assertEqual([], self.core.take_rearms())
+
+    def test_a_frontier_past_its_deadline_is_armed_again(self):
+        self.scout_at((5., 1.))
+        frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+        self.core.on_admission(admission_msg(frontier))
+        self.core.on_result(frontier['task_id'], NS(outcome='EXPIRED', stop_confirmed=True, terminal_reason=''))
+        self.assertEqual([SCOUT], self.core.take_rearms())
+
+    def test_an_unreachable_frontier_is_not_armed_again(self):
+        self.scout_at((5., 1.))
+        frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+        self.core.on_admission(admission_msg(frontier))
+        self.core.on_result(frontier['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason=''))
+        self.assertEqual([], self.core.take_rearms())
+
+    def test_node_retries_task_arm_a_bounded_number_of_times(self):
+        self.assertEqual((10, 1.0), (ros_node.TRAFFIC_REARM_TRIES, ros_node.TRAFFIC_REARM_PERIOD_S))
+        self.assertEqual('/rescue_command_adapter/task_arm', ros_node.TASK_ARM_SERVICE)
 
 
 if __name__ == '__main__':

@@ -34,6 +34,7 @@ import uuid
 import json
 import math
 import subprocess
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -103,6 +104,8 @@ COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK', 'EXIT_WAIT_SCOUT_DOCK')
 # return, no dock); TB-6 goes back to its own start pose once its exploration ended (not on TB-5's exit) and docks
 # there (rescue_robot.dock_node, Create3 dock action). FINISHED needs the confirmed dock, never the arrival alone.
 SCOUT_DOCK_SERVICE = '/dock'        # ROBOT_PREFIX + SCOUT + this: std_srvs/Trigger, answer JSON {"request": n, ...}
+TASK_ARM_SERVICE = '/rescue_command_adapter/task_arm'  # robot namespace + this: std_srvs/Trigger (executor)
+TRAFFIC_REARM_TRIES, TRAFFIC_REARM_PERIOD_S = 10, 1.0  # re-arm after a traffic cancel ([제안], rehearsal 2026-10-15)
 SCOUT_DOCK_STATE_TOPIC = '/dock_state'  # ROBOT_PREFIX + SCOUT + this: std_msgs/String JSON, latched
 DOCK_STATES = ('REQUESTED', 'DOCKING', 'DOCKED', 'FAILED')
 MAP_CORRECTION_TOPIC = '/rescue/map/correction'  # std_msgs/String JSON (rescue_robot.map_correction), SLAM_LIVE
@@ -518,6 +521,7 @@ class CoordinatorCore:
         self.traffic_cancel = None     # (task_id, requested_at_ns) of the TB-6 task stopped for TB-5
         self.traffic_canceled = set()  # task ids stopped for TB-5: their end is no try
         self.cancels = []              # task ids the node cancels (ExecuteTask goal cancel)
+        self.rearms = []               # robot ids the node arms again (task_arm) after our own cancel/expiry
         self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
         self.yield_count = 0
@@ -1255,6 +1259,21 @@ class CoordinatorCore:
             return False
         stopped_for_tb5 = task_id in self.traffic_canceled
         self.traffic_canceled.discard(task_id)
+        frontier_expired = (self.search_mode == 'FRONTIER' and item.robot_id == self.roles['SCOUT']
+                            and self.search.kind_of(item) == 'SEARCH_AREA' and result.outcome == 'EXPIRED')
+        if stopped_for_tb5 or frontier_expired:
+            # The executor latches its stop after every outcome but COMPLETED (OPS-231 re-arms only that), so TB-6
+            # stood for good after an end the coordinator itself caused: a cancel for TB-5 (rehearsal 2026-10-15
+            # #19, TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD) or a frontier past its task deadline (#20, no task for 7 min
+            # until EXPLORATION_TIMEOUT). Those are armed again, on the executor's own arm conditions. Any other
+            # stop (operator, lease, FAILED/UNREACHABLE) still waits for a task_arm by hand.
+            want = 'CANCELED' if stopped_for_tb5 else 'EXPIRED'
+            if result.outcome == want and stop and self.mission.mode == 'DISASTER':
+                self.rearms.append(item.robot_id)
+                self.notes.append(f'TRAFFIC_REARM_DUE robot={item.robot_id} task={task_id} outcome={result.outcome}')
+            else:
+                self.notes.append(f'TRAFFIC_REARM_SKIPPED robot={item.robot_id} task={task_id} '
+                                  f'outcome={result.outcome} stop_confirmed={stop} mode={self.mission.mode}')
         self.task_goal.pop(task_id, None)
         if self.traffic_cancel is not None and self.traffic_cancel[0] == task_id:
             self.traffic_cancel = None
@@ -1552,6 +1571,11 @@ class CoordinatorCore:
                                   else f'TRAFFIC_RELEASE {role}')
         sent, self.outbox = self.outbox, []
         return sent
+
+    def take_rearms(self):
+        """Robot ids whose executor the node arms again now (task_arm after a traffic cancel); each once."""
+        out, self.rearms = self.rearms, []
+        return out
 
     def take_cancels(self):
         """Task ids whose ExecuteTask goal the node cancels now (TB-6 stopped for TB-5, OPS-205); each once."""
@@ -3013,8 +3037,46 @@ def main(args=None):
             node.create_subscription(OutcomeString, MAP_CORRECTION_TOPIC, guarded('map_correction', on_map_correction),
                                      10)
 
+        from rescue_bringup.profile import load_deployment as load_robot_namespaces
+        from std_srvs.srv import Trigger as ArmTrigger
+        arm_clients = {r.id: node.create_client(ArmTrigger, r.parameters.namespace + TASK_ARM_SERVICE)
+                       for r in load_robot_namespaces(values['profile_path']).robots if r.id in core.roles.values()}
+        rearm = {}  # robot -> [tries left, next try (monotonic s), call in flight]
+
+        def rearm_tick():
+            """task_arm for each robot core.take_rearms() named: every TRAFFIC_REARM_PERIOD_S, at most
+            TRAFFIC_REARM_TRIES times (the executor refuses until its stop evidence is fresh); then given up, shown."""
+            for robot in core.take_rearms():
+                rearm[robot] = [TRAFFIC_REARM_TRIES, 0.0, False]
+            for robot, item in list(rearm.items()):
+                if item[2] or time.monotonic() < item[1]:
+                    continue
+                client = arm_clients.get(robot)
+                if client is None or not client.service_is_ready():
+                    on_rearm_reply(robot, False, 'task_arm service not ready')
+                    continue
+                item[2] = True
+                client.call_async(ArmTrigger.Request()).add_done_callback(guarded('rearm_reply', lambda done, r=robot: (
+                    on_rearm_reply(r, bool(done.result().success), done.result().message))))
+
+        def on_rearm_reply(robot, success, message):
+            item = rearm.get(robot)
+            if item is None:
+                return
+            item[0], item[1], item[2] = item[0] - 1, time.monotonic() + TRAFFIC_REARM_PERIOD_S, False
+            # rclpy refuses two severities on one call site ('Logger severity cannot be changed between calls')
+            if success:
+                rearm.pop(robot)
+                log.info(f'TRAFFIC_REARM robot={robot} armed ({message})')
+            elif item[0] > 0:
+                log.info(f'TRAFFIC_REARM robot={robot} refused ({message}); {item[0]} tries left')
+            else:
+                rearm.pop(robot)
+                log.error(f'TRAFFIC_REARM_GAVE_UP robot={robot} ({message}); task_arm by hand')
+
         def tick():
             node_tick(core, now_ns(), Out)
+            rearm_tick()
             if dock_client is not None and core.take_dock_request():
                 call_dock()
             out = core.outcome_change()
