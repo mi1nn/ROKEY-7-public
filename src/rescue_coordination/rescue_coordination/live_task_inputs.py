@@ -8,7 +8,6 @@ from copy import deepcopy
 from dataclasses import replace
 import json
 import math
-import time
 
 from rescue_contracts.clock_measurement import ClockSampler
 
@@ -108,11 +107,12 @@ def goal_pick_topic(core, topic):
     return topic if topic and core.search_mode == 'AREAS' else None
 
 
-def clock_log_line(record, now_ns):
-    """The start log line for a clock reason; a known next timesyncd poll adds the seconds left (C13, 2026-10-16)."""
+def clock_log_line(record):
+    """The coordinator start log line for a clock record: its reason, or SYNCED; a timesyncd spike reply used
+    (C13 A, 재범 decision 2026-10-16 「튄 응답도 받기」) says so with its bound."""
     line = 'central live clock: ' + record.get('reason', record['state'])
-    if record.get('next_poll_ns') is not None:
-        line += f' (next poll in <= {max(0, math.ceil((record["next_poll_ns"] - now_ns) / 10**9))} s)'
+    if record.get('ntp_spike'):
+        line += f' (timesyncd spike reply used, bound {record["error_bound_ns"] / 1e6:.0f} ms)'
     return line
 
 
@@ -175,11 +175,10 @@ def attach(node, core, values, boot_id):
             + '; profile example coordinates excluded; selection alone sends no task')
 
     def poll():
-        record = sampler.poll()
-        reason = record.get('reason', record['state'])
-        if reason != last_reason[0]:
-            node.get_logger().info(clock_log_line(record, time.time_ns()))
-            last_reason[0] = reason
+        line = clock_log_line(sampler.poll())
+        if line != last_reason[0]:
+            node.get_logger().info(line)
+            last_reason[0] = line
 
     def get(request, response):
         record = dict(format='rescue-live-task-source/1', coordinator_id=values['coordinator_id'],
