@@ -634,7 +634,6 @@ button{font-family:inherit}
   .console{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
     grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
   .console:has(#show-history:checked){grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
-  .band{display:flex;flex-wrap:wrap;row-gap:12px} .band .facts>div,#built{flex:1 1 140px}
 }
 #map,#middle>section,#events,#history,#side>section{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
 #middle{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
@@ -676,6 +675,16 @@ button{font-family:inherit}
 .band.clearing .mode-word{background:var(--caution-tint);color:var(--caution)}
 .band.mission_finished .mode-word{background:var(--safe-tint);color:var(--safe)}
 .band .reason{font-size:15px;font-weight:600}
+/* 좁은 화면(폰·세로 태블릿): 지표를 같은 폭 칸으로 줄 바꿔 채우고 모드 배지는 한 줄을 다 쓴다. 위 넓은 화면 규칙보다
+   뒤에 있어야 이긴다 — 앞에 두었더니 폰에서 일곱 칸이 한 줄에 끼어 글자가 세로로 섰다(2026-10-15). */
+@media (max-width:1399px){
+  .band{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 0;padding:14px}
+  .band .mode-word{grid-column:1/-1;margin:0 0 2px}
+  .band dd{white-space:normal;overflow-wrap:anywhere}
+}
+@media (max-width:600px){
+  #masthead{flex-wrap:wrap;height:auto;row-gap:6px;padding:10px 16px}
+}
 #topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:8px 10px;padding:12px 18px;
   background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
 #topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
