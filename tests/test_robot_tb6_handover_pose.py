@@ -73,7 +73,6 @@ class NoNewGoalDuringHandover(unittest.TestCase):
     after its refusal hold, once AMCL localizes TB-6 on the frozen grid."""
     make, freeze, pose, state = twice.Twice.make, twice.Twice.freeze, twice.Twice.pose, twice.Twice.state
 
-    @unittest.expectedFailure
     def test_a_new_goal_is_refused_while_tb6_hands_over(self):
         from rescue_robot.executor import ContractError
         s = self.make('SLAM_THEN_FROZEN')
