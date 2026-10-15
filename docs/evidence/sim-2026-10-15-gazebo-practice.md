@@ -196,6 +196,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열두째 회차 자료](sim-2026-10-16-run052901/README.md)에 있다. 빌드는 `d01431b`(#440 C16)다. 첫 경계 88칸은 `COMPLETED` 였지만 남은 경계가 `TIGHT` 로 빠져 `frontiers_sent=1` 로 끝났다. 2차 고정 뒤 넘김 중에 SEARCH_AREA 를 0.1 s 간격으로 950회 보냈다. C15 `AMCL_NOMOTION_REQUESTED` 가 처음 동작했고, C17(넘김 직후 Nav2 TF) 이 재현됐다. AMCL map→odom stamp 는 받은 시각보다 약 0.97 s 미래였다. 그 뒤 비켜서기 47회가 반복돼 RETURN_HOME 은 나가지 않았다.
 
+## 17. 열셋째 회차 (full-1016-060431)
+
+회차 표·단계별 결과는 [열셋째 회차 자료](sim-2026-10-16-run060431/README.md)에 있다. 빌드는 `e6f21d6`(#435·#437·#439·#442)다. 탐색은 12회차와 같이 `frontiers_sent=1` 로 끝났다. SLAM 끄기는 운영자 대역이 손 없이 했다(#437). 첫 frozen_localization 은 frozen pose 를 10 s 안에 못 받아 실패했다. 가제보 실습이 다시 띄웠지만 AMCL 이 라이다를 한 번도 처리하지 않았다. 그래서 `AMCL_NOMOTION_REQUESTED` 32회 동안 TB-6 위치가 없었고 RETURN_HOME 은 0회였다. 이 회차부터 프로세스별 부하를 적는다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.

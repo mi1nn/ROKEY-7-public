@@ -1,0 +1,20 @@
+== 06:11:28.703 ros2 topic echo --once /rescue/map/frozen_pose/robot_a (transient local)
+header:
+  stamp:
+    sec: 1792098478
+    nanosec: 45421254
+  frame_id: map
+pose:
+  pose:
+    position:
+      x: -0.9138340481061636
+      y: 1.721701969058064
+      z: 0.0
+    orientation:
+      x: 0.0
+      y: 0.0
+
+real	0m4.280s
+user	0m1.060s
+sys	0m0.272s
+== 06:11:33.591 끝
