@@ -305,6 +305,139 @@ class FailedDetail(unittest.TestCase):
         self.assertFalse({'last_pose', 'not_settled', 'poses_received'} & set(f.core.result()))
 
 
+class PointsTheMapCannotJudge(unittest.TestCase):
+    """Option A (재범 decision 2026-10-16 05:0x 「지도 밖 빔 빼기」, PR #435, reverted in #452, back with BeamsThroughAWall): only scan points that land on a known cell of the frozen map
+    count in the match. Run 8 (#418): slam_toolbox's grid ended 4-7 mm short of the south wall, so the frozen map had no
+    wall there; about 16 % of TB-5's beams hit that real wall, landed outside the grid and counted as misses
+    (match 0.661 < 0.70). A point outside the grid or on an unknown cell is neither a hit nor a miss; the 70 % stays."""
+
+    def cut_room(self, columns=6):
+        """room() without its last columns: the east wall is beyond the grid, as the south wall was in run 8."""
+        full = room()
+        width = full['width'] - columns
+        data = [v for y in range(full['height']) for x, v in enumerate(full['data'][y * full['width']:(y + 1) *
+                                                                                    full['width']]) if x < width]
+        return dict(full, width=width, data=data)
+
+    @unittest.expectedFailure
+    def test_points_beyond_the_grid_no_longer_count_as_misses(self):
+        hits, points = match_ratio(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
+                                   laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual(1.0, hits / points)   # before option A: under 0.75 (the east wall's points were misses)
+
+    @unittest.expectedFailure
+    def test_only_points_on_known_cells_are_judged(self):
+        from rescue_robot.start_align import match_detail
+        hits, judged, unjudged = match_detail(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
+                                              laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual(judged, hits)
+        self.assertGreater(unjudged, 0)
+        self.assertEqual(180, judged + unjudged)
+
+    @unittest.expectedFailure
+    def test_unknown_cells_are_not_judged_and_free_cells_are(self):
+        from rescue_robot.start_align import match_detail
+        grid = room()
+        unknown = [(-1 if x >= grid['width'] - 6 else v) for y in range(grid['height'])
+                   for x, v in enumerate(grid['data'][y * grid['width']:(y + 1) * grid['width']])]
+        hits, judged, unjudged = match_detail(dict(grid, data=unknown), room_scan(0.5, 0.2, 0.1),
+                                              pose=(0.5, 0.2, 0.1), laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual((judged, True), (hits, unjudged > 0))
+        # a wrong pose still misses on known cells: the gate keeps working
+        hits, judged, _ = match_detail(room(), room_scan(0.0, -0.6, 0.6), pose=(0.5, 0.2, 0.1),
+                                       laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertLess(hits / judged, 0.7)
+
+
+class BeamsThroughAWall(unittest.TestCase):
+    """A point outside the grid or on an unknown cell is left out only when its beam crossed no occupied cell on the
+    way (LOQ, PR #435 comments, 2026-10-16). Leaving every such point out let wrong poses pass: with the east 40 % of
+    the room unknown, 222 poses 0.15-0.5 m / 0.1-0.35 rad off passed, (0.5 m, 0 rad) at 1.00, because the beams a
+    wrong pose sends through a wall and out of the map were no longer misses; with the whole room known, 38 passed at
+    0.70-0.74. Such a beam is a miss now. The trace starts at the scan's range_min: nothing nearer is seen, and run 9's
+    frozen map had TB-5 itself drawn in (TB-6's SLAM saw it standing at its dock), so every beam left through it."""
+
+    TRUE = (0.5, -1.2, 1.57)   # by the south wall, as at a dock (LOQ's case)
+
+    def east_unknown(self, grid=None, part=0.4):
+        grid = grid or room()
+        width = grid['width']
+        cut = round(width * (1 - part))
+        return dict(grid, data=[(-1 if x >= cut else v) for y in range(grid['height'])
+                                for x, v in enumerate(grid['data'][y * width:(y + 1) * width])])
+
+    def passes(self, grid, scan, pose, laser_in_base=(0.0, 0.0, 0.0)):
+        from rescue_robot.start_align import match_detail
+        hits, judged, _ = match_detail(grid, scan, pose=pose, laser_in_base=laser_in_base, hit_m=0.1)
+        return judged >= CONFIG['min_match_points'] and hits / judged >= CONFIG['min_match_ratio']
+
+    def wrong_poses(self, least_m):
+        """Poses within the jump limits (0.5 m, 0.35 rad) at least ``least_m`` off TRUE, 0.1 m / 0.05 rad apart."""
+        for ix in range(-5, 6):
+            for iy in range(-5, 6):
+                if least_m - 1e-9 <= math.hypot(ix, iy) * 0.1 <= CONFIG['max_jump_xy_m'] + 1e-9:
+                    for iyaw in range(-7, 8):
+                        yield (self.TRUE[0] + ix * 0.1, self.TRUE[1] + iy * 0.1, self.TRUE[2] + iyaw * 0.05)
+
+    @unittest.expectedFailure
+    def test_wrong_poses_fail_with_part_of_the_map_unknown(self):
+        scan, grid = room_scan(*self.TRUE, beams=640), self.east_unknown()
+        self.assertTrue(self.passes(grid, scan, self.TRUE))
+        self.assertEqual([], [p for p in self.wrong_poses(0.3) if self.passes(grid, scan, p)])
+        self.assertFalse(self.passes(grid, scan, (self.TRUE[0] + 0.5, self.TRUE[1], self.TRUE[2])))  # 1.00 before
+
+    @unittest.expectedFailure
+    def test_wrong_poses_fail_with_the_whole_room_known(self):
+        scan = room_scan(*self.TRUE, beams=640)
+        self.assertEqual([], [p for p in self.wrong_poses(0.3) if self.passes(room(), scan, p)])
+
+    @unittest.expectedFailure
+    def test_a_beam_through_a_wall_out_of_the_grid_is_a_miss(self):
+        from rescue_robot.start_align import match_detail
+        one = dict(angle_min=0.0, angle_increment=0.0, range_min=0.1, range_max=12.0, ranges=[3.0])
+        self.assertEqual((0, 1, 0), match_detail(room(), one, pose=(0.0, 0.0, 0.0), laser_in_base=(0.0, 0.0, 0.0),
+                                                 hit_m=0.1))   # through the east wall at 1.975 m, out at 3.0 m
+        self.assertEqual((0, 0, 1), match_detail(self.east_unknown(), one, pose=(0.0, 0.0, 0.0),
+                                                 laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1))   # the wall is unknown
+
+    @unittest.expectedFailure
+    def test_the_robot_drawn_in_the_map_is_not_a_wall(self):
+        grid = self.east_unknown()
+        width, res, (ox, oy, _) = grid['width'], grid['resolution'], grid['origin']
+        data = list(grid['data'])
+        cx, cy = math.floor((self.TRUE[0] - ox) / res), math.floor((self.TRUE[1] - oy) / res)
+        for x in range(cx - 2, cx + 3):   # an outline 0.05-0.15 m round the laser, inside range_min 0.164 (TB-5)
+            for y in range(cy - 2, cy + 3):
+                if max(abs(x - cx), abs(y - cy)) == 2:
+                    data[y * width + x] = 100
+        scan = dict(room_scan(*self.TRUE, beams=640), range_min=0.164)
+        self.assertTrue(self.passes(dict(grid, data=data), scan, self.TRUE))
+
+    @unittest.expectedFailure
+    def test_run9_scan_on_its_frozen_map(self):
+        """Run 9 (2026-10-16 03:55:59): TB-5's /robot5/scan and the frozen map it aligned on (2.45 x 3.45 m, without
+        TB-5's east and south; TB-5 drawn in). At the pose the scan fits best, 386 of 640 points are within 0.1 m
+        of a wall (0.60 as counted before #435). Off-map points whose beams crossed nothing known are left out."""
+        from pathlib import Path
+        from rescue_robot.start_align import match_detail
+        here = Path(__file__).parent / 'data' / 'start_align_run9'
+        _, size, _, pixels = (here / 'frozen.pgm').read_bytes().split(b'\n', 3)
+        width, height = map(int, size.split())
+        value = {0: 100, 254: 0, 205: -1}   # map_server trinary
+        grid = dict(width=width, height=height, resolution=0.05000000074505806,
+                    origin=(-2.112258453253709, -0.8753669842054732, 0.0),
+                    data=[value[pixels[(height - 1 - y) * width + x]] for y in range(height) for x in range(width)])
+        lines = (here / 'scan.txt').read_text().splitlines()
+        f = lines[2].split()
+        scan = dict(angle_min=float(f[1]), angle_increment=float(f[3]), range_min=float(f[5]), range_max=float(f[7]),
+                    ranges=[float(v) for v in lines[3].split()])
+        laser = (-0.04, 0.0, math.pi / 2)   # TurtleBot4 rplidar_link in base_link
+        hits, judged, off = match_detail(grid, scan, pose=(-0.326, 1.845, -3.143), laser_in_base=laser, hit_m=0.1)
+        self.assertEqual(640, judged + off)
+        self.assertGreater(hits / judged, 0.95)
+        self.assertGreater(off, 200)
+
+
 class Scores(unittest.TestCase):
     def test_sigmas_use_the_largest_xy_axis(self):
         c = [0.0] * 36
