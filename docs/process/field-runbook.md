@@ -177,7 +177,9 @@ FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
 ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ```
 
-- 1차 고정 전 TB-5 는 지도가 없다. `MAP_STATE robot_b ... quality=UNKNOWN` 이 정상이다.
+- **TB-5 는 1차 고정 전에 언독해 둔다.** 출발 정렬(`rescue_start_align`, #317)은 고정 지도가 오고, TB-5 가 언독해 서 있고, 스캔이 들어올 때 시작한다. 도킹한 채로는 `START_ALIGN_DOCKED` 로 기다린다.
+- 1차 고정 전 TB-5 는 지도가 없다. `MAP_STATE robot_b ... quality=UNKNOWN` 이 정상이고, 출발 정렬은 `START_ALIGN_WAITING START_ALIGN_WAIT_MAP` 이다.
+- 1차 고정 뒤 출발 정렬 로그 `START_ALIGN_ALIGNED` 를 본다. `START_ALIGN_FAILED <이유>` 이면 TB-5 를 출발 자리에 다시 두고 `ros2 service call /robot5/rescue_start_align/restart std_srvs/srv/Trigger {}` 로 다시 한다. 결과는 `/robot5/rescue_start_align`(JSON)에도 있다. 이유 코드는 [rescue_robot README](../../src/rescue_robot/README.md) 상태 표에 있다.
 - 현장 파일에 `robots.robot_b.initial_pose_xy_yaw` 가 없으면 위치 추정 launch 가 거절한다. 이때는 시험 회차에서 한 번 잰다.
   1. 1차 고정 지도가 나온 뒤 TB-5 를 출발 자리에 둔다.
   2. `ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot5 map:=<output_dir 의 고정 지도 .yaml>` 을 띄우고 RViz `2D Pose Estimate` 로 자리를 찍는다.
@@ -225,8 +227,36 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 
 ## 8단계 — 끝내기와 다시 하기
 
-- 각 PC 의 launch 를 Ctrl+C 로 끈다. 로봇은 로봇 감독이 도킹하고 끈다(자동 도킹 없음).
-- 다시 하려면 조정기·로봇 launch 를 다시 띄운다. 새 회차는 `tb6_slam` 부터 다시 띄우고 지도 고정 노드는 **새 `output_dir`** 로 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 같은 `output_dir` 를 쓴다.
+- 끝낼 때는 각 PC 의 launch 를 Ctrl+C 로 끈다. 로봇은 로봇 감독이 도킹하고 끈다(자동 도킹 없음).
+- 같은 회차에서 지도 고정 노드만 다시 띄울 때는 같은 `output_dir` 를 쓴다.
+
+### 초기화하고 새 회차로 다시 하기
+
+관제 웹 초기화(`POST /api/runs/reset`, #323)는 운영 쪽 회차만 넘긴다. TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌리고, 지난 기록은 회차별로 남는다(재범 결정 2026-10-15). 로봇 쪽 노드는 사람이 다시 띄운다. 자세한 동작은 [운영 구현 문서](../implementation/implementation-operations.md) 「초기화」 절에 있다.
+
+**조건.** 두 로봇이 켜져 있고, 도킹했고, 멈춰 있고, 임무가 없어야 한다. 로봇 launch 를 먼저 끄면 상태가 끊겨 `ROBOT_STATUS_STALE` 로 거절된다. 그래서 **로봇 launch 를 끄기 전에 초기화를 누른다.**
+
+| 순서 | PC | 할 일 | 확인 |
+| --- | --- | --- | --- |
+| ① | 운영 PC | 로봇 감독이 두 로봇을 도킹한 뒤 관제 웹 `/reset` 에서 초기화를 누른다 | 답 `accepted=true` 와 새 `run_id` |
+| ② | 운영 PC | 조정기 launch 를 끈다. 운영 launch(`db_writer`·`report_node`)와 관제 웹은 그대로 둔다 | — |
+| ③ | 로봇 담당 PC | 두 로봇의 launch 를 모두 끈다. SLAM, 지도 고정, 고정 지도 relay·AMCL·출발 정렬(`frozen_localization`), 실행기(`robot.launch.py`), 깊이 점, 터널 판정이다 | 사람이 터미널마다 확인 |
+| ④ | 운영 PC | 조정기를 다시 띄운다(3단계와 같은 명령) | 관제 웹 화면이 자동으로 체크한다 |
+| ⑤ | 로봇 담당 PC | 4단계를 다시 한다. 로봇 감독이 TB-6 을 언도킹하고 출발 표시에 둔다(사람 확인). 그다음 SLAM, 실행기, 지도 고정을 띄운다. 지도 고정은 **새 `output_dir`** 로 띄운다 | 출발 표시는 사람 확인, TB-6 실행기는 화면 자동 체크 |
+| ⑥ | 로봇 담당 PC | 5단계를 다시 한다. TB-5 를 언도킹하고 고정 지도 위치 추정·출발 정렬(`frozen_localization`)과 실행기를 띄운다 | TB-5 실행기는 화면 자동 체크 |
+
+- **도킹한 채로 지도 고정 노드를 띄우지 않는다.** 지도 고정 노드는 처음 받은 TB-6 위치를 이 회차의 출발 자세로 남긴다. 언도킹한 자리에서 잡아야 TB-5 출발값과 맞는다.
+- **조정기와 두 실행기는 반드시 함께 다시 띄운다.** 실행기는 이미 받은 것 이하의 임무 번호를 `STALE_GENERATION` 으로 거절한다.
+- **relay 와 실행기를 빠뜨리지 않는다.** 앞 회차의 relay 가 남아 있으면 새 회차의 R0+1 이 다른 지도라 `MAP_RELAY_BLOCKED` 로 막힌다.
+
+초기화가 거절되면 아무것도 바뀌지 않는다. 배치 로봇 둘 중 처음 걸린 이유 하나가 답에 온다.
+
+| 이유 코드 | 뜻 | 고치는 법 |
+| --- | --- | --- |
+| `ROBOT_STATUS_STALE` | 로봇 상태가 없거나 받은 지 5초가 넘었다([제안] 값) | 그 로봇의 `robot.launch.py` 가 떠 있는지 본다. 이미 껐으면 다시 띄우고 상태가 관제 웹에 보인 뒤 누른다 |
+| `ROBOT_MOVING` | 로봇이 멈춤(`STOPPED`)이 아니다. 정지 미확인(`STOP_UNCONFIRMED`) 포함 | 로봇이 멈출 때까지 기다린다. 움직이면 「정지 방법」대로 세운다 |
+| `TASK_ACTIVE` | 로봇에 임무가 남아 있다 | 「정지 방법」 1번으로 임무를 멈춘다. 관제 웹 로봇 카드에서 임무가 없어진 것을 본 뒤 누른다 |
+| `ROBOT_NOT_DOCKED` | 도킹 상태가 아니다. 도킹 상태를 모를 때도 포함 | 로봇 감독이 도킹한다. `<ns>/dock_status` 가 오는지 본다 |
 - 회차마다 남길 것. 코드 SHA, 각 PC 의 `preflight_role.py`·`wiring_check.py` JSON, 지도 고정 `output_dir`, 단계별 로그, 결과(PASSED·FAILED·BLOCKED·NOT_RUN)와 원문 증거. 저장소에 올릴 때는 PC 이름·IP·개인 경로를 지운다(`docs/evidence/field-<날짜>-<역할>.*`).
 - 로봇을 재부팅하거나 네트워크를 바꾼 뒤에는 1단계 준비 점검과 6단계 배선 점검을 다시 한다.
 
