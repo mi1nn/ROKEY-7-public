@@ -295,6 +295,51 @@ class WallClearanceTests(unittest.TestCase):
             frontier_core(frontier_goal_clearance_m=-0.1)
 
 
+class FrontierNoneWhyTests(Base):
+    """``FRONTIER none`` says why each frontier was left out, largest first (시뮬레이션 2026-10-15 C9: two frontiers
+    FAILED, then three empty map updates ended the exploration and nobody could tell why the main zone was not
+    picked)."""
+
+    def none_line(self):
+        lines = [n for n in self.core.drain_notes() if n.startswith('FRONTIER none')]
+        self.assertTrue(lines)
+        return lines[-1]
+
+    def test_a_tried_frontier_is_named_as_tried(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
+        self.searches(NOW + DELAY + 1)
+        line = self.none_line()
+        self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 no_path=0', line)
+        self.assertIn('TRIED cells=20 centroid=(3.90, 2.00)', line)
+
+    def test_an_unreachable_and_a_small_frontier_are_named(self):
+        data = []
+        for iy in range(H):
+            for ix in range(W):
+                if ix == 20:
+                    data.append(100)          # a wall across the map: the right part cannot be reached
+                elif ix > 30 or (ix == 0 and iy == 0):
+                    data.append(-1)           # unknown beyond x = 6 m, and a 1-cell nook (2 frontier cells) at the corner
+                else:
+                    data.append(0)
+        self.core.on_scout_map(NS(fields=dict(frame='map', width=W, height=H, resolution=RES, origin=(0., 0., 0.),
+                                              data=data)))
+        self.core.on_pose(scout_pose())
+        self.searches()
+        line = self.none_line()
+        self.assertIn('small=1', line)
+        self.assertIn('no_path=1', line)
+        self.assertIn('NO_PATH cells=20', line)
+
+
 class GoalPickTests(unittest.TestCase):
     """The RViz search goal pick (#132) replaces the areas: only AREAS uses it. FRONTIER/PATROL keep it off even
     when the field gives the topic (a FRONTIER core has no area, the pick would refuse to start; OPS-174)."""

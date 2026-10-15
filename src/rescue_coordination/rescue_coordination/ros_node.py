@@ -732,16 +732,32 @@ class CoordinatorCore:
             return  # this map had nothing to pick; wait for the next update
         fields, radius = self.scout_grid.fields, self.freeze_clearance_m
         mask = clear_mask(**fields, radius=radius)
-        candidates = [f for f in find_frontiers(**fields, radius=radius, min_cells=self.frontier_min_cells,
-                                                max_goal_distance_m=self.frontier_reach_m, mask=mask)
-                      if f.goal is not None and not self._tried(f.goal) and not self._tried(f.centroid)]
+        # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
+        found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
+                               mask=mask)
+        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH below)
+        for i, f in enumerate(found):
+            if f.cells < self.frontier_min_cells:
+                why[i] = 'SMALL'
+            elif f.goal is None:
+                why[i] = 'NO_GOAL'
+            elif self._tried(f.goal) or self._tried(f.centroid):
+                why[i] = 'TRIED'
+        kept = [i for i in range(len(found)) if i not in why]
+        candidates = [found[i] for i in kept]
         lengths = path_lengths(**fields, radius=radius, start=start, goals=[f.goal for f in candidates], mask=mask)
         reachable = sorted((length, i) for i, length in enumerate(lengths) if length is not None)
         if not reachable:
+            why.update({i: 'NO_PATH' for i in kept})
             self.frontier_checked_seq = self.scout_grid_seq
             self.frontier_empty += 1
+            counts = ' '.join(f'{k.lower()}={sum(1 for v in why.values() if v == k)}'
+                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH'))
+            largest = '; '.join(f'{why[i]} cells={found[i].cells} centroid=({found[i].centroid[0]:.2f}, '
+                                f'{found[i].centroid[1]:.2f})' for i in range(min(5, len(found))))
             self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
-                              f'({self.frontier_empty}/{self.exploration_empty_checks})')
+                              f'({self.frontier_empty}/{self.exploration_empty_checks}): '
+                              f'frontiers={len(found)} {counts}' + (f' | {largest}' if largest else ''))
             if self.frontier_empty >= self.exploration_empty_checks:
                 self._exploration_done('EXPLORATION_COMPLETE')
             return
