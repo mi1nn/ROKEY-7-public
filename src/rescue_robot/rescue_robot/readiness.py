@@ -17,7 +17,8 @@ import threading
 
 from rescue_robot.executor import ContractError
 
-# nav2 (action server ready) and undocked (dock_status) already have producers.
+# nav2 (action server ready + Nav2 lifecycle manager is_active, ros_node.Nav2Port) and undocked (dock_status)
+# already have producers.
 MONITORED_FLAGS = ('driver', 'sensors', 'slam', 'watchdog')
 
 

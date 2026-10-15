@@ -5,7 +5,8 @@ Run by run.sh after rehearsal.launch.py. Every expected connection of scripts/fi
 writer or reader is not one of this repository's nodes gets an endpoint on a fake node of the expected
 name: robot Pi topics (one fake Pi per robot), the Create3 cmd_vel reader, Nav2 (collision_monitor,
 docking_server, bt_navigator), slam_toolbox, AMCL, the depth container (passage_points), the webcam
-node and the perception locators. Fakes only make endpoints; they publish nothing and answer nothing.
+node and the perception locators. Fakes only make endpoints; they publish nothing and answer nothing, except
+that the Nav2 lifecycle manager answers is_active success (a Nav2 that came up; ACTIVE below).
 
 Types: the type a real node uses on that name when one is there, else DEFAULT_TYPES. QoS of a fake writer:
 FAKE_WRITER_QOS [추정, the real Pi / Nav2 / SLAM QoS is not measured here]; a fake reader asks the least
@@ -58,6 +59,17 @@ def ours(deployment, field, slam_phase):
         if mode == 'FROZEN_MAP_AMCL' or (mode == 'SLAM_THEN_FROZEN' and slam_phase == 'FROZEN'):
             names.add(wc.node(wc.NODES['relay'], ns))
     return names
+
+
+def IDLE(request, response):
+    return response
+
+
+def ACTIVE(request, response):
+    """The fake Nav2 lifecycle manager says active, as a Nav2 that came up: the executor's nav2 READY needs it
+    (field run1015b), and the rehearsal arms both executors. The only fake answer that is not empty."""
+    response.success = True
+    return response
 
 
 def role(link_id):
@@ -130,7 +142,7 @@ def main(argv=None):
         elif lk.kind == 'service':
             kind = get_service((service_types.get(lk.name) or ['std_srvs/srv/Trigger'])[0])
             for w in writers:
-                made.append(fake(w).create_service(kind, lk.name, lambda req, res: res))
+                made.append(fake(w).create_service(kind, lk.name, ACTIVE if r == 'nav2_lifecycle' else IDLE))
             for n in readers:
                 made.append(fake(n).create_client(kind, lk.name))
         else:

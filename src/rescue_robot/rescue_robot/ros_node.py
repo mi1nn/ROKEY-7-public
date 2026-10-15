@@ -8,6 +8,7 @@ its own. It observes odometry, dock status and Nav2 availability.
 """
 import math
 import subprocess
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -36,14 +37,27 @@ def git_sha():
 
 
 class Nav2Port:
-    """NavigationPort over one robot's NavigateToPose action (namespace-relative name)."""
+    """NavigationPort over one robot's NavigateToPose action (namespace-relative name).
 
-    def __init__(self, node, action_name):
+    Ready = the action server is on the graph AND the Nav2 lifecycle manager answered is_active success within
+    max_age_s. bt_navigator creates its action server while configuring, so the graph alone says nothing about an
+    aborted bringup (field run1015b, 2026-10-15: inactive bt_navigator, nav2 READY, first goal rejected).
+    No answer, an old answer, a failed call or no service is not ready.
+    """
+
+    def __init__(self, node, action_name, lifecycle_service, *, clock, max_age_s):
         from rclpy.action import ActionClient
         from nav2_msgs.action import NavigateToPose
+        from std_srvs.srv import Trigger
         self.node = node
         self.goal_type = NavigateToPose
         self.client = ActionClient(node, NavigateToPose, action_name)
+        self.trigger = Trigger
+        self.lifecycle = node.create_client(Trigger, lifecycle_service)
+        self.lifecycle_service = lifecycle_service
+        self.clock, self.max_age_s = clock, max_age_s
+        self.active = None          # (is_active success, clock() when answered)
+        self.asking = None          # (future, clock() when asked)
         self.adapter = None
         self.handles = {}
         self.pending_cancel = set()
@@ -52,7 +66,37 @@ class Nav2Port:
         self.adapter = adapter
 
     def server_ready(self):
-        return self.client.server_is_ready()
+        now = self.clock()
+        self._ask(now)
+        fresh = self.active is not None and 0 <= now - self.active[1] <= self.max_age_s
+        return bool(self.client.server_is_ready() and fresh and self.active[0])
+
+    def _ask(self, now):
+        # three questions per max_age_s; an unanswered one is dropped and asked again
+        if self.asking is not None and now - self.asking[1] < self.max_age_s / 3:
+            return
+        if self.asking is not None:
+            if self.asking[0] is not None:
+                self.lifecycle.remove_pending_request(self.asking[0])
+            self.asking = None
+        if not self.lifecycle.service_is_ready():
+            return
+        future = self.lifecycle.call_async(self.trigger.Request())
+        self.asking = (future, now)
+        future.add_done_callback(self._on_active)
+
+    def _on_active(self, future):
+        if self.asking is not None and self.asking[0] is future:
+            self.asking = (None, self.asking[1])     # answered: ask again on schedule, nothing to drop
+        try:
+            success = bool(future.result().success)
+        except Exception as exc:  # a failed call is no answer
+            self.node.get_logger().warn(f'NAV2_LIFECYCLE {self.lifecycle_service} no answer: {exc}')
+            return
+        if self.active is None or self.active[0] != success:
+            self.node.get_logger().info(f'NAV2_LIFECYCLE {self.lifecycle_service} '
+                                        f'{"active" if success else "inactive: nav2 NOT_READY"}')
+        self.active = (success, self.clock())
 
     def send_goal(self, command_id, pose):
         goal = self.goal_type.Goal()
@@ -218,7 +262,8 @@ def main(args=None, *, task_runtime_factory=None):
                  'nav_action': string, 'odom_topic': string, 'dock_status_topic': string,
                  'policy_version': string, 'step_period': double, 'clock_error_bound_s': double,
                  'scan_topic': string, 'tf_topic': string, 'map_frame': string, 'odom_frame': string,
-                 'readiness.version': string, 'executor_heartbeat_topic': string}
+                 'readiness.version': string, 'executor_heartbeat_topic': string,
+                 'nav2_lifecycle_service': string}
         names.update({'policy.' + field: double for field in POLICY_FIELDS})
         names.update({'readiness.max_age_s.' + source: double
                       for source in READINESS_SOURCES})
@@ -240,7 +285,9 @@ def main(args=None, *, task_runtime_factory=None):
         policy = Policy(value['policy_version'], *(value['policy.' + field] for field in POLICY_FIELDS))
         executor = Executor(value['robot_id'], str(uuid4()), value['authority_epoch'], policy,
                             allowed_robot_ids=tuple(value['allowed_robot_ids']))
-        port = Nav2Port(node, value['nav_action'])
+        # Nav2 READY needs its lifecycle manager active too; an answer counts as long as other evidence does
+        port = Nav2Port(node, value['nav_action'], value['nav2_lifecycle_service'], clock=time.monotonic,
+                        max_age_s=policy.evidence_max_age)
 
         def guards(task):
             # MissionGoalBinder needs an alignment source in this process (mapping ROS
