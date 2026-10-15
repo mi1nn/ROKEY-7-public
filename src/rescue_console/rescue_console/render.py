@@ -265,8 +265,8 @@ def _map(view):
             f'<g class="robot {escape(role.lower())}"><title>{escape(robot["id"])}</title>{body}'
             f'<text class="label" x="{x + ROBOT_MARK_PX + 1:.2f}" y="{y + ROBOT_MARK_PX + 2.4:.2f}">'
             f'{escape(unit)}</text></g>')
-    unplotted = [f'{w["id"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
-    unplotted += [f'{w.get("label") or w["id"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
+    unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
+    unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
     unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
     notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
     legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
@@ -321,7 +321,7 @@ def _watch(robot):
     age = '수신 없음' if w['age_s'] is None else f'{_age(w["age_s"])} 전'
     flag = '직접 관측 낡음' if w['stale'] else '직접 관측'
     return (f'<p class="watch{" alert" if w["stale"] else ""}" title="{escape(w["namespace"] or "")} 구독만">'
-            f'{flag} · {age} · {battery} · {dock}</p>')
+            f'{flag} · {age} · {battery} · {dock}{" · 위치는 자기 지도 기준, 이 지도와 다름" if w["own_map"] else ""}</p>')
 
 
 def _robots(view):

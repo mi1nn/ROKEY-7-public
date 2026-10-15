@@ -86,9 +86,11 @@ def _nodes(context):
     watch = robot_watch_parameters(robot_namespaces=arg('robot_namespaces'), robot_watch_path=arg('robot_watch_path'),
                                    robot_ids=[robot.id for robot in deployment.robots])
     if watch:   # 구독만(재범 허용 2026-10-13): 로봇 기본 토픽 직접 관측
+        scout = next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SCOUT')
         nodes += [Node(package='rescue_operations', executable='robot_watch', name='rescue_robot_watch',
                        output='screen', parameters=[_text_as_text(watch)]),
-                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s>')]
+                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s> '
+                              f'--robot-watch-map-robot {scout}')]   # 실시간 SLAM 지도 주인 = SCOUT
     return nodes
 
 
