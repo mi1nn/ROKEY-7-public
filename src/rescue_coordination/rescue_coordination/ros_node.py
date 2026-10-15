@@ -1353,6 +1353,14 @@ class CoordinatorCore:
             # the task is released; its approval or recheck goes again after a hold.
             self.refused[meta[1].command_id if meta[0] == 'MOVE_SEGMENT' else meta[1]] = None
             self._forget(admission.task_id)
+        elif (not admission.accepted and not meta and admission.robot_id == self.roles['SCOUT']
+              and self.search.allocator.admissions.get(admission.task_id) == admission):
+            # a TB-6 SEARCH_AREA (frontier, step aside, area): the same hold before it goes again (12회차 C18: a
+            # step aside refused during the map handover went every 0.1 s, about 950 times)
+            self.refused['SCOUT_SEARCH'] = None
+            self.notes.append(f'SCOUT_SEARCH_REFUSED task={admission.task_id} reason={admission.reason or "-"}'
+                              f'{" " + admission.detail_code if admission.detail_code else ""}: '
+                              'sent again after admission_timeout_s')
         return admitted
 
     def on_result(self, task_id, result):
@@ -2377,6 +2385,8 @@ class CoordinatorCore:
             return
         if self.search_mode == 'FRONTIER' and (self.frontier is None or now_ns < self.frontier_hold_until):
             return  # the destination is in ~/task_inputs; the task waits until the robot has read it
+        if self._held_after_refusal('SCOUT_SEARCH', now_ns):
+            return
         state = self.ready(scout, now_ns)
         if state is None:
             return

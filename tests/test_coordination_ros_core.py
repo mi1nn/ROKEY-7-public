@@ -320,7 +320,9 @@ class ScoutDispatchTests(CoreTestCase):
         self.start_search()
         (first,) = self.core.tick(NOW)
         self.core.on_admission(admission_msg(first, accepted=False))
-        (again,) = self.core.tick(NOW)
+        self.assertEqual([], self.core.tick(NOW))  # the refusal hold first (12회차 C18)
+        self.core.on_status(status_msg(SCOUT, observed_at_ns=NOW + ACCEPT + 1))
+        (again,) = self.core.tick(NOW + ACCEPT + 1)
         self.assertNotEqual(first['task_id'], again['task_id'])
 
 

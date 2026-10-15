@@ -155,7 +155,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `executable_bases` | 실행해도 되는 자리 근거 종류 | `PRIOR_MAP`, `FRONTIER` |
 | `task_duration_s`, `status_max_age_s`, `tick_period_s`, `report_retry_s` | 임무 기한, 로봇 상태 나이 상한, 판단 주기, 보고 재전송 주기 | 120.0, 3.0, 0.1, 0.5 |
 | `lease_duration_s`, `lease_renew_period_s`, `lease_message_ttl_s` | 실행기와 같은 임대 길이, 갱신 주기(길이의 절반 이하), 갱신 메시지 수신 만료 | 3.0, 0.5, 4.0 |
-| `admission_timeout_s` | 실행기 수락을 기다리는 시간. 넘으면 임대 갱신을 멈추고, 거절한 임무는 이만큼 기다린 뒤 다시 낸다 | 10.0 |
+| `admission_timeout_s` | 실행기 수락을 기다리는 시간. 넘으면 임대 갱신을 멈추고, 거절한 임무는 이만큼 기다린 뒤 다시 낸다. TB-6 `SEARCH_AREA`(경계, 비켜서기, 구역)도 같다(로그 `SCOUT_SEARCH_REFUSED task= reason=`, 이유 `TASK_REFUSED`). 12회차(2026-10-16 C18)에 지도 넘김 중 거절된 비켜서기가 0.1 s 마다 약 950 번 나갔다 | 10.0 |
 | `route_segment_goals`, `route_revision`, `route_segment_passage_free` | `OPERATOR` 출동의 구간 끝 `[x, y, yaw]`×N, 그 목록의 revision, 구간별 「통로 판정 불필요」 | — |
 | `observe_goal` | 재확인 관측 지점 `[x, y, yaw]` | — |
 | `goal_map_session_id`, `goal_map_revision`, `goal_transform_revision` | `SAVED_MAP` 목표의 지도 기준 | — |
