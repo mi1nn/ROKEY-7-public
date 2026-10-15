@@ -232,18 +232,27 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 
 ### 초기화하고 새 회차로 다시 하기
 
-관제 웹 초기화(`POST /api/runs/reset`, #323)는 운영 쪽 회차만 넘긴다. TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌리고, 지난 기록은 회차별로 남는다(재범 결정 2026-10-15). 로봇 쪽 노드는 사람이 다시 띄운다. 자세한 동작은 [운영 구현 문서](../implementation/implementation-operations.md) 「초기화」 절에 있다.
+초기화 API(`POST /api/runs/reset`, #323)는 운영 쪽 회차만 넘긴다. TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌리고, 지난 기록은 회차별로 남는다(재범 결정 2026-10-15). 로봇 쪽 노드는 사람이 다시 띄운다. 자세한 동작은 [운영 구현 문서](../implementation/implementation-operations.md) 「초기화」 절에 있다.
 
 **조건.** 두 로봇이 켜져 있고, 도킹했고, 멈춰 있고, 임무가 없어야 한다. 로봇 launch 를 먼저 끄면 상태가 끊겨 `ROBOT_STATUS_STALE` 로 거절된다. 그래서 **로봇 launch 를 끄기 전에 초기화를 누른다.**
 
 | 순서 | PC | 할 일 | 확인 |
 | --- | --- | --- | --- |
-| ① | 운영 PC | 로봇 감독이 두 로봇을 도킹한 뒤 관제 웹 `/reset` 에서 초기화를 누른다 | 답 `accepted=true` 와 새 `run_id` |
+| ① | 운영 PC | 로봇 감독이 두 로봇을 도킹한 뒤 아래 「초기화 명령」을 보낸다. 관제 웹 초기화 버튼은 아직 없다(후속, 미구현) | 답 `accepted=true` 와 새 `run_id` |
 | ② | 운영 PC | 조정기 launch 를 끈다. 운영 launch(`db_writer`·`report_node`)와 관제 웹은 그대로 둔다 | — |
 | ③ | 로봇 담당 PC | 두 로봇의 launch 를 모두 끈다. SLAM, 지도 고정, 고정 지도 relay·AMCL·출발 정렬(`frozen_localization`), 실행기(`robot.launch.py`), 깊이 점, 터널 판정이다 | 사람이 터미널마다 확인 |
-| ④ | 운영 PC | 조정기를 다시 띄운다(3단계와 같은 명령) | 관제 웹 화면이 자동으로 체크한다 |
-| ⑤ | 로봇 담당 PC | 4단계를 다시 한다. 로봇 감독이 TB-6 을 언도킹하고 출발 표시에 둔다(사람 확인). 그다음 SLAM, 실행기, 지도 고정을 띄운다. 지도 고정은 **새 `output_dir`** 로 띄운다 | 출발 표시는 사람 확인, TB-6 실행기는 화면 자동 체크 |
-| ⑥ | 로봇 담당 PC | 5단계를 다시 한다. TB-5 를 언도킹하고 고정 지도 위치 추정·출발 정렬(`frozen_localization`)과 실행기를 띄운다 | TB-5 실행기는 화면 자동 체크 |
+| ④ | 운영 PC | 조정기를 다시 띄운다(3단계와 같은 명령) | 조정기 로그 `live task source enabled` |
+| ⑤ | 로봇 담당 PC | 4단계를 다시 한다. 로봇 감독이 TB-6 을 언도킹하고 출발 표시에 둔다(사람 확인). 그다음 SLAM, 실행기, 지도 고정을 띄운다. 지도 고정은 **새 `output_dir`** 로 띄운다 | 출발 표시는 사람 확인. 4단계 성공 로그(`START_POSE captured` 포함) |
+| ⑥ | 로봇 담당 PC | 5단계를 다시 한다. TB-5 를 언도킹하고 고정 지도 위치 추정·출발 정렬(`frozen_localization`)과 실행기를 띄운다 | 5단계 성공 로그, `START_ALIGN_ALIGNED` |
+
+**초기화 명령(운영 PC).** 포트는 운영 launch 로그 `rescue_db_writer ... api=http://127.0.0.1:<port>` 의 값이다. `command_id` 는 보낼 때마다 새 UUID 다. 같은 `command_id` 를 다시 보내면 처음 답이 `DUPLICATE` 로 오고 다시 초기화하지 않는다.
+
+```bash
+curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: application/json' \
+  -d "{\"command_id\": \"$(python3 -c 'import uuid; print(uuid.uuid4())')\", \"operator_id\": \"<운영자 이름>\"}"
+```
+
+재기동 확인 표(조정기·실행기가 다시 떴는지)는 운영 DB 에만 있고(`site_state.read_reset_checklist`), 관제 웹 화면은 아직 없다(후속, 미구현). 그래서 지금은 위 로그로 확인한다.
 
 - **도킹한 채로 지도 고정 노드를 띄우지 않는다.** 지도 고정 노드는 처음 받은 TB-6 위치를 이 회차의 출발 자세로 남긴다. 언도킹한 자리에서 잡아야 TB-5 출발값과 맞는다.
 - **조정기와 두 실행기는 반드시 함께 다시 띄운다.** 실행기는 이미 받은 것 이하의 임무 번호를 `STALE_GENERATION` 으로 거절한다.
