@@ -135,6 +135,17 @@ class StartAfterTheMap(unittest.TestCase):
         self.assertEqual(6, len(logger.lines))
 
 
+class StartupLine(unittest.TestCase):
+    def test_git_sha_and_parameters(self):
+        """AGENTS 7: every node logs its source git SHA and the settings it runs with when it starts."""
+        from rescue_bringup.nav2_start import startup_line
+        line = startup_line({'manage_service': '/robot5/lifecycle_manager_navigation/manage_nodes'}, 'abc123')
+        self.assertTrue(line.startswith('git_sha=abc123 parameters='), line)
+        self.assertIn('/robot5/lifecycle_manager_navigation/manage_nodes', line)
+        self.assertIn('log.info(startup_line(values, git_sha()))',
+                      (REPO / 'src' / 'rescue_bringup' / 'rescue_bringup' / 'nav2_start.py').read_text())
+
+
 class FailedStartupIsNotReady(unittest.TestCase):
     """After NAV2_STARTUP_FAILED the manager answers is_active false: the executor says NOT_READY and logs why."""
 

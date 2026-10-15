@@ -42,6 +42,11 @@ def step(state, *, has_map, service_ready, answer, sent_for_s, answer_wait_s, se
     return 'SENT', ('info', f'NAV2_STARTUP_SENT {service}: {map_frame} -> {base_frame} is on TF'), True
 
 
+def startup_line(values, sha):
+    """The start-up log line: source git SHA and the parameters in use (AGENTS 7)."""
+    return f'git_sha={sha} parameters={values}'
+
+
 def emit(log, said):
     """One severity per call site (rclpy raises otherwise)."""
     if said is None:
@@ -62,6 +67,8 @@ def main(args=None):
     from nav2_msgs.srv import ManageLifecycleNodes
     from rclpy.time import Time
     import tf2_ros
+
+    from rescue_robot.ros_node import git_sha
 
     assert ManageLifecycleNodes.Request.STARTUP == STARTUP
     rclpy.init(args=args)
@@ -96,7 +103,7 @@ def main(args=None):
             request.command = STARTUP
             run['future'], run['sent_at'] = client.call_async(request), time.monotonic()
 
-    log.info(f'nav2_start parameters={values}')
+    log.info(startup_line(values, git_sha()))
     node.create_timer(values['poll_period_s'], tick)
     try:
         rclpy.spin(node)
