@@ -46,12 +46,14 @@ slam_to_frozen() {   # 7.5: tb6_slam 끄기 -> /robot6/map 발행자 0 -> frozen
     pid="$(cat "$RUN/pids/tb6_slam" 2>/dev/null)"
     diag c7_before_slam_stop
     # 런북은 터미널 Ctrl+C(SIGINT)다. 여기서는 SIGTERM: 백그라운드로 띄운 launch 는 SIGINT 를 무시로 물려받아 INT 로는
-    # SLAM 이 꺼지지 않았다(2026-10-15 회차 232037, slam_toolbox 가 회차 끝까지 돌아 relay 가 MAP_RELAY_BLOCKED). launch 는
-    # SIGTERM 도 Ctrl+C 와 같이 자식을 끈다. slam_toolbox 프로세스가 실제로 끝났는지 PID 로 확인한다.
+    # SLAM 이 꺼지지 않았다(2026-10-15 회차 232037, slam_toolbox 가 회차 끝까지 돌아 relay 가 MAP_RELAY_BLOCKED).
+    # 터미널 Ctrl+C 는 전경 프로세스 그룹 전체에 간다. launch 는 `exec setsid` 로 떠서 그 PID 가 곧 프로세스 그룹이라,
+    # 그룹 전체에 보낸다: launch PID 에만 보내면 launch 만 끝나고 sync_slam_toolbox_node 가 살아남아 /robot6/map 을 계속
+    # 냈다(2026-10-16 11회차 05:07, 발행자 1). slam_toolbox 프로세스가 실제로 끝났는지 PID 로 확인한다.
     local slam_pid
     slam_pid="$(sed 's/\x1b\[[0-9;]*m//g' "$LOG/tb6_slam.log" | sed -n 's/.*sync_slam_toolbox_node-1\]: process started with pid \[\([0-9]*\)\].*/\1/p' | head -1)"
-    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID ${pid:-없음}에 TERM, slam_toolbox PID ${slam_pid:-모름})"
-    [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
+    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch 프로세스 그룹 ${pid:-없음}에 TERM, slam_toolbox PID ${slam_pid:-모름})"
+    [ -n "$pid" ] && kill -TERM -- "-$pid" 2>/dev/null
     for i in $(seq 1 30); do
         [ -n "$slam_pid" ] && kill -0 "$slam_pid" 2>/dev/null && { sleep 1; continue; }
         count="$(ros2 topic info /robot6/map --no-daemon --spin-time 10 2>/dev/null | sed -n 's/^Publisher count: //p')"
