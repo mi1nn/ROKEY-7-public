@@ -101,7 +101,7 @@ class Parameters(unittest.TestCase):
 
 
 class Launches(unittest.TestCase):
-    """Every rescue_bringup launch that starts Nav2 goes through nav2_without_backup."""
+    """Every rescue_bringup launch that starts Nav2 goes through nav2_without_backup (inside nav2_field.field_nav2)."""
 
     def test_nav2_launches_use_it(self):
         launch = REPO / 'src' / 'rescue_bringup' / 'launch'
@@ -112,7 +112,10 @@ class Launches(unittest.TestCase):
                          [p.name for p in starting])
         for path in starting:
             with self.subTest(path.name):
-                self.assertIn('nav2_without_backup', path.read_text())
+                self.assertIn('field_nav2', path.read_text())
+        from rescue_bringup.nav2_field import field_nav2
+        params = field_nav2(vendor_params())
+        self.assertNotIn('backup', params['behavior_server']['ros__parameters']['behavior_plugins'])
 
 
 if __name__ == '__main__':
