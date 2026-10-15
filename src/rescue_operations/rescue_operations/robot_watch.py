@@ -3,6 +3,8 @@
 로봇 PC 의 robot.launch.py(/rescue/robots/...)가 없어도 관제 웹 로봇 칸에 로봇이 보이게 한다(재범 2026-10-13).
 구독만 한다: 발행자·서비스·액션이 없어 로봇에 아무것도 보내지 않는다(재범 허용 범위). 받는 토픽은 가벼운 것만:
 ``<ns>/battery_state``, ``<ns>/dock_status``, ``<ns>/tf``, ``<ns>/tf_static``. 카메라·라이다는 받지 않는다.
+로봇마다 ``/rescue/map/start_pose/<robot_id>``(출발 자세, latched, 지도 고정 노드가 회차에 한 번 냄)도 받아
+``start_pose`` 로 적는다. 관제 웹이 R1 전 TB-5 추정 위치를 그리는 데 쓴다(화면 전용, 작전 2026-10-15).
 
 1초마다 로봇별 마지막 수신 시각(이 호스트 시계), 배터리, 도킹, ``map_frame -> base_frame`` 위치(tf 에 있을 때만)를
 ``out_path`` 에 임시 파일 + rename 으로 쓴다. 위치가 없으면 None 이고 지어내지 않는다(TB-5 지도 전 「위치 미확정」).
@@ -16,6 +18,8 @@ from pathlib import Path
 from .map_snapshot import yaw_from_quaternion
 
 WATCH_SCHEMA = 'robot_watch/1'
+# rescue_coordination ros_node.START_POSE_TOPIC 과 같은 앞부분(+ robot_id). PoseWithCovarianceStamped, TRANSIENT_LOCAL.
+START_POSE_PREFIX = '/rescue/map/start_pose/'
 WRITE_PERIOD_S = 1.0
 PARAMS = {'robot_ids': 'STRING_ARRAY', 'namespaces': 'STRING_ARRAY', 'out_path': 'STRING', 'map_frame': 'STRING',
           'base_frame': 'STRING'}
@@ -42,6 +46,7 @@ def write_watch(path, *, written_at_ns, robots):
 
 def main(args=None):
     import rclpy
+    from geometry_msgs.msg import PoseWithCovarianceStamped
     from irobot_create_msgs.msg import DockStatus
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.executors import ExternalShutdownException
@@ -78,10 +83,11 @@ def main(args=None):
     tf_qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE)
     static_qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE,
                             durability=DurabilityPolicy.TRANSIENT_LOCAL)
+    start_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
     state, buffers = {}, {}
     for robot_id, ns in zip(values['robot_ids'], values['namespaces']):
         row = state[robot_id] = {'namespace': ns, 'last_seen_ns': None, 'battery_percent': None, 'docked': None,
-                                 'pose': None, 'pose_seen_ns': None, '_stamp': None}
+                                 'pose': None, 'pose_seen_ns': None, 'start_pose': None, '_stamp': None}
         buffer = buffers[robot_id] = Buffer()   # no node: given one it makes a tf2_frames service
 
         def seen(row=row):
@@ -104,6 +110,13 @@ def main(args=None):
         node.create_subscription(DockStatus, f'{ns}/dock_status', dock, qos_profile_sensor_data)
         node.create_subscription(TFMessage, f'{ns}/tf', tf, tf_qos)
         node.create_subscription(TFMessage, f'{ns}/tf_static', lambda m, f=tf: f(m, static=True), static_qos)
+
+        def start(msg, row=row, robot_id=robot_id):
+            p, q = msg.pose.pose.position, msg.pose.pose.orientation
+            row['start_pose'] = pose_from_transform(p.x, p.y, (q.x, q.y, q.z, q.w), msg.header.frame_id)
+            log.info(f'START_POSE {robot_id} {row["start_pose"]}')
+
+        node.create_subscription(PoseWithCovarianceStamped, START_POSE_PREFIX + robot_id, start, start_qos)
 
     def write():
         now = node.get_clock().now().nanoseconds

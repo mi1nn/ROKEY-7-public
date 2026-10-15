@@ -56,6 +56,10 @@ def main(argv=None):
     parser.add_argument('--robot-watch-map-robot', metavar='ROBOT_ID',
                         help='with --robot-watch: the robot whose own map is the map shown (live SLAM map owner). '
                              'Other robots\' directly watched poses are in their own map frame and are not drawn')
+    parser.add_argument('--field-file', metavar='FIELD_JSON',
+                        help='with --robot-watch: the field run file (config/field/...); a robot with '
+                             'robots.<id>.initial_pose_xy_yaw is drawn at the TB-6 start pose plus that value, marked '
+                             '추정, until its own map pose comes (before the first map freeze). Screen only')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
                              'operator commands go to URL/api/operator-commands. No default: without it the '
@@ -87,7 +91,7 @@ def main(argv=None):
                          live_map_path=args.live_map, live_map_stale_s=args.live_map_stale_s,
                          robot_watch_path=args.robot_watch, robot_watch_stale_s=args.robot_watch_stale_s,
                          robot_watch_map_robot=args.robot_watch_map_robot,
-                         robot_camera=args.robot_camera,
+                         robot_camera=args.robot_camera, field_path=args.field_file,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch,
                          search_start=args.search_start, camera_stale_s=args.camera_stale_s)

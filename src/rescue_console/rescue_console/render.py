@@ -117,6 +117,8 @@ def _pose(pose):
         text += f" {math.degrees(pose['yaw']):.0f}°"
     if pose['frame_id'] != MAP_FRAME:
         text += f" [{pose['frame_id']}]"
+    if pose.get('estimated'):
+        text += ' 추정(TB-6 출발 자세 + 현장 파일 시작 값)'
     return escape(text)
 
 
@@ -271,10 +273,14 @@ def _map(view):
                 a = robot['yaw'] + angle
                 points.append(f'{x + reach * math.cos(a):.2f},{y - reach * math.sin(a):.2f}')
             body = f'<polygon class="heading" points="{" ".join(points)}"/>'
+        # 추정 위치(R1 전 TB-5): 점선·흐린 색에 「추정」 글자를 붙여 실제 위치와 구분한다(작전 2026-10-15).
+        estimated = robot.get('estimated')
+        why = ' — 추정: TB-6 출발 자세 + 현장 파일 시작 값, 실제 위치 아님' if estimated else ''
         marks.append(
-            f'<g class="robot {escape(role.lower())}"><title>{escape(robot["id"])}</title>{body}'
+            f'<g class="robot {escape(role.lower())}{" estimated" if estimated else ""}">'
+            f'<title>{escape(robot["id"])}{why}</title>{body}'
             f'<text class="label" x="{x + ROBOT_MARK_PX + 1:.2f}" y="{y + ROBOT_MARK_PX + 2.4:.2f}">'
-            f'{escape(unit)}</text></g>')
+            f'{escape(unit)}{" 추정" if estimated else ""}</text></g>')
     unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
     unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
     unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
@@ -726,6 +732,7 @@ button{font-family:inherit}
 .passage.unknown .mark{stroke:var(--pending)} .passage.unknown .label{fill:var(--pending)}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
+.robot.estimated{opacity:.55} .robot.estimated .heading,.robot.estimated .body{fill:none;stroke:var(--ink);stroke-width:.5;stroke-dasharray:1 .7}
 /* 지도 설명 줄은 평소 숨기고(마우스를 올리면 지도 정보는 title), 실시간 지도가 낡았을 때만 빨간 경고로 보인다. */
 .map-note{display:none;font-size:12.5px;margin-top:10px}
 #map.stale .plan{opacity:.45} #map.stale .map-note{display:block;color:var(--signal);font-weight:600}
