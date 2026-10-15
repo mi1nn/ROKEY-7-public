@@ -335,8 +335,10 @@ def build(grid, layout, *, name, source='a SLAM map'):
             length = math.hypot(obj['x2'] - obj['x1'], obj['y2'] - obj['y1'])
             pose = ((obj['x1'] + obj['x2']) / 2, (obj['y1'] + obj['y2']) / 2, wall['height_m'] / 2,
                     math.atan2(obj['y2'] - obj['y1'], obj['x2'] - obj['x1']))
-            parts.append(_model(obj['name'], pose, _box((length, wall['thickness_m'], wall['height_m'])),
-                                wall['color']))
+            # Both ends reach half a wall thickness past the end point, so two walls that meet at a corner (or a wall
+            # that ends on another wall's centre line) overlap there: no notch the lidar could see through.
+            parts.append(_model(obj['name'], pose, _box((length + wall['thickness_m'], wall['thickness_m'],
+                                                         wall['height_m'])), wall['color']))
             continue
         if obj['kind'] == 'cylinder':
             geometry = f'<cylinder><radius>{obj["radius"]:.4f}</radius><length>{obj["length"]:.4f}</length></cylinder>'
@@ -359,12 +361,17 @@ def main(argv=None):
     source.add_argument('--layout-only', action='store_true',
                         help='지도 없이 배치 목록(벽 선분·물체)만으로 만든다(평면도에서 옮긴 배치용)')
     parser.add_argument('--layout', type=Path, required=True, help='배치 목록 JSON (벽 높이, 물체, 로봇 출발 자리)')
+    parser.add_argument('--wall-thickness', type=float, metavar='M',
+                        help='벽 두께(m)를 배치 목록의 wall.thickness_m 대신 쓴다 [추정]. 실측(MDF 두께)이 오면 이 값 하나만 바꾼다')
     parser.add_argument('--name', required=True, help='world 이름 = 파일 이름 (turtlebot4 world:=<name>)')
     parser.add_argument('--out-dir', type=Path, required=True, help='쓸 폴더 (config/sim/worlds)')
     args = parser.parse_args(argv)
     try:
         grid = read_map(args.map) if args.map else Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
         layout = load_layout(args.layout)
+        if args.wall_thickness is not None:
+            layout['wall']['thickness_m'] = _number(args.wall_thickness, '--wall-thickness', positive=True)
+            layout['wall']['estimate'] = True   # a value given on the command line is not a measurement unless the layout says so
         world, spawn, estimates = build(grid, layout, name=args.name,
                                         source=args.map.name if args.map else f'{args.layout.name} (no map)')
     except (WorldError, OSError, json.JSONDecodeError) as exc:

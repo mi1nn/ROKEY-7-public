@@ -28,7 +28,7 @@ from sensor_msgs.msg import LaserScan
 
 FRONT_STOP_M = 0.45   # something this close ahead: turn left in place [설정 2026-10-15]
 SPEED = 0.18          # m/s forward [설정]; slam_toolbox needs to see movement (minimum_travel 0.1 m)
-TURN = 0.6            # rad/s turning in place [설정]
+TURN = 0.3            # rad/s turning in place [측정 2026-10-16: the simulated lidar leaks 1.6% of rays at 0.6 rad/s, 0.07% at 0.3]
 GAIN = 1.5            # rad/s per m of error from the wall [설정]
 MAX_W = 0.6           # rad/s limit while following [설정]
 
@@ -109,7 +109,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--namespace', default='robot6', help='robot name without a slash')
     parser.add_argument('--seconds', type=float, required=True, help='how long to drive, in simulation seconds')
-    parser.add_argument('--wall', type=float, default=0.45, help='distance to keep from the right wall, m')
+    parser.add_argument('--wall', type=float, default=0.5, help="distance to keep from the right wall, m (the lidar passes through a wall closer than about 0.25 m)")
     parser.add_argument('--speed', type=float, default=SPEED, help='forward speed, m/s')
     parser.add_argument('--no-undock', action='store_true', help='do not send the Undock action first')
     args = parser.parse_args()
