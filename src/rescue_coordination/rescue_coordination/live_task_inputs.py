@@ -107,6 +107,15 @@ def goal_pick_topic(core, topic):
     return topic if topic and core.search_mode == 'AREAS' else None
 
 
+def clock_log_line(record):
+    """The coordinator start log line for a clock record: its reason, or SYNCED; a timesyncd spike reply used
+    (C13 A, 재범 decision 2026-10-16 「튄 응답도 받기」) says so with its bound."""
+    line = 'central live clock: ' + record.get('reason', record['state'])
+    if record.get('ntp_spike'):
+        line += f' (timesyncd spike reply used, bound {record["error_bound_ns"] / 1e6:.0f} ms)'
+    return line
+
+
 def attach(node, core, values, boot_id):
     from rcl_interfaces.msg import ParameterType, ParameterValue
     from rcl_interfaces.msg import ParameterDescriptor
@@ -166,11 +175,10 @@ def attach(node, core, values, boot_id):
             + '; profile example coordinates excluded; selection alone sends no task')
 
     def poll():
-        record = sampler.poll()
-        reason = record.get('reason', record['state'])
-        if reason != last_reason[0]:
-            node.get_logger().info('central live clock: ' + reason)
-            last_reason[0] = reason
+        line = clock_log_line(sampler.poll())
+        if line != last_reason[0]:
+            node.get_logger().info(line)
+            last_reason[0] = line
 
     def get(request, response):
         record = dict(format='rescue-live-task-source/1', coordinator_id=values['coordinator_id'],
