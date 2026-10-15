@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: std_srvs.srv.Trigger_Request()
+
+response:
+std_srvs.srv.Trigger_Response(success=False, message="STOP_OR_READINESS_NOT_READY watchdog STOP_LATCHED EXECUTOR_HEARTBEAT_STALE - reset needed: ros2 service call /robot6/rescue_command_watchdog/reset std_srvs/srv/Trigger {}: NAV_NOT_READY missing=['watchdog'] motion=STOPPED sources=['watchdog_heartbeat(57.1 s)']")
+

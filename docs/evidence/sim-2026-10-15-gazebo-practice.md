@@ -184,6 +184,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [아홉째 회차 자료](sim-2026-10-16-run035105/README.md)에 있다. 빌드 `b5e5872`(#411~#422)다. 그 전 기동 두 번은 timesyncd spike 로 조정기 시간 동기가 안 돼 멈췄다(C13). 둘째 경계가 TB-6 바로 옆에 잡혀 경계 2개 뒤 탐색이 끝났다. RETURN_HOME 은 받아들여졌다가 2차 고정 넘김과 겹쳐 `GUARD_INVALID` 였다. TB-5 정렬은 `LOW_MATCH` 2회였다.
 
+## 14. 열째 회차 (full-1016-042311)
+
+회차 표·단계별 결과는 [열째 회차 자료](sim-2026-10-16-run042311/README.md)에 있다. 빌드는 `982aa58`(#424·#426·#427)다. TB-6 은 04:29:36 부터 터널 1 입구에서 `detected collision ahead` 로 멈췄고, 경계 4개가 실패해 `EXPLORATION_FRONTIERS_FAILED` 로 끝났다. 넘김 중 RETURN_HOME 은 #426 대로 미뤄졌다. 넘김 뒤에는 TB-6 위치가 375 s 끊겼고, 진단용 no-motion 1회 뒤 다시 나왔다. 그 뒤 RETURN_HOME 은 `ACTION_ABORTED` 였다. 터널 PASSABLE 1행이 장부에 남았고, TB-5 정렬은 처음 `ALIGNED` 였다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
