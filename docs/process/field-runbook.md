@@ -296,6 +296,7 @@ curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: applica
 | --- | --- | --- |
 | 상태 보기 | `python3 scripts/field/noweb/status_watch.py --db <site_state.sqlite3> --log <회차 폴더>/status.log` | 운영 PC |
 | 지도와 두 로봇 보기 | `rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static` | RViz 를 띄울 PC |
+| 인형과 출구 위치 보기 | `python3 scripts/field/noweb/target_markers.py` 를 띄우면 위 RViz 화면의 「Targets and exits」에 그려진다 | RViz 를 띄울 PC |
 | 재난 선포 | 웹캠 앞을 흔든다. 흔들기 어려우면 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> DECLARE_DISASTER` | 운영 PC |
 | 초기화 | 8단계 ①의 `curl` 대신 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> RESET_RUN` | 운영 PC |
 | 정지 | 「정지 방법」의 `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`) | 로봇 담당 PC |
