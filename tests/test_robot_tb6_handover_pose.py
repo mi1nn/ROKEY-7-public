@@ -110,7 +110,6 @@ class GoalsWaitForAmclTf(unittest.TestCase):
         self.s.receive_tf('robot_a', tf_message(('map', 'odom', map_odom_stamp, 0.0, 0.0, 0.0),
                                                 ('odom', 'base_link', self.r.now, 0.0, 0.0, 0.0)))
 
-    @unittest.expectedFailure
     def test_a_new_goal_waits_until_now_passes_amcls_first_map_odom(self):
         from rescue_robot.executor import ContractError
         from test_robot_amcl_tf_pose import AMCL_KEYS
