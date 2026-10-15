@@ -14,8 +14,7 @@ there:
 3. accepts AMCL's pose only when its spread is under ``accept_sigma_*``, the last ``settle_count``
    poses agree within ``settle_*``, it moved at most ``max_jump_*`` from the first guess, and at
    least ``min_match_ratio`` of the scan points (``min_match_points`` or more) lie within
-   ``match_hit_m`` of an occupied cell of the frozen map. Only points on a known cell count; points outside the
-   grid or on unknown cells are left out and reported as ``match_points_off_map`` (option A, 2026-10-16).
+   ``match_hit_m`` of an occupied cell of the frozen map.
 The result is latched on ``<ns>/rescue_start_align`` (JSON) with a reason code; a failure is never
 replaced by another method. ``~/restart`` starts again (TB-5 put back on its spot first).
 Every value is [제안] until measured in a supervised run.
@@ -78,11 +77,8 @@ def _angle(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 
-def match_detail(grid, scan, *, pose, laser_in_base, hit_m):
-    """(hits, judged, unjudged) with the robot at ``pose``: a valid scan point is judged when it lands on a known
-    cell of ``grid`` (inside it, not unknown), and a hit when an occupied cell is within ``hit_m``. A point outside
-    the grid or on an unknown cell is neither (option A, 2026-10-16: run 8's frozen grid ended 4-7 mm short of a real
-    wall, and the beams that saw it counted as misses).
+def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
+    """(scan points within ``hit_m`` of an occupied cell, valid scan points) with the robot at ``pose``.
 
     ``grid``: width, height, resolution, origin (x, y, yaw), data; ``scan``: LaserScan fields;
     ``laser_in_base``: the laser frame in the robot frame (x, y, yaw), from TF.
@@ -93,18 +89,15 @@ def match_detail(grid, scan, *, pose, laser_in_base, hit_m):
     data = grid['data']
     lx, ly, lyaw = _compose(pose, laser_in_base)
     reach = math.ceil(hit_m / res)
-    hits = judged = unjudged = 0
+    hits = points = 0
     for i, r in enumerate(scan['ranges']):
         if not (isinstance(r, (int, float)) and math.isfinite(r) and scan['range_min'] <= r <= scan['range_max']):
             continue
+        points += 1
         a = lyaw + scan['angle_min'] + i * scan['angle_increment']
         px, py = lx + r * math.cos(a), ly + r * math.sin(a)
         gx, gy = oc * (px - ox) + osn * (py - oy), -osn * (px - ox) + oc * (py - oy)   # map -> grid frame
         cx, cy = math.floor(gx / res), math.floor(gy / res)
-        if not (0 <= cx < width and 0 <= cy < height) or data[cy * width + cx] < 0:
-            unjudged += 1   # the map has nothing to say there
-            continue
-        judged += 1
         hit = False
         for y in range(max(cy - reach, 0), min(cy + reach, height - 1) + 1):
             for x in range(max(cx - reach, 0), min(cx + reach, width - 1) + 1):
@@ -115,13 +108,7 @@ def match_detail(grid, scan, *, pose, laser_in_base, hit_m):
             if hit:
                 break
         hits += hit
-    return hits, judged, unjudged
-
-
-def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
-    """(hits, judged points) of match_detail."""
-    hits, judged, _ = match_detail(grid, scan, pose=pose, laser_in_base=laser_in_base, hit_m=hit_m)
-    return hits, judged
+    return hits, points
 
 
 class AlignCore:
@@ -264,12 +251,11 @@ class AlignCore:
             return False
         jump_xy = math.hypot(pose[0] - self.center[0], pose[1] - self.center[1])
         jump_yaw = abs(_angle(pose[2] - self.center[2]))
-        hits, points, unjudged = match_detail(self.map, self.scan, pose=pose, laser_in_base=self.laser_in_base,
-                                              hit_m=cfg.match_hit_m)
+        hits, points = match_ratio(self.map, self.scan, pose=pose, laser_in_base=self.laser_in_base,
+                                   hit_m=cfg.match_hit_m)
         ratio = hits / points if points else 0.0
         self.verdict = dict(pose=list(pose), sigma_xy_m=sxy, sigma_yaw_rad=syaw, jump_xy_m=jump_xy,
-                            jump_yaw_rad=jump_yaw, match_ratio=ratio, match_points=points,
-                            match_points_off_map=unjudged)
+                            jump_yaw_rad=jump_yaw, match_ratio=ratio, match_points=points)
         if jump_xy > cfg.max_jump_xy_m or jump_yaw > cfg.max_jump_yaw_rad:
             self._final('FAILED', 'START_ALIGN_JUMP_TOO_LARGE')
         elif points < cfg.min_match_points or ratio < cfg.min_match_ratio:
