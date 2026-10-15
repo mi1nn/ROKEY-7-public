@@ -162,6 +162,28 @@ class Lifecycle(unittest.TestCase):
         self.pose()
         self.assertEqual(('VALID', R0 + 1), (self.record()['localization_status'], self.record()['map_revision']))
 
+    def test_tb5_amcl_with_zero_spread_rounding_below_zero_is_valid(self):
+        # [E3 2026-10-15, #317] Nav2 Jazzy AMCL started with set_initial_pose (zero spread) publishes the yaw
+        # variance as -5.7e-14: rounding, not a broken covariance
+        s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
+        s.receive_map('robot_b', grid_message())
+        self.freeze(grid_message())
+        rounding = [0.0] * 36
+        rounding[35] = -5.728750807065726e-14
+        self.pose(covariance=rounding)
+        self.assertEqual('VALID', self.record()['localization_status'])
+
+    def test_a_negative_variance_beyond_rounding_is_still_refused(self):
+        s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
+        s.receive_map('robot_b', grid_message())
+        self.freeze(grid_message())
+        for index in (0, 7, 35):
+            broken = list(COV)
+            broken[index] = -1e-6
+            with self.subTest(index=index):
+                self.pose(covariance=broken)
+                self.assertEqual('UNKNOWN', self.record()['localization_status'])
+
     def test_map_topic_with_another_grid_than_the_frozen_one_is_not_loaded(self):
         s = self.make('FROZEN_MAP_AMCL', robot='robot_b')
         self.freeze(grid_message({5: 100}))
