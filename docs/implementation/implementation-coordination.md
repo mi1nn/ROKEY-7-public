@@ -74,6 +74,7 @@ updated: 2026-10-14
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
 - 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.
 - 목표를 골랐는데 TB-6 이 READY 가 아니면(예: FAILED 로 끝난 뒤 실행기가 스스로 다시 arm 하지 않음, OPS-231) 목표는 기다리고 `SCOUT_NOT_READY` 를 보인다. 로그 `SCOUT_NOT_READY frontier=… stop_reason=…` 는 목표·정지 사유마다 한 번 남긴다. 기다리는 동안에도 `exploration_timeout_s` 는 흐른다.
+- 고를 곳이 없으면 로그 `FRONTIER none …: frontiers=N small= no_goal= tried= no_path=` 에 후보별로 빠진 이유를 센다. 큰 것부터 다섯 개는 이유·칸 수·중심도 적는다. SMALL 은 `frontier_min_cells` 미달, NO_GOAL 은 `frontier_reach_m` 안에 빈 칸 없음, TRIED 는 시도한 곳 `frontier_blacklist_m` 안, NO_PATH 는 TB-6 에서 경로 없음이다.
 - 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
 
 ### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
