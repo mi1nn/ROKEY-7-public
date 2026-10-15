@@ -42,7 +42,7 @@ def make_core(policy_changes=None, **changes):
                   frontier_min_cells=3, frontier_reach_m=1.0, frontier_goal_max_m=1.0, frontier_blacklist_m=0.5,
                   frontier_goal_clearance_m=0.2, frontier_potential_scale=3.0, frontier_gain_scale=1.0,
                   frontier_issue_delay_ns=2_000_000_000, exploration_empty_checks=2,
-                  return_home_attempts=1, frontier_look_turns=0,
+                  return_home_attempts=1, frontier_look_turns=0, nav2_xy_goal_tolerance_m=0.25,
                   exploration_timeout_ns=600_000_000_000,
                   completion_mode='RECHECK', support_start_pose=None,
                   # traffic control DISABLED in the fixture; tests/test_coordination_traffic.py turns it on
@@ -320,7 +320,9 @@ class ScoutDispatchTests(CoreTestCase):
         self.start_search()
         (first,) = self.core.tick(NOW)
         self.core.on_admission(admission_msg(first, accepted=False))
-        (again,) = self.core.tick(NOW)
+        self.assertEqual([], self.core.tick(NOW))  # the refusal hold first (12회차 C18)
+        self.core.on_status(status_msg(SCOUT, observed_at_ns=NOW + ACCEPT + 1))
+        (again,) = self.core.tick(NOW + ACCEPT + 1)
         self.assertNotEqual(first['task_id'], again['task_id'])
 
 
