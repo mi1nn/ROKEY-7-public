@@ -181,6 +181,13 @@ class SavedMapSources:
             raise ContractError(f'map handover in progress (R{self.adopted[robot]}: SLAM pose until the frozen grid '
                                 'is on the map topic, then AMCL); new goals wait for it (runbook 7.5)',
                                 'FRAME_REVISION_MISMATCH')
+        if (robot in self.amcl_tf and self.phase(robot)=='FROZEN' and robot in self.maps
+                and not self.amcl_tf[robot].map_odom_covers(now_ns=self.runtime.adapter.wall_clock_ns(),
+                                                             after_ns=self.valid_after.get(robot,0))):
+            # run 11, C17: Nav2 asked map -> odom for the goal's time before AMCL's first one (stamped ahead by its
+            # transform_tolerance) and aborted with an Extrapolation Error
+            raise ContractError('AMCL map -> odom since the map switch is not on TF for now yet; new goals wait '
+                                'for it (Nav2 needs it to plan)','FRAME_REVISION_MISMATCH')
 
     def tick(self):
         """Take a pending revision once the robot is stopped with no task (the timer of attach_sources)."""
@@ -353,7 +360,9 @@ class SavedMapSources:
     def receive_tf(self,robot,message):
         """<ns>/tf for the frozen-phase TF pose (map -> odom from AMCL, odom -> base_link from Create3)."""
         with self.runtime.adapter.lock:
-            return self.amcl_tf[robot].on_tf(message)
+            refused=self.amcl_tf[robot].on_tf(message)
+            self.amcl_tf[robot].note_map_odom(self.valid_after.get(robot,0))
+            return refused
 
     def tick_tf_pose(self,robot):
         """Frozen phase, every poll: the pose from TF with the last amcl_pose's covariance (AmclTfPose). A
