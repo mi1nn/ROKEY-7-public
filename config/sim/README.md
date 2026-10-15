@@ -27,8 +27,18 @@ mu-03 의 현장 지도를 실기가 파일 그대로 보냈다(gzip + base64, 2
 | `practice.sources.json` | 이 세계를 만든 지도 파일 이름 |
 | `practice.sdf` | 만든 세계. 손으로 고치지 않는다 |
 | `practice.spawn.json` | 로봇 출발 자리. 실행 스크립트가 읽는다. 도크는 TurtleBot4 spawn launch 가 로봇 옆에 둔다 |
+| `arena-map.svg` | **재범이 준 실제 경기장 평면도**(1 unit = 1 cm, 바깥 343 × 557 cm, 2026-10-15). `arena` 세계의 근거다 |
+| `arena.layout.json` | 평면도를 m 로 옮긴 배치 목록. 원점은 로봇 구역 남서쪽 모서리, x 동쪽, y 북쪽(평면도 x → x/100, 평면도 y → (557 − y)/100) |
+| `arena.sdf`, `arena.spawn.json` | 위 배치로 만든 세계와 출발 자리. 지도를 쓰지 않는다. 손으로 고치지 않는다 |
 
-다시 만드는 명령은 아래와 같다. 시험(`tests/test_sim_map_to_world.py`)은 저장소의 `.sdf`·`.spawn.json` 이 지금 지도와 배치 목록으로 만든 결과와 같은지 본다.
+`arena` 는 SLAM 지도 없이 평면도 배치만으로 만든다(`--layout-only`). 재범 말(2026-10-15): 평면도가 **진짜 맵**이다. SLAM 지도로 만든 `practice` 는 실제와 많이 달라 시뮬레이션의 기본 세계는 `arena` 다.
+
+```bash
+python3 scripts/sim/map_to_world.py --layout-only --layout config/sim/worlds/arena.layout.json \
+  --name arena --out-dir config/sim/worlds
+```
+
+`practice` 를 다시 만드는 명령은 아래와 같다. 시험(`tests/test_sim_map_to_world.py`)은 저장소의 `.sdf`·`.spawn.json` 이 지금 지도와 배치 목록으로 만든 결과와 같은지 본다.
 
 ```bash
 python3 scripts/sim/map_to_world.py --map config/sim/maps/live_map.yaml \
@@ -48,3 +58,52 @@ python3 scripts/sim/map_to_world.py --map config/sim/maps/live_map.yaml \
 
 - 흰 상자, 인형(노랑·빨강), 출구 QR 판(텍스처), 머리 위 통로(바닥에서 0.46 m), 기둥과 사각 칸의 실측 위치. 위치를 모르므로 넣지 않았다(`objects` 에는 위 벽 선분 두 개만 있다). 값이 오면 배치 목록에 넣고 다시 만든다.
 - **로봇 출발 자리는 [미확인] 이다(원점 임시).** 지금 값 TB-6 (0, 0, 0) 은 지도 원점이다. 지도 원점은 slam_toolbox 가 시작할 때의 odom 원점이고, Create3 odom 은 켜지거나 리셋된 자리가 원점이라 출발 자리와 같다는 보장이 없다[추정, 작전]. 실제로 (0, 0) 은 지도 범위(x −9.3 ~ −1.6 m)보다 1.6 m, 벽 직사각형보다 약 3 m 동쪽 바깥이다. 사진에서는 두 로봇이 벽 안 오른쪽, 각자 도크 옆에 서 있다. TB-5 는 TB-6 오른쪽 1.86 m 다(줄자, 2026-10-15). 벽 모서리 기준 실측이 오면 `practice.layout.json` 의 `robots` 만 바꾸고 다시 만든다.
+
+## 평면도로 옮긴 값의 출처 (`arena.layout.json`)
+
+- 벽·칸막이·관제 박스·흰 박스 칸·기둥·터널 위치는 `arena-map.svg` 에서 옮긴 값이다[계산, 2026-10-15]. 벽 높이 0.41 m 는 [측정, 재범 2026-10-15]. 두께 0.01 m, 흰 박스·기둥·인형 높이, 로봇 출발 자리는 [추정]이다(`"estimate": true`).
+- **터널 1**: 평면도의 「높이 47 cm ✓」(통과 가능)를 덮개 `clearance_m` 0.47 로 옮겼다[문서, 평면도]. 덮개 판 크기(0.81 × 0.01 × 0.41 m)는 [추정].
+- **터널 2**: 평면도의 「통과 불가」. 높이는 평면도에 없어 처음에는 바닥까지 닿는 벽이었는데, 재범 지시(2026-10-15 「한 30 cm 띄워야 함. 비전으로 못 지나가는 것을 판정해야 하기 때문」)로 **덮개 아래 높이 0.30 m** 로 바꿨다[재범 지시, 값은 대략 — 실측 아님]. 덮개 판 크기는 터널 1 과 같게 둔 [추정]이다. 라이다는 바닥 위 약 0.2 m 에서 보므로 덮개 아래를 지나 보고, 로봇(키 약 0.34 m)은 못 지나간다. 막힘은 카메라가 판정해야 한다.
+- 로봇 출발 자리: TB-6 (0.88, 0.37), TB-5 (2.70, 0.37) m, 도크는 남쪽 벽 쪽. 평면도의 원 중심에서 옮겼다[추정]. 로봇은 **도크에 도킹된 채** 시작한다.
+
+## 실행: `scripts/sim/run_sim.sh`
+
+```bash
+scripts/sim/run_sim.sh --world arena          # Gazebo 창 + SLAM + RViz(위에서 본 2D). 끝내려면 Ctrl-C
+scripts/sim/run_sim.sh --world arena --no-rviz
+RUN_SIM_GUI=0 scripts/sim/run_sim.sh --world arena --no-rviz    # 창 없이(사람이 안 볼 때)
+```
+
+- 가상 TB-6(`robot6`)를 `<world>.spawn.json` 의 자리에 세운다. 로봇은 지도를 모른다: 실제 지도를 받는 인자도, map_server 도 없다. 로봇이 아는 지도는 SLAM 이 만든 `/robot6/map` 뿐이다.
+- 깨끗한 셸(`env -i`)로 다시 실행해 실기 환경과 섞이지 않게 한다. 디스커버리 서버를 쓰는 ROS 프로세스가 돌면(실기 회차) 띄우지 않는다.
+- 환경변수(같은 PC 에서 두 자리가 동시에 쓰도록 자리마다 값이 다르다):
+
+| 변수 | 기본 | 뜻 |
+| --- | --- | --- |
+| `RUN_SIM_DOMAIN_ID` | 77 | ROS 도메인. 70~99 만 받는다. 지도 자리 77, 전체 흐름 자리는 따로 준다 |
+| `RUN_SIM_GZ_PARTITION` | `sim_map` | gz transport 파티션. 자리마다 달라야 같은 PC 의 두 Gazebo 가 섞이지 않는다 |
+| `RUN_SIM_NAMESPACE` | `robot6` | 로봇 이름(슬래시 없이). `--namespace` 가 이긴다 |
+| `RUN_SIM_GUI` | 1 | 0 이면 Gazebo 창 없이 서버만(`gz sim -s`, `headless_gz.launch.py`). 두 시뮬레이션을 한 PC 에서 같이 돌리면 창이 코어 하나를 먹는다 |
+| `RUN_SIM_WORLD_DIR`, `RUN_SIM_LOG_DIR` | `config/sim/worlds`, `~/sim-logs/<시각>` | 시험용 |
+
+- Fast DDS: `scripts/sim/fastdds_localhost.xml` 을 모든 시뮬레이션 프로세스에 준다. 시뮬레이터 한 대에 ROS 프로세스가 약 50 개라, 기본 LOCALHOST 탐색 범위(앞쪽 참가자 번호 몇십 개)를 넘는 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 본다. UDP 초기 피어 범위를 120 으로 넓힌다[측정 2026-10-15 mu-03]. 다른 터미널에서 조회할 때도 같은 파일을 `FASTRTPS_DEFAULT_PROFILES_FILE` 로 준다(스크립트가 마지막에 명령을 찍는다).
+- 같은 파티션에 남은 Gazebo 가 있으면 띄우지 않는다. 끝낼 때는 이 실행이 띄운 프로세스만 PID 로 끈다.
+
+### 문제 해결
+
+- **라이다 값이 640 개 모두 0.164 m(range_min)이고 SLAM 지도가 안 자란다.** 하이브리드 노트북에서 NVIDIA 를 안 고르면 라이다(GPU 레이)가 소프트웨어 그리기로 떨어진다[측정 2026-10-15]. `run_sim.sh` 는 NVIDIA 드라이버가 있으면 오프로드를 기본으로 준다(`__NV_PRIME_RENDER_OFFLOAD`, `__GLX_VENDOR_LIBRARY_NAME`, `__EGL_VENDOR_LIBRARY_FILENAMES`). 끄려면 `LIBGL_ALWAYS_SOFTWARE=1`.
+- **로봇이 안 움직이고 `Ignoring velocities commanded while an autonomous behavior is running!` 가 뜬다.** 로봇이 도크에 도킹된 채 시작하고, 도킹된 Create3 는 속도 명령을 무시한다. 먼저 Undock 액션을 보낸다(아래 주행 도구가 한다). 이미 언도크했으면 undock 이 거절된다(`is_docked: false`).
+- **스캔 각도.** 라이다 프레임은 `base_link` 에서 +90° 돌아 붙어 있다: 로봇 앞이 스캔 각도 −90° 다. 시뮬레이션과 실물이 같다 — 같은 `turtlebot4_description`(2.1.1)의 `rplidar` 가 `rpy="0 0 pi/2"` 이고, 실기 리허설 기록도 「90° 돌려 붙임」이다([기록](../../docs/evidence/rehearsal-2026-10-15-start-align-one-pc.md)). 고치지 않는다.
+- 로봇 두 대를 한 Gazebo 에 세우면 Gazebo 서버가 죽는 문제(`A scene node with the name sun already exists`)는 이 스크립트가 다루지 않는다(한 대만 세운다). 두 번째 로봇은 전체 흐름 자리가 센서 시스템을 뺀 모델로 세운다.
+
+## 자동 주행과 지도 비교
+
+```bash
+# 시뮬레이션이 떠 있는 상태에서, 시뮬레이션 도메인의 셸에서 (run_sim.sh 가 환경 명령을 찍는다)
+python3 scripts/sim/drive_wall.py --seconds 600        # Undock → 오른쪽 벽 따라 주행, 시뮬레이션 시간 기준
+ros2 run nav2_map_server map_saver_cli -f sim_map -t /robot6/map --ros-args -p save_map_timeout:=30.0    # SLAM 지도 저장(기본 2초는 부하가 크면 모자란다)
+python3 scripts/sim/compare_maps.py --sim sim_map.yaml --real config/sim/maps/live_map.yaml --png overlay.png
+```
+
+- `drive_wall.py` 는 사람이 키보드로 하는 원격 조종을 대신한다. **로봇 자신의 라이다 스캔만 읽는다**(Gazebo 정답 위치·지도·실제 지도는 읽지 않는다). 속도 명령만 보낸다.
+- `compare_maps.py` 는 점유 칸(벽)만 비교한다. SLAM 지도는 그 SLAM 이 시작한 자리의 좌표라 시뮬레이션과 실제의 좌표가 다르므로, 시뮬레이션 벽을 실제 벽에 가장 잘 맞는 회전·이동으로 옮긴 뒤 센다. 옮긴 값을 같이 찍는다. 값은 정밀도(시뮬레이션 벽 중 실제 벽 근처인 비율), 재현율(실제 벽 중 시뮬레이션 벽 근처인 비율), 겹침(둘을 합친 일치 칸 / 전체 칸)이다. 재현율이 낮으면 시뮬레이션이 그 부분을 못 돌았다는 뜻이다. 정밀도가 낮으면 시뮬레이션 세계에 실제 지도에 없는 벽이 있다는 뜻이다.

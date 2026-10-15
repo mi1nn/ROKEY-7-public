@@ -8,6 +8,7 @@
 #   RUN_SIM_DOMAIN_ID     ROS 도메인. 기본 77(지도 자리). 70~99 만 받는다(실기는 6)
 #   RUN_SIM_GZ_PARTITION  gz transport 파티션. 기본 sim_map. 자리마다 달라야 같은 PC 의 두 Gazebo 가 섞이지 않는다
 #   RUN_SIM_NAMESPACE     로봇 이름(슬래시 없이). 기본 robot6. --namespace 가 이긴다
+#   RUN_SIM_GUI           0 이면 Gazebo 창 없이 서버만(gz sim -s) 띄운다. 기본 1. RViz 는 --no-rviz 로 끈다
 #   RUN_SIM_WORLD_DIR     world 폴더(기본 config/sim/worlds). 시험용 임시 world 에 쓴다
 #   RUN_SIM_LOG_DIR       로그 폴더(기본 ~/sim-logs/<시각>)
 #
@@ -47,12 +48,13 @@ if [ -z "${RUN_SIM_CLEAN:-}" ]; then
         WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
         RUN_SIM_CLEAN=1 RUN_SIM_WORLD_DIR="${RUN_SIM_WORLD_DIR:-}" RUN_SIM_LOG_DIR="${RUN_SIM_LOG_DIR:-}" \
         RUN_SIM_DOMAIN_ID="${RUN_SIM_DOMAIN_ID:-}" RUN_SIM_GZ_PARTITION="${RUN_SIM_GZ_PARTITION:-}" \
-        RUN_SIM_NAMESPACE="${RUN_SIM_NAMESPACE:-}" bash "$0" "$@"
+        RUN_SIM_NAMESPACE="${RUN_SIM_NAMESPACE:-}" RUN_SIM_GUI="${RUN_SIM_GUI:-}" bash "$0" "$@"
 fi
 
 sim_domain="${RUN_SIM_DOMAIN_ID:-77}"          # 실기 도메인과 겹치지 않는 값 (AGENTS.md 6절, 작전 2026-10-15)
 gz_partition="${RUN_SIM_GZ_PARTITION:-sim_map}"
 namespace="${RUN_SIM_NAMESPACE:-robot6}"
+gui="${RUN_SIM_GUI:-1}"
 world="practice"; x=""; y=""; yaw=""; rviz=true; check_only=false
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -70,6 +72,7 @@ done
 num='^-?[0-9]+(\.[0-9]+)?$'
 [[ "$sim_domain" =~ ^[0-9]+$ ]] && [ "$sim_domain" -ge 70 ] && [ "$sim_domain" -le 99 ] ||
     die "RUN_SIM_DOMAIN_ID 는 70~99 여야 합니다(실기 도메인과 섞이지 않게): '$sim_domain'"
+[[ "$gui" =~ ^[01]$ ]] || die "RUN_SIM_GUI 는 0 이나 1 입니다: '$gui'"
 [[ "$gz_partition" =~ ^[a-z][a-z0-9_]*$ ]] || die "RUN_SIM_GZ_PARTITION 은 소문자·숫자·밑줄만 씁니다: '$gz_partition'"
 [[ "$world" =~ ^[a-z0-9_]+$ ]] || die "world 이름은 소문자·숫자·밑줄만 씁니다: $world"
 [[ "$namespace" =~ ^[a-z][a-z0-9_]*$ ]] || die "namespace 에는 슬래시를 붙이지 않습니다(bridge 가 실패합니다): '$namespace'"
@@ -140,7 +143,7 @@ for pid in $(pids_with_env -x "GZ_PARTITION=$gz_partition"); do
 done
 
 if $check_only; then
-    echo "CHECK_OK world=$world namespace=$namespace x=$x y=$y yaw=$yaw domain=$ROS_DOMAIN_ID range=$ROS_AUTOMATIC_DISCOVERY_RANGE partition=$GZ_PARTITION"
+    echo "CHECK_OK world=$world namespace=$namespace x=$x y=$y yaw=$yaw domain=$ROS_DOMAIN_ID range=$ROS_AUTOMATIC_DISCOVERY_RANGE partition=$GZ_PARTITION gui=$gui"
     echo "ROS_DISCOVERY_SERVER=${ROS_DISCOVERY_SERVER:-<unset>}"
     exit 0
 fi
@@ -183,8 +186,13 @@ trap 'exit 129' HUP   # 터미널 창을 닫아도 정리한다
 echo "run_sim: world=$world namespace=$namespace x=$x y=$y yaw=$yaw 도메인=$ROS_DOMAIN_ID 파티션=$GZ_PARTITION 로그=$log_dir"
 
 # gz 는 world 파일을 현재 폴더에서 '<이름>.sdf' 로 찾는다(sim.launch.py 가 world 이름에 .sdf 를 붙인다).
-( cd "$world_dir" && exec setsid ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py \
-    "world:=$world" "namespace:=$namespace" "x:=$x" "y:=$y" "yaw:=$yaw" rviz:=false ) \
+if [ "$gui" = 1 ]; then
+    launch_cmd=(ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py)
+else
+    launch_cmd=(ros2 launch "$HERE/headless_gz.launch.py")
+fi
+( cd "$world_dir" && exec setsid "${launch_cmd[@]}" \
+    "world:=$world" "namespace:=$namespace" "x:=$x" "y:=$y" "yaw:=$yaw" $([ "$gui" = 1 ] && echo rviz:=false) ) \
     > "$log_dir/gz.log" 2>&1 &
 pids+=($!)
 

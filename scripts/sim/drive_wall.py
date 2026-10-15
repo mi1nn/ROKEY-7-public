@@ -48,10 +48,10 @@ def sector_min(scan, lo_deg, hi_deg):
 
 
 class WallDriver(Node):
-    def __init__(self, namespace, wall, seconds):
+    def __init__(self, namespace, wall, seconds, speed):
         super().__init__('drive_wall', parameter_overrides=[
             rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
-        self.wall, self.seconds = wall, seconds
+        self.wall, self.seconds, self.speed = wall, seconds, speed
         self.pub = self.create_publisher(TwistStamped, f'/{namespace}/cmd_vel', 10)
         self.create_subscription(LaserScan, f'/{namespace}/scan', self.on_scan, qos_profile_sensor_data)
         self.start = None
@@ -78,11 +78,11 @@ class WallDriver(Node):
         if front < FRONT_STOP_M or front_right < 0.3:
             v, w, why = 0.0, TURN, 'turn left'
         elif right > 1.0 and front_right > 1.0:
-            v, w, why = SPEED, -0.4, 'look for wall'
+            v, w, why = self.speed, -0.4, 'look for wall'
         else:
             dist = min(right, front_right * math.cos(math.radians(45)))
             w = max(-MAX_W, min(MAX_W, -GAIN * (dist - self.wall)))
-            v, why = SPEED, 'follow'
+            v, why = self.speed, 'follow'
         self.send(v, w)
         if now - self.last_log > 10.0:
             self.last_log = now
@@ -110,10 +110,11 @@ def main():
     parser.add_argument('--namespace', default='robot6', help='robot name without a slash')
     parser.add_argument('--seconds', type=float, required=True, help='how long to drive, in simulation seconds')
     parser.add_argument('--wall', type=float, default=0.45, help='distance to keep from the right wall, m')
+    parser.add_argument('--speed', type=float, default=SPEED, help='forward speed, m/s')
     parser.add_argument('--no-undock', action='store_true', help='do not send the Undock action first')
     args = parser.parse_args()
     rclpy.init()
-    node = WallDriver(args.namespace, args.wall, args.seconds)
+    node = WallDriver(args.namespace, args.wall, args.seconds, args.speed)
     if not args.no_undock and not undock(node, args.namespace):
         node.destroy_node()
         rclpy.try_shutdown()
