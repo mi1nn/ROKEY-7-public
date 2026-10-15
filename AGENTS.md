@@ -5,7 +5,7 @@
 
 ## 1. 먼저 읽을 것
 
-1. [README.md](README.md): 목적, 현재 단계, 문서 지도, 로컬 검사 명령.
+1. [README.md](README.md): 목적, 시스템 설계, 장비·환경, 실행 순서, 로컬 검사 명령.
 2. [docs/requirements/scope.md](docs/requirements/scope.md): 사용자 요구 `RQ`, 인수 시나리오 `AC`, 미결정 `Q`. **사용자 확인이 필요한 것은 `Q`에 있다.** 확정처럼 쓰지 않는다.
 3. [docs/process/review-workflow.md](docs/process/review-workflow.md): PR 작성·검토·머지 흐름, 자리 이름, 머지 위임 기록.
 4. 코드를 만지면: [docs/design/repository-layout.md](docs/design/repository-layout.md)(패키지 책임), [docs/design/contracts.md](docs/design/contracts.md)(계약), [docs/design/state-machines.md](docs/design/state-machines.md), [docs/process/acceptance-plan.md](docs/process/acceptance-plan.md)(시험·소유권), [docs/implementation/development.md](docs/implementation/development.md)(로컬 검사).
@@ -62,7 +62,7 @@
 
 ## 5. 주장과 증거
 
-- 값에는 출처를 붙인다: **[측정] [설정] [강의] [문서] [계산] [추정] [미확인]**, 숫자에는 날짜. 문서 판단 태그(`[사용자 요구]` `[원본 코드]` `[원본 기록]` `[제안]` `[미확인]`)는 [README](README.md) 「문서 판단 기준」이다.
+- 값에는 출처를 붙인다: **[측정] [설정] [강의] [문서] [계산] [추정] [미확인]**, 숫자에는 날짜. 문서 판단 태그는 `[사용자 요구]`(2026-10-07 대화에서 정한 범위, 기록은 [범위 문서](docs/requirements/scope.md)), `[원본 코드]`(링크한 커밋의 정적 관찰, 실행 결과가 아님), `[원본 기록]`(과거 문서에 기록된 결과, 재측정하지 않음), `[제안]`·`[미확인]`(머지된 문서 안에서도 구현·실기 확정이 아님)이다.
 - 검증 층위 `E1`(문서) ~ `E4`(실기)와 시험 상태(`NOT_RUN` `BLOCKED` `FAILED` `PASSED` `NOT_APPLICABLE`)는 [docs/process/acceptance-plan.md](docs/process/acceptance-plan.md) A-02 다. **0건·skip·미실행은 통과가 아니다.** 실행하지 않은 검사는 「미실행」이라고 적는다.
 - 원본(`ROKEY_P4`, `amr-mini-project`) 인용은 고정 SHA 링크와 줄 범위로 적는다. `scripts/check_docs.py` 가 검사한다. 인용한 줄이 그 주장을 실제로 말하는지는 사람이 읽는다 — 경로 검사 PASS 는 의미 검증이 아니다.
 - 다른 사람·다른 세션의 주장을 원문 확인 없이 옮길 때는 본문에 쓰지 않고 아래처럼 남긴다. `grep -rn "원문 미확인"` 으로 모두 찾을 수 있게 표기를 고정한다.

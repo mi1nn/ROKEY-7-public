@@ -1,0 +1,21 @@
+digraph G {
+  rankdir=TB; nodesep=0.5; ranksep=0.9; newrank=true;
+  graph [fontname="Noto Sans CJK KR", fontsize=14, dpi=150, pad=0.3, bgcolor="white", labelloc=b];
+  node [fontname="Noto Sans CJK KR", fontsize=12, shape=box, style="rounded,filled", fillcolor="#F4F6F8", color="#5B6770", penwidth=1.2];
+  edge [fontname="Noto Sans CJK KR", fontsize=10, color="#5B6770", arrowsize=0.8];
+  label="모든 장비는 같은 무선망에 있다. 실선: 각 PC 가 ROS_DISCOVERY_SERVER 로 Discovery 서버에 붙는다. 점선: 로봇 토픽이 서버에 보이는 경로는 [미확인].";
+  D [label="Discovery 전용 PC\nFast DDS Discovery Server\n서버 ID 0 · UDP 11811\n(2026-10-15 부터 사용)", fillcolor="#FDEBD0"];
+  OPS [label="운영 PC\n운영 노드 · 임무 조정기 · 관제 웹\nUSB 웹캠 DRGO WC720", fillcolor="#D5F5E3"];
+  PC6 [label="TB-6 담당 PC\nSLAM · Nav2 · 인형 탐지 · 지도 고정", fillcolor="#D6EAF8"];
+  PC5 [label="TB-5 담당 PC\nAMCL · Nav2 · 통로 판정", fillcolor="#D6EAF8"];
+  R6 [label="TB-6 (Raspberry Pi 4)\n온보드 Discovery 서버 ID 6\n/robot6"];
+  R5 [label="TB-5 (Raspberry Pi 4)\n온보드 Discovery 서버 ID 5\n/robot5"];
+  {rank=same; OPS; PC6; PC5;}
+  {rank=same; R6; R5;}
+  OPS -> D [dir=back, label="  "]; PC6 -> D [dir=back]; PC5 -> D [dir=back];
+  D -> OPS [style=invis];
+  PC6 -> R6 [dir=both, label="ROS 토픽\n(DDS)"];
+  PC5 -> R5 [dir=both, label="ROS 토픽\n(DDS)"];
+  D -> R6 [style=dotted, arrowhead=none];
+  D -> R5 [style=dotted, arrowhead=none];
+}
