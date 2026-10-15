@@ -44,6 +44,9 @@ class StartPose(unittest.TestCase):
         text = (SIM / 'run_full.sh').read_text()
         self.assertIn('/robot5/sim_ground_truth_pose', text)
         self.assertIn('start_pose.py', text)
+        # read in the simulation domain: the relay must not carry ground truth into the field domain
+        reader = text[text.index('read -r -a POSES'):text.index("print(*got['gt6']")]
+        self.assertIn('ROS_DOMAIN_ID=$SIM_DOMAIN', reader)
 
 
 if __name__ == '__main__':
