@@ -13,9 +13,10 @@ do not cross it, and a lidar beam passing under a cover cannot clear it.
 - Painted: BLOCKED; UNKNOWN only with reason NO_FLOOR_NEAR (the structure reached the box's near end and the
   floor under it was never seen). Other UNKNOWN and PASSABLE are not painted: the robot keeps approaching
   under PassageSlow and measures again.
-- Approval: a person approves an item (``KeepoutCore.approve``); its place leaves the mask for the run,
-  whatever is measured there later. Who and when is logged. The ROS service for it
-  (/rescue/passage_keepout/approve) needs a new interface in the SDD JSON first and comes in the next PR.
+- Approval: a person approves an item over /rescue/passage_keepout/approve
+  (rescue_interfaces/srv/ApproveOverheadPassage, SDD JSON services); its place leaves the mask for the run,
+  whatever is measured there later. Who and when is logged. The console button calls it with the logged-in
+  account name as approved_by.
 Nothing else is painted or removed.
 """
 import math
@@ -23,6 +24,7 @@ import math
 from rescue_contracts.overhead import parse_overhead_passages
 
 MASK_TOPIC = '/rescue/passage_keepout/mask'
+APPROVE_SERVICE = '/rescue/passage_keepout/approve'
 KEEP_OUT, FREE = 100, 0
 
 
@@ -106,11 +108,23 @@ class KeepoutCore:
         return dict(frame_id=self.map_frame, resolution=res, origin=(x0, y0), width=width, height=height, data=data)
 
 
+def answer(core, item_id, approved_by, *, now_ns):
+    """(accepted, reason_code, message) for one ApproveOverheadPassage request (the srv's REASON_CODE_* values)."""
+    if not isinstance(approved_by, str) or not approved_by.strip():
+        return False, 'NO_APPROVER', f'PASSAGE_APPROVE_REFUSED {item_id}: who approves is required'
+    accepted, message = core.approve(item_id, by=approved_by, now_ns=now_ns)
+    return accepted, 'ACCEPTED' if accepted else 'NO_SUCH_ITEM', message
+
+
 def main(args=None):
+    import time
+    from uuid import uuid4
+
     import rclpy
     from nav2_msgs.msg import CostmapFilterInfo
     from nav_msgs.msg import OccupancyGrid
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from rescue_interfaces.srv import ApproveOverheadPassage
     from std_msgs.msg import String
 
     from rescue_contracts.overhead import overhead_passages_topic
@@ -120,12 +134,12 @@ def main(args=None):
     node = rclpy.create_node('rescue_passage_keepout')
     log = node.get_logger()
     defaults = {'robot_ids': [''], 'map_frame': '', 'info_topic': '', 'radius_m': 0.0, 'resolution_m': 0.0,
-                'merge_m': 0.0}
+                'merge_m': 0.0, 'envelope_schema_version': ''}
     values = {name: node.declare_parameter(name, default).value for name, default in defaults.items()}
     try:
         robots = [r for r in values['robot_ids'] if r]
-        if not robots or not values['info_topic']:
-            raise ValueError('passage keepout needs robot_ids and info_topic')
+        if not robots or not values['info_topic'] or not values['envelope_schema_version']:
+            raise ValueError('passage keepout needs robot_ids, info_topic and envelope_schema_version')
         core = KeepoutCore(radius_m=values['radius_m'], resolution_m=values['resolution_m'], merge_m=values['merge_m'],
                            map_frame=values['map_frame'])
     except ValueError as exc:
@@ -161,7 +175,24 @@ def main(args=None):
             return
         publish()
 
-    log.info(f'git_sha={git_sha()} parameters={values} mask={MASK_TOPIC}')
+    envelope = {'boot': str(uuid4()), 'sequence': 0}
+
+    def on_approve(request, response):
+        accepted, code, message = answer(core, request.item_id, request.approved_by, now_ns=time.time_ns())
+        if accepted:   # one severity per call site (rclpy raises otherwise)
+            log.warning(message)
+            publish()
+        else:
+            log.error(message)
+        envelope['sequence'] += 1
+        e = response.envelope
+        e.schema_version, e.publisher_id = values['envelope_schema_version'], node.get_fully_qualified_name()
+        e.publisher_boot_id, e.sequence, e.published_at_ns = envelope['boot'], envelope['sequence'], time.time_ns()
+        response.accepted, response.item_id, response.reason_code, response.message = (
+            accepted, request.item_id, code, message)
+        return response
+
+    log.info(f'git_sha={git_sha()} parameters={values} mask={MASK_TOPIC} approve={APPROVE_SERVICE}')
     info = CostmapFilterInfo()
     info.header.frame_id = values['map_frame']
     info.type, info.filter_mask_topic, info.base, info.multiplier = 0, MASK_TOPIC, 0.0, 1.0   # 0 = keepout
@@ -169,6 +200,7 @@ def main(args=None):
     publish(force=True)
     for robot in robots:
         node.create_subscription(String, overhead_passages_topic(robot), on_list, latched)
+    node.create_service(ApproveOverheadPassage, APPROVE_SERVICE, on_approve)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

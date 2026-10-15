@@ -774,7 +774,8 @@ def passage_keepout_launch_values(deployment, *, field):
     r = field.robot
     return {'robot_ids': [robot.id for robot in deployment.robots], 'map_frame': basis.frame_id,
             'info_topic': KEEPOUT_INFO_TOPIC, 'radius_m': r['passage.keepout.radius_m'],
-            'resolution_m': r['passage.keepout.resolution_m'], 'merge_m': r['passage.overhead.merge_radius_m']}
+            'resolution_m': r['passage.keepout.resolution_m'], 'merge_m': r['passage.overhead.merge_radius_m'],
+            'envelope_schema_version': field.coordinator['envelope_schema_version']}
 
 
 def passage_points_launch_values(deployment, *, field, robot_id):
