@@ -33,7 +33,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
 | 현장 상태 `operations-site-state` (schema 1.5, 1.0~1.4 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
-| 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
+| 콘솔 계정 `console-accounts` (schema 1.1) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 송신 대기열 `report-outbox` (생산자 쪽 별도 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
 테이블 사이 관계를 그림으로 보려면 [운영 DB 파일과 테이블 관계도](../process/ops-db-tables.md)(웹마스터)를 본다. 표·열 정의의 기준은 이 문서와 코드다.
@@ -64,13 +64,14 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 읽기: `read_robot_status`, `read_site_events(limit)`, `read_target_states`. `exit_pass_count` 는 저장된 서로 다른 `EXIT_PASS` 수다. 카메라 1대 구성의 화면에서는 출구 카운트를 숨기지만, 기존·합성 기록이 있으면 DB 집계는 0이 아닐 수 있다. 구조 4단계(미확정/미구조/지원 중/구출 완료)는 저장하지 않고 콘솔이 합성한다(Q-20, #37 규칙표).
 
-## 3. 콘솔 계정 (`console-accounts`, schema 1.0, main)
+## 3. 콘솔 계정 (`console-accounts`, schema 1.1, main)
 
-콘솔이 소유하는 파일. 운영 장부·현장 상태의 단일 쓰기 규칙과 무관하다. `metadata`: `role=console-accounts`, `schema_version=1.0`.
+콘솔이 소유하는 파일. 운영 장부·현장 상태의 단일 쓰기 규칙과 무관하다. `metadata`: `role=console-accounts`, `schema_version=1.1`. 1.1(2026-10-15)은 `reset_checks` 표를 더했다. `AccountStore.open()` 은 1.0 파일에 이 표를 더하고 1.1 로 올린다. 계정 행은 건드리지 않는다.
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
 | `accounts` | `username TEXT PK`, `account_id TEXT UNIQUE`, `display_name`, `email`, `role`, `status`, `password_hash`, `auth_version INTEGER`, `created_at_ns`, `updated_at_ns` | `role` ∈ ADMIN / CUSTOMER, `status` ∈ ACTIVE / INACTIVE. `password_hash` 는 `pbkdf2_sha256$반복$소금$해시`(평문 없음). `account_id` 는 생성마다 새 UUID(같은 이름을 지웠다 다시 만들면 다른 값), `auth_version` 은 비밀번호·역할·상태가 바뀔 때마다 +1 — 세션 쿠키가 둘을 담아 이전 세션이 서버에서 거절된다. 마지막 ACTIVE ADMIN 은 비활성화·강등·삭제 불가 |
+| `reset_checks` (1.1) | `run_id TEXT`, `item TEXT`, `checked INTEGER`(0/1), `by_username TEXT`, `at_ns INTEGER`, PK(`run_id`, `item`) | 회차 초기화 뒤 사람이 확인하는 칸의 체크. `run_id` 는 초기화로 열린 현장 상태 회차다. 다음 초기화의 새 회차에는 체크가 없다. `item` 은 `rescue_console/reset.py` `PERSON_ITEMS` 중 하나다 |
 
 읽기·쓰기는 모두 콘솔 프로세스. 관리자 1명은 `python3 -m rescue_console.accounts init` 으로 만든다. 계정 파일과 세션 비밀은 저장소 밖에 둔다(SDD 외부 파일 목록에 추가할 항목).
 

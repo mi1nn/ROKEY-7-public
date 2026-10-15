@@ -40,9 +40,11 @@
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
 | `replay.py` | 회차 하나의 쌓이는 표 넷(사건·명령·오류·출구)과 이력 표 둘(로봇·대상) → 리플레이 시간 막대와 시점 상태 | 표준 라이브러리, `rescue_contracts` |
 | `replay_page.py` | 리플레이 모델 → HTML 페이지·조각. Flask 없이 시험 | 표준 라이브러리 |
+| `reset.py` | 회차 초기화 요청 한 번 보내기·답 읽기, 로봇 미리 보기, 다시 띄우기 체크 목록 모델 | 표준 라이브러리 |
+| `reset_page.py` | 초기화 모델 → HTML 페이지·조각. Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, `GET /replay`, `GET /replay/fragment` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, `GET /replay`, `GET /replay/fragment`, `GET /reset`, `GET /reset/fragment` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함), 회차 초기화 `POST /reset/send`(관리자), 초기화 체크 `POST /reset/check`(관리자) 다섯이다(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
@@ -321,6 +323,16 @@ SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드�
 - 지도 그림은 아직 회차별로 남지 않아 「지도 이력 없음」으로 보인다.
 - 오른쪽 칸은 그 시점까지의 기록이다. 명령은 접수·거절과 사유를 보인다.
 - 자세한 동작은 [설계 명세 7.13](../../docs/design/console-spec.md)에 있다.
+
+## 회차 초기화 (`/reset`, 2026-10-15)
+
+관제 화면 맨 위 줄의 「회차 초기화」(ADMIN 에게만 보임)를 누르면 열린다. `--site-state` 로 띄웠을 때 쓸 수 있고, 보내기는 `--operations` 도 있어야 한다. 다른 계정은 보기만 한다.
+
+- 초기화는 TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌린다. 지난 기록은 지우지 않고 회차별로 남아 「지난 회차 다시 보기」에서 볼 수 있다.
+- 확인 칸을 체크하고 「초기화 보내기」를 누르면 operations 에 한 번만 보낸다. 거절되면 빨간 글씨로 사유가 나온다. 초기화는 두 로봇이 켜지고 도킹·정지·임무 없음이어야 받는다. 결과를 모르면 노란 글씨가 나오고, 다시 누르기 전에 리플레이에서 회차가 바뀌었는지 본다.
+- 접수되면 아래에 PC 별 다시 띄우기 체크 목록이 나온다. 조정기와 두 로봇 실행기가 다시 떴는지는 자동으로 체크된다. SLAM·지도 고정·출발 정렬 같은 칸은 사람이 「확인함」을 누른다. 체크는 그 회차에만 묶이고 모든 화면에 같게 보인다.
+- 체크는 관제 웹 계정 DB(스키마 1.1, `reset_checks` 표)에 남는다. 지금 쓰는 1.0 계정 파일은 관제 웹이 처음 열 때 1.1 로 올린다. 계정 행은 그대로다.
+- 자세한 동작은 [설계 명세 7.14](../../docs/design/console-spec.md)에 있다.
 
 ## 하지 않는 것 / 후속
 

@@ -191,7 +191,9 @@ def _run_word(run):
     status = '진행 중' if run['open'] else '닫힘'
     note = f' · {escape(run["note"])}' if run['note'] else ''
     started = datetime.fromtimestamp(run['started_at_ns'] / 1e9).strftime('%m-%d %H:%M')
-    return f'회차 {run["number"]} · {started} 시작 · {status}{note}'
+    name = escape(run['note']) if run['number'] is None else f'회차 {run["number"]}'
+    note = '' if run['number'] is None else note
+    return f'{name} · {started} 시작 · {status}{note}'
 
 
 def render_replay_page(timeline, state, runs=(), user=None, csrf=None):

@@ -19,13 +19,17 @@ from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure
                      render_fragment, render_login, render_page)
 from .replay import ClosedRunCache, build_timeline, replay_at, run_choices
 from .replay_page import render_replay_fragment, render_replay_page
-from .sources import load_ledger, load_replay, load_robot_watch, load_runs, load_site_state, load_status
+from .reset import (build_reset_request, check_item, checklist, reset_notice, robot_precheck,
+                    send_reset)
+from .reset_page import render_reset_fragment, render_reset_page
+from .sources import (load_ledger, load_replay, load_reset_state, load_robot_watch, load_runs, load_site_state,
+                      load_status)
 from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
 
 # 로그인 페이지로 리다이렉트하지 않고 401로 직접 응답할 경로 목록(폴링 데이터, 지도 이미지, 명령).
-DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment')
+DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment', '/reset/fragment')
 # 기억해 두는 닫힌 회차 시간 막대 수([제안] 관제·화면, 2026-10-15). 넘치면 가장 먼저 넣은 것을 버린다.
 REPLAY_CACHE_RUNS = 4
 # 모든 응답에 적용할 보안 헤더([제안] 관제·화면, 2026-10-10). 타 사이트 iframe 임베딩 방지,
@@ -252,7 +256,7 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         """
         # 페이지에는 점검 항목을 기술한 문서를, 조각 폴링에는 1줄 텍스트를, API에는 오류 코드를 반환한다.
         # 모두 503 상태 코드를 부여하여 오류 상태가 빈 정상 응답으로 오인되지 않도록 차단한다.
-        if request.path in ('/', '/replay'):
+        if request.path in ('/', '/replay', '/reset'):
             return Response(render_failure(exc.detail_code, exc.detail), status=503, mimetype='text/html')
         if request.path.startswith('/api/'):
             return jsonify({'error': exc.detail_code, 'message': exc.detail,
@@ -403,6 +407,85 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
             raise ConsoleError('INVALID_INPUT', 'offset_ns must be a non-negative integer within the run')
         return Response(render_replay_fragment(replay_at(timeline, timeline['start_ns'] + int(text)), timeline),
                         mimetype='text/html')
+
+    # ---- 회차 초기화 (보기는 모든 역할, 보내기·체크는 ADMIN) ---------------------------------
+    reset_flashes = ['reset-success', 'reset-danger', 'reset-warning']
+
+    def reset_model(account):
+        """초기화 화면 모델. 현장 상태 DB(mode=ro)와 관제 웹 계정 DB 의 그 회차 체크를 매 요청 새로 읽는다."""
+        if site_state_path is None:
+            raise ConsoleError('CONFIG_MISSING', 'reset needs --site-state')
+        state = load_reset_state(site_state_path)
+        names = dict(robot_names or {})
+        statuses = {row['robot_id']: row for row in state['robots']}
+        rows, first = robot_precheck([(rid, statuses.get(rid)) for rid in state['allowed_robots']], time.time_ns())
+        runs, _default = run_choices(state['runs'])
+        current = next((run for run in runs if run['open']), None)
+        server = state['checklist']
+        person = ({} if server['previous_run_id'] is None or server['run_id'] is None
+                  else accounts.reset_checks(server['run_id']))
+        admin = account['role'] == 'ADMIN'
+        send_off = ('관리자만 보낼 수 있습니다' if not admin else
+                    '명령 연결 없음(--operations)' if operations is None else
+                    '열린 회차가 없습니다' if current is None else None)
+        current_word = ('—' if current is None else current['note'] if current['number'] is None
+                        else f'회차 {current["number"]}')
+        return {'precheck': rows, 'first_refusal': first, 'names': names, 'current_run': current,
+                'current_word': current_word, 'next_number': sum(run['number'] is not None for run in runs) + 1,
+                'checklist': checklist(server, person, names), 'can_send': send_off is None, 'send_off': send_off,
+                'can_check': admin, 'csrf': csrf_token()}
+
+    @app.get('/reset')
+    @login_required
+    def reset_page(account):
+        """회차 초기화 화면. 위는 보내기, 아래는 1초마다 갱신되는 로봇 미리 보기와 다시 띄우기 체크 목록."""
+        messages = get_flashed_messages(with_categories=True, category_filter=reset_flashes)
+        return Response(render_reset_page(reset_model(account), account, csrf=csrf_token(), messages=messages),
+                        mimetype='text/html')
+
+    @app.get('/reset/fragment')
+    @login_required
+    def reset_fragment(account):
+        return Response(render_reset_fragment(reset_model(account)), mimetype='text/html')
+
+    @app.post('/reset/send')
+    @admin_required
+    def reset_send(account):
+        """초기화를 operations 로 한 번 보낸다. 확인 칸을 체크하지 않았으면 보내지 않는다. 다시 보내지 않는다."""
+        check_csrf()
+        if request.form.get('confirm') != 'yes':
+            flash('확인 칸을 체크해야 초기화를 보냅니다.', 'reset-danger')
+            return redirect('/reset')
+        if operations is None:
+            flash('명령 연결 없음(--operations): 초기화를 보내지 않았습니다.', 'reset-danger')
+            return redirect('/reset')
+        note = request.form.get('note', '').strip()[:200] or None
+        payload = build_reset_request(operator_id=account['username'], command_id=str(uuid.uuid4()), note=note)
+        result = send_reset(operations, payload, transport=transport)
+        category, text = reset_notice(result)
+        (app.logger.info if category == 'success' else app.logger.warning)(
+            'reset by %s: %s', account['username'], {k: v for k, v in result.items() if k != 'reason_label'})
+        flash(text, 'reset-' + category)
+        return redirect('/reset')
+
+    @app.post('/reset/check')
+    @admin_required
+    def reset_check(account):
+        """사람 확인 칸 하나를 켜거나 끈다. 지금 열린 회차(초기화로 열린 회차)에만 묶어 관제 웹 계정 DB 에 쓴다."""
+        check_csrf()
+        item = check_item(request.form.get('item', ''))
+        checked = request.form.get('checked')
+        if checked not in ('0', '1'):
+            raise ConsoleError('INVALID_INPUT', 'checked must be 0 or 1')
+        if site_state_path is None:
+            raise ConsoleError('CONFIG_MISSING', 'reset needs --site-state')
+        server = load_reset_state(site_state_path)['checklist']
+        if server['previous_run_id'] is None or server['run_id'] is None:
+            flash('아직 초기화한 회차가 없어 체크할 수 없습니다.', 'reset-danger')
+            return redirect('/reset')
+        accounts.set_reset_check(server['run_id'], item, checked == '1', by_username=account['username'],
+                                 at_ns=time.time_ns())
+        return redirect('/reset')
 
     @app.get('/api/view')
     @login_required

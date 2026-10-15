@@ -8,6 +8,8 @@ t 이전의 가장 최근 이력 행이다(지금 값을 과거 시점에 그리
 
 import threading
 
+from rescue_operations.site_state import EARLIER_RUN_NOTE
+
 from .view import COMMANDS, STAGES, ConsoleError, _require, _site_events, compose_stage
 
 # 배속 버튼([제안] 관제·화면, 2026-10-15). 재생 시계는 브라우저가 돌리고 서버는 시점 상태만 답한다.
@@ -84,10 +86,18 @@ def _items(data, words):
 
 
 def run_choices(runs):
-    """회차 고르기 목록(오래된 것부터 번호 1, 2, …)과 처음 고를 회차. 열린 회차가 있으면 그것, 없으면 마지막 회차."""
-    rows = [{'number': n, 'run_id': run['run_id'], 'started_at_ns': run['started_at_ns'],
-             'ended_at_ns': run['ended_at_ns'], 'open': run['run_id'] == runs['open_run_id'], 'note': run['note']}
-            for n, run in enumerate(runs['runs'], 1)]
+    """회차 고르기 목록(오래된 것부터 번호 1, 2, …)과 처음 고를 회차. 열린 회차가 있으면 그것, 없으면 마지막 회차.
+
+    번호는 화면에 보이는 순번일 뿐이다. 회차를 가리킬 때는 늘 run_id 를 쓴다. 스키마 1.4 파일을 올릴 때 생긴
+    「이전 기록」 회차(EARLIER_RUN_NOTE)는 순번에서 빼고 number 를 None 으로 둔다(작전·통합-운영 2026-10-15).
+    """
+    rows, number = [], 0
+    for run in runs['runs']:
+        earlier = run['note'] == EARLIER_RUN_NOTE
+        number += 0 if earlier else 1
+        rows.append({'number': None if earlier else number, 'run_id': run['run_id'],
+                     'started_at_ns': run['started_at_ns'], 'ended_at_ns': run['ended_at_ns'],
+                     'open': run['run_id'] == runs['open_run_id'], 'note': run['note']})
     default = runs['open_run_id'] or (rows[-1]['run_id'] if rows else None)
     return rows, default
 

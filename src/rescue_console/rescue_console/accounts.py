@@ -33,7 +33,12 @@ EMAIL = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
 MIN_PASSWORD = 8
 # `metadata`에 기록할 식별 값. open()은 이 쌍이 없는 SQLite 파일(예: 운영 원장)을 모두 거부한다.
 _ROLE_KEY, _ROLE = 'role', 'console-accounts'
-_SCHEMA = '1.0'
+_SCHEMA = '1.1'
+# 1.1 (2026-10-15): 회차 초기화 뒤 사람이 확인하는 칸의 체크(reset_checks). open() 은 1.0 파일에 표만 더해 올린다.
+_UPGRADES_FROM = ('1.0',)
+_RESET_CHECKS_DDL = '''CREATE TABLE IF NOT EXISTS reset_checks (
+    run_id TEXT NOT NULL, item TEXT NOT NULL, checked INTEGER NOT NULL CHECK (checked IN (0, 1)),
+    by_username TEXT NOT NULL, at_ns INTEGER NOT NULL, PRIMARY KEY (run_id, item))'''
 # 신규 해시 생성 시 적용할 PBKDF2 반복 횟수(src/rescue_console/README.md: 200,000). 저장된 해시 문자열에 반복 횟수가
 # 포함되므로 향후 기본값을 올려도 기존 비밀번호 검증이 호환된다. 1회 연산 비용이 높아 무차별 대입 공격을 지연시킨다.
 _ITERATIONS = 200_000
@@ -147,6 +152,7 @@ class AccountStore:
                     role TEXT NOT NULL, status TEXT NOT NULL, password_hash TEXT NOT NULL,
                     auth_version INTEGER NOT NULL,
                     created_at_ns INTEGER NOT NULL, updated_at_ns INTEGER NOT NULL)''')
+                db.execute(_RESET_CHECKS_DDL)
                 db.executemany('INSERT INTO metadata VALUES (?, ?)', [(_ROLE_KEY, _ROLE), ('schema_version', _SCHEMA)])
                 now = time.time_ns()
                 db.execute('INSERT INTO accounts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -163,6 +169,7 @@ class AccountStore:
 
         파일이 없으면 STORAGE_ERROR. 유효한 SQLite 파일이 아니면 트랜잭션 시작 시 STORAGE_ERROR가 발생한다.
         `metadata` 테이블을 읽을 수 없거나 role/schema_version이 불일치하면 POLICY_MISMATCH 예외를 낸다.
+        1.0 파일은 같은 트랜잭션에서 reset_checks 표를 더하고 1.1 로 올린다(계정 행은 건드리지 않는다).
         """
         store = cls(path)
         # 사전 확인 필수: sqlite3.connect는 경로 오타 시 빈 데이터베이스 파일을 자동으로 생성해 버린다.
@@ -172,8 +179,12 @@ class AccountStore:
                 rows = dict(db.execute('SELECT key, value FROM metadata').fetchall())
             except sqlite3.Error as exc:
                 raise ConsoleError('POLICY_MISMATCH', 'not a console accounts database') from exc
-            _require(rows.get(_ROLE_KEY) == _ROLE and rows.get('schema_version') == _SCHEMA,
+            version = rows.get('schema_version')
+            _require(rows.get(_ROLE_KEY) == _ROLE and (version == _SCHEMA or version in _UPGRADES_FROM),
                      'not a console accounts database (role/schema mismatch)', 'POLICY_MISMATCH')
+            if version != _SCHEMA:
+                db.execute(_RESET_CHECKS_DDL)
+                db.execute("UPDATE metadata SET value = ? WHERE key = 'schema_version'", (_SCHEMA,))
         return store
 
     def _connect(self):
@@ -189,6 +200,22 @@ class AccountStore:
             raise ConsoleError('STORAGE_ERROR', f'cannot open accounts database: {exc}') from exc
         db.row_factory = sqlite3.Row
         return _Transaction(db)
+
+    # ---- 회차 초기화 체크(사람 확인 칸) ---------------------------------------------------------
+    def reset_checks(self, run_id):
+        """{item: {checked, by_username, at_ns}}: 그 회차에서 사람이 바꾼 칸. 다른 회차의 체크는 보이지 않는다."""
+        with self._connect() as db:
+            return {row['item']: {'checked': bool(row['checked']), 'by_username': row['by_username'], 'at_ns': row['at_ns']}
+                    for row in db.execute('SELECT * FROM reset_checks WHERE run_id = ?', (run_id,))}
+
+    def set_reset_check(self, run_id, item, checked, *, by_username, at_ns):
+        """사람 확인 칸 하나를 켜거나 끈다. 누가 언제 바꿨는지 같이 남긴다(칸의 뜻은 호출 쪽이 검사한다)."""
+        _require(isinstance(run_id, str) and run_id != '' and isinstance(item, str) and item != '', 'run_id and item')
+        _require(type(checked) is bool and type(at_ns) is int, 'checked must be bool, at_ns int')
+        with self._connect() as db:
+            db.execute('INSERT INTO reset_checks VALUES (?, ?, ?, ?, ?) ON CONFLICT (run_id, item) DO UPDATE SET '
+                       'checked = excluded.checked, by_username = excluded.by_username, at_ns = excluded.at_ns',
+                       (run_id, item, int(checked), by_username, at_ns))
 
     # ---- 읽기 ---------------------------------------------------------------------------
     def list_accounts(self):
