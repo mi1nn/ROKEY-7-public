@@ -101,12 +101,14 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 | 표 | 열 | 뜻 · 규칙 |
 | --- | --- | --- |
-| `runs` | `run_id TEXT PK`, `started_at_ns`, `ended_at_ns NULL`, `map_session_id NULL`, `note NULL`, `previous_coordinator_boot_id NULL` | 회차 하나. `ended_at_ns` 가 None 이면 열린 회차이고 **한 번에 하나만** 열린다(부분 고유 색인 `runs_one_open`, 두 번째 `open_run` 은 `TASK_BUSY`). `SiteStateLedger` 를 열 때 열린 회차가 없으면 하나 연다. 같은 파일을 다시 열면 열린 회차를 잇는다. `map_session_id` 는 그 회차에서 처음 받은 `MapState` 의 값이다. `previous_coordinator_boot_id` 는 초기화가 앞 회차 조정기의 메시지를 막을 때 쓴다(초기화 엔드포인트 PR) |
+| `runs` | `run_id TEXT PK`, `started_at_ns`, `ended_at_ns NULL`, `map_session_id NULL`, `note NULL`, `previous_coordinator_boot_id NULL` | 회차 하나. `ended_at_ns` 가 None 이면 열린 회차이고 **한 번에 하나만** 열린다(부분 고유 색인 `runs_one_open`, 두 번째 `open_run` 은 `TASK_BUSY`). `SiteStateLedger` 를 열 때 열린 회차가 없으면 하나 연다. 같은 파일을 다시 열면 열린 회차를 잇는다. `map_session_id` 는 그 회차에서 처음 받은 `MapState` 의 값이다. `previous_coordinator_boot_id` 는 초기화 때 마지막으로 들은 조정기 boot 이고, 그 boot 의 `SystemState`·`TargetSnapshot` 은 이 회차에 기록하지 않는다 |
 | 쌓이는 표 다섯(`site_events`, `operator_commands`, `error_log`, `map_snapshots`, `exit_locations`)의 `run_id NULL` | 마지막 열 | 쓸 때 열린 회차. 회차 사이(닫은 뒤 열기 전)에 쓴 행은 None 이고 지우지 않는다. 재전송 비교에는 `run_id` 를 넣지 않는다 |
 | `robot_status_history` | `robot_id`, `run_id NULL`, `at_ns`(받은 시각), `status_json` | 로봇 상태(위치 포함)를 **로봇당 1초에 한 줄 [제안]**(`ROBOT_HISTORY_PERIOD_NS`)로 솎아 남긴다. 상태와 위치 토픽 어느 쪽으로 바뀌어도 그 순간의 스냅샷 전체를 쓴다 |
 | `target_state_history` | `target_id`, `run_id NULL`, `updated_at_ns`, `state_json` | `target_states` 가 바뀐 때마다(더 새 `updated_at_ns` 로 교체됐을 때) 한 줄. 재전송과 더 오래된 상태는 남기지 않는다 |
 
-나머지 표(`robot_status`, `target_states`, `mission_state`, `current_map`, `overhead_passage_lists`·`overhead_passages`)는 지금 값만 담는 표로 그대로 둔다. 초기화 때 비우는 일은 초기화 엔드포인트 PR 이 한다.
+나머지 표(`robot_status`, `target_states`, `mission_state`, `current_map`, `overhead_passage_lists`·`overhead_passages`)는 지금 값만 담는 표다. 초기화(`SiteStateLedger.reset_run`)는 `robot_status` 를 뺀 다섯 표를 비운다. `robot_status` 는 재기동 확인에 쓰므로 남긴다. 초기화는 닫는 회차의 `robot_status_history` 에 두 로봇의 그 순간 상태를 한 줄씩 더 남긴다(`read_reset_checklist` 의 「전」 boot).
+
+열린 회차 ID 는 쓰는 객체가 메모리에 쥐지 않고 쓸 때마다 `runs` 에서 읽는다. 다른 연결이 회차를 바꿔도 다음 행이 DB 의 열린 회차로 들어간다. `operator_commands.kind` 에 `RESET_RUN`(관제 웹 초기화, operations 가 직접 답함)을 더했다.
 
 화면용 읽기 함수는 이름·인자·정렬·한도를 바꾸지 않는다. 모든 결과에 열린 회차의 `run_id`(없으면 None)를 싣는다. 쌓이는 표를 읽는 `read_site_events`(`exit_pass_count` 포함), `read_operator_commands`, `read_error_log`, `read_map_snapshots`, `read_exit_locations` 는 **열린 회차의 행만** 돌려준다. 열린 회차가 없으면 빈 결과다. 지난 회차의 `DISASTER_SIGN` 사건이 새 회차 화면을 재난 모드로 보이게 하지 않으려는 것이다(관제 웹 `view.py` 는 `mission_state` 행이 없으면 사건으로 모드를 추정한다).
 

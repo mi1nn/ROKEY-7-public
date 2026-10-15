@@ -149,7 +149,7 @@ def main(args=None):
     from std_msgs.msg import String
     from rescue_interfaces.srv import SubmitOperatorCommand
 
-    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, WebcamSwitch, make_server
+    from .command_api import CommandGate, CommandTimeout, CommandUnavailable, RunReset, WebcamSwitch, make_server
 
     from .ros_ingest import SiteStateIngest
     from .site_state import SiteStateLedger
@@ -297,7 +297,10 @@ def main(args=None):
         webcam = WebcamSwitch(ledger, list_cameras=lambda: plugged_cameras(CAMERA_BY_ID_DIR), get_device=get_device,
                               set_device=set_device, by_id_dir=CAMERA_BY_ID_DIR + '/')
     try:
-        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam)
+        # The reset runs on this process's one ledger (the file's only writer) and reads the coordinator boot
+        # the ingest heard last, so the new run stops recording that coordinator (초기화, 1.5).
+        reset = RunReset(ledger, coordinator_boot_id=lambda: ingest.coordinator_boot_id)
+        server = make_server(config['api_host'], config['api_port'], gate, log=log.debug, webcam=webcam, reset=reset)
     except OSError as exc:
         log.fatal(f'cannot serve the command API on {config["api_host"]}:{config["api_port"]}: {exc}')
         ledger.close()

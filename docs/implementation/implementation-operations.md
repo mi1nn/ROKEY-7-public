@@ -59,9 +59,40 @@ flowchart LR
 | 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)만 받는다 |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
 | 로봇 이름 AMR1·AMR2 | TB-6·TB-5 |
-| HTTP 경로는 명령 하나 | 명령과 웹캠 고르기 둘(#257) |
+| HTTP 경로는 명령 하나 | 명령, 웹캠 고르기(#257), 초기화(`POST /api/runs/reset`, 2026-10-15) 셋 |
 
 실기(로봇 망에서 실제 로봇과 함께)는 대부분 NOT_RUN 이다. 2026-10-13 에 운영 PC 에서 시험용 TB-5 SLAM 지도, TB-5·TB-6 직접 관측, 웹캠 2대 전환을 측정했다(관제 웹 README 「현재 상태」).
+
+### 초기화 (2026-10-15)
+
+관제 웹의 초기화 버튼은 `POST /api/runs/reset` 으로 온다. 범위는 (나) TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌리기이고, 지난 기록은 회차별로 남긴다(재범 결정 2026-10-15). 지금 코드에는 조정기·지도 고정·relay·실행기 어느 것도 프로세스를 끄지 않고 비우는 방법이 없다. 그래서 첫 판은 운영 쪽 회차만 이 API 가 넘기고, 로봇 쪽은 사람이 다시 띄운다. 원격 재기동과 조정기 안 reset 명령은 동결 뒤로 미뤘다(작전 2026-10-15).
+
+- **어느 프로세스가 회차를 바꾸나.** API 는 `db_writer` 와 같은 프로세스에서 돌고, 그 프로세스의 하나뿐인 `SiteStateLedger` 로 `reset_run` 을 부른다. 회차 ID 는 객체 메모리에 두지 않고 쓸 때마다 DB 의 `runs` 에서 읽는다. 그래서 다른 연결이 회차를 닫거나 열어도 다음 행은 DB 의 열린 회차로 들어간다(머지 담당 지적, `tests/test_operations_run_reset.py` `OtherProcessTests`).
+- **거절.** 배치 로봇 둘 중 하나라도 아래에 걸리면 처음 걸린 이유로 거절하고 `operator_commands` 에 남긴다. 다른 것은 바꾸지 않는다.
+
+| 순서 | 이유 코드 | 조건 |
+| --- | --- | --- |
+| 1 | `ROBOT_STATUS_STALE` | 상태가 없거나 받은 지 5초가 넘음 [제안, 관제 웹 로봇 카드와 같은 값] |
+| 2 | `ROBOT_MOVING` | `motion_state` 가 `STOPPED` 가 아님(`STOP_UNCONFIRMED` 포함) |
+| 3 | `TASK_ACTIVE` | `active_task_id` 가 있음 |
+| 4 | `ROBOT_NOT_DOCKED` | `dock_state` 가 `DOCKED` 가 아님(모름 포함) |
+
+- **받으면 한 트랜잭션에서.** 초기화 명령 행을 닫는 회차에 쓰고, 두 로봇의 지금 상태를 그 회차 이력에 한 줄씩 남기고(재기동 확인의 「전」 값), 회차를 닫고, 지금 값만 담는 표(`target_states`, `mission_state`, `current_map`, 터널 목록 두 표)를 비우고, 새 회차를 연다. `robot_status` 는 비우지 않는다. 새 회차에는 마지막으로 들은 조정기 boot 를 `previous_coordinator_boot_id` 로 적고, 그 boot 의 `SystemState`·`TargetSnapshot` 은 새 회차에 기록하지 않는다(`error_log` 에 `PREVIOUS_RUN_SOURCE` 로 boot 마다 한 번).
+- **답.** 운영자 명령과 같은 모양(`accepted`, `request_id`, `reason`, `request_state`, `created_task_id`)에 `run_id` 를 더한다. 같은 `command_id` 를 다시 보내면 처음 답을 `DUPLICATE` 로 돌려주고 다시 초기화하지 않는다. DB 가 실패하면 503 이고 `accepted` 가 없다.
+- **재기동 확인.** `read_reset_checklist` 가 DB 로 볼 수 있는 것만 준다. 조정기는 새 회차에 임무 상태가 기록되면 다시 뜬 것이다. 로봇은 실행기 boot 가 초기화 때와 다르면 그 로봇의 `robot.launch` 가 다시 뜬 것이다. SLAM, 지도 고정, relay, AMCL, 출발 정렬은 이 DB 에 흔적이 없어 사람이 확인하는 칸이다.
+
+PC 별 재기동 순서. 로봇 담당 PC 한 대가 두 로봇을 맡고 조정기는 운영 PC 에 있는 배치다(재범 결정 2026-10-15, [현장 실행 안내](../process/field-runbook.md)). 런북의 자세한 절차는 통합-로봇이 고친다.
+
+| 순서 | PC | 할 일 | 확인 |
+| --- | --- | --- | --- |
+| 1 | 운영 PC | 두 로봇이 도킹·정지·임무 없음일 때 관제 웹에서 초기화를 누른다 | 답 `accepted=true`, 새 `run_id` |
+| 2 | 운영 PC | 조정기 launch 를 끈다. 운영 launch(`db_writer`·`report_node`)와 관제 웹은 그대로 둔다 | — |
+| 3 | 로봇 담당 PC | 두 로봇의 launch 를 모두 끈다(SLAM, 지도 고정, 고정 지도 relay·AMCL, 출발 정렬, 실행기, 깊이 점, 터널 판정) | 사람 확인 |
+| 4 | 운영 PC | 조정기를 다시 띄운다 | 자동(`coordinator_restarted`) |
+| 5 | 로봇 담당 PC | 런북 4단계. 로봇 감독이 TB-6 을 언도킹하고 출발 표시에 둔다. **도킹한 채로 지도 고정 노드를 띄우지 않는다.** 출발 자세는 언도킹한 자리에서 잡아야 TB-5 출발값과 맞는다. 그다음 SLAM, 실행기, 지도 고정(**새 `output_dir`**) 순으로 띄운다 | 사람 확인(출발 표시) + 자동(TB-6 실행기 boot) |
+| 6 | 로봇 담당 PC | 런북 5단계. TB-5 를 언도킹하고 고정 지도 위치 추정·출발 정렬·실행기를 띄운다 | 자동(TB-5 실행기 boot) |
+
+조정기와 두 실행기는 함께 다시 띄워야 한다. 실행기는 이미 받은 것 이하의 임무 번호를 `STALE_GENERATION` 으로 거절한다(`rescue_robot/executor.py`). 두 relay 와 두 실행기를 다시 띄우지 않으면 새 회차의 R0+1 이 앞 회차와 다른 지도라 `MAP_RELAY_BLOCKED` 로 막힌다(`rescue_robot/frozen_map_relay.py`).
 
 ## 기록 (2026-10-08 ~ 2026-10-13)
 

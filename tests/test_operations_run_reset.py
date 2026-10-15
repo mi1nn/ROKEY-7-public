@@ -27,9 +27,9 @@ ROBOTS = ('robot_a', 'robot_b')
 def docked(robot='robot_a', boot=1, **changes):
     """A robot at rest on its dock with no task: the state a reset is accepted in."""
     role = 'SCOUT' if robot == 'robot_a' else 'SUPPORT'
-    return robot_status(robot_id=robot, role=role, robot_boot_id=uid(boot), motion_state='STOPPED',
-                        active_task_id=None, generation=None, dock_state='DOCKED', stamp_ns=time.time_ns(),
-                        **changes)
+    return robot_status(**(dict(robot_id=robot, role=role, robot_boot_id=uid(boot), motion_state='STOPPED',
+                                active_task_id=None, generation=None, dock_state='DOCKED', stamp_ns=time.time_ns())
+                           | changes))
 
 
 def request(n=70, **changes):
