@@ -90,6 +90,9 @@ done
 for pid in $(pids_with_env -E 'ROS_DISCOVERY_SERVER=.+'); do
     case "$ancestors" in *" $pid "*) continue ;; esac
     cmd="$(proc_cmd "$pid")"
+    case "${cmd%% *}" in   # 셸은 빼고 실제 프로그램만(명령줄 글자에 rescue_ 가 들어간 셸을 실기로 잘못 본 적이 있다 2026-10-15)
+        */bash|bash|*/sh|sh|*/zsh|zsh|*/env|env|*/timeout|timeout) continue ;;
+    esac
     case "$cmd" in
         *bin/ros2\ *|*rescue_*) die "디스커버리 서버를 쓰는 ROS 프로세스가 돌고 있습니다(실기 회차로 봅니다, PID $pid: ${cmd:0:80}). 실기 중에는 Gazebo 를 띄우지 않습니다" ;;
     esac

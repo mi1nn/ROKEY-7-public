@@ -177,9 +177,15 @@ PY
 read -r -a TB5_IN_MAP < <(python3 -c "import math,sys; x0,y0,w0,x,y,w=map(float,sys.argv[1:]); dx,dy=x-x0,y-y0; c,s=math.cos(-w0),math.sin(-w0); print(round(c*dx-s*dy,3), round(s*dx+c*dy,3), round(math.atan2(math.sin(w-w0),math.cos(w-w0)),4))" "${TB6_START[@]}" "${TB5_UNDOCKED[@]}")
 HOME_A="${POSES[0]},${POSES[1]},${POSES[2]}"
 HOME_B="${TB5_IN_MAP[0]},${TB5_IN_MAP[1]},${TB5_IN_MAP[2]}"
-say "현장 값과 다름: home_positions 현장 없음(측정 전), 시뮬레이션 robot_a=$HOME_A robot_b=$HOME_B (언도킹 뒤 자세, TB-6 지도 frame)"
+HOME_ARGS=()
+case "${SIM_HOME:-off}" in   # 기본은 현장과 같게(측정 전에는 없음). sim-to-field 원칙(#374): 현장 값과 다른 것은 기본 꺼짐
+    odom) HOME_ARGS=(--home "robot_a=$HOME_A" --home "robot_b=$HOME_B")
+          say "현장 값과 다름: home_positions 현장 없음(측정 전), 시뮬레이션 robot_a=$HOME_A robot_b=$HOME_B (SIM_HOME=odom, 언도킹 뒤 자세)" ;;
+    off) say "home_positions 없음(현장과 같음, 런북 1·5단계에서 재서 넣는 값). SIM_HOME=odom 이면 언도킹 뒤 자세를 넣는다" ;;
+    *) die "SIM_HOME must be off or odom" ;;
+esac
 python3 "$REPO/scripts/field/make_field_profile.py" --out "$RUN/profile" --discovery 127.0.0.1:11811 \
-    --domain "$FIELD_DOMAIN" --home "robot_a=$HOME_A" --home "robot_b=$HOME_B" > "$RUN/logs/profile.log" 2>&1 \
+    --domain "$FIELD_DOMAIN" "${HOME_ARGS[@]}" > "$RUN/logs/profile.log" 2>&1 \
     || die "프로파일을 못 만들었습니다. $RUN/logs/profile.log"
 
 # 4. 운영 + 관제 웹 (런북 3단계)

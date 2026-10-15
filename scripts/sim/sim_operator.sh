@@ -24,17 +24,36 @@ arm() {   # 7.1: 한 로봇 다시 arm (TB-5 는 AMCL 갱신 먼저)
         sleep 10
     done
 }
+diag() {   # 원인 확인용 자료(작전·통합 요청 2026-10-15): 그 순간의 /robot6/map 발행자·노드·프로세스
+    local tag="$1" out="$LOG/diag_$1.txt"
+    { echo "== $(date +%H:%M:%S.%N) $tag"
+      echo "-- ros2 topic info -v /robot6/map --no-daemon --spin-time 10"; ros2 topic info -v /robot6/map --no-daemon --spin-time 10 2>&1
+      echo "-- ros2 node list (map|slam)"; ros2 node list --no-daemon --spin-time 5 2>&1 | grep -i -E "map|slam"
+      echo "-- ps (slam_toolbox|map_server)"; ps -eo pid,etime,args | grep -E "slam_toolbox|map_server" | grep -v grep | cut -c1-200
+    } > "$out" 2>&1
+    say "자료 남김 $out"
+}
+lifecycle_diag() {   # C8: TB-5 Nav2 서버 상태
+    local out="$LOG/diag_c8_tb5_nav2.txt" n
+    { echo "== $(date +%H:%M:%S.%N) $1"
+      for n in controller_server planner_server bt_navigator behavior_server lifecycle_manager_navigation; do
+          echo "-- /robot5/$n: $(timeout 15 ros2 lifecycle get /robot5/$n 2>&1 | head -1)"
+      done; } >> "$out" 2>&1
+    say "자료 남김 $out"
+}
 slam_to_frozen() {   # 7.5: tb6_slam 끄기 -> /robot6/map 발행자 0 -> frozen_localization robot_a
     local pid i count
     pid="$(cat "$RUN/pids/tb6_slam" 2>/dev/null)"
-    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(PID ${pid:-없음})"
+    diag c7_before_slam_stop
+    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID ${pid:-없음}에 INT)"
     [ -n "$pid" ] && kill -INT "$pid" 2>/dev/null
     for i in $(seq 1 30); do
         count="$(ros2 topic info /robot6/map --no-daemon --spin-time 3 2>/dev/null | sed -n 's/^Publisher count: //p')"
         [ "${count:-1}" = 0 ] && break
         sleep 2
     done
-    say "런북 7.5 /robot6/map 발행자 수 ${count:-모름}"
+    say "런북 7.5 /robot6/map 발행자 수 ${count:-모름}(--no-daemon)"
+    diag c7_before_frozen_loc
     [ "${count:-1}" = 0 ] || { say "런북 7.5 SLAM 이 아직 지도를 냄 — frozen_localization 을 띄우지 않음"; return 1; }
     setsid ros2 launch rescue_bringup frozen_localization.launch.py "profile_path:=$P" "field_path:=$F" \
         robot_id:=robot_a frozen_pose_wait_s:=10.0 > "$LOG/frozen_loc_a.log" 2>&1 < /dev/null &
@@ -45,7 +64,7 @@ slam_to_frozen() {   # 7.5: tb6_slam 끄기 -> /robot6/map 발행자 0 -> frozen
 say "시작: 런북 7.1(실패 뒤 다시 arm, TB-5 arm)·7.5(2차 고정 뒤 TB-6 위치 추정)를 대신한다"
 declare -A robot_of
 done75=false
-tail -n 0 -F "$LOG/coordinator.log" "$LOG/robot_robot_a.log" "$LOG/frozen_loc_b.log" 2>/dev/null \
+tail -n 0 -F "$LOG/coordinator.log" "$LOG/robot_robot_a.log" "$LOG/frozen_loc_b.log" "$LOG/frozen_loc_a.log" 2>/dev/null \
     | sed -u 's/\x1b\[[0-9;]*m//g' | while read -r line; do
     case "$line" in
         *"SEND "*" task="*" robot="*)
@@ -63,6 +82,14 @@ tail -n 0 -F "$LOG/coordinator.log" "$LOG/robot_robot_a.log" "$LOG/frozen_loc_b.
             esac ;;
         *"START_ALIGN_ALIGNED"*)
             say "TB-5 출발 정렬 끝"; arm robot5 ;;
+        *"MAP_RELAY_BLOCKED"*"/robot6/map"*)
+            if [ ! -f "$LOG/diag_c7_after_blocked.txt" ]; then say "TB-6 relay 막힘"; diag c7_after_blocked; fi ;;
+        *"MAP_FROZEN 1 "*)
+            lifecycle_diag "1차 고정 뒤" ;;
+        *"EXPLORATION_COMPLETE"*)   # C9: 탐색 끝 순간의 TB-6 SLAM 지도
+            mkdir -p "$RUN/diag_c9" && cp -p "$RUN/maps/live_map.yaml" "$RUN/diag_c9/" 2>/dev/null \
+                && cp -p "$RUN/maps/$(sed -n 's/^image: //p' "$RUN/maps/live_map.yaml")" "$RUN/diag_c9/" 2>/dev/null
+            say "탐색 끝: SLAM 지도 저장 $RUN/diag_c9" ;;
         *"MAP_REVISION_ADOPTED robot_a"*"-> R"*)
             rev="${line##*-> R}"; rev="${rev%% *}"
             if [ "${rev:-0}" -ge 2 ] && ! $done75; then done75=true; slam_to_frozen; fi ;;
