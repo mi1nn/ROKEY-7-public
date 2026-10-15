@@ -79,5 +79,41 @@ class SimOdom(unittest.TestCase):
         self.assertIn("'-topic', 'robot_description_sim'", launch)
 
 
+class SimDepth(unittest.TestCase):
+    """The OAK-D depth in the simulation copy: nearest depth 0.40 m like the real stereo and gaussian noise
+    sigma 0.01 m [추정] (작전 2026-10-16). The RGB image of the same sensor keeps its own clip (0.3 m)."""
+    CAMERA = ('<sensor name="rgbd_camera" type="rgbd_camera">\n      <camera>\n        <horizontal_fov>1.25</horizontal_fov>\n'
+              '        <image>\n          <width>320</width>\n          <height>240</height>\n        </image>\n'
+              '        <clip>\n          <near>0.3</near>\n          <far>100</far>\n        </clip>\n'
+              '        <optical_frame_id>oakd_rgb_camera_optical_frame</optical_frame_id>\n      </camera>\n'
+              '      <always_on>1</always_on>\n      <update_rate>30</update_rate>\n    </sensor>')
+
+    def robot(self):
+        return URDF.replace('</robot>', '<gazebo reference="oakd_rgb_camera_frame">' + self.CAMERA + '</gazebo></robot>')
+
+    def test_depth_gets_its_own_near_clip_and_noise(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=False,
+                                          depth_near_m=0.40, depth_noise_m=0.01)
+        self.assertEqual(1, report['depth_camera'])
+        camera = out[out.index('<sensor name="rgbd_camera"'):]
+        self.assertIn('<depth_camera><clip><near>0.4</near><far>100</far></clip></depth_camera>', camera)
+        self.assertIn('<noise><type>gaussian</type><mean>0</mean><stddev>0.01</stddev></noise>', camera)
+        self.assertIn('<near>0.3</near>', camera)   # the RGB clip stays
+
+    def test_without_the_options_the_camera_is_untouched(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=False)
+        self.assertEqual(self.robot(), out)
+        self.assertEqual(0, report['depth_camera'])
+
+    def test_no_rgbd_camera_is_refused_when_asked_to_change_it(self):
+        with self.assertRaises(ValueError):
+            strip_sensors.patch(URDF, keep_sensors=True, wheel_sphere=False, depth_near_m=0.4, depth_noise_m=0.01)
+
+    def test_every_robot_is_spawned_with_the_real_depth(self):
+        launch = (REPO / 'scripts' / 'sim' / 'spawn_extra.launch.py').read_text()
+        self.assertIn("'--depth-near', '0.40'", launch)
+        self.assertIn("'--depth-noise', '0.01'", launch)
+
+
 if __name__ == '__main__':
     unittest.main()
