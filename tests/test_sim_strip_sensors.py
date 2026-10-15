@@ -9,8 +9,11 @@ from pathlib import Path
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
+TOOL = REPO / 'scripts' / 'sim' / 'strip_sensors.py'
+if not TOOL.exists():   # the installed-wheel check copies tests/ and config/ only
+    raise unittest.SkipTest('installed-wheel checkout has no scripts/')
 try:
-    spec = importlib.util.spec_from_file_location('strip_sensors', REPO / 'scripts' / 'sim' / 'strip_sensors.py')
+    spec = importlib.util.spec_from_file_location('strip_sensors', TOOL)
     strip_sensors = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(strip_sensors)
 except ImportError as exc:   # rclpy / std_msgs not installed (CI without ROS)

@@ -158,8 +158,24 @@ class World(Tmp):
         size = [float(v) for v in model.find('.//collision/geometry/box/size').text.split()]
         self.assertEqual((1.5, 2.0, 0.3), (x, y, z))
         self.assertAlmostEqual(math.atan2(4, 3), yaw, places=5)
-        self.assertEqual([5.0, 0.018, 0.6], size)
+        self.assertEqual([5.018, 0.018, 0.6], size)   # both ends reach half a thickness past the end point
         self.assertEqual(['wall', 'outline_south'], estimates)
+
+    def test_walls_that_meet_overlap_at_the_corner(self):
+        """Two walls ending at one point must not leave a notch there: each reaches half a thickness past it."""
+        raw = layout(objects=[{'name': 'south', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0, 'x2': 3.0, 'y2': 0.0},
+                              {'name': 'east', 'kind': 'wall', 'x1': 3.0, 'y1': 0.0, 'x2': 3.0, 'y2': 2.0}])
+        world, _, _ = self.build(raw)
+        boxes = {}
+        for model in ET.fromstring(world).iter('model'):
+            if model.get('name') in ('south', 'east'):
+                x, y, _, _, _, yaw = (float(v) for v in model.find('pose').text.split())
+                sx, sy, _ = (float(v) for v in model.find('.//collision/geometry/box/size').text.split())
+                boxes[model.get('name')] = (x, y, yaw, sx, sy)
+        south_end = boxes['south'][0] + boxes['south'][3] / 2            # south wall runs along x
+        east_start = boxes['east'][1] - boxes['east'][3] / 2             # east wall runs along y (yaw pi/2)
+        self.assertAlmostEqual(3.009, south_end, places=4)               # past the corner point x = 3.0
+        self.assertAlmostEqual(-0.009, east_start, places=4)             # past the corner point y = 0.0
 
     def test_spawn_and_estimates(self):
         _, spawn, estimates = self.build()
@@ -203,6 +219,30 @@ class World(Tmp):
         names = {m.get('name') for m in root.iter('model')}
         self.assertIn('white_box', names)
         self.assertFalse([n for n in names if n.startswith('wall_')], 'no map: no cell walls')
+
+    def test_wall_thickness_is_one_argument_and_marked_estimated(self):
+        raw = layout()
+        raw['wall'] = {'height_m': 0.41, 'thickness_m': 0.01, 'color': [0.55, 0.38, 0.22]}   # measured: no estimate flag
+        raw['objects'] = [{'name': 'w', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0, 'x2': 2.0, 'y2': 0.0}]
+        (self.dir / 'layout.json').write_text(json.dumps(raw))
+        for args, size in (((), '2.0100 0.0100 0.4100'), (('--wall-thickness', '0.03'), '2.0300 0.0300 0.4100')):
+            out = self.dir / ('o' + str(len(args)))
+            result = subprocess.run([sys.executable, '-I', str(TOOL), '--layout-only', '--layout',
+                                     str(self.dir / 'layout.json'), '--name', 'plan', '--out-dir', str(out), *args],
+                                    capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn(f'<size>{size}</size>', (out / 'plan.sdf').read_text())
+            self.assertEqual(bool(args), 'wall' in result.stdout.split('[추정]')[1], result.stdout)
+
+    def test_a_bad_wall_thickness_is_refused(self):
+        (self.dir / 'layout.json').write_text(json.dumps(layout()))
+        for value in ('0', '-0.01', 'nan', 'abc'):
+            with self.subTest(value):
+                result = subprocess.run([sys.executable, '-I', str(TOOL), '--layout-only', '--layout',
+                                         str(self.dir / 'layout.json'), '--name', 'plan', '--out-dir',
+                                         str(self.dir / 'o'), '--wall-thickness', value], capture_output=True, text=True)
+                self.assertEqual(2, result.returncode)
+        self.assertFalse((self.dir / 'o').exists())
 
     def test_a_map_and_layout_only_together_are_refused(self):
         (self.dir / 'layout.json').write_text(json.dumps(layout()))
