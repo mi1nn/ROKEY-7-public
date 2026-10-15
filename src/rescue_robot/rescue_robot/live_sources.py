@@ -63,6 +63,8 @@ class Grid:
 
 
 MAP_MODES=('SAVED_MAP_AMCL','SLAM_THEN_FROZEN','FROZEN_MAP_AMCL')
+NOMOTION_FIRST_S=2.0   # [제안] no amcl_pose this long after a map switch: ask AMCL for a no-motion update
+NOMOTION_EVERY_S=5.0   # [제안] and again this often until one comes
 FREEZES=2  # per run (OPS-154): R0 + 1 doll found (TB-5 goes), R0 + 2 search done (TB-6 SLAM -> AMCL)
 
 
@@ -95,6 +97,8 @@ class SavedMapSources:
         self.aligned={}  # FROZEN_MAP_AMCL robot -> last start_align verdict is ALIGNED (#317, decision (나))
         self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
         self.reinitialize=None  # (robot, PoseWithCovarianceStamped-like) -> publishes <ns>/initialpose
+        self.request_nomotion=None  # robot -> calls <ns>/request_nomotion_update (frozen phase without amcl_pose)
+        self.nomotion_at={}   # robot -> wall ns of the last no-motion request
         if not settings: raise ContractError('saved_maps requires measured robot settings')
         for robot,c in self.settings.items():
             if c['mode'] not in MAP_MODES: raise ContractError('SLAM backend correction adapter not configured')
@@ -358,10 +362,25 @@ class SavedMapSources:
         r=self.runtime
         with r.adapter.lock:
             if robot not in self.amcl_tf or self.phase(robot)!='FROZEN': return
+            self._ask_for_amcl_pose(robot)
             pose=self.amcl_tf[robot].pose(now_ns=r.adapter.wall_clock_ns(),after_ns=self.valid_after.get(robot,0))
             if pose is None: return   # no amcl_pose since the map switch, no TF edge, or tilted: no pose
             self.receive_pose(robot,pose_message(pose,self.settings[robot]['map_frame']),source='amcl_tf',
                               covariance_fresh=pose['covariance_fresh'])
+
+    def _ask_for_amcl_pose(self,robot):
+        """The frozen grid is loaded but AMCL has not given a pose since the map switch: ask it for a no-motion
+        update, NOMOTION_FIRST_S after the switch, then every NOMOTION_EVERY_S until one comes [제안]. A standing robot
+        otherwise gets none (Nav2 AMCL updates on motion): run 10, C15, 375 s without a pose. Nothing moves."""
+        if self.request_nomotion is None or robot not in self.maps: return
+        after=self.valid_after.get(robot,0)
+        if not self.amcl_tf[robot].needs_covariance(after_ns=after): return
+        now=self.runtime.adapter.wall_clock_ns(); last=self.nomotion_at.get(robot)
+        if now-after<NOMOTION_FIRST_S*1e9 or (last is not None and last>after and now-last<NOMOTION_EVERY_S*1e9): return
+        self.nomotion_at[robot]=now
+        self.runtime.node.get_logger().info(f'AMCL_NOMOTION_REQUESTED {robot}: no amcl_pose since the map switch '
+                                            f'{(now-after)/1e9:.1f} s ago (standing robot)')
+        self.request_nomotion(robot)
 
     def _valid(self,robot):
         """Pose valid and, for a FROZEN_MAP_AMCL robot, its start alignment ALIGNED: AMCL starts that robot at
@@ -483,10 +502,22 @@ def attach_sources(runtime):
             message.pose.covariance=[float(v) for v in last.pose.covariance]
             publishers[robot].publish(message)
         if publishers: r.saved_maps.reinitialize=reinitialize
+        nomotion={}   # robot -> (client, service name, Empty)
+
+        def request_nomotion(robot):
+            client,service,kind=nomotion[robot]
+            if not client.service_is_ready():
+                r.node.get_logger().warning(f'AMCL_NOMOTION {robot}: {service} not available; asked again later')
+                return
+            client.call_async(kind.Request())
+        r.saved_maps.request_nomotion=request_nomotion
         for robot,c in r.saved_maps.settings.items():
             if c['mode']=='SLAM_THEN_FROZEN':
                 attach_slam_tf_pose(r,robot,c,subscribe)
             if robot in r.saved_maps.amcl_tf:   # frozen phase: TF pose on the poll period (standing robot)
+                from std_srvs.srv import Empty
+                service=c['localization_topic'].rsplit('/',1)[0]+'/request_nomotion_update'   # <ns>/... (AMCL)
+                nomotion[robot]=(r.node.create_client(Empty,service),service,Empty)
                 from tf2_msgs.msg import TFMessage
                 subscribe(TFMessage,c['amcl_tf_topic'],lambda m,robot=robot:r.saved_maps.receive_tf(robot,m),100,
                           lambda:None)

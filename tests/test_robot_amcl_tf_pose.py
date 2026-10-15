@@ -121,6 +121,48 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.assertEqual((0, R0), (s.records()['robot_a']['observed_at_ns'], s.records()['robot_a']['map_revision']))
 
 
+class AskAmclForAPose(unittest.TestCase):
+    """Run 10 (C15): after the map switch the frozen phase waits for an amcl_pose taken after it; a standing robot gets
+    none (Nav2 AMCL updates on motion), so the pose stayed UNKNOWN for 375 s until a person called
+    request_nomotion_update. The executor now asks AMCL itself, as start_align does for TB-5: 2 s after the switch
+    with no amcl_pose yet, then every 5 s until one comes [제안]. The robot is not moved."""
+
+    def setUp(self):
+        self.r = Runtime()
+        self.s = SavedMapSources(self.r, settings('FROZEN_MAP_AMCL', 'robot_b', **AMCL_KEYS))
+        self.asked = []
+        self.s.request_nomotion = self.asked.append
+        self.s.receive_start_align('robot_b', NS(data='{"status": "ALIGNED", "reason": ""}'))
+        self.s.receive_frozen(G1)
+        self.s.receive_frozen_revision(revision_message(G1, R1))
+        self.s.receive_map('robot_b', G1)
+
+    def tick(self, seconds):
+        self.r.now += int(seconds * S)
+        self.s.tick_tf_pose('robot_b')
+
+    def test_asks_after_2_s_then_every_5_s_until_an_amcl_pose_comes(self):
+        self.tick(1.0)
+        self.assertEqual([], self.asked)
+        self.tick(1.2)
+        self.assertEqual(['robot_b'], self.asked)
+        self.tick(2.0)
+        self.assertEqual(1, len(self.asked))
+        self.tick(3.1)
+        self.assertEqual(2, len(self.asked))
+        self.s.receive_pose('robot_b', pose_message(self.r.now - S // 20))   # AMCL answered
+        self.tick(10.0)
+        self.assertEqual(2, len(self.asked))
+
+    def test_nothing_is_asked_before_the_frozen_grid_is_loaded(self):
+        r = Runtime()
+        s = SavedMapSources(r, settings('FROZEN_MAP_AMCL', 'robot_b', **AMCL_KEYS))
+        s.request_nomotion = self.asked.append
+        r.now += 10 * S
+        s.tick_tf_pose('robot_b')
+        self.assertEqual([], self.asked)
+
+
 class Values(unittest.TestCase):
     def test_thresholds_must_be_positive_numbers(self):
         from rescue_robot.executor import ContractError
