@@ -19,10 +19,16 @@ import json
 import time
 
 from .schema import OperationsError, require, text, uid, uint
-from .site_state import OPERATOR_COMMAND_KINDS
+from .site_state import OPERATOR_COMMAND_KINDS, list_runs, read_operator_commands_range
 
 COMMAND_PATH = "/api/operator-commands"
 WEBCAM_PATH = "/api/webcam"  # GET: plugged cameras; POST {device, operator_id}: switch webcam_node (OPS-183)
+RESET_PATH = "/api/runs/reset"  # POST {command_id, operator_id[, note]}: the scenario reset (초기화, 1.5)
+# A robot status older than this cannot show the robot is at rest: the reset is refused. Same value as the
+# console's stale robot card (rescue_console view.STATUS_STALE_S) [제안, 2026-10-15].
+RESET_STATUS_STALE_NS = 5_000_000_000
+# Refusal reasons in the order they are checked (작전·웹개발 2026-10-15). The first one that holds is the answer.
+RESET_MOVING = frozenset({"MOVING", "STOPPING", "STOP_UNCONFIRMED"})  # anything but STOPPED counts as moving
 MAX_BODY_BYTES = 8192
 # Per-kind request fields = rescue_coordination mission.ALL_COMMAND_FIELDS (the coordinator's gate).
 # Phase 1 takes these six; PAUSE/RESUME/CANCEL/STOP_ROBOT and the other IDL operations are refused.
@@ -221,8 +227,92 @@ class WebcamSwitch:
         self.ledger.record_error(dict(at_ns=at_ns, robot_id=None, task_id=None, code=code, detail=detail[:1024]))
 
 
-def make_server(host, port, gate, *, log=None, webcam=None):
-    """A threading HTTP server: POST COMMAND_PATH -> gate.handle; with ``webcam`` also GET/POST WEBCAM_PATH. Not started."""
+class RunReset:
+    """The console's reset button (초기화): checks the robots are at rest, then has the ledger start a new run.
+
+    It lives in db_writer's process and uses db_writer's ledger, the one writer of the file. The run id is
+    read from the DB on every write (site_state.SiteStateLedger.run_id), so even a reset made through another
+    connection is what the next row is written under. Refused, with the reason in operator_commands, when a
+    configured robot has no status or one older than RESET_STATUS_STALE_NS (ROBOT_STATUS_STALE), is not
+    STOPPED (ROBOT_MOVING), has a task (TASK_ACTIVE) or is not DOCKED (ROBOT_NOT_DOCKED). Nothing falls back:
+    a refused reset changes nothing else. The answer has the operator command shape; ``run_id`` is added.
+    ``coordinator_boot_id()`` gives the boot of the coordinator heard last (ros_ingest); the new run stops
+    recording it, so its late or latched messages do not land in the new run.
+    """
+
+    def __init__(self, ledger, *, coordinator_boot_id):
+        self.ledger = ledger
+        self.coordinator_boot_id = coordinator_boot_id
+
+    def refusal(self, now_ns):
+        statuses = {status["robot_id"]: status for status in self.ledger.robot_snapshots()}
+        robots = [statuses.get(robot) for robot in self.ledger.allowed_robot_ids]
+        checks = (("ROBOT_STATUS_STALE", lambda s: s is None or now_ns - s["received_at_ns"] > RESET_STATUS_STALE_NS),
+                  ("ROBOT_MOVING", lambda s: s["motion_state"] != "STOPPED"),
+                  ("TASK_ACTIVE", lambda s: s["active_task_id"] is not None),
+                  ("ROBOT_NOT_DOCKED", lambda s: s["dock_state"] != "DOCKED"))
+        for reason, failing in checks:
+            if any(failing(status) for status in robots):
+                return reason
+        return None
+
+    def handle(self, raw, *, received_at_ns):
+        try:
+            require(isinstance(raw, bytes) and len(raw) <= MAX_BODY_BYTES, f"body must be at most {MAX_BODY_BYTES} bytes")
+            value = json.loads(raw)
+            require(isinstance(value, dict) and set(value) in ({"command_id", "operator_id"},
+                                                               {"command_id", "operator_id", "note"}),
+                    "RESET_RUN takes command_id, operator_id and an optional note")
+            command_id, operator = uid(value["command_id"], "command_id"), text(value["operator_id"], "operator_id")
+            note = value.get("note")
+            if note is not None:
+                text(note, "note", 1024)
+        except (OperationsError, UnicodeDecodeError, ValueError) as exc:
+            code = exc.code if isinstance(exc, OperationsError) else "INVALID_INPUT"
+            return 400, {"accepted": False, "request_id": None, "reason": code, "detail": str(exc)}
+        first = self._first_answer(command_id)
+        if first is not None:
+            return 200, first
+        row = dict(command_id=command_id, kind="RESET_RUN", operator_id=operator, robot_id=None, target_id=None,
+                   segment_index=None, route_revision=None, requested_at_ns=received_at_ns)
+        try:
+            reason = self.refusal(received_at_ns)
+            if reason is not None:
+                self.ledger.record_operator_command(row | dict(accepted=False, result="REJECTED", reason=reason))
+                return 200, self._answer(command_id, False, reason, "REJECTED", None)
+            _, new = self.ledger.reset_run(at_ns=received_at_ns, note=note,
+                                           previous_coordinator_boot_id=self.coordinator_boot_id(),
+                                           command=row | dict(accepted=True, result="ACCEPTED", reason=None))
+        except OperationsError as exc:  # the DB failed: nobody knows if it reset, so no ``accepted``
+            return 503, {"error": exc.code, "request_id": command_id, "detail": exc.detail}
+        return 200, self._answer(command_id, True, None, "ACCEPTED", new)
+
+    def _first_answer(self, command_id):
+        """A resend gets the first answer (DUPLICATE) and does not reset again."""
+        for run in self._runs():
+            for row in read_operator_commands_range(self.ledger.path, run_id=run["run_id"])["commands"]:
+                if row["command_id"] == command_id:
+                    created = self._next_run(run["run_id"]) if row["accepted"] else None
+                    return self._answer(command_id, row["accepted"], row["reason"], "DUPLICATE", created)
+        return None
+
+    def _runs(self):
+        return list_runs(self.ledger.path)["runs"]
+
+    def _next_run(self, run_id):
+        ids = [run["run_id"] for run in self._runs()]
+        index = ids.index(run_id)
+        return ids[index + 1] if index + 1 < len(ids) else None
+
+    @staticmethod
+    def _answer(command_id, accepted, reason, state, run_id):
+        return {"accepted": accepted, "request_id": command_id, "reason": reason, "request_state": state,
+                "created_task_id": None, "run_id": run_id}
+
+
+def make_server(host, port, gate, *, log=None, webcam=None, reset=None):
+    """A threading HTTP server: POST COMMAND_PATH -> gate.handle; with ``webcam`` also GET/POST WEBCAM_PATH;
+    with ``reset`` also POST RESET_PATH. Not started."""
 
     class Handler(BaseHTTPRequestHandler):
         def _answer(self, status, body):
@@ -239,7 +329,12 @@ def make_server(host, port, gate, *, log=None, webcam=None):
             self._answer(*webcam.state())
 
         def do_POST(self):  # noqa: N802 - http.server naming
-            if self.path not in (COMMAND_PATH, WEBCAM_PATH) or (self.path == WEBCAM_PATH and webcam is None):
+            served = {COMMAND_PATH: gate.handle}
+            if webcam is not None:
+                served[WEBCAM_PATH] = webcam.switch
+            if reset is not None:
+                served[RESET_PATH] = reset.handle
+            if self.path not in served:
                 return self._answer(404, {"error": "NOT_FOUND"})
             try:
                 length = int(self.headers.get("Content-Length", ""))
@@ -247,8 +342,7 @@ def make_server(host, port, gate, *, log=None, webcam=None):
                 return self._answer(411, {"error": "INVALID_INPUT", "detail": "Content-Length required"})
             if not 0 <= length <= MAX_BODY_BYTES:
                 return self._answer(413, {"error": "INVALID_INPUT", "detail": f"body over {MAX_BODY_BYTES} bytes"})
-            handle = gate.handle if self.path == COMMAND_PATH else webcam.switch
-            status, body = handle(self.rfile.read(length), received_at_ns=time.time_ns())
+            status, body = served[self.path](self.rfile.read(length), received_at_ns=time.time_ns())
             self._answer(status, body)
 
         def log_message(self, fmt, *args):

@@ -53,7 +53,9 @@ MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DI
 # is elsewhere; this table only keeps what was asked and what was answered.
 OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
                                     "RETURN_HOME", "FINISH_MISSION", "RESET_STOP", "SET_CAMERA_WATCH",
-                                    "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT"})
+                                    "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT",
+                                    # the console's scenario reset, answered by operations itself (1.5)
+                                    "RESET_RUN"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
               "readiness", "battery_percent", "battery_stamp_ns", "active_task_id", "generation"}
 # Optional robot keys from 1차 IDL RobotStatus (2026-10-11); a row or writer without them reads as None.
@@ -89,6 +91,8 @@ CURRENT_MAP_KEYS = ("robot_id", "map_session_id", "map_revision", "generated_at_
 # runs). The live screen reads only the open run's rows. The other tables hold the latest values and the
 # scenario reset empties them (작전·웹개발 2026-10-15).
 RUN_TABLES = ("site_events", "operator_commands", "error_log", "map_snapshots", "exit_locations")
+# Latest-value tables the scenario reset empties; robot_status stays for the restart checklist.
+LATEST_TABLES = ("target_states", "mission_state", "current_map", "overhead_passage_lists", "overhead_passages")
 RUN_KEYS = ("run_id", "started_at_ns", "ended_at_ns", "map_session_id", "note", "previous_coordinator_boot_id")
 EARLIER_RUN_NOTE = "이전 기록"  # the one closed run a 1.4 file's rows go into
 # Robot snapshots for replay: at most one row per robot per period [제안, 작전·웹개발 2026-10-15]
@@ -430,32 +434,63 @@ class SiteStateLedger(_Database):
                          schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES, migrate=_migrate)
         try:
             with self._transaction() as db:
-                self._run_id = _open_run_id(db)
-            if self._run_id is None:  # a new file, or one closed by a reset: this writer starts a run
-                self.open_run(at_ns=time.time_ns())
+                if _open_run_id(db) is None:  # a new file, or one closed by a reset: this writer starts a run
+                    _insert_run(db, time.time_ns())
         except OperationsError:
             self.close()
             raise
 
     @property
     def run_id(self):
-        """The open run every appended row is written under, or None between runs."""
-        return self._run_id
+        """The open run every appended row is written under, or None between runs.
+
+        Read from the DB on every write, never kept in this object: a run closed or opened through another
+        connection to the same file is what the next row is written under (머지 담당 지적, 2026-10-15)."""
+        rows = self._read("SELECT run_id FROM runs WHERE ended_at_ns IS NULL")
+        return rows[0][0] if rows else None
+
+    def previous_coordinator_boot_id(self):
+        """The coordinator boot the open run must not record (set by a reset), or None."""
+        rows = self._read("SELECT previous_coordinator_boot_id FROM runs WHERE ended_at_ns IS NULL")
+        return rows[0][0] if rows else None
+
+    def robot_snapshots(self):
+        """Each robot's stored status with ``received_at_ns``, for the reset's safety check."""
+        return [_stored_status(row["status_json"]) | {"received_at_ns": row["received_at_ns"]}
+                for row in self._read("SELECT status_json, received_at_ns FROM robot_status ORDER BY robot_id")]
+
+    def reset_run(self, *, at_ns, command, note=None, previous_coordinator_boot_id=None):
+        """The scenario reset, in one transaction: write ``command`` (the accepted RESET_RUN row) into the
+        open run, keep each robot's current snapshot in that run's history (the checklist compares boots
+        with it), close the run, empty the latest-value tables and open the next run. Rows of appended
+        tables are never deleted; robot_status stays (the restart checklist reads it).
+        Returns (closed run_id or None, new run_id)."""
+        timestamp(at_ns, "at_ns")
+        command = _command(command, self.allowed_robot_ids)
+        require(command["kind"] == "RESET_RUN" and command["accepted"], "reset_run records an accepted RESET_RUN")
+        _run_options(note, previous_coordinator_boot_id)
+        with self._transaction() as db:
+            old = _open_run_id(db)
+            require(db.execute("SELECT 1 FROM operator_commands WHERE command_id = ?",
+                               (command["command_id"],)).fetchone() is None,
+                    "command_id already used", "ID_CONTENT_CONFLICT")
+            _insert_command(db, command, old)
+            for row in db.execute("SELECT robot_id, status_json FROM robot_status").fetchall():
+                db.execute("INSERT INTO robot_status_history VALUES (?, ?, ?, ?)",
+                           (row["robot_id"], old, at_ns, row["status_json"]))
+            db.execute("UPDATE runs SET ended_at_ns = ? WHERE run_id = ?", (at_ns, old))
+            for table in LATEST_TABLES:
+                db.execute(f"DELETE FROM {table}")
+            new = _insert_run(db, at_ns, note, previous_coordinator_boot_id)
+        return old, new
 
     def open_run(self, *, at_ns, note=None, previous_coordinator_boot_id=None):
         """Start a run; only one is open at a time (TASK_BUSY otherwise). Returns the new run_id."""
         timestamp(at_ns, "at_ns")
-        if note is not None:
-            text(note, "note", 1024)
-        if previous_coordinator_boot_id is not None:
-            text(previous_coordinator_boot_id, "previous_coordinator_boot_id")
-        run_id = str(uuid4())
+        _run_options(note, previous_coordinator_boot_id)
         with self._transaction() as db:
             require(_open_run_id(db) is None, "a run is already open; close it first", "TASK_BUSY")
-            db.execute("INSERT INTO runs (run_id, started_at_ns, note, previous_coordinator_boot_id) "
-                       "VALUES (?, ?, ?, ?)", (run_id, at_ns, note, previous_coordinator_boot_id))
-        self._run_id = run_id
-        return run_id
+            return _insert_run(db, at_ns, note, previous_coordinator_boot_id)
 
     def close_run(self, *, at_ns):
         """End the open run. Returns its run_id, or None when none was open. Rows are never deleted."""
@@ -464,16 +499,15 @@ class SiteStateLedger(_Database):
             run_id = _open_run_id(db)
             if run_id is not None:
                 db.execute("UPDATE runs SET ended_at_ns = ? WHERE run_id = ?", (at_ns, run_id))
-        self._run_id = None
         return run_id
 
     def _robot_history(self, db, robot_id, status_json, at_ns):
         """One replay row per robot per ROBOT_HISTORY_PERIOD_NS; the rest are thinned out."""
+        run = _open_run_id(db)
         last = db.execute("SELECT MAX(at_ns) FROM robot_status_history WHERE robot_id = ? AND run_id IS ?",
-                          (robot_id, self._run_id)).fetchone()[0]
+                          (robot_id, run)).fetchone()[0]
         if last is None or at_ns - last >= ROBOT_HISTORY_PERIOD_NS:
-            db.execute("INSERT INTO robot_status_history VALUES (?, ?, ?, ?)",
-                       (robot_id, self._run_id, at_ns, status_json))
+            db.execute("INSERT INTO robot_status_history VALUES (?, ?, ?, ?)", (robot_id, run, at_ns, status_json))
 
     def record_robot_status(self, status):
         """Store the latest snapshot. Returns False for a stale or identical resend."""
@@ -532,7 +566,7 @@ class SiteStateLedger(_Database):
                 return False
             db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?, ?)",
                        (event.event_id, event.kind, event.observed_at_ns, encoded,
-                        timestamp(time.time_ns(), "received_at_ns"), self._run_id))
+                        timestamp(time.time_ns(), "received_at_ns"), _open_run_id(db)))
         return True
 
     def record_target_state(self, state):
@@ -552,7 +586,7 @@ class SiteStateLedger(_Database):
             db.execute("INSERT OR REPLACE INTO target_states VALUES (?, ?, ?)",
                        (state["target_id"], state["updated_at_ns"], encoded))
             db.execute("INSERT INTO target_state_history VALUES (?, ?, ?, ?)",
-                       (state["target_id"], self._run_id, state["updated_at_ns"], encoded))
+                       (state["target_id"], _open_run_id(db), state["updated_at_ns"], encoded))
         return True
 
     def record_error(self, entry):
@@ -561,7 +595,7 @@ class SiteStateLedger(_Database):
         with self._transaction() as db:
             cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail, run_id) "
                                 "VALUES (?, ?, ?, ?, ?, ?)", (entry["at_ns"], entry["robot_id"], entry["task_id"],
-                                                              entry["code"], entry["detail"], self._run_id))
+                                                              entry["code"], entry["detail"], _open_run_id(db)))
         return cursor.lastrowid
 
     def record_operator_command(self, command):
@@ -573,11 +607,7 @@ class SiteStateLedger(_Database):
             if row is not None:
                 require(_command_row(row) == command, "command_id has different content", "ID_CONTENT_CONFLICT")
                 return False
-            db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
-                        command["target_id"], command["segment_index"], command["route_revision"],
-                        command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"],
-                        self._run_id))
+            _insert_command(db, command, _open_run_id(db))
         return True
 
     def record_map_snapshot(self, snapshot):
@@ -591,7 +621,7 @@ class SiteStateLedger(_Database):
                 return False
             db.execute("INSERT INTO map_snapshots VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (snapshot["snapshot_id"], snapshot["robot_id"], snapshot["revision"], snapshot["path"],
-                        snapshot["sha256"], snapshot["at_ns"], self._run_id))
+                        snapshot["sha256"], snapshot["at_ns"], _open_run_id(db)))
         return True
 
     def record_exit_location(self, value):
@@ -606,7 +636,7 @@ class SiteStateLedger(_Database):
                         "location_id has different content", "ID_CONTENT_CONFLICT")
                 return False
             db.execute("INSERT INTO exit_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (*(exit_[k] for k in EXIT_COLUMNS), self._run_id))
+                       (*(exit_[k] for k in EXIT_COLUMNS), _open_run_id(db)))
         return True
 
     def record_overhead_passages(self, value):
@@ -649,7 +679,7 @@ class SiteStateLedger(_Database):
                        [current[k] for k in CURRENT_MAP_KEYS])
             # the run's map session is the first one heard in it (the profile fixes it; a reset keeps it)
             db.execute("UPDATE runs SET map_session_id = ? WHERE run_id = ? AND map_session_id IS NULL",
-                       (current["map_session_id"], self._run_id))
+                       (current["map_session_id"], _open_run_id(db)))
         return True
 
     def record_mission_state(self, mission):
@@ -672,6 +702,27 @@ class SiteStateLedger(_Database):
 def _open_run_id(db):
     row = db.execute("SELECT run_id FROM runs WHERE ended_at_ns IS NULL").fetchone()
     return None if row is None else row[0]
+
+
+def _run_options(note, previous_coordinator_boot_id):
+    if note is not None:
+        text(note, "note", 1024)
+    if previous_coordinator_boot_id is not None:
+        text(previous_coordinator_boot_id, "previous_coordinator_boot_id")
+
+
+def _insert_run(db, at_ns, note=None, previous_coordinator_boot_id=None):
+    run_id = str(uuid4())
+    db.execute("INSERT INTO runs (run_id, started_at_ns, note, previous_coordinator_boot_id) VALUES (?, ?, ?, ?)",
+               (run_id, at_ns, note, previous_coordinator_boot_id))
+    return run_id
+
+
+def _insert_command(db, command, run_id):
+    db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
+                command["target_id"], command["segment_index"], command["route_revision"],
+                command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"], run_id))
 
 
 def _overhead_items(db, robot, order="id ASC"):
@@ -887,3 +938,34 @@ def read_target_state_history(db_path, *, run_id, start_ns=None, end_ns=None, li
                   lambda r: {"target_id": r["target_id"], "updated_at_ns": r["updated_at_ns"],
                              "state": _stored_target(r["state_json"])},
                   run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", target_id")
+
+
+def read_reset_checklist(db_path):
+    """What the DB has already seen of the restarts after the last reset (the open run and the run before it).
+
+    ``coordinator_restarted``: a mission state was recorded in the open run; the reset emptied it and the old
+    coordinator boot is not recorded any more. ``robots``: per configured robot, the executor boot when the
+    previous run closed and the one now; a different boot means that robot's launch was restarted. The SLAM,
+    map freeze, relay and AMCL restarts leave nothing in this DB and stay person-checked items on the screen.
+    ``previous_run_id`` is None before any reset (nothing to check)."""
+    def query(db):
+        run = _open_run_id(db)
+        previous = None if run is None else db.execute(
+            "SELECT run_id FROM runs WHERE rowid < (SELECT rowid FROM runs WHERE run_id = ?) "
+            "ORDER BY rowid DESC LIMIT 1", (run,)).fetchone()
+        previous = None if previous is None else previous[0]
+        robots = {}
+        if previous is not None:
+            metadata = dict(db.execute("SELECT key, value FROM metadata"))
+            for robot in sorted(allowed_robots(json.loads(metadata["allowed_robot_ids"]))):
+                before = db.execute("SELECT status_json FROM robot_status_history WHERE robot_id = ? AND run_id = ? "
+                                    "ORDER BY at_ns DESC, rowid DESC LIMIT 1", (robot, previous)).fetchone()
+                now = db.execute("SELECT robot_boot_id FROM robot_status WHERE robot_id = ?", (robot,)).fetchone()
+                before = None if before is None else _stored_status(before[0])["robot_boot_id"]
+                now = None if now is None else now[0]
+                robots[robot] = {"boot_id_before": before, "boot_id_now": now,
+                                 "restarted": now is not None and now != before}
+        mission = db.execute("SELECT 1 FROM mission_state").fetchone() is not None
+        return {"previous_run_id": previous, "coordinator_restarted": previous is not None and mission,
+                "robots": robots}
+    return _read(db_path, query)

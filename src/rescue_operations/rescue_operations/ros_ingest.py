@@ -193,6 +193,9 @@ class SiteStateIngest:
         self.ledger = ledger
         self.roles = dict(roles or {})  # robot_id -> SCOUT/SUPPORT from the deployment profile
         self._poses = {}  # robot_id -> latest pose (None once the latest is not VALID)
+        # The boot of the coordinator heard last; a reset stores it so the new run stops recording it (1.5).
+        self.coordinator_boot_id = None
+        self._blocked_logged = set()  # (kind, boot) already written to error_log once
 
     def on_robot_pose(self, msg, *, received_at_ns):
         """True a VALID pose is shown, False the robot's pose is now hidden, None refused (and logged)."""
@@ -226,8 +229,28 @@ class SiteStateIngest:
             self._log(exc, received_at_ns, f"site_event {getattr(msg, 'event_id', None)!r}")
             return None
 
+    def _from_previous_run(self, msg, kind, received_at_ns):
+        """True for a message of the coordinator boot the open run must not record (logged once per boot).
+
+        After a reset the old coordinator may still publish, and its latched state would otherwise refill the
+        emptied mission and target tables of the new run. error_log takes C-09 codes only, so the detail
+        starts with PREVIOUS_RUN_SOURCE."""
+        boot = getattr(getattr(msg, "envelope", None), "publisher_boot_id", None)
+        if boot is None or boot != self.ledger.previous_coordinator_boot_id():
+            if boot is not None:
+                self.coordinator_boot_id = boot
+            return False
+        if (kind, boot) not in self._blocked_logged:
+            self._blocked_logged.add((kind, boot))
+            self.ledger.record_error(dict(at_ns=received_at_ns, robot_id=None, task_id=None, code="STALE_OBSERVATION",
+                                          detail=f"PREVIOUS_RUN_SOURCE {kind} from coordinator boot {boot}: "
+                                                 "not recorded in the new run (초기화 전 조정기)"))
+        return True
+
     def on_system_state(self, msg, *, received_at_ns):
-        """True stored, False older or identical resend, None refused (and logged)."""
+        """True stored, False older or identical resend, None refused (and logged) or from the previous run."""
+        if self._from_previous_run(msg, "system_state", received_at_ns):
+            return None
         try:
             return self.ledger.record_mission_state(mission_from_msg(msg))
         except OperationsError as exc:
@@ -265,6 +288,8 @@ class SiteStateIngest:
 
         Targets are written one by one, so a refused target does not hold back the others.
         """
+        if self._from_previous_run(msg, "target_snapshot", received_at_ns):
+            return None
         supports = [robot for robot, role in self.roles.items() if role == "SUPPORT"]
         support_robot_id = supports[0] if supports else None
         stored, refused = False, False
