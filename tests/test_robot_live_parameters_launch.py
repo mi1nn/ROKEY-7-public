@@ -103,8 +103,13 @@ class ReadsTheLaunchValues(unittest.TestCase):
         config = self.read('robot_b')
         self.assertEqual('/robot5/rescue_start_align', config['saved_maps']['robot_b']['start_align_topic'])
         self.assertNotIn('start_align_topic', self.read('robot_a')['saved_maps']['robot_a'])
-        with self.assertRaisesRegex(ContractError, 'start_align_topic'):
-            self.read('robot_b', change={'task.saved_map.start_align_topic': None})
+        task = robot_launch_values(self.deployment, field=self.field, robot_id='robot_b', occupancy_sha256='',
+                                   now_ns=fixtures.NOW_NS)['task_input']
+        task.pop('task.saved_map.start_align_topic')   # not given: never set, as ROS leaves it uninitialized
+        adapter = NS(robot_id='robot_b', executor=NS(authority_epoch=task['authority_epoch']))
+        with patch.dict(sys.modules, fake_ros()), self.assertRaisesRegex(ContractError, 'start_align_topic'):
+            from rescue_robot.live_parameters import read_config
+            read_config(FakeNode(task), adapter)
 
     def _saved_field(self):
         import json

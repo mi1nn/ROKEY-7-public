@@ -73,7 +73,8 @@ class Expectations(Case):
     def test_node_names_are_the_launch_file_names(self):
         ours = {'adapter': 'robot.launch.py', 'watchdog': 'robot.launch.py', 'passage_points': 'passage_points.launch.py',
                 'overhead': 'overhead_passage.launch.py', 'relay': 'frozen_localization.launch.py',
-                'amcl': 'frozen_localization.launch.py', 'map_freeze': 'map_freeze.launch.py',
+                'amcl': 'frozen_localization.launch.py', 'start_align': 'frozen_localization.launch.py',
+                'map_freeze': 'map_freeze.launch.py',
                 'db_writer': 'operations.launch.py', 'report_node': 'operations.launch.py',
                 'webcam': 'operations.launch.py', 'target_locator': 'amr_perception.launch.py',
                 'exit_locator': 'amr_perception.launch.py'}
@@ -138,6 +139,16 @@ class Expectations(Case):
         self.assertEqual(('/robot6/rescue_frozen_map_relay',), frozen['robot_a.map'].writers)
         self.assertEqual(('/robot6/amcl',), frozen['robot_a.amcl_pose'].writers)
         self.assertIn('/robot6/rescue_frozen_map_relay', frozen['frozen_map'].readers)
+
+    def test_tb5_executor_reads_its_start_alignment_verdict(self):
+        # VALID only after start_align says ALIGNED (#317); TB-6 has no start alignment
+        for phase in ('SEARCHING', 'FROZEN'):
+            links = self.by_id(slam_phase=phase)
+            with self.subTest(phase=phase):
+                row = links['robot_b.start_align']
+                self.assertEqual(('/robot5/rescue_start_align', ('/robot5/rescue_start_align',),
+                                  ('/robot5/rescue_command_adapter',)), (row.name, row.writers, row.readers))
+                self.assertNotIn('robot_a.start_align', links)
 
     def test_one_robot_keeps_the_shared_rows_without_the_other_robot(self):
         links = self.links(robots=['robot_b'])
