@@ -13,7 +13,8 @@ revision, on a revision other than the search one. After the freeze:
 - TB-5 goes only with the target observed on the frozen map and saved again, and both robots localized (VALID)
   on the frozen revision; otherwise SystemState.reason says which;
 - the approach point, TB-5's exit and TB-6's docking approach point must be free on the frozen grid within
-  ``freeze_clearance_m``; otherwise nothing moves and the reason says which (no other point is made up).
+  ``freeze_clearance_m``; otherwise nothing moves and the reason says which (no other point is made up, but for
+  the approach point, which is chosen on the approach_standoff_m circle, C23).
 
 ``map_mode=SAVED_MAP`` keeps the earlier behaviour (one basis from the launch values, no freeze).
 Hash, snapshot id and the free-cell rule belong to rescue_contracts (통합-로봇); the core takes the frozen grid

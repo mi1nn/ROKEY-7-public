@@ -8,16 +8,20 @@ freeze_clearance_m, the shortest clear grid path from TB-5 (straight-line distan
 None free: SUPPORT_APPROACH_NOT_FREE as before, and the log says how many were checked.
 """
 import math
+from pathlib import Path
+from types import SimpleNamespace as NS
 import unittest
 
 from rescue_contracts.grid_search import path_lengths
+from rescue_contracts.occupancy import footprint_clear
+from rescue_coordination import ros_node
 from test_coordination_approach import pose_msg
-from test_coordination_frontier import scout_pose
+from test_coordination_frontier import saved_map, scout_pose
 from test_coordination_map_freeze import CLEARANCE, map_state
 from test_coordination_mission_end import RealGrid
 from test_coordination_ros_core import SUPPORT
 from test_coordination_traffic import scout_grid
-from test_coordination_two_freezes import NOW, R1, Base
+from test_coordination_two_freezes import NOW, R1, Base, core_
 
 DOLL, TB5 = (4., 4.), (0., 4.)  # Base: TB-5 at (0, 4), standoff 1.0 -> the straight point is (3, 4)
 STRAIGHT = (3., 4.)
@@ -92,6 +96,33 @@ class NoneFreeTests(FreeDirectionBase):
         self.core.on_map_state(map_state(SUPPORT, revision=R1))
         self.core.on_pose(pose_msg(map_revision=R1))
         self.assertEqual([], self.tick(NOW, 'APPROACH_TARGET'))
+
+
+RUN15 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run073537/maps'
+
+
+class Run15Tests(unittest.TestCase):
+    """The 15회차 frozen map R2 with its launch values (standoff 0.8 m, clearance 0.2 m) and logged positions."""
+    DOLL, TB5 = (-2.5007, 0.3200), (-0.402, 1.765)  # TARGET_REBASED_ON_FREEZE; TB-5 RobotPose 07:39:59.72
+
+    def setUp(self):
+        fields = saved_map('073955-frozen-r2', RUN15).fields
+        self.core = core_(approach_standoff_m=0.8)
+        self.core.frozen_grid = NS(fields=fields, clear=lambda x, y, r: footprint_clear(**fields, x=x, y=y, radius=r))
+        self.core.target_geo = {'doll': (None, self.DOLL)}
+
+    def test_the_straight_point_was_in_the_box(self):
+        (xy, _), = [ros_node.approach_point(self.DOLL, self.TB5, 0.8)]
+        self.assertEqual((-1.842, 0.774), tuple(round(v, 3) for v in xy))
+        self.assertFalse(self.core.frozen_grid.clear(*xy, CLEARANCE))
+
+    def test_a_free_point_on_the_circle_is_picked(self):
+        xy, yaw = self.core._approach_goal('doll', self.TB5)
+        self.assertAlmostEqual(0.8, math.dist(xy, self.DOLL), places=6)
+        self.assertTrue(self.core.frozen_grid.clear(*xy, CLEARANCE))
+        self.assertAlmostEqual(math.atan2(self.DOLL[1] - xy[1], self.DOLL[0] - xy[0]), yaw, places=6)
+        (note,) = self.core.drain_notes()
+        self.assertTrue(note.startswith('APPROACH_POINT_PICKED target=doll'), note)
 
 
 if __name__ == '__main__':

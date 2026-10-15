@@ -20,7 +20,8 @@ ROS packages are imported inside functions, so this module stays importable and
 - ``support_dispatch=AUTO`` (owner decision 2026-10-13, 1B·2B): once a target is CONFIRMED and its
   current revision PERSISTED, the SUPPORT gets one APPROACH_TARGET to ``approach_standoff_m`` from the
   target toward its current mission pose (``/rescue/robots/{SUPPORT}/pose``), facing the target, with no
-  operator approval. ``OPERATOR`` keeps DISPATCH_SUPPORT / MOVE_SEGMENT.
+  operator approval. On a frozen map the point is the free one on that circle with the shortest path (C23).
+  ``OPERATOR`` keeps DISPATCH_SUPPORT / MOVE_SEGMENT.
 
   After it arrives (COMPLETED, stop confirmed) it waits ``support_exit_wait_s`` and gets one RETURN_HOME
   to its exit (home_ref ``home/<robot_id>``, Q1-b·5A).
@@ -318,6 +319,21 @@ def approach_point(target_xy, support_xy, standoff_m):
     return xy, math.atan2(target_xy[1] - xy[1], target_xy[0] - xy[0])
 
 
+def approach_circle(target_xy, support_xy, standoff_m, spacing_m):
+    """Approach points ``standoff_m`` around the target for a SUPPORT farther away, each ((x, y), yaw facing the
+    target, direction from the target in degrees): approach_point's straight one first, then fixed mission-frame
+    directions no more than ``spacing_m`` apart along the circle (C23)."""
+    straight = approach_point(target_xy, support_xy, standoff_m)
+    points = [(*straight, math.degrees(math.atan2(straight[0][1] - target_xy[1],
+                                                  straight[0][0] - target_xy[0])) % 360.)]
+    n = max(4, math.ceil(2 * math.pi * standoff_m / spacing_m))
+    for k in range(n):
+        a = 2 * math.pi * k / n
+        points.append(((target_xy[0] + standoff_m * math.cos(a), target_xy[1] + standoff_m * math.sin(a)),
+                       math.atan2(-math.sin(a), -math.cos(a)), 360. * k / n))
+    return points
+
+
 def route_id(segment_goals):
     """sha256 of the configured segment-end list (작전 #88: route_id of the fixed route)."""
     text = json.dumps([[g.mission_xy[0], g.mission_xy[1], g.yaw, g.map_session_id, g.map_revision,
@@ -596,6 +612,8 @@ class CoordinatorCore:
         # Refused before moving: approval command_id / recheck link_id -> hold-until ns (None until the next
         # tick sets it). The same approval or recheck goes again as a new task after admission_timeout_ns.
         self.refused = {}
+        self.approach_mask = None      # (frozen grid, clear_mask) for the approach point's path lengths (C23)
+        self.approach_note_key = None  # the last approach pick logged
 
     # -- inputs --------------------------------------------------------------
     def on_site_event(self, msg):
@@ -2324,11 +2342,8 @@ class CoordinatorCore:
         support_xy = self._support_xy(now_ns)
         if support_xy is None:
             return None
-        point = approach_point(self.target_geo[target_id][1], support_xy, self.approach_standoff_m)
+        point = self._approach_goal(target_id, support_xy)
         if point is None:
-            self.issue_block = 'SUPPORT_AT_TARGET'
-            return None
-        if not self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE'):
             return None
         if not self._traffic_support(point[0], now_ns):
             return None
@@ -2355,6 +2370,51 @@ class CoordinatorCore:
         self._moving('SUPPORT', fields['task_id'], point[0])
         self._send(fields)
         return fields['task_id']
+
+    def _approach_goal(self, target_id, support_xy):
+        """((x, y), yaw) of TB-5's approach, or None with the reason. Within the standoff TB-5 stays and turns; in
+        SAVED_MAP it is the straight point (approach_point). On the frozen map it is the point on the
+        approach_standoff_m circle, free within freeze_clearance_m, with the shortest clear grid path from TB-5
+        (straight-line distance where the grid has no cells or no path): 15회차 held SUPPORT_APPROACH_NOT_FREE to the
+        end on a straight point in a box with free directions beside it (C23). None free: SUPPORT_APPROACH_NOT_FREE.
+        The pick is logged when it changes."""
+        doll = self.target_geo[target_id][1]
+        point = approach_point(doll, support_xy, self.approach_standoff_m)
+        if point is None:
+            self.issue_block = 'SUPPORT_AT_TARGET'
+            return None
+        if (self.map_mode != 'SLAM_FREEZE' or self.frozen_grid is None
+                or math.dist(doll, support_xy) <= self.approach_standoff_m):
+            return point if self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE') else None
+        grid, radius = self.frozen_grid, self.freeze_clearance_m
+        circle = approach_circle(doll, support_xy, self.approach_standoff_m, radius)
+        free = [c for c in circle if grid.clear(float(c[0][0]), float(c[0][1]), radius) is True]
+        if not free:
+            self._approach_note((target_id, 'NONE'), (
+                f'APPROACH_POINT_NONE target={target_id} checked={len(circle)} free=0: no point '
+                f'{self.approach_standoff_m} m around the doll is free for {radius} m (straight {circle[0][2]:.0f}°)'))
+            self.issue_block = 'SUPPORT_APPROACH_NOT_FREE'
+            return None
+        lengths = [None] * len(free)
+        fields = getattr(grid, 'fields', None)
+        if fields is not None:
+            if self.approach_mask is None or self.approach_mask[0] is not grid:
+                self.approach_mask = (grid, clear_mask(**fields, radius=radius))
+            lengths = path_lengths(**fields, radius=radius, start=support_xy, goals=[c[0] for c in free],
+                                   mask=self.approach_mask[1])
+        i = min(range(len(free)), key=lambda i: (lengths[i] is None, lengths[i] or 0.,
+                                                 math.dist(free[i][0], support_xy), i))
+        xy, yaw, direction = free[i]
+        path = '-' if lengths[i] is None else f'{lengths[i]:.2f}'
+        self._approach_note((target_id, 'STRAIGHT' if free[i] is circle[0] else direction), (
+            f'APPROACH_POINT_PICKED target={target_id} dir={direction:.0f}° (straight {circle[0][2]:.0f}°) '
+            f'xy=({xy[0]:.2f}, {xy[1]:.2f}) path_m={path} free={len(free)}/{len(circle)}'))
+        return xy, yaw
+
+    def _approach_note(self, key, line):
+        if key != self.approach_note_key:
+            self.approach_note_key = key
+            self.notes.append(line)
 
     def _held_after_refusal(self, key, now_ns):
         """True while a refused approval/recheck waits admission_timeout_ns before it is issued again."""
