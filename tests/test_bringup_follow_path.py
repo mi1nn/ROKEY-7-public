@@ -30,6 +30,15 @@ class FollowPath(unittest.TestCase):
         self.assertIs(False, follow['use_rotate_to_heading'])  # the shim does the turning (Nav2 docs)
         self.assertIs(True, follow['use_collision_detection'])
 
+    @unittest.expectedFailure
+    def test_the_shim_turns_to_the_goal_heading_at_the_goal(self):
+        """Run 10 (2026-10-16): TB-6 reached 0.035 m from a goal and expired turning: with RPP's use_rotate_to_heading
+        off (as the shim needs) and the shim's rotate_to_goal_heading off, nothing turned the robot to the goal yaw,
+        while the goal checker asks yaw_goal_tolerance 0.25 rad. 재범 decision 05:0x 「켜기」 (grade 4)."""
+        params = field(vendor_params())['controller_server']['ros__parameters']
+        self.assertIs(True, params['FollowPath']['rotate_to_goal_heading'])
+        self.assertLess(params['general_goal_checker']['yaw_goal_tolerance'], 3.14)   # a heading is asked for
+
     def test_no_dwb_key_is_left(self):
         follow = field(vendor_params())['controller_server']['ros__parameters']['FollowPath']
         dwb = vendor_params()['controller_server']['ros__parameters']['FollowPath']
