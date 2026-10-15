@@ -155,11 +155,17 @@ class TaskActionServer:
 
     def log_lease(self, level, reason, lease):
         """Keep a rejection trace without changing storage, admission or expiry."""
-        getattr(self.node.get_logger(), level)(
-            f'CommandLease {reason}: lease_id={lease.lease_id} robot_id={lease.robot_id} '
-            f'robot_boot_id={lease.robot_boot_id} coordinator_id={lease.coordinator_id} '
-            f'authority_epoch={lease.authority_epoch} generation={lease.generation} '
-            f'renewal_sequence={lease.renewal_sequence}')
+        line = (f'CommandLease {reason}: lease_id={lease.lease_id} robot_id={lease.robot_id} '
+                f'robot_boot_id={lease.robot_boot_id} coordinator_id={lease.coordinator_id} '
+                f'authority_epoch={lease.authority_epoch} generation={lease.generation} '
+                f'renewal_sequence={lease.renewal_sequence}')
+        log = self.node.get_logger()
+        if level == 'warning':   # one severity per call site (rclpy raises otherwise)
+            log.warning(line)
+        elif level == 'debug':
+            log.debug(line)
+        else:
+            raise ValueError(f'log_lease level {level!r}')
 
     def on_lease(self, lease):
         with self.ingress.adapter.lock:

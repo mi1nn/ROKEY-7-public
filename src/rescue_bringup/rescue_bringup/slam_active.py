@@ -26,6 +26,14 @@ def judge(state, *, node, activate_once, sent):
     return f'SLAM_NOT_ACTIVE {node} state={label}: not changed here', None
 
 
+def say(log, line):
+    """SLAM_ACTIVE as info, anything else as error; one severity per call site (rclpy raises otherwise)."""
+    if line.startswith('SLAM_ACTIVE'):
+        log.info(line)
+    else:
+        log.error(line)
+
+
 def main(args=None):
     import rclpy
     from lifecycle_msgs.msg import Transition
@@ -62,14 +70,14 @@ def main(args=None):
         while rclpy.ok() and node.get_clock().now().nanoseconds < end:
             rclpy.spin_once(node, timeout_sec=0.2)
         line, action = judge(state(), node=target, activate_once=activate_once, sent=False)
-        (log.info if line.startswith('SLAM_ACTIVE') else log.error)(line)
+        say(log, line)
         if action == 'ACTIVATE':
             request = ChangeState.Request()
             request.transition.id = Transition.TRANSITION_ACTIVATE
             answer = call(change, request, 5.0)
             log.warning(f'SLAM_ACTIVATE_SENT {target} success={None if answer is None else answer.success}')
             line, _ = judge(state(), node=target, activate_once=activate_once, sent=True)
-            (log.info if line.startswith('SLAM_ACTIVE') else log.error)(line)
+            say(log, line)
     finally:
         node.destroy_node()
         rclpy.try_shutdown()

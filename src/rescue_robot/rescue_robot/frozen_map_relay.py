@@ -72,7 +72,10 @@ def main(args=None):
     def say(level, text):
         if state['said'] != text:   # each wait/block reason once
             state['said'] = text
-            getattr(log, level)(text)
+            if level == 'error':   # one severity per call site (rclpy raises otherwise)
+                log.error(text)
+            else:
+                log.warning(text)
 
     def forward():
         message = core.wanted()

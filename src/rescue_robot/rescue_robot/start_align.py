@@ -322,8 +322,11 @@ def main(args=None):
             return
         said['state'] = key
         status.publish(String(data=json.dumps(result, sort_keys=True)))
-        level = 'error' if result['status'] == 'FAILED' else 'info'
-        getattr(log, level)(f'START_ALIGN_{result["status"]} {result["reason"]} ' + json.dumps(result, sort_keys=True))
+        line = f'START_ALIGN_{result["status"]} {result["reason"]} ' + json.dumps(result, sort_keys=True)
+        if result['status'] == 'FAILED':   # one severity per call site (rclpy raises otherwise)
+            log.error(line)
+        else:
+            log.info(line)
 
     def on_map(message):
         try:
