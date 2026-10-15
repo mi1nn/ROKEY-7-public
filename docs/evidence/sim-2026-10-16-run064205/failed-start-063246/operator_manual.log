@@ -1,0 +1,1 @@
+OPERATOR 06:40:51 (가제보 실습) 기동 실패로 기록: TB-6 Nav2 bringup 이 'Configuring controller_server'(06:34:16)에서 멈춤, controller_server 'failed to send response to …/change_state (timeout)'. 이 폴더는 실패 기동, 14회차는 새 폴더로 다시 띄움

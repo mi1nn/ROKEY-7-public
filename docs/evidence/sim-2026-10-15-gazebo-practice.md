@@ -200,6 +200,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열셋째 회차 자료](sim-2026-10-16-run060431/README.md)에 있다. 빌드는 `e6f21d6`(#435·#437·#439·#442)다. 탐색은 12회차와 같이 `frontiers_sent=1` 로 끝났다. SLAM 끄기는 운영자 대역이 손 없이 했다(#437). 첫 frozen_localization 은 frozen pose 를 10 s 안에 못 받아 실패했다. 가제보 실습이 다시 띄웠지만 AMCL 이 라이다를 한 번도 처리하지 않았다. 그래서 `AMCL_NOMOTION_REQUESTED` 32회 동안 TB-6 위치가 없었고 RETURN_HOME 은 0회였다. 이 회차부터 프로세스별 부하를 적는다.
 
+## 18. 열넷째 회차 (full-1016-064205)
+
+회차 표·단계별 결과는 [열넷째 회차 자료](sim-2026-10-16-run064205/README.md)에 있다. 빌드는 `a5d4d64`(#444·#447·#448·#450·#451·#452·#453)다. 첫 기동은 TB-6 Nav2 lifecycle 응답 시간 초과로 멈춰 다시 띄웠다. 경계 3개를 보냈지만 터널 1 입구에서 `collision ahead` 로 막혀 `EXPLORATION_FRONTIERS_FAILED` 로 끝났다. 넘김은 손 없이 됐고 C21·C22·C17 은 재현되지 않았다. RETURN_HOME 은 Nav2 까지 갔지만 RobotPose 가 0.02 ~ 0.09 s `UNKNOWN` 이 된 순간 `localization uncertain` 으로 두 번 취소돼 `SCOUT_RETURN_FAILED` 였다. 터널 PASSABLE 1행, TB-5 `ALIGNED`.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
