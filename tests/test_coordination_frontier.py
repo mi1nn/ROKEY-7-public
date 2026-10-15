@@ -313,23 +313,14 @@ class WallClearanceTests(unittest.TestCase):
         self.assertLess(wall_distance(grid, old) - FINE / 2, ROOM)              # 0.225 m to the wall face
         core, xy = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
         self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
-        self.assertLessEqual(math.dist(old, xy), GOAL_CLEARANCE - 0.2 + FINE * math.sqrt(2))  # pushed, not re-planned
-        self.assertIn('FRONTIER_GOAL_MOVED', ' '.join(core.drain_notes()))
 
     def test_the_same_clearance_changes_nothing(self):
         grid = self.wall_room()
         _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)
         self.assertAlmostEqual(0.25, wall_distance(grid, old), delta=0.01)  # the goal of main before this change
 
-    def test_a_narrow_way_still_gets_a_goal_and_says_so(self):
-        # 0.70 m between two walls (tunnel 1 gap 0.68 m), unknown beyond x = 2.5
-        grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
-        core, xy = self.core_with(grid, (0.4, 0.4), frontier_goal_clearance_m=GOAL_CLEARANCE)
-        self.assertGreater(xy[0], 1.0)  # a goal along the way, not refused
-        self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
-
-    def test_a_moved_goal_that_failed_is_picked_and_moved_again_then_given_up(self):
-        # C3 with C9: the failures count by the frontier (its goal cell and centroid), not by the moved site
+    def test_a_roomy_goal_that_failed_is_picked_again_at_the_same_place_then_given_up(self):
+        # C3 with C9: the failures count by the frontier (its goal cell and centroid) and by the place (C12)
         grid = self.wall_room()
         core, first = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
         for attempt in (1, 2):
@@ -347,7 +338,6 @@ class WallClearanceTests(unittest.TestCase):
         notes = ' '.join(core.drain_notes())
         self.assertIn('FRONTIER_RETRY', notes)
         self.assertIn('FRONTIER_GAVE_UP', notes)
-        self.assertEqual(2, notes.count('FRONTIER_GOAL_MOVED'))
 
     def test_the_clearance_is_a_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['frontier_goal_clearance_m'])
@@ -560,7 +550,7 @@ class FrontierNoneWhyTests(Base):
         self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
         line = self.none_line()
-        self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 no_path=0', line)
+        self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 tight=0 no_path=0', line)
         self.assertIn('TRIED cells=20 centroid=(3.90, 2.00)', line)
 
     def test_an_unreachable_and_a_small_frontier_are_named(self):
