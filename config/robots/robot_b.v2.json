@@ -21,7 +21,7 @@
     "map_frame": "map",
     "odom_frame": "odom",
     "camera_topics": [
-      "/robot_b/oakd/rgb/preview/image_raw/compressed"
+      "/robot_b/oakd/rgb/camera_info"
     ],
     "wheel_status_topic": "/robot_b/wheel_status",
     "watchdog_heartbeat_topic": ""

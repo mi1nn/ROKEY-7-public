@@ -165,8 +165,12 @@ def bind_dock_status(node, adapter, topic):
 
 def camera_message_type(topic):
     """sensor_msgs type name for a camera topic: image_transport's .../compressed is
-    CompressedImage (TB4 OAK-D default, P4 DEC-004), so is .../compressedDepth (passage depth), anything else Image."""
-    return 'CompressedImage' if topic.rstrip('/').endswith(('/compressed', '/compressedDepth')) else 'Image'
+    CompressedImage (TB4 OAK-D default, P4 DEC-004), so is .../compressedDepth (passage depth); .../camera_info is
+    CameraInfo (the camera runs, without pulling its images over Wi-Fi again, 실습 기록 #339 B7); anything else Image."""
+    name = topic.rstrip('/')
+    if name.endswith('/camera_info'):
+        return 'CameraInfo'
+    return 'CompressedImage' if name.endswith(('/compressed', '/compressedDepth')) else 'Image'
 
 
 def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_status_topic,
@@ -174,7 +178,7 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
     """Arrival-only subscriptions feeding ReadinessMonitor (no message content judged,
     except that only the map->odom edge counts for slam freshness)."""
     from rclpy.qos import qos_profile_sensor_data
-    from sensor_msgs.msg import CompressedImage, Image, LaserScan
+    from sensor_msgs.msg import CameraInfo, CompressedImage, Image, LaserScan
     from tf2_msgs.msg import TFMessage
 
     def arrival(source):
@@ -182,7 +186,7 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
 
     subs = [node.create_subscription(LaserScan, scan_topic, arrival('scan'), qos_profile_sensor_data)]
     for topic in camera_topics:
-        kind = CompressedImage if camera_message_type(topic) == 'CompressedImage' else Image
+        kind = {'CameraInfo': CameraInfo, 'CompressedImage': CompressedImage}.get(camera_message_type(topic), Image)
         subs.append(node.create_subscription(kind, topic, arrival('camera:' + topic), qos_profile_sensor_data))
     if wheel_status_topic:
         from irobot_create_msgs.msg import WheelStatus
