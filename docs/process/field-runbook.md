@@ -81,6 +81,8 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
   권고안 A(두 로봇 Pi 서버 `;;;;;<TB-5 Pi 주소>:11811;<TB-6 Pi 주소>:11811`)는 전용 PC 가 꺼졌을 때 로봇 쪽을 직접 조회하는 데만 쓴다([Discovery 전용 PC 운영 안내](discovery-host.md) 5절).
 - `--role` 은 프로파일의 host id 다. 운영 PC 는 프로파일에 operations 호스트와 coordination 호스트로 따로 올라 있으므로, 두 host id 로 각각 한 번씩 돌린다. 둘 다 PASSED 여야 한다.
 - 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 전용 서버 하나면 모든 host 가 `[{"server_id": 0, "address": "<전용 Discovery PC 주소>", "port": 11811}]` 다. 프로파일이 아직 권고안 A 값이면 셸이 아니라 프로파일을 고친다(바꾸기 전 백업, 전후 sha256 기록).
+- **현장 프로파일은 손으로 고치지 않고 만든다.** 모든 PC 에서 같은 main 으로 `python3 scripts/field/make_field_profile.py --out <새 폴더> --discovery <전용 Discovery PC 주소>:11811 --domain <도메인>` 을 돌리고, 찍힌 sha256 세 줄(프로파일, 두 로봇 파일)이 PC 마다 같은지 본다. 저장소 예시에서 namespace(TB-6 `/robot6`, TB-5 `/robot5`), 모든 host 의 network(전용 서버 하나), `map_basis.frame_id`(`map`), `deployment_id` 만 바꾼다. 이미 있는 폴더에는 쓰지 않는다. 2026-10-15 까지는 예시를 PC 마다 손으로 고친 뒤 sha256 을 맞췄다([실습 기록](../evidence/field-2026-10-15-run1015.md)).
+  - `home_positions` 는 1차 고정 지도에서 잰 값만 `--home robot_a=x,y,yaw`(TB-5 는 `robot_b=`)로 넣어 새 폴더로 다시 만든다. 없으면 TB-6 은 복귀하지 않는다(`NO_HOME_POSITION`).
 - 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 배선 점검 도구만 super client 로 띄운다.
 - **ROS 로 조회할 때는 `--spin-time 10` 을 붙인다.** Discovery 서버를 거친 목록은 늦게 온다. `ros2 topic list --no-daemon` 만 쓰면 기본 대기가 짧아 로봇 토픽이 0개로 보인다. 앞에 `timeout 30` 을 붙여도 대기는 늘지 않는다(2026-10-15 실기, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 3절).
 - **PC 의 망이 바뀌면 그 PC 의 ROS 노드를 모두 다시 띄운다.** Wi-Fi 에서 유선으로 바꾸거나 Wi-Fi 가 끊긴 뒤에는, 이미 떠 있던 노드가 구독은 맺어도 데이터와 서비스 응답을 받지 못했다. 같은 일이 운영 PC 에서 두 번 있었다(2026-10-15, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 4절).
@@ -91,11 +93,14 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
 **후진 없는 BT 대조(#267, 로봇 담당 PC 마다 Nav2 를 띄우기 전).** 우리 BT(행동 트리) 사본은 Nav2 `jazzy` 브랜치에서 후진 한 줄만 뺀 것이다. 설치된 Nav2 의 기본 BT 와 다르면 BT 로드가 실패할 수 있다 [추정].
 
 ```bash
+BT=$(python3 -c 'from rescue_bringup.nav2_recovery import bt_dir; print(bt_dir())') && ls "$BT"
 for f in navigate_to_pose navigate_through_poses; do
   diff <(grep -v BackUp /opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/${f}_w_replanning_and_recovery.xml | grep -v '^\s*$') \
-       <(grep -v '^\s*$' "$(ros2 pkg prefix rescue_bringup)"/lib/python3*/site-packages/rescue_bringup/behavior_trees/${f}_no_backup.xml | sed '/^<!--/,/-->/d')
+       <(grep -v '^\s*$' "$BT/${f}_no_backup.xml" | sed '/^<!--/,/-->/d')
 done
 ```
+
+`BT` 는 launch 가 bt_navigator 에 넘기는 폴더다(`nav2_recovery.bt_dir()`). 그래서 일반 빌드와 `--symlink-install` 빌드에서 모두 맞는 파일을 본다. `--symlink-install` 빌드에는 `<prefix>/lib/python3*/site-packages/rescue_bringup` 이 없다(2026-10-15 실기). `ls` 가 `_no_backup.xml` 두 개를 보여야 한다.
 
 머리 주석 말고 다른 차이가 없어야 한다. 차이가 있으면 Nav2 를 띄우지 말고 팀에 알린다.
 
@@ -109,6 +114,7 @@ done
 | Pi 시계 | `chronyc tracking` | 계산한 오차가 현장 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 안. 넘으면 값을 바꾸고 기록한다 |
 
 - 로봇 Pi 에는 아무것도 설치하지 않는다. 로봇 설정을 바꾸려면 재범 승인이 필요하다(등급 4).
+- **라이다가 멈추면**(`ros2 topic hz <ns>/scan` 이 비고 SLAM 로그에 `rplidar_link` 메시지가 버려짐) 재범 승인을 받고 그 로봇 Pi 에 ssh 로 들어가 `sudo systemctl restart turtlebot4` 를 한다. PC 에서 치면 `Unit turtlebot4.service not found` 다. 1~2분 뒤 scan 이 오는지 보고, 바로 위 표의 「Create3 연결」 줄로 `dock_status` 가 오는지도 본다. 이 재시작 뒤 Create3 연결이 끊긴 일이 있다(2026-10-15 TB-6). 2026-10-15 TB-6 에서 두 번 있었다([운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 8절).
 - 카메라는 도킹 중 꺼져 있다. 카메라 확인은 언도킹 뒤에 두 로봇 모두 한다. RGB 만 보지 말고 깊이도 본다: `ros2 topic hz <ns>/oakd/rgb/image_raw/compressed` 와 `ros2 topic hz <ns>/oakd/stereo/camera_info`. 깊이 camera_info 가 0 이면 깊이만 멈춘 것이다. 터널 정지와 준비 점검이 막히므로 `ros2 service call <ns>/oakd/stop_camera std_srvs/srv/Trigger {}` 뒤 `start_camera` 로 카메라만 다시 켠다(재범 승인, 2026-10-15 TB-6 에서 이것으로 복구, 같은 기록 B8).
 
 ## 3단계 — 운영 PC
@@ -209,6 +215,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 
 - 표는 화면(stderr)에, 줄마다 결과는 JSON 에 남는다. 종료 코드가 0 이 아니면 다음으로 가지 않는다.
 - 같은 이름 노드 줄이 FAILED 면 같은 프로그램이 두 곳에서 떠 있다. 우리 노드면 한쪽 launch 를 끈다. 우리 노드가 아니면(예: 두 PC 의 `/rviz2`) 한쪽을 끄거나 `--ros-args -r __node:=<다른 이름>` 으로 이름을 바꾼다.
+- 우리가 끌 수 없는 로봇 Pi 기본 노드(`wiring_check.py` `PI_DEFAULT_NODES`, 지금은 `teleop_twist_joy_node` 하나)는 FAILED 대신 PASSED 에 `!` 줄(JSON `notes`)을 붙인다. 이 조이스틱 노드는 TurtleBot4 Pi 기본 launch 가 띄우고 `<ns>/cmd_vel` 에 직접 쓴다. 그래서 enable 버튼을 누르는 동안에는 watchdog 을 거치지 않고 로봇을 움직인다. 회차 중에는 조이스틱을 치워 둔다(2026-10-15 17:10 두 Pi 모두 이 줄이 FAILED 였다). 다른 로봇의 `cmd_vel` 이나 다른 토픽에 쓰면 그대로 FAILED 다.
 - 2차 고정 뒤 TB-6 을 다시 볼 때는 `--slam-phase FROZEN` 을 더한다. 한 로봇만 볼 때는 `--robot robot_b` 다.
 - 메시지 간격은 이 도구가 보지 않는다. 로봇이 자꾸 멈추면 `scripts/field/link_check.py` 로 끊김 길이를 본다.
 
@@ -296,6 +303,7 @@ curl -s -X POST http://127.0.0.1:<port>/api/runs/reset -H 'Content-Type: applica
 | --- | --- | --- |
 | 상태 보기 | `python3 scripts/field/noweb/status_watch.py --db <site_state.sqlite3> --log <회차 폴더>/status.log` | 운영 PC |
 | 지도와 두 로봇 보기 | `rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static` | RViz 를 띄울 PC |
+| 인형과 출구 위치 보기 | `python3 scripts/field/noweb/target_markers.py` 를 띄우면 위 RViz 화면의 「Targets and exits」에 그려진다 | RViz 를 띄울 PC |
 | 재난 선포 | 웹캠 앞을 흔든다. 흔들기 어려우면 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> DECLARE_DISASTER` | 운영 PC |
 | 초기화 | 8단계 ①의 `curl` 대신 `python3 scripts/field/noweb/operator_command.py --port <port> --operator <운영자 이름> RESET_RUN` | 운영 PC |
 | 정지 | 「정지 방법」의 `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`) | 로봇 담당 PC |

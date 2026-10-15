@@ -53,7 +53,7 @@ updated: 2026-10-14
 | `/rescue/exit_location` | `TargetLocation` | 받음 | QR 코드(`class_label=exit_qr`) 출구. QR id 마다 최신 위치를 기록한다 |
 | `/rescue/reports` · `/rescue/report_receipts` | `RescueReport` · `ReportReceipt` | 보냄 · 받음 | 대상 revision 마다 보고를 보내고 저장 확인(`PERSISTED`)을 받는다 |
 | `/rescue/targets` | `TargetSnapshot` | 보냄 | 바뀔 때만 보낸다. 늦게 붙은 구독자도 마지막 값을 받는다(QoS 설정 TRANSIENT_LOCAL) |
-| `/rescue/system_state` | `SystemState` | 보냄 | 임무 모드·단계·이유. 바뀔 때만 보낸다 |
+| `/rescue/system_state` | `SystemState` | 보냄 | 임무 모드·단계·이유. 바뀌면 보내고, 그대로면 `lease_renew_period_s` 마다 다시 보낸다(늦게 뜬 실행기용, 로그 `SYSTEM_STATE_RESENT`) |
 | `/rescue/operator_command` | `SubmitOperatorCommand` 서비스 | 받음 | 운영자 명령 관문 |
 | `/rescue/cameras/<camera>/set_watch` | `SetCameraWatch` 서비스 | 부름 | 운영자 `SET_CAMERA_WATCH` 마다 웹캠 감시를 건다 |
 | `/rescue/map/freeze` | `std_srvs/Trigger` 서비스 | 부름 | `SLAM_FREEZE` 에서 지도 고정을 요청한다 |

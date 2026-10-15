@@ -272,6 +272,51 @@ class Verdicts(Case):
         _, nodes, code = self.judge(graph)
         self.assertEqual((wc.FAILED, ['/robot6/slam_toolbox'], 2), (nodes['status'], nodes['names'], code))
 
+    def test_the_pi_joystick_writer_on_its_own_cmd_vel_is_a_warning(self):
+        """Field 2026-10-15 17:10 (run1015b wiring-1710.json): TurtleBot4 Pi teleop_twist_joy_node writes
+        <ns>/cmd_vel. We cannot switch it off, so the row passes with a note that names the risk."""
+        graph = healthy(self.links())
+        for ns in ('/robot6', '/robot5'):
+            graph['topics'][ns + '/cmd_vel']['publishers'].append(
+                {'node': ns + '/teleop_twist_joy_node', 'type': 'pkg/msg/T', 'qos': dict(OK_QOS)})
+            graph['nodes'].append(ns + '/teleop_twist_joy_node')
+        rows, nodes, code = self.judge(graph)
+        self.assertEqual(0, code, [r for r in rows.values() if r['status'] != wc.PASSED])
+        for robot, ns in (('robot_a', '/robot6'), ('robot_b', '/robot5')):
+            row = rows[robot + '.cmd_vel']
+            self.assertEqual((wc.PASSED, []), (row['status'], row['problems']))
+            self.assertEqual(1, len(row['notes']), row['notes'])
+            self.assertIn(ns + '/teleop_twist_joy_node', row['notes'][0])
+            self.assertIn('watchdog', row['notes'][0])
+        self.assertIn('teleop_twist_joy_node', wc.table(list(rows.values()), nodes))
+
+    def test_a_pi_default_node_elsewhere_still_fails(self):
+        graph = healthy(self.links())
+        graph['topics']['/robot5/cmd_vel']['publishers'].append(          # the other robot's Pi
+            {'node': '/robot6/teleop_twist_joy_node', 'type': 'pkg/msg/T', 'qos': dict(OK_QOS)})
+        graph['topics']['/robot6/cmd_vel_watchdog_in']['publishers'].append(   # not the topic it writes
+            {'node': '/robot6/teleop_twist_joy_node', 'type': 'pkg/msg/T', 'qos': dict(OK_QOS)})
+        rows, _, code = self.judge(graph)
+        self.assertEqual(2, code)
+        self.assertIn('다른 발행자: /robot6/teleop_twist_joy_node', rows['robot_b.cmd_vel']['problems'])
+        self.assertEqual(wc.FAILED, rows['robot_a.cmd_vel_watchdog_in']['status'])
+
+    def test_a_pi_default_node_name_twice_is_a_warning_ours_twice_fails(self):
+        graph = healthy(self.links())
+        graph['nodes'] += ['/robot6/teleop_twist_joy_node'] * 2
+        _, nodes, code = self.judge(graph)
+        self.assertEqual((wc.PASSED, [], 0), (nodes['status'], nodes['names'], code))
+        self.assertIn('/robot6/teleop_twist_joy_node', ' '.join(nodes['notes']))
+        graph['nodes'].append('/robot6/rescue_command_watchdog')
+        _, nodes, code = self.judge(graph)
+        self.assertEqual((wc.FAILED, ['/robot6/rescue_command_watchdog'], 2), (nodes['status'], nodes['names'], code))
+
+    def test_pi_default_nodes_live_in_one_list_with_their_source(self):
+        self.assertEqual({'teleop_twist_joy_node'}, set(wc.PI_DEFAULT_NODES))
+        entry = wc.PI_DEFAULT_NODES['teleop_twist_joy_node']
+        self.assertEqual(('cmd_vel',), entry['topics'])
+        self.assertIn('joy_teleop.launch.py', entry['source'])
+
     def test_no_graph_is_not_run(self):
         rows, nodes, code = self.judge(None)
         self.assertEqual({wc.NOT_RUN}, {r['status'] for r in rows.values()} | {nodes['status']})

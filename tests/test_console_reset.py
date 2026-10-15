@@ -175,6 +175,23 @@ class AccountsUpgradeTests(LedgerFixture):
         self.assertEqual({'robots_down'}, set(store.reset_checks(uid('run'))))
         self.assertEqual({}, store.reset_checks(uid('other-run')))
 
+    def downgrade(self, path):
+        with sqlite3.connect(path) as db:
+            db.execute('DROP TABLE reset_checks')
+            db.execute("UPDATE metadata SET value = '1.0' WHERE key = 'schema_version'")
+
+    @unittest.skipUnless(HAS_FLASK, 'flask not installed')
+    def test_starting_on_a_1_0_file_logs_the_one_way_upgrade_once(self):
+        from rescue_console.app import create_app
+        path = self.dir / 'accounts.sqlite3'
+        AccountStore.create(path, *ADMIN)
+        self.downgrade(path)
+        with self.assertLogs('rescue_console.app', 'WARNING') as logs:
+            create_app(self.db, accounts_path=path, secret_key=SECRET)
+        self.assertEqual(1, sum('계정 DB 1.0 -> 1.1 올림(되돌릴 수 없음)' in line for line in logs.output))
+        with self.assertNoLogs('rescue_console.app', 'WARNING'):   # already 1.1: nothing to say
+            create_app(self.db, accounts_path=path, secret_key=SECRET)
+
 
 class RunNumberTests(unittest.TestCase):
     def test_earlier_records_run_has_no_number(self):
