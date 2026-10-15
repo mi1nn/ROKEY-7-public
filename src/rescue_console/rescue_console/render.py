@@ -1135,31 +1135,32 @@ def camera_stale_ms(cameras, stale_s):
 
 
 # 정상적으로 연결이 종료된 multipart 스트림은 오류 이벤트를 발생시키지 않고 마지막 프레임이 정지 화면으로 남는다
-# (측정: 2026-10-13 Firefox, 프레임 수신마다 load 이벤트 발생, 스트림 종료 후 이벤트 중단).
-# 따라서 개별 프레임의 load 이벤트 타임스탬프를 감시하여, stale 대기 시간을 초과할 경우
-# 화면에 「영상 끊김」을 표시하고 캐시 방지 쿼리를 붙여 재연결을 시도한다(stale 주기당 최대 1회). onerror는 즉시 반영된다.
+# (측정: 2026-10-13 Firefox). 예전에는 프레임마다 오는 load 이벤트로 살아 있음을 봤는데, Chrome 은 multipart img 에
+# load 를 첫 프레임에 한 번만 낸다(측정: 2026-10-15 Chromium, 8초 40장에 load 1번). 그래서 Chrome 에서는 stale 마다
+# 「영상 끊김」을 띄우고 다시 연결해 영상이 자꾸 끊겼다. 이제는 영상 중계기(mjpeg_relay·robot_view_relay)의
+# /health(마지막 프레임 나이)를 stale / 2 주기로 묻는다. 낡았거나 답이 없으면 「영상 끊김」을 띄우고 캐시 방지 쿼리로
+# 다시 연결한다(stale 주기당 최대 1회). 다시 새 프레임이 오면 끊김을 지우고 한 번 다시 연다. onerror는 즉시 반영된다.
 _CAMERA_SCRIPT = """
 function watchCameras() {
   document.querySelectorAll('#cameras figure[data-stale-ms], #robot-camera figure[data-stale-ms]').forEach(figure => {
     const img = figure.querySelector('img'), note = figure.querySelector('figcaption').lastChild;
     const stale = Number(figure.dataset.staleMs), base = img.getAttribute('src');
-    let last = Date.now(), retried = Date.now();
-    // 프레임 load 이벤트 발생 시 스트림 생존으로 판정하고 두절 경고를 해제한다.
-    img.addEventListener('load', () => {
-      last = Date.now();
-      if (figure.classList.contains('lost')) {
-        figure.classList.remove('lost'); note.textContent = ''; note.className = '';
-      }
-    });
-    // stale / 2 주기(최소 100ms, 최대 500ms)로 프레임 갱신 여부를 주기 검사한다.
-    setInterval(() => {
-      const now = Date.now();
-      if (now - last < stale) return;
+    const health = new URL('/health', base).href;
+    let retried = Date.now();
+    const reopen = now => { retried = now; img.src = base + (base.includes('?') ? '&' : '?') + '_r=' + now; };
+    const lost = () => {
       figure.classList.add('lost'); note.textContent = figure.dataset.lostText || '영상 끊김'; note.className = 'lost';
-      if (now - retried >= stale) {
-        retried = now;
-        img.src = base + (base.includes('?') ? '&' : '?') + '_r=' + now;
-      }
+      const now = Date.now();
+      if (now - retried >= stale) reopen(now);
+    };
+    setInterval(() => {
+      fetch(health, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(h => {
+        if (!h || typeof h.age_s !== 'number' || h.age_s * 1000 >= stale) { lost(); return; }
+        if (figure.classList.contains('lost')) {   // 중계기에 새 프레임: 끊긴 스트림을 한 번 다시 연다
+          figure.classList.remove('lost'); note.textContent = ''; note.className = '';
+          reopen(Date.now());
+        }
+      }).catch(lost);
     }, Math.max(100, Math.min(500, stale / 2)));
   });
 }

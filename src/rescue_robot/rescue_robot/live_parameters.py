@@ -4,9 +4,12 @@ These are deployment settings, not observed maps/poses/clock records. No
 production threshold, calibration or identity is inferred from a goal.
 """
 import math
+import re
 
 from rescue_robot.executor import ContractError
 from rescue_robot.live_sources import FREEZES
+
+SHA256 = re.compile(r'[0-9a-f]{64}')   # as rescue_bringup field_launch (robot_launch_values)
 
 FROZEN_MAP_TOPIC = '/rescue/map/frozen'   # the latest frozen TB-6 map (map_freeze on compute_a, OPS-113)
 FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'   # its revision (rescue_contracts.occupancy, OPS-159)
@@ -79,7 +82,8 @@ def read_config(node, adapter):
         'task.live.pose_valid_ns': I,
         # The robot Pi clock that stamps the scans (AMCL pose time): domain and bound measured on the Pi, -1 = not
         'task.live.sensor_host_clock_domain_id': S, 'task.live.sensor_host_clock_error_bound_ns': I}
-    values, missing = declare_required(node, fields)
+    # occupancy_sha256 must be given, but '' is the value of the two frozen modes (checked per mode below)
+    values, missing = declare_required(node, fields, optional=('task.saved_map.occupancy_sha256',))
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
     def get(name):
@@ -109,6 +113,12 @@ def read_config(node, adapter):
     if len(m['transform_xy_yaw']) != 3:
         raise ContractError('explicit measured [x,y,yaw] transform required')
     m.update(mode=get('saved_map.mode'),authority_id=c['mapping_authority'],clock_domain_id=c['lease']['clock_domain_id'])
+    if m['mode'] == 'SAVED_MAP_AMCL':
+        if not SHA256.fullmatch(m['occupancy_sha256']):
+            raise ContractError('SAVED_MAP_AMCL needs the measured task.saved_map.occupancy_sha256 (64 lowercase hex)')
+    elif m['occupancy_sha256'] != '':
+        raise ContractError(f'{m["mode"]}: the freeze decides the map hash; task.saved_map.occupancy_sha256 '
+                            'must be empty')
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.parameter import Parameter
     if m['mode'] != 'SAVED_MAP_AMCL':

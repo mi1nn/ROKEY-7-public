@@ -219,13 +219,22 @@ class PageTests(LedgerFixture):
 
     def test_stalled_stream_is_marked_lost_and_reconnected(self):
         # 2026-10-13 measured (Firefox): a multipart stream that ends normally fires no onerror and the
-        # last frame stays on screen. The page watches load events instead (one per frame there).
+        # last frame stays on screen. The page watches the relay's frame age instead (2026-10-15).
         html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.5)
         self.assertIn('data-stale-ms="2500"', html)
         self.assertEqual(1, html.count('http://camera.invalid:8081/stream'))   # the script reads the original src
         self.assertIn('onerror=', html)   # an error is still shown at once
         watch = html[html.index('function watchCameras'):]
-        for part in ("addEventListener('load'", "'영상 끊김'", "'_r=' + now", "classList.remove('lost')"):
+        for part in ("'영상 끊김'", "'_r=' + now", "classList.remove('lost')"):
+            self.assertIn(part, watch)
+
+    def test_staleness_comes_from_the_relay_health_not_load_events(self):
+        # 2026-10-15 measured (Chromium): one load event per multipart <img>, not one per frame, so the
+        # load-event watch called a live stream lost every stale period and reconnected it (video cut-outs).
+        html = render_page(self.view(), cameras=(('cam_a', 'http://camera.invalid:8081/stream'),), camera_stale_s=2.5)
+        watch = html[html.index('function watchCameras'):]
+        self.assertNotIn("addEventListener('load'", watch)
+        for part in ("new URL('/health', base)", "cache: 'no-store'", 'age_s'):
             self.assertIn(part, watch)
 
     def test_cameras_need_an_explicit_stale_time(self):

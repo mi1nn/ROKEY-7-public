@@ -24,12 +24,14 @@
 준비물은 현장 파일 `config/field/search_area.field.json`(저장소), 배포 프로파일 v2.1(저장소 밖, `map_basis`·`home_positions` 포함)이다. 명령·로그는 아래 「현장 실행 순서: PC 역할별」에 있다.
 
 1. 모든 PC 에서 Discovery 를 설정하고 `scripts/field/preflight_role.py --role <host id>` 결과가 모두 PASSED 인지 본다(0단계).
+   - 조정기(`coordinator.launch.py`)는 로봇 launch(`robot.launch.py`)를 띄운 PC 와 다른 PC 에서 띄운다. 실행기는 같은 호스트의 조정기 시계를 거절한다(`LIVE_ROS expects two distinct PCs`, `rescue_robot/live_clock.py`).
 2. 운영 PC(`operations` + `coordination`)에서 `operations.launch.py` → 관제 웹 → `coordinator.launch.py`(1단계).
 3. TB-6 담당 PC(`compute_a`)에서 `tb6_slam.launch.py` → `passage_points.launch.py` → `overhead_passage.launch.py` → `robot.launch.py` → `map_freeze.launch.py`(TB-6 이 움직이기 전에)(2단계).
 4. TB-5 담당 PC(`compute_b`)에서 `passage_points.launch.py` → `overhead_passage.launch.py` → `frozen_localization.launch.py robot_id:=robot_b` → `robot.launch.py`(2단계).
-5. 두 로봇 arm → 웹캠 앞 흔들림(DISASTER) → TB-6 탐색이 저절로 시작된다(현장 파일 `search_start` AUTO, `search_mode` FRONTIER).
-6. 인형 발견 → 1차 고정(R0+1), TB-5 자동 출동. 탐색 완료 → 2차 고정(R0+2), TB-6 은 `tb6_slam` 을 끄고 `frozen_localization.launch.py robot_id:=robot_a`(3단계).
-7. TB-5 가 출구에 도착하면 끝난다(`completion_mode` EXIT_ARRIVAL).
+5. 아무 PC 에서나 `ros2 daemon stop && ros2 daemon start` 뒤 `scripts/field/wiring_check.py` 로 배선을 본다. 모든 연결이 PASSED 여야 다음으로 간다(아래 「배선 점검」).
+6. 두 로봇 arm → 웹캠 앞 흔들림(DISASTER) → TB-6 탐색이 저절로 시작된다(현장 파일 `search_start` AUTO, `search_mode` FRONTIER).
+7. 인형 발견 → 1차 고정(R0+1), TB-5 자동 출동. 탐색 완료 → 2차 고정(R0+2), TB-6 은 `tb6_slam` 을 끄고 `frozen_localization.launch.py robot_id:=robot_a`(3단계).
+8. TB-5 가 출구에 도착하면 끝난다(`completion_mode` EXIT_ARRIVAL).
 
 **정지:** `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`). 그래도 움직이면 사람이 로봇을 들어 올린다(3단계 「정지 방법」 상자).
 
@@ -233,7 +235,7 @@ TB-5 가 대상에서 출구로 떠나기 전 기다리는 시간 `support_exit_
 
 ### 2단계 — compute_a (TB-6), compute_b (TB-5)
 
-기준 지도 없이 시작한다. 두 로봇은 바닥에 표시한 같은 출발 자리에서 출발한다(TB-6 SLAM 원점 = TB-6 출발 자세). 언도킹은 기존 감독 절차로 한다.
+기준 지도 없이 시작한다. 두 로봇은 각자 바닥에 표시한 출발 자리에서 출발한다(TB-6 SLAM 원점 = TB-6 출발 자세, TB-5 는 TB-6 기준 `robots.robot_b.initial_pose_xy_yaw`). 2026-10-14 출발 간격은 1.95 m(가로)·0.05 m(세로)였다[측정, 재범 줄자, 둘 다 도킹 상태]. 언도킹은 기존 감독 절차로 한다.
 
 ```bash
 F=$PWD/config/field/search_area.field.json
@@ -293,6 +295,59 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 compute_a 에서는 TB-6 탐지와 대상 위치도 띄운다(통합-인식). 탐지는 `amr_perception.launch.py` 이고, 인자는 그 파일 머리말과 [rescue_perception README](../../src/rescue_perception/README.md) 에 있다. `sensor_host_clock_*` 는 위 Pi 시계 값과 같다. 대상 위치는 `target_locator`(같은 README 「지도 좌표 TargetLocation」)다. 재확인 서버 `/rescue/robots/robot_a/observe_target` 은 `amr_target` 이 연다(`recheck_action_name` 등 인자, #200). 지금 현장 파일은 `completion_mode` EXIT_ARRIVAL 이라 조정기가 TB-6 재확인을 쓰지 않는다.
 
 저장 지도로 하는 시험(로봇 없는 시험, #132)은 현장 실행 파일을 조정기 `map_mode` `SAVED_MAP` + 두 로봇 `SAVED_MAP_AMCL` 로 바꾸고, 예전처럼 `turtlebot4_navigation localization.launch.py` → `occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py <ns>/map map)` 로 띄운다.
+
+### 배선 점검 — 모든 launch 뒤, 로봇이 움직이기 전 (2026-10-14)
+
+PC 한 대의 환경은 `preflight_role.py` 가 보고, 연결이 실제로 이어졌는지는 이 도구가 한 번에 본다.
+
+1. 0단계 `preflight_role.py` 가 모두 PASSED 인지 본다.
+2. 점검할 PC 에서 `ros2 daemon stop && ros2 daemon start` 를 한다. 데몬이 예전 그래프를 들고 있으면 꺼진 노드가 보일 수 있다.
+3. 1·2단계 launch 를 모두 띄운 뒤 아래를 돌린다. Discovery 설정은 0단계와 같게 둔다.
+
+```bash
+python3 scripts/field/wiring_check.py --profile <profile.json> \
+  --field config/field/search_area.field.json --json <결과.json> > /dev/null
+#   한 로봇만: --robot robot_b       2차 고정 뒤 TB-6: --slam-phase FROZEN
+```
+
+| 보는 것 | FAILED 가 되는 경우 |
+| --- | --- |
+| 연결마다 발행자(서비스·액션은 서버) | 0개, 2개 이상, 기대와 다른 노드 |
+| 기대한 구독 노드(서비스·액션은 클라이언트) | 하나라도 없음 |
+| 타입·QoS(reliability, durability) | 발행자와 구독자가 맞지 않음 |
+| 같은 이름 노드 | 둘 이상(예: `/robot6/slam_toolbox` 둘이면 lifecycle 요청에 둘이 답한다, 2026-10-14 [추정]) |
+
+- 기대 연결표는 코드에서 만든다. 프로파일과 현장 파일을 `field_launch` 함수(`robot_launch_values` 등)에 넣고, 조정 노드 상수와 launch 파일의 노드 이름을 쓴다(`wiring_check.py` `expected_links`). `docs/design/sdd-node-connections-v0.1.csv` 는 이름이 지금과 달라(`/amr1` 등) 쓰지 않는다.
+- 로봇 Pi 쪽 토픽(odom, scan, 카메라 등)은 노드 이름을 보지 않고, 발행자가 하나인지만 본다.
+- 같은 이름 노드 줄은 그 이름을 쓰는 프로그램이 두 곳에서 떠 있다는 뜻이다. 우리 노드면 한쪽 launch 를 끈다. 우리 노드가 아니면(예: 두 PC 에서 띄운 `/rviz2`) 한쪽을 끄거나 `--ros-args -r __node:=<다른 이름>` 으로 이름을 바꾼다.
+- `search_mode` 가 FRONTIER 이면 조정 노드도 TB-6 지도를 구독한다. 이 이름은 조정 노드 상수 `SCOUT_MAP_TOPIC`(`/robot6/map`)으로 고정돼 있다. 프로파일의 TB-6 namespace 가 다르면 이 줄이 발행자 없음으로 FAILED 다.
+- 그래프를 읽다가 오류가 나면(rclpy 시작 실패, RMW·Discovery 오류) JSON `graph_error` 에 적고 모든 줄을 NOT_RUN 으로 둔다(종료 코드 3).
+- 기대를 모르거나 그래프를 못 읽으면 NOT_RUN 이다(PASSED 아님). 종료 코드는 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음. 표는 stderr, JSON 은 stdout 으로 나간다.
+- 그래프만 읽는다. 구독·발행·서비스 호출을 하지 않고 로봇을 움직이지 않는다. 이 프로세스만 `ROS_SUPER_CLIENT=True` 로 띄워 Discovery Server 아래 전체를 본다.
+- 이 도구가 보지 않는 것은 메시지가 실제로 오는 간격(`link_check.py`), TF 내용, 표에 없는 연결(판정 영상 중계, 웹캠 감시 서비스, 재확인 action 등)이다.
+- 시험은 `tests/test_field_wiring_check.py`(ROS 없이)와 `tests/ros/e3_wiring_check_probe.py`(가짜 노드 그래프, 도메인 193, LOCALHOST)다. 실제 PC 4대에서는 아직 돌리지 않았다(NOT_RUN).
+
+### 한 PC 배선 리허설 (로봇 없이, 2026-10-14)
+
+이 저장소의 현장 노드를 실제 namespace(`/robot6`, `/robot5`)로 한 PC 에 모두 띄우고 `wiring_check.py` 로 본다. 현장 PC 에서 처음 터질 배선 오류를 미리 찾으려는 것이다. 첫 실행에서 실행기가 시작하자마자 꺼지는 문제를 찾았다(#298). 기록은 [리허설 기록](../../docs/evidence/rehearsal-2026-10-14-wiring-one-pc.md)에 있다.
+
+1. ROS 작업공간을 만든다. `rescue_*` 패키지에 더해, Nav2 가 없는 PC 는 `nav2_msgs`·`irobot_create_msgs`·`geographic_msgs` 소스(jazzy)를 같이 빌드한다(`colcon build --packages-up-to ...`, sudo 없음).
+2. 아래를 돌린다. 인자는 작업공간 install, 결과 폴더, TB-6 지도 단계(SEARCHING 또는 FROZEN), 포트, 도메인 순서다.
+
+```bash
+bash scripts/field/wiring-rehearsal/run.sh <install> <결과 폴더> SEARCHING 11888 193
+```
+
+- `run.sh` 는 시작할 때 `ROS_DISCOVERY_SERVER` 를 지우고 `127.0.0.1:<포트>` 만 넣는다. 현장 서버 주소가 남으면 실제 로봇 그래프에 붙기 때문이다(Discovery Server 는 도메인으로 갈리지 않음). 도메인이 10 미만이거나 포트가 쓰이고 있으면 시작하지 않는다.
+- 띄우는 것은 셋이다. `fast-discovery-server` 하나, `wiring-rehearsal/rehearsal.launch.py`(이 저장소 노드), `wiring-rehearsal/fake_graph.py`(Nav2·SLAM·AMCL·깊이 컨테이너·로봇 Pi·웹캠·인식 노드의 가짜 끝점)다.
+- 가짜는 끝점만 만든다. 메시지를 내지 않고 action 목표는 모두 거절한다. 그래서 목표가 Nav2 에 닿아도 아무것도 움직이지 않는다(로봇도 이 그래프에 없음).
+- 끝나면 각 프로세스 그룹에 INT → TERM → KILL 을 보내고, Discovery Server 는 그 PID 로 끈다(`pkill -f` 를 쓰지 않음). 남은 것이 있으면 `WARNING: rehearsal processes left` 를 낸다.
+- 진짜 노드끼리의 연결은 QoS 까지 본다. 가짜와의 연결은 이름·개수만 의미가 있다(가짜는 진짜 타입을 따라 하고 가장 약한 QoS 를 요청함).
+- 실행기는 같은 호스트의 조정기를 거절한다(`LIVE_ROS expects two distinct PCs`, `rescue_robot/live_clock.py`). 그래서 리허설에서만 두 `task_input` 프로세스에 `wiring-rehearsal/host_shim` 을 넣어 시계 측정의 host id 를 따로 준다. chrony 값과 오차는 그대로 둔다. 현장 PC 에서는 쓰지 않는다.
+- 배선 점검 뒤에 `REHEARSAL_PROBE` 로 흐름 하나를 더 돌릴 수 있다. 가짜 SLAM·AMCL·Pi 데이터는 `wiring-rehearsal/feed.py` 가 낸다(합성값, 현장 값 아님).
+  - `REHEARSAL_PROBE=freeze`(`freeze_probe.py`): 지도 고정 서비스를 직접 불러 1차 고정 → TB-5 relay·MapState R1 을 본다. 단계를 FROZEN 으로 주면 2차 고정 → TB-6 SLAM 끄기 → TB-6 relay·두 MapState R2 까지 본다.
+    - TB-6 TF 는 기본으로 2026-10-14 현장 실패 때 잰 값(#291 `measured_tb6_tf`)을 쓴다. `REHEARSAL_TF=flat` 이면 정확한 평면이다.
+  - `REHEARSAL_PROBE=mission`(`mission_probe.py`, SEARCHING): 현장 3단계처럼 `refresh_state` → 두 로봇 `task_arm` 을 한다. 이어서 가짜 웹캠 DISASTER_SIGN → TB-6 FRONTIER 목표 → 실행기 admit → 가짜 `bt_navigator` 거절까지 보고, TB-6 이 FAILED 뒤 `STOP_LATCHED` 로 남는지(자동 재준비 없음) 확인한다.
 
 ### 3단계 — 출동 준비와 실행 (operations + coordination PC 에서, 사람이 지켜봄)
 

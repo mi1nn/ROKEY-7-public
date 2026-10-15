@@ -62,4 +62,5 @@ webcam_node:
     watch_exit_roi: [0.0, 0.0, 0.2, 1.0]
     # 판정 화면용 JPEG 영상 토픽(출구·인형 상자·추적 선). 빈 문자열 '' 이면 끈다
     debug_image_topic: /rescue/cameras/cam_fixed/debug_image/compressed
+    debug_font_path: /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc   # 상태창 한글. 웹캠 PC 에서 fc-list :lang=ko 로 확인
     watch_track_max_jump: 0.3            # 한 프레임(0.2 s) 사이 같은 인형으로 볼 최대 중심 이동(정규화)
