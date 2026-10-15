@@ -11,7 +11,7 @@ coordinator held TB-6's RETURN_HOME (TRAFFIC_SCOUT_POSE_UNKNOWN). The executor n
 TRANSIENT_LOCAL depth 1, as AMCL publishes it, and gets the last one on matching. A pose from before a map switch
 is still not counted (valid_after).
 
-The test marked expectedFailure fails on main.
+Before this change the test was expectedFailure.
 """
 import sys
 import threading
@@ -60,7 +60,6 @@ class AmclPoseQos(unittest.TestCase):
             attach_sources(runtime)
         return subs
 
-    @unittest.expectedFailure
     def test_amcl_pose_is_read_as_amcl_publishes_it(self):
         for mode, robot, ns in (('SLAM_THEN_FROZEN', 'robot_a', '/robot6'), ('FROZEN_MAP_AMCL', 'robot_b', '/robot5')):
             with self.subTest(robot=robot):
