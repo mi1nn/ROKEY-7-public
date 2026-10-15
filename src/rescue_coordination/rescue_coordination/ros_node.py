@@ -725,11 +725,19 @@ class CoordinatorCore:
         if self.frontier_checked_seq == self.scout_grid_seq:
             return  # this map had nothing to pick; wait for the next update
         fields, radius = self.scout_grid.fields, self.freeze_clearance_m
-        mask = clear_mask(**fields, radius=radius)
+        plain = clear_mask(**fields, radius=radius)
+        # A standing TB-5 is an obstacle traffic_min_separation_m wide for the pick (C10, 2026-10-16): a goal or
+        # cut point that close would be held TRAFFIC_ROBOTS_TOO_CLOSE for as long as TB-5 stands. Only with TB-6
+        # itself clear of it (closer, it steps aside first, _traffic_scout).
+        tb5 = self._tb5_xy(now_ns) if self._traffic_on() else None
+        keep_off = (tb5 is not None and self.traffic_min_separation_m > radius
+                    and math.dist(start, tb5) >= self.traffic_min_separation_m)
+        mask = clear_mask(**fields, radius=radius, blocked=((*tb5, self.traffic_min_separation_m - radius),)
+                          ) if keep_off else plain
         # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
         found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
                                mask=mask)
-        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH below)
+        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH, TOO_CLOSE below)
         for i, f in enumerate(found):
             if f.cells < self.frontier_min_cells:
                 why[i] = 'SMALL'
@@ -743,10 +751,21 @@ class CoordinatorCore:
         reachable = sorted((length, i) for i, length in enumerate(lengths) if length is not None)
         if not reachable:
             why.update({i: 'NO_PATH' for i in kept})
+        if not reachable and keep_off:
+            # left out only because of TB-5: the same cluster (same order, the frontier cells ignore the mask) has
+            # a goal and a path without it
+            alone = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
+                                   mask=plain)
+            again = [i for i, reason in why.items() if reason in ('NO_GOAL', 'NO_PATH') and alone[i].goal is not None
+                     and not self._tried(alone[i].goal) and not self._tried(alone[i].centroid)]
+            paths = path_lengths(**fields, radius=radius, start=start, goals=[alone[i].goal for i in again],
+                                 mask=plain)
+            why.update({i: 'TOO_CLOSE' for i, length in zip(again, paths) if length is not None})
+        if not reachable:
             self.frontier_checked_seq = self.scout_grid_seq
             self.frontier_empty += 1
             counts = ' '.join(f'{k.lower()}={sum(1 for v in why.values() if v == k)}'
-                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH'))
+                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH', 'TOO_CLOSE'))
             largest = '; '.join(f'{why[i]} cells={found[i].cells} centroid=({found[i].centroid[0]:.2f}, '
                                 f'{found[i].centroid[1]:.2f})' for i in range(min(5, len(found))))
             self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
