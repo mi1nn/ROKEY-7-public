@@ -15,6 +15,9 @@ POLL_INTERVAL_MS = 1000
 # KPI-04 레이턴시 예산: 사건 발생 시각부터 운영자 화면에 렌더링될 때까지의 시간(BRD v0.1 KPI-04, 3초).
 KPI04_BUDGET_S = 3.0
 MISSING = '—'
+# 화면 위에 보이는 시스템 이름: 팀 BRD Part I 제목(docs/requirements/brd-part1-v0.1.md, 범위 RQ-09).
+# 탭 제목·「구조 관제」 문구는 화면 이름이라 그대로 둔다(2026-10-15 사용자 지시: 「시스템명은 문서에 명시된 이름으로」).
+SYSTEM_NAME = '지진 재난 현장 대응형 실내 탐색 로봇'
 # 지도 표식 크기(지도 픽셀 단위, 재난 전 기준 지도는 0.05 m/px): 로봇 화살표 반폭 및
 # 전방 꼭짓점 길이, 요구조자 V 표식 반폭. 화면 표시 전용이다([제안] 관제·화면, 2026-10-10).
 ROBOT_MARK_PX, HEADING_PX, TARGET_MARK_PX = 2.6, 4.8, 2.0
@@ -286,13 +289,21 @@ def _map(view):
     return (f'<section id="map" class="map{state}"><header><h2>지도</h2><ul class="legend">{legend}</ul></header>'
             f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="기준 지도 위 로봇과 요구조자 위치">'
-            f'<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
+            f'{_MAP_TONE}<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
             f'preserveAspectRatio="none"/>'
             f'<rect class="frame" x="0" y="0" width="{width}" height="{height}"/>'
             f'{_grid(layer)}{"".join(marks)}</svg>'
             f'<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
             + (f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else '')
             + '</section>')
+
+
+# 지도 그림(PGM 회색조)의 화면 색: 벽(0) 밝은 청회색, 미탐색(205) 바탕과 같은 남색, 빈 곳(254) 조금 밝은 남색.
+# 지도 값은 바꾸지 않고 화면 색만 정한다(2026-10-15 다크 테마). SVG 안에 두어 외부 파일이 없다.
+_MAP_TONE = ('<defs><filter id="map-tone" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/>'
+             '<feComponentTransfer><feFuncR type="table" tableValues=".50 .38 .26 .15 .05 .10"/>'
+             '<feFuncG type="table" tableValues=".63 .48 .33 .20 .09 .16"/>'
+             '<feFuncB type="table" tableValues=".74 .56 .39 .25 .14 .25"/></feComponentTransfer></filter></defs>')
 
 
 # ---- 로봇 및 요구조자 현황 (조각 렌더링) --------------------------------------------------------
@@ -547,97 +558,128 @@ def _commands(view, access, csrf):
 
 
 _STYLE = """
+/* 2026-10-15 사용자 지시 「지진 재난 감지·대응 시스템 Web UI 개선」: 다크 네이비 관제 테마.
+   색의 뜻(ISO 7010 계열: 빨강 재난·정지, 주황 미구조, 파랑 지원, 초록 구출, 회색 미확정, 노랑 주의)은 그대로다.
+   기능·클래스·ID 는 바꾸지 않고 색·간격·글자·테두리만 정한다. 외부 글꼴·CSS 없음(오프라인). */
 :root{
-  --concrete:#dde2e1; --panel:#f4f6f5; --ink:#17252b; --ink-2:#4a5a60; --rule:#b4bebd;
-  --signal:#c8102e; --rescue:#d9480f; --rescue-tint:#fbe1d3; --info:#005a9c; --info-tint:#dbe9f4;
-  --safe:#00784a; --safe-tint:#d7eee3; --pending:#7a878a; --caution:#f2b600; --caution-tint:#fff3c4;
+  --bg:#09111b; --panel:#0f1925; --card:#142233; --raise:#1a2b40; --line:#1d2c3e; --line-2:#2c425b;
+  --ink:#e8eef5; --ink-2:#a9b7c6; --ink-3:#7f90a3; --accent:#35c6d6; --map-bg:#0d1824;
+  --signal:#ff5d65; --signal-strong:#c42634; --rescue:#ff9150; --info:#62abff; --info-strong:#2265c4;
+  --safe:#40d083; --pending:#8b9caf; --caution:#f4c542;
+  --signal-tint:rgba(255,93,101,.12); --rescue-tint:rgba(255,145,80,.13); --info-tint:rgba(98,171,255,.14);
+  --safe-tint:rgba(64,208,131,.12); --caution-tint:rgba(244,197,66,.12);
+  --radius:8px; --gap:8px;
   --font:"Noto Sans CJK KR","Noto Sans KR","Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{font-family:var(--font);font-size:14px;line-height:1.45;color:var(--ink);background:var(--concrete);
-  font-variant-numeric:tabular-nums}
+body{font-family:var(--font);font-size:14px;line-height:1.45;color:var(--ink);background:var(--bg);
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 h1,h2,h3,p{margin:0}
-h2{font-size:15px;font-weight:700;margin-bottom:8px}
-code{font-size:13px;background:var(--panel);padding:0 4px}
-a{color:var(--info)}
-:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+h2{font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--ink-2);margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+code{font-size:12.5px;background:var(--raise);color:var(--ink);padding:1px 5px;border-radius:3px}
+a{color:var(--accent);text-underline-offset:2px} a:hover{color:#82e4ee}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .id{font-variant-numeric:tabular-nums;letter-spacing:.02em}
 dl{margin:0}
+select,input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line-2);border-radius:5px}
+select{padding:3px 6px}
+select:focus,input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 2px rgba(53,198,214,.22)}
+button{font-family:inherit}
+::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
 
 /* ---- 관제 화면 격자 ---- */
-.console{display:grid;gap:10px;padding:10px;min-height:100vh;
-  grid-template-columns:minmax(0,1fr) 400px 470px;
-  grid-template-rows:auto auto minmax(0,1fr) fit-content(230px);
-  grid-template-areas:"band band top" "warn warn side" "map middle side" "log hist side"}
+.console{display:grid;gap:var(--gap);padding:var(--gap) 10px 10px;min-height:100vh;
+  grid-template-columns:minmax(0,1fr) 390px 480px;
+  grid-template-rows:auto auto auto minmax(0,1fr) fit-content(230px);
+  grid-template-areas:"head head head" "band band top" "warn warn side" "map middle side" "log hist side"}
 #live{display:contents}
+#masthead{grid-area:head}
 #mission{grid-area:band} #warnings{grid-area:warn} #map{grid-area:map} #middle{grid-area:middle}
 #events{grid-area:log} #history{grid-area:hist} #topbar{grid-area:top} #side{grid-area:side}
-@media (min-width:1400px) and (min-height:820px){ .console{height:100vh;overflow:hidden} }
+@media (min-width:1400px) and (min-height:820px){ .console{height:100vh;overflow:hidden}
+  /* 한 화면 고정 배치에서 카메라 두 칸이 명령 칸을 밀어내지 않게 영상 높이를 화면 높이에 묶는다(남는 폭은 검은 여백). */
+  #cameras img,#robot-camera img,#cameras .nosignal,#robot-camera .nosignal{max-height:23vh} }
 @media (max-width:1399px){
   .console{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
-    grid-template-areas:"top" "band" "warn" "map" "side" "middle" "log" "hist"}
+    grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
 }
-#map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--rule);padding:10px 12px}
-#middle{display:flex;flex-direction:column;gap:10px;min-height:0}
+#map,#middle>section,#events,#history,#side>section{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:10px 12px}
+#middle{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
 /* 칸이 부족하면 요구조자 목록보다 로봇 카드가 먼저 축소되며 내부 스크롤된다(#64). */
 #robots{min-height:0;overflow:auto}
-#side{display:flex;flex-direction:column;gap:10px;min-height:0}
+#side{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
 
-/* ---- 임무 띠 ---- */
-.band{display:flex;align-items:center;gap:28px;padding:10px 18px;border:1px solid var(--rule);background:var(--panel)}
-.band .mode-word{font-size:30px;font-weight:700;letter-spacing:.04em;min-width:3.2em}
-.band .facts{display:flex;gap:24px}
-.band dt{font-size:12px;color:var(--ink-2)} .band dd{margin:0;font-size:18px;font-weight:500}
-.band .mode-note{color:var(--ink-2)} #built{margin-left:auto;font-size:12px;color:var(--ink-2)}
-.band.disaster{background:var(--signal);border-color:var(--signal);color:#fff}
-.band.disaster dt,.band.disaster .mode-note,.band.disaster #built{color:#ffd9de}
+/* ---- 시스템 이름 줄 ---- */
+#masthead{display:flex;align-items:center;gap:12px;padding:0 2px;min-width:0;height:26px}
+#masthead .sys{font-size:15px;font-weight:600;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#masthead .sys::before,.card .sys::before,.admin-head .sys::before{content:"";display:inline-block;width:10px;height:10px;
+  margin-right:9px;border:2px solid var(--accent);border-radius:50%;vertical-align:-1px}
+#masthead .screen{font-size:12.5px;color:var(--ink-3);white-space:nowrap;padding-left:12px;border-left:1px solid var(--line-2)}
+
+/* ---- 임무 띠: 모드 낱말은 칩, 재난이면 붉은 경보 띠 ---- */
+.band{display:flex;flex-wrap:wrap;align-items:center;gap:10px 30px;padding:10px 18px 10px 10px;
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+.band .mode-word{font-size:24px;font-weight:700;letter-spacing:.06em;padding:8px 20px;border-radius:6px;
+  background:var(--raise);color:var(--ink);min-width:4.4em;text-align:center}
+.band .facts{display:flex;flex-wrap:wrap;gap:6px 28px}
+.band dt{font-size:12px;color:var(--ink-3)} .band dd{margin:0;font-size:17px;font-weight:500;white-space:nowrap}
+.band .mode-note{color:var(--ink-2);font-size:13px} #built{margin-left:auto;font-size:12px;color:var(--ink-3)}
+.band.normal .mode-word{background:var(--safe-tint);color:var(--safe)}
+.band.disaster{background:linear-gradient(var(--signal-tint),var(--signal-tint)),var(--panel);border-color:rgba(255,93,101,.55)}
+.band.disaster .mode-word{background:var(--signal-strong);color:#fff}
 .band.unknown .mode-word{color:var(--pending)}
-.band.clearing{border-left:10px solid var(--caution)}
-.band.mission_finished{border-left:10px solid var(--safe)} .band.mission_finished .mode-word{color:var(--safe)}
-.band .reason{font-size:15px;font-weight:700}
+.band.clearing .mode-word{background:var(--caution-tint);color:var(--caution)}
+.band.mission_finished .mode-word{background:var(--safe-tint);color:var(--safe)}
+.band .reason{font-size:15px;font-weight:600}
 #topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:6px 10px;
-  padding:8px 12px;background:var(--panel);border:1px solid var(--rule)}
-#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  padding:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+#topbar .who{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
 #topbar .kpi{grid-column:1/-1;grid-row:2}
-#poll{font-size:13px;display:flex;gap:6px;align-items:center}
-#poll::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--safe)}
-#poll.lost{color:var(--signal);font-weight:700} #poll.lost::before{background:var(--signal)}
-#poll.wait::before{background:var(--pending)}
-#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2)}
-#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:700}
-.mini{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:3px;cursor:pointer}
+#poll{font-size:13px;display:flex;gap:7px;align-items:center;font-weight:500}
+#poll::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--safe);box-shadow:0 0 0 3px var(--safe-tint)}
+#poll.lost{color:var(--signal);font-weight:600} #poll.lost::before{background:var(--signal);box-shadow:0 0 0 3px var(--signal-tint)}
+#poll.wait::before{background:var(--pending);box-shadow:none}
+#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+#kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:600}
+.mini{font:inherit;font-size:12px;padding:3px 9px;border:1px solid var(--line-2);background:var(--raise);color:var(--ink);
+  border-radius:5px;cursor:pointer}
+.mini:hover{border-color:var(--accent)}
 
 /* ---- 확인할 것 ---- */
-.reason.alert{color:var(--signal);font-weight:700} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 4px}
+.reason.alert{color:var(--signal);font-weight:600} .reason.caution{color:var(--ink);background:var(--caution-tint);padding:0 5px;border-radius:3px}
 .scoped-reason{margin:4px 0 0;font-weight:600}
-.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);color:var(--info);font-weight:700}
-#warnings{background:var(--caution-tint);border:1px solid var(--caution);border-left:8px solid var(--caution);padding:6px 12px}
+.cmd-auto{margin:0;padding:10px 12px;border:1px dashed var(--info);border-radius:6px;color:var(--info);font-weight:600}
+#warnings{background:var(--caution-tint);border:1px solid rgba(244,197,66,.4);border-left:4px solid var(--caution);
+  border-radius:var(--radius);padding:7px 12px;font-size:13.5px}
 #warnings.empty{display:none}
-#warnings h2{display:inline;margin-right:12px;font-size:14px}
+#warnings h2{display:inline;margin-right:12px;padding:0;border:0;font-size:13.5px;color:var(--caution);letter-spacing:0}
 #warnings ul{display:inline;margin:0;padding:0;list-style:none}
 #warnings li{display:inline}
-#warnings li+li::before{content:"／";margin:0 8px;color:var(--ink-2)}
+#warnings li+li::before{content:"／";margin:0 8px;color:var(--ink-3)}
 
 /* ---- 지도 ---- */
 #map{display:flex;flex-direction:column;min-height:0}
-#map header{display:flex;align-items:baseline;gap:16px}
-.legend{display:flex;gap:14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2)}
-.legend li{display:flex;align-items:center;gap:4px}
-.plan{flex:1;min-height:0;width:100%;background:#fff}
-.plan image{image-rendering:pixelated;opacity:.5}
-.plan .frame{fill:none;stroke:var(--ink);stroke-width:.25}
-.plan .grid{stroke:var(--info);stroke-width:.08;opacity:.45}
-.plan .axis{stroke:var(--info);stroke-width:.16;opacity:.7}
-.plan .tick{font-size:2.1px;fill:var(--ink-2)}
-.plan .scale line{stroke:var(--ink);stroke-width:.5} .plan .scale text{font-size:2.3px;fill:var(--ink)}
-.plan .label{font-size:2.6px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:.6}
-.victim .mark,.victim .strike{fill:none;stroke-width:.75;stroke-linecap:round;stroke-linejoin:round}
+#map header{display:flex;align-items:center;gap:18px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+#map header h2{margin:0;padding:0;border:0}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:5px}
+.plan{flex:1;min-height:0;width:100%;background:var(--map-bg);border-radius:6px}
+.plan image{image-rendering:pixelated;filter:url(#map-tone)}
+.plan .frame{fill:none;stroke:var(--line-2);stroke-width:.25}
+.plan .grid{stroke:var(--accent);stroke-width:.07;opacity:.16}
+.plan .axis{stroke:var(--accent);stroke-width:.14;opacity:.4}
+.plan .tick{font-size:2.1px;fill:var(--ink-3)}
+.plan .scale line{stroke:var(--ink-2);stroke-width:.5} .plan .scale text{font-size:2.3px;fill:var(--ink-2)}
+.plan .label{font-size:2.6px;font-weight:700;paint-order:stroke;stroke:var(--map-bg);stroke-width:.7}
+.victim .mark,.victim .strike{fill:none;stroke-width:.8;stroke-linecap:round;stroke-linejoin:round}
 .victim.unconfirmed .mark{stroke:var(--pending);stroke-dasharray:.9 .6} .victim.unconfirmed .label{fill:var(--pending)}
 .victim.not_rescued .mark{stroke:var(--rescue)} .victim.not_rescued .label{fill:var(--rescue)}
 .victim.supporting .mark{stroke:var(--info)} .victim.supporting .label{fill:var(--info)}
 .victim.rescued .mark,.victim.rescued .strike{stroke:var(--safe)} .victim.rescued .label{fill:var(--safe)}
-.robot .heading,.robot .body{fill:var(--ink);stroke:#fff;stroke-width:.35}
+.robot .heading,.robot .body{fill:var(--ink);stroke:var(--map-bg);stroke-width:.35}
 .exit .mark{fill:none;stroke:var(--safe);stroke-width:.75} .exit .label{fill:var(--safe)}
 .passage .mark{fill:none;stroke-width:.9;stroke-linejoin:round} .passage.old{opacity:.35}
 .passage.passable .mark{stroke:var(--safe)} .passage.passable .label{fill:var(--safe)}
@@ -645,10 +687,11 @@ dl{margin:0}
 .passage.unknown .mark{stroke:var(--pending)} .passage.unknown .label{fill:var(--pending)}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
-.map-note{font-size:12px;color:var(--ink-2);margin-top:4px}
-#map.stale .plan{opacity:.45} #map.stale .map-note{color:var(--signal);font-weight:700}
-.unplotted{margin:6px 0 0;padding:6px 10px;list-style:none;background:var(--caution-tint);border-left:6px solid var(--caution);font-size:13px}
-.unplotted .head{font-weight:700}
+.map-note{font-size:12px;color:var(--ink-3);margin-top:6px}
+#map.stale .plan{opacity:.45} #map.stale .map-note{color:var(--signal);font-weight:600}
+.unplotted{margin:6px 0 0;padding:6px 10px;list-style:none;background:var(--caution-tint);border-left:3px solid var(--caution);
+  border-radius:4px;font-size:13px}
+.unplotted .head{font-weight:600}
 #map.placeholder p{margin-top:40px;text-align:center;color:var(--ink-2)}
 
 /* ---- 작은 V 표식 ---- */
@@ -660,128 +703,157 @@ dl{margin:0}
 .vicon.robot polygon{fill:var(--ink)}
 
 /* ---- 로봇 ---- */
-.unit{border-left:6px solid var(--ink);padding:6px 0 8px 10px}
-.unit+.unit{margin-top:8px;border-top:1px solid var(--rule);padding-top:10px}
+.unit{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink-2);border-radius:6px;padding:9px 12px 10px}
+.unit+.unit{margin-top:8px}
 .unit.support{border-left-color:var(--info)}
 .unit h3{display:flex;align-items:baseline;gap:8px}
-.unit-name{font-size:20px;font-weight:700} .unit-role{font-weight:500} .unit-id{color:var(--ink-2);font-size:12.5px;margin-left:auto}
-.unit .state{display:flex;gap:12px;margin:2px 0 6px;font-size:15px}
-.motion{font-weight:700} .motion.stop_unconfirmed{color:var(--signal)}
-.battery{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.battery .bar{flex:1;height:10px;background:#fff;border:1px solid var(--rule);overflow:hidden}
-.battery .bar span{display:block;height:100%;background:var(--safe)}
+.unit-name{font-size:18px;font-weight:700} .unit-role{font-size:13px;font-weight:500;color:var(--ink-2)}
+.unit-id{color:var(--ink-3);font-size:12px;margin-left:auto}
+.unit .state{display:flex;gap:12px;margin:3px 0 8px;font-size:14px;color:var(--ink-2)}
+.motion{font-weight:600;color:var(--ink)} .motion.stop_unconfirmed{color:var(--signal)}
+.battery{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.battery .bar{flex:1;height:6px;background:var(--raise);border-radius:3px;overflow:hidden}
+.battery .bar span{display:block;height:100%;background:var(--safe);border-radius:3px}
 .battery.warn .bar span{background:var(--caution)} .battery.low .bar span{background:var(--signal)}
-.battery.low .value{color:var(--signal);font-weight:700}
-.battery .value{min-width:3.2em;text-align:right;font-weight:500} .battery .age{font-size:12px;color:var(--ink-2)}
-.battery.none .value{color:var(--ink-2);text-align:left}
-.unit dl{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:10px;font-size:13px}
-.unit dl div{display:contents} .unit dt{color:var(--ink-2)} .unit dd{margin:0}
-.unit .alert{margin-top:6px;padding:4px 8px;background:var(--caution-tint);font-size:13px}
+.battery.low .value{color:var(--signal);font-weight:600}
+.battery .value{min-width:3.2em;text-align:right;font-weight:600} .battery .age{font-size:12px;color:var(--ink-3)}
+.battery.none .value{color:var(--ink-3);text-align:left;font-weight:400}
+.unit dl{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:10px;row-gap:2px;font-size:13px}
+.unit dl div{display:contents} .unit dt{color:var(--ink-3)} .unit dd{margin:0}
+.unit .alert{margin-top:8px;padding:4px 9px;background:var(--caution-tint);border-left:3px solid var(--caution);border-radius:4px;
+  font-size:12.5px;color:#f9dd8c}
 .unit.stale,.unit.missing{border-left-color:var(--caution)}
-.unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.55}
+.unit.stale .state,.unit.stale .battery,.unit.stale dl{opacity:.6}
 
 /* ---- 요구조자 ---- */
 #targets{display:flex;flex-direction:column;min-height:240px;flex:1}
-.stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:0 0 8px;padding:0;list-style:none}
-.stage-counts li{display:flex;align-items:center;gap:6px;padding:3px 8px;background:#fff;border-left:4px solid var(--pending);font-size:13px}
-.stage-counts li b{margin-left:auto;font-size:18px}
+.stage-counts{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:0 0 8px;padding:0;list-style:none}
+.stage-counts li{display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--card);border:1px solid var(--line);
+  border-left:3px solid var(--pending);border-radius:5px;font-size:13px;color:var(--ink-2)}
+.stage-counts li b{margin-left:auto;font-size:20px;line-height:1;color:var(--ink);font-weight:600}
 .stage-counts .not_rescued{border-left-color:var(--rescue)} .stage-counts .supporting{border-left-color:var(--info)}
 .stage-counts .rescued{border-left-color:var(--safe)}
 .victims{margin:0;padding:0;list-style:none;overflow:auto;min-height:0}
-.victim-row{display:grid;grid-template-columns:20px 1fr;column-gap:6px;padding:6px 0;border-top:1px solid var(--rule)}
+.victim-row{display:grid;grid-template-columns:20px 1fr;column-gap:7px;padding:7px 2px;border-top:1px solid var(--line)}
 .victim-row .vicon{grid-row:span 3;margin-top:2px}
 .victim-row .who{display:flex;gap:8px;align-items:baseline}
-.victim-row .stage-word{font-weight:700} .victim-row .rule{font-size:11px;color:var(--ink-2)}
+.victim-row .stage-word{font-weight:600} .victim-row .rule{font-size:12px;color:var(--ink-3)}
 .victim-row.not_rescued .stage-word{color:var(--rescue)} .victim-row.supporting .stage-word{color:var(--info)}
 .victim-row.rescued .stage-word{color:var(--safe)} .victim-row.unconfirmed .stage-word{color:var(--pending)}
-.victim-row .what{display:flex;flex-wrap:wrap;column-gap:12px;font-size:13px;color:var(--ink-2)}
+.victim-row .what{display:flex;flex-wrap:wrap;column-gap:12px;font-size:12.5px;color:var(--ink-3)}
 .victim-row .support{color:var(--info);font-weight:500}
-.victim-row .candidate{color:var(--ink);background:var(--caution-tint);border:1px solid var(--caution);padding:0 6px;font-weight:600}
-.victim-row .notes{grid-column:2;margin:4px 0 0;padding:2px 8px;list-style:none;background:var(--caution-tint);font-size:12.5px}
-.victims .none{padding:12px 0;color:var(--ink-2)}
+.victim-row .candidate{color:var(--ink);background:var(--caution-tint);border:1px solid rgba(244,197,66,.45);border-radius:4px;padding:0 6px;font-weight:500}
+.victim-row .notes{grid-column:2;margin:4px 0 0;padding:3px 8px;list-style:none;background:var(--caution-tint);border-radius:4px;font-size:12.5px}
+.victims .none{padding:12px 0;color:var(--ink-3)}
 
 /* ---- 사건 기록 ---- */
 #events{display:flex;flex-direction:column;min-height:0}
 #events .scroll{overflow:auto;min-height:0;flex:1}
 #events table{border-collapse:collapse;width:100%;font-size:13px}
-#events th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2);
-  border-bottom:1px solid var(--ink);padding:2px 8px;white-space:nowrap}
-#events td{padding:3px 8px;border-bottom:1px solid #d5dbda;vertical-align:top}
-#events td.t{white-space:nowrap}
-#events tr.disaster_sign td.kind{color:var(--signal);font-weight:700}
-#events tr.target_disappeared_candidate td.kind{color:var(--safe);font-weight:700}
+#events th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;font-size:12px;color:var(--ink-3);
+  border-bottom:1px solid var(--line-2);padding:3px 8px 5px;white-space:nowrap}
+#events td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+#events td.t{white-space:nowrap;color:var(--ink-2)}
+#events tbody tr:hover td{background:rgba(255,255,255,.03)}
+#events tr.disaster_sign td.kind{color:var(--signal);font-weight:600}
+#events tr.target_disappeared_candidate td.kind{color:var(--safe);font-weight:600}
 #events tr.fresh td{background:var(--caution-tint)}
 /* ---- 명령·오류 기록: 사건 기록 옆, 요구조자 아래. 안에서 스크롤 ---- */
 #history{min-height:0;overflow:auto}
 #history table{border-collapse:collapse;width:100%;font-size:13px}
-#history th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--ink-2)}
-#history td{padding:3px 6px;border-bottom:1px solid #d5dbda;vertical-align:top}
+#history th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;font-size:12px;color:var(--ink-3);
+  border-bottom:1px solid var(--line-2);padding:3px 6px 5px}
+#history td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 #history td.t,#history td:nth-child(2){white-space:nowrap}
-#history tr.refused .outcome,#history tr.error .outcome{color:var(--signal);font-weight:700}
+#history tr.refused .outcome,#history tr.error .outcome{color:var(--signal);font-weight:600}
 #history tr.accepted .outcome{color:var(--safe)}
-#history .missing,#history.empty p{color:var(--ink-2)}
+#history .missing,#history.empty p{color:var(--ink-3);font-size:13px}
 
 /* ---- 옆 칸: 웹캠과 명령 ---- */
-#cameras figure,#robot-camera figure{margin:0;position:relative}
-#cameras img,#robot-camera img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#26343a;color:transparent}
+#cameras figure,#robot-camera figure{margin:0;position:relative;border-radius:6px;overflow:hidden;background:#05090f}
+#cameras img,#robot-camera img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#05090f;color:transparent}
 #cameras .nosignal,#robot-camera .nosignal{display:none;position:absolute;left:0;right:0;top:0;aspect-ratio:16/9;align-items:center;
-  justify-content:center;text-align:center;padding:0 24px;color:#e8eeee;font-size:14px}
+  justify-content:center;text-align:center;padding:0 24px;color:var(--ink-2);font-size:13.5px}
 #cameras figure.lost .nosignal,#robot-camera figure.lost .nosignal{display:flex}
-#cameras figure.lost img,#robot-camera figure.lost img{visibility:hidden} #cameras figure,#robot-camera figure{background:#26343a}
-#cameras figcaption,#robot-camera figcaption{display:flex;justify-content:space-between;font-size:13px;padding-top:4px;background:var(--panel)}
-#cameras figcaption .lost,#robot-camera figcaption .lost{color:var(--signal);font-weight:700}
+#cameras figure.lost img,#robot-camera figure.lost img{visibility:hidden}
+#cameras figcaption,#robot-camera figcaption{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 2px 0;
+  background:var(--panel);color:var(--ink-3)}
+#cameras figcaption .lost,#robot-camera figcaption .lost{color:var(--signal);font-weight:600}
 .camera-empty p{color:var(--ink-2);font-size:13px}
+.webcam-pick,.robot-cam-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--ink-2)}
+.webcam-pick button{font:inherit;font-size:12.5px;padding:3px 10px;border:1px solid var(--line-2);background:var(--raise);
+  color:var(--ink);border-radius:5px;cursor:pointer}
+.webcam-pick button:hover{border-color:var(--accent)}
+.webcam-notice{width:100%;color:var(--ink-2)}
+#side .alert{color:var(--caution);font-size:12.5px;margin-top:4px}
 #commands{overflow:auto;min-height:0}
-#commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
-#commands header h2{margin:0}
-.cmd-access{font-size:12.5px;color:var(--ink-2)} .cmd-access.off{color:var(--signal);font-weight:500}
+#commands header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+#commands header h2{margin:0;padding:0;border:0}
+.cmd-access{font-size:12.5px;color:var(--ink-3)} .cmd-access.off{color:var(--signal);font-weight:500}
 .cmd-group{display:grid;gap:6px;margin-bottom:8px}
 .cmd-group.approve{grid-template-columns:1fr}
 .cmd-group.mission{grid-template-columns:repeat(3,1fr)}
-.cmd{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:6px 8px;border-radius:3px;
-  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
-.cmd .cmd-label{font-weight:700}
-.cmd .why{font-size:11.5px;line-height:1.3;color:var(--ink-2)}
-.cmd.approve{padding:8px 12px;background:var(--info);border-color:var(--info);color:#fff}
-.cmd.approve .cmd-label{font-size:17px} .cmd.approve .why{font-size:12.5px;color:#dbe9f4}
-.cmd.stop{width:100%;padding:8px 12px;background:var(--signal);border-color:var(--signal);color:#fff}
-.cmd.stop .cmd-label{font-size:17px} .cmd.stop .why{color:#ffd9de}
+.cmd{font:inherit;border:1px solid var(--line-2);background:var(--card);color:var(--ink);padding:7px 10px;border-radius:6px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;
+  transition:background-color .12s,border-color .12s}
+.cmd:not(:disabled):hover{background:var(--raise);border-color:var(--accent)}
+.cmd:not(:disabled):active{transform:translateY(1px)}
+.cmd .cmd-label{font-weight:600}
+.cmd .why{font-size:12px;line-height:1.3;color:var(--ink-2)}
+.cmd.approve{padding:9px 12px;background:var(--info-strong);border-color:var(--info-strong);color:#fff}
+.cmd.approve:not(:disabled):hover{background:#2d74d6;border-color:#9cc8ff}
+.cmd.approve .cmd-label{font-size:16px} .cmd.approve .why{font-size:12.5px;color:#d6e7ff}
+.cmd.stop{width:100%;padding:9px 12px;background:var(--signal-strong);border-color:var(--signal-strong);color:#fff}
+.cmd.stop:not(:disabled):hover{background:#d4303e;border-color:#ffb3b8}
+.cmd.stop .cmd-label{font-size:16px} .cmd.stop .why{color:#ffd6d9}
 /* 비활성화된 버튼도 가독성을 유지한다: 버튼 레이블 하단의 비활성화 사유 안내가 핵심 정보다. */
-.cmd:disabled{cursor:not-allowed;background:#e9edec;border-color:var(--rule);color:var(--ink-2)}
-.cmd:disabled .why{color:var(--ink-2)}
+.cmd:disabled{cursor:not-allowed;background:transparent;border-color:var(--line);color:var(--ink-3)}
+.cmd:disabled .why{color:var(--ink-3)}
 /* 2단계 승인 대화상자가 활성화되어 있는 동안 선택된 명령 버튼. */
 .cmd.armed:disabled{background:var(--info-tint);border:2px solid var(--info);color:var(--info)}
-#cmd-confirm{border:2px solid var(--info);background:#fff;padding:8px 10px;margin-bottom:8px}
-#cmd-confirm .what{font-weight:700;margin-bottom:6px}
+#cmd-confirm{border:1px solid var(--info);border-left:4px solid var(--info);border-radius:6px;background:var(--card);padding:9px 11px;margin-bottom:8px}
+#cmd-confirm .what{font-weight:600;margin-bottom:6px}
 #cmd-confirm label{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
 #cmd-confirm label[hidden]{display:none}
 #cmd-confirm select{font:inherit;flex:1}
 #cmd-confirm .args{display:grid;grid-template-columns:auto 1fr;column-gap:10px;font-size:13px;margin-bottom:8px}
-#cmd-confirm .args dt{color:var(--ink-2)} #cmd-confirm .args dd{margin:0}
+#cmd-confirm .args dt{color:var(--ink-3)} #cmd-confirm .args dd{margin:0}
 #cmd-confirm .row{display:flex;gap:8px}
 #cmd-confirm .row .cmd{align-items:center;flex:1}
-.cmd.send{background:var(--info);border-color:var(--info);color:#fff;font-weight:700}
+.cmd.send{background:var(--info-strong);border-color:var(--info-strong);color:#fff;font-weight:600}
 #cmd-log{list-style:none;margin:0 0 8px;padding:0;font-size:12.5px}
-#cmd-log li{padding:3px 8px;border-left:5px solid var(--pending);background:#fff;margin-bottom:3px}
-#cmd-log li time{color:var(--ink-2);margin-right:6px}
+#cmd-log li{padding:4px 9px;border-left:3px solid var(--pending);background:var(--card);border-radius:4px;margin-bottom:3px}
+#cmd-log li time{color:var(--ink-3);margin-right:6px}
 #cmd-log li.accepted{border-left-color:var(--safe)} #cmd-log li.rejected{border-left-color:var(--caution)}
 #cmd-log li.failed{border-left-color:var(--signal);font-weight:500}
-.estop{font-size:12.5px;padding:6px 8px;border-left:6px solid var(--signal);background:#fff}
+.estop{font-size:12.5px;padding:7px 10px;border-left:3px solid var(--signal);background:var(--signal-tint);border-radius:4px;color:var(--ink-2)}
 
 /* ---- 폼(로그인, 계정) ---- */
-.card{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border:1px solid var(--rule)}
-.card h1{font-size:22px;margin-bottom:12px}
-.failure{border-left:8px solid var(--signal)} .failure p{margin-top:10px}
+.card{max-width:420px;margin:12vh auto;padding:26px 28px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.card .sys{font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.card h1{font-size:22px;font-weight:600;margin-bottom:14px}
+.failure{border-left:6px solid var(--signal)} .failure p{margin-top:10px}
 .failure .detail{font-size:13px;color:var(--ink-2);word-break:break-all} .failure .retry{font-size:13px} .card button{margin-top:16px}
-.card label{display:block;margin:12px 0 4px}.card input{width:100%;padding:8px;font:inherit;border:1px solid var(--rule)}
-.card button,form.inline button{font:inherit;padding:8px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:3px;cursor:pointer}
-#topbar form.inline button{padding:3px 10px;background:#fff;color:var(--ink)}
-.flash{padding:8px 12px;margin:8px 0;border-left:6px solid var(--ink-2);background:#fff}
+.card label{display:block;margin:12px 0 4px;font-size:13px;color:var(--ink-2)}
+.card input{width:100%;padding:9px 10px}
+.card button,form.inline button{font:inherit;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:#04161a;
+  font-weight:600;border-radius:6px;cursor:pointer}
+.card button:hover,form.inline button:hover{background:#62d8e4}
+#topbar form.inline button{padding:3px 10px;background:var(--raise);border-color:var(--line-2);color:var(--ink);font-weight:500}
+#topbar form.inline button:hover{border-color:var(--accent)}
+.flash{padding:8px 12px;margin:8px 0;border-left:3px solid var(--ink-3);background:var(--card);border-radius:4px}
 .flash.danger{border-color:var(--signal)}.flash.success{border-color:var(--safe)}.flash.info{border-color:var(--info)}
-form.inline{display:inline}form.inline input{width:9em;padding:4px;font:inherit}form.inline select{margin-right:4px;font:inherit}
+form.inline{display:inline}form.inline input{width:9em;padding:4px 6px}form.inline select{margin-right:4px}
 .admin{max-width:1200px;margin:0 auto;padding:16px}
-.admin table{border-collapse:collapse;width:100%;background:var(--panel);margin-top:12px}
-.admin th,.admin td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
+.admin-head{display:flex;align-items:baseline;gap:16px;padding:6px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.admin-head h1{font-size:20px;font-weight:600}
+.admin-head .sys{font-size:13px;color:var(--ink-2)}
+.admin-head .who{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:13px}
+.admin h2{margin-top:14px}
+.admin table{border-collapse:collapse;width:100%;background:var(--panel);margin-top:12px;border:1px solid var(--line)}
+.admin caption{text-align:left;color:var(--ink-2);padding:4px 0}
+.admin th,.admin td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.admin th{font-weight:500;font-size:12.5px;color:var(--ink-3)}
 """
 
 # 사건 행마다 브라우저 최초 렌더링 시각을 기록하고(KPI-04), 명령 패널 동작을 관리한다.
@@ -1120,7 +1192,7 @@ def _user_nav(user, csrf):
 
 def _header(user, csrf):
     """관리자 전용 계정 관리 페이지 상단 헤더."""
-    return f'<header class="admin-head"><h1>구조 관제</h1>{_user_nav(user, csrf)}</header>'
+    return f'<header class="admin-head"><h1>구조 관제</h1><p class="sys">{SYSTEM_NAME}</p>{_user_nav(user, csrf)}</header>'
 
 
 def camera_stale_ms(cameras, stale_s):
@@ -1267,6 +1339,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
     if cameras or robot_camera:
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
+            + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p></header>'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
@@ -1280,7 +1353,7 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
 
 def render_login(csrf, messages=()):
     """로그인 폼 렌더링(SQLite 사용자 계정 데이터베이스 인증 연동)."""
-    return (_head('구조 관제 로그인') + '<div class="card"><h1>구조 관제 로그인</h1>' + _flashes(messages)
+    return (_head('구조 관제 로그인') + f'<div class="card"><p class="sys">{SYSTEM_NAME}</p><h1>구조 관제 로그인</h1>' + _flashes(messages)
             + '<form method="post" action="/login">'
             f'<input type="hidden" name="csrf" value="{escape(csrf)}">'
             '<label for="username">아이디</label><input id="username" name="username" autocomplete="username" required>'
