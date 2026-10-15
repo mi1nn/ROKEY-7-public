@@ -1,0 +1,27 @@
+OPERATOR 04:26:05 시작: 런북 7.1(실패 뒤 다시 arm, TB-5 arm)·7.5(2차 고정 뒤 TB-6 위치 추정)를 대신한다
+OPERATOR 04:29:21 결과 EXPIRED task=7e3bd6f4-118c-47c7-8030-84538efa96b7 robot_a
+OPERATOR 04:29:23 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:29:25 런북 7.1 robot6 task_arm: success=True message='ARMED 
+OPERATOR 04:31:26 결과 EXPIRED task=1fad0243-5cc7-456d-86c2-5cc8d290a6d0 robot_a
+OPERATOR 04:31:27 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:31:36 런북 7.1 robot6 task_arm: success=True message='ARMED 
+OPERATOR 04:33:14 결과 FAILED task=641a85ef-6ede-4117-9758-9b6118d510a2 robot_a
+OPERATOR 04:33:16 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:33:21 런북 7.1 robot6 task_arm: success=True message='ARMED 
+OPERATOR 04:35:15 결과 FAILED task=e4568565-7e6d-4153-af70-a335641b9f1d robot_a
+OPERATOR 04:35:23 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:35:25 런북 7.1 robot6 task_arm: success=True message='ARMED 
+OPERATOR 04:35:25 탐색 끝: SLAM 지도 저장 <회차 폴더>/diag_c9
+OPERATOR 04:35:37 자료 남김 <회차 폴더>/logs/diag_c8_tb5_nav2.txt
+OPERATOR 04:35:54 자료 남김 <회차 폴더>/logs/diag_c7_before_slam_stop.txt
+OPERATOR 04:35:54 런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID 953542에 TERM, slam_toolbox PID 953617)
+OPERATOR 04:36:11 런북 7.5 /robot6/map 발행자 수 0(--no-daemon)
+OPERATOR 04:36:28 자료 남김 <회차 폴더>/logs/diag_c7_before_frozen_loc.txt
+OPERATOR 04:36:28 런북 7.5 frozen_localization robot_a 띄움(로그 <회차 폴더>/logs/frozen_loc_a.log)
+OPERATOR 04:36:28 TB-5 출발 정렬 끝
+OPERATOR 04:36:33 런북 7.1 /robot5/request_nomotion_update: 
+OPERATOR 04:36:37 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:36:39 런북 7.1 robot5 task_arm: success=True message='ARMED 
+OPERATOR 04:42:56 결과 FAILED task=a717e631-db9a-4391-b35a-9df9d909d4f3 robot_a
+OPERATOR 04:43:01 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:43:03 런북 7.1 robot6 task_arm: success=True message='ARMED 

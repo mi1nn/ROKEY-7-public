@@ -1,0 +1,4 @@
+OPERATOR 04:26:23 (수동, 가제보 실습) 런북 48행 /robot6/rescue_command_watchdog/reset: success=True message='ARMED 
+OPERATOR 04:26:30 (수동) refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 04:26:31 (수동) robot6 task_arm: success=True message='ARMED 
+OPERATOR 04:42:13 (수동, 가제보 실습, 작전 지시 진단 1회) /robot6/request_nomotion_update: std_srvs.srv.Empty_Response() (04:42:15.470 끝)
