@@ -109,6 +109,15 @@ class Depth(unittest.TestCase):
         self.assertEqual([[405, 0], [0, 0]], mm.tolist())
         self.assertEqual(65535, int(relay.depth_mm(np.array([100.0], dtype=np.float32))[0]))
 
+    def test_scan_returns_under_the_real_floor_become_no_return(self):
+        # the simulated lidar measures from 0.10 m (no wall leak); the real one gives nothing under 0.164 m
+        class Scan:
+            range_min = 0.10
+            ranges = [0.12, 0.164, 0.5, float('inf'), 0.05]
+        out = relay.real_scan(Scan())
+        self.assertEqual(relay.LIDAR_RANGE_MIN_M, out.range_min)
+        self.assertEqual([float('inf'), 0.164, 0.5, float('inf'), float('inf')], list(out.ranges))
+
     def test_depth_noise_grows_with_distance_squared_and_keeps_no_return(self):
         # sigma = k z^2 [추정 2026-10-16]: stereo depth error grows with the distance squared; 1 cm at 1 m
         import numpy as np
