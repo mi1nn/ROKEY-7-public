@@ -20,7 +20,7 @@
 | 로봇 담당 PC | `tb6_slam`, `robot.launch` 두 벌, `map_freeze`, `frozen_localization`(TB-5), `passage_points`·`overhead_passage` 두 벌 | 저장소 그대로. 두 실행기에만 한 PC 리허설용 `scripts/field/wiring-rehearsal/host_shim` |
 | 인형 인식(TB-6 카메라 YOLO) | `target_locator`(실물, amr_target 없이) + 인형 관측 대역 | `scripts/sim/fake_target.py`(정답 위치 없이 도면 인형 자리와 로봇 자신의 TF·SLAM 지도로 보임 판정) |
 
-- 한 번에 띄우기: `scripts/sim/run_full.sh`(런북 순서), 끄기 `scripts/sim/stop_full.sh <회차 폴더>`. 두 로봇 생성·실행 스크립트·인형 대역은 다음 PR 에 올린다(이 기록 시점에는 시뮬레이션 작업 브랜치에만 있음). 관제 웹은 Tailscale 주소로 바인드해 재범이 휴대폰·LOQ 에서 봤다(주소는 실행 인자, 저장소에 없음).
+- 한 번에 띄우기: `scripts/sim/run_full.sh`(런북 순서), 끄기 `scripts/sim/stop_full.sh <회차 폴더>`. 두 로봇 생성·실행 스크립트·인형 대역은 다음 PR 에 올린다(이 기록 시점에는 시뮬레이션 작업 브랜치에만 있음). 관제 웹은 Tailscale 주소로 바인드해 재범이 휴대폰·다른 PC 에서 봤다(주소는 실행 인자, 저장소에 없음).
 - 시뮬레이션 사본: 현장 파일을 고치지 않고 회차 폴더에 사본을 만들어 썼다. 다른 값은 기동 로그 첫 줄에 「현장 값과 다름」으로 남긴다.
 
 ## 2. 마지막 회차 표 (full-1015-223913)
