@@ -1,0 +1,26 @@
+== 05:10:47.970
+-- /robot6/amcl_pose 한 건(latched)
+stamp:
+  sec: 1792094929
+  nanosec: 895750027
+frame_id: map
+-- /rescue/robots/robot_a/pose mission_pose_status·mission_pose
+        x: -0.3498841900506843
+        y: 0.013333333300111497
+        x: 0.0
+        y: 0.0
+        x: -0.3498841900506843
+        y: 0.013333333300111497
+-- /robot6/tf 4 s 프레임 쌍
+     32     frame_id: base_link
+      3     frame_id: map
+    101     frame_id: odom
+     33     frame_id: wheel_drop_left
+     33     frame_id: wheel_drop_right
+    101   child_frame_id: base_link
+     33   child_frame_id: left_wheel
+      3   child_frame_id: odom
+     33   child_frame_id: right_wheel
+     16   child_frame_id: wheel_drop_left
+     16   child_frame_id: wheel_drop_right
+-- AMCL_NOMOTION 줄 수(robot_robot_a.log): 0

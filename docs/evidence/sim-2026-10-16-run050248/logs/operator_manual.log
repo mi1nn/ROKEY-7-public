@@ -1,0 +1,4 @@
+OPERATOR 05:08:17 (수동, 가제보 실습) 런북 7.5.1 대신: 운영자 대역이 tb6_slam launch 에 TERM 뒤 slam_toolbox(PID 1007904)가 남아 /robot6/map 발행자 1 → slam_toolbox 에 SIGINT(Ctrl+C 와 같은 신호)
+OPERATOR 05:08:18 (수동) slam_toolbox(PID 1007904) 끝남
+OPERATOR 05:08:41 (수동) 런북 7.5.1 /robot6/map 발행자 수 0(--no-daemon)
+OPERATOR 05:08:41 (수동) 런북 7.5.2 frozen_localization robot_a 띄움(PID 1020903, 로그 frozen_loc_a.log)

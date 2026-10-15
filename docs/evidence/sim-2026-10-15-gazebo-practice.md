@@ -188,6 +188,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열째 회차 자료](sim-2026-10-16-run042311/README.md)에 있다. 빌드는 `982aa58`(#424·#426·#427)다. TB-6 은 04:29:36 부터 터널 1 입구에서 `detected collision ahead` 로 멈췄고, 경계 4개가 실패해 `EXPLORATION_FRONTIERS_FAILED` 로 끝났다. 넘김 중 RETURN_HOME 은 #426 대로 미뤄졌다. 넘김 뒤에는 TB-6 위치가 375 s 끊겼고, 진단용 no-motion 1회 뒤 다시 나왔다. 그 뒤 RETURN_HOME 은 `ACTION_ABORTED` 였다. 터널 PASSABLE 1행이 장부에 남았고, TB-5 정렬은 처음 `ALIGNED` 였다.
 
+## 15. 열한째 회차 (full-1016-050248)
+
+회차 표·단계별 결과는 [열한째 회차 자료](sim-2026-10-16-run050248/README.md)에 있다. 빌드는 `b8a758d`(#430·#433 C15, sim #428·#429·#431)다. 선포 즉시 경계 5개가 `TOO_CLOSE` 3·`SMALL` 2 로 빠져 `frontiers_sent=0` 으로 탐색이 끝났다(작전 C16). 2차 고정 뒤 운영자 대역의 SLAM 끄기가 안 돼 가제보 실습이 런북 7.5.1·7.5.2 를 손으로 했다. 넘김 뒤 RobotPose 는 0.13 s 만에 나왔고 `AMCL_NOMOTION` 은 0이었다. RETURN_HOME 은 넘김 0.70 s 뒤 Nav2 `Initial robot pose is not available` 로 중단됐고, 다시 보내지 않았다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
