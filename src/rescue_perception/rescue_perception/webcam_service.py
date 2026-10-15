@@ -4,6 +4,7 @@
 2. stream_state     : 지진 판정 결과 → 카메라 상태(CameraStatus 의 ONLINE / DEGRADED / UNKNOWN)
 3. scene_visibility : 지진 판정 결과 → 출구 판정에 넘길 시야(VALID / OCCLUDED / UNKNOWN)
 4. boxes_from_xyxyn : YOLO 출력 숫자 → DetectionBox 목록
+5. view_track       : 감시 없이 판정 화면에 궤적을 그릴 인형 위치(화면용, 판정에 안 씀)
 
 2·3 은 '화면이 가려졌나'를 따로 재지 않고 지진 판정이 이미 잰 결과를 다시 쓴다.
 한계: 사람이 감시 영역(ROI)만 살짝 가리는 경우는 화면 전체로는 보이는 상태라 VALID 로 들어간다.
@@ -202,3 +203,16 @@ def boxes_from_xyxyn(rows, scores):
             continue
         boxes.append(DetectionBox(x0, y0, x1, y1, float(score)))
     return tuple(boxes)
+
+
+def view_track(boxes, score_min):
+    """감시가 없을 때 판정 화면 궤적에 찍을 점: 점수 통과 상자 중 최고 점수 상자의 가운데 (x, y), 없으면 None.
+
+    화면용이다. 추적·판정·사건에는 쓰지 않는다(감시가 걸리면 출구 판정기의 track 을 그린다).
+    예) 점수 0.9 상자 (0.4, 0.6, 0.6, 1.0) → (0.5, 0.8). YOLO 실패(boxes None)도 None.
+    """
+    passing = [b for b in boxes or () if b.score >= score_min]
+    if not passing:
+        return None
+    best = max(passing, key=lambda b: b.score)
+    return ((best.x0 + best.x1) / 2, (best.y0 + best.y1) / 2)
