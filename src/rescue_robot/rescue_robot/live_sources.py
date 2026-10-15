@@ -17,6 +17,9 @@ def stamp(message):
     return ros_time_to_ns(message.header.stamp.sec,message.header.stamp.nanosec)
 
 
+VARIANCE_ROUNDING=1e-9   # m^2 / rad^2: a variance this far below zero is rounding, read as 0
+
+
 def planar(pose):
     p,q=pose.position,pose.orientation
     try: return planar_origin(p.x,p.y,p.z,q.x,q.y,q.z,q.w)
@@ -288,10 +291,13 @@ class SavedMapSources:
                 planar(message.pose.pose); covariance=message.pose.covariance
                 valid=message.header.frame_id==c['map_frame'] and len(covariance)==36 and all(math.isfinite(v) for v in covariance)
                 if valid:
-                    vx,vy,cxy=covariance[0],covariance[7],covariance[1]
-                    valid=(vx>=0 and vy>=0 and math.isclose(cxy,covariance[6],abs_tol=1e-9)
-                        and cxy*cxy<=vx*vy and (vx+vy+math.hypot(vx-vy,2*cxy))/2<=c['max_position_variance_m2']
-                        and 0<=covariance[35]<=c['max_yaw_variance_rad2'])
+                    # AMCL with zero spread publishes rounding just below zero (yaw -5.7e-14, #317 E3): 0
+                    vx,vy,cxy,vyaw=(max(covariance[0],0.),max(covariance[7],0.),covariance[1],max(covariance[35],0.))
+                    valid=(min(covariance[0],covariance[7],covariance[35])>=-VARIANCE_ROUNDING
+                        and math.isclose(cxy,covariance[6],abs_tol=1e-9)
+                        and cxy*cxy<=vx*vy+VARIANCE_ROUNDING
+                        and (vx+vy+math.hypot(vx-vy,2*cxy))/2<=c['max_position_variance_m2']
+                        and vyaw<=c['max_yaw_variance_rad2'])
                 valid=valid and covariance_fresh
                 self.poses[robot]=(observed,valid)
                 if valid and self.phase(robot)=='FROZEN': self.last_valid[robot]=deepcopy(message)
