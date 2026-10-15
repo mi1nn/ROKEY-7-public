@@ -75,18 +75,18 @@
     </model>
     <model name="whitebox_south">
       <static>true</static>
-      <pose>2.0750 2.0100 0.2050 0 0 0.000000</pose>
+      <pose>1.9650 2.0100 0.2050 0 0 0.000000</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>1.3680 0.0180 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>1.3680 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>1.1480 0.0180 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.1480 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="whitebox_north">
       <static>true</static>
-      <pose>2.0750 2.4600 0.2050 0 0 0.000000</pose>
+      <pose>1.9650 2.4600 0.2050 0 0 0.000000</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>1.3680 0.0180 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>1.3680 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>1.1480 0.0180 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>1.1480 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="whitebox_west">
@@ -99,7 +99,7 @@
     </model>
     <model name="whitebox_east">
       <static>true</static>
-      <pose>2.7500 2.2350 0.2050 0 0 1.570796</pose>
+      <pose>2.5300 2.2350 0.2050 0 0 1.570796</pose>
       <link name="link">
         <collision name="collision"><geometry><box><size>0.4680 0.0180 0.4100</size></box></geometry></collision>
         <visual name="visual"><geometry><box><size>0.4680 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
@@ -155,10 +155,10 @@
     </model>
     <model name="tunnel1_roof">
       <static>true</static>
-      <pose>3.0900 2.2350 0.4790 0 0 0.000000</pose>
+      <pose>2.9800 2.2350 0.4790 0 0 0.000000</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>0.6800 0.4500 0.0180</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.6800 0.4500 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>0.9000 0.4500 0.0180</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.9000 0.4500 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="doll">

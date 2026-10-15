@@ -1,5 +1,5 @@
 {
-  "note": "Practice arena from the floor plan arena-map.svg (재범 2026-10-15, 1 unit = 1 cm, outer 343 x 557 cm). World frame: origin = south-west corner of the robot zone, x east along the 343 cm side, y north along the 557 cm side (plan x -> x/100, plan y -> (557 - y)/100). No SLAM map is used. Removed: white_box (plan 182..228, 316..352, inside the white box enclosure), 재범 2026-10-16 결정으로 뺌 (「흰색 상자 없애」); the enclosure walls stay.",
+  "note": "Practice arena from the floor plan arena-map.svg (재범 2026-10-15, 1 unit = 1 cm, outer 343 x 557 cm). World frame: origin = south-west corner of the robot zone, x east along the 343 cm side, y north along the 557 cm side (plan x -> x/100, plan y -> (557 - y)/100). No SLAM map is used. Removed: white_box (plan 182..228, 316..352, inside the white box enclosure), 재범 2026-10-16 결정으로 뺌 (「흰색 상자 없애」); the enclosure walls stay. Tunnel 1 gap widened 0.68 -> 0.90 m by moving whitebox_east 0.22 m west (재범 2026-10-16 「입구 좀 넓혀봐」, sim only).",
   "wall": {"height_m": 0.41, "thickness_m": 0.018, "color": [0.55, 0.38, 0.22], "estimate": true,
            "source": "height 0.41 m measured by 재범 2026-10-15; thickness 0.018 m is an estimate until the MDF board is measured (작전 2026-10-16; was 0.01 m from a photo)"},
   "floor": {"color": [0.5, 0.5, 0.5], "source": "grey floor tiles, colour estimated"},
@@ -16,10 +16,10 @@
     {"name": "outer_west", "kind": "wall", "x1": 0.0, "y1": 0.0, "x2": 0.0, "y2": 5.57, "source": "plan outer rect"},
     {"name": "outer_east", "kind": "wall", "x1": 3.43, "y1": 0.0, "x2": 3.43, "y2": 5.57, "source": "plan outer rect"},
     {"name": "divider", "kind": "wall", "x1": 0.0, "y1": 2.01, "x2": 1.40, "y2": 2.01, "source": "plan line (0,356)-(140,356)"},
-    {"name": "whitebox_south", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 2.75, "y2": 2.01, "source": "plan white box enclosure (140..275, 311..356), closed"},
-    {"name": "whitebox_north", "kind": "wall", "x1": 1.40, "y1": 2.46, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
+    {"name": "whitebox_south", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 2.53, "y2": 2.01, "source": "plan white box enclosure (140..275, 311..356), closed; east end 2.75 -> 2.53 with whitebox_east (tunnel 1 widened)"},
+    {"name": "whitebox_north", "kind": "wall", "x1": 1.40, "y1": 2.46, "x2": 2.53, "y2": 2.46, "source": "plan white box enclosure; east end 2.75 -> 2.53 with whitebox_east (tunnel 1 widened)"},
     {"name": "whitebox_west", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 1.40, "y2": 2.46, "source": "plan white box enclosure"},
-    {"name": "whitebox_east", "kind": "wall", "x1": 2.75, "y1": 2.01, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
+    {"name": "whitebox_east", "kind": "wall", "x1": 2.53, "y1": 2.01, "x2": 2.53, "y2": 2.46, "source": "plan white box enclosure at 2.75; moved 0.22 m west so the tunnel 1 gap is 0.90 m, not 0.68 (재범 2026-10-16 「입구 좀 넓혀봐」, sim only)"},
     {"name": "control_east", "kind": "wall", "x1": 0.80, "y1": 5.57, "x2": 0.80, "y2": 4.17, "source": "plan control box (0..80, 0..140), blocked"},
     {"name": "control_south", "kind": "wall", "x1": 0.0, "y1": 4.17, "x2": 0.80, "y2": 4.17, "source": "plan control box"},
     {"name": "north_stub", "kind": "wall", "x1": 2.36, "y1": 5.57, "x2": 2.36, "y2": 4.65, "source": "plan line (236,0)-(236,92)"},
@@ -30,9 +30,9 @@
     {"name": "tunnel2_roof", "kind": "overhead", "x": 1.76, "y": 2.865, "yaw": 0.0, "size": [0.72, 0.81, 0.018],
      "clearance_m": 0.30, "color": [0.55, 0.38, 0.22], "estimate": true,
      "source": "plan tunnel 2 area (140..212, 230..311), impassable. Roof over the whole area; underside 0.30 m (재범 2026-10-15: lift it about 30 cm so that the vision, not the lidar, has to judge that the robot cannot pass). Thickness 0.018 m [추정, as the walls]. Was a 1 cm lintel along the dashed line until 2026-10-16: no floor under it in the depth box, judge UNKNOWN"},
-    {"name": "tunnel1_roof", "kind": "overhead", "x": 3.09, "y": 2.235, "yaw": 0.0, "size": [0.68, 0.45, 0.018],
+    {"name": "tunnel1_roof", "kind": "overhead", "x": 2.98, "y": 2.235, "yaw": 0.0, "size": [0.90, 0.45, 0.018],
      "clearance_m": 0.47, "color": [0.55, 0.38, 0.22], "estimate": true,
-     "source": "plan tunnel 1 area (275..343, 311..356), passable, 「높이 47 cm」. Roof over the whole area; thickness 0.018 m [추정, as the walls]. Was a 1 cm lintel along the dashed line until 2026-10-16"},
+     "source": "plan tunnel 1 area (275..343, 311..356), passable, 「높이 47 cm」. Roof over the whole area; thickness 0.018 m [추정, as the walls]. Was a 1 cm lintel along the dashed line until 2026-10-16. Widened 0.22 m to the west over the widened gap, 0.68 -> 0.90 m (재범 2026-10-16 「입구 좀 넓혀봐」, sim only: the coordinator sends a frontier goal only to a cell 0.35 m clear, 15 free 0.05 m cells across, and the 13회차 SLAM map had 12 in the 0.68 m gap)"},
     {"name": "doll", "kind": "cylinder", "x": 1.20, "y": 2.87, "radius": 0.07, "length": 0.20,
      "color": [0.85, 0.54, 0.11], "estimate": true, "source": "plan (120, 270) r 7; height estimated"}
   ]
