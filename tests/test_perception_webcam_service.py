@@ -267,5 +267,19 @@ class DebugImageTests(unittest.TestCase):
         self.assertEqual(det.track, (0.5, 0.5))
 
 
+class ViewTrackTests(unittest.TestCase):
+    """2026-10-15 사용자 요청: 감시 없이도 지진 뒤 판정 화면에 인형 상자·궤적을 그린다(화면용, 판정에 안 씀)."""
+
+    def test_center_of_best_box_over_score_min(self):
+        from rescue_perception.webcam_service import view_track
+        boxes = boxes_from_xyxyn([[0.0, 0.0, 0.2, 0.2], [0.4, 0.6, 0.6, 1.0], [0.8, 0.8, 1.0, 1.0]], [0.6, 0.9, 0.1])
+        self.assertEqual(view_track(boxes, 0.5), (0.5, 0.8))
+
+    def test_none_without_passing_box(self):
+        from rescue_perception.webcam_service import view_track
+        self.assertIsNone(view_track(boxes_from_xyxyn([[0.1, 0.1, 0.2, 0.2]], [0.3]), 0.5))
+        self.assertIsNone(view_track(None, 0.5))   # YOLO 실패: 점을 지어내지 않는다
+
+
 if __name__ == "__main__":
     unittest.main()
