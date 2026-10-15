@@ -6,7 +6,9 @@ operations 의 MapArchive(#map_archive)가 회차마다 `<map_dir>/<run_id>/live
 보이고 그렇다고 적는다. 회차에 지도가 하나도 없거나 파일을 못 읽으면 그 사유를 보인다(빈 칸으로 두지 않는다).
 """
 import hashlib
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from rescue_operations.map_archive import MapArchive
@@ -22,9 +24,12 @@ from test_console_view import ROBOTS, SECOND, T0, LedgerFixture, digest_dir
 from test_console_web import CUSTOMER, HAS_FLASK, SECRET, AccountsFixture
 
 
+W, H = 80, 100
+
+
 def fields(fill):
-    """40 x 40 칸, 0.05 m, 원점 (-1, -2): 픽스처 로봇 (0.5, -1.0)·(1.0, -1.0) 이 지도 안에 든다."""
-    return dict(frame='map', width=40, height=40, resolution=0.05, origin=(-1.0, -2.0, 0.0), data=[fill] * 1600)
+    """80 x 100 칸, 0.05 m, 원점 (-1, -2): 픽스처 로봇 (0.5, -1.0)·(1.0, -1.0) 과 인형 (1.0, 2.0) 이 지도 안에 든다."""
+    return dict(frame='map', width=W, height=H, resolution=0.05, origin=(-1.0, -2.0, 0.0), data=[fill] * (W * H))
 
 
 class ReplayMapFixture(LedgerFixture):
@@ -33,7 +38,9 @@ class ReplayMapFixture(LedgerFixture):
     def setUp(self):
         super().setUp()
         self.site_db = self.dir / 'site_state.sqlite3'
-        self.archive_dir = self.dir / 'maps'
+        archive = tempfile.TemporaryDirectory()   # DB 폴더 밖(digest_dir 는 하위 폴더를 읽지 않는다)
+        self.addCleanup(archive.cleanup)
+        self.archive_dir = archive.name
         self.now = T0
         with mock.patch('rescue_operations.site_state.time.time_ns', lambda: self.now):
             with SiteStateLedger(self.site_db, allowed_robot_ids=ROBOTS) as ledger:
@@ -41,7 +48,7 @@ class ReplayMapFixture(LedgerFixture):
                 archive = MapArchive(ledger, out_dir=self.archive_dir, robot_id='robot_a')
 
                 def keep(fill, kind, revision, offset):
-                    pgm = grid_to_pgm(40, 40, [fill] * 1600)
+                    pgm = grid_to_pgm(W, H, [fill] * (W * H))
                     archive._store(self.run1, fields(fill), pgm, hashlib.sha256(pgm).hexdigest(), kind=kind,
                                    revision=revision, at_ns=T0 + offset * SECOND)
                 for offset, write in ((15, lambda: ledger.record_robot_status(robot(1, 0.5, 15))),
@@ -103,7 +110,7 @@ class SnapshotMapsTests(ReplayMapFixture):
         row = self.timeline()['map_rows'][0]
         maps = SnapshotMaps(4)
         image = maps.load(row)
-        self.assertEqual((40, 40, 0.05, [-1.0, -2.0, 0.0]), (image.meta['width_px'], image.meta['height_px'],
+        self.assertEqual((W, H, 0.05, [-1.0, -2.0, 0.0]), (image.meta['width_px'], image.meta['height_px'],
                                                               image.meta['resolution'], image.meta['origin']))
         self.assertTrue(image.png.startswith(b'\x89PNG'))
         with mock.patch('rescue_console.mapimage.load_map') as again:
@@ -112,7 +119,7 @@ class SnapshotMapsTests(ReplayMapFixture):
 
     def test_a_changed_file_is_refused(self):
         row = self.timeline()['map_rows'][0]
-        path = self.archive_dir / self.run1 / row['path'].rsplit('/', 1)[-1]
+        path = Path(self.archive_dir) / self.run1 / row['path'].rsplit('/', 1)[-1]
         path.write_bytes(path.read_bytes()[:-1] + b'\x00')
         with self.assertRaises(ConsoleError) as caught:
             SnapshotMaps(4).load(row)
@@ -140,7 +147,7 @@ class ReplayMapRenderTests(ReplayMapFixture):
         self.assertIn('TB-6', html)
         self.assertIn('class="victim not_rescued"', html)
         self.assertIn('실시간 SLAM 지도', html)
-        self.assertIn('10초 전', html)
+        self.assertIn('(10.0s 전)', html)
         self.assertNotIn('지도 이력 없음', html)
 
     def test_frozen_map_is_named(self):

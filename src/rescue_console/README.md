@@ -40,13 +40,13 @@
 | `commands.py` | 운영자 명령 요청 만들기·한 번 보내기·응답 읽기(`POST /api/operator-commands`) | 표준 라이브러리 |
 | `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 아홉(배치 로봇·로봇 상태·현장 사건·대상 상태·임무 상태·운영자 명령·오류 기록·최신 출구(QR) 관측·터널 판정)으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
-| `replay.py` | 회차 하나의 쌓이는 표 넷(사건·명령·오류·출구)과 이력 표 둘(로봇·대상) → 리플레이 시간 막대와 시점 상태 | 표준 라이브러리, `rescue_contracts` |
+| `replay.py` | 회차 하나의 쌓이는 표 다섯(사건·명령·오류·출구·지도)과 이력 표 둘(로봇·대상) → 리플레이 시간 막대와 시점 상태(그 시각의 지도 줄 포함) | 표준 라이브러리, `rescue_contracts` |
 | `replay_page.py` | 리플레이 모델 → HTML 페이지·조각. Flask 없이 시험 | 표준 라이브러리 |
 | `reset.py` | 회차 초기화 요청 한 번 보내기·답 읽기, 로봇 미리 보기, 다시 띄우기 체크 목록 모델 | 표준 라이브러리 |
 | `reset_page.py` | 초기화 모델 → HTML 페이지·조각. Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, `GET /replay`, `GET /replay/fragment`, `GET /reset`, `GET /reset/fragment` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함), 회차 초기화 `POST /reset/send`(관리자), 초기화 체크 `POST /reset/check`(관리자) 다섯이다(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, `GET /replay`, `GET /replay/fragment`, `GET /replay/map.png`, `GET /reset`, `GET /reset/fragment` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함), 회차 초기화 `POST /reset/send`(관리자), 초기화 체크 `POST /reset/check`(관리자) 다섯이다(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
@@ -340,7 +340,7 @@ SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드�
 - 위 칸에서 회차를 고른다. 처음에는 진행 중인 회차가, 없으면 마지막 회차가 골라져 있다. 회차는 현장 상태 DB 스키마 1.5 의 `runs` 표다(#318).
 - 재생·멈춤, 배속(1·2·4·8배), 시간 막대가 있다. 막대 아래 점은 사건·명령·오류·출구·인형 단계 바뀜 하나씩이고, 누르면 그 시각으로 간다.
 - 왼쪽 칸은 그 시점의 TB-5·TB-6 위치·배터리·상태와 인형 4단계, 출구 관측과 출구 통과 수다. 로봇과 인형 값은 그 시각 이전의 가장 최근 이력 행이고, 로봇 값은 몇 초 전 값인지 같이 보인다. 5초보다 오래되면 「낡음」이다.
-- 지도 그림은 아직 회차별로 남지 않아 「지도 이력 없음」으로 보인다.
+- 왼쪽 위 지도는 그 시각 이전에 마지막으로 남은 회차 지도(실시간 SLAM 지도나 고정 지도)이고, 그 위에 그 시각의 로봇·인형·출구를 그린다. 지도 아래에 어떤 지도이고 몇 초 전에 남은 것인지 적는다. 첫 지도보다 이른 시각이면 첫 지도를 흐리게 보이고 그렇다고 적는다. 회차 지도는 운영 노드가 `map_dir/<회차 ID>/` 에 남긴다. 지도가 없거나 파일을 못 읽으면 그 까닭이 나온다.
 - 오른쪽 칸은 그 시점까지의 기록이다. 명령은 접수·거절과 사유를 보인다.
 - 자세한 동작은 [설계 명세 7.13](../../docs/design/console-spec.md)에 있다.
 

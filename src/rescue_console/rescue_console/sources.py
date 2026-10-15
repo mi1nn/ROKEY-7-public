@@ -8,8 +8,8 @@ from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
 from rescue_operations.site_state import (list_runs, read_error_log_range, read_exit_locations_range,
-                                          read_operator_commands_range, read_reset_checklist, read_robot_status_history,
-                                          read_site_events_range, read_target_state_history)
+                                          read_map_snapshots_range, read_operator_commands_range, read_reset_checklist,
+                                          read_robot_status_history, read_site_events_range, read_target_state_history)
 from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_exit_locations, read_mission_state,
                                           read_operator_commands, read_overhead_passages, read_robot_status, read_site_events,
                                           read_target_states)
@@ -161,11 +161,12 @@ def load_runs(db_path):
 
 
 def load_replay(db_path, run_id):
-    """회차 하나의 쌓이는 표 넷과 이력 표 둘을 operations 회차 범위 읽기로 끝까지 읽는다(mode=ro)."""
+    """회차 하나의 쌓이는 표 다섯(지도 포함)과 이력 표 둘을 operations 회차 범위 읽기로 끝까지 읽는다(mode=ro)."""
     reads = (('site_events', read_site_events_range, 'site_events', 'observed_at_ns'),
              ('operator_commands', read_operator_commands_range, 'commands', 'requested_at_ns'),
              ('error_log', read_error_log_range, 'errors', 'at_ns'),
              ('exit_locations', read_exit_locations_range, 'exits', 'observed_at_ns'),
+             ('map_snapshots', read_map_snapshots_range, 'maps', 'at_ns'),
              ('robot_history', read_robot_status_history, 'history', 'at_ns'),
              ('target_history', read_target_state_history, 'history', 'updated_at_ns'))
     try:
