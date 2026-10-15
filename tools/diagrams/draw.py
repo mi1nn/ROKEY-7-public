@@ -47,7 +47,7 @@ class Canvas:
     # --- 기본 도형 -------------------------------------------------------
     def rect(self, x, y, w, h, color=GRAY, r=14, width=2, dashed=False, fill=None, outline=None):
         o = outline or color[0]
-        f = fill if fill is not None else color[1]
+        f = color[1] if fill is None else (None if fill is False else fill)
         box = [self._s(x), self._s(y), self._s(x + w), self._s(y + h)]
         if not dashed:
             self.d.rounded_rectangle(box, radius=self._s(r), fill=f, outline=o, width=self._s(width))
@@ -77,6 +77,16 @@ class Canvas:
         P = [(s(x), s(y)) for x, y in pts]
         self.d.polygon(P, fill=fill if fill is not None else color[1])
         self.d.line(P + [P[0]], fill=outline or color[0], width=s(width), joint="curve")
+
+    def hatch(self, x, y, w, h, base, line, gap=9, width=1.6):
+        """사선 무늬로 채운 사각형(모서리 직각)."""
+        W, H = self._s(w), self._s(h)
+        tmp = Image.new("RGB", (W, H), base)
+        td = ImageDraw.Draw(tmp)
+        g = self._s(gap)
+        for k in range(-H, W, g):
+            td.line([(k, H), (k + H, 0)], fill=line, width=self._s(width))
+        self.img.paste(tmp, (self._s(x), self._s(y)))
 
     # --- 텍스트 ----------------------------------------------------------
     def text(self, x, y, s, size=14, color=INK, bold=False, mono=False, anchor="l", lh=1.4):

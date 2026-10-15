@@ -350,87 +350,151 @@ def hardware_stack():
 
 
 # ---------------------------------------------------------------------------
-def cell_layout():
-    c = Canvas(1500, 890)
-    c.title("작업 환경 배치")
-    c.text(48, 78, "개념도 — 요소와 순서만 나타내며 치수 · 실제 위치는 나타내지 않는다", size=14.5, color=MUTED)
-    RX, RY, RW, RH = 100, 130, 1300, 660
-    c.rect(RX, RY, RW, RH, ("#2D3748", "#FBFCFD"), r=10, width=7)
-    # 웹캠 시야
-    c.polygon([(150, 172), (1380, 160), (1380, 560)], fill="#EDF4FE", outline="#EDF4FE", width=1)
-    # 칸막이 (통로 틈: y 420 ~ 560)
-    wall = "#2D3748"
-    c.rect(612, RY, 16, 420 - RY, GRAY, r=3, fill=wall, outline=wall)
-    c.rect(612, 560, 16, RY + RH - 560, GRAY, r=3, fill=wall, outline=wall)
-    c.rect(880, 400, 300, 16, GRAY, r=3, fill=wall, outline=wall)
-    c.rect(1060, 640, 16, RY + RH - 640, GRAY, r=3, fill=wall, outline=wall)
-    # 머리 위 기둥(통로 위에 비스듬히)
-    c.line([(580, 442), (668, 540)], color=RED[0], width=14)
-    c.line([(580, 442), (668, 540)], color="#F5B7B1", width=6)
-    # 웹캠 아이콘
-    c.rect(124, 150, 64, 40, GRAY, r=8, fill=GRAY[1])
-    c.ellipse(156, 170, 11, 11, GRAY, fill="#CBD2DC")
-    # 출구 QR 두 개
-    def qr(x, y, label, lx, ly, anchor="l"):
-        c.rect(x, y, 56, 56, GREEN, r=6, fill="white", width=3)
-        for i in range(3):
-            for j in range(3):
-                if (i + j) % 2 == 0:
-                    c.rect(x + 9 + i * 13, y + 9 + j * 13, 11, 11, GREEN, r=2, fill=GREEN[0], width=1)
-        c.text(lx, ly, label, size=14.5, color=GREEN[0], bold=True, anchor=anchor)
-    qr(RX + RW - 70, 590, "EXIT-1", RX + RW - 42, 650, "c")
-    qr(930, RY + 14, "EXIT-2", 1000, RY + 24)
-    # 로봇 자리
-    c.rect(130, 690, 170, 76, GREEN, r=14)
-    c.text(215, 700, "TB-6", size=17, color=GREEN[0], bold=True, anchor="c")
-    c.text(215, 728, "도킹 접근 지점", size=13, color=MUTED, anchor="c")
-    c.rect(340, 690, 170, 76, PURPLE, r=14)
-    c.text(425, 700, "TB-5", size=17, color=PURPLE[0], bold=True, anchor="c")
-    c.text(425, 728, "대기(출발) 자리", size=13, color=MUTED, anchor="c")
+def arena_map():
+    """MDF 경기장 평면도. 치수는 docs/diagrams/arena_map_source.svg (1 단위 = 1 cm)를 그대로 옮긴 것."""
+    BR = "#8A6A3F"          # 벽·박스 테두리
+    TAN, TAN_L = "#E7DCCB", "#C9A978"
+    c = Canvas(1500, 1370)
+    c.title("작업 환경 배치 — 경기장 평면도")
+    c.text(48, 76, "MDF 경기장 · 1 cm = 2 px · 343 × 557 cm", size=14.5, color=MUTED)
+    S = 2.0
+    OX, OY = 150, 190
+
+    def X(v):
+        return OX + v * S
+
+    def Y(v):
+        return OY + v * S
+
+    def R(x, y, w, h):
+        return X(x), Y(y), w * S, h * S
+
+    # 바닥: 메인 구역(흰색) / 로봇 구역(연한 파랑)
+    c.rect(*R(0, 0, 343, 356), GRAY, r=0, width=0, fill="#FFFFFF", outline="#FFFFFF")
+    c.rect(*R(0, 356, 343, 201), GRAY, r=0, width=0, fill="#EAF1F8", outline="#EAF1F8")
+    for gx in range(0, 344, 50):          # 50 cm 격자
+        c.line([(X(gx), Y(0)), (X(gx), Y(557))], color="#DDE3EA", width=1)
+    for gy in range(0, 558, 50):
+        c.line([(X(0), Y(gy)), (X(343), Y(gy))], color="#DDE3EA", width=1)
+
+    # 터널 2 (통과 불가)
+    c.hatch(*R(140, 230, 72, 81), "#F7E1DD", "#D86A5D", gap=10)
+    c.line([(X(168), Y(230)), (X(168), Y(311))], color="#C23A2B", width=4, dashed=True, dash=12, gap=6)
+    c.rect(*R(140, 230, 72, 81), RED, r=0, width=1.6, fill=False)
+    # 터널 1 (통과 가능)
+    c.hatch(*R(275, 311, 68, 45), "#DDF1E8", "#7FC4A3", gap=10)
+    c.line([(X(262), Y(334)), (X(343), Y(334))], color="#1F8A5B", width=4, dashed=True, dash=12, gap=6)
+    # 막힌 칸(흰 박스 칸)
+    c.hatch(*R(140, 311, 135, 45), TAN, TAN_L, gap=9)
+    c.rect(*R(140, 311, 135, 45), (BR, TAN), r=0, width=5, fill=False)
+    c.rect(*R(182, 316, 46, 36), GRAY, r=3, width=1.6, fill="#FFFFFF", outline="#5D6B78")
+    # 박스 기둥
+    c.hatch(*R(155, 167, 50, 63), TAN, TAN_L, gap=9)
+    c.rect(*R(155, 167, 50, 63), (BR, TAN), r=0, width=5, fill=False)
+    # 관제 박스
+    c.hatch(*R(0, 0, 80, 140), TAN, TAN_L, gap=9)
+    c.rect(*R(0, 0, 80, 140), (BR, TAN), r=0, width=5, fill=False)
+    # 북쪽 벽 토막 + 기둥
+    c.line([(X(236), Y(0)), (X(236), Y(92))], color=BR, width=6)
+    c.hatch(*R(224, 92, 26, 28), TAN, TAN_L, gap=9)
+    c.rect(*R(224, 92, 26, 28), (BR, TAN), r=0, width=5, fill=False)
+    # 바깥 벽 + 구역 나누는 벽
+    c.rect(*R(0, 0, 343, 557), (BR, "#FFFFFF"), r=0, width=8, fill=False)
+    c.line([(X(0), Y(356)), (X(140), Y(356))], color=BR, width=8)
+
+    # 구역 이름
+    c.text(X(330), Y(177), "메인 구역", size=15, color=MUTED, anchor="r")
+    c.text(X(171), Y(432), "로봇 구역", size=15, color=MUTED, anchor="c")
+
+    # 로봇과 도크
+    for cx, name in ((88, "TB-6"), (270, "TB-5")):
+        c.rect(X(cx - 12), Y(545), 24 * S, 8 * S, GRAY, r=4, width=0, fill="#B5BCC7", outline="#B5BCC7")
+        c.ellipse(X(cx), Y(520), 17 * S, 17 * S, GRAY, width=3, fill="#FFFFFF", outline="#22303C")
+        c.text(X(cx), Y(520) - 10, name, size=16, color="#22303C", bold=True, anchor="c")
     # 인형
-    c.ellipse(1000, 330, 30, 30, ORANGE, width=3)
-    c.ellipse(1000, 318, 8, 8, ORANGE, fill=ORANGE[0])
-    c.line([(1000, 326), (1000, 342)], color=ORANGE[0], width=4)
-    c.line([(988, 332), (1012, 332)], color=ORANGE[0], width=3)
-    c.line([(1000, 342), (990, 352)], color=ORANGE[0], width=3)
-    c.line([(1000, 342), (1010, 352)], color=ORANGE[0], width=3)
-    # 경로
-    c.line([(215, 690), (215, 600), (400, 560), (560, 490), (760, 490), (860, 330), (950, 290)],
-           color=GREEN[0], width=3.2, dashed=True, arrow_end=True, head=12)
-    c.line([(425, 690), (425, 520), (560, 505), (760, 505), (900, 380), (968, 345)],
-           color=PURPLE[0], width=3.6, arrow_end=True, head=12)
-    c.line([(1030, 345), (1130, 470), (1250, 560), (1330, 600)], color=ORANGE[0], width=4.6, arrow_end=True, head=13)
-    # 라벨 (흰 바탕)
-    def tag(x, y, s, color, anchor="l"):
-        w = c.text_w(s, 14.5, bold=True) + 20
-        xx = x if anchor == "l" else x - w / 2
-        c.rect(xx, y, w, 30, color, r=15, width=1.6, fill="white")
-        c.text(xx + 10, y + 5, s, size=14.5, color=color[0], bold=True)
-    tag(160, 596, "TB-6 탐색 (SLAM)", GREEN)
-    tag(440, 440, "TB-5 자동 출동", PURPLE)
-    tag(1070, 440, "TB-5 + 구조대원 → 출구", ORANGE)
-    tag(1030, 270, "구조 대상 인형", ORANGE)
-    tag(188, 150, "고정 웹캠 DRGO WC720", GRAY)
-    tag(330, 340, "머리 위 기둥 통로", RED)
-    c.text(330, 376, "여유 46 cm 이상이면 통과", size=13.5, color=RED[0], bold=True)
-    c.line([(480, 372), (590, 436)], color=RED[0], width=1.8)
-    c.text(660, 160, "탐색 구역 (실내 벽 · 통로)", size=14.5, color=MUTED)
+    c.ellipse(X(120), Y(270), 7 * S, 7 * S, ORANGE, width=2, fill="#D98A1C", outline="#9C6212")
+
+    # 번호표
+    def num(n, x, y, color=INK):
+        c.ellipse(x, y, 14, 14, GRAY, width=0, fill=color, outline=color)
+        c.text(x, y - 10, str(n), size=15, color="#FFFFFF", bold=True, anchor="c")
+
+    c.rect(X(5), Y(44), 70 * S, 58 * S, GRAY, r=8, width=0, fill="#FFFFFF", outline="#FFFFFF")
+    num(1, X(40), Y(30))
+    c.text(X(40), Y(58), "관제 박스", size=15, bold=True, anchor="c")
+    c.text(X(40), Y(78), "노트북 · 공유기\n카메라 삼각대", size=12.5, color=MUTED, anchor="c", lh=1.35)
+    num(2, X(180), Y(198))
+    c.text(X(180), Y(150), "박스 기둥", size=14, bold=True, anchor="c")
+    num(3, X(237), Y(106))
+    c.text(X(256), Y(112) - 8, "기둥", size=14, bold=True)
+    num(4, X(176), Y(270), RED[0])
+    c.text(X(220), Y(255), "터널 2", size=16, color=RED[0], bold=True)
+    c.text(X(220), Y(272), "통과 불가", size=13, color=RED[0])
+    num(5, X(309), Y(345), GREEN[0])
+    c.text(X(309), Y(279), "터널 1", size=16, color=GREEN[0], bold=True, anchor="c")
+    c.text(X(309), Y(296), "높이 47 cm", size=13, color=GREEN[0], anchor="c")
+    num(6, X(160), Y(333))
+    c.text(X(205), Y(344) - 4, "흰 박스", size=12.5, color=MUTED, anchor="c")
+    num(7, X(120), Y(255), ORANGE[0])
+    c.text(X(108), Y(262), "인형", size=14, color=ORANGE[0], bold=True, anchor="r")
+    num(8, X(88), Y(480))
+    num(8, X(270), Y(480))
+
+    # 치수선
+    d = "#5D6B78"
+    c.line([(X(0), OY - 36), (X(343), OY - 36)], color=d, width=1.6)
+    c.line([(X(0), OY - 44), (X(0), OY - 28)], color=d, width=1.6)
+    c.line([(X(343), OY - 44), (X(343), OY - 28)], color=d, width=1.6)
+    c.text(X(171.5), OY - 66, "343 cm", size=15, color=d, anchor="c", mono=True)
+    xl = X(343) + 38
+    c.line([(xl, Y(0)), (xl, Y(557))], color=d, width=1.6)
+    for yy in (0, 356, 557):
+        c.line([(xl - 8, Y(yy)), (xl + 8, Y(yy))], color=d, width=1.6)
+    c.text(xl + 14, Y(178) - 10, "356 cm", size=15, color=d, mono=True)
+    c.text(xl + 14, Y(456) - 10, "201 cm", size=15, color=d, mono=True)
+
+    # 오른쪽 목록
+    lx, lw = 1010, 440
+    c.text(lx, 150, "구성", size=20, bold=True)
+    items = [
+        (1, INK, "관제 박스", "80 × 140 cm · 노트북, 공유기, 카메라 삼각대"),
+        (2, INK, "박스 기둥", "50 × 63 cm"),
+        (3, INK, "기둥과 벽", "기둥 26 × 28 cm, 위쪽 벽 92 cm"),
+        (4, RED[0], "터널 2", "72 × 81 cm · 통과 불가"),
+        (5, GREEN[0], "터널 1", "68 × 45 cm · 높이 47 cm, 통과 가능"),
+        (6, INK, "흰 박스 칸", "135 × 45 cm 막힌 칸, 안에 흰 박스 46 × 36 cm"),
+        (7, ORANGE[0], "인형", "메인 구역, 터널 2 바로 왼쪽"),
+        (8, INK, "TB-6 · TB-5", "로봇 구역 아래쪽, 도크에서 출발"),
+    ]
+    y = 190
+    for n, col, t, sub in items:
+        c.rect(lx, y, lw, 84, (PANEL_LINE, "#FFFFFF"), r=14, width=1.6)
+        c.ellipse(lx + 34, y + 42, 14, 14, GRAY, width=0, fill=col, outline=col)
+        c.text(lx + 34, y + 32, str(n), size=15, color="#FFFFFF", bold=True, anchor="c")
+        c.text(lx + 64, y + 14, t, size=16.5, bold=True, color=col)
+        c.text(lx + 64, y + 44, sub, size=13.5, color=MUTED)
+        y += 98
     # 범례
-    ly = 826
-    c.line([(100, ly + 9), (150, ly + 9)], color=GREEN[0], width=3.2, dashed=True, arrow_end=True, head=10)
-    c.text(162, ly - 2, "TB-6 탐색 경로", size=14, color=MUTED)
-    c.line([(330, ly + 9), (380, ly + 9)], color=PURPLE[0], width=3.6, arrow_end=True, head=10)
-    c.text(392, ly - 2, "TB-5 출동 경로", size=14, color=MUTED)
-    c.line([(560, ly + 9), (610, ly + 9)], color=ORANGE[0], width=4.6, arrow_end=True, head=10)
-    c.text(622, ly - 2, "TB-5 + 구조대원 이동", size=14, color=MUTED)
-    c.rect(850, ly - 2, 40, 22, BLUE, r=5, fill="#EDF4FE", width=1.5)
-    c.text(900, ly - 2, "고정 웹캠 시야", size=14, color=MUTED)
-    c.save(os.path.join(OUT, "cell_layout.png"))
+    ly = y + 20
+    c.text(lx, ly, "표시", size=20, bold=True)
+    ly += 44
+    c.hatch(lx, ly, 40, 26, TAN, TAN_L, gap=8)
+    c.rect(lx, ly, 40, 26, (BR, TAN), r=0, width=3, fill=False)
+    c.text(lx + 54, ly + 2, "박스 · 막힌 곳", size=14, color=MUTED)
+    c.hatch(lx + 210, ly, 40, 26, "#DDF1E8", "#7FC4A3", gap=8)
+    c.text(lx + 264, ly + 2, "통과 가능", size=14, color=MUTED)
+    ly += 44
+    c.hatch(lx, ly, 40, 26, "#F7E1DD", "#D86A5D", gap=8)
+    c.text(lx + 54, ly + 2, "통과 불가", size=14, color=MUTED)
+    c.rect(lx + 210, ly, 40, 26, GRAY, r=0, width=0, fill="#EAF1F8", outline="#EAF1F8")
+    c.text(lx + 264, ly + 2, "로봇 구역", size=14, color=MUTED)
+    c.text(lx, ly + 52, "격자 한 칸 50 cm", size=13, color=MUTED)
+    c.save(os.path.join(OUT, "arena_map.png"))
 
 
 BUILDERS = {"system_architecture": system_architecture, "network": network, "mission_flow": mission_flow,
             "command_flow": command_flow, "map_flow": map_flow, "hardware_stack": hardware_stack,
-            "cell_layout": cell_layout}
+            "arena_map": arena_map}
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)

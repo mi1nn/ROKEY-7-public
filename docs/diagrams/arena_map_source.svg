@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="193.2mm" height="268.8mm" viewBox="0 0 483 672"><style>
+text{font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif}
+.dim{font-family:Menlo,Consolas,"IBM Plex Mono",monospace;font-size:11px;fill:#5d6b78}
+.lbl{font-size:11px;fill:#1d2a36}
+.lbl-s{font-size:9px;fill:#5d6b78}
+</style><rect width="483" height="672" fill="#ffffff"/><text x="70" y="652" class="lbl-s">MDF 경기장 평면도 · 1 unit = 1cm · A4 100% 인쇄 시 1:25</text>
+    <defs>
+      <pattern id="g50" width="50" height="50" patternUnits="userSpaceOnUse" x="70" y="50">
+        <path d="M50 0H0V50" fill="none" stroke="#dde3ea" stroke-width="0.8"/>
+      </pattern>
+      <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="7" height="7" fill="rgba(194,58,43,.16)"/>
+        <line x1="0" y1="0" x2="0" y2="7" stroke="#c23a2b" stroke-width="1.6"/>
+      </pattern>
+      <pattern id="blk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+        <rect width="6" height="6" fill="#e7dccb"/>
+        <line x1="0" y1="0" x2="0" y2="6" stroke="#c9a978" stroke-width="0.8"/>
+      </pattern>
+    </defs>
+
+    <g transform="translate(70 50)">
+      <!-- floor -->
+      <rect x="0" y="0" width="343" height="356" fill="#ffffff"/>
+      <rect x="0" y="356" width="343" height="201" fill="#eef3f8"/>
+      <rect x="0" y="0" width="343" height="557" fill="url(#g50)"/>
+
+      <!-- zone labels -->
+      <text x="330" y="190" class="lbl-s" text-anchor="end" letter-spacing=".08em">메인 구역</text>
+      <text x="171" y="440" class="lbl-s" text-anchor="middle" letter-spacing=".08em">로봇 구역</text>
+
+      <!-- control box (blocked) -->
+      <rect x="0" y="0" width="80" height="140" fill="url(#blk)" stroke="#8a6a3f" stroke-width="3"/>
+      <text x="40" y="64" class="lbl" text-anchor="middle">관제 박스</text>
+      <text x="40" y="78" class="lbl-s" text-anchor="middle">노트북·공유기</text>
+      <text x="40" y="90" class="lbl-s" text-anchor="middle">카메라 삼각대</text>
+
+      <!-- tunnel 2 (impassable) -->
+      <rect x="140" y="230" width="72" height="81" fill="url(#hatch)" stroke="#c23a2b" stroke-width="1" stroke-dasharray="3 2"/>
+      <line x1="168" y1="230" x2="168" y2="311" stroke="#c23a2b" stroke-width="3" stroke-dasharray="6 3"/>
+      <text x="216" y="262" class="lbl" fill="#c23a2b" style="fill:#c23a2b;font-weight:600">터널 2</text>
+      <text x="216" y="275" class="lbl-s" style="fill:#c23a2b">통과 불가</text>
+
+      <!-- tunnel 1 (passable) -->
+      <rect x="275" y="311" width="68" height="45" fill="rgba(31,138,91,.14)"/>
+      <line x1="262" y1="334" x2="343" y2="334" stroke="#1f8a5b" stroke-width="3" stroke-dasharray="6 3"/>
+      <text x="309" y="300" class="lbl" text-anchor="middle" style="fill:#1f8a5b;font-weight:600">터널 1</text>
+      <text x="309" y="288" class="lbl-s" text-anchor="middle" style="fill:#1f8a5b">높이 47cm ✓</text>
+
+      <!-- central box pillar -->
+      <rect x="155" y="167" width="50" height="63" fill="url(#blk)" stroke="#8a6a3f" stroke-width="3"/>
+      <text x="180" y="160" class="lbl-s" text-anchor="middle">박스 기둥</text>
+
+      <!-- north stub wall + pillar -->
+      <line x1="236" y1="0" x2="236" y2="92" stroke="#8a6a3f" stroke-width="3"/>
+      <rect x="224" y="92" width="26" height="28" fill="url(#blk)" stroke="#8a6a3f" stroke-width="3"/>
+      <text x="256" y="112" class="lbl-s">기둥</text>
+
+      <!-- white box enclosure (closed) -->
+      <rect x="140" y="311" width="135" height="45" fill="url(#blk)" stroke="#8a6a3f" stroke-width="3"/>
+      <rect x="182" y="316" width="46" height="36" rx="2" fill="#ffffff" stroke="#5d6b78" stroke-width="1"/>
+      <text x="205" y="338" class="lbl-s" text-anchor="middle">흰 박스</text>
+
+      <!-- outer + dividing walls -->
+      <g stroke="#8a6a3f" stroke-width="4" fill="none" stroke-linecap="square">
+        <rect x="0" y="0" width="343" height="557"/>
+        <line x1="0" y1="356" x2="140" y2="356"/>
+      </g>
+
+      <!-- robots / docks -->
+      <g>
+        <rect x="76" y="545" width="24" height="8" rx="1.5" fill="#22303c" opacity=".55"/>
+        <circle cx="88" cy="520" r="17" fill="none" stroke="#22303c" stroke-width="2"/>
+        <text x="88" y="524" class="lbl" text-anchor="middle" style="font-weight:600;font-size:10px">TB-6</text>
+        <rect x="258" y="545" width="24" height="8" rx="1.5" fill="#22303c" opacity=".55"/>
+        <circle cx="270" cy="520" r="17" fill="none" stroke="#22303c" stroke-width="2"/>
+        <text x="270" y="524" class="lbl" text-anchor="middle" style="font-weight:600;font-size:10px">TB-5</text>
+      </g>
+      <!-- doll -->
+      <circle cx="120" cy="270" r="7" fill="#d98a1c"/>
+      <text x="108" y="274" class="lbl-s" text-anchor="end">인형</text>
+
+      <!-- dimensions -->
+      <g class="dim" stroke="#5d6b78" stroke-width="0.8">
+        <line x1="0" y1="-22" x2="343" y2="-22"/>
+        <line x1="0" y1="-28" x2="0" y2="-16"/><line x1="343" y1="-28" x2="343" y2="-16"/>
+        <line x1="365" y1="0" x2="365" y2="557"/>
+        <line x1="359" y1="0" x2="371" y2="0"/><line x1="359" y1="356" x2="371" y2="356"/><line x1="359" y1="557" x2="371" y2="557"/>
+      </g>
+      <text x="171.5" y="-28" class="dim" text-anchor="middle">343 cm</text>
+      <text x="380" y="182" class="dim" transform="rotate(90 380 182)" text-anchor="middle">356 cm</text>
+      <text x="380" y="456" class="dim" transform="rotate(90 380 456)" text-anchor="middle">201 cm</text>
+      <text x="171.5" y="585" class="dim" text-anchor="middle">전체 343 × 557 cm</text>
+    </g>
+  </svg>
