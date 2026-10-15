@@ -298,13 +298,17 @@ class RepositoryWorld(unittest.TestCase):
             with self.subTest(world=name):
                 maps = REPO / 'config' / 'sim' / 'maps'
                 sources = worlds / f'{name}.sources.json'
-                if sources.exists():
-                    source = json.loads(sources.read_text())['map']
-                    grid = mw.read_map(maps / source)
-                else:   # layout only (a floor plan carried into metres): no map, no sources file
-                    source = f'{path.name} (no map)'
-                    grid = mw.Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
-                world, spawn, _ = mw.build(grid, mw.load_layout(path), name=name, source=source)
+                given = json.loads(sources.read_text()) if sources.exists() else {}
+                if 'base' in given:     # objects on an existing world (sim2 on the TurtleBot4 maze)
+                    world, spawn, _ = mw.build_on_base((worlds / given['base']).read_text(), mw.load_layout(path),
+                                                       name=name, source=f"{given['base']} + {path.name}")
+                else:
+                    if 'map' in given:
+                        source, grid = given['map'], mw.read_map(maps / given['map'])
+                    else:   # layout only (a floor plan carried into metres): no map, no sources file
+                        source = f'{path.name} (no map)'
+                        grid = mw.Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
+                    world, spawn, _ = mw.build(grid, mw.load_layout(path), name=name, source=source)
                 self.assertEqual(world, (worlds / f'{name}.sdf').read_text())
                 self.assertEqual(spawn, json.loads((worlds / f'{name}.spawn.json').read_text()))
 

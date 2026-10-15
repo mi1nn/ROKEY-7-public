@@ -1,8 +1,4 @@
 <?xml version="1.0"?>
-<!-- sim2: 시뮬레이션 시험 후보 world (재범 지시 2026-10-16 「가제보 라이브러리에서 벽도 있고 미로도 있는 곳을 가져와 sim2 로」).
-     원본: turtlebot4_simulator 의 turtlebot4_gz_bringup/worlds/maze.sdf (ros-jazzy-turtlebot4-gz-bringup 2.x,
-     Copyright Clearpath Robotics, Apache License 2.0). 바꾼 것은 world 이름(maze -> sim2)과 이 주석뿐이다.
-     20 x 20 m 바깥 벽(높이 2 m) 안에 1 m 높이 상자 36 개로 된 미로. 실습장(arena)과 달리 실물이 없는 연습장이다. -->
 <sdf version='1.8'>
     <world name='sim2'>
         <physics name='1ms' type='ignored'>
@@ -1050,5 +1046,31 @@
                 </visual>
             </link>
         </model>
-    </world>
+    <!-- Objects added by scripts/sim/map_to_world.py (base mode) from maze.base.sdf + sim2.layout.json. Do not edit by hand.
+     Not measured yet [추정]: tunnel1_roof, tunnel2_roof, doll -->
+    <model name="tunnel1_roof">
+      <static>true</static>
+      <pose>-0.5000 -3.5000 0.4790 0 0 0.000000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.6000 1.1000 0.0180</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.6000 1.1000 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+      </link>
+    </model>
+    <model name="tunnel2_roof">
+      <static>true</static>
+      <pose>4.5000 1.5000 0.3090 0 0 0.000000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.6000 1.1000 0.0180</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.6000 1.1000 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+      </link>
+    </model>
+    <model name="doll">
+      <static>true</static>
+      <pose>-4.5000 0.5000 0.1000 0 0 0.000000</pose>
+      <link name="link">
+        <collision name="collision"><geometry><cylinder><radius>0.0700</radius><length>0.2000</length></cylinder></geometry></collision>
+        <visual name="visual"><geometry><cylinder><radius>0.0700</radius><length>0.2000</length></cylinder></geometry><material><ambient>0.85 0.54 0.11 1</ambient><diffuse>0.85 0.54 0.11 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+      </link>
+    </model>
+  </world>
 </sdf>

@@ -48,12 +48,14 @@ class Sim2World(unittest.TestCase):
     def setUp(self):
         self.text = (WORLDS / 'sim2.sdf').read_text()
         self.rects = boxes(self.text)
+        # the maze blocks only (what the robots and docks must stand clear of); the roofs are overhead
+        self.blocks = [r for r in boxes((WORLDS / 'maze.base.sdf').read_text())]
 
     def test_the_world_is_named_after_its_file(self):
         self.assertIsNotNone(re.search(r"<world name=['\"]sim2['\"]>", self.text))
 
     def test_it_is_a_walled_maze(self):
-        self.assertEqual(40, len(self.rects))   # 4 border walls + 36 blocks, as upstream maze.sdf
+        self.assertEqual(40 + 2, len(self.rects))   # 4 border walls + 36 blocks (upstream maze.sdf) + 2 tunnel roofs
         xs = [r[0] for r in self.rects]
         ys = [r[1] for r in self.rects]
         self.assertAlmostEqual(20.01, max(xs) - min(xs), places=2)
@@ -67,8 +69,31 @@ class Sim2World(unittest.TestCase):
             with self.subTest(name):
                 dock_x = start['x'] + DOCK_AHEAD_M * math.cos(start['yaw'])
                 dock_y = start['y'] + DOCK_AHEAD_M * math.sin(start['yaw'])
-                self.assertGreaterEqual(clearance(start['x'], start['y'], self.rects), ROBOT_CLEAR_M)
-                self.assertGreaterEqual(clearance(dock_x, dock_y, self.rects), DOCK_CLEAR_M)
+                self.assertGreaterEqual(clearance(start['x'], start['y'], self.blocks), ROBOT_CLEAR_M)
+                self.assertGreaterEqual(clearance(dock_x, dock_y, self.blocks), DOCK_CLEAR_M)
+
+    def test_the_two_robots_and_docks_stand_side_by_side_close(self):
+        robots = json.loads((WORLDS / 'sim2.spawn.json').read_text())['robots']
+        a, b = robots['robot6'], robots['robot5']
+        self.assertEqual(a['yaw'], b['yaw'])                                  # facing the same way, docks in a row
+        self.assertAlmostEqual(0.5, math.hypot(a['x'] - b['x'], a['y'] - b['y']), places=3)
+        self.assertGreater(math.hypot(a['x'] - b['x'], a['y'] - b['y']), 0.34)  # robot diameter
+
+    def test_each_tunnel_roof_spans_a_corridor_and_the_doll_is_clear(self):
+        layout = json.loads((WORLDS / 'sim2.layout.json').read_text())
+        objects = {o['name']: o for o in layout['objects']}
+        self.assertEqual(0.47, objects['tunnel1_roof']['clearance_m'])
+        self.assertEqual(0.30, objects['tunnel2_roof']['clearance_m'])
+        for name in ('tunnel1_roof', 'tunnel2_roof'):
+            with self.subTest(name):
+                roof = objects[name]
+                self.assertGreaterEqual(clearance(roof['x'], roof['y'], self.blocks), 0.45)   # floor under it is free
+                # blocks on both long sides: the roof closes the corridor, there is no way around it
+                for side in (-1, 1):
+                    edge_y = roof['y'] + side * (roof['size'][1] / 2 - 0.02)
+                    self.assertLess(clearance(roof['x'], edge_y, self.blocks), 0.05)
+        doll = json.loads((WORLDS / 'sim2.spawn.json').read_text())['doll']
+        self.assertGreaterEqual(clearance(doll[0], doll[1], self.blocks), 0.3)
 
     def test_the_clearance_check_sees_a_block(self):
         self.assertAlmostEqual(0.0, clearance(-10.005, 0.0, self.rects))   # on the west border wall

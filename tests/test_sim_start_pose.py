@@ -5,6 +5,7 @@ robots.robot_b.initial_pose_xy_yaw. Simulation: the same measurement from the gr
 "start place + odom" (3rd run 2026-10-16: the undock turn left the simulated odom 11.5 deg off, the value came out
 0.4 m wrong and TB-5's start alignment did not converge, #386).
 """
+import json
 import math
 from pathlib import Path
 import sys
@@ -39,6 +40,16 @@ class StartPose(unittest.TestCase):
         # and TB-5 keeps its true distance from TB-6
         x5, y5, _ = start_pose.in_odom_frame(GT6, ODOM6, GT5)
         self.assertAlmostEqual(1.82, math.hypot(x5 - ODOM6[0], y5 - ODOM6[1]), places=6)
+
+    def test_run_full_reads_the_starts_and_the_doll_from_the_world(self):
+        text = (SIM / 'run_full.sh').read_text()
+        self.assertIn('$world.spawn.json', text)
+        self.assertNotIn('TB6_START=(0.88', text)   # no world's numbers written into the script
+        worlds = SIM.parents[1] / 'config' / 'sim' / 'worlds'
+        for world in ('arena', 'sim2'):
+            spawn = json.loads((worlds / f'{world}.spawn.json').read_text())
+            self.assertEqual({'robot6', 'robot5'}, set(spawn['robots']))
+            self.assertEqual(2, len(spawn['doll']))
 
     def test_run_full_takes_the_value_from_the_ground_truth_not_from_odom(self):
         text = (SIM / 'run_full.sh').read_text()
