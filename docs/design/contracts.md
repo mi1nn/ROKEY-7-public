@@ -31,6 +31,7 @@ updated: 2026-10-14
 | C-11 소실 후보 → 재관측 → 판정 | `completion_mode=RECHECK` 에서만 사용. 현장 설정(`EXIT_ARRIVAL`)은 TB-5 출구 도착을 구출 완료로 본다(2026-10-13 밤 결정) | `_open_camera_recheck`, `_judge`, `_confirm_by_exit_arrival` | 확인 필요: 웹캠 담당 |
 | C-12 TB-5 다리 추종 | 쓰지 않음. 2026-10-13 결정으로 다리 스켈레톤 추종을 뺐다(scope Q-29 ⑤). 본문은 맨 아래 「기록」으로 옮겼다 | — | — |
 | C-13 TB-6 관제 버튼 출동 | 바뀜. 현장은 재난 신호로 탐색을 자동 시작한다(`search_start=AUTO`, OPS-136). 버튼 방식(`OPERATOR`)도 코드에 남아 있다. 본문은 「기록」으로 옮겼다 | `tick`, `on_command` | — |
+| 운영자 재난 선포 `DECLARE_DISASTER` | 사용(2026-10-15 결정). 관제 웹 버튼으로 NORMAL 을 DISASTER 로 바꾼다. 필드는 `command_id`·`operator_id` 뿐이고 `robot_id` 를 넣으면 `INVALID_INPUT` 이다. 지진 감지(`DISASTER_SIGN`)와 같은 길로 들어가며, `search_start=AUTO` 면 다음 판단 주기에 탐색을 시작한다. `SystemState` 의 `trigger_event_id` 는 `command_id`, `trigger_observed_at_ns` 는 조정기가 받은 시각이다. `cause_event_ids` 는 비우고 `reason` 이 다른 사유가 없을 때 `DISASTER_DECLARED_BY_OPERATOR` 를 싣는다. 가짜 `SiteEvent` 를 만들지 않으므로 사건 목록과 KPI-04 표시 지연에는 들어가지 않는다. 이미 재난 모드면 `TASK_BUSY`(임무 관문 이유 `ALREADY_DISASTER`)로 거절한다. srv 상수와 SDD JSON 은 아직 없다(`operation` 은 문자열이라 그대로 실린다) | `mission.py` `MODE_COMMAND_FIELDS`·`_declare_disaster`, `on_command` | 운영(`command_api` 허용), 웹개발(버튼) |
 
 ### 조정기가 실제로 쓰는 토픽·서비스
 

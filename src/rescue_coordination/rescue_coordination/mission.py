@@ -1,10 +1,11 @@
 """Mission mode gate, operator command gate and the displayed mission phase.
 
 Scenario (scope Q-12, 2026-10-10; console-and-db-plan 1): a verified
-``DISASTER_SIGN`` switches NORMAL -> DISASTER, and only then does the SCOUT get
-``SEARCH_AREA`` (no operator approval). The SUPPORT moves only on operator
-approval: ``DISPATCH_SUPPORT`` authorizes the first segment of a route, and each
-further segment needs ``CONTINUE_SEGMENT`` after the previous one stopped. The
+``DISASTER_SIGN`` (or the operator's ``DECLARE_DISASTER``, 2026-10-15) switches
+NORMAL -> DISASTER, and only then does the SCOUT get ``SEARCH_AREA`` (no
+operator approval). The SUPPORT moves only on operator approval:
+``DISPATCH_SUPPORT`` authorizes the first segment of a route, and each further
+segment needs ``CONTINUE_SEGMENT`` after the previous one stopped. The
 coordinator never authorizes the next segment by itself.
 
 This sits on ``SearchCoordinator``; it keeps no generation ledger. MOVE_SEGMENT
@@ -36,13 +37,15 @@ COMMAND_FIELDS = {
 # Commands the console has no button for yet (its tests mirror COMMAND_FIELDS, which drives its buttons).
 # SET_CAMERA_WATCH: C-11 row 2; the ROI and camera are bound by the node core.
 CAMERA_COMMAND_FIELDS = {'SET_CAMERA_WATCH': ('target_id',)}
-ALL_COMMAND_FIELDS = COMMAND_FIELDS | CAMERA_COMMAND_FIELDS
+# DECLARE_DISASTER: the operator's NORMAL -> DISASTER (owner decision 2026-10-15), the only command judged in NORMAL.
+MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
+ALL_COMMAND_FIELDS = COMMAND_FIELDS | CAMERA_COMMAND_FIELDS | MODE_COMMAND_FIELDS
 OPTIONAL_FIELDS = ('target_id', 'target_revision', 'route_revision', 'segment_index')
 COMMAND_REJECT_REASONS = frozenset({
     'MODE_NOT_DISASTER', 'UNKNOWN_TARGET', 'TARGET_NOT_CONFIRMED', 'TARGET_REVISION_STALE', 'NO_ROUTE',
     'ALREADY_DISPATCHED', 'NOT_DISPATCHED_TARGET', 'NOT_AWAITING_APPROVAL', 'ROUTE_REVISION_STALE',
     'SEGMENT_INDEX_MISMATCH', 'TARGET_ALREADY_JUDGED', 'RECHECK_ALREADY_REQUESTED', 'NO_VERDICT', 'ALREADY_RETURNING',
-    'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH', 'SEARCH_ALREADY_STARTED'})
+    'NO_HOME_POSITION', 'HOME_BASIS_MISMATCH', 'SEARCH_ALREADY_STARTED', 'ALREADY_DISASTER'})
 # APPROVED: the operator authorized segment ``segment_index``; MOVING: the executor admitted it;
 # AWAITING_APPROVAL: stopped, the next segment needs CONTINUE_SEGMENT; ARRIVED: route done.
 SEGMENT_PHASES = frozenset({'APPROVED', 'MOVING', 'AWAITING_APPROVAL', 'ARRIVED'})
@@ -58,6 +61,8 @@ MISSION_PHASES = frozenset({
     'AWAITING_CONTINUE', 'ARRIVED', 'CANDIDATE', 'RECHECKING', 'RESCUE_CONFIRMED', 'RECHECK_NEEDED',
     'RETURNING', 'FINISHED'})
 VERDICTS = RESCUE_STATES - {'NOT_CHECKED'}
+# What put the mission in DISASTER: a camera's DISASTER_SIGN or the operator's DECLARE_DISASTER.
+TRIGGER_SOURCES = frozenset({'SITE_EVENT', 'OPERATOR'})
 
 
 @dataclass(frozen=True)
@@ -190,6 +195,7 @@ class MissionView:
     segment_index: int | None
     segment_count: int | None
     segment_phase: str | None
+    trigger_source: str | None = None  # TRIGGER_SOURCES; None in NORMAL
 
 
 class MissionCoordinator:
@@ -209,6 +215,7 @@ class MissionCoordinator:
         self.mode = 'NORMAL'
         self.trigger_event_id = None
         self.trigger_observed_at_ns = None
+        self.trigger_source = None
         self.events = {}    # event_id -> (SiteEvent, ModeResult)
         self.commands = {}  # command_id -> (OperatorCommand, CommandResult)
         self.targets = {}   # target_id -> (target_revision, detection_confirmed, report_persisted)
@@ -267,11 +274,14 @@ class MissionCoordinator:
             reason = 'ALREADY_DISASTER'
         else:
             reason = 'ENTERED_DISASTER'
-            self.mode = 'DISASTER'
-            self.trigger_event_id, self.trigger_observed_at_ns = event.event_id, event.observed_at_ns
+            self._enter_disaster(event.event_id, event.observed_at_ns, 'SITE_EVENT')
         result = ModeResult(event.event_id, reason, self.mode)
         self.events[event.event_id] = (event, result)
         return result
+
+    def _enter_disaster(self, trigger_id, trigger_ns, source):
+        self.mode = 'DISASTER'
+        self.trigger_event_id, self.trigger_observed_at_ns, self.trigger_source = trigger_id, trigger_ns, source
 
     def plan(self, robot_id, *, robot_boot_id, ready, now_ns):
         """``SearchCoordinator.plan`` behind the mode gate: no SEARCH_AREA before DISASTER.
@@ -440,11 +450,21 @@ class MissionCoordinator:
             if seen[0] != command:
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'command content differs for the same command_id')
             return seen[1]
-        reason = 'MODE_NOT_DISASTER' if self.mode != 'DISASTER' else (
+        reason = 'MODE_NOT_DISASTER' if self.mode != 'DISASTER' and command.kind not in MODE_COMMAND_FIELDS else (
             getattr(self, '_' + command.kind.lower())(command, now_ns))
         result = CommandResult(command.command_id, reason == 'ACCEPTED', reason)
         self.commands[command.command_id] = (command, result)
         return result
+
+    def _declare_disaster(self, command, now_ns):
+        """The operator's NORMAL -> DISASTER, the same path as a DISASTER_SIGN; no SiteEvent is made.
+
+        The command_id is the trigger and the acceptance time its time (not a camera time: KPI-04 leaves it out).
+        """
+        if self.mode == 'DISASTER':
+            return 'ALREADY_DISASTER'
+        self._enter_disaster(command.command_id, now_ns, 'OPERATOR')
+        return 'ACCEPTED'
 
     def _start_search(self, command, now_ns):
         """The operator's START_SEARCH (#85): once per mission, in DISASTER only."""
@@ -564,7 +584,7 @@ class MissionCoordinator:
                              }[self.approach_phase]
         return MissionView(self.mode, self.phase(), self.trigger_event_id, self.trigger_observed_at_ns,
                            self.dispatch_target, self.dispatch_target_revision, self.route_revision,
-                           self.segment_index, self.segment_count, segment_phase)
+                           self.segment_index, self.segment_count, segment_phase, self.trigger_source)
 
     # -- helpers -----------------------------------------------------------
     def _is_segment(self, *key):
