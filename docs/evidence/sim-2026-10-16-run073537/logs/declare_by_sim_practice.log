@@ -1,0 +1,2 @@
+{"accepted": true, "command_id": "25eff30c-53c9-4c48-8808-4e30cdae36ae", "created_task_id": null, "kind": "DECLARE_DISASTER", "reason": null, "reason_label": null, "request_id": "25eff30c-53c9-4c48-8808-4e30cdae36ae", "request_state": "ACCEPTED", "sent": true}
+07:38:23 재범 위임(2026-10-16 02:3x, 06:5x 에 09:30 까지 연장)으로 가제보 실습이 관제 웹 POST /commands kind=DECLARE_DISASTER (admin)
