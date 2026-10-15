@@ -675,6 +675,13 @@ def map_freeze_parameters(deployment, *, field, output_dir):
               'tf_topic': robot.readiness.tf_topic, 'odom_frame': robot.readiness.odom_frame,
               'base_frame': SLAM_BASE_FRAME,
               'covariance_max_age_ns': section['task.saved_map.slam_covariance_max_age_ns']}
+    # TB-5's body is cleared off its start at each freeze (C25); not measured yet: nothing cleared, logged
+    support = [robot_id for robot_id, section in field.robots.items()
+               if section['task.saved_map.mode'] == 'FROZEN_MAP_AMCL']
+    # (an empty list has no ROS parameter type, so an unmeasured start is left out)
+    params['support_robot_id'] = support[0] if support else ''
+    if support and 'initial_pose_xy_yaw' in field.robots[support[0]]:
+        params['support_start_xy_yaw'] = [float(v) for v in field.robots[support[0]]['initial_pose_xy_yaw']]
     return params
 
 

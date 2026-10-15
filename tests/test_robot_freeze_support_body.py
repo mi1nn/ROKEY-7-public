@@ -71,7 +71,6 @@ class ClearSupportBody(unittest.TestCase):
         x, y = cell(*xy)
         return record['grid']['data'][y * 40 + x]
 
-    @unittest.expectedFailure
     def test_the_body_outline_is_free_and_a_wall_farther_out_stays(self):
         body = ring(*self.BODY, 0.125)
         wall = {(cell(0.65, 0.2)[0], y): 100 for y in range(40)}   # x = 0.65: 0.35 m from TB-5
@@ -83,7 +82,6 @@ class ClearSupportBody(unittest.TestCase):
                          record['support_body_cleared'])
         self.assertEqual(sha(record['grid']), record['occupancy_sha256'])   # the robots get the cleared grid
 
-    @unittest.expectedFailure
     def test_the_place_is_the_tb6_start_pose_plus_the_tb5_start(self):
         # TB-6 started at (0.1, -0.1) facing +y: TB-5 [0.3, 0.2, 0] relative is (-0.1, 0.2) on the map
         body = ring(-0.1, 0.2, 0.125)
@@ -91,7 +89,6 @@ class ClearSupportBody(unittest.TestCase):
         self.assertEqual(len(body), record['support_body_cleared']['cells'])
         self.assertEqual([-0.1, 0.2], [round(v, 9) for v in record['support_body_cleared']['xy']])
 
-    @unittest.expectedFailure
     def test_only_occupied_cells_within_the_radius_change(self):
         inside, outside = cell(0.3, 0.2 + 0.2), cell(0.3, 0.2 + 0.3)
         record = self.freeze(room({inside: 100, outside: 100, cell(0.3, 0.1): -1, cell(0.3, 0.25): 70}))
@@ -100,7 +97,6 @@ class ClearSupportBody(unittest.TestCase):
                           self.at(record, (0.3, 0.25))))
         self.assertEqual(2, record['support_body_cleared']['cells'])
 
-    @unittest.expectedFailure
     def test_no_measured_tb5_start_clears_nothing(self):
         body = ring(*self.BODY, 0.125)
         g = room(body)
