@@ -103,7 +103,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 | 이름 | 타입(자료구조) | 초기값 | 바뀌는 시점(함수) | 의미 |
 | --- | --- | --- | --- | --- |
-| Flask 세션 쿠키 | 서명된 쿠키(키: `account_id`, `auth_version`, `csrf`, Flask 의 flash 목록) | 비어 있음 | `csrf_token`(`app.py:198-202`)이 처음 필요할 때 `csrf` 를 만든다. 로그인에 성공하면 비운 뒤 `account_id`·`auth_version`·새 `csrf` 를 저장한다(`app.py:289-292`). 로그아웃하거나 계정이 무효이면 비운다(`app.py:194`, `app.py:299`) | 누가 로그인했는지 나타낸다. 서버에는 세션 저장소가 없다 |
+| Flask 세션 쿠키 | 서명된 쿠키(키: `account_id`, `auth_version`, `csrf`, Flask 의 flash 목록) | 비어 있음 | `csrf_token`(`app.py:198-202`)이 처음 필요할 때 `csrf` 를 만든다. 로그인에 성공하면 비운 뒤 `permanent` 를 켜고 `account_id`·`auth_version`·새 `csrf` 를 저장한다(`app.py:289-292`). 로그아웃하거나 계정이 무효이면 비운다(`app.py:194`, `app.py:299`) | 누가 로그인했는지 나타낸다. 서버에는 세션 저장소가 없다 |
 | `throttle._entries` | dict: (소문자로 바꾸고 앞뒤 공백을 뺀 이름, 접속 주소) → {실패 시각 목록, 잠금 종료 시각} | 비어 있음 | `failed`·`succeeded`(`throttle.py:52-73`) | 프로세스 메모리에만 있고 재시작하면 사라진다 |
 | `LiveMap.image`, `_key`, `_error` | MapImage 또는 None, (mtime_ns, size) 또는 None, 오류 문구 또는 None | 모두 None | `LiveMap.current`(`mapimage.py:233-270`) | 마지막으로 읽기에 성공한 실시간 지도와 그 파일의 키 |
 | `map_image` | MapImage 또는 None | `--map` 을 주면 기동할 때 읽은 지도 | 바뀌지 않음(`app.py:145`) | 고정 지도 |
@@ -359,7 +359,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 7. `--map` 과 `--live-map` 을 함께 주면 `INVALID_INPUT` 「--map and --live-map are exclusive: one map panel」 오류를 낸다.
 8. `--live-map` 이 있으면 `LiveMap` 을 만든다. 이때 지도 파일은 아직 없어도 된다.
 9. `--operations` 가 있으면 `parse_operations_url` 을 호출한다.
-10. Flask 앱을 만들고 비밀 키를 설정하며, 세션 쿠키에 `HttpOnly`·`SameSite=Lax` 를 켠다(`app.py:154-159`). http 로 운영하므로 `Secure` 는 켜지 않는다. 세션은 브라우저 세션 쿠키다 [문서: Flask 기본값, `permanent` 를 쓰지 않음].
+10. Flask 앱을 만들고 비밀 키를 설정하며, 세션 쿠키에 `HttpOnly`·`SameSite=Lax` 를 켠다(`app.py:154-159`). http 로 운영하므로 `Secure` 는 켜지 않는다. 로그인 쿠키는 `PERMANENT_SESSION_LIFETIME` = `SESSION_DAYS`(7일) 동안 남는다. 로그인할 때 `session.permanent` 를 켜서 쿠키에 만료 시각을 붙인다. 만료 시각이 없으면 폰 브라우저가 탭이나 앱을 닫을 때 쿠키를 버려 들어갈 때마다 로그인해야 했다(재범 2026-10-16). 비밀 키가 바뀌면 모든 로그인이 풀리므로 다시 띄울 때도 같은 값을 쓴다.
 11. 장부·현장 상태·픽스처 파일은 여기서 열지 않는다. 이 파일들의 실패는 첫 요청에서 드러난다.
 
 인증 규칙:
@@ -884,6 +884,7 @@ flowchart TD
 
 - `tests/test_console_web.py::FlaskBoundaryTests.test_everything_needs_login_and_data_routes_stay_get_only` — 데이터 경로는 GET 만 받고, 로그인하지 않은 요청은 페이지에서 302, 데이터 경로에서 401 을 받는다.
 - `tests/test_console_web.py::FlaskBoundaryTests.test_old_sessions_die_with_the_account_they_came_from` — 계정을 삭제한 뒤 재생성하거나, 비밀번호를 변경하거나, 비활성화하면 서버가 이전 쿠키의 세션을 끊는다(AST-50-01).
+- `tests/test_console_stay_logged_in.py` — 로그인 쿠키에 만료 시각(`SESSION_DAYS`)이 붙고, 브라우저를 닫았다 연 것처럼 그 쿠키만 가진 새 클라이언트도 로그인 상태이며, 로그아웃하면 끝난다.
 - `tests/test_console_web.py::FlaskBoundaryTests.test_broken_ledger_is_a_visible_failure` — 입력을 읽지 못하면 페이지·조각·API 가 모두 503 을 돌려주고, 파일을 만들지 않는다.
 - `tests/test_console_commands.py::GateTests.test_dispatch_waits_for_the_report_receipt` — 출동 승인은 `persisted_report_id` 가 있는 대상만 선택지로 둔다.
 - `tests/test_console_commands.py::CommandRouteTests.test_a_failed_send_is_shown_and_not_retried` — 전송이 실패하면 502 로 드러나고, 다시 보내지 않는다.
