@@ -112,7 +112,38 @@ RUN_FULL_ADMIN_PASSWORD=<처음 한 번> SIM_PASSAGE=off scripts/sim/run_full.sh
 scripts/sim/stop_full.sh <회차 폴더>
 ```
 
+## 6. 둘째 회차 (full-1015-232037)
+
+첫 회차 뒤 바꾼 것(시뮬레이션만): 복귀 지점 `home_positions` 를 언도킹 뒤 odom 으로 넣음(C5, 기동 로그 「현장 값과 다름」), 런북 7단계 사람 몫(7.1 실패 뒤 다시 arm·TB-5 arm, 7.5 2차 고정 뒤 TB-6 위치 추정)을 런북 명령 그대로 대신하는 `scripts/sim/sim_operator.sh`(로그 `operator.log`). 빌드는 첫 회차와 같다(`src/` = main `97f2cef`). 관제 웹만 main `6c7b23d`(#366).
+
+| 시각 | 단계 | 로그 한 줄 | 결과 |
+| --- | --- | --- | --- |
+| 23:20:37~23:22:35 | 기동(런북 순서) | `TB-6 ARMED`, `operator` 시작 | 첫 회차와 같은 성공 로그 |
+| 23:21:30 | 사본 값 | `현장 값과 다름: home_positions 현장 없음(측정 전), 시뮬레이션 robot_a=-0.353,0.000,-2.946 robot_b=-0.353,1.82,-2.947` | |
+| 23:23:47 | 재난 선포(재범, 휴대폰 웹) | `DISASTER_DECLARED` → `SEARCH_AUTO_STARTED` → `FRONTIER e2910… goal=(-1.00, -0.74)` | 첫 회차와 같은 벽 쪽 목표(C3) |
+| 23:24:49 | 결과 | `RESULT task=b8596392… outcome=FAILED` | |
+| 23:24:49~23:25:02 | 운영자 대역(7.1) | `OPERATOR 런북 7.1 refresh_state …` → `robot6 task_arm: success=True message='ARMED'` | 다시 arm(C4 를 런북대로 처리) |
+| 23:25:02 | 둘째 경계 | `FRONTIER a116… goal=(-1.43, 0.64)` → `SEND SEARCH_AREA fb5ea732…` | |
+| 23:25:26 | 결과 | `RESULT task=fb5ea732… outcome=FAILED` | 24 s 만에 실패 |
+| 23:25:26~23:25:28 | 탐색 끝 | `FRONTIER none on map update 193 (1/3)` … `(3/3)` → `EXPLORATION_COMPLETE reason=EXPLORATION_COMPLETE frontiers_sent=2` | 메인 구역(인형 자리)을 보지 못하고 끝(C9) |
+| 23:25:32 | 지도 고정 | `MAP_FROZEN 1` → `MAP_FREEZE 2 requested: exploration complete` → R2(sha `2f8fa0…`) | 첫 회차처럼 R1·R2 연달아 |
+| 23:25:32~23:25:53 | 운영자 대역(7.5) | `tb6_slam 끄기` → `/robot6/map 발행자 수 0` → `frozen_localization robot_a 띄움` | |
+| 23:25:57~23:25:59 | TB-6 고정 지도 위치 | `amcl: Setting pose … -1.001 -0.688 -1.132` → `Managed nodes are active` → `MAP_RELAY_BLOCKED another node publishes /robot6/map (SLAM still running?)` | 발행자 0 을 본 뒤 6 s 만에 막힘(C7). TB-6 위치 미확정 |
+| 23:25:32 | TB-5 | `MAP_STATE robot_b … rev=1 UNKNOWN` → `rev=2 UNKNOWN` → `START_ALIGN robot_b ALIGNING: localization not VALID`, `live input rejected: Logger severity cannot be changed between calls.` | C2 와 같은 줄. 원인 확정, #370 |
+| 23:25:59~23:27:11 | 운영자 대역(TB-5 arm) | `TASK_ARM refused NAV_NOT_READY missing=['nav2']` | TB-5 Nav2 가 23:21:56 `Starting managed nodes bringup...` 뒤 active 가 되지 않음(C8) |
+
+새로 찾은 것:
+
+| # | 무엇 | 나눔 | 넘긴 곳 · 상태 |
+| --- | --- | --- | --- |
+| C7 | 7.5 뒤 TB-6 `frozen_map_relay` 가 `MAP_RELAY_BLOCKED another node publishes /robot6/map` 로 고정 지도를 넘기지 못함. 운영자 대역은 띄우기 전에 `ros2 topic info /robot6/map` 발행자 0 을 봤다 | 현장에서도 나올 수 있음 [추정] | 작전에 보고. 누가 냈는지 확인 필요 [미확인] |
+| C8 | TB-5 Nav2 bringup 이 고정 전(지도 없음)에 시작해 active 가 되지 않고, 고정 뒤에도 그대로라 TB-5 arm 이 `NAV_NOT_READY missing=['nav2']` | 현장에서도 나올 수 있음 [추정] | 작전에 보고 |
+| C9 | 경계 두 개가 실패한 뒤 남은 경계가 없어 탐색이 끝남. 터널 1 너머 메인 구역(인형 자리)을 탐색 대상으로 잡지 못했다 | 판단 보류 [미확인]: 시뮬레이션 지도·벽 관통(S10)과 조정기 경계 선택 중 어느 쪽인지 모름 | 작전에 보고 |
+
+- 운영자 대역이 런북대로 다시 arm 하자 첫 회차(경계 2개 뒤 600 s 시간 초과)와 달리 바로 다음 경계로 넘어갔다. C4 는 런북 단계를 하면 풀린다.
+- 다음 회차는 최신 main(#369 경계 목표 사유, #370 TB-5 정렬 로그 고침)으로 다시 빌드해서 띄운다. 빌드 SHA 는 그 회차 표에 적는다.
+
 ## 검증 범위
 
-- 확인한 것: 2절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
-- 확인하지 않은 것: 인형 발견 → TB-5 출동 → 출구 도착(NOT_RUN), 실기, 다른 출발 자리.
+- 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
+- 확인하지 않은 것: 인형 발견 → TB-5 출동 → 출구 도착(NOT_RUN), 실기, 다른 출발 자리, C7 의 발행자.
