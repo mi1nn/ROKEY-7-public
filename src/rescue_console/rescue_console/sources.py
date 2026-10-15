@@ -7,11 +7,13 @@ import json
 from pathlib import Path
 
 from rescue_operations.ledger import OperationsError, read_reports
+from rescue_operations.site_state import (list_runs, read_error_log_range, read_exit_locations_range,
+                                          read_operator_commands_range, read_robot_status_history,
+                                          read_site_events_range, read_target_state_history)
 from rescue_operations.site_state import (read_allowed_robot_ids, read_error_log, read_exit_locations, read_mission_state,
                                           read_operator_commands, read_overhead_passages, read_robot_status, read_site_events,
                                           read_target_states)
 
-from .replay import REPLAY_READ_LIMIT
 from .view import HISTORY_ROWS, ConsoleError
 
 # read_reports 및 read_site_events는 1회 조회 시 최대 1000개 행으로 제한된다(rescue_operations.ledger._limit).
@@ -19,6 +21,9 @@ LEDGER_READ_LIMIT = 1000
 # read_site_events는 관측 시각 오름차순으로 반환하므로(ORDER BY observed_at_ns LIMIT n), 관제 웹은
 # 최대 한도까지 요청한다. 현장 사건이 1000건을 초과하면 최신 사건이 누락될 수 있다(README 「후속」).
 SITE_EVENT_READ_LIMIT = 1000
+# 리플레이에서 표 하나를 이어 읽는 쪽 수 상한([제안] 관제·화면, 2026-10-15). 1000건 x 30쪽이면 로봇 둘의
+# 초당 이력으로 약 4시간이다. 넘으면 화면에 「일부만 보임」.
+REPLAY_PAGES = 30
 # 상태 픽스처 허용 최상위 키 목록: load_site_state 반환 키와 일치하여 build_view에서 동일하게 처리된다.
 STATUS_KEYS = frozenset({'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
                          'error_log', 'exit_locations', 'overhead_passages'})
@@ -100,18 +105,46 @@ def load_site_state(db_path):
         raise ConsoleError('STORAGE_ERROR', f'site-state read failed: {exc}') from exc
 
 
-def load_replay(db_path):
-    """리플레이용 읽기: 시각과 함께 쌓이는 네 표를 operations 읽기 API 상한까지 읽는다(mode=ro).
 
-    최신 한 줄만 남는 표(robot_status·target_states·mission_state)는 과거 시점 값이 아니므로 읽지 않는다.
-    상한까지 찬 표는 replay.build_timeline 이 잘림으로 드러낸다. 범위 읽기 API 는 operations 에 요청했다.
+def _range_all(read, items_key, time_key, db_path, run_id):
+    """회차 범위 읽기를 쪽마다 이어 읽는다(operations 한도 1000건, 오래된 것부터, 넘치면 최신 쪽이 잘림).
+
+    잘린 쪽은 마지막 시각의 행을 버리고 그 시각부터 다시 읽어 겹치거나 빠지는 행이 없다. 쪽 수는
+    REPLAY_PAGES 까지이고, 그래도 남으면 truncated 를 참으로 둔다. 한 시각에 1000건이 몰리면 더 나아갈 수 없어 거기서 멈춘다.
     """
+    rows, start = [], None
+    for _ in range(REPLAY_PAGES):
+        page = read(db_path, run_id=run_id, start_ns=start)
+        items = page[items_key]
+        if not page['truncated']:
+            return {'truncated': False, items_key: rows + items}
+        last = items[-1][time_key]
+        keep = [row for row in items if row[time_key] != last]
+        if not keep:
+            return {'truncated': True, items_key: rows + items}
+        rows += keep
+        start = last
+    return {'truncated': True, items_key: rows}
+
+
+def load_runs(db_path):
+    """회차 목록(operations list_runs, mode=ro)."""
     try:
-        return {
-            'site_events': read_site_events(db_path, limit=REPLAY_READ_LIMIT),
-            'operator_commands': read_operator_commands(db_path, limit=REPLAY_READ_LIMIT),
-            'error_log': read_error_log(db_path, limit=REPLAY_READ_LIMIT),
-            'exit_locations': read_exit_locations(db_path, limit=REPLAY_READ_LIMIT),
-        }
+        return list_runs(db_path)
     except OperationsError as exc:
+        raise ConsoleError('STORAGE_ERROR', f'run list read failed: {exc}') from exc
+
+
+def load_replay(db_path, run_id):
+    """회차 하나의 쌓이는 표 넷과 이력 표 둘을 operations 회차 범위 읽기로 끝까지 읽는다(mode=ro)."""
+    reads = (('site_events', read_site_events_range, 'site_events', 'observed_at_ns'),
+             ('operator_commands', read_operator_commands_range, 'commands', 'requested_at_ns'),
+             ('error_log', read_error_log_range, 'errors', 'at_ns'),
+             ('exit_locations', read_exit_locations_range, 'exits', 'observed_at_ns'),
+             ('robot_history', read_robot_status_history, 'history', 'at_ns'),
+             ('target_history', read_target_state_history, 'history', 'updated_at_ns'))
+    try:
+        return {key: _range_all(read, items_key, time_key, db_path, run_id) for key, read, items_key, time_key in reads}
+    except OperationsError as exc:
+        # 회차 ID 는 app 이 list_runs 목록과 맞춰 본 뒤에 넘기므로 여기 실패는 저장소 쪽 문제다.
         raise ConsoleError('STORAGE_ERROR', f'replay read failed: {exc}') from exc

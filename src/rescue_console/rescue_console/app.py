@@ -17,15 +17,17 @@ from .commands import (build_request, command_access, parse_operations_url, post
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
-from .replay import build_timeline, replay_at
+from .replay import build_timeline, replay_at, run_choices
 from .replay_page import render_replay_fragment, render_replay_page
-from .sources import load_ledger, load_replay, load_robot_watch, load_site_state, load_status
+from .sources import load_ledger, load_replay, load_robot_watch, load_runs, load_site_state, load_status
 from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
 
 
 # 로그인 페이지로 리다이렉트하지 않고 401로 직접 응답할 경로 목록(폴링 데이터, 지도 이미지, 명령).
 DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment')
+# 기억해 두는 닫힌 회차 시간 막대 수([제안] 관제·화면, 2026-10-15). 넘치면 가장 먼저 넣은 것을 버린다.
+REPLAY_CACHE_RUNS = 4
 # 모든 응답에 적용할 보안 헤더([제안] 관제·화면, 2026-10-10). 타 사이트 iframe 임베딩 방지,
 # MIME 타입 추측(content-sniffing) 차단, 외부 카메라 URL에 referrer 누출 방지 등을 포함한다. 완전한 스크립트 실행 차단 CSP는
 # 인라인 script 및 style에 사전 nonce가 적용된 후 적용할 수 있다(README 「후속」).
@@ -357,28 +359,48 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         return Response(render_fragment(view()), mimetype='text/html')
 
     # ---- 리플레이 (로그인한 모든 역할, 읽기만) -------------------------------------------
-    def replay_timeline():
-        """현장 상태 DB 를 매 요청 새로 읽어 시간 막대를 만든다. 픽스처·장부만으로는 이력이 없어 거부한다."""
+    closed_runs = {}   # 닫힌 회차의 시간 막대: 닫힌 뒤에는 행이 늘지 않으므로 다시 읽지 않는다(REPLAY_CACHE_RUNS 개까지)
+
+    def replay_timeline(run_text):
+        """(시간 막대, 회차 목록). ``run_text`` 가 비면 열린 회차, 없으면 마지막 회차. 회차가 없으면 시간 막대는 None.
+
+        목록에 없는 회차는 INVALID_INPUT 이다. 열린 회차는 매 요청 새로 읽는다. 픽스처·장부만으로는 이력이 없어 거부한다.
+        """
         if site_state_path is None:
             raise ConsoleError('CONFIG_MISSING', 'replay needs --site-state')
-        return build_timeline(load_replay(site_state_path))
+        runs, default = run_choices(load_runs(site_state_path))
+        run_id = run_text or default
+        chosen = [run for run in runs if run['run_id'] == run_id]
+        if run_id is None:
+            return None, runs
+        if not chosen:
+            raise ConsoleError('INVALID_INPUT', 'run is not in this site-state DB')
+        run = chosen[0]
+        if run['run_id'] in closed_runs and not run['open']:
+            return closed_runs[run['run_id']], runs
+        timeline = build_timeline(load_replay(site_state_path, run['run_id']), run=run, robot_names=robot_names)
+        if not run['open']:
+            if len(closed_runs) >= REPLAY_CACHE_RUNS:
+                closed_runs.pop(next(iter(closed_runs)))
+            closed_runs[run['run_id']] = timeline
+        return timeline, runs
 
     @app.get('/replay')
     @login_required
     def replay(account):
-        """지난 회차 다시 보기. 처음에는 끝 시점을 그린다. 명령 버튼·로봇 경로가 없다."""
-        timeline = replay_timeline()
-        state = None if timeline['end_ns'] is None else replay_at(timeline, timeline['end_ns'])
-        return Response(render_replay_page(timeline, state, account, csrf=csrf_token()), mimetype='text/html')
+        """지난 회차 다시 보기(?run=회차 ID). 처음에는 끝 시점을 그린다. 명령 버튼·로봇 경로가 없다."""
+        timeline, runs = replay_timeline(request.args.get('run', ''))
+        state = None if timeline is None else replay_at(timeline, timeline['end_ns'])
+        return Response(render_replay_page(timeline, state, runs, account, csrf=csrf_token()), mimetype='text/html')
 
     @app.get('/replay/fragment')
     @login_required
     def replay_fragment(account):
         """회차 시작부터 ``offset_ns`` 뒤 시점의 조각. 숫자가 아니거나 범위 밖이면 INVALID_INPUT(503 한 줄)."""
-        timeline = replay_timeline()
+        timeline, _runs = replay_timeline(request.args.get('run', ''))
         text = request.args.get('offset_ns', '')
         # ASCII 숫자만 받는다. str.isdigit() 는 '²'(int() 가 거부, 500)와 '١'(1 로 읽힘)도 통과시킨다(REV-06).
-        if not (text.isascii() and text.isdigit()) or timeline['start_ns'] is None:
+        if not (text.isascii() and text.isdigit()) or timeline is None:
             raise ConsoleError('INVALID_INPUT', 'offset_ns must be a non-negative integer within the run')
         return Response(render_replay_fragment(replay_at(timeline, timeline['start_ns'] + int(text)), timeline),
                         mimetype='text/html')
