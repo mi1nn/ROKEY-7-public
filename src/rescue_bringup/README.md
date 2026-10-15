@@ -14,6 +14,7 @@
 | 깊이 점 `<ns>/passage_points`(depth_image_proc) | 구현됨, 실기 NOT_RUN | `launch/passage_points.launch.py`, `field_launch.py:passage_points_launch_values`, #226 |
 | 지도 위 터널 판정 `overhead_passage` | 구현됨, 실기 NOT_RUN | `launch/overhead_passage.launch.py`, `field_launch.py:overhead_passage_launch_values`, #259·#264 |
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
+| TB-5 출발 정렬 노드(`rescue_start_align`). `frozen_localization.launch.py robot_id:=robot_b` 가 AMCL 옆에 띄운다. 로그 끝에 ` + start_align` 이 붙는다. TB-6 에는 띄우지 않는다 | 구현됨, 실기 NOT_RUN | `launch/frozen_localization.launch.py`, `field_launch.py:START_ALIGN_KEYS`, [rescue_robot README](../rescue_robot/README.md) |
 | TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | 없음(현장 파일 `robots.robot_b` 에서 찾음). 시험 회차에 잰다 | 아래 2단계 「TB-5 출발값 재기」 |
 | Nav2 복구에서 후진 빼기 | 미구현. main 은 turtlebot4 기본 복구(제자리 회전·후진)를 쓴다. PR #267 머지 대기 | #267(재범 승인 2026-10-14) |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |

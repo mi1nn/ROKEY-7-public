@@ -156,6 +156,8 @@ def saved_maps(raw):
     for robot in raw['robots'].values():
         robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
         robot.pop('map_freeze.pose_max_age_ns', None)
+        for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
+            robot.pop(key)
         robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
 
 

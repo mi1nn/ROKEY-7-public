@@ -33,6 +33,9 @@ ROBOT_B = {'task.publisher_id': 'p', 'task.mapping_authority': 'm', 'task.live.a
            'task.saved_map.mode': 'FROZEN_MAP_AMCL', 'initial_pose_xy_yaw': [0.4, -0.3, 0.1],
            'passage.depth_topic': '/robot_b/oakd/stereo/image_raw',
            'passage.camera_info_topic': '/robot_b/oakd/stereo/camera_info', 'passage.depth_transport': 'compressedDepth'}
+# the TB-5 start alignment values of the repository field file (required for FROZEN_MAP_AMCL)
+ROBOT_B.update({k: v for k, v in json.loads((REPO / 'config' / 'field' / 'search_area.field.json').read_text())
+                ['robots']['robot_b'].items() if k.startswith('start_align.')})
 ALL_MODULES = object()
 
 
@@ -244,7 +247,8 @@ class Failures(RoleCase):
     def test_field_file_without_this_robot(self):
         raw = json.loads(self.field.read_text())
         raw['robots'].pop('robot_a')
-        raw['robots']['robot_b'] = {k: v for k, v in ROBOT_B.items() if k != 'initial_pose_xy_yaw'} | {
+        raw['robots']['robot_b'] = {k: v for k, v in ROBOT_B.items()
+                                   if k != 'initial_pose_xy_yaw' and not k.startswith('start_align.')} | {
             'task.saved_map.mode': 'SAVED_MAP_AMCL'}   # without robot_a no robot makes the frozen map
         raw['coordinator']['map_mode'] = 'SAVED_MAP'
         field = self.dir / 'field.json'
