@@ -441,12 +441,12 @@ class TightGapTests(unittest.TestCase):
 RUN9 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run035105/maps'
 
 
-def saved_map(name):
+def saved_map(name, folder=RUN9):
     """A map_saver trinary map (pgm 0 occupied, 254 free, 205 unknown) as a live grid."""
-    meta = (RUN9 / f'{name}.yaml').read_text()
+    meta = (folder / f'{name}.yaml').read_text()
     resolution = float(re.search(r'resolution: ([0-9.e-]+)', meta).group(1))
     ox, oy = map(float, re.search(r'origin: \[([^,]+), ([^,]+),', meta).groups())
-    _, size, _, pixels = (RUN9 / f'{name}.pgm').read_bytes().split(b'\n', 3)
+    _, size, _, pixels = (folder / f'{name}.pgm').read_bytes().split(b'\n', 3)
     w, h = map(int, size.split())
     data = [(-1 if p == 205 else 100 if p < 100 else 0)
             for p in (pixels[(h - 1 - iy) * w + ix] for iy in range(h) for ix in range(w))]
