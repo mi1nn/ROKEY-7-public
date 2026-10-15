@@ -13,7 +13,7 @@ After PassageStop was removed (#398) nothing stopped the robots in front of thin
   defaults (0.0): with no cloud the layer keeps what it marked (nothing clears it), and a silent camera does not
   make the costmap stale.
 
-The tests marked expectedFailure fail on main.
+Before this change (ba21433) these tests were expectedFailure.
 """
 import unittest
 
@@ -38,7 +38,6 @@ class LowObstaclePoints(unittest.TestCase):
         from test_perception_overhead import POLICY
         return POLICY
 
-    @unittest.expectedFailure
     def test_heights_are_from_the_floor_seen(self):
         from rescue_perception.overhead import low_obstacle_points
         floor = grid(0.4, 1.4, FLOOR)
@@ -52,7 +51,6 @@ class LowObstaclePoints(unittest.TestCase):
         self.assertFalse((h > self.policy().lidar_plane_m + 1e-9).any())              # the lidar's part is not here
         self.assertTrue(np.isclose(out[np.isclose(out[:, 0], 1.3)][:, 2], 0.10).any())   # the wall's foot is
 
-    @unittest.expectedFailure
     def test_no_floor_seen_publishes_nothing(self):
         from rescue_perception.overhead import low_obstacle_points
         self.assertIsNone(low_obstacle_points(np.array(grid(0.9, 1.0, 0.3)), self.policy()))
@@ -65,7 +63,6 @@ class Costmaps(unittest.TestCase):
         from rescue_bringup.nav2_field import nav2_with_depth_low_layer
         return nav2_with_depth_low_layer(vendor_params(), self.PASSAGE)
 
-    @unittest.expectedFailure
     def test_both_costmaps_get_the_layer_before_inflation(self):
         params = self.params()
         for costmap in ('global_costmap', 'local_costmap'):
@@ -74,7 +71,6 @@ class Costmaps(unittest.TestCase):
                 self.assertEqual('depth_low_layer', p['plugins'][-2])
                 self.assertEqual('inflation_layer', p['plugins'][-1])
 
-    @unittest.expectedFailure
     def test_marking_and_clearing_sources_and_no_lidar(self):
         layer = self.params()['local_costmap']['local_costmap']['ros__parameters']['depth_low_layer']
         self.assertEqual('nav2_costmap_2d::ObstacleLayer', layer['plugin'])
