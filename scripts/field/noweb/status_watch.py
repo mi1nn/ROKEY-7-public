@@ -8,8 +8,10 @@ and prints, on one line separated by " | ":
 - the time and the open run (회차 없음 between a reset and the next run)
 - the mission: mode/phase, the coordinator's reason, the support dispatch's segment
 - each configured robot: role, readiness, motion, dock, whether it has a pose and a task, battery
-- the SLAM robot's live map revision and the frozen maps kept in this run (map_snapshots frozen-r<rev>; empty
-  when db_writer's map archive is off, so 「고정 지도 없음」 then means "not known", not "not frozen")
+- the SLAM robot's live map revision and the frozen maps kept in this run (map_snapshots frozen-r<rev>).
+  Only db_writer's map archive (operations.launch map_topic, map_dir) writes those rows. A run with no kept
+  map at all prints 「지도 보관 꺼짐 — 고정 여부 모름」: the archive is off, or it has not kept its first live
+  map yet (about ARCHIVE_PERIOD after the first MapState). 「고정 지도 없음」 only when live maps are kept.
 - the targets: rescue state / support state
 - after a reset, the restart checklist (read_reset_checklist)
 Each value with a time says how old it is; older than STALE_S it is marked 낡음. A value the DB does not have
@@ -76,8 +78,10 @@ def _maps(db, now_ns):
     current = site_state.read_overhead_passages(db)['current_map']
     live = '지도 상태 없음' if current is None else \
         f'지도 r{current["map_revision"]} {_age(current["received_at_ns"], now_ns)}'
-    frozen = sorted({m['revision'] for m in site_state.read_map_snapshots(db)['maps']
-                     if Path(m['path']).name.startswith('frozen-')})
+    kept = site_state.read_map_snapshots(db)['maps']
+    if not kept:
+        return f'{live} | 지도 보관 꺼짐 — 고정 여부 모름'
+    frozen = sorted({m['revision'] for m in kept if Path(m['path']).name.startswith('frozen-')})
     return f'{live} | ' + ('고정 지도 없음' if not frozen else '고정 지도 ' + ','.join(f'r{r}' for r in frozen))
 
 
