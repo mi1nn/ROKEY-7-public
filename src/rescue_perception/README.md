@@ -235,6 +235,8 @@ RGB 추론·annotated 화면을 독립 처리하고 Depth 수신/해제 수·sta
 
 [작전 배정, 2026-10-13] `mjpeg_relay` 는 webcam_node 의 판정 화면 영상(`debug_image_topic`, CompressedImage jpeg)을 HTTP multipart MJPEG 로 낸다. 관제 웹은 `--camera cam_fixed=http://<웹캠 PC>:<port><path>` 로 보여 준다. 표준 라이브러리 `http.server` 만 쓰고 새 설치는 없다.
 
+[2026-10-15] 두 중계기(mjpeg_relay·robot_view_relay)는 `GET /health` 로 `{age_s, stale_s}`(마지막 프레임 나이, 첫 프레임 전에는 `age_s: null`)를 낸다. 관제 웹 페이지가 다른 origin 에서 묻기 때문에 `Access-Control-Allow-Origin: *`, `Cache-Control: no-store` 를 붙인다. 관제 웹은 이 값으로 영상 끊김을 판정한다(Chrome 은 multipart img 에 load 이벤트를 한 번만 낸다).
+
 ```bash
 ros2 run rescue_perception mjpeg_relay --ros-args -p image_topic:=/rescue/cameras/cam_fixed/debug_image/compressed \
   -p bind_host:=<관제 PC 에서 닿는 주소> -p port:=<포트> -p path:=/cam_fixed -p stale_s:=1.0

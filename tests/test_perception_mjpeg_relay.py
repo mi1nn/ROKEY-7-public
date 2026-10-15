@@ -84,6 +84,28 @@ class MjpegRelayTests(RelayFixture):
         self.assertIsNone(read_part(response))
 
 
+class HealthTests(RelayFixture):
+    """2026-10-15 measured (Chromium): a multipart <img> fires one load event, not one per frame, so the
+    console cannot tell a live stream from a stalled one by load events and reconnected every stale period.
+    The relay says how old its last frame is; the console page polls that instead (cross-origin, so CORS)."""
+
+    def health(self):
+        import json
+        response = self.get('/health')
+        return response, json.loads(response.read())
+
+    def test_age_of_the_last_frame_for_the_console(self):
+        response, body = self.health()
+        self.assertEqual(200, response.status)
+        self.assertEqual('*', response.getheader('Access-Control-Allow-Origin'))
+        self.assertEqual('no-store', response.getheader('Cache-Control'))
+        self.assertEqual({'age_s': None, 'stale_s': STALE_S}, body)   # no frame yet: no age is made up
+        self.hub.put(b'A')
+        self.assertLess(self.health()[1]['age_s'], STALE_S)
+        time.sleep(STALE_S + 0.1)
+        self.assertGreaterEqual(self.health()[1]['age_s'], STALE_S)
+
+
 class StuckClientTests(RelayFixture):
     """A client that stops reading (tab frozen, network gone without a FIN) must not hold a server
     thread for ever: before this fix the handler stayed blocked in write after the camera stopped

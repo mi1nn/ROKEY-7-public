@@ -57,6 +57,11 @@ class FrameHub:
                 return None
             return self._seq, self._jpeg
 
+    def age(self):
+        """Seconds since the latest frame, or None before the first one (never a made-up age)."""
+        with self._cond:
+            return None if self._at is None else self._clock() - self._at
+
     def reset(self):
         """Drop the last frame (the source changed): it is never shown as the new source's picture."""
         with self._cond:
@@ -70,11 +75,15 @@ class FrameHub:
 
 
 SELECT_PATH = '/select'   # robot_view_relay: GET {robot, robots}, POST {robot} (OPS-191)
+# GET {age_s, stale_s}: how old the last frame is. The console polls it to tell a live stream from a stalled
+# one, because Chrome fires one load event per multipart <img>, not one per frame (measured 2026-10-15).
+HEALTH_PATH = '/health'
 
 
 def make_server(hub, host, port, path, log=None, select=None):
     """ThreadingHTTPServer serving ``path`` as MJPEG from ``hub``; with ``select`` (robot_view_relay.Selector)
-    also GET/POST SELECT_PATH. Every other path is 404."""
+    also GET/POST SELECT_PATH. GET HEALTH_PATH is the last frame's age (CORS: the console page is another origin).
+    Every other path is 404."""
 
     class Handler(BaseHTTPRequestHandler):
         # Socket timeout for every read and write: a client that stops reading cannot hold this
@@ -85,10 +94,13 @@ def make_server(hub, host, port, path, log=None, select=None):
             if log is not None:
                 log(f'{self.client_address[0]} {fmt % args}')
 
-        def _json(self, status, body):
+        def _json(self, status, body, cors=False):
             data = json.dumps(body).encode()
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
+            if cors:
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Cache-Control', 'no-store')
             self.send_header('Content-Length', str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -106,6 +118,9 @@ def make_server(hub, host, port, path, log=None, select=None):
             self._json(200 if ok else 400, select.state() if ok else {'error': reason})
 
         def do_GET(self):
+            if self.path.split('?', 1)[0] == HEALTH_PATH:
+                self._json(200, {'age_s': hub.age(), 'stale_s': hub.stale_s}, cors=True)
+                return
             if select is not None and self.path == SELECT_PATH:
                 self._json(200, select.state())
                 return
