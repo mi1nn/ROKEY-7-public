@@ -144,6 +144,11 @@ ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
 - 관제 웹의 `--support-dispatch`·`--search-start` 는 현장 파일 `coordinator` 절과 같게 준다. 빼면 관제 웹이 출동 승인·수색 시작 버튼을 켠다.
 - 조정기의 `route_segment_goals`·`observe_goal` 은 자리표시다. `camera_watch_roi` 는 JSON 숫자 배열이어야 한다. `'[x0, y0, x1, y1]'` 글자를 그대로 쓰면 launch 가 exit 1 이다.
 - 성공 로그는 `rescue_db_writer git=... api=http://127.0.0.1:<port>`, `rescue_report_node ...`, `webcam_node git=...`, 조정기 `live task source enabled`·`central live clock: SYNCED` 다. `central live clock: waiting for clock measurement` 가 먼저 한 번 나오는 것은 정상이다.
+- **`central live clock: SYNCED` 가 안 나오면** 그 뒤 이유 코드를 본다(2026-10-16 9회차, C13).
+  - `NTP_SPIKE: last reply … ignored by timesyncd …, next poll by … (next poll in <= N s)` 는 운영 PC 의 timesyncd 가 마지막 NTP 응답을 튀는 값으로 보고 버린 것이다. 다음 응답까지 N 초 기다리면 풀린다.
+  - `NOT_SYNCHRONIZED` 는 timesyncd 가 아직 동기화되지 않은 것이고, `NO_NTP_REPLY` 는 응답을 하나도 받지 못한 것이다.
+  - 어느 경우든 운영 PC 에서 `timedatectl timesync-status` 로 서버·마지막 응답·지연·폴 간격을 확인해 기록한다.
+  - timesyncd 를 다시 시작해 바로 다시 묻게 하는 것(`sudo systemctl restart systemd-timesyncd`)은 운영 PC 설정 변경(등급 4)이라 재범 승인 뒤에만 한다.
 - 계정 DB 와 비밀키 준비는 [rescue_console README](../../src/rescue_console/README.md)에 있다.
 - **지도와 지도 고정 전 TB-6 위치는 운영 launch 의 두 묶음 인자로 본다.** `map_topic`·`map_dir` 는 TB-6 SLAM 지도를 받아 관제 웹 `--live-map` 과 리플레이에 넘긴다. `robot_namespaces`·`robot_watch_path` 는 두 로봇의 TF·배터리·도킹을 구독만 하는 직접 관측(`robot_watch`)이다. 실행기가 보내는 로봇 위치는 지도를 고정하고 AMCL 이 맞춘 뒤에만 채워진다(`live_pose.py`). 그래서 지도 고정 전 TB-6 위치는 직접 관측으로만 지도에 그려진다. TB-5 는 1차 고정 전에는 위치가 없고 「위치 미확정」이 정상이다(2026-10-15 실기).
 
