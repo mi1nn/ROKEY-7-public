@@ -1,5 +1,5 @@
 {
-  "source": "rehearsal-only 2D world (2026-10-15): two rooms joined by a 1 m door, two boxes; not the field site; no exit QR (as at the site, user 2026-10-15): TB-5 ends at its start spot, or at the profile home_positions exit when one is given",
+  "source": "rehearsal-only 2D world (2026-10-15): two rooms joined by a 1 m door, two boxes; not the field site; no exit QR (as at the site, user 2026-10-15): TB-5 ends at its start spot, or at the profile home_positions exit when one is given; doll moved 2026-10-15 from [6.6, 4.6] (far room) to [3.0, 4.8] (first room): rehearsal #21 finished EXPLORATION_COMPLETE from the doorway because the lidar saw the far room whole, the camera (see_m 2.5) never did -> NO_SURVIVOR_FOUND; that coverage gap is a field risk, recorded in the evidence doc",
   "resolution": 0.05,
   "width_m": 8.0,
   "height_m": 6.0,
@@ -78,8 +78,8 @@
   },
   "dock_radius_m": 0.6,
   "doll": [
-    6.6,
-    4.6
+    3.0,
+    4.8
   ],
   "detector": {
     "see_m": 2.5,

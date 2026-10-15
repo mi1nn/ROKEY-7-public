@@ -354,5 +354,20 @@ class GateTests(unittest.TestCase):
         self.assertIs(new, latest.message)
 
 
+
+class ChildrenCleanupTests(unittest.TestCase):
+    """Rehearsal 2026-10-15 #22: the launch leader exited on SIGINT, a node it started (ignoring SIGINT) lived on in
+    the group and was still on the graph in the next run. The whole group is stopped, not only the leader."""
+
+    def test_a_grandchild_that_outlives_the_leader_is_stopped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            children = fs.Children(Path(tmp) / 'logs', lambda line: None)
+            proc = children.start('launch', ['sh', '-c', '(trap "" INT; exec sleep 30) & trap "exit 0" INT; wait'])
+            import time
+            time.sleep(0.3)
+            self.assertEqual([], children.stop_all(grace_s=0.5))
+            self.assertFalse(fs.Children.group_alive(proc))
+
+
 if __name__ == '__main__':
     unittest.main()

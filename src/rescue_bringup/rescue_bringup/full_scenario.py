@@ -311,19 +311,33 @@ class Children:
         (self.log_dir.parent / 'pids.json').write_text(json.dumps({lbl: p.pid for lbl, p, _ in self.items}, indent=1))
         return proc
 
+    @staticmethod
+    def group_alive(proc):
+        """True while any member of the process group lives. The launch leader can exit on SIGINT while a node it
+        started (rehearsal 2026-10-15 #22: a /robot6 lifecycle_manager) lives on; the leader alone is not enough."""
+        try:
+            os.killpg(proc.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+
     def stop(self, procs):
         """Stop some of the started processes (a stage started again) and forget them."""
         for proc in procs:
             for sig, wait in ((signal.SIGINT, 10.0), (signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
-                if proc.poll() is not None:
+                if not self.group_alive(proc):
                     break
                 try:
                     os.killpg(proc.pid, sig)
                 except ProcessLookupError:
                     break
                 deadline = time.monotonic() + wait
-                while time.monotonic() < deadline and proc.poll() is None:
+                while time.monotonic() < deadline and self.group_alive(proc):
+                    proc.poll()
                     time.sleep(0.2)
+            proc.poll()
         self.items = [(label, proc, log) for label, proc, log in self.items if proc not in procs]
 
     def exited(self):
@@ -331,7 +345,7 @@ class Children:
 
     def stop_all(self, *, grace_s=10.0):
         """Stop in reverse start order; returns the labels still alive after KILL."""
-        alive = [(label, proc) for label, proc, _ in reversed(self.items) if proc.poll() is None]
+        alive = [(label, proc) for label, proc, _ in reversed(self.items) if self.group_alive(proc)]
         for sig, wait in ((signal.SIGINT, grace_s), (signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
             if not alive:
                 break
@@ -341,18 +355,17 @@ class Children:
                 except ProcessLookupError:
                     pass
             deadline = time.monotonic() + wait
-            while time.monotonic() < deadline and any(p.poll() is None for _, p in alive):
+            while time.monotonic() < deadline and any(self.group_alive(p) for _, p in alive):
+                for _, p in alive:
+                    p.poll()   # reap the leader so its group can empty
                 time.sleep(0.2)
-            alive = [(label, proc) for label, proc in alive if proc.poll() is None]
+            alive = [(label, proc) for label, proc in alive if self.group_alive(proc)]
             if alive:
                 self.say(f'  {sig.name} 뒤에도 남음: {[label for label, _ in alive]}')
         left = []
         for label, proc, log in self.items:
-            try:
-                os.killpg(proc.pid, 0)
-                left.append(label)   # the group still has members (a grandchild survived)
-            except ProcessLookupError:
-                pass
+            if self.group_alive(proc):
+                left.append(label)   # the group still has members even after SIGKILL
             log.close()
         return left
 

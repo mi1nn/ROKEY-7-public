@@ -30,6 +30,17 @@ export ROS_DOMAIN_ID="$DOMAIN" FASTDDS_BUILTIN_TRANSPORTS=UDPv4
 [ "$DOMAIN" -ge 10 ] || { echo "ROS_DOMAIN_ID must be >= 10"; exit 2; }
 mkdir -p "$OUT/inputs"; OUT=$(cd "$OUT" && pwd)
 [ -e "$OUT/run" ] && { echo "$OUT/run exists: use a new result dir"; exit 2; }
+# 앞 회차가 남긴 노드가 같은 도메인에 있으면 시작하지 않는다(2026-10-15 22회차: 남은 /robot6 lifecycle_manager 가
+# 새 회차의 TB-6 Nav2 활성화를 막았다). 이 사용자의 프로세스 중 ROS_DOMAIN_ID 가 같은 것을 찾는다.
+LEFT=""
+for p in $(pgrep -u "$(id -u)"); do
+  [ "$p" = "$$" ] && continue
+  grep -qxz "ROS_DOMAIN_ID=$DOMAIN" "/proc/$p/environ" 2>/dev/null && LEFT="$LEFT $p"
+done
+if [ -n "$LEFT" ]; then
+  echo "ROS_DOMAIN_ID=$DOMAIN 에 앞 회차 프로세스가 남아 있다:"; ps -o pid=,args= -p ${LEFT// /,} | cut -c1-150
+  echo "확인 뒤 PID 로 끈다(kill <pid>). pkill -f 는 쓰지 않는다."; exit 2
+fi
 MODE=${REHEARSAL_DISCOVERY:-server}
 DS_PID=""
 if [ "$MODE" = server ]; then
