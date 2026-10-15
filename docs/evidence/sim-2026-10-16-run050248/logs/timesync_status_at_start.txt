@@ -1,0 +1,15 @@
+05:02:16
+       Server: 91.189.91.157 (ntp.ubuntu.com)
+Poll interval: 34min 8s (min: 32s; max 34min 8s)
+         Leap: normal
+      Version: 4
+      Stratum: 2
+    Reference: 84A36001
+    Precision: 1us (-24)
+Root distance: 21.987ms (max: 5s)
+       Offset: +6.190ms
+        Delay: 211.628ms
+       Jitter: 30.591ms
+ Packet count: 29
+    Frequency: +21.407ppm
+(uuuuittayttttbtt) 0 4 4 2 -24 42297 839 4 132 163 96 1 1792093611853978 1792093611965982 1792093611967078 1792093612066702 false 29 30591
