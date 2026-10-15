@@ -3,7 +3,7 @@
 #
 #   로봇 Pi 두 대  -> sim_robots.sh (Gazebo, TB-6·TB-5, 도메인 SIM_DOMAIN)
 #   Wi-Fi          -> wall_clock_relay.py (시각·프레임·카메라 이름을 실기와 같게, SIM_DOMAIN <-> FIELD_DOMAIN)
-#   Discovery PC   -> 없음. 한 PC 안이라 LOCALHOST 탐색 + config/sim/fastdds_localhost.xml
+#   Discovery PC   -> 없음. 한 PC 안이라 LOCALHOST 탐색 + scripts/sim/fastdds_localhost.xml
 #   운영 PC        -> operations.launch.py + 관제 웹 + coordinator.launch.py
 #   로봇 담당 PC   -> tb6_slam, robot.launch(두 벌), map_freeze, frozen_localization(TB-5), passage_points, overhead_passage
 # 순서는 docs/process/field-runbook.md 3~7단계 그대로다. 실행기는 조정기와 같은 PC 이면 거절하므로 두 실행기에만
@@ -63,7 +63,7 @@ TB5_START=(2.70 0.37 -1.5708)   # arena 좌표, 평면도 TB-5 자리 [추정]
 DOLL=(1.20 2.87)                 # arena 좌표, 평면도 인형 자리 [추정]
 P="$RUN/profile/profile.json"
 SHIM="$REPO/scripts/field/wiring-rehearsal/host_shim"
-DDS="$REPO/config/sim/fastdds_localhost.xml"
+DDS="$REPO/scripts/sim/fastdds_localhost.xml"
 BASE_ENV="set +u; source /opt/ros/jazzy/setup.bash; source $REPO/install/setup.bash; set -u
 export RUN_FULL_TOKEN=$TOKEN ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST FASTRTPS_DEFAULT_PROFILES_FILE=$DDS ROS_SUPER_CLIENT=False"
 FIELD_ENV="$BASE_ENV; export ROS_DOMAIN_ID=$FIELD_DOMAIN"
@@ -89,6 +89,7 @@ call() {   # ros2 CLI 한 번(현장 도메인)
 }
 
 say "회차 폴더 $RUN"
+say "빌드 $(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet HEAD -- src || echo '+src 수정')(src 는 main 과 diff $(git -C "$REPO" diff origin/main HEAD -- src 2>/dev/null | wc -l)줄), 관제 웹 빌드 $(git -C "${RUN_FULL_WEB_REPO:-$REPO}" rev-parse --short HEAD)"
 # 관제 웹 계정 DB 와 세션 비밀키는 회차마다 새로 만들지 않고 한 폴더에 두고 계속 쓴다. 회차를 다시 띄울 때마다 휴대폰
 # 로그인이 풀렸다(재범 2026-10-15). 처음 한 번만 RUN_FULL_ADMIN_PASSWORD 로 만든다.
 mkdir -p "$WEB_STATE"; chmod 700 "$WEB_STATE"

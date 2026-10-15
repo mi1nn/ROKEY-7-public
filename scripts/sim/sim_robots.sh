@@ -71,7 +71,7 @@ grep -Eq "<world name=['\"]$world['\"]" "$world_file" || die "$world_file 의 <w
 unset ROS_DISCOVERY_SERVER ROS_SUPER_CLIENT ROS_STATIC_PEERS ROS_LOCALHOST_ONLY
 export ROS_DOMAIN_ID="$SIM_DOMAIN_ID" ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST GZ_PARTITION="$SIM_GZ_PARTITION"
 # 시뮬레이터 프로세스가 많아 LOCALHOST 탐색 범위를 넓힌다(fastdds_localhost.xml 주석). 다른 터미널에서 조회할 때도 같은 값을 쓴다.
-export FASTRTPS_DEFAULT_PROFILES_FILE="$REPO/config/sim/fastdds_localhost.xml"
+export FASTRTPS_DEFAULT_PROFILES_FILE="$REPO/scripts/sim/fastdds_localhost.xml"
 [ -f "$FASTRTPS_DEFAULT_PROFILES_FILE" ] || die "$FASTRTPS_DEFAULT_PROFILES_FILE 가 없습니다"
 
 # /proc 읽기. 다른 사용자(root) 프로세스의 environ 은 못 읽으니 오류를 버린다. grep 한 번으로 모두 훑는다
