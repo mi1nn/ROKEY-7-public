@@ -109,6 +109,7 @@ done
 | Pi 시계 | `chronyc tracking` | 계산한 오차가 현장 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 안. 넘으면 값을 바꾸고 기록한다 |
 
 - 로봇 Pi 에는 아무것도 설치하지 않는다. 로봇 설정을 바꾸려면 재범 승인이 필요하다(등급 4).
+- **라이다가 멈추면**(`ros2 topic hz <ns>/scan` 이 비고 SLAM 로그에 `rplidar_link` 메시지가 버려짐) 그 로봇 Pi 에 ssh 로 들어가 `sudo systemctl restart turtlebot4` 를 한다. PC 에서 치면 `Unit turtlebot4.service not found` 다. 1~2분 뒤 scan 이 오는지 본다. 2026-10-15 TB-6 에서 두 번 있었다([운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 8절).
 - 카메라는 도킹 중 꺼져 있다. 카메라 확인은 언도킹 뒤에 두 로봇 모두 한다. RGB 만 보지 말고 깊이도 본다: `ros2 topic hz <ns>/oakd/rgb/image_raw/compressed` 와 `ros2 topic hz <ns>/oakd/stereo/camera_info`. 깊이 camera_info 가 0 이면 깊이만 멈춘 것이다. 터널 정지와 준비 점검이 막히므로 `ros2 service call <ns>/oakd/stop_camera std_srvs/srv/Trigger {}` 뒤 `start_camera` 로 카메라만 다시 켠다(재범 승인, 2026-10-15 TB-6 에서 이것으로 복구, 같은 기록 B8).
 
 ## 3단계 — 운영 PC
