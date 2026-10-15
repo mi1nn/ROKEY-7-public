@@ -36,7 +36,7 @@ TB-5 의 Nav2 는 AMCL 의 `map → odom` 이 있어야 활성화되므로 지�
 
 1. 두 로봇의 Pi·드라이버·센서가 켜져 있고 **둘 다 언도킹된 상태**로 각자 출발 자리에 서 있다(언도킹은 기존 감독 절차. 도킹된 채면 TB-5 정렬이 `START_ALIGN_DOCKED`, arm 이 `NAV_NOT_READY` 로 멈춘다). Pi 무선 절전·시계는 [field README 0단계](../../src/rescue_bringup/README.md)를 따른다.
 2. 같은 로봇에 다른 SLAM·AMCL·Nav2·explore 가 떠 있지 않다(`bash scripts/field/stop_robot.sh /robot6` 끝의 프로세스 목록).
-3. TB-5 출구(QR 없음)는 TB-6 출발 자리에서 `traffic_min_separation_m` 0.6 m 보다 멀어야 한다. 가까우면 TB-6 복귀가 `TRAFFIC_ROBOTS_TOO_CLOSE` 로 계속 보류된다(충돌 방지라 일부러 풀지 않음).
+3. TB-5 출구(QR 없음)는 TB-6 출발 자리에서 `traffic_min_separation_m` 0.6 m 보다 멀어야 한다(리허설 26회차: 1.0 m 에서도 TB-6 복귀 끝이 collision_monitor 감속에 걸려 기한을 넘긴 적이 있다 — 가능하면 더 멀리, 또는 프로파일 `home_positions` 로 출구를 따로 준다). 가까우면 TB-6 복귀가 `TRAFFIC_ROBOTS_TOO_CLOSE` 로 계속 보류된다(충돌 방지라 일부러 풀지 않음).
 4. 작업공간 빌드(저장소 루트):
    ```bash
    source /opt/ros/jazzy/setup.bash
@@ -86,6 +86,8 @@ bash scripts/field/run_full_scenario.sh --profile <프로파일.json> --percepti
 - TB-6 AutoSLAM 완료: 조정기 로그 `EXPLORATION_COMPLETE reason=EXPLORATION_COMPLETE`(시간 제한이면 `reason=EXPLORATION_TIMEOUT`), outcome `exploration_complete=true`.
 - TB-6 복귀·도킹: outcome `scout_return=AT_DOCK_APPROACH` → `scout_dock=DOCKED`, `/rescue/robots/robot_a/dock_state` JSON `state=DOCKED, is_docked=true`.
 - SLAM 보정: 조정기 로그 `MAP_CORRECTION shift_m=... targets_observed_before=[...]`, outcome `map_corrections`.
+- 교통 관제: `TRAFFIC_SCOUT_CANCELED`(TB-5 먼저) → `TRAFFIC_REARM robot=robot_a armed`(조정기가 자기가 멈춘 TB-6 를 다시 arm, 교통 취소·frontier 기한 초과 뒤만) → `TRAFFIC_YIELD`(비켜서기). `TRAFFIC_REARM_GAVE_UP` 이면 TB-6 가 정지 고정 상태다: 상황을 본 뒤 손으로 `task_arm`.
+- 접근점: `APPROACH_POINT_MOVED`(인형 옆이 막혀 같은 거리의 다른 빈 점으로). 계속 `SUPPORT_APPROACH_NOT_FREE` 면 인형 둘레가 모두 막힌 것이다.
 
 ## 중단 · 비상
 
@@ -112,7 +114,7 @@ bash scripts/field/run_full_scenario.sh --profile <프로파일.json> --percepti
 bash scripts/field/full-scenario-rehearsal/run.sh <colcon install> <결과 폴더> 195
 ```
 
-로봇 Pi·라이다·도크·OAK-D 감지기만 `sim_world.py`(2D, `world.json`)로 바꾸고 나머지는 실제 노드다. 로컬 Discovery Server(127.0.0.1)와 도메인 ≥ 10 으로 현장 그래프와 섞이지 않는다. 결과·남은 위험은 [리허설 기록](../evidence/rehearsal-2026-10-15-full-scenario-one-pc.md)에 있다.
+로봇 Pi·라이다·도크·OAK-D 감지기만 `sim_world.py`(2D, `world.json`)로 바꾸고 나머지는 실제 노드다. 로컬 Discovery Server(127.0.0.1, 현장 설정을 지움)로 현장 그래프와 섞이지 않는다. 같은 Discovery Server 에 붙으면 도메인 번호가 달라도 토픽 목록이 보였으므로(2026-10-15 측정) 그래프를 나누는 것은 서버다. 같은 도메인에 앞 회차 프로세스가 남아 있으면 시작하지 않는다. 결과·남은 위험은 [리허설 기록](../evidence/rehearsal-2026-10-15-full-scenario-one-pc.md)에 있다.
 
 ## 리허설에서 확인한 것 / 실기에서 따로 확인할 것
 
@@ -121,5 +123,6 @@ bash scripts/field/full-scenario-rehearsal/run.sh <colcon install> <결과 폴�
 | 단계별 준비 판정, 실패 시 단계·사유 출력, Ctrl+C·실패 시 안전 정지 명령 전송과 프로세스 정리 | 1. 두 로봇 언도킹 상태에서 실행 → `tb6_slam`·`tb5_localization` 준비(실제 라이다로 start_align `ALIGNED`, 일치율) |
 | 실제 slam_toolbox·AMCL·Nav2 두 벌·실행기·조정기 연결, TB-5 seed 오차 보정 | 2. arm 까지(실제 시계·Discovery, 한 PC `single_host`) |
 | 합성 지진 이벤트 → 탐색 자동 시작 | 3. TB-6 탐색 주행(사람 감시), 정지 상태 SLAM 처리 설정의 영향 |
-| (리허설 기록의 결과 표를 본다) | 4. 실제 인형 감지 → 좌표 → TB-5 접근·알림음 → 출구 대기 |
-| | 5. TB-6 복귀 → Create3 도킹 성공(`dock_status`) |
+| TB-6 탐색 완료 → 출발 자세 복귀 → 모의 도크 `DOCKED` → `FINISHED`, 인형 발견 → 보고 PERSISTED → TB-5 접근(결과는 리허설 기록의 결과 표) | 4. 실제 인형 감지 → 좌표 → TB-5 접근·알림음 → 출구 대기 |
+| 교통 관제 취소·기한 초과 뒤 자동 재 arm, 막힌 접근점 대체 | 5. TB-6 복귀 → Create3 도킹 성공(`dock_status`) |
+| | 6. 인형 위치를 바꿔 카메라 탐색 범위 확인(라이다 지도가 끝나도 카메라가 못 본 곳이 남을 수 있음) |
