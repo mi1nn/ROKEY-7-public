@@ -23,6 +23,7 @@ PC, and how it relates to the Create 3 cmd_vel timeout, is a deployment
 question to measure (T-05); it is not a physical safety certificate.
 """
 from dataclasses import dataclass
+import json
 import math
 
 from rescue_robot.executor import ContractError
@@ -135,3 +136,26 @@ class CommandWatchdog:
             return False
         self._set('ARMED', '', now, event_reason='RESET')
         return True
+
+
+def watchdog_state_topic(heartbeat_topic):
+    """<ns>/rescue/watchdog_state next to <ns>/rescue/watchdog_heartbeat: the watchdog's state, latched.
+    Reporting only (run 7, 2026-10-16): a latched watchdog sends no heartbeat, so without this it looked absent."""
+    return heartbeat_topic.rsplit('/', 1)[0] + '/watchdog_state'
+
+
+def state_text(state, reason, reset_service):
+    """The JSON the watchdog publishes on every state change."""
+    return json.dumps({'state': state, 'reason': reason, 'reset_service': reset_service}, sort_keys=True)
+
+
+def latched_hint(text):
+    """'watchdog STOP_LATCHED <reason> - reset needed: <command>' for a latched state text, else ''."""
+    try:
+        state = json.loads(text)
+        if state['state'] != 'STOP_LATCHED':
+            return ''
+        return (f"watchdog STOP_LATCHED {state['reason'] or '-'} - reset needed: "
+                f"ros2 service call {state['reset_service']} std_srvs/srv/Trigger {{}}")
+    except (TypeError, ValueError, KeyError):
+        return ''

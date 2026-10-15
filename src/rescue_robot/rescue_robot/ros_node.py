@@ -208,15 +208,38 @@ def bind_readiness(node, monitor, adapter, *, scan_topic, camera_topics, wheel_s
                                              qos_profile_sensor_data))
 
     if watchdog_heartbeat_topic:
-        from std_msgs.msg import Header
+        from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+        from std_msgs.msg import Header, String
+        from rescue_robot.watchdog import watchdog_state_topic
         subs.append(node.create_subscription(Header, watchdog_heartbeat_topic,
                                              arrival('watchdog_heartbeat'), 10))
+        # the watchdog's state (reporting only): a latched watchdog sends no heartbeat (run 7, 2026-10-16)
+        latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                             durability=DurabilityPolicy.TRANSIENT_LOCAL)
+
+        def on_state(msg):
+            monitor.watchdog_state = msg.data
+        subs.append(node.create_subscription(String, watchdog_state_topic(watchdog_heartbeat_topic), on_state,
+                                             latched))
 
     def on_tf(msg):
         if any(t.header.frame_id == map_frame and t.child_frame_id == odom_frame for t in msg.transforms):
             monitor.arrived('map_to_odom_tf', adapter.clock())
     subs.append(node.create_subscription(TFMessage, tf_topic, on_tf, 100))
     return subs
+
+
+class StepGap:
+    """The executor step that ends with its heartbeat came ``limit_s`` or more after the previous one: the gap
+    in seconds (logged as EXECUTOR_STEP_GAP), else None. The watchdog latches on such a gap (run 7, 2026-10-16)."""
+
+    def __init__(self, limit_s):
+        self.limit_s, self.last = limit_s, None
+
+    def tick(self, now):
+        gap = None if self.last is None else now - self.last
+        self.last = now
+        return gap if gap is not None and gap >= self.limit_s else None
 
 
 def readiness_policy(version, ages, camera_topics, wheel_status_topic, watchdog_heartbeat_topic):
@@ -337,7 +360,13 @@ def main(args=None, *, task_runtime_factory=None):
         # Executor liveness for the command watchdog (C-01): one Header per step.
         heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
 
+        gaps = StepGap(value['readiness.max_age_s.watchdog_heartbeat'])
+
         def step():
+            gap = gaps.tick(time.monotonic())
+            if gap is not None:
+                log.warning(f'EXECUTOR_STEP_GAP {gap:.3f} s since the last step (heartbeat) at '
+                            f'{time.strftime("%H:%M:%S")}: the watchdog latches at its heartbeat_max_age_s')
             adapter.observe_status(nav2=port.server_ready())
             monitor.publish(adapter)
             adapter.step()
