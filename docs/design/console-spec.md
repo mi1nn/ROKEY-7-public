@@ -192,7 +192,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | 계정 수정 | `status` | 문자열 | ACTIVE 또는 INACTIVE(`accounts.py:29`) |
 | 계정 추가·수정 | `display_name` | 문자열 | 128자 이하, 줄바꿈 없음. 빈 값이면 아이디로 채운다(`accounts.py:99-101`, `:234`, `:273-274`) |
 | 계정 추가·수정 | `email` | 문자열 | 128자 이하, 줄바꿈 없음. 빈 값이거나 `이름@호스트.최상위` 형태(`accounts.py:32`, `:104-107`) |
-| 명령 | `kind` | 문자열 | `COMMAND_FIELDS` 의 다섯 종류 중 하나(`commands.py:27-33`, `:98-100`) |
+| 명령 | `kind` | 문자열 | `COMMAND_FIELDS` 의 다섯 종류나 `MODE_COMMAND_FIELDS` 의 재난 선포 중 하나(`commands.py:27-38`, `:103-105`) |
 | 명령 | 그 밖의 키 | — | `csrf`·`kind`·해당 종류의 필드 외에 다른 키가 하나라도 있으면 거절한다(`commands.py:101-104`) |
 | 명령 | `target_id` | 문자열 | 1 ~ 128자, 출력 가능한 문자, 공백 없음(`commands.py:78-81`). UUID 인지는 operations 가 검사한다 |
 | 명령 | `target_revision`, `route_revision`, `segment_index` | 10진 숫자 문자열 | ASCII 숫자만 허용하고(음수·소수 불가) 정수로 바꾼다(`commands.py:84-89`). 상한은 operations 가 검사한다 |
@@ -243,7 +243,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `events` | 배열(최대 50) | 7.4.3 |
 | `event_total` | int | 자르기 전의 전체 사건 수 |
 | `map` | 객체 | 지도가 없으면 `{available: false, note: "지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결"}`. 있으면 7.9 `map_overlay` 결과(지도 meta + `robots`, `targets`, `exits`, `passages`, `off_map`, `frame_mismatch`, `no_pose`, `note`). 실시간 지도이면 `live`{state, received_at_ns, age_s, message} 를 추가한다 |
-| `commands` | 배열(9) | 7.5. 행 키: `name`, `label`, `group`, `enabled`, `reason`, `args`, `choices`. AUTO 행(출동 승인·수색 시작)에만 `auto: true` 가 붙는다 |
+| `commands` | 배열(10) | 7.5. 행 키: `name`, `label`, `group`, `enabled`, `reason`, `args`, `choices`. AUTO 행(출동 승인·수색 시작)에만 `auto: true` 가 붙고, 재난 선포 행에만 `confirm` 이 붙는다 |
 | `support_dispatch` | 문자열 또는 null | 실행 인자 값 그대로 |
 | `search_start` | 문자열 또는 null | 실행 인자 값 그대로 |
 | `history` | 객체 또는 null | 7.4.5 |
@@ -318,7 +318,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 | 칸 | grid-area | 넓은 화면에서의 위치 | 내용 |
 | --- | --- | --- | --- |
-| 임무 배너 `#mission` | band | 1행, 왼쪽 두 열 | 모드 표시 문구(큰 글씨, 모드 설명은 2026-10-15 부터 화면에서 숨기고 띠의 title 로), 사실 줄(재난 감지 시각·경과 시간·진동 감지 횟수·임무 단계·이동 구간·상태 사유), 모드 설명, 오른쪽 끝의 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
+| 임무 배너 `#mission` | band | 1행, 왼쪽 두 열 | 모드 표시 문구(큰 글씨, 모드 설명은 2026-10-15 부터 화면에서 숨기고 띠의 title 로), 사실 줄(재난 감지 시각·경과 시간·재난 출처·진동 감지 횟수·임무 단계·이동 구간·상태 사유), 모드 설명, 오른쪽 끝의 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
 | 위쪽 막대 `#topbar` | top | 1행, 오른쪽 열 | 갱신 상태, KPI-04 요약·저장, 사용자 |
 | 확인할 것 `#warnings` | warn | 2행, 왼쪽 두 열 | 경고가 없으면 숨긴다. 「확인 필요 {n}건」 뒤에 경고들을 「／」로 이어 한 줄로 표시 |
 | 옆 칸 `#side` | side | 2 ~ 4행, 오른쪽 열 | 위에 웹캠, 가운데에 로봇 카메라, 아래에 명령 칸 |
@@ -496,7 +496,9 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | SCOUT_HOME_NOT_FREE | {C} 도킹 접근 지점이 막힘 — {C} 복귀 보류 | caution |
 | NO_HOME_POSITION | 복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함 | caution |
 | SEARCH_GOAL_NOT_SELECTED | {C} 수색 목표 선택 대기 | caution |
-| AUTO_SEARCH_ENABLED | 자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음 | info |
+| AUTO_SEARCH_ENABLED | 자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음 | info |
+| DISASTER_DECLARED_BY_OPERATOR | 운영자 선포 — 지진 감지가 아니라 재난 선포 버튼으로 재난 모드 | info |
+| ALREADY_DISASTER | 이미 재난 모드입니다 — 재난 선포 거절 | info |
 | MAP_FREEZE_WAITING_EXIT | 출구 QR 찾는 중 — {S} 출동 대기 | info |
 | TARGET_REBASED_ON_FREEZE | 대상 위치를 고정 지도로 옮김 — 보고 저장 대기 | info |
 | EXIT_NOT_ON_FROZEN_MAP | 출구(QR) 위치가 고정 지도 기준에 없음 — {S} 출동·출구 이동 보류 | caution |
@@ -527,16 +529,17 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 #### 7.5 `_gate` (`view.py:530-595`) + `command_gates` (`view.py:598-623`) — 버튼별 활성 판정
 
-명령은 세 묶음으로 나뉜다(`view.py:38-56`). 승인 묶음은 수색 시작 START_SEARCH, 출동 승인 DISPATCH_SUPPORT, 다음 구간 계속 CONTINUE_SEGMENT 이다. 임무 묶음은 재확인 지시 REQUEST_RECHECK, 복귀 RETURN_HOME, 일시정지 PAUSE, 재개 RESUME, 작업 취소 CANCEL 이다. 정지 묶음은 정지 STOP_ROBOT 하나다. 이 가운데 실제로 보낼 수 있는 명령은 앞의 다섯 개뿐이다(`commands.py:27-34`).
+명령은 세 묶음으로 나뉜다(`view.py:38-57`). 승인 묶음은 재난 선포 DECLARE_DISASTER, 수색 시작 START_SEARCH, 출동 승인 DISPATCH_SUPPORT, 다음 구간 계속 CONTINUE_SEGMENT 이다. 임무 묶음은 재확인 지시 REQUEST_RECHECK, 복귀 RETURN_HOME, 일시정지 PAUSE, 재개 RESUME, 작업 취소 CANCEL 이다. 정지 묶음은 정지 STOP_ROBOT 하나다. 이 가운데 실제로 보낼 수 있는 명령은 앞의 여섯 개뿐이다(`commands.py:27-39`). 재난 선포는 조정기가 다른 명령과 따로 두므로(`MODE_COMMAND_FIELDS`) 콘솔도 `MODE_COMMAND_FIELDS` 에 따로 둔다.
 
 판정은 아래 순서로 하고, 처음 걸린 조건이 결과가 된다.
 1. `HELD_COMMANDS`(`view.py:58-63`)에 든 명령은 상태와 상관없이 항상 끈다. PAUSE·RESUME·CANCEL 은 「Q-22 재개 관문 전」, STOP_ROBOT 은 「RequestStop 별도 경로 — 위험하면 현장 비상 정지 장치」를 사유로 표시한다.
 2. 임무의 `source` 가 `mission_state` 가 아니면(임무 행이 없으면) 「임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐」으로 끈다.
-3. 모드가 DISASTER 가 아니면 「재난 모드 아님 ({모드 낱말})」으로 끈다.
+3. 명령이 DECLARE_DISASTER 이면 여기서 끝낸다. 모드가 NORMAL 이면 「평시 — 누르면 재난 모드로 들어감」으로 켜고, DISASTER 면 「이미 재난 모드」, 그 밖의 모드면 「평시 아님 ({모드 낱말})」으로 끈다. 다른 명령은 모드가 DISASTER 가 아니면 「재난 모드 아님 ({모드 낱말})」으로 끈다.
 4. 명령별 규칙(아래)을 적용한다.
 5. `command_gates`(`view.py:604-622`)는 명령마다 먼저 1 ~ 4 로 판정한 뒤 두 AUTO 검사를 아래 순서로 본다. AUTO 검사에 걸리면 앞의 판정 결과를 버리고 상태 행으로 바꾼다(`args` {}, `choices` [], 꺼짐, `auto: true`). 화면은 이 행을 버튼 대신 점선 상자 한 줄로 그린다.
    - 명령이 DISPATCH_SUPPORT 이고 `--support-dispatch AUTO` 이면(`view.py:606-613`) 표시 문구를 「{S} 자동 출동」, 사유를 「{S} 자동 출동 — 조정기가 보냄」으로 둔다.
-   - 명령이 START_SEARCH 이고 `--search-start AUTO` 이면(`view.py:614-620`) 표시 문구를 「{C} 자동 출발」({C} 는 정찰 로봇 이름이고, 없으면 「SCOUT」), 사유를 「{C} 자동 출발 — 지진 감지로 조정기가 수색 시작」으로 둔다. 이때 조정기는 운영자가 보낸 START_SEARCH 를 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절한다(`README:50`).
+   - 명령이 START_SEARCH 이고 `--search-start AUTO` 이면(`view.py:614-620`) 표시 문구를 「{C} 자동 출발」({C} 는 정찰 로봇 이름이고, 없으면 「SCOUT」), 사유를 「{C} 자동 출발 — 지진 감지나 재난 선포로 조정기가 수색 시작」으로 둔다. 이때 조정기는 운영자가 보낸 START_SEARCH 를 NOT_AUTHORIZED(`AUTO_SEARCH_ENABLED`)로 거절한다(`README:50`).
+   - DECLARE_DISASTER 행에는 확인 창 첫 줄 `confirm` 을 더한다(`_declare_confirm`). `--search-start` 가 AUTO 면 「재난 선포 — 재난 모드로 들어가고 {C} 이 바로 탐색을 시작합니다」, OPERATOR 면 「재난 선포 — 재난 모드로 들어갑니다. {C} 탐색은 수색 시작 버튼으로 시작합니다」, 없으면 「재난 선포 — 재난 모드로 들어갑니다」다.
    - 두 검사는 확인하는 행 이름이 서로 달라서 한 행이 두 검사에 모두 걸리지는 않는다. 행은 `COMMANDS` 순서를 그대로 따르므로, 승인 묶음에서는 수색 시작 상태 줄이 출동 승인(버튼 또는 상태 줄)보다 위에 온다.
 
 아래 표는 모드가 DISASTER 이고 임무 행이 있을 때 명령과 phase 에 따른 판정이다. 「D」「C」「R」 은 phase 와 상관없는 조건이고 표 아래에 적었다. `--search-start AUTO` 이면 「수색 시작」 열이, `--support-dispatch AUTO` 이면 「출동 승인」 열이 모드·phase 와 상관없이 5번의 상태 행이 된다. 1 ~ 3 에서 꺼진 경우에도 마찬가지다.
@@ -698,7 +701,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 버튼 활성 판정 데이터(`render.py:500-503`)는 숨은 `div#gates` 의 `data-gates` 속성에 명령별 {enabled, reason, args, choices}를 JSON 으로 담는다.
 
-명령 칸(`render.py:514-546`)은 헤더 「운영 명령」과 권한 안내로 시작한다(명령을 보낼 수 없으면 빨강으로 보이고, 보낼 수 있으면 2026-10-15 부터 화면에서 숨김). 그 아래에 승인 묶음(파랑 버튼, 폭이 되면 나란히), 임무 묶음(세 열), 정지 묶음(빨강, 전체 폭)을 둔다. 버튼에는 표시 문구와 그 아래 작은 글씨의 사유를 쓰고, `data-command` 를 붙이며, 꺼져 있으면 `disabled` 를 붙인다. AUTO 행(자동 출동·자동 출발)은 버튼 대신 점선 파랑 상자 `p.cmd-auto` 로 그린다(글자 = 표시 문구, title = 사유, `data-command` 없음, `render.py:524-527`). 권한이 있을 때만 `data-allowed="1"` 과 `data-csrf` 를 붙인다. 확인 창(처음에는 숨김)에는 「{명령} — 아래 내용으로 보냅니다」, 선택지가 있으면 「대상」 드롭다운(「{짧은 ID} {단계 낱말}」), 보낼 값 목록(대상·대상 revision·경로 revision·「{segment_index + 1}번째 구간 (segment_index {n})」, 값이 없으면 「보내는 값: 명령 종류와 운영자 아이디만」), 「보내기」·「취소」 버튼이 있다. 그 아래에 이 페이지의 기록 목록을 두고, 맨 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요.」(2026-10-15 사용자 요청으로 뒷문장 뺌)를 표시한다.
+명령 칸(`render.py:514-546`)은 헤더 「운영 명령」과 권한 안내로 시작한다(명령을 보낼 수 없으면 빨강으로 보이고, 보낼 수 있으면 2026-10-15 부터 화면에서 숨김). 그 아래에 승인 묶음(파랑 버튼, 폭이 되면 나란히), 임무 묶음(세 열), 정지 묶음(빨강, 전체 폭)을 둔다. 버튼에는 표시 문구와 그 아래 작은 글씨의 사유를 쓰고, `data-command` 를 붙이며, 꺼져 있으면 `disabled` 를 붙인다. AUTO 행(자동 출동·자동 출발)은 버튼 대신 점선 파랑 상자 `p.cmd-auto` 로 그린다(글자 = 표시 문구, title = 사유, `data-command` 없음, `render.py:524-527`). 권한이 있을 때만 `data-allowed="1"` 과 `data-csrf` 를 붙인다. 확인 창(처음에는 숨김)에는 관문에 `confirm` 이 있으면 그 문구(재난 선포), 없으면 「{명령} — 아래 내용으로 보냅니다」, 선택지가 있으면 「대상」 드롭다운(「{짧은 ID} {단계 낱말}」), 보낼 값 목록(대상·대상 revision·경로 revision·「{segment_index + 1}번째 구간 (segment_index {n})」, 값이 없으면 「보내는 값: 명령 종류와 운영자 아이디만」), 「보내기」·「취소」 버튼이 있다. 그 아래에 이 페이지의 기록 목록을 두고, 맨 아래에 「위험할 때는 현장 비상 정지 장치를 쓰세요.」(2026-10-15 사용자 요청으로 뒷문장 뺌)를 표시한다.
 
 웹캠 칸(`render.py:1170-1187`, 제목 「현장 웹캠」)은 카메라가 없으면 「현장 웹캠」과 「웹캠 주소가 없습니다. 실행할 때 --camera cam_a=http://… 로 카메라 PC 의 영상 주소를 주세요.」를 표시한다. 카메라가 있으면 카메라마다 `figure` 를 하나씩 그린다. 그 안에는 16:9 `<img src>` 가 있고, `onerror` 가 즉시 끊김 표시를 띄우며, 안내 「영상이 들어오지 않습니다. 카메라 PC 의 영상 서버와 주소를 확인하세요.」와 캡션(카메라 ID + 상태 칸)이 있다.
 
@@ -904,6 +907,7 @@ operations 노드의 내부는 다루지 않는다. 웹이 의존하는 인터�
 
 | kind | 키 | 콘솔이 보내는가 |
 | --- | --- | --- |
+| DECLARE_DISASTER | 기본 키만 | 예 |
 | START_SEARCH | command_id, kind, operator_id | 예 |
 | DISPATCH_SUPPORT | 기본 + target_id, target_revision | 예 |
 | CONTINUE_SEGMENT | 기본 + target_id, target_revision, route_revision, segment_index | 예 |

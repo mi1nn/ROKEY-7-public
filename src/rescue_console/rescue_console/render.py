@@ -7,7 +7,7 @@ import math
 
 from .labels import label
 from .mapimage import MAP_FRAME
-from .view import STAGES, ConsoleError
+from .view import CAUSE_WORDS, STAGES, ConsoleError
 
 # 브라우저 폴링 주기. KPI-04 예산은 3초(BRD v0.1)이며, 1초 주기로 폴링하면 남은 2초를
 # 운영 장부 기록·조회·전송 처리에 활용한다([제안] 관제·화면, 2026-10-08; README 「KPI-04 측정」).
@@ -157,8 +157,13 @@ def _band(view):
     built = view['built_at_ns']
     facts = []
     if mission['trigger_ns'] is not None:
-        facts += [('재난 감지 시각', _time(mission['trigger_ns'], built)),
+        # 재난 출처(작전 2026-10-15): 지진 감지와 운영자 선포를 구분하고, 둘 다 아니면 「출처 모름」을 드러낸다.
+        cause = mission.get('cause')
+        when = '운영자 선포 시각' if cause == 'OPERATOR' else '재난 감지 시각' if cause in (None, 'SIGN') else '재난 시작 시각'
+        facts += [(when, _time(mission['trigger_ns'], built)),
                   ('경과 시간', _elapsed((built - mission['trigger_ns']) / 1e9))]
+        if cause is not None:
+            facts.append(('재난 출처', escape(CAUSE_WORDS[cause])))
     if mode == 'DISASTER' and mission['sign_count']:
         facts.append(('진동 감지 횟수', f'{mission["sign_count"]}건'))
     if mission['phase'] is not None:
@@ -513,7 +518,8 @@ def _history(view):
 
 def _gates(view):
     """명령 패널 동기화를 위한 게이트 상태 미러. 브라우저 스크립트가 폴링마다 동기화한다."""
-    gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices')} for c in view['commands']}
+    gates = {c['name']: {key: c[key] for key in ('enabled', 'reason', 'args', 'choices', 'confirm') if key in c}
+             for c in view['commands']}
     return f'<div id="gates" hidden data-gates="{escape(json.dumps(gates, ensure_ascii=False))}"></div>'
 
 
@@ -1123,7 +1129,7 @@ function arm(kind) {
   const gate = gates[kind];
   if (!allowed || screenLost || sending || !gate || !gate.enabled) return;
   armed = {kind: kind, name: nameOf(kind), args: JSON.stringify(gate.args), choices: gate.choices};
-  confirmBox.querySelector('.what').textContent = armed.name + ' — 아래 내용으로 보냅니다';
+  confirmBox.querySelector('.what').textContent = gate.confirm || (armed.name + ' — 아래 내용으로 보냅니다');
   pick.replaceChildren(...gate.choices.map(c => {
     const option = document.createElement('option');
     option.textContent = shortId(c.target_id) + ' ' + c.stage_label;

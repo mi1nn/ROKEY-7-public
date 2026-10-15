@@ -26,7 +26,10 @@ SITE_EVENT_READ_LIMIT = 1000
 REPLAY_PAGES = 30
 # 상태 픽스처 허용 최상위 키 목록: load_site_state 반환 키와 일치하여 build_view에서 동일하게 처리된다.
 STATUS_KEYS = frozenset({'allowed_robots', 'robot_status', 'site_events', 'target_states', 'mission_state', 'operator_commands',
-                         'error_log', 'exit_locations', 'overhead_passages'})
+                         'error_log', 'exit_locations', 'overhead_passages', 'trigger_commands'})
+# 재난 출처 찾기: 임무의 trigger_event_id 와 같은 command_id 의 명령을 임무 시작 시각 앞뒤 이만큼에서 찾는다
+# ([제안] 관제·화면, 2026-10-15). 최근 HISTORY_ROWS 건 밖으로 밀려난 재난 선포도 찾기 위해서다.
+TRIGGER_WINDOW_NS = 60_000_000_000
 
 
 def load_ledger(db_path):
@@ -88,7 +91,7 @@ def load_site_state(db_path):
     발행된 모든 명령은 coordinator(조정기)가 수신 시점에 자체 상태와 대조하여 다시 검증한다.
     """
     try:
-        return {
+        status = {
             'allowed_robots': read_allowed_robot_ids(db_path),   # #149: 상태 수신 전에도 사전 정의된 배치 로봇 목록
             'robot_status': read_robot_status(db_path),
             'site_events': read_site_events(db_path, limit=SITE_EVENT_READ_LIMIT),
@@ -99,11 +102,33 @@ def load_site_state(db_path):
             'exit_locations': read_exit_locations(db_path, limit=1),   # #237: 최신 exit_qr 관측치 1건 조회
             'overhead_passages': read_overhead_passages(db_path),      # #262: 로봇별 터널 판정 + 지금 지도
         }
+        status['trigger_commands'] = {'schema_version': status['operator_commands']['schema_version'],
+                                      'commands': _trigger_commands(db_path, status)}
+        return status
     except OperationsError as exc:
         # 단일 조회라도 실패하면 전체 폴링이 실패 처리된다(503 응답, 불완전하게 부분 채움된 UI는 제공하지 않음). 다른 용도나
         # 스키마의 DB 파일 역시 읽기 API에 의해 거부되며, 동일하게 STORAGE_ERROR 예외로 변환된다.
         raise ConsoleError('STORAGE_ERROR', f'site-state read failed: {exc}') from exc
 
+
+
+def _trigger_commands(db_path, status):
+    """임무를 연 명령(재난 선포)의 기록 행. 최근 명령에 있으면 그것을 쓰고, 없으면 임무 시작 시각 앞뒤를 읽는다.
+    재난이 아니거나 trigger 가 없으면 빈 목록이다. 출처 판단은 view.mission_cause 가 한다(작전 2026-10-15)."""
+    mission = status['mission_state']['mission']
+    if mission is None or mission['trigger_event_id'] is None:
+        return []
+    trigger = mission['trigger_event_id']
+    found = [row for row in status['operator_commands']['commands'] if row['command_id'] == trigger]
+    if found:
+        return found
+    run_id = list_runs(db_path)['open_run_id']
+    if run_id is None:
+        return []
+    started = mission['started_at_ns']
+    page = read_operator_commands_range(db_path, run_id=run_id, start_ns=max(0, started - TRIGGER_WINDOW_NS),
+                                        end_ns=started + TRIGGER_WINDOW_NS)
+    return [row for row in page['commands'] if row['command_id'] == trigger]
 
 
 def _range_all(read, items_key, time_key, db_path, run_id):

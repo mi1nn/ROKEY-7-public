@@ -36,6 +36,7 @@ STAGE_RULES = (
 # (Part I 3.7.6의 명령에 임무 상태 전이를 위한 사람 승인 관문을 통합한 구성). 상위 5개는 operations로 전달하며
 # (rescue_console.commands), 하위 명령들은 상태와 무관하게 비활성화 상태를 유지한다.
 COMMANDS = (
+    ('DECLARE_DISASTER', '재난 선포'),   # 평시에 지진 감지 대신 운영자가 재난 모드로 넣는다(재범 결정 2026-10-15)
     ('START_SEARCH', '수색 시작'),
     ('DISPATCH_SUPPORT', 'SUPPORT 출동 승인'),   # 상태가 SUPPORT 로봇을 알려 주면 그 로봇 이름으로 바뀐다(_command_words)
     ('CONTINUE_SEGMENT', '다음 구간 계속'),
@@ -49,7 +50,7 @@ COMMANDS = (
 # 버튼 그룹 분류: 사람 승인 관문(#85 수색 시작, 지원 출동, 구간별 계속 진행)을 상단에 순서대로 배치하고,
 # 비상 정지는 오작동 방지를 위해 다른 명령과 분리한다.
 COMMAND_GROUPS = {
-    'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
+    'DECLARE_DISASTER': 'approve', 'START_SEARCH': 'approve', 'DISPATCH_SUPPORT': 'approve', 'CONTINUE_SEGMENT': 'approve',
     'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
     'CANCEL': 'mission',
     'STOP_ROBOT': 'stop',
@@ -402,7 +403,10 @@ MISSION_REASONS = {
     'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
     # search_start AUTO(#228, OPS-140)와 지도 고정 전 출구 QR(OPS-136).
     'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
-    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    # 운영자 재난 선포(DECLARE_DISASTER, #330). 거절 답은 TASK_BUSY 이고 이 사유는 명령 기록·임무 띠에 실린다.
+    'DISASTER_DECLARED_BY_OPERATOR': ('운영자 선포 — 지진 감지가 아니라 재난 선포 버튼으로 재난 모드', 'info'),
+    'ALREADY_DISASTER': ('이미 재난 모드입니다 — 재난 선포 거절', 'info'),
     'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
     # #234 (OPS-147): QR 출구는 TB-5 출동과 출구 이동을 막고, 출발 자세는 순찰과 TB-6 복귀를 막는다.
     'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info'),
@@ -485,7 +489,24 @@ def mission_reason(code, support_name, scout_name):
     return {'code': code, 'text': text, 'level': level, 'scope': scope}
 
 
-def _mission(site_events, row):
+CAUSE_WORDS = {'SIGN': '지진 감지', 'OPERATOR': '운영자 선포', 'UNKNOWN': '출처 모름'}
+
+
+def mission_cause(trigger_event_id, site_events, commands):
+    """재난 모드를 연 것(작전 2026-10-15). trigger_event_id 와 같은 command_id 의 DECLARE_DISASTER 명령이
+    접수됐으면 OPERATOR, 같은 event_id 의 DISASTER_SIGN 사건이 있으면 SIGN, 둘 다 아니면 UNKNOWN 이다.
+    SystemState 의 reason(DISASTER_DECLARED_BY_OPERATOR)은 다른 사유가 있으면 실리지 않아 쓰지 않는다."""
+    if trigger_event_id is None:
+        return None
+    if any(c['command_id'] == trigger_event_id and c['kind'] == 'DECLARE_DISASTER' and c['accepted'] is True
+           for c in commands):
+        return 'OPERATOR'
+    if any(e.event_id == trigger_event_id and e.kind == 'DISASTER_SIGN' for e in site_events or ()):
+        return 'SIGN'
+    return 'UNKNOWN'
+
+
+def _mission(site_events, row, commands=()):
     """임무 배지 데이터 모델 구성. mission_state 레코드(operations가 SystemState를 기록함, #111)가 있으면
     해당 레코드를 적용한다. 최초 레코드 수신 전에는 DISASTER_SIGN 이벤트로 모드를 추정하고 출처(`source`)를 명시한다.
     둘 다 없으면 미수신 상태(None)를 반환한다."""
@@ -494,16 +515,18 @@ def _mission(site_events, row):
     base = {'sign_count': len(signs), 'phase': None, 'reason': None, 'dispatch': None, 'updated_at_ns': None}
     if row is not None:
         dispatch = None if row['target_id'] is None else {key: row[key] for key in DISPATCH_KEYS}
+        cause = mission_cause(row['trigger_event_id'], site_events, commands)
         return base | {'mode': row['mode'], 'label': label('mode', row['mode']), 'source': 'mission_state',
-                       'trigger_event_id': row['trigger_event_id'], 'trigger_ns': row['started_at_ns'],
+                       'trigger_event_id': row['trigger_event_id'], 'trigger_ns': row['started_at_ns'], 'cause': cause,
                        'phase': row['phase'], 'reason': row['reason'], 'dispatch': dispatch,
                        'updated_at_ns': row['updated_at_ns']}
     if site_events is None:
-        return base | {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None, 'trigger_ns': None}
+        return base | {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None, 'trigger_ns': None,
+                       'cause': None}
     mode = 'DISASTER' if signs else 'NORMAL'
     return base | {'mode': mode, 'label': MODES[mode], 'source': 'site_events',
                    'trigger_event_id': signs[0].event_id if signs else None,
-                   'trigger_ns': signs[0].observed_at_ns if signs else None}
+                   'trigger_ns': signs[0].observed_at_ns if signs else None, 'cause': 'SIGN' if signs else None}
 
 
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch: 조정기와 공유하는 현장 운영 정책
@@ -561,6 +584,11 @@ def _gate(name, mission, targets):
     #    (source 'site_events') 배지에는 표시되나 명령 버튼을 활성화하지 않는다.
     if mission['source'] != 'mission_state':
         return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
+    # 재난 선포는 평시(NORMAL)에만 켠다. 조정기는 이미 재난이면 TASK_BUSY(사유 ALREADY_DISASTER)로 거절한다(작전 2026-10-15).
+    if name == 'DECLARE_DISASTER':
+        if mission['mode'] == 'NORMAL':
+            return True, '평시 — 누르면 재난 모드로 들어감', {}, []
+        return off('이미 재난 모드' if mission['mode'] == 'DISASTER' else f"평시 아님 ({mission['label']})")
     # 3. DISASTER 모드가 아니면 handle_command가 모든 요청에 대해 MODE_NOT_DISASTER로 거부한다.
     if mission['mode'] != 'DISASTER':
         return off(f"재난 모드 아님 ({mission['label']})")
@@ -617,6 +645,15 @@ def _gate(name, mission, targets):
     raise ConsoleError('INVALID_INPUT', f'no gate for command {name}')
 
 
+def _declare_confirm(search_start, scout_name):
+    scout = scout_name or 'SCOUT'
+    if search_start == 'AUTO':
+        return f'재난 선포 — 재난 모드로 들어가고 {scout} 이 바로 탐색을 시작합니다'
+    if search_start == 'OPERATOR':
+        return f'재난 선포 — 재난 모드로 들어갑니다. {scout} 탐색은 수색 시작 버튼으로 시작합니다'
+    return '재난 선포 — 재난 모드로 들어갑니다'
+
+
 def command_gates(mission, targets, words=None, support_dispatch=None, support_name=None, search_start=None,
                   scout_name=None):
     """모든 운영자 명령의 버튼 활성화 상태를 계산한다. 이는 프론트엔드 안내용 게이트 복제본이며
@@ -634,14 +671,18 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
                          'reason': f'{auto} — 조정기가 보냄', 'args': {}, 'choices': [], 'auto': True})
             continue
         if name == 'START_SEARCH' and search_start == 'AUTO':
-            # 지진 감지 시 수색이 자동 시작되므로 수동 명령은 거부된다(AUTO_SEARCH_ENABLED).
+            # 지진 감지나 재난 선포로 재난 모드가 되면 수색이 자동 시작되므로 수동 명령은 거부된다(AUTO_SEARCH_ENABLED).
             auto = f'{scout_name or "SCOUT"} 자동 출발'
             rows.append({'name': name, 'label': auto, 'group': COMMAND_GROUPS[name], 'enabled': False,
-                         'reason': f'{auto} — 지진 감지로 조정기가 수색 시작', 'args': {}, 'choices': [],
+                         'reason': f'{auto} — 지진 감지나 재난 선포로 조정기가 수색 시작', 'args': {}, 'choices': [],
                          'auto': True})
             continue
-        rows.append({'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
-                     'reason': reason, 'args': args, 'choices': choices})
+        row = {'name': name, 'label': words[name], 'group': COMMAND_GROUPS[name], 'enabled': enabled,
+               'reason': reason, 'args': args, 'choices': choices}
+        if name == 'DECLARE_DISASTER':
+            # 확인 창 첫 줄. 무엇이 움직이는지 보내기 전에 한 번 더 보인다(작전 2026-10-15).
+            row['confirm'] = _declare_confirm(search_start, scout_name)
+        rows.append(row)
     return rows
 
 
@@ -775,7 +816,9 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     for row in targets:
         stage_counts[row['stage']] += 1
     events, event_total = _events(ledger, site_events)
-    mission = _mission(None if site_section is None else site_events, mission_row)
+    seen_commands = [row for key in ('operator_commands', 'trigger_commands')
+                     for row in (_section(status, key, 'commands') or {'commands': []})['commands']]
+    mission = _mission(None if site_section is None else site_events, mission_row, seen_commands)
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
     _apply_watch(robots, robot_watch, built_at_ns, warnings)
     for row in robots:

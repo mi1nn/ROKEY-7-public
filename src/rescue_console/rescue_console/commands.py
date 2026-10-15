@@ -31,7 +31,13 @@ COMMAND_FIELDS = {
     'REQUEST_RECHECK': ('target_id',),
     'RETURN_HOME': (),
 }
-SENDABLE = tuple(COMMAND_FIELDS)
+# 재난 선포: 평시에 운영자가 재난 모드로 넣는다. 조정기는 COMMAND_FIELDS 와 따로 둔다
+# (rescue_coordination.mission.MODE_COMMAND_FIELDS, 작전 2026-10-15). 이미 재난이면 TASK_BUSY(사유 ALREADY_DISASTER)로 거절한다.
+MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
+# 명령별 거절 풀이. 재난 선포의 TASK_BUSY 는 이미 재난 모드라는 뜻 하나뿐이다(작전 2026-10-15, #330).
+KIND_REPLY_WORDS = {('DECLARE_DISASTER', 'TASK_BUSY'): '이미 재난 모드입니다'}
+SENDABLE = tuple(COMMAND_FIELDS)   # 재난 모드에서 켜지는 명령. 재난 선포는 MODE_COMMAND_FIELDS 에 따로 둔다
+_ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS
 # revision 및 segment 값은 운영자가 화면에서 확인한 당시 기준값이다. 따라서 승인 직후 변경된 대상이나 경로에
 # 오적용되지 않도록 방지한다(SubmitOperatorCommand의 expected_* 필드). 값을 알 수 없으면 None을 전송하지 않고
 # 버튼 자체를 비활성화한다(작전 #115, 2026-10-12).
@@ -96,9 +102,9 @@ def build_request(form, *, operator_id, command_id):
     로봇 ID, 타 운영자 ID, 임의 명령 파라미터가 비정상 주입되는 것을 차단한다.
     """
     kind = form.get('kind', '')
-    if kind not in COMMAND_FIELDS:
+    if kind not in _ALL_FIELDS:
         raise _invalid(f'command {kind!r} is not sendable from the console')
-    fields = COMMAND_FIELDS[kind]
+    fields = _ALL_FIELDS[kind]
     extra = sorted(key for key in form if key not in FORM_KEYS | set(fields))
     if extra:
         raise _invalid(f'{kind} does not take {", ".join(extra)}')
@@ -175,7 +181,8 @@ def send_command(base_url, payload, *, transport=post_json, timeout=COMMAND_TIME
         reply = read_reply(*transport(base_url + COMMAND_PATH, payload, timeout))
     except CommandSendError as exc:
         return {'sent': False, **head, 'error': exc.code, 'message': exc.message, 'delivery': exc.delivery}
-    return {'sent': True, **head, **reply, 'reason_label': label('reply', reply['reason'])}
+    words = KIND_REPLY_WORDS.get((payload['kind'], reply['reason'])) or label('reply', reply['reason'])
+    return {'sent': True, **head, **reply, 'reason_label': words}
 
 
 WEBCAM_LIST_TIMEOUT_S = 1.0   # 화면을 그릴 때 한 번 묻는다: 오래 막지 않는다
