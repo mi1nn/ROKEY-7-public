@@ -1,15 +1,16 @@
 # rescue_perception
 
-## 현재 상태 (2026-10-15, main 5d9304a)
+## 현재 상태 (2026-10-15, main 8316714)
 
-main 5d9304a 의 코드를 읽고 적었다(처음 작성은 작전 OPS-210). 「구현됨」은 코드와 합성·격리 시험이 있다는 뜻이다. 실제 로봇·카메라에서 확인했다는 뜻이 아니다. 실기 결과는 따로 적었고, 실기 기록이 없는 기능은 「실기 NOT_RUN」이다. 실기 기록은 이 README 와 [구현 문서](../../docs/implementation/implementation-perception.md)에서 찾았다.
+main 8316714 의 코드를 읽고 적었다(처음 작성은 작전 OPS-210). 「구현됨」은 코드와 합성·격리 시험이 있다는 뜻이다. 실제 로봇·카메라에서 확인했다는 뜻이 아니다. 실기 결과는 따로 적었고, 실기 기록이 없는 기능은 「실기 NOT_RUN」이다. 실기 기록은 이 README 와 [구현 문서](../../docs/implementation/implementation-perception.md)에서 찾았다.
 
 | 기능 | 상태 | 근거 |
 | --- | --- | --- |
 | 웹캠 지진 판정 (`DISASTER_SIGN`) | 구현됨. 실기는 한 번 확인했다: 실물 USB 웹캠을 한 번 흔들어 사건 1건이 나왔다 [측정, 2026-10-12, 구현 문서]. 오탐률과 장시간 동작은 NOT_RUN | `disaster_sign.py:DisasterSignDetector`, `webcam_node` |
 | 지진 판정 → TB-6 자동 출발 | 구현됨(조정기 쪽, 현장 파일 `search_start` AUTO). 실기 NOT_RUN: 위 두 문서와 조정 구현 문서에 실기 기록이 없다 | #228, `rescue_coordination/ros_node.py` `tick`(`search_start == 'AUTO'`) |
+| 웹캠 YOLO 미리 돌리기 | 구현됨(#303). 기동할 때 한 번 돌려 지진 감지 순간 영상이 멈추지 않게 한다. 실패해도 노드는 멈추지 않고 오류 로그를 남긴다. 웹캠 PC 실기 NOT_RUN | `webcam_node.py:warm_up` |
 | 웹캠 인형 소실 후보 | 구현됨. 실물 웹캠으로 인형 탐지 신뢰도 0.96·소실 후보 정상 [측정, 2026-10-12, 구현 문서]. 현장 PC 와 조건별 측정은 NOT_RUN | `target_watch.py:TargetWatchDetector` |
-| 웹캠 판정 화면 (한글 상태창 3칸: 지진·인형·출구) | 구현됨(#301). 지진 뒤에는 감시가 없어도 인형 상자와 궤적을 그린다. 화면용이라 판정과 사건에 쓰지 않는다. 지진 뒤 CPU·프레임 속도는 NOT_RUN | `webcam_service.py:status_items`·`draw_status`, `webcam_node` 파라미터 `debug_font_path` |
+| 웹캠 판정 화면 (한글 상태창 3칸: 지진·인형·출구) | 구현됨(#301). 지진 뒤에는 감시가 없어도 인형 상자와 궤적을 그린다. 화면용이라 판정과 사건에 쓰지 않는다. 지진 뒤 CPU·프레임 속도는 NOT_RUN | `webcam_service.py:status_items`·`draw_status`, `webcam_node` 파라미터 `debug_font_path`(기본값 없음, 판정 화면을 끄면 '' 가능) |
 | 로봇 인형 탐지와 RGB-D 위치 (amr_camera·amr_target) | 구현됨. robot5 에서 깊이 약 1.350 m·base XYZ 를 사용자가 확인했다(아래 「AMR 통합 전 최종 인식 파일」). 고친 노드 전체를 로봇에서 다시 돌린 시험(E4)은 NOT_RUN | `amr_target.py:create_node`, `person_pipeline.PersonPipeline` |
 | 지도 좌표 TargetLocation (target_locator) | 구현됨. 실기 NOT_RUN | `target_locator.py:main`, `target_location.py` |
 | TB-6 재확인 관측 (ObserveTarget) | 구현됨, 지금 시나리오에서는 쓰지 않음(scope Q-10, completion_mode EXIT_ARRIVAL). 실기 NOT_RUN | `recheck_server.py:RecheckServer`, `recheck.py` |
