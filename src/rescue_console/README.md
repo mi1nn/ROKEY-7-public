@@ -84,6 +84,15 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - `--operations URL` 은 operations HTTP API 주소다(`http`·`https`, 기본값 없음). 명령은 `URL/api/operator-commands` 로 간다. 주지 않으면 명령 버튼이 「operations 주소 없음」 사유로 꺼지고, 기동할 때 터미널에 「operations 주소 없음: 명령 비활성」을 한 줄 남긴다. 보기 전용 실행(E2 픽스처, 오프라인 데모)은 그대로 돈다.
 
 - 장부 경로·계정 파일·상태 경로·포트·바인드 주소는 인자로 받는다. 기본 바인드는 `127.0.0.1` 이고, 다른 PC 에서 볼 주소는 배치 프로파일(`operations_host`, 작전)이 정한 값을 인자로 넘긴다. 코드에 호스트·IP·개인 경로·비밀을 두지 않는다.
+- **계정 DB 버전을 올리기 전에 백업한다.** 관제 웹을 6d43fce(#332) 이후 판으로 처음 띄우면 1.0 계정 DB 가 1.1 로 올라가고, 되돌릴 수 없다(옛 판 관제 웹은 1.1 파일을 열지 않는다). 새 판으로 띄우기 전에 아래처럼 사본을 만들고, 사본의 `schema_version` 이 지금 값(1.0)인지 본다. 올리면 기동 로그에 「계정 DB 1.0 -> 1.1 올림(되돌릴 수 없음): <파일 이름>」이 한 줄 나온다. 이미 1.1 이면 이 줄은 없다.
+
+  ```bash
+  sqlite3 <계정 DB> '.backup <사본>'
+  sqlite3 <사본> "SELECT value FROM metadata WHERE key = 'schema_version'"   # 1.0 이 나와야 한다
+  # sqlite3 명령이 없는 PC 에서는 같은 일을 python3 로 한다(백업한 뒤 사본의 버전을 찍는다)
+  python3 -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); print(d.execute(\"SELECT value FROM metadata WHERE key = 'schema_version'\").fetchone()[0])" <계정 DB> <사본>
+  ```
+
 - 계정 파일과 세션 비밀은 저장소 밖에 둔다([SDD 10절 외부 파일 목록](../../docs/design/architecture.md)에 추가 예정).
 - `examples/status.example.json` 은 예시 값이다(오프라인 리허설 장부의 대상 ID 에 맞춤). 실제 값이 아니다.
 
@@ -340,7 +349,7 @@ SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드�
 - 초기화는 TB-6 SLAM 지도와 지도 고정까지 처음으로 되돌린다. 지난 기록은 지우지 않고 회차별로 남아 「지난 회차 다시 보기」에서 볼 수 있다.
 - 확인 칸을 체크하고 「초기화 보내기」를 누르면 operations 에 한 번만 보낸다. 거절되면 빨간 글씨로 사유가 나온다. 초기화는 두 로봇이 켜지고 도킹·정지·임무 없음이어야 받는다. 결과를 모르면 노란 글씨가 나오고, 다시 누르기 전에 리플레이에서 회차가 바뀌었는지 본다.
 - 접수되면 아래에 PC 별 다시 띄우기 체크 목록이 나온다. 조정기와 두 로봇 실행기가 다시 떴는지는 자동으로 체크된다. SLAM·지도 고정·출발 정렬 같은 칸은 사람이 「확인함」을 누른다. 체크는 그 회차에만 묶이고 모든 화면에 같게 보인다.
-- 체크는 관제 웹 계정 DB(스키마 1.1, `reset_checks` 표)에 남는다. 지금 쓰는 1.0 계정 파일은 관제 웹이 처음 열 때 1.1 로 올린다. 계정 행은 그대로다.
+- 체크는 관제 웹 계정 DB(스키마 1.1, `reset_checks` 표)에 남는다. 지금 쓰는 1.0 계정 파일은 관제 웹이 처음 열 때 1.1 로 올린다. 계정 행은 그대로다. 되돌릴 수 없으니 먼저 백업한다([실행](#실행-로봇-없이-e2) 절).
 - 자세한 동작은 [설계 명세 7.14](../../docs/design/console-spec.md)에 있다.
 
 ## 하지 않는 것 / 후속

@@ -11,7 +11,7 @@ import time
 import urllib.parse
 import uuid
 
-from .accounts import AccountStore
+from .accounts import SCHEMA_VERSION as ACCOUNTS_SCHEMA, AccountStore
 from .estimate import EstimateLog, load_start_offsets
 from .commands import (build_request, command_access, parse_operations_url, post_json, robot_camera_state,
                        select_robot_camera, send_command, switch_webcam, webcam_state)
@@ -173,6 +173,9 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     # (추가로 아래 CSRF 토큰을 이중 검증함). Secure 플래그는 미적용: 관제 웹 콘솔은 평문 http 환경에서 운영된다.
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
     throttle = LoginThrottle() if login_throttle is None else login_throttle
+    if accounts.upgraded_from is not None:   # 작전 2026-10-15: 올림은 되돌릴 수 없으니 언제 일어났는지 남긴다
+        app.logger.warning('계정 DB %s -> %s 올림(되돌릴 수 없음): %s', accounts.upgraded_from, ACCOUNTS_SCHEMA,
+                           accounts.path.name)
 
     @app.after_request
     def harden(response):
