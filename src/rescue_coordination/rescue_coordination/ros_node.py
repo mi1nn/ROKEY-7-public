@@ -2605,13 +2605,21 @@ def main(args=None):
         state_pub = node.create_publisher(SystemState, SYSTEM_STATE_TOPIC, snapshot)
         from rescue_coordination.live_task_inputs import StatePublication
         state_channel = StatePublication(core, SystemState, envelope, state_pub.publish)
+        resent_logged = [None]  # state_sequence whose unchanged resend was logged (once each, not every period)
+
+        def coordinator_clock_usable(now):
+            """The measured coordinator clock is SYNCED and valid now (no live inputs: nothing measured to check)."""
+            if live_task_source is None:
+                return True
+            measured = live_task_source[0].record
+            return (measured.get('state') == 'SYNCED'
+                    and measured.get('valid_until_ns', 0) > now + measured.get('error_bound_ns', 0))
+
         if live_task_source is not None:
             from std_srvs.srv import Trigger
             def refresh_state(_request, response):
-                measured = live_task_source[0].record
                 now = now_ns()
-                if (measured.get('state') != 'SYNCED'
-                        or measured.get('valid_until_ns', 0) <= now + measured.get('error_bound_ns', 0)):
+                if not coordinator_clock_usable(now):
                     response.success = False
                     response.message = 'CURRENT_COORDINATOR_CLOCK_UNAVAILABLE'
                     return response
@@ -2709,9 +2717,18 @@ def main(args=None):
 
             @staticmethod
             def state(now):
-                state = state_channel.send(now)
-                if state is not None:
+                # Unchanged state goes again every lease_renew_period_s so an executor started later gets a
+                # fresh envelope without ~/refresh_state (현장 2026-10-15); only on a usable clock, as the refresh.
+                period = core.lease_renew_period_ns if coordinator_clock_usable(now) else None
+                state = state_channel.send(now, resend_after_ns=period)
+                if state is None:
+                    return
+                if not state_channel.resent:
                     log.info(f'SYSTEM_STATE {state}')
+                elif resent_logged[0] != state['state_sequence']:
+                    resent_logged[0] = state['state_sequence']
+                    log.info(f'SYSTEM_STATE_RESENT state_sequence={state["state_sequence"]} unchanged, every '
+                             f'{core.lease_renew_period_ns / 1e9:g} s for late executors (logged once)')
 
             @staticmethod
             def freeze():
