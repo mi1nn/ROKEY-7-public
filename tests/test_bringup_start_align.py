@@ -59,6 +59,7 @@ class LocalizationValues(FieldCase):
         self.assertIsNone(self.values('robot_a')['start_align'])
 
 
+@unittest.skipUnless(LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
 class Launch(unittest.TestCase):
     def test_the_node_runs_beside_amcl_with_the_robot_tf(self):
         text = LAUNCH.read_text()
