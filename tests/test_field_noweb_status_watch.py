@@ -84,6 +84,17 @@ class LineTests(Case):
         self.assertIn('고정 지도 없음', line)
         self.assertNotIn('지도 보관 꺼짐', line)
 
+    def test_an_early_frozen_map_stays_on_the_line_in_a_long_run(self):
+        """A live map every 5 s is 180 rows in 15 minutes; R0+1 is kept near the start."""
+        run, now = self.ledger.run_id, time.time_ns()
+        self.ledger.record_map_snapshot(dict(snapshot_id=uid(900), robot_id='robot_a', revision=1,
+                                             path=f'maps/{run}/frozen-r1-{"f" * 12}.pgm', sha256='f' * 64, at_ns=now))
+        for n in range(1, 151):
+            self.ledger.record_map_snapshot(dict(snapshot_id=uid(1000 + n), robot_id='robot_a', revision=1,
+                                                 path=f'maps/{run}/live-r1-{n:012d}.pgm', sha256=f'{n:064x}',
+                                                 at_ns=now + n))
+        self.assertIn('고정 지도 r1', self.line())
+
     def test_old_values_say_their_age_and_are_marked_stale(self):
         self.ledger.record_robot_status(robot_status())
         self.ledger.record_mission_state(mission(updated_at_ns=time.time_ns()))
