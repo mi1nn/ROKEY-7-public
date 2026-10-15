@@ -1,7 +1,7 @@
 """scripts/sim/wall_clock_relay.py pure parts (no ROS): frame names, restamping, TF edges (2026-10-15).
 
 The simulator publishes <ns>/odom -> <ns>/base_link and a Gazebo lidar frame, stamped with simulation time; the
-field robot publishes odom -> base_link and rplidar_link on the wall clock [측정 2026-10-15 mu-03]. The relay
+field robot publishes odom -> base_link and rplidar_link on the wall clock [측정 2026-10-15]. The relay
 renames those frames, drops the simulator's identity links that become self loops, and restamps.
 """
 import importlib.util
@@ -10,9 +10,14 @@ from types import SimpleNamespace as NS
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('wall_clock_relay', REPO / 'scripts' / 'sim' / 'wall_clock_relay.py')
-relay = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(relay)
+TOOL = REPO / 'scripts' / 'sim' / 'wall_clock_relay.py'
+HAS_TOOL = TOOL.exists()   # the installed-wheel check copies tests/ and config/ only
+if HAS_TOOL:
+    spec = importlib.util.spec_from_file_location('wall_clock_relay', TOOL)
+    relay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(relay)
+else:
+    raise unittest.SkipTest('installed-wheel checkout has no scripts/')
 
 
 def header(frame, sec=14, nsec=150_000_000):

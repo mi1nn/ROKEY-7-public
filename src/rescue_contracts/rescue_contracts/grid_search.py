@@ -252,6 +252,30 @@ def find_frontiers(*, frame, width, height, resolution, origin, data, radius, mi
     return tuple(sorted(found, key=lambda f: (-f.cells, f.centroid)))
 
 
+def nearest_in_mask(*, frame, width, height, resolution, origin, data, mask, point, within_m):
+    """``point`` itself when its cell is in ``mask``, else the centre of the nearest mask cell within ``within_m``
+    (ties: lower row, then column), or None. Moves a goal off walls onto a roomier clear_mask (OPS 2026-10-15)."""
+    g = _Grid(frame, width, height, resolution, origin, data)
+    if not isinstance(mask, bytes) or len(mask) != g.w * g.h:
+        raise ValueError('mask must be the bytes of clear_mask for this grid')
+    x, y = _point(point, 'point')
+    limit = _number(within_m, 'within_m')
+    ix, iy = g.cell(x, y)
+    i = g.index(ix, iy)
+    if i is not None and mask[i]:
+        return x, y
+    extent = math.ceil(limit / g.res) + 1
+    best = None
+    for cy in range(iy - extent, iy + extent + 1):
+        for cx in range(ix - extent, ix + extent + 1):
+            j = g.index(cx, cy)
+            if j is not None and mask[j]:
+                d = round(math.dist((x, y), g.centre(j)), 9)
+                if d <= limit + 1e-9 and (best is None or (d, cy, cx) < best[0]):
+                    best = ((d, cy, cx), j)
+    return None if best is None else g.centre(best[1])
+
+
 def nearest_clear_outside(*, frame, width, height, resolution, origin, data, radius, from_xy, path_points, distance_m,
                           mask=None, blocked=()):
     """Centre of the clear cell farther than ``distance_m`` from every path point with the shortest clear path

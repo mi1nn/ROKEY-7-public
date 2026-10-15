@@ -193,7 +193,106 @@ class RobotNotStartedTests(Base):
     def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
         self.reject(self.first_goal(), 'ACTION_ABORTED')
         self.assertEqual(2, len(self.core.frontier_tried))
+        # the reason is in the log, not only the outcome (RPP "collision ahead" ends as ACTION_ABORTED, 2026-10-15)
+        self.assertIn('outcome=FAILED reason=ACTION_ABORTED', ' '.join(self.core.drain_notes()))
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
+
+
+FINE = 0.05            # TB-6 SLAM resolution class (Nav2 costmap 0.06, config/robots/turtlebot4_nav2.baseline.yaml)
+# Nav2 inflation: footprint radius 0.189, inflation_radius 0.45, cost_scaling_factor 4.0. A cell 0.36 m from a wall
+# costs 253 * exp(-4 * (0.36 - 0.189)) = 128, Nav2's "possibly in collision" line [추정: 비용 128 을 여유 경계로 봄].
+NAV2_MARGIN = 0.36
+
+
+def fine_grid(width_m, height_m, cell):
+    """``cell(x, y)`` -> 100 / -1 / 0 at each cell centre, FINE resolution."""
+    w, h = round(width_m / FINE), round(height_m / FINE)
+    data = [cell((ix + .5) * FINE, (iy + .5) * FINE) for iy in range(h) for ix in range(w)]
+    return NS(fields=dict(frame='map', width=w, height=h, resolution=FINE, origin=(0., 0., 0.), data=data))
+
+
+def wall_distance(grid, xy):
+    f = grid.fields
+    return min(math.dist(xy, ((i % f['width'] + .5) * FINE, (i // f['width'] + .5) * FINE))
+               for i, v in enumerate(f['data']) if v == 100)
+
+
+class WaitingForArmTests(Base):
+    """After a FAILED task the executor does not arm again by itself (OPS-231: only after COMPLETED), so RobotStatus
+    is NOT_READY until someone runs task_arm. The next frontier then waits; the reason and the log say why
+    (시뮬레이션 2026-10-15 23:03-23:35: it waited with an empty reason until EXPLORATION_TIMEOUT)."""
+
+    def test_the_next_frontier_waits_with_a_reason(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        self.core.on_scout_map(grid(known_cols=10))  # a new map with another frontier
+        later = NOW + 3 * DELAY
+        self.core.on_pose(scout_pose((1., 1.8), at=later))
+        not_ready = dict(readiness='NOT_READY', stop_reason='ACTION_ABORTED', observed_at_ns=later - 10**8)
+        for now in (later, later + DELAY + 1):
+            self.core.on_status(status_msg(SCOUT, **not_ready))
+            self.assertEqual([], [f for f in self.core.tick(now) if f['kind'] == 'SEARCH_AREA'])
+        self.assertEqual('SCOUT_NOT_READY', self.reason(later + DELAY + 1))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('SCOUT_NOT_READY', notes)
+        self.assertIn('stop_reason=ACTION_ABORTED', notes)
+        self.assertEqual(1, notes.count('SCOUT_NOT_READY'))  # logged once, not every tick
+        self.core.on_status(status_msg(SCOUT, observed_at_ns=later + DELAY + 2))  # armed again
+        self.assertEqual(1, len([f for f in self.core.tick(later + DELAY + 2) if f['kind'] == 'SEARCH_AREA']))
+
+
+class WallClearanceTests(unittest.TestCase):
+    """The frontier goal TB-6 gets keeps Nav2's margin from walls where there is room (시뮬레이션 2026-10-15 23:0x:
+    a goal 0.1-0.2 m inside the south wall ended FAILED after RPP "detected collision ahead!"). The path itself keeps
+    ``freeze_clearance_m``, so a narrow way (the 0.68 m gap beside tunnel 1) still counts as reachable."""
+
+    def core_with(self, grid, start, **changes):
+        core = frontier_core(**changes)
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(grid)
+        core.on_pose(scout_pose(start))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        (point,) = live_task_inputs.destinations(core).values()
+        return core, tuple(point['xy_yaw'][:2])
+
+    @staticmethod
+    def wall_room():
+        """South wall (two cell rows), free room, an unknown pocket in the south-east corner."""
+        return fine_grid(4.0, 2.0, lambda x, y: 100 if y < 0.1 else (-1 if x > 2.0 and y < 0.5 else 0))
+
+    def test_the_goal_beside_a_wall_keeps_nav2_margin(self):
+        grid = self.wall_room()
+        _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)  # = freeze_clearance_m
+        self.assertLess(wall_distance(grid, old), NAV2_MARGIN)                   # the field symptom
+        core, xy = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=NAV2_MARGIN)
+        self.assertGreaterEqual(wall_distance(grid, xy), NAV2_MARGIN)
+        self.assertLessEqual(math.dist(old, xy), NAV2_MARGIN - 0.2 + FINE * math.sqrt(2))  # pushed, not re-planned
+        self.assertIn('FRONTIER_GOAL_MOVED', ' '.join(core.drain_notes()))
+
+    def test_the_same_clearance_changes_nothing(self):
+        grid = self.wall_room()
+        _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)
+        self.assertAlmostEqual(0.25, wall_distance(grid, old), delta=0.01)  # the goal of main before this change
+
+    def test_a_narrow_way_still_gets_a_goal_and_says_so(self):
+        # 0.70 m between two walls (tunnel 1 gap 0.68 m), unknown beyond x = 2.5
+        grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
+        core, xy = self.core_with(grid, (0.4, 0.4), frontier_goal_clearance_m=NAV2_MARGIN)
+        self.assertGreater(xy[0], 1.0)  # a goal along the way, not refused
+        self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
+
+    def test_the_clearance_is_a_parameter(self):
+        self.assertEqual('DOUBLE', ros_node.PARAMETERS['frontier_goal_clearance_m'])
+        with self.assertRaises(RescueError):
+            frontier_core(frontier_goal_clearance_m=-0.1)
 
 
 class GoalPickTests(unittest.TestCase):

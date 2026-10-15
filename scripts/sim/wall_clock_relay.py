@@ -3,7 +3,7 @@
 
 The simulator (sim_robots.sh, its own ROS domain, simulation time) and our field stack (operations, SLAM, robot
 launch, coordinator: field domain, wall clock) do not talk directly. This node joins the two domains, one rclpy
-context each, and changes only what the real robot does differently [측정 2026-10-15 mu-03, turtlebot4_simulator
+context each, and changes only what the real robot does differently [측정 2026-10-15, turtlebot4_simulator
 2.0.2 vs the field robot files config/robots/*.v2.json]:
 
 - time: every header stamp (and every TF stamp) leaving the simulator is replaced by the wall clock at relay time,
