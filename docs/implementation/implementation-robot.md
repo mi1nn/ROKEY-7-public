@@ -6,7 +6,7 @@ updated: 2026-10-15
 
 # 로봇 실행기 구현 기록
 
-## 한눈에 (2026-10-15, main `5d9304a`)
+## 한눈에 (2026-10-15, main `f6e56b6`)
 
 이 문서가 답하는 질문은 하나다. **로봇 담당 PC 에서 도는 코드는 임무 하나를 받아 로봇을 어떤 순서로 움직이고 세우나?**
 
@@ -25,7 +25,7 @@ flowchart LR
 - 로봇 담당 PC 는 로봇마다 `robot.launch.py` 하나로 세 가지를 띄운다. Nav2, 속도 감시(`command_watchdog`), 실행기(`task_input`)다. 실행기와 속도 감시 노드는 로봇 namespace(TB-6 `/robot6`, TB-5 `/robot5`) 안에 있다.
 - 조정기는 Nav2 를 직접 부르지 않는다. 임무는 실행기만 받고, 로봇의 `cmd_vel` 은 속도 감시 노드만 쓴다.
 - 로봇·PC 이름은 [용어집](../glossary.md)을 따른다. 임무 흐름 전체는 [scope 「지금 시나리오」](../requirements/scope.md)에, 기능별 상태와 파라미터는 [rescue_robot README](../../src/rescue_robot/README.md)에 있다. 현장 값은 [현장 파일](../../config/field/search_area.field.json)에 있다.
-- 두 로봇으로 처음부터 끝까지 돌린 실기 회차는 아직 없다(NOT_RUN). 2026-10-14 현장 회차에서는 TB-6 지도 고정이 실패했다. 원인은 기울어진 실제 TF(좌표 변환) 를 SLAM(지도 작성과 위치 추정을 함께 하는 방법) 위치 계산이 거절한 것이고, 열린 PR #291 에서 고치는 중이다.
+- 두 로봇으로 처음부터 끝까지 돌린 실기 회차는 아직 없다(NOT_RUN). 2026-10-14 현장 회차에서는 TB-6 지도 고정이 실패했다. 원인은 기울어진 실제 TF(좌표 변환) 를 SLAM(지도 작성과 위치 추정을 함께 하는 방법) 위치 계산이 거절한 것이다. #291 이 고쳤다. 두 TF 를 3D 로 합성한 뒤 지도 평면으로 내리고, 합성한 기울기가 10도(`slam_tf_pose.py` `MAX_TILT_RAD`, [제안])를 넘을 때만 위치를 만들지 않는다. 한 PC 리허설(현장 TF 값)에서는 지도 고정이 통과했고, 실기는 NOT_RUN 이다.
 
 ## 노드와 파일
 
@@ -102,7 +102,7 @@ launch 쪽(`src/rescue_bringup/`)은 아래 셋이 로봇 동작에 닿는다.
 | E2 로봇 없이 | 실행기 코어, 어댑터, 현장 입력, 속도 감시, launch 값, 후진 없는 BT | `python3 -I scripts/run_tests.py` |
 | E3 ROS 통합(가짜 로봇) | odom 정지 증거, 준비 신호, 속도 감시 latch·reset | `tests/ros/e3_odom_probe.py`, `e3_readiness_probe.py`, `e3_watchdog_probe.py`([rescue_robot README](../../src/rescue_robot/README.md) 「검사」) |
 | E3 한 PC 리허설 | 실제 namespace 로 현장 노드를 모두 띄우고 배선·지도 고정·임무 시작을 실제 메시지로 확인. 첫 회차에서 실행기가 시작하자마자 꺼지는 문제를 찾았다(#298) | [리허설 기록 2026-10-14](../evidence/rehearsal-2026-10-14-wiring-one-pc.md), `scripts/field/wiring-rehearsal/run.sh`(#299) |
-| E4 실기 | 회차 전체 | NOT_RUN. 2026-10-14 TB-6 지도 고정 실패(#291) |
+| E4 실기 | 회차 전체 | NOT_RUN. 2026-10-14 TB-6 지도 고정 실패, #291 이 고침(실기 확인 전) |
 
 ## 아직 확인하지 못한 것
 
