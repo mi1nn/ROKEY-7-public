@@ -149,6 +149,7 @@
       "task.live.sensor_host_clock_domain_id": "rokey7-utc-field",
       "task.live.sensor_host_clock_error_bound_ns": 150000000,
       "task.saved_map.mode": "FROZEN_MAP_AMCL",
+      "initial_pose_xy_yaw": [0.0, -1.86, 0.0],
       "start_align.initial_sigma_xy_m": 0.3,
       "start_align.initial_sigma_yaw_rad": 0.26,
       "start_align.update_period_s": 0.5,

@@ -15,7 +15,7 @@ import runpy
 import sys
 import unittest
 
-from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase, HomePoses, saved_maps, tb5_depth
+from test_bringup_field_launch import FIELD, NOW_NS, REPO, SHA, FieldCase, HomePoses, saved_maps, tb5_depth, unmeasured
 
 START = [0.4, -0.3, 0.1]
 LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'frozen_localization.launch.py'
@@ -31,8 +31,8 @@ class MapMode(FieldCase):
         raw = json.loads(FIELD.read_text())
         self.assertEqual('SLAM_THEN_FROZEN', raw['robots']['robot_a']['task.saved_map.mode'])
         self.assertEqual('FROZEN_MAP_AMCL', raw['robots']['robot_b']['task.saved_map.mode'])
-        # No TB-5 start is made up: it is measured in a trial run first.
-        self.assertNotIn('initial_pose_xy_yaw', raw['robots']['robot_b'])
+        # The TB-5 start is measured, never made up: 1.86 m right of TB-6 (재범 with a tape, 2026-10-15 17:05).
+        self.assertEqual([0.0, -1.86, 0.0], raw['robots']['robot_b']['initial_pose_xy_yaw'])
 
     def test_tb6_task_input_searches_on_slam_without_a_map_hash(self):
         values = self.robot(field=self.field(), occupancy_sha256='')
@@ -64,8 +64,8 @@ class MapMode(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
-                for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
-                    robot.pop(key)
+                for key in [k for k in robot if k == 'initial_pose_xy_yaw' or k.startswith('start_align.')]:
+                    robot.pop(key)   # FROZEN_MAP_AMCL only
                 robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         field = self.field(saved)
         self.assertEqual('SAVED_MAP_AMCL', self.robot(field=field)['task_input']['task.saved_map.mode'])
@@ -131,8 +131,8 @@ class CoordinatorRobotPairing(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
-                for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
-                    robot.pop(key)
+                for key in [k for k in robot if k == 'initial_pose_xy_yaw' or k.startswith('start_align.')]:
+                    robot.pop(key)   # FROZEN_MAP_AMCL only
                 robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         self.field(saved)
 
@@ -146,8 +146,8 @@ class CoordinatorRobotPairing(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
-                for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
-                    robot.pop(key)
+                for key in [k for k in robot if k == 'initial_pose_xy_yaw' or k.startswith('start_align.')]:
+                    robot.pop(key)   # FROZEN_MAP_AMCL only
                 robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
 
         def no_frozen_robot(raw):
@@ -180,7 +180,7 @@ class LocalizationLaunch(FieldCase):
     def test_tb5_without_a_measured_start_does_not_start(self):
         from rescue_bringup.field_launch import FieldLaunchError
         with self.assertRaisesRegex(FieldLaunchError, 'capture_initial_pose'):
-            self.values('robot_b', field=self.field())
+            self.values('robot_b', field=self.field(unmeasured))
 
     def test_saved_map_robots_have_no_frozen_localization(self):
         from rescue_bringup.field_launch import FieldLaunchError
@@ -190,8 +190,8 @@ class LocalizationLaunch(FieldCase):
             for robot in raw['robots'].values():
                 robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
                 robot.pop('map_freeze.pose_max_age_ns', None)
-                for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
-                    robot.pop(key)
+                for key in [k for k in robot if k == 'initial_pose_xy_yaw' or k.startswith('start_align.')]:
+                    robot.pop(key)   # FROZEN_MAP_AMCL only
                 robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
         with self.assertRaises(FieldLaunchError):
             self.values('robot_a', field=self.field(saved))

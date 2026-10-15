@@ -150,14 +150,19 @@ def tb5_depth(raw):
                                      'passage.depth_transport': 'compressedDepth'})
 
 
+def unmeasured(raw):
+    """The repository field file before the TB-5 start was measured (robots.robot_b without initial_pose_xy_yaw)."""
+    raw['robots']['robot_b'].pop('initial_pose_xy_yaw')
+
+
 def saved_maps(raw):
     """Both robots on a saved map with a measured hash (SAVED_MAP_AMCL), as the #132 field scripts."""
     raw['coordinator']['map_mode'] = 'SAVED_MAP'
     for robot in raw['robots'].values():
         robot['task.saved_map.mode'] = 'SAVED_MAP_AMCL'
         robot.pop('map_freeze.pose_max_age_ns', None)
-        for key in [k for k in robot if k.startswith('start_align.')]:   # FROZEN_MAP_AMCL only
-            robot.pop(key)
+        for key in [k for k in robot if k == 'initial_pose_xy_yaw' or k.startswith('start_align.')]:
+            robot.pop(key)   # FROZEN_MAP_AMCL only
         robot.pop('task.saved_map.slam_covariance_max_age_ns', None)
 
 
@@ -192,12 +197,15 @@ class CoordinatorParameters(FieldCase):
                         traffic_yield_max_m=2.0, traffic_stop_timeout_s=3.0)
         # Added after #132: TB-6 search starts on the disaster sign (owner decision 2026-10-13 evening, OPS-136)
         expected['search_start'] = 'AUTO'
+        # Added after #132: TB-5 start measured with a tape (재범 2026-10-15 17:05, OPS-155 ①·173)
+        expected['support_start_pose'] = [0.0, -1.86, 0.0]
         self.assertEqual(expected, self.coordinator())
 
     def test_tb5_start_spot_goes_to_the_coordinator_only_when_measured(self):
         """OPS-155 ①·173: robots.<TB-5>.initial_pose_xy_yaw (TB-6 start pose frame) is also TB-5's exit when no QR
         exit was seen; one source, passed on as support_start_pose, left unset while not measured."""
-        self.assertNotIn('support_start_pose', self.coordinator())
+        self.assertNotIn('support_start_pose', self.coordinator(field=self.field(unmeasured)))
+        self.assertEqual([0.0, -1.86, 0.0], self.coordinator()['support_start_pose'])   # the repository file
 
         def measured(raw):
             raw['robots']['robot_b']['initial_pose_xy_yaw'] = [1.5, -0.4, 3.14]
