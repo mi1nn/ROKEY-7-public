@@ -48,6 +48,10 @@ rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /t
 - **1차 고정 전에는 TB-5 가 안 보이는 것이 정상이다.** TB-5 는 고정 지도를 받아야 위치 추정을 시작한다.
 - 저장소에서는 파일 문법(YAML, 토픽 이름)만 시험한다(`tests/test_field_noweb_rviz.py`). 실제 화면은 실기에서 아직 보지 않았다(NOT_RUN).
 
+## 한 PC 리허설
+
+`REHEARSAL_PROBE=noweb bash scripts/field/wiring-rehearsal/run.sh <install> <out> SEARCHING <port> <domain>` 은 가짜 로봇 위에서 이 두 도구로 한 회차를 돈다. 순서는 DECLARE_DISASTER → 상태 줄 「임무 DISASTER」 → TB-6 목표(가짜 Nav2 가 거절) → 도킹 → RESET_RUN → 「초기화 확인」 줄이다(`wiring-rehearsal/noweb_probe.py`). 2026-10-15 기록은 [웹 없는 트랙 리허설](../../../docs/evidence/rehearsal-2026-10-15-noweb.md)에 있다.
+
 ## `target_markers.py`
 
 ```bash
