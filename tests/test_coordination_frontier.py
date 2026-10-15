@@ -688,7 +688,7 @@ class LookTurnTests(Base):
     def test_a_doll_report_lets_the_turn_finish_and_sends_no_more(self):
         self.at_the_frontier()
         fields, _ = self.turn(1)
-        self.core.on_target_location(location(1), now_ns=NOW + 4 * DELAY)
+        self.core.on_target_location(location(1), now_ns=NOW)  # its own fresh clock
         self.assertEqual([], self.core.cancels)  # the turn in progress is not stopped
         self.finish(fields)
         self.core.on_pose(scout_pose(NEAR, at=NOW + 5 * DELAY))
