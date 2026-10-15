@@ -31,7 +31,10 @@ def _load(name, path):
     return module
 
 
-fake = _load('fake_target', REPO / 'scripts' / 'sim' / 'fake_target.py')
+TOOL = REPO / 'scripts' / 'sim' / 'fake_target.py'
+if not TOOL.exists():   # the installed-wheel check copies tests/ and config/ only
+    raise unittest.SkipTest('installed-wheel checkout has no scripts/')
+fake = _load('fake_target', TOOL)
 
 DOLL_ARENA = (1.20, 2.87)            # 평면도 인형
 SCOUT_START = (0.88, 0.37, -1.5708)  # 평면도 TB-6, 남쪽 도크를 봄
