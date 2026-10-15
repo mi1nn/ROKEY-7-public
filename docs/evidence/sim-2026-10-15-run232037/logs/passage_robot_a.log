@@ -1,0 +1,1201 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-15-23-22-04-603844-sim-pc-567419
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: passage points /robot6/oakd/stereo/image_raw (compressedDepth) + /robot6/oakd/stereo/camera_info -> /robot6/passage_points
+[INFO] [component_container-1]: process started with pid [567654]
+[component_container-1] [INFO] [1792074125.653440523] [robot6.passage_points_container]: Load Library: /opt/ros/jazzy/lib/libdepth_image_proc.so
+[component_container-1] [INFO] [1792074125.750475208] [robot6.passage_points_container]: Found class: rclcpp_components::NodeFactoryTemplate<depth_image_proc::ConvertMetricNode>
+[component_container-1] [INFO] [1792074125.750535888] [robot6.passage_points_container]: Found class: rclcpp_components::NodeFactoryTemplate<depth_image_proc::CropForemostNode>
+[component_container-1] [INFO] [1792074125.750540659] [robot6.passage_points_container]: Found class: rclcpp_components::NodeFactoryTemplate<depth_image_proc::DisparityNode>
+[component_container-1] [INFO] [1792074125.750544157] [robot6.passage_points_container]: Found class: rclcpp_components::NodeFactoryTemplate<depth_image_proc::PointCloudXyzNode>
+[component_container-1] [INFO] [1792074125.750547657] [robot6.passage_points_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<depth_image_proc::PointCloudXyzNode>
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/robot6/passage_points' in container '/robot6/passage_points_container'
+[component_container-1] [WARN] [1792074138.362984478] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074141.363153579] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074150.363000178] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074151.362964159] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074155.363914063] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074158.362942159] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074160.362965035] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074162.363699131] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074164.362954529] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074169.362972558] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074172.363711048] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074173.363510277] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074176.363004468] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074181.362923691] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074185.362941752] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074186.364023424] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074190.363181446] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074192.362960131] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074196.362936432] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074199.362956935] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074204.363081454] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074207.362938654] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074216.363078565] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074218.363012625] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074225.363070525] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074230.362938683] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074234.362951499] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074239.363348180] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074243.362933619] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074245.362928217] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074250.363003652] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074254.362982796] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074257.362958450] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074260.362903224] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074263.363199886] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074265.362939960] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074269.362939833] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074270.363402895] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074274.362998501] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074280.362953927] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074284.362935398] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074291.363079626] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074304.363080053] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074309.363348954] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074312.362926567] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074318.363299281] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074320.362941627] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074324.362941623] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074339.362962629] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      5
+[component_container-1] 	CameraInfo messages received: 17
+[component_container-1] 	Synchronized pairs:           5
+[component_container-1] [WARN] [1792074351.362958398] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074354.363923818] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074358.366444518] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           6
+[component_container-1] [WARN] [1792074375.362942899] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074377.362971450] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074388.363263098] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074395.363351580] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074397.363020026] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074401.362940571] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074408.363882774] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074411.363045586] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074420.362968106] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074430.362957234] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074436.362987940] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074438.363000112] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074444.362943360] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074447.363085647] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074449.362950191] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074453.362938333] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074455.363433714] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074459.362920170] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074462.362984148] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074471.363101489] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074474.362963383] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074487.362982209] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074489.362953089] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074491.362927575] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074495.362991301] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074501.363470589] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074504.362956830] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074506.362962038] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 24
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074509.362971209] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074517.363065149] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074519.362950633] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074531.362940250] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074537.362952697] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074540.362941811] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074548.362967883] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074549.362938430] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074552.362928010] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074553.363004302] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074555.363029232] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074557.363052148] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074558.362962226] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074561.363347239] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074562.363011785] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074564.362939982] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074565.363141786] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074568.362981443] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074570.362970383] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074571.363021034] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074573.363023565] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074576.362958703] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074579.362974093] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074581.362936528] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074583.362982057] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074585.362978626] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074588.362941392] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074592.363050133] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074593.362967574] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074597.362938161] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074598.364194511] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074600.362989037] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074603.362961205] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074606.362930869] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074607.362964170] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074611.363065801] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074612.363025005] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074614.362922918] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074615.363016593] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074618.362939680] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074620.363000082] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074623.362899491] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074626.362925146] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074629.363026091] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074631.362954912] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074633.363045152] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074636.362976542] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074637.362958298] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074640.363026604] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074643.362982116] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074647.362935288] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074648.362940425] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074651.363064332] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074652.362951639] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074654.363071930] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074655.363149482] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074656.362952711] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074658.362937506] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074659.362952350] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074662.363340429] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074664.362957064] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074666.363148795] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074667.362907429] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074670.362931107] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074671.362931465] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074675.362928537] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074676.362951570] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074680.362934646] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074682.362953099] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074685.363163959] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074686.363390583] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074687.362964087] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074689.362931603] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074690.363661212] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074693.362988873] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074695.362967309] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074699.362951965] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074700.363128347] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074701.363100417] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074704.362952130] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074705.362961553] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074706.363250860] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074708.362997963] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074710.362942132] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074712.363424469] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074714.362931696] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074716.362954578] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074717.362934918] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074719.362953319] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074721.363361627] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074724.363083104] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074725.362955567] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074728.363312085] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074730.362999305] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074732.362941555] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074735.363001707] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074739.362936642] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074743.362956777] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074744.363546032] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074745.362964818] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074747.362923373] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074749.362928261] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074753.362955604] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074756.363670522] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074757.363222158] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074761.362937259] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074765.362941563] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074769.362942050] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074770.363724033] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074773.363624726] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074774.362913376] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074778.362939421] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074780.364183566] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074783.362916583] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074785.362941781] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074789.363048319] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074792.363092697] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074794.362955886] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074797.362950869] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074799.363047385] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074802.363118438] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074803.363090941] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074806.362941573] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074807.362943691] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074810.362955527] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074818.362936404] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074822.362935270] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074823.362955898] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074826.363181961] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074827.362943227] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074828.362941795] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074830.362937356] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074831.363096968] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074834.363018766] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074837.363101528] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074840.362942286] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074843.362984883] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074845.363731348] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074847.362931241] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074849.362938323] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074853.362954105] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074855.362983614] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074858.362943193] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074859.362961390] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074862.362953937] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074864.363886329] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074866.363158905] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074867.362963049] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074870.363061900] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074871.363060366] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074874.363334352] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074877.363218278] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074878.362919925] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074880.362930781] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074882.363304157] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074884.363126133] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074885.363003725] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074887.363820220] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074891.362956999] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074893.362936147] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074895.362980164] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074897.364038266] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074900.363309990] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074901.363350065] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074904.363201133] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074905.363029390] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074908.363048059] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074911.363121980] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074916.362940194] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074918.363122714] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074922.362957634] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074925.363437519] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074929.362993348] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074931.362956627] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074933.363028142] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074935.363029566] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074936.363005494] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074939.362962693] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074940.362987794] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074942.362938101] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074944.363038751] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074945.362981841] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074946.362987849] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074948.363192957] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074949.362952724] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074953.364139452] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074954.362960435] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074956.363282347] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074959.363179919] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074962.362941265] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074963.362942484] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074966.363605220] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074968.362938370] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074972.362970846] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 26
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074976.362961699] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074978.362917287] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074981.362964563] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074984.362936740] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      8
+[component_container-1] 	CameraInfo messages received: 25
+[component_container-1] 	Synchronized pairs:           8
+[component_container-1] [WARN] [1792074986.363074330] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074991.362953550] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074993.362975743] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074997.363168164] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792074999.362973603] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075003.363095157] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075006.362955239] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075008.362877071] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075012.362957225] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075015.363069019] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075018.363012014] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075020.363088855] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075023.362964208] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075027.363086201] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075030.362955005] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075033.362971114] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075036.362954604] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075040.362934266] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 23
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [WARN] [1792075043.363346261] [robot6.passage_points]: [image_transport] Topics '/robot6/oakd/stereo/image_raw/compressedDepth' and '/robot6/oakd/stereo/camera_info' do not appear to be synchronized. In the last 10s:
+[component_container-1] 	Image messages received:      7
+[component_container-1] 	CameraInfo messages received: 22
+[component_container-1] 	Synchronized pairs:           7
+[component_container-1] [INFO] [1792075043.414753327] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [component_container-1]: process has finished cleanly [pid 567654]
