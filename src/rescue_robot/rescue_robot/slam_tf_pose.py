@@ -8,13 +8,53 @@ pose source of the phase, not a fallback. Its time is the older of the two edges
 edge makes the pose old, never fresh). The covariance is the last <ns>/pose's (TF has none):
 older than ``covariance_max_age_ns`` it is still shown but the pose is not valid. Without both
 edges or before any SLAM pose there is no pose.
+
+The edges are 3D (2026-10-14 field: TB-6 map -> odom and odom -> base_link carry a few mm of height and
+about 0.5 deg of roll/pitch, and the old per-edge planar check refused both, so the map freeze had no
+start pose). They are composed in 3D first, then map -> base_link is projected to the map plane: x, y
+and the heading of base_link's x axis. A non-finite edge or a non-unit rotation is refused; a composed
+tilt above ``MAX_TILT_RAD`` gives no pose (the plane heading would mean nothing).
 """
 import math
 from types import SimpleNamespace as NS
 
 from rescue_contracts import ros_time_to_ns
-from rescue_contracts.occupancy import compose_planar, planar_origin
 from rescue_robot.executor import ContractError
+
+MAX_TILT_RAD = math.radians(10)   # [제안] composed map -> base_link tilt; measured 2026-10-14 about 0.5 deg
+
+
+def _edge(p, q):
+    """((x, y, z), unit (x, y, z, w)) of one TF edge; else ValueError."""
+    values = (p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+    if (not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in values)
+            or not math.isclose(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w, 1., abs_tol=1e-6)):
+        raise ValueError('finite edge with a unit rotation required')
+    return tuple(float(v) for v in values[:3]), tuple(float(v) for v in values[3:])
+
+
+def _rotate(q, v):
+    x, y, z, w = q
+    tx, ty, tz = 2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0])
+    return (v[0] + w * tx + y * tz - z * ty, v[1] + w * ty + z * tx - x * tz, v[2] + w * tz + x * ty - y * tx)
+
+
+def _multiply(a, b):
+    ax, ay, az, aw = a
+    bx, by, bz, bw = b
+    return (aw * bx + ax * bw + ay * bz - az * by, aw * by - ax * bz + ay * bw + az * bx,
+            aw * bz + ax * by - ay * bx + az * bw, aw * bw - ax * bx - ay * by - az * bz)
+
+
+def compose_to_plane(first, second):
+    """``first`` then ``second`` (each (xyz, xyzw)) composed in 3D -> (x, y, yaw, tilt_rad) on the map plane."""
+    (p1, q1), (p2, q2) = first, second
+    r = _rotate(q1, p2)
+    q = _multiply(q1, q2)
+    heading = _rotate(q, (1., 0., 0.))
+    up = _rotate(q, (0., 0., 1.))
+    tilt = math.acos(max(-1., min(1., up[2])))
+    return p1[0] + r[0], p1[1] + r[1], math.atan2(heading[1], heading[0]), tilt
 
 
 class SlamTfPose:
@@ -24,12 +64,13 @@ class SlamTfPose:
                 raise ContractError(f'SLAM TF pose needs {name}')
         if type(covariance_max_age_ns) is not int or covariance_max_age_ns <= 0:
             raise ContractError('SLAM TF pose needs a positive integer covariance_max_age_ns')
-        self.edges = {(map_frame, odom_frame): None, (odom_frame, base_frame): None}   # -> (stamp_ns, x, y, yaw)
+        self.edges = {(map_frame, odom_frame): None, (odom_frame, base_frame): None}   # -> (stamp_ns, xyz, xyzw)
         self.covariance = None   # (stamp_ns, list) of the last SLAM pose
         self.covariance_max_age_ns = covariance_max_age_ns
+        self.tilt_rad = None   # of the last composed map -> base_link, for the log
 
     def on_tf(self, message):
-        """Keep the newest of each edge; returns how many edges were refused (not planar)."""
+        """Keep the newest of each edge; returns how many edges were refused (not finite, not a unit rotation)."""
         refused = 0
         for t in message.transforms:
             key = (t.header.frame_id, t.child_frame_id)
@@ -37,13 +78,13 @@ class SlamTfPose:
                 continue
             p, q = t.transform.translation, t.transform.rotation
             try:
-                x, y, yaw = planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+                edge = _edge(p, q)
             except ValueError:
                 refused += 1
                 continue
             stamp = ros_time_to_ns(t.header.stamp.sec, t.header.stamp.nanosec)
             if self.edges[key] is None or stamp > self.edges[key][0]:
-                self.edges[key] = (stamp, x, y, yaw)
+                self.edges[key] = (stamp, *edge)
         return refused
 
     def on_covariance(self, stamp_ns, covariance):
@@ -56,7 +97,9 @@ class SlamTfPose:
         (to_odom, to_base) = self.edges.values()
         if to_odom is None or to_base is None or self.covariance is None:
             return None
-        x, y, yaw = compose_planar(to_odom[1:], to_base[1:])
+        x, y, yaw, self.tilt_rad = compose_to_plane(to_odom[1:], to_base[1:])
+        if self.tilt_rad > MAX_TILT_RAD:
+            return None
         stamp, covariance = self.covariance
         return dict(stamp_ns=min(to_odom[0], to_base[0]), x=x, y=y, yaw=yaw, covariance=list(covariance),
                     covariance_fresh=now_ns - stamp <= self.covariance_max_age_ns)
