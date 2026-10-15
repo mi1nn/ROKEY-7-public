@@ -61,6 +61,26 @@ class ReasonTests(unittest.TestCase):
         self.assertEqual('SYNCED', parse(message())['state'])
 
 
+class SpikeAcceptedTests(unittest.TestCase):
+    """C13 A (재범 결정 대기): a reply timesyncd flagged as a spike is still a valid NTP measurement; timesyncd
+    only did not correct the clock with it (systemd v255 timesyncd-manager.c 571). The bound already holds the
+    whole offset and half the round trip (NTP: the true offset is within offset +- delay / 2), so the uncorrected
+    clock is covered. 9회차 values: about 0.26 s, inside the field 2 s (task.lease.max_error_ns, clock_error_bound_s).
+    """
+
+    def test_a_spike_reply_is_synced_with_a_bound_over_offset_and_half_the_delay(self):
+        record = parse(message(spike=True), poll_interval_us=POLL_US)
+        self.assertEqual(('SYNCED', True), (record['state'], record['ntp_spike']))
+        self.assertGreaterEqual(record['error_bound_ns'], 70_000_000 + 317_000_000 // 2)
+        self.assertLess(record['error_bound_ns'], 2_000_000_000)
+
+    def test_a_wide_spike_reply_gets_a_bound_over_the_field_2_s_limit(self):
+        # 2026-10-15 field: delay 7.5 s, offset -3.6 s; a bound over 2 s is past the field limits (as before)
+        t2 = T1 + 150_000
+        wide = [0, 4, 4, 2, -20, 10_000, 20_000, [1, 2, 3, 4], T1, t2, t2, T1 + 7_500_000, True, 9, 5_000]
+        self.assertGreater(parse(wide)['error_bound_ns'], 2_000_000_000)
+
+
 class CollectTests(unittest.TestCase):
     def test_collect_reads_the_poll_interval_for_a_spike(self):
         calls = []
