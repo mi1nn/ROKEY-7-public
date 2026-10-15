@@ -120,6 +120,9 @@
 - **실시간 지도·직접 관측을 따로 띄움.** 이날은 `map_snapshot`·`robot_watch` 를 운영 launch 밖에서 따로 띄웠다. 운영 launch 의 `map_topic`·`map_dir`·`robot_namespaces`·`robot_watch_path` 를 쓰면 한 번에 뜨고 리플레이에도 지도가 남는다. 현장 안내 3단계에 넣었다. 16:45 에 `map_snapshot` 하나를 ROS 환경 없이 띄워 바로 죽은 일이 있었다(운영 PC 담당 실수, 16:58 에 다시 띄움).
 - **Discovery 서버 넘침(17:28).** Discovery PC 담당이 받은 오류의 대부분이 GUID 접두 `01.0f.ba.b9...` 참가자에서 나왔다. 3절과 같은 방법으로 묶었을 때 호스트 바이트 `ba.b9` 에는 TB-5 Pi 노드만 있었다 [추정]. 운영 PC 의 접두는 `01.0f.20.13...` 이다.
 - **운영 PC 시계.** timesyncd 가 인터넷 NTP 서버를 쓴다. 한 번은 지연 7.5 s·오프셋 -3.6 s 가 나왔고, 조정기 로그에 `central live clock: no valid synchronized NTP reply` 와 `SYNCED` 가 번갈아 나왔다. 16:3x 에 직접 잰 차이는 -11 ms 였다 [측정]. 로봇망 안에서는 NTP 로 답하는 곳을 찾지 못했다(Discovery PC, 로봇망에서 본 다른 PC 주소 셋, 두 Pi 모두 UDP 123 무응답) [측정].
+- **TB-6 라이다 멈춤(두 번).** 15:1x 와 16:50 에 TB-6 의 `/robot6/scan` 이 나오지 않았다. 라이다 노드는 떠 있었다(로봇 담당 PC 담당 보고). 첫 번째는 Pi 를 다시 켰고, 두 번째는 TB-6 Pi 에 ssh 로 들어가 `sudo systemctl restart turtlebot4` 로 살렸다. 이 명령은 PC 에서 치면 `Unit turtlebot4.service not found` 다. 멈춘 원인은 확인하지 못했다.
+- **같은 도메인의 다른 팀.** 3절의 `/robot6/map_server` 는 같은 도메인 6, 같은 Discovery 서버를 쓰는 다른 PC 였다. 같은 도메인을 쓰는 한 다시 생길 수 있다. 도메인을 따로 받을지는 정하지 않았다.
+- **운영 PC Wi-Fi 절전.** NetworkManager 전역 설정이 `wifi.powersave = 3`(켬)이다. 끄지 않았다(재범 결정 사항). 16:42 부터 유선을 썼다.
 - **계정 DB.** `6d43fce` 관제 웹을 처음 띄울 때 계정 DB 가 1.0 → 1.1 로 올라갔다. 먼저 `sqlite3 .backup` 으로 사본을 떴다(사본 schema_version 1.0 확인).
 
 ## 남은 일
@@ -128,7 +131,14 @@
 | --- | --- |
 | 실기용 배포 프로파일(실제 `map_session_id`, `home_positions`)을 만들고 두 PC 에 같은 sha256 으로 둠 | 작전·재범 |
 | 예시 로봇 파일과 `passage.view_image_topic` 의 미리보기 토픽 | 통합-로봇, 통합-인식 |
-| 탐색 경계 하나 실패로 탐색이 끝나는 조정기 동작 | 통합-조정 |
-| `START_POSE_CONFLICT` 원인 | 통합-조정·통합-로봇 |
-| 지도 고정 전 TB-5 「추정」 위치 표시 | 웹개발 |
+| 탐색 경계 하나 실패로 탐색이 끝나는 조정기 동작 | 끝남: #338 |
+| `START_POSE_CONFLICT` 원인 | 끝남: 설계대로, #339 현장 안내에 반영 |
+| 지도 고정 전 TB-5 「추정」 위치 표시 | 끝남: #335 |
+| 관제 웹 버전을 올리기 전 계정 DB 백업 안내(1.0 → 1.1 은 되돌릴 수 없음) | 웹개발 |
 | 망이 바뀐 뒤 노드가 받지 못하는 원인 | 미정 |
+| 같은 도메인 6 을 쓰는 다른 팀과 겹침(도메인 분리 여부) | 작전 |
+| Discovery 서버 넘침(GUID `01.0f.ba.b9...`)의 원인 | Discovery 담당 |
+| 운영 PC 와 Discovery PC 가 함께 재부팅된 원인 | 작전 |
+| 로봇망 안 시간 서버를 둘지 | 작전·재범 |
+| 운영 PC Wi-Fi 절전 | 재범 |
+| TB-6 라이다가 멈추는 원인 | 통합-로봇 |
