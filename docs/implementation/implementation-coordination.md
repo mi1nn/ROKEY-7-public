@@ -69,7 +69,8 @@ updated: 2026-10-14
 
 - 재난 신호를 받으면 TB-6 탐색이 자동으로 시작된다(`search_start=AUTO`, 로그 `SEARCH_AUTO_STARTED`). 운영자 `START_SEARCH` 는 `NOT_AUTHORIZED` 로 거절한다.
 - TB-6 실시간 지도와 TB-6 위치로 미탐색 경계 덩어리를 찾는다(`rescue_contracts.grid_search.find_frontiers`). 덩어리는 `frontier_min_cells` 칸 이상이고, 목표 칸은 덩어리에서 `frontier_reach_m` 안이다.
-- 이미 시도한 곳에서 `frontier_blacklist_m` 안은 고르지 않는다. 남은 것 중 TB-6 에서 격자 경로가 가장 짧은 것을 고르고, 그 경로 위 `frontier_goal_max_m` 지점을 목표로 삼는다.
+- 이미 시도한 곳에서 `frontier_blacklist_m` 안은 고르지 않는다. 남은 것은 실패 횟수가 적은 것이 먼저고, 그다음 explore_lite 비용이 낮은 것이 먼저다. 비용은 `frontier_potential_scale` × TB-6 에서의 격자 경로 길이(m) − `frontier_gain_scale` × 경계 크기(칸 수 × 지도 해상도, m)다. 그래서 조금 먼 큰 미탐색 구역이 가까운 작은 틈보다 먼저다. 현장 값 3.0 / 1.0 에서는 경로가 1 m 길면 경계가 3 m(0.05 m 지도에서 60칸) 더 커야 앞선다. 5회차(2026-10-16) 시뮬레이션에서 TB-6 이 라이다로 이미 본 쪽의 작은 틈으로 먼저 돈 일 때문이다. 고른 경계의 경로 위 `frontier_goal_max_m` 지점을 목표로 삼는다.
+- 목표가 그렇게 경계 앞에서 잘렸으면(경로가 `frontier_goal_max_m` 보다 김) 그 목표에 도착(COMPLETED)해도 경계를 시도한 것으로 치지 않는다(로그 `FRONTIER_GOAL_CUT`). 다음 계획에서 같은 비용 규칙으로 다시 견주는데, TB-6 이 그만큼 다가섰으니 보통 같은 경계를 이어 간다. 경계의 목표 칸(경계에서 `frontier_reach_m` 안)까지 가서 COMPLETED 인데도 남아 있을 때만 시도한 것으로 친다. 5회차에서 잘린 목표에 도착한 뒤 경계가 시도함이 되어 메인 구역에 못 들어가고 탐색이 끝난 일(C11) 때문이다. 같은 경계를 따라가는 횟수에 따로 상한은 두지 않는다. 한 번 갈 때마다 경로를 따라 `frontier_goal_max_m` 씩 다가서고, 끝은 `exploration_timeout_s` 가 막는다.
 - 경로는 `freeze_clearance_m` 여유로 찾는다. 그래서 0.7 m 폭 통로도 지나갈 수 있는 길로 본다. 보내는 목표점만 벽에서 `frontier_goal_clearance_m` 떨어진 가장 가까운 칸으로 옮긴다(로그 `FRONTIER_GOAL_MOVED`). 옮길 칸이 없는 좁은 곳에서는 목표를 그대로 두고 로그 `FRONTIER_GOAL_TIGHT` 를 남긴다. 2026-10-15 시뮬레이션에서 벽 바로 안쪽 목표가 Nav2 충돌 검사에 걸려 FAILED 로 끝난 일 때문이다. 현장 값 0.35 는 TB-6 이 목표에서 서고 제자리 회전할 때 RPP·회전 충돌 검사가 막히지 않는 거리다(재범 결정 2026-10-16). 처음 넣은 #369 는 이것을 시뮬레이션 벽 관통 탓으로 보고 #377 로 되돌렸다가 다시 넣었다.
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
 - 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.
@@ -165,6 +166,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `patrol_points`, `patrol_rounds` | 순찰 지점(TB-6 출발 자세 기준)과 바퀴 수 | 비움, 1 |
 | `frontier_min_cells`, `frontier_reach_m`, `frontier_goal_max_m`, `frontier_blacklist_m` | 경계 덩어리 최소 칸 수, 덩어리에서 목표 칸까지 거리, 목표를 자르는 경로 길이, 다시 고르지 않는 반경 | 10, 1.0, 1.5, 0.5 [추정, 실측 아님] |
 | `frontier_goal_clearance_m` | 보내는 탐색 목표점이 벽에서 떨어질 거리. `freeze_clearance_m` 보다 작을 수 없다 | 0.35 (재범 결정 2026-10-16). 로봇 반지름 0.189 + costmap 칸 0.042 + 잡음 한 칸 0.06 + 위치 오차 0.05 [추정 포함] |
+| `frontier_potential_scale`, `frontier_gain_scale` | 경계 고르기 비용의 경로 길이 가중치와 경계 크기 가중치(둘 다 m) | 3.0, 1.0 [문서: explore_lite 기본값, 저장소 `explore.yaml`] |
 | `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 2.0, 3, 600.0 [추정] |
 | `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
 | `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |

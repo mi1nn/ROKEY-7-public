@@ -332,8 +332,8 @@ class CoordinatorCore:
                  support_exit_wait_ns, recheck_max_clock_error_ns, map_mode, freeze_clearance_m,
                  map_freeze_timeout_ns, search_start, search_mode, patrol_points,
                  patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
-                 frontier_goal_clearance_m, frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks,
-                 exploration_timeout_ns,
+                 frontier_goal_clearance_m, frontier_potential_scale, frontier_gain_scale, frontier_blacklist_m,
+                 frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
                  completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
                  traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
@@ -434,6 +434,11 @@ class CoordinatorCore:
         finite(frontier_goal_clearance_m, 'frontier_goal_clearance_m')
         if frontier_goal_clearance_m < freeze_clearance_m:
             raise CoordinationError('INVALID_POLICY', 'frontier_goal_clearance_m must be at least freeze_clearance_m')
+        for name, value in (('frontier_potential_scale', frontier_potential_scale),
+                            ('frontier_gain_scale', frontier_gain_scale)):
+            finite(value, name)
+            if value < 0:
+                raise CoordinationError('INVALID_POLICY', f'{name} must be zero or positive')
         contract_value(duration_ns, frontier_issue_delay_ns)
         contract_value(duration_ns, exploration_timeout_ns)
         if exploration_timeout_ns <= 0:
@@ -441,6 +446,8 @@ class CoordinatorCore:
         self.frontier_min_cells, self.frontier_reach_m = frontier_min_cells, frontier_reach_m
         self.frontier_goal_max_m, self.frontier_blacklist_m = frontier_goal_max_m, frontier_blacklist_m
         self.frontier_goal_clearance_m = frontier_goal_clearance_m  # >= freeze_clearance_m; the goal only
+        # explore_lite cost weights: potential x path length (m) - gain x frontier size (cells x resolution, m)
+        self.frontier_potential_scale, self.frontier_gain_scale = frontier_potential_scale, frontier_gain_scale
         self.frontier_issue_delay_ns, self.exploration_empty_checks = frontier_issue_delay_ns, exploration_empty_checks
         self.exploration_timeout_ns = exploration_timeout_ns
         self.scout_grid, self.scout_grid_seq = None, 0  # TB-6 live SLAM grid (``fields``), counted per update
@@ -768,9 +775,10 @@ class CoordinatorCore:
         kept = [i for i in range(len(found)) if i not in why]
         candidates = [found[i] for i in kept]
         lengths = path_lengths(**fields, radius=radius, start=start, goals=[f.goal for f in candidates], mask=mask)
-        # untried before retried (C9), then the shortest path
-        reachable = sorted((self._failures(candidates[i]), length, i) for i, length in enumerate(lengths)
-                           if length is not None)
+        # untried before retried (C9), then the explore_lite cost: a large unexplored zone a little farther goes
+        # before a small nook nearby (5회차 2026-10-16)
+        reachable = sorted((self._failures(candidates[i]), self._cost(candidates[i], length, fields), i)
+                           for i, length in enumerate(lengths) if length is not None)
         if not reachable:
             why.update({i: 'NO_PATH' for i in kept})
         if not reachable and keep_off:
@@ -812,10 +820,14 @@ class CoordinatorCore:
         self.frontier_count += 1
         site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
         self.search.policy = replace(self.search.policy, areas=(site,))
-        self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y))
+        # cut short of the frontier's goal cell: reaching it is a step on the way, not a visit (C11)
+        cut = path.length_m > self.frontier_goal_max_m
+        self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y), cut=cut,
+                             path_m=path.length_m)
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
-                          f'path_m={path.length_m:.2f} start_moved_m={path.start_moved_m:.2f} '
+                          f'path_m={path.length_m:.2f} cost={reachable[0][1]:.2f} cut={cut} '
+                          f'start_moved_m={path.start_moved_m:.2f} '
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
 
     def _roomy_goal(self, fields, mask, start, xy):
@@ -839,12 +851,22 @@ class CoordinatorCore:
                           f'for {room} m clear')
         return near
 
+    def _cost(self, frontier, length, fields):
+        """explore_lite frontier cost (lower first) with both terms in m: the path length, not the straight line."""
+        return (self.frontier_potential_scale * length
+                - self.frontier_gain_scale * frontier.cells * fields['resolution'])
+
     def _frontier_done(self, completed):
-        """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS). Completed: not
-        picked again (a frontier still there after TB-6 reached it cannot be cleared from there). Failed: picked
-        again until FRONTIER_ATTEMPTS attempts failed (C9)."""
+        """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS). Completed at the
+        frontier's goal cell (within frontier_reach_m of it): not picked again, a frontier still there cannot be
+        cleared from there. Completed at a goal cut to frontier_goal_max_m on the way: not tried, the next pick
+        ranks it as before from where TB-6 now stands (C11). Failed: picked again until FRONTIER_ATTEMPTS attempts
+        failed (C9)."""
         pair = [self.frontier['goal'], self.frontier['centroid']]
-        if completed:
+        if completed and self.frontier['cut']:
+            self.notes.append(f'FRONTIER_GOAL_CUT {self.frontier["site_id"]} reached {self.frontier_goal_max_m} m '
+                              f'along {self.frontier["path_m"]:.2f} m: the frontier is not tried yet')
+        elif completed:
             self.frontier_tried += pair
         else:
             n = 1 + self._failures(Frontier(0, self.frontier['centroid'], self.frontier['goal']))
@@ -2486,6 +2508,8 @@ def build_core(values):
                            frontier_reach_m=values['frontier_reach_m'],
                            frontier_goal_max_m=values['frontier_goal_max_m'],
                            frontier_goal_clearance_m=values['frontier_goal_clearance_m'],
+                           frontier_potential_scale=values['frontier_potential_scale'],
+                           frontier_gain_scale=values['frontier_gain_scale'],
                            frontier_blacklist_m=values['frontier_blacklist_m'],
                            frontier_issue_delay_ns=seconds_to_ns(str(values['frontier_issue_delay_s'])),
                            exploration_empty_checks=values['exploration_empty_checks'],
@@ -2573,6 +2597,8 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'frontier_min_cells': 'INTEGER', 'frontier_reach_m': 'DOUBLE', 'frontier_goal_max_m': 'DOUBLE',
     # the frontier goal's free radius (>= freeze_clearance_m; the path keeps freeze_clearance_m, 2026-10-15)
     'frontier_goal_clearance_m': 'DOUBLE',
+    # the pick's explore_lite cost weights (path length and frontier size, both m; 5회차 2026-10-16)
+    'frontier_potential_scale': 'DOUBLE', 'frontier_gain_scale': 'DOUBLE',
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
     'exploration_timeout_s': 'DOUBLE',
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).

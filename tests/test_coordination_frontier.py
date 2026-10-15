@@ -2,11 +2,12 @@
 
 ``search_mode=FRONTIER``: from TB-6's live SLAM grid and its pose the coordinator finds frontier clusters
 (rescue_contracts.grid_search, 통합-인식 #241), keeps those of at least ``frontier_min_cells`` whose goal is not
-near a frontier already tried, and picks the one with the shortest clear grid path from TB-6. The goal is cut to
-``frontier_goal_max_m`` along that path so TB-6's tasks stay short. It becomes one SEARCH_AREA site (UUID ref,
-search basis) in ~/task_inputs first and the task follows ``frontier_issue_delay_ns`` later, after the robot has
-read the destination. A frontier tried once (completed or not) is not picked again within
-``frontier_blacklist_m``; a goal the robot never started (NOT_STARTED_REASONS) is not a try.
+near a frontier already tried, and picks the one with the lowest explore_lite cost (grid path length from TB-6
+against frontier size, FrontierGainTests). The goal is cut to ``frontier_goal_max_m`` along that path so TB-6's
+tasks stay short. It becomes one SEARCH_AREA site (UUID ref, search basis) in ~/task_inputs first and the task
+follows ``frontier_issue_delay_ns`` later, after the robot has read the destination. A frontier whose own goal cell
+TB-6 reached is not picked again within ``frontier_blacklist_m`` (a cut goal is a step, CutGoalTests); a failed one
+is picked again once (FrontierRetryTests); a goal the robot never started (NOT_STARTED_REASONS) is not a try.
 ``exploration_empty_checks`` map updates in a row with nothing to pick, or
 ``exploration_timeout_ns`` since the first frontier, is EXPLORATION_COMPLETE (EXPLORATION_TIMEOUT shown).
 """
@@ -22,6 +23,7 @@ from test_coordination_search import MAP, NOW, uid
 S = 1_000_000_000
 DELAY = 2 * S
 RES, W, H = 0.2, 40, 20  # 8 m x 4 m
+NEAR = (3.2, 1.8)  # the frontier's goal cell within frontier_goal_max_m: a goal there is not cut (C11)
 
 
 def grid(known_cols=20):
@@ -87,30 +89,18 @@ class FrontierPickTests(Base):
 
     def test_a_tried_frontier_is_not_picked_again_and_exploration_completes(self):
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
+        self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)  # reached: not picked again (a failed one is picked again once, FrontierRetryTests)
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
-            self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
+            self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + k + 1))
             self.assertEqual([], self.searches(NOW + DELAY + k + 1))
             self.assertEqual(k + 1, self.core.frontier_empty)
         self.assertTrue(self.core.exploration_complete)
         self.assertEqual('EXPLORATION_COMPLETE', self.reason(NOW + DELAY + 3))
         self.assertIn('EXPLORATION_COMPLETE', ' '.join(self.core.drain_notes()))
-
-    def test_a_completed_frontier_counts_as_tried_too(self):
-        # A frontier still there after TB-6 reached it cannot be cleared from there; it is not chased forever.
-        self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
-        self.searches()
-        (fields,) = self.searches(NOW + DELAY)
-        self.finish(fields)
-        self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
-        self.assertEqual([], self.searches(NOW + DELAY + 1))
-        self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
     def test_the_same_map_is_counted_once(self):
         self.core.on_scout_map(grid(known_cols=W))  # all known: no frontier
@@ -429,13 +419,14 @@ class CutGoalTests(Base):
         self.assertIn('FRONTIER_GOAL_CUT', ' '.join(self.core.drain_notes()))
 
     def test_a_goal_at_the_frontier_still_makes_it_tried(self):
+        # A frontier still there after TB-6 reached it cannot be cleared from there; it is not chased forever.
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose((3.2, 1.8)))  # the frontier's goal cell is within frontier_goal_max_m
+        self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose((3.2, 1.8), at=NOW + DELAY + 1))
+        self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
         self.assertEqual([], self.searches(NOW + DELAY + 1))
         self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
@@ -452,12 +443,12 @@ class FrontierNoneWhyTests(Base):
 
     def test_a_tried_frontier_is_named_as_tried(self):
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose())
+        self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
         self.finish(fields)  # reached once: tried
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
+        self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
         line = self.none_line()
         self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 no_path=0', line)
