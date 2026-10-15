@@ -319,7 +319,8 @@ class RobotParameters(FieldCase):
             'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat',
             'step_period': 0.05, 'watchdog.version': 'search-live-20261012',
             'watchdog.heartbeat_max_age_s': 0.5, 'watchdog.command_max_age_s': 0.5,
-            'watchdog.max_linear_mps': 0.3, 'watchdog.max_angular_rps': 1.2,
+            # 0.32: above the Create3 top 0.306 m/s Nav2 now drives at (재범 2026-10-16 「0.306 m/s, 현장도 같이」)
+            'watchdog.max_linear_mps': 0.32, 'watchdog.max_angular_rps': 1.2,
         }, values['watchdog'])
         self.assertEqual([('collision_monitor:/robot6/cmd_vel', '/robot6/cmd_vel_watchdog_in'),
                           ('docking_server:/robot6/cmd_vel', '/robot6/cmd_vel_watchdog_in')],

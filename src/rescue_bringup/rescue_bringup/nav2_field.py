@@ -15,6 +15,7 @@ import copy
 from rescue_bringup.nav2_recovery import nav2_without_backup
 
 DWB = 'dwb_core::DWBLocalPlanner'
+TOP_LINEAR_MPS = 0.306   # Create3 top speed (iRobot Create 3 specification); 재범 decision 2026-10-16, grade 4
 SHIM = 'nav2_rotation_shim_controller::RotationShimController'
 RPP = 'nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController'
 # [제안] Nav2 Jazzy parameter names (Rotation Shim / Regulated Pure Pursuit configuration pages); the DWB block
@@ -33,9 +34,10 @@ FOLLOW_PATH = {
     # off with the shim: run 10 (2026-10-16) TB-6 expired 0.035 m from a goal. 재범 decision 2026-10-16 05:0x 「켜기」
     'rotate_to_goal_heading': True,
     # RPP
-    # = DWB max_vel_x and the velocity smoother cap 0.26 (TurtleBot4 nav2.yaml); 0.2 before. 재범 2026-10-16 05:4x
-    # 「TB 속도가 실제에 비해 너무 느리다. 실제의 100%로 맞춰라.」 (grade 4). The watchdog limit is 0.3
-    'desired_linear_vel': 0.26,
+    # Create3 top speed (TurtleBot4 nav2.yaml has 0.26; 0.2 before). 재범 2026-10-16 05:4x 「TB 속도가 실제에 비해 너무
+    # 느리다. 실제의 100%로 맞춰라.」 and 06:xx 0.306 m/s with the field too (grade 4). The velocity smoother cap is raised
+    # with it (nav2_with_top_speed); the watchdog limit (field file) is above it
+    'desired_linear_vel': TOP_LINEAR_MPS,
     'lookahead_dist': 0.4,
     'min_lookahead_dist': 0.3,
     'max_lookahead_dist': 0.6,
@@ -78,9 +80,25 @@ def nav2_with_rotation_shim(params):
     return params
 
 
+def nav2_with_top_speed(params):
+    """A copy whose velocity smoother lets the straight speed reach TOP_LINEAR_MPS (TurtleBot4 caps it at 0.26);
+    the turning limits stay as they are."""
+    params = copy.deepcopy(params)
+    try:
+        smoother = params['velocity_smoother']['ros__parameters']
+        top, low = list(smoother['max_velocity']), list(smoother['min_velocity'])
+    except (KeyError, TypeError):
+        raise Nav2FieldError('Nav2 parameters need velocity_smoother max_velocity and min_velocity') from None
+    if len(top) != 3 or len(low) != 3:
+        raise Nav2FieldError('velocity_smoother max_velocity / min_velocity must be [x, y, theta]')
+    smoother['max_velocity'] = [TOP_LINEAR_MPS, top[1], top[2]]
+    smoother['min_velocity'] = [-TOP_LINEAR_MPS, low[1], low[2]]
+    return params
+
+
 def field_nav2(params):
-    """TurtleBot4 Nav2 parameters (dicts) -> the ones our launches run: no backup, Rotation Shim + RPP."""
-    return nav2_with_rotation_shim(nav2_without_backup(params))
+    """TurtleBot4 Nav2 parameters (dicts) -> the ones our launches run: no backup, Rotation Shim + RPP, top speed."""
+    return nav2_with_top_speed(nav2_with_rotation_shim(nav2_without_backup(params)))
 
 
 KEEPOUT_INFO_TOPIC = '/rescue/passage_keepout/filter_info'   # rescue_robot.passage_keepout (both robots read it)
