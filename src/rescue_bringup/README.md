@@ -259,6 +259,12 @@ FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
 ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ```
 
+**TB-6 SLAM 설정과 active 확인(실습 기록 #339 B3·B4, 2026-10-15):**
+- `tb6_slam.launch.py` 는 TurtleBot4 `slam.yaml`(또는 `slam_params_file`)을 그대로 읽고 `minimum_travel_distance`·`minimum_travel_heading` 두 값만 0.1 에서 0.0 으로 바꿔 띄운다(`rescue_bringup/slam_field.py`). 기본값이면 0.1 m·0.1 rad 이상 움직인 스캔만 처리한다. 그래서 출발 자리에 서 있는 TB-6 은 `/robot6/pose` 를 내지 않았고 출발 자세가 잡히지 않았다. 0.0 으로 바꾸자 2 Hz 로 나왔다[측정 2026-10-15]. 로그: `+ {'minimum_travel_distance': 0.0, 'minimum_travel_heading': 0.0}`.
+- 서 있어도 지도가 `map_update_interval` 1.0 s 마다 갱신된다. 조정기의 탐색 종료 조건 `exploration_empty_checks`(3)는 지도 갱신 횟수로 센다. 그래서 갈 곳이 없으면 몇 초 만에 탐색이 끝날 수 있다(같은 기록 B10, 조정 쪽 #338).
+- `slam_active_wait_s`(기본 15 s [제안]) 뒤 `tb6_slam_active_check` 가 slam_toolbox lifecycle 상태를 읽고 한 줄을 남긴다. active 면 `SLAM_ACTIVE /robot6/slam_toolbox`, 아니면 `SLAM_NOT_ACTIVE /robot6/slam_toolbox state=<상태>` 다(ERROR).
+- inactive 이고 `slam_activate_once:=true`(기본)이면 activate 를 한 번만 보낸다. 로그 `SLAM_ACTIVATE_SENT` 를 남기고 상태를 다시 읽는다. 백그라운드로 띄우면 launch 가 「inactive 가 됐다」 이벤트를 놓쳐 inactive 에 머문 일이 있었다[추정]. 그 밖의 상태(unconfigured 등)나 답이 없을 때는 로그만 남긴다. 이때는 `ros2 lifecycle get /robot6/slam_toolbox` 로 보고 손으로 다룬다.
+
 **머리 위 통로 정지(두 로봇, OPS-135):**
 - 기준은 현장 실행 파일 `robot` 공통 절의 `passage.*` 한 곳에만 있다. 깊이 점이 높이 0.05~`passage.max_height_m` 0.46 m(재범 결정 46 cm, scope Q-25) 띠 안에 있고, 로봇 앞 `passage.front_m` [0.4, 1.0] m 안에 `passage.min_points` 개 이상이면 멈춘다.
 - `robot.launch.py` 가 이 값을 Nav2 `collision_monitor` 에 넣는다(통로 다각형 `PassageStop`, 깊이 원 `passage_depth`). 그래서 저장소의 Nav2 yaml 에는 이 숫자를 쓰지 않는다. 로그: `+ passage stop 0.05..0.46 m`.

@@ -25,5 +25,6 @@ setup(
     maintainer_email="maintainer@example.invalid",
     description='정적 배포 검사, 합성 통합 리허설과 수동 실습용 TurtleBot4 SLAM/Nav2 실행 구성.',
     license="LicenseRef-Unspecified",
-    entry_points={"console_scripts": ["check_deployment = rescue_bringup.cli:main"]},
+    entry_points={"console_scripts": ["check_deployment = rescue_bringup.cli:main",
+                                    "slam_active_check = rescue_bringup.slam_active:main"]},
 )
