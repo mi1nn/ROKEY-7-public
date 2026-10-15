@@ -8,7 +8,7 @@ from unittest import mock
 from rescue_console.accounts import AccountStore
 from rescue_console.render import (_age, _elapsed, failure_text, render_accounts, render_failure, render_fragment,
                                    render_login, render_page)
-from rescue_console.view import COMMANDS, ConsoleError
+from rescue_console.view import COMMANDS, PASSAGE_COMMAND, ConsoleError
 from test_console_view import LedgerFixture, digest_dir, site_event, write_site_state
 
 HAS_FLASK = importlib.util.find_spec('flask') is not None
@@ -44,14 +44,14 @@ class CommandPanelTests(LedgerFixture):
 
     def test_without_a_mission_state_every_command_is_disabled_in_the_model(self):
         commands = self.view()['commands']
-        self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS])
+        self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS + (PASSAGE_COMMAND,)])
         self.assertEqual({c['enabled'] for c in commands}, {False})
 
     def test_page_without_command_access_disables_every_button(self):
         html = render_page(self.view())
         buttons = re.findall(r'<button[^>]*>', html)
         commands = [b for b in buttons if 'data-command=' in b]
-        self.assertEqual(len(commands), len(COMMANDS))
+        self.assertEqual(len(commands), len(COMMANDS) + 1)   # + 터널 통과 승인
         for button in commands:
             self.assertIn(' disabled', button)
             self.assertNotIn('onclick', button)
