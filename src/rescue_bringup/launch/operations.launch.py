@@ -9,7 +9,8 @@ ReportReceipt) and, optionally, the fixed webcam and its judge video relay (MJPE
         [map_topic:=/robot6/map map_dir:=<folder>]
 
 map_topic/map_dir write the SLAM map (owner 2026-10-13: TB-6) for the console --live-map; the
-launch logs the console value.
+launch logs the console value. With them db_writer also keeps each run's SLAM and frozen maps for the
+replay page under map_dir/<run_id>/ (map_snapshots rows).
 
 webcam_device picks another plugged camera (e.g. a USB one) over the YAML device_path; the
 launch log lists the plugged cameras.
@@ -48,7 +49,8 @@ def _nodes(context):
                                     command_timeout_s=arg('command_timeout_s'))
     nodes = [Node(package='rescue_operations', executable='db_writer', name='rescue_db_writer', output='screen',
                   parameters=[db_writer_parameters(deployment, **values,
-                                                   webcam_node='/webcam_node' if arg('webcam_params_file') else '')]),
+                                                   webcam_node='/webcam_node' if arg('webcam_params_file') else '',
+                                                   map_topic=arg('map_topic'), map_dir=arg('map_dir'))]),
              Node(package='rescue_operations', executable='report_node', name='rescue_report_node', output='screen',
                   parameters=[_text_as_text(report_node_parameters(
                       db_path=values['db_path'], report_db_path=arg('report_db_path'),

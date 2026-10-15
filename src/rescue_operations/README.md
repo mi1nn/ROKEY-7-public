@@ -7,6 +7,7 @@
 | 현장 상태 DB 쓰기(스키마 1.5) | 구현됨 | `site_state.py:SiteStateLedger`, `ros_node.py`(`db_writer`), #262 |
 | 회차와 리플레이 이력(스키마 1.5) | 구현됨 | `site_state.py`(`runs`, `run_id`, `read_*_range`), [DB 스키마 4-1절](../../docs/design/db-schema.md) |
 | 초기화 API(`POST /api/runs/reset`) | 구현됨 · 실기 NOT_RUN | `command_api.py:RunReset`, `site_state.py:SiteStateLedger.reset_run` |
+| 리플레이 지도 보관(`map_dir/<run_id>/`) | 구현됨 · 실기 NOT_RUN | `map_archive.py`, `db_writer` 파라미터 `map_archive_topic`·`map_archive_dir` |
 | 운영자 명령 API(`POST /api/operator-commands`) | 구현됨 · 실기 NOT_RUN | `command_api.py:CommandGate`, #115 |
 | 웹캠 고르기 API(`GET`·`POST /api/webcam`) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `command_api.py:WebcamSwitch`, #257 |
 | 구조 보고 저장(`report_node`) | 구현됨 | `report_node.py`, `report_store.py`, #137 |
@@ -73,6 +74,7 @@ operations DB의 소유자는 operations 호스트다. 다른 PC는 DB 파일을
 - 종료: Ctrl-C 를 두 번 받아도(launch + 터미널) 정리를 마치고 exit 0 으로 끝난다(#143, `ros_node.teardown`). 고치기 전에는 두 번째 SIGINT 가 정리 중에 오면 traceback 과 exit -2 로 끝났다 [측정 2026-10-13].
 - 읽기: 관제 웹은 `site_state.read_*`(읽기 전용, `mode=ro`)로 DB 를 읽는다. 배치 로봇 목록은 `read_allowed_robot_ids`(#149)로 읽는다.
 - `map_snapshot`(`map_snapshot.py`, #209): SLAM 지도(`OccupancyGrid`)를 관제 웹 `--live-map` 이 읽는 지도 파일로 쓴다. 발행자가 있는 동안 `live_map.alive` 를 갱신한다.
+- 지도 보관(`map_archive.py`, `db_writer` 안): 운영 launch 에 `map_topic`·`map_dir` 을 주면 `db_writer` 도 같은 SLAM 지도와 고정 지도(`/rescue/map/frozen`·`frozen_revision`)를 구독한다. 열린 회차의 `map_dir/<run_id>/` 에 PGM·YAML 을 남기고 `map_snapshots` 에 한 줄씩 쓴다. 실시간 지도는 5초에 한 장 [제안]이고 같은 그림은 다시 남기지 않는다. 고정 지도는 revision 글이 그 지도의 해시를 가리킬 때 늘 남긴다. TB-6 `MapState` 를 받기 전과 회차 사이에는 남기지 않는다.
 - `robot_watch`(`robot_watch.py`, #251): `<ns>/battery_state`·`dock_status`·`tf`·`tf_static` 을 구독만 하고(로봇에 아무것도 보내지 않음) 관제 웹 `--robot-watch` 가 읽는 파일을 1초마다 쓴다.
 
 원본 코드를 복사하지 않은 새 구현이다. 패키지 버전 `0.0.0`, `LicenseRef-Unspecified`, 미지정 maintainer는 기존 기초 구조의 미결정 메타데이터를 유지한다. 배포 권한이나 라이선스 허가를 뜻하지 않는다.
