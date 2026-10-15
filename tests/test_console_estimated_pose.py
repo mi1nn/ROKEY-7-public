@@ -22,6 +22,13 @@ META = {'origin': [-1.0, -1.0, 0.0], 'resolution': 0.05, 'width_px': 100, 'heigh
         'url': 'map.png', 'frame_id': 'map'}
 
 
+def current_map(revision=0, robot_id='robot_a'):
+    """read_overhead_passages 의 current_map: SLAM 로봇의 지금 지도. 0 은 고정 전 SLAM 지도(배치 map_basis 기준)."""
+    return {'schema_version': '1.5', 'robots': {}, 'current_map': None if revision is None else {
+        'robot_id': robot_id, 'map_session_id': '00000000-0000-4000-8000-000000000001', 'map_revision': revision,
+        'generated_at_ns': NOW - SECOND, 'received_at_ns': NOW - SECOND}}
+
+
 def watch_with_start(start=START, **kwargs):
     data = watch(**kwargs)
     data['robots']['robot_a']['start_pose'] = start
@@ -29,8 +36,11 @@ def watch_with_start(start=START, **kwargs):
 
 
 class EstimateTests(LedgerFixture):
-    def view(self, data, *, offsets=OFFSETS, status_robots=(), written_ok=True):
-        status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': list(status_robots)})
+    def view(self, data, *, offsets=OFFSETS, status_robots=(), revision=0, mission=None):
+        status = dict(self.status, robot_status={'schema_version': '1.1', 'robots': list(status_robots)},
+                      overhead_passages=current_map(revision))
+        if mission is not None:
+            status['mission_state'] = {'schema_version': '1.2', 'mission': mission}
         return build_view(load_ledger(self.db), status, built_at_ns=NOW, robot_names=NAMES,
                           robot_watch={'stale_s': 5.0, 'data': data, 'problem': None, 'map_robot': 'robot_a',
                                        'start_offsets': offsets})
@@ -68,6 +78,20 @@ class EstimateTests(LedgerFixture):
                                          pose_seen_ns=NOW - SECOND)
         self.assertTrue(self.tb5(self.view(data))['pose']['estimated'])
 
+    def test_only_before_the_first_freeze(self):
+        # 작전 OPS-281: R1 뒤나 TB-5 출동 뒤 pose 가 비면, 움직이는 TB-5 가 출발점에 다시 나타나면 안 된다.
+        # 「R1 전」이 확인될 때만 그리고, 모르면 그리지 않는다(위치 미확정).
+        from test_console_commands import dispatch, mission_state
+        busy = dict(robot_status('robot_b'), pose=None, active_task_id='00000000-0000-4000-8000-0000000000aa')
+        idle = dict(robot_status('robot_b'), pose=None, active_task_id=None)
+        cases = {'R1 뒤': {'revision': 1}, 'R2 뒤': {'revision': 2}, '지금 지도 모름': {'revision': None},
+                 'TB-5 임무 중': {'status_robots': [busy]},
+                 '출동 뒤': {'mission': mission_state('DISASTER', 'SEGMENT_MOVING', dispatch=dispatch('EXECUTING'))}}
+        for name, kwargs in cases.items():
+            with self.subTest(name):
+                self.assertIsNone(self.tb5(self.view(watch_with_start(), **kwargs))['pose'])
+        self.assertTrue(self.tb5(self.view(watch_with_start(), status_robots=[idle]))['pose']['estimated'])
+
     def test_the_map_robot_is_never_estimated(self):
         data = watch_with_start(pose=False)
         view = self.view(data, offsets={'robot_a': (1.0, 0.0, 0.0), **OFFSETS})
@@ -99,8 +123,8 @@ class FieldFileTests(LedgerFixture):
         path = self.dir / 'robot_watch.json'
         path.write_text(json.dumps(watch_with_start()), encoding='utf-8')
         status_path = self.dir / 'status.json'
-        status_path.write_text(json.dumps(dict(self.status, robot_status={'schema_version': '1.1', 'robots': []})),
-                               encoding='utf-8')
+        status_path.write_text(json.dumps(dict(self.status, robot_status={'schema_version': '1.1', 'robots': []},
+                                               overhead_passages=current_map(0))), encoding='utf-8')
         view = current_view(self.db, status_path, clock=lambda: NOW, robot_names=NAMES,
                             map_image=SimpleNamespace(meta=META), robot_watch_path=path, robot_watch_stale_s=5.0,
                             robot_watch_map_robot='robot_a', start_offsets=OFFSETS)
