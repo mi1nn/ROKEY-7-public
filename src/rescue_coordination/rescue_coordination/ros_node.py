@@ -139,6 +139,13 @@ def start_pose_from_msg(msg, mission_frame):
         raise CoordinationError('INVALID_INPUT', f'start pose: {exc}') from exc
 
 
+def _outside(fields, mask, xy, distance_m):
+    """``mask`` without the cells whose centre is within ``distance_m`` of ``xy``."""
+    w, res, (ox, oy) = fields['width'], fields['resolution'], fields['origin'][:2]
+    return bytes(0 if v and math.dist((ox + (i % w + .5) * res, oy + (i // w + .5) * res), xy) < distance_m else v
+                 for i, v in enumerate(mask))
+
+
 def _along(points, limit_m):
     """(x, y, yaw) ``limit_m`` along a path of points (its end when shorter), heading along the path there."""
     points = [tuple(map(float, p)) for p in points]
@@ -767,15 +774,14 @@ class CoordinatorCore:
         if self.frontier_checked_seq == self.scout_grid_seq:
             return  # this map had nothing to pick; wait for the next update
         fields, radius = self.scout_grid.fields, self.freeze_clearance_m
-        plain = clear_mask(**fields, radius=radius)
-        # A standing TB-5 is an obstacle traffic_min_separation_m wide for the pick (C10, 2026-10-16): a goal or
-        # cut point that close would be held TRAFFIC_ROBOTS_TOO_CLOSE for as long as TB-5 stands. Only with TB-6
-        # itself clear of it (closer, it steps aside first, _traffic_scout).
+        mask = clear_mask(**fields, radius=radius)
+        # A goal or cut point within traffic_min_separation_m of a standing TB-5 would be held
+        # TRAFFIC_ROBOTS_TOO_CLOSE for as long as TB-5 stands (C10, 2026-10-16), so the goal keeps that far off it.
+        # The way there may pass it: TB-6 going by is traffic control's part (11회차 C16: a circle on the path too
+        # left every frontier out from TB-6's start, beside TB-5). Only with TB-6 itself clear of it (closer, it
+        # steps aside first, _traffic_scout).
         tb5 = self._tb5_xy(now_ns) if self._traffic_on() else None
-        keep_off = (tb5 is not None and self.traffic_min_separation_m > radius
-                    and math.dist(start, tb5) >= self.traffic_min_separation_m)
-        mask = clear_mask(**fields, radius=radius, blocked=((*tb5, self.traffic_min_separation_m - radius),)
-                          ) if keep_off else plain
+        keep_off = tb5 if tb5 is not None and math.dist(start, tb5) >= self.traffic_min_separation_m else None
         # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
         found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
                                mask=mask)
@@ -799,8 +805,11 @@ class CoordinatorCore:
                  if self.frontier_goal_clearance_m > radius else None)
         site_gave_up, plan = set(), None
         for _, cost, i in reachable:
-            plan = self._frontier_plan(fields, mask, roomy, start, candidates[i])
-            if plan is None:
+            plan = self._frontier_plan(fields, mask, roomy, start, candidates[i], keep_off)
+            if plan is None and keep_off is not None and self._frontier_plan(fields, mask, roomy, start,
+                                                                             candidates[i]) is not None:
+                why[kept[i]] = 'TOO_CLOSE'  # a goal only within traffic_min_separation_m of TB-5
+            elif plan is None:
                 why[kept[i]] = 'TIGHT'
             elif self._site_gave_up(plan[1][:2]):
                 why[kept[i]] = 'TRIED'
@@ -811,27 +820,21 @@ class CoordinatorCore:
                 break
         if plan is None:
             why.update({i: 'NO_PATH' for i in kept if i not in why})
-        if plan is None and keep_off:
-            # left out only because of TB-5: the same cluster (same order, the frontier cells ignore the mask) has
-            # a goal and a path without it
-            alone = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
-                                   mask=plain)
-            again = [i for i, reason in why.items() if reason in ('NO_GOAL', 'NO_PATH') and alone[i].goal is not None
-                     and not self._tried(alone[i].goal) and not self._tried(alone[i].centroid)]
-            paths = path_lengths(**fields, radius=radius, start=start, goals=[alone[i].goal for i in again],
-                                 mask=plain)
-            why.update({i: 'TOO_CLOSE' for i, length in zip(again, paths) if length is not None})
         if plan is None:
             self.frontier_checked_seq = self.scout_grid_seq
-            self.frontier_empty += 1
+            # one left out only for TB-5 is still to explore: wait for the next map update (TB-5 may have moved),
+            # not a step toward EXPLORATION_COMPLETE (C16); the exploration timeout still ends a TB-5 that stays
+            waiting = 'TOO_CLOSE' in why.values()
+            self.frontier_empty += 0 if waiting else 1
             counts = ' '.join(f'{k.lower()}={sum(1 for v in why.values() if v == k)}'
                               for k in ('SMALL', 'NO_GOAL', 'TRIED', 'TIGHT', 'NO_PATH', 'TOO_CLOSE'))
             largest = '; '.join(f'{why[i]} cells={found[i].cells} centroid=({found[i].centroid[0]:.2f}, '
                                 f'{found[i].centroid[1]:.2f})' for i in range(min(5, len(found))))
             self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
-                              f'({self.frontier_empty}/{self.exploration_empty_checks}): '
+                              f'({"TOO_CLOSE not counted, " if waiting else ""}'
+                              f'{self.frontier_empty}/{self.exploration_empty_checks}): '
                               f'frontiers={len(found)} {counts}' + (f' | {largest}' if largest else ''))
-            if self.frontier_empty >= self.exploration_empty_checks:
+            if not waiting and self.frontier_empty >= self.exploration_empty_checks:
                 # frontiers left only because they failed FRONTIER_ATTEMPTS times: not a whole map (C9)
                 failed = sum(1 for i, reason in why.items() if reason == 'TRIED'
                              and (i in site_gave_up or self._gave_up(found[i].goal)
@@ -878,7 +881,7 @@ class CoordinatorCore:
         self.frontier = origin
         self._frontier_done(True)
 
-    def _frontier_plan(self, fields, mask, roomy, start, frontier):
+    def _frontier_plan(self, fields, mask, roomy, start, frontier, tb5=None):
         """(path, (x, y, yaw) sent, cut) for a frontier, or None (TIGHT). The path keeps ``freeze_clearance_m`` so a
         narrow way (the 0.68 m gap beside tunnel 1) stays reachable. With ``frontier_goal_clearance_m`` larger
         (``roomy``), the goal is never in a place narrower than that (TB-6 stops and turns in place there without
@@ -886,30 +889,41 @@ class CoordinatorCore:
         EXPIRED four times): the frontier's goal is the reachable roomy cell nearest it within ``frontier_reach_m``,
         past the gap too (9회차 C14: the one with the shortest path slanted to a gap and saw nothing past it), and a
         cut point in a tight part of the path goes on to the first roomy path
-        point past it. No roomy cell within reach: None, the frontier is left out for this map update."""
-        if roomy is None:
+        point past it. No roomy cell within reach: None, the frontier is left out for this map update. With ``tb5``
+        (a standing TB-5), the goal and the cut point are also traffic_min_separation_m from it; the path is not
+        (C16); None then says nothing, the caller tells TOO_CLOSE from TIGHT."""
+        if roomy is None and tb5 is None:
             path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=frontier.goal, mask=mask)
             # cut short of the frontier's goal cell: reaching it is a step on the way, not a visit (C11)
             return path, _along(path.points, self.frontier_goal_max_m), path.length_m > self.frontier_goal_max_m
-        goal = nearest_reachable(**fields, radius=self.freeze_clearance_m, start=start, mask=mask, among=roomy,
+        among, sep = roomy if roomy is not None else mask, self.traffic_min_separation_m
+        if tb5 is not None:
+            among = _outside(fields, among, tb5, sep)
+
+        def fits(point):
+            return (nearest_in_mask(**fields, mask=among, point=point, within_m=0.0) is not None
+                    and (tb5 is None or math.dist(point, tb5) >= sep))
+
+        goal = nearest_reachable(**fields, radius=self.freeze_clearance_m, start=start, mask=mask, among=among,
                                  point=frontier.centroid, within_m=self.frontier_reach_m)
         if goal is None:
-            self.notes.append(f'FRONTIER_GOAL_TIGHT cells={frontier.cells} centroid=({frontier.centroid[0]:.2f}, '
-                              f'{frontier.centroid[1]:.2f}): no cell {self.frontier_goal_clearance_m} m clear within '
-                              f'{self.frontier_reach_m} m, left out')
+            if tb5 is None:
+                self.notes.append(f'FRONTIER_GOAL_TIGHT cells={frontier.cells} centroid=({frontier.centroid[0]:.2f}, '
+                                  f'{frontier.centroid[1]:.2f}): no cell {self.frontier_goal_clearance_m} m clear '
+                                  f'within {self.frontier_reach_m} m, left out')
             return None
         path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=goal, mask=mask)
         x, y, yaw = _along(path.points, self.frontier_goal_max_m)
-        if nearest_in_mask(**fields, mask=roomy, point=(x, y), within_m=0.0) is None:
+        if not fits((x, y)):
             walked, past = 0.0, None
             for a, b in zip(path.points, path.points[1:]):
                 walked += math.dist(a, b)
-                if walked > self.frontier_goal_max_m and nearest_in_mask(**fields, mask=roomy, point=b,
-                                                                          within_m=0.0) is not None:
+                if walked > self.frontier_goal_max_m and fits(b):
                     past = (*b, math.atan2(b[1] - a[1], b[0] - a[0]))
                     break
+            beside = f' and {sep} m from TB-5' if tb5 is not None else ''
             self.notes.append(f'FRONTIER_GOAL_PAST_TIGHT ({x:.2f}, {y:.2f}) -> ({past[0]:.2f}, {past[1]:.2f}) '
-                              f'for {self.frontier_goal_clearance_m} m clear')
+                              f'for {max(self.frontier_goal_clearance_m, self.freeze_clearance_m)} m clear{beside}')
             x, y, yaw = past
         return path, (x, y, yaw), math.dist((x, y), path.points[-1]) > 1e-9
 
