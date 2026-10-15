@@ -185,6 +185,12 @@ class SimRenderRates(unittest.TestCase):
         with self.assertRaises(ValueError):
             strip_sensors.patch(URDF, keep_sensors=True, wheel_sphere=False, camera_rate_hz=10.0)
 
+    def test_every_robot_is_spawned_with_the_lower_render_rates(self):
+        """RTF of two idle robots: 0.84 at 62 Hz rays / 30 Hz camera, 0.99 at 1 Hz / 10 Hz [측정 2026-10-16]."""
+        launch = (REPO / 'scripts' / 'sim' / 'spawn_extra.launch.py').read_text()
+        self.assertIn("'--rays-rate', '1'", launch)
+        self.assertIn("'--camera-rate', '10'", launch)
+
 
 if __name__ == '__main__':
     unittest.main()

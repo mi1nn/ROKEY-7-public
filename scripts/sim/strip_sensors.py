@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Republish this namespace's robot_description as robot_description_sim, the copy Gazebo spawns (2026-10-15, -16).
 
-Two changes, nothing else:
+These changes, nothing else:
 1. Without the Gazebo Sensors system (second and later robots; --keep-sensors-system for the first one):
 
 The Create3 model (irobot_create_description create3.urdf.xacro) loads gz::sim::systems::Sensors in every robot.
@@ -25,6 +25,16 @@ One Sensors system renders every sensor in the world, so the extra robots are sp
    GPU lidar let rays whose true distance is under about 0.23 m through walls (0.164 / cos 45 deg on the cube face)
    [측정 2026-10-16, lidar_probe.py]; from 0.10 m it does not, and wall_clock_relay.py drops returns under the real
    0.164 m so the field sees what the real lidar gives.
+5. --rays-rate HZ --camera-rate HZ: render rates of the sensors nothing downstream reads at full rate, for real time
+   (RTF). The Sensors system renders every sensor of both robots in one thread and the simulation step waits for it:
+   two idle robots ran at RTF 0.84 with that thread at 87 % of a core, 1.000 with no rendering at all [측정 2026-10-16,
+   sim_robots.sh arena headless, 30 s of /world/arena/stats sim_time]. The 4 cliff and 7 IR intensity ray sensors of
+   each Create3 render at 62 Hz in the description; none of our nodes reads them (src, config searched for
+   hazard_detection, ir_intensity, cliff), the relay passes hazard_detection only, the simulated motion_control uses
+   ir_intensity for its wall-follow action only and has no reflexes ("not supported yet"), and the arena floor has no
+   cliff: 1 Hz. The OAK-D rgbd_camera renders at 30 Hz; the relay passes at most 10 Hz depth and 5 Hz RGB (the real
+   depth reached the PC at 4.76 Hz, docs/evidence/field-2026-10-13-oakd-robot6.md): 10 Hz. Measured RTF: 62/30 Hz
+   0.84, 10/30 Hz 0.88, 10/10 Hz 0.93, 1/10 Hz 0.99.
 """
 import re
 import sys
@@ -80,10 +90,37 @@ def real_lidar(urdf, rate_hz, min_m, noise_m):
     return RPLIDAR.subn(change, urdf)
 
 
+SMALL_RAYS = re.compile(r'(<sensor name="(?:cliff|ir_intensity)_[a-z_]+" type="gpu_lidar">\s*<update_rate>)[^<]*'
+                        r'(</update_rate>)')
+SMALL_RAYS_PER_ROBOT = 11   # Create3: 4 cliff + 7 IR intensity (irobot_create_description)
+
+
+def small_rays_rate(urdf, rate_hz):
+    """(text whose cliff and IR intensity ray sensors render at rate_hz, how many were changed)."""
+    return SMALL_RAYS.subn(rf'\g<1>{rate_hz:g}\g<2>', urdf)
+
+
+CAMERA_RATE = re.compile(r'(<sensor name="rgbd_camera" type="rgbd_camera">.*?<update_rate>)[^<]*(</update_rate>)',
+                         re.DOTALL)
+
+
+def camera_rate(urdf, rate_hz):
+    """(text whose rgbd_camera renders at rate_hz, how many cameras were changed)."""
+    return CAMERA_RATE.subn(rf'\g<1>{rate_hz:g}\g<2>', urdf)
+
+
 def patch(urdf, *, keep_sensors, wheel_sphere, depth_near_m=None, lidar_rate_hz=None, lidar_min_m=None,
-          lidar_noise_m=None):
+          lidar_noise_m=None, rays_rate_hz=None, camera_rate_hz=None):
     """The simulation copy, or ValueError when the description is not the one expected (nothing is guessed)."""
     report = {'sensors_removed': 0, 'wheels_sphere': 0, 'depth_camera': 0, 'lidar': 0}
+    if rays_rate_hz is not None:
+        urdf, report['small_rays'] = small_rays_rate(urdf, rays_rate_hz)
+        if report['small_rays'] != SMALL_RAYS_PER_ROBOT:
+            raise ValueError(f'expected {SMALL_RAYS_PER_ROBOT} cliff/IR ray sensors, found {report["small_rays"]}')
+    if camera_rate_hz is not None:
+        urdf, report['camera_rate'] = camera_rate(urdf, camera_rate_hz)
+        if report['camera_rate'] != 1:
+            raise ValueError(f'expected 1 rgbd_camera, found {report["camera_rate"]}')
     if not keep_sensors:
         urdf, report['sensors_removed'] = strip(urdf)
         if report['sensors_removed'] != 1:
@@ -107,9 +144,10 @@ def patch(urdf, *, keep_sensors, wheel_sphere, depth_near_m=None, lidar_rate_hz=
 
 
 class StripSensors(Node):
-    def __init__(self, keep_sensors, wheel_sphere, depth_near_m=None, lidar=(None, None, None)):
+    def __init__(self, keep_sensors, wheel_sphere, depth_near_m=None, lidar=(None, None, None), rates=(None, None)):
         super().__init__('strip_sensors')
         self.keep_sensors, self.wheel_sphere, self.depth_near_m, self.lidar = keep_sensors, wheel_sphere, depth_near_m, lidar
+        self.rates = rates
         self.pub = self.create_publisher(String, 'robot_description_sim', LATCHED)
         self.sub = self.create_subscription(String, 'robot_description', self.on_description, LATCHED)
 
@@ -117,13 +155,16 @@ class StripSensors(Node):
         try:
             text, report = patch(msg.data, keep_sensors=self.keep_sensors, wheel_sphere=self.wheel_sphere,
                                  depth_near_m=self.depth_near_m, lidar_rate_hz=self.lidar[0],
-                                 lidar_min_m=self.lidar[1], lidar_noise_m=self.lidar[2])
+                                 lidar_min_m=self.lidar[1], lidar_noise_m=self.lidar[2],
+                                 rays_rate_hz=self.rates[0], camera_rate_hz=self.rates[1])
         except ValueError as exc:
             self.get_logger().error(f'STRIP_SENSORS {exc}; not publishing')
             return
         self.get_logger().info(f'STRIP_SENSORS robot_description_sim: Sensors system removed {report["sensors_removed"]}, '
                                f'drive wheel spheres {report["wheels_sphere"]}, depth camera {report["depth_camera"]} '
-                               f'(near {self.depth_near_m}), lidar {report["lidar"]} (rate, min, noise {self.lidar})')
+                               f'(near {self.depth_near_m}), lidar {report["lidar"]} (rate, min, noise {self.lidar}), '
+                               f'cliff/IR rays {report.get("small_rays", 0)} at {self.rates[0]} Hz, '
+                               f'camera {report.get("camera_rate", 0)} at {self.rates[1]} Hz')
         self.pub.publish(String(data=text))
 
 
@@ -135,7 +176,8 @@ def main():
     rclpy.init(args=sys.argv)
     try:
         rclpy.spin(StripSensors(keep_sensors, wheel_sphere, value('--depth-near'),
-                                (value('--lidar-rate'), value('--lidar-min'), value('--lidar-noise'))))
+                                (value('--lidar-rate'), value('--lidar-min'), value('--lidar-noise')),
+                                (value('--rays-rate'), value('--camera-rate'))))
     except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
 
