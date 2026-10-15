@@ -357,8 +357,21 @@ class WallClearanceTests(unittest.TestCase):
 
 class FrontierGainTests(unittest.TestCase):
     """A large unexplored zone goes before a small nook nearby (재범 2026-10-16, 5회차 02:23: TB-6 turned to the
-    side its LiDAR already saw). The pick ranks by the explore_lite cost potential_scale x path length (m) - gain_scale
-    x frontier size (cells x resolution, m), the repository explore.yaml 3.0 / 1.0; untried before retried first."""
+    side its LiDAR already saw). The pick ranks by the explore_lite cost (potential_scale x path length (m) -
+    gain_scale x frontier size (cells)) x resolution, the repository explore.yaml 3.0 / 1.0, as frontierCost in
+    src/vendor/m-explore-ros2 writes it; untried before retried first."""
+
+    def test_the_5th_run_candidates(self):
+        # 5회차 2026-10-16 02:23, the map before the declaration (#403 README 「선포 순간 후보」): cells and distance
+        # from TB-6. The coordinator took the 14-cell corner; the cost puts the large ones first.
+        core = frontier_core()
+        candidates = {'east of TB-5': (32, 2.24), 'tunnel 1 entrance': (31, 2.63), 'south-west corner': (14, 0.78),
+                      'north': (10, 2.51), 'west': (10, 1.29)}
+        cost = {name: core._cost(ros_node.Frontier(cells, (0., 0.), None), distance, dict(resolution=0.05))
+                for name, (cells, distance) in candidates.items()}
+        self.assertAlmostEqual(-1.16, cost['tunnel 1 entrance'], places=2)   # 3 x 2.63 x 0.05 - 31 x 0.05
+        self.assertAlmostEqual(-0.58, cost['south-west corner'], places=2)   # 3 x 0.78 x 0.05 - 14 x 0.05
+        self.assertEqual(['east of TB-5', 'tunnel 1 entrance', 'south-west corner'], sorted(cost, key=cost.get)[:3])
 
     @staticmethod
     def room():
@@ -388,10 +401,15 @@ class FrontierGainTests(unittest.TestCase):
         x, _ = self.picked((1.4, 1.5))
         self.assertGreater(x, 2.9)  # the zone beyond x = 3.0, not the nook at x 0.24
 
-    def test_the_near_nook_still_goes_first_when_the_zone_is_far(self):
-        # from (1.2, 1.5): nook 0.77 m, zone 1.62 m; 3 x 0.85 m of path is more than the zone's 2.2 m of size more
+    def test_the_size_decides_even_when_the_zone_is_farther(self):
+        # from (1.2, 1.5): nook 0.77 m, zone 1.62 m; 3 x 0.85 = 2.55 path cells' worth against 44 cells more
         x, _ = self.picked((1.2, 1.5))
-        self.assertLess(x, 0.5)
+        self.assertGreater(x, 2.9)
+
+    def test_the_distance_splits_frontiers_of_one_size(self):
+        core = frontier_core()
+        near, far = (core._cost(ros_node.Frontier(20, (0., 0.), None), m, dict(resolution=0.05)) for m in (1.0, 2.0))
+        self.assertAlmostEqual(0.15, far - near)  # 3 x 1 m x 0.05
 
 
 class CutGoalTests(Base):

@@ -446,7 +446,7 @@ class CoordinatorCore:
         self.frontier_min_cells, self.frontier_reach_m = frontier_min_cells, frontier_reach_m
         self.frontier_goal_max_m, self.frontier_blacklist_m = frontier_goal_max_m, frontier_blacklist_m
         self.frontier_goal_clearance_m = frontier_goal_clearance_m  # >= freeze_clearance_m; the goal only
-        # explore_lite cost weights: potential x path length (m) - gain x frontier size (cells x resolution, m)
+        # explore_lite cost weights: (potential x path length (m) - gain x frontier size (cells)) x resolution
         self.frontier_potential_scale, self.frontier_gain_scale = frontier_potential_scale, frontier_gain_scale
         self.frontier_issue_delay_ns, self.exploration_empty_checks = frontier_issue_delay_ns, exploration_empty_checks
         self.exploration_timeout_ns = exploration_timeout_ns
@@ -852,9 +852,12 @@ class CoordinatorCore:
         return near
 
     def _cost(self, frontier, length, fields):
-        """explore_lite frontier cost (lower first) with both terms in m: the path length, not the straight line."""
-        return (self.frontier_potential_scale * length
-                - self.frontier_gain_scale * frontier.cells * fields['resolution'])
+        """explore_lite frontier cost, lower first (src/vendor/m-explore-ros2 frontier_search.cpp frontierCost):
+        potential x distance (m) x resolution - gain x size (cells) x resolution. The resolution on a distance already
+        in m makes the size decide and the distance split near ties, as explore_lite does (작전 2026-10-16). The
+        distance here is the grid path length to the goal cell, not the straight line to the nearest frontier cell."""
+        return fields['resolution'] * (self.frontier_potential_scale * length
+                                       - self.frontier_gain_scale * frontier.cells)
 
     def _frontier_done(self, completed):
         """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS). Completed at the
@@ -2597,7 +2600,7 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     'frontier_min_cells': 'INTEGER', 'frontier_reach_m': 'DOUBLE', 'frontier_goal_max_m': 'DOUBLE',
     # the frontier goal's free radius (>= freeze_clearance_m; the path keeps freeze_clearance_m, 2026-10-15)
     'frontier_goal_clearance_m': 'DOUBLE',
-    # the pick's explore_lite cost weights (path length and frontier size, both m; 5회차 2026-10-16)
+    # the pick's explore_lite cost weights (path length and frontier size; 5회차 2026-10-16)
     'frontier_potential_scale': 'DOUBLE', 'frontier_gain_scale': 'DOUBLE',
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
     'exploration_timeout_s': 'DOUBLE',
