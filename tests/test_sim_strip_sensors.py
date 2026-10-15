@@ -25,10 +25,7 @@ URDF = ('<robot name="turtlebot4">\n  <gazebo>\n    <plugin filename="libgz-sim-
         'name="gz::sim::systems::PosePublisher"><publish_link_pose>true</publish_link_pose></plugin>\n'
         '  </gazebo>\n  <gazebo>\n      ' + SENSORS + '\n  </gazebo>\n'
         '  <gazebo reference="rplidar_link"><sensor name="rplidar" type="gpu_lidar"/></gazebo>\n'
-        '  <gazebo><plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">\n'
-        '    <parameters>/opt/ros/jazzy/share/irobot_create_control/config/control.yaml</parameters>\n'
-        '  </plugin></gazebo>\n</robot>\n')
-SIM_CONTROL = REPO / 'config' / 'sim' / 'create3_control.yaml'
+        '</robot>\n')
 
 
 class Strip(unittest.TestCase):
@@ -46,42 +43,40 @@ class Strip(unittest.TestCase):
 
 
 class SimOdom(unittest.TestCase):
-    """Simulated odom counted turns 6.4 % too large (undock: odom 191 deg, ground truth 179.5 deg; commanded 360 deg turn:
-    odom 361, truth 339), straight lines exact [측정 2026-10-16]. The simulation copy of the description points
-    gz_ros2_control at config/sim/create3_control.yaml, whose only change is wheel_separation_multiplier."""
+    """Simulated odom counted turns 6.4 % too large with the drive wheels colliding as 1.5 cm wide cylinders
+    (undock: odom 191 deg, ground truth 179.5 deg), straight lines exact; with spheres of the wheel radius odom and
+    truth agree to 0.01 deg [측정 2026-10-16]. The simulation copy changes the two drive wheel collisions only."""
+    WHEELS = ''.join(f'<link name="{side}_wheel">\n    <visual><geometry><cylinder length="0.015" radius="0.03575"/>'
+                     f'</geometry></visual>\n    <collision>\n      <geometry>\n        '
+                     f'<cylinder length="0.015" radius="0.03575"/>\n      </geometry>\n    </collision>\n  </link>\n'
+                     for side in ('left', 'right'))
+    CASTER = '<link name="caster"><collision><geometry><cylinder length="0.01" radius="0.01"/></geometry></collision></link>'
 
-    def test_the_controller_parameters_are_swapped_and_nothing_else(self):
-        out, swapped = strip_sensors.use_control_params(URDF, '/x/create3_control.yaml')
-        self.assertEqual(1, swapped)
-        self.assertIn('<parameters>/x/create3_control.yaml</parameters>', out)
-        self.assertEqual(URDF.replace('/opt/ros/jazzy/share/irobot_create_control/config/control.yaml',
-                                      '/x/create3_control.yaml'), out)
+    def robot(self):
+        return URDF.replace('</robot>', self.WHEELS + self.CASTER + '</robot>')
 
-    def test_the_first_robot_keeps_its_sensors_system_but_gets_the_sim_parameters(self):
-        out, report = strip_sensors.patch(URDF, keep_sensors=True, control_params='/x/c.yaml')
-        self.assertIn('gz-sim-sensors-system', out)
-        self.assertIn('<parameters>/x/c.yaml</parameters>', out)
-        self.assertEqual({'sensors_removed': 0, 'control_swapped': 1}, report)
-        out, report = strip_sensors.patch(URDF, keep_sensors=False, control_params='/x/c.yaml')
+    def test_only_the_two_drive_wheel_collisions_become_spheres(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=True)
+        self.assertEqual({'sensors_removed': 0, 'wheels_sphere': 2}, report)
+        self.assertEqual(2, out.count('<sphere radius="0.03575"/>'))
+        self.assertEqual(2 + 1, out.count('<cylinder '))   # the wheel visuals and the caster stay cylinders
+        self.assertIn('gz-sim-sensors-system', out)        # the first robot keeps its Sensors system
+
+    def test_the_second_robot_gets_both_changes(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=False, wheel_sphere=True)
+        self.assertEqual({'sensors_removed': 1, 'wheels_sphere': 2}, report)
         self.assertNotIn('gz-sim-sensors-system', out)
-        self.assertEqual({'sensors_removed': 1, 'control_swapped': 1}, report)
 
     def test_a_description_that_does_not_match_is_refused(self):
-        with self.assertRaises(ValueError):   # no controller parameters to swap: nothing is guessed
-            strip_sensors.patch(URDF.replace('irobot_create_control/config/control.yaml', 'other.yaml'),
-                                keep_sensors=True, control_params='/x/c.yaml')
+        with self.assertRaises(ValueError):   # no drive wheel cylinders: nothing is guessed
+            strip_sensors.patch(URDF, keep_sensors=True, wheel_sphere=True)
         with self.assertRaises(ValueError):   # a second robot without a Sensors system to remove
-            strip_sensors.patch(URDF.replace(SENSORS, ''), keep_sensors=False, control_params='/x/c.yaml')
+            strip_sensors.patch(self.robot().replace(SENSORS, ''), keep_sensors=False, wheel_sphere=True)
 
-    def test_the_sim_parameters_differ_from_upstream_only_in_the_multiplier(self):
-        upstream = Path('/opt/ros/jazzy/share/irobot_create_control/config/control.yaml')
-        if not upstream.exists():
-            self.skipTest('irobot_create_control not installed')
-        strip = lambda text: [l.split('#')[0].rstrip() for l in text.splitlines() if l.split('#')[0].strip()]  # noqa: E731
-        ours, theirs = strip(SIM_CONTROL.read_text()), strip(upstream.read_text())
-        changed = [(a, b) for a, b in zip(ours, theirs) if a != b]
-        self.assertEqual(len(theirs), len(ours))
-        self.assertEqual([('      wheel_separation_multiplier: 1.064', '      wheel_separation_multiplier: 1.0')], changed)
+    def test_every_robot_is_spawned_with_the_sphere_wheels(self):
+        launch = (REPO / 'scripts' / 'sim' / 'spawn_extra.launch.py').read_text()
+        self.assertIn("'--wheel-sphere'", launch)
+        self.assertIn("'-topic', 'robot_description_sim'", launch)
 
 
 if __name__ == '__main__':
