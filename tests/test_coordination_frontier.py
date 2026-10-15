@@ -461,7 +461,8 @@ def sees_unknown(grid, xy, degrees):
     for a in degrees:
         for k in range(1, 1200):
             x, y = xy[0] + k * 0.01 * math.cos(math.radians(a)), xy[1] + k * 0.01 * math.sin(math.radians(a))
-            ix, iy = math.floor((x - f['origin'][0]) / f['resolution']), math.floor((y - f['origin'][1]) / f['resolution'])
+            ix = math.floor((x - f['origin'][0]) / f['resolution'])
+            iy = math.floor((y - f['origin'][1]) / f['resolution'])
             if not (0 <= ix < f['width'] and 0 <= iy < f['height']):
                 break
             if f['data'][iy * f['width'] + ix] == -1:
