@@ -43,8 +43,8 @@ class Case(unittest.TestCase):
 class LineTests(Case):
     def test_a_fresh_db_says_what_is_not_there_yet(self):
         line = self.line()
-        for part in ('임무 기록 없음', 'robot_a 상태 없음', 'robot_b 상태 없음', '지도 상태 없음', '고정 지도 없음',
-                     '대상 없음'):
+        for part in ('임무 기록 없음', 'robot_a 상태 없음', 'robot_b 상태 없음', '지도 상태 없음',
+                     '지도 보관 꺼짐 — 고정 여부 모름', '대상 없음'):
             self.assertIn(part, line)
         self.assertEqual(1, len(line.splitlines()))
 
@@ -73,6 +73,17 @@ class LineTests(Case):
                      '지도 r7', '고정 지도 r1,r2', f'대상 1개 {uid(500)[:8]} RECHECK_NEEDED/ASSIGNED'):
             self.assertIn(part, line)
         self.assertNotIn('낡음', line)
+
+    def test_no_frozen_map_is_said_only_when_the_archive_keeps_maps(self):
+        """Without any kept map in the run the archive is off (or has kept nothing yet): frozen or not is not
+        known, so the line says that and never 「고정 지도 없음」 (작전 OPS-289)."""
+        self.assertNotIn('고정 지도 없음', self.line())
+        self.ledger.record_map_snapshot(dict(snapshot_id=uid(820), robot_id='robot_a', revision=3,
+                                             path=f'maps/{self.ledger.run_id}/live-r3-{"e" * 12}.pgm', sha256='e' * 64,
+                                             at_ns=time.time_ns()))
+        line = self.line()
+        self.assertIn('고정 지도 없음', line)
+        self.assertNotIn('지도 보관 꺼짐', line)
 
     def test_old_values_say_their_age_and_are_marked_stale(self):
         self.ledger.record_robot_status(robot_status())
