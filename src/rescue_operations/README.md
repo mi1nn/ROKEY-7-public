@@ -4,7 +4,8 @@
 
 | 기능 | 상태 | 근거 |
 | --- | --- | --- |
-| 현장 상태 DB 쓰기(스키마 1.4) | 구현됨 | `site_state.py:SiteStateLedger`, `ros_node.py`(`db_writer`), #262 |
+| 현장 상태 DB 쓰기(스키마 1.5) | 구현됨 | `site_state.py:SiteStateLedger`, `ros_node.py`(`db_writer`), #262 |
+| 회차와 리플레이 이력(스키마 1.5) | 구현됨 · 초기화 엔드포인트는 다음 PR | `site_state.py`(`runs`, `run_id`, `read_*_range`), [DB 스키마 4-1절](../../docs/design/db-schema.md) |
 | 운영자 명령 API(`POST /api/operator-commands`) | 구현됨 · 실기 NOT_RUN | `command_api.py:CommandGate`, #115 |
 | 웹캠 고르기 API(`GET`·`POST /api/webcam`) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `command_api.py:WebcamSwitch`, #257 |
 | 구조 보고 저장(`report_node`) | 구현됨 | `report_node.py`, `report_store.py`, #137 |
@@ -12,12 +13,12 @@
 | 로봇 직접 관측 파일 쓰기(`robot_watch`) | 구현됨 · 실기 일부: TB-5·TB-6 수신 [측정 2026-10-13] | `robot_watch.py`, #251 |
 | API 인증·원격 HTTP | 미구현(`127.0.0.1` 에서만 연다) | `operations_launch.py` `API_HOST` |
 
-## 현장 상태 DB (스키마 1.4)
+## 현장 상태 DB (스키마 1.5)
 
 - 쓰는 프로세스는 `db_writer` 하나다. 관제 웹은 `site_state.read_*` 로 읽기만 한다(`mode=ro`).
 - 표: `mission_state`, `robot_status`, `site_events`, `target_states`, `error_log`, `operator_commands`, `map_snapshots`, `exit_locations`(1.3, 출구(QR) 관측), `overhead_passage_lists`·`overhead_passages`·`current_map`(1.4, 터널 판정과 TB-6 최신 지도 revision, #262). 표마다 누가 쓰고 누가 읽는지는 [DB 스키마](../../docs/design/db-schema.md)에 있다.
-- 기존 파일(1.0~1.3)은 새 `db_writer` 가 열 때 1.4 로 올린다(`UPGRADES_FROM`). 그 전까지 관제 웹의 읽기 함수는 최신 스키마만 받으므로 화면이 503 응답을 낸다.
-- 회차마다 새 DB 경로로 띄운다. 같은 파일로 다시 띄우면 지난 회차의 재난 모드·사건이 그대로 남는다. 지난 파일은 지우지 않고 증거로 둔다.
+- 기존 파일(1.0~1.4)은 새 `db_writer` 가 열 때 1.5 로 올린다(`UPGRADES_FROM`). 1.4 파일의 쌓인 행은 닫힌 「이전 기록」 회차 하나로 묶인다. 그 전까지 관제 웹의 읽기 함수는 최신 스키마만 받으므로 화면이 503 응답을 낸다.
+- 회차는 한 DB 안에서 `runs` 표와 `run_id` 로 나눈다(1.5). 같은 파일로 다시 띄우면 열린 회차를 잇는다. 화면용 읽기 함수는 열린 회차의 사건·명령·오류·지도·출구만 준다. 지난 회차는 지우지 않고 리플레이 읽기 함수(`list_runs`, `read_*_range`)로 읽는다.
 
 ## HTTP API (`db_writer` 와 같은 프로세스, `127.0.0.1`)
 

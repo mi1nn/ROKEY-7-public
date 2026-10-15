@@ -1,14 +1,14 @@
 ---
 title: DB 스키마 — 운영 장부·현장 상태·콘솔 계정
-status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2·1.3·1.4)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
-updated: 2026-10-14
+status: draft   # 1.0 절과 계정 표는 main 기준, 4절(현장 상태 1.1·1.2·1.3·1.4·1.5)은 구현됨·어휘는 [제안]. 테이블을 바꾸는 PR 이 이 문서를 같이 바꾼다
+updated: 2026-10-15
 ---
 
 # DB 스키마
 
 ## 한눈에 (2026-10-14, main 3278a3e)
 
-이 문서가 답하는 질문은 「현장 상태 DB(스키마 1.4)의 표마다 누가 쓰고 누가 읽는가」다. 쓰는 프로세스는 운영 PC 의 `db_writer` 하나이고, 관제 웹은 읽기 전용(`mode=ro`)으로만 연다.
+이 문서가 답하는 질문은 「현장 상태 DB(스키마 1.5)의 표마다 누가 쓰고 누가 읽는가」다. 쓰는 프로세스는 운영 PC 의 `db_writer` 하나이고, 관제 웹은 읽기 전용(`mode=ro`)으로만 연다.
 
 | 표 | 담는 것 | 쓰는 함수 (입력) | 읽는 쪽 |
 | --- | --- | --- | --- |
@@ -22,6 +22,8 @@ updated: 2026-10-14
 | `overhead_passage_lists`·`overhead_passages` | 로봇별 터널 판정 목록 | `record_overhead_passages` (`/rescue/robots/<id>/overhead_passages`) | 관제 웹 `read_overhead_passages` |
 | `current_map` | TB-6(SCOUT) 최신 지도 revision 1행 | `record_current_map` (`/rescue/robots/<TB-6 id>/map_state`) | 관제 웹 `read_overhead_passages` |
 | `map_snapshots` | 지도 이미지 경로·해시 | 함수 `record_map_snapshot` 은 있으나 부르는 노드가 없음 | 함수 `read_map_snapshots` 는 있으나 쓰는 화면이 없음(관제 웹 지도는 `map_snapshot` 노드가 쓰는 파일을 직접 읽음) |
+| `runs` (1.5) | 회차 목록(시작·끝·지도 세션·메모) | `SiteStateLedger` 가 열 때(열린 회차가 없으면), `open_run`·`close_run` | 리플레이 `list_runs`, 모든 `read_*` 결과의 `run_id` |
+| `robot_status_history`·`target_state_history` (1.5) | 리플레이용 로봇 상태·대상 상태 이력 | `record_robot_status`·`record_robot_pose`·`record_target_state` 가 함께 씀 | 리플레이 `read_robot_status_history`·`read_target_state_history` |
 
 다른 SQLite 파일은 세 가지다. 운영 장부(`operations-ledger`)와 보고 송신 대기열(`report-outbox`)은 `rescue_operations/ledger.py`, 관제 웹 계정(`console-accounts`)은 `rescue_console/accounts.py` 가 쓴다. 구조 보고 저장 장부(`report_node`, `report_store.py`)는 이 문서 밖이다([운영 구현](../implementation/implementation-operations.md)).
 
@@ -30,7 +32,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | 파일 (역할 값 `metadata.role`) | 쓰는 쪽 | 읽는 쪽 | 코드 | 상태 |
 | --- | --- | --- | --- | --- |
 | 운영 장부 `operations-ledger` (schema 1.0) | operations (`ReportLedger`) | 콘솔, 협업 | `rescue_operations/ledger.py` | main |
-| 현장 상태 `operations-site-state` (schema 1.4, 1.0~1.3 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
+| 현장 상태 `operations-site-state` (schema 1.5, 1.0~1.4 파일은 열 때 올림) | operations (`SiteStateLedger`) | 콘솔 | `rescue_operations/site_state.py` | 1.0 은 main, 1.1 은 4절 |
 | 콘솔 계정 `console-accounts` (schema 1.0) | 콘솔 (`AccountStore`) | 콘솔 | `rescue_console/accounts.py` | main (#50) |
 | 보고 송신 대기열 `report-outbox` (생산자 쪽 별도 파일) | 보고 생산자 (`ReportOutbox`) | 생산자 | `rescue_operations/ledger.py` | main |
 
@@ -87,11 +89,30 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 | `overhead_passages` (1.4) | `robot_id`, `id`(PK 는 둘), `state`, `lowest_m REAL NULL`, `x REAL`, `y REAL`, `map_session_id`, `map_revision`, `frames`, `first_seen_ns`, `last_seen_ns`, `reason` | 그 목록의 항목, C-04b 필드 그대로(UNKNOWN 이면 `lowest_m` None). **목록이 기록이다**: `generated_at_ns` 가 더 큰 목록이 오면 그 로봇의 머리·항목을 한 트랜잭션에서 통째로 바꾸고, 새 목록에 없는 항목은 지운다(이전 revision 항목은 로봇이 목록에 남겨 보내므로 그대로 남는다). 같은 시각 같은 목록은 멱등(처음 받은 `received_at_ns` 유지), 같은 시각 다른 내용은 `ID_CONTENT_CONFLICT`, 더 오래된 목록은 버린다 |
 | `current_map` (1행, 1.4) | `singleton INTEGER PK (=1)`, `robot_id`, `map_session_id`, `map_revision`, `generated_at_ns`, `received_at_ns` | SLAM 로봇(SCOUT, TB-6)의 최신 `MapState`. 두 로봇의 터널 항목은 모두 이 지도 위에서 잰다. 관제 웹이 이 revision 항목은 진하게, 다른 revision 은 흐리게 그린다(hv-06). `generated_at_ns` 가 클 때만 교체, 같으면 내용이 같아야 함 |
 
-올리기 규칙: `metadata.schema` 는 `1.4` 이다. 쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고, 1.1 파일을 열면 `mission_state`(1행)를 1.2 모양으로 다시 만들어 기존 행을 옮긴 뒤(SQLite 는 NOT NULL 을 그 자리에서 풀 수 없음), 1.2 파일은 `exit_locations` 표를, 1.3 파일은 1.4 의 세 표만 더한 뒤 schema 를 `1.4` 로 올린다. 다른 표와 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 최신 schema 파일만 받으므로, 이전 파일은 operations 가 한 번 연 뒤에 읽힌다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
+올리기 규칙(1.4 까지):  쓰는 쪽(`SiteStateLedger`)이 1.0 파일을 열면 **같은 트랜잭션**에서 빠진 표를 만들고, 1.1 파일을 열면 `mission_state`(1행)를 1.2 모양으로 다시 만들어 기존 행을 옮긴 뒤(SQLite 는 NOT NULL 을 그 자리에서 풀 수 없음), 1.2 파일은 `exit_locations` 표를, 1.3 파일은 1.4 의 세 표를 더한다. 1.5 에서 더하는 것은 4-1절에 있다. 다른 표와 열은 지우지 않는다. schema 말고 role·허용 로봇이 다르면 지금처럼 `POLICY_MISMATCH` 이고 파일을 바꾸지 않는다. 읽기 함수는 최신 schema 파일만 받으므로, 이전 파일은 operations 가 한 번 연 뒤에 읽힌다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
 
 읽기: `read_error_log(limit)`·`read_operator_commands(limit)`·`read_map_snapshots(limit)` 는 최신 순(`limit` 은 최근 N건), `read_exit_locations(limit)` 는 `observed_at_ns` 최신 순·같으면 `location_id` 오름차순(관제 웹은 맨 위 하나를 지도에), `read_mission_state` 는 `mission` 하나(기록 전에는 None). `read_overhead_passages` 는 `robots`(로봇 ID → 머리 필드 + `items`, 항목은 `last_seen_ns` 최신 순·같으면 `id` 오름차순, 받은 적 없는 로봇은 키 없음)와 `current_map`(기록 전에는 None). `read_allowed_robot_ids` 는 metadata 의 배치 로봇 목록(정렬)이다.
 
 보류 — JSON 키 추가: `robot_status.status_json` 의 `dock_state`·`segment_index` 는 1차 IDL `RobotStatus` 에 맞춰 선택 키로 넣었다(2절, 2026-10-11). `target_states.state_json` 의 `segment_phase`·`candidate_event_id` 는 아직 넣지 않았다. 지금 검증(`schema.exact`)은 키 집합이 정확히 맞아야 해서, 키를 더하면 발행 쪽(operations ROS 어댑터)과 읽는 쪽(콘솔)이 같이 바뀌어야 한다. 넣을 때는 5절대로 읽는 쪽이 없는 키를 기본값으로 읽게 한다.
+
+## 4-1. 현장 상태 1.5 — 회차와 리플레이 (구현됨, 2026-10-15)
+
+관제 웹의 초기화 버튼과 리플레이 페이지를 위해 더했다(작전·웹개발 합의 2026-10-15, 초기화 범위 (나)는 재범 결정). 초기화는 DB 파일을 바꾸지 않고 **새 회차**를 연다. 지난 기록은 지우지 않고 회차별로 남는다(재범 결정 2026-10-15). 회차 구분 키는 `run_id` 다. `map_session_id` 는 배치 프로파일의 고정값이라 초기화해도 바뀌지 않으므로 회차를 가르지 못한다.
+
+| 표 | 열 | 뜻 · 규칙 |
+| --- | --- | --- |
+| `runs` | `run_id TEXT PK`, `started_at_ns`, `ended_at_ns NULL`, `map_session_id NULL`, `note NULL`, `previous_coordinator_boot_id NULL` | 회차 하나. `ended_at_ns` 가 None 이면 열린 회차이고 **한 번에 하나만** 열린다(부분 고유 색인 `runs_one_open`, 두 번째 `open_run` 은 `TASK_BUSY`). `SiteStateLedger` 를 열 때 열린 회차가 없으면 하나 연다. 같은 파일을 다시 열면 열린 회차를 잇는다. `map_session_id` 는 그 회차에서 처음 받은 `MapState` 의 값이다. `previous_coordinator_boot_id` 는 초기화가 앞 회차 조정기의 메시지를 막을 때 쓴다(초기화 엔드포인트 PR) |
+| 쌓이는 표 다섯(`site_events`, `operator_commands`, `error_log`, `map_snapshots`, `exit_locations`)의 `run_id NULL` | 마지막 열 | 쓸 때 열린 회차. 회차 사이(닫은 뒤 열기 전)에 쓴 행은 None 이고 지우지 않는다. 재전송 비교에는 `run_id` 를 넣지 않는다 |
+| `robot_status_history` | `robot_id`, `run_id NULL`, `at_ns`(받은 시각), `status_json` | 로봇 상태(위치 포함)를 **로봇당 1초에 한 줄 [제안]**(`ROBOT_HISTORY_PERIOD_NS`)로 솎아 남긴다. 상태와 위치 토픽 어느 쪽으로 바뀌어도 그 순간의 스냅샷 전체를 쓴다 |
+| `target_state_history` | `target_id`, `run_id NULL`, `updated_at_ns`, `state_json` | `target_states` 가 바뀐 때마다(더 새 `updated_at_ns` 로 교체됐을 때) 한 줄. 재전송과 더 오래된 상태는 남기지 않는다 |
+
+나머지 표(`robot_status`, `target_states`, `mission_state`, `current_map`, `overhead_passage_lists`·`overhead_passages`)는 지금 값만 담는 표로 그대로 둔다. 초기화 때 비우는 일은 초기화 엔드포인트 PR 이 한다.
+
+화면용 읽기 함수는 이름·인자·정렬·한도를 바꾸지 않는다. 모든 결과에 열린 회차의 `run_id`(없으면 None)를 싣는다. 쌓이는 표를 읽는 `read_site_events`(`exit_pass_count` 포함), `read_operator_commands`, `read_error_log`, `read_map_snapshots`, `read_exit_locations` 는 **열린 회차의 행만** 돌려준다. 열린 회차가 없으면 빈 결과다. 지난 회차의 `DISASTER_SIGN` 사건이 새 회차 화면을 재난 모드로 보이게 하지 않으려는 것이다(관제 웹 `view.py` 는 `mission_state` 행이 없으면 사건으로 모드를 추정한다).
+
+리플레이 읽기 함수는 새로 더했다. `list_runs` 는 회차를 연 순서대로 주고 `open_run_id` 를 같이 준다. `read_site_events_range`·`read_operator_commands_range`·`read_error_log_range`·`read_map_snapshots_range`·`read_exit_locations_range`·`read_robot_status_history`·`read_target_state_history` 는 `run_id` 하나와 시간 창(`start_ns` 이상 `end_ns` 미만, None 이면 열린 끝)을 받아 **오래된 것부터** 준다. `limit` 은 1~1000 이고 더 있으면 가장 새 행들이 잘리며 `truncated` 가 True 다(관제 웹은 「일부만 보임」으로 드러낸다).
+
+1.4 파일을 열면 같은 트랜잭션에서 쌓이는 표에 `run_id` 를 더하고, 기존 행을 닫힌 회차 하나(`note` 「이전 기록」, 가장 오래된 행의 시각부터 연 시각까지)로 묶는다. 쌓인 행이 없는 파일에는 이 회차를 만들지 않는다. 그 뒤 새 회차가 열리므로, 올린 직후의 화면은 비어 있다. 운영 PC 의 기존 파일은 열기 전에 복사본을 남긴다.
 
 ## 5. 바꿀 때 지키는 것
 

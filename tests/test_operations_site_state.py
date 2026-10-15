@@ -232,13 +232,14 @@ class SiteStateTests(unittest.TestCase):
         self.assertEqual([candidate], [SiteEvent(**e) for e in result['site_events']])
 
     def write_event_before_target_and_watch(self, event):
-        """A row written before #48: event_json has no target_id/watch_id keys."""
-        self.ledger().close()
+        """A row written before #48: event_json has no target_id/watch_id keys (run_id is the open run's)."""
+        with self.ledger() as ledger:
+            run = ledger.run_id
         legacy = {k: v for k, v in asdict(event).items() if k not in ('target_id', 'watch_id')}
         db = sqlite3.connect(self.path)
         with db:
-            db.execute('INSERT INTO site_events VALUES (?, ?, ?, ?, ?)',
-                       (event.event_id, event.kind, event.observed_at_ns, site_state.canonical(legacy), 1_100))
+            db.execute('INSERT INTO site_events VALUES (?, ?, ?, ?, ?, ?)',
+                       (event.event_id, event.kind, event.observed_at_ns, site_state.canonical(legacy), 1_100, run))
         db.close()
 
     def test_events_stored_before_target_and_watch_read_back_with_none(self):
@@ -531,8 +532,9 @@ class SiteStateTests(unittest.TestCase):
 
     def test_allowed_robot_ids_are_the_deployment_robots_before_any_status(self):
         # #147: the console draws one card per deployed robot even when no status arrived yet.
-        self.ledger().close()
-        self.assertEqual({'schema_version': site_state.SCHEMA_VERSION, 'allowed_robot_ids': sorted(ALLOWED)},
+        with self.ledger() as ledger:
+            run = ledger.run_id
+        self.assertEqual({'schema_version': site_state.SCHEMA_VERSION, 'run_id': run, 'allowed_robot_ids': sorted(ALLOWED)},
                          site_state.read_allowed_robot_ids(self.path))
         self.assertEqual([], site_state.read_robot_status(self.path)['robots'])
 
@@ -609,7 +611,7 @@ class SiteStateTests(unittest.TestCase):
         db.close()
         self.ledger().close()
         metadata, tables = self.metadata_and_tables()
-        self.assertEqual(('1.4', site_state.SCHEMA_VERSION), (metadata['schema'], metadata['schema']))
+        self.assertEqual(('1.5', site_state.SCHEMA_VERSION), (metadata['schema'], metadata['schema']))
         self.assertLessEqual({'mission_state', 'robot_status', 'site_events', 'target_states', 'error_log',
                               'operator_commands', 'map_snapshots'}, tables)
         self.assertEqual(mission() | NO_DISPATCH, site_state.read_mission_state(self.path)['mission'])

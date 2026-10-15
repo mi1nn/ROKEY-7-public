@@ -115,7 +115,7 @@ class OverheadRecordTests(Case):
         with self.ledger() as ledger:
             self.assertTrue(ledger.record_overhead_passages(record()))
         self.assertEqual(['kept'], [e['detail'] for e in site_state.read_error_log(self.path)['errors']])
-        self.assertEqual('1.4', site_state.SCHEMA_VERSION)
+        self.assertEqual('1.5', site_state.SCHEMA_VERSION)
 
 
 def current(revision=3, at=T0 + 50, robot='robot_a', received=T0 + 60, session=None):

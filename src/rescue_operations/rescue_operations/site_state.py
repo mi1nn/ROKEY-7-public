@@ -17,6 +17,7 @@ import json
 import math
 import sqlite3
 import time
+from uuid import uuid4
 
 from rescue_contracts import CANONICAL_CODES, RESCUE_STATES, ROBOT_ROLES, SYSTEM_MODES, SiteEvent
 from rescue_contracts.overhead import overhead_passages_text
@@ -25,10 +26,11 @@ from .ledger import _Database, _limit, _path
 from .schema import (OperationsError, allowed_robots, canonical, exact, require, sha, text, timestamp,
                      uid, uint)
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.5"
 # A 1.0 file is upgraded when the writer opens it: missing tables are added, nothing is dropped.
-# 1.1 -> 1.2 rebuilds mission_state; 1.3 adds exit_locations; 1.4 adds the overhead passage tables
-UPGRADES_FROM = frozenset({"1.0", "1.1", "1.2", "1.3"})
+# 1.1 -> 1.2 rebuilds mission_state; 1.3 adds exit_locations; 1.4 adds the overhead passage tables;
+# 1.5 adds runs (회차), a run_id on every appended table and the two replay history tables
+UPGRADES_FROM = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})
 ROLE = "operations-site-state"
 UNKNOWN = "UNKNOWN"
 # Support status per target [제안, 관제·화면 2026-10-08]; screen-side vocabulary, not a contract code.
@@ -72,8 +74,9 @@ COMMAND_KEYS = {"command_id", "kind", "operator_id", "robot_id", "target_id", "s
 MAP_KEYS = {"snapshot_id", "robot_id", "revision", "path", "sha256", "at_ns"}
 # 1.3: one VALID QR exit observation (/rescue/exit_location, class_label exit_qr; 작전 OPS-144·150).
 EXIT_CLASS_LABEL = "exit_qr"
-EXIT_KEYS = {"location_id", "observed_at_ns", "received_at_ns", "map_session_id", "map_revision",
-             "transform_revision", "mission_frame", "x", "y", "class_label"}
+EXIT_COLUMNS = ("location_id", "observed_at_ns", "received_at_ns", "map_session_id", "map_revision",
+                "transform_revision", "mission_frame", "x", "y", "class_label")
+EXIT_KEYS = set(EXIT_COLUMNS)
 # 1.4: each robot's current overhead passage (tunnel) list, C-04b (통합-인식 #259, 작전 OPS-194). The header
 # keys of the list text without "format", plus when it arrived; the items exactly as C-04b has them.
 OVERHEAD_HEADER = ("robot_id", "generated_at_ns", "received_at_ns", "map_frame", "clearance_m", "floor_noise_m",
@@ -82,6 +85,15 @@ OVERHEAD_ITEM = ("id", "state", "lowest_m", "x", "y", "map_session_id", "map_rev
                  "last_seen_ns", "reason")
 # 1.4: the SLAM robot's latest MapState; both robots' passages are measured on its map (hv-06 bold/faint).
 CURRENT_MAP_KEYS = ("robot_id", "map_session_id", "map_revision", "generated_at_ns", "received_at_ns")
+# 1.5: tables whose rows pile up; each row carries the run that was open when it was written (None between
+# runs). The live screen reads only the open run's rows. The other tables hold the latest values and the
+# scenario reset empties them (작전·웹개발 2026-10-15).
+RUN_TABLES = ("site_events", "operator_commands", "error_log", "map_snapshots", "exit_locations")
+RUN_KEYS = ("run_id", "started_at_ns", "ended_at_ns", "map_session_id", "note", "previous_coordinator_boot_id")
+EARLIER_RUN_NOTE = "이전 기록"  # the one closed run a 1.4 file's rows go into
+# Robot snapshots for replay: at most one row per robot per period [제안, 작전·웹개발 2026-10-15]
+ROBOT_HISTORY_PERIOD_NS = 1_000_000_000
+RANGE_LIMIT_MAX = 1000  # read_*_range; the web shows a truncated answer as 「일부만 보임」 (웹개발 2026-10-15)
 MISSION_KEYS = {"mode", "phase", "trigger_event_id", "started_at_ns", "generation", "updated_at_ns"}
 # The AMR2 dispatch (schema 1.2): all None without a dispatch, all present with one.
 DISPATCH_DEFAULTS = {"target_id": None, "target_revision": None, "route_revision": None, "segment_index": None,
@@ -97,32 +109,36 @@ MISSION_DDL = """CREATE TABLE IF NOT EXISTS mission_state (
         trigger_event_id TEXT, started_at_ns INTEGER, generation INTEGER, updated_at_ns INTEGER NOT NULL,
         target_id TEXT, target_revision INTEGER, route_revision INTEGER, segment_index INTEGER,
         segment_count INTEGER, segment_phase TEXT, reason TEXT)"""
+RUNS_DDL = """CREATE TABLE IF NOT EXISTS runs (
+        run_id TEXT PRIMARY KEY, started_at_ns INTEGER NOT NULL, ended_at_ns INTEGER, map_session_id TEXT,
+        note TEXT, previous_coordinator_boot_id TEXT)"""
 # 1.0: robot_status, site_events, target_states. 1.1 adds four (db-schema 4절); 1.2 reshapes mission_state;
-# 1.3 adds exit_locations (a 1.2 file only gets the new table); 1.4 adds the last three (OPS-194).
+# 1.3 adds exit_locations (a 1.2 file only gets the new table); 1.4 adds overhead passages and current_map
+# (OPS-194); 1.5 adds runs, the history tables and run_id (작전·웹개발 2026-10-15).
 TABLES = (
     """CREATE TABLE IF NOT EXISTS robot_status (
         robot_id TEXT PRIMARY KEY, robot_boot_id TEXT NOT NULL, state_sequence INTEGER NOT NULL,
         stamp_ns INTEGER NOT NULL, status_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
     """CREATE TABLE IF NOT EXISTS site_events (
         event_id TEXT PRIMARY KEY, kind TEXT NOT NULL, observed_at_ns INTEGER NOT NULL,
-        event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL)""",
+        event_json TEXT NOT NULL, received_at_ns INTEGER NOT NULL, run_id TEXT)""",
     """CREATE TABLE IF NOT EXISTS target_states (
         target_id TEXT PRIMARY KEY, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""",
     """CREATE TABLE IF NOT EXISTS error_log (
         seq INTEGER PRIMARY KEY, at_ns INTEGER NOT NULL, robot_id TEXT, task_id TEXT,
-        code TEXT NOT NULL, detail TEXT NOT NULL)""",
+        code TEXT NOT NULL, detail TEXT NOT NULL, run_id TEXT)""",
     MISSION_DDL,
     """CREATE TABLE IF NOT EXISTS operator_commands (
         command_id TEXT PRIMARY KEY, kind TEXT NOT NULL, operator_id TEXT NOT NULL, robot_id TEXT,
         target_id TEXT, segment_index INTEGER, route_revision INTEGER, requested_at_ns INTEGER NOT NULL,
-        accepted INTEGER NOT NULL, result TEXT, reason TEXT)""",
+        accepted INTEGER NOT NULL, result TEXT, reason TEXT, run_id TEXT)""",
     """CREATE TABLE IF NOT EXISTS map_snapshots (
         snapshot_id TEXT PRIMARY KEY, robot_id TEXT NOT NULL, revision INTEGER NOT NULL,
-        path TEXT NOT NULL, sha256 TEXT NOT NULL, at_ns INTEGER NOT NULL)""",
+        path TEXT NOT NULL, sha256 TEXT NOT NULL, at_ns INTEGER NOT NULL, run_id TEXT)""",
     """CREATE TABLE IF NOT EXISTS exit_locations (
         location_id TEXT PRIMARY KEY, observed_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL,
         map_session_id TEXT NOT NULL, map_revision INTEGER NOT NULL, transform_revision INTEGER NOT NULL,
-        mission_frame TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, class_label TEXT NOT NULL)""",
+        mission_frame TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, class_label TEXT NOT NULL, run_id TEXT)""",
     """CREATE TABLE IF NOT EXISTS overhead_passage_lists (
         robot_id TEXT PRIMARY KEY, generated_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL,
         map_frame TEXT NOT NULL, clearance_m REAL NOT NULL, floor_noise_m REAL NOT NULL,
@@ -135,6 +151,16 @@ TABLES = (
     """CREATE TABLE IF NOT EXISTS current_map (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1), robot_id TEXT NOT NULL, map_session_id TEXT NOT NULL,
         map_revision INTEGER NOT NULL, generated_at_ns INTEGER NOT NULL, received_at_ns INTEGER NOT NULL)""",
+    RUNS_DDL,
+    # at most one open run: every open row has the same index value
+    "CREATE UNIQUE INDEX IF NOT EXISTS runs_one_open ON runs ((ended_at_ns IS NULL)) WHERE ended_at_ns IS NULL",
+    """CREATE TABLE IF NOT EXISTS robot_status_history (
+        robot_id TEXT NOT NULL, run_id TEXT, at_ns INTEGER NOT NULL, status_json TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS target_state_history (
+        target_id TEXT NOT NULL, run_id TEXT, updated_at_ns INTEGER NOT NULL, state_json TEXT NOT NULL)""",
+    "CREATE INDEX IF NOT EXISTS robot_status_history_run ON robot_status_history (run_id, at_ns)",
+    "CREATE INDEX IF NOT EXISTS target_state_history_run ON target_state_history (run_id, updated_at_ns)",
+    *(f"CREATE INDEX IF NOT EXISTS {table}_run ON {table} (run_id)" for table in RUN_TABLES),
 )
 
 
@@ -263,6 +289,34 @@ def _migrate(db, old_schema):
             updated_at_ns) SELECT singleton, mode, phase, trigger_event_id, started_at_ns, generation, updated_at_ns
             FROM mission_state_1_1""")
         db.execute("DROP TABLE mission_state_1_1")
+    _add_run_ids(db)
+
+
+# Time column of each appended table: the earlier run starts at the oldest row
+RUN_TABLE_TIME = {"site_events": "observed_at_ns", "operator_commands": "requested_at_ns", "error_log": "at_ns",
+                  "map_snapshots": "at_ns", "exit_locations": "observed_at_ns"}
+
+
+def _add_run_ids(db):
+    """Up to 1.4 -> 1.5: each existing appended table gets run_id, and its rows go into one closed run
+    (「이전 기록」) that starts at the oldest row and ends now. A file with no appended rows gets no such run.
+    Tables a file does not have yet are created later with run_id already in them."""
+    db.execute(RUNS_DDL)
+    present = [table for table in RUN_TABLES
+               if db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()]
+    for table in present:
+        if "run_id" not in {row[1] for row in db.execute(f"PRAGMA table_info({table})")}:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN run_id TEXT")
+    starts = [db.execute(f"SELECT MIN({RUN_TABLE_TIME[table]}) FROM {table} WHERE run_id IS NULL").fetchone()[0]
+              for table in present]
+    starts = [start for start in starts if start is not None]
+    if not starts:
+        return
+    run_id = str(uuid4())
+    db.execute("INSERT INTO runs (run_id, started_at_ns, ended_at_ns, note) VALUES (?, ?, ?, ?)",
+               (run_id, min(starts), time.time_ns(), EARLIER_RUN_NOTE))
+    for table in present:
+        db.execute(f"UPDATE {table} SET run_id = ? WHERE run_id IS NULL", (run_id,))
 
 
 def _mission(value):
@@ -374,6 +428,52 @@ class SiteStateLedger(_Database):
         self._allowed_robot_ids = allowed_robots(allowed_robot_ids)
         super().__init__(db_path, ROLE, {"allowed_robot_ids": canonical(self.allowed_robot_ids)},
                          schema=SCHEMA_VERSION, upgrades_from=UPGRADES_FROM, tables=TABLES, migrate=_migrate)
+        try:
+            with self._transaction() as db:
+                self._run_id = _open_run_id(db)
+            if self._run_id is None:  # a new file, or one closed by a reset: this writer starts a run
+                self.open_run(at_ns=time.time_ns())
+        except OperationsError:
+            self.close()
+            raise
+
+    @property
+    def run_id(self):
+        """The open run every appended row is written under, or None between runs."""
+        return self._run_id
+
+    def open_run(self, *, at_ns, note=None, previous_coordinator_boot_id=None):
+        """Start a run; only one is open at a time (TASK_BUSY otherwise). Returns the new run_id."""
+        timestamp(at_ns, "at_ns")
+        if note is not None:
+            text(note, "note", 1024)
+        if previous_coordinator_boot_id is not None:
+            text(previous_coordinator_boot_id, "previous_coordinator_boot_id")
+        run_id = str(uuid4())
+        with self._transaction() as db:
+            require(_open_run_id(db) is None, "a run is already open; close it first", "TASK_BUSY")
+            db.execute("INSERT INTO runs (run_id, started_at_ns, note, previous_coordinator_boot_id) "
+                       "VALUES (?, ?, ?, ?)", (run_id, at_ns, note, previous_coordinator_boot_id))
+        self._run_id = run_id
+        return run_id
+
+    def close_run(self, *, at_ns):
+        """End the open run. Returns its run_id, or None when none was open. Rows are never deleted."""
+        timestamp(at_ns, "at_ns")
+        with self._transaction() as db:
+            run_id = _open_run_id(db)
+            if run_id is not None:
+                db.execute("UPDATE runs SET ended_at_ns = ? WHERE run_id = ?", (at_ns, run_id))
+        self._run_id = None
+        return run_id
+
+    def _robot_history(self, db, robot_id, status_json, at_ns):
+        """One replay row per robot per ROBOT_HISTORY_PERIOD_NS; the rest are thinned out."""
+        last = db.execute("SELECT MAX(at_ns) FROM robot_status_history WHERE robot_id = ? AND run_id IS ?",
+                          (robot_id, self._run_id)).fetchone()[0]
+        if last is None or at_ns - last >= ROBOT_HISTORY_PERIOD_NS:
+            db.execute("INSERT INTO robot_status_history VALUES (?, ?, ?, ?)",
+                       (robot_id, self._run_id, at_ns, status_json))
 
     def record_robot_status(self, status):
         """Store the latest snapshot. Returns False for a stale or identical resend."""
@@ -393,9 +493,11 @@ class SiteStateLedger(_Database):
                         return False
                 elif status["stamp_ns"] <= row["stamp_ns"]:
                     return False  # a late message from another boot must not replace a newer snapshot
+            received_at_ns = timestamp(time.time_ns(), "received_at_ns")
             db.execute("INSERT OR REPLACE INTO robot_status VALUES (?, ?, ?, ?, ?, ?)",
                        (status["robot_id"], status["robot_boot_id"], status["state_sequence"], status["stamp_ns"],
-                        encoded, timestamp(time.time_ns(), "received_at_ns")))
+                        encoded, received_at_ns))
+            self._robot_history(db, status["robot_id"], encoded, received_at_ns)
         return True
 
     def record_robot_pose(self, robot_id, pose):
@@ -413,8 +515,9 @@ class SiteStateLedger(_Database):
             stored = _stored_status(row["status_json"])
             if stored["pose"] == pose:
                 return False
-            db.execute("UPDATE robot_status SET status_json = ? WHERE robot_id = ?",
-                       (canonical(stored | {"pose": pose}), robot_id))
+            encoded = canonical(stored | {"pose": pose})
+            db.execute("UPDATE robot_status SET status_json = ? WHERE robot_id = ?", (encoded, robot_id))
+            self._robot_history(db, robot_id, encoded, timestamp(time.time_ns(), "received_at_ns"))
         return True
 
     def record_site_event(self, event):
@@ -427,9 +530,9 @@ class SiteStateLedger(_Database):
                 require(canonical(_stored_event(row["event_json"])) == encoded, "event_id has different content",
                         "ID_CONTENT_CONFLICT")
                 return False
-            db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?)",
+            db.execute("INSERT INTO site_events VALUES (?, ?, ?, ?, ?, ?)",
                        (event.event_id, event.kind, event.observed_at_ns, encoded,
-                        timestamp(time.time_ns(), "received_at_ns")))
+                        timestamp(time.time_ns(), "received_at_ns"), self._run_id))
         return True
 
     def record_target_state(self, state):
@@ -448,14 +551,17 @@ class SiteStateLedger(_Database):
                     return False
             db.execute("INSERT OR REPLACE INTO target_states VALUES (?, ?, ?)",
                        (state["target_id"], state["updated_at_ns"], encoded))
+            db.execute("INSERT INTO target_state_history VALUES (?, ?, ?, ?)",
+                       (state["target_id"], self._run_id, state["updated_at_ns"], encoded))
         return True
 
     def record_error(self, entry):
         """Append one failure (BRD 3.7.4). Every call is a new row; returns its ``seq``."""
         entry = _error_entry(entry, self.allowed_robot_ids)
         with self._transaction() as db:
-            cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail) VALUES (?, ?, ?, ?, ?)",
-                                (entry["at_ns"], entry["robot_id"], entry["task_id"], entry["code"], entry["detail"]))
+            cursor = db.execute("INSERT INTO error_log (at_ns, robot_id, task_id, code, detail, run_id) "
+                                "VALUES (?, ?, ?, ?, ?, ?)", (entry["at_ns"], entry["robot_id"], entry["task_id"],
+                                                              entry["code"], entry["detail"], self._run_id))
         return cursor.lastrowid
 
     def record_operator_command(self, command):
@@ -467,10 +573,11 @@ class SiteStateLedger(_Database):
             if row is not None:
                 require(_command_row(row) == command, "command_id has different content", "ID_CONTENT_CONFLICT")
                 return False
-            db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            db.execute("INSERT INTO operator_commands VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        (command["command_id"], command["kind"], command["operator_id"], command["robot_id"],
                         command["target_id"], command["segment_index"], command["route_revision"],
-                        command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"]))
+                        command["requested_at_ns"], int(command["accepted"]), command["result"], command["reason"],
+                        self._run_id))
         return True
 
     def record_map_snapshot(self, snapshot):
@@ -479,11 +586,12 @@ class SiteStateLedger(_Database):
         with self._transaction() as db:
             row = db.execute("SELECT * FROM map_snapshots WHERE snapshot_id = ?", (snapshot["snapshot_id"],)).fetchone()
             if row is not None:
-                require(dict(row) == snapshot, "snapshot_id has different content", "ID_CONTENT_CONFLICT")
+                require({k: row[k] for k in MAP_KEYS} == snapshot, "snapshot_id has different content",
+                        "ID_CONTENT_CONFLICT")
                 return False
-            db.execute("INSERT INTO map_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+            db.execute("INSERT INTO map_snapshots VALUES (?, ?, ?, ?, ?, ?, ?)",
                        (snapshot["snapshot_id"], snapshot["robot_id"], snapshot["revision"], snapshot["path"],
-                        snapshot["sha256"], snapshot["at_ns"]))
+                        snapshot["sha256"], snapshot["at_ns"], self._run_id))
         return True
 
     def record_exit_location(self, value):
@@ -493,14 +601,12 @@ class SiteStateLedger(_Database):
             row = db.execute("SELECT * FROM exit_locations WHERE location_id = ?", (exit_["location_id"],)).fetchone()
             if row is not None:
                 # A later resend keeps the first arrival: only the observation itself must match.
-                same = {k: v for k, v in dict(row).items() if k != "received_at_ns"}
+                same = {k: row[k] for k in EXIT_KEYS if k != "received_at_ns"}
                 require(same == {k: v for k, v in exit_.items() if k != "received_at_ns"},
                         "location_id has different content", "ID_CONTENT_CONFLICT")
                 return False
-            db.execute("INSERT INTO exit_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       tuple(exit_[k] for k in ("location_id", "observed_at_ns", "received_at_ns", "map_session_id",
-                                                "map_revision", "transform_revision", "mission_frame", "x", "y",
-                                                "class_label")))
+            db.execute("INSERT INTO exit_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (*(exit_[k] for k in EXIT_COLUMNS), self._run_id))
         return True
 
     def record_overhead_passages(self, value):
@@ -541,6 +647,9 @@ class SiteStateLedger(_Database):
                     return False
             db.execute(f"INSERT OR REPLACE INTO current_map VALUES (1{', ?' * len(CURRENT_MAP_KEYS)})",
                        [current[k] for k in CURRENT_MAP_KEYS])
+            # the run's map session is the first one heard in it (the profile fixes it; a reset keeps it)
+            db.execute("UPDATE runs SET map_session_id = ? WHERE run_id = ? AND map_session_id IS NULL",
+                       (current["map_session_id"], self._run_id))
         return True
 
     def record_mission_state(self, mission):
@@ -560,6 +669,11 @@ class SiteStateLedger(_Database):
         return True
 
 
+def _open_run_id(db):
+    row = db.execute("SELECT run_id FROM runs WHERE ended_at_ns IS NULL").fetchone()
+    return None if row is None else row[0]
+
+
 def _overhead_items(db, robot, order="id ASC"):
     rows = db.execute(f"SELECT * FROM overhead_passages WHERE robot_id = ? ORDER BY {order}", (robot,)).fetchall()
     return [{k: row[k] for k in OVERHEAD_ITEM} for row in rows]
@@ -567,6 +681,14 @@ def _overhead_items(db, robot, order="id ASC"):
 
 def _command_row(row):
     return {key: row[key] for key in COMMAND_KEYS} | {"accepted": bool(row["accepted"])}
+
+
+def _map_row(row):
+    return {key: row[key] for key in MAP_KEYS}
+
+
+def _exit_row(row):
+    return {key: row[key] for key in EXIT_COLUMNS}
 
 
 def _read(db_path, query):
@@ -584,7 +706,7 @@ def _read(db_path, query):
             allowed_robots(json.loads(metadata["allowed_robot_ids"]))
         except (KeyError, ValueError, TypeError) as exc:
             raise OperationsError("POLICY_MISMATCH", "DB has no valid robot policy") from exc
-        return {"schema_version": SCHEMA_VERSION, **query(db)}
+        return {"schema_version": SCHEMA_VERSION, "run_id": _open_run_id(db), **query(db)}
     except sqlite3.Error as exc:
         raise OperationsError("STORAGE_ERROR", "cannot read site-state database") from exc
     finally:
@@ -612,9 +734,11 @@ def read_site_events(db_path, *, limit=100):
     limit = _limit(limit)
 
     def query(db):
-        count = db.execute("SELECT COUNT(DISTINCT event_id) FROM site_events WHERE kind = 'EXIT_PASS'").fetchone()[0]
-        rows = db.execute("SELECT event_json FROM site_events ORDER BY observed_at_ns, event_id LIMIT ?",
-                          (limit,)).fetchall()
+        run = _open_run_id(db)
+        count = db.execute("SELECT COUNT(DISTINCT event_id) FROM site_events WHERE kind = 'EXIT_PASS' AND run_id = ?",
+                           (run,)).fetchone()[0]
+        rows = db.execute("SELECT event_json FROM site_events WHERE run_id = ? ORDER BY observed_at_ns, event_id "
+                          "LIMIT ?", (run, limit)).fetchall()
         return {"exit_pass_count": count, "site_events": [_stored_event(row["event_json"]) for row in rows]}
     return _read(db_path, query)
 
@@ -631,8 +755,8 @@ def read_error_log(db_path, *, limit=100):
     limit = _limit(limit)
 
     def query(db):
-        rows = db.execute("SELECT seq, at_ns, robot_id, task_id, code, detail FROM error_log "
-                          "ORDER BY at_ns DESC, seq DESC LIMIT ?", (limit,)).fetchall()
+        rows = db.execute("SELECT seq, at_ns, robot_id, task_id, code, detail FROM error_log WHERE run_id = ? "
+                          "ORDER BY at_ns DESC, seq DESC LIMIT ?", (_open_run_id(db), limit)).fetchall()
         return {"errors": [dict(row) for row in rows]}
     return _read(db_path, query)
 
@@ -650,8 +774,8 @@ def read_operator_commands(db_path, *, limit=100):
     limit = _limit(limit)
 
     def query(db):
-        rows = db.execute("SELECT * FROM operator_commands ORDER BY requested_at_ns DESC, command_id DESC LIMIT ?",
-                          (limit,)).fetchall()
+        rows = db.execute("SELECT * FROM operator_commands WHERE run_id = ? "
+                          "ORDER BY requested_at_ns DESC, command_id DESC LIMIT ?", (_open_run_id(db), limit)).fetchall()
         return {"commands": [_command_row(row) for row in rows]}
     return _read(db_path, query)
 
@@ -661,9 +785,9 @@ def read_map_snapshots(db_path, *, limit=100):
     limit = _limit(limit)
 
     def query(db):
-        rows = db.execute("SELECT * FROM map_snapshots ORDER BY at_ns DESC, snapshot_id DESC LIMIT ?",
-                          (limit,)).fetchall()
-        return {"maps": [dict(row) for row in rows]}
+        rows = db.execute("SELECT * FROM map_snapshots WHERE run_id = ? ORDER BY at_ns DESC, snapshot_id DESC LIMIT ?",
+                          (_open_run_id(db), limit)).fetchall()
+        return {"maps": [_map_row(row) for row in rows]}
     return _read(db_path, query)
 
 
@@ -672,9 +796,9 @@ def read_exit_locations(db_path, *, limit=100):
     limit = _limit(limit)
 
     def query(db):
-        rows = db.execute("SELECT * FROM exit_locations ORDER BY observed_at_ns DESC, location_id ASC LIMIT ?",
-                          (limit,)).fetchall()
-        return {"exits": [dict(row) for row in rows]}
+        rows = db.execute("SELECT * FROM exit_locations WHERE run_id = ? "
+                          "ORDER BY observed_at_ns DESC, location_id ASC LIMIT ?", (_open_run_id(db), limit)).fetchall()
+        return {"exits": [_exit_row(row) for row in rows]}
     return _read(db_path, query)
 
 
@@ -689,3 +813,77 @@ def read_overhead_passages(db_path):
         row = db.execute("SELECT * FROM current_map WHERE singleton = 1").fetchone()
         return {"robots": robots, "current_map": None if row is None else {k: row[k] for k in CURRENT_MAP_KEYS}}
     return _read(db_path, query)
+
+
+# --- replay (1.5): one run at a time, oldest first ---------------------------------------------------------
+
+
+def list_runs(db_path):
+    """Every run in the order it was opened, and the open one's id (None between runs)."""
+    def query(db):
+        rows = db.execute(f"SELECT {', '.join(RUN_KEYS)} FROM runs ORDER BY rowid").fetchall()
+        return {"open_run_id": _open_run_id(db), "runs": [{key: row[key] for key in RUN_KEYS} for row in rows]}
+    return _read(db_path, query)
+
+
+def _window(run_id, start_ns, end_ns, limit):
+    uid(run_id, "run_id")
+    for value, label in ((start_ns, "start_ns"), (end_ns, "end_ns")):
+        if value is not None:
+            require(type(value) is int and 0 <= value, f"{label} must be a nonnegative integer or None")
+    require(start_ns is None or end_ns is None or start_ns < end_ns, "start_ns must be before end_ns")
+    require(type(limit) is int and 1 <= limit <= RANGE_LIMIT_MAX, f"limit must be 1..{RANGE_LIMIT_MAX}")
+
+
+def _range(db_path, table, time_column, key, convert, *, run_id, start_ns, end_ns, limit, order=""):
+    """Rows of one run with ``start_ns <= time < end_ns`` (None = open end), oldest first. ``truncated``
+    says rows past ``limit`` were left out; the newest are the ones cut."""
+    _window(run_id, start_ns, end_ns, limit)
+
+    def query(db):
+        rows = db.execute(f"SELECT * FROM {table} WHERE run_id = ? AND (? IS NULL OR {time_column} >= ?) "
+                          f"AND (? IS NULL OR {time_column} < ?) ORDER BY {time_column}{order}, rowid LIMIT ?",
+                          (run_id, start_ns, start_ns, end_ns, end_ns, limit + 1)).fetchall()
+        return {"run_id": run_id, "truncated": len(rows) > limit, key: [convert(row) for row in rows[:limit]]}
+    return _read(db_path, query)
+
+
+def read_site_events_range(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    return _range(db_path, "site_events", "observed_at_ns", "site_events", lambda r: _stored_event(r["event_json"]),
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", event_id")
+
+
+def read_operator_commands_range(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    return _range(db_path, "operator_commands", "requested_at_ns", "commands", _command_row,
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", command_id")
+
+
+def read_error_log_range(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    columns = ("seq", "at_ns", "robot_id", "task_id", "code", "detail")
+    return _range(db_path, "error_log", "at_ns", "errors", lambda r: {k: r[k] for k in columns},
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", seq")
+
+
+def read_map_snapshots_range(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    return _range(db_path, "map_snapshots", "at_ns", "maps", _map_row,
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", snapshot_id")
+
+
+def read_exit_locations_range(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    return _range(db_path, "exit_locations", "observed_at_ns", "exits", _exit_row,
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", location_id")
+
+
+def read_robot_status_history(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    """Robot snapshots (pose included) as received, at most one per robot per second; ``at_ns`` is arrival."""
+    return _range(db_path, "robot_status_history", "at_ns", "history",
+                  lambda r: {"robot_id": r["robot_id"], "at_ns": r["at_ns"], "status": _stored_status(r["status_json"])},
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", robot_id")
+
+
+def read_target_state_history(db_path, *, run_id, start_ns=None, end_ns=None, limit=RANGE_LIMIT_MAX):
+    """Every accepted target state, by the coordinator's ``updated_at_ns``."""
+    return _range(db_path, "target_state_history", "updated_at_ns", "history",
+                  lambda r: {"target_id": r["target_id"], "updated_at_ns": r["updated_at_ns"],
+                             "state": _stored_target(r["state_json"])},
+                  run_id=run_id, start_ns=start_ns, end_ns=end_ns, limit=limit, order=", target_id")
