@@ -38,5 +38,30 @@ class ArenaPlan(unittest.TestCase):
                 self.assertEqual(1, len(match), f'no layout box for the plan pillar {(x0, y0, x1, y1)}')
 
 
+class ArenaTunnels(unittest.TestCase):
+    """Each plan tunnel area (tunnel 1 green, tunnel 2 hatched) is one overhead roof over the whole area (1 cm).
+    A 1 cm wide lintel along the plan's dashed line left no floor under the structure in the depth box, so our own
+    overhead judge answered UNKNOWN NO_FLOOR_SEEN in front of both tunnels [측정 2026-10-16]."""
+    AREAS = {'tunnel1_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="rgba\(31,138,91',
+             'tunnel2_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="url\(#hatch\)"'}
+    CLEARANCE_M = {'tunnel1_roof': 0.47, 'tunnel2_roof': 0.30}   # plan 「47 cm」 / 재범 2026-10-15
+
+    @unittest.skipUnless(HAS_PLAN, 'no config/sim (installed-wheel checkout)')
+    def test_every_plan_tunnel_area_is_one_roof_at_its_clearance(self):
+        svg = (WORLDS / 'arena-map.svg').read_text()
+        objects = {o['name']: o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects']}
+        for name, pattern in self.AREAS.items():
+            with self.subTest(name):
+                x, y, w, h = (float(v) for v in re.search(pattern, svg).groups())
+                roof = objects.get(name)
+                self.assertIsNotNone(roof, f'no {name} in the layout')
+                self.assertEqual('overhead', roof['kind'])
+                self.assertAlmostEqual((x + w / 2) / 100, roof['x'], delta=0.01)
+                self.assertAlmostEqual((PLAN_H_CM - y - h / 2) / 100, roof['y'], delta=0.01)
+                self.assertAlmostEqual(w / 100, roof['size'][0], delta=0.01)
+                self.assertAlmostEqual(h / 100, roof['size'][1], delta=0.01)
+                self.assertEqual(self.CLEARANCE_M[name], roof['clearance_m'])
+
+
 if __name__ == '__main__':
     unittest.main()
