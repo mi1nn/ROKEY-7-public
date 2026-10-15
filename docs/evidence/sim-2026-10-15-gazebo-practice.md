@@ -192,6 +192,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열한째 회차 자료](sim-2026-10-16-run050248/README.md)에 있다. 빌드는 `b8a758d`(#430·#433 C15, sim #428·#429·#431)다. 선포 즉시 경계 5개가 `TOO_CLOSE` 3·`SMALL` 2 로 빠져 `frontiers_sent=0` 으로 탐색이 끝났다(작전 C16). 2차 고정 뒤 운영자 대역의 SLAM 끄기가 안 돼 가제보 실습이 런북 7.5.1·7.5.2 를 손으로 했다. 넘김 뒤 RobotPose 는 0.13 s 만에 나왔고 `AMCL_NOMOTION` 은 0이었다. RETURN_HOME 은 넘김 0.70 s 뒤 Nav2 `Initial robot pose is not available` 로 중단됐고, 다시 보내지 않았다.
 
+## 16. 열두째 회차 (full-1016-052901)
+
+회차 표·단계별 결과는 [열두째 회차 자료](sim-2026-10-16-run052901/README.md)에 있다. 빌드는 `d01431b`(#440 C16)다. 첫 경계 88칸은 `COMPLETED` 였지만 남은 경계가 `TIGHT` 로 빠져 `frontiers_sent=1` 로 끝났다. 2차 고정 뒤 넘김 중에 SEARCH_AREA 를 0.1 s 간격으로 950회 보냈다. C15 `AMCL_NOMOTION_REQUESTED` 가 처음 동작했고, C17(넘김 직후 Nav2 TF) 이 재현됐다. AMCL map→odom stamp 는 받은 시각보다 약 0.97 s 미래였다. 그 뒤 비켜서기 47회가 반복돼 RETURN_HOME 은 나가지 않았다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.

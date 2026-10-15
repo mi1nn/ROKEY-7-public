@@ -1,0 +1,11 @@
+== 05:34:05.750 ps
+    PID    PPID    PGID     SID     ELAPSED STAT COMMAND
+1042495    2450 1042421 1042421       03:59 Sl   /opt/ros/jazzy/lib/slam_toolbox/sync_slam_toolbox_node --ros-args -r __node:=slam_toolbox -r __ns:=/robot6 --pa
+-- tb6_slam launch PID 1042421: 
+-- tb6_slam.log 끝 6줄
+[sync_slam_toolbox_node-1] Registering sensor: [Custom Described Lidar]
+[slam_active_check-2] [INFO] [1792096222.019324371] [tb6_slam_active_check]: SLAM_ACTIVE /robot6/slam_toolbox
+[INFO] [slam_active_check-2]: process has finished cleanly [pid 1042496]
+[sync_slam_toolbox_node-1] [INFO] [1792096227.157120470] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792096226.956 for reason 'the timestamp on the message is earlier than all th
+[sync_slam_toolbox_node-1] [INFO] [1792096231.999512181] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792096231.820 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792096236.180688047] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792096236.151 for reason 'discarding message because the queue is full'
