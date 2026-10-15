@@ -305,6 +305,47 @@ class FailedDetail(unittest.TestCase):
         self.assertFalse({'last_pose', 'not_settled', 'poses_received'} & set(f.core.result()))
 
 
+class PointsTheMapCannotJudge(unittest.TestCase):
+    """Option A (작전 2026-10-16, 재범 decision pending): only scan points that land on a known cell of the frozen map
+    count in the match. Run 8 (#418): slam_toolbox's grid ended 4-7 mm short of the south wall, so the frozen map had no
+    wall there; about 16 % of TB-5's beams hit that real wall, landed outside the grid and counted as misses
+    (match 0.661 < 0.70). A point outside the grid or on an unknown cell is neither a hit nor a miss; the 70 % stays."""
+
+    def cut_room(self, columns=6):
+        """room() without its last columns: the east wall is beyond the grid, as the south wall was in run 8."""
+        full = room()
+        width = full['width'] - columns
+        data = [v for y in range(full['height']) for x, v in enumerate(full['data'][y * full['width']:(y + 1) *
+                                                                                    full['width']]) if x < width]
+        return dict(full, width=width, data=data)
+
+    def test_points_beyond_the_grid_no_longer_count_as_misses(self):
+        hits, points = match_ratio(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
+                                   laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual(1.0, hits / points)   # before option A: under 0.75 (the east wall's points were misses)
+
+    def test_only_points_on_known_cells_are_judged(self):
+        from rescue_robot.start_align import match_detail
+        hits, judged, unjudged = match_detail(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
+                                              laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual(judged, hits)
+        self.assertGreater(unjudged, 0)
+        self.assertEqual(180, judged + unjudged)
+
+    def test_unknown_cells_are_not_judged_and_free_cells_are(self):
+        from rescue_robot.start_align import match_detail
+        grid = room()
+        unknown = [(-1 if x >= grid['width'] - 6 else v) for y in range(grid['height'])
+                   for x, v in enumerate(grid['data'][y * grid['width']:(y + 1) * grid['width']])]
+        hits, judged, unjudged = match_detail(dict(grid, data=unknown), room_scan(0.5, 0.2, 0.1),
+                                              pose=(0.5, 0.2, 0.1), laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertEqual((judged, True), (hits, unjudged > 0))
+        # a wrong pose still misses on known cells: the gate keeps working
+        hits, judged, _ = match_detail(room(), room_scan(0.0, -0.6, 0.6), pose=(0.5, 0.2, 0.1),
+                                       laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
+        self.assertLess(hits / judged, 0.7)
+
+
 class Scores(unittest.TestCase):
     def test_sigmas_use_the_largest_xy_axis(self):
         c = [0.0] * 36

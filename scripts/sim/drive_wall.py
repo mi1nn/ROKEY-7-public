@@ -33,6 +33,7 @@ GAIN = 1.5            # rad/s per m of error from the wall [설정]
 MAX_W = 0.6           # rad/s limit while following [설정]
 
 
+REAL_RANGE_MIN_M = 0.164   # what the real RPLIDAR reports; nearer are the robot's own shell posts in the simulation (#431)
 LIDAR_YAW_DEG = 90.0  # rplidar_link is turned this much from base_link [측정 2026-10-15, tf2_echo in the simulation]
 
 
@@ -42,7 +43,7 @@ def sector_min(scan, lo_deg, hi_deg):
     for i, r in enumerate(scan.ranges):
         a = math.degrees(scan.angle_min + i * scan.angle_increment) + LIDAR_YAW_DEG
         a = (a + 180.0) % 360.0 - 180.0
-        if lo_deg <= a <= hi_deg and scan.range_min <= r <= scan.range_max:
+        if lo_deg <= a <= hi_deg and max(scan.range_min, REAL_RANGE_MIN_M) <= r <= scan.range_max:
             best = min(best, r)
     return best
 

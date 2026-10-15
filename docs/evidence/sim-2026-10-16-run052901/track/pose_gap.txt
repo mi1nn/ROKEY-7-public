@@ -1,0 +1,30 @@
+05:31:22.19 START pose_gap (gap > 2.0 s)
+05:31:25.17 STATUS robot_a None -> VALID mission=(-0.352, -0.000)
+05:31:52.33 COUNT robot_a=55
+05:32:22.33 COUNT robot_a=115
+05:32:29.75 STATUS robot_b None -> UNKNOWN mission=(0.000, 0.000)
+05:32:32.30 SILENT robot_a > 2.0 s (last 05:32:30.13)
+05:32:32.63 GAP robot_a 2.5 s (since 05:32:30.13)
+05:32:32.63 STATUS robot_a VALID -> UNKNOWN mission=(0.000, 0.000)
+05:32:33.63 STATUS robot_a UNKNOWN -> VALID mission=(-0.923, 1.720)
+05:32:33.81 STATUS robot_b UNKNOWN -> VALID mission=(-0.420, 1.783)
+05:32:52.30 COUNT robot_a=171 robot_b=55
+05:33:22.30 COUNT robot_a=231 robot_b=115
+05:33:52.19 COUNT robot_a=291 robot_b=175
+05:34:08.20 SILENT robot_a > 2.0 s (last 05:34:06.13)
+05:34:22.21 COUNT robot_a=319 robot_b=235
+05:34:24.41 GAP robot_a 18.3 s (since 05:34:06.13)
+05:34:40.14 STATUS robot_a VALID -> UNKNOWN mission=(0.000, 0.000)
+05:34:40.28 STATUS robot_a UNKNOWN -> VALID mission=(-0.924, 1.725)
+05:34:52.31 COUNT robot_a=378 robot_b=296
+05:34:58.64 STATUS robot_a VALID -> UNKNOWN mission=(0.000, 0.000)
+05:34:58.68 STATUS robot_a UNKNOWN -> VALID mission=(-0.923, 1.715)
+05:35:22.30 COUNT robot_a=442 robot_b=356
+05:35:52.30 COUNT robot_a=502 robot_b=416
+05:36:22.30 COUNT robot_a=562 robot_b=476
+05:36:52.31 COUNT robot_a=622 robot_b=536
+05:37:22.30 COUNT robot_a=682 robot_b=596
+05:37:52.30 COUNT robot_a=742 robot_b=656
+05:38:04.83 SILENT robot_a > 2.0 s (last 05:38:02.64)
+05:38:04.83 SILENT robot_b > 2.0 s (last 05:38:02.80)
+05:38:22.25 COUNT robot_a=763 robot_b=677

@@ -128,7 +128,9 @@ ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
   robot_namespaces:=robot_a=/robot6,robot_b=/robot5 robot_watch_path:=<직접 관측 파일>
 # 로그의 "console --camera cam_fixed=http://..." 값을 관제 웹 --camera 에 그대로 쓴다
 
-python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
+# 비밀 키 파일은 처음 한 번만 만든다. 이미 있으면 그대로 쓴다
+[ -f ~/rokey7-field/console/secret ] || (umask 077; mkdir -p ~/rokey7-field/console && python3 -c 'import secrets;print(secrets.token_urlsafe(32))' > ~/rokey7-field/console/secret)
+RESCUE_CONSOLE_SECRET="$(cat ~/rokey7-field/console/secret)" python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
   --operations http://127.0.0.1:<api 포트> --camera <launch 로그의 값> --camera-stale-s 2.0 \
   --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 --port 8080 \
   --live-map <실시간 지도 폴더>/live_map.yaml --live-map-stale-s 15 \
@@ -150,6 +152,7 @@ ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
   - 어느 경우든 운영 PC 에서 `timedatectl timesync-status` 로 서버·마지막 응답·지연·폴 간격을 확인해 기록한다.
   - timesyncd 를 다시 시작해 바로 다시 묻게 하는 것(`sudo systemctl restart systemd-timesyncd`)은 운영 PC 설정 변경(등급 4)이라 재범 승인 뒤에만 한다.
 - 계정 DB 와 비밀키 준비는 [rescue_console README](../../src/rescue_console/README.md)에 있다.
+- **관제 웹 비밀 키는 운영 PC 의 `~/rokey7-field/console/secret` 하나로 고정한다.** 로그인은 7일 동안 유지되지만 이 키가 바뀌면 모든 로그인이 풀린다. 웹을 다시 띄울 때도, 초기화 뒤에도 같은 파일을 쓴다. 키 파일은 저장소에 넣지 않는다. 키가 새어 나갔으면 파일을 지우고 다시 띄운다. 그러면 모든 로그인이 풀린다.
 - **지도와 지도 고정 전 TB-6 위치는 운영 launch 의 두 묶음 인자로 본다.** `map_topic`·`map_dir` 는 TB-6 SLAM 지도를 받아 관제 웹 `--live-map` 과 리플레이에 넘긴다. `robot_namespaces`·`robot_watch_path` 는 두 로봇의 TF·배터리·도킹을 구독만 하는 직접 관측(`robot_watch`)이다. 실행기가 보내는 로봇 위치는 지도를 고정하고 AMCL 이 맞춘 뒤에만 채워진다(`live_pose.py`). 그래서 지도 고정 전 TB-6 위치는 직접 관측으로만 지도에 그려진다. TB-5 는 1차 고정 전에는 위치가 없고 「위치 미확정」이 정상이다(2026-10-15 실기).
 
 ## 4단계 — TB-6 담당 PC

@@ -123,7 +123,23 @@ class AmclTfPose(SlamTfPose):
                 raise ContractError(f'AMCL TF pose needs a positive {name} (AMCL localization parameters)')
         self.update_min_d, self.update_min_a = float(update_min_d), float(update_min_a)
         self.odom_key = (odom_frame, base_frame)
+        self.map_key = (map_frame, odom_frame)
         self.anchor = None   # odom -> base_link (x, y, yaw) when the last amcl_pose came
+        self.first_map_odom = None   # (after_ns, stamp): the first map -> odom stamped after a map switch
+
+    def note_map_odom(self, after_ns):
+        """Remember the first map -> odom stamped after ``after_ns`` (the map switch): AMCL's, stamped ahead by its
+        transform_tolerance. Called after on_tf with the switch time."""
+        edge = self.edges[self.map_key]
+        if edge is None or edge[0] <= after_ns:
+            return
+        if self.first_map_odom is None or self.first_map_odom[0] != after_ns:
+            self.first_map_odom = (after_ns, edge[0])
+
+    def map_odom_covers(self, *, now_ns, after_ns):
+        """Nav2's TF buffer has a map -> odom for ``now_ns`` from after the switch: now has passed the first one."""
+        first = self.first_map_odom
+        return first is not None and first[0] == after_ns and now_ns >= first[1]
 
     def _odom_plane(self):
         edge = self.edges[self.odom_key]

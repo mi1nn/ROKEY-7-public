@@ -57,6 +57,7 @@ COORDINATOR_KEYS = {
     'frontier_potential_scale': F, 'frontier_gain_scale': F,  # the pick's explore_lite cost weights (2026-10-16)
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
     'return_home_attempts': I,  # a FAILED return (TB-6 home, TB-5 exit) goes again until this many failed
+    'frontier_look_turns': I,  # 90-degree turns in place at each frontier's goal, 0 none (2026-10-16)
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,
     # Traffic control stage 1 (owner decision 2026-10-14, OPS-204·205): TB-5 first, it leads the rescuer
@@ -260,6 +261,8 @@ def load_field(path):
     for key in ('frontier_min_cells', 'exploration_empty_checks', 'return_home_attempts'):
         if coordinator[key] < 1:
             raise FieldLaunchError(f'coordinator.{key} must be 1 or more')
+    if coordinator['frontier_look_turns'] < 0:
+        raise FieldLaunchError('coordinator.frontier_look_turns must be zero or more')
     if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
         # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
