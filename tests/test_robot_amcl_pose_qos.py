@@ -36,13 +36,15 @@ def fake_ros():
     qos.DurabilityPolicy = NS(TRANSIENT_LOCAL='TRANSIENT_LOCAL', VOLATILE='VOLATILE')
     qos.qos_profile_sensor_data = QoSProfile(depth=5, reliability='BEST_EFFORT', durability='VOLATILE')
     modules = {'rclpy': ModuleType('rclpy'), 'rclpy.qos': qos}
-    for package, names in (('nav_msgs', ('OccupancyGrid',)), ('geometry_msgs', ('PoseWithCovarianceStamped',)),
-                           ('std_msgs', ('String',)), ('tf2_msgs', ('TFMessage',))):
-        msg = ModuleType(package + '.msg')
+    for package, kind, names in (('nav_msgs', 'msg', ('OccupancyGrid',)),
+                                 ('geometry_msgs', 'msg', ('PoseWithCovarianceStamped',)),
+                                 ('std_msgs', 'msg', ('String',)), ('tf2_msgs', 'msg', ('TFMessage',)),
+                                 ('std_srvs', 'srv', ('Empty',))):   # a no-motion client, if the node has one
+        module = ModuleType(f'{package}.{kind}')
         for name in names:
-            setattr(msg, name, type(name, (), {}))
-        modules[package] = ModuleType(package)
-        modules[package + '.msg'] = msg
+            setattr(module, name, type(name, (), {}))
+        modules.setdefault(package, ModuleType(package))
+        modules[f'{package}.{kind}'] = module
     return modules
 
 
@@ -52,6 +54,7 @@ class AmclPoseQos(unittest.TestCase):
         subs = {}
         node = NS(create_subscription=lambda kind, topic, cb, qos: subs.setdefault(topic, qos) or object(),
                   create_timer=lambda period, cb: object(), create_publisher=lambda kind, topic, qos: object(),
+                  create_client=lambda kind, name: object(),
                   get_logger=lambda: NS(warning=print, error=print, info=print))
         runtime = NS(adapter=NS(lock=threading.RLock(), wall_clock_ns=lambda: 1, executor=NS(active=None)),
                      node=node, config={'poll_period_s': 0.2}, input_handles=[])
