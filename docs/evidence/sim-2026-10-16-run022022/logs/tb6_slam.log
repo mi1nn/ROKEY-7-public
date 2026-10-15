@@ -1,0 +1,43 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-02-21-31-791813-sim-pc-788097
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792084891.859234906] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[INFO] [launch.user]: TB-6 SLAM robot_a ns=/robot6 params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/slam.yaml + {'minimum_travel_distance': 0.0, 'minimum_travel_heading': 0.0} -> /tmp/slam_robot_a_u7mq0od1.yaml
+[INFO] [sync_slam_toolbox_node-1]: process started with pid [788175]
+[INFO] [slam_active_check-2]: process started with pid [788176]
+[sync_slam_toolbox_node-1] [INFO] [1792084895.285942825] [robot6.slam_toolbox]: Node using stack size 40000000
+[sync_slam_toolbox_node-1] [INFO] [1792084895.812834688] [robot6.slam_toolbox]: Configuring
+[sync_slam_toolbox_node-1] [INFO] [1792084895.817041521] [robot6.slam_toolbox]: Using solver plugin solver_plugins::CeresSolver
+[sync_slam_toolbox_node-1] [INFO] [1792084895.817199359] [robot6.slam_toolbox]: CeresSolver: Using SCHUR_JACOBI preconditioner.
+[INFO] [launch.user]: [LifecycleLaunch] Slamtoolbox node is activating.
+[sync_slam_toolbox_node-1] [INFO] [1792084895.837977362] [robot6.slam_toolbox]: Activating
+[sync_slam_toolbox_node-1] Registering sensor: [Custom Described Lidar]
+[slam_active_check-2] [INFO] [1792084910.653883321] [tb6_slam_active_check]: SLAM_ACTIVE /robot6/slam_toolbox
+[INFO] [slam_active_check-2]: process has finished cleanly [pid 788176]
+[sync_slam_toolbox_node-1] [INFO] [1792084911.396518216] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084911.384 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084914.207649713] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084914.108 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084917.090260387] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084917.076 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084919.886958482] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084919.844 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084922.695913541] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084922.677 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084928.028373048] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084928.002 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084938.651640054] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084938.627 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084944.757994893] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084944.745 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084953.686662613] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084953.676 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084963.670194296] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084963.659 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084969.069045504] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084969.056 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084974.834728187] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084974.803 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084982.957613231] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084982.943 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792084994.226297061] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792084994.198 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085005.025798311] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085004.998 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085013.294778243] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085013.280 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085061.703015526] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085061.689 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085064.536125137] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085064.522 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085078.455101099] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085078.439 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085083.355048236] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085083.338 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085100.665084125] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085100.653 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085111.809363490] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085111.793 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085121.026080735] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085121.005 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085125.936648031] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085125.920 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085133.161333168] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085133.148 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085137.675817199] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085137.660 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085141.592719769] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085141.577 for reason 'discarding message because the queue is full'
+[sync_slam_toolbox_node-1] [INFO] [1792085154.457231531] [robot6.slam_toolbox]: Message Filter dropping message: frame 'rplidar_link' at time 1792085154.246 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
