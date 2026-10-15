@@ -106,8 +106,8 @@ class MarkerTests(unittest.TestCase):
         self.assertEqual('t1 CONFIRMED STALE 10s', by_ns(specs, 'target')[1]['text'])
 
     def test_no_mission_frame_is_not_drawn(self):
-        lost = location('lost', 1, 1, frame='')
-        specs, skipped = tm.marker_specs([estimate('t1', 0, 0, locations=[lost])], {'lost': lost}, {}, now_ns=NOW)
+        lost, alone = location('lost', 1, 1, frame=''), location('alone', 2, 2, frame='')
+        specs, skipped = tm.marker_specs([estimate('t1', 0, 0, locations=[lost])], {'alone': alone}, {}, now_ns=NOW)
         self.assertEqual([], [s for s in specs if s['ns'] in ('target', 'candidate')])
         self.assertEqual(2, len(skipped))
         self.assertIn('no mission frame', skipped[0])
@@ -132,6 +132,7 @@ class TopicTests(unittest.TestCase):
         self.assertEqual(target_locator.TARGET_LOCATIONS_TOPIC, tm.TARGET_LOCATIONS_TOPIC)
         self.assertEqual(exit_qr.EXIT_LOCATION_TOPIC, tm.EXIT_LOCATION_TOPIC)
         self.assertEqual('/rescue/noweb/markers', tm.MARKERS_TOPIC)
+        self.assertEqual(coordinator.EXIT_CLASS_LABEL, tm.EXIT_CLASS_LABEL)
 
 
 if __name__ == '__main__':
