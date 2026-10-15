@@ -62,7 +62,7 @@ REASON_CODES = {
     'UNKNOWN_TARGET': 'NOT_FOUND', 'NO_HOME_POSITION': 'NOT_FOUND',
     'TARGET_NOT_CONFIRMED': 'PENDING_EVIDENCE', 'NO_ROUTE': 'PENDING_EVIDENCE', 'NO_VERDICT': 'PENDING_EVIDENCE',
     'ALREADY_DISPATCHED': 'TASK_BUSY', 'NOT_AWAITING_APPROVAL': 'TASK_BUSY', 'RECHECK_ALREADY_REQUESTED': 'TASK_BUSY',
-    'ALREADY_RETURNING': 'TASK_BUSY', 'SEARCH_ALREADY_STARTED': 'TASK_BUSY',
+    'ALREADY_RETURNING': 'TASK_BUSY', 'SEARCH_ALREADY_STARTED': 'TASK_BUSY', 'ALREADY_DISASTER': 'TASK_BUSY',
     'TARGET_REVISION_STALE': 'INVALID_INPUT', 'ROUTE_REVISION_STALE': 'INVALID_INPUT',
     'SEGMENT_INDEX_MISMATCH': 'INVALID_INPUT', 'NOT_DISPATCHED_TARGET': 'INVALID_INPUT',
     'TARGET_ALREADY_JUDGED': 'INVALID_INPUT',
@@ -1317,13 +1317,15 @@ class CoordinatorCore:
         allocator = self.search.allocator
         state = dict(
             mode=system_mode(view.mode, view.phase), phase=view.phase,
-            cause_event_ids=[view.trigger_event_id] if view.trigger_event_id else [],
+            # An operator's DECLARE_DISASTER has no site event: its command_id is the trigger, not a cause event.
+            cause_event_ids=[view.trigger_event_id] if view.trigger_source == 'SITE_EVENT' else [],
             active_task_ids=sorted(set(allocator.pending) | set(allocator.active)),
             policy_version=self.search.policy.version,
             reason=self.issue_block or self._rebase_reason() or self.mission_reason(now_ns) or self._search_reason() or (
                 self.camera_watch.rearm if self.camera_watch is not None and self.camera_watch.rearm else '') or (
                 self.location_refusal or '') or (
-                'TRAFFIC_SEPARATION_UNCHECKED' if self.separation_unchecked else ''),
+                'TRAFFIC_SEPARATION_UNCHECKED' if self.separation_unchecked else '') or (
+                'DISASTER_DECLARED_BY_OPERATOR' if view.trigger_source == 'OPERATOR' else ''),
             has_trigger=view.trigger_event_id is not None, trigger_event_id=view.trigger_event_id or '',
             trigger_observed_at_ns=view.trigger_observed_at_ns or 0,
             has_dispatch=view.target_id is not None, target_id=view.target_id or '',
@@ -1490,6 +1492,9 @@ class CoordinatorCore:
                 roi = roi_value(req.roi_xyxy_normalized) or self.camera_watch.roi
                 watch = self.camera_watch.arm(command.command_id, command.target_id, roi, now_ns)
                 self.last_reason = f'WATCH_REQUESTED:{watch.watch_id}'
+            elif command.kind == 'DECLARE_DISASTER':
+                # Same path as the sign: the next tick starts the search when search_start is AUTO.
+                self.notes.append(f'DISASTER_DECLARED by operator {command.operator_id} command {command.command_id}')
             elif command.kind == 'START_SEARCH':
                 queued = len(self.outbox)
                 self._issue_search(now_ns)

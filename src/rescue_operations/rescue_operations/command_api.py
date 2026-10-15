@@ -41,6 +41,7 @@ COMMAND_FIELDS = {
     "REQUEST_RECHECK": ("target_id",),
     "RETURN_HOME": (),
     "SET_CAMERA_WATCH": ("target_id",),
+    "DECLARE_DISASTER": (),
 }
 BASE_FIELDS = ("command_id", "kind", "operator_id")
 UINT32_MAX = (1 << 32) - 1
