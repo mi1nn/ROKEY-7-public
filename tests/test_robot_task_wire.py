@@ -134,7 +134,9 @@ class TaskWireTests(unittest.TestCase):
             with self.assertRaises(ContractError):validate(goal,lease)
 
     def test_alignment_unknown_blocks_motion(self):
-        goal,lease=wire('RETURN_HOME');goal.frame_ref.alignment_status='UNKNOWN'
+        # a target task's frame carries the coordinator's alignment; RETURN_HOME and SEARCH_AREA carry none and
+        # are aligned by the robot's resolver (resolve_goal -> current_alignment), test_robot_return_home_wire
+        goal,lease=wire('APPROACH_TARGET');goal.frame_ref.alignment_status='UNKNOWN'
         with self.assertRaises(ContractError):validate(goal,lease)
 
     def test_hold_cannot_carry_move_permission(self):

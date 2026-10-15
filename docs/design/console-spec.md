@@ -527,6 +527,9 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 2. 로봇 목록마다, 그 안의 항목마다 행을 하나 만든다. 표시 문구는 `PASSAGE_WORDS`[state] 이고, 모르는 state 는 그대로 쓴다. `label` 은 `lowest_m` 이 None 이거나 state 가 UNKNOWN 이면 표시 문구만 쓰고, 아니면 「{낱말} ↑{lowest_m 소수 둘째 자리} m」 이다. `frame_id` 는 그 목록의 `map_frame` 이다. `current` 는 `current_map` 이 None 이거나, 항목의 (`map_session_id`, `map_revision`) 이 `current_map` 의 값과 같으면 참이다.
 3. 행이 있는데 `current_map` 이 None 이면 경고 「현재 지도 revision 모름 — 터널 판정을 모두 진하게 그림」을 붙인다.
 4. 판정은 다시 하지 않는다. 통과 여부는 인식(overhead_passage)의 판정을 그대로 쓴다. 지도 위치와 frame 검사는 7.9 의 `map_overlay` 가 한다.
+5. 터널 통과 승인(2026-10-16). 운영자 명령 가운데 `kind == APPROVE_PASSAGE` 인 행(`_approvals`)에서 접수된(`accepted`) 가장 이른 행을 항목 id(`target_id`)마다 고른다. 그런 행이 있으면 `approved` 는 {by: operator_id, at_ns: requested_at_ns} 이고 `label` 뒤에 「 · 승인 {by}」를 붙인다. 없으면 None 이다. `approvable` 은 `painted`(state BLOCKED, 또는 UNKNOWN 이면서 reason NO_FLOOR_NEAR; `rescue_robot/passage_keepout.py` 의 칠하는 조건과 같음)이면서 `approved` 가 None 일 때 참이다. 지도에서는 `approvable` 인 표시에 `approvable` 클래스와 `data-passage`(항목 id)를 붙이고, title 끝에 「 · 누르면 통과 승인」을 붙인다. 이를 누르면 확인 칸이 그 항목으로 열린다.
+6. `passage_gate` 는 명령 표 끝에 「터널 통과 승인」 행(묶음 approve)을 하나 더한다. 임무 상태와 상관없다. 절이 None 이면 꺼지고 사유는 「터널 판정 입력 없음」이다. `approvable` 행이 없으면 「승인할 터널 없음 — 통과 불가나 바닥 안 보임 판정이 생기면 켜짐」으로 꺼진다. 있으면 켜지고 사유는 「막힌 터널 {n}곳 중 고름 — 지도에서 눌러도 됨」이다. 선택지는 지금 지도 항목 먼저, 그다음 `last_seen_ns` 큰 순, id 순이고 {item_id, state, label: 「{label} · {로봇 표시 이름} ({x}, {y})」(이전 지도면 「 이전 지도」를 붙임)} 이다. 확인 칸 첫 줄은 「터널 통과 승인 — 고른 터널을 이번 회차 동안 막힌 곳에서 뺍니다. 로봇 경로가 그 아래로 지날 수 있습니다」다.
+7. 사건 기록(`_events`)에는 `APPROVE_PASSAGE` 행마다 종류 `PASSAGE_APPROVAL`(「터널 통과 승인」), 시각 `requested_at_ns`, 보낸 곳 `operator_id`, 대상 `target_id`, 내용 「{operator_id} 승인 접수」 또는 「… 승인 거절 {reason}」, 시계 `operations` 인 행을 더한다. 이 행은 `data-kpi="0"` 이라 KPI-04 표본에 넣지 않는다.
 
 #### 7.5 `_gate` (`view.py:530-595`) + `command_gates` (`view.py:598-623`) — 버튼별 활성 판정
 
@@ -893,6 +896,7 @@ flowchart TD
 - `tests/test_console_webcam_switch.py` — ADMIN 은 꽂혀 있는 카메라 목록(현재 카메라가 선택된 상태)을 보고, CUSTOMER 는 보지 못한다. 재난 모드면 한 번 더 확인한다. 변경 요청은 한 번만 보내고 응답을 그대로 표시하며, 거절도 그대로 표시한다. CUSTOMER 의 변경 요청은 403 이다. operations 가 꺼져 있으면 문구를 표시한다.
 - `tests/test_console_robot_camera.py` — http(s) 주소만 받는다. 칸에는 선택한 로봇의 영상과 선택지를 표시한다. 모든 로그인 사용자가 확인 창 없이 변경할 수 있다. CSRF 를 검사한다. 중계가 꺼져 있으면 문구를 표시한다.
 - `tests/test_console_tunnel_map.py` — 세 상태의 표시 문구와 색을 확인한다. 이전 revision 은 흐리게 그린다. `current_map` 을 모르면 모두 진하게 그리고 경고한다. 지도 밖 터널은 목록에 올린다. 표가 없으면 아무것도 그리지 않는다.
+- `tests/test_console_passage_approve.py` — 터널 통과 승인. 폼에 이름이 오면 거절하고 로그인 계정 이름만 붙인다. `/api/passages/approve` 로 한 번 보낸다. 칠하는 판정만 고를 수 있다. 승인 기록이 사건 기록(KPI 제외)과 지도 문구에 보인다. 보기 전용 계정은 보내지 못한다.
 - 웹 시험 `tests/test_console_*.py` 는 14개 파일에서 235개가 OK 다(skip 0) [측정, 2026-10-13, main `4163a25` 합친 뒤, Python 3.13, Flask 3.1.3]. 그 이전 기록은 [관제 웹 화면·시험 기록](../evidence/console-2026-10-13/README.md)에 있다.
 - E3/E4: 운영 PC 에서 장부 없이 기동한 시험, 로봇 카드 2개, MJPEG 중계와 `--camera` 가 모두 PASS 다 [측정 2026-10-13, `docs/evidence/field-2026-10-13-operations-host.md:25-27`, `:162-181`]. Firefox 로 눈으로 확인하기, 웹캠을 가려 「영상 끊김」 확인하기, 진동 → 재난 모드 전환은 [대기](같은 문서 `:28-30`)다. 콘솔 → operations → 조정기로 이어지는 명령 왕복은 기록이 없으므로 NOT_RUN 이다(검색: `docs/evidence`·`docs/process` 에서 `operator-commands`, `operator_command`, `/commands` 를 찾았고, 운영 PC 기록의 db_writer 기동 로그 한 줄 말고는 없었다).
 
@@ -1011,6 +1015,15 @@ operations HTTP 서버(명령 API 와 같은 주소)는 db_writer 에 `webcam_no
 | `GET /robot_view.mjpg` | MJPEG 스트림. 새 프레임이 `stale_s` 동안 오지 않으면 연결을 닫고, 그 상태에서 들어온 새 요청에는 503 | `rescue_perception/mjpeg_relay.py:108-125` |
 | `GET /select` | 200 `{robot: 지금, robots: [고를 수 있는 것]}` | `rescue_perception/mjpeg_relay.py:108-111` |
 | `POST /select {robot}` | 성공하면 200 과 위와 같은 상태, 실패하면 400 `{error}` | `rescue_perception/mjpeg_relay.py:96-106` |
+
+### I-8. 터널 통과 승인 API — `POST /api/passages/approve` [제안] 관제·화면 2026-10-16
+
+웹이 보내는 쪽만 정했다. operations 쪽 구현(이 경로, 운영 노드의 서비스 호출, 기록 행)은 통합-운영 몫이고 아직 없다.
+
+- 본문: `command_id`(콘솔이 만든 UUID4), `kind: "APPROVE_PASSAGE"`, `operator_id`(로그인 계정 이름, 브라우저 값이 아님), `item_id`(터널 항목 UUID). 콘솔은 `item_id` 가 정규 UUID 가 아니면 보내지 않는다(`commands._item_id`).
+- operations 가 할 일(요청): `/rescue/passage_keepout/approve`(`rescue_interfaces/srv/ApproveOverheadPassage`)를 `item_id`, `approved_by = operator_id`, `issued_at_ns = 받은 시각` 으로 한 번 부른다. 답은 I-1 의 운영자 명령 모양(`accepted`, `request_id = command_id`, `reason`: 접수면 null, 거절이면 서비스 `reason_code`(`NO_SUCH_ITEM`·`NO_APPROVER`) 또는 operations 사유, `request_state`)에 `item_id`·`message`(서비스 응답의 message)를 더한다. 서비스가 없거나 시간 안에 답하지 않으면 I-1 의 503/504 처럼 `accepted` 없이 돌려준다(콘솔은 「전달됐는지 모름」).
+- 기록(요청): `operator_commands` 에 `kind = APPROVE_PASSAGE`, `operator_id`, `target_id = item_id`, `requested_at_ns`, `accepted`·`result`·`reason` 으로 한 행. 웹은 이 행으로 사건 기록과 지도의 「승인 {사람}」을 그린다(7.4.8 5·7). `OPERATOR_COMMAND_KINDS` 에 이 종류를 더해야 한다.
+- 콘솔은 `read_reply` 로 답을 읽고, `message` 는 글자일 때만 결과에 넣는다.
 
 ## 문서와 코드의 차이 (bd4bfa5 에서 찾고 32e8ee1 에서 다시 확인)
 

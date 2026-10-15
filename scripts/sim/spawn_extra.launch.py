@@ -2,9 +2,11 @@
 #
 # Same as turtlebot4_gz_bringup turtlebot4_spawn.launch.py (turtlebot4_simulator 2.0.2, Copyright 2023
 # Clearpath Robotics, Apache License 2.0) without its optional SLAM/Nav2/RViz, with two changes:
-# - strip_sensors:=true (default, the second and later robots): the robot is created from robot_description_sim,
-#   which strip_sensors.py republishes without the Gazebo Sensors system. A second Sensors system aborts the
-#   server (see strip_sensors.py); the first robot's one renders all sensors. The first robot uses strip_sensors:=false.
+# - Every robot is created from robot_description_sim, which strip_sensors.py republishes from robot_description:
+#   strip_sensors:=true (default, the second and later robots) drops the Gazebo Sensors system (a second one aborts
+#   the server; the first robot's one renders all sensors; the first robot uses strip_sensors:=false), and for every
+#   robot the drive wheels collide as spheres (--wheel-sphere): with the 1.5 cm wide cylinders the simulated odom
+#   counted turns 6.4 % too large and tilted the TB-6 map 11.5 deg after undocking (strip_sensors.py).
 # - The dock is made with visualize_rays:=false. Its IR emitter rays are for looking at only (irobot_create_description
 #   ir_emitter.urdf.xacro: "not attached to any plugin"), the real dock has nothing like them, and with them on another
 #   robot's lidar passes through walls near the dock: 50 of 3200 rays in a still scene, 0 with them off
@@ -15,7 +17,6 @@ from irobot_create_common_bringup.namespace import GetNamespacedName
 from irobot_create_common_bringup.offset import OffsetParser, RotationalOffsetX, RotationalOffsetY
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, GroupAction, IncludeLaunchDescription
-from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node, PushRosNamespace
@@ -55,9 +56,7 @@ def generate_launch_description():
             launch_arguments={'gazebo': 'ignition', 'visualize_rays': 'false'}.items()),
         Node(package='ros_gz_sim', executable='create', output='screen',
              arguments=['-name', robot_name, '-x', x, '-y', y, '-z', OffsetParser(z, -0.0025), '-Y', yaw,
-                        '-topic', PythonExpression(["'robot_description_sim' if '",
-                                                    LaunchConfiguration('strip_sensors'),
-                                                    "' == 'true' else 'robot_description'"])]),
+                        '-topic', 'robot_description_sim']),
         Node(package='ros_gz_sim', executable='create', output='screen',
              arguments=['-name', dock_name,
                         '-x', OffsetParser(x, RotationalOffsetX(0.157, yaw)),
@@ -89,9 +88,11 @@ def generate_launch_description():
                         [robot_name, '/oakd_rgb_camera_frame/rgbd_camera']],
              remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')]),
     ])
-    strip = ExecuteProcess(cmd=['python3', STRIP, '--ros-args', '-r', ['__ns:=/', namespace],
-                                '-p', 'use_sim_time:=true'], output='screen',
-                           condition=IfCondition(LaunchConfiguration('strip_sensors')))
+    strip = ExecuteProcess(cmd=['python3', STRIP, '--wheel-sphere',
+                                PythonExpression(["'' if '", LaunchConfiguration('strip_sensors'),
+                                                  "' == 'true' else '--keep-sensors-system'"]),
+                                '--ros-args', '-r', ['__ns:=/', namespace], '-p', 'use_sim_time:=true'],
+                           output='screen')
     ld = LaunchDescription(ARGUMENTS)
     ld.add_action(strip)
     ld.add_action(group)

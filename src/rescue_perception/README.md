@@ -325,7 +325,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 필수 파라미터(기본값 없음)는 `rescue_perception.overhead.OVERHEAD_PARAMS` 이고, launch 가 현장 실행 파일 `passage.*` 와 `passage.overhead.*` 에서 채운다. 시험: `tests/test_perception_overhead.py`, `tests/test_contracts_overhead.py`, `tests/test_bringup_passage.py`, `tests/ros/e3_overhead_probe.py`(격리 도메인, 실제 노드). 실제 OAK-D 점구름, 현장 PC 의 수신·처리 시간, TB-6 라이다 높이는 NOT_RUN 이다.
 
-실기 NOT_RUN: 높이 기준을 먼저 확인해야 한다(작전 OPS-203). 판정 높이는 `base_frame`(base_link) 점의 z 이고, `lidar_plane_m` 0.23 m 는 TB-5 에서 바닥부터 줄자로 잰 값이다 [측정, 2026-10-13]. TB-6 은 같은 모델이라 같은 값으로 본 것이다 [추정]. 열린 PR #254 의 측정대로 바닥 점이 base_link 기준 약 −0.2 m 라면, 높이가 실제보다 약 0.2 m 낮게 나오고 바닥 근처 물체가 바닥으로 세어진다 [계산, 측정 아님].
+**높이 기준(재범 결정 2026-10-16 03:1x):** 높이는 `base_link` z 가 아니라 상자 안에서 본 바닥에서 잰다. 바닥은 `floor_noise_m` 이하 점들 중 가장 낮은 층(10 % 분위 + 0.05 m 안)의 중앙값이다(`floor_height`). #254 측정(TB-6 앞 바닥이 `base_link` z −0.22 ~ −0.19 m)을 그대로 받아들인 것이고, 시뮬레이션(바닥 0)과 실물이 같은 코드로 맞는다. 바닥 점이 `floor_min_points` 보다 적으면 높이를 내지 않는다(UNKNOWN, 지금처럼). 판정 영상의 빈 공간도 그 바닥에서 그린다. 실기 NOT_RUN 이다. `lidar_plane_m` 0.23 m 는 바닥에서 줄자로 잰 값이라 이제 같은 기준이다.
 
 ### 출구 QR (OPS-136/138, 여러 출구 OPS-154/157)
 

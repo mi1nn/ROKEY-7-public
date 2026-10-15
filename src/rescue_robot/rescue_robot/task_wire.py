@@ -94,16 +94,18 @@ preserved until the executor's monotonic lease-duration boundary.
         generation(lease.generation)
         window(lease.issued_at_ns, lease.valid_until_ns, now_ns, clock_error_bound_ns, 'lease')
     if goal.kind != 'HOLD':
-        if goal.kind == 'SEARCH_AREA':
+        if goal.kind in ('SEARCH_AREA', 'RETURN_HOME'):
             # #90 supplies the area/basis but intentionally does not assert an
-            # alignment. A live authoritative resolver/binder must supply it.
+            # alignment. A live authoritative resolver/binder must supply it. RETURN_HOME
+            # is the same: the robot resolves home/<robot_id> against its own alignment
+            # (simulation run 6, 2026-10-16: refused on 'native frame' before).
             ref = goal.frame_ref
             text(ref.mission_frame, 'mission frame')
             identifier(ref.map_session_id)
             generation(ref.map_revision)
             generation(ref.transform_revision)
             if ref.robot_id != goal.robot_id:
-                raise ContractError('search frame robot mismatch', 'FRAME_REVISION_MISMATCH')
+                raise ContractError('goal frame robot mismatch', 'FRAME_REVISION_MISMATCH')
         else:
             key = frame_key(goal.frame_ref)
             if key[-1] != 'VALID' or (goal.kind not in TARGET_TASK_KINDS and key[0] != goal.robot_id):

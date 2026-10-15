@@ -9,6 +9,7 @@
 
 import json
 import socket
+import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,6 +18,9 @@ from .labels import label
 from .view import ConsoleError
 
 COMMAND_PATH = '/api/operator-commands'
+# 터널 통과 승인(#406 /rescue/passage_keepout/approve). 웹은 ROS 노드가 아니라 운영 API 에 보내고 운영 노드가 서비스를
+# 부른다(작전 2026-10-16). 경로와 답 모양은 [제안] 관제·화면이고 운영 쪽 구현을 기다린다(console README 「후속」).
+PASSAGE_PATH = '/api/passages/approve'
 WEBCAM_PATH = '/api/webcam'   # operations: GET 꽂힌 카메라 목록, POST {device, operator_id} 바꾸기(OPS-183)
 # 관제 웹이 operations의 응답을 대기하는 타임아웃. operations가 coordinator 서비스를 호출하는 시간까지
 # 감안하여 설정한다([제안] 관제·화면, 2026-10-12; PR 본문 「열린 것」).
@@ -36,8 +40,10 @@ COMMAND_FIELDS = {
 MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
 # 명령별 거절 풀이. 재난 선포의 TASK_BUSY 는 이미 재난 모드라는 뜻 하나뿐이다(작전 2026-10-15, #330).
 KIND_REPLY_WORDS = {('DECLARE_DISASTER', 'TASK_BUSY'): '이미 재난 모드입니다'}
+# 조정기를 거치지 않는 명령. 운영자 이름(approved_by)은 서버가 로그인 세션에서 붙이고 폼에서 받지 않는다.
+PASSAGE_COMMAND_FIELDS = {'APPROVE_PASSAGE': ('item_id',)}
 SENDABLE = tuple(COMMAND_FIELDS)   # 재난 모드에서 켜지는 명령. 재난 선포는 MODE_COMMAND_FIELDS 에 따로 둔다
-_ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS
+_ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS | PASSAGE_COMMAND_FIELDS
 # revision 및 segment 값은 운영자가 화면에서 확인한 당시 기준값이다. 따라서 승인 직후 변경된 대상이나 경로에
 # 오적용되지 않도록 방지한다(SubmitOperatorCommand의 expected_* 필드). 값을 알 수 없으면 None을 전송하지 않고
 # 버튼 자체를 비활성화한다(작전 #115, 2026-10-12).
@@ -87,6 +93,17 @@ def _target_id(text):
     return text
 
 
+def _item_id(text):
+    """터널 항목 id 는 계약상 UUID 다(rescue_contracts.overhead). 지금 목록에 있는지는 승인 노드가 본다(NO_SUCH_ITEM)."""
+    try:
+        valid = str(uuid.UUID(text)) == text
+    except (ValueError, AttributeError, TypeError):
+        valid = False
+    if not valid:
+        raise _invalid('item_id must be a canonical UUID')
+    return text
+
+
 def _count(name, text):
     # isdigit만으로는 '²' 등의 비-ASCII 특수 숫자도 통과하지만 int()는 실패하므로 isascii로 0-9만 허용한다.
     # 부호 및 소수점 기호를 불허하여 음수나 부동소수점 오차 입력을 원천 차단한다.
@@ -114,6 +131,8 @@ def build_request(form, *, operator_id, command_id):
         text = form.get(name, '')
         if name in INT_FIELDS:
             payload[name] = _count(name, text)
+        elif name == 'item_id':
+            payload[name] = _item_id(text)
         else:
             payload[name] = _target_id(text)
     return payload
@@ -177,12 +196,18 @@ def read_reply(status, body):
 def send_command(base_url, payload, *, transport=post_json, timeout=COMMAND_TIMEOUT_S):
     """명령을 1회 전송하고 결과를 반환한다. 자동 재전송은 하지 않으며, 재시도 여부는 운영자가 직접 판단한다."""
     head = {'command_id': payload['command_id'], 'kind': payload['kind']}
+    passage = payload['kind'] in PASSAGE_COMMAND_FIELDS
     try:
-        reply = read_reply(*transport(base_url + COMMAND_PATH, payload, timeout))
+        status, body = transport(base_url + (PASSAGE_PATH if passage else COMMAND_PATH), payload, timeout)
+        reply = read_reply(status, body)
     except CommandSendError as exc:
         return {'sent': False, **head, 'error': exc.code, 'message': exc.message, 'delivery': exc.delivery}
     words = KIND_REPLY_WORDS.get((payload['kind'], reply['reason'])) or label('reply', reply['reason'])
-    return {'sent': True, **head, **reply, 'reason_label': words}
+    result = {'sent': True, **head, **reply, 'reason_label': words}
+    if passage:   # 승인 서비스 응답의 message(노드가 남긴 한 줄)는 글자일 때만 그대로 보인다
+        message = json.loads(body).get('message')
+        result['message'] = message if isinstance(message, str) and message else None
+    return result
 
 
 WEBCAM_LIST_TIMEOUT_S = 1.0   # 화면을 그릴 때 한 번 묻는다: 오래 막지 않는다

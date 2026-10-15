@@ -40,7 +40,7 @@ from uuid import uuid4
 
 # x, y in the frame of the points it came from; x0, x1 (its x span) and seen_m (lowest point seen, also for
 # UNKNOWN) only for drawing the camera view
-Reading = namedtuple('Reading', 'state lowest_m x y reason x0 x1 seen_m', defaults=(None, None, None))
+Reading = namedtuple('Reading', 'state lowest_m x y reason x0 x1 seen_m floor_m', defaults=(None, None, None, 0.0))
 VIEW_TOPIC = 'rescue/passage_view/compressed'   # relative: <ns>/rescue/passage_view/compressed
 GREEN, RED, GREY = (0, 200, 0), (0, 0, 220), (160, 160, 160)   # BGR, the same as the web map (OPS-189)
 
@@ -149,28 +149,47 @@ def to_frame(points, translation, quaternion):
     return points @ rotation.T + np.asarray(translation, dtype=np.float64)
 
 
+FLOOR_LAYER_M = 0.05   # the floor layer: candidates within this of the lowest tenth (depth noise, a slight slope)
+
+
+def floor_height(z_candidates, policy):
+    """The floor seen in the box: median of the lowest layer of the points at or below floor_noise_m (base_link),
+    or None with fewer than floor_min_points of them (재범 2026-10-16: #254 measured the floor at base_link
+    z -0.22 .. -0.19 m on TB-6; the simulation floor is at 0)."""
+    import numpy as np
+    if len(z_candidates) < policy.floor_min_points:
+        return None
+    layer = z_candidates[z_candidates <= np.percentile(z_candidates, 10) + FLOOR_LAYER_M]
+    return float(np.median(layer))
+
+
 def judge(points, policy):
-    """Reading for the overhead structure in the box ahead (points in base_link), or None when there is none."""
+    """Reading for the overhead structure in the box ahead (points in base_link), or None when there is none.
+    Heights are from the floor seen in the box (floor_height); without a floor seen they are base_link z and the
+    answer can only be UNKNOWN."""
     import numpy as np
     if len(points) == 0:
         return None
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
     box = (x >= policy.front_near_m) & (x <= policy.front_far_m) & (np.abs(y) <= policy.half_width_m)
-    above = box & (z > policy.floor_noise_m) & (z <= policy.top_m)
+    base = floor_height(z[box & (z <= policy.floor_noise_m)], policy)
+    h = z - (0.0 if base is None else base)
+    above = box & (h > policy.floor_noise_m) & (h <= policy.top_m)
     if np.count_nonzero(above) < policy.min_points:
         return None
-    lowest = round(float(np.partition(z[above], policy.min_points - 1)[policy.min_points - 1]), 3)
+    lowest = round(float(np.partition(h[above], policy.min_points - 1)[policy.min_points - 1]), 3)
     if lowest <= policy.lidar_plane_m:
         return None   # the LiDAR sees it: an ordinary obstacle
     xs = x[above]
     x0, x1 = float(xs.min()), float(xs.max())
-    floor = box & (z <= policy.floor_noise_m) & (x >= x0) & (x <= x1)
+    floor = box & (np.abs(h) <= policy.floor_noise_m) & (x >= x0) & (x <= x1)
     cx, cy = float(xs.mean()), float(y[above].mean())
-    if np.count_nonzero(floor) < policy.floor_min_points:
+    if base is None or np.count_nonzero(floor) < policy.floor_min_points:
         # at the box's near end with no floor seen: the robot is about to be under it without a height (A, 2026-10-16)
         near = x0 <= policy.front_near_m + policy.near_end_m
-        return Reading('UNKNOWN', None, cx, cy, 'NO_FLOOR_NEAR' if near else 'NO_FLOOR_SEEN', x0, x1, lowest)
-    return Reading('PASSABLE' if lowest >= policy.clearance_m else 'BLOCKED', lowest, cx, cy, '', x0, x1, lowest)
+        return Reading('UNKNOWN', None, cx, cy, 'NO_FLOOR_NEAR' if near else 'NO_FLOOR_SEEN', x0, x1, lowest,
+                       0.0 if base is None else base)
+    return Reading('PASSABLE' if lowest >= policy.clearance_m else 'BLOCKED', lowest, cx, cy, '', x0, x1, lowest, base)
 
 
 class OverheadConfirmer:
@@ -241,14 +260,15 @@ def nearest_image(images, stamp_ns, slop_ns):
 
 
 def free_space_polygon(reading, policy, height_m, base_to_optical, k, *, scale):
-    """Image outline (int pixels) of the box under the structure: its x span, the passage width, floor to height_m.
+    """Image outline (int pixels) of the box under the structure: its x span, the passage width, floor (the
+    reading's floor_m, base_link z) to height_m above it.
 
     ``base_to_optical`` = (translation, quaternion) taking base_link points to the camera optical frame; ``k`` the
     row-major 3x3 CameraInfo K of the image the depth is aligned to; ``scale`` image size / CameraInfo size.
     None when a corner is not in front of the camera."""
     import numpy as np
     corners = np.array([(x, y, z) for x in (reading.x0, reading.x1) for y in (-policy.half_width_m, policy.half_width_m)
-                        for z in (0.0, height_m)])
+                        for z in (reading.floor_m, reading.floor_m + height_m)])
     optical = to_frame(corners, *base_to_optical)
     if (optical[:, 2] <= 0.05).any():
         return None
