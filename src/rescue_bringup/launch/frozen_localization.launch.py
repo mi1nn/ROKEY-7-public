@@ -12,6 +12,9 @@
   waits up to frozen_pose_wait_s for it, then fails); a FROZEN_MAP_AMCL robot = its measured
   robots.<id>.initial_pose_xy_yaw, relative to the TB-6 start pose, placed on the map with
   /rescue/map/start_pose/robot_a (waits frozen_pose_wait_s; missing value or start = the launch refuses).
+- start_align (FROZEN_MAP_AMCL robot only, rescue_robot.start_align): AMCL starts there with zero spread
+  [Nav2 jazzy amcl_node.cpp:283-295], so once the robot is undocked and stopped this node re-spreads the
+  particles, asks no-motion updates and latches ALIGNED or a reason code on <ns>/rescue_start_align.
 Every node is in the robot namespace, so both robots' launches can run on one PC.
 No arm, task or movement command is sent.
 """
@@ -56,7 +59,8 @@ def _nodes(context):
                            use_sim_time=use_sim_time)
     return [
         LogInfo(msg=f'frozen localization {arg("robot_id")} ns={ns} map={values["map_topic"]} <- '
-                    f'{values["frozen_topic"]} amcl_start={start} from {source} params={params_file}'),
+                    f'{values["frozen_topic"]} amcl_start={start} from {source} params={params_file}'
+                    + (' + start_align' if values['start_align'] is not None else '')),
         Node(package='rescue_robot', executable='frozen_map_relay', name='rescue_frozen_map_relay', namespace=ns,
              output='screen', parameters=[typed({key: values[key] for key in (
                  'frozen_topic', 'frozen_revision_topic', 'map_state_topic', 'map_topic')})]),
@@ -64,6 +68,9 @@ def _nodes(context):
             SetRemap('/tf', ns + '/tf'), SetRemap('/tf_static', ns + '/tf_static'),
             Node(package='nav2_amcl', executable='amcl', name='amcl', namespace=ns, output='screen',
                  parameters=[typed(amcl)]),
+            *([Node(package='rescue_robot', executable='start_align', name='rescue_start_align', namespace=ns,
+                    output='screen', parameters=[typed(values['start_align'])])]
+              if values['start_align'] is not None else []),
             Node(package='nav2_lifecycle_manager', executable='lifecycle_manager',
                  name='lifecycle_manager_localization', namespace=ns, output='screen',
                  parameters=[{'use_sim_time': use_sim_time, 'autostart': True, 'node_names': ['amcl']}]),

@@ -115,6 +115,14 @@ SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I,     # TB-6 SLAM pose freshne
                    'task.saved_map.slam_covariance_max_age_ns': I}
 SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom -> base_link
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
+# TB-5 start alignment on the frozen map (재범 decision 2026-10-15, method B; rescue_robot.start_align), required
+# for every FROZEN_MAP_AMCL robot and refused on the others; values [제안] until a supervised run
+START_ALIGN_KEYS = {'start_align.' + name: kind for name, kind in (
+    ('initial_sigma_xy_m', F), ('initial_sigma_yaw_rad', F), ('update_period_s', F), ('max_updates', I),
+    ('accept_sigma_xy_m', F), ('accept_sigma_yaw_rad', F), ('settle_count', I), ('settle_xy_m', F),
+    ('settle_yaw_rad', F), ('max_jump_xy_m', F), ('max_jump_yaw_rad', F), ('match_hit_m', F),
+    ('min_match_ratio', F), ('min_match_points', I), ('scan_max_age_s', F), ('stopped_linear_mps', F),
+    ('stopped_angular_rps', F), ('service_wait_s', F))}
 # This robot's depth image for the passage stop (all three, or none until measured: then it does not start)
 PASSAGE_DEPTH_KEYS = {'passage.depth_topic': S, 'passage.camera_info_topic': S, 'passage.depth_transport': S}
 # This robot's RGB preview (the camera the depth is aligned to) and its CameraInfo for the camera view
@@ -322,11 +330,19 @@ def _robot_map_modes(robots):
             keys.update(SLAM_ROBOT_KEYS)
         if mode == 'FROZEN_MAP_AMCL' and 'initial_pose_xy_yaw' in section:
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
+        if mode == 'FROZEN_MAP_AMCL':
+            keys.update(START_ALIGN_KEYS)
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
         if any(key in section for key in PASSAGE_VIEW_KEYS):
             keys.update(PASSAGE_VIEW_KEYS)
         _section(robots, robot_id, keys)
+        if mode == 'FROZEN_MAP_AMCL':
+            from rescue_robot.start_align import AlignConfig
+            try:
+                AlignConfig(**{key[len('start_align.'):]: section[key] for key in START_ALIGN_KEYS})
+            except ValueError as exc:
+                raise FieldLaunchError(f'robots.{robot_id}.{exc}') from None
         for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
             if section[key] <= 0:
                 raise FieldLaunchError(f'robots.{robot_id}.{key} must be positive')
@@ -550,12 +566,19 @@ def slam_launch_values(deployment, *, field, robot_id):
 
 def frozen_localization_values(deployment, *, field, robot_id):
     """AMCL on the frozen map: TB-6 starts at its frozen pose, a FROZEN_MAP_AMCL robot at its measured start."""
-    _, robot, section = _robot(deployment, field, robot_id)
+    basis, robot, section = _robot(deployment, field, robot_id)
     mode, ns = section['task.saved_map.mode'], robot.namespace
     if mode == 'SAVED_MAP_AMCL':
         raise FieldLaunchError(f'{robot_id} uses a saved map (SAVED_MAP_AMCL); no frozen-map localization')
-    start = None
+    start = align = None
     if mode == 'FROZEN_MAP_AMCL':
+        align = {key[len('start_align.'):]: section[key] for key in START_ALIGN_KEYS}
+        align.update(map_topic=ns + '/map', scan_topic=ns + '/scan', odom_topic=ns + '/odom',
+                     dock_topic=ns + '/dock_status', amcl_pose_topic=ns + '/amcl_pose',
+                     set_initial_pose_service=ns + '/set_initial_pose',
+                     nomotion_update_service=ns + '/request_nomotion_update',
+                     status_topic=ns + '/rescue_start_align', base_frame=SLAM_BASE_FRAME,
+                     map_frame=basis.frame_id)
         if 'initial_pose_xy_yaw' not in section:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw is not measured yet: click the start on '
                                    f'the TB-6 map in a trial run, then python3 scripts/field/capture_initial_pose.py '
@@ -563,7 +586,7 @@ def frozen_localization_values(deployment, *, field, robot_id):
                                    f'field run file')
         start = list(section['initial_pose_xy_yaw'])
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'map_topic': ns + '/map',
-            'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start,
+            'frozen_topic': FROZEN_TOPIC, 'initial_pose_xy_yaw': start, 'start_align': align,
             # the relay copies the frozen grid of the revision this robot's executor is on (OPS-154)
             'frozen_revision_topic': FROZEN_REVISION_TOPIC, 'map_state_topic': f'/rescue/robots/{robot_id}/map_state',
             'initial_pose_topic': FROZEN_POSE_TOPIC + robot_id if mode == 'SLAM_THEN_FROZEN' else None,
