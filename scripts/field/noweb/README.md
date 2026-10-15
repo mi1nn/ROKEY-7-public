@@ -7,8 +7,9 @@
 | `operator_command.py` | 관제 웹 버튼 대신 운영 API 로 운영자 명령과 초기화를 보낸다 | 운영 PC |
 | `status_watch.py` | 관제 웹 카드 대신 운영 DB 를 읽어 1초마다 상태 한 줄을 쓴다 | 운영 PC |
 | `two_robots.rviz` | 두 로봇의 지도, 경로, 위치를 보는 RViz 화면 | RViz 를 띄울 PC |
+| `target_markers.py` | 인형(대상)과 출구 QR 위치를 RViz 가 그릴 수 있는 표시(MarkerArray)로 바꿔 낸다 | RViz 를 띄울 PC |
 
-세 도구 모두 로봇을 움직이지 않는다. 앞의 두 도구는 표준 라이브러리와 이 저장소의 `rescue_operations` 만 쓰고 ROS 가 필요 없다. PC 이름과 주소는 인자로 받는다.
+네 도구 모두 로봇을 움직이지 않는다. 앞의 두 도구는 표준 라이브러리와 이 저장소의 `rescue_operations` 만 쓰고 ROS 가 필요 없다. `target_markers.py` 는 ROS 와 이 저장소의 `rescue_interfaces` 가 필요하다. PC 이름과 주소는 인자로 받는다.
 
 ## `operator_command.py`
 
@@ -41,8 +42,25 @@ python3 scripts/field/noweb/status_watch.py --db <site_state.sqlite3> --log <sta
 rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static
 ```
 
-- 고정 프레임은 `map` 이다. TB-6 SLAM 지도(`/robot6/map` 과 갱신), 고정 지도(`/rescue/map/frozen`), TB-6 모델, TB-6 라이다, TB-6 경로, TB-5 AMCL 자세, TB-5 경로를 그린다.
+- 고정 프레임은 `map` 이다. TB-6 SLAM 지도(`/robot6/map` 과 갱신), 고정 지도(`/rescue/map/frozen`), TB-6 모델, TB-6 라이다, TB-6 경로, TB-5 AMCL 자세, TB-5 경로, 인형과 출구 표시(`target_markers.py` 를 띄웠을 때)를 그린다.
 - 카메라와 목표 지정 도구는 넣지 않았다. 이 화면에서는 아무것도 발행하지 않는다.
 - **RViz 하나는 TF 를 하나만 읽는다.** 위 명령은 TB-6 의 TF 를 읽으므로 TB-5 의 모델과 라이다는 그리지 못한다. TB-5 는 AMCL 자세 화살표와 경로로만 보인다.
 - **1차 고정 전에는 TB-5 가 안 보이는 것이 정상이다.** TB-5 는 고정 지도를 받아야 위치 추정을 시작한다.
 - 저장소에서는 파일 문법(YAML, 토픽 이름)만 시험한다(`tests/test_field_noweb_rviz.py`). 실제 화면은 실기에서 아직 보지 않았다(NOT_RUN).
+
+## `target_markers.py`
+
+```bash
+python3 scripts/field/noweb/target_markers.py
+```
+
+- 조정기의 대상 목록(`/rescue/targets`), 인형 위치(`/rescue/target_locations`), 출구 위치(`/rescue/exit_location`)를 구독한다. 이 메시지들은 우리 전용 메시지라 RViz 가 바로 그리지 못한다.
+- RViz 표시(`visualization_msgs/MarkerArray`)로 바꿔 `/rescue/noweb/markers` 에 낸다. `two_robots.rviz` 의 「Targets and exits」가 이 토픽을 그린다.
+- 대상은 공 모양이고 단계마다 색이 다르다. 후보(CANDIDATE)는 노랑, 확정(CONFIRMED)은 주황, 구조(RESCUED)는 초록, 버림(DISMISSED)은 회색이다.
+- 조정기 대상에 아직 들어가지 않은 인형 위치는 작은 노란 공(CANDIDATE)으로 그린다.
+- 출구는 파란 상자다. 글자는 QR 내용이다.
+- 글자에는 짧은 ID 와 단계를 붙인다. RViz 글꼴에 한글이 없을 수 있어 글자는 영어로 쓴다 [추정, 확인 안 함].
+- 메시지에 실린 유효 시각(`valid_until_ns`)이 지나면 흐리게 그리고 글자에 `STALE <초>s` 를 붙인다. 나이는 메시지 시각과 이 PC 시계로 잰다. 보낸 PC 와의 시계 차이는 빼지 않는다.
+- 지도 기준 좌표계(`mission_frame`)가 비어 있는 메시지는 그리지 않고 경고 로그를 남긴다.
+- 구독만 한다. 로봇에 아무것도 보내지 않고 영상도 받지 않는다. `--period`(기본 1초)마다 다시 그린다.
+- 메시지에서 표시로 바꾸는 함수는 ROS 없이 시험한다(`tests/test_field_noweb_target_markers.py`). 이 저장소 PC 의 로컬 ROS(Jazzy)에서 가짜 메시지로 표시가 나오는 것을 봤다. 실기와 실제 RViz 화면은 NOT_RUN 이다.

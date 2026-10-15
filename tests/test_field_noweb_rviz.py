@@ -17,7 +17,8 @@ if not (NOWEB / 'operator_command.py').is_file():
     raise unittest.SkipTest('scripts/field/noweb/ absent (installed-wheel checkout)')
 RVIZ = NOWEB / 'two_robots.rviz'
 TOPICS = {'/robot6/map', '/robot6/map_updates', coordinator.FROZEN_MAP_TOPIC, '/robot6/robot_description',
-          '/robot6/scan', '/robot6/plan', '/robot5/amcl_pose', '/robot5/plan'}
+          '/robot6/scan', '/robot6/plan', '/robot5/amcl_pose', '/robot5/plan',
+          '/rescue/noweb/markers'}   # target_markers.py: targets and QR exits (OPS, 2026-10-15)
 
 
 def displays(text):
@@ -71,6 +72,10 @@ class RvizTests(unittest.TestCase):
         tools = self.text.split('\n  Tools:\n', 1)[1].split('\n  Views:\n', 1)[0]
         self.assertEqual(['rviz_default_plugins/MoveCamera'], re.findall(r'Class: (\S+)', tools))
         self.assertNotIn('/rescue/search_goal', self.text)
+
+    def test_target_markers_are_shown(self):
+        classes = {topics['Topic'][0]: cls for cls, topics in displays(self.text) if 'Topic' in topics}
+        self.assertEqual('rviz_default_plugins/MarkerArray', classes.get('/rescue/noweb/markers'))
 
 
 if __name__ == '__main__':
