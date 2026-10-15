@@ -141,7 +141,6 @@ class AskAmclForAPose(unittest.TestCase):
         self.r.now += int(seconds * S)
         self.s.tick_tf_pose('robot_b')
 
-    @unittest.expectedFailure
     def test_asks_after_2_s_then_every_5_s_until_an_amcl_pose_comes(self):
         self.tick(1.0)
         self.assertEqual([], self.asked)
