@@ -91,7 +91,11 @@ class StandingOnTheFrozenMap(FrozenRobotB, unittest.TestCase):
         self.s.tick_tf_pose('robot_b')
         self.assertEqual('VALID', self.record()['localization_status'])
         self.wait(1)
-        self.tf(odom_x=0.30)                           # past 0.25 m and no new amcl_pose
+        self.tf(odom_x=0.30)                           # past 0.25 m: AMCL's next scan is due (C24)
+        self.s.tick_tf_pose('robot_b')
+        self.assertEqual('VALID', self.record()['localization_status'])
+        self.wait(1.1)                                 # past AMCL_UPDATE_GRACE_S and no new amcl_pose
+        self.tf(odom_x=0.30)
         self.s.tick_tf_pose('robot_b')
         self.assertEqual('UNKNOWN', self.record()['localization_status'])
         self.wait(1)
@@ -136,7 +140,6 @@ class AmclGetsItsNextScan(FrozenRobotB, unittest.TestCase):
         from rescue_robot.slam_tf_pose import AMCL_UPDATE_GRACE_S
         return AMCL_UPDATE_GRACE_S
 
-    @unittest.expectedFailure
     def test_turning_in_place_with_amcl_a_scan_behind_stays_valid(self):
         self.tf()
         self.amcl()
@@ -153,7 +156,6 @@ class AmclGetsItsNextScan(FrozenRobotB, unittest.TestCase):
                 anchor = yaw
         self.assertEqual({'VALID'}, set(states))
 
-    @unittest.expectedFailure
     def test_just_past_a_threshold_is_still_valid(self):
         self.tf()
         self.amcl()
@@ -162,7 +164,6 @@ class AmclGetsItsNextScan(FrozenRobotB, unittest.TestCase):
         self.s.tick_tf_pose('robot_b')
         self.assertEqual('VALID', self.record()['localization_status'])
 
-    @unittest.expectedFailure
     def test_no_amcl_pose_within_the_grace_is_not_valid(self):
         self.tf()
         self.amcl()
