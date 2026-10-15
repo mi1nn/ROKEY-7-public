@@ -12,6 +12,8 @@ is picked again once (FrontierRetryTests); a goal the robot never started (NOT_S
 ``exploration_timeout_ns`` since the first frontier, is EXPLORATION_COMPLETE (EXPLORATION_TIMEOUT shown).
 """
 import math
+from pathlib import Path
+import re
 from types import SimpleNamespace as NS
 import unittest
 
@@ -434,6 +436,87 @@ class TightGapTests(unittest.TestCase):
             core.tick(now + 1)
         self.assertEqual(2, len(sent))  # two frontiers, one place: not a third time
         self.assertLessEqual(math.dist(*sent), 0.5)
+
+
+RUN9 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run035105/maps'
+
+
+def saved_map(name):
+    """A map_saver trinary map (pgm 0 occupied, 254 free, 205 unknown) as a live grid."""
+    meta = (RUN9 / f'{name}.yaml').read_text()
+    resolution = float(re.search(r'resolution: ([0-9.e-]+)', meta).group(1))
+    ox, oy = map(float, re.search(r'origin: \[([^,]+), ([^,]+),', meta).groups())
+    _, size, _, pixels = (RUN9 / f'{name}.pgm').read_bytes().split(b'\n', 3)
+    w, h = map(int, size.split())
+    data = [(-1 if p == 205 else 100 if p < 100 else 0)
+            for p in (pixels[(h - 1 - iy) * w + ix] for iy in range(h) for ix in range(w))]
+    return NS(fields=dict(frame='map', width=w, height=h, resolution=resolution, origin=(ox, oy, 0.), data=data))
+
+
+def sees_unknown(grid, xy, degrees):
+    """Straight lines on the map from ``xy`` at these headings: the ones that reach an unknown cell before an
+    occupied one (one leaving the map counts as nothing)."""
+    f = grid.fields
+    hits = []
+    for a in degrees:
+        for k in range(1, 1200):
+            x, y = xy[0] + k * 0.01 * math.cos(math.radians(a)), xy[1] + k * 0.01 * math.sin(math.radians(a))
+            ix, iy = math.floor((x - f['origin'][0]) / f['resolution']), math.floor((y - f['origin'][1]) / f['resolution'])
+            if not (0 <= ix < f['width'] and 0 <= iy < f['height']):
+                break
+            if f['data'][iy * f['width'] + ix] == -1:
+                hits.append(a)
+                break
+            if f['data'][iy * f['width'] + ix] == 100:
+                break
+    return hits
+
+
+class GapMouthTests(unittest.TestCase):
+    """The frontier goal is the roomy cell nearest the frontier, not the one with the shortest path (9회차
+    2026-10-16, C14). Its map (035525) is the start zone only; the one frontier (13 cells, centroid (-1.84, 2.20))
+    is the 0.68 m gap between the partition end and the north wall, opening on a passage that turns west. #420
+    sent TB-6 to (-1.19, 1.45), 0.30 m of path away and slanting to the gap: nothing new was in sight, the goal was
+    not cut, so the frontier was tried and the exploration ended at two frontiers outside the main zone (8회차, before
+    #420, went to the gap mouth and on). Field values: frontier_min_cells 10, goal 1.5 m, reach 1.0 m, 0.35 m clear."""
+
+    START = (-1.17, 1.17)  # TB-6 at its first goal, as at the second pick (coordinator.log 44)
+    WEST = [150 + a / 2 for a in range(121)]  # 150-210 degrees, through the gap
+
+    def core(self):
+        core = frontier_core(frontier_goal_clearance_m=GOAL_CLEARANCE, frontier_min_cells=10, frontier_goal_max_m=1.5)
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(saved_map('035525-live-r0-6cf8199b4ae7'))
+        core.on_pose(scout_pose(self.START))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        return core
+
+    def test_the_goal_faces_the_gap_and_sees_past_it(self):
+        core = self.core()
+        (point,) = live_task_inputs.destinations(core).values()
+        xy = tuple(point['xy_yaw'][:2])
+        self.assertLess(math.dist(xy, (-1.29, 2.15)), 0.05)  # nearest roomy cell to the centroid, 0.56 m from it
+        grid = saved_map('035525-live-r0-6cf8199b4ae7')
+        self.assertGreater(len(sees_unknown(grid, xy, self.WEST)), 60)  # west through the gap: unknown in sight
+
+    def test_from_the_old_goal_nothing_unknown_was_in_sight(self):
+        # what TB-6 saw from the #420 goal: why the frontier stayed (calculated on the same map)
+        grid = saved_map('035525-live-r0-6cf8199b4ae7')
+        self.assertEqual([], sees_unknown(grid, (-1.19, 1.45), range(360)))
+
+    def test_a_frontier_left_after_its_goal_is_logged(self):
+        core = self.core()
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW + DELAY - 10**8))
+        core.on_pose(scout_pose(self.START, at=NOW + DELAY))
+        (fields,) = [f for f in core.tick(NOW + DELAY) if f['kind'] == 'SEARCH_AREA']
+        core.on_admission(admission_msg(fields))
+        core.on_result(fields['task_id'], NS(outcome='COMPLETED', stop_confirmed=True,
+                                             terminal_reason='NAVIGATION_SUCCEEDED'))
+        (done,) = [n for n in core.drain_notes() if n.startswith('FRONTIER_DONE')]
+        self.assertIn('goal_at=(-1.29, 2.15) frontier_remains=True', done)
 
 
 class FrontierGainTests(unittest.TestCase):
