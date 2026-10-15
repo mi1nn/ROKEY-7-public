@@ -149,5 +149,68 @@ class RescueFlowTests(unittest.TestCase):
         self.assertEqual('OPERATOR', self.core.mission.open_rechecks[self.target].source)  # row 10: link unchanged
 
 
+class OperatorReturnAfterRecheckTests(unittest.TestCase):
+    """#233 item 1 (owner decision 2026-10-15): with ``completion_mode=RECHECK`` an operator RETURN_HOME accepted
+    after a RECHECK_NEEDED verdict sends TB-6 home. It used to be ACCEPTED with no task (measured on main 4163a25).
+
+    Both robots have a home on the map they are localized on (the command's gate, mission ``_return_home``).
+    No verdict is still refused (reason_code PENDING_EVIDENCE, logged mission reason NO_VERDICT), and the
+    RESCUE_CONFIRMED path is unchanged.
+    """
+    def setUp(self):
+        from rescue_coordination import ros_node
+        from test_coordination_search import MAP
+        self.core = make_core(camera_watch=book(), recheck_max_clock_error_ns=20 * MS)
+        basis = (MAP, 3, 1)  # MapState revision 3 + the goal transform revision
+        self.core.mission.homes = {h.robot_id: h for h in ros_node.home_positions(
+            [0.5, -1.0, 0.0, 1.5, -1.0, 3.14], self.core.roles, basis)}
+        for robot in (SCOUT, SUPPORT):
+            self.core.on_map_state(NS(robot_id=robot, map_session_id=MAP, map_revision=3, localization_quality='VALID'))
+        self.core.on_site_event(site_msg())
+        RescueFlowTests.fresh(self, NOW)
+        self.target = self.core.on_target_location(location(1), now_ns=NOW)
+        (report,) = self.core.reports_due(NOW)
+        self.core.on_receipt(receipt(report))
+
+    fresh, tasks, accepted_candidate, reobserve = (RescueFlowTests.fresh, RescueFlowTests.tasks,
+                                                   RescueFlowTests.accepted_candidate, RescueFlowTests.reobserve)
+
+    def judged(self, **obs):
+        self.accepted_candidate()
+        fields = self.reobserve()
+        self.core.on_result(fields['task_id'], result(fields, obs=recheck(fields, **obs)))
+
+    def return_home(self, n=1):
+        return self.core.on_command(request('RETURN_HOME', command_id=uid(790 + n)), now_ns=NOW)
+
+    def test_operator_return_after_recheck_needed_sends_tb6_home_once(self):
+        self.judged(lidar_state='BLOCKED')
+        self.assertEqual('RECHECK_NEEDED', self.core.mission.verdicts[self.target])
+        self.assertEqual([], self.tasks('RETURN_HOME'))  # not before the operator asks
+        reply = self.return_home()
+        self.assertEqual((True, 'ACCEPTED'), (reply['accepted'], reply['request_state']))
+        (home,) = self.tasks('RETURN_HOME')
+        self.assertEqual((SCOUT, f'home/{SCOUT}'), (home['robot_id'], home['home_ref']))
+        self.assertEqual('RETURNING', self.core.mission.phase())
+        self.assertEqual('SCOUT_RETURNING', self.core.system_state_change(NOW)['reason'])
+        self.core.on_admission(admission_msg(home))
+        self.assertEqual([], self.tasks('RETURN_HOME'))  # once
+
+    def test_rescue_confirmed_still_sends_tb6_home_by_itself_and_a_later_operator_return_is_busy(self):
+        self.judged()
+        self.assertEqual('RESCUE_CONFIRMED', self.core.mission.verdicts[self.target])
+        (home,) = self.tasks('RETURN_HOME')
+        self.assertEqual(f'home/{SCOUT}', home['home_ref'])
+        reply = self.return_home()
+        self.assertEqual((False, 'TASK_BUSY'), (reply['accepted'], reply['reason_code']))
+        self.assertEqual([], self.tasks('RETURN_HOME'))
+
+    def test_operator_return_without_a_verdict_is_still_refused(self):
+        reply = self.return_home()
+        self.assertEqual((False, 'PENDING_EVIDENCE', 'NO_VERDICT'),
+                         (reply['accepted'], reply['reason_code'], self.core.last_reason))
+        self.assertEqual([], self.tasks('RETURN_HOME'))
+
+
 if __name__ == '__main__':
     unittest.main()

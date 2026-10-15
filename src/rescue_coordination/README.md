@@ -54,7 +54,6 @@
 ## 아직 없는 것
 
 - TB-5 출발 자리(현장 파일 `robots.robot_b.initial_pose_xy_yaw`)를 아직 재지 않았다. 그래서 현장에서는 TB-6 이 두 로봇 간격 검사 없이 움직이고, `SystemState.reason` 에 `TRAFFIC_SEPARATION_UNCHECKED` 가 보인다. 교통 관제 값(최소 간격 0.6 m, 경로와 둘 거리 0.6 m, 비켜서기 최대 2.0 m, 정지 대기 3.0 s)도 실측이 아니다 [추정 2026-10-14].
-- 이슈 #233 1번(`completion_mode=RECHECK` 에서 RECHECK_NEEDED 뒤 운영자 「복귀」가 접수만 되고 임무가 나가지 않음)이 아직 남아 있다. 현장 설정(`EXIT_ARRIVAL`)에서는 재확인을 열지 않으므로 이 경로를 타지 않는다. 재현은 [이슈 댓글](https://github.com/jaebeom/ROKEY-7/issues/233#issuecomment-6149933805)에 있다.
 - 터널 판정(C-04b)을 탐색 경계 선택이나 TB-5 경로에 반영하는 기능은 아직 없다.
 - 조정기를 재기동하면 발급 장부·대상·보고·고정 단계가 사라진다(영속 복구 없음).
 - `ros_node.py` 가 약 2,800줄이다. 통합이 안정되면 기능별(지도 고정, 탐색, 출구, 교통 관제) 모듈로 나눌 후보다.

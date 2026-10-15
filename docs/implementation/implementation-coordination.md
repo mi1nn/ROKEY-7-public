@@ -110,7 +110,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 
 ### 현장 설정에서 쓰지 않는 길
 
-- `completion_mode=RECHECK` 이면 웹캠 소실 후보가 TB-6 재확인(`REOBSERVE_TARGET`)을 열고, 재확인 관측을 `verdict.judge` 로 판정한다([계약](../design/contracts.md) C-11). 현장(`EXIT_ARRIVAL`)에서는 소실 후보를 기록만 한다.
+- `completion_mode=RECHECK` 이면 웹캠 소실 후보가 TB-6 재확인(`REOBSERVE_TARGET`)을 열고, 재확인 관측을 `verdict.judge` 로 판정한다([계약](../design/contracts.md) C-11). `RESCUE_CONFIRMED` 이면 TB-6 이 스스로 복귀한다. `RECHECK_NEEDED` 이면 운영자 `RETURN_HOME` 을 받아야 TB-6 복귀를 낸다([#233](https://github.com/jaebeom/ROKEY-7/issues/233) 1번, 2026-10-15). 판정이 없으면 그 명령을 거절한다. 응답 `reason_code` 는 `PENDING_EVIDENCE` 이고, 노드 로그의 임무 관문 이유는 `NO_VERDICT` 다. 현장(`EXIT_ARRIVAL`)에서는 소실 후보를 기록만 한다.
 - `support_dispatch=OPERATOR` 이면 운영자 `DISPATCH_SUPPORT` 와 `CONTINUE_SEGMENT` 로 TB-5 를 구간(`MOVE_SEGMENT`)마다 승인해 보낸다.
 - `search_mode=PATROL` 은 `patrol_points` 를 `patrol_rounds` 바퀴 돈다. `AREAS` 는 프로파일 수색 구역이나 RViz 에서 고른 목표로 간다.
 - `map_mode=SAVED_MAP` 은 launch 의 `goal_map_*` 기준 지도 하나로 끝까지 간다.
@@ -201,7 +201,6 @@ ROS 없는 단위 시험은 `scripts/run_tests.py` 가 모두 모은다. 파일�
 ## 아직 없는 것
 
 - 조정기 상태 영속. 상태는 메모리에만 있어 조정기를 다시 켜면 임무를 처음부터 센다.
-- 운영자 `RETURN_HOME` 명령은 수락해도 임무를 내지 않는다([#233](https://github.com/jaebeom/ROKEY-7/issues/233), `RECHECK` 에서만 닿는 길).
 - 실기 시험. 위 시험은 모두 로봇 없이 돌았다.
 
 ## 기록 (2026-10-14 옮김)

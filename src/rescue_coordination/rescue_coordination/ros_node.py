@@ -1671,13 +1671,15 @@ class CoordinatorCore:
         return notes
 
     def _issue_scout_return(self, now_ns):
-        """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>)."""
+        """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>).
+        With RECHECK an accepted operator RETURN_HOME (any verdict, mission ``_return_home``) sends it too (#233)."""
         mission = self.mission
         if self.completion_mode == 'EXIT_ARRIVAL':
             # OPS-155 ②: TB-6 is done once the whole map is frozen; with AREAS, once TB-5 is at the exit.
             due = self.frozen_stage >= 2 if self.search_mode == 'FRONTIER' else self.support_exit == 'AT_EXIT'
         else:
-            due = 'RESCUE_CONFIRMED' in mission.verdicts.values()
+            # mission.returning before any TB-6 return is the operator's accepted RETURN_HOME (e.g. RECHECK_NEEDED).
+            due = 'RESCUE_CONFIRMED' in mission.verdicts.values() or mission.returning
         if (self.scout_return is not None or not due
                 or mission.mode != 'DISASTER' or self._held_after_refusal('SCOUT_RETURN', now_ns)):
             return None
