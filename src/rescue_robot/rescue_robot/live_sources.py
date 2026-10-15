@@ -91,6 +91,7 @@ class SavedMapSources:
         self.reinit={}        # robot -> pose message to put on its AMCL once its map topic carries the grid
         self.deferred={}      # robot -> reason last logged
         self.slam_tf={}  # robot -> SlamTfPose (SLAM_THEN_FROZEN while searching)
+        self.amcl_tf={}  # robot -> AmclTfPose (frozen phase: a standing robot has no new amcl_pose, run 3 2026-10-16)
         self.aligned={}  # FROZEN_MAP_AMCL robot -> last start_align verdict is ALIGNED (#317, decision (나))
         self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
         self.reinitialize=None  # (robot, PoseWithCovarianceStamped-like) -> publishes <ns>/initialpose
@@ -114,6 +115,11 @@ class SavedMapSources:
                 from rescue_robot.slam_tf_pose import SlamTfPose
                 self.slam_tf[robot]=SlamTfPose(map_frame=c['map_frame'],odom_frame=c.get('slam_odom_frame'),
                     base_frame=c.get('slam_base_frame'),covariance_max_age_ns=c.get('slam_covariance_max_age_ns'))
+            if c['mode']!='SAVED_MAP_AMCL' and 'amcl_tf_topic' in c:  # frozen phase: TF map -> base_link
+                from rescue_robot.slam_tf_pose import AmclTfPose
+                self.amcl_tf[robot]=AmclTfPose(map_frame=c['map_frame'],odom_frame=c.get('amcl_odom_frame'),
+                    base_frame=c.get('amcl_base_frame'),update_min_d=c.get('amcl_update_min_d'),
+                    update_min_a=c.get('amcl_update_min_a'))
 
     def _frozen_robots(self):
         return [robot for robot,c in self.settings.items() if c['mode']!='SAVED_MAP_AMCL']
@@ -280,7 +286,7 @@ class SavedMapSources:
 
     def receive_pose(self,robot,message,source='localization',covariance_fresh=True):
         """``source`` 'slam' (TF map -> base_link, slam_tf_pose) counts only while searching, 'localization'
-        (AMCL) otherwise. ``covariance_fresh`` False (the SLAM pose giving the covariance is too old): not valid."""
+        (amcl_pose) and 'amcl_tf' (TF map -> base_link with the last amcl_pose's covariance) otherwise. ``covariance_fresh`` False (the SLAM pose giving the covariance is too old): not valid."""
         r=self.runtime
         with r.adapter.lock:
             if (source=='slam')!=(self.phase(robot)=='SLAM'): return
@@ -288,8 +294,11 @@ class SavedMapSources:
                 c=self.settings[robot]; observed=stamp(message)
                 if observed<=0 or observed>r.adapter.wall_clock_ns()+r.inputs.bound:
                     raise ContractError('AMCL stamp missing or future')
+                if source!='slam' and observed<=self.valid_after.get(robot,0): return  # before the map switch
+                if source=='localization' and robot in self.amcl_tf and self.phase(robot)=='FROZEN':
+                    # the TF pose's covariance, even when a TF pose stamped later already went out
+                    self.amcl_tf[robot].on_covariance(observed,list(message.pose.covariance))
                 if observed<=self.poses.get(robot,(0,False))[0]: return
-                if source=='localization' and observed<=self.valid_after.get(robot,0): return  # before the map switch
                 planar(message.pose.pose); covariance=message.pose.covariance
                 valid=message.header.frame_id==c['map_frame'] and len(covariance)==36 and all(math.isfinite(v) for v in covariance)
                 if valid:
@@ -308,6 +317,23 @@ class SavedMapSources:
             except (ContractError,ValueError,TypeError) as exc:
                 self.poses.pop(robot,None); r.node.get_logger().warning('AMCL input rejected: '+str(exc))
                 self._publish_map_state(robot)
+
+    def receive_tf(self,robot,message):
+        """<ns>/tf for the frozen-phase TF pose (map -> odom from AMCL, odom -> base_link from Create3)."""
+        with self.runtime.adapter.lock:
+            return self.amcl_tf[robot].on_tf(message)
+
+    def tick_tf_pose(self,robot):
+        """Frozen phase, every poll: the pose from TF with the last amcl_pose's covariance (AmclTfPose). A
+        standing robot gets no amcl_pose (Nav2 AMCL updates on motion), so without this its pose stops."""
+        from rescue_robot.slam_tf_pose import pose_message
+        r=self.runtime
+        with r.adapter.lock:
+            if robot not in self.amcl_tf or self.phase(robot)!='FROZEN': return
+            pose=self.amcl_tf[robot].pose(now_ns=r.adapter.wall_clock_ns(),after_ns=self.valid_after.get(robot,0))
+            if pose is None: return   # no amcl_pose since the map switch, no TF edge, or tilted: no pose
+            self.receive_pose(robot,pose_message(pose,self.settings[robot]['map_frame']),source='amcl_tf',
+                              covariance_fresh=pose['covariance_fresh'])
 
     def _valid(self,robot):
         """Pose valid and, for a FROZEN_MAP_AMCL robot, its start alignment ALIGNED: AMCL starts that robot at
@@ -432,6 +458,12 @@ def attach_sources(runtime):
         for robot,c in r.saved_maps.settings.items():
             if c['mode']=='SLAM_THEN_FROZEN':
                 attach_slam_tf_pose(r,robot,c,subscribe)
+            if robot in r.saved_maps.amcl_tf:   # frozen phase: TF pose on the poll period (standing robot)
+                from tf2_msgs.msg import TFMessage
+                subscribe(TFMessage,c['amcl_tf_topic'],lambda m,robot=robot:r.saved_maps.receive_tf(robot,m),100,
+                          lambda:None)
+                timer=r.node.create_timer(r.config['poll_period_s'],lambda robot=robot:r.saved_maps.tick_tf_pose(robot))
+                r.input_handles.append(('destroy_timer',timer))
             subscribe(OccupancyGrid,c['map_topic'],lambda m,robot=robot:r.saved_maps.receive_map(robot,m),snapshot,
                       lambda robot=robot:r.saved_maps.maps.pop(robot,None))
             if c['mode']=='FROZEN_MAP_AMCL':   # TB-5 VALID only after start_align ALIGNED (#317)

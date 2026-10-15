@@ -153,6 +153,17 @@ def read_config(node, adapter):
         except ParameterUninitializedException:
             if m['mode'] == 'SLAM_THEN_FROZEN':
                 raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.' + name) from None
+    # Frozen phase pose = TF map -> base_link with the last amcl_pose's covariance, valid while the robot moved
+    # less than AMCL's update thresholds (a standing robot gets no amcl_pose; simulation 2026-10-16 run 3)
+    for name, kind in (('amcl_tf_topic', Parameter.Type.STRING), ('amcl_odom_frame', Parameter.Type.STRING),
+                       ('amcl_base_frame', Parameter.Type.STRING), ('amcl_update_min_d', Parameter.Type.DOUBLE),
+                       ('amcl_update_min_a', Parameter.Type.DOUBLE)):
+        node.declare_parameter('task.saved_map.' + name, kind)
+        try:
+            m[name] = node.get_parameter('task.saved_map.' + name).value
+        except ParameterUninitializedException:
+            if m['mode'] != 'SAVED_MAP_AMCL':
+                raise ContractError(f'{m["mode"]} needs task.saved_map.' + name) from None
     c['saved_maps'] = {adapter.robot_id:m}
     c['auto_target'] = {key:get('live.auto_target.'+key) for key in
                         ('enabled','kinds','goal_clear_radius_m','policy_version')}

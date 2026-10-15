@@ -20,12 +20,18 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+import yaml
 
-from rescue_bringup.field_launch import frozen_localization_values, load_field, robot_launch_values
+from rescue_bringup.field_launch import (amcl_update_thresholds, frozen_localization_values, load_field,
+                                         robot_launch_values)
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
 
 SHIM = Path(__file__).resolve().parent / 'host_shim'
+# robot.launch.py reads AMCL's update thresholds from turtlebot4_navigation localization.yaml (#392); this PC may
+# not have that package, so the repository's vendored copy of the same file gives them
+LOCALIZATION = Path(__file__).resolve().parents[3] / 'src' / 'vendor' / 'turtlebot4' / 'turtlebot4_navigation' / \
+    'config' / 'localization.yaml'
 PLACEHOLDERS = dict(route_segment_goals='[0.0, 0.0, 0.0]', observe_goal='[0.0, 0.0, 0.0]',
                     route_segment_passage_free='[false]')
 
@@ -55,11 +61,14 @@ def _nodes(context):
         values = robot_launch_values(deployment, field=field, robot_id=robot, occupancy_sha256='',
                                      now_ns=time.time_ns())
         ns = values['namespace']
+        task = values['task_input']
+        if task['task.saved_map.mode'] != 'SAVED_MAP_AMCL':   # as robot.launch.py adds them (frozen-phase TF pose)
+            task = {**task, **amcl_update_thresholds(yaml.safe_load(LOCALIZATION.read_text()))}
         # robot.launch.py's own nodes, same names and values (its Nav2 include is fake_graph.py here)
         actions += [Node(package='rescue_robot', executable='command_watchdog', name='rescue_command_watchdog',
                          namespace=ns, output='screen', parameters=[typed(values['watchdog'])]),
                     Node(package='rescue_robot', executable='task_input', name='rescue_command_adapter',
-                         namespace=ns, output='screen', parameters=[typed(values['task_input'])],
+                         namespace=ns, output='screen', parameters=[typed(task)],
                          # rehearsal only: a host id of its own, so the one-PC clock check sees two hosts
                          additional_env={'REHEARSAL_HOST_ID': 'rehearsal-' + robot,
                                          'PYTHONPATH': os.pathsep.join([str(SHIM), os.environ.get('PYTHONPATH', '')])})]

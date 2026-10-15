@@ -533,6 +533,12 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         task_input.update({'task.saved_map.slam_tf_topic': readiness.tf_topic,
                            'task.saved_map.slam_odom_frame': readiness.odom_frame,
                            'task.saved_map.slam_base_frame': SLAM_BASE_FRAME})
+    if mode != 'SAVED_MAP_AMCL':   # frozen phase pose = TF map -> base_link (a standing robot has no amcl_pose)
+        task_input.update({'task.saved_map.amcl_tf_topic': readiness.tf_topic,
+                           'task.saved_map.amcl_odom_frame': readiness.odom_frame,
+                           'task.saved_map.amcl_base_frame': SLAM_BASE_FRAME})
+        # task.saved_map.amcl_update_min_d / _a: AMCL's own thresholds, added by robot.launch.py from the AMCL
+        # parameters frozen_localization.launch.py uses (amcl_update_thresholds)
     if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
         task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
         # VALID only after the start alignment says ALIGNED (#317); frozen_localization_values status_topic
@@ -681,6 +687,19 @@ def _passage(field, robot_id, ns):
 
 
 SLOW_POLYGON = 'PassageSlow'
+
+
+def amcl_update_thresholds(localization_params):
+    """AMCL update_min_d / update_min_a (localization.yaml) as task_input parameters: the frozen-phase TF pose
+    keeps the last amcl_pose's covariance only while the robot moved less than these. Missing = refused."""
+    try:
+        amcl = localization_params['amcl']['ros__parameters']
+        d, a = float(amcl['update_min_d']), float(amcl['update_min_a'])
+    except (KeyError, TypeError, ValueError):
+        raise FieldLaunchError('AMCL parameters need amcl.ros__parameters.update_min_d and update_min_a') from None
+    if not (d > 0 and a > 0):
+        raise FieldLaunchError('AMCL update_min_d and update_min_a must be positive')
+    return {'task.saved_map.amcl_update_min_d': d, 'task.saved_map.amcl_update_min_a': a}
 
 
 def nav2_with_passage(params, passage):

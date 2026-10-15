@@ -304,6 +304,8 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 
 `occupancy_sha256` 는 주지 않는다(고정이 해시를 정함). 탐색 중 TB-6 위치는 TF `map→base_link`(slam_toolbox 의 `map→odom` + Create3 의 `odom→base_link`, `/robot6/tf`)를 실행기 poll 주기로 읽어 만든다(OPS-177). slam_toolbox 는 처리한 스캔마다만 `/robot6/pose` 를 내고 일정 거리를 움직여야 스캔을 처리하므로, 서 있는 TB-6 은 새 `/robot6/pose` 가 없다[추정]. 공분산은 마지막 `/robot6/pose` 값을 쓰고, 그것이 30 s(`robots.robot_a.task.saved_map.slam_covariance_max_age_ns`, [제안])보다 오래되면 위치는 UNKNOWN 이다. 실기 확인: `ros2 topic hz /robot6/pose`(서 있을 때 끊기는지), `ros2 run tf2_ros tf2_echo map base_link --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static`. 안 나오면 TB-6 MapState 가 UNKNOWN 이고 수색 목표를 거절한다(다른 값으로 대체하지 않음).
 
+**고정 지도 단계의 위치(두 로봇):** AMCL 은 서 있는 로봇에 `amcl_pose` 를 내지 않는다. 그래서 고정 지도 단계에서도 실행기가 TF `map → base_link` 를 poll 주기마다 읽고, 공분산은 마지막 `amcl_pose` 값을 쓴다. 그 뒤 로봇이 AMCL 갱신 문턱(0.25 m / 0.2 rad)보다 많이 움직였는데 새 `amcl_pose` 가 없으면 VALID 가 아니다. 문턱은 `robot.launch.py` 가 `localization_params_file`(비우면 TurtleBot4 `localization.yaml`)에서 읽는다. `frozen_localization.launch.py` 에 다른 파일을 줬다면 `robot.launch.py` 에도 같은 파일을 준다. 로그: `frozen pose TF <ns>/tf with AMCL covariance while moved < 0.25 m / 0.2 rad`.
+
 **TB-5 출발값 재기(시험 회차, 한 번):** 고정 지도가 나온 뒤에 한다.
 1. TB-5 를 출발 자리에 둔다.
 2. 출발값 없이는 위 TB-5 launch 가 거절하므로, 이 회차만 turtlebot4 기본 위치 추정을 쓴다. `ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot5 map:=<고정 지도 .yaml>` 을 띄우고, RViz `2D Pose Estimate` 로 TB-6 지도 위 자리를 찍는다. 고정 노드가 `output_dir` 에 남긴 `.yaml` 을 쓴다.
