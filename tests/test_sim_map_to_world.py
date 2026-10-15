@@ -192,6 +192,30 @@ class World(Tmp):
         self.assertIn('[추정]', result.stdout)
 
 
+    def test_layout_only_needs_no_map(self):
+        (self.dir / 'layout.json').write_text(json.dumps(layout()))
+        out = self.dir / 'out'
+        result = subprocess.run([sys.executable, '-I', str(TOOL), '--layout-only', '--layout',
+                                 str(self.dir / 'layout.json'), '--name', 'plan', '--out-dir', str(out)],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        root = ET.parse(out / 'plan.sdf').getroot()
+        names = {m.get('name') for m in root.iter('model')}
+        self.assertIn('white_box', names)
+        self.assertFalse([n for n in names if n.startswith('wall_')], 'no map: no cell walls')
+
+    def test_a_map_and_layout_only_together_are_refused(self):
+        (self.dir / 'layout.json').write_text(json.dumps(layout()))
+        both = subprocess.run([sys.executable, '-I', str(TOOL), '--layout-only', '--map',
+                               str(write_map(self.dir)), '--layout', str(self.dir / 'layout.json'),
+                               '--name', 'plan', '--out-dir', str(self.dir / 'o')], capture_output=True, text=True)
+        neither = subprocess.run([sys.executable, '-I', str(TOOL), '--layout', str(self.dir / 'layout.json'),
+                                  '--name', 'plan', '--out-dir', str(self.dir / 'o')], capture_output=True, text=True)
+        self.assertEqual(2, both.returncode)
+        self.assertEqual(2, neither.returncode)
+        self.assertFalse((self.dir / 'o').exists())
+
+
 @unittest.skipUnless(HAS_TOOL, 'installed-wheel checkout has no scripts/')
 class RepositoryWorld(unittest.TestCase):
     """config/sim/worlds/<name>.sdf and .spawn.json are what the tool makes from the map and layout now."""
@@ -206,9 +230,14 @@ class RepositoryWorld(unittest.TestCase):
             name = path.name[:-len('.layout.json')]
             with self.subTest(world=name):
                 maps = REPO / 'config' / 'sim' / 'maps'
-                source = json.loads((worlds / f'{name}.sources.json').read_text())['map']
-                world, spawn, _ = mw.build(mw.read_map(maps / source), mw.load_layout(path), name=name,
-                                           source=source)
+                sources = worlds / f'{name}.sources.json'
+                if sources.exists():
+                    source = json.loads(sources.read_text())['map']
+                    grid = mw.read_map(maps / source)
+                else:   # layout only (a floor plan carried into metres): no map, no sources file
+                    source = f'{path.name} (no map)'
+                    grid = mw.Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
+                world, spawn, _ = mw.build(grid, mw.load_layout(path), name=name, source=source)
                 self.assertEqual(world, (worlds / f'{name}.sdf').read_text())
                 self.assertEqual(spawn, json.loads((worlds / f'{name}.spawn.json').read_text()))
 

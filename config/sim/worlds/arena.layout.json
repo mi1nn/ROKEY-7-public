@@ -1,0 +1,39 @@
+{
+  "note": "Practice arena from the floor plan arena-map.svg (재범 2026-10-15, 1 unit = 1 cm, outer 343 x 557 cm). World frame: origin = south-west corner of the robot zone, x east along the 343 cm side, y north along the 557 cm side (plan x -> x/100, plan y -> (557 - y)/100). No SLAM map is used.",
+  "wall": {"height_m": 0.41, "thickness_m": 0.01, "color": [0.55, 0.38, 0.22], "estimate": true,
+           "source": "height 0.41 m measured by 재범 2026-10-15; thickness 0.01 m estimated from the photo"},
+  "floor": {"color": [0.5, 0.5, 0.5], "source": "grey floor tiles, colour estimated"},
+  "min_cells": 1,
+  "robots": {
+    "robot6": {"x": 0.88, "y": 0.37, "yaw": -1.5708, "estimate": true,
+               "source": "plan TB-6 circle (88, 520), facing its dock on the south wall; the spawn launch puts the dock 0.157 m ahead"},
+    "robot5": {"x": 2.70, "y": 0.37, "yaw": -1.5708, "estimate": true,
+               "source": "plan TB-5 circle (270, 520), 1.82 m east of TB-6 (tape 1.86 m)"}
+  },
+  "objects": [
+    {"name": "outer_south", "kind": "wall", "x1": 0.0, "y1": 0.0, "x2": 3.43, "y2": 0.0, "source": "plan outer rect"},
+    {"name": "outer_north", "kind": "wall", "x1": 0.0, "y1": 5.57, "x2": 3.43, "y2": 5.57, "source": "plan outer rect"},
+    {"name": "outer_west", "kind": "wall", "x1": 0.0, "y1": 0.0, "x2": 0.0, "y2": 5.57, "source": "plan outer rect"},
+    {"name": "outer_east", "kind": "wall", "x1": 3.43, "y1": 0.0, "x2": 3.43, "y2": 5.57, "source": "plan outer rect"},
+    {"name": "divider", "kind": "wall", "x1": 0.0, "y1": 2.01, "x2": 1.40, "y2": 2.01, "source": "plan line (0,356)-(140,356)"},
+    {"name": "whitebox_south", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 2.75, "y2": 2.01, "source": "plan white box enclosure (140..275, 311..356), closed"},
+    {"name": "whitebox_north", "kind": "wall", "x1": 1.40, "y1": 2.46, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
+    {"name": "whitebox_west", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 1.40, "y2": 2.46, "source": "plan white box enclosure"},
+    {"name": "whitebox_east", "kind": "wall", "x1": 2.75, "y1": 2.01, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
+    {"name": "white_box", "kind": "box", "x": 2.05, "y": 2.23, "yaw": 0.0, "size": [0.46, 0.36, 0.40],
+     "color": [0.95, 0.95, 0.95], "estimate": true, "source": "plan (182..228, 316..352); height estimated"},
+    {"name": "control_east", "kind": "wall", "x1": 0.80, "y1": 5.57, "x2": 0.80, "y2": 4.17, "source": "plan control box (0..80, 0..140), blocked"},
+    {"name": "control_south", "kind": "wall", "x1": 0.0, "y1": 4.17, "x2": 0.80, "y2": 4.17, "source": "plan control box"},
+    {"name": "north_stub", "kind": "wall", "x1": 2.36, "y1": 5.57, "x2": 2.36, "y2": 4.65, "source": "plan line (236,0)-(236,92)"},
+    {"name": "stub_pillar", "kind": "box", "x": 2.37, "y": 4.51, "yaw": 0.0, "size": [0.26, 0.28, 0.41],
+     "color": [0.55, 0.38, 0.22], "estimate": true, "source": "plan (224..250, 92..120); height estimated = wall"},
+    {"name": "tunnel2_lintel", "kind": "overhead", "x": 1.68, "y": 2.865, "yaw": 1.5708, "size": [0.81, 0.01, 0.41],
+     "clearance_m": 0.30, "color": [0.55, 0.38, 0.22], "estimate": true,
+     "source": "plan tunnel 2 (impassable), line x=168 from y 230 to 311. 재범 2026-10-15: lift it about 30 cm so that the vision, not the lidar, has to judge that the robot cannot pass. Panel size is copied from tunnel 1 [추정]"},
+    {"name": "tunnel1_lintel", "kind": "overhead", "x": 3.025, "y": 2.23, "yaw": 0.0, "size": [0.81, 0.01, 0.41],
+     "clearance_m": 0.47, "color": [0.55, 0.38, 0.22], "estimate": true,
+     "source": "plan tunnel 1 (passable, 47 cm), line y=334 from x 262 to 343; panel size estimated"},
+    {"name": "doll", "kind": "cylinder", "x": 1.20, "y": 2.87, "radius": 0.07, "length": 0.20,
+     "color": [0.85, 0.54, 0.11], "estimate": true, "source": "plan (120, 270) r 7; height estimated"}
+  ]
+}

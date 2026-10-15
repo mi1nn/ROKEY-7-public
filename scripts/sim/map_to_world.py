@@ -19,7 +19,8 @@ map_server, and run_sim.sh takes no map path. The robots know the world only thr
   ``"estimate": true`` and is listed as [추정] when the world is written, so a measurement replaces just it.
 - Robot starts (``robots``) go to <name>.spawn.json for run_sim.sh; the TurtleBot4 spawn launch puts each
   robot's dock next to it.
-Writes <out-dir>/<name>.sdf (world name = file name, as turtlebot4_gz_bringup world:=<name> needs) and
+With ``--layout-only`` there is no map at all: walls and things come only from the layout (a floor plan carried
+into metres, e.g. arena.layout.json). Writes <out-dir>/<name>.sdf (world name = file name, as turtlebot4_gz_bringup world:=<name> needs) and
 <out-dir>/<name>.spawn.json. Standard library only.
 """
 import argparse
@@ -353,15 +354,19 @@ def build(grid, layout, *, name, source='a SLAM map'):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='SLAM 지도와 배치 목록으로 Gazebo world 를 만든다')
-    parser.add_argument('--map', type=Path, required=True, help='지도 yaml (map_server 형식, trinary)')
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--map', type=Path, help='지도 yaml (map_server 형식, trinary)')
+    source.add_argument('--layout-only', action='store_true',
+                        help='지도 없이 배치 목록(벽 선분·물체)만으로 만든다(평면도에서 옮긴 배치용)')
     parser.add_argument('--layout', type=Path, required=True, help='배치 목록 JSON (벽 높이, 물체, 로봇 출발 자리)')
     parser.add_argument('--name', required=True, help='world 이름 = 파일 이름 (turtlebot4 world:=<name>)')
     parser.add_argument('--out-dir', type=Path, required=True, help='쓸 폴더 (config/sim/worlds)')
     args = parser.parse_args(argv)
     try:
-        grid = read_map(args.map)
+        grid = read_map(args.map) if args.map else Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
         layout = load_layout(args.layout)
-        world, spawn, estimates = build(grid, layout, name=args.name, source=args.map.name)
+        world, spawn, estimates = build(grid, layout, name=args.name,
+                                        source=args.map.name if args.map else f'{args.layout.name} (no map)')
     except (WorldError, OSError, json.JSONDecodeError) as exc:
         print(f'map_to_world: {exc}', file=sys.stderr)
         return 2
