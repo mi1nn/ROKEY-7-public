@@ -43,7 +43,7 @@ flowchart LR
 
 | HTTP 경로 | 하는 일 | 코드 |
 | --- | --- | --- |
-| `POST /api/operator-commands` | 운영자 명령 6종(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH`)을 조정기로 넘기고 답을 기록 | `command_api.py:CommandGate` |
+| `POST /api/operator-commands` | 운영자 명령 7종(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH`·`DECLARE_DISASTER`)을 조정기로 넘기고 답을 기록 | `command_api.py:CommandGate` |
 | `GET /api/webcam` | 운영 PC 에 꽂힌 카메라 목록과 지금 장치 | `command_api.py:WebcamSwitch.state` |
 | `POST /api/webcam` | 웹캠 장치 바꾸기. 꽂히지 않은 장치는 거절, 결과는 `error_log` | `command_api.py:WebcamSwitch.switch` |
 
@@ -55,7 +55,7 @@ flowchart LR
 | --- | --- |
 | 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.5(2026-10-15). 1.0 ~ 1.4 파일은 새 `db_writer` 가 열 때 1.5 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
 | 회차마다 새 DB 경로로 띄움 | 한 DB 안에서 회차(`runs`, `run_id`)로 나눈다. 화면용 읽기 함수는 열린 회차의 쌓이는 행만 준다. 리플레이 읽기 함수는 아래 표 끝에 있다([db-schema](../design/db-schema.md) 4-1절) |
-| 받는 명령 다섯 종 | 여섯 종(`SET_CAMERA_WATCH` 포함, `command_api.py:COMMAND_FIELDS`) |
+| 받는 명령 다섯 종 | 일곱 종(`SET_CAMERA_WATCH`, 운영자 재난 선포 `DECLARE_DISASTER`(2026-10-15) 포함, `command_api.py:COMMAND_FIELDS`). 재난 선포도 명령 이력(`operator_commands`)에 남아 리플레이에 보인다 |
 | 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)을 받고, `map_topic`·`map_dir` 이 있으면 리플레이용으로 회차별 지도를 `map_dir/<run_id>/` 에 남긴다(2026-10-15, `map_archive.py`) |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
 | 로봇 이름 AMR1·AMR2 | TB-6·TB-5 |

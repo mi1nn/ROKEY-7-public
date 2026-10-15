@@ -26,7 +26,7 @@
 
 | 경로 | 하는 일 | 근거 |
 | --- | --- | --- |
-| `POST /api/operator-commands` | 관제 웹의 운영자 명령을 조정기 서비스로 넘기고 답을 기록한다. 받는 명령은 `START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH` 다 | `command_api.py:COMMAND_FIELDS` |
+| `POST /api/operator-commands` | 관제 웹의 운영자 명령을 조정기 서비스로 넘기고 답을 기록한다. 받는 명령은 `START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH`·`DECLARE_DISASTER`(운영자 재난 선포, 2026-10-15) 다 | `command_api.py:COMMAND_FIELDS` |
 | `GET /api/webcam` | 운영 PC 에 꽂힌 카메라(`/dev/v4l/by-id/*-video-index0`)와 지금 장치를 준다 | `command_api.py:WebcamSwitch.state` |
 | `POST /api/webcam` | `{device, operator_id}` 로 `webcam_node` 의 `device_path` 를 바꾼다. 꽂혀 있지 않은 장치는 거절한다(`UNKNOWN_DEVICE`). 결과는 `error_log` 에 남는다 | `command_api.py:WebcamSwitch.switch` |
 | `POST /api/runs/reset` | 관제 웹의 초기화 버튼. `{command_id, operator_id[, note]}` 를 받아 두 로봇이 쉬고 있으면 새 회차를 연다. 거절 이유는 `ROBOT_STATUS_STALE`·`ROBOT_MOVING`·`TASK_ACTIVE`·`ROBOT_NOT_DOCKED`. 답은 운영자 명령과 같은 모양에 `run_id` 를 더한다. 로봇 쪽 재기동은 사람이 한다([운영 구현](../../docs/implementation/implementation-operations.md) 「초기화」) | `command_api.py:RunReset` |
