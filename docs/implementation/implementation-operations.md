@@ -19,7 +19,7 @@ flowchart LR
     X["출구(QR)·터널 판정·TB-6 지도 상태"]
   end
   R & E & S & X --> W["db_writer<br/>(ros_node.py)"]
-  W --> DB[("현장 상태 DB<br/>스키마 1.4")]
+  W --> DB[("현장 상태 DB<br/>스키마 1.5")]
   C["관제 웹<br/>(rescue_console)"] -- "읽기 전용" --> DB
   C -- "POST /api/operator-commands" --> W
   W -- "SubmitOperatorCommand" --> K["조정기"]
@@ -53,7 +53,8 @@ flowchart LR
 
 | 기록의 설명 | 지금 (2026-10-14) |
 | --- | --- |
-| 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.4. 1.0 ~ 1.3 파일은 새 `db_writer` 가 열 때 1.4 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
+| 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.5(2026-10-15). 1.0 ~ 1.4 파일은 새 `db_writer` 가 열 때 1.5 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
+| 회차마다 새 DB 경로로 띄움 | 한 DB 안에서 회차(`runs`, `run_id`)로 나눈다. 화면용 읽기 함수는 열린 회차의 쌓이는 행만 준다. 리플레이 읽기 함수는 아래 표 끝에 있다([db-schema](../design/db-schema.md) 4-1절) |
 | 받는 명령 다섯 종 | 여섯 종(`SET_CAMERA_WATCH` 포함, `command_api.py:COMMAND_FIELDS`) |
 | 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)만 받는다 |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
@@ -238,6 +239,9 @@ DB metadata에는 허용 ID 집합을 사진 정책과 함께 고정한다. 순�
 | `read_map_snapshots(path, *, limit=100)` | `{schema_version, maps:[스냅샷 dict]}` | `at_ns` 최신 순. 이미지는 `path` 에서 읽고 `sha256` 으로 확인 |
 | `read_exit_locations(path, *, limit=100)` | `{schema_version, exits:[출구 관측 dict]}` | `observed_at_ns` 최신 순, 같으면 `location_id`. db_writer 가 `/rescue/exit_location`(VALID, `exit_qr`)을 기록(스키마 1.3, OPS-144) |
 | `read_allowed_robot_ids(path)` | `{schema_version, allowed_robot_ids:[robot_id 정렬]}` | 기록 노드가 DB 를 처음 만들 때 고정한 배치 로봇 목록(metadata). 상태가 아직 오지 않은 로봇도 들어 있다(#147). 읽기 전용·오류 규칙은 다른 read_* 와 같다 |
+| `.run_id`, `.open_run(*, at_ns, note=None, previous_coordinator_boot_id=None)`, `.close_run(*, at_ns)` (1.5) | 열린 회차 ID / 새 회차 ID / 닫은 회차 ID(없으면 None) | 열 때 열린 회차가 없으면 하나 연다. 한 번에 하나만 열린다(`TASK_BUSY`). 쌓이는 표 다섯에 쓰는 행은 열린 회차의 `run_id` 를 갖는다 |
+| `list_runs(path)` (1.5) | `{schema_version, run_id, open_run_id, runs:[{run_id, started_at_ns, ended_at_ns, map_session_id, note, previous_coordinator_boot_id}]}` | 연 순서 |
+| `read_site_events_range`·`read_operator_commands_range`·`read_error_log_range`·`read_map_snapshots_range`·`read_exit_locations_range`·`read_robot_status_history`·`read_target_state_history` `(path, *, run_id, start_ns=None, end_ns=None, limit=1000)` (1.5) | `{schema_version, run_id, truncated, <키>:[...]}` | 한 회차, `start_ns` 이상 `end_ns` 미만, 오래된 것부터. 더 있으면 가장 새 행이 잘리고 `truncated=True`. 로봇 이력은 로봇당 1초에 한 줄 [제안] |
 
 모르는 값은 None이나 `UNKNOWN`으로 둔다. `support_state` 네 값(`NONE`·`ASSIGNED`·`ARRIVED`·`FAILED`)은 관제·화면과 맞춘 화면 쪽 어휘이며 [제안], C-09 오류 코드가 아니다. 보류 사유의 닫힌 집합은 협업·관제 판정 정책 소유라서, 여기서는 형식(중복 없는 식별자)만 검사한다.
 

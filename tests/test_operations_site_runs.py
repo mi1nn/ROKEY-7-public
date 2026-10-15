@@ -91,7 +91,7 @@ class RunTests(Case):
         with self.ledger() as ledger:
             with self.assertRaises(OperationsError) as caught:
                 ledger.open_run(at_ns=60_000)
-            self.assertEqual('RUN_ALREADY_OPEN', self.code(caught))
+            self.assertEqual('TASK_BUSY', self.code(caught))
 
     def test_first_map_state_of_a_run_names_its_map_session(self):
         current = dict(robot_id='robot_a', map_session_id=uid(5), map_revision=0, generated_at_ns=1_000,
@@ -226,8 +226,8 @@ class HistoryTests(Case):
         with self.ledger() as ledger:
             ledger.record_target_state(target_state())
             ledger.record_target_state(target_state())  # resend: not a change
-            ledger.record_target_state(target_state(updated_at_ns=2_000, rescue_state='CANDIDATE'))  # older
-            ledger.record_target_state(target_state(updated_at_ns=4_000, rescue_state='RESCUE_CONFIRMED'))
+            ledger.record_target_state(target_state(updated_at_ns=2_000, rescue_state='NOT_CHECKED', rescue_reasons=[]))  # older
+            ledger.record_target_state(target_state(updated_at_ns=4_000, rescue_state='RESCUE_CONFIRMED', rescue_reasons=[]))
             run = ledger.run_id
         history = site_state.read_target_state_history(self.path, run_id=run)['history']
         self.assertEqual([(3_000, 'RECHECK_NEEDED'), (4_000, 'RESCUE_CONFIRMED')],

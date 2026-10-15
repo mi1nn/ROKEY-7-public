@@ -83,7 +83,7 @@ class ExitLocationRecordTests(Case):
         with self.ledger() as ledger:
             self.assertTrue(ledger.record_exit_location(exit_record(1)))
         self.assertEqual(['kept'], [e['detail'] for e in site_state.read_error_log(self.path)['errors']])
-        self.assertEqual('1.4', site_state.SCHEMA_VERSION)
+        self.assertEqual('1.5', site_state.SCHEMA_VERSION)
 
 
 class ExitLocationIngestTests(Case):
