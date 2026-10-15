@@ -142,6 +142,17 @@ def frame_image(frame, stamp_ns, frame_id):
               width=width, height=height, encoding=ENCODING, is_bigendian=0, step=width * 3, data=frame.tobytes())
 
 
+def warm_up(model, frame, *, imgsz, conf):
+    """YOLO 를 한 번 미리 돌린다(첫 호출의 준비 시간을 기동 때 치른다). 걸린 초를 돌려주고, 실패는 그대로 올린다.
+
+    2026-10-15 측정: 첫 호출만 1.5 ~ 3 초 걸려(GPU 준비) 지진 감지 순간 웹캠 영상이 멈췄고, 3 초일 때는
+    중계기(stale 2 초)가 스트림을 닫았다. 실제 탐지와 같은 imgsz·conf 로 부른다.
+    """
+    start = time.monotonic()
+    model.predict(frame, imgsz=imgsz, conf=conf, verbose=False)
+    return time.monotonic() - start
+
+
 def device_change_refusal(name, value):
     """실행 중에 파라미터를 바꾸려 할 때의 거절 이유. 받아들이면 None.
 
@@ -219,6 +230,13 @@ def main(args=None):
         log.fatal(f'model sha256 mismatch: file={model_sha} expected={v["model_sha256"]}')
         raise SystemExit(2)
     model = YOLO(v['model_path'])
+    # 지진 감지 순간이 아니라 지금 YOLO 첫 호출 준비를 끝낸다. 실패해도 지진 판정은 돌아야 하므로 멈추지 않고,
+    # 오류를 남긴다(탐지는 지진 뒤 프레임마다 다시 시도되고 실패하면 상태창에 「탐지기 오류」로 보인다).
+    try:
+        import numpy as np
+        log.info(f'YOLO warm-up {warm_up(model, np.zeros((v["height"], v["width"], 3), np.uint8), imgsz=v["model_imgsz"], conf=v["model_conf"]):.2f}s')
+    except Exception as exc:
+        log.error(f'YOLO warm-up failed: {type(exc).__name__}: {exc}')
 
     # ── 기동 준비 ④: 판정기 만들기
     #   quake : 지진 판정기. 노드가 켜져 있는 동안 매 프레임 돈다.
