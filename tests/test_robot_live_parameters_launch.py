@@ -98,6 +98,19 @@ class ReadsTheLaunchValues(unittest.TestCase):
             task_without = {'task.saved_map.occupancy_sha256': None}
             self.read('robot_a', change=task_without)
 
+    def test_tb5_reads_its_start_alignment_verdict_topic(self):
+        # VALID only after start_align says ALIGNED (#317, 재범 decision 2026-10-15 (나))
+        config = self.read('robot_b')
+        self.assertEqual('/robot5/rescue_start_align', config['saved_maps']['robot_b']['start_align_topic'])
+        self.assertNotIn('start_align_topic', self.read('robot_a')['saved_maps']['robot_a'])
+        task = robot_launch_values(self.deployment, field=self.field, robot_id='robot_b', occupancy_sha256='',
+                                   now_ns=fixtures.NOW_NS)['task_input']
+        task.pop('task.saved_map.start_align_topic')   # not given: never set, as ROS leaves it uninitialized
+        adapter = NS(robot_id='robot_b', executor=NS(authority_epoch=task['authority_epoch']))
+        with patch.dict(sys.modules, fake_ros()), self.assertRaisesRegex(ContractError, 'start_align_topic'):
+            from rescue_robot.live_parameters import read_config
+            read_config(FakeNode(task), adapter)
+
     def _saved_field(self):
         import json
         raw = json.loads(fixtures.FIELD.read_text())

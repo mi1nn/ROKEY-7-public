@@ -130,6 +130,13 @@ def read_config(node, adapter):
     except ParameterUninitializedException:
         if m['mode'] == 'FROZEN_MAP_AMCL':
             raise ContractError('FROZEN_MAP_AMCL needs task.saved_map.initial_pose_topic') from None
+    # TB-5 start alignment verdict (rescue_robot.start_align, #317): VALID only after ALIGNED
+    node.declare_parameter('task.saved_map.start_align_topic', Parameter.Type.STRING)
+    try:
+        m['start_align_topic'] = node.get_parameter('task.saved_map.start_align_topic').value
+    except ParameterUninitializedException:
+        if m['mode'] == 'FROZEN_MAP_AMCL':
+            raise ContractError('FROZEN_MAP_AMCL needs task.saved_map.start_align_topic') from None
     # TB-6 SLAM pose while searching (slam_toolbox), only in SLAM_THEN_FROZEN
     node.declare_parameter('task.saved_map.slam_localization_topic', Parameter.Type.STRING)
     try:

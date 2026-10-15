@@ -5,13 +5,16 @@ What slam_toolbox, AMCL and the robot Pis would publish, on the field names:
   covariance), /robot6/tf map->odom->base_link. ``tf='measured'`` uses the TB-6 TF of the 2026-10-14 map
   freeze failure (#291 tests/test_robot_slam_tf_pose.py measured_tb6_tf: roll/pitch about 0.5 deg, z mm,
   odom->base_link 0.1 s older); ``tf='flat'`` is an exact plane at the origin.
-- TB-5: /robot5/amcl_pose, /robot5/tf flat at the origin (TB-5 TF not measured).
+- TB-5: /robot5/amcl_pose, /robot5/tf flat at the origin (TB-5 TF not measured), and the start alignment verdict
+  /robot5/rescue_start_align ALIGNED (what rescue_robot start_align latches once TB-5 is aligned, #317; its own
+  rehearsal is scripts/field/start-align-rehearsal).
 - Both: zero-velocity odom, undocked dock_status, scan and the readiness camera topics (empty payloads).
 """
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 from nav_msgs.msg import OccupancyGrid, Odometry
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -38,7 +41,9 @@ class Feeder:
         self.pubs = {'map6': p(OccupancyGrid, '/robot6/map', LATCHED),
                      'pose6': p(PoseWithCovarianceStamped, '/robot6/pose', 10),
                      'tf6': p(TFMessage, '/robot6/tf', 10), 'tf5': p(TFMessage, '/robot5/tf', 10),
-                     'amcl5': p(PoseWithCovarianceStamped, '/robot5/amcl_pose', LATCHED)}
+                     'amcl5': p(PoseWithCovarianceStamped, '/robot5/amcl_pose', LATCHED),
+                     'align5': p(String, '/robot5/rescue_start_align', LATCHED)}
+        self.pubs['align5'].publish(String(data='{"reason": "", "status": "ALIGNED"}'))
         self.sensors = []
         for ns in ('/robot6', '/robot5'):
             from irobot_create_msgs.msg import DockStatus
