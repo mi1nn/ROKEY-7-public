@@ -30,6 +30,18 @@ class FollowPath(unittest.TestCase):
         self.assertIs(False, follow['use_rotate_to_heading'])  # the shim does the turning (Nav2 docs)
         self.assertIs(True, follow['use_collision_detection'])
 
+    def test_speeds_are_the_turtlebot4_defaults(self):
+        """재범 2026-10-16 05:4x 「TB 속도가 실제에 비해 너무 느리다. 실제의 100%로 맞춰라.」 (grade 4): FollowPath drives at the
+        TurtleBot4 nav2.yaml limits (DWB max_vel_x / max_vel_theta, the velocity smoother's caps), not below them."""
+        base = vendor_params()
+        dwb = base['controller_server']['ros__parameters']['FollowPath']
+        smoother = base['velocity_smoother']['ros__parameters']
+        follow = field(base)['controller_server']['ros__parameters']['FollowPath']
+        self.assertEqual(dwb['max_vel_x'], follow['desired_linear_vel'])
+        self.assertEqual(smoother['max_velocity'][0], follow['desired_linear_vel'])
+        self.assertEqual(dwb['max_vel_theta'], follow['rotate_to_heading_angular_vel'])
+        self.assertEqual(smoother['max_velocity'][2], follow['rotate_to_heading_angular_vel'])
+
     def test_the_shim_turns_to_the_goal_heading_at_the_goal(self):
         """Run 10 (2026-10-16): TB-6 reached 0.035 m from a goal and expired turning: with RPP's use_rotate_to_heading
         off (as the shim needs) and the shim's rotate_to_goal_heading off, nothing turned the robot to the goal yaw,
