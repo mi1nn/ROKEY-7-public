@@ -194,6 +194,7 @@ class CoordinatorParameters(FieldCase):
         expected['frontier_goal_clearance_m'] = 0.35  # room to stop and turn in place (owner decision 2026-10-16, C3)
         # the pick's cost weights: explore_lite defaults as in rescue_perception explore.yaml (2026-10-16)
         expected.update(frontier_potential_scale=3.0, frontier_gain_scale=1.0)
+        expected['frontier_look_turns'] = 4  # one turn in place at each frontier (재범 decision 2026-10-16, proposal)
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
         expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
