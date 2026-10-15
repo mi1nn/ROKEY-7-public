@@ -76,7 +76,8 @@ updated: 2026-10-14
 - 목표를 골랐는데 TB-6 이 READY 가 아니면(예: FAILED 로 끝난 뒤 실행기가 스스로 다시 arm 하지 않음, OPS-231) 목표는 기다리고 `SCOUT_NOT_READY` 를 보인다. 로그 `SCOUT_NOT_READY frontier=… stop_reason=…` 는 목표·정지 사유마다 한 번 남긴다. 기다리는 동안에도 `exploration_timeout_s` 는 흐른다.
 - 고를 곳이 없으면 로그 `FRONTIER none …: frontiers=N small= no_goal= tried= no_path=` 에 후보별로 빠진 이유를 센다. 큰 것부터 다섯 개는 이유·칸 수·중심도 적는다. SMALL 은 `frontier_min_cells` 미달, NO_GOAL 은 `frontier_reach_m` 안에 빈 칸 없음, TRIED 는 시도한 곳 `frontier_blacklist_m` 안, NO_PATH 는 TB-6 에서 경로 없음이다. TOO_CLOSE 는 서 있는 TB-5 에서 `traffic_min_separation_m` 안이라 빠진 것이다.
 - 교통 관제가 켜져 있고 TB-6 이 TB-5 에서 `traffic_min_separation_m` 이상 떨어져 있으면, 경계를 고를 때 TB-5 둘레를 막힌 칸으로 본다. 목표와 그 경로 위 자른 점이 TB-5 에 그만큼 가까워지지 않는다. TB-5 옆 경계를 골라 `TRAFFIC_ROBOTS_TOO_CLOSE` 로 계속 기다리던 일(시뮬레이션 C10, 2026-10-16) 때문이다.
-- 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
+- Nav2 가 받은 뒤 실패한 경계는 `FRONTIER_ATTEMPTS`(2)번 실패할 때까지 다시 고른다(재범 결정 2026-10-16, C9). 한 번도 시도하지 않은 경계가 먼저다. 로그는 `FRONTIER_RETRY … failed 1/2`, 두 번째 실패 뒤 `FRONTIER_GAVE_UP`. 도착(COMPLETED)한 경계는 바로 다시 고르지 않는다.
+- 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. 남은 경계가 두 번 실패해 포기한 것뿐이면 `EXPLORATION_FRONTIERS_FAILED`(로그 `failed_frontiers=N`)로 끝내고, 인형이 없어도 `NO_SURVIVOR_FOUND` 대신 이 사유를 보인다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
 
 ### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
 

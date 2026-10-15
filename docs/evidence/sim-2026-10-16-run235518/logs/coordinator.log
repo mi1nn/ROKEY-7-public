@@ -1,0 +1,159 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-15-23-56-58-818634-sim-pc-619404
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [mission_coordinator-1]: process started with pid [619462]
+[mission_coordinator-1] [INFO] [1792076219.558401170] [mission_coordinator]: RViz search goal pick off: search_mode=FRONTIER makes its own areas (/rescue/search_goal not subscribed)
+[mission_coordinator-1] [INFO] [1792076219.561915625] [mission_coordinator]: central live clock: waiting for clock measurement
+[mission_coordinator-1] [INFO] [1792076219.562466306] [mission_coordinator]: live task source enabled: ~/task_inputs; no input files
+[mission_coordinator-1] [INFO] [1792076219.566485385] [mission_coordinator]: git_sha=fe544288a6cbb73918e0dd9016ae335815784cc3 boot_id=511c1c23-5d99-48e4-9e22-16d6ad1a4902 parameters={'profile_path': '<회차 폴더>/profile/profile.json', 'entry_yaws': [0.0, 1.5708], 'policy_version': 'search-live-20261012', 'executable_bases': ['PRIOR_MAP', 'FRONTIER'], 'task_duration_s': 120.0, 'lease_duration_s': 3.0, 'executor_policy_version': 'search-live-20261012', 'mission_frame_id': 'map', 'authority_epoch': '66666666-6666-4666-8666-666666666666', 'coordinator_id': '77777777-7777-4777-8777-777777777777', 'envelope_schema_version': 'rescue-envelope/1', 'status_max_age_s': 3.0, 'tick_period_s': 0.1, 'route_segment_goals': [0.0, 0.0, 0.0], 'route_revision': 0, 'observe_goal': [0.0, 0.0, 0.0], 'goal_map_session_id': '22222222-2222-4222-8222-222222222222', 'goal_map_revision': 0, 'goal_transform_revision': 1, 'merge_distance_m': 0.5, 'report_retry_s': 0.5, 'lease_renew_period_s': 0.5, 'admission_timeout_s': 10.0, 'lease_message_ttl_s': 4.0, 'route_segment_passage_free': [False], 'camera_watch_timeout_s': 2.0, 'target_clock_domain_id': 'rokey7-utc-field', 'target_max_age_s': 3.0, 'target_max_future_s': 0.05, 'support_dispatch': 'AUTO', 'approach_standoff_m': 0.8, 'support_pose_max_age_s': 2.0, 'support_exit_wait_s': 15.0, 'recheck_max_clock_error_s': 2.0, 'map_mode': 'SLAM_FREEZE', 'freeze_clearance_m': 0.2, 'map_freeze_timeout_s': 10.0, 'search_start': 'AUTO', 'search_mode': 'FRONTIER', 'patrol_rounds': 1, 'exit_standoff_m': 0.5, 'frontier_min_cells': 10, 'frontier_reach_m': 1.0, 'frontier_goal_max_m': 1.5, 'frontier_goal_clearance_m': 0.2, 'frontier_blacklist_m': 0.5, 'frontier_issue_delay_s': 2.0, 'exploration_empty_checks': 3, 'exploration_timeout_s': 600.0, 'completion_mode': 'EXIT_ARRIVAL', 'traffic_control': 'TB5_PRIORITY', 'traffic_min_separation_m': 0.6, 'traffic_path_clearance_m': 0.6, 'traffic_yield_max_m': 2.0, 'traffic_stop_timeout_s': 3.0, 'camera_watch_roi': [0.1, 0.2, 0.6, 0.9], 'home_poses': None, 'patrol_points': None, 'support_start_pose': [-0.348, -1.786, -0.0001]} roles={'SCOUT': 'robot_a', 'SUPPORT': 'robot_b'}
+[mission_coordinator-1] [INFO] [1792076219.699082601] [mission_coordinator]: camera watch: /rescue/cameras/cam_fixed/set_watch roi=(0.1, 0.2, 0.6, 0.9)
+[mission_coordinator-1] [INFO] [1792076219.724582131] [mission_coordinator]: map_mode=SLAM_FREEZE freeze=/rescue/map/freeze
+[mission_coordinator-1] [INFO] [1792076219.738302790] [mission_coordinator]: search_mode=FRONTIER map=/robot6/map executable_bases include FRONTIER
+[mission_coordinator-1] [INFO] [1792076219.843132898] [mission_coordinator]: TARGETS 41106454-63db-4c6f-b401-dc3b6516267e []
+[mission_coordinator-1] [INFO] [1792076219.843715180] [mission_coordinator]: SYSTEM_STATE {'mode': 'NORMAL', 'phase': 'IDLE', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': '', 'has_trigger': False, 'trigger_event_id': '', 'trigger_observed_at_ns': 0, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 1, 'changed_at_ns': 1792076219842349841}
+[mission_coordinator-1] [INFO] [1792076220.563773421] [mission_coordinator]: central live clock: SYNCED
+[mission_coordinator-1] [INFO] [1792076220.583258874] [mission_coordinator]: MAP_STATE robot_b 22222222-2222-4222-8222-222222222222/0 UNKNOWN snapshot=0f88a5c3-b668-5262-869c-f845cdf5db3f -> recorded=False frozen=None
+[mission_coordinator-1] [INFO] [1792076220.645724026] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=1 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792076220.847976504] [mission_coordinator]: MAP_STATE robot_a 22222222-2222-4222-8222-222222222222/0 VALID snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a -> recorded=True frozen=None
+[mission_coordinator-1] [INFO] [1792076221.200625649] [mission_coordinator]: START_POSE /rescue/map/start_pose/robot_a -> bound=True start_pose=(-0.3528394962883472, -3.2076624011264284e-11, -2.948968572465558)
+[mission_coordinator-1] [INFO] [1792076221.227660870] [mission_coordinator]: SCOUT_MAP update 1 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076221.243965388] [mission_coordinator]: START_POSE bound (-0.3528394962883472, -3.2076624011264284e-11, -2.948968572465558) session=22222222-2222-4222-8222-222222222222 revision=0
+[mission_coordinator-1] [INFO] [1792076236.027486586] [mission_coordinator]: explicit SystemState refresh for session registration
+[mission_coordinator-1] [INFO] [1792076250.773088478] [mission_coordinator]: SCOUT_MAP update 31 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076280.776568433] [mission_coordinator]: SCOUT_MAP update 61 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076310.800831036] [mission_coordinator]: SCOUT_MAP update 91 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076340.797854794] [mission_coordinator]: SCOUT_MAP update 121 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076370.799115825] [mission_coordinator]: SCOUT_MAP update 151 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076400.818683992] [mission_coordinator]: SCOUT_MAP update 181 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076430.821294059] [mission_coordinator]: SCOUT_MAP update 211 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076460.813563231] [mission_coordinator]: SCOUT_MAP update 241 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076490.821059485] [mission_coordinator]: SCOUT_MAP update 271 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076520.835059794] [mission_coordinator]: SCOUT_MAP update 301 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076550.844536714] [mission_coordinator]: SCOUT_MAP update 331 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076580.864481280] [mission_coordinator]: SCOUT_MAP update 361 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076610.880531634] [mission_coordinator]: SCOUT_MAP update 391 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076640.899104817] [mission_coordinator]: SCOUT_MAP update 421 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076670.905904002] [mission_coordinator]: SCOUT_MAP update 451 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076700.930105440] [mission_coordinator]: SCOUT_MAP update 481 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076730.890402836] [mission_coordinator]: SCOUT_MAP update 511 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076760.929605681] [mission_coordinator]: SCOUT_MAP update 541 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076790.886283064] [mission_coordinator]: SCOUT_MAP update 571 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076820.928985795] [mission_coordinator]: SCOUT_MAP update 601 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076850.940164341] [mission_coordinator]: SCOUT_MAP update 631 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076880.939127554] [mission_coordinator]: SCOUT_MAP update 661 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076910.963219535] [mission_coordinator]: SCOUT_MAP update 691 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076940.969645476] [mission_coordinator]: SCOUT_MAP update 721 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792076970.999312610] [mission_coordinator]: SCOUT_MAP update 751 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077000.938680264] [mission_coordinator]: SCOUT_MAP update 781 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077030.935678067] [mission_coordinator]: SCOUT_MAP update 811 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077060.987491705] [mission_coordinator]: SCOUT_MAP update 841 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077090.941517372] [mission_coordinator]: SCOUT_MAP update 871 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077120.988765635] [mission_coordinator]: SCOUT_MAP update 901 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077150.955956027] [mission_coordinator]: SCOUT_MAP update 931 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077181.045121390] [mission_coordinator]: SCOUT_MAP update 961 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077211.012939001] [mission_coordinator]: SCOUT_MAP update 991 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077241.058930921] [mission_coordinator]: SCOUT_MAP update 1021 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077271.056174803] [mission_coordinator]: SCOUT_MAP update 1051 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077301.085392414] [mission_coordinator]: SCOUT_MAP update 1081 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077331.069061638] [mission_coordinator]: SCOUT_MAP update 1111 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077361.103185490] [mission_coordinator]: SCOUT_MAP update 1141 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077391.122887776] [mission_coordinator]: SCOUT_MAP update 1171 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077421.094973551] [mission_coordinator]: SCOUT_MAP update 1201 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077451.085498507] [mission_coordinator]: SCOUT_MAP update 1231 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077481.171192037] [mission_coordinator]: SCOUT_MAP update 1261 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077511.131177607] [mission_coordinator]: SCOUT_MAP update 1291 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077541.124257282] [mission_coordinator]: SCOUT_MAP update 1321 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077571.164881994] [mission_coordinator]: SCOUT_MAP update 1351 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077601.181233853] [mission_coordinator]: SCOUT_MAP update 1381 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077631.124107647] [mission_coordinator]: SCOUT_MAP update 1411 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077661.165864914] [mission_coordinator]: SCOUT_MAP update 1441 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077691.212565937] [mission_coordinator]: SCOUT_MAP update 1471 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077721.163216204] [mission_coordinator]: SCOUT_MAP update 1501 62x80 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077744.016640163] [mission_coordinator]: COMMAND a533a81a-64a3-41a6-b70f-cb2349103284 DECLARE_DISASTER -> {'accepted': True, 'request_state': 'ACCEPTED', 'reason_code': '', 'created_task_id': ''} reason=ACCEPTED
+[mission_coordinator-1] [INFO] [1792077744.087081466] [mission_coordinator]: DISASTER_DECLARED by operator admin command a533a81a-64a3-41a6-b70f-cb2349103284
+[mission_coordinator-1] [INFO] [1792077744.087464698] [mission_coordinator]: SEARCH_AUTO_STARTED on DISASTER
+[mission_coordinator-1] [INFO] [1792077744.087729195] [mission_coordinator]: FRONTIER e291042b-ac67-5065-847b-936b1e47de79 cells=95 centroid=(-1.8948891264758154, 1.731926247521158) path_m=1.57 start_moved_m=0.00 goal=(-1.49, 0.86, 2.36)
+[mission_coordinator-1] [INFO] [1792077744.088763553] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'DISASTER', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'SEARCH_QUEUED', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 2, 'changed_at_ns': 1792077744016734017}
+[mission_coordinator-1] [INFO] [1792077744.545196562] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=2 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792077746.053923754] [mission_coordinator]: SEND SEARCH_AREA task=d8969fdb-c8db-4b70-88f9-033a64f8167f robot=robot_a generation=0
+[mission_coordinator-1] [INFO] [1792077746.056161173] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': ['d8969fdb-c8db-4b70-88f9-033a64f8167f'], 'policy_version': 'search-live-20261012', 'reason': 'DISASTER_DECLARED_BY_OPERATOR', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 3, 'changed_at_ns': 1792077746043350625}
+[mission_coordinator-1] [INFO] [1792077746.061861297] [mission_coordinator]: ADMISSION d8969fdb-c8db-4b70-88f9-033a64f8167f -> True
+[mission_coordinator-1] [INFO] [1792077746.064810093] [mission_coordinator]: GOAL task=d8969fdb-c8db-4b70-88f9-033a64f8167f accepted=True (ACTIVE only from task_admission)
+[mission_coordinator-1] [INFO] [1792077746.644210824] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=3 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792077751.202609127] [mission_coordinator]: SCOUT_MAP update 1531 62x82 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077781.218695834] [mission_coordinator]: SCOUT_MAP update 1561 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077811.282303787] [mission_coordinator]: SCOUT_MAP update 1591 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077841.165214977] [mission_coordinator]: SCOUT_MAP update 1621 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077866.442929969] [mission_coordinator]: SCOUT_NOT_READY frontier=e291042b-ac67-5065-847b-936b1e47de79 stop_reason=DEADLINE_EXPIRED: TB-6 needs task_arm (or Nav2/readiness) before its next frontier
+[mission_coordinator-1] [ERROR] [1792077866.443437074] [mission_coordinator]: task not issued: SCOUT_NOT_READY
+[mission_coordinator-1] [INFO] [1792077866.444354524] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': ['d8969fdb-c8db-4b70-88f9-033a64f8167f'], 'policy_version': 'search-live-20261012', 'reason': 'SCOUT_NOT_READY', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 4, 'changed_at_ns': 1792077866442248485}
+[mission_coordinator-1] [INFO] [1792077866.946471498] [mission_coordinator]: RESULT task=d8969fdb-c8db-4b70-88f9-033a64f8167f outcome=EXPIRED reason=DEADLINE_EXPIRED cause=DEADLINE_EXPIRED released=True
+[mission_coordinator-1] [INFO] [1792077866.947935804] [mission_coordinator]: FRONTIER_DONE e291042b-ac67-5065-847b-936b1e47de79 outcome=EXPIRED reason=DEADLINE_EXPIRED
+[mission_coordinator-1] [INFO] [1792077867.037209192] [mission_coordinator]: FRONTIER a116ea31-03ea-5501-8b33-c89943fd79e9 cells=12 centroid=(-1.2650402678310204, 2.6155016856380064) path_m=2.46 start_moved_m=0.00 goal=(-0.37, 1.65, 1.57)
+[mission_coordinator-1] [INFO] [1792077867.038293152] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'DISASTER_DECLARED_BY_OPERATOR', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 5, 'changed_at_ns': 1792077866951809883}
+[mission_coordinator-1] [INFO] [1792077867.543479192] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=5 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792077869.043647749] [mission_coordinator]: SCOUT_NOT_READY frontier=a116ea31-03ea-5501-8b33-c89943fd79e9 stop_reason=DEADLINE_EXPIRED: TB-6 needs task_arm (or Nav2/readiness) before its next frontier
+[mission_coordinator-1] [ERROR] [1792077869.044142832] [mission_coordinator]: task not issued: SCOUT_NOT_READY
+[mission_coordinator-1] [INFO] [1792077869.044981857] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'SCOUT_NOT_READY', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 6, 'changed_at_ns': 1792077869042982785}
+[mission_coordinator-1] [INFO] [1792077869.645236012] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=6 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792077871.276553399] [mission_coordinator]: SCOUT_MAP update 1651 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077871.805086721] [mission_coordinator]: explicit SystemState refresh for session registration
+[mission_coordinator-1] [INFO] [1792077876.943189188] [mission_coordinator]: TRAFFIC_HOLD SCOUT TRAFFIC_ROBOTS_TOO_CLOSE
+[mission_coordinator-1] [ERROR] [1792077876.943567092] [mission_coordinator]: task not issued: TRAFFIC_ROBOTS_TOO_CLOSE
+[mission_coordinator-1] [INFO] [1792077876.944439560] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'TRAFFIC_ROBOTS_TOO_CLOSE', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 7, 'changed_at_ns': 1792077876942321196}
+[mission_coordinator-1] [INFO] [1792077877.544052630] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=7 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792077901.305845967] [mission_coordinator]: SCOUT_MAP update 1681 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077931.264155334] [mission_coordinator]: SCOUT_MAP update 1711 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077961.217323069] [mission_coordinator]: SCOUT_MAP update 1741 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792077991.117262073] [mission_coordinator]: SCOUT_MAP update 1771 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078021.180019595] [mission_coordinator]: SCOUT_MAP update 1801 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078051.168732081] [mission_coordinator]: SCOUT_MAP update 1831 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078081.167798972] [mission_coordinator]: SCOUT_MAP update 1861 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078111.191504542] [mission_coordinator]: SCOUT_MAP update 1891 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078141.151652400] [mission_coordinator]: SCOUT_MAP update 1921 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078171.227194168] [mission_coordinator]: SCOUT_MAP update 1951 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078201.205135530] [mission_coordinator]: SCOUT_MAP update 1981 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078231.197289562] [mission_coordinator]: SCOUT_MAP update 2011 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078261.184368780] [mission_coordinator]: SCOUT_MAP update 2041 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078291.270749658] [mission_coordinator]: SCOUT_MAP update 2071 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078321.224690864] [mission_coordinator]: SCOUT_MAP update 2101 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078344.042885226] [mission_coordinator]: EXPLORATION_COMPLETE reason=EXPLORATION_TIMEOUT frontiers_sent=2
+[mission_coordinator-1] [INFO] [1792078344.143633653] [mission_coordinator]: MAP_FREEZE call /rescue/map/freeze
+[mission_coordinator-1] [INFO] [1792078344.144381022] [mission_coordinator]: MAP_FREEZE 1 requested: target saved, TB-6 stopped
+[mission_coordinator-1] [INFO] [1792078344.149434572] [mission_coordinator]: FROZEN_MAP 64x83 sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063 -> frozen=False basis=None
+[mission_coordinator-1] [INFO] [1792078344.151283711] [mission_coordinator]: FROZEN_REVISION {'map_session_id': '22222222-2222-4222-8222-222222222222', 'map_revision': 1, 'occupancy_sha256': '6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063'} -> frozen=False basis=None stage=0
+[mission_coordinator-1] [INFO] [1792078344.152300553] [mission_coordinator]: MAP_FREEZE reply success=True message='frozen sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063' recorded=True
+[mission_coordinator-1] [INFO] [1792078344.153319354] [mission_coordinator]: MAP_FREEZE call /rescue/map/freeze
+[mission_coordinator-1] [INFO] [1792078344.153760220] [mission_coordinator]: MAP_FROZEN 1 session=22222222-2222-4222-8222-222222222222 revision=1 sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063
+[mission_coordinator-1] [INFO] [1792078344.155334578] [mission_coordinator]: MAP_FREEZE 2 requested: exploration complete, TB-6 stopped
+[mission_coordinator-1] [INFO] [1792078344.156704009] [mission_coordinator]: MAP_STATE robot_b 22222222-2222-4222-8222-222222222222/1 UNKNOWN snapshot=ae81fd66-a819-5da6-a949-3428f68fc0c7 -> recorded=False frozen=('22222222-2222-4222-8222-222222222222', 1, 1)
+[mission_coordinator-1] [INFO] [1792078344.167455724] [mission_coordinator]: MAP_STATE robot_b 22222222-2222-4222-8222-222222222222/2 UNKNOWN snapshot=d5c4cb10-47b3-5d64-9f2e-ae4a348717fa -> recorded=False frozen=('22222222-2222-4222-8222-222222222222', 1, 1)
+[mission_coordinator-1] [INFO] [1792078344.169797266] [mission_coordinator]: FROZEN_MAP 64x83 sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063 -> frozen=False basis=('22222222-2222-4222-8222-222222222222', 1, 1)
+[mission_coordinator-1] [INFO] [1792078344.170996514] [mission_coordinator]: FROZEN_REVISION {'map_session_id': '22222222-2222-4222-8222-222222222222', 'map_revision': 2, 'occupancy_sha256': '6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063'} -> frozen=False basis=('22222222-2222-4222-8222-222222222222', 1, 1) stage=1
+[mission_coordinator-1] [INFO] [1792078344.171828822] [mission_coordinator]: MAP_FREEZE reply success=True message='frozen sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063' recorded=True
+[mission_coordinator-1] [INFO] [1792078344.172319347] [mission_coordinator]: MAP_FROZEN 2 session=22222222-2222-4222-8222-222222222222 revision=2 sha256=6630b6dae2f4bbcb24070153032cf7f5c6d3fd140be4e71d6126464e21393063
+[mission_coordinator-1] [INFO] [1792078344.173640928] [mission_coordinator]: MAP_STATE robot_a 22222222-2222-4222-8222-222222222222/2 UNKNOWN snapshot=d5c4cb10-47b3-5d64-9f2e-ae4a348717fa -> recorded=False frozen=('22222222-2222-4222-8222-222222222222', 2, 1)
+[mission_coordinator-1] [INFO] [1792078346.142734361] [mission_coordinator]: TRAFFIC_HOLD SCOUT TRAFFIC_SCOUT_POSE_UNKNOWN
+[mission_coordinator-1] [ERROR] [1792078346.143156357] [mission_coordinator]: task not issued: TRAFFIC_SCOUT_POSE_UNKNOWN
+[mission_coordinator-1] [INFO] [1792078346.143883487] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'TRAFFIC_SCOUT_POSE_UNKNOWN', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 8, 'changed_at_ns': 1792078346142169519}
+[mission_coordinator-1] [INFO] [1792078346.643368975] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=8 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792078351.299407511] [mission_coordinator]: SCOUT_MAP update 2131 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078381.227997834] [mission_coordinator]: SCOUT_MAP update 2161 64x83 res=0.05000000074505806
+[mission_coordinator-1] [INFO] [1792078384.442738862] [mission_coordinator]: SCOUT_NOT_READY frontier=a116ea31-03ea-5501-8b33-c89943fd79e9 stop_reason=-: TB-6 needs task_arm (or Nav2/readiness) before its next frontier
+[mission_coordinator-1] [INFO] [1792078384.443237414] [mission_coordinator]: TRAFFIC_RELEASE SCOUT
+[mission_coordinator-1] [ERROR] [1792078384.443651192] [mission_coordinator]: task not issued: SCOUT_NOT_READY
+[mission_coordinator-1] [INFO] [1792078384.444435909] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'SCOUT_NOT_READY', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 9, 'changed_at_ns': 1792078384442164673}
+[mission_coordinator-1] [INFO] [1792078384.943925119] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=9 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792078415.191287153] [mission_coordinator]: MAP_STATE robot_a 22222222-2222-4222-8222-222222222222/2 VALID snapshot=d5c4cb10-47b3-5d64-9f2e-ae4a348717fa -> recorded=True frozen=('22222222-2222-4222-8222-222222222222', 2, 1)
+[mission_coordinator-1] [INFO] [1792078415.443268611] [mission_coordinator]: TRAFFIC_HOLD SCOUT TRAFFIC_ROBOTS_TOO_CLOSE
+[mission_coordinator-1] [ERROR] [1792078415.444532939] [mission_coordinator]: task not issued: TRAFFIC_ROBOTS_TOO_CLOSE
+[mission_coordinator-1] [INFO] [1792078415.445481824] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'TRAFFIC_ROBOTS_TOO_CLOSE', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 10, 'changed_at_ns': 1792078415442273904}
+[mission_coordinator-1] [INFO] [1792078416.042987597] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=10 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792078417.143280169] [mission_coordinator]: TRAFFIC_HOLD SCOUT TRAFFIC_SCOUT_POSE_UNKNOWN
+[mission_coordinator-1] [ERROR] [1792078417.143537451] [mission_coordinator]: task not issued: TRAFFIC_SCOUT_POSE_UNKNOWN
+[mission_coordinator-1] [INFO] [1792078417.144173993] [mission_coordinator]: SYSTEM_STATE {'mode': 'DISASTER', 'phase': 'SEARCHING', 'cause_event_ids': [], 'active_task_ids': [], 'policy_version': 'search-live-20261012', 'reason': 'TRAFFIC_SCOUT_POSE_UNKNOWN', 'has_trigger': True, 'trigger_event_id': 'a533a81a-64a3-41a6-b70f-cb2349103284', 'trigger_observed_at_ns': 1792077744014520098, 'has_dispatch': False, 'target_id': '', 'target_revision': 0, 'route_revision': 0, 'segment_index': 0, 'segment_count': 0, 'segment_phase': 'IDLE', 'state_sequence': 11, 'changed_at_ns': 1792078417142393489}
+[mission_coordinator-1] [INFO] [1792078417.743062276] [mission_coordinator]: SYSTEM_STATE_RESENT state_sequence=11 unchanged, every 0.5 s for late executors (logged once)
+[mission_coordinator-1] [INFO] [1792078582.196358122] [mission_coordinator]: MAP_STATE robot_b 22222222-2222-4222-8222-222222222222/2 VALID snapshot=d5c4cb10-47b3-5d64-9f2e-ae4a348717fa -> recorded=True frozen=('22222222-2222-4222-8222-222222222222', 2, 1)
+[mission_coordinator-1] [INFO] [1792078585.695709767] [mission_coordinator]: explicit SystemState refresh for session registration
+[mission_coordinator-1] [INFO] [1792078605.419859264] [mission_coordinator]: explicit SystemState refresh for session registration
+[mission_coordinator-1] [INFO] [1792078620.763273478] [mission_coordinator]: explicit SystemState refresh for session registration
+[INFO] [mission_coordinator-1]: process has finished cleanly [pid 619462]

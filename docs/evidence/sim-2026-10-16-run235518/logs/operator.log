@@ -1,0 +1,19 @@
+OPERATOR 23:58:39 시작: 런북 7.1(실패 뒤 다시 arm, TB-5 arm)·7.5(2차 고정 뒤 TB-6 위치 추정)를 대신한다
+OPERATOR 00:24:26 결과 EXPIRED task=d8969fdb-c8db-4b70-88f9-033a64f8167f robot_a
+OPERATOR 00:24:32 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 00:24:37 런북 7.1 robot6 task_arm: success=True message='ARMED 
+OPERATOR 00:32:24 탐색 끝: SLAM 지도 저장 <회차 폴더>/diag_c9
+OPERATOR 00:32:35 자료 남김 <회차 폴더>/logs/diag_c8_tb5_nav2.txt
+OPERATOR 00:32:51 자료 남김 <회차 폴더>/logs/diag_c7_before_slam_stop.txt
+OPERATOR 00:32:51 런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID 617834에 TERM, slam_toolbox PID 617909)
+OPERATOR 00:33:14 런북 7.5 /robot6/map 발행자 수 0(--no-daemon)
+OPERATOR 00:33:31 자료 남김 <회차 폴더>/logs/diag_c7_before_frozen_loc.txt
+OPERATOR 00:33:31 런북 7.5 frozen_localization robot_a 띄움(로그 <회차 폴더>/logs/frozen_loc_a.log)
+OPERATOR 00:36:22 TB-5 출발 정렬 끝
+OPERATOR 00:36:23 런북 7.1 /robot5/request_nomotion_update: 
+OPERATOR 00:36:25 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 00:36:30 런북 7.1 robot5 task_arm: success=False 
+OPERATOR 00:36:45 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 00:36:49 런북 7.1 robot5 task_arm: success=False 
+OPERATOR 00:37:01 런북 7.1 refresh_state: success=True message='SYSTEM_STATE_REPUBLISHED; original changed_at_ns preserved 
+OPERATOR 00:37:07 런북 7.1 robot5 task_arm: success=False 

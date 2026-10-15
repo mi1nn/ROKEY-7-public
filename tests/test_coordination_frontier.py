@@ -90,7 +90,7 @@ class FrontierPickTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.finish(fields, 'UNREACHABLE')
+        self.finish(fields)  # reached: not picked again (a failed one is picked again once, FrontierRetryTests)
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
             self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
@@ -190,12 +190,59 @@ class RobotNotStartedTests(Base):
                 self.reject(self.first_goal(), cause)
                 self.assertEqual([], self.core.frontier_tried)
 
-    def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
+    def test_a_goal_nav2_took_and_aborted_counts_as_a_failed_attempt(self):
         self.reject(self.first_goal(), 'ACTION_ABORTED')
-        self.assertEqual(2, len(self.core.frontier_tried))
+        self.assertEqual(([], 1), (self.core.frontier_tried, len(self.core.frontier_failures)))  # retried once (C9)
         # the reason is in the log, not only the outcome (RPP "collision ahead" ends as ACTION_ABORTED, 2026-10-15)
         self.assertIn('outcome=FAILED reason=ACTION_ABORTED', ' '.join(self.core.drain_notes()))
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
+
+
+class FrontierRetryTests(Base):
+    """A frontier Nav2 took and that then failed is picked again once: it is tried only after its second failure
+    (재범 decision 2026-10-16, C9: the one way into the main zone failed once and the exploration ended). Untried
+    frontiers go first. An exploration that ends with such frontiers left says so (EXPLORATION_FRONTIERS_FAILED)
+    instead of a plain EXPLORATION_COMPLETE."""
+
+    def attempt(self, now):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(at=now))
+        self.searches(now)
+        self.core.on_pose(scout_pose(at=now + DELAY))
+        (fields,) = self.searches(now + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        return fields
+
+    def test_the_only_frontier_is_picked_again_after_one_failure(self):
+        first = self.attempt(NOW)
+        self.assertEqual([], self.core.frontier_tried)
+        self.assertIn('FRONTIER_RETRY', ' '.join(self.core.drain_notes()))
+        second = self.attempt(NOW + 3 * DELAY)
+        self.assertNotEqual(first['search_area_ref'], second['search_area_ref'])  # a new site, same frontier
+
+    def test_after_the_second_failure_it_is_tried_and_the_end_says_so(self):
+        self.attempt(NOW)
+        self.attempt(NOW + 3 * DELAY)
+        self.assertEqual(2, len(self.core.frontier_tried))
+        for k in range(2):  # exploration_empty_checks = 2
+            self.core.on_scout_map(grid())
+            self.core.on_pose(scout_pose(at=NOW + 6 * DELAY + k))
+            self.assertEqual([], self.searches(NOW + 6 * DELAY + k))
+        self.assertTrue(self.core.exploration_complete)
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.reason(NOW + 6 * DELAY + 2))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('EXPLORATION_COMPLETE reason=EXPLORATION_FRONTIERS_FAILED', notes)
+        self.assertIn('failed_frontiers=1', notes)
+
+    def test_no_doll_after_given_up_frontiers_is_not_shown_as_no_survivor(self):
+        # SLAM_FREEZE with no doll would show NO_SURVIVOR_FOUND ("생존자 없음 — 탐색 완료"): not a whole map here
+        self.core.map_mode, self.core.exploration_complete = 'SLAM_FREEZE', True
+        self.core.exploration_reason = 'EXPLORATION_FRONTIERS_FAILED'
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.core.mission_reason(NOW))
+        self.core.exploration_reason = 'EXPLORATION_COMPLETE'
+        self.assertEqual('NO_SURVIVOR_FOUND', self.core.mission_reason(NOW))
 
 
 FINE = 0.05  # TB-6 SLAM map cell (live map yaml resolution 0.05, docs/evidence/sim-2026-10-15-run232037/maps)
@@ -291,6 +338,27 @@ class WallClearanceTests(unittest.TestCase):
         self.assertGreater(xy[0], 1.0)  # a goal along the way, not refused
         self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
 
+    def test_a_moved_goal_that_failed_is_picked_and_moved_again_then_given_up(self):
+        # C3 with C9: the failures count by the frontier (its goal cell and centroid), not by the moved site
+        grid = self.wall_room()
+        core, first = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
+        for attempt in (1, 2):
+            core.on_status(status_msg(SCOUT, observed_at_ns=NOW + attempt * 10 * DELAY - 10**8))
+            core.on_pose(scout_pose((0.4, 0.3), at=NOW + attempt * 10 * DELAY))
+            (fields,) = [f for f in core.tick(NOW + attempt * 10 * DELAY) if f['kind'] == 'SEARCH_AREA']
+            xy = tuple(live_task_inputs.destinations(core)[fields['search_area_ref']]['xy_yaw'][:2])
+            self.assertEqual(first, xy)                                   # the same moved goal both times
+            self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+            core.on_admission(admission_msg(fields))
+            core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                 terminal_reason='ACTION_ABORTED'))
+            core.on_scout_map(grid)
+            core.tick(NOW + attempt * 10 * DELAY + 1)                     # picks it again after the 1st failure
+        notes = ' '.join(core.drain_notes())
+        self.assertIn('FRONTIER_RETRY', notes)
+        self.assertIn('FRONTIER_GAVE_UP', notes)
+        self.assertEqual(2, notes.count('FRONTIER_GOAL_MOVED'))
+
     def test_the_clearance_is_a_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['frontier_goal_clearance_m'])
         with self.assertRaises(RescueError):
@@ -312,9 +380,7 @@ class FrontierNoneWhyTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.core.on_admission(admission_msg(fields))
-        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
-                                                  terminal_reason='ACTION_ABORTED'))
+        self.finish(fields)  # reached once: tried
         self.core.on_scout_map(grid())
         self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
