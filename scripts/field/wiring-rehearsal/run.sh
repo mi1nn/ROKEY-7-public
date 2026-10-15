@@ -9,7 +9,7 @@
 # ROS_DOMAIN_ID >= 10. No robot is on this graph and the fake Nav2 refuses every goal; only REHEARSAL_PROBE=mission
 # arms the two executors (as the field step 3). Everything started here is stopped by its own process group or
 # PID (no pkill -f).
-# REHEARSAL_PROBE=freeze|mission (freeze_probe.py, mission_probe.py), REHEARSAL_TF=measured|flat (TB-6 TF, feed.py).
+# REHEARSAL_PROBE=freeze|mission|noweb (freeze_probe.py, mission_probe.py, noweb_probe.py), REHEARSAL_TF=measured|flat (TB-6 TF, feed.py).
 set -euo pipefail
 # job control: each background job is its own process group and keeps SIGINT (a non-interactive shell's
 # background jobs ignore SIGINT otherwise, and the launch children then outlive the launch)
@@ -92,6 +92,12 @@ elif [ "${REHEARSAL_PROBE:-}" = mission ]; then   # DISASTER -> TB-6 goal -> ref
   PROBE=$?
   cat "$OUT/mission_probe.txt"
   echo "mission_probe exit $PROBE"
+  [ "$CODE" -eq 0 ] && CODE=$PROBE
+elif [ "${REHEARSAL_PROBE:-}" = noweb ]; then   # the run without the web console (noweb_probe.py)
+  python3 "$HERE/noweb_probe.py" "$OUT" 18765 > "$OUT/noweb_probe.txt" 2>&1
+  PROBE=$?
+  cat "$OUT/noweb_probe.txt"
+  echo "noweb_probe exit $PROBE"
   [ "$CODE" -eq 0 ] && CODE=$PROBE
 fi
 set -e

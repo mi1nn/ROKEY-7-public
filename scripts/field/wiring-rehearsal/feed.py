@@ -8,7 +8,7 @@ What slam_toolbox, AMCL and the robot Pis would publish, on the field names:
 - TB-5: /robot5/amcl_pose, /robot5/tf flat at the origin (TB-5 TF not measured), and the start alignment verdict
   /robot5/rescue_start_align ALIGNED (what rescue_robot start_align latches once TB-5 is aligned, #317; its own
   rehearsal is scripts/field/start-align-rehearsal).
-- Both: zero-velocity odom, undocked dock_status, scan and the readiness camera topics, RGB image or camera_info
+- Both: zero-velocity odom, dock_status (undocked until ``docked`` is set, noweb_probe.py docks before the reset), scan and the readiness camera topics, RGB image or camera_info
   (empty payloads).
 """
 import rclpy
@@ -37,6 +37,7 @@ class Feeder:
         if tf not in ('measured', 'flat'):
             raise ValueError('tf must be measured or flat')
         self.node, self.tb6_edges = node, MEASURED_TB6 if tf == 'measured' else FLAT
+        self.docked = False
         self.slam = True
         p = node.create_publisher
         self.pubs = {'map6': p(OccupancyGrid, '/robot6/map', LATCHED),
@@ -95,7 +96,7 @@ class Feeder:
             if hasattr(msg, 'header'):
                 msg.header.stamp = self.stamp()
             if hasattr(msg, 'is_docked'):
-                msg.is_docked = False
+                msg.is_docked = self.docked
             pub.publish(msg)
 
     def slow(self):
