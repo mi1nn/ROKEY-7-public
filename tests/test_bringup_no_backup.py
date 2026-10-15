@@ -118,5 +118,18 @@ class Launches(unittest.TestCase):
         self.assertNotIn('backup', params['behavior_server']['ros__parameters']['behavior_plugins'])
 
 
+
+RUNBOOK = REPO / 'docs' / 'process' / 'field-runbook.md'
+
+
+@unittest.skipUnless(RUNBOOK.exists(), 'installed-wheel checkout has no docs/')
+class RunbookCheck(unittest.TestCase):
+    def test_the_bt_check_finds_the_trees_the_launch_uses_in_either_build(self):
+        """A --symlink-install build has no <prefix>/lib/python3*/site-packages/rescue_bringup (field 2026-10-15):
+        the check asks nav2_recovery.bt_dir(), the folder the launch hands to bt_navigator."""
+        text = RUNBOOK.read_text()
+        self.assertNotIn('site-packages/rescue_bringup/behavior_trees', text)
+        self.assertIn('from rescue_bringup.nav2_recovery import bt_dir', text)
+
 if __name__ == '__main__':
     unittest.main()
