@@ -32,6 +32,7 @@
 | `arena-map.svg` | **재범이 준 실제 경기장 평면도**(1 unit = 1 cm, 바깥 343 × 557 cm, 2026-10-15). `arena` 세계의 근거다 |
 | `arena.layout.json` | 평면도를 m 로 옮긴 배치 목록. 원점은 로봇 구역 남서쪽 모서리, x 동쪽, y 북쪽(평면도 x → x/100, 평면도 y → (557 − y)/100) |
 | `arena.sdf`, `arena.spawn.json` | 위 배치로 만든 세계와 출발 자리. 지도를 쓰지 않는다. 손으로 고치지 않는다 |
+| `sim2.sdf`, `sim2.spawn.json` | **시험 후보 world「sim2」**: TurtleBot4 시뮬레이터에 들어 있는 미로(아래 「sim2」 절). 실물이 없는 연습장 |
 
 `arena` 는 SLAM 지도 없이 평면도 배치만으로 만든다(`--layout-only`). 재범 말(2026-10-15): 평면도가 **진짜 맵**이다. SLAM 지도로 만든 `practice` 는 실제와 많이 달라 시뮬레이션의 기본 세계는 `arena` 다.
 
@@ -110,3 +111,18 @@ python3 scripts/sim/compare_maps.py --sim sim_map.yaml --real config/sim/maps/li
 
 - `drive_wall.py` 는 사람이 키보드로 하는 원격 조종을 대신한다. **로봇 자신의 라이다 스캔만 읽는다**(Gazebo 정답 위치·지도·실제 지도는 읽지 않는다). 속도 명령만 보낸다.
 - `compare_maps.py` 는 점유 칸(벽)만 비교한다. SLAM 지도는 그 SLAM 이 시작한 자리의 좌표라 시뮬레이션과 실제의 좌표가 다르므로, 시뮬레이션 벽을 실제 벽에 가장 잘 맞는 회전·이동으로 옮긴 뒤 센다. 옮긴 값을 같이 찍는다. 값은 정밀도(시뮬레이션 벽 중 실제 벽 근처인 비율), 재현율(실제 벽 중 시뮬레이션 벽 근처인 비율), 겹침(둘을 합친 일치 칸 / 전체 칸)이다. 재현율이 낮으면 시뮬레이션이 그 부분을 못 돌았다는 뜻이다. 정밀도가 낮으면 시뮬레이션 세계에 실제 지도에 없는 벽이 있다는 뜻이다.
+
+## sim2 — 시험 후보 world (미로)
+
+재범 지시(2026-10-16): 「가제보 라이브러리에 있는 것 중에서 벽도 있고 미로도 있는 장소를 가져와 sim2 라고 이름 붙여 시험 후보로」.
+
+- **원본**: `turtlebot4_simulator` 의 `turtlebot4_gz_bringup/worlds/maze.sdf` (`ros-jazzy-turtlebot4-gz-bringup`, Clearpath Robotics, Apache License 2.0). 이미 설치된 패키지에 있어 내려받을 것이 없다. 바꾼 것은 world 이름(`maze` → `sim2`, `run_sim.sh` 가 파일 이름으로 찾는다)과 머리 주석뿐이다.
+- **모양**: 20 × 20 m 바깥 벽(높이 2 m) 안에 1 m 높이 상자 36 개(1×1, 1×2, 1×3, 3×1, 1×6 m 등)로 된 미로. 통로 폭은 1 m 이상이다.
+- **고른 이유**: TurtleBot4 를 위해 만든 world 라 크기가 로봇과 맞고, 벽과 막다른 길이 있어 탐색·경계(frontier)·Nav2 를 실습장보다 넓고 복잡한 곳에서 볼 수 있다. 같은 패키지의 `depot`·`warehouse` 는 선반이 있는 창고이고 Fuel 에서 모델을 내려받아야 해서 뺐다.
+- **실습장과 다른 점**: 실물이 없다(평면도·실측과 맞출 대상이 없음). 터널·인형·QR 판이 없다. 실습장(3.43 × 5.57 m)보다 훨씬 넓어 탐색 시간이 길다.
+- **출발 자리**(`sim2.spawn.json`, [설정 2026-10-16]): TB-6 (0, 0), TB-5 (1.86, 0), 둘 다 남쪽(−90°)을 보고 도크는 각자 앞 0.157 m. 실습장의 두 로봇 배치(나란히 1.86 m, 도크 쪽을 봄)를 따랐다. 로봇은 상자에서 0.84 m 이상, 도크도 0.84 m 이상 떨어져 있다(시험 `tests/test_sim_world_sim2.py` 가 0.5 / 0.3 m 이상인지 본다).
+
+```bash
+scripts/sim/run_sim.sh --world sim2                 # 1단계: 가상 TB-6 한 대, SLAM, RViz
+RUN_SIM_GUI=0 scripts/sim/run_sim.sh --world sim2 --no-rviz
+```
