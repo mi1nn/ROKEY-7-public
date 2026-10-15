@@ -26,6 +26,7 @@ CODES = ('START_ALIGN_WAIT_MAP', 'START_ALIGN_DOCKED', 'START_ALIGN_NOT_STOPPED'
          'START_ALIGN_WAIT_AMCL', 'START_ALIGN_NO_SERVICE', 'START_ALIGN_NOT_CONVERGED',
          'START_ALIGN_JUMP_TOO_LARGE', 'START_ALIGN_LOW_MATCH')
 OCCUPIED = 65   # occupancy value counted as a wall (Nav2 map_server occupied_thresh 0.65; slam_toolbox writes 100)
+ROUNDING = 1e-9   # m^2 / rad^2: below this a variance is rounding, not a value
 COUNTS = ('max_updates', 'settle_count', 'min_match_points')
 FIELDS = ('initial_sigma_xy_m', 'initial_sigma_yaw_rad', 'update_period_s', 'max_updates', 'accept_sigma_xy_m',
           'accept_sigma_yaw_rad', 'settle_count', 'settle_xy_m', 'settle_yaw_rad', 'max_jump_xy_m',
@@ -58,8 +59,11 @@ def sigmas(covariance):
     c = list(covariance)
     if len(c) != 36 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in c):
         raise ValueError('6x6 finite covariance required')
-    vx, vy, cxy, vyaw = c[0], c[7], c[1], c[35]
-    if vx < 0 or vy < 0 or vyaw < 0 or not math.isclose(cxy, c[6], abs_tol=1e-9) or cxy * cxy > vx * vy + 1e-12:
+    if min(c[0], c[7], c[35]) < -ROUNDING:
+        raise ValueError('covariance is not a covariance')
+    # AMCL with zero spread publishes rounding just below zero (yaw -5.7e-14, E3 2026-10-15)
+    vx, vy, cxy, vyaw = max(c[0], 0.), max(c[7], 0.), c[1], max(c[35], 0.)
+    if not math.isclose(cxy, c[6], abs_tol=ROUNDING) or cxy * cxy > vx * vy + ROUNDING:
         raise ValueError('covariance is not a covariance')
     return math.sqrt((vx + vy + math.hypot(vx - vy, 2 * cxy)) / 2), math.sqrt(vyaw)
 
@@ -314,7 +318,7 @@ def main(args=None):
     def publish():
         result = core.result()
         key = (result['status'], result['reason'])
-        if said['state'] == key and result['status'] in ('WAITING', 'ALIGNING'):
+        if said['state'] == key:   # each state once (latched)
             return
         said['state'] = key
         status.publish(String(data=json.dumps(result, sort_keys=True)))
