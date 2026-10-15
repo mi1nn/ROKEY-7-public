@@ -52,7 +52,6 @@ COORDINATOR_KEYS = {
     'search_mode': S, 'patrol_points': FL, 'patrol_rounds': I, 'exit_standoff_m': F,
     # FRONTIER exploration (owner decision 2026-10-13 night, OPS-154·156)
     'frontier_min_cells': I, 'frontier_reach_m': F, 'frontier_goal_max_m': F, 'frontier_blacklist_m': F,
-    'frontier_goal_clearance_m': F,  # the frontier goal's free radius, at least freeze_clearance_m (2026-10-15)
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,
@@ -284,8 +283,6 @@ def load_field(path):
                 'traffic_path_clearance_m', 'traffic_yield_max_m', 'traffic_stop_timeout_s'):
         if coordinator[key] <= 0:
             raise FieldLaunchError(f'coordinator.{key} must be positive')
-    if coordinator['frontier_goal_clearance_m'] < coordinator['freeze_clearance_m']:
-        raise FieldLaunchError('coordinator.frontier_goal_clearance_m must be at least freeze_clearance_m')
     if coordinator['support_exit_wait_s'] < 0:
         raise FieldLaunchError('coordinator.support_exit_wait_s must be zero or positive')
     if coordinator['target_max_future_s'] < 0:

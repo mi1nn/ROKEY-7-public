@@ -37,8 +37,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts.grid_search import (clear_mask, find_frontiers, grid_path, nearest_clear_outside, nearest_in_mask,
-                                         path_lengths)
+from rescue_contracts.grid_search import clear_mask, find_frontiers, grid_path, nearest_clear_outside, path_lengths
 from rescue_contracts.occupancy import compose_planar, parse_frozen_revision, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
@@ -329,8 +328,7 @@ class CoordinatorCore:
                  support_exit_wait_ns, recheck_max_clock_error_ns, map_mode, freeze_clearance_m,
                  map_freeze_timeout_ns, search_start, search_mode, patrol_points,
                  patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
-                 frontier_goal_clearance_m, frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks,
-                 exploration_timeout_ns,
+                 frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
                  completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
                  traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, new_id=None):
         if not isinstance(mission, MissionCoordinator):
@@ -428,16 +426,12 @@ class CoordinatorCore:
             finite(value, name)
             if value <= 0:
                 raise CoordinationError('INVALID_POLICY', f'{name} must be positive')
-        finite(frontier_goal_clearance_m, 'frontier_goal_clearance_m')
-        if frontier_goal_clearance_m < freeze_clearance_m:
-            raise CoordinationError('INVALID_POLICY', 'frontier_goal_clearance_m must be at least freeze_clearance_m')
         contract_value(duration_ns, frontier_issue_delay_ns)
         contract_value(duration_ns, exploration_timeout_ns)
         if exploration_timeout_ns <= 0:
             raise CoordinationError('INVALID_POLICY', 'exploration_timeout must be positive')
         self.frontier_min_cells, self.frontier_reach_m = frontier_min_cells, frontier_reach_m
         self.frontier_goal_max_m, self.frontier_blacklist_m = frontier_goal_max_m, frontier_blacklist_m
-        self.frontier_goal_clearance_m = frontier_goal_clearance_m  # >= freeze_clearance_m; the goal only
         self.frontier_issue_delay_ns, self.exploration_empty_checks = frontier_issue_delay_ns, exploration_empty_checks
         self.exploration_timeout_ns = exploration_timeout_ns
         self.scout_grid, self.scout_grid_seq = None, 0  # TB-6 live SLAM grid (``fields``), counted per update
@@ -765,7 +759,6 @@ class CoordinatorCore:
         chosen = candidates[reachable[0][1]]
         path = grid_path(**fields, radius=radius, start=start, goal=chosen.goal, mask=mask)
         x, y, yaw = _along(path.points, self.frontier_goal_max_m)
-        x, y = self._roomy_goal(fields, mask, start, (x, y))
         session, rev, transform = self.scout_basis()
         site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/{self.frontier_count}'))
         self.frontier_count += 1
@@ -776,27 +769,6 @@ class CoordinatorCore:
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
                           f'path_m={path.length_m:.2f} start_moved_m={path.start_moved_m:.2f} '
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
-
-    def _roomy_goal(self, fields, mask, start, xy):
-        """The goal moved off walls (시뮬레이션 2026-10-15: a goal ``freeze_clearance_m`` from the wall is a high-cost
-        Nav2 cell and RPP stopped short). The path keeps ``freeze_clearance_m`` so a narrow way stays reachable; only
-        the goal goes to the nearest cell ``frontier_goal_clearance_m`` clear, at most the difference (plus a cell
-        diagonal) away and reachable. None there (a narrow way): the goal stays and the log says so."""
-        room, radius = self.frontier_goal_clearance_m, self.freeze_clearance_m
-        if room <= radius:
-            return xy
-        roomy = clear_mask(**fields, radius=room)
-        near = nearest_in_mask(**fields, mask=roomy, point=xy,
-                               within_m=room - radius + fields['resolution'] * math.sqrt(2))
-        if near == xy:
-            return xy
-        if near is None or grid_path(**fields, radius=radius, start=start, goal=near, mask=mask) is None:
-            self.notes.append(f'FRONTIER_GOAL_TIGHT ({xy[0]:.2f}, {xy[1]:.2f}): no cell {room} m clear near it, '
-                              f'kept at {radius} m')
-            return xy
-        self.notes.append(f'FRONTIER_GOAL_MOVED ({xy[0]:.2f}, {xy[1]:.2f}) -> ({near[0]:.2f}, {near[1]:.2f}) '
-                          f'for {room} m clear')
-        return near
 
     def _frontier_done(self):
         """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS): it is not picked
@@ -2429,7 +2401,6 @@ def build_core(values):
                            frontier_min_cells=values['frontier_min_cells'],
                            frontier_reach_m=values['frontier_reach_m'],
                            frontier_goal_max_m=values['frontier_goal_max_m'],
-                           frontier_goal_clearance_m=values['frontier_goal_clearance_m'],
                            frontier_blacklist_m=values['frontier_blacklist_m'],
                            frontier_issue_delay_ns=seconds_to_ns(str(values['frontier_issue_delay_s'])),
                            exploration_empty_checks=values['exploration_empty_checks'],
@@ -2515,8 +2486,6 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # path, no second try within this of a tried frontier, wait for ~/task_inputs to be read, map updates in a
     # row with nothing to pick before EXPLORATION_COMPLETE, and the exploration time limit (OPS-156 ①).
     'frontier_min_cells': 'INTEGER', 'frontier_reach_m': 'DOUBLE', 'frontier_goal_max_m': 'DOUBLE',
-    # the frontier goal's free radius (>= freeze_clearance_m; the path keeps freeze_clearance_m, 2026-10-15)
-    'frontier_goal_clearance_m': 'DOUBLE',
     'frontier_blacklist_m': 'DOUBLE', 'frontier_issue_delay_s': 'DOUBLE', 'exploration_empty_checks': 'INTEGER',
     'exploration_timeout_s': 'DOUBLE',
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK (C-11).
