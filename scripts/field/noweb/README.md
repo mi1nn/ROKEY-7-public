@@ -7,6 +7,7 @@
 | `operator_command.py` | 관제 웹 버튼 대신 운영 API 로 운영자 명령과 초기화를 보낸다 | 운영 PC |
 | `status_watch.py` | 관제 웹 카드 대신 운영 DB 를 읽어 1초마다 상태 한 줄을 쓴다 | 운영 PC |
 | `two_robots.rviz` | 두 로봇의 지도, 경로, 위치를 보는 RViz 화면 | RViz 를 띄울 PC |
+| `tf_merge.py` | 두 로봇의 TF 와 라이다를 프레임에 이름공간을 붙여 `/tf` 하나로 합친다. `two_robots.rviz` 가 두 로봇을 같이 그리게 한다 | RViz 를 띄울 PC |
 | `target_markers.py` | 인형(대상)과 출구 QR 위치를 RViz 가 그릴 수 있는 표시(MarkerArray)로 바꿔 낸다 | RViz 를 띄울 PC |
 
 네 도구 모두 로봇을 움직이지 않는다. 앞의 두 도구는 표준 라이브러리와 이 저장소의 `rescue_operations` 만 쓰고 ROS 가 필요 없다. `target_markers.py` 는 ROS 와 이 저장소의 `rescue_interfaces` 가 필요하다. PC 이름과 주소는 인자로 받는다.
@@ -36,15 +37,23 @@ python3 scripts/field/noweb/status_watch.py --db <site_state.sqlite3> --log <sta
 - 고정 지도 단계는 운영 launch 에 `map_topic`·`map_dir` 를 주었을 때만 보인다. 주지 않았으면 「지도 보관 꺼짐 — 고정 여부 모름」이 찍힌다.
 - Nav2 상태는 운영 DB 에 없다. 로봇 담당 PC 로그에서 본다.
 
-## `two_robots.rviz`
+## `two_robots.rviz` 와 `tf_merge.py`
+
+두 터미널에서 띄운다. 둘 다 1단계 「터미널 준비」(Discovery 설정)를 먼저 넣는다. 시뮬레이션도 같은 파일을 쓴다.
 
 ```bash
-rviz2 -d scripts/field/noweb/two_robots.rviz --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static
+python3 scripts/field/noweb/tf_merge.py --robots robot6 robot5
+rviz2 -d scripts/field/noweb/two_robots.rviz
 ```
 
-- 고정 프레임은 `map` 이다. TB-6 SLAM 지도(`/robot6/map` 과 갱신), 고정 지도(`/rescue/map/frozen`), TB-6 모델, TB-6 라이다, TB-6 경로, TB-5 AMCL 자세, TB-5 경로, 인형과 출구 표시(`target_markers.py` 를 띄웠을 때)를 그린다.
+- **두 로봇을 한 창에 그린다(재범 「제일 중요」, 2026-10-16).** 두 로봇은 TF 를 각자 `/robot6/tf`·`/robot5/tf` 에 같은 프레임 이름(`odom`, `base_link` …)으로 낸다. `tf_merge.py` 가 로봇 프레임마다 이름공간을 앞에 붙인다(`robot6/odom`, `robot5/base_link`). 공유 프레임 `map` 과 이미 접두가 있는 프레임은 그대로 둔다. 그렇게 `/tf`·`/tf_static` 하나로 합친다.
+- 라이다는 `/rviz/<ns>/scan` 으로 프레임 이름만 바꿔 다시 낸다. 로봇 모델은 RViz `TF Prefix` 로 맞춘다.
+- `tf_merge.py` 는 RViz 를 띄우는 PC 에서만 돌린다. `/tf` 를 읽는 다른 노드 옆에서 돌리지 않는다. 우리 노드는 모두 `<ns>/tf` 를 읽는다.
+- 고정 프레임은 `map` 이다. 그리는 것은 다음과 같다.
+  - TB-6 SLAM 지도(`/robot6/map` 과 갱신), 고정 지도(`/rescue/map/frozen`)
+  - 두 로봇의 모델·라이다·경로, TB-5 AMCL 자세
+  - 인형과 출구 표시(`target_markers.py` 를 띄웠을 때)
 - 카메라와 목표 지정 도구는 넣지 않았다. 이 화면에서는 아무것도 발행하지 않는다.
-- **RViz 하나는 TF 를 하나만 읽는다.** 위 명령은 TB-6 의 TF 를 읽으므로 TB-5 의 모델과 라이다는 그리지 못한다. TB-5 는 AMCL 자세 화살표와 경로로만 보인다.
 - **1차 고정 전에는 TB-5 가 안 보이는 것이 정상이다.** TB-5 는 고정 지도를 받아야 위치 추정을 시작한다.
 - 저장소에서는 파일 문법(YAML, 토픽 이름)만 시험한다(`tests/test_field_noweb_rviz.py`). 실제 화면은 실기에서 아직 보지 않았다(NOT_RUN).
 

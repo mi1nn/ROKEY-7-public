@@ -8,7 +8,7 @@ and published together (/tf_static keeps only the last message per publisher). E
 /rviz/<ns>/scan with its frame prefixed the same way, so RViz can place it. The field (no-web track) and the
 simulation use the same file.
 
-The tests marked expectedFailure fail before tf_merge.py exists.
+Before tf_merge.py existed these tests were expectedFailure.
 """
 import importlib.util
 import unittest
@@ -34,7 +34,6 @@ def transform(parent, child):
 
 
 class Frames(unittest.TestCase):
-    @unittest.expectedFailure
     def test_prefix_rules(self):
         m = load()
         self.assertEqual('robot6/odom', m.prefixed('odom', 'robot6', shared=('map',)))
@@ -42,7 +41,6 @@ class Frames(unittest.TestCase):
         self.assertEqual('map', m.prefixed('map', 'robot6', shared=('map',)))
         self.assertEqual('robot5/base_link', m.prefixed('robot5/base_link', 'robot5', shared=('map',)))
 
-    @unittest.expectedFailure
     def test_a_robots_transforms_are_renamed_without_touching_the_input(self):
         m = load()
         message = NS(transforms=[transform('map', 'odom'), transform('odom', 'base_link')])
@@ -52,7 +50,6 @@ class Frames(unittest.TestCase):
         self.assertEqual('odom', message.transforms[0].child_frame_id)
         self.assertEqual(1.0, out[0].transform.translation.x)
 
-    @unittest.expectedFailure
     def test_statics_of_both_robots_are_kept_together(self):
         m = load()
         statics = m.StaticSet()
@@ -64,7 +61,6 @@ class Frames(unittest.TestCase):
 
 
 class Launchable(unittest.TestCase):
-    @unittest.expectedFailure
     def test_the_tool_is_there_with_its_topics(self):
         text = TOOL.read_text(encoding='utf-8')
         for needle in ("'/tf'", "'/tf_static'", "'/rviz/' + ns + '/scan'", "'/' + ns + '/tf'", "'/' + ns + '/scan'"):

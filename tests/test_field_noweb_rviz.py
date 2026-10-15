@@ -17,8 +17,9 @@ if not (NOWEB / 'operator_command.py').is_file():
     raise unittest.SkipTest('scripts/field/noweb/ absent (installed-wheel checkout)')
 RVIZ = NOWEB / 'two_robots.rviz'
 TOPICS = {'/robot6/map', '/robot6/map_updates', coordinator.FROZEN_MAP_TOPIC, '/robot6/robot_description',
-          '/robot6/scan', '/robot6/plan', '/robot5/amcl_pose', '/robot5/plan',
-          '/rescue/noweb/markers'}   # target_markers.py: targets and QR exits (OPS, 2026-10-15)
+          '/rviz/robot6/scan', '/robot6/plan', '/robot5/robot_description', '/rviz/robot5/scan',
+          '/robot5/amcl_pose', '/robot5/plan',
+          '/rescue/noweb/markers'}   # target_markers.py: targets and QR exits (OPS, 2026-10-15); scans via tf_merge.py
 
 
 def displays(text):
@@ -56,7 +57,6 @@ class RvizTests(unittest.TestCase):
     def test_fixed_frame_is_map(self):
         self.assertRegex(self.text, r'\n    Fixed Frame: map\n')
 
-    @unittest.expectedFailure
     def test_both_robots_are_drawn_from_the_merged_tf(self):
         """tf_merge.py: one /tf for both robots; models with their TF prefix, scans from /rviz/<ns>/scan."""
         shown = {topic for _, topics in displays(self.text) for topic, _ in topics.values()}
