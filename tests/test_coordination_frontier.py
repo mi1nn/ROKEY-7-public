@@ -409,13 +409,41 @@ class TightGapTests(unittest.TestCase):
         self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
         self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
 
-    def test_only_tight_frontiers_send_nothing_and_say_tight(self):
+    def test_only_tight_frontiers_send_the_old_goal_once_then_say_tight(self):
+        # 12회차 C20 (작전 decision 2026-10-16): with no frontier left that has a roomy goal, a tight one gets its
+        # 0.2 m clear goal once (the gap mouth 8회차 went through); failed, it is left out as before
         grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
         core = self.core_with(grid, (0.4, 0.4))
+        (point,) = live_task_inputs.destinations(core).values()
+        self.assertGreater(point['xy_yaw'][0], 1.4)  # the frontier's own goal cell, within reach of x = 2.5
+        self.assertIn('FRONTIER_GOAL_TIGHT_ONCE', ' '.join(core.drain_notes()))
+        now = NOW + DELAY
+        core.on_status(status_msg(SCOUT, observed_at_ns=now - 10**8))
+        core.on_pose(scout_pose((0.4, 0.4), at=now))
+        (fields,) = [f for f in core.tick(now) if f['kind'] == 'SEARCH_AREA']
+        core.on_admission(admission_msg(fields))
+        core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason='ACTION_ABORTED'))
+        core.on_scout_map(grid)
+        core.tick(now + 1)
         self.assertEqual({}, live_task_inputs.destinations(core))
         line = [n for n in core.drain_notes() if n.startswith('FRONTIER none')][-1]
         self.assertIn('tight=1', line)
         self.assertIn('TIGHT cells=', line)
+
+    def test_a_tight_frontier_far_down_a_corridor_goes_to_the_last_roomy_point_first(self):
+        # a 2 m x 2 m room, then a 0.65 m corridor 2.5 m east to the unknown: no roomy cell within reach of the
+        # frontier, the corridor mouth is the last one on the way (12회차 C20 ①); reached, it is a step, not a try
+        def cell(x, y):
+            if x < 0.1 or y < 0.1 or y > 2.0 or x > 5.0 or (x > 2.0 and not 0.7 < y < 1.35):
+                return 100
+            return -1 if x > 4.5 else 0
+        grid = fine_grid(5.0, 2.1, cell)
+        core = self.core_with(grid, (0.6, 1.0))
+        xy = self.site(core)
+        self.assertLess(abs(xy[0] - 2.0), 0.5)  # at the corridor mouth, short of the tight part
+        self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+        self.assertIn('FRONTIER_GOAL_TIGHT_ON_PATH', ' '.join(core.drain_notes()))
+        self.assertTrue(core.frontier['cut'])
 
     def test_a_place_that_failed_twice_is_given_up_for_every_frontier(self):
         grid = self.gap_room('SN')
@@ -776,3 +804,30 @@ class ParameterTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+RUN12 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run052901/maps'
+
+
+@unittest.skipUnless((RUN12 / '053229-frozen-r1-5b5517587bd2.yaml').exists(),
+                     'installed-wheel checkout has no docs/evidence (or the 12회차 evidence is not merged yet)')
+class Run12TightTests(unittest.TestCase):
+    """12회차 (2026-10-16, build d01431b): after the first frontier (88 cells) TB-6 stood at (-0.96, 1.97); the map
+    then (frozen r1 at the exploration end, the same as map update 109) had one frontier left, 43 cells at
+    (-2.72, 2.24) past the gap, TIGHT (no 0.35 m clear cell within 1.0 m), and three such updates ended the exploration
+    with frontiers_sent=1. Field values."""
+
+    def test_the_frontier_past_the_gap_still_gets_a_goal(self):
+        core = frontier_core(frontier_goal_clearance_m=GOAL_CLEARANCE, frontier_min_cells=10, frontier_goal_max_m=1.5,
+                             exploration_empty_checks=3)
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(saved_map('053229-frozen-r1-5b5517587bd2', RUN12))
+        core.on_pose(scout_pose((-0.96, 1.97)))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        notes = core.drain_notes()
+        self.assertEqual(1, len(live_task_inputs.destinations(core)), notes)
+        self.assertTrue(any(n.startswith('FRONTIER_GOAL_TIGHT_') for n in notes), notes)
+
