@@ -27,6 +27,7 @@ from test_bringup_no_backup import REPO, vendor_params
 from test_robot_r2_same_map import RclpyLogger
 
 LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'robot.launch.py'
+NAV2_START = REPO / 'src' / 'rescue_bringup' / 'rescue_bringup' / 'nav2_start.py'
 NAV2_DEFAULT_TRANSFORM_TIMEOUT_S = 60.0   # nav2_costmap_2d jazzy: declare_parameter("initial_transform_timeout", 60.0)
 
 
@@ -142,8 +143,10 @@ class StartupLine(unittest.TestCase):
         line = startup_line({'manage_service': '/robot5/lifecycle_manager_navigation/manage_nodes'}, 'abc123')
         self.assertTrue(line.startswith('git_sha=abc123 parameters='), line)
         self.assertIn('/robot5/lifecycle_manager_navigation/manage_nodes', line)
-        self.assertIn('log.info(startup_line(values, git_sha()))',
-                      (REPO / 'src' / 'rescue_bringup' / 'rescue_bringup' / 'nav2_start.py').read_text())
+
+    @unittest.skipUnless(NAV2_START.exists(), 'installed-wheel checkout has no src/')
+    def test_main_logs_the_startup_line(self):
+        self.assertIn('log.info(startup_line(values, git_sha()))', NAV2_START.read_text())
 
 
 class FailedStartupIsNotReady(unittest.TestCase):
