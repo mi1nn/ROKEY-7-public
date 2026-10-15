@@ -25,6 +25,11 @@ updated: 2026-10-15
 - 로봇은 한 번에 한 사람만 움직인다. 이 문서에서는 그 사람을 「로봇 감독」이라 부른다. 언도킹·도킹·이동 전후에 팀에 알린다([작업 규칙](../../AGENTS.md) 6절).
 - PC 는 역할 이름으로 부른다. 운영 PC(`operations` + `coordination`), TB-6 담당 PC(`compute_a`), TB-5 담당 PC(`compute_b`)다. 로봇은 TB-6(`robot_a`, `/robot6`), TB-5(`robot_b`, `/robot5`)다([용어집](../glossary.md)).
 - 조정기는 로봇 launch 를 띄운 PC 와 **다른 PC** 에서 띄운다. 같은 PC 면 실행기가 거절한다(`LIVE_ROS expects two distinct PCs`).
+- **로봇 담당 PC 한 대로 두 로봇을 맡아도 된다**(재범 결정 2026-10-15). TB-6 담당 PC 와 TB-5 담당 PC 가 같은 PC 이면 4단계와 5단계를 그 PC 의 **다른 터미널**에서 띄운다. 조건은 셋이다.
+  1. 조정기(운영 PC)는 그 PC 가 아니어야 한다. 실행기는 조정기 시계의 `/etc/machine-id` 가 자기와 같으면 거절한다(`live_clock.py`, `clock_measurement.py`).
+  2. 배포 프로파일의 `compute_a` 와 `compute_b` 는 그대로 둔다(역할 이름이고 PC 이름이 아니다). 두 역할의 `network` 값은 그 PC 의 Discovery 설정과 같아야 한다. 1단계 준비 점검은 역할마다 한 번씩(`--role compute_a`, `--role compute_b`) 돌린다.
+  3. 두 로봇의 노드는 모두 네임스페이스(`/robot6`, `/robot5`) 아래에 있어 이름이 겹치지 않는다. 겹침은 6단계 배선 점검이 잡는다(같은 노드 이름 두 개 = FAILED).
+  - 한 PC 에 SLAM, Nav2 두 벌, 깊이 점 두 벌이 함께 돈다. CPU·메모리와 Wi-Fi 수신량은 아직 재지 않았다 [미확인]. 회차 중 `top` 으로 한 번 기록한다.
 - 값은 현장 파일 [`config/field/search_area.field.json`](../../config/field/search_area.field.json) 과 배포 프로파일 v2.1(저장소 밖, `map_basis`·`home_positions` 포함)에 있다. 이 문서는 값을 다시 적지 않는다.
 - 임무 흐름은 [scope 「지금 시나리오」](../requirements/scope.md), 노드 설명은 [로봇](../implementation/implementation-robot.md)·[지도](../implementation/implementation-mapping.md)·[통합](../implementation/implementation-integration.md) 구현 기록에 있다.
 
