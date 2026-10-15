@@ -198,6 +198,45 @@ class RobotNotStartedTests(Base):
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
 
 
+class FrontierRetryTests(Base):
+    """A frontier Nav2 took and that then failed is picked again once: it is tried only after its second failure
+    (재범 decision 2026-10-16, C9: the one way into the main zone failed once and the exploration ended). Untried
+    frontiers go first. An exploration that ends with such frontiers left says so (EXPLORATION_FRONTIERS_FAILED)
+    instead of a plain EXPLORATION_COMPLETE."""
+
+    def attempt(self, now):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(at=now))
+        self.searches(now)
+        self.core.on_pose(scout_pose(at=now + DELAY))
+        (fields,) = self.searches(now + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        return fields
+
+    def test_the_only_frontier_is_picked_again_after_one_failure(self):
+        first = self.attempt(NOW)
+        self.assertEqual([], self.core.frontier_tried)
+        self.assertIn('FRONTIER_RETRY', ' '.join(self.core.drain_notes()))
+        second = self.attempt(NOW + 3 * DELAY)
+        self.assertNotEqual(first['search_area_ref'], second['search_area_ref'])  # a new site, same frontier
+
+    def test_after_the_second_failure_it_is_tried_and_the_end_says_so(self):
+        self.attempt(NOW)
+        self.attempt(NOW + 3 * DELAY)
+        self.assertEqual(2, len(self.core.frontier_tried))
+        for k in range(2):  # exploration_empty_checks = 2
+            self.core.on_scout_map(grid())
+            self.core.on_pose(scout_pose(at=NOW + 6 * DELAY + k))
+            self.assertEqual([], self.searches(NOW + 6 * DELAY + k))
+        self.assertTrue(self.core.exploration_complete)
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.reason(NOW + 6 * DELAY + 2))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('EXPLORATION_COMPLETE reason=EXPLORATION_FRONTIERS_FAILED', notes)
+        self.assertIn('failed_frontiers=1', notes)
+
+
 class WaitingForArmTests(Base):
     """After a FAILED task the executor does not arm again by itself (OPS-231: only after COMPLETED), so RobotStatus
     is NOT_READY until someone runs task_arm. The next frontier then waits; the reason and the log say why
