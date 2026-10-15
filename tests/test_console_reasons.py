@@ -84,8 +84,8 @@ class ReasonWordTests(unittest.TestCase):
         cases = {
             'SEARCH_GOAL_NOT_SELECTED': ('TB-6 수색 목표 선택 대기', 'caution', None),
             'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음', 'info', None),
-            'DISASTER_DECLARED_BY_OPERATOR': ('운영자 재난 선포로 재난 모드', 'info', None),
-            'ALREADY_DISASTER': ('재난 선포 거절 — 이미 재난 모드', 'info', None),
+            'DISASTER_DECLARED_BY_OPERATOR': ('운영자 선포 — 지진 감지가 아니라 재난 선포 버튼으로 재난 모드', 'info', None),
+            'ALREADY_DISASTER': ('이미 재난 모드입니다 — 재난 선포 거절', 'info', None),
             'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — TB-5 출동 대기', 'info', None),
         }
         for code, (text, level, scope) in cases.items():

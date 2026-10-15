@@ -318,7 +318,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 
 | 칸 | grid-area | 넓은 화면에서의 위치 | 내용 |
 | --- | --- | --- | --- |
-| 임무 배너 `#mission` | band | 1행, 왼쪽 두 열 | 모드 표시 문구(큰 글씨, 모드 설명은 2026-10-15 부터 화면에서 숨기고 띠의 title 로), 사실 줄(재난 감지 시각·경과 시간·진동 감지 횟수·임무 단계·이동 구간·상태 사유), 모드 설명, 오른쪽 끝의 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
+| 임무 배너 `#mission` | band | 1행, 왼쪽 두 열 | 모드 표시 문구(큰 글씨, 모드 설명은 2026-10-15 부터 화면에서 숨기고 띠의 title 로), 사실 줄(재난 감지 시각·경과 시간·재난 출처·진동 감지 횟수·임무 단계·이동 구간·상태 사유), 모드 설명, 오른쪽 끝의 「서버 집계 HH:MM:SS.mmm」. 재난이면 빨간 바탕 |
 | 위쪽 막대 `#topbar` | top | 1행, 오른쪽 열 | 갱신 상태, KPI-04 요약·저장, 사용자 |
 | 확인할 것 `#warnings` | warn | 2행, 왼쪽 두 열 | 경고가 없으면 숨긴다. 「확인 필요 {n}건」 뒤에 경고들을 「／」로 이어 한 줄로 표시 |
 | 옆 칸 `#side` | side | 2 ~ 4행, 오른쪽 열 | 위에 웹캠, 가운데에 로봇 카메라, 아래에 명령 칸 |
@@ -497,8 +497,8 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | NO_HOME_POSITION | 복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함 | caution |
 | SEARCH_GOAL_NOT_SELECTED | {C} 수색 목표 선택 대기 | caution |
 | AUTO_SEARCH_ENABLED | 자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음 | info |
-| DISASTER_DECLARED_BY_OPERATOR | 운영자 재난 선포로 재난 모드 | info |
-| ALREADY_DISASTER | 재난 선포 거절 — 이미 재난 모드 | info |
+| DISASTER_DECLARED_BY_OPERATOR | 운영자 선포 — 지진 감지가 아니라 재난 선포 버튼으로 재난 모드 | info |
+| ALREADY_DISASTER | 이미 재난 모드입니다 — 재난 선포 거절 | info |
 | MAP_FREEZE_WAITING_EXIT | 출구 QR 찾는 중 — {S} 출동 대기 | info |
 | TARGET_REBASED_ON_FREEZE | 대상 위치를 고정 지도로 옮김 — 보고 저장 대기 | info |
 | EXIT_NOT_ON_FROZEN_MAP | 출구(QR) 위치가 고정 지도 기준에 없음 — {S} 출동·출구 이동 보류 | caution |

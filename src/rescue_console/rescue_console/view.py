@@ -405,8 +405,8 @@ MISSION_REASONS = {
     'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
     'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음', 'info'),
     # 운영자 재난 선포(DECLARE_DISASTER, #330). 거절 답은 TASK_BUSY 이고 이 사유는 명령 기록·임무 띠에 실린다.
-    'DISASTER_DECLARED_BY_OPERATOR': ('운영자 재난 선포로 재난 모드', 'info'),
-    'ALREADY_DISASTER': ('재난 선포 거절 — 이미 재난 모드', 'info'),
+    'DISASTER_DECLARED_BY_OPERATOR': ('운영자 선포 — 지진 감지가 아니라 재난 선포 버튼으로 재난 모드', 'info'),
+    'ALREADY_DISASTER': ('이미 재난 모드입니다 — 재난 선포 거절', 'info'),
     'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
     # #234 (OPS-147): QR 출구는 TB-5 출동과 출구 이동을 막고, 출발 자세는 순찰과 TB-6 복귀를 막는다.
     'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info'),
@@ -489,7 +489,24 @@ def mission_reason(code, support_name, scout_name):
     return {'code': code, 'text': text, 'level': level, 'scope': scope}
 
 
-def _mission(site_events, row):
+CAUSE_WORDS = {'SIGN': '지진 감지', 'OPERATOR': '운영자 선포', 'UNKNOWN': '출처 모름'}
+
+
+def mission_cause(trigger_event_id, site_events, commands):
+    """재난 모드를 연 것(작전 2026-10-15). trigger_event_id 와 같은 command_id 의 DECLARE_DISASTER 명령이
+    접수됐으면 OPERATOR, 같은 event_id 의 DISASTER_SIGN 사건이 있으면 SIGN, 둘 다 아니면 UNKNOWN 이다.
+    SystemState 의 reason(DISASTER_DECLARED_BY_OPERATOR)은 다른 사유가 있으면 실리지 않아 쓰지 않는다."""
+    if trigger_event_id is None:
+        return None
+    if any(c['command_id'] == trigger_event_id and c['kind'] == 'DECLARE_DISASTER' and c['accepted'] is True
+           for c in commands):
+        return 'OPERATOR'
+    if any(e.event_id == trigger_event_id and e.kind == 'DISASTER_SIGN' for e in site_events or ()):
+        return 'SIGN'
+    return 'UNKNOWN'
+
+
+def _mission(site_events, row, commands=()):
     """임무 배지 데이터 모델 구성. mission_state 레코드(operations가 SystemState를 기록함, #111)가 있으면
     해당 레코드를 적용한다. 최초 레코드 수신 전에는 DISASTER_SIGN 이벤트로 모드를 추정하고 출처(`source`)를 명시한다.
     둘 다 없으면 미수신 상태(None)를 반환한다."""
@@ -498,16 +515,18 @@ def _mission(site_events, row):
     base = {'sign_count': len(signs), 'phase': None, 'reason': None, 'dispatch': None, 'updated_at_ns': None}
     if row is not None:
         dispatch = None if row['target_id'] is None else {key: row[key] for key in DISPATCH_KEYS}
+        cause = mission_cause(row['trigger_event_id'], site_events, commands)
         return base | {'mode': row['mode'], 'label': label('mode', row['mode']), 'source': 'mission_state',
-                       'trigger_event_id': row['trigger_event_id'], 'trigger_ns': row['started_at_ns'],
+                       'trigger_event_id': row['trigger_event_id'], 'trigger_ns': row['started_at_ns'], 'cause': cause,
                        'phase': row['phase'], 'reason': row['reason'], 'dispatch': dispatch,
                        'updated_at_ns': row['updated_at_ns']}
     if site_events is None:
-        return base | {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None, 'trigger_ns': None}
+        return base | {'mode': None, 'label': '모름', 'source': None, 'trigger_event_id': None, 'trigger_ns': None,
+                       'cause': None}
     mode = 'DISASTER' if signs else 'NORMAL'
     return base | {'mode': mode, 'label': MODES[mode], 'source': 'site_events',
                    'trigger_event_id': signs[0].event_id if signs else None,
-                   'trigger_ns': signs[0].observed_at_ns if signs else None}
+                   'trigger_ns': signs[0].observed_at_ns if signs else None, 'cause': 'SIGN' if signs else None}
 
 
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')   # --support-dispatch: 조정기와 공유하는 현장 운영 정책
@@ -797,7 +816,9 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     for row in targets:
         stage_counts[row['stage']] += 1
     events, event_total = _events(ledger, site_events)
-    mission = _mission(None if site_section is None else site_events, mission_row)
+    seen_commands = [row for key in ('operator_commands', 'trigger_commands')
+                     for row in (_section(status, key, 'commands') or {'commands': []})['commands']]
+    mission = _mission(None if site_section is None else site_events, mission_row, seen_commands)
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
     _apply_watch(robots, robot_watch, built_at_ns, warnings)
     for row in robots:

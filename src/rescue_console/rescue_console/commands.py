@@ -34,6 +34,8 @@ COMMAND_FIELDS = {
 # 재난 선포: 평시에 운영자가 재난 모드로 넣는다. 조정기는 COMMAND_FIELDS 와 따로 둔다
 # (rescue_coordination.mission.MODE_COMMAND_FIELDS, 작전 2026-10-15). 이미 재난이면 TASK_BUSY(사유 ALREADY_DISASTER)로 거절한다.
 MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
+# 명령별 거절 풀이. 재난 선포의 TASK_BUSY 는 이미 재난 모드라는 뜻 하나뿐이다(작전 2026-10-15, #330).
+KIND_REPLY_WORDS = {('DECLARE_DISASTER', 'TASK_BUSY'): '이미 재난 모드입니다'}
 SENDABLE = tuple(COMMAND_FIELDS)   # 재난 모드에서 켜지는 명령. 재난 선포는 MODE_COMMAND_FIELDS 에 따로 둔다
 _ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS
 # revision 및 segment 값은 운영자가 화면에서 확인한 당시 기준값이다. 따라서 승인 직후 변경된 대상이나 경로에
@@ -179,7 +181,8 @@ def send_command(base_url, payload, *, transport=post_json, timeout=COMMAND_TIME
         reply = read_reply(*transport(base_url + COMMAND_PATH, payload, timeout))
     except CommandSendError as exc:
         return {'sent': False, **head, 'error': exc.code, 'message': exc.message, 'delivery': exc.delivery}
-    return {'sent': True, **head, **reply, 'reason_label': label('reply', reply['reason'])}
+    words = KIND_REPLY_WORDS.get((payload['kind'], reply['reason'])) or label('reply', reply['reason'])
+    return {'sent': True, **head, **reply, 'reason_label': words}
 
 
 WEBCAM_LIST_TIMEOUT_S = 1.0   # 화면을 그릴 때 한 번 묻는다: 오래 막지 않는다
