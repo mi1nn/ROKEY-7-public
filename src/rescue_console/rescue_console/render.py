@@ -643,12 +643,14 @@ button{font-family:inherit}
 .band .mode-word{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:800;padding:8px 18px;border-radius:var(--pill);
   background:var(--pending-tint);color:var(--ink-2)}
 .band .mode-word::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
-.band .facts{display:flex;flex-wrap:wrap;gap:8px 40px}
+/* 값들은 띠 폭 전체에 고르게(왼쪽에 몰리고 오른쪽이 비지 않게) */
+.band .facts{flex:1 1 auto;display:flex;flex-wrap:wrap;justify-content:space-around;gap:8px 32px}
 .band dt{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:2px}
 .band dd{margin:0;font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.25;white-space:nowrap}
 .band .mode-note{display:none}   /* 모드 출처 설명은 띠에 마우스를 올리면(title) */
 /* 서버 기준 시각은 다른 값처럼 「작은 라벨 + 큰 값」으로 사실 줄 바로 뒤에 둔다(오른쪽 끝으로 밀지 않는다). */
-#built{display:flex;flex-direction:column;font-size:12.5px;font-weight:500;color:var(--ink-3);line-height:1.25}
+#built{display:flex;flex-direction:column;font-size:12.5px;font-weight:500;color:var(--ink-3);line-height:1.25;padding:0 10px 0 22px;
+  border-left:1px solid var(--line)}
 #built>span{display:block;margin-top:2px;font-size:21px;font-weight:700;letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
 .band.normal .mode-word{background:var(--safe-tint);color:var(--safe)}
 .band.disaster{background:linear-gradient(90deg,#fff1f1,#fff 70%);box-shadow:var(--shadow),inset 0 0 0 1px #ffd5d6}
@@ -665,7 +667,11 @@ button{font-family:inherit}
 #poll::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--safe);box-shadow:0 0 0 4px var(--safe-tint)}
 #poll.lost{color:var(--signal)} #poll.lost::before{background:var(--signal);box-shadow:0 0 0 4px var(--signal-tint)}
 #poll.wait::before{background:var(--pending);box-shadow:none}
-#topbar .kpi{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+/* KPI-04 요약 문구는 화면에서 숨긴다(스크립트는 계속 계산하고 「지연 기록 저장」으로 받는다, 2026-10-15 사용자 요청).
+   둘째 줄은 보조 버튼 둘을 오른쪽 정렬로 둔다. */
+#topbar .kpi{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+#kpi{display:none}
+#show-history+.history-toggle{order:-1}
 #kpi.ok{color:var(--safe)} #kpi.over{color:var(--signal);font-weight:600}
 .mini{font:inherit;font-size:12.5px;font-weight:600;padding:4px 12px;border:0;background:var(--raise);color:var(--ink-2);
   border-radius:var(--pill);cursor:pointer;transition:background-color .15s}
