@@ -73,6 +73,9 @@ COMMAND_ROLES = {'DISPATCH_SUPPORT': 'SUPPORT', 'CONTINUE_SEGMENT': 'SUPPORT', '
                  'START_SEARCH': 'SCOUT'}
 EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE', 'FAILED'})
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
+# TaskResult.terminal_reason of a goal the robot never started (rescue_robot executor): Nav2 refused it, Nav2 did
+# not answer in time, or the stop evidence was stale before sending. TB-6 did not go there (현장 2026-10-15 17:54).
+NOT_STARTED_REASONS = frozenset({'GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'})
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
 # and the map is frozen before TB-5 goes; SAVED_MAP = one launch basis for the whole mission (earlier runs).
 MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')
@@ -436,6 +439,7 @@ class CoordinatorCore:
         self.frontier = None        # dict(site_id, goal, centroid) of the frontier being sent / run
         self.frontier_hold_until = None
         self.frontier_tried = []    # goals and centroids tried once (completed or not): not picked again
+        self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
         self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
         # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL = TB-5 at the exit, no TB-6 recheck; RECHECK = C-11 flow.
@@ -660,6 +664,8 @@ class CoordinatorCore:
     def _search_reason(self):
         if self.start_pose_conflict:
             return 'START_POSE_CONFLICT'
+        if self.scout_not_started:
+            return 'SCOUT_GOAL_NOT_STARTED'
         if self.search_mode == 'FRONTIER' and self.exploration_complete:
             return self.exploration_reason
         if self.search_queued() and self.search_mode == 'PATROL' and self.start_pose is None:
@@ -748,8 +754,8 @@ class CoordinatorCore:
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
 
     def _frontier_done(self):
-        """A frontier task ended (any outcome): it is not picked again (a frontier still there after TB-6 reached it
-        cannot be cleared from there)."""
+        """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS): it is not picked
+        again (a frontier still there after TB-6 reached it cannot be cleared from there)."""
         self.frontier_tried += [self.frontier['goal'], self.frontier['centroid']]
         self.frontier = None
         self.search.policy = replace(self.search.policy, areas=())
@@ -1102,6 +1108,8 @@ class CoordinatorCore:
         meta = self.task_meta.get(admission.task_id)
         if admitted and admission.accepted and admission.task_id in self.leases:
             self.leases[admission.task_id]['admitted_after'] = self.status_arrivals
+        if admitted and admission.accepted and admission.robot_id == self.roles['SCOUT']:
+            self.scout_not_started = None  # TB-6 took a new goal; a refusal of it sets this again
         if admitted and admission.accepted and meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_started()
         if admitted and admission.accepted and meta and meta[0] == 'RETURN_HOME':
@@ -1140,6 +1148,13 @@ class CoordinatorCore:
                 # neither is a tried frontier: a step aside is no frontier, a stopped one was not tried
                 done = 'TRAFFIC_YIELD_DONE' if self.frontier.get('step_aside') else 'FRONTIER_STOPPED_FOR_TB5'
                 self.notes.append(f'{done} {item.target_id} outcome={result.outcome}')
+                self.frontier = None
+                self.search.policy = replace(self.search.policy, areas=())
+            elif result.terminal_reason in NOT_STARTED_REASONS:
+                # TB-6 never left for it: not a tried frontier, picked again (rate: frontier_issue_delay_ns).
+                self.scout_not_started = result.terminal_reason
+                self.notes.append(f'FRONTIER_NOT_STARTED {item.target_id} outcome={result.outcome} '
+                                  f'reason={result.terminal_reason}')
                 self.frontier = None
                 self.search.policy = replace(self.search.policy, areas=())
             else:

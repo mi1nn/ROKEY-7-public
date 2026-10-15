@@ -6,7 +6,8 @@ near a frontier already tried, and picks the one with the shortest clear grid pa
 ``frontier_goal_max_m`` along that path so TB-6's tasks stay short. It becomes one SEARCH_AREA site (UUID ref,
 search basis) in ~/task_inputs first and the task follows ``frontier_issue_delay_ns`` later, after the robot has
 read the destination. A frontier tried once (completed or not) is not picked again within
-``frontier_blacklist_m``. ``exploration_empty_checks`` map updates in a row with nothing to pick, or
+``frontier_blacklist_m``; a goal the robot never started (NOT_STARTED_REASONS) is not a try.
+``exploration_empty_checks`` map updates in a row with nothing to pick, or
 ``exploration_timeout_ns`` since the first frontier, is EXPLORATION_COMPLETE (EXPLORATION_TIMEOUT shown).
 """
 import math
@@ -174,7 +175,9 @@ class RobotNotStartedTests(Base):
         first = self.first_goal()
         self.reject(first)
         later = NOW + DELAY + 1
+        self.core.on_pose(scout_pose(at=later))
         self.assertEqual([], self.searches(later))  # picked again: its destination goes first
+        self.core.on_pose(scout_pose(at=later + DELAY))
         (again,) = self.searches(later + DELAY)
         self.assertNotEqual(first['task_id'], again['task_id'])
         self.core.on_admission(admission_msg(again))
