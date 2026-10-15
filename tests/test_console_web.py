@@ -565,3 +565,17 @@ class SystemNameTests(unittest.TestCase):
         self.assertIn(f'\n## {SYSTEM_NAME}\n', brd.read_text(encoding='utf-8'))
         self.assertIn(SYSTEM_NAME, render_login('csrf'))
         self.assertIn(SYSTEM_NAME, render_accounts([], {'username': 'a', 'display_name': 'A', 'role': 'ADMIN'}, 'csrf'))
+
+
+class HistoryToggleTests(LedgerFixture):
+    """2026-10-15 사용자 요청: 보낸 명령 · 오류 칸은 눌러서 펴 본다. 펼침 상태는 1초 갱신(#live 교체)에도 남아야 한다."""
+
+    def test_toggle_lives_outside_the_polled_fragment_and_history_is_still_rendered(self):
+        from rescue_console.render import _STYLE
+        html = render_page(self.view())
+        live = html[html.index('<div id="live">'):]
+        self.assertIn('id="show-history"', html[:html.index('<div id="live">')])
+        self.assertNotIn('id="show-history"', live)
+        self.assertIn('id="history"', live)   # the panel is still drawn; only CSS folds it
+        self.assertIn('#history{display:none}', _STYLE)
+        self.assertIn('.console:has(#show-history:checked) #history{display:block}', _STYLE)
