@@ -149,16 +149,13 @@ class RescueFlowTests(unittest.TestCase):
         self.assertEqual('OPERATOR', self.core.mission.open_rechecks[self.target].source)  # row 10: link unchanged
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class OperatorReturnAfterRecheckTests(unittest.TestCase):
     """#233 item 1 (owner decision 2026-10-15): with ``completion_mode=RECHECK`` an operator RETURN_HOME accepted
     after a RECHECK_NEEDED verdict sends TB-6 home. It used to be ACCEPTED with no task (measured on main 4163a25).
 
     Both robots have a home on the map they are localized on (the command's gate, mission ``_return_home``).
-    No verdict is still refused (NO_VERDICT), and the RESCUE_CONFIRMED path is unchanged.
+    No verdict is still refused (reason_code PENDING_EVIDENCE, logged mission reason NO_VERDICT), and the
+    RESCUE_CONFIRMED path is unchanged.
     """
     def setUp(self):
         from rescue_coordination import ros_node
@@ -210,5 +207,10 @@ class OperatorReturnAfterRecheckTests(unittest.TestCase):
 
     def test_operator_return_without_a_verdict_is_still_refused(self):
         reply = self.return_home()
-        self.assertEqual((False, 'PENDING_EVIDENCE'), (reply['accepted'], reply['reason_code']))
+        self.assertEqual((False, 'PENDING_EVIDENCE', 'NO_VERDICT'),
+                         (reply['accepted'], reply['reason_code'], self.core.last_reason))
         self.assertEqual([], self.tasks('RETURN_HOME'))
+
+
+if __name__ == '__main__':
+    unittest.main()
