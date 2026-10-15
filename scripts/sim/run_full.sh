@@ -130,46 +130,50 @@ timeout 120 ros2 action send_goal /$ns/undock irobot_create_msgs/action/Undock '
     say "언도킹 $ns"
 done
 
-# 언도킹 뒤 두 로봇의 arena 자세 = 출발 자리(도면) ⊕ 각 로봇 바퀴 주행계(odom 은 생성 자리에서 0). 로봇 자신의 센서다.
-read -r -a POSES < <(call "python3 -" <<'PY'
+# 언도킹 뒤 두 로봇의 자세. 현장에서는 언도킹한 두 로봇을 재서 TB-6 몸 기준 TB-5 상대 위치를 넣는다(줄자 1.86 m).
+# 시뮬레이션에서는 그 「재는 일」을 확인용 정답 위치(Gazebo, /<ns>/sim_ground_truth_pose)로 한다. 이 값은 현장 파일 사본을
+# 만드는 데만 쓰고, 어떤 노드에도 주지 않는다.
+# 출발 자리 ⊕ odom 으로 계산하던 것을 바꿨다: 언도킹 회전에서 시뮬레이션 odom 이 약 11.5° 더 돌아(TB-6 odom 101° 대 정답 89.5°)
+# TB-6 방향 기준 TB-5 상대 위치가 0.4 m 어긋났고, TB-5 출발 정렬이 START_ALIGN_NOT_CONVERGED 로 끝났다(3회차, #386).
+# 함께 읽는 TB-6 odom 은 복귀 지점(SIM_HOME=odom)을 TB-6 지도 frame(= TB-6 odom frame)으로 옮기는 데만 쓴다.
+# 시뮬레이션 도메인에서 읽는다: 정답 위치는 중계가 현장 도메인으로 넘기지 않는다(넘기면 안 된다).
+read -r -a POSES < <(env -i HOME="$HOME" PATH=/usr/bin:/bin bash -c "$BASE_ENV; export ROS_DOMAIN_ID=$SIM_DOMAIN; python3 -" <<'PY'
 import math, sys, time, rclpy
 from nav_msgs.msg import Odometry
 from rclpy.qos import qos_profile_sensor_data
-rclpy.init(); node = rclpy.create_node('run_full_odom'); got = {}
-def keep(ns):
+rclpy.init(); node = rclpy.create_node('run_full_poses'); got = {}
+def yaw(q):
+    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+def keep(key):
     def f(m):
-        q = m.pose.pose.orientation
-        got[ns] = (m.pose.pose.position.x, m.pose.pose.position.y,
-                   math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
+        p = m.pose.pose
+        got[key] = (p.position.x, p.position.y, yaw(p.orientation))
     return f
-subs = [node.create_subscription(Odometry, f'/{ns}/odom', keep(ns), qos_profile_sensor_data) for ns in ('robot6', 'robot5')]
+subs = [node.create_subscription(Odometry, topic, keep(key), qos_profile_sensor_data)
+        for key, topic in (('gt6', '/robot6/sim_ground_truth_pose'), ('gt5', '/robot5/sim_ground_truth_pose'),
+                           ('odom6', '/robot6/odom'))]
 end = time.time() + 20
-while time.time() < end and len(got) < 2:
+while time.time() < end and len(got) < 3:
     rclpy.spin_once(node, timeout_sec=0.2)
-if len(got) < 2:
-    sys.exit('odom missing')
-print(*got['robot6'], *got['robot5'])
+if len(got) < 3:
+    sys.exit('missing: ' + ' '.join(k for k in ('gt6', 'gt5', 'odom6') if k not in got))
+print(*got['gt6'], *got['gt5'], *got['odom6'])
 PY
 )
-[ "${#POSES[@]}" -eq 6 ] || die "언도킹 뒤 odom 을 못 읽었습니다"
-compose() {   # arena 출발 자리(x y yaw) ⊕ odom(x y yaw) -> arena 자세
-    python3 -c "import math,sys; x,y,w,a,b,c=map(float,sys.argv[1:]); print(round(x+math.cos(w)*a-math.sin(w)*b,3), round(y+math.sin(w)*a+math.cos(w)*b,3), round(math.atan2(math.sin(w+c),math.cos(w+c)),4))" "$@"
-}
-read -r -a TB6_UNDOCKED < <(compose "${TB6_START[@]}" "${POSES[@]:0:3}")
-read -r -a TB5_UNDOCKED < <(compose "${TB5_START[@]}" "${POSES[@]:3:3}")
-say "언도킹 뒤 arena 자세(출발 자리 ⊕ odom): TB-6 ${TB6_UNDOCKED[*]}, TB-5 ${TB5_UNDOCKED[*]}"
-# 시뮬레이션 사본: TB-5 출발값은 이 world 의 두 출발 자리에서 계산한다(TB-6 출발 자세 기준). 런북대로 두 로봇을 언도킹한 뒤
-# SLAM·지도 고정을 띄우므로 출발 자세는 언도킹 뒤 자세다(위에서 출발 자리 ⊕ odom 으로 잼).
-python3 - "$FIELD_SRC" "$F" "${TB6_UNDOCKED[@]}" "${TB5_UNDOCKED[@]}" "${SIM_PASSAGE:-on}" <<'PY' | while read -r line; do say "$line"; done
-import json, math, sys
-src, out, x6, y6, w6, x5, y5, w5, passage = sys.argv[1], sys.argv[2], *map(float, sys.argv[3:9]), sys.argv[9]
+[ "${#POSES[@]}" -eq 9 ] || die "언도킹 뒤 정답 위치·odom 을 못 읽었습니다"
+TB6_UNDOCKED=("${POSES[@]:0:3}"); TB5_UNDOCKED=("${POSES[@]:3:3}"); TB6_ODOM=("${POSES[@]:6:3}")
+say "언도킹 뒤 arena 자세(확인용 정답 위치): TB-6 ${TB6_UNDOCKED[*]}, TB-5 ${TB5_UNDOCKED[*]}; TB-6 odom ${TB6_ODOM[*]}"
+# 시뮬레이션 사본: TB-5 출발값 = 언도킹 뒤 TB-6 몸 기준으로 본 TB-5 의 실제 상대 위치(현장에서 재는 값과 같은 뜻).
+read -r -a TB5_REL < <(python3 "$HERE/start_pose.py" relative "${TB6_UNDOCKED[@]}" "${TB5_UNDOCKED[@]}")
+[ "${#TB5_REL[@]}" -eq 3 ] || die "TB-5 출발값을 계산하지 못했습니다"
+python3 - "$FIELD_SRC" "$F" "${TB5_REL[@]}" "${SIM_PASSAGE:-on}" <<'PY' | while read -r line; do say "$line"; done
+import json, sys
+src, out, passage = sys.argv[1], sys.argv[2], sys.argv[6]
+rel = [float(v) for v in sys.argv[3:6]]
 field = json.load(open(src))
-dx, dy = x5 - x6, y5 - y6
-rel = [round(math.cos(-w6) * dx - math.sin(-w6) * dy, 3), round(math.sin(-w6) * dx + math.cos(-w6) * dy, 3),
-       round(math.atan2(math.sin(w5 - w6), math.cos(w5 - w6)), 4)]
 old = field['robots']['robot_b']['initial_pose_xy_yaw']
 field['robots']['robot_b']['initial_pose_xy_yaw'] = rel
-print(f'robots.robot_b.initial_pose_xy_yaw 현장 {old}, 시뮬레이션 사본 {rel} (언도킹 뒤 arena 자세로 계산)')
+print(f'robots.robot_b.initial_pose_xy_yaw 현장 {old}, 시뮬레이션 사본 {rel} (언도킹 뒤 TB-6 몸 기준 TB-5, 확인용 정답 위치로 잼)')
 if passage == 'off':
     old = field['robot']['passage.front_m']
     field['robot']['passage.front_m'] = [0.0, 0.05]
@@ -180,10 +184,11 @@ json.dump(field, open(out, 'w'), ensure_ascii=False, indent=2, sort_keys=True)
 PY
 [ -s "$F" ] || die "시뮬레이션 현장 파일 사본을 못 만들었습니다"
 # 복귀 지점(home_positions): 현장은 1차 고정 지도에서 재서 --home 으로 넣는다(런북 1·5단계). 시뮬레이션은 같은 자리(언도킹 뒤
-# 출발 자세)를 TB-6 지도 frame 으로 넣는다. TB-6 지도 frame = 생성(도킹) 자리의 odom 이라 TB-6 은 odom 값 그대로, TB-5 는
-# 그 frame 으로 옮긴 arena 자세다.
-read -r -a TB5_IN_MAP < <(python3 -c "import math,sys; x0,y0,w0,x,y,w=map(float,sys.argv[1:]); dx,dy=x-x0,y-y0; c,s=math.cos(-w0),math.sin(-w0); print(round(c*dx-s*dy,3), round(s*dx+c*dy,3), round(math.atan2(math.sin(w-w0),math.cos(w-w0)),4))" "${TB6_START[@]}" "${TB5_UNDOCKED[@]}")
-HOME_A="${POSES[0]},${POSES[1]},${POSES[2]}"
+# 출발 자세)를 TB-6 지도 frame 으로 넣는다. TB-6 지도 frame = TB-6 odom frame 이라 TB-6 은 odom 값 그대로다. TB-5 는 arena 자세를
+# 그 frame 으로 옮긴다: arena -> TB-6 odom frame 변환은 같은 순간의 TB-6 정답 자세와 odom 자세로 정한다(odom 이 돈 만큼 포함).
+read -r -a TB5_IN_MAP < <(python3 "$HERE/start_pose.py" in-frame "${TB6_UNDOCKED[@]}" "${TB6_ODOM[@]}" "${TB5_UNDOCKED[@]}")
+[ "${#TB5_IN_MAP[@]}" -eq 3 ] || die "TB-5 복귀 지점을 계산하지 못했습니다"
+HOME_A="${TB6_ODOM[0]},${TB6_ODOM[1]},${TB6_ODOM[2]}"
 HOME_B="${TB5_IN_MAP[0]},${TB5_IN_MAP[1]},${TB5_IN_MAP[2]}"
 HOME_ARGS=()
 case "${SIM_HOME:-off}" in   # 기본은 현장과 같게(측정 전에는 없음). sim-to-field 원칙(#374): 현장 값과 다른 것은 기본 꺼짐
