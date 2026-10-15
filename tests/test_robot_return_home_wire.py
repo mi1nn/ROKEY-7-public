@@ -10,7 +10,7 @@ against the goal's frame and revisions. So RETURN_HOME gets SEARCH_AREA's check.
 RETURN_HOME too ('home/robot_b'). The profile's home values never reached this check: the goal was refused on
 its frame_ref before any destination was looked up.
 
-Run 8 (#418) showed the next refusal (mission frame); the coordinator-flow test below is expectedFailure on main.
+Run 8 (#418) showed the next refusal (mission frame); before this change the pass tests were expectedFailure.
 """
 import unittest
 from types import SimpleNamespace as NS
@@ -42,7 +42,6 @@ class ReturnHomeWire(unittest.TestCase):
         goal, _ = return_home_goal()
         self.assertEqual(('', ''), (goal.frame_ref.native_frame, goal.frame_ref.alignment_status))
 
-    @unittest.expectedFailure
     def test_return_home_from_the_coordinator_passes(self):
         for robot in ('robot_a', 'robot_b'):   # TB-6 home, TB-5 exit
             with self.subTest(robot=robot):
@@ -75,7 +74,6 @@ class FromTheCoordinatorFlow(unittest.TestCase):
         (home,) = flow.tasks('RETURN_HOME')
         return dict(home, lease_id=uid(5))   # the node's _send adds the lease id
 
-    @unittest.expectedFailure
     def test_the_coordinators_return_home_passes_every_executor_check(self):
         from rescue_robot.executor import GoalPose
         from rescue_robot.task_wire import validate_resolved_goal
