@@ -4,7 +4,7 @@
 2. stream_state     : 지진 판정 결과 → 카메라 상태(CameraStatus 의 ONLINE / DEGRADED / UNKNOWN)
 3. scene_visibility : 지진 판정 결과 → 출구 판정에 넘길 시야(VALID / OCCLUDED / UNKNOWN)
 4. boxes_from_xyxyn : YOLO 출력 숫자 → DetectionBox 목록
-5. view_track       : 감시 없이 판정 화면에 궤적을 그릴 인형 위치(화면용, 판정에 안 씀)
+5. status_items     : 판정 화면 위 상태창 글자(지진·인형·출구, 화면용, 판정에 안 씀)
 
 2·3 은 '화면이 가려졌나'를 따로 재지 않고 지진 판정이 이미 잰 결과를 다시 쓴다.
 한계: 사람이 감시 영역(ROI)만 살짝 가리는 경우는 화면 전체로는 보이는 상태라 VALID 로 들어간다.
@@ -205,14 +205,37 @@ def boxes_from_xyxyn(rows, scores):
     return tuple(boxes)
 
 
-def view_track(boxes, score_min):
-    """감시가 없을 때 판정 화면 궤적에 찍을 점: 점수 통과 상자 중 최고 점수 상자의 가운데 (x, y), 없으면 None.
 
-    화면용이다. 추적·판정·사건에는 쓰지 않는다(감시가 걸리면 출구 판정기의 track 을 그린다).
-    예) 점수 0.9 상자 (0.4, 0.6, 0.6, 1.0) → (0.5, 0.8). YOLO 실패(boxes None)도 None.
+# 상태창 색(BGR). 판정 화면 위 띠에 칸마다 칠한다.
+RED, ORANGE, GREEN, GREY, WHITE = (60, 60, 230), (0, 150, 255), (80, 200, 80), (150, 150, 150), (255, 255, 255)
+
+
+def status_items(*, quake_now, quake_seen, reversals, shakes_min, boxes, score_min, presence, watched):
+    """판정 화면 위 상태창: [(글자, BGR 색)] 지진 · 인형 · 출구 세 칸(2026-10-15 사용자 요청).
+
+    화면용이다. 판정·사건에는 쓰지 않는다. 한글은 Hershey 글꼴로 못 그려 영어로 쓴다.
+    - boxes None: 지진 전이면 YOLO 를 안 돌린 것, 지진 뒤면 YOLO 실패다(빈 목록으로 꾸미지 않는다).
+    - presence: 출구 판정기 결과. 감시가 걸렸으면 (watch), 지진 뒤 화면용 판정기면 (view).
     """
-    passing = [b for b in boxes or () if b.score >= score_min]
-    if not passing:
-        return None
-    best = max(passing, key=lambda b: b.score)
-    return ((best.x0 + best.x1) / 2, (best.y0 + best.y1) / 2)
+    if quake_now:
+        quake = (f'QUAKE NOW {reversals}/{shakes_min}', RED)
+    elif quake_seen:
+        quake = ('QUAKE DETECTED', ORANGE)
+    else:
+        quake = (f'QUAKE NO {reversals}/{shakes_min}', WHITE)
+    if boxes is None:
+        doll = ('DOLL: DETECTOR FAILED', RED) if quake_seen or watched else ('DOLL: YOLO OFF', GREY)
+    else:
+        best = max((b.score for b in boxes if b.score >= score_min), default=None)
+        doll = (f'DOLL SEEN {best:.2f}', GREEN) if best is not None else ('NO DOLL', GREY)
+    if presence is None:
+        return [quake, doll, ('EXIT: -', GREY)]
+    head = f'EXIT({"watch" if watched else "view"}): '
+    if presence.state == 'ABSENT_CANDIDATE':
+        exit_ = ('LEFT VIA EXIT', RED)
+    elif presence.state == 'PRESENT':
+        exit_ = (f'MISSING {presence.absent_ns / 1e9:.1f}s', ORANGE) if presence.absent_ns else ('IN VIEW', GREEN)
+    else:
+        exit_ = {'NOT_VIA_EXIT': ('GONE NOT VIA EXIT', ORANGE), 'NOT_YET_SEEN': ('WAITING', GREY),
+                 'OCCLUDED': ('VIEW BLOCKED', ORANGE)}.get(presence.reason, (f'UNKNOWN {presence.reason}', GREY))
+    return [quake, doll, (head + exit_[0], exit_[1])]

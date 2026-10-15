@@ -32,9 +32,9 @@ from rescue_contracts.clock_measurement import ClockSampler
 from .adapter import SourceBinding
 from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
-from .target_watch import TargetWatchPolicy
+from .target_watch import TargetWatchDetector, TargetWatchPolicy, WatchSpec
 from .webcam_clock import clock_settings, observation_clock
-from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, stream_state, view_track
+from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, status_items, stream_state
 
 ENCODING = 'bgr8'  # OpenCV 프레임의 채널 순서(파랑·초록·빨강)
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'  # 프레임 시각 = 카메라에서 받은 직후의 시스템 시각
@@ -263,9 +263,10 @@ def main(args=None):
                                        QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
                  if v['debug_image_topic'] else None)
     trail = {'detector': None, 'points': []}  # 판정 화면에 그릴 인형 이동 경로(최근 25점)
-    # 지진 사건을 한 번 낸 뒤로는 감시가 없어도 화면용 YOLO 를 돌려 인형 상자·궤적을 그린다(2026-10-15 사용자 요청).
-    # 판정·사건에는 쓰지 않는다. 카메라를 바꾸면 지진 판정과 함께 처음으로 돌아간다.
-    quake_seen = {'on': False}
+    # 화면용 출구 판정기(2026-10-15 사용자 요청): 지진 사건을 한 번 낸 뒤 감시가 없으면 화면 전체를 감시 영역으로
+    # 둔 판정기를 하나 만들어 YOLO 상자·궤적·출구 상태를 판정 화면에만 그린다. presence·사건은 보내지 않는다.
+    # 카메라를 바꾸면 지진 판정과 함께 없앤다. None 이면 아직 지진 전이다.
+    view = {'detector': None}
 
     def label(img, text, org, color):
         """어두운 바탕 상자 위에 글자를 쓴다(작은 글씨도 읽히게)."""
@@ -279,7 +280,7 @@ def main(args=None):
 
         흰 격자 = 지진 판정 블록(굵은 선 = 사분면 경계), 노란 화살표 = 화면 이동, 빨간 영역 = 출구,
         초록 상자 = 감시 영역(화면 전체면 안 그림), 파란 상자 = 인형(점수 통과), 회색 상자 = 점수 미달,
-        노란 선·점 = 추적 경로(감시가 없으면 최고 점수 상자의 가운데). 왼쪽 위 글자 = 방향 전환 횟수(지진 조건이 참이면 보라), 아래 글자 = 출구 판정 상태.
+        노란 선·점 = 추적 경로. 위 띠 = 상태창(지진 · 인형 · 출구, status_items), 아래 글자 = 출구 판정 상태.
         """
         if debug_pub is None:
             return
@@ -301,7 +302,6 @@ def main(args=None):
             end = (int(centre[0] + sign.shift[0] * scale), int(centre[1] + sign.shift[1] * scale))
             cv2.arrowedLine(img, centre, end, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.3)
             cv2.arrowedLine(img, centre, end, (10, 214, 255), 5, cv2.LINE_AA, tipLength=0.3)
-        quake = f'QUAKE turns {sign.reversals}/{v["quake_shakes_min"]}' + (f' {sign.reason}' if sign.reason else '')
         ex = watch_policy.exit_roi_xyxy_normalized
         tint = img.copy()
         cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
@@ -311,12 +311,10 @@ def main(args=None):
         if watch is not None and tuple(watch.roi_xyxy_normalized) != (0.0, 0.0, 1.0, 1.0):
             r = watch.roi_xyxy_normalized
             cv2.rectangle(img, px(r[0], r[1]), px(r[2], r[3]), (89, 199, 52), 2)
-        if trail['detector'] is not slot.detector:  # 감시가 새로 걸렸으면 경로를 비운다
-            trail['detector'], trail['points'] = slot.detector, []
-        if slot.detector is not None:
-            track = slot.detector.track
-        else:
-            track = view_track(boxes, watch_policy.score_min)
+        shown = slot.detector or view['detector']   # 감시가 걸렸으면 그 판정기, 아니면 화면용 판정기
+        if trail['detector'] is not shown:  # 판정기가 바뀌었으면(감시를 새로 걸었으면) 경로를 비운다
+            trail['detector'], trail['points'] = shown, []
+        track = shown.track if shown is not None else None
         if track is not None and (not trail['points'] or trail['points'][-1] != track):
             trail['points'] = (trail['points'] + [track])[-25:]
         for a, b in zip(trail['points'], trail['points'][1:]):
@@ -331,8 +329,14 @@ def main(args=None):
             text = (f'{presence.state} {presence.reason or ""} absent={presence.absent_ns / 1e9:.1f}s '
                     f'rev={watch.watch_revision if watch else 0}')
         else:
-            text = 'NO WATCH' + (' - view only' if boxes is not None else '')
-        label(img, quake, (10, 22), (242, 90, 191) if sign.condition else (255, 255, 255))
+            text = 'NO WATCH'
+        x = 10
+        for item, colour in status_items(quake_now=sign.condition, quake_seen=view['detector'] is not None,
+                                         reversals=sign.reversals, shakes_min=v['quake_shakes_min'], boxes=boxes,
+                                         score_min=watch_policy.score_min, presence=presence,
+                                         watched=slot.detector is not None):
+            label(img, item, (x, 22), colour)
+            x += cv2.getTextSize(item, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0][0] + 16
         label(img, text, (10, height - 10), (255, 255, 255))
         ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         if not ok:
@@ -508,7 +512,7 @@ def main(args=None):
         """★ 핵심: 타이머가 0.2초마다 부른다. 프레임 1장을 읽어 두 판정에 넣고 결과를 발행한다.
 
         (0) 카메라 바꾸기 요청 처리 → (1) 카메라 열기 → (2) 프레임 읽기 → (3) 크기 확인 → (4) 지진 판정 → (5) 카메라 상태·지진 사건 발행
-        → (6) 감시가 없으면 여기서 끝(지진 뒤면 화면용 YOLO) → (7) YOLO 로 인형 찾기 → (8) 시야 정하기 → (9) 출구 판정 → (10) 결과 발행
+        → (6) 감시가 없으면 여기서 끝(지진 뒤면 화면용 판정기로 계속) → (7) YOLO 로 인형 찾기 → (8) 시야 정하기 → (9) 출구 판정 → (10) 결과 발행
         """
         # 카메라를 바꿀 때 quake 를 새 판정기로 바꿔 넣으려고 바깥 변수로 선언
         nonlocal quake
@@ -521,7 +525,7 @@ def main(args=None):
                 camera['cap'].release()
             camera['cap'], camera['next_open_ns'] = None, 0
             quake = DisasterSignDetector(binding, quake_policy)
-            quake_seen['on'] = False
+            view['detector'] = None
             slot.camera_changed()
             publish_status('OFFLINE', now, reason='CAMERA_SWITCHED')
             log.warning(f'CAMERA_SWITCHED {old} -> {v["device_path"]}: quake judge restarted, watch cleared '
@@ -568,11 +572,14 @@ def main(args=None):
         publish_status(state, stamp, width, height, reason=reason)
         if sign.event is not None:
             publish_event(sign.event)
-            quake_seen['on'] = True
-        # (6) 감시가 없으면 판정 화면만 보내고 끝. 평상시에는 YOLO 를 돌리지 않아 CPU 를 아끼고,
-        #     지진 사건 뒤에는 화면용으로만 돌려 인형 상자·궤적을 그린다(판정·사건 없음).
-        if slot.detector is None:
-            publish_debug(frame, stamp, sign, detect(frame) if quake_seen['on'] else None, None)
+            if view['detector'] is None:
+                view['detector'] = TargetWatchDetector(binding, watch_policy, WatchSpec(
+                    v['camera_id'], str(uuid4()), str(uuid4()), (0.0, 0.0, 1.0, 1.0), 0))
+        # (6) 감시도 화면용 판정기도 없으면(평상시) 판정 화면만 보내고 끝. YOLO 를 돌리지 않아 CPU 를 아낀다.
+        #     지진 뒤 감시가 없으면 화면용 판정기로 (7) ~ (9) 를 똑같이 하되 판정 화면만 보낸다.
+        detector = slot.detector or view['detector']
+        if detector is None:
+            publish_debug(frame, stamp, sign, None, None)
             return
         # (7) YOLO 로 인형 상자 찾기. 좌표는 화면 비율(0 ~ 1)로 받는다.
         #     model_conf(0.1)는 YOLO 출력 하한일 뿐이고, 인형으로 인정하는 점수(0.25)는 출구 판정기가 따로 거른다.
@@ -583,7 +590,7 @@ def main(args=None):
         watch = slot.watch
         # (9) 출구 구조 판정 → presence (PresenceFrame: 인형 상태, 이유, 사라진 시간, 후보 사건)
         try:
-            presence = slot.detector.update(image, boxes, visibility=visibility)
+            presence = detector.update(image, boxes, visibility=visibility)
         except PerceptionError as exc:
             log.error(f'watch judge failed: {exc.detail_code}: {exc.detail}')
             return
@@ -591,6 +598,8 @@ def main(args=None):
             return
         # (10) 판정 화면과 인형 상태를 발행하고, 구조 후보 사건이 있으면 발행한다.
         publish_debug(frame, stamp, sign, boxes, presence)
+        if detector is not slot.detector:   # 화면용 판정기: presence·사건을 보내지 않는다
+            return
         # 이 프레임 원 픽셀의 해시 = presence 메시지의 증거
         sha256 = hashlib.sha256(image.data).hexdigest()
         publish_presence(watch, presence, stamp, sha256)
