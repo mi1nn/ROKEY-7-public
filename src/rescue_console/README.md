@@ -58,8 +58,10 @@ export PYTHONPATH=$(ls -d src/rescue_* | tr '\n' ':')
 python3 -m rescue_bringup.offline_demo config/deployment.example.json --output <TMP>/run
 # 계정 파일은 한 번만 만든다(관리자 1명). 비밀번호는 환경 변수 또는 프롬프트
 RESCUE_CONSOLE_ADMIN_PASSWORD='<8자 이상>' python3 -m rescue_console.accounts init <TMP>/accounts.sqlite3 --admin admin
-# 세션 서명 비밀은 환경 변수(16자 이상). 코드·저장소에 두지 않는다
-export RESCUE_CONSOLE_SECRET="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
+# 세션 서명 비밀은 환경 변수(16자 이상). 코드·저장소에 두지 않는다.
+# 한 번 만들어 파일에 두고 다시 띄울 때도 같은 값을 쓴다. 값이 바뀌면 모든 로그인이 풀린다
+[ -f <TMP>/console-secret ] || (umask 077; python3 -c 'import secrets;print(secrets.token_urlsafe(32))' > <TMP>/console-secret)
+export RESCUE_CONSOLE_SECRET="$(cat <TMP>/console-secret)"
 python3 -m rescue_console <TMP>/run/operations.sqlite3 --accounts <TMP>/accounts.sqlite3 \
     --status src/rescue_console/examples/status.example.json \
     --map assets/maps/pre_quake/map.yaml --port 8080       # --map 은 선택
