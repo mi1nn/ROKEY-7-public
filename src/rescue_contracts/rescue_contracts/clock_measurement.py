@@ -24,22 +24,16 @@ def _ns(seconds):
 
 
 class ClockUnavailable(ValueError):
-    """No usable measurement; the message starts with its reason code. ``next_poll_ns``: when timesyncd asks its
-    server again, if known (C13, 2026-10-16)."""
-    def __init__(self, message, *, next_poll_ns=None):
-        super().__init__(message)
-        self.next_poll_ns = next_poll_ns
+    """No usable measurement; the message starts with its reason code (C13, 2026-10-16)."""
 
 
-def _utc(ns):
-    return datetime.fromtimestamp(ns // 10**9, timezone.utc).strftime('%H:%M:%S UTC')
-
-
-def parse_timesync(message, *, synchronized, now_ns, max_age_ns, drift_ppm, poll_interval_us=None):
+def parse_timesync(message, *, synchronized, now_ns, max_age_ns, drift_ppm):
     """Use the original NTP reply time, never the time it was read again.
 
-    A reply not used says why: NO_NTP_REPLY, NTP_SPIKE (timesyncd flagged it and did not correct the clock with it;
-    with ``poll_interval_us``, timesyncd's PollIntervalUSec, the next poll) or NOT_SYNCHRONIZED."""
+    A reply timesyncd flagged as a spike is used too (C13 A): it is a valid NTP measurement that timesyncd only did
+    not correct the clock with, and the bound below holds the whole offset and half the round trip, which covers
+    that uncorrected clock (``ntp_spike`` in the record). A reply not used says why: NO_NTP_REPLY or
+    NOT_SYNCHRONIZED."""
     if (not isinstance(message, list) or len(message) != 15
             or any(type(message[i]) is not int for i in (0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14))
             or type(message[12]) is not bool
@@ -47,14 +41,6 @@ def parse_timesync(message, *, synchronized, now_ns, max_age_ns, drift_ppm, poll
             or not 0 < message[3] < 16 or message[13] <= 0):
         raise ClockUnavailable('NO_NTP_REPLY: no valid NTP reply from timesyncd')
     leap, version, mode, stratum, precision, root_delay, dispersion, reference, t1, t2, t3, t4, spike, count, jitter = message
-    if spike:
-        delay_ms = round(((t4 - t1) - (t3 - t2)) / 1000)
-        offset_ms = round(((t2 - t1) + (t3 - t4)) / 2000)
-        next_poll_ns = None if poll_interval_us is None else (t4 + poll_interval_us) * 1000
-        raise ClockUnavailable(
-            f'NTP_SPIKE: last reply {_utc(t4 * 1000)} ignored by timesyncd (delay {delay_ms} ms, offset '
-            f'{offset_ms:+d} ms)' + ('' if next_poll_ns is None else f', next poll by {_utc(next_poll_ns)}')
-            + ('' if synchronized else ', NTPSynchronized=no'), next_poll_ns=next_poll_ns)
     if not synchronized:
         raise ClockUnavailable('NOT_SYNCHRONIZED: timesyncd reports NTPSynchronized=no')
     if min(root_delay, dispersion, t1, t2, t3, t4, jitter) < 0 or not all((t1, t2, t3, t4)):
@@ -72,7 +58,7 @@ def parse_timesync(message, *, synchronized, now_ns, max_age_ns, drift_ppm, poll
     error = ((root_delay + delay_us + offset_twice_us + 1) // 2 + dispersion + jitter) * 1000
     error += precision_ns + _ns(Decimal(now_ns - observed) / 10**9 * Decimal(str(drift_ppm)) / 10**6)
     return dict(state='SYNCED', measured_at_ns=observed, sampled_at_ns=now_ns,
-                valid_until_ns=observed + max_age_ns, error_bound_ns=error)
+                valid_until_ns=observed + max_age_ns, error_bound_ns=error, ntp_spike=spike)
 
 
 def parse_chrony(raw, *, now_ns, max_age_ns, drift_ppm):
@@ -127,13 +113,8 @@ def collect(backend, *, max_age_ns, drift_ppm, run=subprocess.run, now_ns=time.t
         data = raw['data']
         if len(data) == 1 and isinstance(data[0], list):
             data = data[0]
-        poll = None
-        if isinstance(data, list) and len(data) == 15 and data[12] is True:  # a spike: when timesyncd asks again
-            poll = json.loads(read(['busctl', '--json=short', 'get-property', 'org.freedesktop.timesync1',
-                '/org/freedesktop/timesync1', 'org.freedesktop.timesync1.Manager', 'PollIntervalUSec']))
-            poll = poll['data'] if poll.get('type') == 't' and type(poll.get('data')) is int else None
         record = parse_timesync(data, synchronized=synchronized, now_ns=now_ns(),
-                               max_age_ns=max_age_ns, drift_ppm=drift_ppm, poll_interval_us=poll)
+                               max_age_ns=max_age_ns, drift_ppm=drift_ppm)
     if read(['systemctl', 'show', service, '--property=InvocationID', '--value']) != invocation:
         raise ValueError('clock daemon restarted during measurement')
     record.update(host_id=machine, host_boot_id=boot, backend=backend,
@@ -172,8 +153,6 @@ class ClockSampler:
                 self.record = record
             except Exception as exc:
                 self.record = dict(state='UNKNOWN', reason=str(exc))
-                if getattr(exc, 'next_poll_ns', None) is not None:
-                    self.record['next_poll_ns'] = exc.next_poll_ns
             self.pending = None
         if self.pending is None:
             self.pending = self.pool.submit(self.collector, self.backend, **self.settings)

@@ -8,7 +8,6 @@ from copy import deepcopy
 from dataclasses import replace
 import json
 import math
-import time
 
 from rescue_contracts.clock_measurement import ClockSampler
 
@@ -108,14 +107,6 @@ def goal_pick_topic(core, topic):
     return topic if topic and core.search_mode == 'AREAS' else None
 
 
-def clock_log_line(record, now_ns):
-    """The start log line for a clock reason; a known next timesyncd poll adds the seconds left (C13, 2026-10-16)."""
-    line = 'central live clock: ' + record.get('reason', record['state'])
-    if record.get('next_poll_ns') is not None:
-        line += f' (next poll in <= {max(0, math.ceil((record["next_poll_ns"] - now_ns) / 10**9))} s)'
-    return line
-
-
 def attach(node, core, values, boot_id):
     from rcl_interfaces.msg import ParameterType, ParameterValue
     from rcl_interfaces.msg import ParameterDescriptor
@@ -178,7 +169,7 @@ def attach(node, core, values, boot_id):
         record = sampler.poll()
         reason = record.get('reason', record['state'])
         if reason != last_reason[0]:
-            node.get_logger().info(clock_log_line(record, time.time_ns()))
+            node.get_logger().info('central live clock: ' + reason)
             last_reason[0] = reason
 
     def get(request, response):
