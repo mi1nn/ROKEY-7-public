@@ -467,6 +467,15 @@ class SiteStateTests(unittest.TestCase):
                 with self.subTest(kind=kind):
                     self.assertTrue(ledger.record_operator_command(command(900 + n, kind=kind)))
 
+    def test_the_manual_disaster_declaration_is_kept_for_the_replay(self):
+        """DECLARE_DISASTER is not in the .srv constants (an operation string, 재범님 결정 2026-10-15), so the
+        IDL comparison above does not cover it."""
+        declare = command(710, kind='DECLARE_DISASTER', target_id=None, segment_index=None, route_revision=None)
+        with self.ledger() as ledger:
+            self.assertTrue(ledger.record_operator_command(declare))
+        self.assertEqual(['DECLARE_DISASTER'],
+                         [row['kind'] for row in site_state.read_operator_commands(self.path)['commands']])
+
     def test_operator_command_rejects_bad_input(self):
         bad = [dict(command_id='x'), dict(kind='SELF_DESTRUCT'), dict(operator_id=''), dict(robot_id='robot_x'),
                dict(target_id='x'), dict(segment_index=-1), dict(route_revision=1.0), dict(requested_at_ns=0),
