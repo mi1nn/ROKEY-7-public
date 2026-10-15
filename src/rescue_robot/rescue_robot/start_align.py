@@ -14,7 +14,9 @@ there:
 3. accepts AMCL's pose only when its spread is under ``accept_sigma_*``, the last ``settle_count``
    poses agree within ``settle_*``, it moved at most ``max_jump_*`` from the first guess, and at
    least ``min_match_ratio`` of the scan points (``min_match_points`` or more) lie within
-   ``match_hit_m`` of an occupied cell of the frozen map.
+   ``match_hit_m`` of an occupied cell of the frozen map. Points outside the grid or on unknown cells are left out
+   and reported as ``match_points_off_map`` (option A, 2026-10-16), unless their beam crossed an occupied cell:
+   then they are misses (a wrong pose sends beams through walls).
 The result is latched on ``<ns>/rescue_start_align`` (JSON) with a reason code; a failure is never
 replaced by another method. ``~/restart`` starts again (TB-5 put back on its spot first).
 Every value is [제안] until measured in a supervised run.
@@ -77,8 +79,37 @@ def _angle(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 
-def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
-    """(scan points within ``hit_m`` of an occupied cell, valid scan points) with the robot at ``pose``.
+def crosses_occupied(grid, start, end):
+    """True when the segment ``start`` -> ``end`` (grid frame, m) passes an occupied cell of ``grid`` before the
+    cell of ``end`` (cells walked in order, Amanatides-Woo)."""
+    width, height, res, data = grid['width'], grid['height'], float(grid['resolution']), grid['data']
+    (x0, y0), (x1, y1) = start, end
+    cx, cy, ex, ey = math.floor(x0 / res), math.floor(y0 / res), math.floor(x1 / res), math.floor(y1 / res)
+    dx, dy = x1 - x0, y1 - y0
+    sx, sy = (1 if dx > 0 else -1), (1 if dy > 0 else -1)
+    step_x, step_y = (abs(res / dx) if dx else math.inf), (abs(res / dy) if dy else math.inf)
+    next_x = ((cx + (sx > 0)) * res - x0) / dx if dx else math.inf   # fraction of the segment to the next column
+    next_y = ((cy + (sy > 0)) * res - y0) / dy if dy else math.inf
+    while (cx, cy) != (ex, ey):
+        if 0 <= cx < width and 0 <= cy < height and data[cy * width + cx] >= OCCUPIED:
+            return True
+        if min(next_x, next_y) > 1:
+            break
+        if next_x < next_y:
+            cx, next_x = cx + sx, next_x + step_x
+        else:
+            cy, next_y = cy + sy, next_y + step_y
+    return False
+
+
+def match_detail(grid, scan, *, pose, laser_in_base, hit_m):
+    """(hits, judged, unjudged) with the robot at ``pose``. A valid scan point is a hit when an occupied cell is
+    within ``hit_m``. Otherwise it is a miss when it lands on a known cell of ``grid``, or when its beam crossed an
+    occupied cell on the way (traced from the scan's range_min: nothing nearer is seen, and run 9's frozen map had
+    TB-5 itself drawn in). Otherwise (outside the grid or on an unknown cell, nothing known in the way) it is
+    neither: option A, 2026-10-16 (run 8's frozen grid ended 4-7 mm short of a real wall, and the beams that saw it
+    counted as misses); the beam rule after LOQ's counterexamples (PR #435: with part of the map unknown, wrong
+    poses 0.5 m off passed at 1.00 once their beams through walls were left out).
 
     ``grid``: width, height, resolution, origin (x, y, yaw), data; ``scan``: LaserScan fields;
     ``laser_in_base``: the laser frame in the robot frame (x, y, yaw), from TF.
@@ -88,12 +119,12 @@ def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
     oc, osn = math.cos(oyaw), math.sin(oyaw)
     data = grid['data']
     lx, ly, lyaw = _compose(pose, laser_in_base)
+    sx, sy = oc * (lx - ox) + osn * (ly - oy), -osn * (lx - ox) + oc * (ly - oy)   # the laser in the grid frame
     reach = math.ceil(hit_m / res)
-    hits = points = 0
+    hits = judged = unjudged = 0
     for i, r in enumerate(scan['ranges']):
         if not (isinstance(r, (int, float)) and math.isfinite(r) and scan['range_min'] <= r <= scan['range_max']):
             continue
-        points += 1
         a = lyaw + scan['angle_min'] + i * scan['angle_increment']
         px, py = lx + r * math.cos(a), ly + r * math.sin(a)
         gx, gy = oc * (px - ox) + osn * (py - oy), -osn * (px - ox) + oc * (py - oy)   # map -> grid frame
@@ -107,8 +138,20 @@ def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
                     break
             if hit:
                 break
-        hits += hit
-    return hits, points
+        near = scan['range_min'] / r if r else 0.0
+        if (hit or (0 <= cx < width and 0 <= cy < height and data[cy * width + cx] >= 0)
+                or crosses_occupied(grid, (sx + near * (gx - sx), sy + near * (gy - sy)), (gx, gy))):
+            judged += 1
+            hits += hit
+        else:
+            unjudged += 1   # the map has nothing to say there
+    return hits, judged, unjudged
+
+
+def match_ratio(grid, scan, *, pose, laser_in_base, hit_m):
+    """(hits, judged points) of match_detail."""
+    hits, judged, _ = match_detail(grid, scan, pose=pose, laser_in_base=laser_in_base, hit_m=hit_m)
+    return hits, judged
 
 
 class AlignCore:
@@ -251,11 +294,12 @@ class AlignCore:
             return False
         jump_xy = math.hypot(pose[0] - self.center[0], pose[1] - self.center[1])
         jump_yaw = abs(_angle(pose[2] - self.center[2]))
-        hits, points = match_ratio(self.map, self.scan, pose=pose, laser_in_base=self.laser_in_base,
-                                   hit_m=cfg.match_hit_m)
+        hits, points, unjudged = match_detail(self.map, self.scan, pose=pose, laser_in_base=self.laser_in_base,
+                                              hit_m=cfg.match_hit_m)
         ratio = hits / points if points else 0.0
         self.verdict = dict(pose=list(pose), sigma_xy_m=sxy, sigma_yaw_rad=syaw, jump_xy_m=jump_xy,
-                            jump_yaw_rad=jump_yaw, match_ratio=ratio, match_points=points)
+                            jump_yaw_rad=jump_yaw, match_ratio=ratio, match_points=points,
+                            match_points_off_map=unjudged)
         if jump_xy > cfg.max_jump_xy_m or jump_yaw > cfg.max_jump_yaw_rad:
             self._final('FAILED', 'START_ALIGN_JUMP_TOO_LARGE')
         elif points < cfg.min_match_points or ratio < cfg.min_match_ratio:
