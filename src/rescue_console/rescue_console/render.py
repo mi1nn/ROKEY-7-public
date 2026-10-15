@@ -454,6 +454,9 @@ def _event_text(event):
     return text.strip() or MISSING
 
 
+NO_KPI = ' data-kpi="0"'   # f-string 식 안의 역슬래시는 Python 3.12 부터라 밖에 둔다(CI 3.10·3.11)
+
+
 def _events(view):
     """사건 기록 테이블(최신순 정렬). 부분 조회 시 건수 요약이 함께 표시된다.
 
@@ -469,7 +472,7 @@ def _events(view):
             f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
             f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}"'
             # 터널 통과 승인 행은 사람이 누른 기록이라 KPI-04(사건 표시 지연)에 넣지 않는다
-            f'{"" if event.get("kpi", True) else " data-kpi=\"0\""}>'
+            f'{"" if event.get("kpi", True) else NO_KPI}>'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
             f'<td class="kind">{_word("event", event["kind"])}</td>'
             f'<td>{escape(event["source"])}</td><td>{_short(event["subject"])}</td>'
