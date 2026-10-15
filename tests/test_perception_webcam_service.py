@@ -267,18 +267,42 @@ class DebugImageTests(unittest.TestCase):
         self.assertEqual(det.track, (0.5, 0.5))
 
 
-class ViewTrackTests(unittest.TestCase):
-    """2026-10-15 사용자 요청: 감시 없이도 지진 뒤 판정 화면에 인형 상자·궤적을 그린다(화면용, 판정에 안 씀)."""
+class StatusItemsTests(unittest.TestCase):
+    """2026-10-15 사용자 요청: 웹캠 판정 화면 위에 지진·인형·출구 상태를 작게 띄운다(화면용, 판정에 안 씀)."""
 
-    def test_center_of_best_box_over_score_min(self):
-        from rescue_perception.webcam_service import view_track
-        boxes = boxes_from_xyxyn([[0.0, 0.0, 0.2, 0.2], [0.4, 0.6, 0.6, 1.0], [0.8, 0.8, 1.0, 1.0]], [0.6, 0.9, 0.1])
-        self.assertEqual(view_track(boxes, 0.5), (0.5, 0.8))
+    def items(self, **kw):
+        from rescue_perception.webcam_service import status_items
+        base = dict(quake_now=False, quake_seen=False, reversals=1, shakes_min=4, boxes=None, score_min=0.5,
+                    presence=None, watched=False)
+        base.update(kw)
+        return [text for text, _ in status_items(**base)]
 
-    def test_none_without_passing_box(self):
-        from rescue_perception.webcam_service import view_track
-        self.assertIsNone(view_track(boxes_from_xyxyn([[0.1, 0.1, 0.2, 0.2]], [0.3]), 0.5))
-        self.assertIsNone(view_track(None, 0.5))   # YOLO 실패: 점을 지어내지 않는다
+    def presence(self, state, reason=None, absent_ns=0):
+        return SimpleNamespace(state=state, reason=reason, absent_ns=absent_ns)
+
+    def test_before_quake_yolo_is_off(self):
+        self.assertEqual(self.items(), ["QUAKE NO 1/4", "DOLL: YOLO OFF", "EXIT: -"])
+
+    def test_quake_now_and_latched(self):
+        self.assertEqual(self.items(quake_now=True)[0], "QUAKE NOW 1/4")
+        self.assertEqual(self.items(quake_seen=True)[0], "QUAKE DETECTED")
+
+    def test_doll_seen_uses_best_passing_score(self):
+        boxes = boxes_from_xyxyn([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4]], [0.93, 0.2])
+        self.assertEqual(self.items(quake_seen=True, boxes=boxes)[1], "DOLL SEEN 0.93")
+        self.assertEqual(self.items(quake_seen=True, boxes=boxes[1:])[1], "NO DOLL")
+        self.assertEqual(self.items(quake_seen=True, boxes=None)[1], "DOLL: DETECTOR FAILED")
+
+    def test_exit_words_say_view_or_watch(self):
+        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"))[2], "EXIT(view): LEFT VIA EXIT")
+        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"), watched=True)[2],
+                         "EXIT(watch): LEFT VIA EXIT")
+        self.assertEqual(self.items(presence=self.presence("PRESENT", absent_ns=1_500_000_000))[2],
+                         "EXIT(view): MISSING 1.5s")
+        self.assertEqual(self.items(presence=self.presence("PRESENT"))[2], "EXIT(view): IN VIEW")
+        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_VIA_EXIT"))[2],
+                         "EXIT(view): GONE NOT VIA EXIT")
+        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_YET_SEEN"))[2], "EXIT(view): WAITING")
 
 
 if __name__ == "__main__":
