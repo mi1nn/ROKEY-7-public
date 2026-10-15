@@ -68,6 +68,22 @@ NOMOTION_EVERY_S=5.0   # [제안] and again this often until one comes
 FREEZES=2  # per run (OPS-154): R0 + 1 doll found (TB-5 goes), R0 + 2 search done (TB-6 SLAM -> AMCL)
 
 
+def initial_pose_message(last,*,stamp,factory):
+    """A ``factory()`` PoseWithCovarianceStamped for <ns>/initialpose from ``last`` (an amcl_pose or the TF pose
+    look-alike of slam_tf_pose.pose_message), field by field as floats: rclpy's C conversion aborts the process on a
+    field of another type (runs 16-17, C26: the TF pose's ``pose.pose`` put in as it was)."""
+    message=factory()
+    message.header.frame_id=str(last.header.frame_id)
+    message.header.stamp=stamp
+    source,target=last.pose.pose,message.pose.pose
+    for name in ('x','y','z'): setattr(target.position,name,float(getattr(source.position,name)))
+    for name in ('x','y','z','w'): setattr(target.orientation,name,float(getattr(source.orientation,name)))
+    covariance=[float(v) for v in last.pose.covariance]
+    if len(covariance)!=36 or not all(math.isfinite(v) for v in covariance): raise ValueError('initial pose covariance')
+    message.pose.covariance=covariance
+    return message
+
+
 class SavedMapSources:
     """This robot's map and localization inputs, one of three declared modes (no fallback between them).
 
@@ -238,7 +254,17 @@ class SavedMapSources:
         if start is not None:
             # AMCL poses until now were on the previous grid, even those stamped after the adoption (REV-242-01)
             self.valid_after[robot]=self.runtime.adapter.wall_clock_ns(); self.poses.pop(robot,None)
-            if self.reinitialize is not None: self.reinitialize(robot,start)
+            if self.reinitialize is not None:
+                try:
+                    self.reinitialize(robot,start)
+                except (AttributeError,TypeError,ValueError) as exc:
+                    # AMCL did not get its start on the new grid: block this map (no VALID pose, so no command)
+                    # rather than lose the executor (run 16-17, C26)
+                    self.faults[robot]=f'MAP_REALIGN_FAILED {exc}; new run required'; self.maps.pop(robot,None)
+                    self.runtime.node.get_logger().error(f'MAP_REALIGN_FAILED {robot} R{self.adopted[robot]}: AMCL '
+                                                         f'start not sent ({exc}); map blocked, no command taken')
+                    self._publish_map_state(robot)
+                    return
             x,y,yaw=planar(start.pose.pose)
             self.runtime.node.get_logger().info(f'MAP_REALIGN {robot} R{self.adopted[robot]} AMCL start = its last '
                                                 f'valid pose ({x:.3f}, {y:.3f}, {yaw:.3f})')
@@ -504,12 +530,8 @@ def attach_sources(runtime):
 
         def reinitialize(robot,last):
             """AMCL start on the newer frozen map = this robot's last valid pose (same SLAM frame)."""
-            message=PoseWithCovarianceStamped()
-            message.header.frame_id=last.header.frame_id
-            message.header.stamp=r.node.get_clock().now().to_msg()
-            message.pose.pose=last.pose.pose
-            message.pose.covariance=[float(v) for v in last.pose.covariance]
-            publishers[robot].publish(message)
+            publishers[robot].publish(initial_pose_message(last,stamp=r.node.get_clock().now().to_msg(),
+                                                           factory=PoseWithCovarianceStamped))
         if publishers: r.saved_maps.reinitialize=reinitialize
         nomotion={}   # robot -> (client, service name, Empty)
 

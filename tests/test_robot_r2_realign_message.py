@@ -62,7 +62,6 @@ class RealignFromATfPose(TwiceHelpers, unittest.TestCase):
         message = tf_pose_message(dict(stamp_ns=self.r.now - 500_000, x=x, y=0.4, yaw=yaw, covariance=COV), 'map')
         self.s.receive_pose(self.robot, message, source='amcl_tf', covariance_fresh=True)
 
-    @unittest.expectedFailure
     def test_the_initial_pose_from_a_tf_pose_is_a_real_message(self):
         from rescue_robot.live_sources import initial_pose_message
         s = self.tb5_on_r1()
@@ -84,7 +83,6 @@ class RealignFromATfPose(TwiceHelpers, unittest.TestCase):
                           message.pose.pose.position.y, round(2 * math.atan2(q.z, q.w), 9),
                           message.pose.covariance))
 
-    @unittest.expectedFailure
     def test_a_failed_re_initialization_blocks_the_map_and_keeps_the_executor(self):
         s = self.tb5_on_r1()
         self.pose(x=2.5)
