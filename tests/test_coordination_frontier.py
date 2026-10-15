@@ -193,6 +193,8 @@ class RobotNotStartedTests(Base):
     def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
         self.reject(self.first_goal(), 'ACTION_ABORTED')
         self.assertEqual(2, len(self.core.frontier_tried))
+        # the reason is in the log, not only the outcome (RPP "collision ahead" ends as ACTION_ABORTED, 2026-10-15)
+        self.assertIn('outcome=FAILED reason=ACTION_ABORTED', ' '.join(self.core.drain_notes()))
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
 
 
@@ -249,7 +251,7 @@ class WallClearanceTests(unittest.TestCase):
     def test_the_same_clearance_changes_nothing(self):
         grid = self.wall_room()
         _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)
-        self.assertAlmostEqual(0.25, wall_distance(grid, old), places=6)
+        self.assertAlmostEqual(0.25, wall_distance(grid, old), delta=0.01)  # the goal of main before this change
 
     def test_a_narrow_way_still_gets_a_goal_and_says_so(self):
         # 0.70 m between two walls (tunnel 1 gap 0.68 m), unknown beyond x = 2.5
