@@ -304,3 +304,9 @@ PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.exampl
 ```
 
 `STATIC CONFIG VALID`는 설정 파일 검사만 통과했다는 뜻이다. 로봇이나 ROS 그래프를 확인한 건 아니다.
+
+## 7. 검토 문서
+
+| 문서 | 내용 |
+| --- | --- |
+| [시뮬레이션 핵심 로직 감사](docs/evidence/audit-2026-10-16-sim-core.md) | TB-6 탐색·TB-5 접촉 수거의 누락, 재현 방법, 최신 main 정정 및 후속 담당 범위 |
