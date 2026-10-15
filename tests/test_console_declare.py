@@ -8,10 +8,9 @@ import unittest
 
 from rescue_operations.site_state import SiteStateLedger
 from rescue_console.commands import COMMAND_PATH, MODE_COMMAND_FIELDS, build_request, command_access
-from rescue_console.labels import label
 from rescue_console.render import render_fragment, render_page
 from rescue_console.sources import load_ledger
-from rescue_console.view import ConsoleError, build_view
+from rescue_console.view import ConsoleError, build_view, mission_reason
 from test_console_commands import COMMAND_ID, OPS, answer, mission_state
 from test_console_view import ROBOTS, SECOND, T0, LedgerFixture, write_site_state
 from test_console_web import ADMIN, CUSTOMER, HAS_FLASK, SECRET, AccountsFixture
@@ -32,8 +31,11 @@ class DeclareRequestTests(unittest.TestCase):
         self.assertEqual({kind: set(fields) for kind, fields in MODE_COMMAND_FIELDS.items()},
                          {kind: set(fields) for kind, fields in GATE.items()})
 
-    def test_refusal_has_a_word(self):
-        self.assertEqual(label('reply', 'ALREADY_DISASTER'), '이미 재난 모드')
+    def test_refusal_and_trigger_have_words(self):
+        # 거절 답은 TASK_BUSY 이고, ALREADY_DISASTER 는 명령 기록의 사유로 온다(#330).
+        self.assertEqual(mission_reason('ALREADY_DISASTER', 'TB-5', 'TB-6')['text'], '재난 선포 거절 — 이미 재난 모드')
+        self.assertEqual(mission_reason('DISASTER_DECLARED_BY_OPERATOR', 'TB-5', 'TB-6')['text'],
+                         '운영자 재난 선포로 재난 모드')
 
 
 class DeclareGateTests(LedgerFixture):
@@ -120,10 +122,10 @@ class DeclareRouteTests(AccountsFixture):
         self.assertEqual((payload['kind'], payload['operator_id']), ('DECLARE_DISASTER', 'admin'))
 
     def test_refusal_is_shown_as_given(self):
-        self.reply = (200, answer(False, 'ALREADY_DISASTER'))
+        self.reply = (200, answer(False, 'TASK_BUSY'))   # 조정기: 이미 재난이면 TASK_BUSY(ALREADY_DISASTER)
         result = self.post(self.client()).get_json()
         self.assertEqual((result['accepted'], result['reason'], result['reason_label']),
-                         (False, 'ALREADY_DISASTER', '이미 재난 모드'))
+                         (False, 'TASK_BUSY', '이미 진행 중'))
 
     def test_customer_cannot_send(self):
         response = self.post(self.client(CUSTOMER))

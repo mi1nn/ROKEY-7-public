@@ -403,7 +403,10 @@ MISSION_REASONS = {
     'NO_HOME_POSITION': ('복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함', 'caution'),
     # search_start AUTO(#228, OPS-140)와 지도 고정 전 출구 QR(OPS-136).
     'SEARCH_GOAL_NOT_SELECTED': ('{scout} 수색 목표 선택 대기', 'caution'),
-    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    'AUTO_SEARCH_ENABLED': ('자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음', 'info'),
+    # 운영자 재난 선포(DECLARE_DISASTER, #330). 거절 답은 TASK_BUSY 이고 이 사유는 명령 기록·임무 띠에 실린다.
+    'DISASTER_DECLARED_BY_OPERATOR': ('운영자 재난 선포로 재난 모드', 'info'),
+    'ALREADY_DISASTER': ('재난 선포 거절 — 이미 재난 모드', 'info'),
     'MAP_FREEZE_WAITING_EXIT': ('출구 QR 찾는 중 — {support} 출동 대기', 'info'),
     # #234 (OPS-147): QR 출구는 TB-5 출동과 출구 이동을 막고, 출발 자세는 순찰과 TB-6 복귀를 막는다.
     'TARGET_REBASED_ON_FREEZE': ('대상 위치를 고정 지도로 옮김 — 보고 저장 대기', 'info'),
@@ -562,7 +565,7 @@ def _gate(name, mission, targets):
     #    (source 'site_events') 배지에는 표시되나 명령 버튼을 활성화하지 않는다.
     if mission['source'] != 'mission_state':
         return off('임무 상태 없음 — operations 가 조정기 상태를 기록하면 켜짐')
-    # 재난 선포는 평시(NORMAL)에만 켠다. 조정기는 이미 재난이면 ALREADY_DISASTER 로 거절한다(작전 2026-10-15).
+    # 재난 선포는 평시(NORMAL)에만 켠다. 조정기는 이미 재난이면 TASK_BUSY(사유 ALREADY_DISASTER)로 거절한다(작전 2026-10-15).
     if name == 'DECLARE_DISASTER':
         if mission['mode'] == 'NORMAL':
             return True, '평시 — 누르면 재난 모드로 들어감', {}, []

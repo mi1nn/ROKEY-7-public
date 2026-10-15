@@ -32,7 +32,7 @@ COMMAND_FIELDS = {
     'RETURN_HOME': (),
 }
 # 재난 선포: 평시에 운영자가 재난 모드로 넣는다. 조정기는 COMMAND_FIELDS 와 따로 둔다
-# (rescue_coordination.mission.MODE_COMMAND_FIELDS, 작전 2026-10-15). 이미 재난이면 ALREADY_DISASTER 로 거절한다.
+# (rescue_coordination.mission.MODE_COMMAND_FIELDS, 작전 2026-10-15). 이미 재난이면 TASK_BUSY(사유 ALREADY_DISASTER)로 거절한다.
 MODE_COMMAND_FIELDS = {'DECLARE_DISASTER': ()}
 SENDABLE = tuple(COMMAND_FIELDS)   # 재난 모드에서 켜지는 명령. 재난 선포는 MODE_COMMAND_FIELDS 에 따로 둔다
 _ALL_FIELDS = COMMAND_FIELDS | MODE_COMMAND_FIELDS

@@ -496,7 +496,9 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | SCOUT_HOME_NOT_FREE | {C} 도킹 접근 지점이 막힘 — {C} 복귀 보류 | caution |
 | NO_HOME_POSITION | 복귀 위치(출구·도킹 접근) 설정 없음 — 복귀 이동 안 함 | caution |
 | SEARCH_GOAL_NOT_SELECTED | {C} 수색 목표 선택 대기 | caution |
-| AUTO_SEARCH_ENABLED | 자동 수색 — 지진 감지로 시작, 수색 시작 버튼은 받지 않음 | info |
+| AUTO_SEARCH_ENABLED | 자동 수색 — 지진 감지나 재난 선포로 시작, 수색 시작 버튼은 받지 않음 | info |
+| DISASTER_DECLARED_BY_OPERATOR | 운영자 재난 선포로 재난 모드 | info |
+| ALREADY_DISASTER | 재난 선포 거절 — 이미 재난 모드 | info |
 | MAP_FREEZE_WAITING_EXIT | 출구 QR 찾는 중 — {S} 출동 대기 | info |
 | TARGET_REBASED_ON_FREEZE | 대상 위치를 고정 지도로 옮김 — 보고 저장 대기 | info |
 | EXIT_NOT_ON_FROZEN_MAP | 출구(QR) 위치가 고정 지도 기준에 없음 — {S} 출동·출구 이동 보류 | caution |
