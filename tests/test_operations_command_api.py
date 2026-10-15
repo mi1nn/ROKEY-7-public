@@ -44,7 +44,7 @@ class ParseCommand(unittest.TestCase):
     def test_each_kind_takes_exactly_its_fields(self):
         """Same per-kind fields as the coordinator's mission.COMMAND_FIELDS (#115 table)."""
         for kind in ('START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT', 'REQUEST_RECHECK', 'RETURN_HOME',
-                     'SET_CAMERA_WATCH'):
+                     'SET_CAMERA_WATCH', 'DECLARE_DISASTER'):
             with self.subTest(kind=kind):
                 self.assertEqual(request(kind), self.parse(body(request(kind))))
 
@@ -53,6 +53,15 @@ class ParseCommand(unittest.TestCase):
         from rescue_operations.command_api import COMMAND_FIELDS
         self.assertEqual({kind: set(fields) for kind, fields in GATE.items()},
                          {kind: set(fields) for kind, fields in COMMAND_FIELDS.items()})
+
+    def test_declare_disaster_takes_only_the_id_and_the_operator(self):
+        """The manual disaster declaration carries nothing but who asked (재범님 결정 2026-10-15)."""
+        self.assertEqual(dict(command_id=uid(77), kind='DECLARE_DISASTER', operator_id='admin'),
+                         self.parse(body(request('DECLARE_DISASTER'))))
+        for extra in (dict(target_id=uid(500)), dict(robot_id='robot_a'), dict(note='x')):
+            with self.subTest(extra=extra), self.assertRaises(OperationsError) as caught:
+                self.parse(body(request('DECLARE_DISASTER', **extra)))
+            self.assertEqual('INVALID_INPUT', caught.exception.code)
 
     def test_malformed_requests_are_invalid_input(self):
         bad = [b'not json', b'[]', body(request(kind='PAUSE')), body(request(kind='STOP_ROBOT')),
@@ -90,6 +99,8 @@ class ServiceFields(unittest.TestCase):
                               issued_at_ns=T0, deadline_ns=T0 + 3_000_000_000, roi_xyxy_normalized=[0.0] * 4,
                               association_evidence_id=''), fields)
         start = service_fields(request(), issued_at_ns=T0, timeout_ns=1)
+        declare = service_fields(request('DECLARE_DISASTER'), issued_at_ns=T0, timeout_ns=1)
+        self.assertEqual(start | dict(operation='DECLARE_DISASTER'), declare)  # same .srv, only the operation differs
         self.assertEqual(('', 0, 0, 0), (start['target_id'], start['expected_target_revision'],
                                          start['route_revision'], start['segment_index']))
 
@@ -134,6 +145,15 @@ class CommandGate(unittest.TestCase):
                          tuple(row[k] for k in ('command_id', 'kind', 'operator_id', 'robot_id', 'target_id',
                                                 'segment_index', 'route_revision', 'requested_at_ns', 'accepted',
                                                 'result', 'reason')))
+
+    def test_declare_disaster_is_sent_and_kept_in_the_command_history(self):
+        """The row is what the replay shows of the declaration (재범님 결정 2026-10-15)."""
+        status, answer = self.gate(reply()).handle(body(request('DECLARE_DISASTER')), received_at_ns=T0)
+        self.assertEqual((200, True, 'ACCEPTED'), (status, answer['accepted'], answer['request_state']))
+        self.assertEqual(['DECLARE_DISASTER'], [fields['operation'] for fields in self.sent])
+        self.assertEqual([('DECLARE_DISASTER', True, 'ACCEPTED')],
+                         [(r['kind'], r['accepted'], r['result']) for r in self.commands()])
+        self.assertEqual([], self.errors())
 
     def test_coordinator_refusal_is_an_answer_and_recorded_with_its_reason(self):
         status, answer = self.gate(reply(False, 'REJECTED', 'NAV_NOT_READY')).handle(body(request()),

@@ -54,6 +54,8 @@ MISSION_PHASES = frozenset({"IDLE", "DISASTER", "SEARCHING", "TARGET_FOUND", "DI
 OPERATOR_COMMAND_KINDS = frozenset({"START_SEARCH", "DISPATCH_SUPPORT", "CONTINUE_SEGMENT", "REQUEST_RECHECK",
                                     "RETURN_HOME", "FINISH_MISSION", "RESET_STOP", "SET_CAMERA_WATCH",
                                     "PAUSE", "RESUME", "CANCEL", "STOP_ROBOT",
+                                    # the operator's manual disaster declaration (재범님 결정 2026-10-15)
+                                    "DECLARE_DISASTER",
                                     # the console's scenario reset, answered by operations itself (1.5)
                                     "RESET_RUN"})
 ROBOT_KEYS = {"robot_id", "robot_boot_id", "state_sequence", "role", "stamp_ns", "pose", "motion_state",
