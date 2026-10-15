@@ -1,10 +1,13 @@
 ---
 title: 운영 PC 현황 기록 — 관제 웹·DB·Discovery Server
 status: record   # 측정한 현재 상태. 설계 결정이 아니다
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # 운영 PC 현황 기록
+
+> [!IMPORTANT]
+> **2026-10-15: Discovery 전용 PC 의 서버(ID 0)로 전환했다(재범 결정).** 로봇 Pi 설정은 그대로다. 전용 PC 에 떠 있는 것, 다른 PC 가 붙는 법, 확인·문제 해결은 [Discovery 전용 PC 운영 안내](discovery-host.md)에 있다. 아래 「한눈에 (2026-10-14)」의 Discovery 행은 전환 전 기록이다.
 
 ## 한눈에 (2026-10-14)
 
