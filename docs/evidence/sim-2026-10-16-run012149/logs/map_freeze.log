@@ -1,0 +1,8 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-01-23-16-055814-sim-pc-727561
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [map_freeze-1]: process started with pid [727616]
+[map_freeze-1] [INFO] [1792081396.769221647] [rescue_map_freeze]: git_sha=2d7df285f26657ef739f44709d57d1b58c689f55 parameters={'map_topic': '/robot6/map', 'pose_topic': '/robot6/pose', 'map_frame': 'map', 'map_session_id': '22222222-2222-4222-8222-222222222222', 'map_revision': 0, 'pose_max_age_ns': 2000000000, 'output_dir': '<회차 폴더>/freeze', 'tf_topic': '/robot6/tf', 'odom_frame': 'odom', 'base_frame': 'base_link', 'covariance_max_age_ns': 30000000000}
+[map_freeze-1] [INFO] [1792081400.980612906] [rescue_map_freeze]: START_POSE captured robot_a map=(-0.353, -0.000, -2.949) session=22222222-2222-4222-8222-222222222222 rev=0 -> /rescue/map/start_pose/robot_a (origin of coordinates measured in advance)
+[map_freeze-1] [INFO] [1792082216.108013759] [rescue_map_freeze]: MAP_FROZEN sha256=af2a14bfd84e124ee5bf3e2c60a46b4969b3e62c1c086fefd42e03983a859897 session=22222222-2222-4222-8222-222222222222 rev=1 final=False tb6 keeps SLAM record=<회차 폴더>/freeze/frozen-r1-af2a14bfd84e-1792082216104847337.json
+[map_freeze-1] [INFO] [1792082216.117986207] [rescue_map_freeze]: MAP_FROZEN sha256=af2a14bfd84e124ee5bf3e2c60a46b4969b3e62c1c086fefd42e03983a859897 session=22222222-2222-4222-8222-222222222222 rev=2 final=True tb6 amcl start=(-0.354, 0.012, -2.106) record=<회차 폴더>/freeze/frozen-r2-af2a14bfd84e-1792082216114444033.json
+[INFO] [map_freeze-1]: process has finished cleanly [pid 727616]

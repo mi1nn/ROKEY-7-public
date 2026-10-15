@@ -1,0 +1,164 @@
+== 01:37:08.538739002 c7_before_slam_stop
+-- ros2 topic info -v /robot6/map --no-daemon --spin-time 10
+Type: nav_msgs/msg/OccupancyGrid
+
+Publisher count: 1
+
+Node name: slam_toolbox
+Node namespace: /robot6
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: PUBLISHER
+GID: 01.0f.e4.8b.8c.16.75.a2.00.00.00.00.00.00.37.03
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Subscription count: 9
+
+Node name: rescue_command_adapter
+Node namespace: /robot6
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.01.18.b0.5b.00.00.00.00.00.00.48.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: rescue_map_freeze
+Node namespace: /
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.40.1a.20.8d.00.00.00.00.00.00.17.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: rescue_db_writer
+Node namespace: /
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.7f.11.3c.46.00.00.00.00.00.00.1e.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: rescue_map_snapshot
+Node namespace: /
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.81.11.22.fb.00.00.00.00.00.00.13.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: fake_target
+Node namespace: /
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.8b.1e.d3.9a.00.00.00.00.00.00.17.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: slam_toolbox
+Node namespace: /robot6
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.8c.16.75.a2.00.00.00.00.00.00.28.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: local_costmap
+Node namespace: /robot6/local_costmap
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.e3.17.44.4c.00.00.00.00.00.00.41.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: global_costmap
+Node namespace: /robot6/global_costmap
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.e5.17.be.f0.00.00.00.00.00.00.41.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: mission_coordinator
+Node namespace: /
+Topic type: nav_msgs/msg/OccupancyGrid
+Topic type hash: RIHS01_8d348150c12913a31ee0ec170fbf25089e4745d17035792a1ba94d6f0bc0cfc7
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.fc.1c.28.c0.00.00.00.00.00.00.3b.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+-- ros2 node list (map|slam)
+/rescue_map_freeze
+/rescue_map_snapshot
+/robot6/slam_toolbox
+-- ps (slam_toolbox|map_server)
+ 726668       14:30 /opt/ros/jazzy/lib/slam_toolbox/sync_slam_toolbox_node --ros-args -r __node:=slam_toolbox -r __ns:=/robot6 --params-file /tmp/tmp_e789npw --params-file /tmp/launch_params_m6w9dv1h 

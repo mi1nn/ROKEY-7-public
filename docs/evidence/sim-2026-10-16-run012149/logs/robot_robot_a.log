@@ -1,0 +1,1174 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-01-23-11-891925-sim-pc-726946
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: robot robot_a ns=/robot6 nav2_params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/nav2.yaml + passage stop 0.05..0.46 m front [0.4, 1.0] + passage slow x0.3 0.23..1.0 m front [0.4, 1.2] depth /robot6/oakd/stereo/image_raw (compressedDepth) + no BackUp recovery + FollowPath Rotation Shim/RPP -> /tmp/nav2_robot_a_qpy2m6ge.yaml map_mode=SLAM_THEN_FROZEN frozen pose TF /robot6/tf with AMCL covariance while moved < 0.25 m / 0.2 rad (<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml) map_sha256=(decided by the freeze) declared alignment window 1792081388966429354..1792084991966429354 ns
+[INFO] [controller_server-1]: process started with pid [727011]
+[INFO] [smoother_server-2]: process started with pid [727012]
+[INFO] [planner_server-3]: process started with pid [727013]
+[INFO] [route_server-4]: process started with pid [727014]
+[INFO] [behavior_server-5]: process started with pid [727015]
+[INFO] [bt_navigator-6]: process started with pid [727016]
+[INFO] [waypoint_follower-7]: process started with pid [727023]
+[INFO] [velocity_smoother-8]: process started with pid [727024]
+[INFO] [collision_monitor-9]: process started with pid [727029]
+[INFO] [opennav_docking-10]: process started with pid [727030]
+[INFO] [lifecycle_manager-11]: process started with pid [727033]
+[INFO] [command_watchdog-12]: process started with pid [727040]
+[INFO] [task_input-13]: process started with pid [727041]
+[planner_server-3] [INFO] [1792081392.828130144] [robot6.planner_server]: 
+[planner_server-3] 	planner_server lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792081392.830513114] [robot6.planner_server]: Creating
+[opennav_docking-10] [INFO] [1792081392.890796564] [robot6.docking_server]: 
+[opennav_docking-10] 	docking_server lifecycle node launched. 
+[opennav_docking-10] 	Waiting on external lifecycle transitions to activate
+[opennav_docking-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[opennav_docking-10] [INFO] [1792081392.890991018] [robot6.docking_server]: Creating docking_server
+[velocity_smoother-8] [INFO] [1792081392.962540115] [robot6.velocity_smoother]: 
+[velocity_smoother-8] 	velocity_smoother lifecycle node launched. 
+[velocity_smoother-8] 	Waiting on external lifecycle transitions to activate
+[velocity_smoother-8] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792081392.962841268] [robot6.global_costmap.global_costmap]: 
+[planner_server-3] 	global_costmap lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792081392.963468330] [robot6.global_costmap.global_costmap]: Creating Costmap
+[lifecycle_manager-11] [INFO] [1792081392.976507939] [robot6.lifecycle_manager_navigation]: Creating
+[smoother_server-2] [INFO] [1792081392.979236448] [robot6.smoother_server]: 
+[smoother_server-2] 	smoother_server lifecycle node launched. 
+[smoother_server-2] 	Waiting on external lifecycle transitions to activate
+[smoother_server-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792081392.979283475] [robot6.waypoint_follower]: 
+[waypoint_follower-7] 	waypoint_follower lifecycle node launched. 
+[waypoint_follower-7] 	Waiting on external lifecycle transitions to activate
+[waypoint_follower-7] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[behavior_server-5] [INFO] [1792081392.979669777] [robot6.behavior_server]: 
+[behavior_server-5] 	behavior_server lifecycle node launched. 
+[behavior_server-5] 	Waiting on external lifecycle transitions to activate
+[behavior_server-5] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792081392.980030596] [robot6.waypoint_follower]: Creating
+[smoother_server-2] [INFO] [1792081392.981511803] [robot6.smoother_server]: Creating smoother server
+[controller_server-1] [INFO] [1792081392.982303285] [robot6.controller_server]: 
+[controller_server-1] 	controller_server lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792081392.989289596] [robot6.controller_server]: Creating controller server
+[lifecycle_manager-11] [INFO] [1792081392.998653570] [robot6.lifecycle_manager_navigation]: Creating and initializing lifecycle service clients
+[collision_monitor-9] [INFO] [1792081393.005728594] [robot6.collision_monitor]: 
+[collision_monitor-9] 	collision_monitor lifecycle node launched. 
+[collision_monitor-9] 	Waiting on external lifecycle transitions to activate
+[collision_monitor-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792081393.010578989] [robot6.bt_navigator]: 
+[bt_navigator-6] 	bt_navigator lifecycle node launched. 
+[bt_navigator-6] 	Waiting on external lifecycle transitions to activate
+[bt_navigator-6] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792081393.012852077] [robot6.bt_navigator]: Creating
+[route_server-4] [INFO] [1792081393.016515431] [robot6.route_server]: 
+[route_server-4] 	route_server lifecycle node launched. 
+[route_server-4] 	Waiting on external lifecycle transitions to activate
+[route_server-4] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792081393.059074492] [robot6.local_costmap.local_costmap]: 
+[controller_server-1] 	local_costmap lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792081393.059713880] [robot6.local_costmap.local_costmap]: Creating Costmap
+[command_watchdog-12] [INFO] [1792081393.095667430] [robot6.rescue_command_watchdog]: git_sha=2d7df285f26657ef739f44709d57d1b58c689f55 parameters={'namespace': '/robot6', 'cmd_vel_in_topic': '/robot6/cmd_vel_watchdog_in', 'cmd_vel_out_topic': '/robot6/cmd_vel', 'cmd_vel_stamped': True, 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat', 'step_period': 0.05, 'watchdog.version': 'search-live-20261012', 'watchdog.heartbeat_max_age_s': 0.5, 'watchdog.command_max_age_s': 0.5, 'watchdog.max_linear_mps': 0.3, 'watchdog.max_angular_rps': 1.2}
+[task_input-13] [ERROR] [1792081393.613955273] [robot6.rescue_command_adapter]: input session blocked: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [INFO] [1792081393.703352090] [robot6.rescue_command_adapter]: task runtime configuration={"auto_rearm": true, "auto_target": {"enabled": true, "goal_clear_radius_m": 0.2, "kinds": ["REOBSERVE_TARGET", "RETURN_HOME"], "policy_version": "auto-target-20261013"}, "clock_error_bound_ns": 2000000000, "configured_destinations": {}, "coordinator_authority": {"authority_epoch": "66666666-6666-4666-8666-666666666666", "coordinator_id": "77777777-7777-4777-8777-777777777777"}, "coordinator_state_topic": "/rescue/system_state", "coordinator_targets_topic": "/rescue/targets", "endpoints": {"action_name": "/rescue/robots/robot_a/execute_task", "admission_topic": "/rescue/robots/robot_a/task_admission", "lease_topic": "/rescue/robots/robot_a/command_lease", "status_topic": "/rescue/robots/robot_a/status"}, "format": "rescue-robot-runtime/1", "input_max_age_ns": 30000000000, "input_mode": "LIVE_ROS", "lease": {"clock_domain_id": "rokey7-utc-field", "duration_s": 3.0, "max_age_ns": 4000000000, "max_error_ns": 2000000000}, "live_clock": {"backend": "timesyncd", "coordinator_service": "/mission_coordinator/task_inputs", "drift_ppm": 100.0, "max_age_ns": 3600000000000, "poll_period_s": 0.5}, "mapping_authority": "88888888-8888-4888-8888-888888888888", "max_position_error_m": 0.1, "max_rotation_error_rad": 0.1, "mission_frame": "map", "passage": {"polygon_name": "PassageStop", "result_window_ns": 5000000000}, "poll_period_s": 0.5, "pose_valid_ns": 2000000000, "publisher_id": "99999999-9999-4999-8999-999999999999", "recheck": {"deadline_ns": 10000000000, "window_ns": 3000000000}, "robot_id": "robot_a", "saved_maps": {"robot_a": {"amcl_base_frame": "base_link", "amcl_odom_frame": "odom", "amcl_tf_topic": "/robot6/tf", "amcl_update_min_a": 0.2, "amcl_update_min_d": 0.25, "authority_id": "88888888-8888-4888-8888-888888888888", "clock_domain_id": "rokey7-utc-field", "frozen_revision_topic": "/rescue/map/frozen_revision", "frozen_topic": "/rescue/map/frozen", "localization_topic": "/robot6/amcl_pose", "map_frame": "map", "map_revision": 0, "map_session_id": "22222222-2222-4222-8222-222222222222", "map_topic": "/robot6/map", "max_position_variance_m2": 0.25, "max_yaw_variance_rad2": 0.25, "mode": "SLAM_THEN_FROZEN", "occupancy_sha256": "", "position_error_m": 0.0, "rotation_error_rad": 0.0, "slam_base_frame": "base_link", "slam_covariance_max_age_ns": 30000000000, "slam_localization_topic": "/robot6/pose", "slam_odom_frame": "odom", "slam_tf_topic": "/robot6/tf", "transform_revision": 1, "transform_valid_until_ns": 1792084991966429354, "transform_xy_yaw": [0.0, 0.0, 0.0], "valid_from_ns": 1792081388966429354}}, "schema_version": "rescue-envelope/1", "sensor_host_clock": {"domain_id": "rokey7-utc-field", "error_bound_ns": 150000000}}
+[task_input-13] [INFO] [1792081393.703897802] [robot6.rescue_command_adapter]: installed task runtime; input_mode=LIVE_ROS; explicit arm required
+[task_input-13] [INFO] [1792081393.705835468] [robot6.rescue_command_adapter]: task runtime attached: rescue_robot.task_site_runtime:create_runtime
+[task_input-13] [INFO] [1792081393.723699829] [robot6.rescue_command_adapter]: git_sha=2d7df285f26657ef739f44709d57d1b58c689f55 boot=3d816b0a-f345-4f8e-ac93-42e777dc8841 parameters={'allowed_robot_ids': ['robot_a', 'robot_b'], 'robot_id': 'robot_a', 'namespace': '/robot6', 'authority_epoch': '66666666-6666-4666-8666-666666666666', 'nav_action': '/robot6/navigate_to_pose', 'odom_topic': '/robot6/odom', 'dock_status_topic': '/robot6/dock_status', 'policy_version': 'search-live-20261012', 'step_period': 0.05, 'clock_error_bound_s': 2.0, 'scan_topic': '/robot6/scan', 'tf_topic': '/robot6/tf', 'map_frame': 'map', 'odom_frame': 'odom', 'readiness.version': 'example-2026-10-08', 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'nav2_lifecycle_service': '/robot6/lifecycle_manager_navigation/is_active', 'policy.acceptance_timeout': 10.0, 'policy.stop_timeout': 5.0, 'policy.stop_window': 0.5, 'policy.max_sample_gap': 0.3, 'policy.evidence_max_age': 3.0, 'policy.linear_stop_max': 0.01, 'policy.angular_stop_max': 0.02, 'readiness.max_age_s.odom': 0.5, 'readiness.max_age_s.scan': 0.5, 'readiness.max_age_s.camera': 1.0, 'readiness.max_age_s.wheel_status': 0.5, 'readiness.max_age_s.map_to_odom_tf': 1.0, 'readiness.max_age_s.watchdog_heartbeat': 0.5, 'camera_topics': ['/robot6/oakd/rgb/camera_info', '/robot6/oakd/stereo/image_raw/compressedDepth'], 'wheel_status_topic': '/robot6/wheel_status', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat'}
+[task_input-13] [INFO] [1792081393.735419490] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=UNKNOWN
+[task_input-13] [WARN] [1792081393.767874971] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no NavigateToPose server: nav2 NOT_READY
+[lifecycle_manager-11] [INFO] [1792081393.854565169] [robot6.lifecycle_manager_navigation]: Starting managed nodes bringup...
+[lifecycle_manager-11] [INFO] [1792081393.854624018] [robot6.lifecycle_manager_navigation]: Configuring controller_server
+[controller_server-1] [INFO] [1792081393.856248455] [robot6.controller_server]: Configuring controller interface
+[controller_server-1] [INFO] [1792081393.856306851] [robot6.controller_server]: getting progress checker plugins..
+[controller_server-1] [INFO] [1792081393.857431728] [robot6.controller_server]: getting goal checker plugins..
+[controller_server-1] [INFO] [1792081393.861020832] [robot6.controller_server]: Controller frequency set to 20.0000Hz
+[controller_server-1] [INFO] [1792081393.861122240] [robot6.local_costmap.local_costmap]: Configuring
+[command_watchdog-12] [INFO] [1792081393.898498193] [robot6.rescue_command_watchdog]: watchdog ARMED reason=- t=33904.896
+[controller_server-1] [INFO] [1792081393.910184440] [robot6.local_costmap.local_costmap]: Using plugin "static_layer"
+[controller_server-1] [INFO] [1792081393.924609166] [robot6.local_costmap.local_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[controller_server-1] [INFO] [1792081393.929684211] [robot6.local_costmap.local_costmap]: Initialized plugin "static_layer"
+[controller_server-1] [INFO] [1792081393.929777524] [robot6.local_costmap.local_costmap]: Using plugin "voxel_layer"
+[controller_server-1] [INFO] [1792081393.937172822] [robot6.local_costmap.local_costmap]: Subscribed to Topics: scan
+[controller_server-1] [INFO] [1792081394.000506712] [robot6.local_costmap.local_costmap]: Initialized plugin "voxel_layer"
+[controller_server-1] [INFO] [1792081394.000565451] [robot6.local_costmap.local_costmap]: Using plugin "inflation_layer"
+[controller_server-1] [INFO] [1792081394.005726412] [robot6.local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[controller_server-1] [INFO] [1792081394.163592389] [robot6.controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[controller_server-1] [INFO] [1792081394.167174330] [robot6.controller_server]: Controller Server has progress_checker  progress checkers available.
+[controller_server-1] [INFO] [1792081394.168246030] [robot6.controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[controller_server-1] [INFO] [1792081394.169075843] [robot6.controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[controller_server-1] [INFO] [1792081394.171677927] [robot6.controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792081394.174027961] [robot6.controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792081394.192033942] [robot6.controller_server]: Controller Server has FollowPath  controllers available.
+[controller_server-1] [INFO] [1792081394.217324058] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 62 X 80 at 0.050000 m/pix
+[lifecycle_manager-11] [INFO] [1792081394.505680055] [robot6.lifecycle_manager_navigation]: Configuring smoother_server
+[smoother_server-2] [INFO] [1792081394.507581710] [robot6.smoother_server]: Configuring smoother server
+[smoother_server-2] [INFO] [1792081394.533069805] [robot6.smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[smoother_server-2] [INFO] [1792081394.533964020] [robot6.smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[lifecycle_manager-11] [INFO] [1792081394.551358966] [robot6.lifecycle_manager_navigation]: Configuring planner_server
+[planner_server-3] [INFO] [1792081394.551730563] [robot6.planner_server]: Configuring
+[planner_server-3] [INFO] [1792081394.551765308] [robot6.global_costmap.global_costmap]: Configuring
+[planner_server-3] [INFO] [1792081394.574914480] [robot6.global_costmap.global_costmap]: Using plugin "static_layer"
+[planner_server-3] [INFO] [1792081394.579215553] [robot6.global_costmap.global_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[planner_server-3] [INFO] [1792081394.581965115] [robot6.global_costmap.global_costmap]: Initialized plugin "static_layer"
+[planner_server-3] [INFO] [1792081394.582004842] [robot6.global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792081394.583052183] [robot6.global_costmap.global_costmap]: Subscribed to Topics: scan
+[planner_server-3] [INFO] [1792081394.590601718] [robot6.global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792081394.590650719] [robot6.global_costmap.global_costmap]: Using plugin "inflation_layer"
+[planner_server-3] [INFO] [1792081394.591637962] [robot6.global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[planner_server-3] [INFO] [1792081394.698938147] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 62 X 80 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792081394.699568648] [robot6.planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner::NavfnPlanner
+[planner_server-3] [INFO] [1792081394.699641093] [robot6.planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792081394.700489502] [robot6.planner_server]: Planner Server has GridBased  planners available.
+[lifecycle_manager-11] [INFO] [1792081394.749300982] [robot6.lifecycle_manager_navigation]: Configuring route_server
+[route_server-4] [INFO] [1792081394.749876759] [robot6.route_server]: Configuring
+[route_server-4] [INFO] [1792081394.862699763] [robot6.route_server]: Created GraphFileLoader GeoJsonGraphFileLoader of type nav2_route::GeoJsonGraphFileLoader
+[route_server-4] [INFO] [1792081394.862760704] [robot6.route_server]: Configuring geojson graph file loader
+[route_server-4] [INFO] [1792081394.862775171] [robot6.route_server]: No graph file provided to load yet.
+[route_server-4] [INFO] [1792081394.868929764] [robot6.route_server]: Created edge cost function plugin DistanceScorer of type nav2_route::DistanceScorer
+[route_server-4] [INFO] [1792081394.869057186] [robot6.route_server]: Configuring distance scorer.
+[route_server-4] [INFO] [1792081394.869529909] [robot6.route_server]: Created edge cost function plugin DynamicEdgesScorer of type nav2_route::DynamicEdgesScorer
+[route_server-4] [INFO] [1792081394.869552686] [robot6.route_server]: Configuring adjust edges scorer.
+[route_server-4] [INFO] [1792081394.879228570] [robot6.route_server]: Created route operation AdjustSpeedLimit of type nav2_route::AdjustSpeedLimit
+[route_server-4] [INFO] [1792081394.879303958] [robot6.route_server]: Configuring Adjust speed limit operation.
+[route_server-4] [INFO] [1792081394.884808359] [robot6.route_server]: Created route operation ReroutingService of type nav2_route::ReroutingService
+[route_server-4] [INFO] [1792081394.884879718] [robot6.route_server]: Configuring Rerouting service operation.
+[lifecycle_manager-11] [INFO] [1792081394.897776247] [robot6.lifecycle_manager_navigation]: Configuring behavior_server
+[behavior_server-5] [INFO] [1792081394.898429950] [robot6.behavior_server]: Configuring
+[behavior_server-5] [INFO] [1792081394.907331945] [robot6.behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[behavior_server-5] [INFO] [1792081394.908497571] [robot6.behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors::DriveOnHeading
+[behavior_server-5] [INFO] [1792081394.909337370] [robot6.behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors::AssistedTeleop
+[behavior_server-5] [INFO] [1792081394.910963787] [robot6.behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[behavior_server-5] [INFO] [1792081394.927164918] [robot6.behavior_server]: Configuring spin
+[behavior_server-5] [INFO] [1792081394.954069788] [robot6.behavior_server]: Configuring drive_on_heading
+[behavior_server-5] [INFO] [1792081394.974801699] [robot6.behavior_server]: Configuring assisted_teleop
+[behavior_server-5] [INFO] [1792081394.996367955] [robot6.behavior_server]: Configuring wait
+[lifecycle_manager-11] [INFO] [1792081395.023738458] [robot6.lifecycle_manager_navigation]: Configuring velocity_smoother
+[velocity_smoother-8] [INFO] [1792081395.024201049] [robot6.velocity_smoother]: Configuring velocity smoother
+[lifecycle_manager-11] [INFO] [1792081395.033020441] [robot6.lifecycle_manager_navigation]: Configuring collision_monitor
+[collision_monitor-9] [INFO] [1792081395.033622753] [robot6.collision_monitor]: Configuring
+[collision_monitor-9] [INFO] [1792081395.042828063] [collision_monitor]: [scan]: Creating Scan
+[collision_monitor-9] [INFO] [1792081395.047626600] [collision_monitor]: [passage_depth]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792081395.050154196] [collision_monitor]: [passage_overhead]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792081395.055771377] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[collision_monitor-9] [INFO] [1792081395.056103970] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[collision_monitor-9] [INFO] [1792081395.058466738] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on local_costmap/published_footprint topic
+[collision_monitor-9] [INFO] [1792081395.060952805] [collision_monitor]: [PassageStop]: Creating Polygon
+[collision_monitor-9] [INFO] [1792081395.064400930] [collision_monitor]: [PassageSlow]: Creating Polygon
+[lifecycle_manager-11] [INFO] [1792081395.099900257] [robot6.lifecycle_manager_navigation]: Configuring bt_navigator
+[bt_navigator-6] [INFO] [1792081395.101179576] [robot6.bt_navigator]: Configuring
+[bt_navigator-6] [INFO] [1792081395.117864541] [robot6.bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[task_input-13] [INFO] [1792081395.210630146] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=VALID
+[task_input-13] [WARN] [1792081395.213822421] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no answer within 3.0 s: nav2 NOT_READY
+[bt_navigator-6] [INFO] [1792081395.274775090] [robot6.bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[lifecycle_manager-11] [INFO] [1792081395.330534575] [robot6.lifecycle_manager_navigation]: Configuring waypoint_follower
+[waypoint_follower-7] [INFO] [1792081395.331303528] [robot6.waypoint_follower]: Configuring
+[waypoint_follower-7] [INFO] [1792081395.415568848] [robot6.waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[lifecycle_manager-11] [INFO] [1792081395.417059810] [robot6.lifecycle_manager_navigation]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792081395.417438910] [robot6.docking_server]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792081395.417504955] [robot6.docking_server]: Controller frequency set to 50.0000Hz
+[opennav_docking-10] [INFO] [1792081395.514557227] [robot6.docking_server]: Created charging dock plugin simple_charging_dock of type opennav_docking::SimpleChargingDock
+[opennav_docking-10] [WARN] [1792081395.532800582] [robot6.docking_server]: Dock database filepath nor dock parameters set. Docking actions can only be executed specifying the dock pose via the action request. Or update the dock database via the reload_database service.
+[opennav_docking-10] [INFO] [1792081395.532885834] [robot6.docking_server]: Docking Server has 1 dock types and 0 dock instances available.
+[lifecycle_manager-11] [INFO] [1792081395.539851933] [robot6.lifecycle_manager_navigation]: Activating controller_server
+[controller_server-1] [INFO] [1792081395.540323712] [robot6.controller_server]: Activating
+[controller_server-1] [INFO] [1792081395.540375095] [robot6.local_costmap.local_costmap]: Activating
+[controller_server-1] [INFO] [1792081395.540381508] [robot6.local_costmap.local_costmap]: Checking transform
+[controller_server-1] [INFO] [1792081395.540527607] [robot6.local_costmap.local_costmap]: start
+[controller_server-1] [INFO] [1792081395.742531980] [robot6.controller_server]: Activating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792081395.742586015] [robot6.controller_server]: Activating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792081395.742611916] [robot6.controller_server]: Creating bond (controller_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081395.848189484] [robot6.lifecycle_manager_navigation]: Server controller_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081395.848256242] [robot6.lifecycle_manager_navigation]: Activating smoother_server
+[smoother_server-2] [INFO] [1792081395.849376993] [robot6.smoother_server]: Activating
+[smoother_server-2] [INFO] [1792081395.849421567] [robot6.smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081395.963499574] [robot6.lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081395.963556304] [robot6.lifecycle_manager_navigation]: Activating planner_server
+[planner_server-3] [INFO] [1792081395.964153590] [robot6.planner_server]: Activating
+[planner_server-3] [INFO] [1792081395.964212487] [robot6.global_costmap.global_costmap]: Activating
+[planner_server-3] [INFO] [1792081395.964227366] [robot6.global_costmap.global_costmap]: Checking transform
+[planner_server-3] [INFO] [1792081395.964389987] [robot6.global_costmap.global_costmap]: start
+[planner_server-3] [INFO] [1792081396.941549390] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081396.617 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792081397.017231441] [robot6.planner_server]: Activating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792081397.019798850] [robot6.planner_server]: Creating bond (planner_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.129932169] [robot6.lifecycle_manager_navigation]: Server planner_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.130013932] [robot6.lifecycle_manager_navigation]: Activating route_server
+[route_server-4] [INFO] [1792081397.130717833] [robot6.route_server]: Activating
+[route_server-4] [INFO] [1792081397.130999368] [robot6.route_server]: Creating bond (route_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.242890927] [robot6.lifecycle_manager_navigation]: Server route_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.242957251] [robot6.lifecycle_manager_navigation]: Activating behavior_server
+[behavior_server-5] [INFO] [1792081397.243461029] [robot6.behavior_server]: Activating
+[behavior_server-5] [INFO] [1792081397.243489251] [robot6.behavior_server]: Activating spin
+[behavior_server-5] [INFO] [1792081397.243498042] [robot6.behavior_server]: Activating drive_on_heading
+[behavior_server-5] [INFO] [1792081397.243505015] [robot6.behavior_server]: Activating assisted_teleop
+[behavior_server-5] [INFO] [1792081397.243512044] [robot6.behavior_server]: Activating wait
+[behavior_server-5] [INFO] [1792081397.243523012] [robot6.behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.351414434] [robot6.lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.351475658] [robot6.lifecycle_manager_navigation]: Activating velocity_smoother
+[velocity_smoother-8] [INFO] [1792081397.353225924] [robot6.velocity_smoother]: Activating
+[velocity_smoother-8] [INFO] [1792081397.353373248] [robot6.velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.469929571] [robot6.lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.469999077] [robot6.lifecycle_manager_navigation]: Activating collision_monitor
+[collision_monitor-9] [INFO] [1792081397.470700993] [robot6.collision_monitor]: Activating
+[collision_monitor-9] [INFO] [1792081397.471727134] [robot6.collision_monitor]: Creating bond (collision_monitor) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.588833676] [robot6.lifecycle_manager_navigation]: Server collision_monitor connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.588917446] [robot6.lifecycle_manager_navigation]: Activating bt_navigator
+[bt_navigator-6] [INFO] [1792081397.589758012] [robot6.bt_navigator]: Activating
+[bt_navigator-6] [INFO] [1792081397.764531779] [robot6.bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081397.881424231] [robot6.lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[lifecycle_manager-11] [INFO] [1792081397.881522369] [robot6.lifecycle_manager_navigation]: Activating waypoint_follower
+[waypoint_follower-7] [INFO] [1792081397.882257475] [robot6.waypoint_follower]: Activating
+[waypoint_follower-7] [INFO] [1792081397.882329903] [robot6.waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081398.001976256] [robot6.lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[lifecycle_manager-11] [INFO] [1792081398.002155667] [robot6.lifecycle_manager_navigation]: Activating docking_server
+[opennav_docking-10] [INFO] [1792081398.003169821] [robot6.docking_server]: Activating docking_server
+[opennav_docking-10] [INFO] [1792081398.033835992] [robot6.docking_server]: Creating bond (docking_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792081398.145979884] [robot6.lifecycle_manager_navigation]: Server docking_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792081398.146056835] [robot6.lifecycle_manager_navigation]: Managed nodes are active
+[lifecycle_manager-11] [INFO] [1792081398.146064427] [robot6.lifecycle_manager_navigation]: Creating bond timer...
+[task_input-13] [INFO] [1792081398.164063805] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active active
+[planner_server-3] [INFO] [1792081405.476968757] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081405.165 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [WARN] [1792081408.845805715] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792081408.846941796] [robot6.rescue_command_adapter]: target snapshot rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792081409.105630432] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792081409.705743709] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792081410.305486496] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792081410.805738960] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [ERROR] [1792081411.206891715] [robot6.rescue_command_adapter]: input session blocked: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: waiting for fresh configured coordinator SystemState
+[task_input-13] [INFO] [1792081411.406114142] [robot6.rescue_command_adapter]: input session ready; explicit arm required
+[controller_server-1] [INFO] [1792081426.294532359] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081425.973 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792081426.294889128] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081425.973 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792081447.356924576] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081447.002 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [INFO] [1792081607.622419497] [robot6.rescue_command_adapter]: SEND fcca2535-c5f8-4416-80d4-f80a75cc537f GoalPose(frame_id='map', x=-0.29429721568929423, y=-0.43931734907452746, yaw=-0.7853981633974483, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792081607.624106884] [robot6.bt_navigator]: Begin navigating from current location (-0.35, -0.00) to (-0.29, -0.44)
+[controller_server-1] [INFO] [1792081607.645553645] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081607.645601223] [robot6.controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+[controller_server-1] [WARN] [1792081607.645611532] [robot6.controller_server]: No progress checker was specified in parameter 'current_progress_checker'. Server will use only plugin loaded progress_checker . This warning will appear once.
+[controller_server-1] [INFO] [1792081608.695735008] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792081609.275272002] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792081609.695819140] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792081610.725418546] [robot6.collision_monitor]: Robot to stop due to PassageStop polygon
+[task_input-13] [WARN] [1792081610.727270848] [robot6.rescue_command_adapter]: PASSAGE_BLOCKED polygon='PassageStop' action=1
+[controller_server-1] [INFO] [1792081610.745712493] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792081610.865896700] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[task_input-13] [WARN] [1792081610.867447403] [robot6.rescue_command_adapter]: PASSAGE_RELEASED polygon='PassageSlow' action=2
+[collision_monitor-9] [INFO] [1792081610.916210186] [robot6.collision_monitor]: Robot to stop due to PassageStop polygon
+[task_input-13] [WARN] [1792081610.917883757] [robot6.rescue_command_adapter]: PASSAGE_BLOCKED polygon='PassageStop' action=1
+[controller_server-1] [INFO] [1792081611.745713008] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081612.795749678] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081613.795728552] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081614.795714141] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081615.845727069] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081616.845725650] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081617.645838333] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081617.646021742] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081617.664922480] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081617.665751150] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081617.776541571] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.0319 Hz.
+[controller_server-1] [INFO] [1792081617.876783180] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081618.876681496] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081619.926692911] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081620.926689438] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081621.927819125] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081622.976787243] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081624.026755643] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081625.026684859] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081626.076684928] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081627.076690641] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081627.776828989] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081627.777218127] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081627.794943537] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081627.795647644] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081627.985452977] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081629.035608833] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081630.035603066] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081631.085610064] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081632.135623500] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081633.135630419] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081634.135635292] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081635.185614743] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081636.185616446] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081637.235628288] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081637.985742459] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081637.985922875] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081638.004739378] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081638.005328945] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081638.155877233] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.6449 Hz.
+[controller_server-1] [INFO] [1792081638.255988292] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081639.256084444] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081640.306044611] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081641.305988734] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081642.355986266] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081643.355987786] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081644.406096291] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081645.405989936] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081646.455990352] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081647.455980382] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081648.156095190] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081648.156261280] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081648.175864687] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081648.176139282] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081658.176355407] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081658.176405655] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081658.176425070] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081658.195237797] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081663.195541951] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081663.214985012] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081664.265138504] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081665.265277929] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081666.315151435] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081667.315161427] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081668.365289042] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081669.365240218] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081670.365134323] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081671.415142983] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081672.465136483] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081673.215214074] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081673.215356407] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081673.234784531] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081673.235998558] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081673.366745129] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 7.6532 Hz.
+[controller_server-1] [INFO] [1792081673.466926934] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081674.467091864] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081675.516893088] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081676.516886688] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081677.566875995] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081678.566873886] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081679.616880680] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081680.617100298] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081681.666878098] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081682.667121774] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081683.367050447] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081683.367836172] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081683.384689148] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081683.385053608] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081683.985310804] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081685.035476983] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081686.035496283] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081687.085596024] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081688.085478029] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081688.986842256] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.4652 Hz.
+[controller_server-1] [INFO] [1792081689.136994920] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081690.136991645] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081691.136993355] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081692.136977724] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081693.186998931] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081693.987036080] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081693.987170258] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081694.005105317] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081694.005745678] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081694.156443967] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.6400 Hz.
+[controller_server-1] [INFO] [1792081694.206579073] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081695.206575998] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081696.256640320] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081697.256583193] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081698.306686329] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081699.306582573] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081700.356586712] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081701.356584790] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081702.356587798] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081703.356576736] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081704.156698203] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081704.156847627] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081704.174967272] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081704.175072072] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081714.175263691] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081714.175311193] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081714.175318255] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081714.195368692] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081719.195630636] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081719.235745824] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081720.285920527] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081721.285920538] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081722.285917015] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081723.336019423] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081724.335924433] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081725.386026265] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081725.606419909] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [ERROR] [1792081726.115912009] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [WARN] [1792081726.252449754] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 15.1892 Hz.
+[controller_server-1] [INFO] [1792081726.402599715] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081726.705503793] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [ERROR] [1792081727.205334175] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [ERROR] [1792081727.304574900] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the future.  Requested time 1792081727.202681 but the latest data is at time 1792081727.180084, when looking up transform from frame [map] to frame [base_link]
+[controller_server-1] 
+[controller_server-1] [WARN] [1792081727.365661951] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.1322 Hz.
+[controller_server-1] [INFO] [1792081727.415862930] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [INFO] [1792081727.616251301] [robot6.rescue_command_adapter]: CANCEL fcca2535-c5f8-4416-80d4-f80a75cc537f handle=True
+[bt_navigator-6] [ERROR] [1792081727.644955053] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Failed to get result for follow_path in node halt!
+[bt_navigator-6] [INFO] [1792081727.645182869] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792081727.645399699] [robot6.bt_navigator]: Goal canceled
+[controller_server-1] [INFO] [1792081727.665826648] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792081727.665941144] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[task_input-13] [ERROR] [1792081727.706238848] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792081736.118176673] [robot6.rescue_command_adapter]: SEND 0c9e781a-cc0d-44a7-b250-48e55e50948a GoalPose(frame_id='map', x=-1.4342467105319636, y=1.0006321502384903, yaw=2.3561944901923444, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792081736.121399290] [robot6.bt_navigator]: Begin navigating from current location (-0.35, 0.01) to (-1.43, 1.00)
+[controller_server-1] [INFO] [1792081736.142244705] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081737.192404481] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081738.192399017] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081739.242420635] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081740.242411003] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081741.292429141] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081742.292452144] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081743.342437978] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081744.342395184] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081745.392460320] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081746.142481776] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081746.142645924] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081746.162575443] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081746.163361900] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081746.353791151] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 5.2531 Hz.
+[controller_server-1] [INFO] [1792081746.403925040] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081747.403919019] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081748.453939460] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081749.453930196] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081750.453936139] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081751.503937899] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081752.503920989] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081753.553987007] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081754.553931839] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081755.604998496] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081756.354322699] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081756.354470473] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081756.371997938] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081756.372483061] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081756.992341177] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081757.993614635] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.5644 Hz.
+[controller_server-1] [INFO] [1792081758.043804386] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081759.043847788] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081760.093755029] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081761.093758759] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081762.143739935] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081763.144076195] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081764.193752963] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081765.193739655] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081766.243749584] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081766.994051361] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081766.994234196] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081767.012525268] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081767.014036786] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081767.174754782] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2251 Hz.
+[controller_server-1] [INFO] [1792081767.274877000] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081768.274890089] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081769.324874280] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081770.325245611] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081771.324874276] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081772.374876933] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081773.374892356] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081774.424879274] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081775.425166874] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081776.474882303] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081777.174998884] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081777.175096601] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081777.193038992] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081777.193151271] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081787.193770718] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081787.193821345] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081787.193834983] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081787.212105150] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081792.213560321] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081792.242977446] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081793.293220584] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081794.293151814] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081795.210557599] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 14.8355 Hz.
+[controller_server-1] [INFO] [1792081795.311226500] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081796.360716984] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081797.360723318] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081798.410719155] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081799.411012220] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081800.410764815] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081801.460725494] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081802.260801021] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081802.260934726] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081802.272029376] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081802.272703750] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081802.383722656] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.0138 Hz.
+[controller_server-1] [INFO] [1792081802.483870252] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081803.533883596] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081804.533875666] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081805.583881455] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081806.583868424] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081807.633870990] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081808.633872537] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081809.633861208] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081810.683970682] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081811.683865073] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081812.383979095] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081812.384103572] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081812.402057135] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081812.402461082] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081812.992411004] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081814.042582072] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081815.042589170] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081816.092592161] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081816.243970241] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.4700 Hz.
+[controller_server-1] [INFO] [1792081817.094112959] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081818.094112140] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081819.144116397] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081820.144123966] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081821.194269052] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081822.194203404] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081822.994328949] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081822.994485719] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081823.013535715] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081823.014886442] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081823.175750351] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2202 Hz.
+[controller_server-1] [INFO] [1792081823.226154392] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081824.225892762] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081825.225889247] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081826.275883751] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081827.275875476] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081828.325963041] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081829.325887171] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081830.375906820] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081831.179600855] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.3580 Hz.
+[controller_server-1] [WARN] [1792081831.237811328] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 17.2025 Hz.
+[controller_server-1] [WARN] [1792081831.373532575] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 12.0303 Hz.
+[controller_server-1] [INFO] [1792081831.373588759] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081831.446716502] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 13.6748 Hz.
+[controller_server-1] [INFO] [1792081832.396875453] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081833.146927826] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081833.148070998] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081833.162846903] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081833.162956071] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081843.163251399] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081843.163310656] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081843.163318606] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081843.182404846] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081848.182804873] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081848.222874833] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081849.273088064] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081850.273056282] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081851.323312169] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081852.373212592] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081853.373328788] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081854.205492895] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792081854.373052246] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081854.706808650] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [ERROR] [1792081855.306177575] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792081855.423064888] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081855.805687277] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792081856.116609117] [robot6.rescue_command_adapter]: CANCEL 0c9e781a-cc0d-44a7-b250-48e55e50948a handle=True
+[controller_server-1] [INFO] [1792081856.123056235] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792081856.123127490] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792081856.123475509] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792081856.123744769] [robot6.bt_navigator]: Goal canceled
+[task_input-13] [ERROR] [1792081856.305448815] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[planner_server-3] [INFO] [1792081862.975620960] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081862.652 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792081862.977048148] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792081862.652 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [INFO] [1792081865.119106015] [robot6.rescue_command_adapter]: SEND 7b4770d1-262c-4072-ae67-47294b004780 GoalPose(frame_id='map', x=-1.4342467105319636, y=1.0006321502384903, yaw=2.3561944901923444, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792081865.121077267] [robot6.bt_navigator]: Begin navigating from current location (-0.35, 0.01) to (-1.43, 1.00)
+[controller_server-1] [INFO] [1792081865.141794838] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081865.592737355] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.6937 Hz.
+[controller_server-1] [INFO] [1792081866.192876611] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081867.192980883] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081868.242870649] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081869.242994669] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081870.242983352] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081871.292941296] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081872.342879848] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081873.147603541] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.5898 Hz.
+[controller_server-1] [WARN] [1792081873.305131124] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 17.5403 Hz.
+[controller_server-1] [WARN] [1792081873.367661830] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 16.0086 Hz.
+[controller_server-1] [INFO] [1792081873.367728292] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081873.421863951] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 18.4717 Hz.
+[controller_server-1] [INFO] [1792081874.371971142] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081875.172647505] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081875.172883727] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081875.186620728] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081875.187198199] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081875.367917656] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 5.5358 Hz.
+[controller_server-1] [INFO] [1792081875.418067008] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081876.418055435] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081877.418056345] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081878.468063079] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081879.468061038] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081880.518061080] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081881.518213515] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081882.518065760] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081883.568067617] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081884.568080147] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081884.619614132] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.4014 Hz.
+[controller_server-1] [ERROR] [1792081885.369981786] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081885.370772179] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081885.386632413] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081885.387107636] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081885.987019886] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081886.988271222] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.5744 Hz.
+[controller_server-1] [INFO] [1792081887.039022465] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081888.038408872] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081889.088789833] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081890.088406791] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081891.138416214] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081892.138412340] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081893.188411140] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081894.188456917] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081895.188417019] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081895.988555350] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081895.988745053] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081896.006513392] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081896.007091480] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081896.177753672] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 5.8612 Hz.
+[controller_server-1] [INFO] [1792081896.227929660] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081897.227882992] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081898.227880981] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081899.277874154] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081900.277899274] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081901.327887237] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081902.327914220] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081903.377888659] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081904.377892289] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081905.377879639] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081906.178007980] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081906.178145561] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081906.196861168] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081906.197063094] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081916.197300669] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081916.197345809] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081916.197355402] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081916.216940758] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081921.217234431] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081921.239160041] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081922.289323352] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081923.289300594] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081924.339315222] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081925.389383565] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081926.389317361] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081927.439359181] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081928.439321787] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081929.489307123] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081930.489324067] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081931.239456235] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081931.239646697] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081931.256538541] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081931.257224447] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081931.357702076] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.9599 Hz.
+[controller_server-1] [INFO] [1792081931.508540217] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081932.557850754] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081933.557855133] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081934.607855404] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081935.608063140] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081936.607837386] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081937.657851837] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792081938.008643104] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.6828 Hz.
+[controller_server-1] [INFO] [1792081938.658755611] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081939.708760537] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081940.708972511] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081941.358866465] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081941.359038939] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081941.376539766] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792081941.376990250] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792081941.986823300] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081943.036984743] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081944.037050555] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081945.086987573] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081946.088147223] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081947.136983188] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081948.138000256] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081949.186983446] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081950.186987727] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081951.236987811] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081951.987248253] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081951.987430464] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792081952.006446467] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792081952.006928535] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792081952.168046796] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2111 Hz.
+[controller_server-1] [INFO] [1792081952.218192609] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081953.268202949] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081954.268208015] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081955.318228764] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081956.318201573] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081957.368211412] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081958.368226605] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081959.418221246] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081960.418218699] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081961.468204807] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792081962.168995746] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792081962.169152829] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081962.186831479] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792081962.186926597] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792081972.187062522] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792081972.187107597] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792081972.187119323] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792081972.206623093] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792081977.206881940] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792081977.227390611] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081978.277551601] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081979.277547209] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081980.327553536] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081981.328910766] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081982.377545734] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081983.204827475] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792081983.377575714] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081983.804723928] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [ERROR] [1792081984.306470867] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792081984.427548817] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792081984.904806052] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792081985.114804622] [robot6.rescue_command_adapter]: CANCEL 7b4770d1-262c-4072-ae67-47294b004780 handle=True
+[controller_server-1] [INFO] [1792081985.127552155] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792081985.127615259] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792081985.127990345] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792081985.128208210] [robot6.bt_navigator]: Goal canceled
+[task_input-13] [ERROR] [1792081985.405793993] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792081990.115688078] [robot6.rescue_command_adapter]: SEND cd4e0b79-de35-4370-8a9c-f485c5293c07 GoalPose(frame_id='map', x=-1.4342467105319636, y=1.0006321502384903, yaw=2.3561944901923444, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792081990.116505336] [robot6.bt_navigator]: Begin navigating from current location (-0.35, 0.01) to (-1.43, 1.00)
+[controller_server-1] [INFO] [1792081990.118432154] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792081991.168989172] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081992.168958732] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081993.218965684] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081994.218987082] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081995.268962835] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081996.269550995] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081997.318985061] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081998.318934582] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792081999.368965209] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082000.119108180] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082000.119256610] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082000.137057577] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082000.137714521] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082000.387846333] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082001.387867479] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082002.437859438] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082003.437865760] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082004.487858212] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082005.488174632] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082006.487866123] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082007.537854989] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082008.537848709] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082009.587842873] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082010.187970286] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082010.188160810] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082010.207099594] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792082010.207622088] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792082010.987674365] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082012.037857745] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082013.037846784] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082014.087870075] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082015.087854058] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082016.088279216] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082017.137848924] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082018.137849377] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082019.187861327] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082020.187857311] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082020.987932764] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082020.988094614] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082021.007692268] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082021.008449004] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082021.158996357] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.6455 Hz.
+[controller_server-1] [INFO] [1792082021.209153441] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082022.259130068] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082023.259148403] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082024.309148921] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082025.309134612] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082026.309133839] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082027.359145501] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082028.359133594] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082029.409985328] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082030.409162422] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082031.159355313] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082031.159637028] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082031.177567286] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792082031.177667893] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792082041.177874080] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792082041.177918750] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792082041.177927660] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082041.197458094] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792082046.197922674] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792082046.237237993] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082047.287452400] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082048.287667175] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082049.337455094] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082050.337449294] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082051.387473143] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082052.387437363] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082053.387447814] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082054.437461186] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082055.437758497] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082056.237529207] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082056.237681468] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082056.257166697] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082056.257796558] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082056.358221781] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.9649 Hz.
+[controller_server-1] [INFO] [1792082056.458405515] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082057.458346989] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082058.508340563] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082059.558352857] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082060.558352228] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082061.558361861] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082062.608388385] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082063.608341675] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082064.658336811] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082065.658354658] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082066.358428959] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082066.358578577] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082066.377193800] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792082066.377876626] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792082066.987798427] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082068.037973936] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082069.087971000] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082070.087978439] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082071.137961184] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082072.137965361] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082073.187965111] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082074.187970020] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082075.187974302] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082076.237964396] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082076.988049457] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082076.988194812] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082077.007095127] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082077.010114115] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082077.170712026] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2303 Hz.
+[controller_server-1] [INFO] [1792082077.270827220] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082078.270824629] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082079.270825769] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082080.320841693] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082081.320852060] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082082.370831162] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082083.370825166] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082084.420826811] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082085.420841297] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082086.470922330] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082087.171613244] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082087.171758351] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082087.187321782] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792082087.187398915] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792082097.187586839] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792082097.187639984] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792082097.187656341] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082097.207057314] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792082102.207284877] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792082102.227937731] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082103.278119473] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082104.278106675] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082105.328124175] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082106.378115387] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082107.378121917] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082108.428116933] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792082108.505680775] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [ERROR] [1792082109.006883258] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792082109.428112554] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792082109.608632978] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792082110.114667463] [robot6.rescue_command_adapter]: CANCEL cd4e0b79-de35-4370-8a9c-f485c5293c07 handle=True
+[controller_server-1] [INFO] [1792082110.128113074] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792082110.128163120] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792082110.128432662] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792082110.128564202] [robot6.bt_navigator]: Goal canceled
+[task_input-13] [ERROR] [1792082110.205153595] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-13] [INFO] [1792082119.617422736] [robot6.rescue_command_adapter]: SEND dee13b32-6f34-4e49-8cab-168f60f7964c GoalPose(frame_id='map', x=-1.4342467105319636, y=1.0006321502384903, yaw=2.3561944901923444, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792082119.618794492] [robot6.bt_navigator]: Begin navigating from current location (-0.35, 0.01) to (-1.43, 1.00)
+[controller_server-1] [INFO] [1792082119.640659982] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082120.690834703] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082121.690847533] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082122.740826196] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082123.740814088] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082124.790822875] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082125.790822516] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082126.840829030] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082127.840834818] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082128.890831089] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082129.640959042] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082129.641128411] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082129.659431293] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082129.660684875] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082129.761139638] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.9626 Hz.
+[controller_server-1] [INFO] [1792082129.911262473] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082130.911259697] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082131.961272353] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082132.961290865] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082134.011252984] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082135.011265823] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082136.011787367] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082137.061259113] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082138.111271682] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082139.111255335] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082139.761440476] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082139.761655487] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082139.779709936] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792082139.780175298] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792082139.989550340] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082141.039728150] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082142.039715763] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082143.089712576] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082144.089718416] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082145.139720837] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082146.139707260] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082147.189715750] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082148.189724155] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082149.239727082] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082149.989843827] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082149.990032172] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082150.009548150] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082150.010201196] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082150.171014312] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2216 Hz.
+[controller_server-1] [INFO] [1792082150.221143285] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082151.271102156] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082152.271205316] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082153.321149072] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082154.321155489] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082155.321145232] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082156.371143487] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082157.371210314] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082158.371153926] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082159.421133182] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082160.171210636] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082160.171351896] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082160.189638136] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792082160.189723387] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792082170.189901517] [robot6.behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[behavior_server-5] [WARN] [1792082170.189964445] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792082170.189978512] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792082170.209602856] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792082175.209837581] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792082175.239546338] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082176.289724248] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082177.339739014] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082178.339718090] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082179.339718076] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082180.389715989] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082181.389715821] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082182.389709013] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082183.439713854] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082184.439715250] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082185.239831215] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082185.240079376] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082185.259462527] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082185.260278430] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082185.370870332] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 9.0483 Hz.
+[controller_server-1] [INFO] [1792082185.470981444] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082186.521039198] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082187.520995733] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082188.570978871] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082189.571240849] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082190.620989429] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082191.620984125] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082192.620977554] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082193.670980050] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082194.721020430] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082195.371132829] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082195.371291303] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082195.389581593] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792082195.390058727] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792082195.991068087] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792082197.041929637] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082198.041915214] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082199.092080932] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082200.091914831] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082201.141905313] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082202.141901481] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082203.191914407] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082204.191913381] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792082205.191907326] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792082205.992002083] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792082205.992144573] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792082206.009911416] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792082206.010724542] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792082206.171228657] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2329 Hz.
+[controller_server-1] [INFO] [1792082206.221356774] [robot6.controller_server]: Passing new path to controller.
+[task_input-13] [ERROR] [1792082206.614646902] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [INFO] [1792082206.615047341] [robot6.rescue_command_adapter]: CANCEL dee13b32-6f34-4e49-8cab-168f60f7964c handle=True
+[controller_server-1] [INFO] [1792082206.621417646] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792082206.621501256] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792082206.622232042] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792082206.622398699] [robot6.bt_navigator]: Goal canceled
+[task_input-13] [ERROR] [1792082206.665180231] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082206.714143083] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082206.765434660] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [WARN] [1792082206.804929179] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=4b1ad3eb-7e0f-417c-9cab-ccadee819dc1 robot_id=robot_a robot_boot_id=3d816b0a-f345-4f8e-ac93-42e777dc8841 coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=4 renewal_sequence=157
+[task_input-13] [ERROR] [1792082206.813887146] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082206.864772902] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082206.914247276] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082206.964831933] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082207.013856304] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082207.064942706] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [ERROR] [1792082207.114742085] [robot6.rescue_command_adapter]: live task input guard rejected: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: search destination not configured: c8a70d57-2c11-5e17-bdcd-9925cf40f473
+[task_input-13] [INFO] [1792082216.109768053] [robot6.rescue_command_adapter]: MAP_FROZEN R1 sha256=af2a14bfd84e124ee5bf3e2c60a46b4969b3e62c1c086fefd42e03983a859897 62x80 res=0.05000000074505806
+[task_input-13] [INFO] [1792082216.120380152] [robot6.rescue_command_adapter]: MAP_FROZEN R2 sha256=af2a14bfd84e124ee5bf3e2c60a46b4969b3e62c1c086fefd42e03983a859897 62x80 res=0.05000000074505806
+[task_input-13] [INFO] [1792082216.120818955] [robot6.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_a RNone -> R2 sha256=af2a14bfd84e124ee5bf3e2c60a46b4969b3e62c1c086fefd42e03983a859897
+[task_input-13] [INFO] [1792082216.121614427] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=d6a53648-11fa-5a5c-9f43-28a9a088943b session=22222222-2222-4222-8222-222222222222 rev=2 quality=UNKNOWN
+[planner_server-3] [INFO] [1792082251.029375220] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082250.713 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792082253.540625783] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082253.222 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792082256.044320045] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082255.735 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792082258.555613527] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082258.246 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792082261.057359741] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082260.740 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082261.270498951] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082251.237125, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082262.269510541] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082252.240837, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082263.271595002] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082253.193490, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082263.589256852] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082263.263 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082264.269707832] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082254.224735, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[controller_server-1] [INFO] [1792082264.933846930] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082264.612 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082265.268686168] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082255.245333, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082266.102951712] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082265.784 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082266.270674303] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082256.261314, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082267.270254514] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082257.269654, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082268.269554609] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082258.251818, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082268.615355683] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082268.297 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082269.269477430] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082259.261503, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082270.269275492] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082260.237259, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082271.131066832] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082270.813 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082271.268129943] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082261.231909, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082272.269723738] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082262.236818, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082273.269084175] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082263.237422, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082273.653578175] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082273.327 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082274.270546716] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082264.269718, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082275.270339454] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082265.220685, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082276.171217610] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082275.854 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082276.268885002] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082266.263258, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082277.270526351] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082267.260929, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082278.268448481] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082268.238845, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082278.673458024] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082278.366 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082279.269636805] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082269.247826, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082280.270192630] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082270.235641, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082281.182583921] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082280.862 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082281.270475736] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082271.210468, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082282.270648873] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082272.232248, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082283.272046612] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082273.216623, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082283.721411131] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082283.375 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082284.274046885] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082274.174400, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082285.264864830] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082275.189059, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082286.249321475] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082285.925 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792082286.272941277] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082276.239936, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082287.270656878] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082277.246771, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792082288.270713797] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082250.762428 but the earliest data is at time 1792082278.273392, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792082288.763562132] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082288.451 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [INFO] [1792082288.881901580] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=d6a53648-11fa-5a5c-9f43-28a9a088943b session=22222222-2222-4222-8222-222222222222 rev=2 quality=VALID
+[planner_server-3] [ERROR] [1792082289.271728952] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792082289.262036 but the earliest data is at time 1792082289.784496, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[route_server-4] [INFO] [1792082443.857498018] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[route_server-4] [INFO] [1792082443.857669670] [robot6.route_server]: Running Nav2 LifecycleNode rcl preshutdown (route_server)
+[route_server-4] [INFO] [1792082443.857771114] [robot6.route_server]: Deactivating
+[route_server-4] [INFO] [1792082443.857807911] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[behavior_server-5] [INFO] [1792082443.858055739] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[behavior_server-5] [INFO] [1792082443.858169133] [robot6.behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[behavior_server-5] [INFO] [1792082443.858272191] [robot6.behavior_server]: Deactivating
+[behavior_server-5] [INFO] [1792082443.858325949] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[controller_server-1] [INFO] [1792082443.860085752] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[controller_server-1] [INFO] [1792082443.860152329] [robot6.controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[controller_server-1] [INFO] [1792082443.860214228] [robot6.controller_server]: Deactivating
+[controller_server-1] [INFO] [1792082443.860232274] [robot6.controller_server]: Deactivating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792082443.860242922] [robot6.controller_server]: Deactivating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792082443.860269928] [robot6.local_costmap.local_costmap]: Deactivating
+[opennav_docking-10] [INFO] [1792082443.860718088] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[opennav_docking-10] [INFO] [1792082443.860799318] [robot6.docking_server]: Running Nav2 LifecycleNode rcl preshutdown (docking_server)
+[opennav_docking-10] [INFO] [1792082443.860868319] [robot6.docking_server]: Deactivating docking_server
+[velocity_smoother-8] [INFO] [1792082443.862245244] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[velocity_smoother-8] [INFO] [1792082443.862364302] [robot6.velocity_smoother]: Running Nav2 LifecycleNode rcl preshutdown (velocity_smoother)
+[velocity_smoother-8] [INFO] [1792082443.862425579] [robot6.velocity_smoother]: Deactivating
+[velocity_smoother-8] [INFO] [1792082443.862452414] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792082443.862856028] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[bt_navigator-6] [INFO] [1792082443.862943387] [robot6.bt_navigator]: Running Nav2 LifecycleNode rcl preshutdown (bt_navigator)
+[bt_navigator-6] [INFO] [1792082443.863037995] [robot6.bt_navigator]: Deactivating
+[collision_monitor-9] [INFO] [1792082443.863825679] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[collision_monitor-9] [INFO] [1792082443.863919443] [robot6.collision_monitor]: Running Nav2 LifecycleNode rcl preshutdown (collision_monitor)
+[collision_monitor-9] [INFO] [1792082443.863974185] [robot6.collision_monitor]: Deactivating
+[collision_monitor-9] [INFO] [1792082443.863992615] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792082443.864624587] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792082443.864704560] [robot6.lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[lifecycle_manager-11] [INFO] [1792082443.864745948] [robot6.lifecycle_manager_navigation]: Terminating bond timer...
+[waypoint_follower-7] [INFO] [1792082443.865847001] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[waypoint_follower-7] [INFO] [1792082443.865956380] [robot6.waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[waypoint_follower-7] [INFO] [1792082443.866012717] [robot6.waypoint_follower]: Deactivating
+[waypoint_follower-7] [INFO] [1792082443.866033837] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[planner_server-3] [INFO] [1792082443.866557358] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[planner_server-3] [INFO] [1792082443.866638445] [robot6.planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[planner_server-3] [INFO] [1792082443.866700725] [robot6.planner_server]: Deactivating
+[planner_server-3] [INFO] [1792082443.866747370] [robot6.global_costmap.global_costmap]: Deactivating
+[smoother_server-2] [INFO] [1792082443.867726434] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[smoother_server-2] [INFO] [1792082443.867846460] [robot6.smoother_server]: Running Nav2 LifecycleNode rcl preshutdown (smoother_server)
+[smoother_server-2] [INFO] [1792082443.867907882] [robot6.smoother_server]: Deactivating
+[smoother_server-2] [INFO] [1792082443.867930209] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792082443.869313475] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[route_server-4] [INFO] [1792082443.873336325] [robot6.route_server]: Cleaning up
+[behavior_server-5] [INFO] [1792082443.877123565] [robot6.behavior_server]: Cleaning up
+[velocity_smoother-8] [INFO] [1792082443.906177945] [robot6.velocity_smoother]: Cleaning up
+[velocity_smoother-8] [INFO] [1792082443.906279896] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792082443.908523454] [robot6.collision_monitor]: Cleaning up
+[collision_monitor-9] [INFO] [1792082443.908559898] [collision_monitor]: [FootprintApproach]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792082443.908569316] [collision_monitor]: [PassageStop]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792082443.908574400] [collision_monitor]: [PassageSlow]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792082443.908579876] [collision_monitor]: [scan]: Destroying Scan
+[collision_monitor-9] [INFO] [1792082443.908590048] [collision_monitor]: [passage_depth]: Destroying PointCloud
+[collision_monitor-9] [INFO] [1792082443.908595052] [collision_monitor]: [passage_overhead]: Destroying PointCloud
+[collision_monitor-9] [INFO] [1792082443.914125122] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792082443.909843413] [robot6.waypoint_follower]: Cleaning up
+[smoother_server-2] [INFO] [1792082443.916751811] [robot6.smoother_server]: Cleaning up
+[bt_navigator-6] [INFO] [1792082443.936149808] [robot6.bt_navigator]: Cleaning up
+[controller_server-1] [INFO] [1792082443.949731822] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792082443.983961728] [robot6.planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792082443.984052614] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[controller_server-1] [INFO] [1792082444.050038192] [robot6.controller_server]: Cleaning up
+[controller_server-1] [INFO] [1792082444.050085755] [robot6.controller_server]: Cleaning up controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792082444.050095138] [robot6.controller_server]: Cleaning up controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792082444.050187811] [robot6.local_costmap.local_costmap]: Cleaning up
+[planner_server-3] [INFO] [1792082444.087759622] [robot6.planner_server]: Cleaning up
+[opennav_docking-10] [INFO] [1792082444.140520295] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792082444.151967578] [robot6.velocity_smoother]: Destroying
+[opennav_docking-10] [INFO] [1792082444.154384475] [robot6.docking_server]: Cleaning up docking_server
+[smoother_server-2] [INFO] [1792082444.220765928] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[smoother_server-2] [INFO] [1792082444.269283270] [robot6.smoother_server]: Destroying
+[command_watchdog-12] [WARN] [1792082444.349994142] [robot6.rescue_command_watchdog]: watchdog STOP_LATCHED reason=EXECUTOR_HEARTBEAT_STALE t=34955.345
+[behavior_server-5] [INFO] [1792082444.420108037] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[opennav_docking-10] [INFO] [1792082444.482031130] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[INFO] [smoother_server-2]: process has finished cleanly [pid 727012]
+[planner_server-3] [INFO] [1792082444.788481344] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792082443.805 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[opennav_docking-10] [INFO] [1792082445.046659585] [robot6.docking_server]: Destroying
+[route_server-4] [INFO] [1792082445.117583391] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[route_server-4] [INFO] [1792082445.374228710] [robot6.route_server]: Destroying
+[waypoint_follower-7] [INFO] [1792082445.479367702] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792082445.544848511] [robot6.collision_monitor]: Destroying
+[waypoint_follower-7] [INFO] [1792082445.622231623] [robot6.waypoint_follower]: Destroying
+[INFO] [velocity_smoother-8]: process has finished cleanly [pid 727024]
+[INFO] [opennav_docking-10]: process has finished cleanly [pid 727030]
+[planner_server-3] [INFO] [1792082445.949595914] [robot6.global_costmap.global_costmap]: Cleaning up
+[planner_server-3] [INFO] [1792082446.644696823] [robot6.planner_server]: Cleaning up plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792082446.645048261] [robot6.planner_server]: Destroying plugin GridBased of type NavfnPlanner
+[INFO] [route_server-4]: process has finished cleanly [pid 727014]
+[INFO] [waypoint_follower-7]: process has finished cleanly [pid 727023]
+[INFO] [collision_monitor-9]: process has finished cleanly [pid 727029]
+[lifecycle_manager-11] [INFO] [1792082447.747217741] [robot6.lifecycle_manager_navigation]: Destroying lifecycle_manager_navigation
+[behavior_server-5] [INFO] [1792082447.771601046] [robot6.behavior_server]: Destroying
+[planner_server-3] [INFO] [1792082448.098206419] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792082448.209043790] [robot6.global_costmap.global_costmap]: Destroying
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 727033]
+[controller_server-1] [INFO] [1792082448.297171092] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [behavior_server-5]: process has finished cleanly [pid 727015]
+[controller_server-1] [INFO] [1792082448.396639155] [robot6.local_costmap.local_costmap]: Destroying
+[planner_server-3] [INFO] [1792082448.438867746] [robot6.planner_server]: Destroying
+[INFO] [task_input-13]: process has finished cleanly [pid 727041]
+[controller_server-1] [INFO] [1792082448.599852828] [robot6.controller_server]: Destroying
+[bt_navigator-6] [INFO] [1792082448.643552917] [robot6.bt_navigator]: Completed Cleaning up
+[bt_navigator-6] [INFO] [1792082448.643611250] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[INFO] [planner_server-3]: process has finished cleanly [pid 727013]
+[bt_navigator-6] [INFO] [1792082448.730971509] [robot6.bt_navigator]: Destroying
+[INFO] [controller_server-1]: process has finished cleanly [pid 727011]
+[INFO] [bt_navigator-6]: process has finished cleanly [pid 727016]
