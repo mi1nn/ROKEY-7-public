@@ -1,16 +1,232 @@
 ---
-title: 2 AMR·예정 4 PC 현장 실행 전 관문
-status: proposed-field-runbook-not-run
-updated: 2026-10-08
+title: 현장 실행 안내 — 실기 날 이 문서 하나로 돌린다
+status: current-not-run   # 순서와 명령은 main 5d9304a 기준. 처음부터 끝까지 실기로 돌린 적은 아직 없다. 아래 「기록」 절은 2026-10-08 판 전문
+updated: 2026-10-15
 ---
 
-# 현장 실행 전 관문
+# 현장 실행 안내
+
+## 한눈에 (2026-10-15, main `5d9304a`)
+
+이 문서가 답하는 질문은 하나다. **실기 날 누가, 어느 PC 에서, 무엇을 어떤 순서로 띄우고, 무엇을 보면 다음으로 넘어가나?**
+
+| 단계 | 누가 | 어디서 | 무엇 | 넘어가는 조건 |
+| --- | --- | --- | --- | --- |
+| 0 | 모두 | — | 「정지 방법」을 읽는다 | 정지 스크립트 위치를 안다 |
+| 1 | 각 PC 담당 | 모든 PC | 코드 맞추기, Discovery 설정, 준비 점검 | `preflight_role.py` 모두 PASSED |
+| 2 | 로봇 감독 | 로봇 담당 PC | 후진 없는 BT 대조, 로봇 Pi 확인 | diff 가 머리 주석뿐, Pi 값이 맞음 |
+| 3 | 운영 PC 담당 | 운영 PC | 운영 launch, 관제 웹, 조정기 | 성공 로그 |
+| 4 | TB-6 담당 PC 담당 | TB-6 담당 PC | SLAM, 깊이 점, 터널 판정, 로봇 launch, 지도 고정 | `START_POSE captured robot_a` |
+| 5 | TB-5 담당 PC 담당 | TB-5 담당 PC | 깊이 점, 터널 판정, 고정 지도 위치 추정, 로봇 launch | 성공 로그 |
+| 6 | 아무 PC 한 대 | 아무 PC | 배선 점검 `wiring_check.py` | 종료 코드 0 |
+| 7 | 로봇 감독 | 운영 PC | 두 로봇 arm → 웹캠 흔들림 → 1차 고정 → 2차 고정 → 출구 도착 | 단계별 로그 |
+| 8 | 로봇 감독 | — | 끝내기, 도킹, 기록 남기기 | 기록 파일 |
+
+- 로봇은 한 번에 한 사람만 움직인다. 이 문서에서는 그 사람을 「로봇 감독」이라 부른다. 언도킹·도킹·이동 전후에 팀에 알린다([작업 규칙](../../AGENTS.md) 6절).
+- PC 는 역할 이름으로 부른다. 운영 PC(`operations` + `coordination`), TB-6 담당 PC(`compute_a`), TB-5 담당 PC(`compute_b`)다. 로봇은 TB-6(`robot_a`, `/robot6`), TB-5(`robot_b`, `/robot5`)다([용어집](../glossary.md)).
+- 조정기는 로봇 launch 를 띄운 PC 와 **다른 PC** 에서 띄운다. 같은 PC 면 실행기가 거절한다(`LIVE_ROS expects two distinct PCs`).
+- 값은 현장 파일 [`config/field/search_area.field.json`](../../config/field/search_area.field.json) 과 배포 프로파일 v2.1(저장소 밖, `map_basis`·`home_positions` 포함)에 있다. 이 문서는 값을 다시 적지 않는다.
+- 임무 흐름은 [scope 「지금 시나리오」](../requirements/scope.md), 노드 설명은 [로봇](../implementation/implementation-robot.md)·[지도](../implementation/implementation-mapping.md)·[통합](../implementation/implementation-integration.md) 구현 기록에 있다.
+
+## 정지 방법 (먼저 읽기)
+
+1. `bash scripts/field/stop_robot.sh /robot6`(TB-5 는 `/robot5`). 실행기 `task_stop` → Nav2 목표 모두 취소 → `cmd_vel` 0 을 보낸다. 단계마다 `[보냄]`·`[없음]`·`[실패]` 한 줄을 찍고, 끝에 아직 떠 있는 노드와 이 PC 의 SLAM·Nav2 프로세스 PID 를 보여 준다.
+2. 스크립트가 없거나 실패하면 손으로 부른다.
+   ```bash
+   ros2 service call <ns>/rescue_command_adapter/task_stop std_srvs/srv/Trigger {}
+   ros2 service call <ns>/navigate_to_pose/_action/cancel_goal action_msgs/srv/CancelGoal {}
+   kill -INT <PID>      # 남은 프로세스는 PID 로. 이름으로 넓게 잡아 끄지 않는다(pkill -f 금지)
+   ```
+3. 그래도 움직이면 **사람이 로봇을 들어 올린다.**
+
+- `robot.launch.py` 를 Ctrl+C 하면 속도 감시가 꺼지기 전에 `cmd_vel` 0 을 세 번 보낸다(로그 `watchdog stopped: 3 zero commands on <ns>/cmd_vel`).
+- 속도 감시가 세운 경우 로그에 `watchdog STOP_LATCHED reason=<이유>` 가 있다. 원인을 보고 로봇이 멈춘 것을 눈으로 확인한 뒤에만 `ros2 service call /<ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}` 로 푼다. 이유별로 볼 것은 [rescue_robot README](../../src/rescue_robot/README.md) 「watchdog 영구 정지」 절에 있다.
+
+## 1단계 — 모든 PC: 코드, Discovery, 준비 점검
+
+각 PC 담당이 새 터미널에서 한다. 로봇 없는 시험 터미널(도메인 10 이상, LOCALHOST)과 섞지 않는다.
+
+```bash
+git rev-parse HEAD; git status --short       # 모든 PC 가 같은 SHA, 작업 폴더 깨끗함
+source /opt/ros/jazzy/setup.bash && source <작업공간>/install/setup.bash
+ping -c 20 <TB-5 Pi 주소>; ping -c 20 <TB-6 Pi 주소>   # 손실 0%. 모든 PC 가 같은 로봇망 SSID
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<아래 「Discovery 값」>'
+ros2 daemon stop && ros2 daemon start
+python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json> \
+  --field config/field/search_area.field.json [--webcam-params <webcam_node.yaml>] [--map <map.yaml>]
+```
+
+- **Discovery 값.** 시험 중에는 권고안 A 다. 모든 PC(로봇 담당 PC 포함)가 두 로봇 Pi 서버를 둘 다 적는다. 세미콜론 자리 번호가 서버 ID 다(TB-5 Pi = 5, TB-6 Pi = 6).
+  ```text
+  ;;;;;<TB-5 Pi 주소>:11811;<TB-6 Pi 주소>:11811
+  ```
+  최종 구성(전용 Discovery 서버 PC)은 로봇이 그 서버에 붙는 방법이 정해지기 전에는 쓰지 않는다([네트워크·Discovery Server](../design/network-discovery.md)).
+- 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다.
+- 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 배선 점검 도구만 super client 로 띄운다.
+- `preflight_role.py` 가 FAILED 를 내면 고치기 전에는 다음 단계로 가지 않는다. NOT_RUN 을 통과로 적지 않는다.
+
+## 2단계 — BT 대조와 로봇 Pi (로봇 감독)
+
+**후진 없는 BT 대조(#267, 로봇 담당 PC 마다 Nav2 를 띄우기 전).** 우리 BT(행동 트리) 사본은 Nav2 `jazzy` 브랜치에서 후진 한 줄만 뺀 것이다. 설치된 Nav2 의 기본 BT 와 다르면 BT 로드가 실패할 수 있다 [추정].
+
+```bash
+for f in navigate_to_pose navigate_through_poses; do
+  diff <(grep -v BackUp /opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/${f}_w_replanning_and_recovery.xml | grep -v '^\s*$') \
+       <(grep -v '^\s*$' "$(ros2 pkg prefix rescue_bringup)"/lib/python3*/site-packages/rescue_bringup/behavior_trees/${f}_no_backup.xml | sed '/^<!--/,/-->/d')
+done
+```
+
+머리 주석 말고 다른 차이가 없어야 한다. 차이가 있으면 Nav2 를 띄우지 말고 팀에 알린다.
+
+**로봇 Pi 두 대**(근거 [Pi 설정 기록](../evidence/field-2026-10-13-pi-settings.md)).
+
+| 확인 | 명령 | 맞는 값 |
+| --- | --- | --- |
+| 무선 절전 | `iw dev wlan0 get power_save` | `Power save: off`. 재부팅하면 켜지므로 켤 때마다 `sudo iw dev wlan0 set power_save off` |
+| 자동 업데이트 | `systemctl is-enabled apt-daily.timer apt-daily-upgrade.timer unattended-upgrades` | 셋 다 `disabled` |
+| Pi 시계 | `chronyc tracking` | 계산한 오차가 현장 파일 `robots.<id>.task.live.sensor_host_clock_error_bound_ns` 안. 넘으면 값을 바꾸고 기록한다 |
+
+- 로봇 Pi 에는 아무것도 설치하지 않는다. 로봇 설정을 바꾸려면 재범 승인이 필요하다(등급 4).
+- 카메라는 도킹 중 꺼져 있다. TB-6 카메라 확인(`ros2 topic hz /robot6/oakd/rgb/image_raw/compressed`)은 언도킹 뒤에 한다.
+
+## 3단계 — 운영 PC
+
+```bash
+ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
+  db_path:=<site_state.sqlite3> api_port:=<api 포트> command_timeout_s:=3.0 \
+  report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
+  webcam_params_file:=<webcam_node.yaml> video_port:=<영상 포트> video_bind_host:=<브라우저가 닿는 주소> video_stale_s:=2.0
+# 로그의 "console --camera cam_fixed=http://..." 값을 관제 웹 --camera 에 그대로 쓴다
+
+python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
+  --operations http://127.0.0.1:<api 포트> --camera <launch 로그의 값> --camera-stale-s 2.0 \
+  --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 --map <map.yaml> --port 8080 \
+  --support-dispatch AUTO --search-start AUTO
+
+ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
+  field_path:=$PWD/config/field/search_area.field.json \
+  route_segment_goals:='[0.0, 0.0, 0.0]' observe_goal:='[0.0, 0.0, 0.0]' route_segment_passage_free:='[false]' \
+  camera_watch_roi:='<현장에서 잰 값, 예: [0.1, 0.2, 0.6, 0.9]>'
+```
+
+- 관제 웹의 `--support-dispatch`·`--search-start` 는 현장 파일 `coordinator` 절과 같게 준다. 빼면 관제 웹이 출동 승인·수색 시작 버튼을 켠다.
+- 조정기의 `route_segment_goals`·`observe_goal` 은 자리표시다. `camera_watch_roi` 는 JSON 숫자 배열이어야 한다. `'[x0, y0, x1, y1]'` 글자를 그대로 쓰면 launch 가 exit 1 이다.
+- 성공 로그는 `rescue_db_writer git=... api=http://127.0.0.1:<port>`, `rescue_report_node ...`, `webcam_node git=...`, 조정기 `live task source enabled`·`central live clock: SYNCED` 다. `central live clock: waiting for clock measurement` 가 먼저 한 번 나오는 것은 정상이다.
+- 계정 DB 와 비밀키 준비는 [rescue_console README](../../src/rescue_console/README.md)에 있다.
+
+## 4단계 — TB-6 담당 PC
+
+로봇 감독이 TB-6 을 바닥에 표시한 출발 자리에 두고 언도킹한다. **지도 고정 노드는 TB-6 이 움직이기 전에 띄운다.** 처음 받은 TB-6 위치가 이 회차의 출발 자세가 되기 때문이다.
+
+```bash
+F=$PWD/config/field/search_area.field.json
+ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
+ros2 launch rescue_bringup map_freeze.launch.py profile_path:=<profile.json> field_path:=$F output_dir:=<회차마다 새 절대 경로>
+ros2 launch rescue_bringup amr_perception.launch.py <인자는 rescue_perception README>
+```
+
+성공 로그를 차례로 본다.
+
+- `TB-6 SLAM robot_a ns=/robot6`
+- `passage points /robot6/oakd/stereo/image_raw (compressedDepth) + ... -> /robot6/passage_points`
+- `robot robot_a ns=/robot6 ... + passage stop 0.05..0.46 m ... + no BackUp recovery ... map_mode=SLAM_THEN_FROZEN map_sha256=(decided by the freeze)`
+- `installed task runtime; input_mode=LIVE_ROS; explicit arm required`
+- `rescue_map_freeze` 의 `git_sha=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번
+- `MAP_STATE robot_a ... rev=<R0> quality=VALID`
+
+`<ns>/map` 에 이미 발행자가 있으면 `tb6_slam.launch.py` 가 시작하지 않는다(앞 SLAM 이 남은 것). `START_POSE captured` 가 나오지 않으면 다음 단계로 가지 않는다. 2026-10-14 현장에서는 이 줄이 나오지 않았다(TB-6 TF 거절, 열린 PR #291).
+
+## 5단계 — TB-5 담당 PC
+
+TB-5 도 바닥에 표시한 출발 자리에서 출발한다. 출발값은 TB-6 출발 자세 기준 `robots.robot_b.initial_pose_xy_yaw` 다. 2026-10-14 두 로봇 출발 간격은 1.95 m(가로)·0.05 m(세로)였다 [측정, 재범 줄자, 둘 다 도킹 상태].
+
+```bash
+ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
+ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
+ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
+  robot_id:=robot_b frozen_pose_wait_s:=10.0
+FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_SUPER_CLIENT=False \
+ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
+```
+
+- 1차 고정 전 TB-5 는 지도가 없다. `MAP_STATE robot_b ... quality=UNKNOWN` 이 정상이다.
+- 현장 파일에 `robots.robot_b.initial_pose_xy_yaw` 가 없으면 위치 추정 launch 가 거절한다. 이때는 시험 회차에서 한 번 잰다.
+  1. 1차 고정 지도가 나온 뒤 TB-5 를 출발 자리에 둔다.
+  2. `ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot5 map:=<output_dir 의 고정 지도 .yaml>` 을 띄우고 RViz `2D Pose Estimate` 로 자리를 찍는다.
+  3. AMCL 이 맞춘 뒤 `python3 scripts/field/capture_initial_pose.py /robot5/amcl_pose map /rescue/map/start_pose/robot_a` 를 돌린다. 나온 한 줄을 현장 파일 `robots.robot_b` 에 넣는다.
+  4. 출구(TB-5)와 TB-6 도킹 접근 지점(프로파일 `home_positions`)도 같은 지도에서 같은 도구로 잰다.
+
+## 6단계 — 배선 점검
+
+모든 launch 를 띄운 뒤, 로봇이 움직이기 전에 아무 PC 한 대에서 한다. Discovery 설정은 1단계와 같게 둔다.
+
+```bash
+ros2 daemon stop && ros2 daemon start
+python3 scripts/field/wiring_check.py --profile <profile.json> \
+  --field config/field/search_area.field.json --json <결과.json> > /dev/null
+echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
+```
+
+- 표는 화면(stderr)에, 줄마다 결과는 JSON 에 남는다. 종료 코드가 0 이 아니면 다음으로 가지 않는다.
+- 같은 이름 노드 줄이 FAILED 면 같은 프로그램이 두 곳에서 떠 있다. 우리 노드면 한쪽 launch 를 끈다. 우리 노드가 아니면(예: 두 PC 의 `/rviz2`) 한쪽을 끄거나 `--ros-args -r __node:=<다른 이름>` 으로 이름을 바꾼다.
+- 2차 고정 뒤 TB-6 을 다시 볼 때는 `--slam-phase FROZEN` 을 더한다. 한 로봇만 볼 때는 `--robot robot_b` 다.
+- 메시지 간격은 이 도구가 보지 않는다. 로봇이 자꾸 멈추면 `scripts/field/link_check.py` 로 끊김 길이를 본다.
+
+## 7단계 — 출동 준비와 실행 (로봇 감독, 운영 PC)
+
+1. **두 로봇 arm.** 로봇마다 아래 순서다. TB-6 은 탐색 중 AMCL 이 없으므로 첫 줄은 TB-5 만 한다.
+   ```bash
+   ros2 service call /robot5/request_nomotion_update std_srvs/srv/Empty {}
+   ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}
+   ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}     # success=True, message='ARMED'
+   ```
+   TB-5 는 자동 출동이라 인형이 나오기 전에 arm 돼 있어야 한다. arm 은 처음 한 번이면 된다. 이동이 정상으로 끝나면 실행기가 스스로 다시 준비한다(#281). 실패·취소·정지 뒤에는 다시 `task_arm` 을 부른다.
+2. **TB-6 위치 확인.** `ros2 topic echo --once /rescue/robots/robot_a/pose` 의 `mission_pose_status` 가 `VALID` 인지 본다. 서 있는 TB-6 에서 `ros2 topic hz /robot6/pose` 가 끊기는지 기록한다.
+3. **재난 시작.** 웹캠 앞을 흔든다. 관제 화면이 DISASTER 가 되고 조정기 로그에 `SEARCH_AUTO_STARTED on DISASTER` 가 나온다. TB-6 은 가장 가까운 탐색 경계로 간다. 수색 목표는 고르지 않는다.
+4. **1차 고정(인형 발견).** 인형이 확정되고 보고가 저장되면 조정기가 고정을 부른다. TB-6 은 계속 탐색한다.
+   - TB-6 담당 PC 로그 `MAP_FROZEN ... rev=<R0+1> final=False tb6 keeps SLAM`
+   - TB-5 담당 PC 로그 `MAP_REVISION_ADOPTED robot_b RNone -> R<R0+1>` → `MAP_RELAYED /rescue/map/frozen R<R0+1> -> /robot5/map` → `MAP_STATE robot_b ... rev=<R0+1> quality=VALID`. 이 줄이 나와야 TB-5 가 출동한다.
+   - `MAP_FREEZE_FAILED` 이면 아무것도 바뀌지 않고 TB-5 도 출동하지 않는다.
+5. **2차 고정(탐색 완료).** 조정기 로그 `EXPLORATION_COMPLETE` 뒤 조정기가 TB-6 정지를 확인하고 다시 고정을 부른다. TB-6 담당 PC 로그 `MAP_FROZEN ... rev=<R0+2> final=True tb6 amcl start=(...)`.
+   1. `MAP_REVISION_ADOPTED robot_a RNone -> R<R0+2>` 를 보고 `tb6_slam.launch.py` 터미널에서 Ctrl+C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 발행자 수가 0 이 될 때까지 기다린다.
+   2. TB-6 담당 PC 에서 `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0` 을 띄운다.
+   3. `MAP_RELAYED /rescue/map/frozen R<R0+2> -> /robot6/map` 를 본다. `MAP_RELAY_BLOCKED` 이면 SLAM 이 아직 떠 있다.
+   4. TB-5 는 멈춰 있으면 `MAP_REALIGN robot_b ...` 로 다시 맞춘다. 움직이는 중이면 `MAP_REVISION_DEFERRED` 가 나오고 멈춘 뒤 받는다.
+   5. 두 로봇 모두 `MAP_STATE ... rev=<R0+2> quality=VALID` 이고 `snapshot_id` 가 같은지 본다.
+6. **끝.** TB-5 가 인형에서 가장 가까운 출구에 도착하고 TB-6 이 도킹 접근 지점에 도착하면 `MISSION_FINISHED` 다. 인형이 없으면 `NO_SURVIVOR_FOUND` 이고 TB-5 는 출발하지 않는다.
+
+## 8단계 — 끝내기와 다시 하기
+
+- 각 PC 의 launch 를 Ctrl+C 로 끈다. 로봇은 로봇 감독이 도킹하고 끈다(자동 도킹 없음).
+- 다시 하려면 조정기·로봇 launch 를 다시 띄운다. 새 회차는 `tb6_slam` 부터 다시 띄우고 지도 고정 노드는 **새 `output_dir`** 로 띄운다. 같은 회차에서 고정 노드만 다시 띄울 때는 같은 `output_dir` 를 쓴다.
+- 회차마다 남길 것. 코드 SHA, 각 PC 의 `preflight_role.py`·`wiring_check.py` JSON, 지도 고정 `output_dir`, 단계별 로그, 결과(PASSED·FAILED·BLOCKED·NOT_RUN)와 원문 증거. 저장소에 올릴 때는 PC 이름·IP·개인 경로를 지운다(`docs/evidence/field-<날짜>-<역할>.*`).
+- 로봇을 재부팅하거나 네트워크를 바꾼 뒤에는 1단계 준비 점검과 6단계 배선 점검을 다시 한다.
+
+## 실기에서 아직 확인하지 못한 것 (NOT_RUN)
+
+이 순서를 처음부터 끝까지 실제 로봇으로 돌린 회차는 아직 없다. 실기에서 볼 항목은 [rescue_bringup README](../../src/rescue_bringup/README.md) 「실기 NOT_RUN」 절에 모여 있다. 그중 이 순서에 바로 걸리는 것은 아래다.
+
+- TB-6 출발 자세와 지도 고정(2026-10-14 실패, 열린 PR #291).
+- 권고안 A 에서 TB-5 담당 PC 가 `/rescue/map/frozen` 을 받는지 [추정, 실측 전].
+- 후진 없는 BT 가 설치된 Nav2 에서 올라오는지(2단계 대조).
+- 자동 재준비로 TB-6 이 탐색 지점마다 멈추지 않는지, TB-5 가 사람 앞에서 기다린 뒤 출구로 떠나는지.
+
+## 기록 (2026-10-08 판)
+
+아래는 2026-10-08 판 본문을 그대로 옮긴 것이다. 당시에는 현장 launch 가 없어 관문 목록만 있었다. 5절 「실기 날 아침 점검 목록」은 10-12·10-13 에 더한 것이다. 지금 순서는 위 절을 본다.
+
+### 현장 실행 전 관문
 
 현재 실행 가능한 통합 산출물은 [오프라인 E2 데모](../implementation/implementation-integration.md)다. 현장 ROS launch, 실제 드라이버/SLAM/Nav2 adapters, 모델 추론과 센서 검증, 물리적 정지 확인은 아직 완성/실행하지 않았다. 아래는 현장에서 구현·측정할 순서이며 이번 PR에서 성공한 실기 절차가 아니다. 실행할 수 없는 ROS 명령을 예시로 만들어 넣지 않는다.
 
 실제 AMR 2대 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이고 네 대를 모두 쓰는 것은 현재 배포 기준안의 검증 조건이다. 발견→접근→보고와 4-PC 전체 사용의 최종 인수 의무는 [scope Q-08](../requirements/scope.md)에 남긴다. 조건이 바뀌면 배치·프로파일·AC를 함께 수정한다.
 
-## 1. 실행 기록과 장비 확인
+#### 1. 실행 기록과 장비 확인
 
 현장 담당과 통합 담당이 두 로봇과 네 PC의 실제 식별자·CPU/GPU/RAM·OS·ROS/패키지/드라이버/펌웨어 버전·센서·네트워크를 기록한다. 고사양 PC별 SLAM/Nav2·추론, 중간 PC별 협업/관제 배치는 부하 측정 전 가설이다. 저장소의 example 이름을 실제 장비 확인으로 사용하지 않는다.
 
@@ -27,7 +243,7 @@ python3 -m rescue_bringup.offline_demo config/deployment.example.json --output w
 
 이 명령은 호스트에 서비스를 배포하지 않는다. 설정의 `runtime_enabled=false`를 true로 편집하는 것만으로 실행이 활성화되는 구조도 아니다. 실제 launch/adapters를 구현하고 해당 검사를 통과한 뒤 문서에 검증한 실기 명령을 추가해야 한다.
 
-## 2. E3 연결과 제어 권한
+#### 2. E3 연결과 제어 권한
 
 | 관문 | 준비/시험 | 다음 단계에 필요한 증거 |
 | --- | --- | --- |
@@ -38,7 +254,7 @@ python3 -m rescue_bringup.offline_demo config/deployment.example.json --output w
 
 P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 제안이었다([DEC-010](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/docs/decisions.md#L142-L151)). 다른 PC의 `/robot3/map` 발행자 2개는 [실습 L33](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L33), Discovery Server CPU 92%는 [실습 L34](https://github.com/jaebeom/ROKEY_P4/blob/1a2d0a9811f59a501c7597edf54c72fec8a80e26/mini/field/2026-10-06-practice.md#L34)다. L24–L32의 가짜 controller, 시계 점검, 언도크, 탐색 성공 행은 이 두 사고의 근거가 아니다. 이 값은 이번 네 PC의 재현 결과가 아니므로 새 구성에서 다시 측정한다.
 
-## 3. 현장 수치·좌표·탐지 관문
+#### 3. 현장 수치·좌표·탐지 관문
 
 [시험 계획의 T-01~14](acceptance-plan.md)를 단위·근거·정책 version/hash·결정 시각과 함께 `LOCKED_FOR_RUN`으로 확정한다. 현재 코드의 synthetic fixture 수치는 근거가 아니다. 합격 기준을 실행 결과에 맞춰 사후 낮추고 같은 회차를 PASS로 바꾸지 않는다. 값이 비어 있거나 stamp 의미/시계 오차가 미확인이면 그 값에 의존하는 자율 접근은 준비되지 않은 상태다.
 
@@ -48,7 +264,7 @@ P4는 로봇별 domain과 서버를 기록했고 단일 그래프 A는 당시 �
 
 사람/시연 인형·촬영 세션을 분리한 평가 데이터로 모델 class·confidence·track 의미, Depth 결측·배경 혼입, 위치 오차/공분산, 가림·조명을 검증한다. 객체의 점 자체를 goal로 보내지 않고 자유 공간·footprint·불확실성·제동/보호 영역과 실제 경로를 평가한다. 전송 FPS·합성 타일·기존 car/dummy 점수는 이 평가를 대신하지 않는다.
 
-## 4. 제한된 공간의 E4 실행 순서
+#### 4. 제한된 공간의 E4 실행 순서
 
 CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](../implementation/implementation-integration.md)에서 수색 SEND 의도→취소 요청→terminal CANCELED→합성 정지 증거→새 generation→접근 admission→실제 TaskAdmission으로 배정 승격까지 연결했다. 자동 접근 SEND는 여전히 차단된다. 이 결과는 ROS action 취소/terminal 전달, 실제 odometry의 정지 판정, 접근 주행·재관측을 검증하지 않는다. 아래 E3/E4 관문은 별도로 구현하고 실행해야 한다.
 
@@ -64,7 +280,7 @@ CT-06·CT-07의 순수 코어 E2 부분은 [통합 리허설](../implementation/
 
 각 단계는 NOT_RUN/BLOCKED/FAILED/PASSED와 원문 증거를 남긴다. 실제 두 로봇 사용을 한 로봇 재생으로 대체하지 않으며, 네 PC 기준안 시험을 단일 프로세스의 네 host 이름으로 대체하지 않는다. 필수 관문이 미실행이면 해당 실기 완료 주장은 남겨 둔다.
 
-## 5. 실기 날 아침 점검 목록 (10-12·10-13, 실기·배포 2026-10-08)
+#### 5. 실기 날 아침 점검 목록 (10-12·10-13, 실기·배포 2026-10-08)
 
 로봇에 닿기 전 PC 쪽 준비를 확인하는 순서다. 로봇을 움직이는 일(언도크·이동·도킹)은 이 목록에 없고 로봇·지도 담당 한 사람·한 세션만 한다([팀 작업 규칙](../../AGENTS.md) 6절). 각 줄의 결과는 그날 실행 기록에 남기고, preflight JSON 은 `docs/evidence/field-<날짜>-preflight-<role>.json` 처럼 역할 이름으로 저장한다(호스트 이름·IP·개인 경로는 지운다).
 
