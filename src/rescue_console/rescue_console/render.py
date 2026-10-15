@@ -566,7 +566,7 @@ _STYLE = """
    외부 글꼴·CSS 없음(오프라인). */
 :root{
   --bg:#f3f5f9; --card:#ffffff; --soft:#f6f8fb; --raise:#eef2f7; --line:#e7ecf2; --line-2:#d8dfe8;
-  --ink:#0f172a; --ink-2:#475569; --ink-3:#94a3b8; --accent:#4f46e5; --accent-soft:#eef0ff;
+  --ink:#0f172a; --ink-2:#475569; --ink-3:#6b778a;   /* --ink-3: 흰 바탕 대비 약 4.6:1(작은 라벨도 읽히게) */ --accent:#4f46e5; --accent-soft:#eef0ff;
   --blue:#2563eb; --blue-hover:#1d4ed8; --map-bg:#eef2f6;
   --signal:#e5484d; --signal-strong:#dc2f35; --rescue:#f76b15; --info:#2563eb; --safe:#16a34a; --pending:#94a3b8; --caution:#d99a06;
   --signal-tint:#fff0f0; --rescue-tint:#fff3eb; --info-tint:#eef4ff; --safe-tint:#ecfaf1; --caution-tint:#fff8e6; --pending-tint:#f1f5f9;
@@ -622,6 +622,7 @@ button{font-family:inherit}
   .console{grid-template-columns:minmax(0,1fr);grid-template-rows:none;
     grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
   .console:has(#show-history:checked){grid-template-areas:"head" "top" "band" "warn" "map" "side" "middle" "log" "hist"}
+  .band{display:flex;flex-wrap:wrap;row-gap:12px} .band .facts>div,#built{flex:1 1 140px}
 }
 #map,#middle>section,#events,#history,#side>section{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
 #middle{display:flex;flex-direction:column;gap:var(--gap);min-height:0}
@@ -639,21 +640,24 @@ button{font-family:inherit}
 #masthead .screen{order:2;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:var(--pill);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 
 /* ---- 임무 카드 ---- */
-.band{display:flex;flex-wrap:wrap;align-items:center;gap:12px 40px;padding:16px 22px;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
+.band{display:grid;grid-template-columns:auto;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:center;
+  padding:14px 8px 14px 18px;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
 .band .mode-word{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:800;padding:8px 18px;border-radius:var(--pill);
   background:var(--pending-tint);color:var(--ink-2)}
 .band .mode-word::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
-/* 값들은 띠 폭 전체에 고르게(왼쪽에 몰리고 오른쪽이 비지 않게) */
-.band .facts{flex:1 1 auto;display:flex;flex-wrap:wrap;justify-content:space-around;gap:8px 32px}
+/* 지표 줄: 모드 배지 뒤로 값마다 같은 폭의 칸과 얇은 구분선(값 개수가 바뀌어도 띠가 고르게 찬다) */
+.band .facts{display:contents}
+.band .facts>div,#built{min-width:0;padding:2px 18px;border-left:1px solid var(--line)}
+.band .mode-word{margin-right:16px;justify-self:start}
 .band dt{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:2px}
-.band dd{margin:0;font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.25;white-space:nowrap}
+.band dd{margin:0;font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .band .mode-note{display:none}   /* 모드 출처 설명은 띠에 마우스를 올리면(title) */
 /* 서버 기준 시각은 다른 값처럼 「작은 라벨 + 큰 값」으로 사실 줄 바로 뒤에 둔다(오른쪽 끝으로 밀지 않는다). */
-#built{display:flex;flex-direction:column;font-size:12.5px;font-weight:500;color:var(--ink-3);line-height:1.25;padding:0 10px 0 22px;
-  border-left:1px solid var(--line)}
+#built{display:flex;flex-direction:column;font-size:12.5px;font-weight:500;color:var(--ink-3);line-height:1.25}
 #built>span{display:block;margin-top:2px;font-size:21px;font-weight:700;letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
 .band.normal .mode-word{background:var(--safe-tint);color:var(--safe)}
-.band.disaster{background:linear-gradient(90deg,#fff1f1,#fff 70%);box-shadow:var(--shadow),inset 0 0 0 1px #ffd5d6}
+.band.disaster{background:#fff4f4;box-shadow:var(--shadow),inset 0 0 0 1px #ffd7d8}
+.band.disaster .facts>div,.band.disaster #built{border-left-color:#ffdcdd}
 .band.disaster .mode-word{background:var(--signal);color:#fff}
 .band.unknown .mode-word{color:var(--pending)}
 .band.clearing .mode-word{background:var(--caution-tint);color:var(--caution)}
