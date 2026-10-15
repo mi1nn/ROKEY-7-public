@@ -57,14 +57,14 @@ class SimOdom(unittest.TestCase):
 
     def test_only_the_two_drive_wheel_collisions_become_spheres(self):
         out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=True)
-        self.assertEqual({'sensors_removed': 0, 'wheels_sphere': 2, 'depth_camera': 0}, report)
+        self.assertEqual({'sensors_removed': 0, 'wheels_sphere': 2, 'depth_camera': 0, 'lidar': 0}, report)
         self.assertEqual(2, out.count('<sphere radius="0.03575"/>'))
         self.assertEqual(2 + 1, out.count('<cylinder '))   # the wheel visuals and the caster stay cylinders
         self.assertIn('gz-sim-sensors-system', out)        # the first robot keeps its Sensors system
 
     def test_the_second_robot_gets_both_changes(self):
         out, report = strip_sensors.patch(self.robot(), keep_sensors=False, wheel_sphere=True)
-        self.assertEqual({'sensors_removed': 1, 'wheels_sphere': 2, 'depth_camera': 0}, report)
+        self.assertEqual({'sensors_removed': 1, 'wheels_sphere': 2, 'depth_camera': 0, 'lidar': 0}, report)
         self.assertNotIn('gz-sim-sensors-system', out)
 
     def test_a_description_that_does_not_match_is_refused(self):

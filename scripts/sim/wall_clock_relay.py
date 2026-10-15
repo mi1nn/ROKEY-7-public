@@ -20,6 +20,7 @@ context each, and changes only what the real robot does differently [측정 2026
   oakd/stereo/image_raw/compressedDepth (16UC1 millimetres in PNG after a 12-byte header, as
   rescue_perception.target_utils.decode_depth_png reads it; robot readiness and passage points wait for it).
   TOPICS lists every relayed topic with its field name and the conversion, if any.
+- scan: returns under the real 0.164 m become no return (real_scan); the simulated lidar measures from 0.10 m.
 - depth noise: the relayed depth gets gaussian noise sigma = k z^2 (--depth-noise k, default DEPTH_NOISE_PER_M2), as a
   stereo camera's error grows with the distance squared. Gazebo's own <camera><noise> did not reach the rgbd depth
   image (measured std 0.0000 m, 2026-10-16). Without noise the 1 cm margin of tunnel 1 (0.47 m against the 0.46 m
@@ -148,6 +149,7 @@ def relay_message(msg, frames, stamps):
 DEPTH_HEADER = struct.Struct('<iff')   # mode 0, two unused floats (decode_depth_png reads mode 0 only)
 DEPTH_FORMAT = '16UC1; compressedDepth png'
 JPEG_QUALITY = 80   # [제안] 2026-10-15, preview 크기라 화질보다 크기
+LIDAR_RANGE_MIN_M = 0.164   # turtlebot4_description rplidar r_min, what the real driver reports [문서]
 DEPTH_NOISE_PER_M2 = 0.01   # sigma = k z^2: 1 cm at 1 m, 4 cm at 2 m [추정 2026-10-16; OAK-D Pro, 7.5 cm baseline, 96 disparities]
 
 
@@ -157,6 +159,14 @@ def depth_mm(metres):
     depth = np.asarray(metres, dtype=np.float32)
     mm = np.where(np.isfinite(depth) & (depth > 0), np.rint(depth * 1000.0), 0)
     return np.clip(mm, 0, 65535).astype(np.uint16)
+
+
+def real_scan(msg):
+    """LaserScan as the real RPLIDAR gives it: returns under LIDAR_RANGE_MIN_M become no return (inf). The simulated
+    lidar measures from 0.10 m so that near walls do not leak (strip_sensors.py), the real one does not see there."""
+    msg.ranges = [r if r >= LIDAR_RANGE_MIN_M else float('inf') for r in msg.ranges]
+    msg.range_min = LIDAR_RANGE_MIN_M
+    return msg
 
 
 def noisy_depth(metres, k, rng):
@@ -295,6 +305,8 @@ def main(argv=None):
                     if isinstance(msg, bytes):   # raw subscription: decode only what is sent
                         msg = deserialize_message(msg, msg_type)
                     out = relay_message(msg, frames, stamps)
+                    if out is not None and hasattr(out, 'ranges') and hasattr(out, 'range_min'):
+                        out = real_scan(out)
                     if out is not None and kind:
                         try:
                             out = converted(out, kind, out_type, args.depth_noise, noise_rng)
