@@ -1,0 +1,14 @@
+== 06:40:33 lifecycle
+robot6/controller_server: inactive [2]
+robot6/planner_server: unconfigured [1]
+robot6/bt_navigator: unconfigured [1]
+robot6/behavior_server: unconfigured [1]
+robot5/amcl: inactive [2]
+robot5/bt_navigator: unconfigured [1]
+-- failed to send response
+[amcl-2] [WARN] [1792100068.355252833] [robot5.amcl.rclcpp]: failed to send response to /robot5/amcl/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+[controller_server-1] [WARN] [1792100056.511530074] [robot6.controller_server.rclcpp]: failed to send response to /robot6/controller_server/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+-- arm
+response:
+std_srvs.srv.Trigger_Response(success=False, message="STOP_OR_READINESS_NOT_READY NAV_NOT_READY missing=['nav2'] motion=STOPPED sources=[]")
+

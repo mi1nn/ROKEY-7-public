@@ -1,0 +1,7 @@
+image: 064500-before-declare.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-2.109448307128257, -0.907961957322916, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
