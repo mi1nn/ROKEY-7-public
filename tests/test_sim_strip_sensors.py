@@ -114,5 +114,40 @@ class SimDepth(unittest.TestCase):
         self.assertIn("'--depth-near', '0.40'", launch)
 
 
+class SimLidar(unittest.TestCase):
+    """The rplidar in the simulation copy: 9 Hz like the real one (/robot6/scan 9 Hz [측정 2026-10-15]), gaussian
+    noise sigma 0.01 m [추정], and the Gazebo range floor at 0.10 m: with 0.164 m the GPU lidar let rays whose true
+    distance is under about 0.23 m through walls (0.164 / cos 45 on the cube face) [측정 2026-10-16]. The relay then
+    drops returns under the real 0.164 m, so the field sees what the real lidar gives."""
+    LIDAR = ('<sensor name="rplidar" type="gpu_lidar">\n      <update_rate>62.0</update_rate>\n      <visualize>1</visualize>\n'
+             '      <lidar>\n        <scan><horizontal><samples>640</samples></horizontal></scan>\n'
+             '        <range>\n          <min>0.164</min>\n          <max>12.0</max>\n          <resolution>0.01</resolution>\n'
+             '        </range>\n      </lidar>\n    </sensor>')
+
+    def robot(self):
+        return URDF.replace('</robot>', '<gazebo reference="rplidar_link">' + self.LIDAR + '</gazebo></robot>')
+
+    def test_rate_floor_and_noise(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=False,
+                                          lidar_rate_hz=9.0, lidar_min_m=0.10, lidar_noise_m=0.01)
+        self.assertEqual(1, report['lidar'])
+        lidar = out[out.index('<sensor name="rplidar"'):]
+        self.assertIn('<update_rate>9</update_rate>', lidar)
+        self.assertIn('<min>0.1</min>', lidar)
+        self.assertIn('<max>12.0</max>', lidar)
+        self.assertIn('<noise><type>gaussian</type><mean>0</mean><stddev>0.01</stddev></noise>', lidar)
+
+    def test_no_lidar_is_refused_when_asked_to_change_it(self):
+        with self.assertRaises(ValueError):
+            strip_sensors.patch(URDF, keep_sensors=True, wheel_sphere=False, lidar_rate_hz=9.0, lidar_min_m=0.1,
+                                lidar_noise_m=0.01)
+
+    def test_every_robot_is_spawned_with_the_real_lidar(self):
+        launch = (REPO / 'scripts' / 'sim' / 'spawn_extra.launch.py').read_text()
+        self.assertIn("'--lidar-rate', '9'", launch)
+        self.assertIn("'--lidar-min', '0.10'", launch)
+        self.assertIn("'--lidar-noise', '0.01'", launch)
+
+
 if __name__ == '__main__':
     unittest.main()
