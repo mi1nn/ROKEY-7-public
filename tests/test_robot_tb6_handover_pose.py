@@ -64,5 +64,37 @@ class Handover(unittest.TestCase):
         self.assertEqual(('VALID', 0), self.state())
 
 
+class NoNewGoalDuringHandover(unittest.TestCase):
+    """Run 9 (#425): TB-6 took R2 and kept its SLAM pose (handover, #405); the coordinator sent RETURN_HOME, it was
+    admitted, and 0.8 s later the frozen grid reached TB-6's map topic (MAP_HANDOVER). The SLAM pose was dropped,
+    AMCL had not answered yet, and the task guard refused every step (`input observation time`) until the task was
+    canceled (GUARD_INVALID, not sent again). A new goal now waits until the handover is over, as it waits for a
+    pending revision (check_new_goal): the coordinator gets FRAME_REVISION_MISMATCH at admission and sends it again
+    after its refusal hold, once AMCL localizes TB-6 on the frozen grid."""
+    make, freeze, pose, state = twice.Twice.make, twice.Twice.freeze, twice.Twice.pose, twice.Twice.state
+
+    def test_a_new_goal_is_refused_while_tb6_hands_over(self):
+        from rescue_robot.executor import ContractError
+        s = self.make('SLAM_THEN_FROZEN')
+        s.receive_map('robot_a', grid_message({9: 100}))
+        self.freeze(G1, R1)
+        self.freeze(G2, R2)
+        self.pose(source='slam')
+        self.assertEqual(('VALID', R2), self.state())
+        with self.assertRaises(ContractError) as caught:
+            s.check_new_goal('robot_a')
+        self.assertIn('handover', str(caught.exception))
+        self.assertEqual('FRAME_REVISION_MISMATCH', caught.exception.code)
+
+    def test_after_the_handover_goals_go_again(self):
+        s = self.make('SLAM_THEN_FROZEN')
+        s.receive_map('robot_a', grid_message({9: 100}))
+        self.freeze(G1, R1)
+        self.freeze(G2, R2)
+        s.receive_map('robot_a', G2)
+        self.pose()
+        s.check_new_goal('robot_a')   # no exception
+
+
 if __name__ == '__main__':
     unittest.main()

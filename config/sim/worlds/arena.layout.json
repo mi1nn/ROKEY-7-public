@@ -27,12 +27,12 @@
      "color": [0.55, 0.38, 0.22], "estimate": true, "source": "plan (224..250, 92..120); height estimated = wall"},
     {"name": "center_pillar", "kind": "box", "x": 1.80, "y": 3.585, "yaw": 0.0, "size": [0.50, 0.63, 0.41],
      "color": [0.55, 0.38, 0.22], "estimate": true, "source": "plan box pillar (155..205, 167..230); height estimated = wall. Lost by mistake in #364 (tunnel 2 edit), restored 2026-10-16"},
-    {"name": "tunnel2_lintel", "kind": "overhead", "x": 1.68, "y": 2.865, "yaw": 1.5708, "size": [0.81, 0.01, 0.41],
+    {"name": "tunnel2_roof", "kind": "overhead", "x": 1.76, "y": 2.865, "yaw": 0.0, "size": [0.72, 0.81, 0.018],
      "clearance_m": 0.30, "color": [0.55, 0.38, 0.22], "estimate": true,
-     "source": "plan tunnel 2 (impassable), line x=168 from y 230 to 311. 재범 2026-10-15: lift it about 30 cm so that the vision, not the lidar, has to judge that the robot cannot pass. Panel size is copied from tunnel 1 [추정]"},
-    {"name": "tunnel1_lintel", "kind": "overhead", "x": 3.025, "y": 2.23, "yaw": 0.0, "size": [0.81, 0.01, 0.41],
+     "source": "plan tunnel 2 area (140..212, 230..311), impassable. Roof over the whole area; underside 0.30 m (재범 2026-10-15: lift it about 30 cm so that the vision, not the lidar, has to judge that the robot cannot pass). Thickness 0.018 m [추정, as the walls]. Was a 1 cm lintel along the dashed line until 2026-10-16: no floor under it in the depth box, judge UNKNOWN"},
+    {"name": "tunnel1_roof", "kind": "overhead", "x": 3.09, "y": 2.235, "yaw": 0.0, "size": [0.68, 0.45, 0.018],
      "clearance_m": 0.47, "color": [0.55, 0.38, 0.22], "estimate": true,
-     "source": "plan tunnel 1 (passable, 47 cm), line y=334 from x 262 to 343; panel size estimated"},
+     "source": "plan tunnel 1 area (275..343, 311..356), passable, 「높이 47 cm」. Roof over the whole area; thickness 0.018 m [추정, as the walls]. Was a 1 cm lintel along the dashed line until 2026-10-16"},
     {"name": "doll", "kind": "cylinder", "x": 1.20, "y": 2.87, "radius": 0.07, "length": 0.20,
      "color": [0.85, 0.54, 0.11], "estimate": true, "source": "plan (120, 270) r 7; height estimated"}
   ]

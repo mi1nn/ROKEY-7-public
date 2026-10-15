@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!-- Written by scripts/sim/map_to_world.py from arena.layout.json (no map). Do not edit by hand: change the layout and run it again.
-     Not measured yet [추정]: wall, robots.robot6, robots.robot5, stub_pillar, center_pillar, tunnel2_lintel, tunnel1_lintel, doll -->
+     Not measured yet [추정]: wall, robots.robot6, robots.robot5, stub_pillar, center_pillar, tunnel2_roof, tunnel1_roof, doll -->
 <sdf version="1.8">
   <world name="arena">
     <physics name="1ms" type="ignored">
@@ -145,20 +145,20 @@
         <visual name="visual"><geometry><box><size>0.5000 0.6300 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
-    <model name="tunnel2_lintel">
+    <model name="tunnel2_roof">
       <static>true</static>
-      <pose>1.6800 2.8650 0.5050 0 0 1.570800</pose>
+      <pose>1.7600 2.8650 0.3090 0 0 0.000000</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>0.8100 0.0100 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.8100 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>0.7200 0.8100 0.0180</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.7200 0.8100 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
-    <model name="tunnel1_lintel">
+    <model name="tunnel1_roof">
       <static>true</static>
-      <pose>3.0250 2.2300 0.6750 0 0 0.000000</pose>
+      <pose>3.0900 2.2350 0.4790 0 0 0.000000</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>0.8100 0.0100 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.8100 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>0.6800 0.4500 0.0180</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.6800 0.4500 0.0180</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="doll">
