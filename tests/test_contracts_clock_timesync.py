@@ -7,6 +7,7 @@ NO_NTP_REPLY, NOT_SYNCHRONIZED or NTP_SPIKE; a spike names the ignored reply and
 timesyncd's PollIntervalUSec, which it already halved for the spike, systemd v255 timesyncd-manager.c 388), and
 the coordinator start log shows the seconds left. Which replies are used is unchanged (A is the owner's decision).
 """
+from concurrent.futures import wait
 import json
 import types
 import unittest
@@ -92,7 +93,7 @@ class SamplerTests(unittest.TestCase):
         sampler = cm.ClockSampler('timesyncd', 3_600_000_000_000, 100.0, collector=collector)
         try:
             sampler.poll()
-            sampler.pending.result()
+            wait([sampler.pending])
             record = sampler.poll()
         finally:
             sampler.close()
