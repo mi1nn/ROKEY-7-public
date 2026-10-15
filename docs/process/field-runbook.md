@@ -203,7 +203,8 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - **TB-5 Nav2 는 1차 고정 지도에서 위치가 잡힌 뒤에 켜진다**(#375). 지도가 없을 때 켜면 전역 비용 지도가 60 s 뒤 포기하고 다시 켜지지 않기 때문이다. `robot.launch.py robot_id:=robot_b` 는 Nav2 를 켜지 않은 채 띄운다. 로그는 `nav2 autostart false: /robot5/lifecycle_manager_navigation/manage_nodes STARTUP once map -> base_link ...` 이다.
   - 1차 고정 전에는 `NAV2_STARTUP_WAITING map -> base_link not on TF yet` 와 실행기의 `NAV2_LIFECYCLE ... no NavigateToPose server: nav2 NOT_READY` 가 정상이다. TB-5 arm 은 이때 `NAV_NOT_READY` 로 거절된다.
   - 1차 고정 뒤 AMCL 이 위치를 내면 `NAV2_STARTUP_SENT` → `NAV2_STARTUP /robot5/lifecycle_manager_navigation/manage_nodes active` → 실행기 `NAV2_LIFECYCLE ... active` 순서로 나온다. 이 줄을 본 뒤 TB-5 를 arm 한다.
-  - `NAV2_STARTUP_FAILED` 나 `NAV2_STARTUP_NO_ANSWER` 가 나오면 Nav2 가 꺼진 채다. 로그 끝의 `ros2 service call ... ManageLifecycleNodes "{command: 0}"` 를 손으로 한 번 부르고, 실행기 `NAV2_LIFECYCLE ... active` 를 본 뒤에 arm 한다.
+  - `NAV2_STARTUP_FAILED` 가 나오면 Nav2 가 꺼진 채다. 로그 끝의 `ros2 service call ... ManageLifecycleNodes "{command: 0}"` 를 손으로 한 번 부르고, 실행기 `NAV2_LIFECYCLE ... active` 를 본 뒤에 arm 한다.
+  - `NAV2_STARTUP_NO_ANSWER` 는 lifecycle 관리자가 앞 호출에 묶여 답하지 못하는 경우다. 손으로 다시 불러도 풀리지 않을 수 있다. TB-5 로봇을 세운 채 `robot.launch.py robot_id:=robot_b` 를 PID 로 끄고 다시 띄운다. 시뮬레이션에서 Nav2 노드의 답이 관리자에 닿지 못해(`failed to send response to …/change_state (timeout)`) 관리자가 계속 기다린 일이 있었다(#378).
 - 1차 고정 뒤 출발 정렬 로그 `START_ALIGN_ALIGNED` 를 본다. `START_ALIGN_FAILED <이유>` 이면 TB-5 를 출발 자리에 다시 두고 `ros2 service call /robot5/rescue_start_align/restart std_srvs/srv/Trigger {}` 로 다시 한다. 결과는 `/robot5/rescue_start_align`(JSON)에도 있다. 이유 코드는 [rescue_robot README](../../src/rescue_robot/README.md) 상태 표에 있다.
 - 현장 파일에 `robots.robot_b.initial_pose_xy_yaw` 가 없으면 위치 추정 launch 가 거절한다. 이때는 시험 회차에서 한 번 잰다.
   1. 1차 고정 지도가 나온 뒤 TB-5 를 출발 자리에 둔다.
