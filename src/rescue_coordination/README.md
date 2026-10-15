@@ -2,9 +2,9 @@
 
 임무 조정기(`mission_coordinator`)와 그 판단 코어가 있는 패키지다. 판단은 ROS 없이 시험할 수 있는 `CoordinatorCore`·`MissionCoordinator`·`SearchCoordinator` 가 맡는다. `ros_node.main()` 은 메시지만 주고받는다. 로봇을 움직이는 주체는 로봇 실행기이고, 조정기는 `cmd_vel`·Nav2 액션을 직접 호출하지 않는다.
 
-로봇 이름은 TB-6(코드 값 `robot_a`, 탐색 담당 SCOUT)과 TB-5(`robot_b`, 구조대원 안내 담당 SUPPORT)로 쓴다. 시나리오 원문과 결정은 [scope.md](../../docs/requirements/scope.md) Q-29(2026-10-13 밤 시나리오 변경)에 있다. 시나리오를 한 표로 정리하는 작업은 #268 에서 진행 중이다. 현장 값은 [현장 파일](../../config/field/search_area.field.json) `coordinator` 절에 있다.
+로봇 이름은 TB-6(코드 값 `robot_a`, 탐색 담당 SCOUT)과 TB-5(`robot_b`, 구조대원 안내 담당 SUPPORT)로 쓴다. 시나리오 원문과 결정은 [scope.md](../../docs/requirements/scope.md) Q-29(2026-10-13 밤 시나리오 변경)에 있다. 시나리오를 한 표로 정리한 것도 같은 문서에 있다(#268). 현장 값은 [현장 파일](../../config/field/search_area.field.json) `coordinator` 절에 있다.
 
-## 현재 상태 (2026-10-14, main `4163a25`)
+## 현재 상태 (2026-10-15, main `5d9304a`)
 
 근거는 모두 `rescue_coordination/ros_node.py` 의 `CoordinatorCore` 메서드다(다른 파일은 경로를 적음). 「실기 NOT_RUN」은 로봇 없는 시험(단위 시험·E3 리허설)만 통과했다는 뜻이다.
 
@@ -29,7 +29,7 @@
 | 웹캠 소실 후보 → TB-6 재확인 → 구출 판정(`completion_mode=RECHECK`) | 구현됨. 현장 설정(`EXIT_ARRIVAL`)에서는 쓰지 않음 | `_open_camera_recheck`, `_judge`, `verdict.py` |
 | RViz 수색 목표 고르기 | 구현됨. `search_mode=AREAS` 에서만 켜짐(현장은 FRONTIER) | `live_task_inputs.py` `goal_pick_topic` |
 | 로봇 명령 임대 갱신(`CommandLease`)과 미수락 임무 만료 | 구현됨 | `leases_due`, `_expire_unadmitted` |
-| 교통 관제 1단계(TB-5 우선, TB-6 비켜서기, 최소 간격) | 미구현. PR #272 검토 중 | — |
+| 교통 관제 1단계(TB-5 우선, TB-6 비켜서기와 임무 취소, 최소 간격, `traffic_control=TB5_PRIORITY`) | 구현됨(#272), 실기 NOT_RUN | `_traffic_support`, `_traffic_scout`, `_step_aside`, `_stop_scout`, `take_cancels` |
 | 조정기 상태 영속(재기동 뒤 복구) | 미구현. 상태는 메모리에만 있음 | `ros_node.py` 에서 파일·DB 쓰기를 찾지 못함(grep `sqlite`·`open(`) |
 
 로봇 실행기도 이제 SEARCH_AREA 밖의 임무를 받는다. 현장 파일의 `robots.robot_a.task.live.auto_target.kinds` 는 `REOBSERVE_TARGET`·`RETURN_HOME`, `robots.robot_b` 는 `APPROACH_TARGET`·`RETURN_HOME` 이다 [설정 2026-10-14]. 실행기 쪽 근거는 `rescue_robot/task_site_runtime.py` `_allowed` 다.
@@ -49,13 +49,15 @@
 | 7. 출구 | TB-5 는 가장 가까운 출구로, TB-6 은 도킹 접근점으로 | TB-5 출구 도착 = 구출 완료 | `SUPPORT_EXIT_UNREACHABLE`, `SUPPORT_START_UNKNOWN`, `SCOUT_HOME_NOT_FREE`, `START_POSE_UNKNOWN` |
 | 8. 종료 | 두 로봇이 모두 도착하면 `MISSION_FINISHED` | — | 인형이 없으면 `NO_SURVIVOR_FOUND` 로 종료 |
 
+5단계부터는 교통 관제가 함께 돈다. TB-5 가 늘 먼저 가고, TB-6 은 TB-5 경로에서 비키거나 임무를 취소당한다. 이때 보이는 `TRAFFIC_*` 이유 코드는 [상태 전이](../../docs/design/state-machines.md) 「교통 관제 이유 코드」 표에 있다.
+
 ## 아직 없는 것
 
-- 교통 관제 1단계는 PR #272 에 있다(위 표).
+- TB-5 출발 자리(현장 파일 `robots.robot_b.initial_pose_xy_yaw`)를 아직 재지 않았다. 그래서 현장에서는 TB-6 이 두 로봇 간격 검사 없이 움직이고, `SystemState.reason` 에 `TRAFFIC_SEPARATION_UNCHECKED` 가 보인다. 교통 관제 값(최소 간격 0.6 m, 경로와 둘 거리 0.6 m, 비켜서기 최대 2.0 m, 정지 대기 3.0 s)도 실측이 아니다 [추정 2026-10-14].
 - 이슈 #233 1번(`completion_mode=RECHECK` 에서 RECHECK_NEEDED 뒤 운영자 「복귀」가 접수만 되고 임무가 나가지 않음)이 아직 남아 있다. 현장 설정(`EXIT_ARRIVAL`)에서는 재확인을 열지 않으므로 이 경로를 타지 않는다. 재현은 [이슈 댓글](https://github.com/jaebeom/ROKEY-7/issues/233#issuecomment-6149933805)에 있다.
 - 터널 판정(C-04b)을 탐색 경계 선택이나 TB-5 경로에 반영하는 기능은 아직 없다.
 - 조정기를 재기동하면 발급 장부·대상·보고·고정 단계가 사라진다(영속 복구 없음).
-- `ros_node.py` 가 약 2,500줄이다. 통합이 안정되면 기능별(지도 고정, 탐색, 출구, 교통 관제) 모듈로 나눌 후보다.
+- `ros_node.py` 가 약 2,800줄이다. 통합이 안정되면 기능별(지도 고정, 탐색, 출구, 교통 관제) 모듈로 나눌 후보다.
 
 토픽은 [구현 기록](../../docs/implementation/implementation-coordination.md)「ROS 연결」, 파라미터와 현장 값은 「파라미터」, `reason_code` 대응표는 「운영자 명령 거절 코드」 절에 있다.
 
