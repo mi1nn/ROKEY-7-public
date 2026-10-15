@@ -259,12 +259,16 @@ class TrafficRearmTests(TrafficBase):
         self.core.on_result(frontier['task_id'], NS(outcome='EXPIRED', stop_confirmed=True, terminal_reason=''))
         self.assertEqual([SCOUT], self.core.take_rearms())
 
-    def test_an_unreachable_frontier_is_not_armed_again(self):
-        self.scout_at((5., 1.))
-        frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
-        self.core.on_admission(admission_msg(frontier))
-        self.core.on_result(frontier['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason=''))
-        self.assertEqual([], self.core.take_rearms())
+    def test_a_failed_or_unreachable_frontier_is_armed_again(self):
+        # rehearsal #24: the last frontier FAILED and the RETURN_HOME after EXPLORATION_COMPLETE never went
+        for outcome in ('FAILED', 'UNREACHABLE'):
+            with self.subTest(outcome=outcome):
+                self.setUp()
+                self.scout_at((5., 1.))
+                frontier = self.sent(NOW)[(SCOUT, 'SEARCH_AREA')]
+                self.core.on_admission(admission_msg(frontier))
+                self.core.on_result(frontier['task_id'], NS(outcome=outcome, stop_confirmed=True, terminal_reason=''))
+                self.assertEqual([SCOUT], self.core.take_rearms())
 
     def test_node_retries_task_arm_a_bounded_number_of_times(self):
         self.assertEqual((10, 1.0), (ros_node.TRAFFIC_REARM_TRIES, ros_node.TRAFFIC_REARM_PERIOD_S))

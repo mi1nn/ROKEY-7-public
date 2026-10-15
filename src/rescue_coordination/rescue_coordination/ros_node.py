@@ -104,6 +104,7 @@ COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK', 'EXIT_WAIT_SCOUT_DOCK')
 # return, no dock); TB-6 goes back to its own start pose once its exploration ended (not on TB-5's exit) and docks
 # there (rescue_robot.dock_node, Create3 dock action). FINISHED needs the confirmed dock, never the arrival alone.
 SCOUT_DOCK_SERVICE = '/dock'        # ROBOT_PREFIX + SCOUT + this: std_srvs/Trigger, answer JSON {"request": n, ...}
+FRONTIER_REARM_OUTCOMES = frozenset({'EXPIRED', 'FAILED', 'UNREACHABLE'})  # TB-6 frontier ends armed again
 APPROACH_ALTERNATES = 16  # headings tried round the target when the line point is not free ([제안], 2026-10-15)
 TASK_ARM_SERVICE = '/rescue_command_adapter/task_arm'  # robot namespace + this: std_srvs/Trigger (executor)
 TRAFFIC_REARM_TRIES, TRAFFIC_REARM_PERIOD_S = 10, 1.0  # re-arm after a traffic cancel ([제안], rehearsal 2026-10-15)
@@ -1293,16 +1294,19 @@ class CoordinatorCore:
             return False
         stopped_for_tb5 = task_id in self.traffic_canceled
         self.traffic_canceled.discard(task_id)
-        frontier_expired = (self.search_mode == 'FRONTIER' and item.robot_id == self.roles['SCOUT']
-                            and self.search.kind_of(item) == 'SEARCH_AREA' and result.outcome == 'EXPIRED')
-        if stopped_for_tb5 or frontier_expired:
+        frontier_end = (self.search_mode == 'FRONTIER' and item.robot_id == self.roles['SCOUT']
+                        and self.search.kind_of(item) == 'SEARCH_AREA'
+                        and result.outcome in FRONTIER_REARM_OUTCOMES and not stopped_for_tb5)
+        if stopped_for_tb5 or frontier_end:
             # The executor latches its stop after every outcome but COMPLETED (OPS-231 re-arms only that), so TB-6
             # stood for good after an end the coordinator itself caused: a cancel for TB-5 (rehearsal 2026-10-15
-            # #19, TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD) or a frontier past its task deadline (#20, no task for 7 min
-            # until EXPLORATION_TIMEOUT). Those are armed again, on the executor's own arm conditions. Any other
-            # stop (operator, lease, FAILED/UNREACHABLE) still waits for a task_arm by hand.
-            want = 'CANCELED' if stopped_for_tb5 else 'EXPIRED'
-            if result.outcome == want and stop and self.mission.mode == 'DISASTER':
+            # #19, TRAFFIC_SUPPORT_WAITING_SCOUT_YIELD) or a frontier that ended short of COMPLETED: past its task
+            # deadline (#20, no task for 7 min until EXPLORATION_TIMEOUT) or not reached (#24, the RETURN_HOME after
+            # EXPLORATION_COMPLETE never went). A frontier is tried and dropped either way (_frontier_done), so TB-6
+            # is armed again, on the executor's own arm conditions. Any other stop (operator, lease, a failed
+            # approach or return) still waits for a task_arm by hand.
+            want = {'CANCELED'} if stopped_for_tb5 else FRONTIER_REARM_OUTCOMES
+            if result.outcome in want and stop and self.mission.mode == 'DISASTER':
                 self.rearms.append(item.robot_id)
                 self.notes.append(f'TRAFFIC_REARM_DUE robot={item.robot_id} task={task_id} outcome={result.outcome}')
             else:
