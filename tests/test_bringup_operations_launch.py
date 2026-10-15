@@ -21,7 +21,7 @@ OPERATIONS_LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'operations.lau
 def build(**changes):
     from rescue_bringup.operations_launch import db_writer_parameters
     values = dict(db_path='/var/lib/rescue/site_state.sqlite3', api_port=8090, command_timeout_s=3.0,
-                  webcam_node='/webcam_node')
+                  webcam_node='/webcam_node', map_topic='', map_dir='')
     return db_writer_parameters(load_deployment(PROFILE), **(values | changes))
 
 
@@ -45,6 +45,10 @@ class DbWriterParameters(unittest.TestCase):
             'operator_command_service': '/rescue/operator_command',
             'command_timeout_s': 3.0,
             'webcam_node': '/webcam_node',
+            'map_archive_topic': '',
+            'map_archive_dir': '',
+            'frozen_map_topic': '/rescue/map/frozen',
+            'frozen_revision_topic': '/rescue/map/frozen_revision',
         }, build())
 
     def test_every_parameter_db_writer_requires_is_given_and_accepted(self):
@@ -83,7 +87,7 @@ class DbWriterParameters(unittest.TestCase):
         from rescue_bringup.operations_launch import LaunchSettingError, db_writer_parameters
         with self.assertRaises(LaunchSettingError):
             db_writer_parameters(load_deployment(V1_PROFILE), db_path='/x.sqlite3', api_port=8090,
-                                 command_timeout_s=3.0, webcam_node='')
+                                 command_timeout_s=3.0, webcam_node='', map_topic='', map_dir='')
 
 
 def build_report(**changes):

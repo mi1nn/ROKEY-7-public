@@ -36,7 +36,9 @@ QOS = {'status': ('RELIABLE', 'VOLATILE', 1), 'pose': ('RELIABLE', 'VOLATILE', 1
        # QR exit observations: VOLATILE matches a latched or a plain publisher, every one is kept
        'exit_location': ('RELIABLE', 'VOLATILE', 10),
        # C-04b and IF-009 publishers latch the latest; a late start still gets each robot's list and the map state
-       'overhead_passages': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'map_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
+       'overhead_passages': ('RELIABLE', 'TRANSIENT_LOCAL', 1), 'map_state': ('RELIABLE', 'TRANSIENT_LOCAL', 1),
+       # map archive (replay): the SLAM map and the frozen pair are latched by their publishers (map_snapshot QoS)
+       'map': ('RELIABLE', 'TRANSIENT_LOCAL', 1)}
 ROBOT_LISTS = ('robot_roles', 'status_topics', 'pose_topics', 'overhead_passages_topics')
 # The console gives up after 5 s (#115 COMMAND_TIMEOUT_S); this must answer before that.
 CONSOLE_TIMEOUT_S = 5.0
@@ -94,6 +96,16 @@ def node_config(values):
     topics.append(text(values['system_state_topic'], 'system_state_topic'))
     topics.append(text(values['targets_topic'], 'targets_topic'))
     topics.append(text(values['exit_location_topic'], 'exit_location_topic'))  # QR exit (OPS-144)
+    topics.append(text(values['frozen_map_topic'], 'frozen_map_topic'))
+    topics.append(text(values['frozen_revision_topic'], 'frozen_revision_topic'))
+    archive_topic, archive_dir = values['map_archive_topic'], values['map_archive_dir']
+    require(isinstance(archive_topic, str) and isinstance(archive_dir, str)
+            and (archive_topic == '') == (archive_dir == ''),
+            "map_archive_topic and map_archive_dir go together ('' for both = no map archive)")
+    if archive_dir:  # the replay map archive (작전·웹개발 2026-10-15)
+        require(archive_topic.startswith('/') and archive_dir.startswith('/'),
+                'map_archive_topic and map_archive_dir must be absolute')
+        topics.append(archive_topic)
     require(len(set(topics)) == len(topics), 'every subscribed topic must be different')
     port, timeout_s = values['api_port'], values['command_timeout_s']
     require(type(port) is int and 1 <= port <= 65535, 'api_port must be 1..65535')
@@ -108,6 +120,8 @@ def node_config(values):
             'exit_location_topic': values['exit_location_topic'],
             'overhead_passages_topics': dict(zip(ids, values['overhead_passages_topics'])),
             'map_state_topic': values['map_state_topic'],
+            'map_archive_topic': archive_topic, 'map_archive_dir': archive_dir,
+            'frozen_map_topic': values['frozen_map_topic'], 'frozen_revision_topic': values['frozen_revision_topic'],
             'api_host': text(values['api_host'], 'api_host'), 'api_port': port,
             'operator_command_service': text(values['operator_command_service'], 'operator_command_service'),
             'command_timeout_ns': round(timeout_s * 1e9),
@@ -146,6 +160,7 @@ def main(args=None):
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
     from rescue_interfaces.msg import (MapState, RobotPose, RobotStatus, SiteEvent, SystemState, TargetLocation,
                                        TargetSnapshot)
+    from nav_msgs.msg import OccupancyGrid
     from std_msgs.msg import String
     from rescue_interfaces.srv import SubmitOperatorCommand
 
@@ -165,7 +180,9 @@ def main(args=None):
              'overhead_passages_topics': Parameter.Type.STRING_ARRAY, 'map_state_topic': Parameter.Type.STRING,
              'api_host': Parameter.Type.STRING, 'api_port': Parameter.Type.INTEGER,
              'operator_command_service': Parameter.Type.STRING, 'command_timeout_s': Parameter.Type.DOUBLE,
-             'webcam_node': Parameter.Type.STRING}
+             'webcam_node': Parameter.Type.STRING, 'map_archive_topic': Parameter.Type.STRING,
+             'map_archive_dir': Parameter.Type.STRING, 'frozen_map_topic': Parameter.Type.STRING,
+             'frozen_revision_topic': Parameter.Type.STRING}
     values = {}
     for name, kind in names.items():  # no defaults: every value comes from launch/profile
         node.declare_parameter(name, kind)
@@ -190,7 +207,9 @@ def main(args=None):
              f'system_state={config["system_state_topic"]} targets={config["targets_topic"]} '
              f'exit_location={config["exit_location_topic"]} '
              f'overhead_passages={config["overhead_passages_topics"]} map_state={config["map_state_topic"]} '
-             f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]}')
+             f'api=http://{config["api_host"]}:{config["api_port"]} service={config["operator_command_service"]} '
+             f'map_archive={config["map_archive_topic"] or "off"}->{config["map_archive_dir"] or "-"} '
+             f'frozen={config["frozen_map_topic"]}+{config["frozen_revision_topic"]}')
 
     def qos(kind):
         reliability, durability, depth = QOS[kind]
@@ -244,6 +263,30 @@ def main(args=None):
             RobotStatus, status_topic, handler(ingest.on_robot_status, robot + ' status'), qos('status')))
         subscriptions.append(node.create_subscription(
             RobotPose, pose_topic, handler(ingest.on_robot_pose, robot + ' pose'), qos('pose')))
+    if config['map_archive_dir']:   # replay map archive: <map_archive_dir>/<run_id>/ + map_snapshots rows
+        from .map_archive import MapArchive, grid_fields
+        scout = next(robot for robot, role in config['roles'].items() if role == 'SCOUT')  # the SLAM robot
+        archive = MapArchive(ledger, out_dir=config['map_archive_dir'], robot_id=scout)
+
+        def grid_handler(method, label):
+            def on_grid(msg, received_at_ns):
+                try:
+                    fields = grid_fields(msg)
+                except ValueError as exc:
+                    ledger.record_error(dict(at_ns=received_at_ns, robot_id=None, task_id=None, code='INVALID_INPUT',
+                                             detail=f'MAP_ARCHIVE_SKIPPED {label}: {exc}'[:1024]))
+                    return None
+                return method(fields, received_at_ns=received_at_ns)
+            return on_grid
+        subscriptions += [
+            node.create_subscription(OccupancyGrid, config['map_archive_topic'],
+                                     handler(grid_handler(archive.on_live_map, 'live map'), 'map_archive'), qos('map')),
+            node.create_subscription(OccupancyGrid, config['frozen_map_topic'],
+                                     handler(grid_handler(archive.on_frozen_grid, 'frozen map'), 'frozen_map'),
+                                     qos('map')),
+            node.create_subscription(String, config['frozen_revision_topic'],
+                                     handler(lambda msg, received_at_ns: archive.on_frozen_revision(
+                                         msg.data, received_at_ns=received_at_ns), 'frozen_revision'), qos('map'))]
     client = node.create_client(SubmitOperatorCommand, config['operator_command_service'])
     boot_id, sequence = str(uuid4()), [0]
 

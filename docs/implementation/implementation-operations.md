@@ -56,7 +56,7 @@ flowchart LR
 | 현장 상태 DB `schema=1.2`, 읽기 함수는 1.1 파일만 받음 | 스키마 1.5(2026-10-15). 1.0 ~ 1.4 파일은 새 `db_writer` 가 열 때 1.5 로 올린다. 그 전까지 읽기 함수는 거절하고 관제 웹은 503 응답을 낸다 |
 | 회차마다 새 DB 경로로 띄움 | 한 DB 안에서 회차(`runs`, `run_id`)로 나눈다. 화면용 읽기 함수는 열린 회차의 쌓이는 행만 준다. 리플레이 읽기 함수는 아래 표 끝에 있다([db-schema](../design/db-schema.md) 4-1절) |
 | 받는 명령 다섯 종 | 여섯 종(`SET_CAMERA_WATCH` 포함, `command_api.py:COMMAND_FIELDS`) |
-| 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)만 받는다 |
+| 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)을 받고, `map_topic`·`map_dir` 이 있으면 리플레이용으로 회차별 지도를 `map_dir/<run_id>/` 에 남긴다(2026-10-15, `map_archive.py`) |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
 | 로봇 이름 AMR1·AMR2 | TB-6·TB-5 |
 | HTTP 경로는 명령 하나 | 명령, 웹캠 고르기(#257), 초기화(`POST /api/runs/reset`, 2026-10-15) 셋 |

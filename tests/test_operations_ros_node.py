@@ -20,7 +20,8 @@ def params(**changes):
               'targets_topic': '/rescue/targets', 'exit_location_topic': '/rescue/exit_location',
               'api_host': '127.0.0.1', 'api_port': 8090,
               'operator_command_service': '/rescue/operator_command', 'command_timeout_s': 3.0,
-              'webcam_node': '/webcam_node'}
+              'webcam_node': '/webcam_node', 'map_archive_topic': '', 'map_archive_dir': '',
+              'frozen_map_topic': '/rescue/map/frozen', 'frozen_revision_topic': '/rescue/map/frozen_revision'}
     return values | changes
 
 

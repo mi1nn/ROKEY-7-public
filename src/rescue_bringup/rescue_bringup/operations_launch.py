@@ -19,6 +19,8 @@ SYSTEM_STATE_TOPIC = '/rescue/system_state'
 TARGETS_TOPIC = '/rescue/targets'
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # QR exit (통합-인식 안 「나」, OPS-144)
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
+FROZEN_MAP_TOPIC = '/rescue/map/frozen'               # map_freeze (rescue_robot), as the coordinator subscribes
+FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'
 REPORTS_TOPIC = '/rescue/reports'  # IF-072, coordinator -> report_node
 REPORT_RECEIPTS_TOPIC = '/rescue/report_receipts'  # IF-073, report_node -> coordinator
 ROBOT_PREFIX = '/rescue/robots/'
@@ -45,8 +47,11 @@ def parse_launch_arguments(*, db_path, api_port, command_timeout_s):
     return dict(db_path=db_path, api_port=port, command_timeout_s=timeout)
 
 
-def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, webcam_node):
-    """Profile + launch values -> every parameter rescue_operations db_writer requires."""
+def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, webcam_node, map_topic, map_dir):
+    """Profile + launch values -> every parameter rescue_operations db_writer requires.
+
+    map_topic/map_dir are the launch's SLAM map arguments (map_snapshot_parameters): with them db_writer also
+    keeps the run's maps for replay under map_dir/<run_id>/ (초기화·리플레이 3단계); '' for both is off."""
     if not isinstance(deployment, Deployment) or deployment.mission is None:
         raise LaunchSettingError('profile v2 with mission roles is required (config/deployment.v2.example.json)')
     if not isinstance(db_path, str) or not db_path:
@@ -55,6 +60,7 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, we
         raise LaunchSettingError('api_port must be 1..65535')
     if not isinstance(command_timeout_s, float) or not 0.0 < command_timeout_s < CONSOLE_TIMEOUT_S:
         raise LaunchSettingError(f'command_timeout_s must be over 0 and under the console {CONSOLE_TIMEOUT_S:g} s')
+    map_snapshot_parameters(map_topic=map_topic, map_dir=map_dir)  # both or neither, absolute topic
     robots = [robot.id for robot in deployment.robots]
     (slam_robot,) = [robot for robot in robots if deployment.mission.role_of(robot) == 'SCOUT']
     return {
@@ -76,6 +82,10 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, we
         'command_timeout_s': command_timeout_s,
         # the console's camera pick goes to this webcam_node ('' = no webcam in this launch, OPS-183)
         'webcam_node': webcam_node,
+        'map_archive_topic': map_topic,
+        'map_archive_dir': map_dir,
+        'frozen_map_topic': FROZEN_MAP_TOPIC,
+        'frozen_revision_topic': FROZEN_REVISION_TOPIC,
     }
 
 
