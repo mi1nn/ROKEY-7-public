@@ -308,6 +308,16 @@ class LayoutTests(unittest.TestCase):
         rows = re.search(r'grid-template-rows:([^;]*);', _STYLE).group(1)
         self.assertNotRegex(rows, r'(?<![(\w])230px')      # a fixed 230 px row left empty space under few events
 
+    def test_narrow_screen_band_rules_come_after_the_wide_band(self):
+        # A phone showed the mission band as seven 30 px columns with the words standing on end: the narrow
+        # @media rule for .band sat above the plain .band rule, so the later plain rule won (2026-10-15).
+        from rescue_console.render import _STYLE
+        wide = _STYLE.index('.band{display:grid')
+        narrow = [m.start() for m in re.finditer(r'@media \(max-width:\d+px\)\{', _STYLE)
+                  if '.band{' in _STYLE[m.start():_STYLE.find('\n}', m.start())]]
+        self.assertTrue(narrow, 'no narrow-screen rule for the mission band')
+        self.assertTrue(all(start > wide for start in narrow), 'a narrow .band rule is overridden by the wide one')
+
 
 class FlaskBoundaryTests(AccountsFixture):
     def test_missing_flask_is_a_clear_error_not_a_fallback(self):
