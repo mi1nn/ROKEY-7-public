@@ -19,7 +19,8 @@ import unittest
 
 from rescue_contracts import RescueError
 from rescue_coordination import live_task_inputs, ros_node
-from test_coordination_ros_core import SCOUT, admission_msg, frame, make_core, request, site_msg, status_msg
+from test_coordination_ros_core import (SCOUT, admission_msg, frame, location, make_core, request, site_msg,
+                                        status_msg)
 from test_coordination_search import MAP, NOW, uid
 
 S = 1_000_000_000
@@ -616,6 +617,92 @@ class CutGoalTests(Base):
         self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
 
+class LookTurnTests(Base):
+    """At a frontier's own goal TB-6 turns in place once round, ``frontier_look_turns`` goals of 90 degrees each at the
+    same spot, so the camera sweeps for the doll (재범 decision 2026-10-16 05:0x, camera sweep option 1: 「목표마다
+    제자리 한 바퀴(90°×4)」). Not at a cut goal (a step on the way). A failed turn ends the turn and counts nothing;
+    a doll report lets the turn in progress finish and sends no more."""
+
+    def setUp(self):
+        self.core = frontier_core(frontier_look_turns=4)
+        self.setUp_after()
+
+    setUp_after = FrontierPickTests.setUp_after
+
+    def at_the_frontier(self):
+        self.core.on_pose(scout_pose(NEAR))
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        point = live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw']
+        self.finish(fields)
+        return point
+
+    def turn(self, k):
+        """The k-th turn goal (1-based): its fields and (x, y, yaw); each one after the issue delay."""
+        now = NOW + (2 * k + 1) * DELAY
+        self.core.on_pose(scout_pose(NEAR, at=now))
+        self.searches(now)
+        (fields,) = self.searches(now + DELAY)
+        return fields, live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw']
+
+    def test_four_turns_of_90_degrees_at_the_same_spot_then_the_frontier_is_tried(self):
+        x, y, yaw = self.at_the_frontier()
+        for k in range(1, 5):
+            fields, (tx, ty, tyaw) = self.turn(k)
+            self.assertEqual((x, y), (tx, ty))
+            self.assertAlmostEqual(0., math.remainder(tyaw - yaw - k * math.pi / 2, 2 * math.pi), places=6)
+            self.finish(fields)
+        self.assertNotIn(fields['search_area_ref'], {self.core.frontier and self.core.frontier['site_id']})
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(NEAR, at=NOW + 11 * DELAY))
+        self.assertEqual([], self.searches(NOW + 11 * DELAY))  # no fifth turn; the frontier is tried
+        self.assertEqual(1, self.core.frontier_empty)
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('FRONTIER_LOOK 4/4', notes)
+        self.assertIn('FRONTIER_LOOK_DONE', notes)
+
+    def test_no_turn_at_a_cut_goal(self):
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        site = live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw']
+        self.finish(fields)
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(tuple(site[:2]), at=NOW + 3 * DELAY))
+        self.searches(NOW + 3 * DELAY)
+        (again,) = self.searches(NOW + 4 * DELAY)
+        nxt = live_task_inputs.destinations(self.core)[again['search_area_ref']]['xy_yaw']
+        self.assertGreater(nxt[0], site[0])  # on towards the frontier, no turn in place
+        self.assertNotIn('FRONTIER_LOOK', ' '.join(self.core.drain_notes()))
+
+    def test_a_failed_turn_ends_the_turning_and_counts_nothing(self):
+        self.at_the_frontier()
+        fields, _ = self.turn(1)
+        self.finish(fields, outcome='FAILED')
+        self.assertEqual([], self.core.frontier_failures)  # not a failed attempt at the frontier
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(NEAR, at=NOW + 5 * DELAY))
+        self.assertEqual([], self.searches(NOW + 5 * DELAY))  # no second turn; the frontier is tried as reached
+        self.assertIn('FRONTIER_LOOK_DONE', ' '.join(self.core.drain_notes()))
+
+    def test_a_doll_report_lets_the_turn_finish_and_sends_no_more(self):
+        self.at_the_frontier()
+        fields, _ = self.turn(1)
+        self.core.on_target_location(location(1), now_ns=NOW + 4 * DELAY)
+        self.assertEqual([], self.core.cancels)  # the turn in progress is not stopped
+        self.finish(fields)
+        self.core.on_pose(scout_pose(NEAR, at=NOW + 5 * DELAY))
+        self.searches(NOW + 5 * DELAY)
+        self.assertEqual([], self.searches(NOW + 6 * DELAY))
+        self.assertNotIn('FRONTIER_LOOK 2/4', ' '.join(self.core.drain_notes()))
+
+    def test_zero_turns_is_the_old_way(self):
+        self.core = frontier_core(frontier_look_turns=0)
+        self.setUp_after()
+        self.at_the_frontier()
+        self.assertIsNone(self.core.frontier)  # tried at once
+
+
 class FrontierNoneWhyTests(Base):
     """``FRONTIER none`` says why each frontier was left out, largest first (시뮬레이션 2026-10-15 C9: two frontiers
     FAILED, then three empty map updates ended the exploration and nobody could tell why the main zone was not
@@ -676,11 +763,13 @@ class ParameterTests(unittest.TestCase):
                              'frontier_min_cells', 'frontier_reach_m', 'frontier_goal_max_m', 'frontier_blacklist_m',
                              'frontier_issue_delay_s', 'exploration_empty_checks', 'exploration_timeout_s')))
         self.assertIn('FRONTIER', ros_node.SEARCH_MODES)
+        self.assertEqual('INTEGER', ros_node.PARAMETERS['frontier_look_turns'])
 
     def test_bad_values_are_refused(self):
         for changes in (dict(policy_changes=dict(executable_bases=frozenset({'PRIOR_MAP'}))),  # FRONTIER not executable
                         dict(frontier_min_cells=0), dict(frontier_goal_max_m=0.), dict(exploration_empty_checks=0),
-                        dict(exploration_timeout_ns=0), dict(frontier_issue_delay_ns=-1)):
+                        dict(exploration_timeout_ns=0), dict(frontier_issue_delay_ns=-1),
+                        dict(frontier_look_turns=-1), dict(frontier_look_turns=1.5)):
             with self.subTest(changes=changes), self.assertRaises(RescueError):
                 frontier_core(**changes)
 
