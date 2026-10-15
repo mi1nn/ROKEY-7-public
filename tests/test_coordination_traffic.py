@@ -16,6 +16,7 @@ TB-5 always goes first: it leads the rescuer, who follows it on foot. With ``tra
   stepping aside, away from TB-5 (so the two never wait on each other).
 """
 import math
+from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
 
@@ -23,7 +24,7 @@ from rescue_contracts import RescueError
 from rescue_contracts.occupancy import occupancy_sha256
 from rescue_coordination import live_task_inputs, ros_node
 from test_coordination_approach import pose_msg
-from test_coordination_frontier import scout_pose
+from test_coordination_frontier import saved_map, scout_pose
 from test_coordination_map_freeze import map_state
 from test_coordination_mission_end import ORIGIN, RES, H, W, RealGrid
 from test_coordination_ros_core import SCOUT, SUPPORT, admission_msg, make_core, request, site_msg, status_msg
@@ -372,3 +373,36 @@ class PathPastTb5Tests(unittest.TestCase):
         lines = [n for n in core.drain_notes() if n.startswith('FRONTIER none')]
         self.assertTrue(lines)
         self.assertTrue(all('too_close=1' in n and 'not counted' in n for n in lines), lines)
+
+
+RUN11 = Path(__file__).resolve().parents[1] / 'docs/evidence/sim-2026-10-16-run050248/maps'
+
+
+@unittest.skipUnless((RUN11 / '050550-before-declare.yaml').exists(),
+                     'installed-wheel checkout has no docs/evidence (or the 11회차 evidence is not merged yet)')
+class Run11DeclareTests(unittest.TestCase):
+    """11회차 (2026-10-16, build b8a758d), the map just before the declaration: TB-6 at its start (-0.35, 0.00), TB-5
+    at its start spot (-0.43, 1.80). Before: FRONTIER none three times (frontiers=5 small=2 too_close=3, the largest
+    TOO_CLOSE cells=90 centroid (-1.32, 1.67)), then EXPLORATION_COMPLETE frontiers_sent=0. Field values."""
+
+    TB6, TB5 = (-0.353, 0.0), (-0.431, 1.795)
+
+    def test_the_90_cell_frontier_goes(self):
+        core = core_(**dict(TrafficBase.CORE, support_start_pose=(*self.TB5, 0.)), frontier_min_cells=10,
+                     frontier_reach_m=1.0, frontier_goal_max_m=1.5, frontier_goal_clearance_m=0.35,
+                     exploration_empty_checks=3)
+        core.on_map_state(map_state(SCOUT, revision=3))
+        core.on_start_pose((0., 0., 0.))
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_status(status_msg(SUPPORT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(saved_map('050550-before-declare', RUN11))
+        core.on_pose(scout_pose(self.TB6))
+        sent = FrontierBesideTb5Tests.tick(core, NOW)
+        notes = core.drain_notes()
+        self.assertEqual(1, len(sent), notes)
+        (line,) = [n for n in notes if n.startswith('FRONTIER ') and 'cells=' in n]
+        self.assertIn('cells=90 ', line)
+        x, y, _ = live_task_inputs.destinations(core)[sent[0]['search_area_ref']]['xy_yaw']
+        self.assertGreaterEqual(math.dist((x, y), self.TB5), MIN_SEP)
