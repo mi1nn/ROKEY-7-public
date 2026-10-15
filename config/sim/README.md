@@ -6,11 +6,11 @@
 
 ## `maps/` — 입력 지도 원본
 
-mu-03 의 현장 지도를 실기가 파일 그대로 보냈다(gzip + base64, 2026-10-15). 받은 뒤 sha256 이 모두 같았다.
+운영 PC 의 현장 지도를 실기가 파일 그대로 보냈다(gzip + base64, 2026-10-15). 받은 뒤 sha256 이 모두 같았다.
 
 | 파일 | 무엇 | 크기 | sha256 |
 | --- | --- | --- | --- |
-| `live_map.yaml` | 2026-10-14 19:35 TB-6 SLAM 중 스냅숏(mu-03 `robotnet/live6`) | | `c05b49f64ee815e1d9cef7c716d4443fdb9dbd12a599f671008af456e7a957ea` |
+| `live_map.yaml` | 2026-10-14 19:35 TB-6 SLAM 중 스냅숏(운영 PC `robotnet/live6`) | | `c05b49f64ee815e1d9cef7c716d4443fdb9dbd12a599f671008af456e7a957ea` |
 | `map_3d44bf26cf8e.pgm` | 위 지도 그림 | 154 × 85 칸, 0.05 m, 7.7 × 4.25 m | `3d44bf26cf8eb3cb92a95c56d8fbe323c0944af1d5327f875658e989c85b24e0` |
 | `tb6_map_191936.yaml` | 2026-10-14 19:19 TB-6 SLAM 저장(끝 줄바꿈 없음, 원본 그대로) | | `a17c348d022554096fbac3a87125c53b281150ea3fae09485239ab5c0fed27f1` |
 | `tb6_map_191936.pgm` | 위 지도 그림 | 99 × 84 칸, 0.05 m, 4.95 × 4.2 m | `ab16f85fbfdff8e5682e9e51ee365d06c5bcf8173f2dc0a85a9b9b3569764e5d` |
@@ -86,7 +86,7 @@ RUN_SIM_GUI=0 scripts/sim/run_sim.sh --world arena --no-rviz    # 창 없이(사
 | `RUN_SIM_GUI` | 1 | 0 이면 Gazebo 창 없이 서버만(`gz sim -s`, `headless_gz.launch.py`). 두 시뮬레이션을 한 PC 에서 같이 돌리면 창이 코어 하나를 먹는다 |
 | `RUN_SIM_WORLD_DIR`, `RUN_SIM_LOG_DIR` | `config/sim/worlds`, `~/sim-logs/<시각>` | 시험용 |
 
-- Fast DDS: `scripts/sim/fastdds_localhost.xml` 을 모든 시뮬레이션 프로세스에 준다. 시뮬레이터 한 대에 ROS 프로세스가 약 50 개라, 기본 LOCALHOST 탐색 범위(앞쪽 참가자 번호 몇십 개)를 넘는 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 본다. UDP 초기 피어 범위를 120 으로 넓힌다[측정 2026-10-15 mu-03]. 다른 터미널에서 조회할 때도 같은 파일을 `FASTRTPS_DEFAULT_PROFILES_FILE` 로 준다(스크립트가 마지막에 명령을 찍는다).
+- Fast DDS: `scripts/sim/fastdds_localhost.xml` 을 모든 시뮬레이션 프로세스에 준다. 시뮬레이터 한 대에 ROS 프로세스가 약 50 개라, 기본 LOCALHOST 탐색 범위(앞쪽 참가자 번호 몇십 개)를 넘는 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 본다. UDP 초기 피어 범위를 120 으로 넓힌다[측정 2026-10-15 시뮬레이션 PC]. 다른 터미널에서 조회할 때도 같은 파일을 `FASTRTPS_DEFAULT_PROFILES_FILE` 로 준다(스크립트가 마지막에 명령을 찍는다).
 - 같은 파티션에 남은 Gazebo 가 있으면 띄우지 않는다. 끝낼 때는 이 실행이 띄운 프로세스만 PID 로 끈다.
 
 ### 문제 해결

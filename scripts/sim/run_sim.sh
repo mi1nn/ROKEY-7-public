@@ -29,8 +29,8 @@ die() { echo "run_sim: $*" >&2; exit 2; }
 
 # 깨끗한 셸로 다시 실행한다. 부른 셸의 ROS 환경(~/turtlebot4_ws 등)은 하나도 넘기지 않는다. 넘기는 것은 RUN_SIM_* 뿐이다.
 if [ -z "${RUN_SIM_CLEAN:-}" ]; then
-    # 라이다는 GPU 로 그려진다. 하이브리드 노트북(mu-03: Intel + RTX 4070)에서 NVIDIA 를 안 고르면 소프트웨어 그리기로 떨어져
-    # 라이다 640 개 값이 모두 range_min(0.164 m)이 되고 SLAM 은 아무것도 못 본다 [측정 2026-10-15 mu-03, 지도 자리].
+    # 라이다는 GPU 로 그려진다. 하이브리드 노트북(Intel + NVIDIA)에서 NVIDIA 를 안 고르면 소프트웨어 그리기로 떨어져
+    # 라이다 640 개 값이 모두 range_min(0.164 m)이 되고 SLAM 은 아무것도 못 본다 [측정 2026-10-15 시뮬레이션 PC].
     # NVIDIA 드라이버가 있고 사용자가 그리기 변수를 따로 안 줬으면 NVIDIA 오프로드로 둔다. 끄려면 LIBGL_ALWAYS_SOFTWARE=1.
     if [ -e /dev/nvidiactl ] && [ -f /usr/share/glvnd/egl_vendor.d/10_nvidia.json ] && [ -z "${LIBGL_ALWAYS_SOFTWARE:-}" ]; then
         export __NV_PRIME_RENDER_OFFLOAD="${__NV_PRIME_RENDER_OFFLOAD:-1}"
