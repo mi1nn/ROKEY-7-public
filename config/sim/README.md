@@ -180,7 +180,14 @@ python3 scripts/sim/compare_maps.py --sim sim_map.yaml --real config/sim/maps/li
 - **모양**: 20 × 20 m 바깥 벽(높이 2 m) 안에 1 m 높이 상자 36 개(1×1, 1×2, 1×3, 3×1, 1×6 m 등)로 된 미로. 통로 폭은 1 m 이상이다.
 - **고른 이유**: TurtleBot4 를 위해 만든 world 라 크기가 로봇과 맞고, 벽과 막다른 길이 있어 탐색·경계(frontier)·Nav2 를 실습장보다 넓고 복잡한 곳에서 볼 수 있다. 같은 패키지의 `depot`·`warehouse` 는 선반이 있는 창고이고 Fuel 에서 모델을 내려받아야 해서 뺐다.
 - **실습장과 다른 점**: 실물이 없다(평면도·실측과 맞출 대상이 없음). 터널·인형·QR 판이 없다. 실습장(3.43 × 5.57 m)보다 훨씬 넓어 탐색 시간이 길다.
-- **출발 자리**(`sim2.spawn.json`, [설정 2026-10-16]): TB-6 (0, 0), TB-5 (1.86, 0), 둘 다 남쪽(−90°)을 보고 도크는 각자 앞 0.157 m. 실습장의 두 로봇 배치(나란히 1.86 m, 도크 쪽을 봄)를 따랐다. 로봇은 상자에서 0.84 m 이상, 도크도 0.84 m 이상 떨어져 있다(시험 `tests/test_sim_world_sim2.py` 가 0.5 / 0.3 m 이상인지 본다).
+- **만드는 법**: `maze.base.sdf`(위 원본 그대로 사본)에 `sim2.layout.json` 의 물체만 더한다(`map_to_world.py --base`). `sim2.sources.json` 이 바탕을 적는다. `sim2.sdf`·`sim2.spawn.json` 은 손으로 고치지 않는다.
+  ```bash
+  python3 scripts/sim/map_to_world.py --base config/sim/worlds/maze.base.sdf \
+    --layout config/sim/worlds/sim2.layout.json --name sim2 --out-dir config/sim/worlds
+  ```
+- **출발 자리**: TB-6 (0, 0), TB-5 (0.5, 0), 둘 다 남쪽(−90°)을 보고 도크는 각자 앞 0.157 m 에 나란히 선다. 두 로봇 사이 0.16 m(지름 0.34 m)로, 도크 둘을 나란히 둘 수 있는 만큼 가깝게 [설정, 재범 2026-10-16 「최대한 가까운 공간, 도크 나란히」]. 실습장처럼 1.86 m 가 아니다.
+- **터널·인형**(시나리오 네 단계를 그대로 돌리려고, 작전 2026-10-16): 터널 1(통과 가능, 덮개 아래 0.47 m)은 출발에서 3.5 m 의 1 m 폭 통로 (−0.5, −3.5), 터널 2(통과 불가, 0.30 m)는 (4.5, 1.5) 의 1 m 폭 통로를 가로막는 지붕 판(0.6 × 1.1 m, 두께 0.018 m). 터널 2 뒤쪽은 터널 2 로만 간다. 인형은 터널 2 없이 닿는 (−4.5, 0.5) [설정]. 모두 실물이 없는 연습장 값이다.
+- **실행**: `run_full.sh --world sim2 --world-dir config/sim/worlds …` 는 출발·인형 자리를 `sim2.spawn.json` 에서 읽는다(sim1 은 `arena.spawn.json`). SLAM 은 TB-6 만, TB-5 는 고정 지도 위 위치 잡기(`frozen_localization`)로 sim1 과 같다. 시험 `tests/test_sim_world_sim2.py` 가 출발 자리·도크·터널·인형이 미로 상자와 겹치지 않는지 본다.
 
 ```bash
 scripts/sim/run_sim.sh --world sim2                 # 1단계: 가상 TB-6 한 대, SLAM, RViz

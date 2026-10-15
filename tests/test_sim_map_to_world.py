@@ -244,6 +244,33 @@ class World(Tmp):
                 self.assertEqual(2, result.returncode)
         self.assertFalse((self.dir / 'o').exists())
 
+    def test_the_doll_goes_into_spawn_json_for_the_run_script(self):
+        raw = layout()
+        raw['objects'].append({'name': 'doll', 'kind': 'cylinder', 'x': 1.2, 'y': 2.87, 'radius': 0.07, 'length': 0.2,
+                               'color': [0.85, 0.54, 0.11]})
+        _, spawn, _ = self.build(raw)
+        self.assertEqual([1.2, 2.87], spawn['doll'])
+        _, spawn, _ = self.build(layout())
+        self.assertNotIn('doll', spawn)   # no doll in the layout: none is made up
+
+    def test_objects_can_go_into_an_existing_world(self):
+        base = ("<?xml version='1.0'?>\n<sdf version='1.6'>\n  <world name='maze'>\n    <model name='border'/>\n"
+                "  </world>\n</sdf>\n")
+        (self.dir / 'base.sdf').write_text(base)
+        raw = layout(objects=[layout()['objects'][2]])   # the overhead tunnel only
+        (self.dir / 'layout.json').write_text(json.dumps(raw))
+        result = subprocess.run([sys.executable, '-I', str(TOOL), '--base', str(self.dir / 'base.sdf'), '--layout',
+                                 str(self.dir / 'layout.json'), '--name', 'sim9', '--out-dir', str(self.dir / 'o')],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        text = (self.dir / 'o' / 'sim9.sdf').read_text()
+        root = ET.fromstring(text.encode())
+        self.assertEqual('sim9', root.find('world').get('name'))
+        names = [m.get('name') for m in root.iter('model')]
+        self.assertEqual(['border', 'tunnel'], names)            # the base world kept, the layout objects added
+        self.assertNotIn('ground_plane', names)                  # the base has its own floor
+        self.assertIn('base.sdf', text)                          # where it came from
+
     def test_a_map_and_layout_only_together_are_refused(self):
         (self.dir / 'layout.json').write_text(json.dumps(layout()))
         both = subprocess.run([sys.executable, '-I', str(TOOL), '--layout-only', '--map',
@@ -271,13 +298,17 @@ class RepositoryWorld(unittest.TestCase):
             with self.subTest(world=name):
                 maps = REPO / 'config' / 'sim' / 'maps'
                 sources = worlds / f'{name}.sources.json'
-                if sources.exists():
-                    source = json.loads(sources.read_text())['map']
-                    grid = mw.read_map(maps / source)
-                else:   # layout only (a floor plan carried into metres): no map, no sources file
-                    source = f'{path.name} (no map)'
-                    grid = mw.Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
-                world, spawn, _ = mw.build(grid, mw.load_layout(path), name=name, source=source)
+                given = json.loads(sources.read_text()) if sources.exists() else {}
+                if 'base' in given:     # objects on an existing world (sim2 on the TurtleBot4 maze)
+                    world, spawn, _ = mw.build_on_base((worlds / given['base']).read_text(), mw.load_layout(path),
+                                                       name=name, source=f"{given['base']} + {path.name}")
+                else:
+                    if 'map' in given:
+                        source, grid = given['map'], mw.read_map(maps / given['map'])
+                    else:   # layout only (a floor plan carried into metres): no map, no sources file
+                        source = f'{path.name} (no map)'
+                        grid = mw.Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
+                    world, spawn, _ = mw.build(grid, mw.load_layout(path), name=name, source=source)
                 self.assertEqual(world, (worlds / f'{name}.sdf').read_text())
                 self.assertEqual(spawn, json.loads((worlds / f'{name}.spawn.json').read_text()))
 

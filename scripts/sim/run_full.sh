@@ -58,9 +58,20 @@ TOKEN="run_full.$$.$(date +%s)"
 echo "$TOKEN" > "$RUN/token"
 FIELD_SRC="$REPO/config/field/search_area.field.json"
 F="$RUN/field.sim.json"   # 현장 파일 사본. 현장 파일은 고치지 않는다
-TB6_START=(0.88 0.37 -1.5708)   # arena 좌표, 평면도 TB-6 자리(도크를 봄) [추정]
-TB5_START=(2.70 0.37 -1.5708)   # arena 좌표, 평면도 TB-5 자리 [추정]
-DOLL=(1.20 2.87)                 # arena 좌표, 평면도 인형 자리 [추정]
+# 출발 자리와 인형 자리는 world 의 spawn.json 에서 읽는다(sim1 = arena: 평면도 [추정], sim2: 미로 [설정]). 없으면 멈춘다.
+read -r -a SPAWN < <(python3 - "$world_dir/$world.spawn.json" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print(*(d['robots'][r][k] for r in ('robot6', 'robot5') for k in ('x', 'y', 'yaw')), *d['doll'])
+except (OSError, KeyError, ValueError, TypeError) as exc:
+    sys.exit(f'{sys.argv[1]}: {exc!r}')
+PY
+)
+[ "${#SPAWN[@]}" -eq 8 ] || die "$world_dir/$world.spawn.json 에 robot6·robot5 출발 자리와 doll 자리가 있어야 합니다"
+TB6_START=("${SPAWN[@]:0:3}")   # world 좌표, 도크를 보고 선다
+TB5_START=("${SPAWN[@]:3:3}")
+DOLL=("${SPAWN[@]:6:2}")
 P="$RUN/profile/profile.json"
 SHIM="$REPO/scripts/field/wiring-rehearsal/host_shim"
 DDS="$REPO/scripts/sim/fastdds_localhost.xml"

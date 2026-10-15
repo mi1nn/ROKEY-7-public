@@ -24,6 +24,7 @@ into metres, e.g. arena.layout.json). Writes <out-dir>/<name>.sdf (world name = 
 <out-dir>/<name>.spawn.json. Standard library only.
 """
 import argparse
+import re
 from dataclasses import dataclass
 import json
 import math
@@ -349,15 +350,44 @@ def build(grid, layout, *, name, source='a SLAM map'):
             geometry, pose = _box((sx, sy, sz)), (obj['x'], obj['y'], z, obj['yaw'])
         parts.append(_model(obj['name'], pose, geometry, obj['color'], obj.get('texture')))
     parts.append('  </world>\n</sdf>\n')
+    return ''.join(parts), spawn_of(layout, name), estimates
+
+
+def spawn_of(layout, name):
+    """What run_sim.sh and run_full.sh read: robot starts, and the doll's place when the layout has one."""
     spawn = {'world': name, 'robots': {robot: {k: float(v) for k, v in start.items() if k in ('x', 'y', 'yaw')}
                                        for robot, start in layout['robots'].items()}}
-    return ''.join(parts), spawn, estimates
+    doll = [obj for obj in layout['objects'] if obj['name'] == 'doll']
+    if doll:
+        spawn['doll'] = [float(doll[0]['x']), float(doll[0]['y'])]
+    return spawn
+
+
+def build_on_base(base_text, layout, *, name, source):
+    """(sdf text, spawn dict, estimates): an existing world (e.g. the TurtleBot4 maze) renamed to name, with the
+    layout objects added before </world>. The base keeps its own floor, walls and plugins; the layout wall
+    settings are used only for wall-kind objects."""
+    if not name.isidentifier():
+        raise WorldError(f'world name {name!r} must be an identifier (it is also the file name)')
+    match = re.search(r"<world name=(['\"])[^'\"]*\1>", base_text)
+    if not match or base_text.count('</world>') != 1:
+        raise WorldError('the base is not a single-world SDF')
+    objects = build(Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset()), layout, name=name, source=source)[0]
+    models = objects[objects.index('<model name="ground_plane">'):objects.rindex('  </world>')]
+    models = models[models.index('</model>\n') + len('</model>\n'):]   # the base has its own floor
+    estimates = [obj['name'] for obj in layout['objects'] if obj.get('estimate')]
+    head = (f'<!-- Objects added by scripts/sim/map_to_world.py (base mode) from {escape(source)}. Do not edit by hand.\n'
+            f'     Not measured yet [추정]: {", ".join(estimates) or "-"} -->\n')
+    text = base_text.replace(match.group(0), f"<world name='{name}'>", 1)
+    text = text.replace('</world>', head + models + '  </world>', 1)
+    return text, spawn_of(layout, name), estimates
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='SLAM 지도와 배치 목록으로 Gazebo world 를 만든다')
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--map', type=Path, help='지도 yaml (map_server 형식, trinary)')
+    source.add_argument('--base', type=Path, help='기존 world SDF(예: TurtleBot4 미로)에 배치 목록의 물체만 더한다')
     source.add_argument('--layout-only', action='store_true',
                         help='지도 없이 배치 목록(벽 선분·물체)만으로 만든다(평면도에서 옮긴 배치용)')
     parser.add_argument('--layout', type=Path, required=True, help='배치 목록 JSON (벽 높이, 물체, 로봇 출발 자리)')
@@ -367,13 +397,17 @@ def main(argv=None):
     parser.add_argument('--out-dir', type=Path, required=True, help='쓸 폴더 (config/sim/worlds)')
     args = parser.parse_args(argv)
     try:
-        grid = read_map(args.map) if args.map else Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
         layout = load_layout(args.layout)
         if args.wall_thickness is not None:
             layout['wall']['thickness_m'] = _number(args.wall_thickness, '--wall-thickness', positive=True)
             layout['wall']['estimate'] = True   # a value given on the command line is not a measurement unless the layout says so
-        world, spawn, estimates = build(grid, layout, name=args.name,
-                                        source=args.map.name if args.map else f'{args.layout.name} (no map)')
+        grid = read_map(args.map) if args.map else Grid(0, 0, 0.05, (0.0, 0.0, 0.0), frozenset())
+        if args.base:
+            world, spawn, estimates = build_on_base(args.base.read_text(), layout, name=args.name,
+                                                    source=f'{args.base.name} + {args.layout.name}')
+        else:
+            world, spawn, estimates = build(grid, layout, name=args.name,
+                                            source=args.map.name if args.map else f'{args.layout.name} (no map)')
     except (WorldError, OSError, json.JSONDecodeError) as exc:
         print(f'map_to_world: {exc}', file=sys.stderr)
         return 2

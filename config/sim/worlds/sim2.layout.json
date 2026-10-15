@@ -1,0 +1,94 @@
+{
+  "note": "sim2: the TurtleBot4 simulator maze (maze.base.sdf, turtlebot4_gz_bringup worlds/maze.sdf, Clearpath Robotics, Apache License 2.0) plus the scenario objects (작전 2026-10-16, 재범 2026-10-16 02:0x). Frame: the maze's own (20 x 20 m, centre 0, 0). Tunnel and doll places were chosen in 1 m wide corridors reachable from the start [설정], not measured: sim2 has no real counterpart.",
+  "wall": {
+    "height_m": 0.41,
+    "thickness_m": 0.018,
+    "color": [
+      0.55,
+      0.38,
+      0.22
+    ],
+    "estimate": true,
+    "source": "only for wall objects; the maze walls are the base world's"
+  },
+  "floor": {
+    "color": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "source": "unused in base mode (the base has its own floor)"
+  },
+  "min_cells": 1,
+  "robots": {
+    "robot6": {
+      "x": 0.0,
+      "y": 0.0,
+      "yaw": -1.5708,
+      "source": "maze start (TurtleBot4 default spawn), facing its dock to the south [설정]"
+    },
+    "robot5": {
+      "x": 0.5,
+      "y": 0.0,
+      "yaw": -1.5708,
+      "source": "as close as two docks side by side allow: 0.5 m centre to centre, 0.16 m between the robots (diameter 0.34 m) [설정, 재범 2026-10-16 「최대한 가까운 공간, 도크 나란히」]"
+    }
+  },
+  "objects": [
+    {
+      "name": "tunnel1_roof",
+      "kind": "overhead",
+      "x": -0.5,
+      "y": -3.5,
+      "yaw": 0.0,
+      "size": [
+        0.6,
+        1.1,
+        0.018
+      ],
+      "clearance_m": 0.47,
+      "color": [
+        0.55,
+        0.38,
+        0.22
+      ],
+      "estimate": true,
+      "source": "passable tunnel as sim1 tunnel 1 (0.47 m), across the 1 m wide corridor running along x at (-0.5, -3.5), 3.5 m from the start [설정]"
+    },
+    {
+      "name": "tunnel2_roof",
+      "kind": "overhead",
+      "x": 4.5,
+      "y": 1.5,
+      "yaw": 0.0,
+      "size": [
+        0.6,
+        1.1,
+        0.018
+      ],
+      "clearance_m": 0.3,
+      "color": [
+        0.55,
+        0.38,
+        0.22
+      ],
+      "estimate": true,
+      "source": "impassable tunnel as sim1 tunnel 2 (0.30 m), across the 1 m wide corridor at (4.5, 1.5); the area behind it is reached only through it [설정]"
+    },
+    {
+      "name": "doll",
+      "kind": "cylinder",
+      "x": -4.5,
+      "y": 0.5,
+      "radius": 0.07,
+      "length": 0.2,
+      "color": [
+        0.85,
+        0.54,
+        0.11
+      ],
+      "estimate": true,
+      "source": "sim1 doll size; place reachable without tunnel 2, about 5 m of path from the start [설정]"
+    }
+  ]
+}
