@@ -220,10 +220,21 @@ class SeparationTests(TrafficBase):
         self.assertGreaterEqual(math.dist(self.destination(sent[(SCOUT, 'SEARCH_AREA')])[:2], (3., 4.)), MIN_SEP)
         self.assertEqual('TRAFFIC_ROBOTS_TOO_CLOSE', self.core.traffic_hold.get('SCOUT'))
 
-    def test_a_new_goal_that_close_to_tb5_is_held(self):
+    def test_a_new_goal_past_a_standing_tb5_goes_around_it(self):
+        # C10 (2026-10-16): the frontier pick keeps traffic_min_separation_m off a standing TB-5, so the goal cut
+        # along the path is no longer the one beside TB-5 that would be held for as long as TB-5 stands.
         self.arrived()
-        self.scout_at((3., 5.3), NOW + 1, grid=scout_grid(unknown=lambda x, y: y < 1.))  # next goal: down to TB-5
-        self.assertEqual({}, self.sent(NOW + 1))
+        self.scout_at((3., 5.3), NOW + 1, grid=scout_grid(unknown=lambda x, y: y < 1.))  # next frontier: past TB-5
+        sent = self.sent(NOW + 1)
+        self.assertEqual({(SCOUT, 'SEARCH_AREA')}, set(sent))
+        self.assertGreaterEqual(math.dist(self.destination(sent[(SCOUT, 'SEARCH_AREA')])[:2], (3., 4.)), MIN_SEP)
+
+    def test_a_new_goal_that_close_to_tb5_is_held(self):
+        # the gate itself stays (a goal that close from any other source)
+        self.arrived()
+        self.scout_at((3., 5.3), NOW + 1)
+        self.status(NOW + 1)
+        self.assertFalse(self.core._traffic_scout((3., 4.3), NOW + 1))
         self.assertEqual('TRAFFIC_ROBOTS_TOO_CLOSE', self.core.traffic_hold.get('SCOUT'))
 
 
@@ -279,6 +290,8 @@ class FrontierBesideTb5Tests(unittest.TestCase):
         core.on_map_state(map_state(SCOUT, revision=3))
         core.on_start_pose((0., 0., 0.))
         core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_status(status_msg(SUPPORT))
         core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
         core.on_scout_map(scout_grid(unknown=unknown))
         core.on_pose(scout_pose((1.2, 4.2)))
@@ -300,6 +313,7 @@ class FrontierBesideTb5Tests(unittest.TestCase):
 
     def test_the_only_frontier_beside_tb5_is_named_too_close(self):
         core = self.core_with(self.BESIDE_TB5)
+        core.frontier_reach_m = 0.6  # every goal cell near this frontier is then within the separation of TB-5
         self.assertEqual([], self.tick(core, NOW))
         line = [n for n in core.drain_notes() if n.startswith('FRONTIER none')][-1]
         self.assertIn('too_close=1', line)
