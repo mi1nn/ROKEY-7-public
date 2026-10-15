@@ -272,7 +272,7 @@ class StatusItemsTests(unittest.TestCase):
 
     def items(self, **kw):
         from rescue_perception.webcam_service import status_items
-        base = dict(quake_now=False, quake_seen=False, reversals=1, shakes_min=4, boxes=None, score_min=0.5,
+        base = dict(quake_now=False, quake_seen=False, boxes=None, score_min=0.5,
                     presence=None, watched=False)
         base.update(kw)
         return [(title, value) for title, value, _ in status_items(**base)]
@@ -315,7 +315,7 @@ class StatusItemsTests(unittest.TestCase):
             self.skipTest("no CJK font: status band NOT_RUN")
         from rescue_perception.webcam_service import draw_status, status_items
         bgr = np.full((480, 640, 3), 200, dtype=np.uint8)
-        out = draw_status(bgr, status_items(quake_now=True, quake_seen=True, reversals=4, shakes_min=4, boxes=(),
+        out = draw_status(bgr, status_items(quake_now=True, quake_seen=True, boxes=(),
                                             score_min=0.5, presence=None, watched=False), str(fonts[0]))
         self.assertEqual(out.shape, bgr.shape)
         self.assertTrue((out[:20] != 200).any())     # 위 띠에 그렸다

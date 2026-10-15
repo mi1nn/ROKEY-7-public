@@ -4,7 +4,7 @@
 2. stream_state     : 지진 판정 결과 → 카메라 상태(CameraStatus 의 ONLINE / DEGRADED / UNKNOWN)
 3. scene_visibility : 지진 판정 결과 → 출구 판정에 넘길 시야(VALID / OCCLUDED / UNKNOWN)
 4. boxes_from_xyxyn : YOLO 출력 숫자 → DetectionBox 목록
-5. status_items     : 판정 화면 위 상태창 글자(지진·인형·출구, 화면용, 판정에 안 씀)
+5. status_items · draw_status : 판정 화면 위 상태창(지진·인형·출구 3칸, 한글, 화면용, 판정에 안 씀)
 
 2·3 은 '화면이 가려졌나'를 따로 재지 않고 지진 판정이 이미 잰 결과를 다시 쓴다.
 한계: 사람이 감시 영역(ROI)만 살짝 가리는 경우는 화면 전체로는 보이는 상태라 VALID 로 들어간다.
@@ -206,36 +206,68 @@ def boxes_from_xyxyn(rows, scores):
 
 
 
-# 상태창 색(BGR). 판정 화면 위 띠에 칸마다 칠한다.
-RED, ORANGE, GREEN, GREY, WHITE = (60, 60, 230), (0, 150, 255), (80, 200, 80), (150, 150, 150), (255, 255, 255)
+
+# 상태창 색(BGR). 어두운 띠 위에서 읽히는 밝은 색.
+RED, ORANGE, GREEN, GREY, WHITE = (80, 80, 255), (0, 170, 255), (110, 220, 110), (170, 170, 170), (255, 255, 255)
+_FONTS = {}   # (글꼴 경로, 크기) → ImageFont
 
 
-def status_items(*, quake_now, quake_seen, reversals, shakes_min, boxes, score_min, presence, watched):
-    """판정 화면 위 상태창: [(글자, BGR 색)] 지진 · 인형 · 출구 세 칸(2026-10-15 사용자 요청).
+def status_items(*, quake_now, quake_seen, boxes, score_min, presence, watched):
+    """판정 화면 위 상태창 3칸: [(제목, 값, BGR 색)] 지진 · 인형 · 출구 (2026-10-15 사용자 요청: 한글, 필요한 것만).
 
-    화면용이다. 판정·사건에는 쓰지 않는다. 한글은 Hershey 글꼴로 못 그려 영어로 쓴다.
-    - boxes None: 지진 전이면 YOLO 를 안 돌린 것, 지진 뒤면 YOLO 실패다(빈 목록으로 꾸미지 않는다).
-    - presence: 출구 판정기 결과. 감시가 걸렸으면 (watch), 지진 뒤 화면용 판정기면 (view).
+    화면용이다. 판정·사건에는 쓰지 않는다.
+    - boxes None: 지진 전이면 YOLO 를 안 돌린 것(대기), 지진 뒤면 YOLO 실패다(빈 목록으로 꾸미지 않는다).
+    - presence: 출구 판정기 결과. 감시가 걸렸으면 「출구 · 감시」, 지진 뒤 화면용 판정기면 「출구 · 화면용」(기록 안 됨).
     """
     if quake_now:
-        quake = (f'QUAKE NOW {reversals}/{shakes_min}', RED)
+        quake = ('흔들리는 중', RED)
     elif quake_seen:
-        quake = ('QUAKE DETECTED', ORANGE)
+        quake = ('감지됨', ORANGE)
     else:
-        quake = (f'QUAKE NO {reversals}/{shakes_min}', WHITE)
+        quake = ('없음', WHITE)
     if boxes is None:
-        doll = ('DOLL: DETECTOR FAILED', RED) if quake_seen or watched else ('DOLL: YOLO OFF', GREY)
+        doll = ('탐지기 오류', RED) if quake_seen or watched else ('대기', GREY)
     else:
         best = max((b.score for b in boxes if b.score >= score_min), default=None)
-        doll = (f'DOLL SEEN {best:.2f}', GREEN) if best is not None else ('NO DOLL', GREY)
+        doll = (f'보임 {round(best * 100)}%', GREEN) if best is not None else ('안 보임', GREY)
     if presence is None:
-        return [quake, doll, ('EXIT: -', GREY)]
-    head = f'EXIT({"watch" if watched else "view"}): '
+        return [('지진',) + quake, ('인형',) + doll, ('출구', '대기', GREY)]
     if presence.state == 'ABSENT_CANDIDATE':
-        exit_ = ('LEFT VIA EXIT', RED)
+        exit_ = ('출구로 사라짐', RED)
     elif presence.state == 'PRESENT':
-        exit_ = (f'MISSING {presence.absent_ns / 1e9:.1f}s', ORANGE) if presence.absent_ns else ('IN VIEW', GREEN)
+        exit_ = (f'안 보인 지 {presence.absent_ns / 1e9:.1f}초', ORANGE) if presence.absent_ns else ('화면 안에 있음', GREEN)
     else:
-        exit_ = {'NOT_VIA_EXIT': ('GONE NOT VIA EXIT', ORANGE), 'NOT_YET_SEEN': ('WAITING', GREY),
-                 'OCCLUDED': ('VIEW BLOCKED', ORANGE)}.get(presence.reason, (f'UNKNOWN {presence.reason}', GREY))
-    return [quake, doll, (head + exit_[0], exit_[1])]
+        exit_ = {'NOT_VIA_EXIT': ('다른 쪽으로 사라짐', ORANGE), 'NOT_YET_SEEN': ('인형 찾는 중', GREY),
+                 'OCCLUDED': ('화면 가림', ORANGE)}.get(presence.reason, ('판정 불가', GREY))
+    return [('지진',) + quake, ('인형',) + doll, ('출구 · 감시' if watched else '출구 · 화면용',) + exit_]
+
+
+def draw_status(bgr, items, font_path):
+    """bgr 위쪽에 상태창 띠를 그린 새 이미지. 칸마다 왼쪽 색 막대 + 작은 회색 제목 + 큰 색 글자.
+
+    한글은 Hershey 로 못 그려 PIL 과 CJK 글꼴(debug_font_path)로 그린다(overhead.render_view 와 같은 방식).
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont
+    height, width = bgr.shape[:2]
+    band = max(40, width // 13)   # 640 폭에서 49 px
+    out = bgr.copy()
+    dark = out.copy()
+    cv2.rectangle(dark, (0, 0), (width, band), (25, 25, 25), -1)
+    out = cv2.addWeighted(dark, 0.82, out, 0.18, 0)
+    canvas = Image.fromarray(cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(canvas)
+    sizes = (max(10, band * 3 // 10), max(12, band * 9 // 20))   # 제목, 값
+    fonts = []
+    for size in sizes:
+        if (font_path, size) not in _FONTS:
+            _FONTS[font_path, size] = ImageFont.truetype(font_path, size)
+        fonts.append(_FONTS[font_path, size])
+    column = width // len(items)
+    for n, (title, value, colour) in enumerate(items):
+        x, rgb = n * column, tuple(reversed(colour))
+        draw.rectangle((x + 6, 7, x + 10, band - 7), fill=rgb)
+        draw.text((x + 18, 4), title, font=fonts[0], fill=(170, 170, 170))
+        draw.text((x + 18, 4 + sizes[0] + 1), value, font=fonts[1], fill=rgb)
+    return cv2.cvtColor(np.array(canvas), cv2.COLOR_RGB2BGR)

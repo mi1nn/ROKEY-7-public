@@ -34,7 +34,8 @@ from .core import PerceptionError
 from .disaster_sign import DisasterSignDetector, DisasterSignPolicy
 from .target_watch import TargetWatchDetector, TargetWatchPolicy, WatchSpec
 from .webcam_clock import clock_settings, observation_clock
-from .webcam_service import WatchRequest, WatchSlot, boxes_from_xyxyn, scene_visibility, status_items, stream_state
+from .webcam_service import (WatchRequest, WatchSlot, boxes_from_xyxyn, draw_status, scene_visibility, status_items,
+                             stream_state)
 
 ENCODING = 'bgr8'  # OpenCV 프레임의 채널 순서(파랑·초록·빨강)
 STAMP_SEMANTICS = 'DRIVER_RECEIVE'  # 프레임 시각 = 카메라에서 받은 직후의 시스템 시각
@@ -65,6 +66,7 @@ PARAMS = {
     'watch_absent_hold_s': 'DOUBLE', 'watch_absent_min_frames': 'INTEGER', 'watch_max_gap_s': 'DOUBLE',
     'watch_exit_roi': 'DOUBLE_ARRAY', 'watch_track_max_jump': 'DOUBLE',
     'debug_image_topic': 'STRING',
+    'debug_font_path': 'STRING',   # 판정 화면 상태창의 한글 CJK 글꼴. debug_image_topic 이 '' 이면 '' 가능
 }
 
 
@@ -201,6 +203,12 @@ def main(args=None):
         clock_backend, clock_max_age_ns, clock_drift_ppm = clock_settings(v)
         if not v['clock_poll_period_s'] > 0:
             raise ValueError('clock_poll_period_s must be positive')
+        if v['debug_image_topic']:   # 상태창 한글 글꼴을 기동 때 열어 본다(없으면 화면이 깨지기 전에 멈춘다)
+            from PIL import ImageFont
+            try:
+                ImageFont.truetype(v['debug_font_path'], 12)
+            except (OSError, ValueError) as exc:
+                raise ValueError(f'debug_font_path {v["debug_font_path"]!r} is not a font: {exc}') from exc
     except ValueError as exc:
         log.fatal(f'invalid parameters: {exc}')
         raise SystemExit(2) from exc
@@ -268,19 +276,11 @@ def main(args=None):
     # 카메라를 바꾸면 지진 판정과 함께 없앤다. None 이면 아직 지진 전이다.
     view = {'detector': None}
 
-    def label(img, text, org, color):
-        """어두운 바탕 상자 위에 글자를 쓴다(작은 글씨도 읽히게)."""
-        (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-        x, y = org
-        cv2.rectangle(img, (x - 4, y - th - 5), (x + tw + 4, y + base + 2), (20, 20, 20), -1)
-        cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
-
     def publish_debug(frame, stamp, sign, boxes, presence):
-        """판정 화면(JPEG) 발행. 판정에는 쓰지 않고 사람이 눈으로 확인하는 용도다.
+        """판정 화면(JPEG) 발행. 판정에는 쓰지 않고 관제 웹 웹캠 칸에서 사람이 보는 용도다.
 
-        흰 격자 = 지진 판정 블록(굵은 선 = 사분면 경계), 노란 화살표 = 화면 이동, 빨간 영역 = 출구,
-        초록 상자 = 감시 영역(화면 전체면 안 그림), 파란 상자 = 인형(점수 통과), 회색 상자 = 점수 미달,
-        노란 선·점 = 추적 경로. 위 띠 = 상태창(지진 · 인형 · 출구, status_items), 아래 글자 = 출구 판정 상태.
+        필요한 것만 그린다(2026-10-15 사용자 요청): 위 띠 = 상태창(지진 · 인형 · 출구), 빨간 영역 = 출구,
+        초록 상자 = 감시 영역(화면 전체면 안 그림), 파란 상자 = 인형(점수 통과), 노란 선·점 = 인형 이동 궤적.
         """
         if debug_pub is None:
             return
@@ -289,19 +289,6 @@ def main(args=None):
 
         def px(x, y):
             return int(x * width), int(y * height)  # 화면 비율 좌표 → 픽셀 좌표
-        grid = img.copy()
-        bx, by = v['quake_blocks_x'], v['quake_blocks_y']
-        for i in range(1, bx):
-            cv2.line(grid, (width * i // bx, 0), (width * i // bx, height), (255, 255, 255), 2 if i * 2 == bx else 1)
-        for j in range(1, by):
-            cv2.line(grid, (0, height * j // by), (width, height * j // by), (255, 255, 255), 2 if j * 2 == by else 1)
-        img = cv2.addWeighted(grid, 0.22, img, 0.78, 0)  # 격자를 반투명하게 겹친다
-        if sign.shift is not None and any(sign.shift):
-            scale = v['quake_sample_stride'] * 6   # 잘 보이게 실제 이동보다 크게 그린다
-            centre = (width // 2, height // 2)
-            end = (int(centre[0] + sign.shift[0] * scale), int(centre[1] + sign.shift[1] * scale))
-            cv2.arrowedLine(img, centre, end, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.3)
-            cv2.arrowedLine(img, centre, end, (10, 214, 255), 5, cv2.LINE_AA, tipLength=0.3)
         ex = watch_policy.exit_roi_xyxy_normalized
         tint = img.copy()
         cv2.rectangle(tint, px(ex[0], ex[1]), px(ex[2], ex[3]), (48, 59, 255), -1)
@@ -320,24 +307,13 @@ def main(args=None):
         for a, b in zip(trail['points'], trail['points'][1:]):
             cv2.line(img, px(*a), px(*b), (10, 214, 255), 2, cv2.LINE_AA)
         for box in boxes or ():
-            color = (255, 132, 10) if box.score >= watch_policy.score_min else (147, 142, 142)
-            cv2.rectangle(img, px(box.x0, box.y0), px(box.x1, box.y1), color, 2, cv2.LINE_AA)
-            cv2.putText(img, f'{box.score:.2f}', px(box.x0, box.y0 - 0.01), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            if box.score >= watch_policy.score_min:
+                cv2.rectangle(img, px(box.x0, box.y0), px(box.x1, box.y1), (255, 132, 10), 2, cv2.LINE_AA)
         if track is not None:
-            cv2.circle(img, px(*track), 8, (10, 214, 255), -1, cv2.LINE_AA)
-        if presence is not None:
-            text = (f'{presence.state} {presence.reason or ""} absent={presence.absent_ns / 1e9:.1f}s '
-                    f'rev={watch.watch_revision if watch else 0}')
-        else:
-            text = 'NO WATCH'
-        x = 10
-        for item, colour in status_items(quake_now=sign.condition, quake_seen=view['detector'] is not None,
-                                         reversals=sign.reversals, shakes_min=v['quake_shakes_min'], boxes=boxes,
-                                         score_min=watch_policy.score_min, presence=presence,
-                                         watched=slot.detector is not None):
-            label(img, item, (x, 22), colour)
-            x += cv2.getTextSize(item, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0][0] + 16
-        label(img, text, (10, height - 10), (255, 255, 255))
+            cv2.circle(img, px(*track), 7, (10, 214, 255), -1, cv2.LINE_AA)
+        img = draw_status(img, status_items(quake_now=sign.condition, quake_seen=view['detector'] is not None,
+                                            boxes=boxes, score_min=watch_policy.score_min, presence=presence,
+                                            watched=slot.detector is not None), v['debug_font_path'])
         ok, jpeg = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         if not ok:
             log.error('debug image encode failed')
