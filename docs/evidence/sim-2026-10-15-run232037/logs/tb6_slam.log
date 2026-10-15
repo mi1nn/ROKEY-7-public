@@ -1,0 +1,18 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-15-23-21-34-067465-sim-pc-566338
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792074094.137839740] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[INFO] [launch.user]: TB-6 SLAM robot_a ns=/robot6 params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/slam.yaml + {'minimum_travel_distance': 0.0, 'minimum_travel_heading': 0.0} -> /tmp/slam_robot_a_079p9hov.yaml
+[INFO] [sync_slam_toolbox_node-1]: process started with pid [566407]
+[INFO] [slam_active_check-2]: process started with pid [566408]
+[sync_slam_toolbox_node-1] [INFO] [1792074097.554239608] [robot6.slam_toolbox]: Node using stack size 40000000
+[sync_slam_toolbox_node-1] [INFO] [1792074098.162153155] [robot6.slam_toolbox]: Configuring
+[sync_slam_toolbox_node-1] [INFO] [1792074098.169233481] [robot6.slam_toolbox]: Using solver plugin solver_plugins::CeresSolver
+[sync_slam_toolbox_node-1] [INFO] [1792074098.169440328] [robot6.slam_toolbox]: CeresSolver: Using SCHUR_JACOBI preconditioner.
+[INFO] [launch.user]: [LifecycleLaunch] Slamtoolbox node is activating.
+[sync_slam_toolbox_node-1] [INFO] [1792074098.195864760] [robot6.slam_toolbox]: Activating
+[sync_slam_toolbox_node-1] Registering sensor: [Custom Described Lidar]
+[slam_active_check-2] [INFO] [1792074113.047840441] [tb6_slam_active_check]: SLAM_ACTIVE /robot6/slam_toolbox
+[INFO] [slam_active_check-2]: process has finished cleanly [pid 566408]
+[sync_slam_toolbox_node-1] [INFO] [1792075043.402541860] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[sync_slam_toolbox_node-1] Unregistering sensor: Custom Described Lidar
+[INFO] [sync_slam_toolbox_node-1]: process has finished cleanly [pid 566407]

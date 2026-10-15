@@ -1,0 +1,96 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-15-23-22-04-545506-sim-pc-567417
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792074124.809328233] [rcl]: Found remap rule 'robot_id:=robot_b'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_b' instead.
+[INFO] [launch.user]: frozen localization robot_b ns=/robot5 map=/robot5/map <- /rescue/map/frozen amcl_start=[-0.3529272388486977, 1.8195697067713392, -2.9467952712601995] from field run file robots.robot_b [-0.353, -1.785, -0.0006] relative to the TB-6 start [-0.353, -0.0, -2.946] (/rescue/map/start_pose/robot_a) params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml + start_align
+[INFO] [frozen_map_relay-1]: process started with pid [567798]
+[INFO] [amcl-2]: process started with pid [567799]
+[INFO] [start_align-3]: process started with pid [567800]
+[INFO] [lifecycle_manager-4]: process started with pid [567801]
+[amcl-2] [INFO] [1792074129.036016447] [robot5.amcl]: 
+[amcl-2] 	amcl lifecycle node launched. 
+[amcl-2] 	Waiting on external lifecycle transitions to activate
+[amcl-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-2] [INFO] [1792074129.036466177] [robot5.amcl]: Creating
+[lifecycle_manager-4] [INFO] [1792074129.044286011] [robot5.lifecycle_manager_localization]: Creating
+[lifecycle_manager-4] [INFO] [1792074129.050630332] [robot5.lifecycle_manager_localization]: Creating and initializing lifecycle service clients
+[lifecycle_manager-4] [INFO] [1792074129.053397654] [robot5.lifecycle_manager_localization]: Starting managed nodes bringup...
+[lifecycle_manager-4] [INFO] [1792074129.053461650] [robot5.lifecycle_manager_localization]: Configuring amcl
+[amcl-2] [INFO] [1792074129.053814970] [robot5.amcl]: Configuring
+[amcl-2] [INFO] [1792074129.053924542] [robot5.amcl]: initTransforms
+[amcl-2] [INFO] [1792074129.060748047] [robot5.amcl]: initPubSub
+[amcl-2] [INFO] [1792074129.068713331] [robot5.amcl]: Subscribed to map topic.
+[lifecycle_manager-4] [INFO] [1792074129.072589525] [robot5.lifecycle_manager_localization]: Activating amcl
+[amcl-2] [INFO] [1792074129.072742173] [robot5.amcl]: Activating
+[amcl-2] [INFO] [1792074129.072774842] [robot5.amcl]: initialPoseReceived
+[amcl-2] [INFO] [1792074129.072851403] [robot5.amcl]: Setting pose (1792074129.072851): -0.353 1.820 -2.947
+[amcl-2] [INFO] [1792074129.073228045] [robot5.amcl]: Creating bond (amcl) to lifecycle manager.
+[lifecycle_manager-4] [INFO] [1792074129.178426280] [robot5.lifecycle_manager_localization]: Server amcl connected with bond.
+[lifecycle_manager-4] [INFO] [1792074129.178477328] [robot5.lifecycle_manager_localization]: Managed nodes are active
+[lifecycle_manager-4] [INFO] [1792074129.178485442] [robot5.lifecycle_manager_localization]: Creating bond timer...
+[frozen_map_relay-1] [INFO] [1792074129.607500661] [robot5.rescue_frozen_map_relay]: git_sha=e43e591434182d658947ac3fe744d77aae7465ef parameters={'frozen_topic': '/rescue/map/frozen', 'frozen_revision_topic': '/rescue/map/frozen_revision', 'map_state_topic': '/rescue/robots/robot_b/map_state', 'map_topic': '/robot5/map'}
+[start_align-3] [INFO] [1792074129.885102287] [robot5.rescue_start_align]: git_sha=e43e591434182d658947ac3fe744d77aae7465ef parameters={'map_topic': '/robot5/map', 'scan_topic': '/robot5/scan', 'odom_topic': '/robot5/odom', 'dock_topic': '/robot5/dock_status', 'amcl_pose_topic': '/robot5/amcl_pose', 'set_initial_pose_service': '/robot5/set_initial_pose', 'nomotion_update_service': '/robot5/request_nomotion_update', 'status_topic': '/robot5/rescue_start_align', 'base_frame': 'base_link', 'map_frame': 'map', 'initial_sigma_xy_m': 0.3, 'initial_sigma_yaw_rad': 0.26, 'update_period_s': 0.5, 'max_updates': 20, 'accept_sigma_xy_m': 0.1, 'accept_sigma_yaw_rad': 0.087, 'settle_count': 3, 'settle_xy_m': 0.02, 'settle_yaw_rad': 0.0175, 'max_jump_xy_m': 0.5, 'max_jump_yaw_rad': 0.35, 'match_hit_m': 0.1, 'min_match_ratio': 0.7, 'min_match_points': 30, 'scan_max_age_s': 1.0, 'stopped_linear_mps': 0.01, 'stopped_angular_rps': 0.02, 'service_wait_s': 5.0}
+[start_align-3] [INFO] [1792074129.997007195] [robot5.rescue_start_align]: START_ALIGN_WAITING START_ALIGN_WAIT_MAP {"first_guess": null, "map_sha256": null, "reason": "START_ALIGN_WAIT_MAP", "status": "WAITING", "updates": 0}
+[start_align-3] [WARN] [1792074132.510784544] [robot5.rescue_start_align]: start_align laser rplidar_link in base_link: "rplidar_link" passed to lookupTransform argument source_frame does not exist. 
+[amcl-2] [INFO] [1792074332.313170712] [robot5.amcl]: Received a 62 X 80 map @ 0.050 m/pix
+[frozen_map_relay-1] [INFO] [1792074332.313975088] [robot5.rescue_frozen_map_relay]: MAP_RELAYED /rescue/map/frozen R1 -> /robot5/map sha256=2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045
+[amcl-2] [INFO] [1792074332.318818170] [robot5.amcl]: Received a 62 X 80 map @ 0.050 m/pix
+[frozen_map_relay-1] [INFO] [1792074332.320003606] [robot5.rescue_frozen_map_relay]: MAP_RELAYED /rescue/map/frozen R1 -> /robot5/map sha256=2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045
+[amcl-2] [INFO] [1792074332.321026856] [robot5.amcl]: createLaserObject
+[amcl-2] [INFO] [1792074332.398106753] [robot5.amcl]: initialPoseReceived
+[amcl-2] [WARN] [1792074332.398203421] [robot5.amcl]: Failed to transform initial pose in time (Lookup would require extrapolation into the past.  Requested time 1792074332.398153 but the earliest data is at time 1792074333.299304, when looking up transform from frame [base_link] to frame [odom])
+[amcl-2] [INFO] [1792074332.398213364] [robot5.amcl]: Setting pose (1792074332.398213): -0.353 1.820 -2.947
+[start_align-3] [INFO] [1792074332.398659945] [robot5.rescue_start_align]: START_ALIGN_ALIGNING  {"first_guess": [-0.3529272388487314, 1.8195697067714292, -2.946795271260208], "map_sha256": "2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045", "reason": "", "status": "ALIGNING", "updates": 0}
+[start_align-3] [INFO] [1792074339.600707368] [robot5.rescue_start_align]: START_ALIGN_ALIGNED  {"first_guess": [-0.3529272388487314, 1.8195697067714292, -2.946795271260208], "jump_xy_m": 0.23229737818251164, "jump_yaw_rad": 0.0710497418187579, "map_sha256": "2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045", "match_points": 640, "match_ratio": 0.884375, "pose": [-0.5825870527620491, 1.8544758922371758, -3.017845013078966], "reason": "", "sigma_xy_m": 0.08806959951676722, "sigma_yaw_rad": 0.06158350372564236, "status": "ALIGNED", "updates": 14}
+[amcl-2] [INFO] [1792075043.401488054] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[amcl-2] [INFO] [1792075043.401608116] [robot5.amcl]: Running Nav2 LifecycleNode rcl preshutdown (amcl)
+[amcl-2] [INFO] [1792075043.401699912] [robot5.amcl]: Deactivating
+[amcl-2] [INFO] [1792075043.401729271] [robot5.amcl]: Destroying bond (amcl) to lifecycle manager.
+[lifecycle_manager-4] [INFO] [1792075043.405042203] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-4] [INFO] [1792075043.405149748] [robot5.lifecycle_manager_localization]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_localization)
+[lifecycle_manager-4] [INFO] [1792075043.405196346] [robot5.lifecycle_manager_localization]: Terminating bond timer...
+[amcl-2] [INFO] [1792075043.433625156] [robot5.amcl]: Cleaning up
+[lifecycle_manager-4] [INFO] [1792075043.573303342] [robot5.lifecycle_manager_localization]: Destroying lifecycle_manager_localization
+[amcl-2] [INFO] [1792075043.596222780] [robot5.amcl]: Destroying bond (amcl) to lifecycle manager.
+[amcl-2] [INFO] [1792075043.868275503] [robot5.amcl]: Destroying
+[frozen_map_relay-1] Traceback (most recent call last):
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay", line 33, in <module>
+[frozen_map_relay-1]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'frozen_map_relay')())
+[frozen_map_relay-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/frozen_map_relay.py", line 122, in main
+[frozen_map_relay-1]     rclpy.spin(node)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[frozen_map_relay-1]     executor.spin_once()
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[frozen_map_relay-1]     self._spin_once_impl(timeout_sec)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[frozen_map_relay-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[frozen_map_relay-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[frozen_map_relay-1]     return next(self._cb_iter)
+[frozen_map_relay-1]            ^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[frozen_map_relay-1]     raise ExternalShutdownException()
+[frozen_map_relay-1] rclpy.executors.ExternalShutdownException
+[INFO] [amcl-2]: process has finished cleanly [pid 567799]
+[ERROR] [frozen_map_relay-1]: process has died [pid 567798, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay --ros-args -r __node:=rescue_frozen_map_relay -r __ns:=/robot5 --params-file /tmp/launch_params_0ta_hio6'].
+[INFO] [lifecycle_manager-4]: process has finished cleanly [pid 567801]
+[start_align-3] Traceback (most recent call last):
+[start_align-3]   File "<저장소>/install/rescue_robot/lib/rescue_robot/start_align", line 33, in <module>
+[start_align-3]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'start_align')())
+[start_align-3]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[start_align-3]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/start_align.py", line 408, in main
+[start_align-3]     rclpy.spin(node)
+[start_align-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[start_align-3]     executor.spin_once()
+[start_align-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[start_align-3]     self._spin_once_impl(timeout_sec)
+[start_align-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[start_align-3]     handler, entity, node = self.wait_for_ready_callbacks(
+[start_align-3]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[start_align-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[start_align-3]     return next(self._cb_iter)
+[start_align-3]            ^^^^^^^^^^^^^^^^^^^
+[start_align-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[start_align-3]     raise ExternalShutdownException()
+[start_align-3] rclpy.executors.ExternalShutdownException
+[ERROR] [start_align-3]: process has died [pid 567800, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=rescue_start_align -r __ns:=/robot5 --params-file /tmp/launch_params_inw2fk3o -r /tf:=/robot5/tf -r /tf_static:=/robot5/tf_static'].
