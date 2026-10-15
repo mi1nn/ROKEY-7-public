@@ -30,6 +30,7 @@
 2. 운영 PC(`operations` + `coordination`)에서 `operations.launch.py` → 관제 웹 → `coordinator.launch.py`(1단계).
 3. TB-6 담당 PC(`compute_a`)에서 `tb6_slam.launch.py` → `passage_points.launch.py` → `overhead_passage.launch.py` → `robot.launch.py` → `map_freeze.launch.py`(TB-6 이 움직이기 전에)(2단계).
 4. TB-5 담당 PC(`compute_b`)에서 `passage_points.launch.py` → `overhead_passage.launch.py` → `frozen_localization.launch.py robot_id:=robot_b` → `robot.launch.py`(2단계).
+   - TB-6 담당 PC 와 TB-5 담당 PC 는 같은 PC 한 대여도 된다(재범 결정 2026-10-15, 조건은 [현장 실행 안내](../../docs/process/field-runbook.md) 「한눈에」). 조정기만 다른 PC 에 둔다.
 5. 아무 PC 에서나 `ros2 daemon stop && ros2 daemon start` 뒤 `scripts/field/wiring_check.py` 로 배선을 본다. 모든 연결이 PASSED 여야 다음으로 간다(아래 「배선 점검」).
 6. 두 로봇 arm → 웹캠 앞 흔들림(DISASTER) → TB-6 탐색이 저절로 시작된다(현장 파일 `search_start` AUTO, `search_mode` FRONTIER).
 7. 인형 발견 → 1차 고정(R0+1), TB-5 자동 출동. 탐색 완료 → 2차 고정(R0+2), TB-6 은 `tb6_slam` 을 끄고 `frozen_localization.launch.py robot_id:=robot_a`(3단계).
