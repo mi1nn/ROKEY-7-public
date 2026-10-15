@@ -119,7 +119,7 @@ class UnmeasuredTb5StartTests(TrafficBase):
     CORE = TrafficBase.CORE | dict(support_start_pose=None)
 
     def test_tb6_still_explores_before_tb5_ever_moved_and_says_the_check_is_off(self):
-        # The field file has no robots.<TB-5>.initial_pose_xy_yaw until it is measured; holding TB-6 then would
+        # A field file without robots.<TB-5>.initial_pose_xy_yaw (not measured yet): holding TB-6 then would
         # also hold the doll's freeze and so TB-5 itself. TB-5 has not moved and has no path: only the separation
         # check is off. Never silent (team rule 6): a note for every TB-6 goal sent so, and SystemState shows it.
         self.scout_at((1., 4.2))

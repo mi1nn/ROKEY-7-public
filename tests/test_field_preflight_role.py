@@ -264,11 +264,13 @@ class Failures(RoleCase):
         self.assertStatus(self.run_role('compute_a', field_path=field), 'field.robot.robot_a', pr.FAILED)
 
     def test_tb5_start_must_be_measured_before_its_localization(self):
-        """FROZEN_MAP_AMCL: no AMCL start is made up; the repository field file has none until measured."""
-        self.assertStatus(self.run_role('compute_b'), 'field.initial_pose.robot_b', pr.FAILED)
+        """FROZEN_MAP_AMCL: no AMCL start is made up; a field file without the measured start fails."""
         raw = json.loads(self.field.read_text())
-        raw['robots']['robot_b'] = dict(ROBOT_B)
+        raw['robots']['robot_b'].pop('initial_pose_xy_yaw')
         field = self.dir / 'field.json'
+        field.write_text(json.dumps(raw))
+        self.assertStatus(self.run_role('compute_b', field_path=field), 'field.initial_pose.robot_b', pr.FAILED)
+        raw['robots']['robot_b'] = dict(ROBOT_B)
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_b', field_path=field), 'field.initial_pose.robot_b', pr.PASSED)
 
