@@ -1,0 +1,31 @@
+{
+  "repository": "jaebeom/ROKEY-7",
+  "commit": "5669356d5f8b2ff04e895a90d40bd8015f25beba",
+  "files": [
+    {
+      "path": "vendor/amr_source/core.py",
+      "upstream_path": "src/rescue_perception/rescue_perception/core.py",
+      "blob_sha": "0a8f1ef7587b503e2437686ad712cf13dc224f8f"
+    },
+    {
+      "path": "vendor/amr_source/adapter.py",
+      "upstream_path": "src/rescue_perception/rescue_perception/adapter.py",
+      "blob_sha": "d86024ae47fcdc72af39835457101eda42f20d2a"
+    },
+    {
+      "path": "vendor/amr_source/person_pipeline.py",
+      "upstream_path": "src/rescue_perception/rescue_perception/person_pipeline.py",
+      "blob_sha": "b3c15df9091b9bdb1c11caf22589eb167600b983"
+    },
+    {
+      "path": "vendor/amr_source/selective_depth.py",
+      "upstream_path": "src/rescue_perception/rescue_perception/selective_depth.py",
+      "blob_sha": "7383ae505541533a0a8eb1836f6f33b057c7b916"
+    },
+    {
+      "path": "vendor/rescue_contracts/__init__.py",
+      "upstream_path": "src/rescue_contracts/rescue_contracts/__init__.py",
+      "blob_sha": "c31d9ac1154089e17e5a56f5b79ace62424fbefc"
+    }
+  ]
+}
