@@ -1,0 +1,7 @@
+/robot5/rescue/watchdog_heartbeat
+/robot6/cmd_vel_watchdog_in
+/robot6/rescue/watchdog_heartbeat
+== /robot5/rescue/watchdog_heartbeat 03:17:41 (10 s)
+average rate: 19.988
+== /robot6/rescue/watchdog_heartbeat 03:17:52 (10 s)
+average rate: 19.999
