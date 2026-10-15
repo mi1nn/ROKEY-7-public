@@ -1,0 +1,27 @@
+# 06:13:13 /robot6/scan 받은 시각 - stamp (5 s)
+06:13:14.373 scan stamp=1792098794.372 recv-stamp=+0.001 frame=rplidar_link
+06:13:14.490 scan stamp=1792098794.478 recv-stamp=+0.012 frame=rplidar_link
+06:13:14.676 scan stamp=1792098794.654 recv-stamp=+0.023 frame=rplidar_link
+06:13:14.850 scan stamp=1792098794.829 recv-stamp=+0.021 frame=rplidar_link
+06:13:15.038 scan stamp=1792098795.014 recv-stamp=+0.024 frame=rplidar_link
+06:13:15.257 scan stamp=1792098795.185 recv-stamp=+0.072 frame=rplidar_link
+06:13:15.389 scan stamp=1792098795.381 recv-stamp=+0.009 frame=rplidar_link
+06:13:15.579 scan stamp=1792098795.559 recv-stamp=+0.020 frame=rplidar_link
+06:13:15.741 scan stamp=1792098795.735 recv-stamp=+0.006 frame=rplidar_link
+06:13:15.929 scan stamp=1792098795.920 recv-stamp=+0.010 frame=rplidar_link
+06:13:16.131 scan stamp=1792098796.113 recv-stamp=+0.018 frame=rplidar_link
+06:13:16.307 scan stamp=1792098796.295 recv-stamp=+0.012 frame=rplidar_link
+06:13:16.513 scan stamp=1792098796.489 recv-stamp=+0.024 frame=rplidar_link
+06:13:17.160 scan stamp=1792098796.899 recv-stamp=+0.261 frame=rplidar_link
+06:13:17.161 scan stamp=1792098797.106 recv-stamp=+0.055 frame=rplidar_link
+06:13:17.324 scan stamp=1792098797.310 recv-stamp=+0.014 frame=rplidar_link
+06:13:17.500 scan stamp=1792098797.484 recv-stamp=+0.015 frame=rplidar_link
+06:13:17.662 scan stamp=1792098797.653 recv-stamp=+0.009 frame=rplidar_link
+06:13:17.844 scan stamp=1792098797.815 recv-stamp=+0.029 frame=rplidar_link
+06:13:18.039 scan stamp=1792098798.001 recv-stamp=+0.038 frame=rplidar_link
+06:13:18.283 scan stamp=1792098798.186 recv-stamp=+0.097 frame=rplidar_link
+06:13:18.381 scan stamp=1792098798.358 recv-stamp=+0.023 frame=rplidar_link
+06:13:18.544 scan stamp=1792098798.536 recv-stamp=+0.008 frame=rplidar_link
+06:13:18.710 scan stamp=1792098798.703 recv-stamp=+0.008 frame=rplidar_link
+06:13:18.890 scan stamp=1792098798.864 recv-stamp=+0.026 frame=rplidar_link
+06:13:19.075 scan stamp=1792098799.066 recv-stamp=+0.009 frame=rplidar_link

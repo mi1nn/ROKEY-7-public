@@ -1,0 +1,13 @@
+== 06:13:34 /robot6/amcl
+active [3]
+scan_topic: String value is: scan
+odom_frame_id: String value is: odom
+base_frame_id: String value is: base_link
+global_frame_id: String value is: map
+transform_tolerance: Double value is: 1.0
+tf_broadcast: Boolean value is: True
+laser_model_type: String value is: likelihood_field
+-- /robot6/scan info -v
+  Durability: VOLATILE	Node name: amcl	Node namespace: /robot6	Endpoint type: SUBSCRIPTION
+-- tf_static rplidar_link
+-- amcl_pose once

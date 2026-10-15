@@ -1,0 +1,4 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-06-08-58-315540-sim-pc-1085291
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792098538.562334495] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[ERROR] [launch]: Caught exception in launch (see debug for traceback): no pose on /rescue/map/frozen_pose/robot_a within 10.0 s (frozen pose: freeze the map first; start pose: map_freeze must see TB-6 SLAM); no AMCL start is made up
