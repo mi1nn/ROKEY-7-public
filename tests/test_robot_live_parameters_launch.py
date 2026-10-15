@@ -98,6 +98,14 @@ class ReadsTheLaunchValues(unittest.TestCase):
             task_without = {'task.saved_map.occupancy_sha256': None}
             self.read('robot_a', change=task_without)
 
+    def test_tb5_reads_its_start_alignment_verdict_topic(self):
+        # VALID only after start_align says ALIGNED (#317, 재범 decision 2026-10-15 (나))
+        config = self.read('robot_b')
+        self.assertEqual('/robot5/rescue_start_align', config['saved_maps']['robot_b']['start_align_topic'])
+        self.assertNotIn('start_align_topic', self.read('robot_a')['saved_maps']['robot_a'])
+        with self.assertRaisesRegex(ContractError, 'start_align_topic'):
+            self.read('robot_b', change={'task.saved_map.start_align_topic': None})
+
     def _saved_field(self):
         import json
         raw = json.loads(fixtures.FIELD.read_text())

@@ -34,6 +34,8 @@ class Twice(unittest.TestCase):
         self.r = Runtime()
         self.robot = robot
         self.s = SavedMapSources(self.r, settings(mode, robot))
+        if mode == 'FROZEN_MAP_AMCL':   # start alignment ALIGNED (gate: test_robot_start_align_gate)
+            self.s.receive_start_align(robot, NS(data='{"status": "ALIGNED", "reason": ""}'))
         self.reinitialized = []
         self.s.reinitialize = lambda robot, message: self.reinitialized.append((robot, message))
         return self.s

@@ -56,6 +56,7 @@ def settings(mode, robot='robot_a', **changes):
                  slam_covariance_max_age_ns=30_000_000_000)
     if mode == 'FROZEN_MAP_AMCL':
         c['initial_pose_topic'] = ns + '/initialpose'
+        c['start_align_topic'] = ns + '/rescue_start_align'   # VALID only after ALIGNED (#317)
     c.update(changes)
     return {robot: c}
 
@@ -72,10 +73,14 @@ class Runtime:
 
 
 class Lifecycle(unittest.TestCase):
-    def make(self, mode, robot='robot_a', **changes):
+    def make(self, mode, robot='robot_a', aligned=True, **changes):
+        """aligned: a FROZEN_MAP_AMCL robot has its start alignment verdict ALIGNED already (the map lifecycle
+        is tested here; the gate itself in test_robot_start_align_gate)."""
         self.r = Runtime()
         self.robot = robot
         self.s = SavedMapSources(self.r, settings(mode, robot, **changes))
+        if aligned and mode == 'FROZEN_MAP_AMCL':
+            self.s.receive_start_align(robot, NS(data='{"status": "ALIGNED", "reason": ""}'))
         return self.s
 
     def pose(self, source='localization', **kw):

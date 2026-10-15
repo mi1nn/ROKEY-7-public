@@ -55,6 +55,13 @@ class LocalizationValues(FieldCase):
                                             'set_initial_pose_service', 'nomotion_update_service', 'status_topic',
                                             'base_frame')})
 
+    def test_the_executor_reads_the_same_verdict_topic(self):
+        status = self.values('robot_b')['start_align']['status_topic']
+        b = self.robot(field=self.field(frozen_field), robot_id='robot_b', occupancy_sha256='')['task_input']
+        self.assertEqual(status, b['task.saved_map.start_align_topic'])
+        a = self.robot(field=self.field(frozen_field), occupancy_sha256='')['task_input']
+        self.assertNotIn('task.saved_map.start_align_topic', a)
+
     def test_tb6_has_no_start_alignment(self):
         self.assertIsNone(self.values('robot_a')['start_align'])
 
