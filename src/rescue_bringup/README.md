@@ -16,6 +16,7 @@
 | 지도 두 번 고정 노드, 고정 지도 위치 추정 | 구현됨, 실기 NOT_RUN | `launch/map_freeze.launch.py`, `launch/frozen_localization.launch.py`, #213·#242·#255 |
 | TB-5 출발 정렬 노드(`rescue_start_align`). `frozen_localization.launch.py robot_id:=robot_b` 가 AMCL 옆에 띄운다. 로그 끝에 ` + start_align` 이 붙는다. TB-6 에는 띄우지 않는다 | 구현됨, 실기 NOT_RUN | `launch/frozen_localization.launch.py`, `field_launch.py:START_ALIGN_KEYS`, [rescue_robot README](../rescue_robot/README.md) |
 | TB-5 출발값 `robots.robot_b.initial_pose_xy_yaw` | `[0.0, -1.86, 0.0]`(현장 파일 `robots.robot_b`). TB-6 오른쪽 1.86 m 를 줄자로 쟀다(2026-10-15, 둘 다 언독). 앞쪽 거리와 각도는 「옆에 있음」으로 읽은 값이다 | 아래 2단계 「TB-5 출발값 재기」 |
+| TB-5 Nav2 는 1차 고정 지도에서 위치가 잡힌 뒤 켬. `robot.launch.py` 가 FROZEN_MAP_AMCL 로봇의 Nav2 를 `autostart:=false` 로 띄우고, `nav2_start_after_map` 이 `map → base_link` 가 생기면 `manage_nodes` STARTUP 을 한 번 보낸다. 실패는 `NAV2_STARTUP_FAILED`·`NAV2_STARTUP_NO_ANSWER` 로 남고 실행기는 NOT_READY 그대로다 | 구현됨, 실기 NOT_RUN | `rescue_bringup/nav2_start.py`, `field_launch.py:robot_launch_values`, #375 |
 | Nav2 복구에서 후진 빼기 | 구현됨(#267 머지), 실기 NOT_RUN. 복구는 비용 지도 지우기 → 제자리 회전 → 대기 | `nav2_recovery.py`, #267(재범 승인 2026-10-14) |
 | Nav2 경로 따라가기(FollowPath) | 구현됨, 실기 NOT_RUN. DWB 대신 Rotation Shim + Regulated Pure Pursuit, 후진 없음. 값은 [제안] | `nav2_field.py`, 아래 「경로 따라가기」 |
 | 수동 실습 launch(`mapping_navigation`·`localization_navigation`) | 구현됨. 통로 정지·실행기·watchdog 없음 | 아래 「수동 실습용」 |
@@ -302,6 +303,8 @@ ros2 launch rescue_bringup robot.launch.py profile_path:=<profile.json> field_pa
 - TB-5 위치 추정 launch 는 이 출발 자세로 `robots.robot_b.initial_pose_xy_yaw` 를 map 좌표로 바꾼다. 순찰·도킹 접근 지점은 조정기가 바꾼다(통합-조정).
 
 `occupancy_sha256` 는 주지 않는다(고정이 해시를 정함). 탐색 중 TB-6 위치는 TF `map→base_link`(slam_toolbox 의 `map→odom` + Create3 의 `odom→base_link`, `/robot6/tf`)를 실행기 poll 주기로 읽어 만든다(OPS-177). slam_toolbox 는 처리한 스캔마다만 `/robot6/pose` 를 내고 일정 거리를 움직여야 스캔을 처리하므로, 서 있는 TB-6 은 새 `/robot6/pose` 가 없다[추정]. 공분산은 마지막 `/robot6/pose` 값을 쓰고, 그것이 30 s(`robots.robot_a.task.saved_map.slam_covariance_max_age_ns`, [제안])보다 오래되면 위치는 UNKNOWN 이다. 실기 확인: `ros2 topic hz /robot6/pose`(서 있을 때 끊기는지), `ros2 run tf2_ros tf2_echo map base_link --ros-args -r /tf:=/robot6/tf -r /tf_static:=/robot6/tf_static`. 안 나오면 TB-6 MapState 가 UNKNOWN 이고 수색 목표를 거절한다(다른 값으로 대체하지 않음).
+
+**고정 지도 단계의 위치(두 로봇):** AMCL 은 서 있는 로봇에 `amcl_pose` 를 내지 않는다. 그래서 고정 지도 단계에서도 실행기가 TF `map → base_link` 를 poll 주기마다 읽고, 공분산은 마지막 `amcl_pose` 값을 쓴다. 그 뒤 로봇이 AMCL 갱신 문턱(0.25 m / 0.2 rad)보다 많이 움직였는데 새 `amcl_pose` 가 없으면 VALID 가 아니다. 문턱은 `robot.launch.py` 가 `localization_params_file`(비우면 TurtleBot4 `localization.yaml`)에서 읽는다. `frozen_localization.launch.py` 에 다른 파일을 줬다면 `robot.launch.py` 에도 같은 파일을 준다. 로그: `frozen pose TF <ns>/tf with AMCL covariance while moved < 0.25 m / 0.2 rad`.
 
 **TB-5 출발값 재기(시험 회차, 한 번):** 고정 지도가 나온 뒤에 한다.
 1. TB-5 를 출발 자리에 둔다.

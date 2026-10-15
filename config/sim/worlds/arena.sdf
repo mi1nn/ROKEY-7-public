@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!-- Written by scripts/sim/map_to_world.py from arena.layout.json (no map). Do not edit by hand: change the layout and run it again.
-     Not measured yet [추정]: wall, robots.robot6, robots.robot5, white_box, stub_pillar, tunnel2_lintel, tunnel1_lintel, doll -->
+     Not measured yet [추정]: wall, robots.robot6, robots.robot5, stub_pillar, tunnel2_lintel, tunnel1_lintel, doll -->
 <sdf version="1.8">
   <world name="arena">
     <physics name="1ms" type="ignored">
@@ -103,14 +103,6 @@
       <link name="link">
         <collision name="collision"><geometry><box><size>0.4680 0.0180 0.4100</size></box></geometry></collision>
         <visual name="visual"><geometry><box><size>0.4680 0.0180 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
-      </link>
-    </model>
-    <model name="white_box">
-      <static>true</static>
-      <pose>2.0500 2.2300 0.2000 0 0 0.000000</pose>
-      <link name="link">
-        <collision name="collision"><geometry><box><size>0.4600 0.3600 0.4000</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>0.4600 0.3600 0.4000</size></box></geometry><material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="control_east">

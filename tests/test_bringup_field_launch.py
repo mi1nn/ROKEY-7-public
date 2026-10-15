@@ -191,7 +191,7 @@ class CoordinatorParameters(FieldCase):
         expected.update(frontier_min_cells=10, frontier_reach_m=1.0, frontier_goal_max_m=1.5,
                         frontier_blacklist_m=0.5, frontier_issue_delay_s=2.0, exploration_empty_checks=3,
                         exploration_timeout_s=600.0)
-        expected['frontier_goal_clearance_m'] = 0.2  # = freeze_clearance_m until the owner approves more (2026-10-15)
+        expected['frontier_goal_clearance_m'] = 0.35  # room to stop and turn in place (owner decision 2026-10-16, C3)
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
         expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,

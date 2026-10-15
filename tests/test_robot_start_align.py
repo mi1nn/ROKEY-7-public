@@ -247,6 +247,64 @@ class Aligning(unittest.TestCase):
         self.assertEqual('set_initial_pose', f.tick()[0][0])
 
 
+class FailedDetail(unittest.TestCase):
+    """A failed alignment says where AMCL ended and why it did not settle (simulation 2026-10-16 run 3: the
+    NOT_CONVERGED JSON had only first_guess and updates, so AMCL's last pose had to be fetched by hand).
+    Only the result grows; the verdict and every value stay as they were."""
+
+    def run_updates(self, path, sigma_path, **changes):
+        f = Fixture(**changes)
+        f.ready()
+        f.tick()
+        f.core.on_initial_set()
+        Aligning.converge(None, f, path, sigma_path)
+        return f
+
+    def test_a_large_spread_gives_the_last_pose_spread_and_reason(self):
+        f = self.run_updates([(0.5, 0.2, 0.1)] * 6, [(0.3, 0.2)] * 6, max_updates=5)
+        self.assertEqual(('FAILED', 'START_ALIGN_NOT_CONVERGED'), f.core.state())
+        r = f.core.result()
+        self.assertEqual([0.5, 0.2, 0.1], r['last_pose'])
+        self.assertAlmostEqual(0.3, r['last_sigma_xy_m'])
+        self.assertAlmostEqual(0.2, r['last_sigma_yaw_rad'])
+        self.assertEqual(5, r['poses_received'])                 # max_updates 5: the sixth comes after FAILED
+        self.assertEqual('SPREAD_ABOVE_ACCEPT', r['not_settled'])
+
+    def test_a_moving_pose_gives_how_far_the_last_poses_moved(self):
+        path = [(0.5 + 0.05 * i, 0.2, 0.1) for i in range(6)]
+        f = self.run_updates(path, [(0.05, 0.03)] * 6, max_updates=5)
+        r = f.core.result()
+        self.assertEqual('POSE_STILL_MOVING', r['not_settled'])
+        self.assertAlmostEqual(0.1, r['settle_spread_xy_m'])      # the last three poses
+        self.assertAlmostEqual(0.0, r['settle_spread_yaw_rad'])
+        self.assertEqual([0.7, 0.2, 0.1], [round(v, 6) for v in r['last_pose']])
+
+    def test_no_amcl_pose_after_the_respread(self):
+        f = Fixture(max_updates=2)
+        f.ready()
+        f.tick()
+        f.core.on_initial_set()
+        for _ in range(4):
+            f.tick()
+        self.assertEqual(('FAILED', 'START_ALIGN_NOT_CONVERGED'), f.core.state())
+        r = f.core.result()
+        self.assertEqual(('NO_AMCL_POSE', None, 0), (r['not_settled'], r['last_pose'], r['poses_received']))
+
+    def test_too_few_poses(self):
+        f = self.run_updates([(0.5, 0.2, 0.1)], [(0.03, 0.02)], max_updates=1)
+        self.assertEqual(('FAILED', 'START_ALIGN_NOT_CONVERGED'), f.core.state())
+        self.assertEqual('TOO_FEW_POSES', f.core.result()['not_settled'])
+
+    def test_aligned_result_is_unchanged(self):
+        f = Fixture()
+        f.ready(pose=(0.3, 0.0, 0.0))
+        f.tick()
+        f.core.on_initial_set()
+        Aligning.converge(None, f, [(0.3, 0.0, 0.0)] * 3, [(0.03, 0.02)] * 3)
+        self.assertEqual('ALIGNED', f.core.state()[0])
+        self.assertFalse({'last_pose', 'not_settled', 'poses_received'} & set(f.core.result()))
+
+
 class Scores(unittest.TestCase):
     def test_sigmas_use_the_largest_xy_axis(self):
         c = [0.0] * 36

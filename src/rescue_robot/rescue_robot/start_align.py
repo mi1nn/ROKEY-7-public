@@ -264,10 +264,32 @@ class AlignCore:
             self._final('ALIGNED', '')
         return True
 
+    def _not_settled(self):
+        """Why the poses after the re-spread gave no verdict: what a NOT_CONVERGED operator needs to see."""
+        cfg = self.config
+        if not self.poses:
+            return 'NO_AMCL_POSE', {}
+        if len(self.poses) < cfg.settle_count:
+            return 'TOO_FEW_POSES', {}
+        last = self.poses[-cfg.settle_count:]
+        pose, (sxy, syaw) = last[-1]
+        spread = dict(settle_spread_xy_m=max(math.hypot(p[0] - pose[0], p[1] - pose[1]) for p, _ in last),
+                      settle_spread_yaw_rad=max(abs(_angle(p[2] - pose[2])) for p, _ in last))
+        if sxy > cfg.accept_sigma_xy_m or syaw > cfg.accept_sigma_yaw_rad:
+            return 'SPREAD_ABOVE_ACCEPT', spread
+        return 'POSE_STILL_MOVING', spread
+
     def result(self):
         status, reason = self.state()
-        return dict(status=status, reason=reason, updates=self.updates, map_sha256=self.map_sha256,
-                    first_guess=list(self.center) if self.center else None, **self.verdict)
+        out = dict(status=status, reason=reason, updates=self.updates, map_sha256=self.map_sha256,
+                   first_guess=list(self.center) if self.center else None, **self.verdict)
+        if status == 'FAILED' and not self.verdict:   # no verdict: say where AMCL ended and why it did not settle
+            not_settled, spread = self._not_settled()
+            last = self.poses[-1] if self.poses else None
+            out.update(not_settled=not_settled, poses_received=len(self.poses), **spread,
+                       last_pose=list(last[0]) if last else None,
+                       last_sigma_xy_m=last[1][0] if last else None, last_sigma_yaw_rad=last[1][1] if last else None)
+        return out
 
 
 def main(args=None):
