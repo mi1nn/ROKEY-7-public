@@ -16,10 +16,11 @@ from rescue_operations import site_state
 from test_operations_site_state import dispatch, mission, robot_status, target_state, uid
 
 REPO = Path(__file__).resolve().parents[1]
-if not (REPO / 'scripts').is_dir():
-    raise unittest.SkipTest('scripts/ absent (installed-wheel checkout)')
-SPEC = importlib.util.spec_from_file_location('noweb_status_watch',
-                                              REPO / 'scripts' / 'field' / 'noweb' / 'status_watch.py')
+SCRIPT = REPO / 'scripts' / 'field' / 'noweb' / 'status_watch.py'
+if not SCRIPT.is_file():
+    # as tests/test_field_wiring_check.py: a repo script, not part of the installed-wheel checkout
+    raise unittest.SkipTest('scripts/field/noweb/status_watch.py absent (installed-wheel checkout)')
+SPEC = importlib.util.spec_from_file_location('noweb_status_watch', SCRIPT)
 sw = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sw)
 
