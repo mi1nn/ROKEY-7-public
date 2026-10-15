@@ -365,6 +365,81 @@ class WallClearanceTests(unittest.TestCase):
             frontier_core(frontier_goal_clearance_m=-0.1)
 
 
+class FrontierGainTests(unittest.TestCase):
+    """A large unexplored zone goes before a small nook nearby (재범 2026-10-16, 5회차 02:23: TB-6 turned to the
+    side its LiDAR already saw). The pick ranks by the explore_lite cost potential_scale x path length (m) - gain_scale
+    x frontier size (cells x resolution, m), the repository explore.yaml 3.0 / 1.0; untried before retried first."""
+
+    @staticmethod
+    def room():
+        """3.6 m x 3.0 m: walls south, north and west, a 0.2 m x 0.2 m nook in the west wall (12 frontier cells),
+        the unexplored zone beyond x = 3.0 (56 frontier cells)."""
+        def cell(x, y):
+            if y < 0.1 or y > 2.9 or x < 0.1:
+                return 100
+            if x > 3.0 or (x < 0.3 and 1.15 < y < 1.35):
+                return -1
+            return 0
+        return fine_grid(3.6, 3.0, cell)
+
+    def picked(self, start):
+        core = frontier_core()
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(self.room())
+        core.on_pose(scout_pose(start))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        return core.frontier['centroid']
+
+    def test_the_large_zone_a_little_farther_goes_before_the_near_nook(self):
+        # from (1.4, 1.5): the nook goal 0.97 m of path (12 cells), the zone goal 1.42 m (56 cells)
+        x, _ = self.picked((1.4, 1.5))
+        self.assertGreater(x, 2.9)  # the zone beyond x = 3.0, not the nook at x 0.24
+
+    def test_the_near_nook_still_goes_first_when_the_zone_is_far(self):
+        # from (1.2, 1.5): nook 0.77 m, zone 1.62 m; 3 x 0.85 m of path is more than the zone's 2.2 m of size more
+        x, _ = self.picked((1.2, 1.5))
+        self.assertLess(x, 0.5)
+
+
+class CutGoalTests(Base):
+    """A goal cut to ``frontier_goal_max_m`` on the way to a frontier is a step, not a visit (5회차 2026-10-16
+    02:25, C11: TB-6 COMPLETED a goal 1.4 m short of the frontier a116, a116 was marked tried while it stayed on the
+    map, and three empty map updates ended the exploration outside the main zone). Only a goal at the frontier's own
+    goal cell (within ``frontier_reach_m`` of it) makes it tried."""
+
+    def test_after_a_cut_goal_the_same_frontier_goes_on(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        site = live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw'][:2]
+        self.assertLess(site[0], 3.0)  # cut: 1 m along a 2.7 m path to the frontier at x = 4 m
+        self.finish(fields)
+        self.core.on_scout_map(grid())  # the frontier is still there
+        self.core.on_pose(scout_pose(tuple(site), at=NOW + DELAY + 1))
+        self.searches(NOW + DELAY + 1)
+        self.core.on_pose(scout_pose(tuple(site), at=NOW + 3 * DELAY))
+        (again,) = self.searches(NOW + 3 * DELAY)
+        nxt = live_task_inputs.destinations(self.core)[again['search_area_ref']]['xy_yaw'][:2]
+        self.assertGreater(nxt[0], site[0])  # on towards the same frontier
+        self.assertFalse(self.core.exploration_complete)
+        self.assertIn('FRONTIER_GOAL_CUT', ' '.join(self.core.drain_notes()))
+
+    def test_a_goal_at_the_frontier_still_makes_it_tried(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose((3.2, 1.8)))  # the frontier's goal cell is within frontier_goal_max_m
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.finish(fields)
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose((3.2, 1.8), at=NOW + DELAY + 1))
+        self.assertEqual([], self.searches(NOW + DELAY + 1))
+        self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
+
+
 class FrontierNoneWhyTests(Base):
     """``FRONTIER none`` says why each frontier was left out, largest first (시뮬레이션 2026-10-15 C9: two frontiers
     FAILED, then three empty map updates ended the exploration and nobody could tell why the main zone was not
