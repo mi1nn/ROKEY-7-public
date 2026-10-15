@@ -217,7 +217,7 @@ def status_items(*, quake_now, quake_seen, boxes, score_min, presence, watched):
 
     화면용이다. 판정·사건에는 쓰지 않는다.
     - boxes None: 지진 전이면 YOLO 를 안 돌린 것(대기), 지진 뒤면 YOLO 실패다(빈 목록으로 꾸미지 않는다).
-    - presence: 출구 판정기 결과. 감시가 걸렸으면 「출구 · 감시」, 지진 뒤 화면용 판정기면 「출구 · 화면용」(기록 안 됨).
+    - presence: 출구 판정기 결과. 감시가 걸렸으면 「출구 · 감시」(기록됨), 지진 뒤 화면용 판정기면 「출구」(기록 안 됨).
     """
     if quake_now:
         quake = ('흔들리는 중', RED)
@@ -239,7 +239,7 @@ def status_items(*, quake_now, quake_seen, boxes, score_min, presence, watched):
     else:
         exit_ = {'NOT_VIA_EXIT': ('다른 쪽으로 사라짐', ORANGE), 'NOT_YET_SEEN': ('인형 찾는 중', GREY),
                  'OCCLUDED': ('화면 가림', ORANGE)}.get(presence.reason, ('판정 불가', GREY))
-    return [('지진',) + quake, ('인형',) + doll, ('출구 · 감시' if watched else '출구 · 화면용',) + exit_]
+    return [('지진',) + quake, ('인형',) + doll, ('출구 · 감시' if watched else '출구',) + exit_]
 
 
 def draw_status(bgr, items, font_path):
