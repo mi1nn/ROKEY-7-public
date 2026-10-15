@@ -82,6 +82,8 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
 - `--role` 은 프로파일의 host id 다. 운영 PC 는 프로파일에 operations 호스트와 coordination 호스트로 따로 올라 있으므로, 두 host id 로 각각 한 번씩 돌린다. 둘 다 PASSED 여야 한다.
 - 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다. 전용 서버 하나면 모든 host 가 `[{"server_id": 0, "address": "<전용 Discovery PC 주소>", "port": 11811}]` 다. 프로파일이 아직 권고안 A 값이면 셸이 아니라 프로파일을 고친다(바꾸기 전 백업, 전후 sha256 기록).
 - 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 배선 점검 도구만 super client 로 띄운다.
+- **ROS 로 조회할 때는 `--spin-time 10` 을 붙인다.** Discovery 서버를 거친 목록은 늦게 온다. `ros2 topic list --no-daemon` 만 쓰면 기본 대기가 짧아 로봇 토픽이 0개로 보인다. 앞에 `timeout 30` 을 붙여도 대기는 늘지 않는다(2026-10-15 실기, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 3절).
+- **PC 의 망이 바뀌면 그 PC 의 ROS 노드를 모두 다시 띄운다.** Wi-Fi 에서 유선으로 바꾸거나 Wi-Fi 가 끊긴 뒤에는, 이미 떠 있던 노드가 구독은 맺어도 데이터와 서비스 응답을 받지 못했다. 같은 일이 운영 PC 에서 두 번 있었다(2026-10-15, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 4절).
 - `preflight_role.py` 가 FAILED 를 내면 고치기 전에는 다음 단계로 가지 않는다. NOT_RUN 을 통과로 적지 않는다.
 
 ## 2단계 — BT 대조와 로봇 Pi (로봇 감독)
@@ -114,12 +116,16 @@ done
 ros2 launch rescue_bringup operations.launch.py profile_path:=<profile.json> \
   db_path:=<site_state.sqlite3> api_port:=<api 포트> command_timeout_s:=3.0 \
   report_db_path:=<reports.sqlite3> envelope_schema_version:=rescue-envelope/1 report_publisher_id:=<id> \
-  webcam_params_file:=<webcam_node.yaml> video_port:=<영상 포트> video_bind_host:=<브라우저가 닿는 주소> video_stale_s:=2.0
+  webcam_params_file:=<webcam_node.yaml> video_port:=<영상 포트> video_bind_host:=<브라우저가 닿는 주소> video_stale_s:=2.0 \
+  map_topic:=/robot6/map map_dir:=<실시간 지도 폴더> \
+  robot_namespaces:=robot_a=/robot6,robot_b=/robot5 robot_watch_path:=<직접 관측 파일>
 # 로그의 "console --camera cam_fixed=http://..." 값을 관제 웹 --camera 에 그대로 쓴다
 
 python3 -m rescue_console --accounts <계정 DB> --site-state <site_state.sqlite3> \
   --operations http://127.0.0.1:<api 포트> --camera <launch 로그의 값> --camera-stale-s 2.0 \
-  --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 --map <map.yaml> --port 8080 \
+  --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 --port 8080 \
+  --live-map <실시간 지도 폴더>/live_map.yaml --live-map-stale-s 15 \
+  --robot-watch <직접 관측 파일> --robot-watch-stale-s 5 --robot-watch-map-robot robot_a \
   --support-dispatch AUTO --search-start AUTO
 
 ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
@@ -132,6 +138,7 @@ ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
 - 조정기의 `route_segment_goals`·`observe_goal` 은 자리표시다. `camera_watch_roi` 는 JSON 숫자 배열이어야 한다. `'[x0, y0, x1, y1]'` 글자를 그대로 쓰면 launch 가 exit 1 이다.
 - 성공 로그는 `rescue_db_writer git=... api=http://127.0.0.1:<port>`, `rescue_report_node ...`, `webcam_node git=...`, 조정기 `live task source enabled`·`central live clock: SYNCED` 다. `central live clock: waiting for clock measurement` 가 먼저 한 번 나오는 것은 정상이다.
 - 계정 DB 와 비밀키 준비는 [rescue_console README](../../src/rescue_console/README.md)에 있다.
+- **지도와 지도 고정 전 TB-6 위치는 운영 launch 의 두 묶음 인자로 본다.** `map_topic`·`map_dir` 는 TB-6 SLAM 지도를 받아 관제 웹 `--live-map` 과 리플레이에 넘긴다. `robot_namespaces`·`robot_watch_path` 는 두 로봇의 TF·배터리·도킹을 구독만 하는 직접 관측(`robot_watch`)이다. 실행기가 보내는 로봇 위치는 지도를 고정하고 AMCL 이 맞춘 뒤에만 채워진다(`live_pose.py`). 그래서 지도 고정 전 TB-6 위치는 직접 관측으로만 지도에 그려진다. TB-5 는 1차 고정 전에는 위치가 없고 「위치 미확정」이 정상이다(2026-10-15 실기).
 
 ## 4단계 — TB-6 담당 PC
 
@@ -159,7 +166,9 @@ ros2 launch rescue_bringup amr_perception.launch.py <인자는 rescue_perception
 - `rescue_map_freeze` 의 `git_sha=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번
 - `MAP_STATE robot_a ... rev=<R0> quality=VALID`
 
-`<ns>/map` 에 이미 발행자가 있으면 `tb6_slam.launch.py` 가 시작하지 않는다(앞 SLAM 이 남은 것). `START_POSE captured` 가 나오지 않으면 다음 단계로 가지 않는다. 2026-10-14 현장에서는 이 줄이 나오지 않았다. TB-6 TF 의 작은 기울기를 거절했기 때문이고, #291 이 고쳤다. 지금은 두 TF 를 3D 로 합성하고, 합성한 기울기가 10도([제안])를 넘을 때만 위치를 만들지 않는다. 이때 로그에 `SLAM_TF_POSE ... tilted` 가 남는다.
+실행기를 조정기보다 늦게 띄우면 실행기 로그에 `coordinator session rejected: CLOCK_UNCERTAIN: coordinator SystemState is future or stale` 와 `input session blocked: NOT_AUTHORIZED: waiting for fresh configured coordinator SystemState` 가 나온다. 조정기는 상태가 바뀔 때만 SystemState 를 보내서, 늦게 뜬 실행기는 오래된 상태만 받기 때문이다. 운영 PC 에서 `ros2 service call /mission_coordinator/refresh_state std_srvs/srv/Trigger {}` 를 부르면 풀린다(답 `SYSTEM_STATE_REPUBLISHED`). 5단계 TB-5 실행기도 같다. 2026-10-15 실기에서는 실행기를 띄울 때마다 이 호출이 필요했다([운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 5절).
+
+`<ns>/map` 에 이미 발행자가 있으면 `tb6_slam.launch.py` 가 시작하지 않는다(앞 SLAM 이 남은 것). 다른 팀 PC 의 `localization.launch.py`(`/robot6/map_server`) 가 같은 도메인에 떠 있어도 그렇다. 2026-10-15 에는 그 지도가 관제 웹에 우리 지도처럼 들어왔다. `ros2 topic info -v /robot6/map --no-daemon --spin-time 10` 의 발행 노드 이름이 `slam_toolbox` 인지 본다. `START_POSE captured` 가 나오지 않으면 다음 단계로 가지 않는다. 2026-10-14 현장에서는 이 줄이 나오지 않았다. TB-6 TF 의 작은 기울기를 거절했기 때문이고, #291 이 고쳤다. 지금은 두 TF 를 3D 로 합성하고, 합성한 기울기가 10도([제안])를 넘을 때만 위치를 만들지 않는다. 이때 로그에 `SLAM_TF_POSE ... tilted` 가 남는다.
 
 ## 5단계 — TB-5 담당 PC
 
@@ -211,6 +220,8 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
    ros2 service call <ns>/rescue_command_adapter/task_arm std_srvs/srv/Trigger {}     # success=True, message='ARMED'
    ```
    TB-5 는 자동 출동이라 인형이 나오기 전에 arm 돼 있어야 한다. arm 은 처음 한 번이면 된다. 이동이 정상으로 끝나면 실행기가 스스로 다시 준비한다(#281). 실패·취소·정지 뒤에는 다시 `task_arm` 을 부른다.
+   - 답이 `success=False, message='STOP_OR_READINESS_NOT_READY'` 이면 준비 상태 입력 가운데 하나가 안 온다. 로봇 파일(`robots/<id>.v2.json`) `readiness` 의 odom·wheel_status·scan·카메라 토픽과 `map_frame -> odom_frame` TF 가 각 `max_age_s` 안에 오는지 `ros2 topic hz <토픽>` 으로 본다. 2026-10-15 에는 카메라 토픽이 `<ns>/oakd/rgb/preview/image_raw/compressed` 였는데 두 Pi 모두 미리보기를 내지 않아 거절됐다. `<ns>/oakd/rgb/image_raw/compressed` 로 바꾼 뒤에 넘어갔다(재범 결정 2026-10-15, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 6절).
+   - **재난을 시작하기 전에 TB-6 Nav2 가 active 인지 본다**: `ros2 lifecycle get /robot6/bt_navigator` 가 `active [3]`. inactive 이면 첫 탐색 목표가 `Action server is inactive` 로 실패한다. 지도가 작아 탐색 경계가 그 하나뿐이면, 조정기는 지도 갱신 세 번 뒤 `EXPLORATION_COMPLETE` 와 `NO_SURVIVOR_FOUND` 로 끝내고 새 목표를 내지 않는다(2026-10-15 17:54, [운영 PC 기록](../evidence/field-2026-10-15-operations-host.md) 7절). 그러면 조정기와 두 실행기를 다시 띄워야 한다.
 2. **TB-6 위치 확인.** `ros2 topic echo --once /rescue/robots/robot_a/pose` 의 `mission_pose_status` 가 `VALID` 인지 본다. 서 있는 TB-6 에서 `ros2 topic hz /robot6/pose` 가 끊기는지 기록한다.
 3. **재난 시작.** 웹캠 앞을 흔든다. 관제 화면이 DISASTER 가 되고 조정기 로그에 `SEARCH_AUTO_STARTED on DISASTER` 가 나온다. TB-6 은 가장 가까운 탐색 경계로 간다. 수색 목표는 고르지 않는다.
 4. **1차 고정(인형 발견).** 인형이 확정되고 보고가 저장되면 조정기가 고정을 부른다. TB-6 은 계속 탐색한다.
