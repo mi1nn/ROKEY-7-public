@@ -19,6 +19,7 @@ SYSTEM_STATE_TOPIC = '/rescue/system_state'
 TARGETS_TOPIC = '/rescue/targets'
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # QR exit (통합-인식 안 「나」, OPS-144)
 OPERATOR_COMMAND_SERVICE = '/rescue/operator_command'
+PASSAGE_APPROVE_SERVICE = '/rescue/passage_keepout/approve'  # rescue_robot passage_keepout.APPROVE_SERVICE (#406)
 FROZEN_MAP_TOPIC = '/rescue/map/frozen'               # map_freeze (rescue_robot), as the coordinator subscribes
 FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'
 REPORTS_TOPIC = '/rescue/reports'  # IF-072, coordinator -> report_node
@@ -79,6 +80,7 @@ def db_writer_parameters(deployment, *, db_path, api_port, command_timeout_s, we
         'api_host': API_HOST,
         'api_port': api_port,
         'operator_command_service': OPERATOR_COMMAND_SERVICE,
+        'passage_approve_service': PASSAGE_APPROVE_SERVICE,  # the console's tunnel pass approval (I-8)
         'command_timeout_s': command_timeout_s,
         # the console's camera pick goes to this webcam_node ('' = no webcam in this launch, OPS-183)
         'webcam_node': webcam_node,

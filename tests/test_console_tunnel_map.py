@@ -40,7 +40,7 @@ class TunnelMapTests(LiveMapFixture):
         self.assertEqual(3, len(view['map']['passages']))
         self.assertIn('class="passage passable current"', html)
         self.assertIn('통과 가능 ↑0.47 m', html)
-        self.assertIn('class="passage blocked current"', html)
+        self.assertIn('class="passage blocked current approvable"', html)   # 막힌 곳은 눌러 통과 승인(#406)
         self.assertIn('통과 불가 ↑0.40 m', html)
         self.assertIn('class="passage unknown current"', html)
         self.assertIn('판정 불가', html)
@@ -50,7 +50,7 @@ class TunnelMapTests(LiveMapFixture):
                        item(2, 'BLOCKED', 0.40, 0.2, -1.2, session=OLD_SESSION)])
         html = self.drawn()[1]
         self.assertIn('class="passage passable old"', html)
-        self.assertIn('class="passage blocked old"', html)
+        self.assertIn('class="passage blocked old approvable"', html)
 
     def test_unknown_current_map_draws_all_and_says_so(self):
         self.passages([item(1, 'PASSABLE', 0.47, 0.0, -1.0)], current=None)

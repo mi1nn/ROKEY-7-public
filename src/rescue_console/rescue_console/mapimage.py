@@ -307,7 +307,8 @@ def map_overlay(meta, robots, targets, exit_=None, passages=()):
         entries.append(('exit', EXIT_NAME, exit_, {'observed_at_ns': exit_['observed_at_ns'],
                                                    'map_revision': exit_['map_revision']}))
     entries += [('passage', row['id'], row, {'state': row['state'], 'label': row['label'], 'current': row['current'],
-                                              'robot_id': row['robot_id'], 'map_revision': row['map_revision']})
+                                              'robot_id': row['robot_id'], 'map_revision': row['map_revision'],
+                                              'approvable': row.get('approvable', False)})
                 for row in passages]   # 터널 판정(#262, OPS-189)
     for kind, ident, pose, extra in entries:
         if pose is None:

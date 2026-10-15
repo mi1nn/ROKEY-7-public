@@ -94,11 +94,17 @@ preserved until the executor's monotonic lease-duration boundary.
         generation(lease.generation)
         window(lease.issued_at_ns, lease.valid_until_ns, now_ns, clock_error_bound_ns, 'lease')
     if goal.kind != 'HOLD':
-        if goal.kind in ('SEARCH_AREA', 'RETURN_HOME'):
+        if goal.kind == 'RETURN_HOME' and _no_basis(goal.frame_ref):
+            # Decision 5A: the coordinator sends home_ref and no goal pose (search._goal_pose), so
+            # the frame carries the robot only; the robot resolves home/<robot_id> on its own
+            # current alignment (resolve_goal). Runs 6 and 8, 2026-10-16: refused on 'native
+            # frame', then on 'mission frame'.
+            if goal.frame_ref.robot_id != goal.robot_id:
+                raise ContractError('goal frame robot mismatch', 'FRAME_REVISION_MISMATCH')
+        elif goal.kind in ('SEARCH_AREA', 'RETURN_HOME'):
             # #90 supplies the area/basis but intentionally does not assert an
-            # alignment. A live authoritative resolver/binder must supply it. RETURN_HOME
-            # is the same: the robot resolves home/<robot_id> against its own alignment
-            # (simulation run 6, 2026-10-16: refused on 'native frame' before).
+            # alignment. A live authoritative resolver/binder must supply it. A RETURN_HOME
+            # that names a basis is held to it, all of it.
             ref = goal.frame_ref
             text(ref.mission_frame, 'mission frame')
             identifier(ref.map_session_id)
@@ -149,6 +155,11 @@ preserved until the executor's monotonic lease-duration boundary.
     return (until - now_ns - clock_error_bound_ns) / 1e9
 
 
+def _no_basis(ref):
+    """A frame_ref with no mission frame and no map basis (only the robot): RETURN_HOME under decision 5A."""
+    return (ref.mission_frame, ref.map_session_id, ref.map_revision, ref.transform_revision) == ('', '', 0, 0)
+
+
 def validate_resolved_goal(goal, pose):
     """Only verify a resolver's output; never infer it from target/route coordinates.
 
@@ -161,6 +172,8 @@ Phase 1 MOVE_SEGMENT uses RouteCandidate.approach_goal as the segment end
         return None
     if not isinstance(pose, GoalPose):
         raise ContractError('authoritative resolved GoalPose required')
+    if goal.kind == 'RETURN_HOME' and _no_basis(goal.frame_ref):
+        return pose   # 5A: the robot's resolver chose the frame and basis (its current alignment)
     if (pose.frame_id, pose.map_session_id, pose.map_revision, pose.transform_revision) != (
             goal.frame_ref.mission_frame, goal.frame_ref.map_session_id,
             goal.frame_ref.map_revision, goal.frame_ref.transform_revision):

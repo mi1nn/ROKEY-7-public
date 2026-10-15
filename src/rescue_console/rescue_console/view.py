@@ -54,7 +54,10 @@ COMMAND_GROUPS = {
     'REQUEST_RECHECK': 'mission', 'RETURN_HOME': 'mission', 'PAUSE': 'mission', 'RESUME': 'mission',
     'CANCEL': 'mission',
     'STOP_ROBOT': 'stop',
+    'APPROVE_PASSAGE': 'approve',
 }
+# 터널 통과 승인(#406): 조정기를 거치지 않아 COMMANDS·_gate 와 따로 둔다(command_gates 끝에 붙임, 작전 2026-10-16).
+PASSAGE_COMMAND = ('APPROVE_PASSAGE', '터널 통과 승인')
 # 콘솔에서 전송을 차단하는 보류 명령 및 차단 사유(작전 2026-10-12, #115).
 HELD_COMMANDS = {
     'PAUSE': 'Q-22 재개 관문 전',
@@ -298,7 +301,7 @@ def _site_events(raw_events):
     return events
 
 
-def _events(ledger, site_events):
+def _events(ledger, site_events, approvals=()):
     """사건 이력 테이블: 장부 보고와 현장 이벤트를 단일 행 스키마로 통합하여 최신 순으로 정렬한다.
 
     (상위 EVENT_ROWS개 행, 전체 건수)를 반환한다. 해당 이벤트 종류에 없는 필드는 None으로 채운다. 현장 이벤트는
@@ -338,6 +341,24 @@ def _events(ledger, site_events):
             'note': event.detail or None,
             'clock_domain_id': event.clock_domain_id,
             'ref_id': event.event_id,
+        })
+    for command in approvals:   # 터널 통과 승인(operator_commands APPROVE_PASSAGE): 누가·언제. KPI-04 대상 아님
+        word = '접수' if command['accepted'] else f"거절 {command['reason']}"
+        rows.append({
+            'event_ns': command['requested_at_ns'],
+            'received_at_ns': None,
+            'kind': 'PASSAGE_APPROVAL',
+            'source': command['operator_id'],
+            'subject': command['target_id'],
+            'detail': word,
+            'confirmation': None,
+            'approach': None,
+            'receipt': None,
+            'confidence': None,
+            'note': f"{command['operator_id']} 승인 {word}",
+            'clock_domain_id': 'operations',
+            'ref_id': command['command_id'],
+            'kpi': False,
         })
     # 시각이 동일한 경우 ref_id를 2차 정렬 키로 사용하여 매 폴링마다 결정론적인 정렬 순서를 보장한다.
     rows.sort(key=lambda row: (row['event_ns'], row['ref_id']), reverse=True)
@@ -535,7 +556,7 @@ SEARCH_START_MODES = ('AUTO', 'OPERATOR')       # --search-start: 조정기와 �
 
 def _command_words(support_name):
     """명령 레이블 구성. 출동 승인 명령에는 SUPPORT 로봇의 화면 표시명을 반영한다(소유자 2026-10-13: TB-5)."""
-    words = dict(COMMANDS)
+    words = dict(COMMANDS + (PASSAGE_COMMAND,))
     if support_name is not None:
         words['DISPATCH_SUPPORT'] = f'{support_name} 출동 승인'
     return words
@@ -689,9 +710,27 @@ def command_gates(mission, targets, words=None, support_dispatch=None, support_n
 PASSAGE_WORDS = {'PASSABLE': '통과 가능', 'BLOCKED': '통과 불가', 'UNKNOWN': '판정 불가'}   # OPS-196 지도·카메라 공통
 
 
-def _passages(section, warnings):
+def painted(item):
+    """passage_keepout 이 막힌 곳으로 칠하는 판정인가(rescue_robot.passage_keepout.KeepoutCore.painted 와 같은 조건).
+    승인 버튼은 이것만 고르게 한다. 노드는 같은 자리(merge_m 안)의 가장 새 항목으로 정하므로 웹이 고른 항목과 자리
+    판정이 다를 수 있다. 그때도 노드가 그 항목의 자리를 푼다."""
+    return item['state'] == 'BLOCKED' or (item['state'] == 'UNKNOWN' and item['reason'] == 'NO_FLOOR_NEAR')
+
+
+def _approvals(status):
+    """operator_commands 의 APPROVE_PASSAGE 행(운영이 남김, target_id 가 터널 항목 id). 입력이 없으면 빈 목록."""
+    section = _section(status, 'operator_commands', 'commands')
+    return [row for row in ([] if section is None else section['commands']) if row['kind'] == PASSAGE_COMMAND[0]]
+
+
+def _passages(section, warnings, approvals=()):
     """터널 판정(#262 read_overhead_passages, OPS-189·196): 지도에 그릴 행. 지금 지도(current_map 의 session·revision)와
-    같은 항목은 current True(진하게), 다르면 False(흐리게). current_map 을 모르면 전부 진하게 그리고 그 사실을 적는다."""
+    같은 항목은 current True(진하게), 다르면 False(흐리게). current_map 을 모르면 전부 진하게 그리고 그 사실을 적는다.
+    ``approved`` 는 받아들여진 가장 이른 승인의 {by, at_ns} 이고, ``approvable`` 은 칠하는 판정이면서 아직 승인 전이다."""
+    first = {}
+    for row in sorted(approvals, key=lambda r: r['requested_at_ns']):
+        if row['accepted'] and row['target_id'] not in first:
+            first[row['target_id']] = {'by': row['operator_id'], 'at_ns': row['requested_at_ns']}
     if section is None:
         return []
     current = section.get('current_map')
@@ -700,7 +739,12 @@ def _passages(section, warnings):
         for item in listing['items']:
             word = PASSAGE_WORDS.get(item['state'], item['state'])
             label = word if item['lowest_m'] is None or item['state'] == 'UNKNOWN' else f'{word} ↑{item["lowest_m"]:.2f} m'
+            approved = first.get(item['id'])
+            if approved is not None:
+                label += f" · 승인 {approved['by']}"
             rows.append({'id': item['id'], 'robot_id': listing['robot_id'], 'state': item['state'], 'label': label,
+                         'reason': item['reason'], 'approved': approved,
+                         'approvable': painted(item) and approved is None,
                          'x': item['x'], 'y': item['y'], 'frame_id': listing['map_frame'],
                          'map_revision': item['map_revision'], 'last_seen_ns': item['last_seen_ns'],
                          'current': current is None or (item['map_session_id'], item['map_revision'])
@@ -708,6 +752,23 @@ def _passages(section, warnings):
     if rows and current is None:
         warnings.append('현재 지도 revision 모름 — 터널 판정을 모두 진하게 그림')
     return rows
+
+
+def passage_gate(section, passages, names):
+    """터널 통과 승인 버튼(command_gates 행 모양). 임무 단계와 따로다: 지도 막힘은 재난 전에도 생긴다.
+    선택지는 지금 지도 항목을 먼저, 그다음 새로 본 순서다. 실제로 받을지는 승인 노드가 정한다(NO_SUCH_ITEM 등)."""
+    name, word = PASSAGE_COMMAND
+    row = {'name': name, 'label': word, 'group': COMMAND_GROUPS[name], 'enabled': False, 'args': {}, 'choices': [],
+           'confirm': f'{word} — 고른 터널을 이번 회차 동안 막힌 곳에서 뺍니다. 로봇 경로가 그 아래로 지날 수 있습니다'}
+    if section is None:
+        return row | {'reason': '터널 판정 입력 없음'}
+    open_ = sorted((p for p in passages if p['approvable']), key=lambda p: (not p['current'], -p['last_seen_ns'], p['id']))
+    row['choices'] = [{'item_id': p['id'], 'state': p['state'],
+                       'label': f"{p['label']} · {names.get(p['robot_id'], p['robot_id'])} ({p['x']:.1f}, {p['y']:.1f})"
+                                + ('' if p['current'] else ' 이전 지도')} for p in open_]
+    if not open_:
+        return row | {'reason': '승인할 터널 없음 — 통과 불가나 바닥 안 보임 판정이 생기면 켜짐'}
+    return row | {'enabled': True, 'reason': f'막힌 터널 {len(open_)}곳 중 고름 — 지도에서 눌러도 됨'}
 
 
 def _exit(section):
@@ -815,7 +876,8 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     stage_counts = {stage: 0 for stage in STAGES}
     for row in targets:
         stage_counts[row['stage']] += 1
-    events, event_total = _events(ledger, site_events)
+    approvals = _approvals(status)
+    events, event_total = _events(ledger, site_events, approvals)
     seen_commands = [row for key in ('operator_commands', 'trigger_commands')
                      for row in (_section(status, key, 'commands') or {'commands': []})['commands']]
     mission = _mission(None if site_section is None else site_events, mission_row, seen_commands)
@@ -839,7 +901,7 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         # 조정기는 search_start AUTO 모드로 동작 중이나, 콘솔은 수동 시작 버튼을 제시하는 불일치 상황 안내.
         warnings.append('조정기는 자동 수색(search_start AUTO) — 관제 웹을 --search-start AUTO 로 다시 띄우세요')
     exits = _section(status, 'exit_locations', 'exits')
-    passages = _passages(status.get('overhead_passages'), warnings)
+    passages = _passages(status.get('overhead_passages'), warnings, approvals)
     return {
         'built_at_ns': built_at_ns,
         'exit': _exit(exits),
@@ -855,7 +917,8 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
         'map': {'available': False, 'note': '지도 스냅샷 미연결 — 로봇·지도 제공 뒤 연결'},
         'commands': command_gates(mission, targets, words, support_dispatch,
                                   support[0] if len(support) == 1 else None, search_start,
-                                  scout[0] if len(scout) == 1 else None),
+                                  scout[0] if len(scout) == 1 else None)
+                    + [passage_gate(status.get('overhead_passages'), passages, names)],
         'support_dispatch': support_dispatch,
         'search_start': search_start,
         'history': history,

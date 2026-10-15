@@ -99,6 +99,8 @@ TB-5(SUPPORT)는 조정기가 보낸 대상 접근을 운영자 승인 없이 �
 
 **watchdog 영구 정지(STOP_LATCHED)와 리셋**
 
+- **잠긴 것이 보인다(2026-10-16 7회차, 안전 동작은 그대로).** 잠긴 watchdog 은 자기 heartbeat 를 내지 않아 실행기에는 「watchdog 없음」으로 보였다. 이제 watchdog 이 상태가 바뀔 때마다 `<ns>/rescue/watchdog_state`(JSON, latched: `state`, `reason`, `reset_service`)를 낸다. task_arm 거절은 `watchdog STOP_LATCHED <이유> - reset needed: ros2 service call <ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}` 로 시작한다. 실행기는 step(끝에 heartbeat) 간격이 `readiness.max_age_s.watchdog_heartbeat`(0.5 s) 이상이면 `EXECUTOR_STEP_GAP <초>` 를 남긴다.
+
 로봇이 멈췄는데 Nav2 는 목표를 계속 보내고 있다면 watchdog 을 먼저 본다. 로그에 이 줄이 있으면 watchdog 이 세운 것이다(WARN):
 
 ```text

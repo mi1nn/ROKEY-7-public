@@ -1,0 +1,8 @@
+OPERATOR 03:12:24 시작: 런북 7.1(실패 뒤 다시 arm, TB-5 arm)·7.5(2차 고정 뒤 TB-6 위치 추정)를 대신한다
+OPERATOR 03:17:26 탐색 끝: SLAM 지도 저장 <회차 폴더>/diag_c9
+OPERATOR 03:17:41 자료 남김 <회차 폴더>/logs/diag_c8_tb5_nav2.txt
+OPERATOR 03:17:59 자료 남김 <회차 폴더>/logs/diag_c7_before_slam_stop.txt
+OPERATOR 03:17:59 런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID 868726에 TERM, slam_toolbox PID 868796)
+OPERATOR 03:18:16 런북 7.5 /robot6/map 발행자 수 0(--no-daemon)
+OPERATOR 03:18:34 자료 남김 <회차 폴더>/logs/diag_c7_before_frozen_loc.txt
+OPERATOR 03:18:34 런북 7.5 frozen_localization robot_a 띄움(로그 <회차 폴더>/logs/frozen_loc_a.log)

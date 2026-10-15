@@ -313,23 +313,14 @@ class WallClearanceTests(unittest.TestCase):
         self.assertLess(wall_distance(grid, old) - FINE / 2, ROOM)              # 0.225 m to the wall face
         core, xy = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
         self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
-        self.assertLessEqual(math.dist(old, xy), GOAL_CLEARANCE - 0.2 + FINE * math.sqrt(2))  # pushed, not re-planned
-        self.assertIn('FRONTIER_GOAL_MOVED', ' '.join(core.drain_notes()))
 
     def test_the_same_clearance_changes_nothing(self):
         grid = self.wall_room()
         _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)
         self.assertAlmostEqual(0.25, wall_distance(grid, old), delta=0.01)  # the goal of main before this change
 
-    def test_a_narrow_way_still_gets_a_goal_and_says_so(self):
-        # 0.70 m between two walls (tunnel 1 gap 0.68 m), unknown beyond x = 2.5
-        grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
-        core, xy = self.core_with(grid, (0.4, 0.4), frontier_goal_clearance_m=GOAL_CLEARANCE)
-        self.assertGreater(xy[0], 1.0)  # a goal along the way, not refused
-        self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
-
-    def test_a_moved_goal_that_failed_is_picked_and_moved_again_then_given_up(self):
-        # C3 with C9: the failures count by the frontier (its goal cell and centroid), not by the moved site
+    def test_a_roomy_goal_that_failed_is_picked_again_at_the_same_place_then_given_up(self):
+        # C3 with C9: the failures count by the frontier (its goal cell and centroid) and by the place (C12)
         grid = self.wall_room()
         core, first = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
         for attempt in (1, 2):
@@ -347,12 +338,102 @@ class WallClearanceTests(unittest.TestCase):
         notes = ' '.join(core.drain_notes())
         self.assertIn('FRONTIER_RETRY', notes)
         self.assertIn('FRONTIER_GAVE_UP', notes)
-        self.assertEqual(2, notes.count('FRONTIER_GOAL_MOVED'))
 
     def test_the_clearance_is_a_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['frontier_goal_clearance_m'])
         with self.assertRaises(RescueError):
             frontier_core(frontier_goal_clearance_m=-0.1)
+
+
+class TightGapTests(unittest.TestCase):
+    """No goal in a place narrower than ``frontier_goal_clearance_m`` (7회차 2026-10-16, C12: four frontiers past the
+    0.68 m gap beside tunnel 1 were all cut to the same point in the gap, sent at 0.2 m clear as FRONTIER_GOAL_TIGHT,
+    and all EXPIRED with RPP "detected collision ahead"). The frontier's goal is the cell that clear within
+    ``frontier_reach_m`` of it with the shortest path, past the gap too; a cut point in a tight part of the path goes
+    on to the first point past it that clear; a frontier with no such cell is left out (TIGHT) for another one; a
+    place that failed FRONTIER_ATTEMPTS times is given up whichever frontier sends TB-6 there."""
+
+    @staticmethod
+    def gap_room(zones='E'):
+        """6.0 m x 3.0 m with walls round it; a 0.3 m partition at x 2.0-2.3 with a 0.65 m gap at y 1.2-1.85
+        (tunnel 1 gap 0.68 m; 0.05 m cells); the unknown zone beyond x = 4.0 (``E``), or two of them south and
+        north of a known strip at y 1.0-2.0 (``SN``)."""
+        def cell(x, y):
+            if y < 0.1 or y > 2.9 or x < 0.1 or x > 5.9 or (2.0 < x < 2.3 and not 1.2 < y < 1.85):
+                return 100
+            if x > 4.0 and (zones == 'E' or not 1.0 < y < 2.0):
+                return -1
+            return 0
+        return fine_grid(6.0, 3.0, cell)
+
+    def core_with(self, grid, start):
+        core = frontier_core(frontier_goal_clearance_m=GOAL_CLEARANCE)
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(grid)
+        core.on_pose(scout_pose(start))
+        core.on_status(status_msg(SCOUT, observed_at_ns=NOW - 10**8))
+        core.tick(NOW)
+        return core
+
+    @staticmethod
+    def site(core):
+        (point,) = live_task_inputs.destinations(core).values()
+        return tuple(point['xy_yaw'][:2])
+
+    def test_a_cut_point_in_the_gap_goes_on_past_it(self):
+        grid = self.gap_room()
+        core = self.core_with(grid, (1.2, 1.5))  # 1.0 m along the path is in the gap
+        xy = self.site(core)
+        self.assertGreater(xy[0], 2.3)  # through the gap, not short of it
+        self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+        self.assertNotIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
+
+    def test_a_frontier_with_no_roomy_cell_is_left_out_for_another(self):
+        # a 0.70 m corridor north of the room, unknown 1.1 m in (the lower cost); a small unknown corner in the
+        # south-east
+        def cell(x, y):
+            if y < 0.1 or x < 0.1 or x > 3.9 or (y > 1.9 and not 0.65 < x < 1.35) or y > 3.9:
+                return 100
+            if y > 3.0 or (x > 3.6 and y < 0.3):
+                return -1
+            return 0
+        grid = fine_grid(4.0, 4.0, cell)
+        core = self.core_with(grid, (1.0, 1.0))
+        xy = self.site(core)
+        self.assertGreater(xy[0], 1.5)  # the south-east corner, not the corridor
+        self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+        self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
+
+    def test_only_tight_frontiers_send_nothing_and_say_tight(self):
+        grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
+        core = self.core_with(grid, (0.4, 0.4))
+        self.assertEqual({}, live_task_inputs.destinations(core))
+        line = [n for n in core.drain_notes() if n.startswith('FRONTIER none')][-1]
+        self.assertIn('tight=1', line)
+        self.assertIn('TIGHT cells=', line)
+
+    def test_a_place_that_failed_twice_is_given_up_for_every_frontier(self):
+        grid = self.gap_room('SN')
+        core = self.core_with(grid, (1.2, 1.5))
+        sent = []
+        for k in range(3):
+            now = NOW + (k + 1) * 10 * DELAY
+            core.on_status(status_msg(SCOUT, observed_at_ns=now - 10**8))
+            core.on_pose(scout_pose((1.2, 1.5), at=now))
+            searches = [f for f in core.tick(now) if f['kind'] == 'SEARCH_AREA']
+            if not searches:
+                break
+            (fields,) = searches
+            sent.append(tuple(live_task_inputs.destinations(core)[fields['search_area_ref']]['xy_yaw'][:2]))
+            core.on_admission(admission_msg(fields))
+            core.on_result(fields['task_id'], NS(outcome='EXPIRED', stop_confirmed=True,
+                                                 terminal_reason='DEADLINE_EXPIRED'))
+            core.on_scout_map(grid)
+            core.tick(now + 1)
+        self.assertEqual(2, len(sent))  # two frontiers, one place: not a third time
+        self.assertLessEqual(math.dist(*sent), 0.5)
 
 
 class FrontierGainTests(unittest.TestCase):
@@ -469,7 +550,7 @@ class FrontierNoneWhyTests(Base):
         self.core.on_pose(scout_pose(NEAR, at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
         line = self.none_line()
-        self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 no_path=0', line)
+        self.assertIn('frontiers=1 small=0 no_goal=0 tried=1 tight=0 no_path=0', line)
         self.assertIn('TRIED cells=20 centroid=(3.90, 2.00)', line)
 
     def test_an_unreachable_and_a_small_frontier_are_named(self):

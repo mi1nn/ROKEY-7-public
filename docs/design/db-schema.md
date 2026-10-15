@@ -16,7 +16,7 @@ updated: 2026-10-15
 | `site_events` | 고정 카메라 사건(진동 감지·대상 소실 후보) | `record_site_event` (`/rescue/site_events`) | 관제 웹 `read_site_events` |
 | `target_states` | 대상당 최신 상태 1행 | `record_target_state` (`/rescue/targets`) | 관제 웹 `read_target_states` |
 | `mission_state` | 임무 상태 1행(모드·단계·출동·사유) | `record_mission_state` (`/rescue/system_state`) | 관제 웹 `read_mission_state` |
-| `operator_commands` | 운영자 명령과 답(거절 포함) | `CommandGate` (`POST /api/operator-commands`) | 관제 웹 `read_operator_commands` |
+| `operator_commands` | 운영자 명령과 답(거절 포함) | `CommandGate` (`POST /api/operator-commands`), `RunReset`, `PassageApproval` (`POST /api/passages/approve`) | 관제 웹 `read_operator_commands` |
 | `error_log` | 실패·거절 기록(추가 전용) | 수신 노드(ROS 입력 거절)·`CommandGate`·`WebcamSwitch` | 관제 웹 `read_error_log` |
 | `exit_locations` | 출구(QR) 관측(VALID 만) | `record_exit_location` (`/rescue/exit_location`) | 관제 웹 `read_exit_locations`(최신 1건) |
 | `overhead_passage_lists`·`overhead_passages` | 로봇별 터널 판정 목록 | `record_overhead_passages` (`/rescue/robots/<id>/overhead_passages`) | 관제 웹 `read_overhead_passages` |
@@ -109,7 +109,7 @@ SQLite 파일 역할은 송신 대기열을 포함해 네 가지이며, 역할�
 
 나머지 표(`robot_status`, `target_states`, `mission_state`, `current_map`, `overhead_passage_lists`·`overhead_passages`)는 지금 값만 담는 표다. 초기화(`SiteStateLedger.reset_run`)는 `robot_status` 를 뺀 다섯 표를 비운다. `robot_status` 는 재기동 확인에 쓰므로 남긴다. 초기화는 닫는 회차의 `robot_status_history` 에 두 로봇의 그 순간 상태를 한 줄씩 더 남긴다(`read_reset_checklist` 의 「전」 boot).
 
-열린 회차 ID 는 쓰는 객체가 메모리에 쥐지 않고 쓸 때마다 `runs` 에서 읽는다. 다른 연결이 회차를 바꿔도 다음 행이 DB 의 열린 회차로 들어간다. `operator_commands.kind` 에 `RESET_RUN`(관제 웹 초기화, operations 가 직접 답함)을 더했다.
+열린 회차 ID 는 쓰는 객체가 메모리에 쥐지 않고 쓸 때마다 `runs` 에서 읽는다. 다른 연결이 회차를 바꿔도 다음 행이 DB 의 열린 회차로 들어간다. `operator_commands.kind` 에 `RESET_RUN`(관제 웹 초기화, operations 가 직접 답함)을 더했다. 2026-10-16 에는 `APPROVE_PASSAGE`(관제 웹 터널 통과 승인, `target_id` 는 터널 항목 ID)를 더했다. 열과 스키마 판은 그대로다.
 
 화면용 읽기 함수는 이름·인자·정렬·한도를 바꾸지 않는다. 모든 결과에 열린 회차의 `run_id`(없으면 None)를 싣는다. 쌓이는 표를 읽는 `read_site_events`(`exit_pass_count` 포함), `read_operator_commands`, `read_error_log`, `read_map_snapshots`, `read_exit_locations` 는 **열린 회차의 행만** 돌려준다. 열린 회차가 없으면 빈 결과다. 지난 회차의 `DISASTER_SIGN` 사건이 새 회차 화면을 재난 모드로 보이게 하지 않으려는 것이다(관제 웹 `view.py` 는 `mission_state` 행이 없으면 사건으로 모드를 추정한다).
 

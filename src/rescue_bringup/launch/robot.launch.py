@@ -36,7 +36,8 @@ import yaml
 
 from rescue_bringup.field_launch import (amcl_update_thresholds, load_field, nav2_with_passage,
                                         passage_keepout_launch_values, robot_launch_values)
-from rescue_bringup.nav2_field import KEEPOUT_INFO_TOPIC, field_nav2, nav2_with_tunnel_keepout
+from rescue_bringup.nav2_field import (KEEPOUT_INFO_TOPIC, field_nav2, nav2_with_depth_low_layer,
+                                       nav2_with_tunnel_keepout)
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
 
@@ -61,8 +62,9 @@ def _nodes(context):
     # here, so no yaml carries its own copy (OPS-135). No depth stop: tunnels are kept out by the vision judgement.
     passage = values['passage']
     # no backing up in recovery (OPS-207) and FollowPath Rotation Shim + RPP instead of DWB (2026-10-14), both robots
-    params = nav2_with_tunnel_keepout(
-        nav2_with_passage(field_nav2(yaml.safe_load(Path(base_params).read_text())), passage))
+    # tunnels kept out by the vision judgement (A) and low objects under the lidar plane by depth (D), 2026-10-16
+    params = nav2_with_depth_low_layer(nav2_with_tunnel_keepout(
+        nav2_with_passage(field_nav2(yaml.safe_load(Path(base_params).read_text())), passage)), passage)
     keepout = []
     if arg('robot_id') == 'robot_a':   # one mask for both robots; TB-6's launch always runs
         k = passage_keepout_launch_values(load_deployment(arg('profile_path')), field=load_field(arg('field_path')))
@@ -92,6 +94,7 @@ def _nodes(context):
     return [
         LogInfo(msg=f'robot {arg("robot_id")} ns={ns} nav2_params={base_params} + no depth stop '
                     f'+ tunnel keepout {KEEPOUT_INFO_TOPIC}' + (' (passage_keepout here)' if keepout else '') + ' '
+                    f'+ depth_low_layer {passage["min_height_m"]}..{passage["overhead_lidar_plane_m"]} m above the floor '
                     f'+ passage slow x{passage["slow_ratio"]} {passage["overhead_lidar_plane_m"]}..'
                     f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
                     f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) + no BackUp recovery + FollowPath Rotation Shim/RPP -> {nav2_params} '
