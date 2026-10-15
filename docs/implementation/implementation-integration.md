@@ -6,7 +6,7 @@ updated: 2026-10-15
 
 # 통합 구현 기록
 
-## 한눈에 (2026-10-15, main `5d9304a`)
+## 한눈에 (2026-10-15, main `f6e56b6`)
 
 이 문서가 답하는 질문은 하나다. **PC 세 대와 로봇 두 대는 무엇으로 이어져 있고, 그 연결은 로봇 없이 어디까지 확인했나?**
 
@@ -55,7 +55,7 @@ launch 값은 세 곳에서만 온다. 배포 프로파일 v2.1(저장소 밖), 
 | --- | --- | --- |
 | Discovery | 시험 중 권고안 A. 모든 PC 가 두 로봇 Pi 의 Discovery 서버를 둘 다 적는다 | [네트워크·Discovery Server](../design/network-discovery.md), 재범 2026-10-13 |
 | 최종 구성 | 전용 Discovery 서버 PC. 로봇이 그 서버에 붙는 방법은 결정 대기 | 같은 문서 |
-| 시계 | 각 PC 가 chrony 측정값으로 오차 상한을 계산한다. 로봇 Pi 오차는 현장 파일 `sensor_host_clock_error_bound_ns`(2026-10-13 측정 150 ms) | `rescue_contracts/clock_measurement.py`, [rescue_robot README](../../src/rescue_robot/README.md) |
+| 시계 | 각 PC 는 timesyncd 측정값으로 오차 상한을 계산한다(현장 파일 `live_inputs.clock_backend`, `task.live.clock_backend`). chrony 는 로봇 Pi 쪽이다. 로봇 Pi 오차는 현장 파일 `sensor_host_clock_error_bound_ns`(2026-10-13 측정 150 ms) | `rescue_contracts/clock_measurement.py`, [rescue_robot README](../../src/rescue_robot/README.md) |
 | 이름 | 로봇 노드는 로봇 namespace 안에 있다. 공통 토픽은 `/rescue/...` 다 | [인터페이스 계약](../design/contracts.md) |
 
 ## 연결이 이어졌는지 보는 도구
@@ -74,7 +74,7 @@ launch 값은 세 곳에서만 온다. 배포 프로파일 v2.1(저장소 밖), 
 
 | 리허설 | 층위 | 무엇이 진짜인가 | 결과 |
 | --- | --- | --- | --- |
-| 한 PC 배선 리허설(#299, 2026-10-14) | E3 | 이 저장소의 현장 노드 전부(실제 namespace `/robot6`·`/robot5`). Nav2·SLAM·AMCL·Pi·웹캠은 가짜 끝점 | 배선 61줄 모두 PASSED. 평면 TF 로 두 번 고정 10단계 PASSED. 임무 시작 5단계 PASSED. 현장 측정 TF 로는 지도 고정 실패를 재현(#291). 첫 회차에서 #298 을 찾음. [기록](../evidence/rehearsal-2026-10-14-wiring-one-pc.md) |
+| 한 PC 배선 리허설(#299, 2026-10-14) | E3 | 이 저장소의 현장 노드 전부(실제 namespace `/robot6`·`/robot5`). Nav2·SLAM·AMCL·Pi·웹캠은 가짜 끝점 | 배선 61줄 모두 PASSED. 평면 TF 로 두 번 고정 10단계 PASSED. 임무 시작 5단계 PASSED. 현장 측정 TF 로는 지도 고정 실패를 재현했고, #291 수정 뒤 같은 리허설에서 10단계 PASSED. 첫 회차에서 #298 을 찾음. [기록](../evidence/rehearsal-2026-10-14-wiring-one-pc.md) |
 | 조정 흐름 리허설 `tests/ros/e3_rehearsal_abc.py`(2026-10-13) | E3 | 조정기, `target_locator`, `db_writer`, `report_node`. 실행기·카메라·지도 고정은 가짜 | 공식 3회 모두 PASS 16 / FAIL 0. [기록](../evidence/rehearsal-2026-10-13-record.md) |
 | 오프라인 데모 `rescue_bringup.offline_demo`(2026-10-08) | E2 | Python 코어만, 한 프로세스 | 14개 검사. ROS 없음. 아래 「기록」 |
 

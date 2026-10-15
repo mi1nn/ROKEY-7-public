@@ -6,7 +6,7 @@ updated: 2026-10-15
 
 # 지도와 좌표 구현 기록
 
-## 한눈에 (2026-10-15, main `5d9304a`)
+## 한눈에 (2026-10-15, main `f6e56b6`)
 
 이 문서가 답하는 질문은 하나다. **기준 지도 없이 시작한 회차에서 두 로봇은 어떤 지도와 위치를 쓰고, 그 지도는 언제 어떻게 바뀌나?**
 
@@ -30,7 +30,7 @@ flowchart LR
 | `slam_toolbox` | TB-6 담당 PC | `launch/tb6_slam.launch.py` | 탐색 중 TB-6 지도 `/robot6/map` 과 TF `map→odom` |
 | 지도 고정 `rescue_map_freeze` | TB-6 담당 PC, 한 번만 | `rescue_robot/map_freeze.py`, `launch/map_freeze.launch.py` | `/rescue/map/freeze` 서비스를 받으면 TB-6 SLAM 지도를 저장하고 해시를 붙여 `/rescue/map/frozen` 과 짝 `/rescue/map/frozen_revision` 으로 낸다. TB-6 출발 자세도 남긴다 |
 | 고정 지도 중계 `rescue_frozen_map_relay` | 각 로봇 담당 PC | `rescue_robot/frozen_map_relay.py`, `launch/frozen_localization.launch.py` | 자기 로봇 실행기가 받아들인 revision 의 고정 지도를 `<ns>/map` 으로 복사한다 |
-| AMCL(고정 지도 위 위치 추정)·map_server | 각 로봇 담당 PC | `launch/frozen_localization.launch.py` | 고정 지도 위 위치 추정. TB-5 는 처음부터, TB-6 는 2차 고정 뒤 |
+| AMCL(고정 지도 위 위치 추정)·고정 지도 중계(`rescue_frozen_map_relay`) | 각 로봇 담당 PC | `launch/frozen_localization.launch.py` | 고정 지도 위 위치 추정. map_server 는 쓰지 않고 중계 노드가 `<ns>/map` 을 낸다. TB-5 는 처음부터, TB-6 는 2차 고정 뒤 |
 | 실행기(지도·위치 입력) | 각 로봇 담당 PC | `rescue_robot/live_sources.py`, `slam_tf_pose.py`, `live_pose.py` | 지도가 고정 지도와 해시가 같을 때만 적재한다. 위치와 지도 상태(`RobotPose`·`MapState`)를 낸다 |
 | 조정기 | 운영 PC | `rescue_coordination/ros_node.py`(`map_mode=SLAM_FREEZE`) | 1차·2차 고정 시점을 정하고 `/rescue/map/freeze` 를 부른다([조정기 구현 기록](implementation-coordination.md)) |
 
@@ -58,7 +58,7 @@ flowchart LR
 | 위치 | TF `map→odom`(slam_toolbox) 과 `odom→base_link`(Create 3) 를 합친 값. 실행기 poll 주기와 지도 고정 노드 0.2 s 마다 읽는다 | slam_toolbox 는 처리한 스캔마다만 `/robot6/pose` 를 낸다. 서 있는 TB-6 은 새 값이 없다 [추정] |
 | 시각 | 두 edge 중 오래된 쪽 | 멈춘 edge 가 위치를 새것으로 보이게 하지 않으려는 것 |
 | 공분산 | 마지막 `/robot6/pose` 값. 현장 파일 `slam_covariance_max_age_ns`(30 s [제안])보다 오래되면 위치는 무효 | TF 에는 공분산이 없다 |
-| TF 모양 | 두 edge 모두 평면이어야 한다(높이 0, roll·pitch 0). 아니면 그 edge 를 버린다 | `rescue_contracts/occupancy.py:planar_origin` |
+| TF 모양 | 두 edge 를 3D(위치, 단위 쿼터니언)로 합성한 뒤 지도 평면의 x, y, 방향으로 내린다. 숫자가 아니거나 단위 회전이 아닌 edge 는 버린다. 합성한 기울기가 10도(`MAX_TILT_RAD`, [제안])를 넘으면 위치를 만들지 않는다(#291) | `rescue_robot/slam_tf_pose.py` |
 
 코드는 `rescue_robot/slam_tf_pose.py:SlamTfPose`, `live_sources.py:attach_slam_tf_pose`, `map_freeze.py` 다.
 
@@ -81,10 +81,10 @@ flowchart LR
 
 ## 알려진 실패 (2026-10-14 현장)
 
-- TB-6 의 실제 TF 는 높이와 roll·pitch 가 정확히 0 이 아니었다(roll·pitch 약 0.5°, 높이 수 mm). 위 「TF 모양」 검사가 두 edge 를 모두 버렸다.
+- TB-6 의 실제 TF 는 높이와 roll·pitch 가 정확히 0 이 아니었다(roll·pitch 약 0.5°, 높이 수 mm). 당시 코드는 평면이 아닌 edge 를 모두 버렸다(`planar_origin` 검사).
 - 그래서 TB-6 `MapState` 가 `UNKNOWN` 이고 출발 자세가 남지 않았으며, 지도 고정이 `no TB-6 start pose recorded` 로 실패했다.
 - 한 PC 리허설에서 같은 TF 값을 넣어 같은 실패를 재현했다([리허설 기록](../evidence/rehearsal-2026-10-14-wiring-one-pc.md) 9·10회차).
-- 고치는 PR 은 #291 이다(열림). 3D 로 합성한 뒤 지도 평면으로 내리는 방식이다. 머지 전까지 이 절이 지금 main 의 상태다.
+- #291 이 고쳤다(위 「TF 모양」). 같은 리허설에서 현장 TF 값으로 지도 고정 10단계가 통과했다. 실기는 NOT_RUN 이다.
 
 ## 시험
 
@@ -92,7 +92,7 @@ flowchart LR
 | --- | --- | --- |
 | E2 로봇 없이 | 고정·중계·모드별 지도 적재·revision 규칙·TF 위치 | `python3 -I scripts/run_tests.py` |
 | E3 한 PC 리허설 | 실제 노드로 1차·2차 고정, TB-6 SLAM 끄기, 중계와 두 `MapState` | `REHEARSAL_PROBE=freeze bash scripts/field/wiring-rehearsal/run.sh ...`. 평면 TF 10단계 PASSED, 현장 측정 TF 10단계 FAILED(현장 재현) |
-| E4 실기 | 두 번 고정 흐름 전체 | NOT_RUN. 2026-10-14 실패(#291) |
+| E4 실기 | 두 번 고정 흐름 전체 | NOT_RUN. 2026-10-14 실패, #291 이 고침(실기 확인 전) |
 
 ## 기록 (2026-10-08 판)
 
