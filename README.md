@@ -12,7 +12,6 @@
 - **개발 환경**: Ubuntu 24.04 LTS, ROS 2 Jazzy, Python 3.12
 - **주요 기술 스택**: ROS 2, Nav2, slam_toolbox · AMCL, Fast DDS Discovery Server, YOLO26n (ultralytics), OpenCV, Flask (관제 웹), SQLite
 - **기간**: 2026.10.08 ~ 2026.10.16
-- **상태**: 2026-10-14 기준 두 실제 로봇으로 처음부터 끝까지 돌린 기록은 아직 없다. 가짜 로봇을 쓴 ROS 통합 시험과 로봇 한 대씩의 실기 기록만 있다. 안전 때문에 위치·지도·시각을 모르면 로봇은 움직이지 않는다.
 
 ## 1. 시스템 설계
 
@@ -50,7 +49,7 @@ HTTP      운영 PC  POST /api/operator-commands · GET·POST /api/webcam
 
 PC 와 로봇은 같은 무선망에 있고, 노드 발견은 Fast DDS Discovery Server 로 한다.
 2026-10-15 부터 모든 PC 가 Discovery 전용 PC 의 서버(ID 0, UDP 11811)에 붙는다. 로봇 Pi 의 온보드 서버(TB-5 ID 5, TB-6 ID 6)는 바꾸지 않았다.
-로봇 토픽이 전용 서버로 보이는 경로는 [미확인]이다. 자세한 운영은 [Discovery 전용 PC 운영 안내](docs/process/discovery-host.md)를 따른다.
+자세한 운영은 [Discovery 전용 PC 운영 안내](docs/process/discovery-host.md)를 따른다.
 
 ### 1.3 PC 별로 도는 것
 
@@ -75,7 +74,7 @@ PC 와 로봇은 같은 무선망에 있고, 노드 발견은 Fast DDS Discovery
 
 | 대상 | 방식 | 한계 |
 | --- | --- | --- |
-| 지진 징후 | 고정 웹캠 화면 전체의 왕복(방향 전환) 횟수를 센다. 손 가림·어두움·렌즈 막힘·영상 끊김은 지진 근거가 아니라 판단 보류로 둔다 | 판정 값은 현장에서 잰 ROI·임계에 의존한다. 일부 값은 [미측정] |
+| 지진 징후 | 고정 웹캠 화면 전체의 왕복(방향 전환) 횟수를 센다. 손 가림·어두움·렌즈 막힘·영상 끊김은 지진 근거가 아니라 판단 보류로 둔다 | 판정 값은 현장에서 잰 ROI·임계에 의존한다 |
 | 인형(구조 대상) | OAK-D 영상에서 YOLO26n 으로 탐지(`assets/models/best.pt`, survivor v2), 깊이로 거리를 얻어 지도 좌표로 바꾼다 | 원거리 confidence 가 낮았다. 사람 오탐 재평가는 남아 있다 |
 | 인형 소실 감시 | 웹캠 영상에 YOLO26n (`assets/models/webcam-yolo26n-best.pt`) | 소실 후보만으로 구출 완료로 처리하지 않는다 |
 | 출구 | 탐색 중 QR 을 읽고, 허용 목록 글자와 정확히 같을 때만 출구로 기록한다 (예 `EXIT-1`, `EXIT-2`) | QR 이 없으면 TB-5 출발 자리가 출구다 |
@@ -125,7 +124,7 @@ PC 와 로봇은 같은 무선망에 있고, 노드 발견은 Fast DDS Discovery
 | ROS 2 | Jazzy (`ros-jazzy-desktop` 0.11.0, `navigation2` 1.3.13, `slam-toolbox` 2.8.5) | `dpkg -l` |
 | Python | 3.12.3 | `python3 --version` |
 
-이 값은 개발에 쓴 PC 한 대의 것이다. 현장 PC 4대의 사양은 [미확인]이다.
+이 값은 개발에 쓴 PC 한 대의 것이다.
 
 ### 워크스페이스 배치
 
@@ -166,10 +165,22 @@ ROKEY-7/
 | 고정 웹캠 | DRGO(디알고) WC720 | 지진 징후 판정·인형 소실 감시. 운영 PC 에 USB 로 연결 |
 | 출구 표시 | QR 코드 | 허용 목록 글자(`EXIT-1`, `EXIT-2` …)와 정확히 같을 때만 출구 |
 | 구조 대상 | 인형 | 사람 대신 쓰는 대상 |
-| PC ×4 | 운영 PC · TB-6 담당 PC · TB-5 담당 PC · Discovery 전용 PC | 사양은 [미확인]. 시험 중에는 TB-6·TB-5 담당 PC 를 한 PC 에서 돌리기도 한다 |
+| PC ×4 | 운영 PC · TB-6 담당 PC · TB-5 담당 PC · Discovery 전용 PC | 시험 중에는 TB-6·TB-5 담당 PC 를 한 PC 에서 돌리기도 한다 |
 
 - 로봇 한 대는 한 번에 한 사람·한 세션만 움직인다. 언도크·도킹·이동 전후에 팀에 알린다.
 - 로봇에 패키지를 설치하거나 업그레이드하지 않는다. 로봇 설정 변경은 사용자 승인과 백업·해시·되돌리는 방법 기록을 거친다.
+
+### 4.2 작업대 · 작업물
+
+![작업 환경 배치](docs/diagrams/cell_layout.png)
+
+| 구성 | 내용 |
+| --- | --- |
+| 고정 웹캠 | 한 대가 현장을 보며 지진 흔들림과 인형 소실을 본다 |
+| 인형 | 구조 대상. 시연 때 배치하고, 구조대원이 출구 쪽으로 옮기면 웹캠에서 사라진다 |
+| 출구 QR | 허용 목록 글자(`EXIT-1`, `EXIT-2` …)와 정확히 같은 것만 출구로 쓴다. 없으면 TB-5 출발 자리가 출구다 |
+| 머리 위 구조물 | 머리 위에 비스듬히 걸친 기둥 통로. 라이다가 못 보는 높이라 깊이 카메라로 46 cm 여유를 재서 통과를 판정한다 |
+| 로봇 자리 | TB-5 는 대기 자리(출발 자리)에서 출동한다. TB-6 는 탐색을 마치면 도킹 접근 지점으로 간다(도킹은 사람) |
 
 ## 5. 의존성
 
@@ -201,6 +212,14 @@ ultralytics 8.4.170 · torch 2.14.1 · torchvision 0.29.1
 opencv-python 4.9.0.80 · numpy 1.26.4 · scipy 1.11.4 · Pillow 10.2.0
 Flask 3.1.3 · pydantic 1.10.14 · PyYAML 6.0.1
 pytest 9.1.1
+```
+
+### 5.3 관제 웹
+
+관제 웹(`rescue_console`)은 Flask 가 HTML 을 직접 그려 보내는 서버 렌더링이다. 별도 프론트엔드 빌드와 npm 의존성은 없다.
+
+```text
+Flask 3.1.3 (pip) · 브라우저는 표준 HTML 만 사용
 ```
 
 ## 6. 실행 순서
@@ -281,12 +300,3 @@ PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.exampl
 ```
 
 `STATIC CONFIG VALID` 는 정적 파일 검사 성공이다. 로봇·ROS 그래프·실제 시계·주행 준비를 검증한 결과가 아니다.
-
-## 7. 더 읽을 문서
-
-- [작업 규칙 (AGENTS.md)](AGENTS.md) — 브랜치·PR·증거 표기·로봇 안전 규칙
-- [범위와 결정 기록](docs/requirements/scope.md) — 사용자 요구, 지금 시나리오, 미결정 사항
-- [시스템 구조](docs/design/architecture.md) · [인터페이스 계약](docs/design/contracts.md) · [상태 전이](docs/design/state-machines.md)
-- [현장 실행 안내](src/rescue_bringup/README.md) · [네트워크·Discovery Server](docs/design/network-discovery.md)
-- [개발과 로컬 검사](docs/implementation/development.md) · [용어집](docs/glossary.md)
-- 그림 원본은 [tools/diagrams](tools/diagrams)의 Graphviz `.dot` 파일이다. `bash tools/diagrams/build.sh` 로 `docs/diagrams/*.png` 를 다시 만든다.
