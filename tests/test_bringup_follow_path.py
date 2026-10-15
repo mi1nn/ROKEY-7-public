@@ -30,7 +30,6 @@ class FollowPath(unittest.TestCase):
         self.assertIs(False, follow['use_rotate_to_heading'])  # the shim does the turning (Nav2 docs)
         self.assertIs(True, follow['use_collision_detection'])
 
-    @unittest.expectedFailure
     def test_speeds_are_the_turtlebot4_defaults(self):
         """재범 2026-10-16 05:4x 「TB 속도가 실제에 비해 너무 느리다. 실제의 100%로 맞춰라.」 (grade 4): FollowPath drives at the
         TurtleBot4 nav2.yaml limits (DWB max_vel_x / max_vel_theta, the velocity smoother's caps), not below them."""

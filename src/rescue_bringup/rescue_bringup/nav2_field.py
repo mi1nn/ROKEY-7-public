@@ -30,7 +30,9 @@ FOLLOW_PATH = {
     'simulate_ahead_time': 1.0,                # collision check of the in-place turn
     'rotate_to_goal_heading': False,           # the goal checker's 0.25 rad tolerance stays the judge
     # RPP
-    'desired_linear_vel': 0.2,                 # under DWB max_vel_x 0.26; the watchdog limit is 0.3
+    # = DWB max_vel_x and the velocity smoother cap 0.26 (TurtleBot4 nav2.yaml); 0.2 before. 재범 2026-10-16 05:4x
+    # 「TB 속도가 실제에 비해 너무 느리다. 실제의 100%로 맞춰라.」 (grade 4). The watchdog limit is 0.3
+    'desired_linear_vel': 0.26,
     'lookahead_dist': 0.4,
     'min_lookahead_dist': 0.3,
     'max_lookahead_dist': 0.6,
