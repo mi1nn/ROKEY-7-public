@@ -28,7 +28,8 @@ from launch_ros.parameter_descriptions import ParameterValue
 from rescue_bringup.operations_launch import (available_cameras, console_camera_argument, db_writer_parameters,
                                               map_snapshot_parameters, mjpeg_relay_parameters, parse_launch_arguments,
                                               read_webcam_parameters, relay_requested, report_node_parameters,
-                                              robot_view_relay_parameters, robot_watch_parameters, webcam_device)
+                                              robot_view_default, robot_view_relay_parameters, robot_watch_parameters,
+                                              webcam_device)
 from rescue_bringup.profile import load_deployment
 
 
@@ -77,7 +78,7 @@ def _nodes(context):
     view = robot_view_relay_parameters(
         robot_views=arg('robot_views'), bind_host=arg('video_bind_host'), port=arg('video_port'),
         stale_s=arg('video_stale_s'), robot_ids=[robot.id for robot in deployment.robots],
-        default_robot=next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SCOUT'))
+        default_robot=robot_view_default(deployment))
     if view:   # 로봇 카메라 칸(OPS-191): 고른 로봇 하나의 판정 영상만 구독
         nodes += [Node(package='rescue_perception', executable='robot_view_relay', name='robot_view_relay',
                        output='screen', parameters=[_text_as_text(view)]),
@@ -85,9 +86,11 @@ def _nodes(context):
     watch = robot_watch_parameters(robot_namespaces=arg('robot_namespaces'), robot_watch_path=arg('robot_watch_path'),
                                    robot_ids=[robot.id for robot in deployment.robots])
     if watch:   # 구독만(재범 허용 2026-10-13): 로봇 기본 토픽 직접 관측
+        scout = next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SCOUT')
         nodes += [Node(package='rescue_operations', executable='robot_watch', name='rescue_robot_watch',
                        output='screen', parameters=[_text_as_text(watch)]),
-                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s>')]
+                  LogInfo(msg=f'console --robot-watch {watch["out_path"]} --robot-watch-stale-s <s> '
+                              f'--robot-watch-map-robot {scout}')]   # 실시간 SLAM 지도 주인 = SCOUT
     return nodes
 
 
@@ -121,7 +124,8 @@ def generate_launch_description():
                               description='Robots to watch directly (subscribe only), e.g. robot_a=/robot6,robot_b=/robot5; '
                                           'empty = off (needs robot_watch_path)'),
         DeclareLaunchArgument('robot_views', default_value='',
-                              description='Robot camera panel (pick one, OPS-191), e.g. robot_a=/robot6,robot_b=/robot5; '
+                              description='Robot camera panel (pick one, OPS-191; default SUPPORT = TB-5), '
+                                          'e.g. robot_b=/robot5 or robot_a=/robot6,robot_b=/robot5; '
                                           'relays <ns>/rescue/passage_view/compressed on video_port + 1; empty = off'),
         DeclareLaunchArgument('robot_watch_path', default_value='',
                               description='File the robot watch writes (console --robot-watch)'),

@@ -53,6 +53,9 @@ def main(argv=None):
                                               '(robot_namespaces/robot_watch_path): robot base topics seen directly')
     parser.add_argument('--robot-watch-stale-s', type=float,
                         help='with --robot-watch: nothing from a robot for this long shows it as stale. No default')
+    parser.add_argument('--robot-watch-map-robot', metavar='ROBOT_ID',
+                        help='with --robot-watch: the robot whose own map is the map shown (live SLAM map owner). '
+                             'Other robots\' directly watched poses are in their own map frame and are not drawn')
     parser.add_argument('--operations', metavar='URL',
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
                              'operator commands go to URL/api/operator-commands. No default: without it the '
@@ -73,8 +76,8 @@ def main(argv=None):
         if args.ledger is None and args.site_state is None:
             raise ConsoleError('INVALID_INPUT', 'LEDGER is required unless --site-state is given')
         # 둘 중 하나만 전달되면 거부한다: 만료(stale) 기준 시간은 기본값이 없다.
-        if (args.robot_watch is None) != (args.robot_watch_stale_s is None):
-            raise ConsoleError('INVALID_INPUT', '--robot-watch and --robot-watch-stale-s go together')
+        if len({args.robot_watch is None, args.robot_watch_stale_s is None, args.robot_watch_map_robot is None}) > 1:
+            raise ConsoleError('INVALID_INPUT', '--robot-watch, --robot-watch-stale-s and --robot-watch-map-robot go together')
         if (args.live_map is None) != (args.live_map_stale_s is None):
             raise ConsoleError('INVALID_INPUT', '--live-map and --live-map-stale-s go together')
         cameras = [parse_camera(text) for text in args.camera]
@@ -83,6 +86,7 @@ def main(argv=None):
                          site_state_path=args.site_state, cameras=cameras, map_path=args.map,
                          live_map_path=args.live_map, live_map_stale_s=args.live_map_stale_s,
                          robot_watch_path=args.robot_watch, robot_watch_stale_s=args.robot_watch_stale_s,
+                         robot_watch_map_robot=args.robot_watch_map_robot,
                          robot_camera=args.robot_camera,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch,

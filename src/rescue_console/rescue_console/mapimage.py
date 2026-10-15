@@ -313,7 +313,7 @@ def map_overlay(meta, robots, targets, exit_=None, passages=()):
                 overlay['no_pose'].append({'id': ident, 'name': extra['name'] or ident})
             continue
         where = {'kind': kind, 'id': ident, 'x': pose['x'], 'y': pose['y'], 'frame_id': pose['frame_id'],
-                 'label': extra.get('label')}
+                 'label': extra.get('label'), 'name': extra.get('name') or ident}   # 사람이 보는 이름(--robot-name)
         if pose['frame_id'] != MAP_FRAME:
             overlay['frame_mismatch'].append(where)
             continue

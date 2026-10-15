@@ -12,7 +12,7 @@
 | 로그인·계정(관리자 ADMIN, 보기 전용 CUSTOMER) | 구현됨 | `accounts.py`, `app.py` `login`·`accounts_*` |
 | 현장 상태 DB 읽기(스키마 1.4) | 구현됨 | `sources.py:load_site_state`, #262 |
 | 실시간 SLAM 지도(`--live-map`) | 구현됨 · 실기 일부: 시험용 TB-5 SLAM 지도 표시 [측정 2026-10-13]. TB-6 지도는 NOT_RUN | `mapimage.py:LiveMap`, `rescue_operations` `map_snapshot`, #209 |
-| 로봇 직접 관측(`--robot-watch`) | 구현됨 · 실기 일부: TB-5·TB-6 배터리·도킹, TB-5 지도 위치 수신 [측정 2026-10-13] | `view.py:_apply_watch`, `rescue_operations` `robot_watch`, #251 |
+| 로봇 직접 관측(`--robot-watch`) | 구현됨 · 실기 일부: TB-5·TB-6 배터리·도킹, TB-5 지도 위치 수신 [측정 2026-10-13]. 지도 주인 로봇만 지도에 그림(`--robot-watch-map-robot`) | `view.py:_apply_watch`, `rescue_operations` `robot_watch`, #251 |
 | 터널 표시(통과 가능/불가/판정 불가) | 구현됨 · 실기 NOT_RUN | `view.py:_passages`, `mapimage.py:map_overlay`, #263 |
 | 출구(QR) 관측 표시 | 구현됨 · 실기 NOT_RUN | `view.py:_exit`, #238 |
 | 웹캠 고르기(관리자) | 구현됨 · 실기 일부: 운영 PC 카메라 2대 전환 [측정 2026-10-13] | `app.py:webcam`, `commands.py:switch_webcam`, #257 |
@@ -166,10 +166,10 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 로봇 카메라 (OPS-191, 재범 결정)
 
-웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-6/TB-5 를 고른다(기본 TB-6 = 프로파일의 SCOUT). 운영 명령이 아니라 보기 설정이라 로그인한 모든 계정(보기 전용 포함)이 바꾸고 확인 창이 없다.
+웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-5 터널 판정 영상을 띄운다(기본 TB-5 = 프로파일의 SUPPORT, 재범 결정 2026-10-14). 두 로봇을 주면 TB-6 도 고를 수 있다. 운영 명령이 아니라 보기 설정이라 로그인한 모든 계정(보기 전용 포함)이 바꾸고 확인 창이 없다.
 
 - 영상은 통합-인식이 로봇 PC 에서 만든 판정 그린 영상 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT depth 1, 352×352 초당 5장 [제안])이다. 원본 RGB 를 Wi-Fi 로 또 끌지 않는다.
-- 운영 launch `robot_views:=robot_a=/robot6,robot_b=/robot5` 를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
+- 운영 launch `robot_views:=robot_b=/robot5`(TB-5 만) 또는 `robot_views:=robot_a=/robot6,robot_b=/robot5`(둘 다, 기본 TB-5)를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
 - 고르기는 관제 웹 `POST /robot-camera` → 중계 `POST /select {"robot": id}`. 바꾸면 중계가 이전 로봇의 마지막 화면을 버린다.
 - 고른 로봇 영상이 `video_stale_s`(중계)·`--camera-stale-s`(화면) 동안 없으면 「카메라 영상 낡음」이고 마지막 화면을 감춘다. 다른 로봇의 터널 판정은 지도 표시로만 본다(다음 PR, `overhead_passages` 기록 뒤).
 
@@ -189,7 +189,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 로봇 직접 관측 (`--robot-watch`, 2026-10-13)
 
-로봇 PC 의 `robot.launch.py`(`/rescue/robots/...`)가 아직 없어도 로봇 칸에 로봇이 보이게 한다(재범 2026-10-13). 운영 launch 에 `robot_namespaces:=robot_a=/robot6,robot_b=/robot5 robot_watch_path:=<파일>` 을 주면 `rescue_operations` `robot_watch` 노드(이름 `rescue_robot_watch`)가 아래 토픽을 **구독만** 하고(발행·서비스·액션 없음, 재범 허용) 1초마다 그 파일을 쓴다. 관제 웹은 `--robot-watch <파일> --robot-watch-stale-s <초>` 로 읽는다.
+로봇 PC 의 `robot.launch.py`(`/rescue/robots/...`)가 아직 없어도 로봇 칸에 로봇이 보이게 한다(재범 2026-10-13). 운영 launch 에 `robot_namespaces:=robot_a=/robot6,robot_b=/robot5 robot_watch_path:=<파일>` 을 주면 `rescue_operations` `robot_watch` 노드(이름 `rescue_robot_watch`)가 아래 토픽을 **구독만** 하고(발행·서비스·액션 없음, 재범 허용) 1초마다 그 파일을 쓴다. 관제 웹은 `--robot-watch <파일> --robot-watch-stale-s <초> --robot-watch-map-robot <robot_id>` 로 읽는다. 셋은 같이 준다.
 
 | 토픽 | 타입 | QoS |
 |---|---|---|
@@ -200,6 +200,7 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 - 카드에는 「직접 관측 · N초 전 · 배터리 N% · 도킹」이 나온다. 프로젝트 상태가 없는 로봇은 「프로젝트 상태 없음 — 로봇 기본 토픽 직접 관측만 보임」 카드를 받는다.
 - 위치는 tf 에 `map -> base_link` 가 있을 때만 쓴다(TB-6 SLAM 중). 없으면 지어내지 않고 「위치 미확정」이다. 프로젝트 상태의 위치가 있으면 그쪽이 먼저다.
+- 이 `map` 은 로봇마다 자기 localization(자기 SLAM, 시작 위치 없는 AMCL)의 map 이라 원점이 각자 출발한 도크다. 그래서 큰 지도에는 `--robot-watch-map-robot` 로 준 로봇(실시간 SLAM 지도를 만드는 TB-6)의 직접 관측 위치만 그린다. 다른 로봇은 좌표를 옮기지 않고 frame 만 `<ns> map`(예: `/robot5 map`)으로 바꿔 「지도에 안 그림」 목록에 둔다. 카드에는 「위치는 자기 지도 기준, 이 지도와 다름」이 나온다(현장 2026-10-14, TB-5 가 TB-6 지도 원점에 겹쳐 그려짐). TB-5 가 고정 지도에서 위치를 잡아 프로젝트 상태로 보내는 위치는 그대로 그린다.
 - `--robot-watch-stale-s` 보다 오래 받은 것이 없으면 「직접 관측 낡음」이고, 그 위치는 그리지 않는다. 파일이 갱신되지 않으면 경고 줄에 나온다. 낡음은 이 호스트 시계로 재므로 관측 노드와 관제 웹은 같은 PC 에서 돈다.
 
 ## 실시간 SLAM 지도 (`--live-map`, 2026-10-13)
