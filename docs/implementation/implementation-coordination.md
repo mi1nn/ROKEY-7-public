@@ -76,6 +76,7 @@ updated: 2026-10-14
   - 경계의 목표 칸까지 가서 COMPLETED 인데 경계가 최신 지도에 그대로 있으면, 시도함으로 넣는 것은 같고 로그 `FRONTIER_DONE … goal_at=(x, y) frontier_remains=True` 로 남긴다.
   - 경로 위 `frontier_goal_max_m` 지점이 그보다 좁은 곳(틈 안)이면, 경로를 따라 그 너머 첫 넉넉한 칸까지 가서 목표로 삼는다(로그 `FRONTIER_GOAL_PAST_TIGHT`). 그래서 목표는 `frontier_goal_max_m` 보다 틈 길이만큼 멀어질 수 있다.
   - 그런 칸이 하나도 없는 경계는 이번 지도 갱신에서 빼고 다음 경계로 간다(로그 `FRONTIER_GOAL_TIGHT … left out`, `FRONTIER none` 의 TIGHT).
+  - 넓은 목표를 가진 경계가 하나도 남지 않으면 TIGHT 경계도 같은 순서로 하나 보낸다(시뮬레이션 12회차 C20, 작전 결정 2026-10-16). 먼저 경계 자체 목표로 가는 경로 위에서 그 목표에 가장 가까운 넉넉한 칸이다. TB-6 자리에서 `frontier_blacklist_m` 이상 가야 하고, 잘린 목표처럼 시도로 치지 않는다(로그 `FRONTIER_GOAL_TIGHT_ON_PATH`). 그런 칸이 없으면 경계 자체 0.2 m 목표(8회차가 틈을 지난 목표)를 그 경계에 한 번만 보낸다(로그 `FRONTIER_GOAL_TIGHT_ONCE`). 실패는 다른 실패와 똑같이 세고, 그 뒤로 그 경계는 다시 TIGHT 로 빠진다. 12회차에는 남은 43칸 경계가 TIGHT 로 세 번 빠져 경계 하나만 보내고 탐색이 끝났다.
   - 7회차(2026-10-16) 시뮬레이션에서 틈 너머 경계 네 개가 모두 틈 안 같은 자리로 잘려 0.2 m 여유로 보내졌고, 모두 EXPIRED 로 끝난 일(C12) 때문이다. 처음 넣은 #369 는 목표를 0.2 m 로 남겨 두었다.
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
 - 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.

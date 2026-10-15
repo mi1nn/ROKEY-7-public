@@ -478,6 +478,7 @@ class CoordinatorCore:
         self.frontier_failures = []  # (goal, centroid) of each failed attempt, to count a frontier's failures
         self.frontier_failed = []   # goals and centroids of frontiers given up after FRONTIER_ATTEMPTS failures
         self.frontier_site_failures = []  # the goal TB-6 got in each failed attempt, whichever frontier (C12)
+        self.frontier_tight_once = []  # (goal, centroid) of TIGHT frontiers sent their own tight goal (C20)
         self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
         self.scout_wait_logged = None  # (frontier site, stop reason) of the last SCOUT_NOT_READY log line
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
@@ -833,6 +834,18 @@ class CoordinatorCore:
             else:
                 chosen, picked_cost = candidates[i], cost
                 break
+        tight = None
+        if plan is None and roomy is not None:
+            # none left with a roomy goal: a TIGHT one, in the same order, still gets one (12회차 C20, 작전
+            # decision 2026-10-16): the last roomy point on its way, else its own 0.2 m clear goal once
+            for _, cost, i in reachable:
+                if why.get(kept[i]) == 'TIGHT':
+                    plan = self._tight_plan(fields, mask, roomy, start, candidates[i], keep_off)
+                    if plan is not None and not self._site_gave_up(plan[1][:2]):
+                        (*plan, tight), chosen, picked_cost = plan, candidates[i], cost
+                        del why[kept[i]]
+                        break
+                    plan = None
         if plan is None:
             why.update({i: 'NO_PATH' for i in kept if i not in why})
         if plan is None:
@@ -867,7 +880,15 @@ class CoordinatorCore:
         site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
         self.search.policy = replace(self.search.policy, areas=(site,))
         self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y), cut=cut,
-                             path_m=path.length_m, yaw=yaw)
+                             path_m=path.length_m, yaw=yaw, tight=tight)
+        if tight is not None:
+            if tight == 'ONCE':
+                self.frontier_tight_once.append((chosen.goal, chosen.centroid))
+            self.notes.append(f'FRONTIER_GOAL_TIGHT_{tight} cells={chosen.cells} centroid=({chosen.centroid[0]:.2f}, '
+                              f'{chosen.centroid[1]:.2f}) goal=({x:.2f}, {y:.2f}): ' + (
+                                  f'the last {self.frontier_goal_clearance_m} m clear point on the way, a step'
+                                  if tight == 'ON_PATH' else
+                                  f'its own {self.freeze_clearance_m} m clear goal, once for this frontier'))
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
                           f'path_m={path.length_m:.2f} cost={picked_cost:.2f} cut={cut} '
@@ -942,6 +963,35 @@ class CoordinatorCore:
             x, y, yaw = past
         return path, (x, y, yaw), math.dist((x, y), path.points[-1]) > 1e-9
 
+    def _tight_plan(self, fields, mask, roomy, start, frontier, tb5=None):
+        """(path, (x, y, yaw), cut, kind) for a TIGHT frontier when no frontier has a roomy goal (12회차 C20: the one
+        left past the gap was TIGHT three map updates in a row and the exploration ended at one frontier), or None.
+        ON_PATH: the roomy point on the path to the frontier's own goal nearest that goal, at least
+        frontier_blacklist_m along (not where TB-6 stands); a step, the frontier is not tried (cut). ONCE: else the
+        frontier's own freeze_clearance_m clear goal (how 8회차 went through the gap), once per frontier; a failure
+        there counts as any. Both keep traffic_min_separation_m off a standing ``tb5``."""
+        sep = self.traffic_min_separation_m
+        among = roomy if tb5 is None else _outside(fields, roomy, tb5, sep)
+        path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=frontier.goal, mask=mask)
+        if path is None:
+            return None
+        points, walked = path.points, [0.0]
+        for a, b in zip(points, points[1:]):
+            walked.append(walked[-1] + math.dist(a, b))
+        for k in range(len(points) - 1, 0, -1):
+            if walked[k] < self.frontier_blacklist_m:
+                break
+            if (nearest_in_mask(**fields, mask=among, point=points[k], within_m=0.0) is not None
+                    and (tb5 is None or math.dist(points[k], tb5) >= sep)):
+                a, b = points[k - 1], points[k]
+                return path, (*b, math.atan2(b[1] - a[1], b[0] - a[0])), True, 'ON_PATH'
+        r = self.frontier_blacklist_m
+        once = any(math.dist(p, q) <= r for pair in self.frontier_tight_once for p in pair
+                   for q in (frontier.goal, frontier.centroid))
+        if once or (tb5 is not None and math.dist(frontier.goal, tb5) < sep):
+            return None
+        return path, _along(points, path.length_m + 1.0), False, 'ONCE'
+
     def _frontier_left(self, outcome):
         """For a COMPLETED goal at the frontier (not cut): where TB-6 stopped and whether the frontier is still on the
         latest map (its goal or centroid within frontier_blacklist_m of a cluster of frontier_min_cells). Still there
@@ -977,7 +1027,10 @@ class CoordinatorCore:
         ranks it as before from where TB-6 now stands (C11). Failed: picked again until FRONTIER_ATTEMPTS attempts
         failed (C9)."""
         pair = [self.frontier['goal'], self.frontier['centroid']]
-        if completed and self.frontier['cut']:
+        if completed and self.frontier['cut'] and self.frontier.get('tight') == 'ON_PATH':
+            self.notes.append(f'FRONTIER_GOAL_CUT {self.frontier["site_id"]} reached the last roomy point on '
+                              f'{self.frontier["path_m"]:.2f} m: the frontier is not tried yet')
+        elif completed and self.frontier['cut']:
             self.notes.append(f'FRONTIER_GOAL_CUT {self.frontier["site_id"]} reached {self.frontier_goal_max_m} m '
                               f'along {self.frontier["path_m"]:.2f} m: the frontier is not tried yet')
         elif completed:
