@@ -154,6 +154,40 @@ class KeepoutMask(unittest.TestCase):
         self.assertGreater(far, 0.25)
 
 
+class ApproveService(unittest.TestCase):
+    """/rescue/passage_keepout/approve (rescue_interfaces/srv/ApproveOverheadPassage, SDD JSON first, #400).
+    The console button calls it with approved_by = the logged-in account name."""
+
+    def test_answers_with_the_srv_reason_codes(self):
+        from rescue_robot.passage_keepout import answer
+        k = keepout()
+        k.on_items('robot_a', [item(ids(6), 'BLOCKED', TUNNEL_1, lowest=0.455)])
+        self.assertEqual((False, 'NO_APPROVER'), answer(k, ids(6), '  ', now_ns=1)[:2])
+        self.assertEqual((False, 'NO_SUCH_ITEM'), answer(k, ids(99), '재범', now_ns=2)[:2])
+        accepted, code, message = answer(k, ids(6), '재범', now_ns=3)
+        self.assertEqual((True, 'ACCEPTED'), (accepted, code))
+        self.assertTrue(message.startswith(f'PASSAGE_APPROVED {ids(6)} by 재범 at 3 ns'), message)
+        self.assertEqual([], blocked_cells(k.mask()))
+
+    def test_the_node_offers_the_service_with_the_srv_type(self):
+        from test_bringup_no_backup import REPO
+        path = REPO / 'src' / 'rescue_robot' / 'rescue_robot' / 'passage_keepout.py'
+        if not path.exists():
+            self.skipTest('installed-wheel checkout has no src/')
+        text = path.read_text()
+        self.assertIn("APPROVE_SERVICE = '/rescue/passage_keepout/approve'", text)
+        self.assertIn('node.create_service(ApproveOverheadPassage, APPROVE_SERVICE, on_approve)', text)
+
+
+class KeepoutLaunch(FieldCase):
+    def test_one_node_for_both_robots_with_the_envelope_version(self):
+        from rescue_bringup.field_launch import passage_keepout_launch_values
+        v = passage_keepout_launch_values(self.deployment, field=self.field())
+        self.assertEqual((['robot_a', 'robot_b'], 'map', 0.3, 0.05, 0.5, 'rescue-envelope/1'),
+                         (sorted(v['robot_ids']), v['map_frame'], v['radius_m'], v['resolution_m'], v['merge_m'],
+                          v['envelope_schema_version']))
+
+
 class Nav2Keepout(unittest.TestCase):
     def test_both_costmaps_get_the_keepout_filter(self):
         from rescue_bringup.nav2_field import KEEPOUT_INFO_TOPIC, nav2_with_tunnel_keepout
