@@ -1,7 +1,7 @@
 """로봇 카메라 칸(OPS-191, 재범 결정): 고른 로봇 하나의 판정 그린 영상 -> 관제 웹 MJPEG.
 
 통합-인식이 로봇 PC 에서 내는 ``<ns>/rescue/passage_view/compressed``(CompressedImage jpeg, BEST_EFFORT depth 1)를
-고른 로봇 것만 구독한다. 고르지 않은 로봇은 구독을 풀어 Wi-Fi 에 영상이 한 줄만 흐른다. 기본은 SCOUT(TB-6)이고,
+고른 로봇 것만 구독한다. 고르지 않은 로봇은 구독을 풀어 Wi-Fi 에 영상이 한 줄만 흐른다. 기본은 launch 의 default_source(SUPPORT = TB-5)이고,
 관제 웹이 ``POST /select {"robot": id}`` 로 바꾼다(누구나 — 운영 명령이 아니라 보기 설정).
 
 바꾸면 이전 로봇의 마지막 화면을 버린다(FrameHub.reset). 낡음은 mjpeg_relay 와 같다(stale_s 동안 새 장면이 없으면

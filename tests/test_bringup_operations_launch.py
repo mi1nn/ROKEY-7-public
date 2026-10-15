@@ -15,6 +15,7 @@ from rescue_bringup.profile import load_deployment
 REPO = Path(__file__).resolve().parents[1]
 PROFILE = REPO / 'config' / 'deployment.v2.example.json'
 V1_PROFILE = REPO / 'config' / 'deployment.example.json'
+OPERATIONS_LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'operations.launch.py'
 
 
 def build(**changes):
@@ -221,7 +222,23 @@ class MapSnapshotParameters(unittest.TestCase):
 
 
 class RobotViewRelay(unittest.TestCase):
-    """robot_views: 로봇 카메라 칸(OPS-191) — 고른 로봇 하나의 판정 영상 중계, 기본은 SCOUT(TB-6)."""
+    """robot_views: 로봇 카메라 칸(OPS-191) — 고른 로봇 하나의 판정 영상 중계, 기본은 SUPPORT(TB-5, 재범 2026-10-14)."""
+
+    def test_default_is_the_support_robot_tb5(self):
+        from rescue_bringup.operations_launch import robot_view_default
+        self.assertEqual('robot_b', robot_view_default(load_deployment(PROFILE)))
+
+    @unittest.skipUnless(OPERATIONS_LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
+    def test_launch_file_uses_the_support_default(self):
+        text = OPERATIONS_LAUNCH.read_text(encoding='utf-8')
+        self.assertIn('default_robot=robot_view_default(deployment)', text)
+
+    def test_tb5_only(self):
+        from rescue_bringup.operations_launch import robot_view_relay_parameters
+        params = robot_view_relay_parameters(robot_views='robot_b=/robot5', bind_host='0.0.0.0', port='18082',
+                                             stale_s='2.0', robot_ids=['robot_a', 'robot_b'], default_robot='robot_b')
+        self.assertEqual((['robot_b=/robot5/rescue/passage_view/compressed'], 'robot_b'),
+                         (params['sources'], params['default_source']))
 
     def test_off_when_empty(self):
         from rescue_bringup.operations_launch import robot_view_relay_parameters

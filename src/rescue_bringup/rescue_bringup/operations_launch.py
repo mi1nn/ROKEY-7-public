@@ -200,9 +200,15 @@ def robot_watch_parameters(*, robot_namespaces, robot_watch_path, robot_ids):
 ROBOT_VIEW_TOPIC = '/rescue/passage_view/compressed'   # 통합-인식 판정 그린 영상, <ns> 아래(OPS-189)
 
 
+def robot_view_default(deployment: Deployment):
+    """로봇 카메라 칸의 기본 로봇 = SUPPORT(TB-5). 웹에는 TB-5 터널 판정 영상을 띄운다(재범 결정 2026-10-14)."""
+    return next(robot.id for robot in deployment.robots if deployment.mission.role_of(robot.id) == 'SUPPORT')
+
+
 def robot_view_relay_parameters(*, robot_views, bind_host, port, stale_s, robot_ids, default_robot):
-    """robot_views('robot_a=/robot6,robot_b=/robot5') -> rescue_perception robot_view_relay parameters, or None
-    when empty. 고른 로봇 하나만 중계(OPS-191); 포트는 video_port + 1, 기본은 ``default_robot``(SCOUT, TB-6)."""
+    """robot_views('robot_b=/robot5' 또는 'robot_a=/robot6,robot_b=/robot5') -> rescue_perception robot_view_relay
+    parameters, or None when empty. 고른 로봇 하나만 중계(OPS-191); 포트는 video_port + 1, 기본은
+    ``default_robot``(``robot_view_default``, SUPPORT = TB-5)."""
     if robot_views == '':
         return None
     sources, ids = [], []
@@ -213,7 +219,7 @@ def robot_view_relay_parameters(*, robot_views, bind_host, port, stale_s, robot_
         ids.append(robot_id)
         sources.append(f'{robot_id}={ns}{ROBOT_VIEW_TOPIC}')
     if default_robot not in ids:
-        raise LaunchSettingError(f'robot_views must include the default robot {default_robot!r} (SCOUT)')
+        raise LaunchSettingError(f'robot_views must include the default robot {default_robot!r} (SUPPORT, TB-5)')
     try:
         view_port, stale = int(port) + 1, float(stale_s)
     except ValueError as exc:

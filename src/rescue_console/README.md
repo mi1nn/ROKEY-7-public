@@ -166,10 +166,10 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 
 ## 로봇 카메라 (OPS-191, 재범 결정)
 
-웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-6/TB-5 를 고른다(기본 TB-6 = 프로파일의 SCOUT). 운영 명령이 아니라 보기 설정이라 로그인한 모든 계정(보기 전용 포함)이 바꾸고 확인 창이 없다.
+웹캠 칸 아래에 「로봇 카메라」 칸 하나가 있고 TB-5 터널 판정 영상을 띄운다(기본 TB-5 = 프로파일의 SUPPORT, 재범 결정 2026-10-14). 두 로봇을 주면 TB-6 도 고를 수 있다. 운영 명령이 아니라 보기 설정이라 로그인한 모든 계정(보기 전용 포함)이 바꾸고 확인 창이 없다.
 
 - 영상은 통합-인식이 로봇 PC 에서 만든 판정 그린 영상 `<ns>/rescue/passage_view/compressed`(CompressedImage jpeg, BEST_EFFORT depth 1, 352×352 초당 5장 [제안])이다. 원본 RGB 를 Wi-Fi 로 또 끌지 않는다.
-- 운영 launch `robot_views:=robot_a=/robot6,robot_b=/robot5` 를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
+- 운영 launch `robot_views:=robot_b=/robot5`(TB-5 만) 또는 `robot_views:=robot_a=/robot6,robot_b=/robot5`(둘 다, 기본 TB-5)를 주면 `rescue_perception robot_view_relay`(노드 이름 `robot_view_relay`)가 `video_port + 1` 에서 `/robot_view.mjpg` 를 내고, **고른 로봇 하나만 구독**한다(고르지 않은 쪽은 구독을 푼다 — Wi-Fi 에 영상 한 줄). 관제 웹은 `--robot-camera http://<운영 PC>:<video_port+1>/robot_view.mjpg` 로 띄운다(`--camera-stale-s` 필요).
 - 고르기는 관제 웹 `POST /robot-camera` → 중계 `POST /select {"robot": id}`. 바꾸면 중계가 이전 로봇의 마지막 화면을 버린다.
 - 고른 로봇 영상이 `video_stale_s`(중계)·`--camera-stale-s`(화면) 동안 없으면 「카메라 영상 낡음」이고 마지막 화면을 감춘다. 다른 로봇의 터널 판정은 지도 표시로만 본다(다음 PR, `overhead_passages` 기록 뒤).
 

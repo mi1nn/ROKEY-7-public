@@ -964,7 +964,7 @@ operations HTTP 서버(명령 API 와 같은 주소)는 db_writer 에 `webcam_no
 
 ### I-7. 로봇 카메라 중계 — `robot_view_relay`
 
-운영 PC 의 `robot_view_relay`(rescue_perception 패키지, launch 인자 `robot_views`, `launch/operations.launch.py:77-82`)는 로봇마다 있는 `<ns>/rescue/passage_view/compressed`(터널 판정 결과를 그린 영상, `rescue_perception/overhead.py:352`) 가운데 **선택한 하나만** 구독해 MJPEG 로 내보낸다(`rescue_perception/robot_view_relay.py:113-123`). 기본 선택은 SCOUT 다.
+운영 PC 의 `robot_view_relay`(rescue_perception 패키지, launch 인자 `robot_views`, `launch/operations.launch.py:77-82`)는 로봇마다 있는 `<ns>/rescue/passage_view/compressed`(터널 판정 결과를 그린 영상, `rescue_perception/overhead.py:352`) 가운데 **선택한 하나만** 구독해 MJPEG 로 내보낸다(`rescue_perception/robot_view_relay.py:113-123`). 기본 선택은 SUPPORT(TB-5)다(재범 결정 2026-10-14). 기본 로봇은 `robot_views` 에 꼭 들어 있어야 한다.
 
 | 경로 | 응답 | 근거 |
 | --- | --- | --- |
