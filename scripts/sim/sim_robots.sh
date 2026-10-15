@@ -153,26 +153,13 @@ trap 'exit 129' HUP   # 터미널 창을 닫아도 정리한다
 echo "sim_robots: world=$world namespace=$namespace x=$x y=$y yaw=$yaw 도메인=$ROS_DOMAIN_ID 로그=$log_dir"
 
 # gz 는 world 파일을 현재 폴더에서 '<이름>.sdf' 로 찾는다(sim.launch.py 가 world 이름에 .sdf 를 붙인다).
-if $headless; then
-    # sim.launch.py 가 하던 것을 직접 한다: 모델 자원 경로, gz 서버(-s), /clock bridge. 로봇은 spawn launch 로.
-    share=/opt/ros/jazzy/share
-    export GZ_SIM_RESOURCE_PATH="$share/turtlebot4_gz_bringup/worlds:$share/irobot_create_gz_bringup/worlds:$share"
-    ( cd "$world_dir" && exec setsid gz sim -s -r -v 4 "$world.sdf" ) > "$log_dir/gz.log" 2>&1 &
-    pids+=($!)
-    setsid ros2 run ros_gz_bridge parameter_bridge '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock' \
-        --ros-args -r __node:=clock_bridge > "$log_dir/clock.log" 2>&1 &
-    pids+=($!)
-    setsid ros2 launch turtlebot4_gz_bringup turtlebot4_spawn.launch.py "world:=$world" "namespace:=$namespace" \
-        "x:=$x" "y:=$y" "yaw:=$yaw" rviz:=false > "$log_dir/spawn_$namespace.log" 2>&1 &
-    pids+=($!)
-    first_log="$log_dir/spawn_$namespace.log"
-else
-    ( cd "$world_dir" && exec setsid ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py \
-        "world:=$world" "namespace:=$namespace" "x:=$x" "y:=$y" "yaw:=$yaw" rviz:=false ) \
-        > "$log_dir/gz.log" 2>&1 &
-    pids+=($!)
-    first_log="$log_dir/gz.log"
-fi
+# sim_world.launch.py: Gazebo(창 있음/없음) + 첫 로봇(Sensors system 을 가진 로봇). 도크는 IR 에미터 광선 없이 만든다
+# (S10: 광선이 있으면 다른 로봇의 라이다가 도크 근처에서 벽을 지나쳤다, config/sim/README.md).
+gui_arg=true; $headless && gui_arg=false
+( cd "$world_dir" && exec setsid ros2 launch "$HERE/sim_world.launch.py" "world:=$world" "namespace:=$namespace" \
+    "x:=$x" "y:=$y" "yaw:=$yaw" "gui:=$gui_arg" ) > "$log_dir/gz.log" 2>&1 &
+pids+=($!)
+first_log="$log_dir/gz.log"
 
 # Gazebo 가 world 를 실제로 띄우고 첫 로봇을 만들 때까지 Gazebo 로그로 기다린다.
 # 토픽 이름만 보면 안 된다: bridge 가 gz 없이도 토픽을 만들어 두어, gz 가 멈춘 채 「떴습니다」가 된 적이 있다.
