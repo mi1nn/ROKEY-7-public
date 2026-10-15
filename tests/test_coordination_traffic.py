@@ -318,3 +318,57 @@ class FrontierBesideTb5Tests(unittest.TestCase):
         line = [n for n in core.drain_notes() if n.startswith('FRONTIER none')][-1]
         self.assertIn('too_close=1', line)
         self.assertIn('TOO_CLOSE cells=', line)
+
+
+class PathPastTb5Tests(unittest.TestCase):
+    """The circle of traffic_min_separation_m around a standing TB-5 holds only the goal, not the way to it (11회차
+    2026-10-16 C16: TB-6's way from its start to the gap passes within 0.6 m of TB-5, so every frontier came out
+    TOO_CLOSE three times, EXPLORATION_COMPLETE frontiers_sent=0, and TB-6 never moved; the field layout has TB-5
+    beside TB-6 at the start too [추정]). Passing TB-5 is traffic control's part (_traffic_scout), and a frontier
+    left out only for TB-5 waits for the next map update instead of counting toward EXPLORATION_COMPLETE."""
+
+    # a corridor 1.6 m wide, TB-5's body in it at its start (0, 4): the way past it is 0.5 m from its centre
+    WALLS = [(-1., -1., 9., 3.2), (-1., 4.8, 9., 9.), (-.2, 3.8, .2, 4.2)]
+
+    def core_with(self, unknown, tb6=(-0.8, 4.), walls=WALLS, **changes):
+        core = core_(**TrafficBase.CORE)
+        for key, value in changes.items():
+            setattr(core, key, value)
+        core.on_map_state(map_state(SCOUT, revision=3))
+        core.on_start_pose((0., 0., 0.))
+        core.on_site_event(site_msg())
+        core.on_status(status_msg(SCOUT))
+        core.on_status(status_msg(SUPPORT))
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        self.grid = scout_grid(unknown=unknown, walls=walls)
+        core.on_scout_map(self.grid)
+        core.on_pose(scout_pose(tb6))
+        return core
+
+    def first_goal(self, core):
+        sent = FrontierBesideTb5Tests.tick(core, NOW) or FrontierBesideTb5Tests.tick(core, NOW + 1)
+        self.assertEqual(1, len(sent), core.drain_notes())
+        return live_task_inputs.destinations(core)[sent[0]['search_area_ref']]['xy_yaw']
+
+    def test_the_way_past_tb5_is_taken(self):
+        core = self.core_with(lambda x, y: x > 8., frontier_goal_max_m=20.)
+        x, y, _ = self.first_goal(core)
+        self.assertGreater(x, 6.)  # the frontier's own goal, not cut
+        self.assertFalse(core.exploration_complete)
+
+    def test_a_cut_point_beside_tb5_goes_on_past_the_circle(self):
+        core = self.core_with(lambda x, y: x > 8.)  # frontier_goal_max_m 1.0: the cut point is beside TB-5
+        x, y, _ = self.first_goal(core)
+        self.assertGreaterEqual(math.dist((x, y), TB5_START), MIN_SEP)
+        self.assertGreater(x, 0.)  # past TB-5 on the way, not back
+
+    def test_a_frontier_left_out_only_for_tb5_does_not_end_the_exploration(self):
+        core = self.core_with(FrontierBesideTb5Tests.BESIDE_TB5, tb6=(1.2, 4.2), walls=(),
+                              frontier_reach_m=0.6)
+        for k in range(3 * core.exploration_empty_checks):
+            core.on_scout_map(self.grid)
+            self.assertEqual([], FrontierBesideTb5Tests.tick(core, NOW + k))
+        self.assertFalse(core.exploration_complete)
+        lines = [n for n in core.drain_notes() if n.startswith('FRONTIER none')]
+        self.assertTrue(lines)
+        self.assertTrue(all('too_close=1' in n and 'not counted' in n for n in lines), lines)
