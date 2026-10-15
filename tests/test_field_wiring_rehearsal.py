@@ -54,7 +54,12 @@ class AmclThresholds(unittest.TestCase):
         launch = (HERE / 'rehearsal.launch.py').read_text()
         self.assertIn('amcl_update_thresholds(yaml.safe_load(LOCALIZATION.read_text()))', launch)
         self.assertIn("parameters=[typed(task)]", launch)
-        import yaml
+
+    def test_the_vendored_file_gives_the_thresholds(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest('PyYAML not installed (the pure-Python CI job)')
         from rescue_bringup.field_launch import amcl_update_thresholds
         vendored = (REPO / 'src' / 'vendor' / 'turtlebot4' / 'turtlebot4_navigation' / 'config' /
                     'localization.yaml')
