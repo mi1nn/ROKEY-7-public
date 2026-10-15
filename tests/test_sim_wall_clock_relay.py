@@ -10,9 +10,14 @@ from types import SimpleNamespace as NS
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('wall_clock_relay', REPO / 'scripts' / 'sim' / 'wall_clock_relay.py')
-relay = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(relay)
+TOOL = REPO / 'scripts' / 'sim' / 'wall_clock_relay.py'
+HAS_TOOL = TOOL.exists()   # the installed-wheel check copies tests/ and config/ only
+if HAS_TOOL:
+    spec = importlib.util.spec_from_file_location('wall_clock_relay', TOOL)
+    relay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(relay)
+else:
+    raise unittest.SkipTest('installed-wheel checkout has no scripts/')
 
 
 def header(frame, sec=14, nsec=150_000_000):
