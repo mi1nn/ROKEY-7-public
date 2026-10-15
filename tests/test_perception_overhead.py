@@ -97,6 +97,39 @@ class JudgeTests(unittest.TestCase):
         self.assertIsNone(judge(np.empty((0, 3)), POLICY))
 
 
+@unittest.skipIf(np is None, 'NumPy not installed: point judgement NOT_RUN')
+class FloorReferenceTests(unittest.TestCase):
+    """Heights from the floor seen, not from base_link (재범 2026-10-16 03:1x: #254 already measured it).
+
+    #254 (2026-10-13): TB-6's floor points ahead were at base_link z = -0.22 .. -0.19 m. Measured from base_link,
+    tunnel 1 (0.47 m) would read 0.27 m and be BLOCKED for good, and a wall's lower 0.25 m would count as floor.
+    So the floor height is the floor seen in the box (the lowest layer of the points at or below floor_noise_m),
+    and every height is from it. Simulation (floor at 0) and the field (floor at -0.2) run the same code.
+    """
+    FIELD_FLOOR = -0.2   # #254
+
+    def at(self, cloud):
+        return cloud + np.array([0.0, 0.0, self.FIELD_FLOOR])
+
+    @unittest.expectedFailure
+    def test_tunnel_1_over_a_floor_at_minus_0_2_is_passable(self):
+        r = judge(self.at(scene(grid(0.4, 1.0, 0.0), grid(0.6, 0.8, 0.47))), POLICY)
+        self.assertEqual(('PASSABLE', 0.47), (r.state, round(r.lowest_m, 3)))
+
+    @unittest.expectedFailure
+    def test_a_lower_cover_over_a_floor_at_minus_0_2_is_blocked_at_its_height(self):
+        r = judge(self.at(scene(grid(0.4, 1.0, 0.0), grid(0.6, 0.8, 0.40))), POLICY)
+        self.assertEqual(('BLOCKED', 0.40), (r.state, round(r.lowest_m, 3)))
+
+    def test_a_wall_over_a_floor_at_minus_0_2_is_not_a_tunnel(self):
+        wall = np.array([(0.7, y, z) for y in np.arange(-0.2, 0.21, 0.05) for z in np.arange(0.06, 0.9, 0.05)])
+        self.assertIsNone(judge(self.at(scene(grid(0.4, 1.0, 0.0), wall)), POLICY))
+
+    def test_no_floor_seen_stays_unknown(self):
+        r = judge(self.at(grid(0.6, 0.8, 0.47)), POLICY)
+        self.assertEqual(('UNKNOWN', None), (r.state, r.lowest_m))
+
+
 @unittest.skipIf(np is None, 'NumPy not installed: point cloud reading NOT_RUN')
 class CloudTests(unittest.TestCase):
     def cloud(self, rows):
