@@ -1,5 +1,5 @@
 {
-  "note": "Practice arena from the floor plan arena-map.svg (재범 2026-10-15, 1 unit = 1 cm, outer 343 x 557 cm). World frame: origin = south-west corner of the robot zone, x east along the 343 cm side, y north along the 557 cm side (plan x -> x/100, plan y -> (557 - y)/100). No SLAM map is used.",
+  "note": "Practice arena from the floor plan arena-map.svg (재범 2026-10-15, 1 unit = 1 cm, outer 343 x 557 cm). World frame: origin = south-west corner of the robot zone, x east along the 343 cm side, y north along the 557 cm side (plan x -> x/100, plan y -> (557 - y)/100). No SLAM map is used. Removed: white_box (plan 182..228, 316..352, inside the white box enclosure), 재범 2026-10-16 결정으로 뺌 (「흰색 상자 없애」); the enclosure walls stay.",
   "wall": {"height_m": 0.41, "thickness_m": 0.01, "color": [0.55, 0.38, 0.22], "estimate": true,
            "source": "height 0.41 m measured by 재범 2026-10-15; thickness 0.01 m estimated from the photo"},
   "floor": {"color": [0.5, 0.5, 0.5], "source": "grey floor tiles, colour estimated"},
@@ -20,8 +20,6 @@
     {"name": "whitebox_north", "kind": "wall", "x1": 1.40, "y1": 2.46, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
     {"name": "whitebox_west", "kind": "wall", "x1": 1.40, "y1": 2.01, "x2": 1.40, "y2": 2.46, "source": "plan white box enclosure"},
     {"name": "whitebox_east", "kind": "wall", "x1": 2.75, "y1": 2.01, "x2": 2.75, "y2": 2.46, "source": "plan white box enclosure"},
-    {"name": "white_box", "kind": "box", "x": 2.05, "y": 2.23, "yaw": 0.0, "size": [0.46, 0.36, 0.40],
-     "color": [0.95, 0.95, 0.95], "estimate": true, "source": "plan (182..228, 316..352); height estimated"},
     {"name": "control_east", "kind": "wall", "x1": 0.80, "y1": 5.57, "x2": 0.80, "y2": 4.17, "source": "plan control box (0..80, 0..140), blocked"},
     {"name": "control_south", "kind": "wall", "x1": 0.0, "y1": 4.17, "x2": 0.80, "y2": 4.17, "source": "plan control box"},
     {"name": "north_stub", "kind": "wall", "x1": 2.36, "y1": 5.57, "x2": 2.36, "y2": 4.65, "source": "plan line (236,0)-(236,92)"},

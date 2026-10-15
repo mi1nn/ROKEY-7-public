@@ -105,6 +105,53 @@ class SlamTfPose:
                     covariance_fresh=now_ns - stamp <= self.covariance_max_age_ns)
 
 
+class AmclTfPose(SlamTfPose):
+    """Frozen-map phase pose = TF map -> base_link: map -> odom from AMCL (sent again with every scan, tf_broadcast)
+    and odom -> base_link from Create3 (simulation 2026-10-16 run 3: a standing robot had no amcl_pose, so no pose).
+
+    The covariance is the last amcl_pose's taken after ``after_ns`` (the map switch). It is AMCL's current state
+    while the robot has moved less than AMCL's own update thresholds since that amcl_pose (``update_min_d`` /
+    ``update_min_a``, localization.yaml): AMCL has not updated, so nothing newer exists. Past them without a new
+    amcl_pose the pose is not valid. No amcl_pose after the switch, or no edge: no pose.
+    """
+
+    def __init__(self, *, map_frame, odom_frame, base_frame, update_min_d, update_min_a):
+        # covariance_max_age_ns is not used here: pose() replaces the age rule with AMCL's motion rule
+        super().__init__(map_frame=map_frame, odom_frame=odom_frame, base_frame=base_frame, covariance_max_age_ns=1)
+        for name, value in (('update_min_d', update_min_d), ('update_min_a', update_min_a)):
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value <= 0:
+                raise ContractError(f'AMCL TF pose needs a positive {name} (AMCL localization parameters)')
+        self.update_min_d, self.update_min_a = float(update_min_d), float(update_min_a)
+        self.odom_key = (odom_frame, base_frame)
+        self.anchor = None   # odom -> base_link (x, y, yaw) when the last amcl_pose came
+
+    def _odom_plane(self):
+        edge = self.edges[self.odom_key]
+        if edge is None:
+            return None
+        x, y, yaw, _ = compose_to_plane(((0., 0., 0.), (0., 0., 0., 1.)), edge[1:])
+        return x, y, yaw
+
+    def on_covariance(self, stamp_ns, covariance):
+        super().on_covariance(stamp_ns, covariance)
+        if self.covariance[0] == stamp_ns:
+            self.anchor = self._odom_plane()
+
+    def pose(self, *, now_ns, after_ns=0):
+        if self.covariance is not None and self.covariance[0] <= after_ns:
+            return None   # an amcl_pose from the previous map
+        result = super().pose(now_ns=now_ns)
+        if result is None:
+            return None
+        here = self._odom_plane()
+        moved = turned = math.inf
+        if self.anchor is not None:
+            moved = math.hypot(here[0] - self.anchor[0], here[1] - self.anchor[1])
+            turned = abs(math.atan2(math.sin(here[2] - self.anchor[2]), math.cos(here[2] - self.anchor[2])))
+        result['covariance_fresh'] = moved < self.update_min_d and turned < self.update_min_a
+        return result
+
+
 def pose_message(pose, frame, factory=None):
     """A PoseWithCovarianceStamped (``factory``) or a look-alike for SavedMapSources.receive_pose."""
     sec, nanosec = divmod(pose['stamp_ns'], 1_000_000_000)

@@ -37,8 +37,8 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from rescue_contracts.grid_search import (clear_mask, find_frontiers, grid_path, nearest_clear_outside, nearest_in_mask,
-                                         path_lengths)
+from rescue_contracts.grid_search import (Frontier, clear_mask, find_frontiers, grid_path, nearest_clear_outside,
+                                         nearest_in_mask, path_lengths)
 from rescue_contracts.occupancy import compose_planar, parse_frozen_revision, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
@@ -76,6 +76,9 @@ EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE'
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # TaskResult.terminal_reason of a goal the robot never started (rescue_robot executor): Nav2 refused it, Nav2 did
 # not answer in time, or the stop evidence was stale before sending. TB-6 did not go there (현장 2026-10-15 17:54).
+# A frontier Nav2 took and that then failed is picked again until this many attempts failed (재범 decision
+# 2026-10-16, C9); untried frontiers go first.
+FRONTIER_ATTEMPTS = 2
 NOT_STARTED_REASONS = frozenset({'GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'})
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
 # and the map is frozen before TB-5 goes; SAVED_MAP = one launch basis for the whole mission (earlier runs).
@@ -444,7 +447,9 @@ class CoordinatorCore:
         self.scout_pose = None      # like support_pose, for TB-6
         self.frontier = None        # dict(site_id, goal, centroid) of the frontier being sent / run
         self.frontier_hold_until = None
-        self.frontier_tried = []    # goals and centroids tried once (completed or not): not picked again
+        self.frontier_tried = []    # goals and centroids not picked again: completed once, or failed FRONTIER_ATTEMPTS
+        self.frontier_failures = []  # (goal, centroid) of each failed attempt, to count a frontier's failures
+        self.frontier_failed = []   # goals and centroids of frontiers given up after FRONTIER_ATTEMPTS failures
         self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
         self.scout_wait_logged = None  # (frontier site, stop reason) of the last SCOUT_NOT_READY log line
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
@@ -701,10 +706,19 @@ class CoordinatorCore:
     def _tried(self, xy):
         return any(math.dist(xy, t) <= self.frontier_blacklist_m for t in self.frontier_tried)
 
-    def _exploration_done(self, reason):
+    def _exploration_done(self, reason, detail=''):
         self.exploration_complete, self.exploration_reason = True, reason
         self.search.policy = replace(self.search.policy, areas=())
-        self.notes.append(f'EXPLORATION_COMPLETE reason={reason} frontiers_sent={self.frontier_count}')
+        self.notes.append(f'EXPLORATION_COMPLETE reason={reason} frontiers_sent={self.frontier_count}{detail}')
+
+    def _failures(self, frontier):
+        """Failed attempts at this frontier (its goal or centroid within frontier_blacklist_m of a failed one)."""
+        r = self.frontier_blacklist_m
+        return sum(1 for pair in self.frontier_failures
+                   if any(math.dist(xy, p) <= r for xy in (frontier.goal, frontier.centroid) for p in pair))
+
+    def _gave_up(self, xy):
+        return any(math.dist(xy, t) <= self.frontier_blacklist_m for t in self.frontier_failed)
 
     def _frontier_tick(self, now_ns):
         """Pick the next frontier for TB-6 when it has none (FRONTIER). The site goes to ~/task_inputs now and the
@@ -731,11 +745,19 @@ class CoordinatorCore:
         if self.frontier_checked_seq == self.scout_grid_seq:
             return  # this map had nothing to pick; wait for the next update
         fields, radius = self.scout_grid.fields, self.freeze_clearance_m
-        mask = clear_mask(**fields, radius=radius)
+        plain = clear_mask(**fields, radius=radius)
+        # A standing TB-5 is an obstacle traffic_min_separation_m wide for the pick (C10, 2026-10-16): a goal or
+        # cut point that close would be held TRAFFIC_ROBOTS_TOO_CLOSE for as long as TB-5 stands. Only with TB-6
+        # itself clear of it (closer, it steps aside first, _traffic_scout).
+        tb5 = self._tb5_xy(now_ns) if self._traffic_on() else None
+        keep_off = (tb5 is not None and self.traffic_min_separation_m > radius
+                    and math.dist(start, tb5) >= self.traffic_min_separation_m)
+        mask = clear_mask(**fields, radius=radius, blocked=((*tb5, self.traffic_min_separation_m - radius),)
+                          ) if keep_off else plain
         # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
         found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
                                mask=mask)
-        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH below)
+        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH, TOO_CLOSE below)
         for i, f in enumerate(found):
             if f.cells < self.frontier_min_cells:
                 why[i] = 'SMALL'
@@ -746,23 +768,42 @@ class CoordinatorCore:
         kept = [i for i in range(len(found)) if i not in why]
         candidates = [found[i] for i in kept]
         lengths = path_lengths(**fields, radius=radius, start=start, goals=[f.goal for f in candidates], mask=mask)
-        reachable = sorted((length, i) for i, length in enumerate(lengths) if length is not None)
+        # untried before retried (C9), then the shortest path
+        reachable = sorted((self._failures(candidates[i]), length, i) for i, length in enumerate(lengths)
+                           if length is not None)
         if not reachable:
             why.update({i: 'NO_PATH' for i in kept})
+        if not reachable and keep_off:
+            # left out only because of TB-5: the same cluster (same order, the frontier cells ignore the mask) has
+            # a goal and a path without it
+            alone = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
+                                   mask=plain)
+            again = [i for i, reason in why.items() if reason in ('NO_GOAL', 'NO_PATH') and alone[i].goal is not None
+                     and not self._tried(alone[i].goal) and not self._tried(alone[i].centroid)]
+            paths = path_lengths(**fields, radius=radius, start=start, goals=[alone[i].goal for i in again],
+                                 mask=plain)
+            why.update({i: 'TOO_CLOSE' for i, length in zip(again, paths) if length is not None})
+        if not reachable:
             self.frontier_checked_seq = self.scout_grid_seq
             self.frontier_empty += 1
             counts = ' '.join(f'{k.lower()}={sum(1 for v in why.values() if v == k)}'
-                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH'))
+                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH', 'TOO_CLOSE'))
             largest = '; '.join(f'{why[i]} cells={found[i].cells} centroid=({found[i].centroid[0]:.2f}, '
                                 f'{found[i].centroid[1]:.2f})' for i in range(min(5, len(found))))
             self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
                               f'({self.frontier_empty}/{self.exploration_empty_checks}): '
                               f'frontiers={len(found)} {counts}' + (f' | {largest}' if largest else ''))
             if self.frontier_empty >= self.exploration_empty_checks:
-                self._exploration_done('EXPLORATION_COMPLETE')
+                # frontiers left only because they failed FRONTIER_ATTEMPTS times: not a whole map (C9)
+                failed = sum(1 for i, reason in why.items() if reason == 'TRIED'
+                             and (self._gave_up(found[i].goal) or self._gave_up(found[i].centroid)))
+                if failed:
+                    self._exploration_done('EXPLORATION_FRONTIERS_FAILED', f' failed_frontiers={failed}')
+                else:
+                    self._exploration_done('EXPLORATION_COMPLETE')
             return
         self.frontier_empty = 0
-        chosen = candidates[reachable[0][1]]
+        chosen = candidates[reachable[0][-1]]
         path = grid_path(**fields, radius=radius, start=start, goal=chosen.goal, mask=mask)
         x, y, yaw = _along(path.points, self.frontier_goal_max_m)
         x, y = self._roomy_goal(fields, mask, start, (x, y))
@@ -798,10 +839,23 @@ class CoordinatorCore:
                           f'for {room} m clear')
         return near
 
-    def _frontier_done(self):
-        """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS): it is not picked
-        again (a frontier still there after TB-6 reached it cannot be cleared from there)."""
-        self.frontier_tried += [self.frontier['goal'], self.frontier['centroid']]
+    def _frontier_done(self, completed):
+        """A frontier task ended (any outcome but a goal TB-6 never started, NOT_STARTED_REASONS). Completed: not
+        picked again (a frontier still there after TB-6 reached it cannot be cleared from there). Failed: picked
+        again until FRONTIER_ATTEMPTS attempts failed (C9)."""
+        pair = [self.frontier['goal'], self.frontier['centroid']]
+        if completed:
+            self.frontier_tried += pair
+        else:
+            n = 1 + self._failures(Frontier(0, self.frontier['centroid'], self.frontier['goal']))
+            self.frontier_failures.append(tuple(pair))
+            if n >= FRONTIER_ATTEMPTS:
+                self.frontier_tried += pair
+                self.frontier_failed += pair
+                self.notes.append(f'FRONTIER_GAVE_UP {self.frontier["site_id"]} after {n} failed attempts')
+            else:
+                self.notes.append(f'FRONTIER_RETRY {self.frontier["site_id"]} failed {n}/{FRONTIER_ATTEMPTS}: '
+                                  'picked again after untried frontiers')
         self.frontier = None
         self.search.policy = replace(self.search.policy, areas=())
 
@@ -1205,7 +1259,7 @@ class CoordinatorCore:
             else:
                 self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome} '
                                   f'reason={result.terminal_reason or "-"}')
-                self._frontier_done()
+                self._frontier_done(result.outcome == 'COMPLETED')
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):
             self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
@@ -1796,6 +1850,8 @@ class CoordinatorCore:
     def mission_reason(self, now_ns):
         """The latest stage after dispatch for SystemState.reason: TB-6 return, the verdict, TB-5's exit."""
         if self._no_survivor():
+            if self.exploration_reason == 'EXPLORATION_FRONTIERS_FAILED':
+                return self.exploration_reason  # no doll, but frontiers were given up: not a whole map (C9)
             return 'NO_SURVIVOR_FOUND'  # the whole map, no doll: TB-5 never leaves (OPS-155 ③)
         scout = {'ISSUED': 'SCOUT_RETURNING', 'MOVING': 'SCOUT_RETURNING',
                  'AT_DOCK_APPROACH': 'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'FAILED': 'SCOUT_RETURN_FAILED'}

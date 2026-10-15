@@ -90,7 +90,7 @@ class FrontierPickTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.finish(fields, 'UNREACHABLE')
+        self.finish(fields)  # reached: not picked again (a failed one is picked again once, FrontierRetryTests)
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
             self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
@@ -190,18 +190,67 @@ class RobotNotStartedTests(Base):
                 self.reject(self.first_goal(), cause)
                 self.assertEqual([], self.core.frontier_tried)
 
-    def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
+    def test_a_goal_nav2_took_and_aborted_counts_as_a_failed_attempt(self):
         self.reject(self.first_goal(), 'ACTION_ABORTED')
-        self.assertEqual(2, len(self.core.frontier_tried))
+        self.assertEqual(([], 1), (self.core.frontier_tried, len(self.core.frontier_failures)))  # retried once (C9)
         # the reason is in the log, not only the outcome (RPP "collision ahead" ends as ACTION_ABORTED, 2026-10-15)
         self.assertIn('outcome=FAILED reason=ACTION_ABORTED', ' '.join(self.core.drain_notes()))
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
 
 
-FINE = 0.05            # TB-6 SLAM resolution class (Nav2 costmap 0.06, config/robots/turtlebot4_nav2.baseline.yaml)
-# Nav2 inflation: footprint radius 0.189, inflation_radius 0.45, cost_scaling_factor 4.0. A cell 0.36 m from a wall
-# costs 253 * exp(-4 * (0.36 - 0.189)) = 128, Nav2's "possibly in collision" line [추정: 비용 128 을 여유 경계로 봄].
-NAV2_MARGIN = 0.36
+class FrontierRetryTests(Base):
+    """A frontier Nav2 took and that then failed is picked again once: it is tried only after its second failure
+    (재범 decision 2026-10-16, C9: the one way into the main zone failed once and the exploration ended). Untried
+    frontiers go first. An exploration that ends with such frontiers left says so (EXPLORATION_FRONTIERS_FAILED)
+    instead of a plain EXPLORATION_COMPLETE."""
+
+    def attempt(self, now):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose(at=now))
+        self.searches(now)
+        self.core.on_pose(scout_pose(at=now + DELAY))
+        (fields,) = self.searches(now + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        return fields
+
+    def test_the_only_frontier_is_picked_again_after_one_failure(self):
+        first = self.attempt(NOW)
+        self.assertEqual([], self.core.frontier_tried)
+        self.assertIn('FRONTIER_RETRY', ' '.join(self.core.drain_notes()))
+        second = self.attempt(NOW + 3 * DELAY)
+        self.assertNotEqual(first['search_area_ref'], second['search_area_ref'])  # a new site, same frontier
+
+    def test_after_the_second_failure_it_is_tried_and_the_end_says_so(self):
+        self.attempt(NOW)
+        self.attempt(NOW + 3 * DELAY)
+        self.assertEqual(2, len(self.core.frontier_tried))
+        for k in range(2):  # exploration_empty_checks = 2
+            self.core.on_scout_map(grid())
+            self.core.on_pose(scout_pose(at=NOW + 6 * DELAY + k))
+            self.assertEqual([], self.searches(NOW + 6 * DELAY + k))
+        self.assertTrue(self.core.exploration_complete)
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.reason(NOW + 6 * DELAY + 2))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('EXPLORATION_COMPLETE reason=EXPLORATION_FRONTIERS_FAILED', notes)
+        self.assertIn('failed_frontiers=1', notes)
+
+    def test_no_doll_after_given_up_frontiers_is_not_shown_as_no_survivor(self):
+        # SLAM_FREEZE with no doll would show NO_SURVIVOR_FOUND ("생존자 없음 — 탐색 완료"): not a whole map here
+        self.core.map_mode, self.core.exploration_complete = 'SLAM_FREEZE', True
+        self.core.exploration_reason = 'EXPLORATION_FRONTIERS_FAILED'
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.core.mission_reason(NOW))
+        self.core.exploration_reason = 'EXPLORATION_COMPLETE'
+        self.assertEqual('NO_SURVIVOR_FOUND', self.core.mission_reason(NOW))
+
+
+FINE = 0.05  # TB-6 SLAM map cell (live map yaml resolution 0.05, docs/evidence/sim-2026-10-15-run232037/maps)
+# The goal must leave TB-6 room to stop and turn in place without RPP's or the shim's collision check (footprint cost
+# LETHAL) firing: robot 0.189 + local costmap cell half diagonal 0.042 + one noise cell 0.06 + pose error 0.05
+# = 0.341 m from the obstacle surface (PR body table). frontier_goal_clearance_m 0.35 gives that: a clear cell's
+# nearest occupied 0.05 m cell centre is over 0.35 + 0.035 away, its face over 0.36.
+ROOM, GOAL_CLEARANCE = 0.341, 0.35
 
 
 def fine_grid(width_m, height_m, cell):
@@ -247,8 +296,8 @@ class WaitingForArmTests(Base):
 
 
 class WallClearanceTests(unittest.TestCase):
-    """The frontier goal TB-6 gets keeps Nav2's margin from walls where there is room (시뮬레이션 2026-10-15 23:0x:
-    a goal 0.1-0.2 m inside the south wall ended FAILED after RPP "detected collision ahead!"). The path itself keeps
+    """The frontier goal TB-6 gets leaves it room to stop and turn in place (재범 decision 2026-10-16, C3; 1·2회차:
+    a goal 0.20 m from the wall cell ended FAILED after RPP "detected collision ahead!"). The path itself keeps
     ``freeze_clearance_m``, so a narrow way (the 0.68 m gap beside tunnel 1) still counts as reachable."""
 
     def core_with(self, grid, start, **changes):
@@ -268,13 +317,13 @@ class WallClearanceTests(unittest.TestCase):
         """South wall (two cell rows), free room, an unknown pocket in the south-east corner."""
         return fine_grid(4.0, 2.0, lambda x, y: 100 if y < 0.1 else (-1 if x > 2.0 and y < 0.5 else 0))
 
-    def test_the_goal_beside_a_wall_keeps_nav2_margin(self):
+    def test_the_goal_beside_a_wall_leaves_room_to_turn(self):
         grid = self.wall_room()
         _, old = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=0.2)  # = freeze_clearance_m
-        self.assertLess(wall_distance(grid, old), NAV2_MARGIN)                   # the field symptom
-        core, xy = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=NAV2_MARGIN)
-        self.assertGreaterEqual(wall_distance(grid, xy), NAV2_MARGIN)
-        self.assertLessEqual(math.dist(old, xy), NAV2_MARGIN - 0.2 + FINE * math.sqrt(2))  # pushed, not re-planned
+        self.assertLess(wall_distance(grid, old) - FINE / 2, ROOM)              # 0.225 m to the wall face
+        core, xy = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
+        self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+        self.assertLessEqual(math.dist(old, xy), GOAL_CLEARANCE - 0.2 + FINE * math.sqrt(2))  # pushed, not re-planned
         self.assertIn('FRONTIER_GOAL_MOVED', ' '.join(core.drain_notes()))
 
     def test_the_same_clearance_changes_nothing(self):
@@ -285,9 +334,30 @@ class WallClearanceTests(unittest.TestCase):
     def test_a_narrow_way_still_gets_a_goal_and_says_so(self):
         # 0.70 m between two walls (tunnel 1 gap 0.68 m), unknown beyond x = 2.5
         grid = fine_grid(3.0, 0.8, lambda x, y: 100 if y < 0.05 or y > 0.75 else (-1 if x > 2.5 else 0))
-        core, xy = self.core_with(grid, (0.4, 0.4), frontier_goal_clearance_m=NAV2_MARGIN)
+        core, xy = self.core_with(grid, (0.4, 0.4), frontier_goal_clearance_m=GOAL_CLEARANCE)
         self.assertGreater(xy[0], 1.0)  # a goal along the way, not refused
         self.assertIn('FRONTIER_GOAL_TIGHT', ' '.join(core.drain_notes()))
+
+    def test_a_moved_goal_that_failed_is_picked_and_moved_again_then_given_up(self):
+        # C3 with C9: the failures count by the frontier (its goal cell and centroid), not by the moved site
+        grid = self.wall_room()
+        core, first = self.core_with(grid, (0.4, 0.3), frontier_goal_clearance_m=GOAL_CLEARANCE)
+        for attempt in (1, 2):
+            core.on_status(status_msg(SCOUT, observed_at_ns=NOW + attempt * 10 * DELAY - 10**8))
+            core.on_pose(scout_pose((0.4, 0.3), at=NOW + attempt * 10 * DELAY))
+            (fields,) = [f for f in core.tick(NOW + attempt * 10 * DELAY) if f['kind'] == 'SEARCH_AREA']
+            xy = tuple(live_task_inputs.destinations(core)[fields['search_area_ref']]['xy_yaw'][:2])
+            self.assertEqual(first, xy)                                   # the same moved goal both times
+            self.assertGreaterEqual(wall_distance(grid, xy) - FINE / 2, ROOM)
+            core.on_admission(admission_msg(fields))
+            core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                 terminal_reason='ACTION_ABORTED'))
+            core.on_scout_map(grid)
+            core.tick(NOW + attempt * 10 * DELAY + 1)                     # picks it again after the 1st failure
+        notes = ' '.join(core.drain_notes())
+        self.assertIn('FRONTIER_RETRY', notes)
+        self.assertIn('FRONTIER_GAVE_UP', notes)
+        self.assertEqual(2, notes.count('FRONTIER_GOAL_MOVED'))
 
     def test_the_clearance_is_a_parameter(self):
         self.assertEqual('DOUBLE', ros_node.PARAMETERS['frontier_goal_clearance_m'])
@@ -310,9 +380,7 @@ class FrontierNoneWhyTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.core.on_admission(admission_msg(fields))
-        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
-                                                  terminal_reason='ACTION_ABORTED'))
+        self.finish(fields)  # reached once: tried
         self.core.on_scout_map(grid())
         self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)

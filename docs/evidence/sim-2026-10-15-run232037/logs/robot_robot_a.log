@@ -1,0 +1,1489 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-15-23-21-54-142388-sim-pc-566589
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: robot robot_a ns=/robot6 nav2_params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/nav2.yaml + passage stop 0.05..0.46 m front [0.0, 0.05] + passage slow x0.3 0.23..1.0 m front [0.4, 1.2] depth /robot6/oakd/stereo/image_raw (compressedDepth) + no BackUp recovery + FollowPath Rotation Shim/RPP -> /tmp/nav2_robot_a_kakci4wu.yaml map_mode=SLAM_THEN_FROZEN map_sha256=(decided by the freeze) declared alignment window 1792074111215920460..1792077714215920460 ns
+[INFO] [controller_server-1]: process started with pid [566634]
+[INFO] [smoother_server-2]: process started with pid [566636]
+[INFO] [planner_server-3]: process started with pid [566638]
+[INFO] [route_server-4]: process started with pid [566640]
+[INFO] [behavior_server-5]: process started with pid [566642]
+[INFO] [bt_navigator-6]: process started with pid [566643]
+[INFO] [waypoint_follower-7]: process started with pid [566644]
+[INFO] [velocity_smoother-8]: process started with pid [566646]
+[INFO] [collision_monitor-9]: process started with pid [566649]
+[INFO] [opennav_docking-10]: process started with pid [566650]
+[INFO] [lifecycle_manager-11]: process started with pid [566651]
+[INFO] [command_watchdog-12]: process started with pid [566652]
+[INFO] [task_input-13]: process started with pid [566654]
+[route_server-4] [INFO] [1792074114.888459966] [robot6.route_server]: 
+[route_server-4] 	route_server lifecycle node launched. 
+[route_server-4] 	Waiting on external lifecycle transitions to activate
+[route_server-4] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792074114.955900035] [robot6.controller_server]: 
+[controller_server-1] 	controller_server lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792074114.960601942] [robot6.controller_server]: Creating controller server
+[lifecycle_manager-11] [INFO] [1792074115.073377368] [robot6.lifecycle_manager_navigation]: Creating
+[lifecycle_manager-11] [INFO] [1792074115.082613555] [robot6.lifecycle_manager_navigation]: Creating and initializing lifecycle service clients
+[planner_server-3] [INFO] [1792074115.104647612] [robot6.planner_server]: 
+[planner_server-3] 	planner_server lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792074115.107174398] [robot6.planner_server]: Creating
+[planner_server-3] [INFO] [1792074115.148977584] [robot6.global_costmap.global_costmap]: 
+[planner_server-3] 	global_costmap lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792074115.149611935] [robot6.global_costmap.global_costmap]: Creating Costmap
+[command_watchdog-12] [INFO] [1792074115.175166533] [robot6.rescue_command_watchdog]: git_sha=e43e591434182d658947ac3fe744d77aae7465ef parameters={'namespace': '/robot6', 'cmd_vel_in_topic': '/robot6/cmd_vel_watchdog_in', 'cmd_vel_out_topic': '/robot6/cmd_vel', 'cmd_vel_stamped': True, 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat', 'step_period': 0.05, 'watchdog.version': 'search-live-20261012', 'watchdog.heartbeat_max_age_s': 0.5, 'watchdog.command_max_age_s': 0.5, 'watchdog.max_linear_mps': 0.3, 'watchdog.max_angular_rps': 1.2}
+[waypoint_follower-7] [INFO] [1792074115.247078509] [robot6.waypoint_follower]: 
+[waypoint_follower-7] 	waypoint_follower lifecycle node launched. 
+[waypoint_follower-7] 	Waiting on external lifecycle transitions to activate
+[waypoint_follower-7] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792074115.247714750] [robot6.waypoint_follower]: Creating
+[controller_server-1] [INFO] [1792074115.265116214] [robot6.local_costmap.local_costmap]: 
+[controller_server-1] 	local_costmap lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792074115.265763383] [robot6.local_costmap.local_costmap]: Creating Costmap
+[collision_monitor-9] [INFO] [1792074115.273610803] [robot6.collision_monitor]: 
+[collision_monitor-9] 	collision_monitor lifecycle node launched. 
+[collision_monitor-9] 	Waiting on external lifecycle transitions to activate
+[collision_monitor-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[opennav_docking-10] [INFO] [1792074115.273988214] [robot6.docking_server]: 
+[opennav_docking-10] 	docking_server lifecycle node launched. 
+[opennav_docking-10] 	Waiting on external lifecycle transitions to activate
+[opennav_docking-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[opennav_docking-10] [INFO] [1792074115.274087352] [robot6.docking_server]: Creating docking_server
+[smoother_server-2] [INFO] [1792074115.275375036] [robot6.smoother_server]: 
+[smoother_server-2] 	smoother_server lifecycle node launched. 
+[smoother_server-2] 	Waiting on external lifecycle transitions to activate
+[smoother_server-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[smoother_server-2] [INFO] [1792074115.277341401] [robot6.smoother_server]: Creating smoother server
+[velocity_smoother-8] [INFO] [1792074115.285153887] [robot6.velocity_smoother]: 
+[velocity_smoother-8] 	velocity_smoother lifecycle node launched. 
+[velocity_smoother-8] 	Waiting on external lifecycle transitions to activate
+[velocity_smoother-8] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[behavior_server-5] [INFO] [1792074115.304793275] [robot6.behavior_server]: 
+[behavior_server-5] 	behavior_server lifecycle node launched. 
+[behavior_server-5] 	Waiting on external lifecycle transitions to activate
+[behavior_server-5] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792074115.308345699] [robot6.bt_navigator]: 
+[bt_navigator-6] 	bt_navigator lifecycle node launched. 
+[bt_navigator-6] 	Waiting on external lifecycle transitions to activate
+[bt_navigator-6] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792074115.310024920] [robot6.bt_navigator]: Creating
+[task_input-13] [ERROR] [1792074115.778753650] [robot6.rescue_command_adapter]: input session blocked: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [INFO] [1792074115.861777173] [robot6.rescue_command_adapter]: task runtime configuration={"auto_rearm": true, "auto_target": {"enabled": true, "goal_clear_radius_m": 0.2, "kinds": ["REOBSERVE_TARGET", "RETURN_HOME"], "policy_version": "auto-target-20261013"}, "clock_error_bound_ns": 2000000000, "configured_destinations": {"home/robot_a": {"frame_id": "map", "map_revision": 2, "map_session_id": "22222222-2222-4222-8222-222222222222", "robot_id": "robot_a", "transform_revision": 1, "xy_yaw": [-0.35264073643923655, -3.199523187114639e-11, -2.9461952712602]}}, "coordinator_authority": {"authority_epoch": "66666666-6666-4666-8666-666666666666", "coordinator_id": "77777777-7777-4777-8777-777777777777"}, "coordinator_state_topic": "/rescue/system_state", "coordinator_targets_topic": "/rescue/targets", "endpoints": {"action_name": "/rescue/robots/robot_a/execute_task", "admission_topic": "/rescue/robots/robot_a/task_admission", "lease_topic": "/rescue/robots/robot_a/command_lease", "status_topic": "/rescue/robots/robot_a/status"}, "format": "rescue-robot-runtime/1", "input_max_age_ns": 30000000000, "input_mode": "LIVE_ROS", "lease": {"clock_domain_id": "rokey7-utc-field", "duration_s": 3.0, "max_age_ns": 4000000000, "max_error_ns": 2000000000}, "live_clock": {"backend": "timesyncd", "coordinator_service": "/mission_coordinator/task_inputs", "drift_ppm": 100.0, "max_age_ns": 3600000000000, "poll_period_s": 0.5}, "mapping_authority": "88888888-8888-4888-8888-888888888888", "max_position_error_m": 0.1, "max_rotation_error_rad": 0.1, "mission_frame": "map", "passage": {"polygon_name": "PassageStop", "result_window_ns": 5000000000}, "poll_period_s": 0.5, "pose_valid_ns": 2000000000, "publisher_id": "99999999-9999-4999-8999-999999999999", "recheck": {"deadline_ns": 10000000000, "window_ns": 3000000000}, "robot_id": "robot_a", "saved_maps": {"robot_a": {"authority_id": "88888888-8888-4888-8888-888888888888", "clock_domain_id": "rokey7-utc-field", "frozen_revision_topic": "/rescue/map/frozen_revision", "frozen_topic": "/rescue/map/frozen", "localization_topic": "/robot6/amcl_pose", "map_frame": "map", "map_revision": 0, "map_session_id": "22222222-2222-4222-8222-222222222222", "map_topic": "/robot6/map", "max_position_variance_m2": 0.25, "max_yaw_variance_rad2": 0.25, "mode": "SLAM_THEN_FROZEN", "occupancy_sha256": "", "position_error_m": 0.0, "rotation_error_rad": 0.0, "slam_base_frame": "base_link", "slam_covariance_max_age_ns": 30000000000, "slam_localization_topic": "/robot6/pose", "slam_odom_frame": "odom", "slam_tf_topic": "/robot6/tf", "transform_revision": 1, "transform_valid_until_ns": 1792077714215920460, "transform_xy_yaw": [0.0, 0.0, 0.0], "valid_from_ns": 1792074111215920460}}, "schema_version": "rescue-envelope/1", "sensor_host_clock": {"domain_id": "rokey7-utc-field", "error_bound_ns": 150000000}}
+[task_input-13] [INFO] [1792074115.862553844] [robot6.rescue_command_adapter]: installed task runtime; input_mode=LIVE_ROS; explicit arm required
+[task_input-13] [INFO] [1792074115.863046768] [robot6.rescue_command_adapter]: task runtime attached: rescue_robot.task_site_runtime:create_runtime
+[task_input-13] [INFO] [1792074115.867467803] [robot6.rescue_command_adapter]: git_sha=e43e591434182d658947ac3fe744d77aae7465ef boot=e130d47c-d0c0-4aca-8230-d4a20ba5935f parameters={'allowed_robot_ids': ['robot_a', 'robot_b'], 'robot_id': 'robot_a', 'namespace': '/robot6', 'authority_epoch': '66666666-6666-4666-8666-666666666666', 'nav_action': '/robot6/navigate_to_pose', 'odom_topic': '/robot6/odom', 'dock_status_topic': '/robot6/dock_status', 'policy_version': 'search-live-20261012', 'step_period': 0.05, 'clock_error_bound_s': 2.0, 'scan_topic': '/robot6/scan', 'tf_topic': '/robot6/tf', 'map_frame': 'map', 'odom_frame': 'odom', 'readiness.version': 'example-2026-10-08', 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'nav2_lifecycle_service': '/robot6/lifecycle_manager_navigation/is_active', 'policy.acceptance_timeout': 10.0, 'policy.stop_timeout': 5.0, 'policy.stop_window': 0.5, 'policy.max_sample_gap': 0.3, 'policy.evidence_max_age': 3.0, 'policy.linear_stop_max': 0.01, 'policy.angular_stop_max': 0.02, 'readiness.max_age_s.odom': 0.5, 'readiness.max_age_s.scan': 0.5, 'readiness.max_age_s.camera': 1.0, 'readiness.max_age_s.wheel_status': 0.5, 'readiness.max_age_s.map_to_odom_tf': 1.0, 'readiness.max_age_s.watchdog_heartbeat': 0.5, 'camera_topics': ['/robot6/oakd/rgb/camera_info', '/robot6/oakd/stereo/image_raw/compressedDepth'], 'wheel_status_topic': '/robot6/wheel_status', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat'}
+[task_input-13] [WARN] [1792074115.918439555] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no NavigateToPose server: nav2 NOT_READY
+[command_watchdog-12] [INFO] [1792074115.921165757] [robot6.rescue_command_watchdog]: watchdog ARMED reason=- t=26626.919
+[task_input-13] [INFO] [1792074116.643252595] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=UNKNOWN
+[lifecycle_manager-11] [INFO] [1792074116.643382541] [robot6.lifecycle_manager_navigation]: Starting managed nodes bringup...
+[lifecycle_manager-11] [INFO] [1792074116.643440882] [robot6.lifecycle_manager_navigation]: Configuring controller_server
+[controller_server-1] [INFO] [1792074116.643990785] [robot6.controller_server]: Configuring controller interface
+[controller_server-1] [INFO] [1792074116.644041987] [robot6.controller_server]: getting progress checker plugins..
+[controller_server-1] [INFO] [1792074116.644426925] [robot6.controller_server]: getting goal checker plugins..
+[controller_server-1] [INFO] [1792074116.644723052] [robot6.controller_server]: Controller frequency set to 20.0000Hz
+[controller_server-1] [INFO] [1792074116.644823278] [robot6.local_costmap.local_costmap]: Configuring
+[controller_server-1] [INFO] [1792074116.672953272] [robot6.local_costmap.local_costmap]: Using plugin "static_layer"
+[controller_server-1] [INFO] [1792074116.682023091] [robot6.local_costmap.local_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[controller_server-1] [INFO] [1792074116.692245909] [robot6.local_costmap.local_costmap]: Initialized plugin "static_layer"
+[controller_server-1] [INFO] [1792074116.692298610] [robot6.local_costmap.local_costmap]: Using plugin "voxel_layer"
+[controller_server-1] [INFO] [1792074116.695859142] [robot6.local_costmap.local_costmap]: Subscribed to Topics: scan
+[controller_server-1] [INFO] [1792074116.727560414] [robot6.local_costmap.local_costmap]: Initialized plugin "voxel_layer"
+[controller_server-1] [INFO] [1792074116.727600403] [robot6.local_costmap.local_costmap]: Using plugin "inflation_layer"
+[controller_server-1] [INFO] [1792074116.729873063] [robot6.local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[controller_server-1] [INFO] [1792074116.782427032] [robot6.controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[controller_server-1] [INFO] [1792074116.783198875] [robot6.controller_server]: Controller Server has progress_checker  progress checkers available.
+[controller_server-1] [INFO] [1792074116.783916260] [robot6.controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[controller_server-1] [INFO] [1792074116.784310840] [robot6.controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[controller_server-1] [INFO] [1792074116.790175822] [robot6.controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792074116.795474342] [robot6.controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792074116.816184998] [robot6.controller_server]: Controller Server has FollowPath  controllers available.
+[lifecycle_manager-11] [INFO] [1792074116.847224438] [robot6.lifecycle_manager_navigation]: Configuring smoother_server
+[smoother_server-2] [INFO] [1792074116.847660523] [robot6.smoother_server]: Configuring smoother server
+[controller_server-1] [INFO] [1792074116.849328427] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 62 X 80 at 0.050000 m/pix
+[smoother_server-2] [INFO] [1792074116.875696141] [robot6.smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[smoother_server-2] [INFO] [1792074116.877165981] [robot6.smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[lifecycle_manager-11] [INFO] [1792074116.891181375] [robot6.lifecycle_manager_navigation]: Configuring planner_server
+[planner_server-3] [INFO] [1792074116.891684678] [robot6.planner_server]: Configuring
+[planner_server-3] [INFO] [1792074116.891717191] [robot6.global_costmap.global_costmap]: Configuring
+[planner_server-3] [INFO] [1792074116.913030115] [robot6.global_costmap.global_costmap]: Using plugin "static_layer"
+[planner_server-3] [INFO] [1792074116.924528483] [robot6.global_costmap.global_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[planner_server-3] [INFO] [1792074116.932700763] [robot6.global_costmap.global_costmap]: Initialized plugin "static_layer"
+[planner_server-3] [INFO] [1792074116.932783921] [robot6.global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792074116.935963265] [robot6.global_costmap.global_costmap]: Subscribed to Topics: scan
+[planner_server-3] [INFO] [1792074116.946824459] [robot6.global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792074116.946871351] [robot6.global_costmap.global_costmap]: Using plugin "inflation_layer"
+[planner_server-3] [INFO] [1792074116.947900221] [robot6.global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[planner_server-3] [INFO] [1792074117.011093233] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 62 X 80 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792074117.011530280] [robot6.planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner::NavfnPlanner
+[planner_server-3] [INFO] [1792074117.011561539] [robot6.planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792074117.012326743] [robot6.planner_server]: Planner Server has GridBased  planners available.
+[lifecycle_manager-11] [INFO] [1792074117.042709002] [robot6.lifecycle_manager_navigation]: Configuring route_server
+[route_server-4] [INFO] [1792074117.043058965] [robot6.route_server]: Configuring
+[route_server-4] [INFO] [1792074117.130920524] [robot6.route_server]: Created GraphFileLoader GeoJsonGraphFileLoader of type nav2_route::GeoJsonGraphFileLoader
+[route_server-4] [INFO] [1792074117.130993702] [robot6.route_server]: Configuring geojson graph file loader
+[route_server-4] [INFO] [1792074117.131010040] [robot6.route_server]: No graph file provided to load yet.
+[route_server-4] [INFO] [1792074117.134799228] [robot6.route_server]: Created edge cost function plugin DistanceScorer of type nav2_route::DistanceScorer
+[route_server-4] [INFO] [1792074117.134855340] [robot6.route_server]: Configuring distance scorer.
+[route_server-4] [INFO] [1792074117.135254263] [robot6.route_server]: Created edge cost function plugin DynamicEdgesScorer of type nav2_route::DynamicEdgesScorer
+[route_server-4] [INFO] [1792074117.135282609] [robot6.route_server]: Configuring adjust edges scorer.
+[route_server-4] [INFO] [1792074117.143555475] [robot6.route_server]: Created route operation AdjustSpeedLimit of type nav2_route::AdjustSpeedLimit
+[route_server-4] [INFO] [1792074117.143614709] [robot6.route_server]: Configuring Adjust speed limit operation.
+[route_server-4] [INFO] [1792074117.149626705] [robot6.route_server]: Created route operation ReroutingService of type nav2_route::ReroutingService
+[route_server-4] [INFO] [1792074117.149687063] [robot6.route_server]: Configuring Rerouting service operation.
+[lifecycle_manager-11] [INFO] [1792074117.157417630] [robot6.lifecycle_manager_navigation]: Configuring behavior_server
+[behavior_server-5] [INFO] [1792074117.157848256] [robot6.behavior_server]: Configuring
+[behavior_server-5] [INFO] [1792074117.168636573] [robot6.behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[behavior_server-5] [INFO] [1792074117.169699919] [robot6.behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors::DriveOnHeading
+[behavior_server-5] [INFO] [1792074117.170996233] [robot6.behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors::AssistedTeleop
+[behavior_server-5] [INFO] [1792074117.173199332] [robot6.behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[behavior_server-5] [INFO] [1792074117.205101588] [robot6.behavior_server]: Configuring spin
+[behavior_server-5] [INFO] [1792074117.253315248] [robot6.behavior_server]: Configuring drive_on_heading
+[behavior_server-5] [INFO] [1792074117.268693698] [robot6.behavior_server]: Configuring assisted_teleop
+[behavior_server-5] [INFO] [1792074117.293244569] [robot6.behavior_server]: Configuring wait
+[lifecycle_manager-11] [INFO] [1792074117.314043680] [robot6.lifecycle_manager_navigation]: Configuring velocity_smoother
+[velocity_smoother-8] [INFO] [1792074117.314903228] [robot6.velocity_smoother]: Configuring velocity smoother
+[lifecycle_manager-11] [INFO] [1792074117.331886672] [robot6.lifecycle_manager_navigation]: Configuring collision_monitor
+[collision_monitor-9] [INFO] [1792074117.332350753] [robot6.collision_monitor]: Configuring
+[collision_monitor-9] [INFO] [1792074117.353942387] [collision_monitor]: [scan]: Creating Scan
+[collision_monitor-9] [INFO] [1792074117.359468988] [collision_monitor]: [passage_depth]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792074117.363245705] [collision_monitor]: [passage_overhead]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792074117.367573450] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[collision_monitor-9] [INFO] [1792074117.367829399] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[collision_monitor-9] [INFO] [1792074117.370920772] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on local_costmap/published_footprint topic
+[collision_monitor-9] [INFO] [1792074117.376974171] [collision_monitor]: [PassageStop]: Creating Polygon
+[collision_monitor-9] [INFO] [1792074117.383048161] [collision_monitor]: [PassageSlow]: Creating Polygon
+[lifecycle_manager-11] [INFO] [1792074117.414036951] [robot6.lifecycle_manager_navigation]: Configuring bt_navigator
+[bt_navigator-6] [INFO] [1792074117.414385723] [robot6.bt_navigator]: Configuring
+[bt_navigator-6] [INFO] [1792074117.425139925] [robot6.bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[task_input-13] [WARN] [1792074117.516567517] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no answer within 3.0 s: nav2 NOT_READY
+[bt_navigator-6] [INFO] [1792074117.561353749] [robot6.bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[lifecycle_manager-11] [INFO] [1792074117.610176629] [robot6.lifecycle_manager_navigation]: Configuring waypoint_follower
+[waypoint_follower-7] [INFO] [1792074117.610518834] [robot6.waypoint_follower]: Configuring
+[waypoint_follower-7] [INFO] [1792074117.671515466] [robot6.waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[lifecycle_manager-11] [INFO] [1792074117.675112500] [robot6.lifecycle_manager_navigation]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792074117.675576446] [robot6.docking_server]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792074117.675639469] [robot6.docking_server]: Controller frequency set to 50.0000Hz
+[opennav_docking-10] [INFO] [1792074117.735923591] [robot6.docking_server]: Created charging dock plugin simple_charging_dock of type opennav_docking::SimpleChargingDock
+[opennav_docking-10] [WARN] [1792074117.755205590] [robot6.docking_server]: Dock database filepath nor dock parameters set. Docking actions can only be executed specifying the dock pose via the action request. Or update the dock database via the reload_database service.
+[opennav_docking-10] [INFO] [1792074117.755259456] [robot6.docking_server]: Docking Server has 1 dock types and 0 dock instances available.
+[lifecycle_manager-11] [INFO] [1792074117.758658553] [robot6.lifecycle_manager_navigation]: Activating controller_server
+[controller_server-1] [INFO] [1792074117.758953059] [robot6.controller_server]: Activating
+[controller_server-1] [INFO] [1792074117.759044419] [robot6.local_costmap.local_costmap]: Activating
+[controller_server-1] [INFO] [1792074117.759058923] [robot6.local_costmap.local_costmap]: Checking transform
+[controller_server-1] [INFO] [1792074117.759170309] [robot6.local_costmap.local_costmap]: start
+[task_input-13] [INFO] [1792074117.870800405] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=VALID
+[controller_server-1] [INFO] [1792074117.961964653] [robot6.controller_server]: Activating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792074117.962012831] [robot6.controller_server]: Activating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792074117.962036640] [robot6.controller_server]: Creating bond (controller_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074118.076261551] [robot6.lifecycle_manager_navigation]: Server controller_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074118.076328025] [robot6.lifecycle_manager_navigation]: Activating smoother_server
+[smoother_server-2] [INFO] [1792074118.077003001] [robot6.smoother_server]: Activating
+[smoother_server-2] [INFO] [1792074118.077039990] [robot6.smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074118.192085958] [robot6.lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074118.192143742] [robot6.lifecycle_manager_navigation]: Activating planner_server
+[planner_server-3] [INFO] [1792074118.192704975] [robot6.planner_server]: Activating
+[planner_server-3] [INFO] [1792074118.192775565] [robot6.global_costmap.global_costmap]: Activating
+[planner_server-3] [INFO] [1792074118.192794617] [robot6.global_costmap.global_costmap]: Checking transform
+[planner_server-3] [INFO] [1792074118.193002466] [robot6.global_costmap.global_costmap]: start
+[planner_server-3] [INFO] [1792074119.195459256] [robot6.planner_server]: Activating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792074119.199362335] [robot6.planner_server]: Creating bond (planner_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074119.313811612] [robot6.lifecycle_manager_navigation]: Server planner_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074119.313870208] [robot6.lifecycle_manager_navigation]: Activating route_server
+[route_server-4] [INFO] [1792074119.315228340] [robot6.route_server]: Activating
+[route_server-4] [INFO] [1792074119.315618734] [robot6.route_server]: Creating bond (route_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074119.425937772] [robot6.lifecycle_manager_navigation]: Server route_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074119.426003370] [robot6.lifecycle_manager_navigation]: Activating behavior_server
+[behavior_server-5] [INFO] [1792074119.426740525] [robot6.behavior_server]: Activating
+[behavior_server-5] [INFO] [1792074119.426771490] [robot6.behavior_server]: Activating spin
+[behavior_server-5] [INFO] [1792074119.426780560] [robot6.behavior_server]: Activating drive_on_heading
+[behavior_server-5] [INFO] [1792074119.426788829] [robot6.behavior_server]: Activating assisted_teleop
+[behavior_server-5] [INFO] [1792074119.426796502] [robot6.behavior_server]: Activating wait
+[behavior_server-5] [INFO] [1792074119.426810010] [robot6.behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074119.548839654] [robot6.lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074119.548900008] [robot6.lifecycle_manager_navigation]: Activating velocity_smoother
+[velocity_smoother-8] [INFO] [1792074119.551959184] [robot6.velocity_smoother]: Activating
+[velocity_smoother-8] [INFO] [1792074119.552065354] [robot6.velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074119.856930535] [robot6.lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[lifecycle_manager-11] [INFO] [1792074119.856997597] [robot6.lifecycle_manager_navigation]: Activating collision_monitor
+[collision_monitor-9] [INFO] [1792074119.857727275] [robot6.collision_monitor]: Activating
+[collision_monitor-9] [INFO] [1792074119.858573394] [robot6.collision_monitor]: Creating bond (collision_monitor) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074119.974150224] [robot6.lifecycle_manager_navigation]: Server collision_monitor connected with bond.
+[lifecycle_manager-11] [INFO] [1792074119.974231795] [robot6.lifecycle_manager_navigation]: Activating bt_navigator
+[bt_navigator-6] [INFO] [1792074119.974807259] [robot6.bt_navigator]: Activating
+[bt_navigator-6] [INFO] [1792074120.140098196] [robot6.bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074120.246997551] [robot6.lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[lifecycle_manager-11] [INFO] [1792074120.247058418] [robot6.lifecycle_manager_navigation]: Activating waypoint_follower
+[waypoint_follower-7] [INFO] [1792074120.247726220] [robot6.waypoint_follower]: Activating
+[waypoint_follower-7] [INFO] [1792074120.247774160] [robot6.waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074120.362472278] [robot6.lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[lifecycle_manager-11] [INFO] [1792074120.362560403] [robot6.lifecycle_manager_navigation]: Activating docking_server
+[opennav_docking-10] [INFO] [1792074120.363640170] [robot6.docking_server]: Activating docking_server
+[opennav_docking-10] [INFO] [1792074120.395169616] [robot6.docking_server]: Creating bond (docking_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792074120.508648495] [robot6.lifecycle_manager_navigation]: Server docking_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792074120.508716155] [robot6.lifecycle_manager_navigation]: Managed nodes are active
+[lifecycle_manager-11] [INFO] [1792074120.508726542] [robot6.lifecycle_manager_navigation]: Creating bond timer...
+[task_input-13] [INFO] [1792074120.516145218] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active active
+[controller_server-1] [INFO] [1792074121.553527716] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074121.241 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792074121.553558652] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074121.241 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792074130.753022234] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074130.438 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792074130.795667272] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074130.464 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [WARN] [1792074136.680455668] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792074136.681439277] [robot6.rescue_command_adapter]: target snapshot rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [WARN] [1792074136.806564446] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-13] [ERROR] [1792074137.362274460] [robot6.rescue_command_adapter]: input session blocked: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: waiting for fresh configured coordinator SystemState
+[task_input-13] [INFO] [1792074137.405274481] [robot6.rescue_command_adapter]: input session ready; explicit arm required
+[planner_server-3] [INFO] [1792074142.575250535] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074142.259 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792074142.575250355] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074142.259 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792074168.304388135] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074167.988 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [INFO] [1792074229.817371781] [robot6.rescue_command_adapter]: SEND 0f9f37b1-c7be-452c-8358-a04b66a186e8 GoalPose(frame_id='map', x=-1.0030805059326782, y=-0.7382036246532717, yaw=3.141592653589793, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792074229.819357688] [robot6.bt_navigator]: Begin navigating from current location (-0.35, -0.00) to (-1.00, -0.74)
+[controller_server-1] [INFO] [1792074229.840910583] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074229.840990919] [robot6.controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+[controller_server-1] [WARN] [1792074229.841010762] [robot6.controller_server]: No progress checker was specified in parameter 'current_progress_checker'. Server will use only plugin loaded progress_checker . This warning will appear once.
+[controller_server-1] [INFO] [1792074230.891139940] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792074230.913501715] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792074231.891150318] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074232.941128617] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074233.941529448] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074234.941129725] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074235.941132948] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074236.991145961] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074237.991141609] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074238.991137187] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792074239.841265446] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792074239.841400134] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074239.859900735] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074239.860403174] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792074239.935329934] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792074239.981209797] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 8.2822 Hz.
+[collision_monitor-9] [INFO] [1792074240.027252473] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792074240.031345435] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074241.031341456] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074242.081352977] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074243.081620335] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074244.131471640] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074245.131387338] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074246.131346935] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074247.181367571] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074248.181374606] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074249.231359430] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792074249.981443833] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792074249.981606946] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074250.000018676] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074250.000489648] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[collision_monitor-9] [INFO] [1792074250.014182895] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792074250.220496407] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792074250.265322066] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792074251.270709645] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074252.270807541] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074253.320726594] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074254.320690213] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074255.370811717] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074256.370696144] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074257.420725514] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074258.420699037] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074259.470695765] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792074260.220799904] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792074260.220965624] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074260.240163791] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074260.242186532] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792074260.265391421] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792074260.374042924] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 7.6166 Hz.
+[collision_monitor-9] [INFO] [1792074260.435763356] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792074260.474206939] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074261.474464721] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074262.524190378] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074263.524188541] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074264.574190020] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074265.574196759] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074266.574196173] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792074267.364534811] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792074267.624196509] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792074268.624576964] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792074268.635101301] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074268.674366707] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074268.724460106] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074268.774895355] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074268.824602413] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074268.874459245] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074268.874550119] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074268.874860355] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074268.891129939] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074268.891346883] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074268.991720479] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074268.991758358] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074268.991766932] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074269.010682770] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074274.011048278] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074274.031013831] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074274.052427276] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.081363917] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.131317564] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.181532838] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.231362701] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.281378551] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.331370829] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074274.331437438] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074274.331564470] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074274.350131886] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074274.351595938] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074274.382147180] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.401901548] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.452684670] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.501915755] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.552045205] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.601926796] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074274.652034533] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074274.652132149] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074274.652275772] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074274.670153704] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074274.670725839] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792074275.220205354] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074275.240810840] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.270528864] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.320635652] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.370595969] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.420606018] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.470545051] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.520572078] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074275.520647723] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074275.520791777] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074275.540036215] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074275.540863927] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074275.571354514] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.591252923] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.641360718] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.691205093] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.741197203] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.791283986] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074275.841219756] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074275.841272313] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074275.841369287] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074275.860341886] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074275.860444903] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074275.960698838] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074275.960741272] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074275.960752045] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074275.980471765] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074280.981598920] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074281.020393215] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074281.031334714] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.070756794] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.120734954] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.170697516] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.220733430] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.270735664] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.320766005] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074281.320836969] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074281.321000764] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074281.339980839] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074281.340575242] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074281.381335975] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.390843852] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.440924448] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.490887286] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.541184738] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.590910372] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074281.641293757] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074281.641387422] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074281.641534671] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074281.660224394] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074281.660833134] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792074282.220582491] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074282.251420411] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.270918286] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.320982298] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.370958945] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.421408124] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.470903888] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.520898448] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074282.520970521] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074282.521084274] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074282.540100798] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074282.541224678] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074282.591861577] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.591994684] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.7225 Hz.
+[controller_server-1] [WARN] [1792074282.592082980] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.642189169] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.692361402] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.742230482] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.792278486] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074282.842497614] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074282.842610332] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074282.842794424] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074282.860498812] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074282.860625565] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074282.961186107] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074282.961238981] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074282.961253003] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074282.980063787] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074287.980359441] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074288.001163346] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074288.011816999] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.051484844] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.101472821] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.151455130] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.201462052] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.251500216] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.301574333] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074288.301656154] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074288.301835281] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074288.319942321] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074288.320508791] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074288.381010668] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.381143771] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 16.5121 Hz.
+[controller_server-1] [WARN] [1792074288.381202271] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.431388512] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.481374274] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.531358551] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.581610933] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074288.631459248] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074288.631533375] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074288.631676918] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[bt_navigator-6] [WARN] [1792074288.659565419] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Aborting handle.
+[bt_navigator-6] [ERROR] [1792074288.659769917] [robot6.bt_navigator]: Goal failed
+[task_input-13] [WARN] [1792074288.706706764] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=91d1ed2e-ee6a-48ae-9984-dd4a97081115 robot_id=robot_a robot_boot_id=e130d47c-d0c0-4aca-8230-d4a20ba5935f coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=0 renewal_sequence=107
+[planner_server-3] [INFO] [1792074298.893969053] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074298.570 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792074298.894211762] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074298.570 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [INFO] [1792074302.317644323] [robot6.rescue_command_adapter]: SEND 053871ea-1800-437d-bfb8-71ac72ecc320 GoalPose(frame_id='map', x=-1.4273445651615657, y=0.6360604487317189, yaw=2.356194490192345, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792074302.318307192] [robot6.bt_navigator]: Begin navigating from current location (-1.00, -0.69) to (-1.43, 0.64)
+[controller_server-1] [INFO] [1792074302.329225260] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074302.349881941] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.379735696] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.429782287] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.479742109] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.529640559] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.579605066] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.630426295] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074302.630494618] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074302.630632348] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074302.649316507] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074302.651427371] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074302.782140414] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.782269136] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 7.6496 Hz.
+[controller_server-1] [WARN] [1792074302.782492920] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.832669103] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.882582192] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.932768116] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074302.982683586] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074302.982751835] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074302.982880824] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074302.998912456] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074302.999474694] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792074303.219210572] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074303.239828098] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.269579115] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.319779614] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.369739328] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.419710946] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.469693051] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.519741351] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074303.519813657] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074303.519970535] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074303.538878159] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074303.539442100] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074303.600327893] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.600529187] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 16.3882 Hz.
+[controller_server-1] [WARN] [1792074303.600872505] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.651037587] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.701035726] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.751273976] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.801089156] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074303.851153379] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074303.851230419] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074303.851361620] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074303.869547374] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074303.869640962] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074303.969888766] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074303.969989007] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074303.970006695] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074303.988877421] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074308.989101216] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074309.029405602] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074309.060470423] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.079868999] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.129828790] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.179911352] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.229906933] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.279924600] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.330104946] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074309.330161068] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074309.330287675] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074309.349166363] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074309.350055996] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074309.380856131] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.400596071] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.450515022] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.501345859] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.550577523] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.600439064] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074309.650424264] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074309.650467028] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074309.650550481] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074309.669277459] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074309.669899283] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792074310.219332425] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074310.240006076] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.270226093] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.320065381] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.369857776] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.419868840] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.469960895] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.519859342] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074310.520800814] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074310.520981946] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074310.538874046] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074310.539418746] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074310.580488009] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.589963805] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.639919053] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.689888412] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.739866774] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.789970100] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074310.839872469] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074310.840160648] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074310.840284780] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074310.859248900] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074310.859344573] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074311.059670662] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074311.059712484] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074311.059719138] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074311.078911553] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074316.079290949] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074316.100387936] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074316.311877625] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.351036473] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.401076210] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.451025372] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.500987434] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.550971195] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074316.601062369] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074316.601134022] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074316.601294319] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074316.619634227] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074316.620396095] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074316.771104628] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.6390 Hz.
+[controller_server-1] [WARN] [1792074317.002024032] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074317.021605553] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074317.071681350] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [INFO] [1792074317.121329791] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792074317.142011280] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074317.172019748] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074317.221710251] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074317.271576338] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074317.271640837] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074317.271745234] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074317.289066630] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[planner_server-3] [INFO] [1792074317.290169039] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792074318.219163480] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074318.400066532] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.419606794] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.469668574] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.519729521] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.569680886] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.619676847] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.669683313] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074318.669752492] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074318.669858721] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074318.689028936] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074318.690223693] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074318.770660372] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 12.4418 Hz.
+[controller_server-1] [WARN] [1792074318.901567248] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.921334933] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074318.971252065] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074319.021289429] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074319.071099987] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074319.121186247] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074319.171081532] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074319.171138193] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074319.171227284] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074319.189099476] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792074319.189273140] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[behavior_server-5] [WARN] [1792074319.589784517] [robot6.behavior_server]: Collision Ahead - Exiting Spin
+[behavior_server-5] [WARN] [1792074319.589829156] [robot6.behavior_server]: spin failed
+[behavior_server-5] [WARN] [1792074319.589842200] [robot6.behavior_server]: [spin] [ActionServer] Aborting handle.
+[behavior_server-5] [INFO] [1792074319.609613181] [robot6.behavior_server]: Running wait
+[behavior_server-5] [INFO] [1792074324.609855018] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792074324.639785375] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074324.650449697] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.690354486] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.740307767] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.790384388] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.840245910] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.890259243] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074324.940211663] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074324.940255880] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074324.940347359] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792074324.959201206] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792074324.959921521] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792074324.970413501] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.010433131] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.060304773] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.110375227] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.160402206] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.210387229] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [WARN] [1792074325.260497567] [robot6.controller_server]: RegulatedPurePursuitController detected collision ahead!
+[controller_server-1] [ERROR] [1792074325.260573265] [robot6.controller_server]: Controller patience exceeded
+[controller_server-1] [WARN] [1792074325.260733825] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[bt_navigator-6] [WARN] [1792074325.288485728] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Aborting handle.
+[bt_navigator-6] [ERROR] [1792074325.288657288] [robot6.bt_navigator]: Goal failed
+[task_input-13] [WARN] [1792074325.506504728] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=9aee0266-55a9-4672-aad7-181b20c60463 robot_id=robot_a robot_boot_id=e130d47c-d0c0-4aca-8230-d4a20ba5935f coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=1 renewal_sequence=43
+[task_input-13] [INFO] [1792074332.311665038] [robot6.rescue_command_adapter]: MAP_FROZEN R1 sha256=2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045 62x80 res=0.05000000074505806
+[task_input-13] [INFO] [1792074332.318807266] [robot6.rescue_command_adapter]: MAP_FROZEN R2 sha256=2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045 62x80 res=0.05000000074505806
+[task_input-13] [INFO] [1792074332.319242199] [robot6.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_a RNone -> R2 sha256=2f8fa01a8c0b78d51b336472e73812f370466cf5dafed53f0bdd1949457f2045
+[task_input-13] [INFO] [1792074332.320083918] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=b0f398c2-6097-5e9f-acf2-eb6c92b0faec session=22222222-2222-4222-8222-222222222222 rev=2 quality=UNKNOWN
+[task_input-13] [ERROR] [1792074332.328654736] [robot6.rescue_command_adapter]: ExecuteTask rejected: INVALID_INPUT: INVALID_INPUT [rescue_robot.INVALID_INPUT]: native frame
+[task_input-13] [ERROR] [1792074333.254665295] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074334.250604619] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[planner_server-3] [INFO] [1792074334.561811025] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074334.246 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792074334.561824290] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074334.246 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [ERROR] [1792074335.278393967] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074336.258336566] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074337.251392855] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074338.258492972] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074339.243839886] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[controller_server-1] [INFO] [1792074339.326237012] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074339.010 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792074339.326256553] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074339.010 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [ERROR] [1792074340.247926208] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074341.250865341] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074342.262518904] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074343.245483044] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074344.250058415] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074345.257863698] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074346.262901379] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074347.256651052] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074348.248078858] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074349.251143619] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074350.256518639] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074351.263038952] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074352.257088098] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074353.267748249] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074354.260486579] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074355.275770907] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074356.301008055] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074357.283150952] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[planner_server-3] [INFO] [1792074357.353376689] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074357.042 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792074357.353905394] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792074357.042 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-13] [ERROR] [1792074358.301372138] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074359.337646878] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074360.266484145] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074361.278463029] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074362.253619276] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074363.251866602] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074364.270697654] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074365.251786268] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074366.269339061] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074367.267584859] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074368.257770362] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074369.252755749] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074370.262310392] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074371.257035359] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074372.259842358] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074373.263378170] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074374.271732762] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074375.269183046] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074376.259142947] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074377.257323019] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074378.259651893] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074379.275500304] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074380.265553234] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074381.256683343] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074382.260627377] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074383.257132073] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074384.257208379] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074385.258076925] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074386.252425294] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074387.258554969] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074388.264500714] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074389.270394504] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074390.266804377] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074391.261107699] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074392.260330392] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074393.267644124] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074394.274726086] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074395.260670814] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074396.259208311] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074397.265050211] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074398.269471401] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074399.267543842] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074400.259826748] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074401.259906086] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074402.276095635] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074403.259550467] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074404.258854138] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074405.257646128] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074406.268510719] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074407.275833007] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074408.260239273] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074409.273964518] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074410.270976282] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074411.262632838] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074412.282637312] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074413.291728247] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074414.263670752] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074415.268020312] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074416.261588790] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074417.261366546] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074418.286720203] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074419.274505388] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074420.260025109] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074421.263467079] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074422.276797884] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074423.274531763] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074424.270184660] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074425.281205569] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074426.264164702] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074427.270649126] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074428.293807266] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074429.268977828] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074430.272473348] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074431.271000419] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074432.266152368] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074433.281899131] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074434.268205789] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074435.266470127] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074436.268536988] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074437.278319812] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074438.274062409] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074439.273225399] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074440.284461089] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074441.285922139] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074442.268482689] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074443.267557978] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074444.280623547] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074445.286202093] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074446.274070693] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074447.268668450] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074448.286365780] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074449.286375903] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074450.275842888] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074451.278658764] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074452.279873405] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074453.273288998] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074454.273912450] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074455.279256507] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074456.271570443] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074457.281475533] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074458.274549397] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074459.268497492] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074460.276081725] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074461.297121455] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074462.292099350] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074463.292685686] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074464.286376366] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074465.283554289] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074466.279899050] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074467.270108389] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074468.279973832] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074469.278624994] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074470.270437708] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074471.283487017] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074472.272288678] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074473.272105363] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074474.277915453] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074475.281548001] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074476.271683082] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074477.294833217] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074478.296021055] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074479.271657248] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074480.273331799] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074481.269447749] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074482.274308033] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074483.273194828] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074484.281398524] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074485.279866647] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074486.278514020] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074487.287471390] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074488.274165330] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074489.291074517] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074490.279905550] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074491.286558569] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074492.294825467] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074493.288644388] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074494.288089339] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074495.276200585] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074496.278126340] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074497.304171725] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074498.297512933] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074499.277530466] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074500.279909214] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074501.278915975] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074502.297374107] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074503.293299500] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074504.292036680] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074505.300019468] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074506.282018127] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074507.279442575] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074508.277765119] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074509.281142338] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074510.272665767] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074511.282417755] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074512.281735265] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074513.290910082] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074514.290202661] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074515.286504575] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074516.294699061] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074517.299712973] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074518.280202764] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074519.284641822] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074520.288437186] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074521.287224791] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074522.281769857] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074523.288094627] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074524.279020216] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074525.287354018] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074526.307658624] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074527.298328078] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074528.297405712] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074529.274812557] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074530.274712747] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074531.278703538] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074532.281748073] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074533.294716673] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074534.289900994] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074535.296584563] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074536.309209306] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074537.284712022] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074538.289264461] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074539.307039517] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074540.299442479] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074541.295824861] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074542.299440249] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074543.284160574] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074544.296362859] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074545.290346535] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074546.282002694] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074547.286000115] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074548.301972099] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074549.293333262] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074550.276760976] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074551.299322584] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074552.296156732] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074553.309974281] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074554.289680142] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074555.283517541] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074556.300143310] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074557.292369339] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074558.289960868] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074559.305028694] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074560.294849525] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074561.298956809] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074562.290627144] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074563.292331867] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074564.291105413] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074565.284921706] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074566.290696313] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074567.285921314] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074568.302538628] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074569.282109440] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074570.311421340] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074571.288516705] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074572.288491379] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074573.286123345] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074574.280536769] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074575.291417708] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074576.309506010] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074577.293465968] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074578.284755874] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074579.306725208] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074580.307717720] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074581.298884684] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074582.315499483] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074583.305260259] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074584.293622242] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074585.286219023] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074586.303376364] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074587.291645323] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074588.308610144] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074589.299886733] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074590.290012478] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074591.281356536] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074592.300106400] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074593.285850588] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074594.318143838] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074595.298444332] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074596.296630419] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074597.296885808] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074598.297249035] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074599.292627040] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074600.288309475] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074601.295504258] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074602.297374940] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074603.296148586] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074604.312717956] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074605.295542927] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074606.299061317] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074607.300559962] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074608.318580454] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074609.305757361] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074610.323784345] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074611.305199975] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074612.297329166] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074613.304686143] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074614.295557531] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074615.297877455] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074616.312470648] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074617.315004055] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074618.304769034] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074619.301076476] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074620.296275428] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074621.302018459] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074622.307579220] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074623.319092015] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074624.328463043] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074625.306263421] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074626.302501446] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074627.307721714] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074628.315013436] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074629.308117636] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074630.294559596] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074631.306278485] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074632.300824888] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074633.320554885] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074634.324745256] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074635.311700422] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074636.305276415] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074637.303795709] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074638.305765811] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074639.296536832] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074640.314112318] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074641.316257015] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074642.315895754] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074643.311689352] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074644.312765249] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074645.320703758] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074646.310046751] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074647.298842314] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074648.298486469] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074649.300488002] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074650.300159507] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074651.299247855] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074652.312216828] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074653.322075744] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074654.318750680] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074655.323618325] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074656.326902404] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074657.312158234] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074658.310972773] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074659.318896843] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074660.313233055] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074661.308369750] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074662.300677880] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074663.307178840] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074664.315264582] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074665.322177427] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074666.311952411] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074667.306024667] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074668.311188306] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074669.305845760] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074670.321405007] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074671.319045569] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074672.299271993] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074673.331953170] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074674.325355475] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074675.336103938] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074676.334006563] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074677.315940020] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074678.320047508] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074679.345336181] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074680.307036542] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074681.319981726] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074682.328491437] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074683.321415592] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074684.312069525] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074685.325075883] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074686.310470320] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074687.322313094] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074688.333457256] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074689.336719096] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074690.318507406] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074691.316612761] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074692.319700623] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074693.315397633] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074694.315293716] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074695.341115530] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074696.312614273] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074697.324956449] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074698.307988732] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074699.306940736] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074700.328527339] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074701.323028385] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074702.311318140] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074703.306751234] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074704.331232787] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074705.314877171] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074706.337302882] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074707.327283852] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074708.320088814] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074709.327815828] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074710.335728849] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074711.319878505] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074712.333542842] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074713.319527197] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074714.334457204] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074715.323909931] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074716.307788552] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074717.304549690] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074718.313435487] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074719.317988581] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074720.337779582] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074721.311605364] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074722.345501445] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074723.321889700] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074724.343011326] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074725.327110171] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074726.314031424] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074727.334070377] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074728.334346075] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074729.318940961] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074730.318015610] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074731.310585386] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074732.340394089] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074733.313346228] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074734.312179359] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074735.316531976] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074736.327097714] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074737.335001326] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074738.330819822] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074739.337342572] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074740.318500452] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074741.321268488] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074742.322708488] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074743.334698776] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074744.348200330] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074745.353085329] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074746.327722384] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074747.325490384] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074748.355619754] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074749.333576631] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074750.325358880] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074751.335456866] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074752.332549896] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074753.326152655] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074754.325906849] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074755.319376175] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074756.329718886] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074757.322685768] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074758.320433552] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074759.330570967] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074760.349140775] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074761.345975796] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074762.318373137] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074763.312256155] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074764.339510464] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074765.320997543] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074766.339317178] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074767.340197439] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074768.319124352] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074769.321857754] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074770.361063126] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074771.315852762] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074772.322606629] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074773.359896898] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074774.335517901] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074775.325771928] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074776.333456357] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074777.325797334] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074778.349570473] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074779.352281005] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074780.330235111] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074781.324157529] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074782.321643767] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074783.347210566] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074784.365321835] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074785.329129468] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074786.326909127] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074787.343474106] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074788.339874694] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074789.326724122] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074790.337193361] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074791.363310314] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074792.325479237] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074793.329251291] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074794.326281080] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074795.331794778] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074796.334150434] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074797.333887501] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074798.351295746] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074799.361162230] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074800.327490766] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074801.322405159] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074802.341495434] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074803.337800924] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074804.329268261] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074805.330556229] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074806.348014071] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074807.332288892] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074808.340476118] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074809.338757752] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074810.354720659] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074811.346193477] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074812.373706344] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074813.353795559] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074814.371254767] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074815.339658545] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074816.362094166] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074817.328177815] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074818.324699807] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074819.344723943] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074820.338837102] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074821.332824894] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074822.333627598] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074823.342055535] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074824.326651327] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074825.349576444] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074826.336665231] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074827.375081008] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074828.344736328] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074829.363748341] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074830.335972635] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074831.332762237] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074832.342339732] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074833.339514936] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074834.328972728] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074835.333845505] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074836.330956861] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074837.339184772] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074838.369727426] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074839.333193784] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074840.339150926] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074841.334795081] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074842.338424906] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074843.355710369] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074844.344073557] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074845.339280585] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074846.338498704] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074847.337742172] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074848.336111334] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074849.338051418] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074850.328822937] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074851.338930104] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074852.354061029] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074853.353471886] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074854.362861330] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074855.369154295] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074856.344295304] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074857.369494142] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074858.350267552] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074859.360518461] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074860.329775724] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074861.348407720] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074862.340814387] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074863.363986248] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074864.341362190] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074865.354369639] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074866.377402134] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074867.354350566] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074868.370353712] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074869.333378141] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074870.337518639] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074871.341201265] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074872.346433684] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074873.350391326] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074874.362488635] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074875.359256188] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074876.337183467] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074877.339960295] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074878.343690498] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074879.347092301] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074880.343598275] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074881.356218177] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074882.336410920] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074883.344757356] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074884.354408199] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074885.377395594] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074886.337897562] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074887.342267302] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074888.366539634] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074889.355211370] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074890.340725800] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074891.342802556] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074892.385533499] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074893.352334736] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074894.347068038] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074895.341776926] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074896.360353447] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074897.359990437] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074898.338140109] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074899.354904324] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074900.346834242] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074901.380507169] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074902.340725861] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074903.354501176] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074904.369690248] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074905.357974961] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074906.393915434] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074907.339867393] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074908.355647735] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074909.351743247] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074910.359516311] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074911.343651388] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074912.370511042] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074913.358272072] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074914.384602151] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074915.356306596] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074916.372450961] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074917.352763264] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074918.346905155] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074919.362321153] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074920.387477198] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074921.352830280] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074922.370274305] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074923.373941943] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074924.347335324] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074925.358810463] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074926.367742196] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074927.364260908] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074928.346032948] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074929.382753556] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074930.367427379] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074931.359829816] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074932.341865176] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074933.380064124] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074934.351675488] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074935.373341057] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074936.352854398] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074937.364606104] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074938.357985185] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074939.351700693] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074940.358059147] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074941.352864966] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074942.354669064] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074943.373752228] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074944.352135896] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074945.350502228] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074946.366158043] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074947.359301637] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074948.372631000] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074949.356091382] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074950.368072421] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074951.377071830] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074952.367816271] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074953.372190542] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074954.359179858] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074955.377910516] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074956.377575649] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074957.386870024] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074958.382186938] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074959.372515321] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074960.363643184] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074961.358690109] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074962.353172581] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074963.368182445] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074964.362209617] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074965.393443611] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074966.361738278] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074967.368113537] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074968.347471234] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074969.356135557] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074970.346593661] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074971.379925013] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074972.349671716] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074973.373499358] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074974.357315302] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074975.400874969] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074976.353533072] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074977.386397474] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074978.357102686] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074979.354364642] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074980.353419957] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074981.398906936] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074982.353472413] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074983.367707162] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074984.356764126] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074985.353192702] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074986.396106305] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074987.369036107] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074988.387895944] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074989.362615100] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074990.399341241] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074991.396183191] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074992.384224595] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074993.375185070] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074994.426557393] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074995.405772921] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074996.360603608] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074997.369302613] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074998.395723534] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792074999.376918475] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075000.379694946] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075001.383379632] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075002.370859117] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075003.381395777] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075004.381373469] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075005.395547481] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075006.423076902] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075007.414908155] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075008.415739493] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075009.374363259] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075010.398772539] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075011.390723165] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075012.386269475] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075013.424966956] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075014.367532462] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075015.388280937] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075016.418624236] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075017.365245785] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075018.390142774] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075019.408033420] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075020.382359820] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075021.377544781] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075022.387637884] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075023.384123058] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075024.394029527] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075025.412857419] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075026.373430918] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075027.412001936] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075028.374940005] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075029.391839691] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075030.374992021] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075031.376307555] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075032.378975731] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075033.429170948] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075034.417924025] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075035.409251943] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075036.407795135] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075037.429836868] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075038.389806050] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075039.422178038] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075040.403484990] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075041.441465216] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075042.411096055] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[task_input-13] [ERROR] [1792075043.378557211] [robot6.rescue_command_adapter]: robot_a map is not the frozen map; not loaded
+[velocity_smoother-8] [INFO] [1792075043.400731601] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[velocity_smoother-8] [INFO] [1792075043.400943492] [robot6.velocity_smoother]: Running Nav2 LifecycleNode rcl preshutdown (velocity_smoother)
+[velocity_smoother-8] [INFO] [1792075043.401078843] [robot6.velocity_smoother]: Deactivating
+[velocity_smoother-8] [INFO] [1792075043.401139210] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792075043.401099767] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792075043.401177521] [robot6.lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[lifecycle_manager-11] [INFO] [1792075043.401333571] [robot6.lifecycle_manager_navigation]: Terminating bond timer...
+[opennav_docking-10] [INFO] [1792075043.402122986] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[opennav_docking-10] [INFO] [1792075043.402220379] [robot6.docking_server]: Running Nav2 LifecycleNode rcl preshutdown (docking_server)
+[opennav_docking-10] [INFO] [1792075043.406735264] [robot6.docking_server]: Deactivating docking_server
+[smoother_server-2] [INFO] [1792075043.402373392] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[smoother_server-2] [INFO] [1792075043.402458568] [robot6.smoother_server]: Running Nav2 LifecycleNode rcl preshutdown (smoother_server)
+[smoother_server-2] [INFO] [1792075043.402522002] [robot6.smoother_server]: Deactivating
+[smoother_server-2] [INFO] [1792075043.402547078] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792075043.402459049] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[bt_navigator-6] [INFO] [1792075043.402522290] [robot6.bt_navigator]: Running Nav2 LifecycleNode rcl preshutdown (bt_navigator)
+[bt_navigator-6] [INFO] [1792075043.402588450] [robot6.bt_navigator]: Deactivating
+[bt_navigator-6] [INFO] [1792075043.402614408] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[controller_server-1] [INFO] [1792075043.403250833] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[controller_server-1] [INFO] [1792075043.403321057] [robot6.controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[controller_server-1] [INFO] [1792075043.403386386] [robot6.controller_server]: Deactivating
+[controller_server-1] [INFO] [1792075043.403407460] [robot6.controller_server]: Deactivating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792075043.403420635] [robot6.controller_server]: Deactivating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792075043.403449740] [robot6.local_costmap.local_costmap]: Deactivating
+[planner_server-3] [INFO] [1792075043.403398460] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[planner_server-3] [INFO] [1792075043.403492585] [robot6.planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[planner_server-3] [INFO] [1792075043.403581431] [robot6.planner_server]: Deactivating
+[planner_server-3] [INFO] [1792075043.403637755] [robot6.global_costmap.global_costmap]: Deactivating
+[collision_monitor-9] [INFO] [1792075043.403668602] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[collision_monitor-9] [INFO] [1792075043.403766532] [robot6.collision_monitor]: Running Nav2 LifecycleNode rcl preshutdown (collision_monitor)
+[collision_monitor-9] [INFO] [1792075043.403830445] [robot6.collision_monitor]: Deactivating
+[collision_monitor-9] [INFO] [1792075043.403850705] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[route_server-4] [INFO] [1792075043.405706628] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[route_server-4] [INFO] [1792075043.405810472] [robot6.route_server]: Running Nav2 LifecycleNode rcl preshutdown (route_server)
+[route_server-4] [INFO] [1792075043.405897448] [robot6.route_server]: Deactivating
+[route_server-4] [INFO] [1792075043.406969558] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792075043.410936258] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[waypoint_follower-7] [INFO] [1792075043.411149491] [robot6.waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[waypoint_follower-7] [INFO] [1792075043.411260022] [robot6.waypoint_follower]: Deactivating
+[waypoint_follower-7] [INFO] [1792075043.411315641] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[behavior_server-5] [INFO] [1792075043.421765541] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[behavior_server-5] [INFO] [1792075043.421856933] [robot6.behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[behavior_server-5] [INFO] [1792075043.421960230] [robot6.behavior_server]: Deactivating
+[behavior_server-5] [INFO] [1792075043.422003646] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792075043.422932544] [robot6.bt_navigator]: Cleaning up
+[velocity_smoother-8] [INFO] [1792075043.426077159] [robot6.velocity_smoother]: Cleaning up
+[velocity_smoother-8] [INFO] [1792075043.426152532] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[smoother_server-2] [INFO] [1792075043.439198013] [robot6.smoother_server]: Cleaning up
+[collision_monitor-9] [INFO] [1792075043.444364867] [robot6.collision_monitor]: Cleaning up
+[collision_monitor-9] [INFO] [1792075043.444417270] [collision_monitor]: [FootprintApproach]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792075043.444428088] [collision_monitor]: [PassageStop]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792075043.444433854] [collision_monitor]: [PassageSlow]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792075043.444440421] [collision_monitor]: [scan]: Destroying Scan
+[collision_monitor-9] [INFO] [1792075043.444449323] [collision_monitor]: [passage_depth]: Destroying PointCloud
+[collision_monitor-9] [INFO] [1792075043.444456159] [collision_monitor]: [passage_overhead]: Destroying PointCloud
+[route_server-4] [INFO] [1792075043.448714891] [robot6.route_server]: Cleaning up
+[collision_monitor-9] [INFO] [1792075043.467167107] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[behavior_server-5] [INFO] [1792075043.483487152] [robot6.behavior_server]: Cleaning up
+[waypoint_follower-7] [INFO] [1792075043.483607198] [robot6.waypoint_follower]: Cleaning up
+[controller_server-1] [INFO] [1792075043.566531606] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[opennav_docking-10] [INFO] [1792075043.584320212] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792075043.585932954] [robot6.velocity_smoother]: Destroying
+[controller_server-1] [INFO] [1792075043.679652942] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792075043.364 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792075043.680829065] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792075043.364 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[opennav_docking-10] [INFO] [1792075043.684670168] [robot6.docking_server]: Cleaning up docking_server
+[controller_server-1] [INFO] [1792075043.689199569] [robot6.controller_server]: Cleaning up
+[controller_server-1] [INFO] [1792075043.689270402] [robot6.controller_server]: Cleaning up controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792075043.689286345] [robot6.controller_server]: Cleaning up controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792075043.695395994] [robot6.local_costmap.local_costmap]: Cleaning up
+[behavior_server-5] [INFO] [1792075043.709437286] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[smoother_server-2] [INFO] [1792075043.719263473] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792075043.854075389] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792075043.864179399] [robot6.waypoint_follower]: Destroying
+[command_watchdog-12] [WARN] [1792075043.903007194] [robot6.rescue_command_watchdog]: watchdog STOP_LATCHED reason=EXECUTOR_HEARTBEAT_STALE t=27554.900
+[INFO] [velocity_smoother-8]: process has finished cleanly [pid 566646]
+[INFO] [waypoint_follower-7]: process has finished cleanly [pid 566644]
+[planner_server-3] [INFO] [1792075044.193343151] [robot6.planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792075044.194218326] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[smoother_server-2] [INFO] [1792075044.241146569] [robot6.smoother_server]: Destroying
+[planner_server-3] [INFO] [1792075044.244616189] [robot6.planner_server]: Cleaning up
+[planner_server-3] [INFO] [1792075044.263417954] [robot6.global_costmap.global_costmap]: Cleaning up
+[planner_server-3] [INFO] [1792075044.270571049] [robot6.planner_server]: Cleaning up plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792075044.271130808] [robot6.planner_server]: Destroying plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792075044.293074624] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792075044.299502434] [robot6.global_costmap.global_costmap]: Destroying
+[planner_server-3] [INFO] [1792075044.320522376] [robot6.planner_server]: Destroying
+[INFO] [planner_server-3]: process has finished cleanly [pid 566638]
+[collision_monitor-9] [INFO] [1792075044.620230399] [robot6.collision_monitor]: Destroying
+[route_server-4] [INFO] [1792075045.125889581] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[opennav_docking-10] [INFO] [1792075045.196072764] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[INFO] [smoother_server-2]: process has finished cleanly [pid 566636]
+[task_input-13] Traceback (most recent call last):
+[task_input-13]   File "<저장소>/install/rescue_robot/lib/rescue_robot/task_input", line 33, in <module>
+[task_input-13]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'task_input')())
+[task_input-13]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-13]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/task_input_node.py", line 45, in main
+[task_input-13]     return adapter_main(args=args, task_runtime_factory=attach_configured_runtime)
+[task_input-13]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-13]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 347, in main
+[task_input-13]     rclpy.spin(node)
+[task_input-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[task_input-13]     executor.spin_once()
+[task_input-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[task_input-13]     self._spin_once_impl(timeout_sec)
+[task_input-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[task_input-13]     handler, entity, node = self.wait_for_ready_callbacks(
+[task_input-13]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[task_input-13]     return next(self._cb_iter)
+[task_input-13]            ^^^^^^^^^^^^^^^^^^^
+[task_input-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[task_input-13]     raise ExternalShutdownException()
+[task_input-13] rclpy.executors.ExternalShutdownException
+[route_server-4] [INFO] [1792075046.120870745] [robot6.route_server]: Destroying
+[ERROR] [task_input-13]: process has died [pid 566654, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=rescue_command_adapter -r __ns:=/robot6 --params-file /tmp/launch_params_s2dumoe5'].
+[opennav_docking-10] [INFO] [1792075046.361514626] [robot6.docking_server]: Destroying
+[INFO] [collision_monitor-9]: process has finished cleanly [pid 566649]
+[behavior_server-5] [INFO] [1792075046.696249424] [robot6.behavior_server]: Destroying
+[lifecycle_manager-11] [INFO] [1792075046.837008410] [robot6.lifecycle_manager_navigation]: Destroying lifecycle_manager_navigation
+[INFO] [route_server-4]: process has finished cleanly [pid 566640]
+[INFO] [behavior_server-5]: process has finished cleanly [pid 566642]
+[INFO] [opennav_docking-10]: process has finished cleanly [pid 566650]
+[controller_server-1] [INFO] [1792075047.318066822] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 566651]
+[controller_server-1] [INFO] [1792075047.395807938] [robot6.local_costmap.local_costmap]: Destroying
+[bt_navigator-6] [INFO] [1792075047.544765600] [robot6.bt_navigator]: Completed Cleaning up
+[bt_navigator-6] [INFO] [1792075047.544857336] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[controller_server-1] [INFO] [1792075047.574794885] [robot6.controller_server]: Destroying
+[bt_navigator-6] [INFO] [1792075047.653784770] [robot6.bt_navigator]: Destroying
+[INFO] [controller_server-1]: process has finished cleanly [pid 566634]
+[INFO] [bt_navigator-6]: process has finished cleanly [pid 566643]

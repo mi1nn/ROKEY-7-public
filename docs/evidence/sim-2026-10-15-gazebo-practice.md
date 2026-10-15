@@ -43,7 +43,7 @@
 | 22:40:55~22:41:00 | 인형 대역 | `MapState VALID`, `FAKE_TARGET start_pose map=(…) doll map=(…)` | |
 | 22:41:08 | TB-6 arm | `ARMED` | |
 | 22:55:38 | 재난 선포(재범, 휴대폰 웹) | `DISASTER_DECLARED by operator admin` → `SEARCH_AUTO_STARTED on DISASTER` | |
-| 22:55:38 | 첫 탐색 경계 | `FRONTIER e2910… cells=12 centroid=(-1.30, -0.65) goal=(-1.00, -0.74, 3.14)` | 목표가 남쪽 벽 0.1~0.2 m 안쪽(C3) |
+| 22:55:38 | 첫 탐색 경계 | `FRONTIER e2910… cells=12 centroid=(-1.30, -0.65) goal=(-1.00, -0.74, 3.14)` | 목표가 서쪽 벽 0.1~0.2 m 안쪽(C3). 처음에 「남쪽 벽」으로 적은 것은 지도 원점을 잘못 잡은 계산이었다(2026-10-16 정정, [둘째 회차 자료](sim-2026-10-15-run232037/README.md) 「지도 좌표와 실습장 좌표」) |
 | 22:55:40~22:56:40 | TB-6 이동 | `SEND 473f572f GoalPose(x=-1.003, y=-0.738)` → `CommandLease STOPPING` | Nav2 `detected collision ahead!` 64, `Controller patience exceeded`·`spin failed` 14 |
 | 22:56:40 | 결과 | `RESULT task=21965219… outcome=FAILED` | 다시 arm 하지 않아 다음 경계 `a116…`(goal (-1.45, 0.57))는 안 나감(C4) |
 | 23:05:38 | 탐색 끝 | `EXPLORATION_COMPLETE reason=EXPLORATION_TIMEOUT frontiers_sent=2` | 600 s |
@@ -142,6 +142,23 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 - 운영자 대역이 런북대로 다시 arm 하자 첫 회차(경계 2개 뒤 600 s 시간 초과)와 달리 바로 다음 경계로 넘어갔다. C4 는 런북 단계를 하면 풀린다.
 - 다음 회차는 최신 main(#369 경계 목표 사유, #370 TB-5 정렬 로그 고침)으로 다시 빌드해서 띄운다. 빌드 SHA 는 그 회차 표에 적는다.
+
+## 7. 셋째 회차 (full-1015-235518)와 정정
+
+회차 표·단계별 결과·나눔은 [셋째 회차 자료](sim-2026-10-16-run235518/README.md)에 있다.
+
+- 빌드는 `fe54428`(`src/` = main `4896338`)이다. world 는 main `config/sim/worlds/arena.sdf` 다.
+- 재범이 정한 단계(2026-10-16)로 보면 1 통과, 2·3 실패, 4 실행 안 됨이다.
+  - 단계 2: TB-6 은 선포 2.5 s 뒤 움직였지만 22초 뒤 흰 상자 남쪽 벽 앞에서 서서 끝까지 섰다. C1 PassageStop 과 동시 실행 구간의 `invalid source` 가 원인이다.
+  - 둘째 경계는 실습장 밖 가짜 경계였다(라이다 벽 관통). 목표가 TB-5 옆이라 조정기가 교통 대기로 멈췄다(C10).
+- 새로 찾은 것:
+  - C10: TB-5 옆 목표에서 교통 대기, 다음 경계를 고르지 않음. 실물에서도 날 수 있음 [추정].
+  - 7.5 뒤 서 있는 TB-6 의 AMCL 자세가 낡아 `TRAFFIC_SCOUT_POSE_UNKNOWN`. 실물에서도 날 수 있음 [추정].
+  - TB-5 `START_ALIGN_NOT_CONVERGED`. 시뮬레이션 사본 값 탓 [추정], 런북대로 다시 하자 ALIGNED.
+- C7 은 운영자 대역 잘못이었고(6절 표의 「현장에서도 나올 수 있음 [추정]」을 정정), 고친 뒤 3회차에서 재현되지 않았다.
+- C8 은 3회차에서 #375 분석과 같은 줄(`Failed to activate global_costmap` → `Aborting bringup`)로 났다.
+- 정정 1: 1·2회차는 main world 가 아니라 가제보 실습의 임시 world 파일로 돌았다. 바깥 벽·칸막이는 같고, 터널 2(막힌 벽)와 가운데 기둥이 다르다. 1절 표의 「arena world(평면도, #364)」는 3회차부터 맞다.
+- 정정 2: 3.2절 S10 의 「TB-5 자리 5.3%」는 3회차에서 재현되지 않았다. 그 대신 3회차 main world 에서 TB-6 자리 두 곳에서 바깥 벽을 지나는 빔이 있었다(남쪽 벽 2.7%, 동쪽 벽 밖 free 칸). 원인은 가제보_지도가 보고 있다.
 
 ## 검증 범위
 
