@@ -62,5 +62,16 @@ class SpikeAcceptedTests(unittest.TestCase):
         self.assertGreater(parse(wide)['error_bound_ns'], 2_000_000_000)
 
 
+class LogLineTests(unittest.TestCase):
+    def test_the_start_log_says_a_spike_reply_is_used_with_its_bound(self):
+        from rescue_coordination import live_task_inputs
+        record = parse(message(spike=True))
+        line = live_task_inputs.clock_log_line(record)
+        self.assertTrue(line.startswith('central live clock: SYNCED (timesyncd spike reply used, bound '), line)
+        self.assertEqual('central live clock: SYNCED', live_task_inputs.clock_log_line(parse(message())))
+        self.assertEqual('central live clock: NO_NTP_REPLY: x',
+                         live_task_inputs.clock_log_line(dict(state='UNKNOWN', reason='NO_NTP_REPLY: x')))
+
+
 if __name__ == '__main__':
     unittest.main()
