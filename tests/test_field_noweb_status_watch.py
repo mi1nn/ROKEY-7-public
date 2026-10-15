@@ -64,12 +64,12 @@ class LineTests(Case):
                                                  at_ns=now + revision))
         self.ledger.record_map_snapshot(dict(snapshot_id=uid(810), robot_id='robot_a', revision=7,
                                              path=f'maps/{run}/live-r7-{"d" * 12}.pgm', sha256='d' * 64, at_ns=now))
-        self.ledger.record_target_state(target_state(rescue_state='CANDIDATE', support_state='ASSIGNED'))
+        self.ledger.record_target_state(target_state(rescue_state='RECHECK_NEEDED', support_state='ASSIGNED'))
         line = self.line()
         for part in ('임무 DISASTER/SEGMENT_MOVING', '이유=START_POSE_CONFLICT', '구간 1/3 EXECUTING',
                      'robot_a(SCOUT) 준비=READY 이동=MOVING 도킹=UNDOCKED 자세=있음 작업=있음',
                      'robot_b(SUPPORT) 준비=NOT_READY 이동=STOPPED 도킹=DOCKED 자세=없음 작업=없음',
-                     '지도 r7', '고정 지도 r1,r2', f'대상 1개 {uid(500)[:8]} CANDIDATE/ASSIGNED'):
+                     '지도 r7', '고정 지도 r1,r2', f'대상 1개 {uid(500)[:8]} RECHECK_NEEDED/ASSIGNED'):
             self.assertIn(part, line)
         self.assertNotIn('낡음', line)
 
@@ -86,7 +86,7 @@ class LineTests(Case):
         self.ledger.close_run(at_ns=time.time_ns())
         self.ledger.open_run(at_ns=time.time_ns())
         self.assertIn('초기화 확인 조정기=아직 robot_a=아직 robot_b=아직', self.line())
-        self.ledger.record_robot_status(robot_status(robot_boot_id=uid(11)))
+        self.ledger.record_robot_status(robot_status(robot_boot_id=uid(11), stamp_ns=time.time_ns()))  # new boot
         self.assertIn('robot_a=다시 켜짐', self.line())
 
     def test_between_runs_says_so(self):
