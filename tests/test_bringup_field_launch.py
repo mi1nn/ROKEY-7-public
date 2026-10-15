@@ -194,6 +194,7 @@ class CoordinatorParameters(FieldCase):
         expected['frontier_goal_clearance_m'] = 0.35  # room to stop and turn in place (owner decision 2026-10-16, C3)
         # the pick's cost weights: explore_lite defaults as in rescue_perception explore.yaml (2026-10-16)
         expected.update(frontier_potential_scale=3.0, frontier_gain_scale=1.0)
+        expected['nav2_xy_goal_tolerance_m'] = 0.25  # the robots' Nav2 goal checker, for the step-aside spot (C19)
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
         expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
@@ -552,3 +553,14 @@ class FieldFile(FieldCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GoalToleranceMirrorTests(unittest.TestCase):
+    def test_the_coordinator_s_goal_tolerance_is_the_robots_nav2_one(self):
+        # the coordinator keeps step-aside spots this much past the separation (C19); it must be what Nav2 uses
+        from test_bringup_no_backup import load_yaml
+        nav2 = load_yaml(REPO / 'config' / 'robots' / 'turtlebot4_nav2.baseline.yaml')
+        checker = nav2['controller_server']['ros__parameters']['general_goal_checker']['xy_goal_tolerance']
+        field = json.loads(FIELD.read_text())
+        self.assertEqual(checker, field['coordinator']['nav2_xy_goal_tolerance_m'])
+
