@@ -130,8 +130,16 @@ class SavedMapSources:
         if robot in self.adopted: return 'FROZEN'
         return 'SLAM' if mode=='SLAM_THEN_FROZEN' else 'UNFROZEN'
 
+    def _handover(self,robot):
+        """TB-6 took its final revision but its map topic does not carry that grid yet: slam_toolbox still runs
+        (runbook 7.5 stops it, then the relay copies the grid). Its SLAM pose and map still count, in the same
+        frame as the frozen grid, which is that SLAM map at the freeze (simulation 2026-10-16 runs 4-5: 73-76 s
+        without a pose otherwise)."""
+        return (self.settings[robot]['mode']=='SLAM_THEN_FROZEN' and self.phase(robot)=='FROZEN'
+                and robot not in self.maps and robot not in self.faults)
+
     def loaded(self,robot):
-        return robot in (self.slam_maps if self.phase(robot)=='SLAM' else self.maps)
+        return robot in (self.slam_maps if self.phase(robot)=='SLAM' or self._handover(robot) else self.maps)
 
     def basis(self,robot):
         """The basis this robot publishes now; occupancy_key = the map hash, or what stands in for it."""
@@ -183,7 +191,9 @@ class SavedMapSources:
         self.deferred.pop(robot,None)
         self.adopted[robot]=target
         self.valid_after[robot]=r.adapter.wall_clock_ns()
-        self.maps.pop(robot,None); self.slam_maps.pop(robot,None); self.poses.pop(robot,None)
+        self.maps.pop(robot,None)
+        if self.settings[robot]['mode']!='SLAM_THEN_FROZEN':   # TB-6 keeps SLAM until its frozen grid (_handover)
+            self.slam_maps.pop(robot,None); self.poses.pop(robot,None)
         if previous is not None and robot in self.last_valid:   # TB-5 re-aligning: start from where it stands
             self.reinit[robot]=self.last_valid[robot]
         r.node.get_logger().info(f'MAP_REVISION_ADOPTED {robot} R{previous} -> R{target} '
@@ -199,7 +209,13 @@ class SavedMapSources:
             if self.maps.pop(robot,None) is not None or grid is not None:
                 self.runtime.node.get_logger().error(f'{robot} map is not the frozen map; not loaded')
             return
+        handover=self._handover(robot)
         self.maps[robot]=grid
+        if handover:   # the SLAM pose ends here; only AMCL on the frozen grid counts from now
+            self.valid_after[robot]=self.runtime.adapter.wall_clock_ns()
+            self.poses.pop(robot,None); self.slam_maps.pop(robot,None)
+            self.runtime.node.get_logger().info(f'MAP_HANDOVER {robot} R{self.adopted[robot]} frozen grid on its map '
+                                                'topic: SLAM pose until now, AMCL from here')
         start=self.reinit.pop(robot,None)
         if start is not None:
             # AMCL poses until now were on the previous grid, even those stamped after the adoption (REV-242-01)
@@ -275,6 +291,8 @@ class SavedMapSources:
                     raise ContractError('map is not in the map frame')
                 elif phase=='SLAM':
                     self.slam_maps[robot]=grid  # changes while searching; never a footprint map
+                elif self._handover(robot) and grid.sha256!=self.known[self.adopted[robot]].sha256:
+                    self.slam_maps[robot]=grid  # SLAM still runs after the final freeze (_handover)
                 else:
                     self.received[robot]=grid
                     if phase=='FROZEN': self._load(robot)
@@ -285,11 +303,14 @@ class SavedMapSources:
             self._publish_map_state(robot)
 
     def receive_pose(self,robot,message,source='localization',covariance_fresh=True):
-        """``source`` 'slam' (TF map -> base_link, slam_tf_pose) counts only while searching, 'localization'
+        """``source`` 'slam' (TF map -> base_link, slam_tf_pose) counts only while searching (and in the TB-6
+        handover after the final freeze, _handover), 'localization'
         (amcl_pose) and 'amcl_tf' (TF map -> base_link with the last amcl_pose's covariance) otherwise. ``covariance_fresh`` False (the SLAM pose giving the covariance is too old): not valid."""
         r=self.runtime
         with r.adapter.lock:
-            if (source=='slam')!=(self.phase(robot)=='SLAM'): return
+            searching=self.phase(robot)=='SLAM'
+            if source=='slam' and not (searching or self._handover(robot)): return
+            if source!='slam' and searching: return
             try:
                 c=self.settings[robot]; observed=stamp(message)
                 if observed<=0 or observed>r.adapter.wall_clock_ns()+r.inputs.bound:

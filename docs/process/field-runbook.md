@@ -250,6 +250,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
    1. `MAP_REVISION_ADOPTED robot_a RNone -> R<R0+2>` 를 보고 `tb6_slam.launch.py` 터미널에서 Ctrl+C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 발행자 수가 0 이 될 때까지 기다린다.
    2. TB-6 담당 PC 의 새 터미널에서 1단계 「터미널 준비」 네 줄(`F` 포함)을 넣고 `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0` 을 띄운다.
    3. `MAP_RELAYED /rescue/map/frozen R<R0+2> -> /robot6/map` 를 본다. `MAP_RELAY_BLOCKED` 이면 SLAM 이 아직 떠 있다.
+   - **1~3 은 바로 이어서 한다.** TB-6 위치는 SLAM 을 끄기 전까지 SLAM 으로 이어지고, `MAP_HANDOVER robot_a ...` 뒤에는 AMCL 이 낸다. 그 사이(SLAM 끄기 → AMCL 첫 위치)에는 TB-6 위치가 없어서 조정기가 TB-5 새 명령을 `TRAFFIC_SCOUT_POSE_UNKNOWN` 으로 미룬다. 이미 가고 있는 TB-5 작업은 멈추지 않는다. 시뮬레이션 4회차에서는 이 사이가 43 s 였고, 그중 확인·자료 남김이 약 33 s 였다.
    4. TB-5 는 멈춰 있으면 `MAP_REALIGN robot_b ...` 로 다시 맞춘다. 움직이는 중이면 `MAP_REVISION_DEFERRED` 가 나오고 멈춘 뒤 받는다.
    5. 두 로봇 모두 `MAP_STATE ... rev=<R0+2> quality=VALID` 이고 `snapshot_id` 가 같은지 본다.
 6. **끝.** TB-5 가 인형에서 가장 가까운 출구에 도착하고 TB-6 이 도킹 접근 지점에 도착하면 `MISSION_FINISHED` 다. 인형이 없으면 `NO_SURVIVOR_FOUND` 이고 TB-5 는 출발하지 않는다.

@@ -137,9 +137,12 @@ class Lifecycle(unittest.TestCase):
         s.receive_map('robot_a', grid_message())
         self.pose(source='slam')
         self.freeze(frozen, R0 + 2)
-        # SLAM is still publishing the old map: not the frozen grid -> nothing loaded, UNKNOWN
-        self.assertEqual(('UNKNOWN', R0 + 2), (self.record()['localization_status'], self.record()['map_revision']))
-        self.assertFalse(s.loaded('robot_a'))
+        # SLAM is still publishing the old map: the SLAM pose and map still count until the frozen grid
+        # arrives (handover, simulation 2026-10-16 runs 4-5; test_robot_tb6_handover_pose)
+        self.pose(source='slam')
+        self.assertEqual(('VALID', R0 + 2), (self.record()['localization_status'], self.record()['map_revision']))
+        self.assertTrue(s.loaded('robot_a'))
+        self.assertNotIn('robot_a', s.maps)
         s.receive_map('robot_a', deepcopy(frozen))   # the frozen map republished on /robot6/map
         self.assertEqual(Grid(frozen).sha256, s.maps['robot_a'].sha256)
         self.pose(source='slam')                      # SLAM pose no longer counts
@@ -231,6 +234,7 @@ class Lifecycle(unittest.TestCase):
     def test_tb6_never_goes_back_to_slam(self):
         s = self.make('SLAM_THEN_FROZEN')
         self.freeze(grid_message(), R0 + 2)
+        s.receive_map('robot_a', grid_message())           # the frozen grid on its map topic: SLAM is over
         s.receive_map('robot_a', grid_message({7: 100}))   # a late SLAM map
         self.pose(source='slam')
         self.assertEqual(('UNKNOWN', R0 + 2), (self.record()['localization_status'], self.record()['map_revision']))
