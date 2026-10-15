@@ -73,7 +73,10 @@ SystemState를 거절하고, 시계 공급이 준비된 뒤에도 새 상태 발
 live_inputs를 켠 기존 중앙에 `~/refresh_state` 표준 std_srvs/Trigger 서비스를
 추가했다. 운영자가 요청하면 중앙이 현재 상태를 실제로 다시 발행한다. 상태가
 변하지 않았다면 state_sequence/changed_at_ns는 원 값이고 Envelope의 publication
-sequence/published_at_ns만 실제 새 발행에 맞춰 변경한다. 반복 heartbeat는 아니다.
+sequence/published_at_ns만 실제 새 발행에 맞춰 변경한다.
+2026-10-15 부터는 상태가 그대로여도 `lease_renew_period_s` 마다 같은 방식으로 다시 낸다.
+조정기보다 늦게 뜬 실행기가 손으로 `~/refresh_state` 를 부르지 않아도 세션을 맺게 하려는 것이다.
+이것도 중앙 clock 이 SYNCED 일 때만 하고, 노드 로그 `SYSTEM_STATE_RESENT` 는 상태마다 한 번만 남긴다.
 서비스는 임무 tick/lease 갱신/arm/재난 모드 전환/Nav2 전송을 호출하지 않는다.
 중앙 실측 clock이 UNKNOWN/만료면 거절한다. 로봇의 실제 clock/신원/boot/나이 검사와
 DISARMED 및 watchdog 관문은 유지한다. 새 노드나 IDL은 추가하지 않았다.

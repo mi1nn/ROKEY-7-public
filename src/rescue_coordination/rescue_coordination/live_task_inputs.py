@@ -13,10 +13,13 @@ from rescue_contracts.clock_measurement import ClockSampler
 
 
 class StatePublication:
-    """Publish changed state, or explicitly resend the latest unchanged snapshot.
+    """Publish changed state, or resend the latest unchanged snapshot: explicitly (``refresh``) or once
+    ``resend_after_ns`` passed since the last publication.
 
     Resending updates only the actual publication envelope. changed_at_ns and
     state_sequence retain their original meanings. No mission/lease tick runs.
+    The periodic resend keeps the envelope fresh for an executor started later
+    (it refuses a SystemState older than its lease max age, 현장 2026-10-15).
     """
     def __init__(self, core, message_type, stamp_envelope, publish):
         self.core = core
@@ -24,15 +27,21 @@ class StatePublication:
         self.stamp_envelope = stamp_envelope
         self.publish = publish
         self.last_fields = None
+        self.last_sent_ns = None
+        self.resent = False  # the last publication was an unchanged resend
 
-    def send(self, now_ns, *, refresh=False):
+    def send(self, now_ns, *, refresh=False, resend_after_ns=None):
         fields = self.core.system_state_change(now_ns)
-        if fields is None:
-            if not refresh or self.last_fields is None:
+        resent = fields is None
+        if resent:
+            due = (resend_after_ns is not None and self.last_sent_ns is not None
+                   and now_ns - self.last_sent_ns >= resend_after_ns)
+            if not (refresh or due) or self.last_fields is None:
                 return None
             fields = deepcopy(self.last_fields)
         self.publish(self.stamp_envelope(self.message_type(**fields)))
         self.last_fields = deepcopy(fields)
+        self.last_sent_ns, self.resent = now_ns, resent
         return fields
 
 
