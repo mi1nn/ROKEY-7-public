@@ -10,7 +10,7 @@ reports each overhead structure on the map:
 * It floats only when that height is above the LiDAR plane (OPS-186 a): lower structures the LiDAR
   already sees (a wall, a box) are no tunnel.
 * PASSABLE at or above the clearance (passage.max_height_m, owner decision 46 cm), BLOCKED below.
-  UNKNOWN when the floor under it (same x span) was not seen: no height is claimed (OPS-186 b).
+  UNKNOWN when no floor was seen under it or within FLOOR_REACH_M of it: no height is claimed (OPS-186 b).
 * Reported after ``confirm_frames`` agreeing processed frames at one place; a frame with another
   answer, nothing, or no usable input restarts the count. Position = the structure's floor centre
   in the map frame (TF at the cloud stamp); the map revision from the SCOUT's MapState.
@@ -150,6 +150,11 @@ def to_frame(points, translation, quaternion):
 
 
 FLOOR_LAYER_M = 0.05   # the floor layer: candidates within this of the lowest tenth (depth noise, a slight slope)
+# [제안] floor seen this far in front of or past the structure's x span counts as the floor under it (C27,
+# 2026-10-16): the field tunnels are one 1.8 cm board on its edge, with hardly any floor visible under it. Wider
+# than the board plus the depth noise along x; narrower than the 0.2 m gap where a floor seen only short of the
+# structure stays UNKNOWN (a step or a slope there is not ruled out).
+FLOOR_REACH_M = 0.1
 
 
 def floor_height(z_candidates, policy):
@@ -202,7 +207,7 @@ def judge(points, policy):
         return None   # the LiDAR sees it: an ordinary obstacle
     xs = x[above]
     x0, x1 = float(xs.min()), float(xs.max())
-    floor = box & (np.abs(h) <= policy.floor_noise_m) & (x >= x0) & (x <= x1)
+    floor = box & (np.abs(h) <= policy.floor_noise_m) & (x >= x0 - FLOOR_REACH_M) & (x <= x1 + FLOOR_REACH_M)
     cx, cy = float(xs.mean()), float(y[above].mean())
     if base is None or np.count_nonzero(floor) < policy.floor_min_points:
         # at the box's near end with no floor seen: the robot is about to be under it without a height (A, 2026-10-16)
