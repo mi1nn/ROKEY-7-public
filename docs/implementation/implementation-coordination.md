@@ -71,6 +71,7 @@ updated: 2026-10-14
 - TB-6 실시간 지도와 TB-6 위치로 미탐색 경계 덩어리를 찾는다(`rescue_contracts.grid_search.find_frontiers`). 덩어리는 `frontier_min_cells` 칸 이상이고, 목표 칸은 덩어리에서 `frontier_reach_m` 안이다.
 - 이미 시도한 곳에서 `frontier_blacklist_m` 안은 고르지 않는다. 남은 것 중 TB-6 에서 격자 경로가 가장 짧은 것을 고르고, 그 경로 위 `frontier_goal_max_m` 지점을 목표로 삼는다.
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
+- 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.
 - 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
 
 ### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
