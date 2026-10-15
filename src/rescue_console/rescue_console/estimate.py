@@ -21,6 +21,9 @@ from rescue_contracts.occupancy import compose_planar
 from .mapimage import MAP_FRAME
 from .view import ConsoleError
 
+# 고정 전 SLAM 지도의 revision. 지도 고정은 이 값 + 1(R1), + 2(R2)를 낸다(map_freeze FREEZES, contracts C-04a).
+# 배치 프로파일 map_basis.map_revision 이 0 이다([설정] config/deployment*.json). 작전 OPS-281: 이것이 확인될 때만 그린다.
+PRE_FREEZE_MAP_REVISION = 0
 OFFSET_KEY = 'initial_pose_xy_yaw'   # 현장 파일 robots.<id> 의 키(scripts/field/capture_initial_pose.py 가 잰 값)
 
 
@@ -45,12 +48,23 @@ def load_start_offsets(path):
     return offsets
 
 
-def apply_estimate(robots, watch, built_at_ns):
+def before_first_freeze(current_map, map_robot, dispatch):
+    """「R1 전」이 확인되는가(작전 OPS-281). 지도 주인 로봇의 지금 지도가 고정 전 revision 이고 출동 구간이 없어야
+    한다. 지금 지도를 모르면 아니다(모르면 그리지 않음). R1 뒤나 출동 뒤 TB-5 위치가 비었을 때 움직이는 TB-5 가
+    출발점에 다시 나타나지 않게 한다."""
+    return (dispatch is None and current_map is not None and current_map['robot_id'] == map_robot
+            and current_map['map_revision'] == PRE_FREEZE_MAP_REVISION)
+
+
+def apply_estimate(robots, watch, built_at_ns, *, current_map=None, dispatch=None):
     """지도 frame 위치가 없는 로봇에 추정 위치를 넣는다. ``watch`` 는 build_view 의 robot_watch 입력이고,
-    ``start_offsets`` 가 있어야 한다. 직접 관측 파일이 낡았거나 출발 자세가 map frame 이 아니면 넣지 않는다."""
+    ``start_offsets`` 가 있어야 한다. 직접 관측 파일이 낡았거나 출발 자세가 map frame 이 아니면 넣지 않는다.
+    「R1 전」(before_first_freeze)이 확인되지 않거나 그 로봇이 임무 중(active_task_id)이면 넣지 않는다."""
     offsets = (watch or {}).get('start_offsets')
     data = None if watch is None else watch['data']
     if not offsets or data is None or (built_at_ns - data['written_at_ns']) / 1e9 > watch['stale_s']:
+        return
+    if not before_first_freeze(current_map, watch['map_robot'], dispatch):
         return
     start = (data['robots'].get(watch['map_robot']) or {}).get('start_pose')
     if not isinstance(start, dict) or start.get('frame_id') != MAP_FRAME:
@@ -58,7 +72,8 @@ def apply_estimate(robots, watch, built_at_ns):
     for row in robots:
         relative = offsets.get(row['robot_id'])
         pose = row.get('pose')
-        if relative is None or row['robot_id'] == watch['map_robot'] or (pose and pose['frame_id'] == MAP_FRAME):
+        if (relative is None or row['robot_id'] == watch['map_robot'] or (pose and pose['frame_id'] == MAP_FRAME)
+                or row.get('active_task_id') is not None):
             continue
         x, y, yaw = compose_planar((start['x'], start['y'], start['yaw']), relative)
         row['pose'] = {'x': x, 'y': y, 'yaw': yaw, 'frame_id': MAP_FRAME, 'estimated': True}
