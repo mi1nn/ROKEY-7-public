@@ -268,41 +268,58 @@ class DebugImageTests(unittest.TestCase):
 
 
 class StatusItemsTests(unittest.TestCase):
-    """2026-10-15 사용자 요청: 웹캠 판정 화면 위에 지진·인형·출구 상태를 작게 띄운다(화면용, 판정에 안 씀)."""
+    """2026-10-15 사용자 요청: 웹캠 판정 화면 위에 지진·인형·출구 상태를 한글로 띄운다(화면용, 판정에 안 씀)."""
 
     def items(self, **kw):
         from rescue_perception.webcam_service import status_items
         base = dict(quake_now=False, quake_seen=False, reversals=1, shakes_min=4, boxes=None, score_min=0.5,
                     presence=None, watched=False)
         base.update(kw)
-        return [text for text, _ in status_items(**base)]
+        return [(title, value) for title, value, _ in status_items(**base)]
 
     def presence(self, state, reason=None, absent_ns=0):
         return SimpleNamespace(state=state, reason=reason, absent_ns=absent_ns)
 
-    def test_before_quake_yolo_is_off(self):
-        self.assertEqual(self.items(), ["QUAKE NO 1/4", "DOLL: YOLO OFF", "EXIT: -"])
+    def test_before_quake_three_boxes(self):
+        self.assertEqual(self.items(), [("지진", "없음"), ("인형", "대기"), ("출구", "대기")])
 
     def test_quake_now_and_latched(self):
-        self.assertEqual(self.items(quake_now=True)[0], "QUAKE NOW 1/4")
-        self.assertEqual(self.items(quake_seen=True)[0], "QUAKE DETECTED")
+        self.assertEqual(self.items(quake_now=True)[0], ("지진", "흔들리는 중"))
+        self.assertEqual(self.items(quake_seen=True)[0], ("지진", "감지됨"))
 
     def test_doll_seen_uses_best_passing_score(self):
         boxes = boxes_from_xyxyn([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4]], [0.93, 0.2])
-        self.assertEqual(self.items(quake_seen=True, boxes=boxes)[1], "DOLL SEEN 0.93")
-        self.assertEqual(self.items(quake_seen=True, boxes=boxes[1:])[1], "NO DOLL")
-        self.assertEqual(self.items(quake_seen=True, boxes=None)[1], "DOLL: DETECTOR FAILED")
+        self.assertEqual(self.items(quake_seen=True, boxes=boxes)[1], ("인형", "보임 93%"))
+        self.assertEqual(self.items(quake_seen=True, boxes=boxes[1:])[1], ("인형", "안 보임"))
+        self.assertEqual(self.items(quake_seen=True, boxes=None)[1], ("인형", "탐지기 오류"))
 
-    def test_exit_words_say_view_or_watch(self):
-        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"))[2], "EXIT(view): LEFT VIA EXIT")
+    def test_exit_title_says_view_or_watch(self):
+        self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"))[2], ("출구 · 화면용", "출구로 사라짐"))
         self.assertEqual(self.items(presence=self.presence("ABSENT_CANDIDATE"), watched=True)[2],
-                         "EXIT(watch): LEFT VIA EXIT")
-        self.assertEqual(self.items(presence=self.presence("PRESENT", absent_ns=1_500_000_000))[2],
-                         "EXIT(view): MISSING 1.5s")
-        self.assertEqual(self.items(presence=self.presence("PRESENT"))[2], "EXIT(view): IN VIEW")
-        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_VIA_EXIT"))[2],
-                         "EXIT(view): GONE NOT VIA EXIT")
-        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_YET_SEEN"))[2], "EXIT(view): WAITING")
+                         ("출구 · 감시", "출구로 사라짐"))
+        self.assertEqual(self.items(presence=self.presence("PRESENT", absent_ns=1_500_000_000))[2][1], "안 보인 지 1.5초")
+        self.assertEqual(self.items(presence=self.presence("PRESENT"))[2][1], "화면 안에 있음")
+        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_VIA_EXIT"))[2][1], "다른 쪽으로 사라짐")
+        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "NOT_YET_SEEN"))[2][1], "인형 찾는 중")
+        self.assertEqual(self.items(presence=self.presence("UNKNOWN", "OCCLUDED"))[2][1], "화면 가림")
+
+    def test_status_band_paints_the_top_only(self):
+        try:
+            import cv2  # noqa: F401
+            import numpy as np
+        except ImportError:
+            self.skipTest("OpenCV not installed: status band NOT_RUN")
+        from pathlib import Path
+        fonts = sorted(Path("/usr/share/fonts").glob("**/NotoSansCJK-*.ttc"))
+        if not fonts:
+            self.skipTest("no CJK font: status band NOT_RUN")
+        from rescue_perception.webcam_service import draw_status, status_items
+        bgr = np.full((480, 640, 3), 200, dtype=np.uint8)
+        out = draw_status(bgr, status_items(quake_now=True, quake_seen=True, reversals=4, shakes_min=4, boxes=(),
+                                            score_min=0.5, presence=None, watched=False), str(fonts[0]))
+        self.assertEqual(out.shape, bgr.shape)
+        self.assertTrue((out[:20] != 200).any())     # 위 띠에 그렸다
+        self.assertTrue((out[200:] == 200).all())    # 아래는 그대로
 
 
 if __name__ == "__main__":
