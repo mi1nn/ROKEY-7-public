@@ -20,10 +20,11 @@ from rescue_operations.command_api import COMMAND_FIELDS, COMMAND_PATH, RESET_PA
 from test_operations_site_state import dispatch, mission, target_state, uid
 
 REPO = Path(__file__).resolve().parents[1]
-if not (REPO / 'scripts').is_dir():
-    raise unittest.SkipTest('scripts/ absent (installed-wheel checkout)')
-SPEC = importlib.util.spec_from_file_location('noweb_operator_command',
-                                              REPO / 'scripts' / 'field' / 'noweb' / 'operator_command.py')
+SCRIPT = REPO / 'scripts' / 'field' / 'noweb' / 'operator_command.py'
+if not SCRIPT.is_file():
+    # as tests/test_field_wiring_check.py: a repo script, not part of the installed-wheel checkout
+    raise unittest.SkipTest('scripts/field/noweb/operator_command.py absent (installed-wheel checkout)')
+SPEC = importlib.util.spec_from_file_location('noweb_operator_command', SCRIPT)
 oc = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(oc)
 
