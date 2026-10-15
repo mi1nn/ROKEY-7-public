@@ -446,7 +446,7 @@ def attach_slam_tf_pose(r,robot,c,subscribe):
 
 def attach_sources(runtime):
     """Bind real ROS inputs; polling is asynchronous and never moves the robot."""
-    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, qos_profile_sensor_data
+    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
     from nav_msgs.msg import OccupancyGrid
     from geometry_msgs.msg import PoseWithCovarianceStamped
     r=runtime; snapshot=QoSProfile(depth=1,reliability=ReliabilityPolicy.RELIABLE,durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -498,5 +498,7 @@ def attach_sources(runtime):
                 from std_msgs.msg import String
                 subscribe(String,c['start_align_topic'],lambda m,robot=robot:r.saved_maps.receive_start_align(robot,m),
                           snapshot,lambda robot=robot:r.saved_maps.aligned.pop(robot,None))
-            subscribe(PoseWithCovarianceStamped,c['localization_topic'],lambda m,robot=robot:r.saved_maps.receive_pose(robot,m),qos_profile_sensor_data,
+            # as Nav2 AMCL publishes amcl_pose (RELIABLE, TRANSIENT_LOCAL, depth 1): a standing robot gets one pose
+            # after the initial pose and no more, and a volatile reader that matched late missed it (run 10, C15)
+            subscribe(PoseWithCovarianceStamped,c['localization_topic'],lambda m,robot=robot:r.saved_maps.receive_pose(robot,m),snapshot,
                       lambda robot=robot:r.saved_maps.poses.pop(robot,None))
