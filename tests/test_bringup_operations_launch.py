@@ -15,6 +15,7 @@ from rescue_bringup.profile import load_deployment
 REPO = Path(__file__).resolve().parents[1]
 PROFILE = REPO / 'config' / 'deployment.v2.example.json'
 V1_PROFILE = REPO / 'config' / 'deployment.example.json'
+OPERATIONS_LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'operations.launch.py'
 
 
 def build(**changes):
@@ -227,8 +228,9 @@ class RobotViewRelay(unittest.TestCase):
         from rescue_bringup.operations_launch import robot_view_default
         self.assertEqual('robot_b', robot_view_default(load_deployment(PROFILE)))
 
+    @unittest.skipUnless(OPERATIONS_LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
     def test_launch_file_uses_the_support_default(self):
-        text = (REPO / 'src/rescue_bringup/launch/operations.launch.py').read_text(encoding='utf-8')
+        text = OPERATIONS_LAUNCH.read_text(encoding='utf-8')
         self.assertIn('default_robot=robot_view_default(deployment)', text)
 
     def test_tb5_only(self):
