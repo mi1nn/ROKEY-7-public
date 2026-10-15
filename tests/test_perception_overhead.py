@@ -111,12 +111,10 @@ class FloorReferenceTests(unittest.TestCase):
     def at(self, cloud):
         return cloud + np.array([0.0, 0.0, self.FIELD_FLOOR])
 
-    @unittest.expectedFailure
     def test_tunnel_1_over_a_floor_at_minus_0_2_is_passable(self):
         r = judge(self.at(scene(grid(0.4, 1.0, 0.0), grid(0.6, 0.8, 0.47))), POLICY)
         self.assertEqual(('PASSABLE', 0.47), (r.state, round(r.lowest_m, 3)))
 
-    @unittest.expectedFailure
     def test_a_lower_cover_over_a_floor_at_minus_0_2_is_blocked_at_its_height(self):
         r = judge(self.at(scene(grid(0.4, 1.0, 0.0), grid(0.6, 0.8, 0.40))), POLICY)
         self.assertEqual(('BLOCKED', 0.40), (r.state, round(r.lowest_m, 3)))
