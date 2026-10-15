@@ -116,6 +116,14 @@ wait_for relay "RELAY robot5" 30
 # 3. 두 로봇 언도킹(로봇 감독 몫, 시뮬레이션 도메인). 런북 4단계는 TB-6 을 언도킹해 출발 표시에 둔 뒤 SLAM·실행기·지도 고정,
 #    5단계는 TB-5 도 1차 고정 전에 언도킹. 출발 자세(START_POSE)는 언도킹 뒤 자세다(작전 2026-10-15).
 for ns in robot6 robot5; do
+    # 런북 2단계 「Create3 연결」: dock_status 가 오고 도킹 상태인지 먼저 본다. 로봇이 뜬 직후 바로 보내면 거절됐다(2026-10-15).
+    for i in $(seq 1 12); do
+        call "timeout 10 ros2 topic echo --once /$ns/dock_status irobot_create_msgs/msg/DockStatus" > "$RUN/logs/dock_status_$ns.log" 2>&1
+        grep -q "is_docked: true" "$RUN/logs/dock_status_$ns.log" && break
+        sleep 5
+    done
+    grep -q "is_docked: true" "$RUN/logs/dock_status_$ns.log" || die "$ns dock_status 가 도킹 상태로 오지 않습니다(로그 $RUN/logs/dock_status_$ns.log)"
+    say "$ns dock_status is_docked: true"
     env -i HOME="$HOME" PATH=/usr/bin:/bin bash -c "$BASE_ENV; export ROS_DOMAIN_ID=$SIM_DOMAIN; \
 timeout 120 ros2 action send_goal /$ns/undock irobot_create_msgs/action/Undock '{}'" > "$RUN/logs/undock_$ns.log" 2>&1
     grep -q "SUCCEEDED" "$RUN/logs/undock_$ns.log" || die "언도킹 $ns 실패(로그 $RUN/logs/undock_$ns.log)"
