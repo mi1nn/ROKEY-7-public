@@ -30,7 +30,7 @@
       <pose>0.0000 0.0000 0.0000 0 0 0.000000</pose>
       <link name="link">
         <collision name="collision"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></collision>
-        <visual name="visual"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry><material><ambient>0.57 0.57 0.56 1</ambient><diffuse>0.57 0.57 0.56 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <visual name="visual"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry><material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="outer_south">
