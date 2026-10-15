@@ -90,7 +90,7 @@ class FrontierPickTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.finish(fields, 'UNREACHABLE')
+        self.finish(fields)  # reached: not picked again (a failed one is picked again once, FrontierRetryTests)
         for k in range(2):  # two map updates in a row with nothing left to pick
             self.core.on_scout_map(grid())
             self.core.on_pose(scout_pose(at=NOW + DELAY + k + 1))
@@ -190,9 +190,9 @@ class RobotNotStartedTests(Base):
                 self.reject(self.first_goal(), cause)
                 self.assertEqual([], self.core.frontier_tried)
 
-    def test_a_goal_nav2_took_and_aborted_is_still_tried(self):
+    def test_a_goal_nav2_took_and_aborted_counts_as_a_failed_attempt(self):
         self.reject(self.first_goal(), 'ACTION_ABORTED')
-        self.assertEqual(2, len(self.core.frontier_tried))
+        self.assertEqual(([], 1), (self.core.frontier_tried, len(self.core.frontier_failures)))  # retried once (C9)
         # the reason is in the log, not only the outcome (RPP "collision ahead" ends as ACTION_ABORTED, 2026-10-15)
         self.assertIn('outcome=FAILED reason=ACTION_ABORTED', ' '.join(self.core.drain_notes()))
         self.assertNotEqual('SCOUT_GOAL_NOT_STARTED', self.reason(NOW + DELAY))
@@ -235,6 +235,14 @@ class FrontierRetryTests(Base):
         notes = ' '.join(self.core.drain_notes())
         self.assertIn('EXPLORATION_COMPLETE reason=EXPLORATION_FRONTIERS_FAILED', notes)
         self.assertIn('failed_frontiers=1', notes)
+
+    def test_no_doll_after_given_up_frontiers_is_not_shown_as_no_survivor(self):
+        # SLAM_FREEZE with no doll would show NO_SURVIVOR_FOUND ("생존자 없음 — 탐색 완료"): not a whole map here
+        self.core.map_mode, self.core.exploration_complete = 'SLAM_FREEZE', True
+        self.core.exploration_reason = 'EXPLORATION_FRONTIERS_FAILED'
+        self.assertEqual('EXPLORATION_FRONTIERS_FAILED', self.core.mission_reason(NOW))
+        self.core.exploration_reason = 'EXPLORATION_COMPLETE'
+        self.assertEqual('NO_SURVIVOR_FOUND', self.core.mission_reason(NOW))
 
 
 class WaitingForArmTests(Base):
@@ -281,9 +289,7 @@ class FrontierNoneWhyTests(Base):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        self.core.on_admission(admission_msg(fields))
-        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
-                                                  terminal_reason='ACTION_ABORTED'))
+        self.finish(fields)  # reached once: tried
         self.core.on_scout_map(grid())
         self.core.on_pose(scout_pose(at=NOW + DELAY + 1))
         self.searches(NOW + DELAY + 1)
