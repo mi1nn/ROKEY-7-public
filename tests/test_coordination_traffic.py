@@ -264,3 +264,43 @@ class ParameterTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FrontierBesideTb5Tests(unittest.TestCase):
+    """A frontier whose goal TB-6 could never get (within traffic_min_separation_m of a standing TB-5) is not picked:
+    another one is, and FRONTIER none names it TOO_CLOSE (시뮬레이션 2026-10-16 3회차 C10: the coordinator picked a
+    frontier 0.39 m beside the parked TB-5 and held TRAFFIC_ROBOTS_TOO_CLOSE until the exploration timed out; TB-5's
+    body leaves an unknown shadow in TB-6's map, so such a frontier can appear on the field too [추정])."""
+
+    BESIDE_TB5 = staticmethod(lambda x, y: x < -0.5 and 3.4 < y < 4.6)  # TB-5 at its start (0, 4)
+
+    def core_with(self, unknown):
+        core = core_(**TrafficBase.CORE)
+        core.on_map_state(map_state(SCOUT, revision=3))
+        core.on_start_pose((0., 0., 0.))
+        core.on_site_event(site_msg())
+        core.on_command(request('START_SEARCH', command_id=uid(690), robot_id=SCOUT), now_ns=NOW)
+        core.on_scout_map(scout_grid(unknown=unknown))
+        core.on_pose(scout_pose((1.2, 4.2)))
+        return core
+
+    @staticmethod
+    def tick(core, now):
+        core.on_status(status_msg(SCOUT, observed_at_ns=now))
+        core.on_status(status_msg(SUPPORT, observed_at_ns=now))
+        return [f for f in core.tick(now) if f['kind'] == 'SEARCH_AREA']
+
+    def test_the_other_frontier_goes_instead_of_waiting(self):
+        core = self.core_with(lambda x, y: x > 8. or self.BESIDE_TB5(x, y))
+        sent = self.tick(core, NOW) or self.tick(core, NOW + 1)
+        self.assertEqual(1, len(sent))
+        x, y, _ = live_task_inputs.destinations(core)[sent[0]['search_area_ref']]['xy_yaw']
+        self.assertGreaterEqual(math.dist((x, y), TB5_START), MIN_SEP)
+        self.assertNotIn('TRAFFIC_ROBOTS_TOO_CLOSE', ' '.join(core.drain_notes()))
+
+    def test_the_only_frontier_beside_tb5_is_named_too_close(self):
+        core = self.core_with(self.BESIDE_TB5)
+        self.assertEqual([], self.tick(core, NOW))
+        line = [n for n in core.drain_notes() if n.startswith('FRONTIER none')][-1]
+        self.assertIn('too_close=1', line)
+        self.assertIn('TOO_CLOSE cells=', line)
