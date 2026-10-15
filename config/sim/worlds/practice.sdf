@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!-- Written by scripts/sim/map_to_world.py from live_map.yaml. Do not edit by hand: change the layout and run it again.
-     Not measured yet [추정]: wall, robots.robot6, robots.robot5 -->
+     Not measured yet [추정]: wall, robots.robot6, robots.robot5, outline_west, outline_south_356 -->
 <sdf version="1.8">
   <world name="practice">
     <physics name="1ms" type="ignored">
@@ -1223,6 +1223,22 @@
       <link name="link">
         <collision name="collision"><geometry><box><size>0.0500 0.4500 0.4100</size></box></geometry></collision>
         <visual name="visual"><geometry><box><size>0.0500 0.4500 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+      </link>
+    </model>
+    <model name="outline_west">
+      <static>true</static>
+      <pose>-9.0055 0.6040 0.2050 0 0 1.727989</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>3.4303 0.0100 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.4303 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+      </link>
+    </model>
+    <model name="outline_south_356">
+      <static>true</static>
+      <pose>-6.9790 -0.8115 0.2050 0 0 0.157113</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>3.5598 0.0100 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.5598 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
   </world>
