@@ -137,6 +137,10 @@ class AmclTfPose(SlamTfPose):
         if self.covariance[0] == stamp_ns:
             self.anchor = self._odom_plane()
 
+    def needs_covariance(self, *, after_ns):
+        """No amcl_pose since ``after_ns`` (the map switch): the TF pose cannot be made yet."""
+        return self.covariance is None or self.covariance[0] <= after_ns
+
     def pose(self, *, now_ns, after_ns=0):
         if self.covariance is not None and self.covariance[0] <= after_ns:
             return None   # an amcl_pose from the previous map

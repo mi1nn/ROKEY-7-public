@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
@@ -88,6 +89,28 @@ class RunSimChecks(unittest.TestCase):
                 done = self.run_script(*args, **env)
                 self.assertEqual(2, done.returncode, done.stdout)
                 self.assertIn(message, done.stderr)
+
+    def test_a_shell_that_only_mentions_rescue_is_not_a_field_run(self):
+        """A background shell whose command line has rescue_ in it (a PYTHONPATH, a log name) and the field
+        Discovery settings in its environment is not a field run: only programs count (2026-10-16, run_sim refused
+        to start because of the operator's own shell)."""
+        env = dict(os.environ, ROS_DISCOVERY_SERVER=';127.0.0.1:11811;')
+        shell = subprocess.Popen(['bash', '-c', 'sleep 30; true # PYTHONPATH=src/rescue_perception'], env=env)
+        program = subprocess.Popen(['python3', '-c', 'import time; time.sleep(30)', 'rescue_dummy'], env=env)
+        try:
+            time.sleep(0.3)
+            program.kill(); program.wait()
+            done = self.run_script('--world', 'tiny')
+            self.assertEqual(0, done.returncode, done.stderr)
+            program = subprocess.Popen(['python3', '-c', 'import time; time.sleep(30)', 'rescue_dummy'], env=env)
+            time.sleep(0.3)
+            done = self.run_script('--world', 'tiny')
+            self.assertEqual(2, done.returncode)          # a real program with rescue_ is still a field run
+            self.assertIn('실기 회차로 봅니다', done.stderr)
+        finally:
+            for proc in (shell, program):
+                proc.kill()
+                proc.wait()
 
     def test_the_arena_world_in_the_repository_has_a_start_pose(self):
         done = subprocess.run(['bash', str(SCRIPT), '--check-only', '--world', 'arena'], capture_output=True, text=True,

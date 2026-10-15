@@ -276,6 +276,26 @@ def nearest_in_mask(*, frame, width, height, resolution, origin, data, mask, poi
     return None if best is None else g.centre(best[1])
 
 
+def nearest_reachable(*, frame, width, height, resolution, origin, data, radius, start, mask, among, point, within_m):
+    """Centre of the ``among`` cell nearest ``point`` (straight line, within ``within_m``; ties: lower row, then
+    column) that has a clear path from ``start`` (moved like a grid_path start), or None. ``among`` is a clear_mask
+    (a roomier one: a frontier goal TB-6 can stop and turn at, C12); the path keeps ``mask``. Nearest the frontier,
+    not the shortest path: a goal in line with a gap sees past it (9회차 2026-10-16, C14)."""
+    g, mask = _prepare(dict(frame=frame, width=width, height=height, resolution=resolution, origin=origin, data=data),
+                       radius, mask, ())
+    if not isinstance(among, bytes) or len(among) != g.w * g.h:
+        raise ValueError('among must be the bytes of clear_mask for this grid')
+    x, y = _point(point, 'point')
+    limit = _number(within_m, 'within_m')
+    found = _start(g, mask, start, radius)
+    if found is None:
+        return None
+    distance, _, _ = _search(g, mask, found[0])
+    best = min(((round(math.dist(g.centre(i), (x, y)), 9), i // g.w, i % g.w, i) for i in distance
+                if among[i] and math.dist(g.centre(i), (x, y)) <= limit + 1e-9), default=None)
+    return None if best is None else g.centre(best[3])
+
+
 def nearest_clear_outside(*, frame, width, height, resolution, origin, data, radius, from_xy, path_points, distance_m,
                           mask=None, blocked=()):
     """Centre of the clear cell farther than ``distance_m`` from every path point with the shortest clear path

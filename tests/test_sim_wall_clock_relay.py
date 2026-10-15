@@ -109,6 +109,32 @@ class Depth(unittest.TestCase):
         self.assertEqual([[405, 0], [0, 0]], mm.tolist())
         self.assertEqual(65535, int(relay.depth_mm(np.array([100.0], dtype=np.float32))[0]))
 
+    def test_scan_returns_under_the_real_floor_become_no_return(self):
+        # the simulated lidar measures from 0.10 m (no wall leak); the real one gives nothing under 0.164 m
+        class Scan:
+            range_min = 0.10
+            ranges = [0.12, 0.164, 0.5, float('inf'), 0.05]
+        out = relay.real_scan(Scan())
+        self.assertEqual(relay.LIDAR_RANGE_MIN_M, out.range_min)
+        self.assertEqual([float('inf'), 0.164, 0.5, float('inf'), float('inf')], list(out.ranges))
+
+    def test_depth_noise_grows_with_distance_squared_and_keeps_no_return(self):
+        # sigma = k z^2 [추정 2026-10-16]: stereo depth error grows with the distance squared; 1 cm at 1 m
+        import numpy as np
+        rng = np.random.default_rng(7)
+        near, far = np.full((200, 200), 0.5, np.float32), np.full((200, 200), 2.0, np.float32)
+        s_near = float(np.std(relay.noisy_depth(near, 0.01, rng) - near))
+        s_far = float(np.std(relay.noisy_depth(far, 0.01, rng) - far))
+        self.assertAlmostEqual(0.01 * 0.25, s_near, delta=0.0003)
+        self.assertAlmostEqual(0.01 * 4.0, s_far, delta=0.002)
+        holes = np.array([[float('nan'), float('-inf'), 0.0, 1.0]], np.float32)
+        out = relay.noisy_depth(holes, 0.01, rng)
+        self.assertEqual([0, 0, 0, 1], relay.depth_mm(out).astype(bool).astype(int).tolist()[0])   # no return stays
+        self.assertTrue(np.array_equal(near, relay.noisy_depth(near, 0.0, rng)))                   # k 0: unchanged
+
+    def test_the_default_noise_is_on_and_documented(self):
+        self.assertEqual(0.01, relay.DEPTH_NOISE_PER_M2)
+
     def test_payload_is_what_the_field_decoder_reads(self):
         # rescue_perception.target_utils.decode_depth_png: '<iff' header with mode 0, then a uint16 PNG
         import cv2

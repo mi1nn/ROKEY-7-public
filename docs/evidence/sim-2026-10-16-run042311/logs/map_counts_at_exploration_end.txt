@@ -1,0 +1,2 @@
+size 112 69 free 4022 unknown 3377 occupied 329
+04:35:30

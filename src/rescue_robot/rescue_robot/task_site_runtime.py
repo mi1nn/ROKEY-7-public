@@ -528,8 +528,9 @@ class SiteRuntime:
                     self.arm_refused=''
                     return True
                 monitor=getattr(self.adapter,'readiness_monitor',None)
-                detail=(f'{reason} missing={readiness.missing(now,executor.policy)} motion={executor.motion} '
-                        f'sources={monitor.not_fresh(now) if monitor is not None else "unknown"}')
+                detail=arm_refusal_detail(reason,readiness.missing(now,executor.policy),executor.motion,
+                                          monitor.not_fresh(now) if monitor is not None else 'unknown',
+                                          getattr(monitor,'watchdog_state',None))
         self.arm_refused=detail
         self.node.get_logger().error('TASK_ARM refused '+detail)
         return False
@@ -811,3 +812,10 @@ def create_runtime(node,adapter):
     node.get_logger().info('task runtime configuration='+json.dumps(config,sort_keys=True,allow_nan=False))
     node.get_logger().info('installed task runtime; input_mode='+mode+'; explicit arm required')
     return runtime
+
+
+def arm_refusal_detail(reason, missing, motion, sources, watchdog_state):
+    """TASK_ARM refused text: a latched watchdog first, with its reset command (it sends no heartbeat then)."""
+    from rescue_robot.watchdog import latched_hint
+    hint = latched_hint(watchdog_state)
+    return (hint + ': ' if hint else '') + f'{reason} missing={missing} motion={motion} sources={sources}'

@@ -38,7 +38,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from rescue_contracts.grid_search import (Frontier, clear_mask, find_frontiers, grid_path, nearest_clear_outside,
-                                         nearest_in_mask, path_lengths)
+                                         nearest_in_mask, nearest_reachable, path_lengths)
 from rescue_contracts.occupancy import compose_planar, parse_frozen_revision, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
@@ -457,6 +457,7 @@ class CoordinatorCore:
         self.frontier_tried = []    # goals and centroids not picked again: completed once, or failed FRONTIER_ATTEMPTS
         self.frontier_failures = []  # (goal, centroid) of each failed attempt, to count a frontier's failures
         self.frontier_failed = []   # goals and centroids of frontiers given up after FRONTIER_ATTEMPTS failures
+        self.frontier_site_failures = []  # the goal TB-6 got in each failed attempt, whichever frontier (C12)
         self.scout_not_started = None  # NOT_STARTED_REASONS of TB-6's last frontier until it takes a goal again
         self.scout_wait_logged = None  # (frontier site, stop reason) of the last SCOUT_NOT_READY log line
         self.frontier_count, self.frontier_empty, self.frontier_checked_seq = 0, 0, None
@@ -764,7 +765,7 @@ class CoordinatorCore:
         # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
         found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
                                mask=mask)
-        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (NO_PATH, TOO_CLOSE below)
+        why = {}  # index in found -> SMALL | NO_GOAL | TRIED (TIGHT, NO_PATH, TOO_CLOSE below)
         for i, f in enumerate(found):
             if f.cells < self.frontier_min_cells:
                 why[i] = 'SMALL'
@@ -779,9 +780,24 @@ class CoordinatorCore:
         # before a small nook nearby (5회차 2026-10-16)
         reachable = sorted((self._failures(candidates[i]), self._cost(candidates[i], length, fields), i)
                            for i, length in enumerate(lengths) if length is not None)
-        if not reachable:
-            why.update({i: 'NO_PATH' for i in kept})
-        if not reachable and keep_off:
+        # the first in that order with a goal TB-6 can stop and turn at, at a place not given up (C12)
+        roomy = (clear_mask(**fields, radius=self.frontier_goal_clearance_m)
+                 if self.frontier_goal_clearance_m > radius else None)
+        site_gave_up, plan = set(), None
+        for _, cost, i in reachable:
+            plan = self._frontier_plan(fields, mask, roomy, start, candidates[i])
+            if plan is None:
+                why[kept[i]] = 'TIGHT'
+            elif self._site_gave_up(plan[1][:2]):
+                why[kept[i]] = 'TRIED'
+                site_gave_up.add(kept[i])
+                plan = None
+            else:
+                chosen, picked_cost = candidates[i], cost
+                break
+        if plan is None:
+            why.update({i: 'NO_PATH' for i in kept if i not in why})
+        if plan is None and keep_off:
             # left out only because of TB-5: the same cluster (same order, the frontier cells ignore the mask) has
             # a goal and a path without it
             alone = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
@@ -791,11 +807,11 @@ class CoordinatorCore:
             paths = path_lengths(**fields, radius=radius, start=start, goals=[alone[i].goal for i in again],
                                  mask=plain)
             why.update({i: 'TOO_CLOSE' for i, length in zip(again, paths) if length is not None})
-        if not reachable:
+        if plan is None:
             self.frontier_checked_seq = self.scout_grid_seq
             self.frontier_empty += 1
             counts = ' '.join(f'{k.lower()}={sum(1 for v in why.values() if v == k)}'
-                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'NO_PATH', 'TOO_CLOSE'))
+                              for k in ('SMALL', 'NO_GOAL', 'TRIED', 'TIGHT', 'NO_PATH', 'TOO_CLOSE'))
             largest = '; '.join(f'{why[i]} cells={found[i].cells} centroid=({found[i].centroid[0]:.2f}, '
                                 f'{found[i].centroid[1]:.2f})' for i in range(min(5, len(found))))
             self.notes.append(f'FRONTIER none on map update {self.scout_grid_seq} '
@@ -804,52 +820,82 @@ class CoordinatorCore:
             if self.frontier_empty >= self.exploration_empty_checks:
                 # frontiers left only because they failed FRONTIER_ATTEMPTS times: not a whole map (C9)
                 failed = sum(1 for i, reason in why.items() if reason == 'TRIED'
-                             and (self._gave_up(found[i].goal) or self._gave_up(found[i].centroid)))
+                             and (i in site_gave_up or self._gave_up(found[i].goal)
+                                  or self._gave_up(found[i].centroid)))
                 if failed:
                     self._exploration_done('EXPLORATION_FRONTIERS_FAILED', f' failed_frontiers={failed}')
                 else:
                     self._exploration_done('EXPLORATION_COMPLETE')
             return
         self.frontier_empty = 0
-        chosen = candidates[reachable[0][-1]]
-        path = grid_path(**fields, radius=radius, start=start, goal=chosen.goal, mask=mask)
-        x, y, yaw = _along(path.points, self.frontier_goal_max_m)
-        x, y = self._roomy_goal(fields, mask, start, (x, y))
+        path, (x, y, yaw), cut = plan
         session, rev, transform = self.scout_basis()
         site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/{self.frontier_count}'))
         self.frontier_count += 1
         site = MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw)
         self.search.policy = replace(self.search.policy, areas=(site,))
-        # cut short of the frontier's goal cell: reaching it is a step on the way, not a visit (C11)
-        cut = path.length_m > self.frontier_goal_max_m
         self.frontier = dict(site_id=site_id, goal=chosen.goal, centroid=chosen.centroid, site_xy=(x, y), cut=cut,
                              path_m=path.length_m)
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'FRONTIER {site_id} cells={chosen.cells} centroid={chosen.centroid} '
-                          f'path_m={path.length_m:.2f} cost={reachable[0][1]:.2f} cut={cut} '
+                          f'path_m={path.length_m:.2f} cost={picked_cost:.2f} cut={cut} '
                           f'start_moved_m={path.start_moved_m:.2f} '
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
 
-    def _roomy_goal(self, fields, mask, start, xy):
-        """The goal moved off walls (시뮬레이션 2026-10-15: a goal ``freeze_clearance_m`` from the wall is a high-cost
-        Nav2 cell and RPP stopped short). The path keeps ``freeze_clearance_m`` so a narrow way stays reachable; only
-        the goal goes to the nearest cell ``frontier_goal_clearance_m`` clear, at most the difference (plus a cell
-        diagonal) away and reachable. None there (a narrow way): the goal stays and the log says so."""
-        room, radius = self.frontier_goal_clearance_m, self.freeze_clearance_m
-        if room <= radius:
-            return xy
-        roomy = clear_mask(**fields, radius=room)
-        near = nearest_in_mask(**fields, mask=roomy, point=xy,
-                               within_m=room - radius + fields['resolution'] * math.sqrt(2))
-        if near == xy:
-            return xy
-        if near is None or grid_path(**fields, radius=radius, start=start, goal=near, mask=mask) is None:
-            self.notes.append(f'FRONTIER_GOAL_TIGHT ({xy[0]:.2f}, {xy[1]:.2f}): no cell {room} m clear near it, '
-                              f'kept at {radius} m')
-            return xy
-        self.notes.append(f'FRONTIER_GOAL_MOVED ({xy[0]:.2f}, {xy[1]:.2f}) -> ({near[0]:.2f}, {near[1]:.2f}) '
-                          f'for {room} m clear')
-        return near
+    def _frontier_plan(self, fields, mask, roomy, start, frontier):
+        """(path, (x, y, yaw) sent, cut) for a frontier, or None (TIGHT). The path keeps ``freeze_clearance_m`` so a
+        narrow way (the 0.68 m gap beside tunnel 1) stays reachable. With ``frontier_goal_clearance_m`` larger
+        (``roomy``), the goal is never in a place narrower than that (TB-6 stops and turns in place there without
+        RPP's or the shim's collision check firing, C3; 7회차 2026-10-16 C12: a goal kept at 0.2 m in the gap
+        EXPIRED four times): the frontier's goal is the reachable roomy cell nearest it within ``frontier_reach_m``,
+        past the gap too (9회차 C14: the one with the shortest path slanted to a gap and saw nothing past it), and a
+        cut point in a tight part of the path goes on to the first roomy path
+        point past it. No roomy cell within reach: None, the frontier is left out for this map update."""
+        if roomy is None:
+            path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=frontier.goal, mask=mask)
+            # cut short of the frontier's goal cell: reaching it is a step on the way, not a visit (C11)
+            return path, _along(path.points, self.frontier_goal_max_m), path.length_m > self.frontier_goal_max_m
+        goal = nearest_reachable(**fields, radius=self.freeze_clearance_m, start=start, mask=mask, among=roomy,
+                                 point=frontier.centroid, within_m=self.frontier_reach_m)
+        if goal is None:
+            self.notes.append(f'FRONTIER_GOAL_TIGHT cells={frontier.cells} centroid=({frontier.centroid[0]:.2f}, '
+                              f'{frontier.centroid[1]:.2f}): no cell {self.frontier_goal_clearance_m} m clear within '
+                              f'{self.frontier_reach_m} m, left out')
+            return None
+        path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=goal, mask=mask)
+        x, y, yaw = _along(path.points, self.frontier_goal_max_m)
+        if nearest_in_mask(**fields, mask=roomy, point=(x, y), within_m=0.0) is None:
+            walked, past = 0.0, None
+            for a, b in zip(path.points, path.points[1:]):
+                walked += math.dist(a, b)
+                if walked > self.frontier_goal_max_m and nearest_in_mask(**fields, mask=roomy, point=b,
+                                                                          within_m=0.0) is not None:
+                    past = (*b, math.atan2(b[1] - a[1], b[0] - a[0]))
+                    break
+            self.notes.append(f'FRONTIER_GOAL_PAST_TIGHT ({x:.2f}, {y:.2f}) -> ({past[0]:.2f}, {past[1]:.2f}) '
+                              f'for {self.frontier_goal_clearance_m} m clear')
+            x, y, yaw = past
+        return path, (x, y, yaw), math.dist((x, y), path.points[-1]) > 1e-9
+
+    def _frontier_left(self, outcome):
+        """For a COMPLETED goal at the frontier (not cut): where TB-6 stopped and whether the frontier is still on the
+        latest map (its goal or centroid within frontier_blacklist_m of a cluster of frontier_min_cells). Still there
+        means it was not cleared from that goal; it is tried as before (C14 log)."""
+        if outcome != 'COMPLETED' or self.frontier['cut'] or self.scout_grid is None:
+            return ''
+        fields, r = self.scout_grid.fields, self.frontier_blacklist_m
+        pair = (self.frontier['goal'], self.frontier['centroid'])
+        remains = any(f.cells >= self.frontier_min_cells and any(math.dist(a, b) <= r for a in (f.goal, f.centroid)
+                                                                 if a is not None for b in pair)
+                      for f in find_frontiers(**fields, radius=self.freeze_clearance_m, min_cells=1,
+                                              max_goal_distance_m=self.frontier_reach_m))
+        x, y = self.frontier['site_xy']
+        return f' goal_at=({x:.2f}, {y:.2f}) frontier_remains={remains}'
+
+    def _site_gave_up(self, xy):
+        """A place TB-6 failed at FRONTIER_ATTEMPTS times (within frontier_blacklist_m), whichever frontier (C12)."""
+        return sum(1 for t in self.frontier_site_failures
+                   if math.dist(xy, t) <= self.frontier_blacklist_m) >= FRONTIER_ATTEMPTS
 
     def _cost(self, frontier, length, fields):
         """explore_lite frontier cost, lower first (src/vendor/m-explore-ros2 frontier_search.cpp frontierCost):
@@ -874,6 +920,7 @@ class CoordinatorCore:
         else:
             n = 1 + self._failures(Frontier(0, self.frontier['centroid'], self.frontier['goal']))
             self.frontier_failures.append(tuple(pair))
+            self.frontier_site_failures.append(self.frontier['site_xy'])
             if n >= FRONTIER_ATTEMPTS:
                 self.frontier_tried += pair
                 self.frontier_failed += pair
@@ -1283,7 +1330,7 @@ class CoordinatorCore:
                 self.search.policy = replace(self.search.policy, areas=())
             else:
                 self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome} '
-                                  f'reason={result.terminal_reason or "-"}')
+                                  f'reason={result.terminal_reason or "-"}' + self._frontier_left(result.outcome))
                 self._frontier_done(result.outcome == 'COMPLETED')
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):

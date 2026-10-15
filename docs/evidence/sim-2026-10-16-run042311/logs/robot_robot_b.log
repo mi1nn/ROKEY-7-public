@@ -1,0 +1,443 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-04-24-40-085919-sim-pc-953807
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: robot robot_b ns=/robot5 nav2_params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/nav2.yaml + no depth stop + tunnel keepout /rescue/passage_keepout/filter_info + depth_low_layer 0.05..0.23 m above the floor + passage slow x0.3 0.23..1.0 m front [0.4, 1.2] depth /robot5/oakd/stereo/image_raw (compressedDepth) + no BackUp recovery + FollowPath Rotation Shim/RPP -> /tmp/nav2_robot_b_aroftoco.yaml map_mode=FROZEN_MAP_AMCL frozen pose TF /robot5/tf with AMCL covariance while moved < 0.25 m / 0.2 rad (<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml) map_sha256=(decided by the freeze) declared alignment window 1792092277142313468..1792095880142313468 ns
+[INFO] [launch.user]: nav2 autostart false: /robot5/lifecycle_manager_navigation/manage_nodes STARTUP once map -> base_link is on /robot5/tf (first frozen map localized)
+[INFO] [controller_server-1]: process started with pid [953856]
+[INFO] [smoother_server-2]: process started with pid [953857]
+[INFO] [planner_server-3]: process started with pid [953858]
+[INFO] [route_server-4]: process started with pid [953859]
+[INFO] [behavior_server-5]: process started with pid [953860]
+[INFO] [bt_navigator-6]: process started with pid [953861]
+[INFO] [waypoint_follower-7]: process started with pid [953862]
+[INFO] [velocity_smoother-8]: process started with pid [953863]
+[INFO] [collision_monitor-9]: process started with pid [953864]
+[INFO] [opennav_docking-10]: process started with pid [953865]
+[INFO] [lifecycle_manager-11]: process started with pid [953866]
+[INFO] [nav2_start_after_map-12]: process started with pid [953867]
+[INFO] [command_watchdog-13]: process started with pid [953868]
+[INFO] [task_input-14]: process started with pid [953869]
+[velocity_smoother-8] [INFO] [1792092280.473590742] [robot5.velocity_smoother]: 
+[velocity_smoother-8] 	velocity_smoother lifecycle node launched. 
+[velocity_smoother-8] 	Waiting on external lifecycle transitions to activate
+[velocity_smoother-8] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[lifecycle_manager-11] [INFO] [1792092280.501732106] [robot5.lifecycle_manager_navigation]: Creating
+[lifecycle_manager-11] [INFO] [1792092280.522806981] [robot5.lifecycle_manager_navigation]: Creating and initializing lifecycle service clients
+[route_server-4] [INFO] [1792092280.623473305] [robot5.route_server]: 
+[route_server-4] 	route_server lifecycle node launched. 
+[route_server-4] 	Waiting on external lifecycle transitions to activate
+[route_server-4] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792092280.631908006] [robot5.waypoint_follower]: 
+[waypoint_follower-7] 	waypoint_follower lifecycle node launched. 
+[waypoint_follower-7] 	Waiting on external lifecycle transitions to activate
+[waypoint_follower-7] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792092280.632908024] [robot5.waypoint_follower]: Creating
+[planner_server-3] [INFO] [1792092280.682756246] [robot5.planner_server]: 
+[planner_server-3] 	planner_server lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792092280.685105426] [robot5.planner_server]: Creating
+[smoother_server-2] [INFO] [1792092280.912567642] [robot5.smoother_server]: 
+[smoother_server-2] 	smoother_server lifecycle node launched. 
+[smoother_server-2] 	Waiting on external lifecycle transitions to activate
+[smoother_server-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[smoother_server-2] [INFO] [1792092280.915476364] [robot5.smoother_server]: Creating smoother server
+[controller_server-1] [INFO] [1792092281.155329098] [robot5.controller_server]: 
+[controller_server-1] 	controller_server lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792092281.181955881] [robot5.global_costmap.global_costmap]: 
+[planner_server-3] 	global_costmap lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792092281.183597547] [robot5.controller_server]: Creating controller server
+[planner_server-3] [INFO] [1792092281.185706733] [robot5.global_costmap.global_costmap]: Creating Costmap
+[bt_navigator-6] [INFO] [1792092281.202415017] [robot5.bt_navigator]: 
+[bt_navigator-6] 	bt_navigator lifecycle node launched. 
+[bt_navigator-6] 	Waiting on external lifecycle transitions to activate
+[bt_navigator-6] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792092281.206204362] [robot5.bt_navigator]: Creating
+[collision_monitor-9] [INFO] [1792092281.222282620] [robot5.collision_monitor]: 
+[collision_monitor-9] 	collision_monitor lifecycle node launched. 
+[collision_monitor-9] 	Waiting on external lifecycle transitions to activate
+[collision_monitor-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[behavior_server-5] [INFO] [1792092281.236043707] [robot5.behavior_server]: 
+[behavior_server-5] 	behavior_server lifecycle node launched. 
+[behavior_server-5] 	Waiting on external lifecycle transitions to activate
+[behavior_server-5] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792092281.246046359] [robot5.local_costmap.local_costmap]: 
+[controller_server-1] 	local_costmap lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792092281.246657016] [robot5.local_costmap.local_costmap]: Creating Costmap
+[opennav_docking-10] [INFO] [1792092281.271124215] [robot5.docking_server]: 
+[opennav_docking-10] 	docking_server lifecycle node launched. 
+[opennav_docking-10] 	Waiting on external lifecycle transitions to activate
+[opennav_docking-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[opennav_docking-10] [INFO] [1792092281.271322829] [robot5.docking_server]: Creating docking_server
+[command_watchdog-13] [INFO] [1792092281.599229294] [robot5.rescue_command_watchdog]: git_sha=982aa583b457837b9fc55f195294483a1322349d parameters={'namespace': '/robot5', 'cmd_vel_in_topic': '/robot5/cmd_vel_watchdog_in', 'cmd_vel_out_topic': '/robot5/cmd_vel', 'cmd_vel_stamped': True, 'executor_heartbeat_topic': '/robot5/rescue/executor_heartbeat', 'watchdog_heartbeat_topic': '/robot5/rescue/watchdog_heartbeat', 'step_period': 0.05, 'watchdog.version': 'search-live-20261012', 'watchdog.heartbeat_max_age_s': 0.5, 'watchdog.command_max_age_s': 0.5, 'watchdog.max_linear_mps': 0.3, 'watchdog.max_angular_rps': 1.2}
+[nav2_start_after_map-12] [INFO] [1792092281.889620100] [robot5.rescue_nav2_start]: git_sha=982aa583b457837b9fc55f195294483a1322349d parameters={'manage_service': '/robot5/lifecycle_manager_navigation/manage_nodes', 'map_frame': 'map', 'base_frame': 'base_link', 'poll_period_s': 0.5, 'answer_wait_s': 120.0}
+[task_input-14] [ERROR] [1792092282.156025546] [robot5.rescue_command_adapter]: input session blocked: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [INFO] [1792092282.245741748] [robot5.rescue_command_adapter]: task runtime configuration={"auto_rearm": true, "auto_target": {"enabled": true, "goal_clear_radius_m": 0.2, "kinds": ["APPROACH_TARGET", "RETURN_HOME"], "policy_version": "auto-target-20261013"}, "clock_error_bound_ns": 2000000000, "configured_destinations": {}, "coordinator_authority": {"authority_epoch": "66666666-6666-4666-8666-666666666666", "coordinator_id": "77777777-7777-4777-8777-777777777777"}, "coordinator_state_topic": "/rescue/system_state", "coordinator_targets_topic": "/rescue/targets", "endpoints": {"action_name": "/rescue/robots/robot_b/execute_task", "admission_topic": "/rescue/robots/robot_b/task_admission", "lease_topic": "/rescue/robots/robot_b/command_lease", "status_topic": "/rescue/robots/robot_b/status"}, "format": "rescue-robot-runtime/1", "input_max_age_ns": 30000000000, "input_mode": "LIVE_ROS", "lease": {"clock_domain_id": "rokey7-utc-field", "duration_s": 3.0, "max_age_ns": 4000000000, "max_error_ns": 2000000000}, "live_clock": {"backend": "timesyncd", "coordinator_service": "/mission_coordinator/task_inputs", "drift_ppm": 100.0, "max_age_ns": 3600000000000, "poll_period_s": 0.5}, "mapping_authority": "88888888-8888-4888-8888-888888888888", "max_position_error_m": 0.1, "max_rotation_error_rad": 0.1, "mission_frame": "map", "passage": {"polygon_name": "PassageStop", "result_window_ns": 5000000000}, "poll_period_s": 0.5, "pose_valid_ns": 2000000000, "publisher_id": "563f0fad-d73d-4afa-b6db-08928e416703", "recheck": {"deadline_ns": 10000000000, "window_ns": 3000000000}, "robot_id": "robot_b", "saved_maps": {"robot_b": {"amcl_base_frame": "base_link", "amcl_odom_frame": "odom", "amcl_tf_topic": "/robot5/tf", "amcl_update_min_a": 0.2, "amcl_update_min_d": 0.25, "authority_id": "88888888-8888-4888-8888-888888888888", "clock_domain_id": "rokey7-utc-field", "frozen_revision_topic": "/rescue/map/frozen_revision", "frozen_topic": "/rescue/map/frozen", "initial_pose_topic": "/robot5/initialpose", "localization_topic": "/robot5/amcl_pose", "map_frame": "map", "map_revision": 0, "map_session_id": "22222222-2222-4222-8222-222222222222", "map_topic": "/robot5/map", "max_position_variance_m2": 0.25, "max_yaw_variance_rad2": 0.25, "mode": "FROZEN_MAP_AMCL", "occupancy_sha256": "", "position_error_m": 0.0, "rotation_error_rad": 0.0, "start_align_topic": "/robot5/rescue_start_align", "transform_revision": 1, "transform_valid_until_ns": 1792095880142313468, "transform_xy_yaw": [0.0, 0.0, 0.0], "valid_from_ns": 1792092277142313468}}, "schema_version": "rescue-envelope/1", "sensor_host_clock": {"domain_id": "rokey7-utc-field", "error_bound_ns": 150000000}}
+[task_input-14] [INFO] [1792092282.246314044] [robot5.rescue_command_adapter]: installed task runtime; input_mode=LIVE_ROS; explicit arm required
+[task_input-14] [INFO] [1792092282.246804483] [robot5.rescue_command_adapter]: task runtime attached: rescue_robot.task_site_runtime:create_runtime
+[task_input-14] [INFO] [1792092282.269464966] [robot5.rescue_command_adapter]: git_sha=982aa583b457837b9fc55f195294483a1322349d boot=3b7225a8-e971-4d8e-bd68-6164ec02f255 parameters={'allowed_robot_ids': ['robot_a', 'robot_b'], 'robot_id': 'robot_b', 'namespace': '/robot5', 'authority_epoch': '66666666-6666-4666-8666-666666666666', 'nav_action': '/robot5/navigate_to_pose', 'odom_topic': '/robot5/odom', 'dock_status_topic': '/robot5/dock_status', 'policy_version': 'search-live-20261012', 'step_period': 0.05, 'clock_error_bound_s': 2.0, 'scan_topic': '/robot5/scan', 'tf_topic': '/robot5/tf', 'map_frame': 'map', 'odom_frame': 'odom', 'readiness.version': 'example-2026-10-08', 'executor_heartbeat_topic': '/robot5/rescue/executor_heartbeat', 'nav2_lifecycle_service': '/robot5/lifecycle_manager_navigation/is_active', 'policy.acceptance_timeout': 10.0, 'policy.stop_timeout': 5.0, 'policy.stop_window': 0.5, 'policy.max_sample_gap': 0.3, 'policy.evidence_max_age': 3.0, 'policy.linear_stop_max': 0.01, 'policy.angular_stop_max': 0.02, 'readiness.max_age_s.odom': 0.5, 'readiness.max_age_s.scan': 0.5, 'readiness.max_age_s.camera': 1.0, 'readiness.max_age_s.wheel_status': 0.5, 'readiness.max_age_s.map_to_odom_tf': 1.0, 'readiness.max_age_s.watchdog_heartbeat': 0.5, 'camera_topics': ['/robot5/oakd/rgb/camera_info', '/robot5/oakd/stereo/image_raw/compressedDepth'], 'wheel_status_topic': '/robot5/wheel_status', 'watchdog_heartbeat_topic': '/robot5/rescue/watchdog_heartbeat'}
+[task_input-14] [WARN] [1792092282.310779583] [robot5.rescue_command_adapter]: NAV2_LIFECYCLE /robot5/lifecycle_manager_navigation/is_active no NavigateToPose server: nav2 NOT_READY
+[command_watchdog-13] [INFO] [1792092282.313475831] [robot5.rescue_command_watchdog]: watchdog ARMED reason=- t=44793.311
+[nav2_start_after_map-12] [INFO] [1792092282.391066944] [robot5.rescue_nav2_start]: NAV2_STARTUP_WAITING map -> base_link not on TF yet (first frozen map not localized): Nav2 not started
+[task_input-14] [WARN] [1792092297.933450428] [robot5.rescue_command_adapter]: START_ALIGN robot_b WAITING START_ALIGN_WAIT_MAP: localization not VALID
+[task_input-14] [INFO] [1792092297.940052247] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=0f88a5c3-b668-5262-869c-f845cdf5db3f session=22222222-2222-4222-8222-222222222222 rev=0 quality=UNKNOWN
+[task_input-14] [WARN] [1792092301.539794435] [robot5.rescue_command_adapter]: target snapshot rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [WARN] [1792092301.541471904] [robot5.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792092301.624009638] [robot5.rescue_command_adapter]: live central input rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: fresh synchronized OS measurement required
+[task_input-14] [WARN] [1792092301.957030532] [robot5.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792092302.123503777] [robot5.rescue_command_adapter]: live central input rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: fresh synchronized OS measurement required
+[task_input-14] [WARN] [1792092302.458315044] [robot5.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792092302.745515367] [robot5.rescue_command_adapter]: input session blocked: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: waiting for fresh configured coordinator SystemState
+[task_input-14] [INFO] [1792092302.962981049] [robot5.rescue_command_adapter]: input session ready; explicit arm required
+[task_input-14] [INFO] [1792092925.172039729] [robot5.rescue_command_adapter]: MAP_FROZEN R1 sha256=cf436499db2d5e31227a958f3d500e47f3cfb81d49fc3dbbc0670f7fcd3934a7 112x69 res=0.05000000074505806
+[task_input-14] [INFO] [1792092925.172562497] [robot5.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_b RNone -> R1 sha256=cf436499db2d5e31227a958f3d500e47f3cfb81d49fc3dbbc0670f7fcd3934a7
+[task_input-14] [INFO] [1792092925.173250081] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=8eb4008f-c245-524f-bb6a-3a7f39418289 session=22222222-2222-4222-8222-222222222222 rev=1 quality=UNKNOWN
+[task_input-14] [INFO] [1792092925.189120269] [robot5.rescue_command_adapter]: MAP_FROZEN R2 sha256=cf436499db2d5e31227a958f3d500e47f3cfb81d49fc3dbbc0670f7fcd3934a7 112x69 res=0.05000000074505806
+[task_input-14] [INFO] [1792092925.189677650] [robot5.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_b R1 -> R2 sha256=cf436499db2d5e31227a958f3d500e47f3cfb81d49fc3dbbc0670f7fcd3934a7
+[task_input-14] [INFO] [1792092925.190470559] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=1fa9a70e-7c25-596b-a4a8-1e5d952826be session=22222222-2222-4222-8222-222222222222 rev=2 quality=UNKNOWN
+[task_input-14] [WARN] [1792092925.232127310] [robot5.rescue_command_adapter]: START_ALIGN robot_b ALIGNING: localization not VALID
+[nav2_start_after_map-12] [INFO] [1792092926.391754896] [robot5.rescue_nav2_start]: NAV2_STARTUP_SENT /robot5/lifecycle_manager_navigation/manage_nodes: map -> base_link is on TF
+[lifecycle_manager-11] [INFO] [1792092926.392634191] [robot5.lifecycle_manager_navigation]: Starting managed nodes bringup...
+[lifecycle_manager-11] [INFO] [1792092926.392723789] [robot5.lifecycle_manager_navigation]: Configuring controller_server
+[controller_server-1] [INFO] [1792092926.394116244] [robot5.controller_server]: Configuring controller interface
+[controller_server-1] [INFO] [1792092926.394182176] [robot5.controller_server]: getting progress checker plugins..
+[controller_server-1] [INFO] [1792092926.396161894] [robot5.controller_server]: getting goal checker plugins..
+[controller_server-1] [INFO] [1792092926.396429840] [robot5.controller_server]: Controller frequency set to 20.0000Hz
+[controller_server-1] [INFO] [1792092926.396499929] [robot5.local_costmap.local_costmap]: Configuring
+[controller_server-1] [INFO] [1792092926.553670803] [robot5.local_costmap.local_costmap]: Using plugin "static_layer"
+[controller_server-1] [INFO] [1792092926.574364762] [robot5.local_costmap.local_costmap]: Subscribing to the map topic (/robot5/map) with transient local durability
+[controller_server-1] [INFO] [1792092926.585574292] [robot5.local_costmap.local_costmap]: Initialized plugin "static_layer"
+[controller_server-1] [INFO] [1792092926.585637652] [robot5.local_costmap.local_costmap]: Using plugin "voxel_layer"
+[controller_server-1] [INFO] [1792092926.587784178] [robot5.local_costmap.local_costmap]: Subscribed to Topics: scan
+[controller_server-1] [INFO] [1792092926.641943347] [robot5.local_costmap.local_costmap]: Initialized plugin "voxel_layer"
+[controller_server-1] [INFO] [1792092926.642029166] [robot5.local_costmap.local_costmap]: Using plugin "depth_low_layer"
+[controller_server-1] [INFO] [1792092926.660837221] [robot5.local_costmap.local_costmap]: Subscribed to Topics: depth_low depth_floor
+[controller_server-1] [INFO] [1792092926.695361671] [robot5.local_costmap.local_costmap]: Initialized plugin "depth_low_layer"
+[controller_server-1] [INFO] [1792092926.695438029] [robot5.local_costmap.local_costmap]: Using plugin "inflation_layer"
+[controller_server-1] [INFO] [1792092926.702473150] [robot5.local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[controller_server-1] [INFO] [1792092926.702525684] [robot5.local_costmap.local_costmap]: Using costmap filter "tunnel_keepout"
+[controller_server-1] [INFO] [1792092926.719358995] [robot5.local_costmap.local_costmap]: Initialized costmap filter "tunnel_keepout"
+[controller_server-1] [INFO] [1792092926.836403537] [robot5.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 112 X 69 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792092926.836692440] [robot5.controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[controller_server-1] [INFO] [1792092926.837161673] [robot5.controller_server]: Controller Server has progress_checker  progress checkers available.
+[controller_server-1] [INFO] [1792092926.837924694] [robot5.controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[controller_server-1] [INFO] [1792092926.839249525] [robot5.controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[controller_server-1] [INFO] [1792092926.843688403] [robot5.controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792092926.846668918] [robot5.controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792092926.870864331] [robot5.controller_server]: Controller Server has FollowPath  controllers available.
+[lifecycle_manager-11] [INFO] [1792092926.910057108] [robot5.lifecycle_manager_navigation]: Configuring smoother_server
+[smoother_server-2] [INFO] [1792092926.912332970] [robot5.smoother_server]: Configuring smoother server
+[smoother_server-2] [INFO] [1792092926.981159961] [robot5.smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[smoother_server-2] [INFO] [1792092926.985186287] [robot5.smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[lifecycle_manager-11] [INFO] [1792092927.030395036] [robot5.lifecycle_manager_navigation]: Configuring planner_server
+[planner_server-3] [INFO] [1792092927.031221456] [robot5.planner_server]: Configuring
+[planner_server-3] [INFO] [1792092927.031270427] [robot5.global_costmap.global_costmap]: Configuring
+[planner_server-3] [INFO] [1792092927.081670585] [robot5.global_costmap.global_costmap]: Using plugin "static_layer"
+[planner_server-3] [INFO] [1792092927.086818880] [robot5.global_costmap.global_costmap]: Subscribing to the map topic (/robot5/map) with transient local durability
+[planner_server-3] [INFO] [1792092927.091771080] [robot5.global_costmap.global_costmap]: Initialized plugin "static_layer"
+[planner_server-3] [INFO] [1792092927.091818750] [robot5.global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792092927.093201841] [robot5.global_costmap.global_costmap]: Subscribed to Topics: scan
+[planner_server-3] [INFO] [1792092927.102505274] [robot5.global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792092927.102791775] [robot5.global_costmap.global_costmap]: Using plugin "depth_low_layer"
+[planner_server-3] [INFO] [1792092927.106589359] [robot5.global_costmap.global_costmap]: Subscribed to Topics: depth_low depth_floor
+[planner_server-3] [INFO] [1792092927.133097427] [robot5.global_costmap.global_costmap]: Initialized plugin "depth_low_layer"
+[planner_server-3] [INFO] [1792092927.133150369] [robot5.global_costmap.global_costmap]: Using plugin "inflation_layer"
+[planner_server-3] [INFO] [1792092927.137070824] [robot5.global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[planner_server-3] [INFO] [1792092927.137119758] [robot5.global_costmap.global_costmap]: Using costmap filter "tunnel_keepout"
+[planner_server-3] [INFO] [1792092927.147426684] [robot5.global_costmap.global_costmap]: Initialized costmap filter "tunnel_keepout"
+[planner_server-3] [INFO] [1792092927.268787510] [robot5.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 112 X 69 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792092927.269170022] [robot5.planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner::NavfnPlanner
+[planner_server-3] [INFO] [1792092927.269202621] [robot5.planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792092927.272612718] [robot5.planner_server]: Planner Server has GridBased  planners available.
+[lifecycle_manager-11] [INFO] [1792092927.337072123] [robot5.lifecycle_manager_navigation]: Configuring route_server
+[route_server-4] [INFO] [1792092927.338265187] [robot5.route_server]: Configuring
+[route_server-4] [INFO] [1792092927.514703863] [robot5.route_server]: Created GraphFileLoader GeoJsonGraphFileLoader of type nav2_route::GeoJsonGraphFileLoader
+[route_server-4] [INFO] [1792092927.514750680] [robot5.route_server]: Configuring geojson graph file loader
+[route_server-4] [INFO] [1792092927.514758757] [robot5.route_server]: No graph file provided to load yet.
+[route_server-4] [INFO] [1792092927.518629895] [robot5.route_server]: Created edge cost function plugin DistanceScorer of type nav2_route::DistanceScorer
+[route_server-4] [INFO] [1792092927.518674184] [robot5.route_server]: Configuring distance scorer.
+[route_server-4] [INFO] [1792092927.518901266] [robot5.route_server]: Created edge cost function plugin DynamicEdgesScorer of type nav2_route::DynamicEdgesScorer
+[route_server-4] [INFO] [1792092927.518914253] [robot5.route_server]: Configuring adjust edges scorer.
+[route_server-4] [INFO] [1792092927.536539442] [robot5.route_server]: Created route operation AdjustSpeedLimit of type nav2_route::AdjustSpeedLimit
+[route_server-4] [INFO] [1792092927.536591509] [robot5.route_server]: Configuring Adjust speed limit operation.
+[route_server-4] [INFO] [1792092927.541232781] [robot5.route_server]: Created route operation ReroutingService of type nav2_route::ReroutingService
+[route_server-4] [INFO] [1792092927.541280347] [robot5.route_server]: Configuring Rerouting service operation.
+[lifecycle_manager-11] [INFO] [1792092927.555151946] [robot5.lifecycle_manager_navigation]: Configuring behavior_server
+[behavior_server-5] [INFO] [1792092927.558582250] [robot5.behavior_server]: Configuring
+[behavior_server-5] [INFO] [1792092927.578254291] [robot5.behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[behavior_server-5] [INFO] [1792092927.579727826] [robot5.behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors::DriveOnHeading
+[behavior_server-5] [INFO] [1792092927.581375292] [robot5.behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors::AssistedTeleop
+[behavior_server-5] [INFO] [1792092927.584585271] [robot5.behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[behavior_server-5] [INFO] [1792092927.604834834] [robot5.behavior_server]: Configuring spin
+[behavior_server-5] [INFO] [1792092927.661422482] [robot5.behavior_server]: Configuring drive_on_heading
+[behavior_server-5] [INFO] [1792092927.699184977] [robot5.behavior_server]: Configuring assisted_teleop
+[behavior_server-5] [INFO] [1792092927.738901767] [robot5.behavior_server]: Configuring wait
+[lifecycle_manager-11] [INFO] [1792092927.764622148] [robot5.lifecycle_manager_navigation]: Configuring velocity_smoother
+[velocity_smoother-8] [INFO] [1792092927.765176017] [robot5.velocity_smoother]: Configuring velocity smoother
+[lifecycle_manager-11] [INFO] [1792092927.777687210] [robot5.lifecycle_manager_navigation]: Configuring collision_monitor
+[collision_monitor-9] [INFO] [1792092927.778267716] [robot5.collision_monitor]: Configuring
+[collision_monitor-9] [INFO] [1792092927.800578613] [collision_monitor]: [scan]: Creating Scan
+[collision_monitor-9] [INFO] [1792092927.811894370] [collision_monitor]: [passage_overhead]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792092927.821304777] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[collision_monitor-9] [INFO] [1792092927.822571197] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[collision_monitor-9] [INFO] [1792092927.827219502] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on local_costmap/published_footprint topic
+[collision_monitor-9] [INFO] [1792092927.830807627] [collision_monitor]: [PassageSlow]: Creating Polygon
+[lifecycle_manager-11] [INFO] [1792092927.880893847] [robot5.lifecycle_manager_navigation]: Configuring bt_navigator
+[bt_navigator-6] [INFO] [1792092927.881787012] [robot5.bt_navigator]: Configuring
+[bt_navigator-6] [INFO] [1792092927.908904054] [robot5.bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[task_input-14] [WARN] [1792092928.058709846] [robot5.rescue_command_adapter]: NAV2_LIFECYCLE /robot5/lifecycle_manager_navigation/is_active inactive: nav2 NOT_READY
+[bt_navigator-6] [INFO] [1792092928.091908025] [robot5.bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[lifecycle_manager-11] [INFO] [1792092928.194822519] [robot5.lifecycle_manager_navigation]: Configuring waypoint_follower
+[waypoint_follower-7] [INFO] [1792092928.197236545] [robot5.waypoint_follower]: Configuring
+[waypoint_follower-7] [INFO] [1792092928.400383875] [robot5.waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[lifecycle_manager-11] [INFO] [1792092928.405217905] [robot5.lifecycle_manager_navigation]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792092928.406363908] [robot5.docking_server]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792092928.406472360] [robot5.docking_server]: Controller frequency set to 50.0000Hz
+[opennav_docking-10] [INFO] [1792092928.531983421] [robot5.docking_server]: Created charging dock plugin simple_charging_dock of type opennav_docking::SimpleChargingDock
+[opennav_docking-10] [WARN] [1792092928.562905020] [robot5.docking_server]: Dock database filepath nor dock parameters set. Docking actions can only be executed specifying the dock pose via the action request. Or update the dock database via the reload_database service.
+[opennav_docking-10] [INFO] [1792092928.562986963] [robot5.docking_server]: Docking Server has 1 dock types and 0 dock instances available.
+[lifecycle_manager-11] [INFO] [1792092928.576740024] [robot5.lifecycle_manager_navigation]: Activating controller_server
+[controller_server-1] [INFO] [1792092928.578655456] [robot5.controller_server]: Activating
+[controller_server-1] [INFO] [1792092928.578704502] [robot5.local_costmap.local_costmap]: Activating
+[controller_server-1] [INFO] [1792092928.578713998] [robot5.local_costmap.local_costmap]: Checking transform
+[controller_server-1] [INFO] [1792092928.578926833] [robot5.local_costmap.local_costmap]: start
+[controller_server-1] [INFO] [1792092928.588016336] [robot5.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792092928.600912557] [robot5.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792092928.600961899] [robot5.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [INFO] [1792092928.614820450] [robot5.local_costmap.local_costmap]: KeepoutFilter: Received filter mask from /rescue/passage_keepout/mask topic.
+[controller_server-1] [INFO] [1792092928.792974176] [robot5.controller_server]: Activating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792092928.793052979] [robot5.controller_server]: Activating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792092928.793136492] [robot5.controller_server]: Creating bond (controller_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092928.908025936] [robot5.lifecycle_manager_navigation]: Server controller_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092928.908099697] [robot5.lifecycle_manager_navigation]: Activating smoother_server
+[smoother_server-2] [INFO] [1792092928.909162038] [robot5.smoother_server]: Activating
+[smoother_server-2] [INFO] [1792092928.909216802] [robot5.smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092929.030233759] [robot5.lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092929.030303658] [robot5.lifecycle_manager_navigation]: Activating planner_server
+[planner_server-3] [INFO] [1792092929.032127945] [robot5.planner_server]: Activating
+[planner_server-3] [INFO] [1792092929.032190037] [robot5.global_costmap.global_costmap]: Activating
+[planner_server-3] [INFO] [1792092929.032201018] [robot5.global_costmap.global_costmap]: Checking transform
+[planner_server-3] [INFO] [1792092929.032653522] [robot5.global_costmap.global_costmap]: start
+[planner_server-3] [INFO] [1792092929.051936701] [robot5.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[planner_server-3] [INFO] [1792092929.065586643] [robot5.global_costmap.global_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[planner_server-3] [INFO] [1792092929.065654902] [robot5.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[planner_server-3] [INFO] [1792092929.081299956] [robot5.global_costmap.global_costmap]: KeepoutFilter: Received filter mask from /rescue/passage_keepout/mask topic.
+[task_input-14] [WARN] [1792092929.311711499] [robot5.rescue_command_adapter]: NAV2_LIFECYCLE /robot5/lifecycle_manager_navigation/is_active no answer within 3.0 s: nav2 NOT_READY
+[planner_server-3] [INFO] [1792092930.057057299] [robot5.planner_server]: Activating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792092930.120178246] [robot5.planner_server]: Creating bond (planner_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092930.244190210] [robot5.lifecycle_manager_navigation]: Server planner_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092930.244263640] [robot5.lifecycle_manager_navigation]: Activating route_server
+[route_server-4] [INFO] [1792092930.245233846] [robot5.route_server]: Activating
+[route_server-4] [INFO] [1792092930.245458178] [robot5.route_server]: Creating bond (route_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092930.364193112] [robot5.lifecycle_manager_navigation]: Server route_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092930.364267746] [robot5.lifecycle_manager_navigation]: Activating behavior_server
+[behavior_server-5] [INFO] [1792092930.365552212] [robot5.behavior_server]: Activating
+[behavior_server-5] [INFO] [1792092930.365598629] [robot5.behavior_server]: Activating spin
+[behavior_server-5] [INFO] [1792092930.365612414] [robot5.behavior_server]: Activating drive_on_heading
+[behavior_server-5] [INFO] [1792092930.365621971] [robot5.behavior_server]: Activating assisted_teleop
+[behavior_server-5] [INFO] [1792092930.365631404] [robot5.behavior_server]: Activating wait
+[behavior_server-5] [INFO] [1792092930.365646933] [robot5.behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[task_input-14] [INFO] [1792092930.434886095] [robot5.rescue_command_adapter]: START_ALIGN robot_b ALIGNED
+[task_input-14] [INFO] [1792092930.435721109] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=1fa9a70e-7c25-596b-a4a8-1e5d952826be session=22222222-2222-4222-8222-222222222222 rev=2 quality=VALID
+[lifecycle_manager-11] [INFO] [1792092930.488460912] [robot5.lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092930.488538258] [robot5.lifecycle_manager_navigation]: Activating velocity_smoother
+[velocity_smoother-8] [INFO] [1792092930.490412467] [robot5.velocity_smoother]: Activating
+[velocity_smoother-8] [INFO] [1792092930.490508396] [robot5.velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092930.603065395] [robot5.lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[lifecycle_manager-11] [INFO] [1792092930.603117380] [robot5.lifecycle_manager_navigation]: Activating collision_monitor
+[collision_monitor-9] [INFO] [1792092930.603982832] [robot5.collision_monitor]: Activating
+[collision_monitor-9] [INFO] [1792092930.604130111] [robot5.collision_monitor]: Creating bond (collision_monitor) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092930.714190587] [robot5.lifecycle_manager_navigation]: Server collision_monitor connected with bond.
+[lifecycle_manager-11] [INFO] [1792092930.714250049] [robot5.lifecycle_manager_navigation]: Activating bt_navigator
+[bt_navigator-6] [INFO] [1792092930.715394667] [robot5.bt_navigator]: Activating
+[bt_navigator-6] [INFO] [1792092931.030323451] [robot5.bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092931.145641184] [robot5.lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[lifecycle_manager-11] [INFO] [1792092931.145741704] [robot5.lifecycle_manager_navigation]: Activating waypoint_follower
+[waypoint_follower-7] [INFO] [1792092931.150185420] [robot5.waypoint_follower]: Activating
+[waypoint_follower-7] [INFO] [1792092931.150274710] [robot5.waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092931.282475717] [robot5.lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[lifecycle_manager-11] [INFO] [1792092931.282551760] [robot5.lifecycle_manager_navigation]: Activating docking_server
+[opennav_docking-10] [INFO] [1792092931.283447175] [robot5.docking_server]: Activating docking_server
+[opennav_docking-10] [INFO] [1792092931.323197174] [robot5.docking_server]: Creating bond (docking_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792092931.434915931] [robot5.lifecycle_manager_navigation]: Server docking_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792092931.434984895] [robot5.lifecycle_manager_navigation]: Managed nodes are active
+[lifecycle_manager-11] [INFO] [1792092931.435001593] [robot5.lifecycle_manager_navigation]: Creating bond timer...
+[task_input-14] [INFO] [1792092931.458817302] [robot5.rescue_command_adapter]: NAV2_LIFECYCLE /robot5/lifecycle_manager_navigation/is_active active
+[nav2_start_after_map-12] [INFO] [1792092931.892164514] [robot5.rescue_nav2_start]: NAV2_STARTUP /robot5/lifecycle_manager_navigation/manage_nodes active
+[controller_server-1] [INFO] [1792093106.574144409] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093106.267 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792093106.574389096] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093106.267 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792093161.996925875] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093161.674 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792093161.997694065] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093161.674 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792093283.389014676] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093283.072 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792093330.276506662] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093329.953 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792093330.276719465] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093329.953 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792093333.081448481] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093332.759 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792093333.081593775] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093332.759 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792093378.079713460] [robot5.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093377.753 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792093378.080529934] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093377.753 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[behavior_server-5] [INFO] [1792093443.044138789] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[behavior_server-5] [INFO] [1792093443.044269759] [robot5.behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[behavior_server-5] [INFO] [1792093443.044367447] [robot5.behavior_server]: Deactivating
+[behavior_server-5] [INFO] [1792093443.046531247] [robot5.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[controller_server-1] [INFO] [1792093443.044149525] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[controller_server-1] [INFO] [1792093443.044245893] [robot5.controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[controller_server-1] [INFO] [1792093443.044340396] [robot5.controller_server]: Deactivating
+[controller_server-1] [INFO] [1792093443.044356063] [robot5.controller_server]: Deactivating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792093443.044364723] [robot5.controller_server]: Deactivating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792093443.044400806] [robot5.local_costmap.local_costmap]: Deactivating
+[planner_server-3] [INFO] [1792093443.044323390] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[planner_server-3] [INFO] [1792093443.044416563] [robot5.planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[planner_server-3] [INFO] [1792093443.045560560] [robot5.planner_server]: Deactivating
+[planner_server-3] [INFO] [1792093443.045593973] [robot5.global_costmap.global_costmap]: Deactivating
+[opennav_docking-10] [INFO] [1792093443.047477360] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[opennav_docking-10] [INFO] [1792093443.047563449] [robot5.docking_server]: Running Nav2 LifecycleNode rcl preshutdown (docking_server)
+[opennav_docking-10] [INFO] [1792093443.047636877] [robot5.docking_server]: Deactivating docking_server
+[lifecycle_manager-11] [INFO] [1792093443.048488279] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792093443.048572561] [robot5.lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[lifecycle_manager-11] [INFO] [1792093443.048612310] [robot5.lifecycle_manager_navigation]: Terminating bond timer...
+[waypoint_follower-7] [INFO] [1792093443.048912477] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[waypoint_follower-7] [INFO] [1792093443.049096767] [robot5.waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[waypoint_follower-7] [INFO] [1792093443.049189310] [robot5.waypoint_follower]: Deactivating
+[waypoint_follower-7] [INFO] [1792093443.049233142] [robot5.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[route_server-4] [INFO] [1792093443.049691316] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[route_server-4] [INFO] [1792093443.049774285] [robot5.route_server]: Running Nav2 LifecycleNode rcl preshutdown (route_server)
+[route_server-4] [INFO] [1792093443.049845565] [robot5.route_server]: Deactivating
+[route_server-4] [INFO] [1792093443.049868075] [robot5.route_server]: Destroying bond (route_server) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792093443.050900721] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[velocity_smoother-8] [INFO] [1792093443.051076452] [robot5.velocity_smoother]: Running Nav2 LifecycleNode rcl preshutdown (velocity_smoother)
+[velocity_smoother-8] [INFO] [1792093443.051145777] [robot5.velocity_smoother]: Deactivating
+[velocity_smoother-8] [INFO] [1792093443.051169727] [robot5.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792093443.053145325] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[bt_navigator-6] [INFO] [1792093443.053300414] [robot5.bt_navigator]: Running Nav2 LifecycleNode rcl preshutdown (bt_navigator)
+[bt_navigator-6] [INFO] [1792093443.053406271] [robot5.bt_navigator]: Deactivating
+[bt_navigator-6] [INFO] [1792093443.053455845] [robot5.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[smoother_server-2] [INFO] [1792093443.056097702] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[smoother_server-2] [INFO] [1792093443.056240718] [robot5.smoother_server]: Running Nav2 LifecycleNode rcl preshutdown (smoother_server)
+[smoother_server-2] [INFO] [1792093443.056346556] [robot5.smoother_server]: Deactivating
+[smoother_server-2] [INFO] [1792093443.056437431] [robot5.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792093443.058781590] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[collision_monitor-9] [INFO] [1792093443.058978240] [robot5.collision_monitor]: Running Nav2 LifecycleNode rcl preshutdown (collision_monitor)
+[collision_monitor-9] [INFO] [1792093443.059078681] [robot5.collision_monitor]: Deactivating
+[collision_monitor-9] [INFO] [1792093443.059114993] [robot5.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[behavior_server-5] [INFO] [1792093443.067220655] [robot5.behavior_server]: Cleaning up
+[waypoint_follower-7] [INFO] [1792093443.072262878] [robot5.waypoint_follower]: Cleaning up
+[velocity_smoother-8] [INFO] [1792093443.073278619] [robot5.velocity_smoother]: Cleaning up
+[velocity_smoother-8] [INFO] [1792093443.073340171] [robot5.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[route_server-4] [INFO] [1792093443.080760768] [robot5.route_server]: Cleaning up
+[bt_navigator-6] [INFO] [1792093443.080971240] [robot5.bt_navigator]: Cleaning up
+[collision_monitor-9] [INFO] [1792093443.081816071] [robot5.collision_monitor]: Cleaning up
+[collision_monitor-9] [INFO] [1792093443.081889383] [collision_monitor]: [FootprintApproach]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792093443.081903601] [collision_monitor]: [PassageSlow]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792093443.081914008] [collision_monitor]: [scan]: Destroying Scan
+[collision_monitor-9] [INFO] [1792093443.081928702] [collision_monitor]: [passage_overhead]: Destroying PointCloud
+[smoother_server-2] [INFO] [1792093443.083545180] [robot5.smoother_server]: Cleaning up
+[controller_server-1] [INFO] [1792093443.187590324] [robot5.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792093443.207054436] [robot5.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792093443.254693744] [robot5.velocity_smoother]: Destroying
+[controller_server-1] [INFO] [1792093443.268006873] [robot5.controller_server]: Cleaning up
+[controller_server-1] [INFO] [1792093443.268055073] [robot5.controller_server]: Cleaning up controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792093443.268065511] [robot5.controller_server]: Cleaning up controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792093443.268160030] [robot5.local_costmap.local_costmap]: Cleaning up
+[opennav_docking-10] [INFO] [1792093443.352111653] [robot5.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[opennav_docking-10] [INFO] [1792093443.382087022] [robot5.docking_server]: Cleaning up docking_server
+[behavior_server-5] [INFO] [1792093443.394190186] [robot5.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792093443.528103803] [robot5.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792093443.007 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[command_watchdog-13] [WARN] [1792093443.537457489] [robot5.rescue_command_watchdog]: watchdog STOP_LATCHED reason=EXECUTOR_HEARTBEAT_STALE t=45954.534
+[smoother_server-2] [INFO] [1792093443.544174994] [robot5.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[nav2_start_after_map-12] Traceback (most recent call last):
+[nav2_start_after_map-12]   File "<저장소>/install/rescue_bringup/lib/rescue_bringup/nav2_start_after_map", line 33, in <module>
+[nav2_start_after_map-12]     sys.exit(load_entry_point('rescue-bringup==0.0.0', 'console_scripts', 'nav2_start_after_map')())
+[nav2_start_after_map-12]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[nav2_start_after_map-12]   File "<저장소>/install/rescue_bringup/lib/python3.12/site-packages/rescue_bringup/nav2_start.py", line 109, in main
+[nav2_start_after_map-12]     rclpy.spin(node)
+[nav2_start_after_map-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[nav2_start_after_map-12]     executor.spin_once()
+[nav2_start_after_map-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[nav2_start_after_map-12]     self._spin_once_impl(timeout_sec)
+[nav2_start_after_map-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[nav2_start_after_map-12]     handler, entity, node = self.wait_for_ready_callbacks(
+[nav2_start_after_map-12]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[nav2_start_after_map-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[nav2_start_after_map-12]     return next(self._cb_iter)
+[nav2_start_after_map-12]            ^^^^^^^^^^^^^^^^^^^
+[nav2_start_after_map-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[nav2_start_after_map-12]     raise ExternalShutdownException()
+[nav2_start_after_map-12] rclpy.executors.ExternalShutdownException
+[ERROR] [nav2_start_after_map-12]: process has died [pid 953867, exit code 1, cmd '<저장소>/install/rescue_bringup/lib/rescue_bringup/nav2_start_after_map --ros-args -r __node:=rescue_nav2_start -r __ns:=/robot5 --params-file /tmp/launch_params_5q8i2r69 -r /tf:=/robot5/tf -r /tf_static:=/robot5/tf_static'].
+[planner_server-3] [INFO] [1792093444.032751020] [robot5.planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792093444.032812303] [robot5.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792093444.133251492] [robot5.planner_server]: Cleaning up
+[planner_server-3] [INFO] [1792093444.161924178] [robot5.global_costmap.global_costmap]: Cleaning up
+[planner_server-3] [INFO] [1792093444.171214477] [robot5.planner_server]: Cleaning up plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792093444.171474851] [robot5.planner_server]: Destroying plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792093444.208639871] [robot5.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792093444.218120088] [robot5.global_costmap.global_costmap]: Destroying
+[planner_server-3] [INFO] [1792093444.238811514] [robot5.planner_server]: Destroying
+[smoother_server-2] [INFO] [1792093444.241749603] [robot5.smoother_server]: Destroying
+[INFO] [planner_server-3]: process has finished cleanly [pid 953858]
+[opennav_docking-10] [INFO] [1792093444.403791091] [robot5.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792093444.553539298] [robot5.collision_monitor]: Destroying
+[waypoint_follower-7] [INFO] [1792093445.188588737] [robot5.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792093445.406113938] [robot5.waypoint_follower]: Destroying
+[opennav_docking-10] [INFO] [1792093445.416316201] [robot5.docking_server]: Destroying
+[route_server-4] [INFO] [1792093445.438548899] [robot5.route_server]: Destroying bond (route_server) to lifecycle manager.
+[INFO] [smoother_server-2]: process has finished cleanly [pid 953857]
+[INFO] [velocity_smoother-8]: process has finished cleanly [pid 953863]
+[route_server-4] [INFO] [1792093446.325117060] [robot5.route_server]: Destroying
+[INFO] [opennav_docking-10]: process has finished cleanly [pid 953865]
+[INFO] [collision_monitor-9]: process has finished cleanly [pid 953864]
+[behavior_server-5] [INFO] [1792093447.433829719] [robot5.behavior_server]: Destroying
+[task_input-14] Traceback (most recent call last):
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/rescue_robot/task_input", line 33, in <module>
+[task_input-14]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'task_input')())
+[task_input-14]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/task_input_node.py", line 45, in main
+[task_input-14]     return adapter_main(args=args, task_runtime_factory=attach_configured_runtime)
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 376, in main
+[task_input-14]     rclpy.spin(node)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[task_input-14]     executor.spin_once()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[task_input-14]     self._spin_once_impl(timeout_sec)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 918, in _spin_once_impl
+[task_input-14]     raise handler.exception()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 286, in _execute_coroutine_step
+[task_input-14]     result = coro.send(None)
+[task_input-14]              ^^^^^^^^^^^^^^^
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 592, in handler
+[task_input-14]     await call_coroutine()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 454, in _execute
+[task_input-14]     await await_or_execute(tmr.callback)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 115, in await_or_execute
+[task_input-14]     return callback(*args)
+[task_input-14]            ^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 370, in step
+[task_input-14]     adapter.observe_status(nav2=port.server_ready())
+[task_input-14]                                 ^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 74, in server_ready
+[task_input-14]     if not self.client.server_is_ready():
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/action/client.py", line 582, in server_is_ready
+[task_input-14]     return self._client_handle.is_action_server_available()
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14] rclpy._rclpy_pybind11.RCLError: Failed to check if action server is available: rcl node's context is invalid, at ./src/rcl/node.c:404
+[INFO] [waypoint_follower-7]: process has finished cleanly [pid 953862]
+[lifecycle_manager-11] [INFO] [1792093447.801098481] [robot5.lifecycle_manager_navigation]: Destroying lifecycle_manager_navigation
+[INFO] [route_server-4]: process has finished cleanly [pid 953859]
+[ERROR] [task_input-14]: process has died [pid 953869, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=rescue_command_adapter -r __ns:=/robot5 --params-file /tmp/launch_params_wuv09_z8'].
+[INFO] [behavior_server-5]: process has finished cleanly [pid 953860]
+[controller_server-1] [INFO] [1792093448.273166570] [robot5.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 953866]
+[controller_server-1] [INFO] [1792093448.376250689] [robot5.local_costmap.local_costmap]: Destroying
+[controller_server-1] [INFO] [1792093448.589655560] [robot5.controller_server]: Destroying
+[bt_navigator-6] [INFO] [1792093448.644093334] [robot5.bt_navigator]: Completed Cleaning up
+[bt_navigator-6] [INFO] [1792093448.644181519] [robot5.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792093448.745507994] [robot5.bt_navigator]: Destroying
+[INFO] [controller_server-1]: process has finished cleanly [pid 953856]
+[INFO] [bt_navigator-6]: process has finished cleanly [pid 953861]

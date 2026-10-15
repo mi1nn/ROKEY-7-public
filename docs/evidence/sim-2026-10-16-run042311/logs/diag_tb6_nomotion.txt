@@ -1,0 +1,19 @@
+== 04:42:13.099 진단용 1회(작전 지시): ros2 service call /robot6/request_nomotion_update std_srvs/srv/Empty {}
+std_srvs.srv.Empty_Response()
+
+== 04:42:15.470 호출 끝
+-- amcl_pose 수신(앞 6 s 는 latched 포함)
+04:42:08.979 amcl_pose sec: 1792092993
+04:42:08.998 amcl_pose nanosec: 788573144
+04:42:15.209 amcl_pose sec: 1792093335
+04:42:15.217 amcl_pose nanosec: 165045222
+04:42:20.411 amcl_pose sec: 1792093340
+04:42:20.414 amcl_pose nanosec: 374031725
+04:42:25.096 amcl_pose sec: 1792093345
+04:42:25.099 amcl_pose nanosec: 76433034
+-- RobotPose robot_a 수신 수: 77
+04:42:15.208 robot_a_pose VALID
+04:42:15.328 robot_a_pose VALID
+04:42:15.827 robot_a_pose VALID
+04:42:51.327 robot_a_pose VALID
+04:42:51.826 robot_a_pose VALID

@@ -20,14 +20,28 @@ def bind_watchdog(node, dog, *, cmd_vel_in_topic, cmd_vel_out_topic, stamped, ex
                   watchdog_heartbeat_topic, step_period, clock=time.monotonic):
     """Subscriptions, publishers, timer and reset service for one CommandWatchdog."""
     from geometry_msgs.msg import Twist, TwistStamped
-    from std_msgs.msg import Header
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from std_msgs.msg import Header, String
     from std_srvs.srv import Trigger
+
+    from rescue_robot.watchdog import state_text, watchdog_state_topic
 
     log = node.get_logger()
     kind = TwistStamped if stamped else Twist
     out = node.create_publisher(kind, cmd_vel_out_topic, 10)
     alive = node.create_publisher(Header, watchdog_heartbeat_topic, 10)
+    # reporting only: the state, so a latched watchdog is not taken for an absent one (run 7, 2026-10-16)
+    latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+    status = node.create_publisher(String, watchdog_state_topic(watchdog_heartbeat_topic), latched)
+    reset_service = node.get_fully_qualified_name() + '/reset'
     seen = [len(dog.events)]
+    said = [None]
+
+    def publish_state():
+        text = state_text(dog.state, dog.reason, reset_service)
+        if text != said[0]:
+            said[0] = text
+            status.publish(String(data=text))
 
     def report():
         for state, reason, at in dog.events[seen[0]:]:
@@ -37,6 +51,7 @@ def bind_watchdog(node, dog, *, cmd_vel_in_topic, cmd_vel_out_topic, stamped, ex
             else:
                 log.info(line)
         seen[0] = len(dog.events)
+        publish_state()
 
     def publish(decision, frame_id=''):
         msg = kind()
@@ -74,6 +89,7 @@ def bind_watchdog(node, dog, *, cmd_vel_in_topic, cmd_vel_out_topic, stamped, ex
         report()
         return response
 
+    publish_state()
     handles = (node.create_subscription(kind, cmd_vel_in_topic, on_command, 10),
                node.create_subscription(Header, executor_heartbeat_topic, on_heartbeat, 10),
                node.create_timer(step_period, step),
