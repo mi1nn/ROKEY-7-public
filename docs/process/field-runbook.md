@@ -40,11 +40,23 @@ updated: 2026-10-15
 3. 그래도 움직이면 **사람이 로봇을 들어 올린다.**
 
 - `robot.launch.py` 를 Ctrl+C 하면 속도 감시가 꺼지기 전에 `cmd_vel` 0 을 세 번 보낸다(로그 `watchdog stopped: 3 zero commands on <ns>/cmd_vel`).
-- 속도 감시가 세운 경우 로그에 `watchdog STOP_LATCHED reason=<이유>` 가 있다. 원인을 보고 로봇이 멈춘 것을 눈으로 확인한 뒤에만 `ros2 service call /<ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}` 로 푼다. 이유별로 볼 것은 [rescue_robot README](../../src/rescue_robot/README.md) 「watchdog 영구 정지」 절에 있다.
+- 속도 감시가 세운 경우 로그에 `watchdog STOP_LATCHED reason=<이유>` 가 있다. 원인을 보고 로봇이 멈춘 것을 눈으로 확인한 뒤에만 `ros2 service call <ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}`(`<ns>` 는 `/robot6` 또는 `/robot5`) 로 푼다. 이유별로 볼 것은 [rescue_robot README](../../src/rescue_robot/README.md) 「watchdog 영구 정지」 절에 있다.
 
 ## 1단계 — 모든 PC: 코드, Discovery, 준비 점검
 
 각 PC 담당이 새 터미널에서 한다. 로봇 없는 시험 터미널(도메인 10 이상, LOCALHOST)과 섞지 않는다.
+
+**launch 는 하나마다 새 터미널에서 띄운다.** launch 가 터미널을 붙잡기 때문이다. 새 터미널을 열 때마다 저장소 루트에서 아래 「터미널 준비」 네 줄을 먼저 넣는다. `export` 값과 `F` 는 그 터미널에만 적용된다. 빠뜨리면 `field_path:=` 가 빈 값이 되어 launch 가 오류로 멈춘다.
+
+```bash
+# 터미널 준비 (새 터미널마다, 저장소 루트에서)
+source /opt/ros/jazzy/setup.bash && source <작업공간>/install/setup.bash
+export ROS_DOMAIN_ID=<프로파일 domain_id>
+export ROS_DISCOVERY_SERVER='<아래 「Discovery 값」>'
+F=$PWD/config/field/search_area.field.json
+```
+
+처음 한 번은 아래도 한다.
 
 ```bash
 git rev-parse HEAD; git status --short       # 모든 PC 가 같은 SHA, 작업 폴더 깨끗함
@@ -62,6 +74,7 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
   ;;;;;<TB-5 Pi 주소>:11811;<TB-6 Pi 주소>:11811
   ```
   최종 구성(전용 Discovery 서버 PC)은 로봇이 그 서버에 붙는 방법이 정해지기 전에는 쓰지 않는다([네트워크·Discovery Server](../design/network-discovery.md)).
+- `--role` 은 프로파일의 host id 다. 운영 PC 는 프로파일에 operations 호스트와 coordination 호스트로 따로 올라 있으므로, 두 host id 로 각각 한 번씩 돌린다. 둘 다 PASSED 여야 한다.
 - 프로파일의 `hosts[<host id>].network.discovery_servers` 가 위 값과 같아야 준비 점검의 `env.ROS_DISCOVERY_SERVER` 가 PASSED 다.
 - 노드는 super client 가 아니다(`ROS_SUPER_CLIENT=False`). 배선 점검 도구만 super client 로 띄운다.
 - `preflight_role.py` 가 FAILED 를 내면 고치기 전에는 다음 단계로 가지 않는다. NOT_RUN 을 통과로 적지 않는다.
@@ -119,8 +132,10 @@ ros2 launch rescue_bringup coordinator.launch.py profile_path:=<profile.json> \
 
 로봇 감독이 TB-6 을 바닥에 표시한 출발 자리에 두고 언도킹한다. **지도 고정 노드는 TB-6 이 움직이기 전에 띄운다.** 처음 받은 TB-6 위치가 이 회차의 출발 자세가 되기 때문이다.
 
+아래 launch 는 하나마다 새 터미널에서 띄운다. 터미널마다 1단계 「터미널 준비」 네 줄을 먼저 넣는다(`F` 포함).
+
 ```bash
-F=$PWD/config/field/search_area.field.json
+F=$PWD/config/field/search_area.field.json   # 1단계 「터미널 준비」에 있음. 터미널마다 다시
 ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
 ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a
@@ -139,13 +154,16 @@ ros2 launch rescue_bringup amr_perception.launch.py <인자는 rescue_perception
 - `rescue_map_freeze` 의 `git_sha=...`, 그 뒤 `START_POSE captured robot_a map=(x, y, yaw)` 한 번
 - `MAP_STATE robot_a ... rev=<R0> quality=VALID`
 
-`<ns>/map` 에 이미 발행자가 있으면 `tb6_slam.launch.py` 가 시작하지 않는다(앞 SLAM 이 남은 것). `START_POSE captured` 가 나오지 않으면 다음 단계로 가지 않는다. 2026-10-14 현장에서는 이 줄이 나오지 않았다(TB-6 TF 거절, 열린 PR #291).
+`<ns>/map` 에 이미 발행자가 있으면 `tb6_slam.launch.py` 가 시작하지 않는다(앞 SLAM 이 남은 것). `START_POSE captured` 가 나오지 않으면 다음 단계로 가지 않는다. 2026-10-14 현장에서는 이 줄이 나오지 않았다. TB-6 TF 의 작은 기울기를 거절했기 때문이고, #291 이 고쳤다. 지금은 두 TF 를 3D 로 합성하고, 합성한 기울기가 10도([제안])를 넘을 때만 위치를 만들지 않는다. 이때 로그에 `SLAM_TF_POSE ... tilted` 가 남는다.
 
 ## 5단계 — TB-5 담당 PC
 
 TB-5 도 바닥에 표시한 출발 자리에서 출발한다. 출발값은 TB-6 출발 자세 기준 `robots.robot_b.initial_pose_xy_yaw` 다. 2026-10-14 두 로봇 출발 간격은 1.95 m(가로)·0.05 m(세로)였다 [측정, 재범 줄자, 둘 다 도킹 상태].
 
+아래 launch 는 하나마다 새 터미널에서 띄운다. 터미널마다 1단계 「터미널 준비」 네 줄을 먼저 넣는다(`F` 포함).
+
 ```bash
+F=$PWD/config/field/search_area.field.json   # 1단계 「터미널 준비」에 있음. 터미널마다 다시
 ros2 launch rescue_bringup passage_points.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ros2 launch rescue_bringup overhead_passage.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_b
 ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F \
@@ -194,7 +212,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
    - `MAP_FREEZE_FAILED` 이면 아무것도 바뀌지 않고 TB-5 도 출동하지 않는다.
 5. **2차 고정(탐색 완료).** 조정기 로그 `EXPLORATION_COMPLETE` 뒤 조정기가 TB-6 정지를 확인하고 다시 고정을 부른다. TB-6 담당 PC 로그 `MAP_FROZEN ... rev=<R0+2> final=True tb6 amcl start=(...)`.
    1. `MAP_REVISION_ADOPTED robot_a RNone -> R<R0+2>` 를 보고 `tb6_slam.launch.py` 터미널에서 Ctrl+C 를 누른다. `ros2 topic info /robot6/map --no-daemon` 발행자 수가 0 이 될 때까지 기다린다.
-   2. TB-6 담당 PC 에서 `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0` 을 띄운다.
+   2. TB-6 담당 PC 의 새 터미널에서 1단계 「터미널 준비」 네 줄(`F` 포함)을 넣고 `ros2 launch rescue_bringup frozen_localization.launch.py profile_path:=<profile.json> field_path:=$F robot_id:=robot_a frozen_pose_wait_s:=10.0` 을 띄운다.
    3. `MAP_RELAYED /rescue/map/frozen R<R0+2> -> /robot6/map` 를 본다. `MAP_RELAY_BLOCKED` 이면 SLAM 이 아직 떠 있다.
    4. TB-5 는 멈춰 있으면 `MAP_REALIGN robot_b ...` 로 다시 맞춘다. 움직이는 중이면 `MAP_REVISION_DEFERRED` 가 나오고 멈춘 뒤 받는다.
    5. 두 로봇 모두 `MAP_STATE ... rev=<R0+2> quality=VALID` 이고 `snapshot_id` 가 같은지 본다.
@@ -211,7 +229,7 @@ echo $?        # 0 = 모두 PASSED, 2 = FAILED 있음, 3 = NOT_RUN 있음
 
 이 순서를 처음부터 끝까지 실제 로봇으로 돌린 회차는 아직 없다. 실기에서 볼 항목은 [rescue_bringup README](../../src/rescue_bringup/README.md) 「실기 NOT_RUN」 절에 모여 있다. 그중 이 순서에 바로 걸리는 것은 아래다.
 
-- TB-6 출발 자세와 지도 고정(2026-10-14 실패, 열린 PR #291).
+- TB-6 출발 자세와 지도 고정. 2026-10-14 현장에서 실패했고 #291 이 고쳤다. 한 PC 리허설(현장 TF 값)에서는 통과했고, 실기는 아직이다.
 - 권고안 A 에서 TB-5 담당 PC 가 `/rescue/map/frozen` 을 받는지 [추정, 실측 전].
 - 후진 없는 BT 가 설치된 Nav2 에서 올라오는지(2단계 대조).
 - 자동 재준비로 TB-6 이 탐색 지점마다 멈추지 않는지, TB-5 가 사람 앞에서 기다린 뒤 출구로 떠나는지.
