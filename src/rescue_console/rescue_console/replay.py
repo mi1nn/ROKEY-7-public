@@ -6,6 +6,8 @@ t 이전의 가장 최근 이력 행이다(지금 값을 과거 시점에 그리
 회차별로 남기기 전이라 「이력 없음」으로 둔다.
 """
 
+import threading
+
 from .view import COMMANDS, STAGES, ConsoleError, _require, _site_events, compose_stage
 
 # 배속 버튼([제안] 관제·화면, 2026-10-15). 재생 시계는 브라우저가 돌리고 서버는 시점 상태만 답한다.
@@ -150,3 +152,32 @@ def replay_at(timeline, t_ns):
     return {'t_ns': t_ns, 'offset_ns': t_ns - start, 'rows': seen[::-1][:REPLAY_ROWS], 'seen_count': len(seen),
             'exit': exits[-1] if exits else None, 'exit_pass_count': len(passes), 'robots': robots,
             'targets': targets}
+
+
+class ClosedRunCache:
+    """닫힌 회차의 시간 막대를 ``size`` 개까지 기억한다. 넘치면 가장 먼저 넣은 것을 버린다.
+
+    Flask 는 요청을 스레드로 처리한다. 잠금이 없으면 두 요청이 같은 가장 오래된 회차를 동시에 버리려다
+    KeyError 가 나거나, 한쪽이 넣는 동안 다른 쪽이 돌다 RuntimeError 가 난다(#322 검토 지적).
+    ``lock`` 은 시험에서만 바꾼다.
+    """
+
+    def __init__(self, size, lock=None):
+        self.size = size
+        self._lock = threading.Lock() if lock is None else lock
+        self._runs = {}
+
+    def get(self, run_id):
+        with self._lock:
+            return self._runs.get(run_id)
+
+    def put(self, run_id, timeline):
+        with self._lock:
+            if run_id not in self._runs and len(self._runs) >= self.size:
+                oldest = next(iter(self._runs))
+                self._between()
+                del self._runs[oldest]
+            self._runs[run_id] = timeline
+
+    def _between(self):
+        """가장 오래된 회차를 고른 뒤 지우기 전. 시험이 여기서 틈을 벌려 경합을 재현한다."""
