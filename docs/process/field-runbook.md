@@ -91,11 +91,14 @@ python3 scripts/field/preflight_role.py --role <host id> --profile <profile.json
 **후진 없는 BT 대조(#267, 로봇 담당 PC 마다 Nav2 를 띄우기 전).** 우리 BT(행동 트리) 사본은 Nav2 `jazzy` 브랜치에서 후진 한 줄만 뺀 것이다. 설치된 Nav2 의 기본 BT 와 다르면 BT 로드가 실패할 수 있다 [추정].
 
 ```bash
+BT=$(python3 -c 'from rescue_bringup.nav2_recovery import bt_dir; print(bt_dir())') && ls "$BT"
 for f in navigate_to_pose navigate_through_poses; do
   diff <(grep -v BackUp /opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/${f}_w_replanning_and_recovery.xml | grep -v '^\s*$') \
-       <(grep -v '^\s*$' "$(ros2 pkg prefix rescue_bringup)"/lib/python3*/site-packages/rescue_bringup/behavior_trees/${f}_no_backup.xml | sed '/^<!--/,/-->/d')
+       <(grep -v '^\s*$' "$BT/${f}_no_backup.xml" | sed '/^<!--/,/-->/d')
 done
 ```
+
+`BT` 는 launch 가 bt_navigator 에 넘기는 폴더다(`nav2_recovery.bt_dir()`). 그래서 일반 빌드와 `--symlink-install` 빌드에서 모두 맞는 파일을 본다. `--symlink-install` 빌드에는 `<prefix>/lib/python3*/site-packages/rescue_bringup` 이 없다(2026-10-15 실기). `ls` 가 `_no_backup.xml` 두 개를 보여야 한다.
 
 머리 주석 말고 다른 차이가 없어야 한다. 차이가 있으면 Nav2 를 띄우지 말고 팀에 알린다.
 
