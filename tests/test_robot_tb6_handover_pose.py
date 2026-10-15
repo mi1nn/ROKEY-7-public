@@ -14,17 +14,18 @@ was stopped with no task when it took it. When the frozen grid arrives the SLAM 
 pose that came from it is dropped (only AMCL after that counts). A SLAM pose that stops coming gets old and the
 coordinator's age limit makes it unknown, as before; nothing is held up longer than the pose is fresh.
 
-The tests marked expectedFailure fail on main.
+Before this change (5277f2f) the first test was expectedFailure.
 """
 import unittest
 
-from test_robot_live_map_twice import G1, G2, R1, R2, Twice
+import test_robot_live_map_twice as twice
+from test_robot_live_map_twice import G1, G2, R1, R2
 from test_robot_live_map_lifecycle import grid_message
 
 
 class Handover(unittest.TestCase):
     # the map-twice fixture's helpers, without running its tests again here
-    make, freeze, pose, state = Twice.make, Twice.freeze, Twice.pose, Twice.state
+    make, freeze, pose, state = twice.Twice.make, twice.Twice.freeze, twice.Twice.pose, twice.Twice.state
 
     def searching_tb6(self):
         s = self.make('SLAM_THEN_FROZEN')
@@ -33,7 +34,7 @@ class Handover(unittest.TestCase):
         self.assertEqual(('VALID', 0), self.state())
         return s
 
-    @unittest.expectedFailure
+
     def test_slam_pose_still_counts_after_the_final_freeze_until_the_frozen_map_arrives(self):
         s = self.searching_tb6()
         self.freeze(G1, R1)
