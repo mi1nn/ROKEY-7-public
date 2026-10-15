@@ -5,6 +5,7 @@ saved-map hash, or the one frozen TB-6 SLAM map (SavedMapSources). TF ticks neve
 manufacture SLAM correction events; the revision moves once, at the freeze.
 """
 from copy import deepcopy
+import json
 import math
 
 from rescue_contracts import ros_time_to_ns
@@ -90,6 +91,7 @@ class SavedMapSources:
         self.reinit={}        # robot -> pose message to put on its AMCL once its map topic carries the grid
         self.deferred={}      # robot -> reason last logged
         self.slam_tf={}  # robot -> SlamTfPose (SLAM_THEN_FROZEN while searching)
+        self.aligned={}  # FROZEN_MAP_AMCL robot -> last start_align verdict is ALIGNED (#317, decision (나))
         self.publisher=None  # live_pose.LivePosePublisher for this robot (RobotPose / MapState)
         self.reinitialize=None  # (robot, PoseWithCovarianceStamped-like) -> publishes <ns>/initialpose
         if not settings: raise ContractError('saved_maps requires measured robot settings')
@@ -98,7 +100,7 @@ class SavedMapSources:
             topics=['map_topic','localization_topic']
             if c['mode']!='SAVED_MAP_AMCL': topics+=['frozen_topic','frozen_revision_topic']
             if c['mode']=='SLAM_THEN_FROZEN': topics+=['slam_localization_topic','slam_tf_topic']
-            if c['mode']=='FROZEN_MAP_AMCL': topics.append('initial_pose_topic')
+            if c['mode']=='FROZEN_MAP_AMCL': topics+=['initial_pose_topic','start_align_topic']
             for name in topics:
                 if not isinstance(c.get(name),str) or not c[name].startswith('/'):
                     raise ContractError('absolute saved-map input topic required')
@@ -302,14 +304,41 @@ class SavedMapSources:
                 self.poses[robot]=(observed,valid)
                 if valid and self.phase(robot)=='FROZEN': self.last_valid[robot]=deepcopy(message)
                 if self.publisher is not None and robot==self.publisher.robot:
-                    self.publisher.on_pose(message,observed,valid)
+                    self.publisher.on_pose(message,observed,valid and self._valid(robot))
             except (ContractError,ValueError,TypeError) as exc:
                 self.poses.pop(robot,None); r.node.get_logger().warning('AMCL input rejected: '+str(exc))
                 self._publish_map_state(robot)
 
+    def _valid(self,robot):
+        """Pose valid and, for a FROZEN_MAP_AMCL robot, its start alignment ALIGNED: AMCL starts that robot at
+        the measured start with zero spread [Nav2 jazzy amcl_node.cpp:283-295], so its covariance alone says
+        nothing about the start (재범 decision 2026-10-15 (나))."""
+        aligned=self.settings[robot]['mode']!='FROZEN_MAP_AMCL' or self.aligned.get(robot,False)
+        return self.poses.get(robot,(0,False))[1] and aligned
+
+    def receive_start_align(self,robot,message):
+        """rescue_robot.start_align verdict (JSON, latched): only status ALIGNED counts; anything else is not."""
+        r=self.runtime
+        with r.adapter.lock:
+            if self.settings.get(robot,{}).get('mode')!='FROZEN_MAP_AMCL':
+                raise ContractError(f'{robot} has no start alignment (only FROZEN_MAP_AMCL)')
+            try:
+                verdict=json.loads(message.data)
+                status,reason=verdict['status'],verdict.get('reason','')
+                if not isinstance(status,str) or not isinstance(reason,str): raise TypeError('status and reason text')
+            except (ValueError,TypeError,KeyError,AttributeError) as exc:
+                status,reason='UNREADABLE',str(exc)
+            aligned=status=='ALIGNED'
+            changed=self.aligned.get(robot)!=aligned
+            self.aligned[robot]=aligned
+            log=r.node.get_logger()
+            (log.info if aligned else log.warning)(f'START_ALIGN {robot} {status} {reason}'.strip()
+                                                   +('' if aligned else ': localization not VALID'))
+            if changed: self._publish_map_state(robot)
+
     def _publish_map_state(self,robot):
         if self.publisher is not None and robot==self.publisher.robot:
-            self.publisher.publish_map_state(localization_valid=self.poses.get(robot,(0,False))[1])
+            self.publisher.publish_map_state(localization_valid=self._valid(robot))
 
     def records(self):
         result={}
@@ -320,7 +349,7 @@ class SavedMapSources:
                 'transform_valid_until_ns','position_error_m','rotation_error_rad')}
             result[robot].update(map_revision=self.basis(robot)['map_revision'],
                 observed_at_ns=observed,valid_until_ns=observed+self.runtime.inputs.max_age,
-                map_update_sequence=0,localization_status='VALID' if valid and self.loaded(robot) else 'UNKNOWN')
+                map_update_sequence=0,localization_status='VALID' if self._valid(robot) and self.loaded(robot) else 'UNKNOWN')
         return result
 
 
@@ -404,5 +433,9 @@ def attach_sources(runtime):
                 attach_slam_tf_pose(r,robot,c,subscribe)
             subscribe(OccupancyGrid,c['map_topic'],lambda m,robot=robot:r.saved_maps.receive_map(robot,m),snapshot,
                       lambda robot=robot:r.saved_maps.maps.pop(robot,None))
+            if c['mode']=='FROZEN_MAP_AMCL':   # TB-5 VALID only after start_align ALIGNED (#317)
+                from std_msgs.msg import String
+                subscribe(String,c['start_align_topic'],lambda m,robot=robot:r.saved_maps.receive_start_align(robot,m),
+                          snapshot,lambda robot=robot:r.saved_maps.aligned.pop(robot,None))
             subscribe(PoseWithCovarianceStamped,c['localization_topic'],lambda m,robot=robot:r.saved_maps.receive_pose(robot,m),qos_profile_sensor_data,
                       lambda robot=robot:r.saved_maps.poses.pop(robot,None))

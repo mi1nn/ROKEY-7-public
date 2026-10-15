@@ -117,6 +117,7 @@ SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # TB-5 start alignment on the frozen map (재범 decision 2026-10-15, method B; rescue_robot.start_align), required
 # for every FROZEN_MAP_AMCL robot and refused on the others; values [제안] until a supervised run
+START_ALIGN_STATUS = '/rescue_start_align'   # <ns> + this: start_align verdict, read by the executor
 START_ALIGN_KEYS = {'start_align.' + name: kind for name, kind in (
     ('initial_sigma_xy_m', F), ('initial_sigma_yaw_rad', F), ('update_period_s', F), ('max_updates', I),
     ('accept_sigma_xy_m', F), ('accept_sigma_yaw_rad', F), ('settle_count', I), ('settle_xy_m', F),
@@ -525,6 +526,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
                            'task.saved_map.slam_base_frame': SLAM_BASE_FRAME})
     if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
         task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
+        # VALID only after the start alignment says ALIGNED (#317); frozen_localization_values status_topic
+        task_input['task.saved_map.start_align_topic'] = ns + START_ALIGN_STATUS
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
     # (OPS-139); a profile home here would be used until the first coordinator record.
@@ -577,7 +580,7 @@ def frozen_localization_values(deployment, *, field, robot_id):
                      dock_topic=ns + '/dock_status', amcl_pose_topic=ns + '/amcl_pose',
                      set_initial_pose_service=ns + '/set_initial_pose',
                      nomotion_update_service=ns + '/request_nomotion_update',
-                     status_topic=ns + '/rescue_start_align', base_frame=SLAM_BASE_FRAME,
+                     status_topic=ns + START_ALIGN_STATUS, base_frame=SLAM_BASE_FRAME,
                      map_frame=basis.frame_id)
         if 'initial_pose_xy_yaw' not in section:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw is not measured yet: click the start on '

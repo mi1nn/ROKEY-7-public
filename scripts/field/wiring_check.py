@@ -54,6 +54,7 @@ NODES = {
     'overhead': 'overhead_passage',               # overhead_passage.launch.py, <ns>
     'relay': 'rescue_frozen_map_relay',           # frozen_localization.launch.py, <ns>
     'amcl': 'amcl',                               # frozen_localization.launch.py, <ns>
+    'start_align': 'rescue_start_align',          # frozen_localization.launch.py, <ns>, FROZEN_MAP_AMCL only
     'map_freeze': 'rescue_map_freeze',            # map_freeze.launch.py
     'db_writer': 'rescue_db_writer',              # operations.launch.py
     'report_node': 'rescue_report_node',          # operations.launch.py
@@ -222,6 +223,9 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
             if modes[r] == 'FROZEN_MAP_AMCL':
                 links.append(link(f'{r}.initialpose', 'topic', t['task.saved_map.initial_pose_topic'], [adapter[r]],
                                   [here('amcl')], source=src_map + ' (re-alignment on a newer frozen map)'))
+                links.append(link(f'{r}.start_align', 'topic', t['task.saved_map.start_align_topic'],
+                                  [here('start_align')], [adapter[r]],
+                                  source=src_map + ' (VALID only after ALIGNED, #317)'))
     frozen = [adapter[r] for r in frozen_readers if r in picked] + [node(NODES['relay'], values[r]['namespace'])
                                                                     for r in relayed if r in picked]
     links += [

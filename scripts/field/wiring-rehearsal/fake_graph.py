@@ -32,6 +32,7 @@ DEFAULT_TYPES = {
     'slam_pose': 'geometry_msgs/msg/PoseWithCovarianceStamped',
     'amcl_pose': 'geometry_msgs/msg/PoseWithCovarianceStamped',
     'initialpose': 'geometry_msgs/msg/PoseWithCovarianceStamped',
+    'start_align': 'std_msgs/msg/String',
     'site_events': 'rescue_interfaces/msg/SiteEvent', 'target_locations': 'rescue_interfaces/msg/TargetLocation',
     'exit_location': 'rescue_interfaces/msg/TargetLocation',
     'navigate_to_pose': 'nav2_msgs/action/NavigateToPose',
@@ -40,7 +41,8 @@ DEFAULT_TYPES = {
 FAKE_WRITER_QOS = {'odom': ('BEST_EFFORT', 'VOLATILE'), 'scan': ('BEST_EFFORT', 'VOLATILE'),
                    'dock_status': ('BEST_EFFORT', 'VOLATILE'), 'camera': ('BEST_EFFORT', 'VOLATILE'),
                    'depth_camera_info': ('BEST_EFFORT', 'VOLATILE'), 'passage_points': ('BEST_EFFORT', 'VOLATILE'),
-                   'map': ('RELIABLE', 'TRANSIENT_LOCAL'), 'amcl_pose': ('RELIABLE', 'TRANSIENT_LOCAL')}
+                   'map': ('RELIABLE', 'TRANSIENT_LOCAL'), 'amcl_pose': ('RELIABLE', 'TRANSIENT_LOCAL'),
+                   'start_align': ('RELIABLE', 'TRANSIENT_LOCAL')}   # start_align latches its verdict
 
 
 def ours(deployment, field, slam_phase):
