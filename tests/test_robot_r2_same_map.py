@@ -1,4 +1,4 @@
-"""R1 and R2 frozen almost together with the same grid (simulation 2026-10-15 23:08:50, mu-03), no ROS.
+"""R1 and R2 frozen almost together with the same grid (simulation 2026-10-15 23:08:50), no ROS.
 
 Exploration timed out, so the coordinator asked both freezes in the same second: MAP_FROZEN 1 and
 MAP_FROZEN 2 carried the same sha256. TB-5's relay logged 'MAP_RELAYED ... R1 -> /robot5/map' twice,
@@ -24,8 +24,9 @@ site it has logged from: 'live input rejected: Logger severity cannot be changed
 robot_b never becomes VALID and no MAP_STATE follows. A disabled severity (debug) is skipped before
 the check, so only enabled severities collide.
 
-The tests marked expectedFailure describe the wanted behaviour and fail on main. The fix removes the
-marks.
+Fixed here: every ROS log line has one severity (if/else with one call per severity). The tests still
+marked expectedFailure (the same grid sent again, the pose dropped on a same-grid R2) are left for a
+separate fix.
 """
 import ast
 from pathlib import Path
@@ -119,7 +120,6 @@ class Executor(unittest.TestCase):
         record = self.s.records()['robot_b']
         return record['localization_status'], record['map_revision']
 
-    @unittest.expectedFailure
     def test_aligned_after_aligning_is_taken_with_the_rclpy_logger(self):
         """The simulation: ALIGNING (warning) then ALIGNED (info) from the same log line."""
         self.align('WAITING')
@@ -128,7 +128,7 @@ class Executor(unittest.TestCase):
         self.freeze(copy_of(G1), R2)
         self.align('ALIGNING')
         self.pose()
-        self.align('ALIGNED')                        # ValueError on main: the verdict is dropped
+        self.align('ALIGNED')                        # ValueError before the fix: the verdict was dropped
         self.assertEqual(('VALID', R2), self.state())
 
     def test_both_freezes_before_the_alignment_end_valid_on_r2(self):
@@ -182,8 +182,13 @@ LOGGERS = ('info', 'warning', 'warn', 'error', 'fatal', 'debug')
 
 
 def severity_chosen_at_run_time(tree):
-    """Calls like (log.info if ok else log.error)(...) or getattr(log, level)(...): one site, several severities."""
+    """(log.info if ok else log.error)(...), getattr(log, level)(...) and say = log.info if ok else log.error:
+    one call site, several severities."""
     for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.IfExp) and all(
+                isinstance(b, ast.Attribute) and b.attr in LOGGERS for b in (node.value.body, node.value.orelse)):
+            yield node.lineno   # a log function chosen into a variable and called from one place
+            continue
         if not isinstance(node, ast.Call):
             continue
         f = node.func
@@ -202,7 +207,6 @@ class OneSeverityPerLogLine(unittest.TestCase):
 
     rescue_console logs with Flask (Python logging), which has no such rule; it is not checked."""
 
-    @unittest.expectedFailure
     def test_no_ros_log_line_chooses_its_severity_at_run_time(self):
         found = []
         for path in sorted(SRC.glob('rescue_*/rescue_*/**/*.py')):
@@ -212,10 +216,17 @@ class OneSeverityPerLogLine(unittest.TestCase):
                 found.append(f'{path.relative_to(SRC)}:{line}')
         self.assertEqual([], found)
 
+    def test_slam_active_logs_both_verdicts(self):
+        from rescue_bringup.slam_active import say
+        logger = RclpyLogger()
+        say(logger, 'SLAM_NOT_ACTIVE /robot6/slam_toolbox state=inactive: sending activate once')
+        say(logger, 'SLAM_ACTIVE /robot6/slam_toolbox after activate')
+        self.assertEqual(2, len(logger.lines))
+
     def test_the_check_finds_both_forms(self):
         tree = ast.parse('(log.info if ok else log.warning)("x")\ngetattr(node.get_logger(), level)("y")\n'
-                         'log.info("z")\ngetattr(log, "info")("w")\n')
-        self.assertEqual([1, 2], sorted(severity_chosen_at_run_time(tree)))
+                         'log.info("z")\ngetattr(log, "info")("w")\nsay = log.info if ok else log.error\n')
+        self.assertEqual([1, 2, 5], sorted(severity_chosen_at_run_time(tree)))
 
 
 if __name__ == '__main__':

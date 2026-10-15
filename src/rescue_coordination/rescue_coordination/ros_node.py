@@ -2556,9 +2556,12 @@ def main(args=None):
             res = future.result()
             recorded = core.on_watch_reply(watch_id=res.watch_id, accepted=bool(res.accepted),
                                            watch_revision=int(res.watch_revision), reason_code=res.reason_code)
-            (log.info if res.accepted else log.error)(
-                f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
-                f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
+            line = (f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
+                    f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
+            if res.accepted:   # one severity per call site (rclpy raises otherwise)
+                log.info(line)
+            else:
+                log.error(line)
 
         def send(fields):
             goal = fill_execute_task_goal(ExecuteTask.Goal(), fields, coordinator_id=values['coordinator_id'])
@@ -2649,8 +2652,11 @@ def main(args=None):
         def on_freeze_reply(future):
             res = future.result()
             recorded = core.on_freeze_reply(bool(res.success), res.message)
-            (log.info if res.success else log.error)(
-                f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}')
+            line = f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}'
+            if res.success:   # one severity per call site (rclpy raises otherwise)
+                log.info(line)
+            else:
+                log.error(line)
             tick()
 
         def on_frozen_map(msg):
