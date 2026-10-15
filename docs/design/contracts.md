@@ -10,7 +10,7 @@ updated: 2026-10-14
 
 두 AMR 활용은 사용자 확정 요구다. 고사양 PC 2대·중간 사양 PC 2대는 예정 자원이며, 네 대를 모두 사용하는 배포와 발견→안전 접근→보고는 현재 설계 기준안이다. 이 문서의 계약을 최종 인수 범위가 모두 확정된 것으로 해석하지 않는다.
 
-## 한눈에 — 조정기 기준 (2026-10-14, main `4163a25`)
+## 한눈에 — 조정기 기준 (2026-10-15, main `5d9304a`)
 
 이 절이 답하는 질문은 하나다. **이 문서의 계약 중 임무 조정기가 지금 실제로 쓰는 것은 무엇인가?** 아래 C-01~C-11 본문은 여러 패키지가 함께 쓰는 계약이라 그대로 두었다. 조정기 칸은 `rescue_coordination` 코드를 읽고 채웠다. 다른 패키지 칸은 그 담당의 확인이 필요하다.
 
@@ -23,7 +23,7 @@ updated: 2026-10-14
 | C-04a 고정 지도 revision 짝 | 사용. hash 가 맞는 revision 글만 받는다 | `on_frozen_revision`, `_try_freeze` | 통합-로봇(만드는 쪽) |
 | C-04b 터널 목록 | 쓰지 않음. 탐색 경계 선택에 쓰는 것은 후속이다 | `rescue_coordination/` grep `overhead` 결과 없음 | 인식(만드는 쪽), 운영(DB 기록, #262) |
 | C-05 관측·사건·보고 스키마 | 일부 사용. `TargetLocation`, `SiteEvent`, `RobotStatus`, `RescueReport`, `ReportReceipt` 를 쓴다. `TargetObservation` 은 직접 받지 않는다(인식의 `target_locator` 가 `TargetLocation` 으로 바꿈) | `main` 의 구독·발행 목록 | 확인 필요: 통합-인식, 운영 |
-| C-06 임무 action·lease·정지 | 일부 사용. `ExecuteTask`·`CommandLease`·`TaskAdmission` 을 쓴다. `RequestStop` 은 쓰지 않는다. 노드가 발급하는 종류는 `SEARCH_AREA`, `APPROACH_TARGET`, `RETURN_HOME`, `REOBSERVE_TARGET`(RECHECK 전용), `MOVE_SEGMENT`(운영자 구간 승인 전용)다. `HOLD` 는 코어(`search.py`)에만 있고 노드가 발급하지 않는다 | `_issue_*`, `leases_due` | 확인 필요: 통합-로봇 |
+| C-06 임무 action·lease·정지 | 일부 사용. `ExecuteTask`·`CommandLease`·`TaskAdmission` 을 쓴다. `RequestStop` 은 쓰지 않는다. 노드가 발급하는 종류는 `SEARCH_AREA`, `APPROACH_TARGET`, `RETURN_HOME`, `REOBSERVE_TARGET`(RECHECK 전용), `MOVE_SEGMENT`(운영자 구간 승인 전용)다. `HOLD` 는 코어(`search.py`)에만 있고 노드가 발급하지 않는다. 교통 관제(`traffic_control=TB5_PRIORITY`, #272)는 TB-5 경로 근처를 가는 TB-6 임무를 `ExecuteTask` goal 취소로 멈춘다. 실행기는 취소를 받으면 `request_stop('CANCEL_USER')` 로 로봇을 세운다(`rescue_robot/task_server.py` `on_cancel`) | `_issue_*`, `leases_due`, `_stop_scout`, `take_cancels`, `main` 안 `cancel_task` | 확인 필요: 통합-로봇 |
 | C-07 안전 접근·통로 자원 | 일부 사용. 접근점은 대상에서 `approach_standoff_m` 떨어진 점이고, 고정 지도에서 빈 자리(`footprint_clear`)인지 확인한다. 통로 점유 코어(`planning.py` `confirm_vacant`)는 노드에 연결되지 않았다 | `approach_point`, `_free_cell` | 확인 필요: 통합-로봇 |
 | C-08 토픽·QoS 제안 | 제안과 다르다. 실제 토픽은 아래 「조정기가 실제로 쓰는 토픽」 표다. `/rescue/observations`, heartbeat, `/rescue/frame_alignments` 는 조정기가 쓰지 않는다 | `ros_node.py` `*_TOPIC` 상수 | 확인 필요: 각 담당 |
 | C-09 오류 코드 | 사용. 조정기 오류(`CoordinationError`)는 `RescueError` 의 공통 코드를 쓴다 | `planning.py` `CoordinationError` | 공통(`rescue_contracts`) |
@@ -42,7 +42,7 @@ updated: 2026-10-14
 | `/rescue/target_locations` | `TargetLocation` | 받음(인형 위치) |
 | `/rescue/exit_location` | `TargetLocation`(`exit_qr`) | 받음(QR 출구) |
 | `/rescue/robots/<id>/status`, `.../pose`, `.../map_state`, `.../task_admission` | `RobotStatus`, `RobotPose`, `MapState`, `TaskAdmission` | 받음(로봇) |
-| `/rescue/robots/<id>/execute_task` | `ExecuteTask`(action) | 보냄 |
+| `/rescue/robots/<id>/execute_task` | `ExecuteTask`(action) | 보냄. 교통 관제는 TB-6 goal 을 취소함 |
 | `/rescue/robots/<id>/command_lease` | `CommandLease` | 보냄 |
 | `/rescue/reports` / `/rescue/report_receipts` | `RescueReport` / `ReportReceipt` | 보냄 / 받음 |
 | `/rescue/system_state`, `/rescue/targets` | `SystemState`, `TargetSnapshot` | 보냄(latched) |
