@@ -1,5 +1,5 @@
 #!/bin/bash
-# 시뮬레이션 2단계: 실기 한 회차를 PC 한 대에서 (가제보_실습, 2026-10-15, 재범 지시 「hv-06·hv-03·mu-03·로봇 역할을 한 PC 로」).
+# 시뮬레이션 2단계: 실기 한 회차를 PC 한 대에서 (가제보_실습, 2026-10-15, 재범 지시 「운영 PC·Discovery PC·로봇 담당 PC·로봇 역할을 한 PC 로」).
 #
 #   로봇 Pi 두 대  -> sim_robots.sh (Gazebo, TB-6·TB-5, 도메인 SIM_DOMAIN)
 #   Wi-Fi          -> wall_clock_relay.py (시각·프레임·카메라 이름을 실기와 같게, SIM_DOMAIN <-> FIELD_DOMAIN)

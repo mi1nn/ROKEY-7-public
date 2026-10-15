@@ -1,7 +1,7 @@
 """scripts/sim/strip_sensors.py: the second simulated robot loses only the Gazebo Sensors system (2026-10-15).
 
 With a Sensors system in every Create3 model the Gazebo server aborted when the second robot was created
-("A scene node with the name sun already exists", 4 of 4 two-robot runs on mu-03); with the plugin removed from
+("A scene node with the name sun already exists", 4 of 4 two-robot runs on the simulation PC); with the plugin removed from
 the second robot's description 0 aborts. Nothing else in the description may change.
 """
 import importlib.util

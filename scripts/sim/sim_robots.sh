@@ -18,7 +18,7 @@ REPO="$(cd "$HERE/../.." && pwd)"
 die() { echo "sim_robots: $*" >&2; exit 2; }
 
 # 렌더링은 NVIDIA 로 한다(PRIME offload). 빼면 EGL 이 드라이버를 못 찾아 소프트웨어로 그리고, 가상 라이다가 모든 방향
-# 0.164 m(range_min)를 내며 실시간의 22% 로 느려졌다 [측정 2026-10-15 mu-03, NVIDIA 노트북 GPU + Intel 내장].
+# 0.164 m(range_min)를 내며 실시간의 22% 로 느려졌다 [측정 2026-10-15 시뮬레이션 PC, NVIDIA 노트북 GPU + Intel 내장].
 # 깨끗한 셸로 다시 실행한다. 부른 셸의 ROS 환경(~/turtlebot4_ws 등)은 하나도 넘기지 않는다.
 if [ -z "${RUN_SIM_CLEAN:-}" ]; then
     exec env -i HOME="$HOME" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \

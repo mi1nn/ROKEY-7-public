@@ -3,7 +3,7 @@
 
 The Create3 model (irobot_create_description create3.urdf.xacro) loads gz::sim::systems::Sensors in every robot.
 With a second robot in the same Gazebo the second Sensors system builds a second render scene and the server
-aborts ("A scene node with the name sun already exists", measured on mu-03 2026-10-15 in every two-robot run).
+aborts ("A scene node with the name sun already exists", measured on the simulation PC 2026-10-15 in every two-robot run).
 One Sensors system renders every sensor in the world, so the extra robots are spawned from this copy:
     robot_description  ->  robot_description_sim  (same text, that one <plugin> removed)
 Nothing else in the description changes.
