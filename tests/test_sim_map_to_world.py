@@ -177,6 +177,51 @@ class World(Tmp):
         self.assertAlmostEqual(3.009, south_end, places=4)               # past the corner point x = 3.0
         self.assertAlmostEqual(-0.009, east_start, places=4)             # past the corner point y = 0.0
 
+    FEET = {'spacing_m': 0.4, 'size': [0.10, 0.10, 0.09], 'color': [0.55, 0.38, 0.22], 'estimate': True}
+
+    def feet_of(self, world, wall):
+        out = {}
+        for model in ET.fromstring(world).iter('model'):
+            if model.get('name').startswith(f'{wall}_foot'):
+                pose = [float(v) for v in model.find('pose').text.split()]
+                size = [float(v) for v in model.find('.//collision/geometry/box/size').text.split()]
+                out[model.get('name')] = (pose, size)
+        return out
+
+    def test_wall_feet_stand_at_the_panel_joints_on_both_sides(self):
+        """The MDF walls stand on L brackets that reach about 0.1 m out on the floor (재범 photo 2026-10-16): under
+        the lidar (0.19 m), in the depth camera's low obstacle band. One pair at every panel joint."""
+        raw = layout(wall_feet=self.FEET, objects=[{'name': 'south', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0,
+                                                     'x2': 1.2, 'y2': 0.0}])
+        world, _, estimates = self.build(raw)
+        feet = self.feet_of(world, 'south')
+        self.assertEqual(4, len(feet))                           # 3 panels of 0.4 m: joints at 0.4 and 0.8, two sides
+        xs = sorted({round(pose[0], 4) for pose, _ in feet.values()})
+        ys = sorted({round(pose[1], 4) for pose, _ in feet.values()})
+        self.assertEqual([0.4, 0.8], xs)
+        self.assertEqual([-0.059, 0.059], ys)                     # half the wall thickness + half the reach out
+        for pose, size in feet.values():
+            self.assertAlmostEqual(0.045, pose[2])               # on the floor
+            self.assertEqual([0.10, 0.10, 0.09], size)
+        self.assertIn('wall_feet', estimates)
+
+    def test_a_wall_shorter_than_a_panel_gets_one_pair_in_the_middle(self):
+        raw = layout(wall_feet=self.FEET, objects=[{'name': 'stub', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0,
+                                                     'x2': 0.0, 'y2': 0.3}])
+        feet = self.feet_of(self.build(raw)[0], 'stub')
+        self.assertEqual(2, len(feet))
+        self.assertEqual({0.15}, {round(pose[1], 4) for pose, _ in feet.values()})
+        self.assertEqual({-0.059, 0.059}, {round(pose[0], 4) for pose, _ in feet.values()})
+
+    def test_no_wall_feet_without_the_key_and_no_made_up_values(self):
+        import map_to_world as mw
+        raw = layout(objects=[{'name': 'south', 'kind': 'wall', 'x1': 0.0, 'y1': 0.0, 'x2': 1.2, 'y2': 0.0}])
+        self.assertEqual({}, self.feet_of(self.build(raw)[0], 'south'))
+        for bad in ({k: v for k, v in self.FEET.items() if k != 'spacing_m'}, dict(self.FEET, size=[0.1, 0.1]),
+                    dict(self.FEET, spacing_m=0)):
+            with self.subTest(bad), self.assertRaises(mw.WorldError):
+                self.build(layout(wall_feet=bad))
+
     def test_spawn_and_estimates(self):
         _, spawn, estimates = self.build()
         self.assertEqual({'robot6': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
