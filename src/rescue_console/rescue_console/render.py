@@ -637,6 +637,7 @@ button{font-family:inherit}
 #masthead .sys{order:1;font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #masthead .sys::before{content:"";display:inline-block;width:22px;height:22px;margin-right:10px;border-radius:7px;vertical-align:-6px;
   background:var(--accent);box-shadow:inset 0 0 0 6px var(--accent),inset 0 0 0 9px #fff}
+#masthead .replay-link{order:3;font-size:12.5px;white-space:nowrap}
 #masthead .screen{order:2;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:var(--pill);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 
 /* ---- 임무 카드 ---- */
@@ -1393,7 +1394,8 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
     if cameras or robot_camera:
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
-            + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p></header>'
+            + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p>'
+            + '<a class="replay-link" href="/replay">지난 회차 다시 보기</a></header>'
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'

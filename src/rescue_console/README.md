@@ -38,9 +38,11 @@
 | `commands.py` | 운영자 명령 요청 만들기·한 번 보내기·응답 읽기(`POST /api/operator-commands`) | 표준 라이브러리 |
 | `sources.py` | `rescue_operations.ledger.read_reports` 로 장부를, `rescue_operations.site_state` 읽기 함수 아홉(배치 로봇·로봇 상태·현장 사건·대상 상태·임무 상태·운영자 명령·오류 기록·최신 출구(QR) 관측·터널 판정)으로 현장 상태 DB 를 읽기 전용(`mode=ro`, `query_only`)으로 읽음. 현장 상태 DB 대신 픽스처 JSON 도 받음(E2) | `rescue_operations` |
 | `render.py` | 화면 모델 → HTML 한 장(CSS·JS 포함). Flask 없이 시험 | 표준 라이브러리 |
+| `replay.py` | 쌓이는 표 넷(사건·명령·오류·출구) → 리플레이 시간 막대와 시점 상태 | 표준 라이브러리, `rescue_contracts` |
+| `replay_page.py` | 리플레이 모델 → HTML 페이지·조각. Flask 없이 시험 | 표준 라이브러리 |
 | `labels.py` | 화면에 나오는 코드(`MOVING`, `NOT_CHECKED` …) → 한국어 낱말. 모르는 코드는 그대로 보임 | 없음 |
 | `mapimage.py` | 지도 YAML + PGM → PNG, map frame 좌표 → 지도 픽셀, 지도 위 표식 목록 | 표준 라이브러리 |
-| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
+| `app.py` | Flask 경계. 데이터 경로는 `GET /`, `GET /fragment`, `GET /api/view`, `GET /map.png`, `GET /replay`, `GET /replay/fragment` 이다. 쓰기 경로는 운영자 명령 `POST /commands`, 웹캠 고르기 `POST /webcam`(관리자), 로봇 카메라 고르기 `POST /robot-camera`(로그인한 모든 계정, 보기 전용 포함) 셋이다(로그인·계정 폼은 아래 절) | Flask (선택) |
 
 Flask 는 선택 의존이다(`extras_require={"web": ["flask"]}`). 없으면 `create_app` 이 `DEPENDENCY_MISSING` 오류로 끝나고 다른 방식으로 대신 뜨지 않는다. 집계·HTML·명령 요청·전송 시험은 Flask 없이 돈다.
 
@@ -308,6 +310,15 @@ SUPPORT 쪽 코드는 #187(head 4528226), 재확인·판정·TB-6 복귀 코드�
 - 대상 줄: 그 대상의 가장 최근 후보 시각을 「소실 후보 HH:MM:SS」로 강조한다. 툴팁에 카메라·사건 ID 와 「후보일 뿐, 로봇 재확인으로 구출을 판정」을 적는다. 구출 확인은 로봇 재확인 결과(`rescue_state`)로만 바뀐다.
 - 사건 기록: 「대상 소실 후보」 행의 대상 칸에 그 대상 ID 를 적는다.
 - 후보가 가리키는 대상이 목록에 없으면 「확인할 것」 줄에 「소실 후보의 대상이 목록에 없음: <ID>」를 띄운다.
+
+## 지난 회차 다시 보기 (`/replay`, 2026-10-15)
+
+관제 화면 맨 위 줄의 「지난 회차 다시 보기」를 누르면 열린다. `--site-state` 로 띄웠을 때만 쓸 수 있고, 로그인한 모든 계정이 볼 수 있다.
+
+- 위 칸에 재생·멈춤, 배속(1·2·4·8배), 시간 막대가 있다. 막대 아래 점은 기록 하나씩이고, 누르면 그 시각으로 간다.
+- 왼쪽 칸은 지도다. 지금은 지도 그림이 시각별로 남지 않아 「지도 이력 없음」으로 보인다. 그 시점의 출구 관측과 출구 통과 수, 그리고 아직 이력이 없는 칸(로봇 위치·배터리, 인형 구조 단계)의 이름을 보인다.
+- 오른쪽 칸은 그 시점까지의 사건·명령·오류·출구 기록이다. 명령은 접수·거절과 사유를 보인다.
+- 지금은 DB 파일 하나를 회차 하나로 본다. 회차 구분과 이력 표는 operations 쪽 작업 뒤에 붙인다. 자세한 동작은 [설계 명세 7.13](../../docs/design/console-spec.md)에 있다.
 
 ## 하지 않는 것 / 후속
 
