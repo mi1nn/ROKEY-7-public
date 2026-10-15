@@ -1,0 +1,2 @@
+# 03:09:17 /robot6/plan (path)
+NO MESSAGE in 12 s

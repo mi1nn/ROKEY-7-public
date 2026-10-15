@@ -46,6 +46,7 @@ flowchart LR
 | `POST /api/operator-commands` | 운영자 명령 7종(`START_SEARCH`·`DISPATCH_SUPPORT`·`CONTINUE_SEGMENT`·`REQUEST_RECHECK`·`RETURN_HOME`·`SET_CAMERA_WATCH`·`DECLARE_DISASTER`)을 조정기로 넘기고 답을 기록 | `command_api.py:CommandGate` |
 | `GET /api/webcam` | 운영 PC 에 꽂힌 카메라 목록과 지금 장치 | `command_api.py:WebcamSwitch.state` |
 | `POST /api/webcam` | 웹캠 장치 바꾸기. 꽂히지 않은 장치는 거절, 결과는 `error_log` | `command_api.py:WebcamSwitch.switch` |
+| `POST /api/passages/approve` | 터널 통과 승인(2026-10-16). 터널 진입 금지 노드의 `ApproveOverheadPassage` 를 한 번 부르고 `operator_commands` 에 `APPROVE_PASSAGE` 로 남김 | `command_api.py:PassageApproval` |
 
 표마다 누가 쓰고 누가 읽는지는 [DB 스키마](../design/db-schema.md) 「한눈에」에 있다.
 
@@ -59,9 +60,20 @@ flowchart LR
 | 「지도는 아직 받지 않는다」 | `map_snapshot` 노드가 SLAM 지도를 파일로 쓴다(#209). `db_writer` 는 TB-6 지도 revision(`MapState`)을 받고, `map_topic`·`map_dir` 이 있으면 리플레이용으로 회차별 지도를 `map_dir/<run_id>/` 에 남긴다(2026-10-15, `map_archive.py`) |
 | `report_node` 를 launch 에 넣기는 NOT_RUN | `operations.launch.py` 가 늘 띄운다 |
 | 로봇 이름 AMR1·AMR2 | TB-6·TB-5 |
-| HTTP 경로는 명령 하나 | 명령, 웹캠 고르기(#257), 초기화(`POST /api/runs/reset`, 2026-10-15) 셋 |
+| HTTP 경로는 명령 하나 | 명령, 웹캠 고르기(#257), 초기화(`POST /api/runs/reset`, 2026-10-15), 터널 통과 승인(`POST /api/passages/approve`, 2026-10-16) 넷 |
 
 실기(로봇 망에서 실제 로봇과 함께)는 대부분 NOT_RUN 이다. 2026-10-13 에 운영 PC 에서 시험용 TB-5 SLAM 지도, TB-5·TB-6 직접 관측, 웹캠 2대 전환을 측정했다(관제 웹 README 「현재 상태」).
+
+### 터널 통과 승인 (2026-10-16)
+
+비전 터널 판정이 막힘으로 칠한 자리는 Nav2 진입 금지가 된다(#398). 사람이 그 자리를 풀 때는 관제 웹 버튼이 `POST /api/passages/approve` 로 온다(console-spec I-8, #412). 웹은 ROS 노드가 아니므로 운영 노드가 대신 `/rescue/passage_keepout/approve`(`ApproveOverheadPassage`, #400·#406)를 부른다.
+
+- 요청에는 `approved_by = operator_id`(관제 웹이 로그인 계정에서 붙인 이름), `issued_at_ns = 받은 시각` 을 담는다. 조정기는 거치지 않고 로봇을 움직이지 않는다.
+- 답은 운영자 명령 모양(`accepted`, `request_id`, `reason`, `request_state`)에 `item_id`·`message` 를 더한다. `request_state` 는 `ACCEPTED` 또는 `REJECTED` 다. 거절 사유는 노드의 `NO_SUCH_ITEM`·`NO_APPROVER` 이고, 사유가 비어 있으면 `UNKNOWN` 이다.
+- `operator_commands` 에 `kind=APPROVE_PASSAGE`, `target_id=item_id` 로 한 행을 남긴다. 스키마는 바뀌지 않았다(1.5, 종류는 코드의 `OPERATOR_COMMAND_KINDS` 가 검사한다).
+- 같은 `command_id` 로 다시 오면 서비스를 다시 부르지 않고 첫 답을 `DUPLICATE` 로 준다. `message` 는 DB 에 남지 않아 이때는 null 이다. 같은 id 로 다른 항목이 오면 `ID_CONTENT_CONFLICT` 로 거절한다.
+- 노드가 없거나 `command_timeout_s` 안에 답하지 않으면 503·504 이고 `accepted` 가 없다. 행은 남기지 않고 `error_log` 에 `ACCEPT_TIMEOUT` 으로 남긴다.
+- 서비스 이름은 `db_writer` 파라미터 `passage_approve_service` 다. 운영 launch 가 `rescue_robot` 의 `APPROVE_SERVICE` 와 같은 값을 준다(시험 `tests/test_operations_passage_approve.py`).
 
 ### 초기화 (2026-10-15)
 

@@ -163,6 +163,26 @@ def floor_height(z_candidates, policy):
     return float(np.median(layer))
 
 
+LOW_OBSTACLE_TOPIC = 'rescue/low_obstacle_points'   # relative: <ns>/rescue/low_obstacle_points (depth_low_layer)
+
+
+def low_obstacle_points(points, policy):
+    """Points under the lidar plane with z = height above the floor seen in the box, for the Nav2 depth_low_layer
+    (재범 decision 2026-10-16, option D): floor points (|h| <= floor_noise_m) to clear, higher ones up to
+    lidar_plane_m to mark. None when no floor is seen (nothing is published then)."""
+    import numpy as np
+    if len(points) == 0:
+        return None
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
+    box = (x >= policy.front_near_m) & (x <= policy.front_far_m) & (np.abs(y) <= policy.half_width_m)
+    base = floor_height(z[box & (z <= policy.floor_noise_m)], policy)
+    if base is None:
+        return None
+    h = z - base
+    keep = (h >= -policy.floor_noise_m) & (h <= policy.lidar_plane_m)
+    return np.stack([x[keep], y[keep], h[keep]], axis=1)
+
+
 def judge(points, policy):
     """Reading for the overhead structure in the box ahead (points in base_link), or None when there is none.
     Heights are from the floor seen in the box (floor_height); without a floor seen they are base_link z and the
@@ -345,7 +365,7 @@ def main(args=None):
     from rescue_contracts.overhead import overhead_passages_text, overhead_passages_topic
     from rescue_interfaces.msg import MapState
     from collections import deque
-    from sensor_msgs.msg import CameraInfo, CompressedImage, PointCloud2
+    from sensor_msgs.msg import CameraInfo, CompressedImage, PointCloud2, PointField
     from std_msgs.msg import String
     from tf2_ros import Buffer, TransformListener
     from .camera_utils import git_sha, read_field_parameters
@@ -372,6 +392,24 @@ def main(args=None):
         state = {'cloud': None, 'done': None, 'frames': 0, 'busy_s': 0.0, 'info': None}
         msg_frame = ['']   # optical frame of the cloud last processed: the view CameraInfo must name the same one
         images = deque(maxlen=30)   # (stamp_ns, CompressedImage): about 1 s of 30 Hz RGB
+        low_pub = node.create_publisher(PointCloud2, LOW_OBSTACLE_TOPIC, QoSProfile(
+            depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+
+        def publish_low(cloud, points):
+            """Floor-relative points under the lidar plane for depth_low_layer; nothing without a floor seen."""
+            import numpy as np
+            low = low_obstacle_points(points, policy)
+            if low is None:
+                return
+            out = PointCloud2()
+            out.header.stamp, out.header.frame_id = cloud.header.stamp, v['base_frame']
+            out.height, out.width = 1, len(low)
+            out.fields = [PointField(name=n, offset=4 * i, datatype=PointField.FLOAT32, count=1)
+                          for i, n in enumerate('xyz')]
+            out.is_bigendian, out.point_step, out.row_step, out.is_dense = False, 12, 12 * len(low), True
+            out.data = np.asarray(low, dtype='<f4').tobytes()
+            low_pub.publish(out)
+
         view_pub = node.create_publisher(CompressedImage, VIEW_TOPIC, QoSProfile(
             depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)) if v['view_image_topic'] else None
 
@@ -428,9 +466,10 @@ def main(args=None):
                 age = (node.get_clock().now().nanoseconds - stamp) / 1e9
                 if age > v['max_cloud_age_s']:
                     raise ValueError(f'STALE_CLOUD age={age:.3f}s')
-                session, revision = tracker.basis_for(stamp, v['clock_error_bound_ns'])
                 import numpy as np
                 points = to_frame(cloud_xyz(msg, v['stride']), *lookup(v['base_frame'], msg.header.frame_id, stamp))
+                publish_low(msg, points)   # avoidance does not wait for a map revision
+                session, revision = tracker.basis_for(stamp, v['clock_error_bound_ns'])
                 found = judge(points, policy)
                 if view_pub is not None:
                     msg_frame[0] = msg.header.frame_id
