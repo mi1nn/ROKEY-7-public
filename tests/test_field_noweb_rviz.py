@@ -56,6 +56,14 @@ class RvizTests(unittest.TestCase):
     def test_fixed_frame_is_map(self):
         self.assertRegex(self.text, r'\n    Fixed Frame: map\n')
 
+    @unittest.expectedFailure
+    def test_both_robots_are_drawn_from_the_merged_tf(self):
+        """tf_merge.py: one /tf for both robots; models with their TF prefix, scans from /rviz/<ns>/scan."""
+        shown = {topic for _, topics in displays(self.text) for topic, _ in topics.values()}
+        self.assertTrue({'/robot5/robot_description', '/rviz/robot5/scan', '/rviz/robot6/scan'} <= shown, shown)
+        self.assertRegex(self.text, r'TF Prefix: robot5\n')
+        self.assertRegex(self.text, r'TF Prefix: robot6\n')
+
     def test_exactly_the_agreed_topics(self):
         shown = {topic for _, topics in displays(self.text) for topic, _ in topics.values()}
         self.assertEqual(TOPICS, shown)
