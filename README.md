@@ -69,6 +69,38 @@ AMR 2대가 재난 모사 환경을 수색하며 지도를 갱신하고, 구조 
 
 원본은 [jaebeom/ROKEY_P4](https://github.com/jaebeom/ROKEY_P4)와 [mi1nn/amr-mini-project](https://github.com/mi1nn/amr-mini-project)다. 이후 이식에서도 원본 커밋과 출처를 남긴다.
 
+## 개발 PC 환경
+
+아래는 2026-10-15에 이 저장소를 작업한 PC 한 대에서 명령으로 읽은 값이다 [측정 2026-10-15]. 4 PC 전체나 현장 운영 PC의 사양이 아니다. 프로젝트에서 쓰는 웹캠은 아래 표의 DRGO WC720이다. 4 PC 전체 사양은 [미확인]이다.
+
+| 항목 | 값 | 읽은 방법 |
+| --- | --- | --- |
+| PC | MSI Pulse 16 AI C1VGKG (노트북) | `/sys/class/dmi/id/product_name` |
+| CPU | Intel Core Ultra 9 185H, 22 스레드 | `lscpu` |
+| 메모리 | 31 GiB | `free -h` |
+| GPU | NVIDIA GeForce RTX 4070 Laptop (드라이버 580.178.04), 내장 Intel Arc Graphics | `nvidia-smi`, `lspci` |
+| 저장장치 | WD PC SN560 NVMe 1 TB (953.9 GB) | `lsblk` |
+| 프로젝트 웹캠 | DRGO(디알고) WC720 | 사용자 제공 [2026-10-15], 이 PC에서 연결을 읽지 않음 |
+| 내장 카메라 | 노트북 내장 Bison Integrated Camera (USB 5986:1196), MJPG·YUYV, 최대 1280×720. 프로젝트 웹캠이 아니다 | `lsusb -v`, `v4l2-ctl` |
+| OS | Ubuntu 24.04.5 LTS, 커널 7.0.0-38-generic | `/etc/os-release`, `uname -r` |
+| ROS 2 | Jazzy (`ros-jazzy-desktop` 0.11.0, `navigation2` 1.3.13, `slam-toolbox` 2.8.5) | `dpkg -l` |
+| Python | 3.12.3 | `python3 --version` |
+
+Python 패키지(pip 설치본):
+
+| 패키지 | 버전 |
+| --- | --- |
+| ultralytics | 8.4.170 |
+| torch / torchvision | 2.14.1 / 0.29.1 |
+| opencv-python | 4.9.0.80 |
+| numpy | 1.26.4 |
+| Flask | 3.1.3 |
+| pydantic | 1.10.14 |
+| PyYAML | 6.0.1 |
+| pytest | 9.1.1 |
+
+이 저장소에는 패키지 버전을 고정한 파일이 없다. 위 값은 설치된 버전을 읽은 것이지 요구 버전이 아니다. `rclpy`는 ROS 환경을 불러오지 않은 셸이라 pip 목록에 보이지 않았다.
+
 ## 로컬 프로파일 검사
 
 ```bash
