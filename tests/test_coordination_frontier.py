@@ -217,6 +217,35 @@ def wall_distance(grid, xy):
                for i, v in enumerate(f['data']) if v == 100)
 
 
+class WaitingForArmTests(Base):
+    """After a FAILED task the executor does not arm again by itself (OPS-231: only after COMPLETED), so RobotStatus
+    is NOT_READY until someone runs task_arm. The next frontier then waits; the reason and the log say why
+    (시뮬레이션 2026-10-15 23:03-23:35: it waited with an empty reason until EXPLORATION_TIMEOUT)."""
+
+    def test_the_next_frontier_waits_with_a_reason(self):
+        self.core.on_scout_map(grid())
+        self.core.on_pose(scout_pose())
+        self.searches()
+        (fields,) = self.searches(NOW + DELAY)
+        self.core.on_admission(admission_msg(fields))
+        self.core.on_result(fields['task_id'], NS(outcome='FAILED', stop_confirmed=True,
+                                                  terminal_reason='ACTION_ABORTED'))
+        self.core.on_scout_map(grid(known_cols=10))  # a new map with another frontier
+        later = NOW + 3 * DELAY
+        self.core.on_pose(scout_pose((1., 1.8), at=later))
+        not_ready = dict(readiness='NOT_READY', stop_reason='ACTION_ABORTED', observed_at_ns=later - 10**8)
+        for now in (later, later + DELAY + 1):
+            self.core.on_status(status_msg(SCOUT, **not_ready))
+            self.assertEqual([], [f for f in self.core.tick(now) if f['kind'] == 'SEARCH_AREA'])
+        self.assertEqual('SCOUT_NOT_READY', self.reason(later + DELAY + 1))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('SCOUT_NOT_READY', notes)
+        self.assertIn('stop_reason=ACTION_ABORTED', notes)
+        self.assertEqual(1, notes.count('SCOUT_NOT_READY'))  # logged once, not every tick
+        self.core.on_status(status_msg(SCOUT, observed_at_ns=later + DELAY + 2))  # armed again
+        self.assertEqual(1, len([f for f in self.core.tick(later + DELAY + 2) if f['kind'] == 'SEARCH_AREA']))
+
+
 class WallClearanceTests(unittest.TestCase):
     """The frontier goal TB-6 gets keeps Nav2's margin from walls where there is room (시뮬레이션 2026-10-15 23:0x:
     a goal 0.1-0.2 m inside the south wall ended FAILED after RPP "detected collision ahead!"). The path itself keeps
