@@ -1,0 +1,16 @@
+# SDD v0.1 services.ApproveOverheadPassage (docs/design/sdd-node-contracts-v0.1.json).
+# Fields come from that JSON; change the JSON first. tests/test_interfaces_schema.py checks it.
+# 사람이 터널 진입 금지 자리를 푼다(재범 결정 2026-10-16 A). 로봇을 움직이지 않는다.
+Envelope envelope
+string item_id
+string approved_by
+int64 issued_at_ns
+---
+Envelope envelope
+bool accepted
+string item_id
+string REASON_CODE_ACCEPTED="ACCEPTED"
+string REASON_CODE_NO_SUCH_ITEM="NO_SUCH_ITEM"
+string REASON_CODE_NO_APPROVER="NO_APPROVER"
+string reason_code
+string message
