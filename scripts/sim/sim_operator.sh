@@ -45,13 +45,20 @@ slam_to_frozen() {   # 7.5: tb6_slam 끄기 -> /robot6/map 발행자 0 -> frozen
     local pid i count
     pid="$(cat "$RUN/pids/tb6_slam" 2>/dev/null)"
     diag c7_before_slam_stop
-    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID ${pid:-없음}에 INT)"
-    [ -n "$pid" ] && kill -INT "$pid" 2>/dev/null
+    # 런북은 터미널 Ctrl+C(SIGINT)다. 여기서는 SIGTERM: 백그라운드로 띄운 launch 는 SIGINT 를 무시로 물려받아 INT 로는
+    # SLAM 이 꺼지지 않았다(2026-10-15 회차 232037, slam_toolbox 가 회차 끝까지 돌아 relay 가 MAP_RELAY_BLOCKED). launch 는
+    # SIGTERM 도 Ctrl+C 와 같이 자식을 끈다. slam_toolbox 프로세스가 실제로 끝났는지 PID 로 확인한다.
+    local slam_pid
+    slam_pid="$(sed 's/\x1b\[[0-9;]*m//g' "$LOG/tb6_slam.log" | sed -n 's/.*sync_slam_toolbox_node-1\]: process started with pid \[\([0-9]*\)\].*/\1/p' | head -1)"
+    say "런북 7.5 2차 고정 뒤 tb6_slam 끄기(launch PID ${pid:-없음}에 TERM, slam_toolbox PID ${slam_pid:-모름})"
+    [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
     for i in $(seq 1 30); do
-        count="$(ros2 topic info /robot6/map --no-daemon --spin-time 3 2>/dev/null | sed -n 's/^Publisher count: //p')"
+        [ -n "$slam_pid" ] && kill -0 "$slam_pid" 2>/dev/null && { sleep 1; continue; }
+        count="$(ros2 topic info /robot6/map --no-daemon --spin-time 10 2>/dev/null | sed -n 's/^Publisher count: //p')"
         [ "${count:-1}" = 0 ] && break
         sleep 2
     done
+    [ -n "$slam_pid" ] && kill -0 "$slam_pid" 2>/dev/null && say "런북 7.5 slam_toolbox(PID $slam_pid)가 아직 살아 있음"
     say "런북 7.5 /robot6/map 발행자 수 ${count:-모름}(--no-daemon)"
     diag c7_before_frozen_loc
     [ "${count:-1}" = 0 ] || { say "런북 7.5 SLAM 이 아직 지도를 냄 — frozen_localization 을 띄우지 않음"; return 1; }
