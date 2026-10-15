@@ -1,0 +1,7 @@
+image: 023745-live-r0-8c3d001134b4.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-2.5650134159569156, -1.1093147988330603, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
