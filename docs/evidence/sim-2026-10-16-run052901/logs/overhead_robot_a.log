@@ -1,0 +1,196 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-05-30-34-415940-sim-pc-1043641
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: overhead passages /robot6/passage_points -> /rescue/robots/robot_a/overhead_passages (clearance 0.46 m, LiDAR plane 0.23 m)
+[INFO] [overhead_passage-1]: process started with pid [1043765]
+[overhead_passage-1] 2026-10-16 05:30:35.543 [RTPS_TRANSPORT_SHM Error] Failed init_port fastrtps_port7071: open_and_lock_file failed -> Function open_port_internal
+[overhead_passage-1] [INFO] [1792096235.730900712] [robot6.overhead_passage]: overhead_passage git=d01431bf0f9200915a38e6ac7feed12c35a50c44 topic=/rescue/robots/robot_a/overhead_passages parameters={'base_frame': 'base_link', 'clearance_m': 0.46, 'clock_error_bound_ns': 150000000, 'confirm_frames': 3, 'floor_min_points': 20, 'floor_noise_m': 0.05, 'front_far_m': 1.0, 'front_near_m': 0.4, 'half_width_m': 0.2, 'lidar_plane_m': 0.23, 'map_frame': 'map', 'map_robot_id': 'robot_a', 'map_state_topic': '/rescue/robots/robot_a/map_state', 'max_cloud_age_s': 0.5, 'merge_radius_m': 0.5, 'min_points': 5, 'near_end_m': 0.05, 'points_topic': '/robot6/passage_points', 'position_tolerance_m': 0.3, 'process_period_s': 0.2, 'robot_id': 'robot_a', 'stride': 2, 'top_m': 1.0, 'view_camera_info_topic': '/robot6/oakd/rgb/preview/camera_info', 'view_font_path': '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc', 'view_image_topic': '/robot6/oakd/rgb/preview/image_raw/compressed', 'view_quality': 70, 'view_slop_ns': 20000000, 'view_width': 352}
+[overhead_passage-1] [WARN] [1792096236.682083786] [robot6.overhead_passage]: camera view 1792096236547808759: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [WARN] [1792096241.882171551] [robot6.overhead_passage]: camera view 1792096241702921124: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096243.280730267] [robot6.overhead_passage]: processed=20 mean_ms=4.8
+[overhead_passage-1] [WARN] [1792096247.085475317] [robot6.overhead_passage]: camera view 1792096246903550061: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096247.680787304] [robot6.overhead_passage]: processed=40 mean_ms=4.7
+[overhead_passage-1] [WARN] [1792096252.279878661] [robot6.overhead_passage]: camera view 1792096252239175180: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096252.280262268] [robot6.overhead_passage]: processed=60 mean_ms=4.5
+[overhead_passage-1] [INFO] [1792096256.480152396] [robot6.overhead_passage]: processed=80 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096257.480914740] [robot6.overhead_passage]: camera view 1792096257252416028: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096261.080898883] [robot6.overhead_passage]: processed=100 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096262.481061200] [robot6.overhead_passage]: camera view 1792096262332297322: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096265.680896378] [robot6.overhead_passage]: processed=120 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096267.680928356] [robot6.overhead_passage]: camera view 1792096267596534432: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096270.680262330] [robot6.overhead_passage]: processed=140 mean_ms=3.9
+[overhead_passage-1] [WARN] [1792096272.880338407] [robot6.overhead_passage]: camera view 1792096272820990360: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096275.281409567] [robot6.overhead_passage]: processed=160 mean_ms=3.9
+[overhead_passage-1] [WARN] [1792096277.880549935] [robot6.overhead_passage]: camera view 1792096277828124933: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096279.881336692] [robot6.overhead_passage]: processed=180 mean_ms=3.9
+[overhead_passage-1] [WARN] [1792096282.882615019] [robot6.overhead_passage]: camera view 1792096282819935185: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096285.883886135] [robot6.overhead_passage]: processed=200 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096288.081407945] [robot6.overhead_passage]: camera view 1792096287970114871: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096290.080782124] [robot6.overhead_passage]: processed=220 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096293.280817524] [robot6.overhead_passage]: camera view 1792096293188781492: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096295.080941332] [robot6.overhead_passage]: processed=240 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096298.480789714] [robot6.overhead_passage]: camera view 1792096298448286615: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096299.881102705] [robot6.overhead_passage]: processed=260 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096303.481900203] [robot6.overhead_passage]: camera view 1792096303409991089: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096303.883576878] [robot6.overhead_passage]: processed=280 mean_ms=4.1
+[overhead_passage-1] [INFO] [1792096308.282571796] [robot6.overhead_passage]: processed=300 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096308.680341589] [robot6.overhead_passage]: camera view 1792096308621127415: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096312.880595576] [robot6.overhead_passage]: processed=320 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096313.683075388] [robot6.overhead_passage]: camera view 1792096313580123995: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096317.682956202] [robot6.overhead_passage]: processed=340 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096318.882763827] [robot6.overhead_passage]: camera view 1792096318856015269: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096322.080450299] [robot6.overhead_passage]: processed=360 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096324.081704166] [robot6.overhead_passage]: camera view 1792096324019048418: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096326.080885544] [robot6.overhead_passage]: processed=380 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096329.084965084] [robot6.overhead_passage]: camera view 1792096329031574845: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096332.080840788] [robot6.overhead_passage]: processed=400 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096334.281973024] [robot6.overhead_passage]: camera view 1792096334227847971: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096336.081710851] [robot6.overhead_passage]: processed=420 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096339.282166718] [robot6.overhead_passage]: camera view 1792096339079990996: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096340.683080486] [robot6.overhead_passage]: processed=440 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096344.482422947] [robot6.overhead_passage]: camera view 1792096344404563331: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096345.081233747] [robot6.overhead_passage]: processed=460 mean_ms=4.0
+[overhead_passage-1] [INFO] [1792096349.283755295] [robot6.overhead_passage]: processed=480 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096349.881805308] [robot6.overhead_passage]: camera view 1792096349840410156: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [WARN] [1792096350.482771411] [robot6.overhead_passage]: cloud 1792096350341734846 not judged: LocationRefused: NO_VALID_MAP_STATE
+[overhead_passage-1] [WARN] [1792096355.484270087] [robot6.overhead_passage]: camera view 1792096355334182777: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096355.681929246] [robot6.overhead_passage]: processed=500 mean_ms=4.0
+[overhead_passage-1] [WARN] [1792096360.689748637] [robot6.overhead_passage]: camera view 1792096360576141789: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096360.887524901] [robot6.overhead_passage]: processed=520 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096366.080385049] [robot6.overhead_passage]: camera view 1792096365917437045: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096366.283366293] [robot6.overhead_passage]: processed=540 mean_ms=4.1
+[overhead_passage-1] [INFO] [1792096370.682268496] [robot6.overhead_passage]: processed=560 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096371.280828033] [robot6.overhead_passage]: camera view 1792096371097869673: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096375.481931303] [robot6.overhead_passage]: processed=580 mean_ms=4.1
+[overhead_passage-1] [WARN] [1792096376.482901997] [robot6.overhead_passage]: camera view 1792096376407099704: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096380.480680699] [robot6.overhead_passage]: processed=600 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096381.483499427] [robot6.overhead_passage]: camera view 1792096381384796306: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096385.086582879] [robot6.overhead_passage]: processed=620 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096386.683631818] [robot6.overhead_passage]: camera view 1792096386485039580: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096390.481960233] [robot6.overhead_passage]: processed=640 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096391.882724725] [robot6.overhead_passage]: camera view 1792096391812191556: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096394.682220151] [robot6.overhead_passage]: processed=660 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096397.081344425] [robot6.overhead_passage]: camera view 1792096397028481152: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096398.883237359] [robot6.overhead_passage]: processed=680 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096402.081757049] [robot6.overhead_passage]: camera view 1792096402047045433: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096403.081624352] [robot6.overhead_passage]: processed=700 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096407.280587581] [robot6.overhead_passage]: camera view 1792096407207552203: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096408.081772810] [robot6.overhead_passage]: processed=720 mean_ms=4.2
+[overhead_passage-1] [WARN] [1792096412.281915122] [robot6.overhead_passage]: camera view 1792096412063851202: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096413.281436539] [robot6.overhead_passage]: processed=740 mean_ms=4.3
+[overhead_passage-1] [WARN] [1792096417.283504332] [robot6.overhead_passage]: camera view 1792096417226531263: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096417.882631317] [robot6.overhead_passage]: processed=760 mean_ms=4.3
+[overhead_passage-1] [INFO] [1792096422.082764858] [robot6.overhead_passage]: processed=780 mean_ms=4.3
+[overhead_passage-1] [WARN] [1792096422.481711853] [robot6.overhead_passage]: camera view 1792096422372636866: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [WARN] [1792096427.481893652] [robot6.overhead_passage]: camera view 1792096427332499718: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096427.482299562] [robot6.overhead_passage]: processed=800 mean_ms=4.3
+[overhead_passage-1] [INFO] [1792096432.082718380] [robot6.overhead_passage]: processed=820 mean_ms=4.3
+[overhead_passage-1] [WARN] [1792096432.483310172] [robot6.overhead_passage]: camera view 1792096432355662052: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096436.482830323] [robot6.overhead_passage]: processed=840 mean_ms=4.3
+[overhead_passage-1] [WARN] [1792096437.681295690] [robot6.overhead_passage]: camera view 1792096437527827981: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096441.482358540] [robot6.overhead_passage]: processed=860 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096442.681898889] [robot6.overhead_passage]: camera view 1792096442645110959: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096446.081703735] [robot6.overhead_passage]: processed=880 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096447.883359844] [robot6.overhead_passage]: camera view 1792096447706883320: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096451.082683761] [robot6.overhead_passage]: processed=900 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096453.082699026] [robot6.overhead_passage]: camera view 1792096452984753968: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096455.481401932] [robot6.overhead_passage]: processed=920 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096458.083187137] [robot6.overhead_passage]: camera view 1792096458040339394: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096459.882567627] [robot6.overhead_passage]: processed=940 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096461.482043428] [robot6.overhead_passage]: cloud 1792096461356343184 not judged: LocationRefused: NO_VALID_MAP_STATE
+[overhead_passage-1] [WARN] [1792096463.483453030] [robot6.overhead_passage]: camera view 1792096463332908752: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096466.480966702] [robot6.overhead_passage]: processed=960 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096468.681773463] [robot6.overhead_passage]: camera view 1792096468643004606: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096471.684242162] [robot6.overhead_passage]: processed=980 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096473.683478899] [robot6.overhead_passage]: camera view 1792096473549954221: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096476.280631364] [robot6.overhead_passage]: processed=1000 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096478.880548944] [robot6.overhead_passage]: camera view 1792096478833501763: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [WARN] [1792096480.281419950] [robot6.overhead_passage]: cloud 1792096480243555298 not judged: LocationRefused: NO_VALID_MAP_STATE
+[overhead_passage-1] [INFO] [1792096480.482577440] [robot6.overhead_passage]: processed=1020 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096484.081487531] [robot6.overhead_passage]: camera view 1792096484041230757: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096485.684449734] [robot6.overhead_passage]: processed=1040 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096489.082552889] [robot6.overhead_passage]: camera view 1792096489041814431: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096491.082274582] [robot6.overhead_passage]: processed=1060 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096494.281824394] [robot6.overhead_passage]: camera view 1792096494165415421: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096495.282927032] [robot6.overhead_passage]: processed=1080 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096498.681103619] [robot6.overhead_passage]: cloud 1792096498646645543 not judged: LocationRefused: NO_VALID_MAP_STATE
+[overhead_passage-1] [WARN] [1792096499.481000058] [robot6.overhead_passage]: camera view 1792096499366748546: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096499.882933883] [robot6.overhead_passage]: processed=1100 mean_ms=4.4
+[overhead_passage-1] [INFO] [1792096504.282186668] [robot6.overhead_passage]: processed=1120 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096504.481051449] [robot6.overhead_passage]: camera view 1792096504433801593: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096508.280898529] [robot6.overhead_passage]: overhead PASSABLE lowest=0.464 map=(-1.68, 2.21) revision=22222222-2222-4222-8222-222222222222/2  published
+[overhead_passage-1] [INFO] [1792096508.682696355] [robot6.overhead_passage]: processed=1140 mean_ms=4.5
+[overhead_passage-1] [INFO] [1792096508.882575051] [robot6.overhead_passage]: overhead PASSABLE lowest=0.465 map=(-1.68, 2.20) revision=22222222-2222-4222-8222-222222222222/2  published
+[overhead_passage-1] [WARN] [1792096509.481866848] [robot6.overhead_passage]: camera view 1792096509312231184: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096512.282311312] [robot6.overhead_passage]: overhead PASSABLE lowest=0.464 map=(-1.70, 2.11) revision=22222222-2222-4222-8222-222222222222/2  published
+[overhead_passage-1] [INFO] [1792096513.084047067] [robot6.overhead_passage]: processed=1160 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096514.681095460] [robot6.overhead_passage]: camera view 1792096514605670011: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096517.282252676] [robot6.overhead_passage]: processed=1180 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096519.681665436] [robot6.overhead_passage]: camera view 1792096519644753865: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096522.080015178] [robot6.overhead_passage]: processed=1200 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096524.681791292] [robot6.overhead_passage]: camera view 1792096524633185949: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096526.481247108] [robot6.overhead_passage]: processed=1220 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096529.683546752] [robot6.overhead_passage]: camera view 1792096529630873005: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096531.083824770] [robot6.overhead_passage]: processed=1240 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096534.881973821] [robot6.overhead_passage]: camera view 1792096534777876642: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096535.283388697] [robot6.overhead_passage]: processed=1260 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096540.081491877] [robot6.overhead_passage]: camera view 1792096540007322545: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096540.082010070] [robot6.overhead_passage]: processed=1280 mean_ms=4.5
+[overhead_passage-1] [INFO] [1792096544.881811206] [robot6.overhead_passage]: processed=1300 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096545.082902653] [robot6.overhead_passage]: camera view 1792096544991769163: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096549.882458240] [robot6.overhead_passage]: processed=1320 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096550.281915313] [robot6.overhead_passage]: camera view 1792096550256725395: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096554.284242256] [robot6.overhead_passage]: processed=1340 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096555.282155932] [robot6.overhead_passage]: camera view 1792096555124193572: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096559.484043089] [robot6.overhead_passage]: processed=1360 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096560.481584929] [robot6.overhead_passage]: camera view 1792096560312514554: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096563.681798882] [robot6.overhead_passage]: processed=1380 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096565.483541742] [robot6.overhead_passage]: camera view 1792096565334523758: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096568.480398480] [robot6.overhead_passage]: processed=1400 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096570.884842376] [robot6.overhead_passage]: camera view 1792096570753589694: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096573.082838828] [robot6.overhead_passage]: processed=1420 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096576.080502035] [robot6.overhead_passage]: camera view 1792096576061310017: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096577.681483788] [robot6.overhead_passage]: processed=1440 mean_ms=4.4
+[overhead_passage-1] [WARN] [1792096581.080662187] [robot6.overhead_passage]: camera view 1792096580995191430: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096581.883064184] [robot6.overhead_passage]: processed=1460 mean_ms=4.4
+[overhead_passage-1] [INFO] [1792096585.881562800] [robot6.overhead_passage]: processed=1480 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096586.083235693] [robot6.overhead_passage]: camera view 1792096585967536826: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096590.284093099] [robot6.overhead_passage]: processed=1500 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096591.083805306] [robot6.overhead_passage]: camera view 1792096591028347083: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096594.482256300] [robot6.overhead_passage]: processed=1520 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096596.281278769] [robot6.overhead_passage]: camera view 1792096596133474262: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096598.481266272] [robot6.overhead_passage]: processed=1540 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096601.285708991] [robot6.overhead_passage]: camera view 1792096601066780147: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096603.481626527] [robot6.overhead_passage]: processed=1560 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096606.681277211] [robot6.overhead_passage]: camera view 1792096606626042662: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096608.282633299] [robot6.overhead_passage]: processed=1580 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096611.682744567] [robot6.overhead_passage]: camera view 1792096611610870086: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096613.280594345] [robot6.overhead_passage]: processed=1600 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096616.885383636] [robot6.overhead_passage]: camera view 1792096616788683536: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096617.681078887] [robot6.overhead_passage]: processed=1620 mean_ms=4.5
+[overhead_passage-1] [INFO] [1792096621.884307312] [robot6.overhead_passage]: processed=1640 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096622.080006162] [robot6.overhead_passage]: camera view 1792096621944146485: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096626.482871607] [robot6.overhead_passage]: processed=1660 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096627.081034429] [robot6.overhead_passage]: camera view 1792096627046068696: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096631.081899354] [robot6.overhead_passage]: processed=1680 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096632.682937316] [robot6.overhead_passage]: camera view 1792096632610252379: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096636.283473916] [robot6.overhead_passage]: processed=1700 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096637.881421104] [robot6.overhead_passage]: camera view 1792096637850473998: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096640.882704464] [robot6.overhead_passage]: processed=1720 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096642.881873154] [robot6.overhead_passage]: camera view 1792096642792132019: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096645.082197987] [robot6.overhead_passage]: processed=1740 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096647.884797712] [robot6.overhead_passage]: camera view 1792096647811248846: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096649.281449066] [robot6.overhead_passage]: processed=1760 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096653.080229811] [robot6.overhead_passage]: camera view 1792096653052922551: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096653.483165031] [robot6.overhead_passage]: processed=1780 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096658.081272555] [robot6.overhead_passage]: camera view 1792096657947213825: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096658.081689353] [robot6.overhead_passage]: processed=1800 mean_ms=4.5
+[overhead_passage-1] [INFO] [1792096662.682991891] [robot6.overhead_passage]: processed=1820 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096663.082515710] [robot6.overhead_passage]: camera view 1792096662858694839: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096667.482359983] [robot6.overhead_passage]: processed=1840 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096668.083607890] [robot6.overhead_passage]: camera view 1792096667977459621: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096672.080887226] [robot6.overhead_passage]: processed=1860 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096673.280782253] [robot6.overhead_passage]: camera view 1792096673131987883: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096677.082098226] [robot6.overhead_passage]: processed=1880 mean_ms=4.5
+[overhead_passage-1] [WARN] [1792096678.482418645] [robot6.overhead_passage]: camera view 1792096678319541467: no RGB frame within 20000000 ns or no CameraInfo
+[overhead_passage-1] [INFO] [1792096681.882962166] [robot6.overhead_passage]: processed=1900 mean_ms=4.5
+[INFO] [overhead_passage-1]: process has finished cleanly [pid 1043765]
