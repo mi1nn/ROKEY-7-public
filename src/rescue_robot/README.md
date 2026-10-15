@@ -13,7 +13,7 @@
 | 재확인 관측(ObserveTarget) 호출 | 구현됨. 서버는 통합-인식 몫 | `live_recheck.py:RecheckClient` |
 | 자동 도킹 | 미구현(사람이 감독하는 절차) | 아래 「복귀」 |
 | RobotPose·MapState 발행 | 구현됨 | `live_pose.py:LivePosePublisher` |
-| TB-6 탐색 중 위치 = TF `map→base_link`, 공분산은 마지막 `/robot6/pose`(30 s 넘으면 무효) | 구현됨, 실기 NOT_RUN | `slam_tf_pose.py:SlamTfPose`, `live_sources.py:attach_slam_tf_pose`, #253 |
+| TB-6 탐색 중 위치 = TF `map→base_link`, 공분산은 마지막 `/robot6/pose`(30 s 넘으면 무효). 두 TF 를 3D 로 합성한 뒤 지도 평면으로 내린다. 합성한 기울기가 10도(제안)를 넘으면 위치를 만들지 않는다 | 구현됨, 현장 TF 값으로 리허설 확인(#291), 실기 NOT_RUN | `slam_tf_pose.py:SlamTfPose`, `live_sources.py:attach_slam_tf_pose`, #253 |
 | 지도 두 번 고정(R0+1 인형 발견, R0+2 탐색 완료)·짝 토픽 `frozen_revision`·TB-5 재정합 | 구현됨, 실기 NOT_RUN | `map_freeze.py`, `live_sources.py:SavedMapSources`, `frozen_map_relay.py`, #242·#255 |
 | 통로 정지 알림 `PASSAGE_BLOCKED` | 구현됨, 실기 NOT_RUN | `live_passage.py:PassageMonitor`, `task_site_runtime.py:feedback_reason`, #219 |
 | watchdog 영구 정지·리셋, 끝날 때 `cmd_vel` 0 세 번 | 구현됨 | `watchdog.py`, `watchdog_node.py:zero_commands`, #256 |

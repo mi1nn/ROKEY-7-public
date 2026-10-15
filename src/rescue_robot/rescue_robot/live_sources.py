@@ -323,13 +323,13 @@ def attach_slam_tf_pose(r,robot,c,subscribe):
     from geometry_msgs.msg import PoseWithCovarianceStamped
     from rclpy.qos import qos_profile_sensor_data
     from tf2_msgs.msg import TFMessage
-    from rescue_robot.slam_tf_pose import pose_message
-    source=r.saved_maps.slam_tf[robot]; said={'refused':False}
+    from rescue_robot.slam_tf_pose import MAX_TILT_RAD, pose_message
+    source=r.saved_maps.slam_tf[robot]; said={'refused':False,'tilted':False}
 
     def on_tf(message):
         if source.on_tf(message) and not said['refused']:
             said['refused']=True
-            r.node.get_logger().warning(f'SLAM_TF_POSE {robot}: a non-planar map/odom/base edge was not used')
+            r.node.get_logger().warning(f'SLAM_TF_POSE {robot}: a map/odom/base edge that is not finite or not a unit rotation was not used')
 
     def on_slam_pose(message):
         if message.header.frame_id!=c['map_frame']: raise ContractError('SLAM pose is not in the map frame')
@@ -338,7 +338,13 @@ def attach_slam_tf_pose(r,robot,c,subscribe):
     def tick():
         with r.adapter.lock:
             pose=source.pose(now_ns=r.adapter.wall_clock_ns())
-            if pose is None: return   # no TF edge or no SLAM pose yet: no pose, MapState stays UNKNOWN
+            if pose is None:   # no TF edge, no SLAM pose yet or tilted: no pose, MapState stays UNKNOWN
+                if source.tilt_rad is not None and source.tilt_rad>MAX_TILT_RAD and not said['tilted']:
+                    said['tilted']=True
+                    r.node.get_logger().warning(f'SLAM_TF_POSE {robot}: map -> base tilted '
+                                                f'{math.degrees(source.tilt_rad):.1f} deg > '
+                                                f'{math.degrees(MAX_TILT_RAD):.0f} deg: no pose')
+                return
             r.saved_maps.receive_pose(robot,pose_message(pose,c['map_frame'],PoseWithCovarianceStamped),
                                       source='slam',covariance_fresh=pose['covariance_fresh'])
 

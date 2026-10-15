@@ -40,7 +40,7 @@ from types import SimpleNamespace as NS
 from rescue_contracts.occupancy import frozen_revision_text
 from rescue_robot.executor import ContractError
 from rescue_robot.live_sources import Grid, planar
-from rescue_robot.slam_tf_pose import SlamTfPose
+from rescue_robot.slam_tf_pose import MAX_TILT_RAD, SlamTfPose
 
 FORMAT = 'rescue-map-freeze/1'
 FROZEN_TOPIC = '/rescue/map/frozen'
@@ -316,7 +316,7 @@ def main(args=None):
         log.error('map_freeze missing parameters: ' + ', '.join(missing))
         raise SystemExit(2)
     sha = git_sha()
-    said = {'refused': False}
+    said = {'refused': False, 'tilted': False}
     try:
         core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
                          map_revision=values['map_revision'], pose_max_age_ns=values['pose_max_age_ns'],
@@ -367,12 +367,16 @@ def main(args=None):
     def on_tf(msg):
         if slam.on_tf(msg) and not said['refused']:
             said['refused'] = True
-            log.warning('SLAM_TF_POSE a non-planar map/odom/base edge was not used')
+            log.warning('SLAM_TF_POSE a map/odom/base edge that is not finite or not a unit rotation was not used')
 
     def tf_tick():
         pose = slam.pose(now_ns=time.time_ns())
         if pose is None:
-            return   # no TF edge or no SLAM pose yet: no TB-6 pose
+            if slam.tilt_rad is not None and slam.tilt_rad > MAX_TILT_RAD and not said['tilted']:
+                said['tilted'] = True
+                log.warning(f'SLAM_TF_POSE map -> base tilted {math.degrees(slam.tilt_rad):.1f} deg '
+                            f'> {math.degrees(MAX_TILT_RAD):.0f} deg: no TB-6 pose')
+            return   # no TF edge, no SLAM pose yet or tilted: no TB-6 pose
         start = core.on_tf_pose(tf_pose_fields(pose, values['map_frame']), covariance_fresh=pose['covariance_fresh'])
         if start is not None:
             publish_start(start, 'captured')
