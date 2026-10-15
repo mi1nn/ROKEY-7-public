@@ -1,0 +1,118 @@
+# 가제보 실습 기록 (2026-10-15 저녁, 시뮬레이션 PC 한 대)
+
+## 한눈에
+
+실기 한 회차(런북 3~7단계)를 **시뮬레이션 PC 한 대**에서 Gazebo 로 돌린 첫날 기록이다. 재범 결정(2026-10-15 저녁): 웹 / 웹 없음 / 시뮬레이션 세 트랙 중 시뮬레이션은 운영 PC·Discovery PC·로봇 담당 PC·로봇 Pi 역할을 PC 한 대가 모두 맡는다.
+
+- 결과: 마지막 회차에서 런북 성공 로그(`START_POSE captured`, `SYNCED`, `ARMED`)를 모두 받고 재난 선포 → 자동 탐색 → 탐색 시간 초과 → 지도 고정 R1·R2 → TB-5 출발 정렬(`START_ALIGN_ALIGNED`)까지 갔다. 인형은 발견하지 못했고(`NO_SURVIVOR_FOUND`), TB-5 출동·출구 도착은 NOT_RUN 이다.
+- 우리 노드의 코드는 저장소 그대로다. 시뮬레이션 회차의 `src/` 는 main `97f2cef` 와 diff 0줄이다. 시뮬레이션 전용 코드는 `scripts/sim/` 에만 있다.
+- 로봇은 지도를 모르고 시작했다. 실제 지도·Gazebo 정답 위치는 어떤 노드에도 주지 않았다. 정답 위치는 원인 확인에만 읽었다(표에 「확인용」).
+- 막힌 곳 17가지. 「현장에서도 나올 수 있음」 6가지와 「시뮬레이션만」 11가지로 나눴다(3절).
+
+## 1. 구성
+
+| 실기 역할 | 시뮬레이션 PC 에서 | 코드 |
+| --- | --- | --- |
+| 로봇 Pi 두 대 | Gazebo arena world(평면도, #364) + TB-6·TB-5, 로봇 쪽 ROS 도메인, `GZ_PARTITION` 따로 | `scripts/sim/sim_robots.sh`, `spawn_extra.launch.py`, `strip_sensors.py` |
+| 로봇망 Wi-Fi | 로봇 쪽 도메인 ↔ 현장 도메인 중계: 벽시계 재찍기, 프레임 이름(`odom`·`base_link`·`rplidar_link`), 카메라·깊이 토픽 | `scripts/sim/wall_clock_relay.py`(#362) |
+| Discovery 전용 PC | 없음. 한 PC 안이라 LOCALHOST 탐색 + Fast DDS 프로필 | `scripts/sim/fastdds_localhost.xml`(#364) |
+| 운영 PC | `operations.launch.py` + 관제 웹 + `coordinator.launch.py` | 저장소 그대로 |
+| 로봇 담당 PC | `tb6_slam`, `robot.launch` 두 벌, `map_freeze`, `frozen_localization`(TB-5), `passage_points`·`overhead_passage` 두 벌 | 저장소 그대로. 두 실행기에만 한 PC 리허설용 `scripts/field/wiring-rehearsal/host_shim` |
+| 인형 인식(TB-6 카메라 YOLO) | `target_locator`(실물, amr_target 없이) + 인형 관측 대역 | `scripts/sim/fake_target.py`(정답 위치 없이 도면 인형 자리와 로봇 자신의 TF·SLAM 지도로 보임 판정) |
+
+- 한 번에 띄우기: `scripts/sim/run_full.sh`(런북 순서), 끄기 `scripts/sim/stop_full.sh <회차 폴더>`. 두 로봇 생성·실행 스크립트·인형 대역은 다음 PR 에 올린다(이 기록 시점에는 시뮬레이션 작업 브랜치에만 있음). 관제 웹은 Tailscale 주소로 바인드해 재범이 휴대폰·다른 PC 에서 봤다(주소는 실행 인자, 저장소에 없음).
+- 시뮬레이션 사본: 현장 파일을 고치지 않고 회차 폴더에 사본을 만들어 썼다. 다른 값은 기동 로그 첫 줄에 「현장 값과 다름」으로 남긴다.
+
+## 2. 마지막 회차 표 (full-1015-223913)
+
+| 시각 | 단계 | 로그 한 줄 | 결과 |
+| --- | --- | --- | --- |
+| 22:39:13 | 회차 시작 | `run_full: 회차 폴더 …/full-1015-223913` | |
+| 22:39:26 | 로봇 쪽 | `sim_robots: robot5 생성 확인` → `떴습니다` | TB-6·TB-5 도크 위 |
+| 22:39:29 | 중계 | `RELAY robot5: sim domain … -> field domain …` | |
+| 22:39:51 / 22:40:07 | 언도킹(런북 4·5단계, 로봇 감독 몫) | `언도킹 robot6` / `언도킹 robot5` | SUCCEEDED |
+| 22:40:11 | 출발 자세 | `언도킹 뒤 arena 자세(출발 자리 ⊕ odom): TB-6 0.88 0.723 1.7662, TB-5 2.7 0.723 1.7632` | 언도킹이 약 191° 돌아 북쪽에서 11° 기욺 |
+| 22:40:11 | 사본 값 | `robots.robot_b.initial_pose_xy_yaw 현장 [0.0, -1.86, 0.0], 시뮬레이션 사본 [-0.353, -1.785, -0.003]` | 부호가 현장 값과 같음 |
+| 22:40:11 | 사본 값 | `현장 값과 다름: passage.front_m [0.4, 1.0] -> [0.0, 0.05] (SIM_PASSAGE=off)` | 3절 C1 때문에 이 회차만 |
+| 22:40:13~14 | 운영·관제 웹 | `rescue_db_writer git=…`, `Running on http://…:8080` | |
+| 22:40:35 | TB-6 SLAM | `SLAM_ACTIVE /robot6/slam_toolbox` | |
+| 22:40:39 | 로봇 launch 두 벌 | `installed task runtime; input_mode=LIVE_ROS; explicit arm required` | |
+| 22:40:45 | 지도 고정 노드 | `START_POSE captured robot_a` | 언도킹 뒤 자세 |
+| 22:40:49 | TB-5 위치 추정 | `START_ALIGN_WAITING START_ALIGN_WAIT_MAP` | 고정 전 정상 |
+| 22:40:53 | 조정기 | `central live clock: SYNCED` | |
+| 22:40:55~22:41:00 | 인형 대역 | `MapState VALID`, `FAKE_TARGET start_pose map=(…) doll map=(…)` | |
+| 22:41:08 | TB-6 arm | `ARMED` | |
+| 22:55:38 | 재난 선포(재범, 휴대폰 웹) | `DISASTER_DECLARED by operator admin` → `SEARCH_AUTO_STARTED on DISASTER` | |
+| 22:55:38 | 첫 탐색 경계 | `FRONTIER e2910… cells=12 centroid=(-1.30, -0.65) goal=(-1.00, -0.74, 3.14)` | 목표가 남쪽 벽 0.1~0.2 m 안쪽(C3) |
+| 22:55:40~22:56:40 | TB-6 이동 | `SEND 473f572f GoalPose(x=-1.003, y=-0.738)` → `CommandLease STOPPING` | Nav2 `detected collision ahead!` 64, `Controller patience exceeded`·`spin failed` 14 |
+| 22:56:40 | 결과 | `RESULT task=21965219… outcome=FAILED` | 다시 arm 하지 않아 다음 경계 `a116…`(goal (-1.45, 0.57))는 안 나감(C4) |
+| 23:05:38 | 탐색 끝 | `EXPLORATION_COMPLETE reason=EXPLORATION_TIMEOUT frontiers_sent=2` | 600 s |
+| 23:08:50 | 지도 고정 | `MAP_FREEZE 1 requested` → `MAP_FROZEN 1` → `MAP_FREEZE 2 requested: exploration complete` → `MAP_FROZEN 2` | R1·R2 가 같은 sha `6c251e…`, 62×80 |
+| 23:08:50 | 다음 작업 없음 | `task not issued: NO_HOME_POSITION`, `TRAFFIC_HOLD SCOUT TRAFFIC_SCOUT_POSE_UNKNOWN` | C5·C6 |
+| 23:08:50~23:09:00 | TB-5 | `MAP_RELAYED /rescue/map/frozen R1 -> /robot5/map`(두 번, 둘째도 R1) → `START_ALIGN_ALIGNED first_guess=[-0.353, 1.820, -2.949] jump_xy 0.24 m` | R1 에서 위치 맞춤 |
+| 23:09 이후 | TB-5 | robot_b `MAP_STATE rev=2 quality=UNKNOWN`, `START_ALIGN robot_b ALIGNING: localization not VALID`, `/robot5/amcl_pose` 마지막 stamp 23:09:00 | 관제 웹 「TB-5 위치 미확정」(C2) |
+| 23:3x | 관제 웹만 main `6c7b23d`(#366 포함)로 다시 띄움 | 모듈 경로 `install/rescue_console/…` | 로봇·조정기는 그대로 |
+
+- first_guess 의 yaw −2.95 는 정상이다. SLAM 지도 frame 은 생성(도킹) 자리의 odom 이라 언도킹 뒤 TB-6 자세가 지도에서 약 −2.95 rad 다.
+- 인형 대역은 한 번도 내지 않았다. TB-6 이 인형 2 m 안에 가지 못했다(`OUT_OF_RANGE`·`OUT_OF_VIEW`·`NOT_IN_FRONT`).
+
+## 3. 막힌 곳
+
+### 3.1 현장에서도 나올 수 있음 (우리 코드·현장 값, 시뮬레이션에서는 고치지 않음)
+
+| # | 무엇 | 근거 | 넘긴 곳 · 상태 |
+| --- | --- | --- | --- |
+| C1 | 깊이 장애물 정지(PassageStop, 높이 0.05~0.46 m·앞 0.4~1.0 m, stop)가 TB-5 도크·벽 앞에서 TB-6 을 회전까지 세워 작업 120 s 만료 | [재현 기록](sim-2026-10-15-passage-deadlock.md)(#365) | 통합-로봇 #363(분석·실패 시험, 추천 stop → limit). 값 변경은 재범 승인 대기. 시뮬레이션만 `SIM_PASSAGE=off` 선택 인자 |
+| C2 | R2 뒤 TB-5 위치 추정이 끊김: relay 줄이 R1 로 두 번 찍힘, `amcl_pose` 멈춤, `localization not VALID` | 2절 23:09 줄 | 통합-로봇(작전 배정) |
+| C3 | 탐색 경계 목표가 벽 0.1~0.2 m 안쪽에 잡힘(조정기 `freeze_clearance_m` 0.2 vs Nav2 로봇 반지름 0.189·inflation 0.45) → RPP 충돌 판정·인내 초과·회전 실패 → FAILED | 2절 22:55 줄, 로그 개수 | 통합-조정(작전 배정). 여유 값은 아직 안 바꿈 |
+| C4 | FAILED 뒤 다시 arm 하지 않으면 다음 경계가 나가지 않아 탐색이 경계 2개에서 시간 초과로 끝남 | 2절 22:56~23:05 | 통합-조정(작전 배정). 런북 「실패·취소·정지 뒤에는 다시 task_arm」 |
+| C5 | `home_positions` 가 프로파일에 없으면 TB-6 복귀 작업이 안 나감(`NO_HOME_POSITION`) | 2절 23:08:50. `make_field_profile.py` 는 `--home` 을 줄 때만 넣는다(런북 1단계: 1차 고정 지도에서 재서 다시 만든다) | 현장에도 측정 전에는 없음. 시뮬레이션은 다음 회차에 언도킹 뒤 odom 으로 넣는다 |
+| C6 | R2 뒤 런북 7.5(tb6_slam 끄기 → frozen_localization robot_a)를 안 하면 TB-6 위치가 없어 `TRAFFIC_SCOUT_POSE_UNKNOWN` | 2절 23:08:52 | 런북 단계. 시뮬레이션 실행 스크립트가 다음 회차부터 런북 명령 그대로 실행 |
+
+### 3.2 시뮬레이션만 (scripts/sim 에서 고침·고칠 것)
+
+| # | 무엇 | 처리 |
+| --- | --- | --- |
+| S1 | TurtleBot4 시뮬레이터 한 대에 ROS 프로세스 약 50개. LOCALHOST 탐색 범위 밖의 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 봐 slam_toolbox 가 configure 되지 않음 | Fast DDS 프로필(UDP `maxInitialPeersRange` 120), 시뮬레이션 셸에서만 |
+| S2 | Create3 모델이 로봇마다 Gazebo Sensors system 을 올려 두 번째 로봇에서 서버 abort(`A scene node with the name sun already exists`, 4회 중 4회) | 두 번째 로봇은 Sensors plugin 을 뺀 description 으로 생성. 고친 뒤 abort 0 |
+| S3 | NVIDIA 를 안 쓰면 가상 라이다 640빔이 모두 0.164 m(range_min), 실시간의 22% | PRIME offload 세 변수 |
+| S4 | 준비 확인이 토픽 이름만 보면 Gazebo 가 멈춰도 「떴습니다」(bridge 가 토픽을 미리 만듦), gz 로그 색 코드로 grep 실패 | gz 로그의 world·`Entity creation successful` 를 색 코드 지우고 확인 |
+| S5 | 터미널 창을 닫으면 정리가 반쯤 끊김(HUP 두 번), `/proc` 를 프로세스마다 읽어 Permission denied 가 쏟아짐 | cleanup 중 신호 무시, `grep -lsz` 한 번 |
+| S6 | 우리 노드는 벽시계로 메시지 나이를 봄 | 중계가 벽시계로 다시 찍음 |
+| S7 | 메시지마다 따로 찍어 깊이·camera_info exact 짝 0쌍 → 깊이 점 없음 → collision_monitor 정지 | 같은 시뮬레이션 stamp = 같은 벽시계 stamp |
+| S8 | 깊이 compressedDepth 가 없어 `TASK_ARM refused NAV_NOT_READY … compressedDepth(never)` | 중계가 32FC1 m → 16UC1 mm PNG 로 변환 |
+| S9 | 중계를 바꿔 띄울 때 옛 것이 남아 두 벌이 돌며 RTF 0.23 | 운영 실수. 끄고 확인 뒤 RTF 약 1.0 |
+| S10 | arena 벽 두께 1 cm 를 라이다 일부가 관통(TB-5 자리에서 12,800빔 중 680빔 5.3%, 동쪽 벽, 방위 10~16°, 확인용 정답 위치로 계산) | world 몫(지도 자리). 벽을 두껍게 할지 정해야 함 |
+| S11 | 회차를 다시 띄울 때마다 관제 웹 로그인이 풀림(계정 DB·세션 키를 회차마다 새로 만듦) | 계정 DB·세션 키를 회차 밖 한 폴더에서 계속 씀 |
+
+- 실행 순서 실수 하나: 처음에는 언도킹을 조정기 뒤에 해서 출발 자세가 도크를 보는 자세로 잡혔고, TB-5 출발값 부호가 현장 값과 반대로 나왔다. 런북대로 언도킹을 SLAM·지도 고정 앞으로 옮긴 뒤 같아졌다(#367 런북도 같은 순서를 적음).
+
+## 4. 시뮬레이션 PC 부하
+
+| 때 | load average(22코어) | 무엇이 컸나 |
+| --- | --- | --- |
+| 1단계(지도 자리)와 2단계 Gazebo 동시, 화면 포함 | 70~88 | Gazebo 서버 둘(약 140~180%), 지도 자리 Gazebo 화면(약 117%), 중계(약 77~92%) |
+| 2단계만, 화면 없음(headless) | 25~30 | Gazebo 서버(약 170%), 중계(약 70%), 실행기 두 벌(약 40%) |
+
+- 작전 결정: 한 번에 한 시뮬레이션만 돌린다.
+- tf 지연(현장 쪽 `odom → base_link`, 41 Hz, 10 s): 중앙값 1.5 ms, 95% 153 ms, 최대 329 ms.
+
+## 5. 다음 회차 전에
+
+- 시뮬레이션: `home_positions` 를 언도킹 뒤 odom 으로 넣는다(C5). 런북 7.5 와 FAILED 뒤 다시 arm 을 런북 명령 그대로 실행 스크립트에 넣는다(C4·C6). 바뀐 값은 기동 로그에 남긴다.
+- world: 벽 관통(S10) 처리 여부(지도 자리).
+- 우리 코드: C1~C4 는 위 표의 자리가 정한다. 값 변경은 재범 승인.
+
+## 재현
+
+```bash
+# 저장소 루트, colcon build --packages-up-to rescue_bringup rescue_console 뒤
+RUN_FULL_ADMIN_PASSWORD=<처음 한 번> SIM_PASSAGE=off scripts/sim/run_full.sh --world arena \
+  --world-dir config/sim/worlds --web-host <관제 웹 바인드 주소> --headless
+scripts/sim/stop_full.sh <회차 폴더>
+```
+
+## 검증 범위
+
+- 확인한 것: 2절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
+- 확인하지 않은 것: 인형 발견 → TB-5 출동 → 출구 도착(NOT_RUN), 실기, 다른 출발 자리.
