@@ -319,12 +319,11 @@ class PointsTheMapCannotJudge(unittest.TestCase):
                                                                                     full['width']]) if x < width]
         return dict(full, width=width, data=data)
 
-    def test_points_beyond_the_grid_count_as_misses_today(self):
+    def test_points_beyond_the_grid_no_longer_count_as_misses(self):
         hits, points = match_ratio(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
                                    laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
-        self.assertLess(hits / points, 0.75)
+        self.assertEqual(1.0, hits / points)   # before option A: under 0.75 (the east wall's points were misses)
 
-    @unittest.expectedFailure
     def test_only_points_on_known_cells_are_judged(self):
         from rescue_robot.start_align import match_detail
         hits, judged, unjudged = match_detail(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
@@ -333,7 +332,6 @@ class PointsTheMapCannotJudge(unittest.TestCase):
         self.assertGreater(unjudged, 0)
         self.assertEqual(180, judged + unjudged)
 
-    @unittest.expectedFailure
     def test_unknown_cells_are_not_judged_and_free_cells_are(self):
         from rescue_robot.start_align import match_detail
         grid = room()
