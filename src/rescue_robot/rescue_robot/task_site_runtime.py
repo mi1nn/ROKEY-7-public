@@ -247,6 +247,7 @@ class SiteRuntime:
         if unsupported:
             raise ContractError('optional non-SEARCH live extensions not installed: '+', '.join(sorted(unsupported)))
         self.last_lease_rejection=''
+        self.arm_refused=''   # why the last task_arm was refused (TASK_ARM refused ...)
         # Re-arm after a COMPLETED task with a confirmed stop (OPS-231, owner 2026-10-14). The field
         # launch requires task.live.auto_rearm per robot (live_parameters); without it, no re-arm.
         self.auto_rearm=config.get('auto_rearm',False)
@@ -512,13 +513,26 @@ class SiteRuntime:
         self.adapter.guards=self.guard
 
     def arm(self):
+        """task_arm. A refusal is logged with its reason, the readiness flags that are not True and the
+        readiness sources not fresh (TASK_ARM refused ...), and kept in arm_refused for the service answer."""
         with self.adapter.lock:
+            executor=self.adapter.executor
             a=self._authority()
-            if (a['robot_boot_id'],a['authority_epoch'])!=(
-                    self.adapter.executor.robot_boot_id,self.adapter.executor.authority_epoch): return False
-            self.inputs.clock_basis()
-            now=self.adapter.clock()
-            return self.adapter.executor.arm(a['authority_epoch'],now=now,readiness=self.adapter.readiness(now))
+            if (a['robot_boot_id'],a['authority_epoch'])!=(executor.robot_boot_id,executor.authority_epoch):
+                detail='NOT_AUTHORIZED coordinator authority differs from this executor'
+            else:
+                self.inputs.clock_basis()
+                now=self.adapter.clock(); readiness=self.adapter.readiness(now)
+                reason=executor.arm_refusal(a['authority_epoch'],now=now,readiness=readiness)
+                if reason is None and executor.arm(a['authority_epoch'],now=now,readiness=readiness):
+                    self.arm_refused=''
+                    return True
+                monitor=getattr(self.adapter,'readiness_monitor',None)
+                detail=(f'{reason} missing={readiness.missing(now,executor.policy)} motion={executor.motion} '
+                        f'sources={monitor.not_fresh(now) if monitor is not None else "unknown"}')
+        self.arm_refused=detail
+        self.node.get_logger().error('TASK_ARM refused '+detail)
+        return False
 
     def rearm_after_completion(self):
         """Called by the adapter once after a COMPLETED, stop-confirmed task: the task_arm checks again.
@@ -549,8 +563,12 @@ class SiteRuntime:
     def attach_services(self):
         from std_srvs.srv import Trigger
         def arm(_request,response):
-            try: response.success=self.arm(); response.message='ARMED' if response.success else 'STOP_OR_READINESS_NOT_READY'
-            except Exception as exc: response.success=False; response.message=str(exc)
+            try:
+                response.success=self.arm()
+                response.message='ARMED' if response.success else 'STOP_OR_READINESS_NOT_READY '+self.arm_refused
+            except Exception as exc:
+                response.success=False; response.message=str(exc)
+                self.node.get_logger().error(f'TASK_ARM refused {type(exc).__name__}: {exc}')
             return response
         def stop(_request,response):
             with self.adapter.lock: self.adapter.request_stop('CANCEL_USER')

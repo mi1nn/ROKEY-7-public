@@ -97,6 +97,15 @@ class Readiness:
     undocked: bool
     watchdog: bool
 
+    def missing(self, now, policy):
+        """Names of the flags that are not True, plus 'stale' when the stamp is older than evidence_max_age."""
+        names = ('driver', 'sensors', 'slam', 'nav2', 'undocked', 'watchdog')
+        out = [name for name in names if getattr(self, name) is not True]
+        if not (isinstance(self.received_steady, (int, float)) and 0 <= now - self.received_steady
+                <= policy.evidence_max_age):
+            out.append('stale')
+        return out
+
     def valid(self, now, policy):
         number(self.received_steady, 'readiness stamp')
         flags = (self.driver, self.sensors, self.slam, self.nav2, self.undocked, self.watchdog)
@@ -303,6 +312,11 @@ class Executor:
         if not readiness.valid(now, self.policy):
             return 'NAV_NOT_READY'
         return None
+
+    def arm_refusal(self, authority_epoch, *, now, readiness):
+        """Why arm() would refuse now (NOT_AUTHORIZED, TASK_BUSY, SESSION_FAULT, STOP_EVIDENCE_STALE,
+        NAV_NOT_READY), or None."""
+        return self._arm_refusal(authority_epoch, self._time(now), readiness)
 
     def arm(self, authority_epoch, *, now, readiness):
         now = self._time(now)

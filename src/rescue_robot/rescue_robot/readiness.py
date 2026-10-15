@@ -79,6 +79,18 @@ class ReadinessMonitor:
                     for source in sources)
             return result
 
+    def not_fresh(self, now):
+        """'source(age s)' or 'source(never)' for every configured source that is missing or too old."""
+        with self.lock:
+            out = []
+            for source in sorted({s for sources in self.policy.flag_sources.values() for s in sources}):
+                last = self.last_arrival.get(source)
+                if last is None:
+                    out.append(f'{source}(never)')
+                elif not 0 <= now - last <= self.policy.max_age_s[source]:
+                    out.append(f'{source}({now - last:.1f} s)')
+            return out
+
     def publish(self, adapter):
         """Push current flags into a CommandAdapter (stamped by its own clock)."""
         flags = self.flags(adapter.clock())

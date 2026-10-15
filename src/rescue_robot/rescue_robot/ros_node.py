@@ -306,6 +306,7 @@ def main(args=None, *, task_runtime_factory=None):
         monitor = ReadinessMonitor(readiness_policy(value['readiness.version'], ages, cameras,
                                                     value['wheel_status_topic'],
                                                     value['watchdog_heartbeat_topic']))
+        adapter.readiness_monitor = monitor     # task_arm names the sources not fresh when it refuses
         bind_odometry(node, adapter, value['odom_topic'], monitor)
         bind_dock_status(node, adapter, value['dock_status_topic'])
         bind_readiness(node, monitor, adapter, scan_topic=value['scan_topic'], camera_topics=cameras,
