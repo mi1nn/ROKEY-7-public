@@ -253,6 +253,12 @@ class Scores(unittest.TestCase):
         c[0], c[7], c[1], c[6], c[35] = 0.04, 0.01, 0.0, 0.0, 0.0025
         self.assertEqual((0.2, 0.05), tuple(round(v, 6) for v in sigmas(c)))
 
+    def test_sigmas_take_rounding_below_zero_as_zero(self):
+        # [E3 2026-10-15] Nav2 Jazzy AMCL with zero spread publishes yaw variance -5.7e-14
+        c = [0.0] * 36
+        c[35] = -5.728750807065726e-14
+        self.assertEqual((0.0, 0.0), sigmas(c))
+
     def test_sigmas_refuse_a_broken_covariance(self):
         for bad in ([0.0] * 35, [float('nan')] + [0.0] * 35, [-1.0] + [0.0] * 35):
             with self.subTest(bad=bad[:1]), self.assertRaises(ValueError):
