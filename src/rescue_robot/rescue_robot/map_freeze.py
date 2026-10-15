@@ -290,7 +290,12 @@ def _pose_message(record, key='pose'):
     return msg
 
 
-def main(args=None):
+def start_pose_main(args=None):
+    """Record only the scout start pose for live-map missions; expose no freeze service."""
+    main(args, start_only=True)
+
+
+def main(args=None, *, start_only=False):
     import time
 
     import rclpy
@@ -305,7 +310,7 @@ def main(args=None):
     from rescue_robot.ros_node import declare_required, git_sha
 
     rclpy.init(args=args)
-    node = rclpy.create_node('rescue_map_freeze')
+    node = rclpy.create_node('rescue_slam_start_pose' if start_only else 'rescue_map_freeze')
     log = node.get_logger()
     S, I = T.PARAMETER_STRING, T.PARAMETER_INTEGER
     values, missing = declare_required(node, {'map_topic': S, 'pose_topic': S, 'map_frame': S, 'map_session_id': S,
@@ -330,9 +335,9 @@ def main(args=None):
         log.error(f'START_POSE_RESTORE_FAILED {exc}')
         raise SystemExit(2)
     latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-    frozen_pub = node.create_publisher(OccupancyGrid, FROZEN_TOPIC, latched)
-    revision_pub = node.create_publisher(String, FROZEN_REVISION_TOPIC, latched)
-    pose_pub = node.create_publisher(PoseWithCovarianceStamped, FROZEN_POSE_TOPIC, latched)
+    frozen_pub = None if start_only else node.create_publisher(OccupancyGrid, FROZEN_TOPIC, latched)
+    revision_pub = None if start_only else node.create_publisher(String, FROZEN_REVISION_TOPIC, latched)
+    pose_pub = None if start_only else node.create_publisher(PoseWithCovarianceStamped, FROZEN_POSE_TOPIC, latched)
     start_pub = node.create_publisher(PoseWithCovarianceStamped, START_POSE_TOPIC, latched)
 
     def publish_start(start, how):
@@ -396,7 +401,7 @@ def main(args=None):
     if core.start_pose is not None:   # same run restarted: the saved start, never a new one
         publish_start(core.start_pose, 'restored')
     try:   # same run restarted: every freeze it made, in order (the last stays latched)
-        records = load_records(values['output_dir'], map_frame=values['map_frame'],
+        records = [] if start_only else load_records(values['output_dir'], map_frame=values['map_frame'],
                                map_session_id=values['map_session_id'], map_revision=values['map_revision'])
     except FreezeError as exc:
         log.error(f'MAP_FREEZE_RESTORE_FAILED {exc}')
@@ -408,11 +413,13 @@ def main(args=None):
     for record in records:
         publish(record)
     if len(records) < FREEZES:
-        node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
+        if not start_only:
+            node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
         node.create_subscription(PoseWithCovarianceStamped, values['pose_topic'], on_pose, qos_profile_sensor_data)
         node.create_subscription(TFMessage, values['tf_topic'], on_tf, 100)
         node.create_timer(TF_POSE_PERIOD_S, tf_tick)
-    node.create_service(Trigger, SERVICE, freeze)
+    if not start_only:
+        node.create_service(Trigger, SERVICE, freeze)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

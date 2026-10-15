@@ -1,0 +1,26 @@
+{
+  "format": "rescue-field-overlay/1",
+  "base": "search_area.field.json",
+  "source": "live shared map, one PC full scenario (방식 B, 2026-10-15 user work order full_scenario_single_pc): TB-6 keeps SLAM for the whole run and TB-5 runs AMCL on /robot6/map (map_mode SLAM_LIVE, robot_a SLAM_LIVE, robot_b LIVE_MAP_AMCL; no freeze); TB-5 is seeded at its measured start robots.robot_b.initial_pose_xy_yaw or the launch argument tb5_start_xy_yaw (relative to the TB-6 start pose, m/m/rad; never made up) and start_align (the base file's start_align.* values) gates its pose; completion_mode EXIT_WAIT_SCOUT_DOCK = TB-5 stops and waits at the exit, TB-6 returns to its own start pose after its exploration ends and docks (Create3 dock action), the run is FINISHED only after the dock is confirmed; live_map_max_age_s 10.0 and task.saved_map.live_max_age_ns 10 s [proposal, co_map 2026-10-15, not measured: slam_toolbox map_update_interval 5 s x2]; map_correction_m 0.15 / map_correction_rad 0.087 (5 deg) [proposal 2026-10-15, not measured: a map->odom jump at TB-6 this large between two TF samples is logged as MAP_CORRECTION]; scout_dock_timeout_s 120.0 [proposal 2026-10-15, not measured: TurtleBot4 nav2.yaml docking_server dock_approach_timeout 30 s x3 retries + margin]; robots.robot_a.task.saved_map.slam_covariance_max_age_ns 900 s [proposal 2026-10-15, rehearsal finding]: slam_toolbox publishes /robot6/pose only for scans it processes, so a TB-6 standing at its start waiting for the start event keeps a covariance older than the base file's 30 s and its MapState stays UNKNOWN (no first frontier goal); TB-6's pose itself still comes from the live TF, and a moving TB-6 gets new SLAM poses",
+  "set": {
+    "coordinator": {
+      "map_mode": "SLAM_LIVE",
+      "live_map_max_age_s": 10.0,
+      "map_correction_m": 0.15,
+      "map_correction_rad": 0.087,
+      "completion_mode": "EXIT_WAIT_SCOUT_DOCK",
+      "scout_dock_timeout_s": 120.0
+    },
+    "robots": {
+      "robot_a": {
+        "task.saved_map.mode": "SLAM_LIVE",
+        "task.saved_map.live_max_age_ns": 10000000000,
+        "task.saved_map.slam_covariance_max_age_ns": 900000000000
+      },
+      "robot_b": {
+        "task.saved_map.mode": "LIVE_MAP_AMCL",
+        "task.saved_map.live_max_age_ns": 10000000000
+      }
+    }
+  }
+}

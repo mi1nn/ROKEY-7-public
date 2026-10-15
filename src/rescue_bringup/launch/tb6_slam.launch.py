@@ -3,9 +3,10 @@
     ros2 launch rescue_bringup tb6_slam.launch.py profile_path:=<profile.json> \
         field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_a
 
-Only the SLAM_THEN_FROZEN robot of the field run file. Wraps turtlebot4_navigation
+Only the SLAM_LIVE or legacy SLAM_THEN_FROZEN robot of the field run file. Wraps turtlebot4_navigation
 slam.launch.py: map on <ns>/map, pose on <ns>/pose (task_input searching and map_freeze read
-them). Stop it (Ctrl-C) after the freeze, before frozen_localization.launch.py robot_id:=robot_a.
+them). In SLAM_LIVE keep it running during return as well; there is no AMCL switch.
+Only the legacy frozen mode stops SLAM before frozen_localization.launch.py robot_id:=robot_a.
 Refuses to start while <ns>/map already has a publisher (an earlier SLAM: its old map would be
 continued), naming it (OPS-184).
 """
@@ -17,7 +18,11 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
-from rescue_bringup.field_launch import load_field, slam_launch_values
+import tempfile
+
+import yaml
+
+from rescue_bringup.field_launch import LIVE_SLAM_OVERRIDES, live_slam_params, load_field, slam_launch_values
 from rescue_bringup.map_guard import check_no_map_publisher
 from rescue_bringup.profile import load_deployment
 
@@ -32,8 +37,13 @@ def _nodes(context):
     check_no_map_publisher(values['namespace'] + '/map', wait_s=float(arg('map_publisher_wait_s')))
     share = Path(get_package_share_directory('turtlebot4_navigation'))
     params = arg('slam_params_file') or str(share / 'config' / 'slam.yaml')
+    note = ''
+    if values['live']:   # SLAM_LIVE: scans processed while standing (field_launch.LIVE_SLAM_OVERRIDES)
+        with tempfile.NamedTemporaryFile('w', prefix='slam_live_', suffix='.yaml', delete=False) as out:
+            yaml.safe_dump(live_slam_params(yaml.safe_load(Path(params).read_text())), out, sort_keys=False)
+        note, params = f' + live overrides {LIVE_SLAM_OVERRIDES} -> {out.name}', out.name
     return [
-        LogInfo(msg=f'TB-6 SLAM {arg("robot_id")} ns={values["namespace"]} params={params}'),
+        LogInfo(msg=f'TB-6 SLAM {arg("robot_id")} ns={values["namespace"]} params={params}{note}'),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(str(share / 'launch' / 'slam.launch.py')),
             launch_arguments={'namespace': values['namespace'], 'use_sim_time': str(values['use_sim_time']).lower(),

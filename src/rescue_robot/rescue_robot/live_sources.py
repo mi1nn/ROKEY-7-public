@@ -1,8 +1,8 @@
 """Measured ROS inputs for the existing task runtime, not another executor.
 
-A configured measured alignment and the map hash bind the coordinate basis: a declared
-saved-map hash, or the one frozen TB-6 SLAM map (SavedMapSources). TF ticks never
-manufacture SLAM correction events; the revision moves once, at the freeze.
+A configured alignment binds the coordinate basis. Live modes continuously replace
+the occupancy grid without inventing coordinate corrections. Legacy saved/frozen
+maps remain explicit modes for regression coverage; there is no fallback.
 """
 from copy import deepcopy
 import math
@@ -61,12 +61,19 @@ class Grid:
         return footprint_clear(**self._fields(),x=x,y=y,radius=radius)
 
 
-MAP_MODES=('SAVED_MAP_AMCL','SLAM_THEN_FROZEN','FROZEN_MAP_AMCL')
+MAP_MODES=('SAVED_MAP_AMCL','SLAM_THEN_FROZEN','FROZEN_MAP_AMCL','SLAM_LIVE','LIVE_MAP_AMCL')
+LIVE_MAP_MODES=('SLAM_LIVE','LIVE_MAP_AMCL')  # user experiment, 2026-10-14: one changing SLAM map
+FROZEN_MAP_MODES=('SLAM_THEN_FROZEN','FROZEN_MAP_AMCL')
+SLAM_MODES=('SLAM_THEN_FROZEN','SLAM_LIVE')
 FREEZES=2  # per run (OPS-154): R0 + 1 doll found (TB-5 goes), R0 + 2 search done (TB-6 SLAM -> AMCL)
 
 
 class SavedMapSources:
-    """This robot's map and localization inputs, one of three declared modes (no fallback between them).
+    """This robot's map and localization inputs (no fallback between modes).
+
+    SLAM_LIVE: AMR1 retains SLAM and its changing map for the whole mission.
+    LIVE_MAP_AMCL: AMR2 reads that same map and the globally initialized pose relay.
+    Live occupancy updates change map_update_sequence, not the coordinate revision.
 
     SAVED_MAP_AMCL: a saved map with a measured hash (tests without robots). The TB-6 map is
     frozen twice per run; a frozen grid (/rescue/map/frozen) has a revision only through its
@@ -82,6 +89,7 @@ class SavedMapSources:
     def __init__(self,runtime,settings):
         self.runtime=runtime; self.settings=deepcopy(settings); self.maps={}; self.poses={}; self.faults={}
         self.slam_maps={}; self.received={}
+        self.live_stamps={}; self.live_sequences={}  # sensor map stamps / local content update counts, not corrections
         self.frozen_grids={}; self.frozen_info=None  # received grids by hash, latest pair: matched in _pair
         self.known={}         # revision -> Grid, frozen maps of this run
         self.adopted={}       # robot -> frozen revision it uses
@@ -96,8 +104,8 @@ class SavedMapSources:
         for robot,c in self.settings.items():
             if c['mode'] not in MAP_MODES: raise ContractError('SLAM backend correction adapter not configured')
             topics=['map_topic','localization_topic']
-            if c['mode']!='SAVED_MAP_AMCL': topics+=['frozen_topic','frozen_revision_topic']
-            if c['mode']=='SLAM_THEN_FROZEN': topics+=['slam_localization_topic','slam_tf_topic']
+            if c['mode'] in FROZEN_MAP_MODES: topics+=['frozen_topic','frozen_revision_topic']
+            if c['mode'] in SLAM_MODES: topics+=['slam_localization_topic','slam_tf_topic']
             if c['mode']=='FROZEN_MAP_AMCL': topics.append('initial_pose_topic')
             for name in topics:
                 if not isinstance(c.get(name),str) or not c[name].startswith('/'):
@@ -105,29 +113,42 @@ class SavedMapSources:
             if c['mode']=='SAVED_MAP_AMCL':
                 if len(c['occupancy_sha256'])!=64: raise ContractError('measured occupancy sha256 required')
             elif c['occupancy_sha256']!='':
-                raise ContractError('the freeze decides the map hash; no declared occupancy sha256')
+                raise ContractError('the received map decides the hash; no declared occupancy sha256')
+            if c['mode'] in LIVE_MAP_MODES and (type(c.get('live_max_age_ns')) is not int or c['live_max_age_ns']<=0):
+                raise ContractError('live map requires an explicit positive live_max_age_ns')
             for name in ('max_position_variance_m2','max_yaw_variance_rad2'):
                 if not math.isfinite(c[name]) or c[name]<=0: raise ContractError('explicit localization variance policy')
-            if c['mode']=='SLAM_THEN_FROZEN':  # searching: pose = TF map -> base_link (OPS-177)
+            if c['mode'] in SLAM_MODES:  # searching: pose = TF map -> base_link (OPS-177)
                 from rescue_robot.slam_tf_pose import SlamTfPose
                 self.slam_tf[robot]=SlamTfPose(map_frame=c['map_frame'],odom_frame=c.get('slam_odom_frame'),
                     base_frame=c.get('slam_base_frame'),covariance_max_age_ns=c.get('slam_covariance_max_age_ns'))
 
     def _frozen_robots(self):
-        return [robot for robot,c in self.settings.items() if c['mode']!='SAVED_MAP_AMCL']
+        return [robot for robot,c in self.settings.items() if c['mode'] in FROZEN_MAP_MODES]
 
     def phase(self,robot):
         mode=self.settings[robot]['mode']
         if mode=='SAVED_MAP_AMCL': return 'SAVED'
+        if mode in LIVE_MAP_MODES: return 'SLAM' if mode=='SLAM_LIVE' else 'LIVE'
         if robot in self.adopted: return 'FROZEN'
         return 'SLAM' if mode=='SLAM_THEN_FROZEN' else 'UNFROZEN'
 
     def loaded(self,robot):
+        if self.settings[robot]['mode'] in LIVE_MAP_MODES:
+            observed=self.live_stamps.get(robot)
+            now=self.runtime.adapter.wall_clock_ns(); c=self.settings[robot]
+            return (robot in self.maps and observed is not None and
+                    -self.runtime.inputs.bound<=now-observed<c['live_max_age_ns'])
         return robot in (self.slam_maps if self.phase(robot)=='SLAM' else self.maps)
 
     def basis(self,robot):
         """The basis this robot publishes now; occupancy_key = the map hash, or what stands in for it."""
         c=self.settings[robot]; phase=self.phase(robot)
+        if c['mode'] in LIVE_MAP_MODES:
+            grid=self.maps.get(robot)
+            return dict(map_frame=c['map_frame'],map_session_id=c['map_session_id'],map_revision=c['map_revision'],
+                        transform_revision=c['transform_revision'],occupancy_key=grid.sha256 if grid else 'live-unloaded',
+                        map_update_sequence=self.live_sequences.get(robot,0))
         key={'SAVED':c['occupancy_sha256'],'SLAM':'slam','UNFROZEN':'unfrozen'}.get(phase)
         frozen=phase=='FROZEN'
         return dict(map_frame=c['map_frame'],map_session_id=c['map_session_id'],
@@ -145,12 +166,14 @@ class SavedMapSources:
 
     def pending(self,robot):
         """A higher frozen revision this robot has not taken yet (it is not stopped, or has a task)."""
-        if self.settings[robot]['mode']=='SAVED_MAP_AMCL' or robot in self.faults: return False
+        if self.settings[robot]['mode'] not in FROZEN_MAP_MODES or robot in self.faults: return False
         target=self._target(robot)
         return target is not None and target!=self.adopted.get(robot)
 
     def check_new_goal(self,robot):
         """D2 (OPS-159): no new goal on the old revision while a newer one waits; the task in progress goes on."""
+        if self.settings[robot]['mode'] in LIVE_MAP_MODES and not self.loaded(robot):
+            raise ContractError('live map missing or stale','LOCALIZATION_UNCERTAIN')
         if self.runtime.adapter.executor.active is None and self.pending(robot):
             raise ContractError(f'map revision pending (R{self._target(robot)}); new goals wait until it is taken',
                                 'FRAME_REVISION_MISMATCH')
@@ -159,6 +182,8 @@ class SavedMapSources:
         """Take a pending revision once the robot is stopped with no task (the timer of attach_sources)."""
         with self.runtime.adapter.lock:
             for robot in self._frozen_robots(): self._try_adopt(robot)
+            for robot,c in self.settings.items():
+                if c['mode'] in LIVE_MAP_MODES: self._publish_map_state(robot)
 
     def _try_adopt(self,robot):
         if not self.pending(robot): return
@@ -259,7 +284,21 @@ class SavedMapSources:
         with r.adapter.lock:
             try:
                 grid=Grid(message); c=self.settings[robot]; phase=self.phase(robot)
-                if phase=='SAVED':
+                if c['mode'] in LIVE_MAP_MODES:
+                    observed=stamp(message); now=r.adapter.wall_clock_ns()
+                    if grid.frame!=c['map_frame'] or observed<=0 or not -r.inputs.bound<=now-observed<c['live_max_age_ns']:
+                        raise ContractError('live map frame or timestamp invalid/stale','LOCALIZATION_UNCERTAIN')
+                    if not math.isclose(grid.origin[2],0.0,abs_tol=1e-9):
+                        raise ContractError('AMCL requires an axis-aligned live map','LOCALIZATION_UNCERTAIN')
+                    if observed<self.live_stamps.get(robot,0):
+                        raise ContractError('live map timestamp regressed','STALE_OBSERVATION')
+                    old=self.maps.get(robot)
+                    if old is None:
+                        self.valid_after[robot]=now; self.poses.pop(robot,None)
+                    if old is None or old.sha256!=grid.sha256:
+                        self.live_sequences[robot]=self.live_sequences.get(robot,0)+1
+                    self.maps[robot]=grid; self.live_stamps[robot]=observed
+                elif phase=='SAVED':
                     if (grid.frame,grid.sha256)!=(c['map_frame'],c['occupancy_sha256']):
                         raise ContractError('loaded map changed; new measured session required','FRAME_REVISION_MISMATCH')
                     if robot not in self.faults: self.maps[robot]=grid
@@ -309,7 +348,11 @@ class SavedMapSources:
 
     def _publish_map_state(self,robot):
         if self.publisher is not None and robot==self.publisher.robot:
-            self.publisher.publish_map_state(localization_valid=self.poses.get(robot,(0,False))[1])
+            observed, valid = self.poses.get(robot,(0,False))
+            if self.settings[robot]['mode'] in LIVE_MAP_MODES:
+                now = self.runtime.adapter.wall_clock_ns()
+                valid = valid and -self.runtime.inputs.bound <= now-observed < self.runtime.inputs.max_age
+            self.publisher.publish_map_state(localization_valid=valid)
 
     def records(self):
         result={}
@@ -320,7 +363,8 @@ class SavedMapSources:
                 'transform_valid_until_ns','position_error_m','rotation_error_rad')}
             result[robot].update(map_revision=self.basis(robot)['map_revision'],
                 observed_at_ns=observed,valid_until_ns=observed+self.runtime.inputs.max_age,
-                map_update_sequence=0,localization_status='VALID' if valid and self.loaded(robot) else 'UNKNOWN')
+                map_update_sequence=self.basis(robot).get('map_update_sequence',0),
+                localization_status='VALID' if valid and self.loaded(robot) else 'UNKNOWN')
         return result
 
 
@@ -377,13 +421,14 @@ def attach_sources(runtime):
         r.input_handles.append(('destroy_subscription',handle))
 
     if r.saved_maps is not None:
-        frozen=[c for c in r.saved_maps.settings.values() if c['mode']!='SAVED_MAP_AMCL']
+        frozen=[c for c in r.saved_maps.settings.values() if c['mode'] in FROZEN_MAP_MODES]
         if frozen:
             from std_msgs.msg import String
             subscribe(OccupancyGrid,frozen[0]['frozen_topic'],r.saved_maps.receive_frozen,snapshot,lambda:None)
             subscribe(String,frozen[0]['frozen_revision_topic'],r.saved_maps.receive_frozen_revision,snapshot,
                       lambda:None)
-            # a pending revision is taken once the robot is stopped with no task
+        if frozen or any(c['mode'] in LIVE_MAP_MODES for c in r.saved_maps.settings.values()):
+            # adopt stopped frozen revisions; publish UNKNOWN when the live map stream expires
             timer=r.node.create_timer(r.config['poll_period_s'],r.saved_maps.tick)
             r.input_handles.append(('destroy_timer',timer))
         publishers={robot:r.node.create_publisher(PoseWithCovarianceStamped,c['initial_pose_topic'],10)
@@ -400,7 +445,7 @@ def attach_sources(runtime):
             publishers[robot].publish(message)
         if publishers: r.saved_maps.reinitialize=reinitialize
         for robot,c in r.saved_maps.settings.items():
-            if c['mode']=='SLAM_THEN_FROZEN':
+            if c['mode'] in SLAM_MODES:
                 attach_slam_tf_pose(r,robot,c,subscribe)
             subscribe(OccupancyGrid,c['map_topic'],lambda m,robot=robot:r.saved_maps.receive_map(robot,m),snapshot,
                       lambda robot=robot:r.saved_maps.maps.pop(robot,None))

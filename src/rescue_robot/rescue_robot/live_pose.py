@@ -85,11 +85,13 @@ def pose_record(*, robot_id, boot_id, observed_at_ns, pose_valid_ns, native, amc
         mission_pose_status='VALID' if valid else 'UNKNOWN')
 
 
-def map_state_record(*, robot_id, occupancy_sha256, basis, map_loaded, localization_valid, generated_at_ns):
+def map_state_record(*, robot_id, occupancy_sha256, basis, map_loaded, localization_valid, generated_at_ns,
+                     map_update_sequence=0):
     """Fields of one MapState: the declared basis, the measured localization quality."""
     return dict(robot_id=robot_id, snapshot_id=map_snapshot_id(occupancy_sha256, basis['map_session_id'],
                                                                basis['map_revision'], basis['transform_revision']),
-                map_session_id=basis['map_session_id'], map_revision=basis['map_revision'], map_update_sequence=0,
+                map_session_id=basis['map_session_id'], map_revision=basis['map_revision'],
+                map_update_sequence=map_update_sequence,
                 generated_at_ns=generated_at_ns,
                 localization_quality='VALID' if (map_loaded and localization_valid) else 'UNKNOWN',
                 correction_detection_status='UNKNOWN', current_native_map_frame=basis['native_frame'])
@@ -185,7 +187,8 @@ class LivePosePublisher:
         record = map_state_record(robot_id=self.robot,
             occupancy_sha256=r.saved_maps.basis(self.robot)['occupancy_key'], basis=self._basis(),
             map_loaded=r.saved_maps.loaded(self.robot), localization_valid=localization_valid,
-            generated_at_ns=r.adapter.wall_clock_ns())
+            generated_at_ns=r.adapter.wall_clock_ns(),
+            map_update_sequence=r.saved_maps.basis(self.robot).get('map_update_sequence',0))
         meaning = {k: v for k, v in record.items() if k != 'generated_at_ns'}
         if meaning == self.last_map_state:
             return

@@ -18,6 +18,15 @@ there:
 The result is latched on ``<ns>/rescue_start_align`` (JSON) with a reason code; a failure is never
 replaced by another method. ``~/restart`` starts again (TB-5 put back on its spot first).
 Every value is [제안] until measured in a supervised run.
+
+Live shared map (방식 B, 2026-10-15): the same steps run on TB-6's live SLAM map (``map_topic`` = /robot6/map).
+With ``output_pose_topic`` set (live_localization.launch.py), AMCL poses are relayed there only while the status
+is ALIGNED (``gate_pose``): that topic is the executor's localization input, so before the alignment passes, after
+a failure or a restart TB-5 has no pose at all (RobotPose UNKNOWN), and the coordinator never dispatches it.
+AMCL publishes a pose only after it moved past its update thresholds or after a no-motion update [Nav2 jazzy
+amcl_node.cpp laserReceived], so a TB-5 standing ALIGNED would let its pose expire (task.live.pose_valid_ns) while
+it waits for the doll: with the gate on, a stopped ALIGNED robot gets one no-motion update every update_period_s
+(``keepalive_due``). A moving robot gets none (AMCL updates by itself).
 """
 import json
 import math
@@ -270,6 +279,17 @@ class AlignCore:
                     first_guess=list(self.center) if self.center else None, **self.verdict)
 
 
+def keepalive_due(core, now_ns, next_ns):
+    """True when a stopped, ALIGNED robot should get its next no-motion update (gate mode only)."""
+    return core.status == 'ALIGNED' and core._stopped() and (next_ns is None or now_ns >= next_ns)
+
+
+def gate_pose(core, frame_id, map_frame):
+    """True when an AMCL pose may reach the executor: the alignment passed (ALIGNED) and the pose is on the map
+    frame. Anything else is held back, never replaced by another pose."""
+    return core.status == 'ALIGNED' and frame_id == map_frame
+
+
 def main(args=None):
     import time
 
@@ -309,6 +329,15 @@ def main(args=None):
         raise SystemExit(2)
     latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
     status = node.create_publisher(String, values['status_topic'], latched)
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    node.declare_parameter('output_pose_topic', Parameter.Type.STRING)
+    try:
+        output_topic = node.get_parameter('output_pose_topic').value or None
+    except ParameterUninitializedException:
+        output_topic = None
+    output = node.create_publisher(PoseWithCovarianceStamped, output_topic, latched) if output_topic else None
+    relayed = {'count': 0, 'keepalive_ns': None}
     set_pose = node.create_client(SetInitialPose, values['set_initial_pose_service'])
     nomotion = node.create_client(Empty, values['nomotion_update_service'])
     tf_buffer = tf2_ros.Buffer()
@@ -322,8 +351,13 @@ def main(args=None):
             return
         said['state'] = key
         status.publish(String(data=json.dumps(result, sort_keys=True)))
-        level = 'error' if result['status'] == 'FAILED' else 'info'
-        getattr(log, level)(f'START_ALIGN_{result["status"]} {result["reason"]} ' + json.dumps(result, sort_keys=True))
+        text = f'START_ALIGN_{result["status"]} {result["reason"]} ' + json.dumps(result, sort_keys=True)
+        # rclpy refuses two severities on one call site ('Logger severity cannot be changed between calls'): the
+        # first FAILED after an info line killed the node (rehearsal 2026-10-15)
+        if result['status'] == 'FAILED':
+            log.error(text)
+        else:
+            log.info(text)
 
     def on_map(message):
         try:
@@ -363,6 +397,12 @@ def main(args=None):
             core.on_amcl(planar(message.pose.pose), list(message.pose.covariance))
         except Exception as exc:   # a broken covariance or pose is not used
             log.warning(f'start_align AMCL pose not used: {exc}')
+            return
+        if output is not None and gate_pose(core, message.header.frame_id, values['map_frame']):
+            output.publish(message)
+            relayed['count'] += 1
+            if relayed['count'] == 1:
+                log.info(f'START_ALIGN_GATE open: AMCL poses now reach {output_topic}')
 
     def on_initial_set(future):
         if future.exception() is not None:
@@ -386,6 +426,9 @@ def main(args=None):
                 set_pose.call_async(request).add_done_callback(on_initial_set)
             else:
                 nomotion.call_async(Empty.Request())
+        if output is not None and nomotion.service_is_ready() and keepalive_due(core, now, relayed['keepalive_ns']):
+            relayed['keepalive_ns'] = now + int(core.config.update_period_s * 1e9)
+            nomotion.call_async(Empty.Request())
         publish()
 
     def restart(_request, response):
@@ -395,7 +438,7 @@ def main(args=None):
         log.info('START_ALIGN restart requested')
         return response
 
-    log.info(f'git_sha={git_sha()} parameters={values}')
+    log.info(f'git_sha={git_sha()} parameters={values} output_pose_topic={output_topic or "(none)"}')
     node.create_subscription(OccupancyGrid, values['map_topic'], on_map, latched)
     node.create_subscription(LaserScan, values['scan_topic'], on_scan, qos_profile_sensor_data)
     node.create_subscription(Odometry, values['odom_topic'], on_odom, qos_profile_sensor_data)

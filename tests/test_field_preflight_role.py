@@ -272,6 +272,21 @@ class Failures(RoleCase):
         field.write_text(json.dumps(raw))
         self.assertStatus(self.run_role('compute_b', field_path=field), 'field.initial_pose.robot_b', pr.PASSED)
 
+    def test_live_support_needs_its_measured_seed_and_no_map_files(self):
+        raw_profile = json.loads(self.profile.read_text())
+        overlay = REPO / 'config/field/live_map.overlay.json'
+        from rescue_bringup.field_launch import load_field
+        raw = passage_field(load_field(overlay).raw, raw_profile)
+        self.field.write_text(json.dumps(raw))
+        self.map.unlink()
+        checks = self.run_role('compute_b')
+        self.assertStatus(checks, 'field.initial_pose.robot_b', pr.FAILED)   # never made up
+        raw['robots']['robot_b']['initial_pose_xy_yaw'] = [0.0, 1.95, 0.0]   # synthetic fixture
+        self.field.write_text(json.dumps(raw))
+        checks = self.run_role('compute_b')
+        self.assertStatus(checks, 'field.initial_pose.robot_b', pr.PASSED)
+        self.assertNotIn('map.files', checks)
+
     def test_exit_code_and_report(self):
         checks = pr.run_role('coordination', env={}, profile_path=self.profile, field_path=None,
                              webcam_params=None, map_yaml=None, find_spec=FakeSpecs(), clock=lambda b, **_: SYNCED)

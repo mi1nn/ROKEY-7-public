@@ -66,6 +66,33 @@ def footprint_clear(*, frame, width, height, resolution, origin, data, x, y, rad
     return True
 
 
+# TB-6's live SLAM map shows TB-5's own body where TB-5 stood in TB-6's scans (방식 B rehearsal 2026-10-15: no grid
+# path out of TB-5's start). For TB-5 only, a disc of this radius around TB-5's own position(s) is free: the
+# TurtleBot4 footprint 0.189 m (nav2.yaml) + about two map cells of scan spread [제안, not measured].
+SELF_CLEAR_RADIUS_M = 0.3
+
+
+def clear_discs(*, frame, width, height, resolution, origin, data, discs, radius=SELF_CLEAR_RADIUS_M):
+    """``data`` with every cell whose centre is within ``radius`` of a disc centre (x, y) set free (0); the grid, its
+    frame and origin are unchanged. For the robot's own footprint only: never for anything another robot saw."""
+    res, (ox, oy, oyaw), data = _checked(frame, width, height, resolution, origin, data)
+    if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not 0 < radius < 1.0:
+        raise ValueError('self clear radius must be between 0 and 1 m')
+    out = list(data)
+    c, s = math.cos(oyaw), math.sin(oyaw)
+    reach = int(math.ceil(radius / res))
+    for x, y in discs:
+        if not (math.isfinite(x) and math.isfinite(y)):
+            raise ValueError('disc centre must be finite')
+        gx, gy = c * (x - ox) + s * (y - oy), -s * (x - ox) + c * (y - oy)
+        cx, cy = int(math.floor(gx / res)), int(math.floor(gy / res))
+        for iy in range(max(cy - reach, 0), min(cy + reach, height - 1) + 1):
+            for ix in range(max(cx - reach, 0), min(cx + reach, width - 1) + 1):
+                if math.hypot((ix + 0.5) * res - gx, (iy + 0.5) * res - gy) <= radius:
+                    out[iy * width + ix] = 0
+    return out
+
+
 def _xy_yaw(value):
     if (len(value) != 3 or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
                                    for v in value)):

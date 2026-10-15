@@ -202,6 +202,7 @@ def _map_files(path):
 def run_role(role, *, env, profile_path, field_path, webcam_params, map_yaml,
              find_spec=importlib.util.find_spec, clock=None):
     checks = _environment(env)
+    field = None
     try:
         from rescue_bringup.field_launch import (FieldLaunchError, coordinator_parameters,
                                                  frozen_localization_values, load_field, robot_launch_values)
@@ -279,6 +280,16 @@ def run_role(role, *, env, profile_path, field_path, webcam_params, map_yaml,
                     checks.append(check('field.initial_pose.' + robot.id, PASSED, f'{robot.id}: AMCL 출발값 {start}'))
                 except FieldLaunchError as exc:
                     checks.append(check('field.initial_pose.' + robot.id, FAILED, str(exc)))
+            elif mode == 'LIVE_MAP_AMCL':
+                from rescue_bringup.field_launch import live_localization_values
+                try:
+                    localizer = live_localization_values(deployment, field=field, robot_id=robot.id)
+                    checks.append(check('field.initial_pose.' + robot.id, PASSED,
+                                        f'{robot.id}: AMCL 출발값 {localizer["initial_pose_xy_yaw"]} (TB-6 출발 자세 기준) '
+                                        f'on {localizer["map_topic"]} + start_align; AMCL 수렴·실제 ROS 연결은 이 정적 '
+                                        '검사의 범위 밖'))
+                except FieldLaunchError as exc:
+                    checks.append(check('field.initial_pose.' + robot.id, FAILED, str(exc)))
             r = field.robot
             clocks.setdefault(r['task.live.clock_backend'], (r['task.live.clock_max_age_ns'],
                                                              r['task.live.clock_drift_ppm'], 'field robot'))
@@ -289,7 +300,7 @@ def run_role(role, *, env, profile_path, field_path, webcam_params, map_yaml,
             checks.append(clock_check)
     for backend, (max_age, drift, source) in clocks.items():
         checks.append(_clock(clock, backend, max_age, drift, source))
-    if 'slam' in kinds:
+    if 'slam' in kinds and not (field is not None and field.coordinator['map_mode'] == 'SLAM_LIVE'):
         checks.append(_map_files(map_yaml))
     return checks
 

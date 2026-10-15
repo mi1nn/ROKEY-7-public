@@ -25,7 +25,7 @@ def frozen_revision(saved_map):
     mode = saved_map['mode']
     if mode == 'FROZEN_MAP_AMCL':
         raise ContractError('a FROZEN_MAP_AMCL robot has no launch home; the coordinator sends home/<robot_id>')
-    return saved_map['map_revision'] + (0 if mode == 'SAVED_MAP_AMCL' else FREEZES)
+    return saved_map['map_revision'] + (FREEZES if mode == 'SLAM_THEN_FROZEN' else 0)
 
 
 def home_destinations(robot_id, xy_yaw, *, frame_id, map_session_id, map_revision, transform_revision):
@@ -86,6 +86,17 @@ def read_config(node, adapter):
     values, missing = declare_required(node, fields, optional=('task.saved_map.occupancy_sha256',))
     if missing:
         raise ContractError('LIVE_ROS missing deployment parameters: ' + ', '.join(missing))
+    from rcl_interfaces.msg import ParameterDescriptor
+    from rclpy.exceptions import ParameterUninitializedException
+    from rclpy.parameter import Parameter
+    node.declare_parameter('task.live.allow_same_host', Parameter.Type.BOOL,
+                           descriptor=ParameterDescriptor(type=T.PARAMETER_BOOL, read_only=True,
+                                                          description='One-PC run: matching measured host, boot and '
+                                                                      'clock epoch required (robot.launch single_host)'))
+    try:
+        allow_same_host = node.get_parameter('task.live.allow_same_host').value
+    except ParameterUninitializedException:
+        allow_same_host = False
     def get(name):
         return values['task.' + name]
     service = get('live.coordinator_service')
@@ -101,7 +112,7 @@ def read_config(node, adapter):
         coordinator_authority=dict(coordinator_id=get('coordinator_id'),authority_epoch=adapter.executor.authority_epoch),
         configured_destinations={}, live_clock=dict(backend=get('live.clock_backend'),
         max_age_ns=get('live.clock_max_age_ns'),drift_ppm=get('live.clock_drift_ppm'),
-        coordinator_service=service,poll_period_s=get('poll_period_s')),
+        coordinator_service=service,poll_period_s=get('poll_period_s'),allow_same_host=allow_same_host),
         endpoints=dict(action_name=f'/rescue/robots/{adapter.robot_id}/execute_task',
             lease_topic=f'/rescue/robots/{adapter.robot_id}/command_lease',
             admission_topic=f'/rescue/robots/{adapter.robot_id}/task_admission',
@@ -117,12 +128,18 @@ def read_config(node, adapter):
         if not SHA256.fullmatch(m['occupancy_sha256']):
             raise ContractError('SAVED_MAP_AMCL needs the measured task.saved_map.occupancy_sha256 (64 lowercase hex)')
     elif m['occupancy_sha256'] != '':
-        raise ContractError(f'{m["mode"]}: the freeze decides the map hash; task.saved_map.occupancy_sha256 '
+        raise ContractError(f'{m["mode"]}: the received map decides the hash; task.saved_map.occupancy_sha256 '
                             'must be empty')
     from rclpy.exceptions import ParameterUninitializedException
     from rclpy.parameter import Parameter
-    if m['mode'] != 'SAVED_MAP_AMCL':
+    if m['mode'] in ('SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL'):
         m['frozen_topic'], m['frozen_revision_topic'] = FROZEN_MAP_TOPIC, FROZEN_REVISION_TOPIC
+    node.declare_parameter('task.saved_map.live_max_age_ns', Parameter.Type.INTEGER)
+    try:
+        m['live_max_age_ns'] = node.get_parameter('task.saved_map.live_max_age_ns').value
+    except ParameterUninitializedException:
+        if m['mode'] in ('SLAM_LIVE', 'LIVE_MAP_AMCL'):
+            raise ContractError('live map requires task.saved_map.live_max_age_ns') from None
     # TB-5 AMCL initial pose topic: re-aligning on a newer frozen map starts from its own last pose
     node.declare_parameter('task.saved_map.initial_pose_topic', Parameter.Type.STRING)
     try:
@@ -135,7 +152,7 @@ def read_config(node, adapter):
     try:
         m['slam_localization_topic'] = node.get_parameter('task.saved_map.slam_localization_topic').value
     except ParameterUninitializedException:
-        if m['mode'] == 'SLAM_THEN_FROZEN':
+        if m['mode'] in ('SLAM_THEN_FROZEN', 'SLAM_LIVE'):
             raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.slam_localization_topic') from None
     # TB-6 pose while searching = TF map -> base_link, covariance from the SLAM pose (OPS-177)
     for name, kind in (('slam_tf_topic', Parameter.Type.STRING), ('slam_odom_frame', Parameter.Type.STRING),
@@ -144,7 +161,7 @@ def read_config(node, adapter):
         try:
             m[name] = node.get_parameter('task.saved_map.' + name).value
         except ParameterUninitializedException:
-            if m['mode'] == 'SLAM_THEN_FROZEN':
+            if m['mode'] in ('SLAM_THEN_FROZEN', 'SLAM_LIVE'):
                 raise ContractError('SLAM_THEN_FROZEN needs task.saved_map.' + name) from None
     c['saved_maps'] = {adapter.robot_id:m}
     c['auto_target'] = {key:get('live.auto_target.'+key) for key in

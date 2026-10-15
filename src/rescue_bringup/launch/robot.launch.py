@@ -4,7 +4,8 @@
         field_path:=<repo>/config/field/search_area.field.json robot_id:=robot_a
 
 The map mode is the field run file's robots.<id>.task.saved_map.mode (map lifecycle, OPS-126):
-SLAM_THEN_FROZEN (TB-6: tb6_slam.launch.py while searching, then frozen_localization.launch.py)
+SLAM_LIVE (AMR1: tb6_slam.launch.py throughout) and LIVE_MAP_AMCL (AMR2: live_localization.launch.py)
+are the current default. Legacy SLAM_THEN_FROZEN (TB-6: tb6_slam.launch.py while searching, then frozen_localization.launch.py)
 or FROZEN_MAP_AMCL (TB-5: frozen_localization.launch.py) take no occupancy_sha256, the freeze
 decides the hash. SAVED_MAP_AMCL (tests without robots, #132) needs the measured hash:
 occupancy_sha256:=$(python3 scripts/field/map_occupancy_sha256.py /robot6/map map) after
@@ -29,7 +30,7 @@ from launch_ros.actions import Node, SetRemap
 
 import yaml
 
-from rescue_bringup.field_launch import load_field, nav2_with_passage, robot_launch_values
+from rescue_bringup.field_launch import dock_values, load_field, nav2_shared_map, nav2_with_passage, robot_launch_values
 from rescue_bringup.nav2_field import field_nav2
 from rescue_bringup.profile import load_deployment
 from rescue_bringup.ros_parameters import typed
@@ -39,9 +40,11 @@ def _nodes(context):
     def arg(name):
         return LaunchConfiguration(name).perform(context)
 
-    values = robot_launch_values(load_deployment(arg('profile_path')), field=load_field(arg('field_path')),
+    deployment, field = load_deployment(arg('profile_path')), load_field(arg('field_path'))
+    values = robot_launch_values(deployment, field=field,
                                  robot_id=arg('robot_id'), occupancy_sha256=arg('occupancy_sha256'),
-                                 now_ns=time.time_ns())
+                                 now_ns=time.time_ns(), single_host=arg('single_host') == 'true')
+    dock = dock_values(deployment, field=field, robot_id=arg('robot_id'))
     ns, task = values['namespace'], values['task_input']
     base_params = arg('nav2_params_file') or str(
         Path(get_package_share_directory('turtlebot4_navigation')) / 'config' / 'nav2.yaml')
@@ -50,6 +53,8 @@ def _nodes(context):
     passage = values['passage']
     # no backing up in recovery (OPS-207) and FollowPath Rotation Shim + RPP instead of DWB (2026-10-14), both robots
     params = nav2_with_passage(field_nav2(yaml.safe_load(Path(base_params).read_text())), passage)
+    if task['task.saved_map.mode'] in ('SLAM_LIVE', 'LIVE_MAP_AMCL'):
+        params = nav2_shared_map(params, values['map_topic'])
     with tempfile.NamedTemporaryFile('w', prefix=f'nav2_{arg("robot_id")}_', suffix='.yaml', delete=False) as out:
         yaml.safe_dump(params, out, sort_keys=False)
     nav2_params = out.name
@@ -68,7 +73,7 @@ def _nodes(context):
                     f'{passage["overhead_top_m"]} m front {passage["slow_front_m"]} '
                     f'depth {passage["depth_topic"]} ({passage["depth_transport"]}) + no BackUp recovery + FollowPath Rotation Shim/RPP -> {nav2_params} '
                     f'map_mode={task["task.saved_map.mode"]} '
-                    f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(decided by the freeze)"} '
+                    f'map_sha256={task["task.saved_map.occupancy_sha256"] or "(received map)"} '
                     f'declared alignment window '
                     f'{task["task.saved_map.valid_from_ns"]}..{task["task.saved_map.transform_valid_until_ns"]} ns'),
         nav2,
@@ -76,6 +81,10 @@ def _nodes(context):
              output='screen', parameters=[typed(values['watchdog'])]),
         Node(package='rescue_robot', executable='task_input', name='rescue_command_adapter', namespace=ns,
              output='screen', parameters=[typed(task)]),
+        # TB-6 of a live-map EXIT_WAIT_SCOUT_DOCK run: the dock after its return (rescue_robot.dock_node)
+        *([LogInfo(msg=f'robot {arg("robot_id")} dock node: {dock["service"]} -> {dock["dock_action"]}'),
+           Node(package='rescue_robot', executable='dock', name='rescue_dock', namespace=ns, output='screen',
+                parameters=[typed(dock)])] if dock is not None else []),
     ]
 
 
@@ -87,6 +96,9 @@ def generate_launch_description():
         DeclareLaunchArgument('occupancy_sha256', default_value='',
                               description='SAVED_MAP_AMCL only: measured hash of the map topic (map_occupancy_sha256.py); '
                                           'empty for the SLAM -> frozen map modes'),
+        DeclareLaunchArgument('single_host', default_value='false', choices=['true', 'false'],
+                              description='true: the coordinator runs on this same PC (방식 B one-PC run); the '
+                                          'executor then needs both clock measurements from this one host'),
         DeclareLaunchArgument('nav2_params_file', default_value='',
                               description='Nav2 parameters; empty = turtlebot4_navigation config/nav2.yaml (as #132)'),
         OpaqueFunction(function=_nodes),

@@ -11,6 +11,10 @@
   and checked equal here, so a field edit on one side fails at launch instead of at admission.
 - Explicit launch arguments give what is not settled or is measured at the site: the Phase 1
   route/observe goals (#132 placeholders) and the measured occupancy hash. None has a default.
+- A field overlay (format ``rescue-field-overlay/1``, e.g. ``config/field/live_map.overlay.json``) names a
+  base field run file and only the keys it changes; ``load_field`` merges it and then checks the result
+  exactly like a plain field run file. So the live-map run (방식 B) keeps every shared value in the one base
+  file and the frozen-map run (방식 A) is untouched.
 """
 import json
 import math
@@ -20,6 +24,8 @@ from pathlib import Path
 from .profile import Deployment, ProfileError, require_map_basis
 
 FORMAT = 'rescue-field-run/1'
+OVERLAY_FORMAT = 'rescue-field-overlay/1'
+OVERLAY_SECTIONS = ('coordinator', 'robot', 'robots', 'alignment', 'watchdog')
 MAX_FIELD_BYTES = 65_536
 COORDINATOR_NODE = 'mission_coordinator'  # rescue_coordination ros_node Node name; live inputs at ~/task_inputs
 TASK_INPUTS_SERVICE = '/' + COORDINATOR_NODE + '/task_inputs'
@@ -62,9 +68,9 @@ COORDINATOR_KEYS = {
 SUPPORT_DISPATCH_MODES = ('AUTO', 'OPERATOR')
 SEARCH_START_MODES = ('AUTO', 'OPERATOR')  # rescue_coordination.ros_node.SEARCH_START_MODES
 SEARCH_MODES = ('PATROL', 'AREAS', 'FRONTIER')  # rescue_coordination.ros_node.SEARCH_MODES
-COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')  # rescue_coordination.ros_node.COMPLETION_MODES
+COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK', 'EXIT_WAIT_SCOUT_DOCK')  # rescue_coordination.ros_node.COMPLETION_MODES
 TRAFFIC_CONTROLS = ('TB5_PRIORITY', 'DISABLED')  # rescue_coordination.ros_node.TRAFFIC_CONTROLS
-MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')  # rescue_coordination.ros_node.MAP_MODES
+MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP', 'SLAM_LIVE')  # rescue_coordination.ros_node.MAP_MODES
 ROBOT_KEYS = {
     'authority_epoch': S, 'policy_version': S, 'step_period': F, 'clock_error_bound_s': F,
     **{'policy.' + name: F for name in ('acceptance_timeout', 'stop_timeout', 'stop_window', 'max_sample_gap',
@@ -99,6 +105,12 @@ ROBOT_KEYS = {
     # the judgement drawn on the robot camera (OPS-189): small JPEG, RGB frame within slop_ns of the cloud
     'passage.view.width': I, 'passage.view.quality': I, 'passage.view.slop_ns': I, 'passage.view.font_path': S,
 }
+# Live shared map (방식 B, map_mode SLAM_LIVE): how old the scout's map may be, and the SLAM correction (map -> odom
+# jump at the scout, rescue_robot.map_correction) that is logged and shown as MAP_CORRECTION_*.
+LIVE_COORDINATOR_KEYS = {'live_map_max_age_s': F, 'map_correction_m': F, 'map_correction_rad': F}
+# completion_mode EXIT_WAIT_SCOUT_DOCK: TB-6 docks itself after its return (rescue_robot.dock_node); the coordinator
+# waits this long for a DOCKED answer before SCOUT_DOCK_FAILED.
+DOCK_COORDINATOR_KEYS = {'scout_dock_timeout_s': F}
 # Per robot: identity, automatic target policy, and the Pi clock behind its AMCL scan stamps.
 # Pi bound -1 is not measured and keeps RobotPose UNKNOWN (decision 2026-10-13).
 ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
@@ -109,7 +121,9 @@ ROBOT_IDENTITY_KEYS = {'task.publisher_id': S, 'task.mapping_authority': S,
 # Map lifecycle (scope Q-29 ⑦, OPS-113/124/126): every robot names its map mode; the SLAM robot
 # also the freeze pose age, a FROZEN_MAP_AMCL robot its measured AMCL start (once measured).
 ROBOT_IDENTITY_KEYS['task.saved_map.mode'] = S
-ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')
+ROBOT_MAP_MODES = ('SAVED_MAP_AMCL', 'SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL', 'SLAM_LIVE', 'LIVE_MAP_AMCL')
+SLAM_MODES = ('SLAM_THEN_FROZEN', 'SLAM_LIVE')
+LIVE_MAP_MODES = ('SLAM_LIVE', 'LIVE_MAP_AMCL')  # opt-in experiment requested 2026-10-14
 SLAM_ROBOT_KEYS = {'map_freeze.pose_max_age_ns': I,     # TB-6 SLAM pose freshness at the freeze
                    # searching pose = TF map -> base_link; its covariance from a SLAM pose at most this old (OPS-177)
                    'task.saved_map.slam_covariance_max_age_ns': I}
@@ -202,6 +216,8 @@ def load_field(path):
         raw = json.loads(text, parse_constant=lambda c: (_ for _ in ()).throw(ValueError(c)))
     except ValueError as exc:
         raise FieldLaunchError(f'field run file is not strict JSON: {exc}') from exc
+    if isinstance(raw, dict) and raw.get('format') == OVERLAY_FORMAT:
+        raw = _merge_overlay(raw, path)
     if not isinstance(raw, dict) or set(raw) != {'format', 'source', 'coordinator', 'robot', 'robots',
                                                  'alignment', 'watchdog'}:
         raise FieldLaunchError('field run file needs exactly format, source, coordinator, robot, robots, '
@@ -210,7 +226,12 @@ def load_field(path):
         raise FieldLaunchError(f'format must be {FORMAT}')
     if not isinstance(raw['source'], str) or not raw['source']:
         raise FieldLaunchError('source must say where the values come from')
-    coordinator = _section(raw, 'coordinator', COORDINATOR_KEYS)
+    coordinator_keys = dict(COORDINATOR_KEYS)
+    if isinstance(raw.get('coordinator'), dict) and raw['coordinator'].get('map_mode') == 'SLAM_LIVE':
+        coordinator_keys.update(LIVE_COORDINATOR_KEYS)
+    if isinstance(raw.get('coordinator'), dict) and raw['coordinator'].get('completion_mode') == 'EXIT_WAIT_SCOUT_DOCK':
+        coordinator_keys.update(DOCK_COORDINATOR_KEYS)
+    coordinator = _section(raw, 'coordinator', coordinator_keys)
     robot = _section(raw, 'robot', ROBOT_KEYS)
     _section(raw, 'alignment', ALIGNMENT_KEYS)
     _section(raw, 'watchdog', WATCHDOG_KEYS)
@@ -253,11 +274,18 @@ def load_field(path):
         raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
     if coordinator['completion_mode'] not in COMPLETION_MODES:
         raise FieldLaunchError(f'coordinator.completion_mode must be one of {list(COMPLETION_MODES)}')
+    if coordinator['completion_mode'] == 'EXIT_WAIT_SCOUT_DOCK' and (
+            coordinator['map_mode'] != 'SLAM_LIVE' or coordinator['search_mode'] != 'FRONTIER'):
+        # TB-6 returns on its own exploration end (FRONTIER), on the one live map; the frozen run keeps EXIT_ARRIVAL
+        raise FieldLaunchError('coordinator.completion_mode EXIT_WAIT_SCOUT_DOCK needs map_mode SLAM_LIVE and '
+                               'search_mode FRONTIER')
+    if coordinator['completion_mode'] == 'EXIT_WAIT_SCOUT_DOCK' and coordinator['scout_dock_timeout_s'] <= 0:
+        raise FieldLaunchError('coordinator.scout_dock_timeout_s must be positive')
     if coordinator['traffic_control'] not in TRAFFIC_CONTROLS:
         raise FieldLaunchError(f'coordinator.traffic_control must be one of {list(TRAFFIC_CONTROLS)}')
-    if coordinator['map_mode'] == 'SLAM_FREEZE' and coordinator['traffic_control'] != 'TB5_PRIORITY':
+    if coordinator['map_mode'] in ('SLAM_FREEZE', 'SLAM_LIVE') and coordinator['traffic_control'] != 'TB5_PRIORITY':
         # two robots on one live map cross in the field; TB-5 leads the rescuer, so it goes first (OPS-204)
-        raise FieldLaunchError('coordinator.map_mode SLAM_FREEZE needs traffic_control TB5_PRIORITY')
+        raise FieldLaunchError('shared map mode needs traffic_control TB5_PRIORITY')
     if coordinator['traffic_path_clearance_m'] < coordinator['traffic_min_separation_m']:
         raise FieldLaunchError('coordinator.traffic_path_clearance_m must be at least traffic_min_separation_m')
     if coordinator['patrol_rounds'] < 1:
@@ -267,6 +295,12 @@ def load_field(path):
     if coordinator['map_mode'] not in MAP_MODES:
         raise FieldLaunchError(f'coordinator.map_mode must be one of {list(MAP_MODES)}')
     _pair_map_modes(coordinator['map_mode'], robot_modes)
+    if coordinator['map_mode'] == 'SLAM_LIVE':
+        if min(coordinator[key] for key in LIVE_COORDINATOR_KEYS) <= 0:
+            raise FieldLaunchError(f'coordinator.{"/".join(LIVE_COORDINATOR_KEYS)} must be positive')
+        for robot_id, section in raw['robots'].items():
+            if section['task.saved_map.live_max_age_ns'] != round(coordinator['live_map_max_age_s'] * 1e9):
+                raise FieldLaunchError(f'robots.{robot_id} live map age must equal coordinator.live_map_max_age_s')
     for robot_id, identity in raw['robots'].items():
         # The coordinator checks the approach point and homes on the frozen map with the radius each robot checks
         # its goals with; a different one passes points the robot then refuses (작전 OPS-116).
@@ -318,6 +352,63 @@ def load_field(path):
     return FieldRun(raw)
 
 
+def _strict_json(path):
+    try:
+        text = Path(path).read_bytes()
+    except OSError as exc:
+        raise FieldLaunchError(f'cannot read field run file {path}: {exc}') from exc
+    if len(text) > MAX_FIELD_BYTES:
+        raise FieldLaunchError('field run file too large')
+    try:
+        return json.loads(text, parse_constant=lambda c: (_ for _ in ()).throw(ValueError(c)))
+    except ValueError as exc:
+        raise FieldLaunchError(f'field run file is not strict JSON: {exc}') from exc
+
+
+def _merge_overlay(overlay, path):
+    """A field overlay -> the merged field run file (raw dict, checked afterwards like any field file).
+
+    ``base`` is a field run file next to the overlay (a plain name, no other folder). ``set`` holds per section the
+    keys that replace the base's; ``robots.<id>`` the same per robot; a value null removes that key. A section or
+    robot the base lacks is refused (an overlay changes a run, it does not invent robots)."""
+    if set(overlay) != {'format', 'base', 'source', 'set'}:
+        raise FieldLaunchError('field overlay needs exactly format, base, source, set')
+    base_name = overlay['base']
+    if not isinstance(base_name, str) or not base_name or Path(base_name).name != base_name:
+        raise FieldLaunchError('field overlay base must be a file name next to the overlay')
+    if not isinstance(overlay['source'], str) or not overlay['source']:
+        raise FieldLaunchError('field overlay source must say where its values come from')
+    base = _strict_json(path.parent / base_name)
+    if not isinstance(base, dict) or base.get('format') != FORMAT:
+        raise FieldLaunchError(f'field overlay base {base_name} must be a {FORMAT} file')
+    changes = overlay['set']
+    if not isinstance(changes, dict) or not set(changes) <= set(OVERLAY_SECTIONS):
+        raise FieldLaunchError(f'field overlay set may change only {list(OVERLAY_SECTIONS)}')
+
+    def apply(target, values, where):
+        if not isinstance(target, dict) or not isinstance(values, dict):
+            raise FieldLaunchError(f'field overlay {where} must be an object in the base and the overlay')
+        for key, value in values.items():
+            if value is None:
+                target.pop(key, None)
+            else:
+                target[key] = value
+
+    merged = json.loads(json.dumps(base))
+    for section, values in changes.items():
+        if section == 'robots':
+            if not isinstance(values, dict):
+                raise FieldLaunchError('field overlay set.robots must be an object')
+            for robot_id, robot_values in values.items():
+                if robot_id not in merged['robots']:
+                    raise FieldLaunchError(f'field overlay robots.{robot_id} is not in the base')
+                apply(merged['robots'][robot_id], robot_values, f'robots.{robot_id}')
+        else:
+            apply(merged.get(section), values, section)
+    merged['source'] = f'{base["source"]} || overlay {path.name}: {overlay["source"]}'
+    return merged
+
+
 def _robot_map_modes(robots):
     """robots.<id>: identity keys + map mode; one SLAM robot feeds the frozen-map robots; no mixing with saved maps."""
     modes = {}
@@ -326,32 +417,36 @@ def _robot_map_modes(robots):
         if mode not in ROBOT_MAP_MODES:
             raise FieldLaunchError(f'robots.{robot_id}.task.saved_map.mode must be one of {list(ROBOT_MAP_MODES)}')
         keys = dict(ROBOT_IDENTITY_KEYS)
-        if mode == 'SLAM_THEN_FROZEN':
+        if mode in SLAM_MODES:
             keys.update(SLAM_ROBOT_KEYS)
-        if mode == 'FROZEN_MAP_AMCL' and 'initial_pose_xy_yaw' in section:
+        if mode in LIVE_MAP_MODES:
+            keys['task.saved_map.live_max_age_ns'] = I
+        if mode in ('FROZEN_MAP_AMCL', 'LIVE_MAP_AMCL') and 'initial_pose_xy_yaw' in section:
             keys.update(FROZEN_ROBOT_OPTIONAL_KEYS)
-        if mode == 'FROZEN_MAP_AMCL':
+        if mode in ('FROZEN_MAP_AMCL', 'LIVE_MAP_AMCL'):
             keys.update(START_ALIGN_KEYS)
         if any(key in section for key in PASSAGE_DEPTH_KEYS):
             keys.update(PASSAGE_DEPTH_KEYS)
         if any(key in section for key in PASSAGE_VIEW_KEYS):
             keys.update(PASSAGE_VIEW_KEYS)
         _section(robots, robot_id, keys)
-        if mode == 'FROZEN_MAP_AMCL':
+        if mode in ('FROZEN_MAP_AMCL', 'LIVE_MAP_AMCL'):
             from rescue_robot.start_align import AlignConfig
             try:
                 AlignConfig(**{key[len('start_align.'):]: section[key] for key in START_ALIGN_KEYS})
             except ValueError as exc:
                 raise FieldLaunchError(f'robots.{robot_id}.{exc}') from None
-        for key in SLAM_ROBOT_KEYS if mode == 'SLAM_THEN_FROZEN' else ():
+        for key in SLAM_ROBOT_KEYS if mode in SLAM_MODES else ():
             if section[key] <= 0:
                 raise FieldLaunchError(f'robots.{robot_id}.{key} must be positive')
+        if mode in LIVE_MAP_MODES and section['task.saved_map.live_max_age_ns'] <= 0:
+            raise FieldLaunchError(f'robots.{robot_id}.task.saved_map.live_max_age_ns must be positive')
         if 'initial_pose_xy_yaw' in section and len(section['initial_pose_xy_yaw']) != 3:
             raise FieldLaunchError(f'robots.{robot_id}.initial_pose_xy_yaw must be [x, y, yaw]')
         if 'passage.depth_transport' in section and section['passage.depth_transport'] not in DEPTH_TRANSPORTS:
             raise FieldLaunchError(f'robots.{robot_id}.passage.depth_transport must be one of {list(DEPTH_TRANSPORTS)}')
         modes[robot_id] = mode
-    slam = [robot_id for robot_id, mode in modes.items() if mode == 'SLAM_THEN_FROZEN']
+    slam = [robot_id for robot_id, mode in modes.items() if mode in SLAM_MODES]
     frozen = [robot_id for robot_id, mode in modes.items() if mode == 'FROZEN_MAP_AMCL']
     if len(slam) > 1:
         raise FieldLaunchError(f'only one robot makes the map (SLAM_THEN_FROZEN): {slam}')
@@ -368,6 +463,8 @@ def _pair_map_modes(map_mode, robot_modes):
     modes = sorted(robot_modes.values())
     if map_mode == 'SAVED_MAP':
         ok = set(modes) == {'SAVED_MAP_AMCL'}
+    elif map_mode == 'SLAM_LIVE':
+        ok = modes.count('SLAM_LIVE') == 1 and modes.count('LIVE_MAP_AMCL') == len(modes) - 1 >= 1
     else:
         ok = modes.count('SLAM_THEN_FROZEN') == 1 and modes.count('FROZEN_MAP_AMCL') == len(modes) - 1 >= 1
     if not ok:
@@ -452,13 +549,16 @@ def coordinator_parameters(deployment, *, profile_path, field, route_segment_goa
         start['support_start_pose'] = [float(v) for v in field.robots[support_id]['initial_pose_xy_yaw']]
     # An empty array cannot go through ROS parameters (measured 2026-10-13): no patrol points = left unset.
     coordinator = {k: v for k, v in field.coordinator.items() if not (k == 'patrol_points' and not v)}
+    if field.coordinator['map_mode'] == 'SLAM_LIVE':
+        source = _slam_robot(field)
+        coordinator['live_map_topic'] = _robot(deployment, field, source)[1].namespace + '/map'
     return {**roi, **homes, **start, 'profile_path': str(profile_path), 'entry_yaws': [float(yaw) for yaw in yaws], **coordinator,
             'mission_frame_id': basis.frame_id, 'goal_map_session_id': basis.map_session_id,
             'goal_map_revision': basis.map_revision, 'goal_transform_revision': basis.transform_revision,
             'route_segment_goals': goals, 'observe_goal': observe, 'route_segment_passage_free': passage}
 
 
-def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns):
+def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns, single_host=False):
     """Profile + field file + measured map hash -> task_input and command_watchdog parameters.
 
     ``now_ns`` is the launch wall time: the declared alignment window (#132 start_robot.sh)
@@ -491,6 +591,9 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         raise FieldLaunchError(f'robot {robot_id} readiness.camera_topics is empty: ROS cannot pass an empty '
                                f'array parameter, so task_input would see it as missing')
     ns = robot.namespace
+    map_topic = ns + '/map'
+    if mode == 'LIVE_MAP_AMCL':   # TB-6's live map, TB-5's own body cleared (self_clear_map, live_localization)
+        map_topic = ns + SELF_CLEAR_MAP
     passage = _passage(field, robot_id, ns)
     executor_heartbeat, watchdog_heartbeat = ns + '/rescue/executor_heartbeat', ns + '/rescue/watchdog_heartbeat'
     backdate_ns = round(field.alignment['backdate_s'] * 1e9)
@@ -512,23 +615,33 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         **_task_keys(field.robots[robot_id]), 'task.mission_frame': basis.frame_id,
         'task.saved_map.map_session_id': basis.map_session_id, 'task.saved_map.map_revision': basis.map_revision,
         'task.saved_map.transform_revision': basis.transform_revision,
-        'task.saved_map.map_topic': ns + '/map', 'task.saved_map.localization_topic': ns + '/amcl_pose',
+        'task.saved_map.map_topic': map_topic,
+        'task.saved_map.localization_topic': ns + ('/localized_pose' if mode == 'LIVE_MAP_AMCL' else '/amcl_pose'),
         'task.saved_map.map_frame': readiness.map_frame, 'task.saved_map.occupancy_sha256': occupancy_sha256,
         'task.saved_map.valid_from_ns': now_ns - backdate_ns,
         'task.saved_map.transform_valid_until_ns': now_ns + window_ns,
     }
-    if mode == 'SLAM_THEN_FROZEN':
-        task_input['task.saved_map.slam_localization_topic'] = ns + '/pose'   # slam_toolbox pose: covariance
+    if mode in SLAM_MODES:
+        # slam_toolbox pose: covariance. Live map: its last pose repeated with its own stamp (slam_pose_latest), so an
+        # executor started after SLAM's only pose of a standing TB-6 still gets it (rehearsal 2026-10-15)
+        task_input['task.saved_map.slam_localization_topic'] = ns + (SLAM_POSE_LATEST if mode == 'SLAM_LIVE'
+                                                                     else '/pose')
         # searching pose = TF map -> base_link on this robot's TF topic (OPS-177)
         task_input.update({'task.saved_map.slam_tf_topic': readiness.tf_topic,
                            'task.saved_map.slam_odom_frame': readiness.odom_frame,
                            'task.saved_map.slam_base_frame': SLAM_BASE_FRAME})
     if mode == 'FROZEN_MAP_AMCL':   # re-aligning on the second frozen map starts AMCL from its own pose (OPS-154)
         task_input['task.saved_map.initial_pose_topic'] = ns + '/initialpose'
+    if type(single_host) is not bool:
+        raise FieldLaunchError('single_host must be true or false')
+    if single_host:
+        # one PC runs the coordinator and this robot (방식 B 한 PC 실행): the executor then asks that both clock
+        # measurements are of this one host, boot and clock epoch (rescue_robot.live_clock), never two PCs
+        task_input['task.live.allow_same_host'] = True
     home = deployment.home_of(robot_id)  # RETURN_HOME destination; absent = this robot has no home
     # SLAM_FREEZE: the TB-5 exit is the QR exit TB-6 finds, sent by the coordinator as 'home/robot_b'
     # (OPS-139); a profile home here would be used until the first coordinator record.
-    if home is not None and mode != 'FROZEN_MAP_AMCL':
+    if home is not None and mode not in ('FROZEN_MAP_AMCL', 'LIVE_MAP_AMCL'):
         task_input['task.live.home_xy_yaw'] = list(home)
     upstream = ns + '/cmd_vel_watchdog_in'
     watchdog = {'namespace': ns, 'cmd_vel_in_topic': upstream, 'cmd_vel_out_topic': ns + '/cmd_vel',
@@ -537,7 +650,7 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
     # Nav2's final velocity writers go to the watchdog, which alone writes <ns>/cmd_vel (#132).
     remaps = [('collision_monitor:' + ns + '/cmd_vel', upstream), ('docking_server:' + ns + '/cmd_vel', upstream)]
     return {'namespace': ns, 'use_sim_time': robot.use_sim_time, 'task_input': task_input, 'watchdog': watchdog,
-            'passage': passage,
+            'passage': passage, 'map_topic': map_topic,
             'nav2_remaps': remaps}
 
 
@@ -556,12 +669,32 @@ def _robot(deployment, field, robot_id):
     return basis, robots[robot_id].parameters, field.robots[robot_id]
 
 
+# Live shared map (SLAM_LIVE) only: slam_toolbox processes a scan every minimum_time_interval even while TB-6 stands
+# still (both travel thresholds 0). Otherwise a standing TB-6 has only its first-scan pose, whose covariance is a
+# 1.0 m^2 placeholder (rehearsal 2026-10-15) over task.saved_map.max_position_variance_m2 0.25: its MapState stays
+# UNKNOWN and it never gets its first frontier goal. [제안 2026-10-15, not measured on the robot]: 1.0 s keeps the
+# pose graph to about one node a second while standing; while moving at 0.2 m/s it is a scan every 0.2 m.
+LIVE_SLAM_OVERRIDES = {'minimum_travel_distance': 0.0, 'minimum_travel_heading': 0.0, 'minimum_time_interval': 1.0}
+
+
+def live_slam_params(slam_yaml, overrides=LIVE_SLAM_OVERRIDES):
+    """turtlebot4_navigation slam.yaml with the live-map overrides (the file itself is not changed)."""
+    from copy import deepcopy
+    params = deepcopy(slam_yaml)
+    try:
+        params['slam_toolbox']['ros__parameters'].update(overrides)
+    except (KeyError, TypeError, AttributeError):
+        raise FieldLaunchError('SLAM parameters need slam_toolbox.ros__parameters') from None
+    return params
+
+
 def slam_launch_values(deployment, *, field, robot_id):
     """TB-6 SLAM while searching (turtlebot4_navigation slam.launch.py): only the SLAM_THEN_FROZEN robot."""
     _, robot, section = _robot(deployment, field, robot_id)
-    if section['task.saved_map.mode'] != 'SLAM_THEN_FROZEN':
+    if section['task.saved_map.mode'] not in SLAM_MODES:
         raise FieldLaunchError(f'{robot_id} is {section["task.saved_map.mode"]}, not the SLAM robot')
-    return {'namespace': robot.namespace, 'use_sim_time': robot.use_sim_time}
+    return {'namespace': robot.namespace, 'use_sim_time': robot.use_sim_time,
+            'live': section['task.saved_map.mode'] == 'SLAM_LIVE'}
 
 
 def frozen_localization_values(deployment, *, field, robot_id):
@@ -570,6 +703,8 @@ def frozen_localization_values(deployment, *, field, robot_id):
     mode, ns = section['task.saved_map.mode'], robot.namespace
     if mode == 'SAVED_MAP_AMCL':
         raise FieldLaunchError(f'{robot_id} uses a saved map (SAVED_MAP_AMCL); no frozen-map localization')
+    if mode in LIVE_MAP_MODES:
+        raise FieldLaunchError(f'{robot_id} uses a live map; use live_localization.launch.py')
     start = align = None
     if mode == 'FROZEN_MAP_AMCL':
         align = {key[len('start_align.'):]: section[key] for key in START_ALIGN_KEYS}
@@ -596,24 +731,148 @@ def frozen_localization_values(deployment, *, field, robot_id):
 
 def _slam_robot(field):
     slam = [robot_id for robot_id, section in field.robots.items()
-            if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
+            if section['task.saved_map.mode'] in SLAM_MODES]
     if len(slam) != 1:
         raise FieldLaunchError('one SLAM_THEN_FROZEN robot is needed for the start pose')
     return slam[0]
 
 
-def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time):
+def live_localization_values(deployment, *, field, robot_id, start_xy_yaw=None):
+    """TB-5 AMCL on TB-6's live SLAM map (방식 B): seeded at its measured start, then start_align.
+
+    The seed is the measured TB-5 start [x m, y m, yaw rad] relative to the TB-6 start pose (OPS-141, the frame
+    every pre-measured point uses): ``start_xy_yaw`` from the launch (field PC override) or the field run file
+    ``robots.<id>.initial_pose_xy_yaw``. Neither = refused, never made up. start_align (the frozen-map rule,
+    rescue_robot.start_align) spreads the particles, asks no-motion updates on the live map and, only once
+    ALIGNED, relays AMCL poses to ``<ns>/localized_pose``: the executor's only localization input, so TB-5 has
+    no VALID pose (and is never dispatched) before the alignment passed.
+    """
+    basis, robot, section = _robot(deployment, field, robot_id)
+    if section['task.saved_map.mode'] != 'LIVE_MAP_AMCL':
+        raise FieldLaunchError(f'{robot_id} must use LIVE_MAP_AMCL; the scout keeps SLAM')
+    source = _slam_robot(field)
+    _, scout, _ = _robot(deployment, field, source)
+    ns, map_topic = robot.namespace, robot.namespace + SELF_CLEAR_MAP
+    if start_xy_yaw is not None:
+        start, origin = [float(v) for v in start_xy_yaw], 'launch argument'
+        if len(start) != 3 or not all(math.isfinite(v) for v in start):
+            raise FieldLaunchError('TB-5 start must be [x, y, yaw] (m, m, rad), finite')
+    elif 'initial_pose_xy_yaw' in section:
+        start, origin = list(section['initial_pose_xy_yaw']), f'field run file robots.{robot_id}'
+    else:
+        raise FieldLaunchError(f'TB-5 start (robots.{robot_id}.initial_pose_xy_yaw) is not measured: give '
+                               f'tb5_start_xy_yaw:=[x, y, yaw] (m, m, rad, relative to the TB-6 start pose) or '
+                               f'add the measured line to the field run file; it is never made up')
+    align = {key[len('start_align.'):]: section[key] for key in START_ALIGN_KEYS}
+    align.update(map_topic=map_topic, scan_topic=ns + '/scan', odom_topic=ns + '/odom',
+                 dock_topic=ns + '/dock_status', amcl_pose_topic=ns + '/amcl_pose',
+                 set_initial_pose_service=ns + '/set_initial_pose',
+                 nomotion_update_service=ns + '/request_nomotion_update',
+                 status_topic=ns + '/rescue_start_align', base_frame=SLAM_BASE_FRAME,
+                 map_frame=basis.frame_id, output_pose_topic=ns + '/localized_pose')
+    relay = dict(input_topic=scout.namespace + '/map', output_topic=map_topic, pose_topic=ns + '/amcl_pose',
+                 pose_max_age_s=SELF_CLEAR_POSE_AGE_S)   # start_xy: the seed placed on the map, by the launch
+    return dict(namespace=ns, use_sim_time=robot.use_sim_time, map_topic=map_topic, self_clear=relay,
+                map_frame=basis.frame_id, odom_frame=robot.readiness.odom_frame,
+                base_frame=SLAM_BASE_FRAME, scan_topic=robot.readiness.scan_topic,
+                tf_topic=robot.readiness.tf_topic, tf_static_topic=ns + '/tf_static',
+                initial_pose_xy_yaw=start, start_source=origin, start_align=align,
+                start_pose_topic=START_POSE_TOPIC + source)
+
+
+def nav2_shared_map(parameters, map_topic):
+    """Use AMR1's full OccupancyGrid stream in existing static layers (user experiment, 2026-10-14)."""
+    from copy import deepcopy
+    result = deepcopy(parameters)
+    found = False
+    for name in ('global_costmap', 'local_costmap'):
+        costmap = result.get(name, {}).get(name, {}).get('ros__parameters', {})
+        layer = costmap.get('static_layer')
+        if isinstance(layer, dict):
+            # every full grid of the SLAM stream (slam_toolbox publishes no OccupancyGridUpdate) [Nav2 jazzy
+            # static_layer.cpp incomingMap]
+            layer.update(map_topic=map_topic, map_subscribe_transient_local=True, subscribe_to_updates=False)
+            found = found or name == 'global_costmap'
+    if not found:
+        raise FieldLaunchError('Nav2 parameters need global_costmap.global_costmap.ros__parameters.static_layer')
+    return result
+
+
+def amcl_parameters(localization_yaml, *, initial_pose_xy_yaw, use_sim_time, map_topic=None, live=False):
     """turtlebot4_navigation localization.yaml amcl values + the start pose (nav2 amcl set_initial_pose)."""
     try:
         params = dict(localization_yaml['amcl']['ros__parameters'])
     except (KeyError, TypeError):
         raise ValueError('localization parameters have no amcl.ros__parameters') from None
+    if live:
+        params['tf_broadcast'] = True  # user 2026-10-15: AMCL is AMR2's map->odom authority
+    if live and initial_pose_xy_yaw is None:
+        params.update(use_sim_time=use_sim_time, set_initial_pose=False, always_reset_initial_pose=False,
+                      first_map_only=False, map_topic=map_topic)
+        params.pop('initial_pose', None)
+        for name in tuple(params):
+            if name.startswith('initial_pose.'):
+                params.pop(name)
+        return params
     if (len(initial_pose_xy_yaw) != 3 or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
                                                  and math.isfinite(v) for v in initial_pose_xy_yaw)):
         raise ValueError('AMCL start must be three finite numbers [x, y, yaw]')
     x, y, yaw = (float(v) for v in initial_pose_xy_yaw)
     params.update(use_sim_time=use_sim_time, set_initial_pose=True, initial_pose={'x': x, 'y': y, 'z': 0.0, 'yaw': yaw})
+    if map_topic is not None:
+        params['map_topic'] = map_topic
+    if live:
+        params['first_map_only'] = False
     return params
+
+
+# TB-6 dock (completion_mode EXIT_WAIT_SCOUT_DOCK, rescue_robot.dock_node) [제안 2026-10-15, not measured]: the
+# Create3 dock action server must answer this soon after a request, and the robot's dock_status must confirm
+# is_docked this soon after the action result. The node's own result timeout is what is left of the coordinator's
+# scout_dock_timeout_s, so the node decides (and cancels the goal) before the coordinator gives up.
+DOCK_ACTION_WAIT_S = 5.0
+DOCK_CONFIRM_S = 5.0
+MAP_CORRECTION_TOPIC = '/rescue/map/correction'   # rescue_coordination.ros_node.MAP_CORRECTION_TOPIC
+SLAM_POSE_LATEST = '/rescue/slam_pose_latest'   # <ns> + this: rescue_robot.slam_pose_latest output (SLAM_LIVE)
+SLAM_POSE_REPEAT_S = 1.0   # [제안 2026-10-15] how often the last SLAM pose is repeated (its own stamp kept)
+SELF_CLEAR_MAP = '/rescue/shared_map'   # <TB-5 ns> + this: TB-6's map without TB-5's own body (self_clear_map)
+SELF_CLEAR_POSE_AGE_S = 2.0   # [제안] TB-5 AMCL pose at most this old marks where TB-5 stands now
+
+
+def slam_pose_latest_values(deployment, *, field):
+    """slam_pose_latest node parameters for the SLAM_LIVE robot (live_map.launch.py, started before SLAM)."""
+    _, robot, _ = _robot(deployment, field, _slam_robot(field))
+    return {'input_topic': robot.namespace + '/pose', 'output_topic': robot.namespace + SLAM_POSE_LATEST,
+            'period_s': SLAM_POSE_REPEAT_S}
+
+
+def dock_values(deployment, *, field, robot_id):
+    """dock node parameters for the SLAM_LIVE (TB-6) robot of an EXIT_WAIT_SCOUT_DOCK run; None for any other."""
+    _, robot, section = _robot(deployment, field, robot_id)
+    if field.coordinator['completion_mode'] != 'EXIT_WAIT_SCOUT_DOCK' or section['task.saved_map.mode'] != 'SLAM_LIVE':
+        return None
+    timeout = field.coordinator['scout_dock_timeout_s'] - DOCK_ACTION_WAIT_S - DOCK_CONFIRM_S
+    if timeout <= 0:
+        raise FieldLaunchError(f'coordinator.scout_dock_timeout_s must exceed {DOCK_ACTION_WAIT_S + DOCK_CONFIRM_S} s '
+                               '(dock action wait + dock_status confirmation)')
+    base = f'/rescue/robots/{robot_id}'
+    return {'robot_id': robot_id, 'dock_action': robot.namespace + '/dock', 'dock_status_topic': robot.dock_status_topic,
+            'robot_status_topic': base + '/status', 'service': base + '/dock', 'state_topic': base + '/dock_state',
+            'status_max_age_s': field.coordinator['status_max_age_s'],
+            'dock_status_max_age_s': field.robot['policy.evidence_max_age'],
+            'action_wait_s': DOCK_ACTION_WAIT_S, 'result_timeout_s': timeout, 'confirm_timeout_s': DOCK_CONFIRM_S}
+
+
+def map_correction_values(deployment, *, field):
+    """map_correction node parameters: the SLAM_LIVE robot's TF, the field's coordinator.map_correction_*."""
+    if field.coordinator['map_mode'] != 'SLAM_LIVE':
+        raise FieldLaunchError('map correction watch is for map_mode SLAM_LIVE')
+    source = _slam_robot(field)
+    basis, robot, _ = _robot(deployment, field, source)
+    return {'robot_id': source, 'tf_topic': robot.readiness.tf_topic, 'map_frame': basis.frame_id,
+            'odom_frame': robot.readiness.odom_frame, 'base_frame': SLAM_BASE_FRAME,
+            'output_topic': MAP_CORRECTION_TOPIC, 'correction_m': field.coordinator['map_correction_m'],
+            'correction_rad': field.coordinator['map_correction_rad']}
 
 
 def map_freeze_parameters(deployment, *, field, output_dir):
@@ -623,7 +882,7 @@ def map_freeze_parameters(deployment, *, field, output_dir):
     """
     deployment, basis = _deployment(deployment)
     slam = [robot_id for robot_id, section in field.robots.items()
-            if section['task.saved_map.mode'] == 'SLAM_THEN_FROZEN']
+            if section['task.saved_map.mode'] in SLAM_MODES]
     if not slam:
         raise FieldLaunchError('no SLAM_THEN_FROZEN robot in the field run file; nothing to freeze')
     _, robot, section = _robot(deployment, field, slam[0])

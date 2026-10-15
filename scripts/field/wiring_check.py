@@ -137,7 +137,7 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
     adapter = {r: node(NODES['adapter'], values[r]['namespace']) for r in ids}
     relayed = [r for r in ids if modes[r] == 'FROZEN_MAP_AMCL'
                or (modes[r] == 'SLAM_THEN_FROZEN' and slam_phase == 'FROZEN')]
-    frozen_readers = [r for r in ids if modes[r] != 'SAVED_MAP_AMCL']
+    frozen_readers = [r for r in ids if modes[r] in ('SLAM_THEN_FROZEN', 'FROZEN_MAP_AMCL')]
     shown = [r for r in ids if r in picked]
     links = []
     for r in shown:
@@ -210,7 +210,36 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
                  source='task_site_runtime ~/task_stop'),
         ]
         map_topic, src_map = t['task.saved_map.map_topic'], src + ' task.saved_map.*'
-        if modes[r] == 'SLAM_THEN_FROZEN' and slam_phase == 'SEARCHING':
+        if modes[r] == 'SLAM_LIVE':
+            # live map (방식 B): SLAM's own /pose reaches the start pose recorder; the executor reads its repeat
+            # (rescue_slam_pose_latest, the same message with its own stamp)
+            relay = node('rescue_slam_pose_latest')
+            links += [link(f'{r}.map', 'topic', map_topic, [here('slam_toolbox')], [adapter[r]], source=src_map),
+                      link(f'{r}.slam_pose', 'topic', ns + '/pose', [here('slam_toolbox')],
+                           [node('rescue_slam_start_pose'), relay], source='live_map.launch.py'),
+                      link(f'{r}.slam_pose_latest', 'topic', t['task.saved_map.slam_localization_topic'], [relay],
+                           [adapter[r]], source=src_map)]
+        elif modes[r] == 'LIVE_MAP_AMCL':
+            # TB-5 on TB-6's live map: AMCL seeded at the measured start; start_align relays its poses only once
+            # ALIGNED (live_localization.launch.py)
+            gate = node('rescue_start_align', ns)
+            scout_slam = node('slam_toolbox', values[scout[0]]['namespace'])
+            relay = node('rescue_self_clear_map', ns)
+            links += [
+                link(f'{r}.live_map', 'topic', values[scout[0]]['namespace'] + '/map', [scout_slam], [relay],
+                     source='live_localization.launch.py self_clear_map'),
+                link(f'{r}.shared_map', 'topic', map_topic, [relay],
+                     [adapter[r], here('amcl'), gate, node('global_costmap', ns + '/global_costmap')],
+                     source=src_map),
+                link(f'{r}.raw_amcl_pose', 'topic', ns + '/amcl_pose', [here('amcl')], [gate], source=src_map),
+                link(f'{r}.localized_pose', 'topic', t['task.saved_map.localization_topic'], [gate],
+                     [adapter[r]], source=src_map),
+                link(f'{r}.set_initial_pose', 'service', ns + '/set_initial_pose', [here('amcl')], [gate],
+                     source='start_align.py'),
+                link(f'{r}.nomotion_update', 'service', ns + '/request_nomotion_update',
+                     [here('amcl')], [gate], source='start_align.py'),
+            ]
+        elif modes[r] == 'SLAM_THEN_FROZEN' and slam_phase == 'SEARCHING':
             links += [link(f'{r}.map', 'topic', map_topic, [here('slam_toolbox')], [adapter[r], freeze], source=src_map),
                       link(f'{r}.slam_pose', 'topic', t['task.saved_map.slam_localization_topic'],
                            [here('slam_toolbox')], [adapter[r], freeze], source=src_map)]
@@ -240,10 +269,11 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
     ]
     # FRONTIER: the coordinator reads the SCOUT live map under a fixed name (rescue_coordination SCOUT_MAP_TOPIC);
     # a profile namespace other than that name leaves it without a publisher, which this row shows
-    if field.coordinator.get('search_mode') == 'FRONTIER':
+    if field.coordinator.get('search_mode') == 'FRONTIER' or field.coordinator.get('map_mode') == 'SLAM_LIVE':
         for r in (r for r in scout if r in picked):
             own = next(lk for lk in links if lk.id == f'{r}.map')
-            links.append(link(f'{r}.coordinator_map', 'topic', co.SCOUT_MAP_TOPIC, own.writers, [coord],
+            topic = own.name if field.coordinator.get('map_mode') == 'SLAM_LIVE' else co.SCOUT_MAP_TOPIC
+            links.append(link(f'{r}.coordinator_map', 'topic', topic, own.writers, [coord],
                               source='rescue_coordination SCOUT_MAP_TOPIC (search_mode FRONTIER)'))
     if field.coordinator.get('map_mode') == 'SLAM_FREEZE':
         links += [

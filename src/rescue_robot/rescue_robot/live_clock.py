@@ -120,7 +120,15 @@ class LiveClock:
             raise ContractError('waiting for measured coordinator clock', 'CLOCK_UNCERTAIN')
         local = self.validate_measurement(self.sampler.record)
         peer = self.validate_measurement(self.peer['clock'])
-        if local['host_id'] == peer['host_id']:
+        same_host = local['host_id'] == peer['host_id']
+        if self.settings.get('allow_same_host', False):
+            # one-PC run (방식 B, launch single_host:=true; co_map 2026-10-15): both measurements must be of this one
+            # host, boot and clock epoch; the two error bounds are still both counted below (conservative)
+            if not same_host or any(not local.get(k) or local.get(k) != peer.get(k)
+                                    for k in ('host_boot_id', 'epoch_id', 'backend')):
+                raise ContractError('single desktop requires matching measured host, boot and clock epoch',
+                                    'CLOCK_UNCERTAIN')
+        elif same_host:
             raise ContractError('LIVE_ROS expects two distinct PCs', 'CLOCK_UNCERTAIN')
         now = self.runtime.adapter.wall_clock_ns()
         # Conservatively age both error bounds between measurements and use.

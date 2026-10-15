@@ -38,7 +38,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from rescue_contracts.grid_search import clear_mask, find_frontiers, grid_path, nearest_clear_outside, path_lengths
-from rescue_contracts.occupancy import compose_planar, parse_frozen_revision, planar_origin
+from rescue_contracts.occupancy import clear_discs, compose_planar, parse_frozen_revision, planar_origin
 from rescue_contracts import RescueError, SiteEvent, TaskAdmission, STAMP_SEMANTICS, duration_ns, seconds_to_ns, timestamp_ns
 
 from .mission import ALL_COMMAND_FIELDS, HomePosition, MissionCoordinator, OperatorCommand, RecheckRequest
@@ -75,7 +75,8 @@ EXECUTOR_OUTCOMES = frozenset({'COMPLETED', 'CANCELED', 'EXPIRED', 'UNREACHABLE'
 STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.motion_state
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
 # and the map is frozen before TB-5 goes; SAVED_MAP = one launch basis for the whole mission (earlier runs).
-MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP')
+MAP_MODES = ('SLAM_FREEZE', 'SAVED_MAP', 'SLAM_LIVE')
+SHARED_MAP_MODES = ('SLAM_FREEZE', 'SLAM_LIVE')  # user live-map experiment, 2026-10-14
 MAP_FREEZE_SERVICE = '/rescue/map/freeze'  # std_srvs/Trigger (통합-로봇); only ``success`` is used
 FROZEN_MAP_TOPIC = '/rescue/map/frozen'    # nav_msgs/OccupancyGrid, RELIABLE / TRANSIENT_LOCAL
 FROZEN_REVISION_TOPIC = '/rescue/map/frozen_revision'  # std_msgs/String JSON: which revision that grid is (#242)
@@ -97,7 +98,15 @@ PATROL_BASIS = 'PATROL_POINT'  # MissionSite.basis of a patrol point; must be in
 PATROL_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/patrol_point')
 FRONTIER_BASIS = 'FRONTIER'    # MissionSite.basis of a frontier goal; must be in executable_bases
 FRONTIER_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, 'rescue_coordination/frontier')
-COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK')
+COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK', 'EXIT_WAIT_SCOUT_DOCK')
+# EXIT_WAIT_SCOUT_DOCK (방식 B one-PC full scenario, user work order 2026-10-15): TB-5 stops and waits at its exit (no
+# return, no dock); TB-6 goes back to its own start pose once its exploration ended (not on TB-5's exit) and docks
+# there (rescue_robot.dock_node, Create3 dock action). FINISHED needs the confirmed dock, never the arrival alone.
+SCOUT_DOCK_SERVICE = '/dock'        # ROBOT_PREFIX + SCOUT + this: std_srvs/Trigger, answer JSON {"request": n, ...}
+SCOUT_DOCK_STATE_TOPIC = '/dock_state'  # ROBOT_PREFIX + SCOUT + this: std_msgs/String JSON, latched
+DOCK_STATES = ('REQUESTED', 'DOCKING', 'DOCKED', 'FAILED')
+MAP_CORRECTION_TOPIC = '/rescue/map/correction'  # std_msgs/String JSON (rescue_robot.map_correction), SLAM_LIVE
+MISSION_OUTCOME_TOPIC = '/rescue/mission_outcome'  # std_msgs/String JSON, latched: how the run ended (runner, log)
 # Traffic control, stage 1 (owner decision 2026-10-14, scope Q-29 ⑤; 작전 OPS-204·205): TB-5 always goes first,
 # because TB-5 leads the rescuer, who follows it on foot. DISABLED is for robot-less fixtures only (not OFF:
 # YAML reads it as false on the ROS command line); the field launch refuses it with SLAM_FREEZE (one live map).
@@ -111,6 +120,10 @@ TRAFFIC_REASONS = ('TRAFFIC_SUPPORT_WAITING_SCOUT_STOP',   # TB-6 canceled for T
                    'TRAFFIC_SUPPORT_PATH_UNKNOWN',         # no clear grid path for TB-5 on the frozen map
                    'TRAFFIC_SCOUT_POSE_UNKNOWN', 'TRAFFIC_SUPPORT_POSE_UNKNOWN',  # cannot tell where the other is
                    'TRAFFIC_SEPARATION_UNCHECKED')  # TB-6 goes, TB-5's start spot not measured (shown, not a hold)
+# A step-aside spot is this much farther than traffic_path_clearance_m: Nav2 ends a goal anywhere within its
+# xy_goal_tolerance (TurtleBot4 nav2.yaml general_goal_checker 0.25 m), so a spot right at the clearance can leave
+# TB-6 still too close and it steps aside again and again (rehearsal 2026-10-15: 117 step-asides of 7 cm).
+STEP_ASIDE_MARGIN_M = 0.25
 SCOUT_MAP_TOPIC = '/robot6/map'  # TB-6 live SLAM OccupancyGrid (통합-로봇 OPS-159 ④) [추정: 실기 미확인]
 EXIT_LOCATION_TOPIC = '/rescue/exit_location'  # TargetLocation from the QR exit detector (통합-인식, 안 「나」)
 EXIT_CLASS_LABEL = 'exit_qr'
@@ -244,6 +257,14 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
         frame.map_session_id = pose['map_session_id']
         frame.map_revision = pose['map_revision']
         frame.transform_revision = pose['transform_revision']
+    home_frame = fields.get('home_frame')
+    if home_frame is not None:
+        # RETURN_HOME carries no pose and no route: its frame_ref names the basis of the destination this coordinator
+        # sent as home/<robot_id> (task_wire.frame_key needs every field; the robot then checks that destination
+        # against its own current alignment, task_site_runtime.resolve_goal). Without it every RETURN_HOME (TB-5's
+        # exit, TB-6's return) was refused 'native frame' (rehearsal 2026-10-15).
+        for name, value in home_frame.items():
+            setattr(frame, name, value)
     route, approval = fields.get('route'), fields.get('approval')
     goal.has_route, goal.has_approval = route is not None, approval is not None
     if route is not None:
@@ -327,7 +348,8 @@ class CoordinatorCore:
                  patrol_rounds, exit_standoff_m, frontier_min_cells, frontier_reach_m, frontier_goal_max_m,
                  frontier_blacklist_m, frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
                  completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
-                 traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns, new_id=None):
+                 traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns,
+                 live_map_max_age_ns=None, scout_dock_timeout_ns=None, new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
         contract_value(duration_ns, status_max_age_ns)
@@ -375,7 +397,13 @@ class CoordinatorCore:
         contract_value(duration_ns, recheck_max_clock_error_ns)
         self.recheck_max_clock_error_ns = recheck_max_clock_error_ns  # C-11 row 8 limit on the error sum
         if map_mode not in MAP_MODES:
-            raise CoordinationError('INVALID_POLICY', 'map_mode must be SLAM_FREEZE or SAVED_MAP')
+            raise CoordinationError('INVALID_POLICY', f'map_mode must be one of {MAP_MODES}')
+        if map_mode == 'SLAM_LIVE':
+            contract_value(duration_ns, live_map_max_age_ns)
+            if live_map_max_age_ns <= 0:
+                raise CoordinationError('INVALID_POLICY', 'positive live map age required')
+        self.live_map_max_age_ns, self.live_map_stamp_ns = live_map_max_age_ns, None
+        self.support_start_map_pose = None  # first localized support pose, not a configured seed
         finite(freeze_clearance_m, 'freeze_clearance_m')
         contract_value(duration_ns, map_freeze_timeout_ns)
         if freeze_clearance_m <= 0 or map_freeze_timeout_ns <= 0:
@@ -440,7 +468,21 @@ class CoordinatorCore:
         self.exploration_started_ns, self.exploration_complete, self.exploration_reason = None, False, None
         # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL = TB-5 at the exit, no TB-6 recheck; RECHECK = C-11 flow.
         if completion_mode not in COMPLETION_MODES:
-            raise CoordinationError('INVALID_POLICY', 'completion_mode must be EXIT_ARRIVAL or RECHECK')
+            raise CoordinationError('INVALID_POLICY', f'completion_mode must be one of {list(COMPLETION_MODES)}')
+        if completion_mode == 'EXIT_WAIT_SCOUT_DOCK':
+            if map_mode != 'SLAM_LIVE' or search_mode != 'FRONTIER':
+                raise CoordinationError('INVALID_POLICY', 'EXIT_WAIT_SCOUT_DOCK needs map_mode SLAM_LIVE and '
+                                                          'search_mode FRONTIER (TB-6 returns on its exploration end)')
+            contract_value(duration_ns, scout_dock_timeout_ns)
+            if scout_dock_timeout_ns <= 0:
+                raise CoordinationError('INVALID_POLICY', 'scout_dock_timeout must be positive')
+        self.scout_dock_timeout_ns = scout_dock_timeout_ns
+        # TB-6 dock after its return (EXIT_WAIT_SCOUT_DOCK): None, REQUESTED (Trigger sent), DOCKING (accepted),
+        # DOCKED (dock_node confirmed is_docked), FAILED (never asked again; the reason is shown)
+        self.scout_dock, self.scout_dock_due_ns, self.dock_send = None, None, False
+        self.scout_dock_request, self.scout_dock_reason = None, ''
+        self.map_corrections = []   # SLAM corrections seen at TB-6 (SLAM_LIVE): dicts from rescue_robot.map_correction
+        self.last_outcome = None
         if support_start_pose is not None:
             support_start_pose = tuple(float(v) for v in support_start_pose)
             if len(support_start_pose) != 3 or not all(math.isfinite(v) for v in support_start_pose):
@@ -480,6 +522,7 @@ class CoordinatorCore:
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
         self.yield_count = 0
         self.separation_unchecked = False  # TB-6 goes without the separation check (TB-5 start not measured)
+        self.goal_near_idle_tb5 = False    # this tick: the held frontier goal is by a TB-5 without a task
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
         self.start_pose_conflict = False
@@ -633,11 +676,18 @@ class CoordinatorCore:
                 sites.append(MissionSite(patrol_site_id(session, i), (x, y), PATROL_BASIS, session, rev, transform,
                                          entry_yaw=yaw))
             self.search.policy = replace(self.search.policy, areas=tuple(sites))
-        if self.map_mode == 'SLAM_FREEZE' and scout in self.mission.homes:
+        if self.map_mode in SHARED_MAP_MODES and scout in self.mission.homes:
             # The docking approach point is measured from TB-6's start pose, not the SLAM origin (OPS-141).
             home = self.mission.homes[scout]
             x, y, yaw = compose_planar(self.start_pose, (*home.mission_xy, home.yaw))
             self.mission.homes = self.mission.homes | {scout: replace(home, mission_xy=(x, y), yaw=yaw)}
+        elif self.completion_mode == 'EXIT_WAIT_SCOUT_DOCK':
+            # No profile docking approach point: TB-6 goes back to its own recorded start pose (user work order
+            # 2026-10-15). slam_toolbox keeps its first pose graph vertex fixed, so this pose stays put through loop
+            # closures [추정, slam_toolbox ceres solver: first node constant; 실기 미확인].
+            x, y, yaw = self.start_pose
+            self.mission.homes = self.mission.homes | {scout: HomePosition(scout, (x, y), yaw, session, rev,
+                                                                           transform)}
         self.notes.append(f'START_POSE bound {self.start_pose} session={session} revision={rev}')
         return True
 
@@ -671,10 +721,49 @@ class CoordinatorCore:
         return ''
 
     # -- frontier exploration (owner decision 2026-10-13 night, OPS-154·156) ----------------------------------
-    def on_scout_map(self, grid):
+    def on_scout_map(self, grid, *, now_ns=None):
         """TB-6's live SLAM grid (``fields`` as rescue_contracts.occupancy); each update may hold new frontiers."""
+        if self.map_mode == 'SLAM_LIVE':
+            contract_value(timestamp_ns, now_ns)
+            if self.live_map_stamp_ns is not None and now_ns < self.live_map_stamp_ns:
+                self.scout_grid = None
+                raise CoordinationError('STALE_OBSERVATION', 'live map timestamp regressed')
+            self.live_map_stamp_ns = now_ns
         self.scout_grid, self.scout_grid_seq = grid, self.scout_grid_seq + 1
         return self.scout_grid_seq
+
+    def _shared_grid(self):
+        return self.scout_grid if self.map_mode == 'SLAM_LIVE' else self.frozen_grid
+
+    def _shared_basis(self):
+        return self._search_basis() if self.map_mode == 'SLAM_LIVE' else self.frozen
+
+    def _map_complete(self):
+        return self.exploration_complete if self.map_mode == 'SLAM_LIVE' else self.frozen_stage >= 2
+
+    def _support_fields(self, support_xy):
+        """Grid fields for TB-5's own paths. Live map: TB-6's grid with TB-5's own body cleared around where TB-5
+        stands and its start spot (rescue_contracts.occupancy.clear_discs, as TB-5's own map relay does); TB-6's SLAM
+        keeps TB-5 there as an obstacle (rehearsal 2026-10-15: TRAFFIC_SUPPORT_PATH_UNKNOWN from TB-5's start)."""
+        grid = self._shared_grid()
+        fields = getattr(grid, 'fields', None)
+        if fields is None or self.map_mode != 'SLAM_LIVE':
+            return fields
+        own = [tuple(support_xy)] if support_xy is not None else []
+        start = self.support_start_map_pose or (compose_planar(self.start_pose, self.support_start_pose)
+                                                if self.start_pose and self.support_start_pose else None)
+        if start is not None:
+            own.append(tuple(start[:2]))
+        return fields | dict(data=clear_discs(**fields, discs=own)) if own else fields
+
+    def _live_map_ready(self, now_ns):
+        if self.scout_grid is None or self.live_map_stamp_ns is None:
+            self.issue_block = 'LIVE_MAP_MISSING'
+            return False
+        if not 0 <= now_ns - self.live_map_stamp_ns < self.live_map_max_age_ns:
+            self.issue_block = 'LIVE_MAP_STALE'
+            return False
+        return True
 
     def _scout_xy(self, now_ns):
         """TB-6's mission xy when its pose is fresh, VALID and on the search basis, else None."""
@@ -792,7 +881,7 @@ class CoordinatorCore:
     def _chosen_exit(self, target_id):
         """The exit TB-5 leads out by: the nearest one on the frozen map to the doll. Straight-line distance for
         now; the grid path length replaces it with the second freeze (OPS-154 3)."""
-        frozen = [e for e in self.exits if e['basis'] == self.frozen]
+        frozen = [e for e in self.exits if e['basis'] == self._shared_basis()]
         xy = self.target_geo[target_id][1]
         return min(frozen, key=lambda e: (math.dist(e['xy'], xy), e['exit_id'])) if frozen else None
 
@@ -821,29 +910,43 @@ class CoordinatorCore:
         the registered exit whose approach (exit_standoff_m before it, on the doll's side) has the shortest clear
         grid path from TB-5; no exit seen: TB-5's start spot. Held with the reason otherwise, nothing made up."""
         self.support_exit_goal = None
-        if self.frozen_stage < 2:
+        if self.map_mode != 'SLAM_LIVE' and not self._map_complete():
+            # frozen run: the exit path is checked on the final frozen map. The live run checks it on the current
+            # live map instead (the grid TB-5's Nav2 uses too), so TB-5 leaves when its wait is over (방식 B).
             self.issue_block = 'MAP_NOT_FINAL'
             return False
-        if self.mission.map_basis.get(self.roles['SUPPORT']) != self.frozen:
+        if self.map_mode == 'SLAM_LIVE' and not self._live_map_ready(self.last_tick_ns):
+            return False
+        if self.mission.map_basis.get(self.roles['SUPPORT']) != self._shared_basis():
             self.issue_block = 'SUPPORT_NOT_LOCALIZED'
             return False
         start = self._support_xy(self.last_tick_ns)
         if start is None:
             return False  # _support_xy said why
-        fields, radius = self.frozen_grid.fields, self.freeze_clearance_m
+        fields, radius = self._support_fields(start), self.freeze_clearance_m
         doll = self.target_geo[self.mission.dispatch_target][1]
         if not self.exits:
-            if self.support_start_pose is None or self.start_pose is None:
+            home = self.mission.homes.get(self.roles['SUPPORT'])
+            if self.map_mode == 'SLAM_LIVE' and home is not None and self.start_pose is not None:
+                # no exit QR at the site (user, 2026-10-15): the profile's TB-5 exit, measured like every point in
+                # TB-6's start pose (home_positions), placed on the live map
+                goal = compose_planar(self.start_pose, (*home.mission_xy, home.yaw))
+            elif self.map_mode == 'SLAM_LIVE':
+                goal = self.support_start_map_pose
+            else:
+                goal = (compose_planar(self.start_pose, self.support_start_pose)
+                        if self.start_pose is not None and self.support_start_pose is not None else None)
+            if goal is None:
                 self.issue_block = 'SUPPORT_START_UNKNOWN'
                 return False
-            goal = compose_planar(self.start_pose, self.support_start_pose)
             if path_lengths(**fields, radius=radius, start=start, goals=[goal[:2]])[0] is None:
                 self.issue_block = 'SUPPORT_EXIT_UNREACHABLE'
                 return False
             self.support_exit_goal = goal
-            self.notes.append(f'EXIT_CHOSEN TB5_START xy=({goal[0]:.2f}, {goal[1]:.2f}) (no QR exit seen)')
+            source = 'PROFILE_EXIT' if self.map_mode == 'SLAM_LIVE' and home is not None else 'TB5_START'
+            self.notes.append(f'EXIT_CHOSEN {source} xy=({goal[0]:.2f}, {goal[1]:.2f}) (no QR exit seen)')
             return True
-        on_map = [e for e in self.exits if e['basis'] == self.frozen]
+        on_map = [e for e in self.exits if e['basis'] == self._shared_basis()]
         points = [approach_point(e['xy'], doll, self.exit_standoff_m) for e in on_map]
         usable = [(e, p) for e, p in zip(on_map, points) if p is not None]
         mask = clear_mask(**fields, radius=radius)
@@ -863,29 +966,30 @@ class CoordinatorCore:
         """RETURN_HOME destinations this coordinator computes (SLAM_FREEZE, after the freeze): TB-5's exit approach
         and TB-6's docking approach in the map, sent in ~/task_inputs (live_task_inputs.destinations; the robot
         takes its own 'home/<id>' key, #232)."""
-        if self.map_mode != 'SLAM_FREEZE' or self.frozen is None:
+        basis = self._shared_basis()
+        if self.map_mode not in SHARED_MAP_MODES or basis is None:
             return {}
         out, frame_id = {}, self.search.policy.mission_frame_id
         scout, support = self.roles['SCOUT'], self.roles['SUPPORT']
         home = self.mission.homes.get(scout)
-        if home is not None and self.start_pose is not None and self.frozen_stage >= 2:
+        if home is not None and self.start_pose is not None and self._map_complete():
             out[f'home/{scout}'] = dict(robot_id=scout, frame_id=frame_id, xy_yaw=[*home.mission_xy, home.yaw],
-                                        map_session_id=self.frozen[0], map_revision=self.frozen[1],
-                                        transform_revision=self.frozen[2])  # TB-6 on the final map (stage 2)
+                                        map_session_id=basis[0], map_revision=basis[1],
+                                        transform_revision=basis[2])
         target = self.mission.dispatch_target
         if self.search_mode == 'FRONTIER':
             if self.support_exit_goal is not None:
                 out[f'home/{support}'] = dict(robot_id=support, frame_id=frame_id, xy_yaw=list(self.support_exit_goal),
-                                              map_session_id=self.frozen[0], map_revision=self.frozen[1],
-                                              transform_revision=self.frozen[2])
+                                              map_session_id=basis[0], map_revision=basis[1],
+                                              transform_revision=basis[2])
             return out
         exit_ = self._chosen_exit(target) if target in self.target_geo else None
         if exit_ is not None:
             point_ = self._exit_point(target, exit_)
             if point_ is not None:
                 out[f'home/{support}'] = dict(robot_id=support, frame_id=frame_id, xy_yaw=[*point_[0], point_[1]],
-                                              map_session_id=self.frozen[0], map_revision=self.frozen[1],
-                                              transform_revision=self.frozen[2])
+                                              map_session_id=basis[0], map_revision=basis[1],
+                                              transform_revision=basis[2])
         return out
 
     # -- map freeze (SLAM_FREEZE; owner decision 2026-10-13, 작전 OPS-113..117) ------------------------------
@@ -1037,6 +1141,16 @@ class CoordinatorCore:
 
     def _frozen_gate(self, target_id):
         """TB-5 goes only on the frozen map: target observed there, both robots localized there (SLAM_FREEZE)."""
+        if self.map_mode == 'SLAM_LIVE':
+            if not self._live_map_ready(self.last_tick_ns):
+                return False
+            if self.target_geo[target_id][0] != self._search_basis():
+                self.issue_block = 'TARGET_NOT_ON_LIVE_MAP'
+                return False
+            if self.mission.map_basis.get(self.roles['SUPPORT']) != self._search_basis():
+                self.issue_block = 'SUPPORT_NOT_LOCALIZED'
+                return False
+            return True
         if self.map_mode != 'SLAM_FREEZE':
             return True
         if self.frozen_stage == 0:
@@ -1053,25 +1167,28 @@ class CoordinatorCore:
 
     def _free_cell(self, xy, reason):
         """True when ``xy`` is free on the frozen grid within freeze_clearance_m (always True in SAVED_MAP)."""
-        if self.map_mode != 'SLAM_FREEZE':
+        if self.map_mode not in SHARED_MAP_MODES:
             return True
-        if self.frozen_grid is None:
+        if self.map_mode == 'SLAM_LIVE' and not self._live_map_ready(self.last_tick_ns):
+            return False
+        grid = self._shared_grid()
+        if grid is None:
             self.issue_block = 'MAP_NOT_FROZEN'
             return False
-        if self.frozen_grid.clear(float(xy[0]), float(xy[1]), self.freeze_clearance_m) is not True:
+        if grid.clear(float(xy[0]), float(xy[1]), self.freeze_clearance_m) is not True:
             self.issue_block = reason
             return False
         return True
 
     def _home_free(self, role, reason):
         """The role robot's home (TB-6 docking approach point, TB-5 exit) is known and free on the frozen map."""
-        if self.map_mode != 'SLAM_FREEZE':
+        if self.map_mode not in SHARED_MAP_MODES:
             return True
         if role == 'SUPPORT' and self.search_mode == 'FRONTIER':
             return self._final_exit_ready()  # the whole map first, then the exit nearest along free cells
         if role == 'SUPPORT':  # TB-5 ends at the registered exit (OPS-136 4), not a profile home
             return self._exit_ready(self.mission.dispatch_target)
-        if self.frozen_stage < 2:
+        if not self._map_complete():
             self.issue_block = 'MAP_NOT_FINAL'  # TB-6 maps with SLAM until the final map (OPS-154·159)
             return False
         if self.start_pose is None:
@@ -1094,6 +1211,14 @@ class CoordinatorCore:
             self.scout_pose = pose  # frontier exploration starts from it (OPS-154)
         else:
             self.support_pose = pose
+            if (self.map_mode == 'SLAM_LIVE' and self.support_start_map_pose is None
+                    and pose[3] == 'VALID' and pose[1] == self._search_basis()
+                    and pose[2] == self.search.policy.mission_frame_id
+                    and self.last_tick_ns is not None
+                    and 0 <= self.last_tick_ns - pose[4] <= self.support_pose_max_age_ns):
+                from rescue_contracts.occupancy import planar_origin
+                q = msg.mission_pose.pose.pose.orientation
+                self.support_start_map_pose = planar_origin(p.x, p.y, p.z, q.x, q.y, q.z, q.w)
         return True
 
     def on_admission(self, msg):
@@ -1172,8 +1297,10 @@ class CoordinatorCore:
         elif meta and meta[0] == 'RETURN_HOME':
             # TB-6 stops at the docking approach point; docking itself is done by hand (supervised, 5A).
             self.scout_return = 'AT_DOCK_APPROACH' if result.outcome == 'COMPLETED' else 'FAILED'
-            if self.scout_return == 'AT_DOCK_APPROACH':
+            if self.scout_return == 'AT_DOCK_APPROACH' and self.completion_mode != 'EXIT_WAIT_SCOUT_DOCK':
                 self._returned(self.roles['SCOUT'])
+            elif self.scout_return == 'AT_DOCK_APPROACH':
+                self.notes.append(f'SCOUT_AT_START_POSE task={task_id}; docking next')
         elif meta and meta[0] == 'APPROACH_TARGET':
             self.mission.approach_finished(completed=result.outcome == 'COMPLETED', stop_confirmed=stop)
             self.approach_task = None  # ARRIVED or FAILED: never issued again
@@ -1213,7 +1340,7 @@ class CoordinatorCore:
                 raise CoordinationError('ID_CONTENT_CONFLICT', 'location content differs for the same location_id')
             return seen[0]
         self._check_observation_time(msg.observation.time, now_ns)
-        if self.map_mode == 'SLAM_FREEZE' and basis != self.scout_basis():
+        if self.map_mode in SHARED_MAP_MODES and basis != self.scout_basis():
             raise CoordinationError('FRAME_REVISION_MISMATCH', 'location is not on TB-6\'s current map')
         # One SLAM map per run (Q-29 ⑦, OPS-156 ④): positions on the search revision and its frozen copies merge.
         bases = {basis} | (self._lineage() if self.map_mode == 'SLAM_FREEZE' else set())
@@ -1413,6 +1540,7 @@ class CoordinatorCore:
         self._issue_approach(now_ns)
         self._issue_support_exit(now_ns)
         self._issue_scout_return(now_ns)
+        self._issue_scout_dock(now_ns)
         self._issue_segment(now_ns)
         self._issue_rechecks(now_ns)
         self._patrol_tick()
@@ -1624,7 +1752,8 @@ class CoordinatorCore:
                                                  target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
         if decision.action != 'RESERVED':
             return None
-        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
+        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}',
+                                             home_frame=self._home_frame(robot_id, self.basis()))
         self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SUPPORT_EXIT')
         self._moving('SUPPORT', fields['task_id'], exit_xy)
         self.support_exit = 'ISSUED'
@@ -1674,9 +1803,13 @@ class CoordinatorCore:
         """5A: after a RESCUE_CONFIRMED, TB-6 goes once to its docking approach point (home_ref home/<robot_id>).
         With RECHECK an accepted operator RETURN_HOME (any verdict, mission ``_return_home``) sends it too (#233)."""
         mission = self.mission
-        if self.completion_mode == 'EXIT_ARRIVAL':
+        if self.completion_mode == 'EXIT_WAIT_SCOUT_DOCK':
+            # TB-6 returns on its own exploration end (EXPLORATION_COMPLETE, or EXPLORATION_TIMEOUT shown as such),
+            # never on TB-5's exit arrival.
+            due = self.exploration_complete
+        elif self.completion_mode == 'EXIT_ARRIVAL':
             # OPS-155 ②: TB-6 is done once the whole map is frozen; with AREAS, once TB-5 is at the exit.
-            due = self.frozen_stage >= 2 if self.search_mode == 'FRONTIER' else self.support_exit == 'AT_EXIT'
+            due = self._map_complete() if self.search_mode == 'FRONTIER' else self.support_exit == 'AT_EXIT'
         else:
             # mission.returning before any TB-6 return is the operator's accepted RETURN_HOME (e.g. RECHECK_NEEDED).
             due = 'RESCUE_CONFIRMED' in mission.verdicts.values() or mission.returning
@@ -1696,7 +1829,8 @@ class CoordinatorCore:
                                                  target_id=self.new_id(), target_revision=0, goal=None, now_ns=now_ns)
         if decision.action != 'RESERVED':
             return None
-        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}')
+        fields = decision.task_fields | dict(route=None, approval=None, home_ref=f'home/{robot_id}',
+                                             home_frame=self._home_frame(robot_id, self.scout_basis()))
         self.task_meta[fields['task_id']] = ('RETURN_HOME', 'SCOUT_RETURN')
         self._moving('SCOUT', fields['task_id'], home_xy)
         self.scout_return = 'ISSUED'
@@ -1708,6 +1842,104 @@ class CoordinatorCore:
         self._send(fields)
         return fields['task_id']
 
+    # -- TB-6 dock (EXIT_WAIT_SCOUT_DOCK) ----------------------------------------------------------------------
+    def _issue_scout_dock(self, now_ns):
+        """Once TB-6 stands at its start pose (RETURN_HOME COMPLETED, stop confirmed): ask its dock once, READY,
+        STOPPED and without a task. No DOCKED answer within scout_dock_timeout fails it (shown, not retried here;
+        the Create3 dock action retries by itself)."""
+        if self.completion_mode != 'EXIT_WAIT_SCOUT_DOCK' or self.scout_return != 'AT_DOCK_APPROACH':
+            return
+        if self.scout_dock in ('REQUESTED', 'DOCKING') and now_ns > self.scout_dock_due_ns:
+            self._dock_failed('SCOUT_DOCK_TIMEOUT')
+        if self.scout_dock is not None:
+            return
+        scout = self.roles['SCOUT']
+        state, detail = self.ready(scout, now_ns), self.status_detail.get(scout)
+        if (state is None or not state[1] or detail is None or detail[2] != 'STOPPED' or detail[4]
+                or self.search.assignment(scout) is not None):
+            self.issue_block = 'SCOUT_DOCK_WAITING_STOP'
+            return
+        self.scout_dock, self.scout_dock_due_ns, self.dock_send = 'REQUESTED', now_ns + self.scout_dock_timeout_ns, True
+        self.notes.append('SCOUT_DOCK requested: TB-6 at its start pose, READY and stopped')
+
+    def take_dock_request(self):
+        """True once when the node must call the SCOUT's dock service."""
+        send, self.dock_send = self.dock_send, False
+        return send
+
+    def on_dock_reply(self, success, message):
+        """The dock Trigger answer: accepted (JSON with the request number) -> DOCKING; refused -> FAILED."""
+        if self.scout_dock != 'REQUESTED':
+            return False
+        if not success:
+            self._dock_failed(f'SCOUT_DOCK_REFUSED {message}')
+            return False
+        try:
+            self.scout_dock_request = int(json.loads(message)['request'])
+        except (ValueError, KeyError, TypeError):
+            self._dock_failed(f'SCOUT_DOCK_REPLY_INVALID {message!r}')
+            return False
+        self.scout_dock = 'DOCKING'
+        self.notes.append(f'SCOUT_DOCK accepted request={self.scout_dock_request}')
+        return True
+
+    def on_dock_state(self, info):
+        """dock_node state JSON (state, reason, request, is_docked). Only our accepted request counts; DOCKED needs
+        is_docked true (the Dock action result and a fresh dock_status both, dock_node)."""
+        if self.scout_dock != 'DOCKING' or info.get('request') != self.scout_dock_request:
+            return False
+        if info.get('state') == 'DOCKED' and info.get('is_docked') is True:
+            self.scout_dock = 'DOCKED'
+            self.notes.append(f'SCOUT_DOCKED request={self.scout_dock_request}')
+            self._returned(self.roles['SCOUT'])
+            return True
+        if info.get('state') == 'FAILED':
+            self._dock_failed(info.get('reason') or 'SCOUT_DOCK_FAILED')
+            return True
+        return False
+
+    def _dock_failed(self, reason):
+        self.scout_dock, self.scout_dock_reason, self.dock_send = 'FAILED', reason, False
+        self.notes.append(f'SCOUT_DOCK_FAILED {reason}')
+
+    def on_map_correction(self, info):
+        """A SLAM correction at TB-6 (SLAM_LIVE; rescue_robot.map_correction): logged and counted. Targets observed
+        before it keep their position (the doll detector sends once, user policy 2026-10-12), so the log names
+        them; nothing is re-projected or made up here."""
+        at = int(info['observed_at_ns'])
+        self.map_corrections.append(dict(info))
+        stale = sorted(target_id for target_id, (_, _, locations) in self.target_geo.items()
+                       if max(loc.observation.time.observed_at_ns for loc in locations) < at)
+        self.notes.append(f'MAP_CORRECTION shift_m={float(info["shift_m"]):.3f} yaw_rad={float(info["yaw_rad"]):.3f} '
+                          f'at={at} targets_observed_before={stale} support_task={self.approach_task or ""}')
+        return stale
+
+    def outcome(self):
+        """How the run stands, for /rescue/mission_outcome (the runner's end check) and the log."""
+        view = self.mission.view()
+        return dict(phase=view.phase, mode=system_mode(view.mode, view.phase), completion_mode=self.completion_mode,
+                    exploration_complete=self.exploration_complete, exploration_reason=self.exploration_reason or '',
+                    target_found=bool(self.target_geo), no_survivor=self._no_survivor(),
+                    approach=self.mission.approach_phase or '', approach_failure=self.approach_failure or '',
+                    support_exit=self.support_exit or '', scout_return=self.scout_return or '',
+                    scout_dock=self.scout_dock or '', scout_dock_reason=self.scout_dock_reason,
+                    map_corrections=len(self.map_corrections))
+
+    def outcome_change(self):
+        out = self.outcome()
+        if out == self.last_outcome:
+            return None
+        self.last_outcome = out
+        return out
+
+    def _home_frame(self, robot_id, basis):
+        """FrameRef fields of a RETURN_HOME: the map basis its home/<robot_id> destination is on. The map frame is
+        the mission frame (the field launch refuses a readiness.map_frame other than the map_basis frame: identity
+        alignment declared by the profile), so the alignment is that declared VALID one."""
+        frame_id = self.search.policy.mission_frame_id
+        return dict(robot_id=robot_id, native_frame=frame_id, mission_frame=frame_id, map_session_id=basis[0],
+                    map_revision=basis[1], transform_revision=basis[2], alignment_status='VALID')
+
     def note_support_at_exit(self):
         """TB-5 reached its exit (5A); it counts toward FINISHED once the mission is returning."""
         self._returned(self.roles['SUPPORT'])
@@ -1718,7 +1950,7 @@ class CoordinatorCore:
             self.mission.record_returned(robot_id)
 
     def _no_survivor(self):
-        return (self.map_mode == 'SLAM_FREEZE' and self.search_mode == 'FRONTIER' and self.exploration_complete
+        return (self.map_mode in SHARED_MAP_MODES and self.search_mode == 'FRONTIER' and self.exploration_complete
                 and not self.target_geo)
 
     def _confirm_by_exit_arrival(self):
@@ -1729,10 +1961,15 @@ class CoordinatorCore:
 
     def mission_reason(self, now_ns):
         """The latest stage after dispatch for SystemState.reason: TB-6 return, the verdict, TB-5's exit."""
-        if self._no_survivor():
-            return 'NO_SURVIVOR_FOUND'  # the whole map, no doll: TB-5 never leaves (OPS-155 ③)
+        if self._no_survivor() and not (self.completion_mode == 'EXIT_WAIT_SCOUT_DOCK' and self.scout_return):
+            return 'NO_SURVIVOR_FOUND'  # the whole map, no doll: TB-5 never leaves (OPS-155 ③); the dock run shows
+            # TB-6's return and dock once they start (the outcome topic keeps no_survivor)
         scout = {'ISSUED': 'SCOUT_RETURNING', 'MOVING': 'SCOUT_RETURNING',
                  'AT_DOCK_APPROACH': 'SCOUT_AT_DOCK_APPROACH_DOCK_BY_HAND', 'FAILED': 'SCOUT_RETURN_FAILED'}
+        if self.completion_mode == 'EXIT_WAIT_SCOUT_DOCK' and self.scout_return == 'AT_DOCK_APPROACH':
+            scout['AT_DOCK_APPROACH'] = {None: 'SCOUT_AT_START_POSE', 'REQUESTED': 'SCOUT_DOCKING',
+                                         'DOCKING': 'SCOUT_DOCKING', 'DOCKED': 'SCOUT_DOCKED',
+                                         'FAILED': 'SCOUT_DOCK_FAILED'}[self.scout_dock]
         return scout.get(self.scout_return) or self.verdict_reason or self.exit_reason(now_ns)
 
     def exit_reason(self, now_ns):
@@ -1747,7 +1984,7 @@ class CoordinatorCore:
     # TB-5 always goes first: it leads the rescuer, who follows it on foot. No reversing anywhere: a step-aside
     # goal faces the way TB-6 goes (turn in place, then forward).
     def _traffic_on(self):
-        return self.traffic_control == 'TB5_PRIORITY' and self.map_mode == 'SLAM_FREEZE'
+        return self.traffic_control == 'TB5_PRIORITY' and self.map_mode in SHARED_MAP_MODES
 
     def _hold(self, role, reason):
         """Hold the role's new command for traffic (False). TB-5's reason is shown over TB-6's."""
@@ -1814,7 +2051,7 @@ class CoordinatorCore:
             fields, radius = self.scout_grid.fields, self.freeze_clearance_m
             mask = clear_mask(**fields, radius=radius)
             spot = nearest_clear_outside(**fields, radius=radius, from_xy=scout_xy, path_points=avoid,
-                                         distance_m=self.traffic_path_clearance_m, mask=mask)
+                                         distance_m=self.traffic_path_clearance_m + STEP_ASIDE_MARGIN_M, mask=mask)
             length = None if spot is None else path_lengths(**fields, radius=radius, start=scout_xy, goals=[spot],
                                                             mask=mask)[0]
             if length is None or length > self.traffic_yield_max_m:
@@ -1842,7 +2079,7 @@ class CoordinatorCore:
         support_xy = self._support_xy(now_ns)
         if support_xy is None:
             return self._hold('SUPPORT', self.issue_block)  # SUPPORT_POSE_UNKNOWN / ..._BASIS_MISMATCH
-        fields = getattr(self.frozen_grid, 'fields', None)
+        fields = self._support_fields(support_xy)
         path = None if fields is None or goal_xy is None else grid_path(
             **fields, radius=self.freeze_clearance_m, start=support_xy, goal=goal_xy)
         if path is None:
@@ -1907,6 +2144,9 @@ class CoordinatorCore:
         if math.dist(scout_xy, support_xy) < self.traffic_min_separation_m:
             return self._step_aside(scout_xy, [*(path or ()), support_xy], now_ns, 'SCOUT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
         if math.dist(goal_xy, support_xy) < self.traffic_min_separation_m:
+            # the goal itself sits by TB-5: waiting helps only if TB-5 is going somewhere (_issue_search drops such a
+            # frontier when TB-5 has no task, else TB-6 waits forever for a TB-5 that waits for TB-6's doll)
+            self.goal_near_idle_tb5 = self.search.assignment(self.roles['SUPPORT']) is None
             return self._hold('SCOUT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
         return True
 
@@ -2055,6 +2295,8 @@ class CoordinatorCore:
 
     def _issue_search(self, now_ns):
         scout = self.roles['SCOUT']
+        if self.map_mode == 'SLAM_LIVE' and not self._live_map_ready(now_ns):
+            return
         if self.map_mode == 'SLAM_FREEZE' and self._target_saved() and (
                 self.frozen_stage == 0 or self.search_mode != 'FRONTIER'):
             return  # TB-6 stands for the doll's freeze (Q-29 ⑦); only FRONTIER explores on after it (OPS-154)
@@ -2066,8 +2308,15 @@ class CoordinatorCore:
         if state is None:
             return
         frontier = self.frontier if self.search_mode == 'FRONTIER' else None
+        self.goal_near_idle_tb5 = False
         if frontier is not None and not frontier.get('step_aside') and self.search.assignment(scout) is None and (
                 not self._traffic_scout(frontier['site_xy'], now_ns)):
+            if self.goal_near_idle_tb5 and not (self.frontier or {}).get('step_aside'):
+                # traffic deadlock (rehearsal 2026-10-15): the frontier goal lies within traffic_min_separation_m of a
+                # TB-5 with no task. Counted as tried (never picked again), the next tick picks another frontier.
+                self.notes.append(f'FRONTIER_SKIPPED_NEAR_IDLE_TB5 {frontier["site_id"]} goal={frontier["site_xy"]}')
+                self._frontier_done()
+                return
             # held; or the frontier became a step aside, TB-6 getting out of TB-5's way (never held by it)
             if not (self.frontier or {}).get('step_aside') or now_ns < self.frontier_hold_until:
                 return
@@ -2346,6 +2595,10 @@ def build_core(values):
                            recheck_max_clock_error_ns=seconds_to_ns(str(values['recheck_max_clock_error_s'])),
                            map_mode=values['map_mode'], freeze_clearance_m=values['freeze_clearance_m'],
                            map_freeze_timeout_ns=seconds_to_ns(str(values['map_freeze_timeout_s'])),
+                           live_map_max_age_ns=(seconds_to_ns(str(values['live_map_max_age_s']))
+                                                if values['map_mode'] == 'SLAM_LIVE' else None),
+                           scout_dock_timeout_ns=(seconds_to_ns(str(values['scout_dock_timeout_s']))
+                                                  if values['completion_mode'] == 'EXIT_WAIT_SCOUT_DOCK' else None),
                            search_start=values['search_start'],
                            search_mode=values['search_mode'],
                            patrol_points=patrol_points(values['patrol_points']),
@@ -2453,7 +2706,10 @@ OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # patrol_points: [x, y, yaw]*N in TB-6's start pose (search_mode PATROL); none with AREAS.
 # support_start_pose: TB-5's start spot [x, y, yaw] in TB-6's start pose (robots.<TB-5>.initial_pose_xy_yaw, the
 # robot's own start value); the exit when no QR exit was seen (OPS-155 ①·173). Unmeasured = unset.
-UNSET_OK_PARAMETERS = {'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY',
+# live_map_*, map_correction_*: SLAM_LIVE only (방식 B). scout_dock_timeout_s: completion_mode EXIT_WAIT_SCOUT_DOCK only.
+UNSET_OK_PARAMETERS = {'live_map_max_age_s': 'DOUBLE', 'live_map_topic': 'STRING',
+                       'map_correction_m': 'DOUBLE', 'map_correction_rad': 'DOUBLE', 'scout_dock_timeout_s': 'DOUBLE',
+                       'camera_watch_roi': 'DOUBLE_ARRAY', 'home_poses': 'DOUBLE_ARRAY',
                        'patrol_points': 'DOUBLE_ARRAY', 'support_start_pose': 'DOUBLE_ARRAY'}
 
 
@@ -2536,9 +2792,15 @@ def main(args=None):
             res = future.result()
             recorded = core.on_watch_reply(watch_id=res.watch_id, accepted=bool(res.accepted),
                                            watch_revision=int(res.watch_revision), reason_code=res.reason_code)
-            (log.info if res.accepted else log.error)(
-                f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
-                f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
+            # rclpy refuses two severities on one call site ('Logger severity cannot be changed between calls')
+            if res.accepted:
+                log.info(
+                    f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
+                    f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
+            else:
+                log.error(
+                    f'WATCH_REPLY {res.watch_id} accepted={res.accepted} revision={res.watch_revision} '
+                    f'reason={res.reason_code} recorded={recorded} active={core.camera_watch.active}')
 
         def send(fields):
             goal = fill_execute_task_goal(ExecuteTask.Goal(), fields, coordinator_id=values['coordinator_id'])
@@ -2621,8 +2883,13 @@ def main(args=None):
         def on_freeze_reply(future):
             res = future.result()
             recorded = core.on_freeze_reply(bool(res.success), res.message)
-            (log.info if res.success else log.error)(
-                f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}')
+            # rclpy refuses two severities on one call site ('Logger severity cannot be changed between calls')
+            if res.success:
+                log.info(
+                    f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}')
+            else:
+                log.error(
+                    f'MAP_FREEZE reply success={res.success} message={res.message!r} recorded={recorded}')
             tick()
 
         def on_frozen_map(msg):
@@ -2701,8 +2968,59 @@ def main(args=None):
             def note(line):
                 log.info(line)
 
+        from std_msgs.msg import String as OutcomeString
+        outcome_pub = node.create_publisher(OutcomeString, MISSION_OUTCOME_TOPIC, snapshot)
+        dock_client = None
+        if core.completion_mode == 'EXIT_WAIT_SCOUT_DOCK':
+            from std_srvs.srv import Trigger as DockTrigger
+            dock_service = ROBOT_PREFIX + core.roles['SCOUT'] + SCOUT_DOCK_SERVICE
+            dock_client = node.create_client(DockTrigger, dock_service)
+            log.info(f'completion_mode=EXIT_WAIT_SCOUT_DOCK dock={dock_service}')
+
+            def on_dock_reply(future):
+                res = future.result()
+                recorded = core.on_dock_reply(bool(res.success), res.message)
+                # rclpy refuses two severities on one call site ('Logger severity cannot be changed between calls')
+                if res.success:
+                    log.info(
+                        f'SCOUT_DOCK reply success={res.success} message={res.message!r} recorded={recorded}')
+                else:
+                    log.error(
+                        f'SCOUT_DOCK reply success={res.success} message={res.message!r} recorded={recorded}')
+
+            def call_dock():
+                if not dock_client.service_is_ready():
+                    log.error(f'{dock_service} not ready; the dock fails at scout_dock_timeout_s unless it answers')
+                log.info(f'SCOUT_DOCK call {dock_service}')
+                dock_client.call_async(DockTrigger.Request()).add_done_callback(guarded('dock_reply', on_dock_reply))
+
+            def on_dock_state(msg):
+                try:
+                    info = json.loads(msg.data)
+                except ValueError as exc:
+                    log.error(f'SCOUT_DOCK_STATE invalid JSON: {exc}')
+                    return
+                log.info(f'SCOUT_DOCK_STATE {info} -> recorded={core.on_dock_state(info)} dock={core.scout_dock}')
+            node.create_subscription(OutcomeString, ROBOT_PREFIX + core.roles['SCOUT'] + SCOUT_DOCK_STATE_TOPIC,
+                                     guarded('dock_state', on_dock_state), snapshot)
+        if core.map_mode == 'SLAM_LIVE':
+            def on_map_correction(msg):
+                try:
+                    info = json.loads(msg.data)
+                    core.on_map_correction(info)
+                except (ValueError, KeyError, TypeError) as exc:
+                    log.error(f'MAP_CORRECTION invalid: {exc}')
+            node.create_subscription(OutcomeString, MAP_CORRECTION_TOPIC, guarded('map_correction', on_map_correction),
+                                     10)
+
         def tick():
             node_tick(core, now_ns(), Out)
+            if dock_client is not None and core.take_dock_request():
+                call_dock()
+            out = core.outcome_change()
+            if out is not None:
+                outcome_pub.publish(OutcomeString(data=json.dumps(out, sort_keys=True)))
+                log.info(f'MISSION_OUTCOME {json.dumps(out, sort_keys=True)}')
 
         def on_site_event(msg):
             log.info(f'SITE_EVENT {msg.event_id} {msg.kind} -> {core.on_site_event(msg)}')
@@ -2755,20 +3073,31 @@ def main(args=None):
                                  guarded('pose', core.on_pose), 1)  # IF-011: RELIABLE / VOLATILE / KEEP_LAST 1
         node.create_subscription(RobotPose, ROBOT_PREFIX + core.roles['SCOUT'] + '/pose',
                                  guarded('scout_pose', core.on_pose), 1)  # frontier start (OPS-154)
-        if core.search_mode == 'FRONTIER':
+        if core.search_mode == 'FRONTIER' or core.map_mode == 'SLAM_LIVE':
             from nav_msgs.msg import OccupancyGrid
 
             def on_scout_map(msg):
                 try:
                     grid = FrozenGrid(msg)  # the same field reading as the frozen grid (rescue_contracts rules)
                 except ValueError as exc:
+                    if core.map_mode == 'SLAM_LIVE':
+                        core.scout_grid = None
                     log.error(f'SCOUT_MAP invalid: {exc}; frontiers wait for a valid map')
                     return
-                seq = core.on_scout_map(grid)
+                if core.map_mode == 'SLAM_LIVE':
+                    observed = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+                    if observed <= 0 or not 0 <= now_ns() - observed < core.live_map_max_age_ns:
+                        core.scout_grid = None
+                        log.error('LIVE_MAP_STALE: map missing a current sensor timestamp')
+                        return
+                    seq = core.on_scout_map(grid, now_ns=observed)
+                else:
+                    seq = core.on_scout_map(grid)
                 if seq % 30 == 1:
                     log.info(f'SCOUT_MAP update {seq} {grid.fields["width"]}x{grid.fields["height"]} '
                              f'res={grid.fields["resolution"]}')
-            node.create_subscription(OccupancyGrid, SCOUT_MAP_TOPIC, guarded('scout_map', on_scout_map), latched)
+            node.create_subscription(OccupancyGrid, values.get('live_map_topic') or SCOUT_MAP_TOPIC,
+                                     guarded('scout_map', on_scout_map), latched)
             log.info(f'search_mode=FRONTIER map={SCOUT_MAP_TOPIC} executable_bases include {FRONTIER_BASIS}')
         node.create_subscription(TargetLocation, TARGET_LOCATION_TOPIC, guarded('target_location', lambda msg: log.info(
             f'TARGET_LOCATION {msg.location_id} -> {core.on_target_location(msg, now_ns=now_ns())}')), 10)

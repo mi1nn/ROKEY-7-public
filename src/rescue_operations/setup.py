@@ -21,5 +21,6 @@ setup(
                                     "db_writer = rescue_operations.ros_node:main",
                                     "report_node = rescue_operations.report_node:main",
                                     "map_snapshot = rescue_operations.map_snapshot:main",
-                                    "robot_watch = rescue_operations.robot_watch:main"]},
+                                    "robot_watch = rescue_operations.robot_watch:main",
+                                    "found_alert = rescue_operations.found_alert:main"]},
 )

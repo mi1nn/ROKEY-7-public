@@ -24,6 +24,12 @@ setup(
                                        "task_prepare = rescue_robot.task_prepare:main",
                                        "clock_capture = rescue_robot.clock_capture:main",
                                        "map_freeze = rescue_robot.map_freeze:main",
+                                       "slam_start_pose = rescue_robot.map_freeze:start_pose_main",
+                                       "shared_map_view = rescue_robot.shared_map_view:main",
                                        "frozen_map_relay = rescue_robot.frozen_map_relay:main",
-                                       "start_align = rescue_robot.start_align:main"]},
+                                       "start_align = rescue_robot.start_align:main",
+                                       "dock = rescue_robot.dock_node:main",
+                                       "map_correction = rescue_robot.map_correction:main",
+                                       "slam_pose_latest = rescue_robot.slam_pose_latest:main",
+                                       "self_clear_map = rescue_robot.self_clear_map:main"]},
 )
