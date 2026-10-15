@@ -45,6 +45,10 @@ class ArenaTunnels(unittest.TestCase):
     AREAS = {'tunnel1_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="rgba\(31,138,91',
              'tunnel2_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="url\(#hatch\)"'}
     CLEARANCE_M = {'tunnel1_roof': 0.47, 'tunnel2_roof': 0.30}   # plan 「47 cm」 / 재범 2026-10-15
+    # Tunnel 1 opened 0.22 m to the west, 0.68 -> 0.90 m (재범 2026-10-16 「입구 좀 넓혀봐」): the coordinator sends a
+    # frontier goal only to a cell 0.35 m clear (0.385 m with the half cell), 15 free 0.05 m cells across; the 13회차
+    # SLAM map had 12 in the 0.68 m gap and the frontier past it was left out (FRONTIER_GOAL_TIGHT).
+    WIDEN_WEST_M = {'tunnel1_roof': 0.22, 'tunnel2_roof': 0.0}
 
     @unittest.skipUnless(HAS_PLAN, 'no config/sim (installed-wheel checkout)')
     def test_every_plan_tunnel_area_is_one_roof_at_its_clearance(self):
@@ -53,14 +57,24 @@ class ArenaTunnels(unittest.TestCase):
         for name, pattern in self.AREAS.items():
             with self.subTest(name):
                 x, y, w, h = (float(v) for v in re.search(pattern, svg).groups())
+                x0, x1 = x / 100 - self.WIDEN_WEST_M[name], (x + w) / 100
                 roof = objects.get(name)
                 self.assertIsNotNone(roof, f'no {name} in the layout')
                 self.assertEqual('overhead', roof['kind'])
-                self.assertAlmostEqual((x + w / 2) / 100, roof['x'], delta=0.01)
+                self.assertAlmostEqual((x0 + x1) / 2, roof['x'], delta=0.01)
                 self.assertAlmostEqual((PLAN_H_CM - y - h / 2) / 100, roof['y'], delta=0.01)
-                self.assertAlmostEqual(w / 100, roof['size'][0], delta=0.01)
+                self.assertAlmostEqual(x1 - x0, roof['size'][0], delta=0.01)
                 self.assertAlmostEqual(h / 100, roof['size'][1], delta=0.01)
                 self.assertEqual(self.CLEARANCE_M[name], roof['clearance_m'])
+
+    def test_tunnel1_gap_is_0_90_m_and_its_roof_covers_it(self):
+        objects = {o['name']: o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects']}
+        west, east, roof = objects['whitebox_east'], objects['outer_east'], objects['tunnel1_roof']
+        self.assertEqual(west['x1'], west['x2'])
+        self.assertAlmostEqual(0.90, east['x1'] - west['x1'], delta=0.005)
+        self.assertAlmostEqual(west['x1'], roof['x'] - roof['size'][0] / 2, delta=0.005)
+        for name in ('whitebox_south', 'whitebox_north'):   # the enclosure stays closed at its new east wall
+            self.assertAlmostEqual(west['x1'], max(objects[name]['x1'], objects[name]['x2']), delta=0.005)
 
 
 if __name__ == '__main__':
