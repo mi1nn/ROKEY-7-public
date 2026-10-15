@@ -13,13 +13,18 @@ Nav2 Jazzy:
 So TB-5's Nav2 stays inactive for the run and the executor refuses arm with NAV_NOT_READY (#340).
 
 The first freeze comes when TB-6 finds the doll or ends its search: minutes after the launch, with no
-bound before the disaster is declared. No finite TF timeout fixes this; Nav2 must be started once the
-map frame is there. The test marked expectedFailure describes that and fails on main.
+bound before the disaster is declared. No finite TF timeout fixes this. So robot.launch.py starts a
+FROZEN_MAP_AMCL robot's Nav2 with autostart false, and rescue_bringup.nav2_start sends STARTUP once
+map -> base_link is on that robot's TF. A refused or unanswered STARTUP is logged, and the executor's
+readiness keeps Nav2 NOT_READY (NAV2_LIFECYCLE ... inactive), so arm is refused, never made up.
 """
+import sys
 import unittest
+from unittest.mock import patch
 
 from test_bringup_field_launch import FieldCase
 from test_bringup_no_backup import REPO, vendor_params
+from test_robot_r2_same_map import RclpyLogger
 
 LAUNCH = REPO / 'src' / 'rescue_bringup' / 'launch' / 'robot.launch.py'
 NAV2_DEFAULT_TRANSFORM_TIMEOUT_S = 60.0   # nav2_costmap_2d jazzy: declare_parameter("initial_transform_timeout", 60.0)
@@ -45,14 +50,106 @@ class Tb5Nav2BeforeTheMap(FieldCase):
                          costmap.get('initial_transform_timeout', NAV2_DEFAULT_TRANSFORM_TIMEOUT_S))
 
     @unittest.skipUnless(LAUNCH.exists(), 'installed-wheel checkout has no src/ launch files')
-    @unittest.expectedFailure
     def test_tb5_nav2_is_started_after_its_map_frame_exists(self):
         """robot.launch.py must not auto-start a FROZEN_MAP_AMCL robot's Nav2 at launch (it gives up after 60 s
         and never retries); it is started once map -> base_link is there."""
         values = self.values('robot_b')
-        self.assertIn('nav2_autostart', values)       # robot.launch.py passes no autostart today: 'true'
+        self.assertIn('nav2_autostart', values)
         self.assertFalse(values['nav2_autostart'])
-        self.assertIn("'autostart'", LAUNCH.read_text())
+        text = LAUNCH.read_text()
+        self.assertIn("'autostart': str(values['nav2_autostart']).lower()", text)
+        self.assertIn("executable='nav2_start_after_map'", text)
+        self.assertIn('nav2_start_after_map = rescue_bringup.nav2_start:main',
+                      (REPO / 'src' / 'rescue_bringup' / 'setup.py').read_text())
+
+    def test_tb5_start_values(self):
+        start = self.values('robot_b')['nav2_start']
+        self.assertEqual({'manage_service': '/robot5/lifecycle_manager_navigation/manage_nodes', 'map_frame': 'map',
+                          'base_frame': 'base_link', 'tf_topic': '/robot5/tf', 'tf_static_topic': '/robot5/tf_static',
+                          'poll_period_s': 0.5, 'answer_wait_s': 120.0}, start)
+        # the same lifecycle manager the executor asks is_active (#340)
+        self.assertEqual(start['manage_service'].rsplit('/', 1)[0],
+                         self.values('robot_b')['task_input']['nav2_lifecycle_service'].rsplit('/', 1)[0])
+
+    def test_tb6_nav2_starts_at_launch_as_before(self):
+        """TB-6 (SLAM_THEN_FROZEN) has the SLAM map frame when robot.launch.py runs (tb6_slam first)."""
+        values = self.values('robot_a')
+        self.assertTrue(values['nav2_autostart'])
+        self.assertIsNone(values['nav2_start'])
+
+
+ARGS = dict(service='/robot5/lifecycle_manager_navigation/manage_nodes', map_frame='map', base_frame='base_link',
+            answer_wait_s=120.0)
+
+
+def step(state, has_map=True, service_ready=True, answer=None, sent_for_s=0.0):
+    from rescue_bringup.nav2_start import step
+    return step(state, has_map=has_map, service_ready=service_ready, answer=answer, sent_for_s=sent_for_s, **ARGS)
+
+
+class StartAfterTheMap(unittest.TestCase):
+    def test_waits_for_the_map_frame_and_says_so_once(self):
+        state, said, send = step('START', has_map=False)
+        self.assertEqual(('WAITING_MAP', False), (state, send))
+        self.assertTrue(said[1].startswith('NAV2_STARTUP_WAITING map -> base_link not on TF yet'), said)
+        self.assertEqual(('WAITING_MAP', None, False), step(state, has_map=False))
+
+    def test_waits_for_the_service(self):
+        state, said, send = step('WAITING_MAP', service_ready=False)
+        self.assertEqual(('WAITING_SERVICE', 'warning', False), (state, said[0], send))
+        self.assertEqual(('WAITING_SERVICE', None, False), step(state, service_ready=False))
+
+    def test_sends_startup_once_the_map_frame_is_there(self):
+        state, said, send = step('WAITING_MAP')
+        self.assertEqual(('SENT', True), (state, send))
+        self.assertTrue(said[1].startswith('NAV2_STARTUP_SENT /robot5/lifecycle_manager_navigation/manage_nodes'))
+        self.assertEqual(('SENT', None, False), step(state, sent_for_s=10.0))        # waits for the answer
+
+    def test_active(self):
+        self.assertEqual(('ACTIVE', ('info', 'NAV2_STARTUP /robot5/lifecycle_manager_navigation/manage_nodes active'),
+                          False), step('SENT', answer=True))
+        self.assertEqual(('ACTIVE', None, False), step('ACTIVE', has_map=False))
+
+    def test_a_refused_startup_is_an_error_with_the_retry_command_and_never_resent(self):
+        state, said, send = step('SENT', answer=False)
+        self.assertEqual(('FAILED', 'error', False), (state, said[0], send))
+        self.assertIn('NAV2_STARTUP_FAILED', said[1])
+        self.assertIn('NAV2_LIFECYCLE inactive, arm refused', said[1])
+        self.assertIn('ManageLifecycleNodes "{command: 0}"', said[1])
+        self.assertEqual(('FAILED', None, False), step('FAILED'))
+
+    def test_no_answer_in_time_is_an_error(self):
+        self.assertEqual(('SENT', None, False), step('SENT', sent_for_s=119.9))
+        state, said, send = step('SENT', sent_for_s=120.0)
+        self.assertEqual(('NO_ANSWER', 'error', False), (state, said[0], send))
+        self.assertIn('NAV2_STARTUP_NO_ANSWER', said[1])
+        self.assertEqual(('NO_ANSWER', None, False), step('NO_ANSWER', answer=True))
+
+    def test_every_line_goes_out_with_the_rclpy_rule(self):
+        from rescue_bringup.nav2_start import emit
+        logger = RclpyLogger()
+        for said in (step('START', has_map=False)[1], step('WAITING_MAP', service_ready=False)[1],
+                     step('WAITING_MAP')[1], step('SENT', answer=True)[1], step('SENT', answer=False)[1],
+                     step('SENT', sent_for_s=200.0)[1]):
+            emit(logger, said)
+        self.assertEqual(6, len(logger.lines))
+
+
+class FailedStartupIsNotReady(unittest.TestCase):
+    """After NAV2_STARTUP_FAILED the manager answers is_active false: the executor says NOT_READY and logs why."""
+
+    def test_executor_readiness_after_a_refused_startup(self):
+        from test_robot_nav2_ready import FakeNode, fake_ros
+        with patch.dict(sys.modules, fake_ros()):
+            from rescue_robot.ros_node import Nav2Port
+            node, now = FakeNode(), [100.0]
+            service = '/robot5/lifecycle_manager_navigation/is_active'
+            port = Nav2Port(node, '/robot5/navigate_to_pose', service, clock=lambda: now[0], max_age_s=3.0)
+            self.assertEqual('FAILED', step('SENT', answer=False)[0])
+            port.server_ready()
+            node.services[service].calls[-1].finish(False)      # the manager after the refused STARTUP
+            self.assertFalse(port.server_ready())
+            self.assertIn(f'NAV2_LIFECYCLE {service} inactive: nav2 NOT_READY', node.logs)
 
 
 if __name__ == '__main__':
