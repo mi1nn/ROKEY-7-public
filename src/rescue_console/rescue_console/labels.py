@@ -40,7 +40,8 @@ LABELS = {
     'confirmation': {'CONFIRMED': '확정', 'UNCONFIRMED': '미확정'},
     'receipt': {'RECEIVED': '수신', 'PENDING_EVIDENCE': '증거 대기', 'PERSISTED': '저장 완료'},
     'event': {'REPORT': '구조 보고', 'DISASTER_SIGN': '진동 감지', 'EXIT_PASS': '출구 통과',
-              'TARGET_DISAPPEARED_CANDIDATE': '대상 소실 후보'},
+              'TARGET_DISAPPEARED_CANDIDATE': '대상 소실 후보',
+              'PASSAGE_APPROVAL': '터널 통과 승인'},   # operator_commands APPROVE_PASSAGE 행(#406 승인 서비스)
     'mode': {'NORMAL': '평시', 'DISASTER': '재난', 'CLEARING': '해제 중', 'MISSION_FINISHED': '임무 종료'},
     'phase': {'IDLE': '대기', 'DISASTER': '재난 감지', 'SEARCHING': '수색 중', 'TARGET_FOUND': '요구조자 발견',
               'DISPATCH_APPROVED': '출동 승인됨', 'SEGMENT_MOVING': '구간 이동 중', 'AWAITING_CONTINUE': '계속 승인 대기',
@@ -56,7 +57,9 @@ LABELS = {
               # 회차 초기화 거절(operations RunReset, #323)
               'ROBOT_STATUS_STALE': '로봇 상태가 없거나 5초 넘게 끊김(로봇이 꺼져 있음)',
               'ROBOT_MOVING': '로봇이 정지 상태가 아님', 'TASK_ACTIVE': '로봇에 임무가 남아 있음',
-              'ROBOT_NOT_DOCKED': '로봇이 도킹돼 있지 않음'},
+              'ROBOT_NOT_DOCKED': '로봇이 도킹돼 있지 않음',
+              # 터널 통과 승인 거절(#406 ApproveOverheadPassage reason_code)
+              'NO_SUCH_ITEM': '지금 터널 목록에 없는 항목', 'NO_APPROVER': '승인한 사람 이름 없음'},
 }
 
 

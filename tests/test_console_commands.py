@@ -15,7 +15,7 @@ from rescue_console.commands import (COMMAND_FIELDS, COMMAND_PATH, COMMAND_TIMEO
                                      send_command)
 from rescue_console.render import render_fragment, render_page
 from rescue_console.sources import load_ledger
-from rescue_console.view import COMMANDS, ConsoleError, build_view
+from rescue_console.view import COMMANDS, PASSAGE_COMMAND, ConsoleError, build_view
 from test_console_view import (ROBOTS, SECOND, T0, LedgerFixture, digest_dir, target_state, uid,
                                write_site_state)
 from test_console_web import ADMIN, CUSTOMER, HAS_FLASK, SECRET, AccountsFixture
@@ -252,9 +252,10 @@ class GateTests(LedgerFixture):
 
     def test_panel_lists_every_command_with_the_flow_gates_first(self):
         commands = self.view()['commands']
-        self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS])
+        self.assertEqual([c['name'] for c in commands], [name for name, _ in COMMANDS + (PASSAGE_COMMAND,)])
         self.assertEqual([c['name'] for c in commands if c['group'] == 'approve'],
-                         ['DECLARE_DISASTER', 'START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT'])
+                         ['DECLARE_DISASTER', 'START_SEARCH', 'DISPATCH_SUPPORT', 'CONTINUE_SEGMENT',
+                          'APPROVE_PASSAGE'])
         self.assertEqual([c['name'] for c in commands if c['group'] == 'stop'], ['STOP_ROBOT'])
 
     def test_without_a_mission_row_nothing_is_enabled(self):
@@ -423,7 +424,7 @@ class PanelRenderTests(LedgerFixture):
         view = self.view_with(mission_state('DISASTER', 'DISASTER'))
         page = render_page(view, self.USER, csrf='tok', command_access=command_access('ADMIN', True))
         buttons = self.buttons(page)
-        self.assertEqual(set(buttons), {name for name, _ in COMMANDS})
+        self.assertEqual(set(buttons), {name for name, _ in COMMANDS + (PASSAGE_COMMAND,)})
         self.assertNotIn(' disabled', buttons['START_SEARCH'])
         for name in HELD + ('CONTINUE_SEGMENT', 'RETURN_HOME'):
             self.assertIn(' disabled', buttons[name])

@@ -245,10 +245,13 @@ def _map(view):
             f'{escape(target["id"][:4])}</text></g>')
     for passage in layer.get('passages', ()):
         x, y, h = passage['px'], passage['py'], TARGET_MARK_PX
+        # 막힌 곳으로 칠해진 터널은 눌러서 통과 승인 확인 창을 연다(#406, data-passage 는 항목 id).
+        click = (f' data-passage="{escape(passage["id"])}"' if passage.get('approvable') else '')
         marks.append(   # 터널 판정: 기둥 둘과 지붕(∏), 초록 통과 가능 / 빨강 통과 불가 / 회색 판정 불가
-            f'<g class="passage {passage["state"].lower()} {"current" if passage["current"] else "old"}">'
+            f'<g class="passage {passage["state"].lower()} {"current" if passage["current"] else "old"}'
+            f'{" approvable" if click else ""}"{click}>'
             f'<title>{escape(passage["label"])} · {escape(passage["robot_id"])} · map_revision {passage["map_revision"]}'
-            f'{"" if passage["current"] else " (이전 지도)"}</title>'
+            f'{"" if passage["current"] else " (이전 지도)"}{" · 누르면 통과 승인" if click else ""}</title>'
             f'<path class="mark" d="M{x - h:.2f},{y + h:.2f} V{y - h:.2f} H{x + h:.2f} V{y + h:.2f}"/>'
             f'<text class="label" x="{x + h + 0.5:.2f}" y="{y + h:.2f}">{escape(passage["label"])}</text></g>')
     for exit_ in layer.get('exits', ()):
@@ -464,7 +467,9 @@ def _events(view):
             f'<tr class="event {event["kind"].lower()}" data-ref="{escape(event["ref_id"])}" '
             # 현장 사건 행에는 장부 시각이 없어(read_site_events 가 돌려주지 않음) 빈 값으로 둔다.
             f'data-event-ns="{event["event_ns"]}" data-received-ns="{event["received_at_ns"] or ""}" '
-            f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}">'
+            f'data-kind="{escape(event["kind"])}" data-clock="{escape(event["clock_domain_id"])}"'
+            # 터널 통과 승인 행은 사람이 누른 기록이라 KPI-04(사건 표시 지연)에 넣지 않는다
+            f'{"" if event.get("kpi", True) else " data-kpi=\"0\""}>'
             f'<td class="t" title="시계 {escape(event["clock_domain_id"])}">{_time(event["event_ns"], built)}</td>'
             f'<td class="kind">{_word("event", event["kind"])}</td>'
             f'<td>{escape(event["source"])}</td><td>{_short(event["subject"])}</td>'
@@ -739,6 +744,7 @@ button{font-family:inherit}
 .passage.passable .mark{stroke:var(--safe)} .passage.passable .label{fill:var(--safe)}
 .passage.blocked .mark{stroke:var(--signal)} .passage.blocked .label{fill:var(--signal)}
 .passage.unknown .mark{stroke:var(--pending)} .passage.unknown .label{fill:var(--pending)}
+.passage.approvable{cursor:pointer} .passage.approvable .mark{stroke-width:1.3}
 .robot.support .heading,.robot.support .body{fill:var(--info)}
 .robot .label{fill:var(--ink)} .robot.support .label{fill:var(--info)}
 .robot.estimated{opacity:.55} .robot.estimated .heading,.robot.estimated .body{fill:none;stroke:var(--ink);stroke-width:.5;stroke-dasharray:1 .7}
@@ -968,7 +974,7 @@ function stamp() {
       firstSeen.set(ref, now);
       // live: 페이지가 로드되어 열려 있는 동안 실시간 수신된 행. 초기 로드 시점의 기존 행은
       // 표시 지연 측정이 아닌 과거 이력이므로 KPI-04 실시간 지연 요약 통계에서 제외한다.
-      window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
+      if (row.dataset.kpi !== '0') window.kpi04.push({ref_id: ref, kind: row.dataset.kind, clock_domain_id: row.dataset.clock,
                          event_ns: row.dataset.eventNs, received_at_ns: row.dataset.receivedNs || '',
                          rendered_ms: now, latency_s: (now - eventMs) / 1000, live: loaded});
     }
@@ -1124,6 +1130,7 @@ function showArgs() {
   const labels = {target_id: '대상', target_revision: '대상 revision', route_revision: '경로 revision',
                   segment_index: '승인할 구간'};
   if (choice && armed.kind === 'DISPATCH_SUPPORT') rows.push(['대상 revision', choice.target_revision]);
+  if (choice && choice.item_id) rows.push(['터널 항목', choice.item_id], ['승인한 사람', '로그인한 계정 (서버가 붙임)']);
   for (const key of Object.keys(args)) {
     // segment_index는 완료된 구간 수이자 다음에 승인할 구간의 0-based 인덱스이다.
     rows.push([labels[key] || key, key === 'segment_index'
@@ -1148,8 +1155,8 @@ function arm(kind) {
   confirmBox.querySelector('.what').textContent = gate.confirm || (armed.name + ' — 아래 내용으로 보냅니다');
   pick.replaceChildren(...gate.choices.map(c => {
     const option = document.createElement('option');
-    option.textContent = shortId(c.target_id) + ' ' + c.stage_label;
-    option.title = c.target_id;
+    option.textContent = c.item_id ? c.label : shortId(c.target_id) + ' ' + c.stage_label;
+    option.title = c.item_id || c.target_id;
     return option;
   }));
   document.getElementById('cmd-pick-row').hidden = !gate.choices.length;
@@ -1186,7 +1193,8 @@ function describe(name, status, result) {
     const id = ' — request_id ' + result.request_id + (result.request_state ? ' (' + result.request_state + ')' : '');
     if (result.accepted) return ['accepted', name + ': 접수됨 (실행 완료 아님)' + id];
     const word = result.reason_label && result.reason_label !== result.reason ? ' (' + result.reason_label + ')' : '';
-    return ['rejected', name + ': 거절 ' + result.reason + word + id];
+    const said = result.message ? ' — ' + result.message : '';   // 터널 승인 노드가 남긴 한 줄
+    return ['rejected', name + ': 거절 ' + result.reason + word + said + id];
   }
   if (result && result.sent === false) {
     const where = result.delivery === 'NOT_SENT' ? ' · 전달 안 됨'
@@ -1202,7 +1210,9 @@ async function send() {
   if (!armed || sending) return;
   const body = new URLSearchParams({csrf: panel.dataset.csrf, kind: armed.kind});
   const args = JSON.parse(armed.args), choice = chosen();
-  if (choice) {
+  if (choice && choice.item_id) {
+    body.append('item_id', choice.item_id);
+  } else if (choice) {
     body.append('target_id', choice.target_id);
     if (armed.kind === 'DISPATCH_SUPPORT') body.append('target_revision', String(choice.target_revision));
   }
@@ -1231,6 +1241,22 @@ async function send() {
 panel.addEventListener('click', event => {
   const button = event.target.closest('button[data-command]');
   if (button && !button.disabled) arm(button.dataset.command);
+});
+// 지도의 막힌 터널 표시(data-passage)를 누르면 터널 통과 승인 확인 창을 그 항목으로 연다(#406).
+// 지도는 폴링마다 다시 그려지므로 #live 에 위임한다. 확인 창은 지도 밖(명령 칸)에 있어 다시 그려도 닫히지 않는다.
+document.getElementById('live').addEventListener('click', event => {
+  const mark = event.target.closest('[data-passage]');
+  if (!mark) return;
+  const gate = gates.APPROVE_PASSAGE;
+  if (!allowed || !gate || !gate.enabled) {
+    log('info', '터널 통과 승인은 ' + (allowed ? (gate ? gate.reason : '관문 정보 없음') : '관리자 계정만') + ' — 보내지 않음');
+    return;
+  }
+  if (armed === null) arm('APPROVE_PASSAGE');
+  if (!armed || armed.kind !== 'APPROVE_PASSAGE') return;
+  const index = armed.choices.findIndex(c => c.item_id === mark.dataset.passage);
+  if (index >= 0) { pick.selectedIndex = index; showArgs(); }
+  confirmBox.scrollIntoView({block: 'nearest'});
 });
 pick.addEventListener('change', showArgs);
 sendButton.addEventListener('click', send);

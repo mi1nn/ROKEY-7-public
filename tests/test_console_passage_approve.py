@@ -148,7 +148,7 @@ class PassageGateTests(LiveMapFixture):
     def test_panel_has_the_button_and_the_script_knows_items(self):
         self.passages([item(2, 'BLOCKED', 0.40, 0.2, -1.2)])
         view = self.drawn()[0]
-        page = render_page(view, {'username': 'admin', 'role': 'ADMIN'}, csrf='t', command_access=(True, 'ok'))
+        page = render_page(view, {'username': 'admin', 'display_name': 'admin', 'role': 'ADMIN'}, csrf='t', command_access=(True, 'ok'))
         self.assertIn('data-command="APPROVE_PASSAGE"', page)
         self.assertIn('item_id', page)                                  # 확인 창이 item_id 를 보낸다
         self.assertIn('data-passage', page)                             # 지도 표시를 누르면 확인 창
