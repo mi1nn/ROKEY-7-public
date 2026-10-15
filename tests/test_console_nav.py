@@ -1,6 +1,6 @@
 """화면 이동 줄(재범 2026-10-16 「네비게이션바로 리플레이랑 대시보드 잘 연결해야할 것 같은데」).
 
-실시간 관제(/), 지난 회차 다시 보기(/replay), 회차 초기화(/reset, ADMIN), 계정 관리(/admin/accounts, ADMIN) 네
+실시간 관제(/), 회차 다시 보기(/replay), 회차 초기화(/reset, ADMIN), 계정 관리(/admin/accounts, ADMIN) 네
 화면이 맨 위에 같은 이동 줄을 쓴다. 지금 화면은 aria-current="page" 로 표시하고, 로그인 이름과 로그아웃도 같은 줄
 오른쪽에 둔다. ADMIN 이 아니면 초기화·계정 관리 칸이 없다. 화면마다 달랐던 「관제 화면으로」 링크는 없앤다.
 """
@@ -10,7 +10,7 @@ import unittest
 from test_console_replay import ReplayFixture
 from test_console_web import ADMIN, CUSTOMER, HAS_FLASK, SECRET, AccountsFixture
 
-PAGES = (('/', '실시간 관제'), ('/replay', '지난 회차 다시 보기'), ('/reset', '회차 초기화'),
+PAGES = (('/', '실시간 관제'), ('/replay', '회차 다시 보기'), ('/reset', '회차 초기화'),
          ('/admin/accounts', '계정 관리'))
 
 
@@ -44,7 +44,7 @@ class NavBarTests(ReplayFixture, AccountsFixture):
         for path in ('/', '/replay', '/reset'):
             with self.subTest(path=path):
                 html = client.get(path).get_data(as_text=True)
-                self.assertEqual([('/', '실시간 관제'), ('/replay', '지난 회차 다시 보기')],
+                self.assertEqual([('/', '실시간 관제'), ('/replay', '회차 다시 보기')],
                                  [(p, n) for p, n, _current in tabs(html)])
 
     def test_name_and_logout_sit_in_the_same_bar_and_the_old_back_link_is_gone(self):
