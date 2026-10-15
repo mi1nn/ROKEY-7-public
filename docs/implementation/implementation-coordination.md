@@ -70,8 +70,10 @@ updated: 2026-10-14
 - 재난 신호를 받으면 TB-6 탐색이 자동으로 시작된다(`search_start=AUTO`, 로그 `SEARCH_AUTO_STARTED`). 운영자 `START_SEARCH` 는 `NOT_AUTHORIZED` 로 거절한다.
 - TB-6 실시간 지도와 TB-6 위치로 미탐색 경계 덩어리를 찾는다(`rescue_contracts.grid_search.find_frontiers`). 덩어리는 `frontier_min_cells` 칸 이상이고, 목표 칸은 덩어리에서 `frontier_reach_m` 안이다.
 - 이미 시도한 곳에서 `frontier_blacklist_m` 안은 고르지 않는다. 남은 것 중 TB-6 에서 격자 경로가 가장 짧은 것을 고르고, 그 경로 위 `frontier_goal_max_m` 지점을 목표로 삼는다.
+- 경로는 `freeze_clearance_m` 여유로 찾는다. 그래서 0.7 m 폭 통로도 지나갈 수 있는 길로 본다. 보내는 목표점만 벽에서 `frontier_goal_clearance_m` 떨어진 가장 가까운 칸으로 옮긴다(로그 `FRONTIER_GOAL_MOVED`). 옮길 칸이 없는 좁은 곳에서는 목표를 그대로 두고 로그 `FRONTIER_GOAL_TIGHT` 를 남긴다. 2026-10-15 시뮬레이션에서 벽 바로 안쪽 목표가 Nav2 충돌 검사에 걸려 FAILED 로 끝난 일 때문이다. 현장 값은 아직 `freeze_clearance_m` 와 같은 0.2 라서 동작이 바뀌지 않는다.
 - 목표를 먼저 `~/task_inputs` 에 넣고 `frontier_issue_delay_s` 뒤에 `SEARCH_AREA` 를 낸다. 로봇이 목적지를 읽을 시간이다.
 - 로봇이 출발하지 못한 목표는 시도로 치지 않는다. Nav2 가 목표를 거절했거나(`GOAL_REJECTED`), 제때 받지 않았거나(`ACCEPT_TIMEOUT`), 보내기 전 정지 근거가 오래된(`STOP_EVIDENCE_STALE`) 경우다. 그 곳은 다시 골라 `frontier_issue_delay_s` 뒤에 또 보내고, TB-6 이 새 목표를 받을 때까지 `SCOUT_GOAL_NOT_STARTED` 를 보인다(로그 `FRONTIER_NOT_STARTED`). 2026-10-15 현장에서 TB-6 이 서 있는 채로 `NO_SURVIVOR_FOUND` 로 끝난 일 때문이다.
+- 목표를 골랐는데 TB-6 이 READY 가 아니면(예: FAILED 로 끝난 뒤 실행기가 스스로 다시 arm 하지 않음, OPS-231) 목표는 기다리고 `SCOUT_NOT_READY` 를 보인다. 로그 `SCOUT_NOT_READY frontier=… stop_reason=…` 는 목표·정지 사유마다 한 번 남긴다. 기다리는 동안에도 `exploration_timeout_s` 는 흐른다.
 - 고를 곳이 없는 지도 갱신이 `exploration_empty_checks` 번 이어지면 `EXPLORATION_COMPLETE` 다. `exploration_timeout_s` 가 지나면 `EXPLORATION_TIMEOUT` 이고, 완료와 똑같이 다음 단계로 간다.
 
 ### 지도 고정 두 번 (`map_mode=SLAM_FREEZE`)
@@ -159,6 +161,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `search_start`, `search_mode` | 탐색 시작 방식, 탐색 방식(`PATROL`·`AREAS`·`FRONTIER`) | `AUTO`, `FRONTIER` |
 | `patrol_points`, `patrol_rounds` | 순찰 지점(TB-6 출발 자세 기준)과 바퀴 수 | 비움, 1 |
 | `frontier_min_cells`, `frontier_reach_m`, `frontier_goal_max_m`, `frontier_blacklist_m` | 경계 덩어리 최소 칸 수, 덩어리에서 목표 칸까지 거리, 목표를 자르는 경로 길이, 다시 고르지 않는 반경 | 10, 1.0, 1.5, 0.5 [추정, 실측 아님] |
+| `frontier_goal_clearance_m` | 보내는 탐색 목표점이 벽에서 떨어질 거리. `freeze_clearance_m` 보다 작을 수 없다 | 0.2 (지금과 같음). 0.36 [추정, Nav2 비용 128] 은 재범 승인 뒤 |
 | `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 2.0, 3, 600.0 [추정] |
 | `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
 | `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |
