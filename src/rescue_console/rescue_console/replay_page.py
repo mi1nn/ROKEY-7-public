@@ -6,14 +6,17 @@ JavaScript 수는 2^53 을 넘는 epoch ns 를 정확히 다루지 못하므로 
 이 페이지에는 명령 버튼과 로봇에 닿는 경로가 없다.
 """
 
+from datetime import datetime
 from html import escape
 
-from .render import _STYLE, SYSTEM_NAME, _reply, _short, _time, _user_nav
+from .labels import label
+from .render import _STYLE, SYSTEM_NAME, _age, _reply, _short, _time, _user_nav
 
 # 재생 중 조각을 다시 받는 최소 간격([제안] 관제·화면, 2026-10-15). 받는 중이면 다음 틱은 건너뛴다.
 REPLAY_FETCH_MS = 250
-KIND_WORDS = {'EVENT': '사건', 'COMMAND': '명령', 'ERROR': '오류', 'EXIT': '출구'}
-SECTION_WORDS = {'site_events': '사건', 'operator_commands': '명령', 'error_log': '오류', 'exit_locations': '출구'}
+KIND_WORDS = {'EVENT': '사건', 'COMMAND': '명령', 'ERROR': '오류', 'EXIT': '출구', 'TARGET': '인형'}
+SECTION_WORDS = {'site_events': '사건', 'operator_commands': '명령', 'error_log': '오류', 'exit_locations': '출구',
+                 'robot_history': '로봇 이력', 'target_history': '인형 이력'}
 
 _REPLAY_STYLE = """
 .replay{display:grid;gap:var(--gap);padding:0 16px 16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
@@ -34,12 +37,17 @@ _REPLAY_STYLE = """
 #replay-marks button{position:absolute;top:2px;width:8px;height:8px;margin-left:-4px;padding:0;border:0;border-radius:50%;cursor:pointer}
 .mark-EVENT{background:var(--signal)!important} .mark-COMMAND{background:var(--info)!important}
 .mark-ERROR{background:var(--caution)!important} .mark-EXIT{background:var(--safe)!important}
+.mark-TARGET{background:var(--accent)!important}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--ink-3);margin-top:6px}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .notice{margin-top:8px;padding:6px 10px;border-radius:var(--r-in);background:var(--caution-tint);font-size:13px}
 #replay-map .nomap{padding:28px 12px;text-align:center;border-radius:var(--r-in);background:var(--map-bg);color:var(--ink-2)}
 #replay-map dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin-top:14px}
 #replay-map dt{color:var(--ink-3)} #replay-map dd{margin:0}
+#replay-map h3{font-size:13.5px;margin:16px 0 6px}
+#replay-map table{width:100%;border-collapse:collapse;font-size:13px}
+#replay-map th,#replay-map td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+#replay-map tr.stale td{color:var(--ink-3)} #replay-map .stale-tag{color:var(--caution);font-weight:600}
 #replay-log table{width:100%;border-collapse:collapse;font-size:13px}
 #replay-log th,#replay-log td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 #replay-log tr.refused .outcome,#replay-log tr.ERROR .outcome{color:var(--signal-strong)}
@@ -49,7 +57,7 @@ _REPLAY_STYLE = """
 
 _REPLAY_SCRIPT = """
 (function(){
-  var DUR = DURATION_NS, FETCH_MS = FETCH_EVERY_MS;
+  var DUR = DURATION_NS, FETCH_MS = FETCH_EVERY_MS, RUN = 'RUN_ID';
   var slider = document.getElementById('replay-slider'), clock = document.getElementById('replay-clock');
   var live = document.getElementById('replay-live'), playBtn = document.getElementById('replay-play');
   var speed = 1, playing = false, offset = DUR, lastTick = null, lastFetch = 0, busy = false, wanted = null;
@@ -58,7 +66,7 @@ _REPLAY_SCRIPT = """
       + String(Math.floor(DUR / 1e9) % 60).padStart(2, '0') + '초'; }
   function fetchAt(ns){
     wanted = ns; if (busy) return; busy = true; lastFetch = performance.now();
-    fetch('/replay/fragment?offset_ns=' + Math.round(ns), {credentials: 'same-origin'})
+    fetch('/replay/fragment?run=' + RUN + '&offset_ns=' + Math.round(ns), {credentials: 'same-origin'})
       .then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error(t); return t; }); })
       .then(function(html){ live.innerHTML = html; })
       .catch(function(e){ live.innerHTML = '<p class="notice">불러오기 실패: ' + String(e.message).replace(/</g, '&lt;') + '</p>'; })
@@ -79,6 +87,8 @@ _REPLAY_SCRIPT = """
   slider.addEventListener('change', function(){ seek(Number(slider.value), true); });
   document.querySelectorAll('#replay-marks button').forEach(function(b){ b.addEventListener('click', function(){
     setPlaying(false); seek(Number(b.dataset.offset), true); }); });
+  document.getElementById('replay-run').addEventListener('change', function(e){
+    location.href = '/replay?run=' + encodeURIComponent(e.target.value); });
   clock.textContent = fmt(offset);
 })();
 """
@@ -95,10 +105,45 @@ def _row(item, ref_ns):
     elif kind == 'EVENT':
         target = '' if item['subject'] is None else f' 대상 {_short(item["subject"])}'
         css, result = 'EVENT', f'{escape(item["source"] or "")}{target} {escape(item["detail"] or "")}'
+    elif kind == 'TARGET':
+        css, result = 'TARGET', f'대상 {_short(item["subject"])}'
     else:
         css, result = 'EXIT', escape(item['detail'] or '')
     return (f'<tr class="{css}" data-ref="{escape(item["ref_id"])}"><td class="t">{_time(item["at_ns"], ref_ns)}</td>'
             f'<td>{KIND_WORDS[kind]}</td><td>{escape(item["label"])}</td><td>{result}</td></tr>')
+
+
+def _xy(pose):
+    if not pose or pose.get('x') is None or pose.get('y') is None:
+        return '—'
+    return f'({pose["x"]:.2f}, {pose["y"]:.2f}) {escape(str(pose.get("frame_id") or ""))}'
+
+
+def _robots(state):
+    """그 시점 로봇 표. 값은 그 시각 이전의 가장 최근 이력 행이고, 몇 초 전 값인지 같이 보인다."""
+    if not state['robots']:
+        return '<h3>로봇</h3><p>이 시점까지 로봇 상태 기록 없음</p>'
+    rows = []
+    for robot in state['robots']:
+        battery = '—' if robot['battery_percent'] is None else f'{robot["battery_percent"]:.0f}%'
+        stale = ' <span class="stale-tag">낡음</span>' if robot['stale'] else ''
+        rows.append(f'<tr class="{"stale" if robot["stale"] else ""}" data-robot="{escape(robot["robot_id"])}">'
+                    f'<td>{escape(robot["name"])}</td><td>{_xy(robot["pose"])}</td><td>{battery}</td>'
+                    f'<td>{escape(label("motion", robot["motion_state"]) if robot["motion_state"] else "—")}</td>'
+                    f'<td>{_age(robot["age_ns"] / 1e9)} 전{stale}</td></tr>')
+    return ('<h3>로봇</h3><table><thead><tr><th>로봇</th><th>위치</th><th>배터리</th><th>상태</th><th>기록</th></tr>'
+            f'</thead><tbody>{"".join(rows)}</tbody></table>')
+
+
+def _targets(state):
+    """그 시점 인형 표: 대상별 가장 최근 상태로 합성한 4단계(Q-20 규칙표, view.compose_stage)."""
+    if not state['targets']:
+        return '<h3>인형</h3><p>이 시점까지 인형 상태 기록 없음</p>'
+    rows = ''.join(f'<tr data-target="{escape(t["target_id"])}"><td>{_short(t["target_id"])}</td>'
+                   f'<td class="stage-{escape(t["stage"])}">{escape(t["stage_label"])}</td><td>{_xy(t["position"])}</td></tr>'
+                   for t in state['targets'])
+    return ('<h3>인형</h3><table><thead><tr><th>대상</th><th>단계</th><th>위치</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table>')
 
 
 def render_replay_fragment(state, timeline):
@@ -106,12 +151,10 @@ def render_replay_fragment(state, timeline):
     exit_ = state['exit']
     exit_text = ('관측 없음' if exit_ is None else
                  f'({exit_["x"]:.2f}, {exit_["y"]:.2f}) {escape(exit_["frame_id"])} · {_time(exit_["at_ns"], state["t_ns"])}')
-    no_history = ''.join(f'<dt>{escape(row["label"])}</dt><dd>이력 없음</dd>' for row in timeline['no_history']
-                         if row['key'] != 'map')
     left = ('<section id="replay-map"><h2>지도</h2>'
-            '<p class="nomap">지도 이력 없음 — 지도 그림이 아직 시각별로 남지 않습니다</p>'
-            f'<dl><dt>출구 관측</dt><dd>{exit_text}</dd><dt>출구 통과</dt><dd>{state["exit_pass_count"]}</dd>'
-            f'{no_history}</dl></section>')
+            '<p class="nomap">지도 이력 없음 — 지도 그림이 아직 회차별로 남지 않습니다</p>'
+            f'<dl><dt>출구 관측</dt><dd>{exit_text}</dd><dt>출구 통과</dt><dd>{state["exit_pass_count"]}</dd></dl>'
+            f'{_robots(state)}{_targets(state)}</section>')
     rows = ''.join(_row(item, state['t_ns']) for item in state['rows'])
     shown = len(state['rows'])
     count = (f'<p class="count">이 시점까지 {state["seen_count"]}건'
@@ -144,28 +187,39 @@ def _notices(timeline):
     return ''.join(notes)
 
 
-def render_replay_page(timeline, state, user=None, csrf=None):
-    """리플레이 전체 페이지. 처음에는 회차 끝 시점(state)을 그려 둔다. 기록이 없으면 state 는 None 이다."""
+def _run_word(run):
+    status = '진행 중' if run['open'] else '닫힘'
+    note = f' · {escape(run["note"])}' if run['note'] else ''
+    started = datetime.fromtimestamp(run['started_at_ns'] / 1e9).strftime('%m-%d %H:%M')
+    return f'회차 {run["number"]} · {started} 시작 · {status}{note}'
+
+
+def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
+    """리플레이 전체 페이지. 처음에는 회차 끝 시점(state)을 그려 둔다. 회차가 없으면 timeline 은 None 이다."""
     head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>지난 회차 다시 보기</title><style>{_STYLE}{_REPLAY_STYLE}</style></head><body><main class="replay">'
             f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">지난 회차 다시 보기</p>'
             f'<a class="back" href="/">관제 화면으로</a>{_user_nav(user, csrf)}</header>')
-    if timeline['start_ns'] is None:
-        return head + ('<section class="empty-run"><h2>기록 없음</h2><p>이 기록 DB 에는 아직 사건·명령·오류·출구 기록이 없습니다.</p>'
-                       f'{_notices(timeline)}</section></main></body></html>')
+    if timeline is None:
+        return head + ('<section class="empty-run"><h2>기록 없음</h2><p>이 기록 DB 에는 아직 회차가 없습니다.</p>'
+                       '</section></main></body></html>')
     duration = timeline['end_ns'] - timeline['start_ns']
+    # <option> 안에는 태그를 못 쓰므로 _run_word 는 글만 만든다(note 는 escape).
+    options = ''.join(f'<option value="{escape(run["run_id"])}"'
+                      f'{" selected" if run["run_id"] == timeline["run"]["run_id"] else ""}>{_run_word(run)}</option>'
+                      for run in runs)
     speeds = ''.join(f'<button type="button" data-speed="{n}" aria-pressed="{"true" if n == 1 else "false"}">{n}×</button>'
                      for n in timeline['speeds'])
     legend = ''.join(f'<span><i class="mark-{kind}"></i>{word}</span>' for kind, word in KIND_WORDS.items())
     bar = ('<section id="replay-bar"><div class="row">'
-           '<label for="replay-run">회차</label><select id="replay-run" disabled>'
-           f'<option>이 기록 DB 하나 · {_time(timeline["start_ns"])} 시작</option></select>'
+           f'<label for="replay-run">회차</label><select id="replay-run">{options}</select>'
            '<button type="button" id="replay-play" aria-pressed="false">재생</button>'
            f'{speeds}<span id="replay-clock"></span></div>'
            f'<div id="replay-track"><input type="range" id="replay-slider" min="0" max="{duration}" step="1" '
            f'value="{duration}" aria-label="시간 막대"><div id="replay-marks">{_marks(timeline)}</div></div>'
            f'<div class="legend">{legend}</div>{_notices(timeline)}</section>')
-    script = (_REPLAY_SCRIPT.replace('DURATION_NS', str(duration)).replace('FETCH_EVERY_MS', str(REPLAY_FETCH_MS)))
+    script = (_REPLAY_SCRIPT.replace('DURATION_NS', str(duration)).replace('FETCH_EVERY_MS', str(REPLAY_FETCH_MS))
+              .replace('RUN_ID', timeline['run']['run_id']))   # run_id 는 operations 가 검사한 UUID 라 따옴표 안에 안전
     return (head + bar + f'<div id="replay-live">{render_replay_fragment(state, timeline)}</div></main>'
             f'<script>{script}</script></body></html>')
