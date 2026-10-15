@@ -296,6 +296,8 @@ class RobotParameters(FieldCase):
         expected.update({'task.live.passage.polygon_name': 'PassageStop',
                          'task.live.passage.result_window_ns': 5_000_000_000})
         expected['camera_topics'] = expected['camera_topics'] + ['/robot6/oakd/stereo/image_raw/compressedDepth']
+        # Added after #132: nav2 READY also needs the Nav2 lifecycle manager active (field run1015b, 2026-10-15)
+        expected['nav2_lifecycle_service'] = '/robot6/lifecycle_manager_navigation/is_active'
         values = self.robot()
         self.assertEqual('/robot6', values['namespace'])
         self.assertEqual(expected, values['task_input'])
@@ -329,6 +331,7 @@ class RobotParameters(FieldCase):
         tb5 = self.field(lambda raw: (saved_maps(raw), tb5_depth(raw)))
         b, a = self.robot(field=tb5, robot_id='robot_b')['task_input'], self.robot()['task_input']
         self.assertEqual('/robot5/navigate_to_pose', b['nav_action'])
+        self.assertEqual('/robot5/lifecycle_manager_navigation/is_active', b['nav2_lifecycle_service'])
         self.assertNotEqual(a['task.publisher_id'], b['task.publisher_id'])
         self.assertEqual(a['task.mapping_authority'], b['task.mapping_authority'])
         self.assertTrue(b['task.live.auto_target.enabled'])

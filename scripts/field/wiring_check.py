@@ -64,6 +64,7 @@ NODES = {
     'collision_monitor': 'collision_monitor',     # turtlebot4 nav2.yaml (robot.launch.py remaps its cmd_vel)
     'docking_server': 'docking_server',           # turtlebot4 nav2.yaml (robot.launch.py remaps its cmd_vel)
     'bt_navigator': 'bt_navigator',               # turtlebot4 nav2.yaml (navigate_to_pose server)
+    'nav2_lifecycle': 'lifecycle_manager_navigation',   # nav2_bringup navigation_launch.py (is_active server)
     'slam_toolbox': 'slam_toolbox',               # turtlebot4 slam.yaml (tb6_slam.launch.py)
 }
 COLLISION_STATE = 'collision_monitor_state'     # nav2.yaml state_topic; rescue_robot task_site_runtime subscribes it
@@ -198,6 +199,8 @@ def expected_links(deployment, field, *, robots=None, slam_phase='SEARCHING', no
                  source='rescue_coordination ROBOT_PREFIX + /execute_task'),
             link(f'{r}.navigate_to_pose', 'action', t['nav_action'], [here('bt_navigator')], [adapter[r]],
                  source=src + ' nav_action'),
+            link(f'{r}.nav2_lifecycle', 'service', t['nav2_lifecycle_service'], [here('nav2_lifecycle')],
+                 [adapter[r]], source=src + ' nav2_lifecycle_service'),
             # the coordinator names this robot reads, from the field file (merged with the shared rows below)
             link(f'{r}.task_inputs', 'service', t['task.live.coordinator_service'], [coord], [adapter[r]],
                  source=src + ' task.live.coordinator_service'),

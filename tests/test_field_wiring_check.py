@@ -150,6 +150,16 @@ class Expectations(Case):
                                   ('/robot5/rescue_command_adapter',)), (row.name, row.writers, row.readers))
                 self.assertNotIn('robot_a.start_align', links)
 
+    def test_each_executor_asks_its_nav2_lifecycle_manager(self):
+        # nav2 READY needs is_active success (field run1015b: inactive bt_navigator was READY)
+        links = self.by_id()
+        for robot, ns in (('robot_a', '/robot6'), ('robot_b', '/robot5')):
+            with self.subTest(robot=robot):
+                row = links[f'{robot}.nav2_lifecycle']
+                self.assertEqual(('service', f'{ns}/lifecycle_manager_navigation/is_active',
+                                  (f'{ns}/lifecycle_manager_navigation',), (f'{ns}/rescue_command_adapter',)),
+                                 (row.kind, row.name, row.writers, row.readers))
+
     def test_one_robot_keeps_the_shared_rows_without_the_other_robot(self):
         links = self.links(robots=['robot_b'])
         text = json.dumps([lk.name for lk in links] + [n for lk in links for n in lk.writers + lk.readers])

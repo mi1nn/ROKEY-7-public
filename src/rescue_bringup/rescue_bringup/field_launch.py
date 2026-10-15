@@ -117,6 +117,9 @@ SLAM_BASE_FRAME = 'base_link'   # TurtleBot4 (Create3) robot body frame: TF odom
 FROZEN_ROBOT_OPTIONAL_KEYS = {'initial_pose_xy_yaw': FL}  # scripts/field/capture_initial_pose.py
 # TB-5 start alignment on the frozen map (재범 decision 2026-10-15, method B; rescue_robot.start_align), required
 # for every FROZEN_MAP_AMCL robot and refused on the others; values [제안] until a supervised run
+# Nav2 lifecycle manager of turtlebot4_navigation nav2.launch.py (nav2_bringup navigation_launch.py name), <ns>:
+# the executor counts nav2 READY only while its is_active (std_srvs/Trigger) answers success (field run1015b)
+NAV2_LIFECYCLE_MANAGER = 'lifecycle_manager_navigation'
 START_ALIGN_STATUS = '/rescue_start_align'   # <ns> + this: start_align verdict, read by the executor
 START_ALIGN_KEYS = {'start_align.' + name: kind for name, kind in (
     ('initial_sigma_xy_m', F), ('initial_sigma_yaw_rad', F), ('update_period_s', F), ('max_updates', I),
@@ -500,7 +503,8 @@ def robot_launch_values(deployment, *, field, robot_id, occupancy_sha256, now_ns
         raise FieldLaunchError('alignment.backdate_s must be >= 0 and alignment.window_s > 0')
     task_input = {
         'allowed_robot_ids': [r.id for r in deployment.robots], 'robot_id': robot_id, 'namespace': ns,
-        'nav_action': robot.nav_action, 'odom_topic': robot.odom_topic, 'dock_status_topic': robot.dock_status_topic,
+        'nav_action': robot.nav_action, 'nav2_lifecycle_service': f'{ns}/{NAV2_LIFECYCLE_MANAGER}/is_active',
+        'odom_topic': robot.odom_topic, 'dock_status_topic': robot.dock_status_topic,
         'scan_topic': readiness.scan_topic, 'tf_topic': readiness.tf_topic, 'map_frame': readiness.map_frame,
         'odom_frame': readiness.odom_frame, 'readiness.version': readiness.version,
         **{'readiness.max_age_s.' + source: seconds for source, seconds in readiness.max_age_s},
