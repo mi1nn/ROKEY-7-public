@@ -42,7 +42,8 @@ class Nav2Port:
     Ready = the action server is on the graph AND the Nav2 lifecycle manager answered is_active success within
     max_age_s. bt_navigator creates its action server while configuring, so the graph alone says nothing about an
     aborted bringup (field run1015b, 2026-10-15: inactive bt_navigator, nav2 READY, first goal rejected).
-    No answer, an old answer, a failed call or no service is not ready.
+    No answer, an old answer, a failed call or no service is not ready. Every change of the reason is logged once
+    (NAV2_LIFECYCLE <service> active / inactive / no answer ... / no service / no NavigateToPose server).
     """
 
     def __init__(self, node, action_name, lifecycle_service, *, clock, max_age_s):
@@ -58,6 +59,7 @@ class Nav2Port:
         self.clock, self.max_age_s = clock, max_age_s
         self.active = None          # (is_active success, clock() when answered)
         self.asking = None          # (future, clock() when asked)
+        self.reason = None          # last logged readiness reason
         self.adapter = None
         self.handles = {}
         self.pending_cancel = set()
@@ -69,7 +71,22 @@ class Nav2Port:
         now = self.clock()
         self._ask(now)
         fresh = self.active is not None and 0 <= now - self.active[1] <= self.max_age_s
-        return bool(self.client.server_is_ready() and fresh and self.active[0])
+        if not self.client.server_is_ready():
+            reason = 'no NavigateToPose server'
+        elif fresh:
+            reason = 'active' if self.active[0] else 'inactive'
+        elif not self.lifecycle.service_is_ready():
+            reason = 'no service'
+        else:
+            reason = f'no answer within {self.max_age_s} s'
+        if reason != self.reason:
+            self.reason = reason
+            log = self.node.get_logger()
+            if reason == 'active':
+                log.info(f'NAV2_LIFECYCLE {self.lifecycle_service} active')
+            else:
+                log.warn(f'NAV2_LIFECYCLE {self.lifecycle_service} {reason}: nav2 NOT_READY')
+        return reason == 'active'
 
     def _ask(self, now):
         # three questions per max_age_s; an unanswered one is dropped and asked again
@@ -93,10 +110,7 @@ class Nav2Port:
         except Exception as exc:  # a failed call is no answer
             self.node.get_logger().warn(f'NAV2_LIFECYCLE {self.lifecycle_service} no answer: {exc}')
             return
-        if self.active is None or self.active[0] != success:
-            self.node.get_logger().info(f'NAV2_LIFECYCLE {self.lifecycle_service} '
-                                        f'{"active" if success else "inactive: nav2 NOT_READY"}')
-        self.active = (success, self.clock())
+        self.active = (success, self.clock())     # server_ready logs the change
 
     def send_goal(self, command_id, pose):
         goal = self.goal_type.Goal()
