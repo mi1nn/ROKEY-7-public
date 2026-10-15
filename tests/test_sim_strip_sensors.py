@@ -149,5 +149,48 @@ class SimLidar(unittest.TestCase):
         self.assertIn("'--lidar-noise', '0.01'", launch)
 
 
+class SimRenderRates(unittest.TestCase):
+    """Render rates of the sensors nothing downstream reads at full rate (2026-10-16, RTF): the 4 cliff and 7 IR
+    intensity ray sensors of each Create3 (62 Hz in the description) and the OAK-D rgbd_camera (30 Hz; the relay passes
+    at most 10 Hz depth and 5 Hz RGB). Only update_rate changes; the rplidar keeps its own rate."""
+    RAY = ('<sensor name="{}" type="gpu_lidar">\n      <update_rate>62</update_rate>\n      <visualize>False</visualize>\n'
+           '      <lidar><scan><horizontal><samples>5</samples></horizontal></scan></lidar>\n    </sensor>')
+    NAMES = ('cliff_side_left', 'cliff_side_right', 'cliff_front_left', 'cliff_front_right',
+             'ir_intensity_front_center_left', 'ir_intensity_front_center_right', 'ir_intensity_front_left',
+             'ir_intensity_front_right', 'ir_intensity_left', 'ir_intensity_right', 'ir_intensity_side_left')
+
+    def robot(self, names=NAMES):
+        rays = ''.join(f'<gazebo reference="{n}">' + self.RAY.format(n) + '</gazebo>' for n in names)
+        return URDF.replace('</robot>', rays + '<gazebo reference="rplidar_link">' + SimLidar.LIDAR + '</gazebo>'
+                            '<gazebo reference="oakd_rgb_camera_frame">' + SimDepth.CAMERA + '</gazebo></robot>')
+
+    def test_cliff_and_ir_rays_get_the_rate_and_nothing_else(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=False, rays_rate_hz=10.0)
+        self.assertEqual(11, report['small_rays'])
+        self.assertEqual(11, out.count('<update_rate>10</update_rate>'))
+        self.assertIn('<update_rate>62.0</update_rate>', out)   # the rplidar is not a small ray sensor
+        self.assertIn('<update_rate>30</update_rate>', out)     # nor the camera
+        self.assertEqual(self.robot().replace('<update_rate>62</update_rate>', '<update_rate>10</update_rate>'), out)
+
+    def test_camera_rate(self):
+        out, report = strip_sensors.patch(self.robot(), keep_sensors=True, wheel_sphere=False, camera_rate_hz=10.0)
+        self.assertEqual(1, report['camera_rate'])
+        camera = out[out.index('<sensor name="rgbd_camera"'):]
+        self.assertIn('<update_rate>10</update_rate>', camera)
+        self.assertEqual(11, out.count('<update_rate>62</update_rate>'))
+
+    def test_a_description_that_does_not_match_is_refused(self):
+        with self.assertRaises(ValueError):   # a Create3 with one ray sensor fewer: nothing is guessed
+            strip_sensors.patch(self.robot(self.NAMES[1:]), keep_sensors=True, wheel_sphere=False, rays_rate_hz=10.0)
+        with self.assertRaises(ValueError):
+            strip_sensors.patch(URDF, keep_sensors=True, wheel_sphere=False, camera_rate_hz=10.0)
+
+    def test_every_robot_is_spawned_with_the_lower_render_rates(self):
+        """RTF of two idle robots: 0.84 at 62 Hz rays / 30 Hz camera, 0.99 at 1 Hz / 10 Hz [측정 2026-10-16]."""
+        launch = (REPO / 'scripts' / 'sim' / 'spawn_extra.launch.py').read_text()
+        self.assertIn("'--rays-rate', '1'", launch)
+        self.assertIn("'--camera-rate', '10'", launch)
+
+
 if __name__ == '__main__':
     unittest.main()
