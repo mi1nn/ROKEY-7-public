@@ -1,6 +1,7 @@
 """Live AMR1 map -> AMR2 localization/navigation, synthetic E2 inputs (2026-10-14; 방식 B start_align seed 2026-10-15)."""
 from copy import deepcopy
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -269,7 +270,9 @@ class CoordinatorTests(unittest.TestCase):
             with self.subTest(case=case):
                 c = self.core()
                 if case != 'missing':
-                    c.on_scout_map(FakeGrid(blocked=[(3.0, 4.0)] if case == 'blocked' else ()),
+                    # blocked: every standoff point round the doll at (4, 4), not only the one on the line
+                    ring = [(4.0 + math.cos(k * math.pi / 16), 4.0 + math.sin(k * math.pi / 16)) for k in range(32)]
+                    c.on_scout_map(FakeGrid(blocked=ring if case == 'blocked' else ()),
                                    now_ns=NOW-11*S if case == 'stale' else NOW)
                 self.assertEqual([], c.tick(NOW))
 

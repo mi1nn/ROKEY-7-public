@@ -104,6 +104,7 @@ COMPLETION_MODES = ('EXIT_ARRIVAL', 'RECHECK', 'EXIT_WAIT_SCOUT_DOCK')
 # return, no dock); TB-6 goes back to its own start pose once its exploration ended (not on TB-5's exit) and docks
 # there (rescue_robot.dock_node, Create3 dock action). FINISHED needs the confirmed dock, never the arrival alone.
 SCOUT_DOCK_SERVICE = '/dock'        # ROBOT_PREFIX + SCOUT + this: std_srvs/Trigger, answer JSON {"request": n, ...}
+APPROACH_ALTERNATES = 16  # headings tried round the target when the line point is not free ([제안], 2026-10-15)
 TASK_ARM_SERVICE = '/rescue_command_adapter/task_arm'  # robot namespace + this: std_srvs/Trigger (executor)
 TRAFFIC_REARM_TRIES, TRAFFIC_REARM_PERIOD_S = 10, 1.0  # re-arm after a traffic cancel ([제안], rehearsal 2026-10-15)
 SCOUT_DOCK_STATE_TOPIC = '/dock_state'  # ROBOT_PREFIX + SCOUT + this: std_msgs/String JSON, latched
@@ -521,6 +522,7 @@ class CoordinatorCore:
         self.traffic_cancel = None     # (task_id, requested_at_ns) of the TB-6 task stopped for TB-5
         self.traffic_canceled = set()  # task ids stopped for TB-5: their end is no try
         self.cancels = []              # task ids the node cancels (ExecuteTask goal cancel)
+        self.approach_moved = None     # the free standoff point used instead of the blocked line point
         self.rearms = []               # robot ids the node arms again (task_arm) after our own cancel/expiry
         self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
@@ -1183,6 +1185,38 @@ class CoordinatorCore:
             self.issue_block = reason
             return False
         return True
+
+    def _clear_approach(self, target_xy, support_xy, point):
+        """The standoff ``point`` on the line to TB-5 when it is free; else the free point at the same standoff around
+        the target (APPROACH_ALTERNATES headings) nearest TB-5; None (SUPPORT_APPROACH_NOT_FREE) when none is.
+
+        Rehearsal 2026-10-15 #23: a doll beside a box put the line point inside the box and TB-5 waited for good.
+        Only the goal moves round the target; Nav2 and the executor still check the path."""
+        before = self.issue_block
+        if self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE'):
+            return point
+        grid = self._shared_grid() if self.issue_block == 'SUPPORT_APPROACH_NOT_FREE' else None
+        if grid is None:
+            return None  # map not ready or not frozen: that reason stands
+        tx, ty = target_xy
+        radius = math.dist(point[0], target_xy)
+        base = math.atan2(point[0][1] - ty, point[0][0] - tx)
+        best = None
+        for k in range(1, APPROACH_ALTERNATES):
+            angle = base + 2 * math.pi * k / APPROACH_ALTERNATES
+            xy = (tx + radius * math.cos(angle), ty + radius * math.sin(angle))
+            if grid.clear(xy[0], xy[1], self.freeze_clearance_m) is True and (
+                    best is None or math.dist(xy, support_xy) < best[0]):
+                best = (math.dist(xy, support_xy), xy)
+        if best is None:
+            return None
+        self.issue_block = before
+        xy = best[1]
+        if self.approach_moved != xy:
+            self.approach_moved = xy
+            self.notes.append(f'APPROACH_POINT_MOVED from=({point[0][0]:.2f}, {point[0][1]:.2f}) (not free) '
+                              f'to=({xy[0]:.2f}, {xy[1]:.2f}) standoff={radius:.2f}')
+        return xy, math.atan2(ty - xy[1], tx - xy[0])
 
     def _home_free(self, role, reason):
         """The role robot's home (TB-6 docking approach point, TB-5 exit) is known and free on the frozen map."""
@@ -2213,7 +2247,8 @@ class CoordinatorCore:
         if point is None:
             self.issue_block = 'SUPPORT_AT_TARGET'
             return None
-        if not self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE'):
+        point = self._clear_approach(self.target_geo[target_id][1], support_xy, point)
+        if point is None:
             return None
         if not self._traffic_support(point[0], now_ns):
             return None

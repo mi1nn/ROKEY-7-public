@@ -58,6 +58,8 @@ def revision_info(revision=FROZEN_REV, sha256=SHA, session=MAP):
     return dict(map_session_id=session, map_revision=revision, occupancy_sha256=sha256)
 
 
+from test_coordination_approach import goal_template  # noqa: E402
+
 class FakeGrid:
     """The frozen grid as the core sees it: occupancy hash and the free-cell rule (blocked points here)."""
 
@@ -304,9 +306,22 @@ class FreeCellTests(Base):
         self.core.on_map_state(map_state(SUPPORT))
         self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
 
-    def test_approach_point_on_a_wall_or_unknown_cell_holds(self):
-        self.go(FakeGrid(blocked=[(3.25, 4.)]))
+    def test_no_free_point_round_the_target_holds(self):
+        self.go(FakeGrid(blocked=[(4.2, 4.)]))  # every standoff point within the clearance of the blocked cell
+        self.core.freeze_clearance_m = 2.0
         self.assertEqual(([], 'SUPPORT_APPROACH_NOT_FREE'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
+
+    def test_a_blocked_line_point_moves_round_the_target_nearest_tb5(self):
+        # rehearsal 2026-10-15 #23: the line point was inside a box beside the doll
+        self.go(FakeGrid(blocked=[(3.25, 4.)]))
+        (approach,) = self.tick(kind='APPROACH_TARGET')
+        pose = ros_node.fill_execute_task_goal(goal_template(), approach, coordinator_id='coord').route.approach_goal.pose
+        q = pose.orientation
+        goal = (pose.position.x, pose.position.y, math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
+        self.assertAlmostEqual(math.dist(goal[:2], (4.2, 4.)), self.core.approach_standoff_m, places=6)
+        self.assertGreater(math.dist(goal[:2], (3.25, 4.)), self.core.freeze_clearance_m)
+        self.assertAlmostEqual(math.atan2(4. - goal[1], 4.2 - goal[0]), goal[2], places=6)  # faces the doll
+        self.assertTrue(any(n.startswith('APPROACH_POINT_MOVED') for n in self.core.drain_notes()))
 
     def arrive(self):
         (approach,) = self.tick(kind='APPROACH_TARGET')
