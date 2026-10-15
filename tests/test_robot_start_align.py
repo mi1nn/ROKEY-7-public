@@ -319,13 +319,11 @@ class PointsTheMapCannotJudge(unittest.TestCase):
                                                                                     full['width']]) if x < width]
         return dict(full, width=width, data=data)
 
-    @unittest.expectedFailure
     def test_points_beyond_the_grid_no_longer_count_as_misses(self):
         hits, points = match_ratio(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
                                    laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1)
         self.assertEqual(1.0, hits / points)   # before option A: under 0.75 (the east wall's points were misses)
 
-    @unittest.expectedFailure
     def test_only_points_on_known_cells_are_judged(self):
         from rescue_robot.start_align import match_detail
         hits, judged, unjudged = match_detail(self.cut_room(), room_scan(0.5, 0.2, 0.1), pose=(0.5, 0.2, 0.1),
@@ -334,7 +332,6 @@ class PointsTheMapCannotJudge(unittest.TestCase):
         self.assertGreater(unjudged, 0)
         self.assertEqual(180, judged + unjudged)
 
-    @unittest.expectedFailure
     def test_unknown_cells_are_not_judged_and_free_cells_are(self):
         from rescue_robot.start_align import match_detail
         grid = room()
@@ -379,19 +376,16 @@ class BeamsThroughAWall(unittest.TestCase):
                     for iyaw in range(-7, 8):
                         yield (self.TRUE[0] + ix * 0.1, self.TRUE[1] + iy * 0.1, self.TRUE[2] + iyaw * 0.05)
 
-    @unittest.expectedFailure
     def test_wrong_poses_fail_with_part_of_the_map_unknown(self):
         scan, grid = room_scan(*self.TRUE, beams=640), self.east_unknown()
         self.assertTrue(self.passes(grid, scan, self.TRUE))
         self.assertEqual([], [p for p in self.wrong_poses(0.3) if self.passes(grid, scan, p)])
         self.assertFalse(self.passes(grid, scan, (self.TRUE[0] + 0.5, self.TRUE[1], self.TRUE[2])))  # 1.00 before
 
-    @unittest.expectedFailure
     def test_wrong_poses_fail_with_the_whole_room_known(self):
         scan = room_scan(*self.TRUE, beams=640)
         self.assertEqual([], [p for p in self.wrong_poses(0.3) if self.passes(room(), scan, p)])
 
-    @unittest.expectedFailure
     def test_a_beam_through_a_wall_out_of_the_grid_is_a_miss(self):
         from rescue_robot.start_align import match_detail
         one = dict(angle_min=0.0, angle_increment=0.0, range_min=0.1, range_max=12.0, ranges=[3.0])
@@ -400,7 +394,6 @@ class BeamsThroughAWall(unittest.TestCase):
         self.assertEqual((0, 0, 1), match_detail(self.east_unknown(), one, pose=(0.0, 0.0, 0.0),
                                                  laser_in_base=(0.0, 0.0, 0.0), hit_m=0.1))   # the wall is unknown
 
-    @unittest.expectedFailure
     def test_the_robot_drawn_in_the_map_is_not_a_wall(self):
         grid = self.east_unknown()
         width, res, (ox, oy, _) = grid['width'], grid['resolution'], grid['origin']
@@ -413,7 +406,6 @@ class BeamsThroughAWall(unittest.TestCase):
         scan = dict(room_scan(*self.TRUE, beams=640), range_min=0.164)
         self.assertTrue(self.passes(dict(grid, data=data), scan, self.TRUE))
 
-    @unittest.expectedFailure
     def test_run9_scan_on_its_frozen_map(self):
         """Run 9 (2026-10-16 03:55:59): TB-5's /robot5/scan and the frozen map it aligned on (2.45 x 3.45 m, without
         TB-5's east and south; TB-5 drawn in). At the pose the scan fits best, 386 of 640 points are within 0.1 m
