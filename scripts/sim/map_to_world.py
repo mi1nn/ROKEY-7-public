@@ -185,6 +185,7 @@ def cell_box(rect, grid):
 # ---- layout -------------------------------------------------------------------------------------------------
 
 LAYOUT_KEYS = {'wall', 'floor', 'min_cells', 'robots', 'objects', 'note'}
+LAYOUT_OPTIONAL = {'wall_feet'}   # brackets the MDF panels stand on, at every panel joint of each layout wall
 OBJECT_KEYS = {
     'box': {'name', 'kind', 'x', 'y', 'yaw', 'size', 'color'},
     'cylinder': {'name', 'kind', 'x', 'y', 'radius', 'length', 'color'},
@@ -219,7 +220,16 @@ def _exact(raw, need, what):
 
 def load_layout(path):
     raw = json.loads(Path(path).read_text())
-    _exact(raw, LAYOUT_KEYS - {'note'}, 'layout')
+    _exact({k: v for k, v in raw.items() if k not in LAYOUT_OPTIONAL}, LAYOUT_KEYS - {'note'}, 'layout')
+    if 'wall_feet' in raw:
+        feet = raw['wall_feet']
+        _exact(feet, {'spacing_m', 'size', 'color'}, 'wall_feet')
+        _number(feet['spacing_m'], 'wall_feet.spacing_m', positive=True)
+        if not isinstance(feet['size'], list) or len(feet['size']) != 3:
+            raise WorldError('wall_feet.size must be [along the wall, out from it, height]')
+        for v in feet['size']:
+            _number(v, 'wall_feet.size', positive=True)
+        _color(feet['color'], 'wall_feet.color')
     _exact(raw['wall'], {'height_m', 'thickness_m', 'color'}, 'wall')
     _number(raw['wall']['height_m'], 'wall.height_m', positive=True)
     _number(raw['wall']['thickness_m'], 'wall.thickness_m', positive=True)
@@ -321,6 +331,7 @@ def build(grid, layout, *, name, source='a SLAM map'):
     if not name.isidentifier():
         raise WorldError(f'world name {name!r} must be an identifier (it is also the file name)')
     estimates = (['wall'] if layout['wall'].get('estimate') else []) + \
+        (['wall_feet'] if layout.get('wall_feet', {}).get('estimate') else []) + \
         [f'robots.{robot}' for robot, start in layout['robots'].items() if start.get('estimate')] + \
         [obj['name'] for obj in layout['objects'] if obj.get('estimate')]
     parts = [HEADER.format(source=escape(source), estimates=', '.join(estimates) or '-', name=name)]
@@ -340,6 +351,7 @@ def build(grid, layout, *, name, source='a SLAM map'):
             # that ends on another wall's centre line) overlap there: no notch the lidar could see through.
             parts.append(_model(obj['name'], pose, _box((length + wall['thickness_m'], wall['thickness_m'],
                                                          wall['height_m'])), wall['color']))
+            parts.extend(_feet(obj, layout))
             continue
         if obj['kind'] == 'cylinder':
             geometry = f'<cylinder><radius>{obj["radius"]:.4f}</radius><length>{obj["length"]:.4f}</length></cylinder>'
@@ -351,6 +363,28 @@ def build(grid, layout, *, name, source='a SLAM map'):
         parts.append(_model(obj['name'], pose, geometry, obj['color'], obj.get('texture')))
     parts.append('  </world>\n</sdf>\n')
     return ''.join(parts), spawn_of(layout, name), estimates
+
+
+def _feet(wall_obj, layout):
+    """Models of the brackets one layout wall stands on: a pair (one each side) at every joint of panels of
+    wall_feet.spacing_m along it (a wall shorter than one panel: one pair in the middle). None without wall_feet."""
+    feet = layout.get('wall_feet')
+    if not feet:
+        return []
+    (x1, y1, x2, y2), half = (wall_obj[k] for k in ('x1', 'y1', 'x2', 'y2')), layout['wall']['thickness_m'] / 2
+    length, yaw = math.hypot(x2 - x1, y2 - y1), math.atan2(y2 - y1, x2 - x1)
+    along, out, height = feet['size']
+    panels = max(1, round(length / feet['spacing_m']))
+    joints = [i / panels for i in range(1, panels)] or [0.5]
+    nx, ny = -math.sin(yaw), math.cos(yaw)   # left of the wall direction
+    models = []
+    for i, f in enumerate(joints, 1):
+        cx, cy = x1 + f * (x2 - x1), y1 + f * (y2 - y1)
+        for side, sign in (('l', 1), ('r', -1)):
+            off = sign * (half + out / 2)
+            models.append(_model(f'{wall_obj["name"]}_foot{i}_{side}', (cx + off * nx, cy + off * ny, height / 2, yaw),
+                                 _box((along, out, height)), feet['color']))
+    return models
 
 
 def spawn_of(layout, name):
