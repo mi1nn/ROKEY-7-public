@@ -12,6 +12,7 @@ import urllib.parse
 import uuid
 
 from .accounts import AccountStore
+from .estimate import EstimateLog, load_start_offsets
 from .commands import (build_request, command_access, parse_operations_url, post_json, robot_camera_state,
                        select_robot_camera, send_command, switch_webcam, webcam_state)
 from .mapimage import LiveMap, load_map, map_overlay
@@ -59,7 +60,7 @@ def _check_sources(ledger_path, status_path, site_state_path):
 
 def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_state_path=None, map_image=None,
                  map_source=None, robot_names=None, support_dispatch=None, search_start=None, robot_watch_path=None,
-                 robot_watch_stale_s=None, robot_watch_map_robot=None):
+                 robot_watch_stale_s=None, robot_watch_map_robot=None, start_offsets=None):
     """단일 폴링 뷰 구성. 상태 정보는 현장 상태 DB 또는 (E2 모드, operations 부재 시) 픽스처에서 읽어온다.
 
     입력 소스를 캐시 없이 새로 읽어 `build_view`로 화면 모델을 생성하며, 지도가 지정된 경우 로봇, 타깃,
@@ -71,7 +72,8 @@ def current_view(ledger_path, status_path=None, clock=time.time_ns, *, site_stat
     status = load_site_state(site_state_path) if site_state_path is not None else load_status(status_path)
     ledger = None if ledger_path is None else load_ledger(ledger_path)
     watch = None if robot_watch_path is None else dict(zip(('data', 'problem'), load_robot_watch(robot_watch_path)),
-                                                       stale_s=robot_watch_stale_s, map_robot=robot_watch_map_robot)
+                                                       stale_s=robot_watch_stale_s, map_robot=robot_watch_map_robot,
+                                                       start_offsets=start_offsets)
     view = build_view(ledger, status, built_at_ns=clock(), robot_names=robot_names, support_dispatch=support_dispatch,
                       search_start=search_start, robot_watch=watch)
     live = None
@@ -129,7 +131,7 @@ def parse_robot_camera(url):
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
                map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
                command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None,
-               robot_watch_map_robot=None, robot_camera=None):
+               robot_watch_map_robot=None, robot_camera=None, field_path=None):
     """설정 유효성을 사전에 검증한 후 로그인·관제·명령·계정 관리 라우트를 등록한 Flask 앱을 생성한다.
 
     모든 설정 오류는 이 단계에서 즉시 ConsoleError로 실패하여, 잘못된 옵션 지정 시 첫 요청이 아닌
@@ -140,6 +142,11 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
     모의 시계가 주입된 LoginThrottle 인스턴스를 대체할 수 있다.
     """
     cameras = tuple(cameras)
+    if field_path is not None and robot_watch_path is None:
+        raise ConsoleError('INVALID_INPUT', '--field-file needs --robot-watch (the TB-6 start pose comes from it)')
+    # R1 전 TB-5 추정 위치의 시작 값(현장 파일 robots.<id>.initial_pose_xy_yaw). 기동 때 한 번 읽고 틀리면 멈춘다.
+    start_offsets = None if field_path is None else load_start_offsets(field_path)
+    estimate_log = EstimateLog()
     camera_stale_ms(cameras, camera_stale_s)   # 선택 의존성인 Flask를 import하기 전에 설정을 조기 검증한다
     try:
         from flask import Flask, Response, abort, flash, get_flashed_messages, jsonify, redirect, request, session
@@ -181,11 +188,16 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     def view():
         """기동 시 구성된 소스 정보로 현재 요청에 대한 화면 모델을 생성한다(`current_view` 1회 호출)."""
-        return current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
-                            map_source=live_map,
-                            robot_names=robot_names, support_dispatch=support_dispatch,
-                            search_start=search_start, robot_watch_path=robot_watch_path,
-                            robot_watch_stale_s=robot_watch_stale_s, robot_watch_map_robot=robot_watch_map_robot)
+        model = current_view(ledger_path, status_path, site_state_path=site_state_path, map_image=map_image,
+                             map_source=live_map,
+                             robot_names=robot_names, support_dispatch=support_dispatch,
+                             search_start=search_start, robot_watch_path=robot_watch_path,
+                             robot_watch_stale_s=robot_watch_stale_s, robot_watch_map_robot=robot_watch_map_robot,
+                             start_offsets=start_offsets)
+        if start_offsets:
+            for line in estimate_log.changes(model['robots']):   # 추정 -> 실제로 바뀐 때(작전 2026-10-15 ②)
+                app.logger.warning('%s', line)
+        return model
 
     def user():
         """현재 세션의 유효 계정 정보를 반환하며, 유효하지 않으면 None을 반환한다.

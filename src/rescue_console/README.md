@@ -12,6 +12,7 @@
 | 로그인·계정(관리자 ADMIN, 보기 전용 CUSTOMER) | 구현됨 | `accounts.py`, `app.py` `login`·`accounts_*` |
 | 현장 상태 DB 읽기(스키마 1.4) | 구현됨 | `sources.py:load_site_state`, #262 |
 | 실시간 SLAM 지도(`--live-map`) | 구현됨 · 실기 일부: 시험용 TB-5 SLAM 지도 표시 [측정 2026-10-13]. TB-6 지도는 NOT_RUN | `mapimage.py:LiveMap`, `rescue_operations` `map_snapshot`, #209 |
+| R1 전 TB-5 추정 위치(`--field-file`) | 구현됨 · 실기 NOT_RUN | `estimate.py`, `rescue_operations` `robot_watch`(출발 자세 구독) |
 | 로봇 직접 관측(`--robot-watch`) | 구현됨 · 실기 일부: TB-5·TB-6 배터리·도킹, TB-5 지도 위치 수신 [측정 2026-10-13]. 지도 주인 로봇만 지도에 그림(`--robot-watch-map-robot`) | `view.py:_apply_watch`, `rescue_operations` `robot_watch`, #251 |
 | 터널 표시(통과 가능/불가/판정 불가) | 구현됨 · 실기 NOT_RUN | `view.py:_passages`, `mapimage.py:map_overlay`, #263 |
 | 출구(QR) 관측 표시 | 구현됨 · 실기 NOT_RUN | `view.py:_exit`, #238 |
@@ -209,6 +210,10 @@ python3 -m rescue_console [<운영 장부>] --accounts <계정 DB> --site-state 
 - 카드에는 「직접 관측 · N초 전 · 배터리 N% · 도킹」이 나온다. 프로젝트 상태가 없는 로봇은 「프로젝트 상태 없음 — 로봇 기본 토픽 직접 관측만 보임」 카드를 받는다.
 - 위치는 tf 에 `map -> base_link` 가 있을 때만 쓴다(TB-6 SLAM 중). 없으면 지어내지 않고 「위치 미확정」이다. 프로젝트 상태의 위치가 있으면 그쪽이 먼저다.
 - 이 `map` 은 로봇마다 자기 localization(자기 SLAM, 시작 위치 없는 AMCL)의 map 이라 원점이 각자 출발한 도크다. 그래서 큰 지도에는 `--robot-watch-map-robot` 로 준 로봇(실시간 SLAM 지도를 만드는 TB-6)의 직접 관측 위치만 그린다. 다른 로봇은 좌표를 옮기지 않고 frame 만 `<ns> map`(예: `/robot5 map`)으로 바꿔 「지도에 안 그림」 목록에 둔다. 카드에는 「위치는 자기 지도 기준, 이 지도와 다름」이 나온다(현장 2026-10-14, TB-5 가 TB-6 지도 원점에 겹쳐 그려짐). TB-5 가 고정 지도에서 위치를 잡아 프로젝트 상태로 보내는 위치는 그대로 그린다.
+- **R1 전 TB-5 추정 위치(`--field-file <현장 파일>`, 재범 결정 2026-10-15 17:15, 작전 설계).** TB-5 는 고정 지도 위 AMCL 이라 1차 지도 고정(R1) 전에는 실제 위치가 없다. `robot_watch` 가 로봇마다 `/rescue/map/start_pose/<robot_id>`(지도 고정 노드가 회차에 한 번 내는 TB-6 출발 자세, latched)를 받아 `start_pose` 로 적는다. 관제 웹은 지도 주인 로봇의 `start_pose` 에 현장 파일 `robots.<id>.initial_pose_xy_yaw` 를 `compose_planar`(`rescue_contracts.occupancy`)로 더한 한 점을 그린다. 예를 들어 출발 자세 (-0.116, -0.057, 2.950)에 [0.0, -1.86, 0.0] 이면 (0.238, 1.769, 2.950)이다. odom 누적은 하지 않는다. 지도에서는 점선·흐린 색에 이름 뒤 「추정」을 붙이고, 카드 위치 뒤에 「추정(TB-6 출발 자세 + 현장 파일 시작 값)」을 붙인다.
+  - 출발 자세나 시작 값이 없거나, 출발 자세가 `map` frame 이 아니거나, 직접 관측 파일이 낡았으면 그리지 않는다(「위치 미확정」 그대로).
+  - `map` frame 의 실제 위치(프로젝트 상태나 지도 주인 직접 관측)가 생기면 바로 그 값을 쓴다. 자기 지도(`<ns> map`) 위치는 이 지도의 실제 위치가 아니라서 추정이 그대로 남는다. 추정과 실제가 바뀔 때마다 관제 웹 터미널에 「TB-5 지도 위치: 추정 -> 실제」 한 줄을 남긴다.
+  - 화면 전용이다. 조정기·실행기·출동 판단·DB 로봇 상태에는 쓰지 않는다. `--field-file` 은 `--robot-watch` 와 같이 준다. 현장 파일 값이 틀린 모양이면 기동하지 않는다.
 - `--robot-watch-stale-s` 보다 오래 받은 것이 없으면 「직접 관측 낡음」이고, 그 위치는 그리지 않는다. 파일이 갱신되지 않으면 경고 줄에 나온다. 낡음은 이 호스트 시계로 재므로 관측 노드와 관제 웹은 같은 PC 에서 돈다.
 
 ## 실시간 SLAM 지도 (`--live-map`, 2026-10-13)

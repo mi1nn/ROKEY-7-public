@@ -821,6 +821,8 @@ def build_view(ledger, status, *, built_at_ns, robot_names=None, support_dispatc
     mission = _mission(None if site_section is None else site_events, mission_row, seen_commands)
     robots = _robots(allowed, [] if robot_section is None else robot_section['robots'], built_at_ns, warnings)
     _apply_watch(robots, robot_watch, built_at_ns, warnings)
+    from .estimate import apply_estimate   # estimate 가 mapimage(-> view)를 쓰므로 여기서 읽는다
+    apply_estimate(robots, robot_watch, built_at_ns)   # R1 전 TB-5 추정 위치(화면 전용, 작전 2026-10-15)
     for row in robots:
         row['name'] = names.get(row['robot_id'], row['robot_id'])
     # 역할 표시명은 해당 역할을 보고한 로봇이 단 1대일 때만 적용한다(역할 정보는 robot_status에서 수신).
