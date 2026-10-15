@@ -1229,16 +1229,16 @@
       <static>true</static>
       <pose>-9.0055 0.6040 0.2050 0 0 1.727989</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>3.4303 0.0100 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>3.4303 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>3.4403 0.0100 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.4403 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
     <model name="outline_south_356">
       <static>true</static>
       <pose>-6.9790 -0.8115 0.2050 0 0 0.157113</pose>
       <link name="link">
-        <collision name="collision"><geometry><box><size>3.5598 0.0100 0.4100</size></box></geometry></collision>
-        <visual name="visual"><geometry><box><size>3.5598 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
+        <collision name="collision"><geometry><box><size>3.5698 0.0100 0.4100</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>3.5698 0.0100 0.4100</size></box></geometry><material><ambient>0.55 0.38 0.22 1</ambient><diffuse>0.55 0.38 0.22 1</diffuse><specular>0.1 0.1 0.1 1</specular></material></visual>
       </link>
     </model>
   </world>
