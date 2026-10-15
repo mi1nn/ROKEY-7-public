@@ -237,6 +237,23 @@ for r in robot_a robot_b; do
 done
 wait_for frozen_loc_b "START_ALIGN_WAITING" 60
 
+# 6b. 두 로봇을 한 RViz 창에(재범 「제일 중요」, 2026-10-16): 현장과 같은 tf_merge.py + two_robots.rviz(#414)를 현장 도메인에서
+#     이 PC 화면에 띄운다. 터널 진입 금지 마스크(/rescue/passage_keepout/mask)를 Map 표시로 더한 사본을 회차 폴더에 쓴다
+#     (rviz_keepout.py; 현장 파일은 그대로). SIM_RVIZ=off 면 띄우지 않는다. 창을 닫아도 회차는 계속된다.
+if [ "${SIM_RVIZ:-on}" = on ]; then
+    mkdir -p "$RUN/viz"
+    python3 "$HERE/rviz_keepout.py" "$REPO/scripts/field/noweb/two_robots.rviz" "$RUN/viz/two_robots_keepout.rviz" \
+        || die "RViz 설정 사본을 못 만들었습니다"
+    start tf_merge "exec setsid python3 $REPO/scripts/field/noweb/tf_merge.py --robots robot6 robot5"
+    env -i HOME="$HOME" PATH=/usr/bin:/bin DISPLAY="${DISPLAY:-}" XAUTHORITY="${XAUTHORITY:-}" \
+        WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+        bash -c "$FIELD_ENV; exec setsid rviz2 -d $RUN/viz/two_robots_keepout.rviz" > "$RUN/logs/rviz.log" 2>&1 < /dev/null &
+    echo $! > "$RUN/pids/rviz"
+    say "띄움 rviz 두 로봇 한 창(tf_merge + two_robots.rviz + 진입 금지 마스크, 로그 $RUN/logs/rviz.log)"
+elif [ "${SIM_RVIZ}" != off ]; then
+    die "SIM_RVIZ must be on or off"
+fi
+
 # 7. 조정기 (런북 3단계 마지막 줄; 값은 런북 자리표시, camera_watch_roi 는 웹캠이 없어 예시값)
 start coordinator "exec setsid ros2 launch rescue_bringup coordinator.launch.py profile_path:=$P field_path:=$F \
 route_segment_goals:='[0.0, 0.0, 0.0]' observe_goal:='[0.0, 0.0, 0.0]' route_segment_passage_free:='[false]' \
