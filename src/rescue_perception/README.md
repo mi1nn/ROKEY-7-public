@@ -1,14 +1,15 @@
 # rescue_perception
 
-## 현재 상태 (2026-10-14, main 4163a25)
+## 현재 상태 (2026-10-15, main 5d9304a)
 
-main 4163a25 의 코드를 읽고 적었다(작전 OPS-210). 「구현됨」은 코드와 합성·격리 시험이 있다는 뜻이다. 실제 로봇·카메라에서 확인했다는 뜻이 아니다. 실기 결과는 따로 적었고, 실기 기록이 없는 기능은 「실기 NOT_RUN」이다. 실기 기록은 이 README 와 [구현 문서](../../docs/implementation/implementation-perception.md)에서 찾았다.
+main 5d9304a 의 코드를 읽고 적었다(처음 작성은 작전 OPS-210). 「구현됨」은 코드와 합성·격리 시험이 있다는 뜻이다. 실제 로봇·카메라에서 확인했다는 뜻이 아니다. 실기 결과는 따로 적었고, 실기 기록이 없는 기능은 「실기 NOT_RUN」이다. 실기 기록은 이 README 와 [구현 문서](../../docs/implementation/implementation-perception.md)에서 찾았다.
 
 | 기능 | 상태 | 근거 |
 | --- | --- | --- |
 | 웹캠 지진 판정 (`DISASTER_SIGN`) | 구현됨. 실기는 한 번 확인했다: 실물 USB 웹캠을 한 번 흔들어 사건 1건이 나왔다 [측정, 2026-10-12, 구현 문서]. 오탐률과 장시간 동작은 NOT_RUN | `disaster_sign.py:DisasterSignDetector`, `webcam_node` |
 | 지진 판정 → TB-6 자동 출발 | 구현됨(조정기 쪽, 현장 파일 `search_start` AUTO). 실기 NOT_RUN: 위 두 문서와 조정 구현 문서에 실기 기록이 없다 | #228, `rescue_coordination/ros_node.py` `tick`(`search_start == 'AUTO'`) |
 | 웹캠 인형 소실 후보 | 구현됨. 실물 웹캠으로 인형 탐지 신뢰도 0.96·소실 후보 정상 [측정, 2026-10-12, 구현 문서]. 현장 PC 와 조건별 측정은 NOT_RUN | `target_watch.py:TargetWatchDetector` |
+| 웹캠 판정 화면 (한글 상태창 3칸: 지진·인형·출구) | 구현됨(#301). 지진 뒤에는 감시가 없어도 인형 상자와 궤적을 그린다. 화면용이라 판정과 사건에 쓰지 않는다. 지진 뒤 CPU·프레임 속도는 NOT_RUN | `webcam_service.py:status_items`·`draw_status`, `webcam_node` 파라미터 `debug_font_path` |
 | 로봇 인형 탐지와 RGB-D 위치 (amr_camera·amr_target) | 구현됨. robot5 에서 깊이 약 1.350 m·base XYZ 를 사용자가 확인했다(아래 「AMR 통합 전 최종 인식 파일」). 고친 노드 전체를 로봇에서 다시 돌린 시험(E4)은 NOT_RUN | `amr_target.py:create_node`, `person_pipeline.PersonPipeline` |
 | 지도 좌표 TargetLocation (target_locator) | 구현됨. 실기 NOT_RUN | `target_locator.py:main`, `target_location.py` |
 | TB-6 재확인 관측 (ObserveTarget) | 구현됨, 지금 시나리오에서는 쓰지 않음(scope Q-10, completion_mode EXIT_ARRIVAL). 실기 NOT_RUN | `recheck_server.py:RecheckServer`, `recheck.py` |
@@ -17,7 +18,7 @@ main 4163a25 의 코드를 읽고 적었다(작전 OPS-210). 「구현됨」은 
 | 터널 판정 영상 passage_view | 구현됨. 실기 NOT_RUN(미리보기 해상도·속도, 각 PC 글꼴) | #264, `overhead.py:render_view` |
 | TB-5 머리 위 여유 기록 headroom_record | 구현됨. 실기 NOT_RUN. 상자 안 바닥 위 점이 `min_points` 개 미만이면 UNKNOWN(`FEW_POINTS_ABOVE_FLOOR`)이다(2026-10-14, 재범 결정) | `headroom.py:judge` |
 | 관측이 모자랄 때 UNKNOWN (headroom) | 구현됨(점 수 기준만). 가림·시야 밖 구분과 46 cm 근처 오차 보류는 실측 뒤에 정한다 | `headroom.py:judge` |
-| 판정 영상 중계 (mjpeg_relay, robot_view_relay) | 구현됨. 실기 NOT_RUN | `mjpeg_relay.py`, #261 `robot_view_relay.py` |
+| 판정 영상 중계 (mjpeg_relay, robot_view_relay) | 구현됨. `GET /health` 로 마지막 프레임 나이를 낸다(#302). 실기 NOT_RUN | `mjpeg_relay.py`, #261 `robot_view_relay.py` |
 
 **headroom `judge` 의 관측 부족 UNKNOWN** (2026-10-14 고침, 재범 결정): 예전에는 `points` 가 `None` 일 때만 UNKNOWN 이었다. 빈 목록, 상자 밖 점만 있는 목록, 바닥 잡음(`floor_noise_m`) 아래 점만 있는 목록도 `PASS`, `lowest_m None` 이 나왔다(robot6 2026-10-13 기록 3회가 이 경우). 이제는 상자 안 바닥 위 점이 `min_points` 개 이상일 때만 PASS 다. 그보다 적으면 가로대를 보지 못한 것이라 UNKNOWN 으로 기록하고, 이유에 `FEW_POINTS_ABOVE_FLOOR seen=<개수>` 를 남긴다. 새 숫자는 만들지 않고 낮은 점을 세는 `min_points` 를 그대로 쓴다. 결과에 `points_seen`(상자 안 바닥 위 점 수)을 더했다. 그래서 가로대가 없는 빈 통로에서 재면 PASS 가 아니라 UNKNOWN 이 나온다. 이 도구는 가로대 앞에서 쓰는 측정 도구라 그렇게 둔다.
 
