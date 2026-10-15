@@ -239,6 +239,51 @@ class SeparationTests(TrafficBase):
         self.assertEqual('TRAFFIC_ROBOTS_TOO_CLOSE', self.core.traffic_hold.get('SCOUT'))
 
 
+class YieldFarEnoughTests(TrafficBase):
+    """A step aside clears the separation even where Nav2 calls the goal reached short of it (12회차 2026-10-16 C19:
+    TB-6 0.596 m from TB-5 got 47 step-aside goals 0.05-0.10 m away, inside Nav2's xy_goal_tolerance 0.25, so each
+    "arrived" without moving and the next tick sent another; RETURN_HOME never went). The spot is now
+    traffic_path_clearance_m + nav2_xy_goal_tolerance_m off TB-5 (and its path), and a third step aside from the same
+    spot (within that tolerance) is not sent: TB-6 stays, TRAFFIC_SCOUT_YIELD_NO_SPACE, logged once."""
+
+    CORE = TrafficBase.CORE | dict(nav2_xy_goal_tolerance_m=0.25)
+    TOL = 0.25
+    OPEN = staticmethod(lambda x, y: y < 1.)
+    arrived = SeparationTests.arrived
+
+    def aside(self, now):
+        self.scout_at((3.5, 4.), now, grid=scout_grid(unknown=self.OPEN))  # 0.5 m from TB-5
+        self.support_at((3., 4.), now)
+        return self.sent(now)
+
+    def test_the_spot_is_the_tolerance_farther_than_the_clearance(self):
+        self.arrived()
+        sent = self.aside(NOW + 1)
+        x, y, _ = self.destination(sent[(SCOUT, 'SEARCH_AREA')])
+        self.assertGreaterEqual(math.dist((x, y), (3., 4.)), CLEAR + self.TOL)
+
+    def test_a_third_step_aside_from_the_same_spot_is_not_sent(self):
+        self.arrived()
+        for k in range(2):
+            sent = self.aside(NOW + 1 + k)
+            self.finish(sent[(SCOUT, 'SEARCH_AREA')])  # "arrived" without moving
+        self.assertEqual({}, {k: v for k, v in self.aside(NOW + 3).items() if k[0] == SCOUT})
+        self.assertEqual('TRAFFIC_SCOUT_YIELD_NO_SPACE', self.core.traffic_hold.get('SCOUT'))
+        self.aside(NOW + 4)
+        notes = [n for n in self.core.drain_notes() if n.startswith('TRAFFIC_YIELD_REPEATED')]
+        self.assertEqual(1, len(notes), notes)
+
+    def test_after_moving_off_the_spot_it_steps_aside_again(self):
+        self.arrived()
+        for k in range(3):
+            sent = self.aside(NOW + 1 + k)
+            if (SCOUT, 'SEARCH_AREA') in sent:
+                self.finish(sent[(SCOUT, 'SEARCH_AREA')])
+        self.scout_at((3., 4.5), NOW + 5, grid=scout_grid(unknown=self.OPEN))  # TB-6 moved: 0.5 m from TB-5
+        self.support_at((3., 4.), NOW + 5)
+        self.assertIn((SCOUT, 'SEARCH_AREA'), self.sent(NOW + 5))
+
+
 class ParameterTests(unittest.TestCase):
     def test_typed_parameters(self):
         self.assertEqual(('STRING', 'DOUBLE', 'DOUBLE', 'DOUBLE', 'DOUBLE'),

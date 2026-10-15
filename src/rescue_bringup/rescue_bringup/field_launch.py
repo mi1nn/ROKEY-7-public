@@ -58,6 +58,7 @@ COORDINATOR_KEYS = {
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
     'return_home_attempts': I,  # a FAILED return (TB-6 home, TB-5 exit) goes again until this many failed
     'frontier_look_turns': I,  # 90-degree turns in place at each frontier's goal, 0 none (2026-10-16)
+    'nav2_xy_goal_tolerance_m': F,  # the robots' Nav2 goal checker, step-aside spots go that much farther (C19)
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,
     # Traffic control stage 1 (owner decision 2026-10-14, OPS-204·205): TB-5 first, it leads the rescuer
@@ -296,7 +297,7 @@ def load_field(path):
             raise FieldLaunchError(f'coordinator.{key} must be positive')
     if coordinator['frontier_goal_clearance_m'] < coordinator['freeze_clearance_m']:
         raise FieldLaunchError('coordinator.frontier_goal_clearance_m must be at least freeze_clearance_m')
-    for key in ('frontier_potential_scale', 'frontier_gain_scale'):
+    for key in ('frontier_potential_scale', 'frontier_gain_scale', 'nav2_xy_goal_tolerance_m'):
         if coordinator[key] < 0:
             raise FieldLaunchError(f'coordinator.{key} must be zero or positive')
     if coordinator['support_exit_wait_s'] < 0:

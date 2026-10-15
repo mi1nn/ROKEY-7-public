@@ -113,7 +113,7 @@ updated: 2026-10-14
 TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 따라가기 때문이다. 교통 관제는 `SLAM_FREEZE` 에서만 켜고 `FRONTIER` 가 필요하다(비켜서기 자리를 frontier 자리로 보냄). 이유 코드 10개는 [상태 전이](../design/state-machines.md) 「교통 관제 이유 코드」 표에 있다.
 
 - TB-5 새 명령 전에 고정 지도에서 TB-5 격자 경로를 구한다(`grid_path`).
-- TB-6 이 서 있는데 그 경로에서 `traffic_path_clearance_m` 안이거나 TB-5 와 `traffic_min_separation_m` 보다 가까우면 먼저 비키게 한다. 비킬 자리는 TB-6 실시간 지도에서 경로와 TB-5 로부터 그만큼 떨어진 빈 칸 가운데 격자 경로가 가장 짧은 곳(`nearest_clear_outside`)이고, `traffic_yield_max_m` 안이어야 한다. 도착 방향은 TB-6 에서 자리 쪽이다(제자리 회전 뒤 전진, 후진 없음).
+- TB-6 이 서 있는데 그 경로에서 `traffic_path_clearance_m` 안이거나 TB-5 와 `traffic_min_separation_m` 보다 가까우면 먼저 비키게 한다. 비킬 자리는 TB-6 실시간 지도에서 경로와 TB-5 로부터 그만큼 떨어진 빈 칸 가운데 격자 경로가 가장 짧은 곳(`nearest_clear_outside`)이고, `traffic_yield_max_m` 안이어야 한다. 도착 방향은 TB-6 에서 자리 쪽이다(제자리 회전 뒤 전진, 후진 없음). 떨어지는 거리에는 `nav2_xy_goal_tolerance_m`(로봇 Nav2 도착 허용, 0.25)을 더한다. Nav2 는 목표에서 그만큼 모자라도 도착으로 치기 때문이다. 12회차(2026-10-16 C19)에는 비킬 자리가 TB-6 에서 0.05~0.10 m 앞이라 움직이지 않고 「도착」했고, 거리가 그대로라 47번 반복했다. 같은 자리(그 허용 안)에서 두 번 비킨 뒤 또 비켜야 하면 보내지 않는다. TB-6 은 서 있고 `TRAFFIC_SCOUT_YIELD_NO_SPACE` 로 막으며 로그 `TRAFFIC_YIELD_REPEATED` 를 한 번 남긴다. TB-6 이 그 자리를 벗어나면 다시 센다.
 - TB-6 이 움직이는 중이고 지금 위치나 목표가 그 경로 근처이면 그 임무를 취소한다. 실행기는 취소를 받으면 로봇을 세우고 CANCELED 로 끝낸다. 취소한 frontier 는 시도로 치지 않고, 취소한 TB-6 복귀는 다시 낸다.
 - TB-5 가 움직이거나 출발을 기다리는 동안 TB-5 경로 근처로 가는 TB-6 새 목표는 보류한다. 다른 곳으로 가는 목표는 보낸다.
 - 두 로봇이 `traffic_min_separation_m` 보다 가깝거나 새 목표가 상대 로봇과 그만큼 가까우면 새 명령을 막는다. 움직이는 임무를 이 이유로 취소하지는 않는다.
@@ -473,6 +473,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `patrol_rounds` | int | 순찰 바퀴 수(1 이상). 다 돌면 `PATROL_EXHAUSTED` [근거: 작전 OPS-139] |
 | `traffic_control` | string | `TB5_PRIORITY`(교통 관제, TB-5 먼저) 또는 `DISABLED`(로봇 없는 시험 고정값; `OFF` 는 ROS 명령줄에서 YAML 참거짓이 돼 쓰지 않음). 현장 launch 는 SLAM_FREEZE 에서 `DISABLED` 를 거절한다. `TB5_PRIORITY` 는 `search_mode=FRONTIER` 가 필요하다(비켜서기가 FRONTIER 자리) [근거: 저장소 소유자 결정 2026-10-14, OPS-204] |
 | `traffic_min_separation_m` / `traffic_path_clearance_m` / `traffic_yield_max_m` / `traffic_stop_timeout_s` | double | 새 명령을 막는 두 로봇 중심 거리 / TB-6 이 TB-5 경로·TB-5 와 둘 거리(최소 간격 이상) / 가장 먼 비켜서기(격자 경로 길이) / 취소한 TB-6 정지 대기 상한. 현장 0.6 / 0.6 / 2.0 / 3.0 [추정, 실측 아님] |
+| `nav2_xy_goal_tolerance_m` | double | 로봇 Nav2 goal checker 의 `xy_goal_tolerance`. 비켜서기 자리를 이만큼 더 멀리 둔다. 현장 0.25 [설정: `config/robots/turtlebot4_nav2.baseline.yaml`, 같은지 시험으로 확인] |
 | `completion_mode` | string | `EXIT_ARRIVAL`(TB-5 출구 도착 = 구출 완료, TB-6 재확인 없음) 또는 `RECHECK`(C-11). 현장 `EXIT_ARRIVAL` [근거: 저장소 소유자 결정 2026-10-13 밤, OPS-155 ②] |
 | `support_start_pose` | double[] | 생략 가능. TB-5 시작점 [x, y, yaw](TB-6 출발 자세 기준) = 현장 파일 `robots.<TB-5>.initial_pose_xy_yaw`(현장 launch 가 넘김, 측정 전에는 없음). QR 출구가 없을 때의 출구 [OPS-155 ①·173] |
 | `frontier_min_cells`·`frontier_reach_m`·`frontier_goal_max_m`·`frontier_blacklist_m` | int·double | `FRONTIER`: 가장 작은 frontier 덩어리(칸), 덩어리에서 목표 칸까지 최대 거리, TB-6 목표를 자르는 경로 길이, 시도한 frontier 근처 재선택 금지 반경. 현장 10·1.0·1.5·0.5 [제안: 통합-조정 2026-10-13, 미측정] |

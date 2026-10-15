@@ -78,6 +78,7 @@ STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.mot
 # not answer in time, or the stop evidence was stale before sending. TB-6 did not go there (현장 2026-10-15 17:54).
 # A frontier Nav2 took and that then failed is picked again until this many attempts failed (재범 decision
 # 2026-10-16, C9); untried frontiers go first.
+YIELD_REPEATS = 2  # step asides from one spot before TB-6 stays (작전 2026-10-16, C19: as FRONTIER_ATTEMPTS)
 FRONTIER_ATTEMPTS = 2
 NOT_STARTED_REASONS = frozenset({'GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'})
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
@@ -343,7 +344,7 @@ class CoordinatorCore:
                  frontier_issue_delay_ns, exploration_empty_checks, exploration_timeout_ns,
                  completion_mode, support_start_pose, traffic_control, traffic_min_separation_m,
                  traffic_path_clearance_m, traffic_yield_max_m, traffic_stop_timeout_ns,
-                 return_home_attempts, frontier_look_turns,
+                 return_home_attempts, frontier_look_turns, nav2_xy_goal_tolerance_m,
                  new_id=None):
         if not isinstance(mission, MissionCoordinator):
             raise CoordinationError('INVALID_POLICY', 'mission coordinator type')
@@ -501,6 +502,12 @@ class CoordinatorCore:
                             ('traffic_yield_max_m', traffic_yield_max_m)):
             if not (type(value) in (int, float) and math.isfinite(value) and value > 0):
                 raise CoordinationError('INVALID_POLICY', f'{name} must be a positive number')
+        if not (type(nav2_xy_goal_tolerance_m) in (int, float) and math.isfinite(nav2_xy_goal_tolerance_m)
+                and nav2_xy_goal_tolerance_m >= 0):
+            raise CoordinationError('INVALID_POLICY', 'nav2_xy_goal_tolerance_m must be a number >= 0')
+        # the robots' Nav2 goal checker xy_goal_tolerance: a step aside is that much farther, as TB-6 may stop
+        # that short of it (12회차 C19)
+        self.nav2_xy_goal_tolerance_m = nav2_xy_goal_tolerance_m
         if traffic_path_clearance_m < traffic_min_separation_m:
             # a step-aside spot is this far from TB-5's path and from TB-5 itself
             raise CoordinationError('INVALID_POLICY', 'traffic_path_clearance_m must be at least '
@@ -523,6 +530,7 @@ class CoordinatorCore:
         self.traffic_hold = {}         # role -> traffic reason holding its new command this tick
         self.task_goal = {}            # task_id -> goal xy of the tasks traffic control knows
         self.yield_count = 0
+        self.yield_from = None  # [xy TB-6 last stepped aside from, times from there, logged] (C19)
         self.separation_unchecked = False  # TB-6 goes without the separation check (TB-5 start not measured)
         self.start_pose = None          # TB-6 start pose in the map, bound to its search basis (OPS-142)
         self.start_pose_pending = None  # received, waiting for TB-6's VALID MapState on the search revision
@@ -2109,13 +2117,29 @@ class CoordinatorCore:
         """Send TB-6 aside, then hold ``role`` with ``reason``: to the clear cell of TB-6's live map farther than
         traffic_path_clearance_m from every ``avoid`` point (TB-5's path, TB-5) with the shortest clear path, at
         most traffic_yield_max_m, as a FRONTIER site (how TB-6's goals go). A pending frontier is dropped untried.
-        No such cell: TB-6 is sent nowhere and ``role`` is held with TRAFFIC_SCOUT_YIELD_NO_SPACE."""
+        No such cell: TB-6 is sent nowhere and ``role`` is held with TRAFFIC_SCOUT_YIELD_NO_SPACE.
+
+        The cell is nav2_xy_goal_tolerance_m farther still: Nav2 calls a goal reached that far short of it, and a
+        spot just past the clearance was "reached" without TB-6 moving (12회차 C19: 47 step asides of 0.05-0.10 m
+        from one spot). A third step aside from the same spot (within that tolerance) is not sent either: TB-6
+        stays and ``role`` is held with TRAFFIC_SCOUT_YIELD_NO_SPACE (TRAFFIC_YIELD_REPEATED logged once)."""
+        tol = self.nav2_xy_goal_tolerance_m
+        if self.yield_from is not None and math.dist(self.yield_from[0], scout_xy) <= tol:
+            if self.yield_from[1] >= YIELD_REPEATS:
+                if not self.yield_from[2]:
+                    self.yield_from[2] = True
+                    self.notes.append(f'TRAFFIC_YIELD_REPEATED from=({scout_xy[0]:.2f}, {scout_xy[1]:.2f}): '
+                                      f'{YIELD_REPEATS} step asides from here did not clear it, TB-6 stays '
+                                      f'(why={reason})')
+                return self._hold(role, 'TRAFFIC_SCOUT_YIELD_NO_SPACE')
+        else:
+            self.yield_from = [scout_xy, 0, False]
         spot = None
         if self.scout_grid is not None:
             fields, radius = self.scout_grid.fields, self.freeze_clearance_m
             mask = clear_mask(**fields, radius=radius)
             spot = nearest_clear_outside(**fields, radius=radius, from_xy=scout_xy, path_points=avoid,
-                                         distance_m=self.traffic_path_clearance_m, mask=mask)
+                                         distance_m=self.traffic_path_clearance_m + tol, mask=mask)
             length = None if spot is None else path_lengths(**fields, radius=radius, start=scout_xy, goals=[spot],
                                                             mask=mask)[0]
             if length is None or length > self.traffic_yield_max_m:
@@ -2123,6 +2147,7 @@ class CoordinatorCore:
         if spot is None:
             return self._hold(role, 'TRAFFIC_SCOUT_YIELD_NO_SPACE')  # both stand; the operator must see it
         x, y = spot
+        self.yield_from[1] += 1
         yaw = math.atan2(y - scout_xy[1], x - scout_xy[0])  # turn in place, then forward (no reversing)
         session, rev, transform = self.scout_basis()
         site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/step-aside/{self.yield_count}'))
@@ -2704,6 +2729,7 @@ def build_core(values):
                            traffic_min_separation_m=values['traffic_min_separation_m'],
                            traffic_path_clearance_m=values['traffic_path_clearance_m'],
                            traffic_yield_max_m=values['traffic_yield_max_m'],
+                           nav2_xy_goal_tolerance_m=values['nav2_xy_goal_tolerance_m'],
                            traffic_stop_timeout_ns=seconds_to_ns(str(values['traffic_stop_timeout_s'])))
 
 
@@ -2791,7 +2817,7 @@ PARAMETERS = {  # name -> rcl_interfaces ParameterType name; every one is requir
     # Traffic control (OPS-204·205): TB5_PRIORITY | DISABLED; robots this close get no new command; TB-6 keeps this far
     # from TB-5's path (and TB-5); the farthest step aside; how long TB-5 waits for a canceled TB-6 to stop.
     'traffic_control': 'STRING', 'traffic_min_separation_m': 'DOUBLE', 'traffic_path_clearance_m': 'DOUBLE',
-    'traffic_yield_max_m': 'DOUBLE', 'traffic_stop_timeout_s': 'DOUBLE'}
+    'traffic_yield_max_m': 'DOUBLE', 'traffic_stop_timeout_s': 'DOUBLE', 'nav2_xy_goal_tolerance_m': 'DOUBLE'}
 OPTIONAL_PARAMETERS = ('route_segment_passage_free',)
 # Declared beside PARAMETERS (which launch passes in full) because they may be left out = none.
 # camera_watch_roi: no deployment ROI, only the operator's. home_poses: [x, y, yaw] for the SCOUT then the SUPPORT

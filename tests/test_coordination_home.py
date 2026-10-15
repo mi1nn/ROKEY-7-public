@@ -39,6 +39,7 @@ def values(**changes):
             'frontier_issue_delay_s': 2.0, 'exploration_empty_checks': 3, 'exploration_timeout_s': 600.0,
             'return_home_attempts': 2,
             'frontier_look_turns': 0,
+            'nav2_xy_goal_tolerance_m': 0.25,
             'completion_mode': 'RECHECK', 'support_start_pose': None,
             'traffic_control': 'DISABLED', 'traffic_min_separation_m': 0.6, 'traffic_path_clearance_m': 0.6,
             'traffic_yield_max_m': 2.0, 'traffic_stop_timeout_s': 3.0,
