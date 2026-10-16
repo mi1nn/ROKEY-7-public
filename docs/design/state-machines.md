@@ -97,7 +97,7 @@ TB-5 가 출구 대기(`WAITING`)에 들어가려면 도착 뒤 `support_exit_wa
 | TB-5 출동 | `SUPPORT_NOT_LOCALIZED` | TB-5 가 고정 지도에서 위치를 못 잡음 | TB-5 MapState 가 고정 revision |
 | TB-5 출동 | `SUPPORT_NOT_READY` | TB-5 가 READY 가 아님(arm 필요) | TB-5 arm |
 | TB-5 출동 | `SUPPORT_POSE_UNKNOWN` / `SUPPORT_POSE_BASIS_MISMATCH` | TB-5 위치가 없거나 다른 지도 기준 | 새 TB-5 위치 |
-| TB-5 출동 | `SUPPORT_APPROACH_NOT_FREE` | 인형 둘레 접근 원 위에 고정 지도에서 비어 있는 자리가 없음 | — (사람이 확인) |
+| TB-5 출동 | `SUPPORT_APPROACH_NOT_FREE` | 인형 둘레 접근 원 위에 고정 지도에서 비어 있고, 인형이 보이고, TB-5 에서 길이 있는 자리가 없음 | — (사람이 확인) |
 | TB-5 출동 | `APPROACH_FAILED_<사유>` | 접근 실패. 다시 시도하지 않음 | — |
 | 출구 | `MAP_NOT_FINAL` | 2차 고정 전 | 2차 고정 |
 | 출구 | `SUPPORT_EXIT_IN_<n>S` | TB-5 출구 출발까지 남은 초 | 시간 경과 |

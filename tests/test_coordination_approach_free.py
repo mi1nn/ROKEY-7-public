@@ -6,6 +6,12 @@ other directions on the same circle were free (작전 analysis, docs/evidence/si
 to a wall gives the same in the field. Now the point is chosen on the approach_standoff_m circle: free within
 freeze_clearance_m, the shortest clear grid path from TB-5 (straight-line distance where the grid has no cells).
 None free: SUPPORT_APPROACH_NOT_FREE as before, and the log says how many were checked.
+
+A point must also see the doll and be reachable (재범 decision on #466, 2026-10-16, after LOQ's two counterexamples): a
+point beyond a wall beside the doll was picked although TB-5 could not reach it, or reached it round the wall and
+stood on the doll's far side. Now the segment from the point to the doll crosses no occupied cell (but the doll's own
+body: cells within freeze_clearance_m of it, which the doll shows as on TB-6's map) and TB-5 has a clear grid path
+to it; no such point: SUPPORT_APPROACH_NOT_FREE.
 """
 import math
 from pathlib import Path
@@ -30,6 +36,12 @@ SIDE_BOX = [(2.4, 2.4, 3.6, 4.6)]  # over the straight point, wider below: the u
 # line (225°, 3.37 m) but its path goes round the doll (6.9 m); the upper side's path is shorter (90°, 4.58 m).
 WALLED_BELOW = [(2.5, 3.6, 3.5, 5.0), (2.0, -1., 2.2, 3.8)]
 AROUND = [(2.6, 2.6, 5.4, 5.4)]  # every direction occupied
+# LOQ's counterexamples on #466: TB-5's side of the doll boxed in, a wall 0.5 m east of it, from end to end or with a
+# gap at y 7.0. #466 picked (4.92, 3.62) (no path) and (4.92, 4.38) (9.13 m round, beyond the wall).
+BOXED = (2.5, 2.5, 4.35, 5.5)
+WALL_THROUGH = [BOXED, (4.45, -1., 4.55, 9.)]
+WALL_GAP = [BOXED, (4.45, -1., 4.55, 7.)]
+DOLL_BODY = (3.95, 4.05, 4.05, 4.15)  # the doll on TB-6's map: occupied cells 0.05-0.15 m from its xy (15·18·20회차)
 
 
 class FreeDirectionBase(Base):
@@ -76,6 +88,38 @@ class PathNotLineTests(FreeDirectionBase):
         self.assertIn('path_m=', notes)
 
 
+class DollBodyTests(FreeDirectionBase):
+    WALLS = SIDE_BOX + [DOLL_BODY]
+
+    def test_the_doll_s_own_cells_do_not_block_the_sight(self):
+        goal, notes = self.picks()
+        self.assert_free_on_circle_facing_the_doll(goal)
+        self.assertGreater(goal.mission_xy[1], DOLL[1])  # its sight line crosses the doll's body cells
+        self.assertIn('APPROACH_POINT_PICKED', notes)
+
+
+class WallThroughTests(FreeDirectionBase):
+    WALLS = WALL_THROUGH
+
+    def test_a_point_beyond_a_wall_without_a_path_is_not_sent(self):
+        self.core.drain_notes()
+        NoneFreeTests.dispatch_none(self)
+        self.assertEqual('SUPPORT_APPROACH_NOT_FREE', self.reason())
+        (note,) = [n for n in self.core.drain_notes() if n.startswith('APPROACH_POINT_NONE')]
+        self.assertIn('reachable=0', note)
+
+
+class WallGapTests(FreeDirectionBase):
+    WALLS = WALL_GAP
+
+    def test_a_point_beyond_a_wall_round_a_gap_is_not_sent(self):
+        self.core.drain_notes()
+        NoneFreeTests.dispatch_none(self)
+        self.assertEqual('SUPPORT_APPROACH_NOT_FREE', self.reason())
+        (note,) = [n for n in self.core.drain_notes() if n.startswith('APPROACH_POINT_NONE')]
+        self.assertIn('sight=0', note)
+
+
 class NoneFreeTests(FreeDirectionBase):
     WALLS = AROUND
 
@@ -108,7 +152,7 @@ class Run15Tests(unittest.TestCase):
     DOLL, TB5 = (-2.5007, 0.3200), (-0.402, 1.765)  # TARGET_REBASED_ON_FREEZE; TB-5 RobotPose 07:39:59.72
 
     def setUp(self):
-        fields = saved_map('073955-frozen-r2', RUN15).fields
+        fields = without_tb5_body(saved_map('073955-frozen-r2', RUN15).fields, self.TB5)
         self.core = core_(approach_standoff_m=0.8)
         self.core.frozen_grid = NS(fields=fields, clear=lambda x, y, r: footprint_clear(**fields, x=x, y=y, radius=r))
         self.core.target_geo = {'doll': (None, self.DOLL)}
@@ -125,6 +169,17 @@ class Run15Tests(unittest.TestCase):
         self.assertAlmostEqual(math.atan2(self.DOLL[1] - xy[1], self.DOLL[0] - xy[0]), yaw, places=6)
         (note,) = self.core.drain_notes()
         self.assertTrue(note.startswith('APPROACH_POINT_PICKED target=doll'), note)
+        self.assertNotIn('path_m=-', note)  # TB-5's body cleared as C25 does: a path from it
+
+
+def without_tb5_body(fields, xy):
+    """The map as C25 (#470) freezes it: occupied cells within SUPPORT_BODY_CLEAR_M of TB-5 made free (15회차 was
+    frozen before C25, and TB-5's body there left no grid path from it)."""
+    from rescue_robot.map_freeze import SUPPORT_BODY_CLEAR_M
+    w, res, (ox, oy, _) = fields['width'], fields['resolution'], fields['origin']
+    data = [0 if v > 0 and math.dist((ox + (i % w + .5) * res, oy + (i // w + .5) * res), xy) <= SUPPORT_BODY_CLEAR_M
+            else v for i, v in enumerate(fields['data'])]
+    return dict(fields, data=data)
 
 
 if __name__ == '__main__':
