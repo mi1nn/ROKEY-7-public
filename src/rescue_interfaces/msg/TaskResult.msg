@@ -17,6 +17,7 @@ string COMPLETION_SCOPE_TARGET_APPROACH="TARGET_APPROACH"
 string COMPLETION_SCOPE_RECHECK="RECHECK"
 string COMPLETION_SCOPE_RETURN="RETURN"
 string COMPLETION_SCOPE_HOLD="HOLD"
+string COMPLETION_SCOPE_SPIN="SPIN"
 string completion_scope
 string terminal_reason
 string original_cause

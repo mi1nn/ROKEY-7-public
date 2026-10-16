@@ -14,6 +14,7 @@ string KIND_REOBSERVE_TARGET="REOBSERVE_TARGET"
 string KIND_HOLD="HOLD"
 string KIND_MOVE_SEGMENT="MOVE_SEGMENT"
 string KIND_RETURN_HOME="RETURN_HOME"
+string KIND_SPIN="SPIN"
 string kind
 int64 issued_at_ns
 int64 deadline_ns
@@ -28,6 +29,8 @@ bool has_route
 OperatorApproval approval
 bool has_approval
 string policy_version
+float64 spin_yaw_rad
+float64 time_allowance_s
 ---
 Envelope envelope
 TaskResult result

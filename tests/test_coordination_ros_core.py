@@ -131,7 +131,8 @@ def goal_template():
     return NS(command_id='', task_id='', robot_id='', expected_robot_boot_id='', coordinator_id='',
               authority_epoch='', generation=0, kind='', issued_at_ns=0, deadline_ns=0, lease_id='', target_id='',
               target_estimate_revision=0, search_area_ref='', home_ref='', frame_ref=frame, route=route,
-              has_route=False, approval=approval, has_approval=False, policy_version='')
+              has_route=False, approval=approval, has_approval=False, policy_version='',
+              spin_yaw_rad=0.0, time_allowance_s=0.0)   # ExecuteTask defaults; SPIN only (C29)
 
 
 class CoreTestCase(unittest.TestCase):

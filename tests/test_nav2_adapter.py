@@ -42,7 +42,9 @@ class FakeNav2:
         self.cancels.append(command_id)
 
 
-class AdapterTests(unittest.TestCase):
+class AdapterHelpers:
+    """Two robots' adapters with fake Nav2 and odometry (helpers only; the tests are in AdapterTests)."""
+
     def setUp(self):
         self.deployment = load_deployment(ROOT / 'config' / 'deployment.example.json')
         self.ids = tuple(robot.id for robot in self.deployment.robots)
@@ -92,12 +94,14 @@ class AdapterTests(unittest.TestCase):
             extra.setdefault('target_revision', 0)
         if kind == 'SEARCH_AREA':
             extra.setdefault('search_area_ref', uid(700 + n))
-        if kind != 'HOLD':
+        if kind not in ('HOLD', 'SPIN'):   # SPIN turns in place (C29)
             extra.setdefault('goal_pose', self.pose)
         wall = self.clock.wall()
         return Task(uid(n), uid(n + 1000), adapter.robot_id, uid(boot), uid(boot + 1), generation,
                     kind, wall, wall + 60 * 10**9, 5, 'test-only', **extra)
 
+
+class AdapterTests(AdapterHelpers, unittest.TestCase):
     def send(self, adapter, nav, boot, n, kind='SEARCH_AREA', generation=1):
         self.ready(adapter)
         receipt = adapter.submit(self.task(adapter, boot, n, kind, generation))

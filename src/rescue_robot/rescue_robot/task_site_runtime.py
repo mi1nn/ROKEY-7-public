@@ -26,7 +26,7 @@ from rescue_robot.task_server import attach_task_runtime
 from rescue_robot.task_wire import COMPLETION_SCOPES
 
 # Target moves the coordinator may send without an operator approval (C1, 2026-10-13).
-AUTO_TARGET_KINDS = ('APPROACH_TARGET','REOBSERVE_TARGET','RETURN_HOME')
+AUTO_TARGET_KINDS = ('APPROACH_TARGET','REOBSERVE_TARGET','RETURN_HOME','SPIN')   # SPIN: turn in place (C29)
 # Kinds resolved by _resolve_auto_target; RETURN_HOME keeps its configured-destination resolver and is
 # only a per-robot permission in the policy (decision 5A, least privilege, 2026-10-13).
 AUTO_TARGET_MOVES = ('APPROACH_TARGET','REOBSERVE_TARGET')
@@ -430,7 +430,7 @@ class SiteRuntime:
             self.rechecks[goal.command_id]=answer
 
     def resolve_goal(self,goal):
-        if goal.kind=='HOLD': return None
+        if goal.kind in ('HOLD','SPIN'): return None
         # D2 (OPS-159): a newer frozen map waits for this robot to stop; no new goal on the old one
         if self.saved_maps is not None: self.saved_maps.check_new_goal(self.adapter.robot_id)
         if self._auto(goal.kind): return self._resolve_auto_target(goal)

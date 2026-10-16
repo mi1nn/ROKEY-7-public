@@ -6,11 +6,13 @@ from its own records. The field integration must also re-check route/target
 permission while driving (MissionGoalBinder.target_gate).
 """
 from rescue_contracts import TASK_KINDS, TARGET_TASK_KINDS
-from rescue_robot.executor import ContractError, GoalPose, generation, identifier, wall_time
+import math
+
+from rescue_robot.executor import SPIN_MAX_YAW_RAD, ContractError, GoalPose, generation, identifier, wall_time
 
 COMPLETION_SCOPES = {'SEARCH_AREA': 'SEARCH', 'APPROACH_TARGET': 'TARGET_APPROACH',
                      'REOBSERVE_TARGET': 'RECHECK', 'HOLD': 'HOLD',
-                     'MOVE_SEGMENT': 'SEGMENT', 'RETURN_HOME': 'RETURN'}
+                     'MOVE_SEGMENT': 'SEGMENT', 'RETURN_HOME': 'RETURN', 'SPIN': 'SPIN'}
 
 
 def validate_completion_scope(kind, result):
@@ -82,6 +84,15 @@ preserved until the executor's monotonic lease-duration boundary.
         text(goal.home_ref, 'home_ref')
     elif goal.home_ref != '':
         raise ContractError('unexpected home_ref')
+    if goal.kind == 'SPIN':   # C29: the turn in place; checked again on the Task
+        for name in ('spin_yaw_rad', 'time_allowance_s'):
+            value = getattr(goal, name)
+            if type(value) is not float or not math.isfinite(value):
+                raise ContractError(name)
+        if not 0 < abs(goal.spin_yaw_rad) <= SPIN_MAX_YAW_RAD or goal.time_allowance_s <= 0:
+            raise ContractError('spin_yaw_rad must turn at most one turn, time_allowance_s positive')
+    elif goal.spin_yaw_rad != 0.0 or goal.time_allowance_s != 0.0:
+        raise ContractError('only SPIN carries spin_yaw_rad and time_allowance_s')
     window(goal.issued_at_ns, goal.deadline_ns, now_ns, clock_error_bound_ns, 'task')
     expected = (goal.lease_id, goal.robot_id, goal.expected_robot_boot_id, goal.coordinator_id,
                 goal.authority_epoch, goal.generation)
@@ -93,7 +104,13 @@ preserved until the executor's monotonic lease-duration boundary.
         generation(lease.renewal_sequence)
         generation(lease.generation)
         window(lease.issued_at_ns, lease.valid_until_ns, now_ns, clock_error_bound_ns, 'lease')
-    if goal.kind != 'HOLD':
+    if goal.kind == 'SPIN':
+        # turning in place needs no map pose; the frame names this robot only
+        if goal.frame_ref.robot_id != goal.robot_id:
+            raise ContractError('goal frame robot mismatch', 'FRAME_REVISION_MISMATCH')
+        if goal.has_route or goal.has_approval:
+            raise ContractError('SPIN must not carry movement permissions')
+    elif goal.kind != 'HOLD':
         if goal.kind == 'RETURN_HOME' and _no_basis(goal.frame_ref):
             # Decision 5A: the coordinator sends home_ref and no goal pose (search._goal_pose), so
             # the frame carries the robot only; the robot resolves home/<robot_id> on its own
@@ -166,9 +183,9 @@ def validate_resolved_goal(goal, pose):
 Phase 1 MOVE_SEGMENT uses RouteCandidate.approach_goal as the segment end
 (#88). Strict planner-backed routes use the backend's selected segment pose.
 """
-    if goal.kind == 'HOLD':
+    if goal.kind in ('HOLD', 'SPIN'):
         if pose is not None:
-            raise ContractError('HOLD has no pose')
+            raise ContractError(goal.kind + ' has no pose')
         return None
     if not isinstance(pose, GoalPose):
         raise ContractError('authoritative resolved GoalPose required')

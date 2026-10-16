@@ -66,6 +66,12 @@ class MissionGoalBinder:
         try:
             if task.kind == 'HOLD':
                 return True
+            if task.kind == 'SPIN':   # no goal pose; localization and the map still current, as for a move (C29)
+                if task.robot_id != self.robot_id:
+                    raise ContractError('task for another robot', 'WRONG_ROBOT')
+                self.registry.map_state(self.robot_id)
+                self.last_reason = ''
+                return True
             self._current(task)
             if task.kind in TARGET_KINDS and self.target_gate(task) is not True:
                 raise ContractError('target goal not authorized', 'NOT_AUTHORIZED')

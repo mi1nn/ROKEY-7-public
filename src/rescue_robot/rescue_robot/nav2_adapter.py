@@ -22,7 +22,7 @@ import threading
 import time
 
 from rescue_contracts import RescueError, ros_time_to_ns
-from rescue_robot.executor import ContractError, Executor, Readiness
+from rescue_robot.executor import ContractError, Executor, Readiness, SpinGoal
 
 # action_msgs/msg/GoalStatus terminal codes (ROS 2 action design); other codes
 # are not terminal and must not fence execution.
@@ -143,7 +143,9 @@ class CommandAdapter:
             guards_valid = True if active is None else self.guards(active) is True
             try:
                 if active is not None and self.executor.state == 'PLANNING':
-                    if guards_valid and active.kind != 'HOLD':
+                    if guards_valid and active.kind == 'SPIN':   # Nav2 Spin, no pose to bind (C29)
+                        self.goals[active.command_id] = SpinGoal(active.spin_yaw_rad, active.time_allowance_s)
+                    elif guards_valid and active.kind != 'HOLD':
                         try:
                             self.goals[active.command_id] = self.bind_goal(active)
                         except RescueError as exc:

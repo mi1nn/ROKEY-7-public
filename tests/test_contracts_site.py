@@ -25,7 +25,8 @@ class SiteContractTests(unittest.TestCase):
         self.assertEqual({"DISASTER_SIGN", "EXIT_PASS", "TARGET_DISAPPEARED_CANDIDATE"}, set(SITE_EVENT_KINDS))
         self.assertEqual({"NORMAL", "DISASTER", "CLEARING"}, set(SYSTEM_MODES))
         self.assertEqual({"NOT_CHECKED", "RECHECK_NEEDED", "RESCUE_CONFIRMED"}, set(RESCUE_STATES))
-        self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD", "MOVE_SEGMENT", "RETURN_HOME"},
+        self.assertEqual({"SEARCH_AREA", "REOBSERVE_TARGET", "APPROACH_TARGET", "HOLD", "MOVE_SEGMENT", "RETURN_HOME",
+                          "SPIN"},
                          set(TASK_KINDS))
         # MOVE_SEGMENT moves AMR2 one approved segment toward a target: it needs path evidence like
         # APPROACH_TARGET. RETURN_HOME goes to the profile home pose and carries no target.
