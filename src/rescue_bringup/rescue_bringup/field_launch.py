@@ -264,9 +264,11 @@ def load_field(path):
             raise FieldLaunchError(f'coordinator.{key} must be 1 or more')
     if coordinator['frontier_look_turns'] < 0:
         raise FieldLaunchError('coordinator.frontier_look_turns must be zero or more')
-    if coordinator['frontier_issue_delay_s'] < coordinator['live_inputs.poll_period_s']:
-        # the robot reads ~/task_inputs every poll period; a frontier task before that is refused (OPS-154 ①)
-        raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least live_inputs.poll_period_s')
+    if coordinator['frontier_issue_delay_s'] < robot['task.poll_period_s']:
+        # the robot asks ~/task_inputs every task.poll_period_s and uses the answer at once (C32, #483); a frontier
+        # task before it knows the destination is refused (OPS-154 ①). The coordinator answers each ask fresh, so
+        # its own live_inputs.poll_period_s (the clock sample) does not delay it (C31).
+        raise FieldLaunchError('coordinator.frontier_issue_delay_s must be at least robot.task.poll_period_s')
     if coordinator['completion_mode'] not in COMPLETION_MODES:
         raise FieldLaunchError(f'coordinator.completion_mode must be one of {list(COMPLETION_MODES)}')
     if coordinator['traffic_control'] not in TRAFFIC_CONTROLS:

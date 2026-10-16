@@ -176,7 +176,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `frontier_potential_scale`, `frontier_gain_scale` | 경계 고르기 비용의 거리 가중치와 경계 크기 가중치. 비용은 (가중치 × 경로 길이 − 가중치 × 칸 수) × 해상도 | 3.0, 1.0 [문서: explore_lite 기본값, 저장소 `explore.yaml`] |
 | `return_home_attempts` | 복귀(TB-6 도킹 접근 지점, TB-5 출구)가 FAILED 로 끝나면 `admission_timeout_s` 보류 뒤 다시 보낸다. 이만큼 실패하면 더 보내지 않고 `SCOUT_RETURN_FAILED`/`SUPPORT_EXIT_FAILED` 로 사람에게 넘긴다. 기다리는 동안 이유는 `SCOUT_RETURNING`/`SUPPORT_EXITING`, 로그는 `…_AGAIN failed n/N`. CANCELED(멈춤)는 다시 보내지 않는다 | 2 (재범 결정 2026-10-16 「2번까지 다시 보내기」, 값은 `FRONTIER_ATTEMPTS` 2 에 맞춘 제안) |
 | `frontier_look_turns` | 경계 자체 목표에 도착(COMPLETED, 잘리지 않음)한 뒤 같은 자리에서 방향만 90°씩 돌리는 목표 수. 0이면 안 돈다. 회전이 실패하면 거기서 멈추고 아무것도 세지 않는다. 인형 보고가 들어오면 진행 중인 회전만 마치고 더 돌지 않는다 | 4 (재범 결정 2026-10-16 「목표마다 제자리 한 바퀴(90°×4)」, 횟수는 조정 제안) |
-| `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 1.0, 3, 600.0 [추정] |
+| `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ 로봇 `task.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 0.5, 3, 600.0 [추정] |
 | `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
 | `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |
 | `completion_mode` | 구출 완료 방식(`EXIT_ARRIVAL`·`RECHECK`) | `EXIT_ARRIVAL` |
@@ -479,7 +479,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `completion_mode` | string | `EXIT_ARRIVAL`(TB-5 출구 도착 = 구출 완료, TB-6 재확인 없음) 또는 `RECHECK`(C-11). 현장 `EXIT_ARRIVAL` [근거: 저장소 소유자 결정 2026-10-13 밤, OPS-155 ②] |
 | `support_start_pose` | double[] | 생략 가능. TB-5 시작점 [x, y, yaw](TB-6 출발 자세 기준) = 현장 파일 `robots.<TB-5>.initial_pose_xy_yaw`(현장 launch 가 넘김, 측정 전에는 없음). QR 출구가 없을 때의 출구 [OPS-155 ①·173] |
 | `frontier_min_cells`·`frontier_reach_m`·`frontier_goal_max_m`·`frontier_blacklist_m` | int·double | `FRONTIER`: 가장 작은 frontier 덩어리(칸), 덩어리에서 목표 칸까지 최대 거리, TB-6 목표를 자르는 경로 길이, 시도한 frontier 근처 재선택 금지 반경. 현장 10·1.0·1.5·0.5 [제안: 통합-조정 2026-10-13, 미측정] |
-| `frontier_issue_delay_s`·`exploration_empty_checks`·`exploration_timeout_s` | double·int·double | 목적지를 `~/task_inputs` 에 넣고 task 를 내기까지(현장 launch 가 ≥ `live_inputs.poll_period_s` 검사), 빈 지도 갱신 횟수, 탐색 시간 상한(작전 OPS-156 ①). 현장 1.0·3·600 [제안]. 1.0 은 18회차 C31: 로봇이 0.5 s 마다 묻고 다음 poll 에 답을 읽어 1.0 s 안에 안다 |
+| `frontier_issue_delay_s`·`exploration_empty_checks`·`exploration_timeout_s` | double·int·double | 목적지를 `~/task_inputs` 에 넣고 task 를 내기까지(현장 launch 가 ≥ 로봇 `task.poll_period_s` 검사), 빈 지도 갱신 횟수, 탐색 시간 상한(작전 OPS-156 ①). 현장 0.5·3·600 [제안]. 0.5 는 18회차 C31: 로봇이 0.5 s 마다 묻고 답을 바로 쓰므로(C32, #483) 한 번 묻는 사이에 안다 |
 | `exit_standoff_m` | double | TB-5 가 QR 출구 앞, 대상 쪽으로 멈추는 거리. 현장 0.5 [제안: 통합-조정 2026-10-13, 미측정] |
 | `map_mode` | string | `SLAM_FREEZE`(탐색 SLAM → 대상 저장 뒤 지도 고정 → 고정 지도에서만 TB-5 출동) 또는 `SAVED_MAP`(launch `goal_map_*` 기준 하나). 현장 `SLAM_FREEZE` [근거: 저장소 소유자 결정 2026-10-13, scope Q-29] |
 | `freeze_clearance_m` | double | 고정 지도에서 접근 지점·출구·도킹 접근 지점이 비어 있어야 하는 반지름. 로봇 `task.live.auto_target.goal_clear_radius_m` 과 같아야 한다(현장 launch 가 검사). 현장 0.2 |
