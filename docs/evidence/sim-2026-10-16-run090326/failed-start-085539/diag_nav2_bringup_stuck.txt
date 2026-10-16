@@ -1,0 +1,5 @@
+== 08:58:54 기동 실패: TB-6 Nav2 bringup 멈춤
+[amcl-2] [WARN] [1792108628.278549609] [robot5.amcl.rclcpp]: failed to send response to /robot5/amcl/get_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+[planner_server-3] [WARN] [1792108618.564846071] [robot6.planner_server.rclcpp]: failed to send response to /robot6/planner_server/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+std_srvs.srv.Trigger_Response(success=False, message="STOP_OR_READINESS_NOT_READY NAV_NOT_READY missing=['nav2'] motion=STOPPED sources=[]")
+

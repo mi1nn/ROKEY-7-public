@@ -1,0 +1,109 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-09-10-05-781646-sim-pc-1300352
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792109406.022467561] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[INFO] [launch.user]: frozen localization robot_a ns=/robot6 map=/robot6/map <- /rescue/map/frozen amcl_start=[-4.518536772480384, 2.0543499911029537, 2.9030542015583123] from /rescue/map/frozen_pose/robot_a params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml
+[INFO] [frozen_map_relay-1]: process started with pid [1300471]
+[INFO] [amcl-2]: process started with pid [1300472]
+[INFO] [lifecycle_manager-3]: process started with pid [1300473]
+[lifecycle_manager-3] [INFO] [1792109407.537916161] [robot6.lifecycle_manager_localization]: Creating
+[lifecycle_manager-3] [INFO] [1792109407.543835030] [robot6.lifecycle_manager_localization]: Creating and initializing lifecycle service clients
+[lifecycle_manager-3] [INFO] [1792109407.974197262] [robot6.lifecycle_manager_localization]: Starting managed nodes bringup...
+[lifecycle_manager-3] [INFO] [1792109407.974322235] [robot6.lifecycle_manager_localization]: Configuring amcl
+[amcl-2] [INFO] [1792109407.987251297] [robot6.amcl]: 
+[amcl-2] 	amcl lifecycle node launched. 
+[amcl-2] 	Waiting on external lifecycle transitions to activate
+[amcl-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-2] [INFO] [1792109407.988828431] [robot6.amcl]: Creating
+[amcl-2] [INFO] [1792109408.295158355] [robot6.amcl]: Configuring
+[amcl-2] [INFO] [1792109408.295292160] [robot6.amcl]: initTransforms
+[amcl-2] [INFO] [1792109408.341616178] [robot6.amcl]: initPubSub
+[amcl-2] [INFO] [1792109408.388119291] [robot6.amcl]: Subscribed to map topic.
+[amcl-2] [WARN] [1792109408.525272391] [robot6.amcl.rclcpp]: failed to send response to /robot6/amcl/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+[frozen_map_relay-1] [INFO] [1792109409.103679085] [robot6.rescue_frozen_map_relay]: git_sha=adad6d8694ab1c5b10b3747ad3de3e628f36310c parameters={'frozen_topic': '/rescue/map/frozen', 'frozen_revision_topic': '/rescue/map/frozen_revision', 'map_state_topic': '/rescue/robots/robot_a/map_state', 'map_topic': '/robot6/map'}
+[amcl-2] [INFO] [1792109411.439361556] [robot6.amcl]: Received a 113 X 71 map @ 0.050 m/pix
+[frozen_map_relay-1] [INFO] [1792109411.440741685] [robot6.rescue_frozen_map_relay]: MAP_RELAYED /rescue/map/frozen R2 -> /robot6/map sha256=d43ca7ede64d0f142e6bc3360e6b44133afd3b399c5d728357dbef58c7f44f80
+[amcl-2] [INFO] [1792109419.300023748] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109424.798343075] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109430.297749188] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109435.797267064] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109440.797667047] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109445.799208505] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109451.299116025] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109456.797110598] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109461.797333947] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109467.297165739] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109472.298254818] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109477.298716390] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109482.797061962] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109487.672933811] [robot6.amcl]: Message Filter dropping message: frame 'rplidar_link' at time 1792109486.665 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[amcl-2] [INFO] [1792109487.799108754] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109493.297908176] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109498.797103372] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109503.798364222] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109509.298038971] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109514.798574577] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109520.298436619] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109525.798029177] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109530.799490474] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109535.799808930] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109541.297408314] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109546.798220218] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109552.298003158] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109557.297779464] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109562.797553432] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109568.297795546] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109573.298031779] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109578.297887794] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109583.797528404] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109589.298606740] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109594.298518951] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109599.299134804] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109604.797725317] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109610.298135395] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109615.299913991] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109620.799683237] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109626.300666130] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109631.797293457] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109636.798337786] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109641.798731738] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109647.299830957] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109652.299205993] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109657.299001302] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109662.805139242] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109668.297863032] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109673.798368824] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109679.297614298] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109684.797759298] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109689.798163258] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109695.299277846] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109700.298153105] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109705.798180611] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109711.298743205] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792109712.599728926] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[amcl-2] [INFO] [1792109712.599829515] [robot6.amcl]: Running Nav2 LifecycleNode rcl preshutdown (amcl)
+[amcl-2] [INFO] [1792109712.599896903] [robot6.amcl]: Cleaning up
+[lifecycle_manager-3] [INFO] [1792109712.599942254] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-3] [INFO] [1792109712.600020261] [robot6.lifecycle_manager_localization]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_localization)
+[amcl-2] [INFO] [1792109712.711501908] [robot6.amcl]: Destroying bond (amcl) to lifecycle manager.
+[amcl-2] [INFO] [1792109713.146808208] [robot6.amcl]: Destroying
+[frozen_map_relay-1] Traceback (most recent call last):
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay", line 33, in <module>
+[frozen_map_relay-1]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'frozen_map_relay')())
+[frozen_map_relay-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/frozen_map_relay.py", line 125, in main
+[frozen_map_relay-1]     rclpy.spin(node)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[frozen_map_relay-1]     executor.spin_once()
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[frozen_map_relay-1]     self._spin_once_impl(timeout_sec)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[frozen_map_relay-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[frozen_map_relay-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[frozen_map_relay-1]     return next(self._cb_iter)
+[frozen_map_relay-1]            ^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[frozen_map_relay-1]     raise ExternalShutdownException()
+[frozen_map_relay-1] rclpy.executors.ExternalShutdownException
+[ERROR] [frozen_map_relay-1]: process has died [pid 1300471, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay --ros-args -r __node:=rescue_frozen_map_relay -r __ns:=/robot6 --params-file <launch 임시 파일>'].
+[INFO] [amcl-2]: process has finished cleanly [pid 1300472]
