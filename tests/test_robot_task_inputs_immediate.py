@@ -70,7 +70,6 @@ class TaskInputsImmediate(unittest.TestCase):
         self.clock.request_type = lambda names: NS(names=names)
         self.clock.receive = self.received.append
 
-    @unittest.expectedFailure
     def test_an_answer_is_taken_before_the_next_poll(self):
         self.clock.poll()                                   # asks
         self.clock.client.sent[0].set_result(answer({'destinations': {'a': 1}}))
@@ -80,7 +79,6 @@ class TaskInputsImmediate(unittest.TestCase):
         self.assertEqual(2, len(self.clock.client.sent))
         self.assertEqual(1, len(self.received))
 
-    @unittest.expectedFailure
     def test_a_bad_answer_stops_the_input_session_at_once(self):
         self.clock.poll()
         self.clock.client.sent[0].set_result(NS(values=[]))
