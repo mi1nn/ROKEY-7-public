@@ -71,8 +71,8 @@ def bind_watchdog(node, dog, *, cmd_vel_in_topic, cmd_vel_out_topic, stamped, ex
         publish(decision, msg.header.frame_id if stamped else '')
         report()
 
-    def on_heartbeat(_msg):
-        dog.heartbeat(clock())
+    def on_heartbeat(msg):
+        dog.heartbeat(clock(), phase=msg.frame_id)   # the executor's start-up mark (option B)
         report()
 
     def step():
