@@ -12,7 +12,7 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 TOOL = REPO / 'scripts' / 'sim' / 'sim_webcam.py'
 EXAMPLE = REPO / 'src' / 'rescue_perception' / 'rescue_perception' / 'config' / 'webcam_node.example.yaml'
-if not (REPO / 'scripts').exists():   # the installed-wheel check copies tests/ and config/ only
+if not TOOL.exists():   # the installed-wheel check copies tests/, config/ and some scripts/ only
     raise unittest.SkipTest('installed-wheel checkout has no scripts/')
 spec = importlib.util.spec_from_file_location('sim_webcam', TOOL)
 sim_webcam = importlib.util.module_from_spec(spec)
