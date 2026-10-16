@@ -208,6 +208,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열다섯째 회차 자료](sim-2026-10-16-run073537/README.md)에 있다. 빌드는 `100a610`(#454·#456·#457·#458·#459)이다. TB-6 이 처음으로 터널 1 을 지나 메인 구역(정답 y 3.146)까지 갔고, 07:39:38 에 인형을 봤다. 2단계는 처음 통과했고, 3단계는 장부 기준으로 처음 통과했다(target 1, 터널 PASSABLE 2·BLOCKED 1). 4단계는 TB-5 접근 지점(인형에서 TB-5 쪽 0.8 m)이 흰 상자 안이라 `SUPPORT_APPROACH_NOT_FREE` 로 출동하지 못했다. TB-6 복귀는 14회차와 같이 `localization uncertain` 으로 두 번 취소됐다. RTF 0.5 미만 표본은 0 이었다.
 
+## 20. 열여섯째 회차 (full-1016-080438)
+
+회차 표·단계별 결과는 [열여섯째 회차 자료](sim-2026-10-16-run080438/README.md)에 있다. 15회차와 같은 빌드(`100a610`)로 다시 돌렸다. 2·3단계(터널 1 통과, 인형 관측·장부)는 다시 통과했다. 4단계는 2차 고정 순간 TB-5 실행기가 `geometry_msgs__msg__pose__convert_from_py: Assertion … failed` 로 중단(exit code −6)돼 `SUPPORT_NOT_LOCALIZED` 로 멈췄다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
