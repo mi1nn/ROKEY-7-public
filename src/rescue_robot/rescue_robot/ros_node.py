@@ -122,7 +122,7 @@ class Nav2Port:
             seconds = float(pose.time_allowance_s)
             goal.time_allowance.sec = int(seconds)
             goal.time_allowance.nanosec = int(round((seconds - int(seconds)) * 1e9))
-            goal.disable_collision_checks = False   # Nav2 checks the footprint while turning
+            # Jazzy Spin has no disable_collision_checks (it came later); Jazzy always checks the footprint (REV-27)
             self.node.get_logger().info(f'SEND {command_id} {pose}')
             future = self.spin_client.send_goal_async(goal)
             future.add_done_callback(lambda done: self._on_response(command_id, done))

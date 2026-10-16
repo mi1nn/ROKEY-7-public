@@ -120,7 +120,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
 
 
 class SpinPort(unittest.TestCase):
-    @unittest.expectedFailure
     def test_the_port_sends_target_yaw_and_time_allowance_to_the_spin_server(self):
         from test_robot_nav2_ready import FakeNode, fake_ros
         sent = []
