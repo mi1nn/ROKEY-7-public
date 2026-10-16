@@ -1,0 +1,97 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-10-27-28-809208-sim-pc-1424718
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792114049.036784796] [rcl]: Found remap rule 'robot_id:=robot_a'. This syntax is deprecated. Use '--ros-args --remap robot_id:=robot_a' instead.
+[INFO] [launch.user]: frozen localization robot_a ns=/robot6 map=/robot6/map <- /rescue/map/frozen amcl_start=[-3.7544672150707497, 0.606076469914174, -0.9004525224822861] from /rescue/map/frozen_pose/robot_a params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml
+[INFO] [frozen_map_relay-1]: process started with pid [1424857]
+[INFO] [amcl-2]: process started with pid [1424858]
+[INFO] [lifecycle_manager-3]: process started with pid [1424859]
+[lifecycle_manager-3] [INFO] [1792114051.149329301] [robot6.lifecycle_manager_localization]: Creating
+[lifecycle_manager-3] [INFO] [1792114051.171782589] [robot6.lifecycle_manager_localization]: Creating and initializing lifecycle service clients
+[amcl-2] [INFO] [1792114051.225360401] [robot6.amcl]: 
+[amcl-2] 	amcl lifecycle node launched. 
+[amcl-2] 	Waiting on external lifecycle transitions to activate
+[amcl-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-2] [INFO] [1792114051.232921327] [robot6.amcl]: Creating
+[lifecycle_manager-3] [INFO] [1792114051.826331601] [robot6.lifecycle_manager_localization]: Starting managed nodes bringup...
+[lifecycle_manager-3] [INFO] [1792114051.826508667] [robot6.lifecycle_manager_localization]: Configuring amcl
+[amcl-2] [INFO] [1792114052.209979368] [robot6.amcl]: Configuring
+[amcl-2] [INFO] [1792114052.210087478] [robot6.amcl]: initTransforms
+[amcl-2] [INFO] [1792114052.384708652] [robot6.amcl]: initPubSub
+[amcl-2] [INFO] [1792114052.413795207] [robot6.amcl]: Subscribed to map topic.
+[frozen_map_relay-1] [INFO] [1792114052.474641180] [robot6.rescue_frozen_map_relay]: git_sha=cf255eb14864b3e1532d1fb20fe35fae170852fa parameters={'frozen_topic': '/rescue/map/frozen', 'frozen_revision_topic': '/rescue/map/frozen_revision', 'map_state_topic': '/rescue/robots/robot_a/map_state', 'map_topic': '/robot6/map'}
+[amcl-2] [WARN] [1792114052.617008997] [robot6.amcl.rclcpp]: failed to send response to /robot6/amcl/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:153, at ./src/rcl/service.c:400
+[amcl-2] [INFO] [1792114057.288430655] [robot6.amcl]: Received a 114 X 71 map @ 0.050 m/pix
+[frozen_map_relay-1] [INFO] [1792114057.294272285] [robot6.rescue_frozen_map_relay]: MAP_RELAYED /rescue/map/frozen R2 -> /robot6/map sha256=db6dc5693c3969afb1eeed36618f77efcbd5820f0fc2fe8e17c43f15d82c9fc7
+[amcl-2] [INFO] [1792114059.748204394] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114064.752867987] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114070.253187691] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114075.250089942] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114080.748309639] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114086.251027858] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114091.249962989] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114096.248382836] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114101.249661158] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114106.748899831] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114111.749727486] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114117.248162699] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114122.252746950] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114127.253762075] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114132.747770526] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114137.748738925] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114143.249543443] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114148.747851580] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114154.250628377] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114159.258891289] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114164.751479982] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114170.249507153] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114175.748825487] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114181.251017991] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114186.250767136] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114191.249207290] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114196.749873034] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114202.249230483] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114207.747650629] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114212.748371874] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114217.749420637] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114223.253647831] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114228.248091686] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114233.250070748] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114238.253803830] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114243.748248440] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114248.992206434] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114254.249038484] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114259.249468924] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114264.748084171] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114269.749645198] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114275.253089639] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114280.747979318] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114285.750361592] [robot6.amcl]: Requesting no-motion update
+[amcl-2] [INFO] [1792114291.257866002] [robot6.amcl]: Requesting no-motion update
+[lifecycle_manager-3] [INFO] [1792114292.941535632] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-3] [INFO] [1792114292.941753898] [robot6.lifecycle_manager_localization]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_localization)
+[amcl-2] [INFO] [1792114292.941561301] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[amcl-2] [INFO] [1792114292.941729191] [robot6.amcl]: Running Nav2 LifecycleNode rcl preshutdown (amcl)
+[amcl-2] [INFO] [1792114292.942820631] [robot6.amcl]: Cleaning up
+[amcl-2] [INFO] [1792114293.006783962] [robot6.amcl]: Destroying bond (amcl) to lifecycle manager.
+[amcl-2] [INFO] [1792114293.130476826] [robot6.amcl]: Destroying
+[frozen_map_relay-1] Traceback (most recent call last):
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay", line 33, in <module>
+[frozen_map_relay-1]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'frozen_map_relay')())
+[frozen_map_relay-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/frozen_map_relay.py", line 125, in main
+[frozen_map_relay-1]     rclpy.spin(node)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[frozen_map_relay-1]     executor.spin_once()
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[frozen_map_relay-1]     self._spin_once_impl(timeout_sec)
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[frozen_map_relay-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[frozen_map_relay-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[frozen_map_relay-1]     return next(self._cb_iter)
+[frozen_map_relay-1]            ^^^^^^^^^^^^^^^^^^^
+[frozen_map_relay-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[frozen_map_relay-1]     raise ExternalShutdownException()
+[frozen_map_relay-1] rclpy.executors.ExternalShutdownException
+[ERROR] [frozen_map_relay-1]: process has died [pid 1424857, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/frozen_map_relay --ros-args -r __node:=rescue_frozen_map_relay -r __ns:=/robot6 --params-file <launch 임시 파일>'].
+[INFO] [amcl-2]: process has finished cleanly [pid 1424858]
