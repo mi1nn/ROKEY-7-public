@@ -37,7 +37,6 @@ def stale_then_back(dog, phase, *, last=0., back=2.0):
 
 
 class StartupAutoReset(unittest.TestCase):
-    @unittest.expectedFailure
     def test_start_up_stale_then_back_releases_and_the_robot_can_be_armed(self):
         from rescue_robot.watchdog import HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -48,7 +47,6 @@ class StartupAutoReset(unittest.TestCase):
         self.assertIn('WATCHDOG_AUTO_RESET startup reason=EXECUTOR_HEARTBEAT_STALE stale_for=2.000s',
                       dog.events[-1][1])
 
-    @unittest.expectedFailure
     def test_after_the_robot_was_armed_a_latch_stays_until_a_person_resets(self):
         from rescue_robot.watchdog import HEARTBEAT_RUN, HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -58,7 +56,6 @@ class StartupAutoReset(unittest.TestCase):
         self.assertEqual('STOP_LATCHED', dog.state)
         self.assertTrue(dog.reset(2.1))                   # the person's reset still works
 
-    @unittest.expectedFailure
     def test_at_most_auto_reset_max_times_then_it_stays_latched(self):
         from rescue_robot.watchdog import AUTO_RESET_MAX, HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -71,7 +68,6 @@ class StartupAutoReset(unittest.TestCase):
         self.assertIn('WATCHDOG_AUTO_RESET_LIMIT', dog.events[-1][1])
         self.assertEqual(3, AUTO_RESET_MAX)
 
-    @unittest.expectedFailure
     def test_other_latches_and_unmarked_heartbeats_never_release_themselves(self):
         from rescue_robot.watchdog import HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -84,11 +80,10 @@ class StartupAutoReset(unittest.TestCase):
 
 
 class ExecutorSaysItsPhase(unittest.TestCase):
-    @unittest.expectedFailure
     def test_start_up_until_the_first_arm_then_run(self):
         from rescue_robot.watchdog import HEARTBEAT_RUN, HEARTBEAT_STARTUP, heartbeat_phase
         e = Executor('robot_a', str(UUID(int=1)), str(UUID(int=2)), Policy('test-only', 1, 3, .2, .11, .5, .01, .01),
-                     allowed_robot_ids=('robot_a',))
+                     allowed_robot_ids=('robot_a', 'robot_b'))
         self.assertEqual(HEARTBEAT_STARTUP, heartbeat_phase(e))
         for t in (0, .1, .2):
             e.observe_motion(sample_steady=t, received_steady=t, linear=0, angular=0)

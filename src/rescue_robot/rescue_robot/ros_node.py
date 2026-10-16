@@ -357,6 +357,7 @@ def main(args=None, *, task_runtime_factory=None):
                 raise ValueError('task_runtime_factory must be callable')
             task_runtime = task_runtime_factory(node, adapter)
         from std_msgs.msg import Header
+        from rescue_robot.watchdog import heartbeat_phase
         # Executor liveness for the command watchdog (C-01): one Header per step.
         heartbeat = node.create_publisher(Header, value['executor_heartbeat_topic'], 10)
 
@@ -370,7 +371,8 @@ def main(args=None, *, task_runtime_factory=None):
             adapter.observe_status(nav2=port.server_ready())
             monitor.publish(adapter)
             adapter.step()
-            heartbeat.publish(Header(stamp=node.get_clock().now().to_msg()))
+            # frame_id: start-up or not, for the watchdog's start-up auto reset (option B)
+            heartbeat.publish(Header(stamp=node.get_clock().now().to_msg(), frame_id=heartbeat_phase(executor)))
         node.create_timer(value['step_period'], step)
         log.info(f'git_sha={git_sha()} boot={executor.robot_boot_id} parameters={value}')
         rclpy.spin(node)

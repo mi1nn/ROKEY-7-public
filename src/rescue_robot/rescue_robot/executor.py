@@ -224,6 +224,7 @@ class Executor:
         self.state = 'IDLE'
         self.motion = 'STOP_UNCONFIRMED'
         self.latch = 'DISARMED'
+        self.ever_armed = False   # arm() has succeeded once (the watchdog's start-up phase ends)
         self.session_fault = False
         self.rearm_due = False      # the last task ended COMPLETED with a confirmed stop (OPS-231)
         self.rearm_refused = ''     # why the automatic re-arm after it was refused; '' = not refused
@@ -323,6 +324,7 @@ class Executor:
         if self._arm_refusal(authority_epoch, now, readiness) is not None:
             return False
         self.latch, self.state = 'ARMED', 'IDLE'
+        self.ever_armed = True   # past start-up for the watchdog (option B)
         self.rearm_due, self.rearm_refused = False, ''
         return True
 
