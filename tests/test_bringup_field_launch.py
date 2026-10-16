@@ -197,6 +197,8 @@ class CoordinatorParameters(FieldCase):
         expected['return_home_attempts'] = 2  # a failed return goes once more (재범 decision 2026-10-16)
         expected['frontier_look_turns'] = 4  # one turn in place at each frontier (재범 decision 2026-10-16, proposal)
         expected['nav2_xy_goal_tolerance_m'] = 0.25  # the robots' Nav2 goal checker, for the step-aside spot (C19)
+        # 18회차 C31 (작전 2026-10-16, proposal): the robot learns a new destination within two 0.5 s polls
+        expected['frontier_issue_delay_s'] = 1.0
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
         expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
