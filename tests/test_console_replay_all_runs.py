@@ -80,6 +80,14 @@ class AllRunsTests(AccountsFixture):
         self.assertIn('읽지 못한 기록 파일 1개', html)
         self.assertIn('full-x', html)
 
+    def test_many_unreadable_files_are_counted_not_all_named(self):
+        for n in range(7):
+            (self.root / f'old-{n}').mkdir()
+            (self.root / f'old-{n}' / DB).write_bytes(b'old')
+        html = self.client().get('/replay').get_data(as_text=True)
+        self.assertIn('읽지 못한 기록 파일 8개', html)
+        self.assertIn(' 외 3개', html)
+
     def test_replay_dir_chooses_where_to_look(self):
         empty = self.dir / 'elsewhere'
         empty.mkdir()
