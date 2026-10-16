@@ -17,6 +17,9 @@ from .mapimage import map_overlay
 from .render import _STYLE, _age, _reply, _short, _time, map_legend, map_plan, map_unplotted, masthead
 from .replay import MAP_KINDS
 
+# 「읽지 못한 기록 파일」 안내에 이름을 적는 폴더 수([제안] 웹개발, 2026-10-16). 스키마 1.5 전 시뮬 폴더가 수십 개면
+# 안내가 길어지므로 나머지는 수만 적는다.
+UNREAD_NAMES = 5
 # 재생 중 조각을 다시 받는 최소 간격([제안] 관제·화면, 2026-10-15). 받는 중이면 다음 틱은 건너뛴다.
 REPLAY_FETCH_MS = 250
 KIND_WORDS = {'EVENT': '사건', 'COMMAND': '명령', 'ERROR': '오류', 'EXIT': '출구', 'TARGET': '인형'}
@@ -264,9 +267,11 @@ def _unread(problems):
     """옆 폴더에서 못 읽은 현장 상태 DB(건너뜀). 없으면 빈 글."""
     if not problems:
         return ''
-    names = ', '.join(f'<span title="{escape(why)}">{escape(folder)}</span>' for folder, why in problems)   # 원문은 title
+    names = ', '.join(f'<span title="{escape(why)}">{escape(folder)}</span>'   # 오류 원문은 title
+                      for folder, why in problems[:UNREAD_NAMES])
+    more = f' 외 {len(problems) - UNREAD_NAMES}개' if len(problems) > UNREAD_NAMES else ''
     return (f'<p class="notice">읽지 못한 기록 파일 {len(problems)}개(깨졌거나 회차 기록이 없는 예전 형식) — '
-            f'회차 목록에서 뺐습니다: {names}</p>')
+            f'회차 목록에서 뺐습니다: {names}{more}</p>')
 
 
 def render_replay_page(timeline, state, runs=(), user=None, csrf=None, problems=(), map_image=None,
