@@ -197,8 +197,9 @@ class CoordinatorParameters(FieldCase):
         expected['return_home_attempts'] = 2  # a failed return goes once more (재범 decision 2026-10-16)
         expected['frontier_look_turns'] = 4  # one turn in place at each frontier (재범 decision 2026-10-16, proposal)
         expected['nav2_xy_goal_tolerance_m'] = 0.25  # the robots' Nav2 goal checker, for the step-aside spot (C19)
-        # 18회차 C31 (작전 2026-10-16, proposal): the robot learns a new destination within two 0.5 s polls
-        expected['frontier_issue_delay_s'] = 1.0
+        # 18회차 C31 (작전 2026-10-16, proposal): the robot asks every task.poll_period_s 0.5 s and uses the answer at
+        # once since C32 (#483), so it knows a new destination within one poll
+        expected['frontier_issue_delay_s'] = 0.5
         expected['completion_mode'] = 'EXIT_ARRIVAL'  # OPS-155 ②
         # Added after #132: traffic control stage 1, TB-5 first (owner decision 2026-10-14, OPS-204, estimates)
         expected.update(traffic_control='TB5_PRIORITY', traffic_min_separation_m=0.6, traffic_path_clearance_m=0.6,
@@ -513,7 +514,7 @@ class FieldFile(FieldCase):
             'slam freeze without frontier': lambda r: r['coordinator'].update({'search_mode': 'AREAS'}),
             'frontier basis not executable': lambda r: r['coordinator'].update({'executable_bases': ['PRIOR_MAP']}),
             'frontier issue before the robot reads it': lambda r: r['coordinator'].update(
-                {'frontier_issue_delay_s': 0.5}),
+                {'frontier_issue_delay_s': 0.4}),  # under the robot's task.poll_period_s 0.5 (C31)
             'frontier min cells below one': lambda r: r['coordinator'].update({'frontier_min_cells': 0}),
             'completion mode unknown': lambda r: r['coordinator'].update({'completion_mode': 'ARRIVAL'}),
             # OPS-204: two robots on one live map in the field cross; traffic control is not optional there
