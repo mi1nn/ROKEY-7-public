@@ -212,6 +212,10 @@ scripts/sim/stop_full.sh <회차 폴더>
 
 회차 표·단계별 결과는 [열여섯째 회차 자료](sim-2026-10-16-run080438/README.md)에 있다. 15회차와 같은 빌드(`100a610`)로 다시 돌렸다. 2·3단계(터널 1 통과, 인형 관측·장부)는 다시 통과했다. 4단계는 2차 고정 순간 TB-5 실행기가 `geometry_msgs__msg__pose__convert_from_py: Assertion … failed` 로 중단(exit code −6)돼 `SUPPORT_NOT_LOCALIZED` 로 멈췄다.
 
+## 22. 열여덟째 회차 (full-1016-084401)
+
+회차 표·단계별 결과는 [열여덟째 회차 자료](sim-2026-10-16-run084401/README.md)에 있다. 재범 지시로 머지 전 #462(사진대로 다시 만든 arena, `8270540`)로 돌렸다. 2·3단계가 통과했고 터널 1 은 `PASSABLE`(0.467 ~ 0.469 m), `NO_FLOOR_SEEN` 0 이었다. TB-5 정렬은 처음 `LOW_MATCH`(0.669) 뒤 다시 시작해 `ALIGNED`(0.979)였다. 2차 고정 순간 TB-5 실행기 Pose Assertion 중단이 세 번째로 나 4단계는 실패했다.
+
 ## 검증 범위
 
 - 확인한 것: 2·6절 로그 원문(회차 폴더 `logs/`), 명령 사슬·깊이 점·tf 지연 측정, 확인용 Gazebo 정답 위치.
