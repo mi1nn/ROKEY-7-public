@@ -74,7 +74,7 @@ class FakeNode:
 def fake_ros():
     action, nav2, srv = ModuleType('rclpy.action'), ModuleType('nav2_msgs.action'), ModuleType('std_srvs.srv')
     action.ActionClient = FakeActionClient
-    nav2.NavigateToPose = object
+    nav2.NavigateToPose = nav2.Spin = object   # Spin: SPIN tasks (C29)
     srv.Trigger = NS(Request=lambda: NS())
     return {'rclpy': ModuleType('rclpy'), 'rclpy.action': action, 'nav2_msgs': ModuleType('nav2_msgs'),
             'nav2_msgs.action': nav2, 'std_srvs': ModuleType('std_srvs'), 'std_srvs.srv': srv}

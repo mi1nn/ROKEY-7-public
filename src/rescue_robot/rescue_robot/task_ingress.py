@@ -188,7 +188,7 @@ class TaskIngress:
             elif self._uses_phase1(goal):
                 pose = self._phase1(goal).goal_pose
             else:
-                pose = None if goal.kind == 'HOLD' else self.resolve_goal(goal)
+                pose = None if goal.kind in ('HOLD', 'SPIN') else self.resolve_goal(goal)
             if not (goal.kind == 'MOVE_SEGMENT' and isinstance(self.segment_gate, Phase1RouteGate)
                     or self._uses_phase1(goal)):
                 validate_resolved_goal(goal, pose)
@@ -210,7 +210,9 @@ class TaskIngress:
                         duration, goal.policy_version,
                         target_id=goal.target_id or None,
                         target_revision=goal.target_estimate_revision if goal.target_id else None,
-                        search_area_ref=goal.search_area_ref or None, goal_pose=pose)
+                        search_area_ref=goal.search_area_ref or None, goal_pose=pose,
+                        **(dict(spin_yaw_rad=goal.spin_yaw_rad, time_allowance_s=goal.time_allowance_s)
+                           if goal.kind == 'SPIN' else {}))
             receipt = self.adapter.submit(task)
             self.requests[goal.command_id] = (deepcopy(goal), receipt)
             if receipt.accepted and lease is not None:

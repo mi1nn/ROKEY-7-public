@@ -142,6 +142,17 @@ class GoalPose:
         generation(self.transform_revision)
 
 
+SPIN_MAX_YAW_RAD = 2 * math.pi   # one turn at most per SPIN task (C29)
+
+
+@dataclass(frozen=True)
+class SpinGoal:
+    """A SPIN task's Nav2 Spin goal: turn ``yaw_rad`` in place (positive = counter-clockwise) within
+    ``time_allowance_s``."""
+    yaw_rad: float
+    time_allowance_s: float
+
+
 @dataclass(frozen=True)
 class Task:
     command_id: str
@@ -159,6 +170,8 @@ class Task:
     target_revision: int | None = None
     search_area_ref: str | None = None
     goal_pose: GoalPose | None = None
+    spin_yaw_rad: float | None = None       # SPIN only (C29)
+    time_allowance_s: float | None = None   # SPIN only
 
     def __post_init__(self):
         for name in ('command_id', 'task_id', 'robot_boot_id', 'authority_epoch'):
@@ -184,9 +197,16 @@ class Task:
             identifier(self.search_area_ref)
         elif self.search_area_ref is not None:
             raise ContractError('only SEARCH_AREA has search_area_ref')
-        if self.kind == 'HOLD':
+        if self.kind == 'SPIN':
+            number(self.spin_yaw_rad, 'spin_yaw_rad')
+            number(self.time_allowance_s, 'time_allowance_s', positive=True)
+            if not 0 < abs(self.spin_yaw_rad) <= SPIN_MAX_YAW_RAD:
+                raise ContractError('spin_yaw_rad must turn, at most one turn')
+        elif self.spin_yaw_rad is not None or self.time_allowance_s is not None:
+            raise ContractError('only SPIN has spin_yaw_rad and time_allowance_s')
+        if self.kind in ('HOLD', 'SPIN'):
             if self.goal_pose is not None:
-                raise ContractError('HOLD has no goal_pose')
+                raise ContractError(self.kind + ' has no goal_pose')
         elif not isinstance(self.goal_pose, GoalPose):
             raise ContractError('moving task needs goal_pose')
 
@@ -479,7 +499,8 @@ class Executor:
         if self.state != 'STOPPING':
             reason, outcome = {'SUCCEEDED': ('NAVIGATION_SUCCEEDED', 'COMPLETED'),
                                'CANCELED': ('ACTION_CANCELED', 'CANCELED'),
-                               'ABORTED': ('ACTION_ABORTED', 'FAILED')}[terminal_status]
+                               'ABORTED': ('SPIN_ABORTED' if self.active.kind == 'SPIN' else 'ACTION_ABORTED',
+                                           'FAILED')}[terminal_status]
             self.request_stop(reason, now=now, outcome=outcome)
         return True
 

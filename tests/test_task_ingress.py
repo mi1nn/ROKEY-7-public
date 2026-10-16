@@ -30,7 +30,7 @@ class TaskIngressTests(unittest.TestCase):
                        issued_at_ns=wall, deadline_ns=wall + 60_000_000_000,
                        lease_id=uid(33), target_id='', target_estimate_revision=0,
                        search_area_ref=uid(34), home_ref='', policy_version='test-only',
-                       has_route=False, has_approval=False,
+                       has_route=False, has_approval=False, spin_yaw_rad=0.0, time_allowance_s=0.0,
                        frame_ref=NS(robot_id=self.adapter.robot_id, native_frame='robot_b/map', mission_frame='map',
                                     map_session_id=fixture.pose.map_session_id,
                                     map_revision=0, transform_revision=0, alignment_status='VALID'))

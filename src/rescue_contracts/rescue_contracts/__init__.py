@@ -13,7 +13,7 @@ REPORT_NOT_PERSISTED STOP_UNCONFIRMED ID_CONTENT_CONFLICT TASK_BUSY
 DEADLINE_EXPIRED ACCEPT_TIMEOUT GUARD_INVALID STOP_EVIDENCE_STALE
 SESSION_FAULT GOAL_REJECTED ACTION_CANCELED ACTION_ABORTED ROBOT_DOCKED
 DRIVER_UNAVAILABLE COMMAND_WATCHDOG_UNAVAILABLE POLICY_MISMATCH
-NOT_FOUND PENDING_EVIDENCE PASSAGE_BLOCKED'''.split())
+NOT_FOUND PENDING_EVIDENCE PASSAGE_BLOCKED SPIN_ABORTED'''.split())
 
 # C-09's single executable dictionary. Component diagnostics remain namespaced,
 # while consumers branch only on canonical .code (never exception class names).
@@ -228,7 +228,8 @@ ROBOT_ROLES = frozenset({'SCOUT', 'SUPPORT'})
 # is arriving and stopping at that segment, not the approach. RETURN_HOME: either robot returns to
 # its home pose after completion or an operator cancel (BRD Part I 3.9.1; home source is Q-22); no
 # target. Which kinds an executor accepts is its own list (rescue_robot).
-TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD', 'MOVE_SEGMENT', 'RETURN_HOME'})
+TASK_KINDS = frozenset({'SEARCH_AREA', 'REOBSERVE_TARGET', 'APPROACH_TARGET', 'HOLD', 'MOVE_SEGMENT', 'RETURN_HOME',
+                        'SPIN'})   # SPIN: turn in place with Nav2 Spin (C29)
 TARGET_TASK_KINDS = frozenset({'REOBSERVE_TARGET', 'APPROACH_TARGET', 'MOVE_SEGMENT'})
 SITE_EVENT_KINDS = frozenset({'DISASTER_SIGN', 'EXIT_PASS', 'TARGET_DISAPPEARED_CANDIDATE'})
 STAMP_SEMANTICS = frozenset({'CAPTURE', 'DRIVER_RECEIVE', 'UNKNOWN'})

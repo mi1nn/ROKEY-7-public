@@ -37,12 +37,10 @@ class SpinTask(unittest.TestCase):
         return Task(uid(3), uid(4), 'robot_a', uid(1), uid(2), 1, kind, 10**18, 10**18 + 60 * 10**9, 5,
                     'test-only', **base)
 
-    @unittest.expectedFailure
     def test_a_spin_task_has_its_turn_and_no_pose(self):
         task = self.task()
         self.assertEqual((TURN, 15.0, None), (task.spin_yaw_rad, task.time_allowance_s, task.goal_pose))
 
-    @unittest.expectedFailure
     def test_bad_spin_fields_are_refused(self):
         for bad in (dict(spin_yaw_rad=0.0), dict(spin_yaw_rad=math.nan), dict(spin_yaw_rad=TURN + 0.01),
                     dict(spin_yaw_rad=None), dict(time_allowance_s=0.0), dict(time_allowance_s=math.inf)):
@@ -58,7 +56,6 @@ class SpinWire(unittest.TestCase):
         goal.kind, goal.spin_yaw_rad, goal.time_allowance_s = 'SPIN', TURN, 15.0
         return goal, lease
 
-    @unittest.expectedFailure
     def test_spin_wire_is_valid_and_other_kinds_carry_no_turn(self):
         self.assertEqual(2.0, validate(*self.spin()))
         goal, lease = wire('SEARCH_AREA')
@@ -91,7 +88,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
         self.a.on_goal_response(uid(n), True)
         self.advance()
 
-    @unittest.expectedFailure
     def test_spin_sends_a_spin_goal_and_completes_after_the_stop(self):
         self.spin()
         self.a.on_terminal(uid(3), 4)
@@ -100,7 +96,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
         self.assertEqual(('COMPLETED', 'NAVIGATION_SUCCEEDED', True),
                          (result.outcome, result.reason, result.stop_confirmed))
 
-    @unittest.expectedFailure
     def test_an_aborted_spin_is_spin_aborted(self):
         self.spin()
         self.a.on_terminal(uid(3), 6)
@@ -108,7 +103,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
         result = self.a.result(uid(3))
         self.assertEqual(('FAILED', 'SPIN_ABORTED'), (result.outcome, result.reason))
 
-    @unittest.expectedFailure
     def test_a_spin_is_canceled_like_a_navigation(self):
         self.spin()
         self.a.request_stop('CANCEL_USER')
@@ -117,7 +111,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
         self.still(self.a)
         self.assertEqual('CANCELED', self.a.result(uid(3)).outcome)
 
-    @unittest.expectedFailure
     def test_a_guard_failure_stops_a_spin(self):
         self.spin()
         self.guard_ok = False
@@ -127,7 +120,6 @@ class SpinAdapter(AdapterHelpers, unittest.TestCase):
 
 
 class SpinPort(unittest.TestCase):
-    @unittest.expectedFailure
     def test_the_port_sends_target_yaw_and_time_allowance_to_the_spin_server(self):
         from test_robot_nav2_ready import FakeNode, fake_ros
         sent = []
@@ -165,7 +157,6 @@ class SpinPort(unittest.TestCase):
 
 
 class SpinContract(unittest.TestCase):
-    @unittest.expectedFailure
     def test_the_contract_lists_spin_and_its_fields(self):
         from rescue_contracts import CANONICAL_CODES, TARGET_TASK_KINDS, TASK_KINDS
         from rescue_robot.task_wire import COMPLETION_SCOPES
@@ -173,6 +164,9 @@ class SpinContract(unittest.TestCase):
         self.assertNotIn('SPIN', TARGET_TASK_KINDS)
         self.assertIn('SPIN_ABORTED', CANONICAL_CODES)
         self.assertEqual('SPIN', COMPLETION_SCOPES['SPIN'])
+
+    @unittest.skipUnless((ROOT / 'docs').is_dir() and (ROOT / 'src').is_dir(), 'source checkout only (installed check)')
+    def test_the_interface_files_list_spin_and_its_fields(self):
         spec = json.loads((ROOT / 'docs' / 'design' / 'sdd-node-contracts-v0.1.json').read_text())
         goal = spec['actions']['ExecuteTask']['Goal']
         self.assertIn('/MOVE_SEGMENT/RETURN_HOME/SPIN)', goal)
@@ -181,7 +175,6 @@ class SpinContract(unittest.TestCase):
         self.assertIn('string KIND_SPIN="SPIN"', action)
         self.assertIn('float64 spin_yaw_rad\nfloat64 time_allowance_s\n---', action)
 
-    @unittest.expectedFailure
     def test_tb6_may_take_spin_in_the_field_file(self):
         from rescue_robot.task_site_runtime import AUTO_TARGET_KINDS
         self.assertIn('SPIN', AUTO_TARGET_KINDS)
