@@ -27,6 +27,7 @@ _REPLAY_STYLE = """
 #replay-live{display:contents}
 #replay-bar,#replay-map,#replay-log,.replay .empty-run{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
 #replay-bar .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#replay-run{min-width:0;max-width:100%;text-overflow:ellipsis}   /* 폴더 이름이 붙은 긴 회차 이름도 카드 안에 */
 #replay-bar button{font-size:13px;font-weight:600;padding:5px 12px;border-radius:var(--pill);border:1px solid var(--line-2);
   background:#fff;color:var(--ink-2);cursor:pointer}
 #replay-bar button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -188,15 +189,26 @@ def _notices(timeline):
 
 
 def _run_word(run):
-    status = '진행 중' if run['open'] else '닫힘'
+    """회차 고르기 한 줄. 지금 DB 의 열린 회차만 「진행 중」, 다른 파일의 끝나지 않은 회차는 「끝 기록 없음」."""
+    status = '진행 중' if run['open'] else '끝 기록 없음' if run['ended_at_ns'] is None else '닫힘'
     note = f' · {escape(run["note"])}' if run['note'] else ''
     started = datetime.fromtimestamp(run['started_at_ns'] / 1e9).strftime('%m-%d %H:%M')
     name = escape(run['note']) if run['number'] is None else f'회차 {run["number"]}'
     note = '' if run['number'] is None else note
-    return f'{name} · {started} 시작 · {status}{note}'
+    folder = f' · {escape(run["folder"])}' if run.get('folder') else ''   # 어느 launch 폴더의 기록인지
+    return f'{name} · {started} 시작 · {status}{note}{folder}'
 
 
-def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
+def _unread(problems):
+    """옆 폴더에서 못 읽은 현장 상태 DB(건너뜀). 없으면 빈 글."""
+    if not problems:
+        return ''
+    names = ', '.join(f'<span title="{escape(why)}">{escape(folder)}</span>' for folder, why in problems)   # 원문은 title
+    return (f'<p class="notice">읽지 못한 기록 파일 {len(problems)}개(깨졌거나 회차 기록이 없는 예전 형식) — '
+            f'회차 목록에서 뺐습니다: {names}</p>')
+
+
+def render_replay_page(timeline, state, runs=(), user=None, csrf=None, problems=()):
     """리플레이 전체 페이지. 처음에는 회차 끝 시점(state)을 그려 둔다. 회차가 없으면 timeline 은 None 이다."""
     head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -205,7 +217,7 @@ def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
             f'<a class="back" href="/">관제 화면으로</a>{_user_nav(user, csrf)}</header>')
     if timeline is None:
         return head + ('<section class="empty-run"><h2>기록 없음</h2><p>이 기록 DB 에는 아직 회차가 없습니다.</p>'
-                       '</section></main></body></html>')
+                       f'{_unread(problems)}</section></main></body></html>')
     duration = timeline['end_ns'] - timeline['start_ns']
     # <option> 안에는 태그를 못 쓰므로 _run_word 는 글만 만든다(note 는 escape).
     options = ''.join(f'<option value="{escape(run["run_id"])}"'
@@ -220,7 +232,7 @@ def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
            f'{speeds}<span id="replay-clock"></span></div>'
            f'<div id="replay-track"><input type="range" id="replay-slider" min="0" max="{duration}" step="1" '
            f'value="{duration}" aria-label="시간 막대"><div id="replay-marks">{_marks(timeline)}</div></div>'
-           f'<div class="legend">{legend}</div>{_notices(timeline)}</section>')
+           f'<div class="legend">{legend}</div>{_notices(timeline)}{_unread(problems)}</section>')
     script = (_REPLAY_SCRIPT.replace('DURATION_NS', str(duration)).replace('FETCH_EVERY_MS', str(REPLAY_FETCH_MS))
               .replace('RUN_ID', timeline['run']['run_id']))   # run_id 는 operations 가 검사한 UUID 라 따옴표 안에 안전
     return (head + bar + f'<div id="replay-live">{render_replay_fragment(state, timeline)}</div></main>'

@@ -97,9 +97,29 @@ def run_choices(runs):
         number += 0 if earlier else 1
         rows.append({'number': None if earlier else number, 'run_id': run['run_id'],
                      'started_at_ns': run['started_at_ns'], 'ended_at_ns': run['ended_at_ns'],
-                     'open': run['run_id'] == runs['open_run_id'], 'note': run['note']})
+                     'open': run['run_id'] == runs['open_run_id'], 'note': run['note'],
+                     'db': run.get('db'), 'folder': run.get('folder')})
     default = runs['open_run_id'] or (rows[-1]['run_id'] if rows else None)
     return rows, default
+
+
+def all_run_choices(sources):
+    """여러 현장 상태 DB 의 회차를 시작 시각 순으로 합친 run_choices(재범 2026-10-16).
+
+    ``sources`` 는 sources.RunIndex.read 의 (DB 경로, 폴더 이름, 지금 DB 인가, list_runs 결과) 목록이다. 열린 회차
+    (진행 중)는 지금 DB 의 것뿐이다. 다른 파일의 끝나지 않은 회차는 open 이 아니고 ended_at_ns 가 None 이다(화면은
+    「끝 기록 없음」). 같은 run_id 가 두 파일에 있으면(폴더 복사) 앞의 것(지금 DB 가 맨 앞)만 쓴다.
+    """
+    open_run_id, seen, merged = None, set(), []
+    for path, folder, live, runs in sources:
+        if live:
+            open_run_id = runs['open_run_id']
+        for run in runs['runs']:
+            if run['run_id'] not in seen:
+                seen.add(run['run_id'])
+                merged.append(dict(run, db=path, folder=folder))
+    merged.sort(key=lambda run: (run['started_at_ns'], run['run_id']))
+    return run_choices({'open_run_id': open_run_id, 'runs': merged})
 
 
 def build_timeline(data, *, run, words=None, robot_names=None):

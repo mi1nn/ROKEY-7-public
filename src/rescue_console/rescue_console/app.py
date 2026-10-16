@@ -7,6 +7,7 @@
 
 import datetime
 import functools
+from pathlib import Path
 import secrets
 import time
 import urllib.parse
@@ -19,12 +20,12 @@ from .commands import (build_request, command_access, parse_operations_url, post
 from .mapimage import LiveMap, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
-from .replay import ClosedRunCache, build_timeline, replay_at, run_choices
+from .replay import ClosedRunCache, all_run_choices, build_timeline, replay_at, run_choices
 from .replay_page import render_replay_fragment, render_replay_page
 from .reset import (build_reset_request, check_item, checklist, reset_notice, robot_precheck,
                     send_reset)
 from .reset_page import render_reset_fragment, render_reset_page
-from .sources import (load_ledger, load_replay, load_reset_state, load_robot_watch, load_runs, load_site_state,
+from .sources import (RunIndex, load_ledger, load_replay, load_reset_state, load_robot_watch, load_site_state,
                       load_status)
 from .throttle import LoginThrottle
 from .view import ConsoleError, build_view
@@ -135,7 +136,7 @@ def parse_robot_camera(url):
 def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site_state_path=None, cameras=(),
                map_path=None, live_map_path=None, live_map_stale_s=None, login_throttle=None, robot_names=None, support_dispatch=None, search_start=None, operations_url=None,
                command_transport=None, camera_stale_s=None, robot_watch_path=None, robot_watch_stale_s=None,
-               robot_watch_map_robot=None, robot_camera=None, field_path=None):
+               robot_watch_map_robot=None, robot_camera=None, field_path=None, replay_dir=None):
     """설정 유효성을 사전에 검증한 후 로그인·관제·명령·계정 관리 라우트를 등록한 Flask 앱을 생성한다.
 
     모든 설정 오류는 이 단계에서 즉시 ConsoleError로 실패하여, 잘못된 옵션 지정 시 첫 요청이 아닌
@@ -385,43 +386,50 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
 
     # ---- 리플레이 (로그인한 모든 역할, 읽기만) -------------------------------------------
     closed_runs = ClosedRunCache(REPLAY_CACHE_RUNS)   # 닫힌 회차는 행이 늘지 않으므로 다시 읽지 않는다
+    # 리플레이 회차 목록: 지금 DB 와 옆 폴더(launch 마다 새 폴더)의 같은 이름 DB(재범 2026-10-16). --replay-dir 이
+    # 없으면 --site-state 폴더의 위 폴더(시뮬 ~/sim-runs, 현장 ~/rokey7-field/noweb)를 본다.
+    run_index = None if site_state_path is None else RunIndex(
+        site_state_path, Path(site_state_path).resolve().parent.parent if replay_dir is None else replay_dir)
 
     def replay_timeline(run_text):
-        """(시간 막대, 회차 목록). ``run_text`` 가 비면 열린 회차, 없으면 마지막 회차. 회차가 없으면 시간 막대는 None.
+        """(시간 막대, 회차 목록, 못 읽은 파일). ``run_text`` 가 비면 지금 DB 의 열린 회차, 없으면 가장 늦게 시작한 회차.
+        회차가 없으면 시간 막대는 None.
 
         목록에 없는 회차는 INVALID_INPUT 이다. 열린 회차는 매 요청 새로 읽는다. 픽스처·장부만으로는 이력이 없어 거부한다.
         """
-        if site_state_path is None:
+        if run_index is None:
             raise ConsoleError('CONFIG_MISSING', 'replay needs --site-state')
-        runs, default = run_choices(load_runs(site_state_path))
+        sources, problems = run_index.read()
+        runs, default = all_run_choices(sources)
         run_id = run_text or default
         chosen = [run for run in runs if run['run_id'] == run_id]
         if run_id is None:
-            return None, runs
+            return None, runs, problems
         if not chosen:
-            raise ConsoleError('INVALID_INPUT', 'run is not in this site-state DB')
+            raise ConsoleError('INVALID_INPUT', 'run is not in the site-state DBs')
         run = chosen[0]
         cached = None if run['open'] else closed_runs.get(run['run_id'])
         if cached is not None:
-            return cached, runs
-        timeline = build_timeline(load_replay(site_state_path, run['run_id']), run=run, robot_names=robot_names)
+            return cached, runs, problems
+        timeline = build_timeline(load_replay(run['db'], run['run_id']), run=run, robot_names=robot_names)
         if not run['open']:
             closed_runs.put(run['run_id'], timeline)
-        return timeline, runs
+        return timeline, runs, problems
 
     @app.get('/replay')
     @login_required
     def replay(account):
         """지난 회차 다시 보기(?run=회차 ID). 처음에는 끝 시점을 그린다. 명령 버튼·로봇 경로가 없다."""
-        timeline, runs = replay_timeline(request.args.get('run', ''))
+        timeline, runs, problems = replay_timeline(request.args.get('run', ''))
         state = None if timeline is None else replay_at(timeline, timeline['end_ns'])
-        return Response(render_replay_page(timeline, state, runs, account, csrf=csrf_token()), mimetype='text/html')
+        return Response(render_replay_page(timeline, state, runs, account, csrf=csrf_token(), problems=problems),
+                        mimetype='text/html')
 
     @app.get('/replay/fragment')
     @login_required
     def replay_fragment(account):
         """회차 시작부터 ``offset_ns`` 뒤 시점의 조각. 숫자가 아니거나 범위 밖이면 INVALID_INPUT(503 한 줄)."""
-        timeline, _runs = replay_timeline(request.args.get('run', ''))
+        timeline, _runs, _problems = replay_timeline(request.args.get('run', ''))
         text = request.args.get('offset_ns', '')
         # ASCII 숫자만 받는다. str.isdigit() 는 '²'(int() 가 거부, 500)와 '١'(1 로 읽힘)도 통과시킨다(REV-06).
         if not (text.isascii() and text.isdigit()) or timeline is None:

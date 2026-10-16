@@ -93,8 +93,23 @@ class AllRunsTests(AccountsFixture):
             for _ in range(3):
                 client.get('/replay')
         read = sorted(call.args[0].parent.name for call in reads.call_args_list)
-        self.assertEqual(['full-a', 'full-b', 'full-c', 'full-c', 'full-c'], read)   # 지금 DB 만 매번
+        self.assertEqual(['full-a', 'full-b', 'full-c', 'full-c', 'full-c', 'full-x'], read)   # 지금 DB 만 매번
         self.assertEqual(before, {name: digest_dir(self.root / name) for name in before})
+
+
+    def test_replay_dir_needs_site_state_on_the_command_line(self):
+        import contextlib
+        import io
+        import os
+        from rescue_console.__main__ import main
+        os.environ['RESCUE_CONSOLE_TEST_SECRET'] = 'x' * 16
+        self.addCleanup(os.environ.pop, 'RESCUE_CONSOLE_TEST_SECRET', None)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = main([str(self.db), '--accounts', str(self.accounts), '--status', 'status.json',
+                         '--replay-dir', str(self.root), '--secret-env', 'RESCUE_CONSOLE_TEST_SECRET'])
+        self.assertEqual(2, code)
+        self.assertIn('--replay-dir needs --site-state', err.getvalue())
 
 
 if __name__ == '__main__':
