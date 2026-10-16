@@ -93,6 +93,19 @@ RUN_SIM_GUI=0 scripts/sim/run_sim.sh --world arena --no-rviz    # 창 없이(사
 - Fast DDS: `scripts/sim/fastdds_localhost.xml` 을 모든 시뮬레이션 프로세스에 준다. 시뮬레이터 한 대에 ROS 프로세스가 약 50 개라, 기본 LOCALHOST 탐색 범위(앞쪽 참가자 번호 몇십 개)를 넘는 나중 참가자(slam_toolbox, ros2 CLI)가 서로 못 본다. UDP 초기 피어 범위를 120 으로 넓힌다[측정 2026-10-15 시뮬레이션 PC]. 다른 터미널에서 조회할 때도 같은 파일을 `FASTRTPS_DEFAULT_PROFILES_FILE` 로 준다(스크립트가 마지막에 명령을 찍는다).
 - 같은 파티션에 남은 Gazebo 가 있으면 띄우지 않는다. 끝낼 때는 이 실행이 띄운 프로세스만 PID 로 끈다.
 
+### 전체 회차에 웹캠 붙이기: `SIM_WEBCAM_DEVICE` (`run_full.sh`)
+
+```bash
+ls /dev/v4l/by-id/                      # 꽂힌 웹캠 이름(번호 /dev/videoN 은 꽂는 순서로 바뀐다)
+SIM_WEBCAM_DEVICE=usb-Web_Camera_Web_Camera_202400126002-video-index0 scripts/sim/run_full.sh --world arena \
+  --world-dir config/sim/worlds --web-host <폰 브라우저가 닿는 주소>
+```
+
+- 런북 3단계와 같은 인자로 `webcam_node` 와 판정 영상 중계를 붙이고(`webcam_params_file`·`webcam_device`·`video_port`(기본 18190, `SIM_VIDEO_PORT`)·`video_bind_host`=`--web-host`·`video_stale_s` 2.0), launch 로그의 `console --camera …` 값을 관제 웹 `--camera`(`--camera-stale-s 2.0`)로 준다. YAML 은 `webcam_node.example.yaml` 을 회차 폴더에 복사하고 모델 경로만 절대 경로로 바꾼다(`scripts/sim/sim_webcam.py`).
+- **웹캠 앞을 흔들면 현장처럼 지진 징후로 재난 선포가 된다.** 조정기 `camera_watch_roi` 는 런북 예시값이다(이 웹캠 화면에 맞춰 잰 값이 아님).
+- 없으면 지금처럼 웹캠 없이 띄우고 로그에 한 줄 남긴다. 꽂혀 있지 않은 이름을 주면 띄우지 않는다.
+- 확인 [측정 2026-10-16 10:3x, mu-03]: `webcam_node` 만 따로(도메인 77) 띄워 YOLO warm-up 2.36 s, 시계 SYNCED, 상태 토픽 5.0 Hz. 전체 회차에서는 NOT_RUN.
+
 ### 문제 해결
 
 - **라이다 값이 640 개 모두 0.164 m(range_min)이고 SLAM 지도가 안 자란다.** 하이브리드 노트북에서 NVIDIA 를 안 고르면 라이다(GPU 레이)가 소프트웨어 그리기로 떨어진다[측정 2026-10-15]. `run_sim.sh` 는 NVIDIA 드라이버가 있으면 오프로드를 기본으로 준다(`__NV_PRIME_RENDER_OFFLOAD`, `__GLX_VENDOR_LIBRARY_NAME`, `__EGL_VENDOR_LIBRARY_FILENAMES`). 끄려면 `LIBGL_ALWAYS_SOFTWARE=1`.

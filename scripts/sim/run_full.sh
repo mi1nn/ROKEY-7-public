@@ -15,6 +15,9 @@
 #        관리자 비밀번호는 처음 한 번 환경 변수 RUN_FULL_ADMIN_PASSWORD(8자 이상)로만 받는다(저장소·로그에 남기지 않음).
 #        계정 DB·세션 비밀키는 RUN_FULL_WEB_STATE(기본 ~/sim-runs/web-state)에 두고 회차 사이에 그대로 쓴다.
 #       끄기: stop_full.sh <회차 폴더>
+#       SIM_WEBCAM_DEVICE=<ls /dev/v4l/by-id/ 의 이름>: 이 PC 의 웹캠을 현장 고정 웹캠처럼 붙인다(런북 3단계 인자 그대로:
+#       webcam_node + 판정 영상 중계, 관제 웹 --camera). 웹캠 앞을 흔들면 현장처럼 지진 징후로 재난 선포가 된다. 영상 중계는
+#       --web-host 에 묶는다(폰 브라우저가 닿아야 함), 포트 SIM_VIDEO_PORT(기본 18190). 없으면 웹캠 없이 띄운다(로그 한 줄).
 #       SIM_PASSAGE=off: 깊이 장애물 정지(PassageStop)를 시뮬레이션 사본에서만 끈다. 정지 구역 앞 범위를 로봇 몸통 안
 #       [0.0, 0.05] m 로 줄여 카메라가 볼 수 없게 한다(높이 띠는 현장 검사 규칙 min < 라이다 0.23 m 때문에 못 올림).
 #       같은 값을 쓰는 터널 판정(overhead_passage)도 사실상 꺼진다. 기본은 현장 값. 2026-10-15 그 값이 TB-5 도크 앞에서 TB-6 을
@@ -212,19 +215,35 @@ python3 "$REPO/scripts/field/make_field_profile.py" --out "$RUN/profile" --disco
     --domain "$FIELD_DOMAIN" "${HOME_ARGS[@]}" > "$RUN/logs/profile.log" 2>&1 \
     || die "프로파일을 못 만들었습니다. $RUN/logs/profile.log"
 
-# 4. 운영 + 관제 웹 (런북 3단계)
+# 4. 운영 + 관제 웹 (런북 3단계). SIM_WEBCAM_DEVICE 가 있으면 고정 웹캠과 판정 영상 중계도 런북 인자 그대로 붙인다
+#    (재범 2026-10-16 10:07 「mu-03에 웹캠 붙였는데 안뜸」). YAML 은 회차 폴더 사본(모델 경로만 절대 경로, sim_webcam.py).
+WEBCAM_ARGS=""; CAMERA_ARGS=""
+if [ -n "${SIM_WEBCAM_DEVICE:-}" ]; then
+    [ -e "/dev/v4l/by-id/$SIM_WEBCAM_DEVICE" ] || die "SIM_WEBCAM_DEVICE $SIM_WEBCAM_DEVICE 가 꽂혀 있지 않습니다. 꽂힌 것: $(ls /dev/v4l/by-id/ 2>/dev/null | tr '\n' ' ')"
+    python3 "$HERE/sim_webcam.py" yaml "$REPO/src/rescue_perception/rescue_perception/config/webcam_node.example.yaml" "$REPO" \
+        > "$RUN/webcam_node.yaml" || die "웹캠 YAML 사본을 못 만들었습니다"
+    WEBCAM_ARGS="webcam_params_file:=$RUN/webcam_node.yaml webcam_device:=$SIM_WEBCAM_DEVICE video_port:=${SIM_VIDEO_PORT:-18190} video_bind_host:=$web_host video_stale_s:=2.0"
+else
+    say "웹캠 없음(SIM_WEBCAM_DEVICE 없음): 관제 웹 현장 웹캠 칸이 비고, 재난 선포는 관제 웹 버튼으로만 된다"
+fi
 start operations "exec setsid ros2 launch rescue_bringup operations.launch.py profile_path:=$P db_path:=$RUN/site_state.sqlite3 \
 api_port:=18180 command_timeout_s:=3.0 report_db_path:=$RUN/reports.sqlite3 envelope_schema_version:=rescue-envelope/1 \
 report_publisher_id:=ops.report map_topic:=/robot6/map map_dir:=$RUN/maps robot_namespaces:=robot_a=/robot6,robot_b=/robot5 \
-robot_watch_path:=$RUN/robot_watch.json"
+robot_watch_path:=$RUN/robot_watch.json $WEBCAM_ARGS"
 wait_for operations "rescue_db_writer git=" 60
+if [ -n "$WEBCAM_ARGS" ]; then
+    wait_for operations "console --camera " 30
+    CAMERA_VALUE="$(python3 "$HERE/sim_webcam.py" camera "$RUN/logs/operations.log")" || die "launch 로그에 console --camera 값이 없습니다"
+    CAMERA_ARGS="--camera $CAMERA_VALUE --camera-stale-s 2.0"
+    say "웹캠 $SIM_WEBCAM_DEVICE, 관제 웹 --camera $CAMERA_VALUE"
+fi
 # 관제 웹은 RUN_FULL_WEB_REPO(기본 이 저장소)의 빌드로 띄운다. 웹만 더 새 main 으로 볼 때 쓴다(2026-10-15 #366).
 WEB_REPO="${RUN_FULL_WEB_REPO:-$REPO}"
 [ -f "$WEB_REPO/install/setup.bash" ] || die "$WEB_REPO/install 이 없습니다"
 start console "set +u; source $WEB_REPO/install/setup.bash; set -u; export RESCUE_CONSOLE_SECRET=\$(cat $WEB_STATE/secret); exec setsid $WEB_PY -m rescue_console --accounts $WEB_STATE/accounts.sqlite3 \
 --site-state $RUN/site_state.sqlite3 --operations http://127.0.0.1:18180 --robot-name robot_a=TB-6 --robot-name robot_b=TB-5 \
 --host $web_host --port $web_port --live-map $RUN/maps/live_map.yaml --live-map-stale-s 15 --robot-watch $RUN/robot_watch.json \
---robot-watch-stale-s 5 --robot-watch-map-robot robot_a --support-dispatch AUTO --search-start AUTO --field-file $F"
+--robot-watch-stale-s 5 --robot-watch-map-robot robot_a --support-dispatch AUTO --search-start AUTO --field-file $F $CAMERA_ARGS"
 wait_for console "Running on" 30
 
 
@@ -265,7 +284,8 @@ elif [ "${SIM_RVIZ}" != off ]; then
     die "SIM_RVIZ must be on or off"
 fi
 
-# 7. 조정기 (런북 3단계 마지막 줄; 값은 런북 자리표시, camera_watch_roi 는 웹캠이 없어 예시값)
+# 7. 조정기 (런북 3단계 마지막 줄; 값은 런북 자리표시. camera_watch_roi 는 예시값이다: SIM_WEBCAM_DEVICE 로 웹캠을 붙이면
+#    실제로 쓰이지만, 웹캠 화면에 맞춰 잰 값이 아니다)
 start coordinator "exec setsid ros2 launch rescue_bringup coordinator.launch.py profile_path:=$P field_path:=$F \
 route_segment_goals:='[0.0, 0.0, 0.0]' observe_goal:='[0.0, 0.0, 0.0]' route_segment_passage_free:='[false]' \
 camera_watch_roi:='[0.1, 0.2, 0.6, 0.9]'"
