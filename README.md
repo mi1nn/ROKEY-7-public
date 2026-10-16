@@ -310,3 +310,4 @@ PYTHONPATH=src/rescue_bringup python3 -m rescue_bringup config/deployment.exampl
 | 문서 | 내용 |
 | --- | --- |
 | [시뮬레이션 핵심 로직 감사](docs/evidence/audit-2026-10-16-sim-core.md) | TB-6 탐색·TB-5 접촉 수거의 누락, 재현 방법, 최신 main 정정 및 후속 담당 범위 |
+| [AMR 레인 작업 기록과 책임 주장 검증](docs/process/amr-lane-record-2026-10-16.md) | AMR 코드·설정 PR 비율(146개 중 임재범 138·전제환 2), 전제환 작업 기록, 「계약 때문에 실습 못 함」 주장의 검증, 10-15 실기 원인 |
