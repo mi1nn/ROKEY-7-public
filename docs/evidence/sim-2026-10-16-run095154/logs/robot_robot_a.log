@@ -1,0 +1,1271 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-09-53-12-730097-sim-pc-1344749
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: robot robot_a ns=/robot6 nav2_params=<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/nav2.yaml + no depth stop + tunnel keepout /rescue/passage_keepout/filter_info (passage_keepout here) + depth_low_layer 0.05..0.23 m above the floor + passage slow x0.3 0.23..1.0 m front [0.4, 1.2] depth /robot6/oakd/stereo/image_raw (compressedDepth) + no BackUp recovery + FollowPath Rotation Shim/RPP -> /tmp/nav2_robot_a__is4lzyu.yaml map_mode=SLAM_THEN_FROZEN frozen pose TF /robot6/tf with AMCL covariance while moved < 0.25 m / 0.2 rad (<저장소>/install/turtlebot4_navigation/share/turtlebot4_navigation/config/localization.yaml) map_sha256=(decided by the freeze) declared alignment window 1792111989777430423..1792115592777430423 ns
+[INFO] [controller_server-1]: process started with pid [1344815]
+[INFO] [smoother_server-2]: process started with pid [1344816]
+[INFO] [planner_server-3]: process started with pid [1344819]
+[INFO] [route_server-4]: process started with pid [1344820]
+[INFO] [behavior_server-5]: process started with pid [1344825]
+[INFO] [bt_navigator-6]: process started with pid [1344832]
+[INFO] [waypoint_follower-7]: process started with pid [1344835]
+[INFO] [velocity_smoother-8]: process started with pid [1344836]
+[INFO] [collision_monitor-9]: process started with pid [1344837]
+[INFO] [opennav_docking-10]: process started with pid [1344840]
+[INFO] [lifecycle_manager-11]: process started with pid [1344841]
+[INFO] [passage_keepout-12]: process started with pid [1344848]
+[INFO] [command_watchdog-13]: process started with pid [1344852]
+[INFO] [task_input-14]: process started with pid [1344863]
+[bt_navigator-6] [INFO] [1792111993.573226466] [robot6.bt_navigator]: 
+[bt_navigator-6] 	bt_navigator lifecycle node launched. 
+[bt_navigator-6] 	Waiting on external lifecycle transitions to activate
+[bt_navigator-6] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[bt_navigator-6] [INFO] [1792111993.574811427] [robot6.bt_navigator]: Creating
+[controller_server-1] [INFO] [1792111993.587778358] [robot6.controller_server]: 
+[controller_server-1] 	controller_server lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792111993.591384958] [robot6.controller_server]: Creating controller server
+[route_server-4] [INFO] [1792111993.622305140] [robot6.route_server]: 
+[route_server-4] 	route_server lifecycle node launched. 
+[route_server-4] 	Waiting on external lifecycle transitions to activate
+[route_server-4] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[smoother_server-2] [INFO] [1792111993.702591831] [robot6.smoother_server]: 
+[smoother_server-2] 	smoother_server lifecycle node launched. 
+[smoother_server-2] 	Waiting on external lifecycle transitions to activate
+[smoother_server-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[smoother_server-2] [INFO] [1792111993.704107057] [robot6.smoother_server]: Creating smoother server
+[controller_server-1] [INFO] [1792111993.704564071] [robot6.local_costmap.local_costmap]: 
+[controller_server-1] 	local_costmap lifecycle node launched. 
+[controller_server-1] 	Waiting on external lifecycle transitions to activate
+[controller_server-1] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[controller_server-1] [INFO] [1792111993.705044904] [robot6.local_costmap.local_costmap]: Creating Costmap
+[collision_monitor-9] [INFO] [1792111993.766400011] [robot6.collision_monitor]: 
+[collision_monitor-9] 	collision_monitor lifecycle node launched. 
+[collision_monitor-9] 	Waiting on external lifecycle transitions to activate
+[collision_monitor-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792111993.772254797] [robot6.planner_server]: 
+[planner_server-3] 	planner_server lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792111993.774922743] [robot6.planner_server]: Creating
+[waypoint_follower-7] [INFO] [1792111993.782243588] [robot6.waypoint_follower]: 
+[waypoint_follower-7] 	waypoint_follower lifecycle node launched. 
+[waypoint_follower-7] 	Waiting on external lifecycle transitions to activate
+[waypoint_follower-7] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[waypoint_follower-7] [INFO] [1792111993.782935869] [robot6.waypoint_follower]: Creating
+[lifecycle_manager-11] [INFO] [1792111993.785113462] [robot6.lifecycle_manager_navigation]: Creating
+[velocity_smoother-8] [INFO] [1792111993.797734067] [robot6.velocity_smoother]: 
+[velocity_smoother-8] 	velocity_smoother lifecycle node launched. 
+[velocity_smoother-8] 	Waiting on external lifecycle transitions to activate
+[velocity_smoother-8] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[lifecycle_manager-11] [INFO] [1792111993.807815303] [robot6.lifecycle_manager_navigation]: Creating and initializing lifecycle service clients
+[opennav_docking-10] [INFO] [1792111993.815992813] [robot6.docking_server]: 
+[opennav_docking-10] 	docking_server lifecycle node launched. 
+[opennav_docking-10] 	Waiting on external lifecycle transitions to activate
+[opennav_docking-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[opennav_docking-10] [INFO] [1792111993.816132110] [robot6.docking_server]: Creating docking_server
+[behavior_server-5] [INFO] [1792111993.844657540] [robot6.behavior_server]: 
+[behavior_server-5] 	behavior_server lifecycle node launched. 
+[behavior_server-5] 	Waiting on external lifecycle transitions to activate
+[behavior_server-5] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792111993.851389691] [robot6.global_costmap.global_costmap]: 
+[planner_server-3] 	global_costmap lifecycle node launched. 
+[planner_server-3] 	Waiting on external lifecycle transitions to activate
+[planner_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[planner_server-3] [INFO] [1792111993.852012066] [robot6.global_costmap.global_costmap]: Creating Costmap
+[passage_keepout-12] [INFO] [1792111993.943841726] [rescue_passage_keepout]: git_sha=1c51d0e8ef0b6d65fc0fee88629d3aa7de2c344c parameters={'robot_ids': ['robot_a', 'robot_b'], 'map_frame': 'map', 'info_topic': '/rescue/passage_keepout/filter_info', 'radius_m': 0.3, 'resolution_m': 0.05, 'merge_m': 0.5, 'envelope_schema_version': 'rescue-envelope/1'} mask=/rescue/passage_keepout/mask approve=/rescue/passage_keepout/approve
+[passage_keepout-12] [INFO] [1792111993.945972480] [rescue_passage_keepout]: PASSAGE_KEEPOUT 0 place(s) kept out: []
+[command_watchdog-13] [INFO] [1792111994.020753580] [robot6.rescue_command_watchdog]: git_sha=1c51d0e8ef0b6d65fc0fee88629d3aa7de2c344c parameters={'namespace': '/robot6', 'cmd_vel_in_topic': '/robot6/cmd_vel_watchdog_in', 'cmd_vel_out_topic': '/robot6/cmd_vel', 'cmd_vel_stamped': True, 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat', 'step_period': 0.05, 'watchdog.version': 'search-live-20261012', 'watchdog.heartbeat_max_age_s': 0.5, 'watchdog.command_max_age_s': 0.5, 'watchdog.max_linear_mps': 0.32, 'watchdog.max_angular_rps': 1.2}
+[task_input-14] [ERROR] [1792111994.442154362] [robot6.rescue_command_adapter]: input session blocked: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [INFO] [1792111994.508105688] [robot6.rescue_command_adapter]: task runtime configuration={"auto_rearm": true, "auto_target": {"enabled": true, "goal_clear_radius_m": 0.2, "kinds": ["REOBSERVE_TARGET", "RETURN_HOME"], "policy_version": "auto-target-20261013"}, "clock_error_bound_ns": 2000000000, "configured_destinations": {"home/robot_a": {"frame_id": "map", "map_revision": 2, "map_session_id": "22222222-2222-4222-8222-222222222222", "robot_id": "robot_a", "transform_revision": 1, "xy_yaw": [-0.3527866815278177, -3.499671722282021e-11, 3.1335558320830095]}}, "coordinator_authority": {"authority_epoch": "66666666-6666-4666-8666-666666666666", "coordinator_id": "77777777-7777-4777-8777-777777777777"}, "coordinator_state_topic": "/rescue/system_state", "coordinator_targets_topic": "/rescue/targets", "endpoints": {"action_name": "/rescue/robots/robot_a/execute_task", "admission_topic": "/rescue/robots/robot_a/task_admission", "lease_topic": "/rescue/robots/robot_a/command_lease", "status_topic": "/rescue/robots/robot_a/status"}, "format": "rescue-robot-runtime/1", "input_max_age_ns": 30000000000, "input_mode": "LIVE_ROS", "lease": {"clock_domain_id": "rokey7-utc-field", "duration_s": 3.0, "max_age_ns": 4000000000, "max_error_ns": 2000000000}, "live_clock": {"backend": "timesyncd", "coordinator_service": "/mission_coordinator/task_inputs", "drift_ppm": 100.0, "max_age_ns": 3600000000000, "poll_period_s": 0.5}, "mapping_authority": "88888888-8888-4888-8888-888888888888", "max_position_error_m": 0.1, "max_rotation_error_rad": 0.1, "mission_frame": "map", "passage": {"polygon_name": "PassageStop", "result_window_ns": 5000000000}, "poll_period_s": 0.5, "pose_valid_ns": 2000000000, "publisher_id": "99999999-9999-4999-8999-999999999999", "recheck": {"deadline_ns": 10000000000, "window_ns": 3000000000}, "robot_id": "robot_a", "saved_maps": {"robot_a": {"amcl_base_frame": "base_link", "amcl_odom_frame": "odom", "amcl_tf_topic": "/robot6/tf", "amcl_update_min_a": 0.2, "amcl_update_min_d": 0.25, "authority_id": "88888888-8888-4888-8888-888888888888", "clock_domain_id": "rokey7-utc-field", "frozen_revision_topic": "/rescue/map/frozen_revision", "frozen_topic": "/rescue/map/frozen", "localization_topic": "/robot6/amcl_pose", "map_frame": "map", "map_revision": 0, "map_session_id": "22222222-2222-4222-8222-222222222222", "map_topic": "/robot6/map", "max_position_variance_m2": 0.25, "max_yaw_variance_rad2": 0.25, "mode": "SLAM_THEN_FROZEN", "occupancy_sha256": "", "position_error_m": 0.0, "rotation_error_rad": 0.0, "slam_base_frame": "base_link", "slam_covariance_max_age_ns": 30000000000, "slam_localization_topic": "/robot6/pose", "slam_odom_frame": "odom", "slam_tf_topic": "/robot6/tf", "transform_revision": 1, "transform_valid_until_ns": 1792115592777430423, "transform_xy_yaw": [0.0, 0.0, 0.0], "valid_from_ns": 1792111989777430423}}, "schema_version": "rescue-envelope/1", "sensor_host_clock": {"domain_id": "rokey7-utc-field", "error_bound_ns": 150000000}}
+[task_input-14] [INFO] [1792111994.508640040] [robot6.rescue_command_adapter]: installed task runtime; input_mode=LIVE_ROS; explicit arm required
+[task_input-14] [INFO] [1792111994.509134237] [robot6.rescue_command_adapter]: task runtime attached: rescue_robot.task_site_runtime:create_runtime
+[task_input-14] [INFO] [1792111994.516304575] [robot6.rescue_command_adapter]: git_sha=1c51d0e8ef0b6d65fc0fee88629d3aa7de2c344c boot=fec64006-9d33-4694-b026-45aeb6963fb4 parameters={'allowed_robot_ids': ['robot_a', 'robot_b'], 'robot_id': 'robot_a', 'namespace': '/robot6', 'authority_epoch': '66666666-6666-4666-8666-666666666666', 'nav_action': '/robot6/navigate_to_pose', 'odom_topic': '/robot6/odom', 'dock_status_topic': '/robot6/dock_status', 'policy_version': 'search-live-20261012', 'step_period': 0.05, 'clock_error_bound_s': 2.0, 'scan_topic': '/robot6/scan', 'tf_topic': '/robot6/tf', 'map_frame': 'map', 'odom_frame': 'odom', 'readiness.version': 'example-2026-10-08', 'executor_heartbeat_topic': '/robot6/rescue/executor_heartbeat', 'nav2_lifecycle_service': '/robot6/lifecycle_manager_navigation/is_active', 'policy.acceptance_timeout': 10.0, 'policy.stop_timeout': 5.0, 'policy.stop_window': 0.5, 'policy.max_sample_gap': 0.3, 'policy.evidence_max_age': 3.0, 'policy.linear_stop_max': 0.01, 'policy.angular_stop_max': 0.02, 'readiness.max_age_s.odom': 0.5, 'readiness.max_age_s.scan': 0.5, 'readiness.max_age_s.camera': 1.0, 'readiness.max_age_s.wheel_status': 0.5, 'readiness.max_age_s.map_to_odom_tf': 1.0, 'readiness.max_age_s.watchdog_heartbeat': 0.5, 'camera_topics': ['/robot6/oakd/rgb/camera_info', '/robot6/oakd/stereo/image_raw/compressedDepth'], 'wheel_status_topic': '/robot6/wheel_status', 'watchdog_heartbeat_topic': '/robot6/rescue/watchdog_heartbeat'}
+[task_input-14] [WARN] [1792111994.563955488] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no NavigateToPose server: nav2 NOT_READY
+[command_watchdog-13] [INFO] [1792111994.712207177] [robot6.rescue_command_watchdog]: watchdog ARMED reason=- t=64505.710
+[lifecycle_manager-11] [INFO] [1792111994.749001685] [robot6.lifecycle_manager_navigation]: Starting managed nodes bringup...
+[lifecycle_manager-11] [INFO] [1792111994.749062000] [robot6.lifecycle_manager_navigation]: Configuring controller_server
+[controller_server-1] [INFO] [1792111994.749503597] [robot6.controller_server]: Configuring controller interface
+[controller_server-1] [INFO] [1792111994.749544151] [robot6.controller_server]: getting progress checker plugins..
+[controller_server-1] [INFO] [1792111994.749862660] [robot6.controller_server]: getting goal checker plugins..
+[controller_server-1] [INFO] [1792111994.750090905] [robot6.controller_server]: Controller frequency set to 20.0000Hz
+[controller_server-1] [INFO] [1792111994.750149551] [robot6.local_costmap.local_costmap]: Configuring
+[controller_server-1] [INFO] [1792111994.762681131] [robot6.local_costmap.local_costmap]: Using plugin "static_layer"
+[controller_server-1] [INFO] [1792111994.766166678] [robot6.local_costmap.local_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[controller_server-1] [INFO] [1792111994.768490508] [robot6.local_costmap.local_costmap]: Initialized plugin "static_layer"
+[controller_server-1] [INFO] [1792111994.768545582] [robot6.local_costmap.local_costmap]: Using plugin "voxel_layer"
+[controller_server-1] [INFO] [1792111994.769289924] [robot6.local_costmap.local_costmap]: Subscribed to Topics: scan
+[controller_server-1] [INFO] [1792111994.780063795] [robot6.local_costmap.local_costmap]: Initialized plugin "voxel_layer"
+[controller_server-1] [INFO] [1792111994.780096855] [robot6.local_costmap.local_costmap]: Using plugin "depth_low_layer"
+[controller_server-1] [INFO] [1792111994.780637483] [robot6.local_costmap.local_costmap]: Subscribed to Topics: depth_low depth_floor
+[controller_server-1] [INFO] [1792111994.789463636] [robot6.local_costmap.local_costmap]: Initialized plugin "depth_low_layer"
+[controller_server-1] [INFO] [1792111994.789495520] [robot6.local_costmap.local_costmap]: Using plugin "inflation_layer"
+[controller_server-1] [INFO] [1792111994.790110005] [robot6.local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[controller_server-1] [INFO] [1792111994.790128709] [robot6.local_costmap.local_costmap]: Using costmap filter "tunnel_keepout"
+[controller_server-1] [INFO] [1792111994.794024030] [robot6.local_costmap.local_costmap]: Initialized costmap filter "tunnel_keepout"
+[controller_server-1] [INFO] [1792111994.834603722] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792111994.834704989] [robot6.controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[controller_server-1] [INFO] [1792111994.835041276] [robot6.controller_server]: Controller Server has progress_checker  progress checkers available.
+[controller_server-1] [INFO] [1792111994.835489296] [robot6.controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[controller_server-1] [INFO] [1792111994.835795331] [robot6.controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[controller_server-1] [INFO] [1792111994.837792158] [robot6.controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792111994.840068069] [robot6.controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792111994.847600050] [robot6.controller_server]: Controller Server has FollowPath  controllers available.
+[lifecycle_manager-11] [INFO] [1792111994.860873006] [robot6.lifecycle_manager_navigation]: Configuring smoother_server
+[smoother_server-2] [INFO] [1792111994.861157422] [robot6.smoother_server]: Configuring smoother server
+[smoother_server-2] [INFO] [1792111994.887018946] [robot6.smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother
+[smoother_server-2] [INFO] [1792111994.889808097] [robot6.smoother_server]: Smoother Server has simple_smoother  smoothers available.
+[lifecycle_manager-11] [INFO] [1792111994.943661905] [robot6.lifecycle_manager_navigation]: Configuring planner_server
+[planner_server-3] [INFO] [1792111994.944385141] [robot6.planner_server]: Configuring
+[planner_server-3] [INFO] [1792111994.944429644] [robot6.global_costmap.global_costmap]: Configuring
+[planner_server-3] [INFO] [1792111994.964534037] [robot6.global_costmap.global_costmap]: Using plugin "static_layer"
+[planner_server-3] [INFO] [1792111994.969831665] [robot6.global_costmap.global_costmap]: Subscribing to the map topic (/robot6/map) with transient local durability
+[planner_server-3] [INFO] [1792111994.972882473] [robot6.global_costmap.global_costmap]: Initialized plugin "static_layer"
+[planner_server-3] [INFO] [1792111994.972915556] [robot6.global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792111994.973481333] [robot6.global_costmap.global_costmap]: Subscribed to Topics: scan
+[planner_server-3] [INFO] [1792111994.981682864] [robot6.global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[planner_server-3] [INFO] [1792111994.981758432] [robot6.global_costmap.global_costmap]: Using plugin "depth_low_layer"
+[planner_server-3] [INFO] [1792111994.984694042] [robot6.global_costmap.global_costmap]: Subscribed to Topics: depth_low depth_floor
+[planner_server-3] [INFO] [1792111995.018058233] [robot6.global_costmap.global_costmap]: Initialized plugin "depth_low_layer"
+[planner_server-3] [INFO] [1792111995.018118460] [robot6.global_costmap.global_costmap]: Using plugin "inflation_layer"
+[planner_server-3] [INFO] [1792111995.021873109] [robot6.global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[planner_server-3] [INFO] [1792111995.021931838] [robot6.global_costmap.global_costmap]: Using costmap filter "tunnel_keepout"
+[planner_server-3] [INFO] [1792111995.040849708] [robot6.global_costmap.global_costmap]: Initialized costmap filter "tunnel_keepout"
+[planner_server-3] [INFO] [1792111995.095750871] [robot6.planner_server]: Created global planner plugin GridBased of type nav2_navfn_planner::NavfnPlanner
+[planner_server-3] [INFO] [1792111995.095794047] [robot6.planner_server]: Configuring plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792111995.096314459] [robot6.planner_server]: Planner Server has GridBased  planners available.
+[lifecycle_manager-11] [INFO] [1792111995.131359076] [robot6.lifecycle_manager_navigation]: Configuring route_server
+[route_server-4] [INFO] [1792111995.136334105] [robot6.route_server]: Configuring
+[planner_server-3] [INFO] [1792111995.164392417] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[task_input-14] [INFO] [1792111995.178546497] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=UNKNOWN
+[route_server-4] [INFO] [1792111995.200224719] [robot6.route_server]: Created GraphFileLoader GeoJsonGraphFileLoader of type nav2_route::GeoJsonGraphFileLoader
+[route_server-4] [INFO] [1792111995.200268324] [robot6.route_server]: Configuring geojson graph file loader
+[route_server-4] [INFO] [1792111995.200279140] [robot6.route_server]: No graph file provided to load yet.
+[route_server-4] [INFO] [1792111995.202758343] [robot6.route_server]: Created edge cost function plugin DistanceScorer of type nav2_route::DistanceScorer
+[route_server-4] [INFO] [1792111995.202798619] [robot6.route_server]: Configuring distance scorer.
+[route_server-4] [INFO] [1792111995.203086147] [robot6.route_server]: Created edge cost function plugin DynamicEdgesScorer of type nav2_route::DynamicEdgesScorer
+[route_server-4] [INFO] [1792111995.203112003] [robot6.route_server]: Configuring adjust edges scorer.
+[route_server-4] [INFO] [1792111995.208576311] [robot6.route_server]: Created route operation AdjustSpeedLimit of type nav2_route::AdjustSpeedLimit
+[route_server-4] [INFO] [1792111995.208628419] [robot6.route_server]: Configuring Adjust speed limit operation.
+[route_server-4] [INFO] [1792111995.210660796] [robot6.route_server]: Created route operation ReroutingService of type nav2_route::ReroutingService
+[route_server-4] [INFO] [1792111995.210701737] [robot6.route_server]: Configuring Rerouting service operation.
+[lifecycle_manager-11] [INFO] [1792111995.216805470] [robot6.lifecycle_manager_navigation]: Configuring behavior_server
+[behavior_server-5] [INFO] [1792111995.217210701] [robot6.behavior_server]: Configuring
+[behavior_server-5] [INFO] [1792111995.224618626] [robot6.behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[behavior_server-5] [INFO] [1792111995.226494906] [robot6.behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors::DriveOnHeading
+[behavior_server-5] [INFO] [1792111995.227874339] [robot6.behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors::AssistedTeleop
+[behavior_server-5] [INFO] [1792111995.230693791] [robot6.behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[behavior_server-5] [INFO] [1792111995.248241917] [robot6.behavior_server]: Configuring spin
+[behavior_server-5] [INFO] [1792111995.271779772] [robot6.behavior_server]: Configuring drive_on_heading
+[behavior_server-5] [INFO] [1792111995.290232291] [robot6.behavior_server]: Configuring assisted_teleop
+[behavior_server-5] [INFO] [1792111995.312555180] [robot6.behavior_server]: Configuring wait
+[lifecycle_manager-11] [INFO] [1792111995.329084580] [robot6.lifecycle_manager_navigation]: Configuring velocity_smoother
+[velocity_smoother-8] [INFO] [1792111995.331334158] [robot6.velocity_smoother]: Configuring velocity smoother
+[lifecycle_manager-11] [INFO] [1792111995.342589745] [robot6.lifecycle_manager_navigation]: Configuring collision_monitor
+[collision_monitor-9] [INFO] [1792111995.342965848] [robot6.collision_monitor]: Configuring
+[collision_monitor-9] [INFO] [1792111995.361790778] [collision_monitor]: [scan]: Creating Scan
+[collision_monitor-9] [INFO] [1792111995.369857230] [collision_monitor]: [passage_overhead]: Creating PointCloud
+[collision_monitor-9] [INFO] [1792111995.372769513] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[collision_monitor-9] [INFO] [1792111995.372929059] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[collision_monitor-9] [INFO] [1792111995.375455934] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on local_costmap/published_footprint topic
+[collision_monitor-9] [INFO] [1792111995.378980725] [collision_monitor]: [PassageSlow]: Creating Polygon
+[lifecycle_manager-11] [INFO] [1792111995.416466130] [robot6.lifecycle_manager_navigation]: Configuring bt_navigator
+[bt_navigator-6] [INFO] [1792111995.416843711] [robot6.bt_navigator]: Configuring
+[bt_navigator-6] [INFO] [1792111995.448835915] [robot6.bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[task_input-14] [WARN] [1792111995.562884039] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active no answer within 3.0 s: nav2 NOT_READY
+[bt_navigator-6] [INFO] [1792111995.589256868] [robot6.bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[lifecycle_manager-11] [INFO] [1792111995.645046521] [robot6.lifecycle_manager_navigation]: Configuring waypoint_follower
+[waypoint_follower-7] [INFO] [1792111995.645514594] [robot6.waypoint_follower]: Configuring
+[waypoint_follower-7] [INFO] [1792111995.695603770] [robot6.waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint
+[lifecycle_manager-11] [INFO] [1792111995.696690867] [robot6.lifecycle_manager_navigation]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792111995.697024927] [robot6.docking_server]: Configuring docking_server
+[opennav_docking-10] [INFO] [1792111995.697086634] [robot6.docking_server]: Controller frequency set to 50.0000Hz
+[opennav_docking-10] [INFO] [1792111995.758936314] [robot6.docking_server]: Created charging dock plugin simple_charging_dock of type opennav_docking::SimpleChargingDock
+[opennav_docking-10] [WARN] [1792111995.769198787] [robot6.docking_server]: Dock database filepath nor dock parameters set. Docking actions can only be executed specifying the dock pose via the action request. Or update the dock database via the reload_database service.
+[opennav_docking-10] [INFO] [1792111995.769256613] [robot6.docking_server]: Docking Server has 1 dock types and 0 dock instances available.
+[lifecycle_manager-11] [INFO] [1792111995.774413521] [robot6.lifecycle_manager_navigation]: Activating controller_server
+[controller_server-1] [INFO] [1792111995.774668243] [robot6.controller_server]: Activating
+[controller_server-1] [INFO] [1792111995.774743500] [robot6.local_costmap.local_costmap]: Activating
+[controller_server-1] [INFO] [1792111995.774762566] [robot6.local_costmap.local_costmap]: Checking transform
+[controller_server-1] [INFO] [1792111995.775010082] [robot6.local_costmap.local_costmap]: start
+[controller_server-1] [INFO] [1792111995.780606102] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792111995.793012390] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792111995.793664376] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [INFO] [1792111995.805475999] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter mask from /rescue/passage_keepout/mask topic.
+[controller_server-1] [INFO] [1792111995.983459455] [robot6.controller_server]: Activating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792111995.983492875] [robot6.controller_server]: Activating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792111995.983510887] [robot6.controller_server]: Creating bond (controller_server) to lifecycle manager.
+[task_input-14] [INFO] [1792111996.016632148] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=47c99c02-ea94-5ec4-a016-94aefb1d947a session=22222222-2222-4222-8222-222222222222 rev=0 quality=VALID
+[lifecycle_manager-11] [INFO] [1792111996.293555043] [robot6.lifecycle_manager_navigation]: Server controller_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111996.293614183] [robot6.lifecycle_manager_navigation]: Activating smoother_server
+[smoother_server-2] [INFO] [1792111996.294178057] [robot6.smoother_server]: Activating
+[smoother_server-2] [INFO] [1792111996.294219368] [robot6.smoother_server]: Creating bond (smoother_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111996.664811310] [robot6.lifecycle_manager_navigation]: Server smoother_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111996.664873505] [robot6.lifecycle_manager_navigation]: Activating planner_server
+[planner_server-3] [INFO] [1792111996.665314311] [robot6.planner_server]: Activating
+[planner_server-3] [INFO] [1792111996.665354893] [robot6.global_costmap.global_costmap]: Activating
+[planner_server-3] [INFO] [1792111996.665360511] [robot6.global_costmap.global_costmap]: Checking transform
+[planner_server-3] [INFO] [1792111996.665658836] [robot6.global_costmap.global_costmap]: start
+[planner_server-3] [INFO] [1792111996.670931099] [robot6.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[planner_server-3] [INFO] [1792111996.684022704] [robot6.global_costmap.global_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[planner_server-3] [INFO] [1792111996.684085244] [robot6.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[planner_server-3] [INFO] [1792111996.696822941] [robot6.global_costmap.global_costmap]: KeepoutFilter: Received filter mask from /rescue/passage_keepout/mask topic.
+[controller_server-1] [INFO] [1792111996.775209121] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792111997.666083220] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792111997.674484415] [robot6.planner_server]: Activating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792111997.677480592] [robot6.planner_server]: Creating bond (planner_server) to lifecycle manager.
+[controller_server-1] [INFO] [1792111997.775239366] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[lifecycle_manager-11] [INFO] [1792111997.787078642] [robot6.lifecycle_manager_navigation]: Server planner_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111997.787141370] [robot6.lifecycle_manager_navigation]: Activating route_server
+[route_server-4] [INFO] [1792111997.788004835] [robot6.route_server]: Activating
+[route_server-4] [INFO] [1792111997.788242022] [robot6.route_server]: Creating bond (route_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111997.898889553] [robot6.lifecycle_manager_navigation]: Server route_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111997.898954663] [robot6.lifecycle_manager_navigation]: Activating behavior_server
+[behavior_server-5] [INFO] [1792111997.899691392] [robot6.behavior_server]: Activating
+[behavior_server-5] [INFO] [1792111997.899721130] [robot6.behavior_server]: Activating spin
+[behavior_server-5] [INFO] [1792111997.899738063] [robot6.behavior_server]: Activating drive_on_heading
+[behavior_server-5] [INFO] [1792111997.899752847] [robot6.behavior_server]: Activating assisted_teleop
+[behavior_server-5] [INFO] [1792111997.899781718] [robot6.behavior_server]: Activating wait
+[behavior_server-5] [INFO] [1792111997.899801517] [robot6.behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.014541099] [robot6.lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.014585878] [robot6.lifecycle_manager_navigation]: Activating velocity_smoother
+[velocity_smoother-8] [INFO] [1792111998.015218721] [robot6.velocity_smoother]: Activating
+[velocity_smoother-8] [INFO] [1792111998.015288579] [robot6.velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.124724146] [robot6.lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.124778176] [robot6.lifecycle_manager_navigation]: Activating collision_monitor
+[collision_monitor-9] [INFO] [1792111998.125282839] [robot6.collision_monitor]: Activating
+[collision_monitor-9] [INFO] [1792111998.125376000] [robot6.collision_monitor]: Creating bond (collision_monitor) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.234251102] [robot6.lifecycle_manager_navigation]: Server collision_monitor connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.234330318] [robot6.lifecycle_manager_navigation]: Activating bt_navigator
+[bt_navigator-6] [INFO] [1792111998.235250809] [robot6.bt_navigator]: Activating
+[bt_navigator-6] [INFO] [1792111998.346374725] [robot6.bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.456198836] [robot6.lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.456254805] [robot6.lifecycle_manager_navigation]: Activating waypoint_follower
+[waypoint_follower-7] [INFO] [1792111998.456933020] [robot6.waypoint_follower]: Activating
+[waypoint_follower-7] [INFO] [1792111998.456976216] [robot6.waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.566798181] [robot6.lifecycle_manager_navigation]: Server waypoint_follower connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.566849962] [robot6.lifecycle_manager_navigation]: Activating docking_server
+[opennav_docking-10] [INFO] [1792111998.568420194] [robot6.docking_server]: Activating docking_server
+[opennav_docking-10] [INFO] [1792111998.591595730] [robot6.docking_server]: Creating bond (docking_server) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792111998.705119710] [robot6.lifecycle_manager_navigation]: Server docking_server connected with bond.
+[lifecycle_manager-11] [INFO] [1792111998.705174413] [robot6.lifecycle_manager_navigation]: Managed nodes are active
+[lifecycle_manager-11] [INFO] [1792111998.705182717] [robot6.lifecycle_manager_navigation]: Creating bond timer...
+[task_input-14] [INFO] [1792111998.712523322] [robot6.rescue_command_adapter]: NAV2_LIFECYCLE /robot6/lifecycle_manager_navigation/is_active active
+[planner_server-3] [INFO] [1792112003.670544358] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112003.775269524] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792112006.665942296] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112006.775392834] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[task_input-14] [WARN] [1792112007.739558472] [robot6.rescue_command_adapter]: target snapshot rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [WARN] [1792112007.742082750] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792112007.920403398] [robot6.rescue_command_adapter]: live central input rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: fresh synchronized OS measurement required
+[task_input-14] [WARN] [1792112008.336960612] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792112008.419732059] [robot6.rescue_command_adapter]: live central input rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: fresh synchronized OS measurement required
+[task_input-14] [WARN] [1792112008.837578040] [robot6.rescue_command_adapter]: coordinator session rejected: CLOCK_UNCERTAIN [rescue_robot.CLOCK_UNCERTAIN]: waiting for measured coordinator clock
+[task_input-14] [ERROR] [1792112009.008550878] [robot6.rescue_command_adapter]: input session blocked: NOT_AUTHORIZED [rescue_robot.NOT_AUTHORIZED]: waiting for fresh configured coordinator SystemState
+[task_input-14] [INFO] [1792112009.542873997] [robot6.rescue_command_adapter]: input session ready; explicit arm required
+[planner_server-3] [INFO] [1792112022.666198760] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112022.775218656] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792112025.665907301] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112025.775245105] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792112035.860810579] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112035.554 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-14] [INFO] [1792112068.042855357] [robot6.rescue_command_adapter]: SEND 32441768-2be5-465c-8c1a-c3c1c34e0531 GoalPose(frame_id='map', x=-0.9683812876816029, y=2.016116037689392, yaw=1.5707963267948966, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112068.081385283] [robot6.bt_navigator]: Begin navigating from current location (-0.35, -0.00) to (-0.97, 2.02)
+[task_input-14] [INFO] [1792112068.137565103] [robot6.rescue_command_adapter]: CANCEL 32441768-2be5-465c-8c1a-c3c1c34e0531 handle=True
+[controller_server-1] [INFO] [1792112068.152230134] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [WARN] [1792112068.152331228] [robot6.controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.
+[controller_server-1] [WARN] [1792112068.152359102] [robot6.controller_server]: No progress checker was specified in parameter 'current_progress_checker'. Server will use only plugin loaded progress_checker . This warning will appear once.
+[controller_server-1] [ERROR] [1792112068.152672463] [tf_help]: Transform data too old when converting from map to odom
+[controller_server-1] [ERROR] [1792112068.152720814] [tf_help]: Data time: 1792112068s 99556446ns, Transform time: 1792112067s 745410572ns
+[controller_server-1] [ERROR] [1792112068.152785891] [robot6.controller_server]: Failed to transform end pose to global frame
+[controller_server-1] [WARN] [1792112068.153039305] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[bt_navigator-6] [WARN] [1792112068.158876593] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Timed out while waiting for action server to acknowledge goal request for follow_path
+[bt_navigator-6] [INFO] [1792112068.159271651] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [ERROR] [1792112068.159697020] [robot6.bt_navigator]: Goal failed
+[collision_monitor-9] [WARN] [1792112068.287409738] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 2.683823 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.290857071] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112068.334971891] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 2.804676 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.416428431] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 2.846089 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.440735935] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 2.928125 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.487150050] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 2.977713 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.568843838] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.036593 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.629764363] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.084766 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.694937412] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.141077 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.737519855] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.206113 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.792981077] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.248830 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.868923627] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.304125 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112068.896615907] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.385084 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112069.131079586] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.459220 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112069.286576081] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.701946 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112069.407172545] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 3.846157 seconds. Ignoring the source.
+[planner_server-3] [INFO] [1792112079.398199725] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112079.081 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[controller_server-1] [INFO] [1792112079.398254383] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112079.081 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792112080.669284273] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112080.775432596] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[task_input-14] [INFO] [1792112083.964216855] [robot6.rescue_command_adapter]: SEND 0609f58f-5cc3-41a9-90fd-38e8b43ed3a2 GoalPose(frame_id='map', x=-1.068381289171719, y=2.166116039924566, yaw=1.5707963267948966, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112083.966388657] [robot6.bt_navigator]: Begin navigating from current location (-0.35, -0.00) to (-1.07, 2.17)
+[controller_server-1] [INFO] [1792112083.989021431] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112084.028142835] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112085.039358682] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112086.089256907] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112087.089223652] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112087.666348177] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112087.775228361] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 55 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112088.089242955] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112088.665905162] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 58 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112088.775348658] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 58 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112089.139237032] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112089.665882375] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 62 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112089.775228721] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 62 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112090.139232423] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112090.665889719] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 68 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112090.775233550] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 68 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112091.139218346] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112091.376511563] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[planner_server-3] [INFO] [1792112091.665922706] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 82 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112091.775244654] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 82 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112092.189224469] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112092.666041805] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 95 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112092.775239815] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 95 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112093.239227660] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112093.665933395] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112093.775273946] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112094.239234033] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112095.289286538] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112095.665988586] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112095.775402887] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112096.289223843] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112096.665922040] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112096.775235468] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 112 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112097.339223796] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112098.339223233] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112099.390735148] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112100.389373485] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112100.839270645] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112100.866887638] [robot6.bt_navigator]: Goal succeeded
+[collision_monitor-9] [INFO] [1792112100.936789540] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112101.494200006] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[collision_monitor-9] [WARN] [1792112101.638967081] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.001120 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112101.639000308] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[planner_server-3] [INFO] [1792112101.665921326] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 112 X 70 at 0.050000 m/pix
+[collision_monitor-9] [WARN] [1792112101.676379603] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.051531 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112101.735822512] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.100962 seconds. Ignoring the source.
+[controller_server-1] [INFO] [1792112101.775235984] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 112 X 70 at 0.050000 m/pix
+[collision_monitor-9] [INFO] [1792112101.787672071] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112104.064920689] [robot6.rescue_command_adapter]: SEND fe854b9e-bc63-47a5-a701-86384c6a0ca7 GoalPose(frame_id='map', x=-1.068381289171719, y=2.166116039924566, yaw=3.141592653589793, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112104.066634141] [robot6.bt_navigator]: Begin navigating from current location (-1.01, 1.93) to (-1.07, 2.17)
+[controller_server-1] [INFO] [1792112104.077689904] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112104.131900904] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112105.127955796] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112106.127876988] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112107.177874197] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112107.828666705] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.7258 Hz.
+[controller_server-1] [INFO] [1792112108.178808128] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112109.229338285] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112110.228807105] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112111.278831779] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112112.279405459] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112113.328803213] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112114.079770137] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112114.079961616] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112114.097517788] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112114.105384922] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112114.111705993] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112114.120677328] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112114.120799035] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112114.140141670] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [INFO] [1792112114.179326112] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792112114.183942526] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 13.8687 Hz.
+[collision_monitor-9] [INFO] [1792112114.226716523] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112114.334284854] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112115.334401987] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112116.384263021] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112117.384288671] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112118.434854062] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112119.434092089] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112119.665889220] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112119.775735289] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112120.434174349] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112121.484181371] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112122.486231617] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112122.644444627] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112122.668084096] [robot6.bt_navigator]: Goal succeeded
+[collision_monitor-9] [INFO] [1792112122.768241053] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112123.306121243] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[planner_server-3] [INFO] [1792112124.665913434] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112124.775261995] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 70 at 0.050000 m/pix
+[task_input-14] [INFO] [1792112125.565063761] [robot6.rescue_command_adapter]: SEND 1a59c580-c3e1-45c4-8f55-2dfaf698bb20 GoalPose(frame_id='map', x=-1.068381289171719, y=2.166116039924566, yaw=-1.5707963267948966, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112125.566060063] [robot6.bt_navigator]: Begin navigating from current location (-1.01, 1.93) to (-1.07, 2.17)
+[controller_server-1] [INFO] [1792112125.578478487] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112125.648209211] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112126.628792225] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112126.635914152] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.008100 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112126.635969790] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [INFO] [1792112126.700334121] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112127.628634044] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112128.628716495] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112129.678663593] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112130.728646713] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112131.665902625] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112131.728632890] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112131.775240514] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 70 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112132.728632302] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112133.779063286] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112134.778625149] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112135.578723652] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112135.578924495] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112135.596937648] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112135.607459416] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112135.616890870] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112135.620158034] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112135.620244535] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112135.642736573] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[planner_server-3] [INFO] [1792112135.665918708] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[collision_monitor-9] [INFO] [1792112135.681145864] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112135.775257023] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [WARN] [1792112135.777288906] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 6.2402 Hz.
+[collision_monitor-9] [INFO] [1792112135.827036962] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112135.827420254] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112136.827454658] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112137.667583047] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112137.775265015] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112137.827449177] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112138.877462560] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112139.877451059] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112140.928074492] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112141.665903131] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112141.775265011] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112141.927445337] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112142.927469752] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112143.977536261] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112144.638517394] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.036427 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112144.639281576] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112144.688815339] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.086730 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112144.726137466] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.134072 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112144.788329018] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112144.977451541] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112145.777914331] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112145.778131824] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112145.796825522] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112145.813018283] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112145.817331333] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112145.819275273] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112145.819719727] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [INFO] [1792112145.843480355] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112145.843530743] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112145.868210150] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [WARN] [1792112146.686063329] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.007538 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.686114072] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112146.725961485] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.057477 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.777724926] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.107434 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.837054407] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.157685 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.885903423] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.207357 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.936409146] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.257713 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112146.977013301] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.308623 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112147.028296380] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.359894 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112147.076579814] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.408148 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112147.137291339] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[collision_monitor-9] [INFO] [1792112147.600139650] [robot6.collision_monitor]: Robot to continue normal operation
+[collision_monitor-9] [INFO] [1792112149.176535275] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[behavior_server-5] [INFO] [1792112149.220171658] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112149.257060022] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112150.307258445] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112151.307525404] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112151.337104834] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112152.357235063] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112152.407878642] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112152.436690480] [robot6.bt_navigator]: Goal succeeded
+[task_input-14] [WARN] [1792112152.738482328] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=b6426483-81ad-4727-88dd-76cd843425f9 robot_id=robot_a robot_boot_id=fec64006-9d33-4694-b026-45aeb6963fb4 coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=3 renewal_sequence=50
+[task_input-14] [INFO] [1792112153.274490775] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[task_input-14] [INFO] [1792112155.565250747] [robot6.rescue_command_adapter]: SEND 9dff7224-6478-4c7b-94fa-3e72777bd98d GoalPose(frame_id='map', x=-1.068381289171719, y=2.166116039924566, yaw=0.0, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112155.566662487] [robot6.bt_navigator]: Begin navigating from current location (-1.02, 1.93) to (-1.07, 2.17)
+[controller_server-1] [INFO] [1792112155.589295760] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112156.641095780] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112157.487114932] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112157.539547544] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112157.567097755] [robot6.bt_navigator]: Goal succeeded
+[task_input-14] [WARN] [1792112157.744283996] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=cd003e77-9c5c-473e-89e7-9fea98ecce54 robot_id=robot_a robot_boot_id=fec64006-9d33-4694-b026-45aeb6963fb4 coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=4 renewal_sequence=5
+[collision_monitor-9] [INFO] [1792112157.876566741] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112158.399143989] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[task_input-14] [INFO] [1792112160.464041620] [robot6.rescue_command_adapter]: SEND 926b4e8b-d426-489b-84ae-0dcd53fb0f5c GoalPose(frame_id='map', x=-1.068381289171719, y=2.166116039924566, yaw=1.5707963267948966, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112160.464924988] [robot6.bt_navigator]: Begin navigating from current location (-1.02, 1.93) to (-1.07, 2.17)
+[controller_server-1] [INFO] [1792112160.466517452] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112160.526842498] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112161.516770359] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112162.516770988] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112163.566812162] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112164.616768575] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112165.617999337] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112166.666774736] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112167.666800277] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112168.716806534] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112169.716783930] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112170.470769116] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112170.470954179] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112170.485694517] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112170.494875060] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112170.506508299] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[controller_server-1] [INFO] [1792112170.510291213] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112170.522128956] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[planner_server-3] [INFO] [1792112170.525759763] [robot6.global_costmap.global_costmap]: Received request to clear entirely the global_costmap
+[controller_server-1] [INFO] [1792112170.540637430] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112170.540690403] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[planner_server-3] [INFO] [1792112170.545895477] [robot6.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112170.546778225] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to global_costmap/clear_entirely_global_costmap.
+[behavior_server-5] [INFO] [1792112170.547640131] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112170.548173494] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [WARN] [1792112170.556009749] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[planner_server-3] [INFO] [1792112170.560243344] [robot6.global_costmap.global_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[planner_server-3] [INFO] [1792112170.560313908] [robot6.global_costmap.global_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[planner_server-3] [WARN] [1792112170.580097445] [robot6.global_costmap.global_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[behavior_server-5] [INFO] [1792112177.149065033] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112177.191981275] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112178.242152167] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112179.242841008] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112180.292209613] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112180.642286234] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112180.672458768] [robot6.bt_navigator]: Goal succeeded
+[collision_monitor-9] [INFO] [1792112180.737202591] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112181.327953035] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[task_input-14] [INFO] [1792112183.464758121] [robot6.rescue_command_adapter]: SEND 05f88596-dd9c-4893-9e48-065779a3b369 GoalPose(frame_id='map', x=-3.4559355593947156, y=1.7094601528506175, yaw=3.141592653589793, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112183.468755076] [robot6.bt_navigator]: Begin navigating from current location (-1.02, 1.93) to (-3.46, 1.71)
+[controller_server-1] [INFO] [1792112183.490830452] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112183.549188818] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112184.541638769] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112185.541593269] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112186.591589320] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112187.591609906] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112187.843518083] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.2569 Hz.
+[controller_server-1] [INFO] [1792112188.644118164] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112189.644010140] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112190.693660023] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112191.693787942] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112192.743930837] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112193.494193708] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112193.494329609] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112193.511646459] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112193.525406189] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112193.531825071] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[controller_server-1] [INFO] [1792112193.533705279] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112193.545806199] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112193.553720012] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112193.555454152] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112193.558820215] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [INFO] [1792112193.564198426] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112193.564342016] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112193.580647652] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[behavior_server-5] [INFO] [1792112200.159078327] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112200.190238693] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112201.240672622] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112201.803748192] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 15.8416 Hz.
+[controller_server-1] [INFO] [1792112202.253899896] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112203.303913852] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112204.303896112] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112205.353895687] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112206.353899632] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112206.846551409] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.007474 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112206.846598078] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [INFO] [1792112206.887256646] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112207.404052061] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112207.557792357] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 18.5558 Hz.
+[controller_server-1] [INFO] [1792112208.457935206] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112209.457941035] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112210.208044910] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112210.208225979] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112210.219993476] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112210.227003190] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112210.237231069] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112210.244209805] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112210.244267097] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112210.263228957] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [WARN] [1792112210.275704388] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.040506 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112210.275734465] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112210.326854948] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.091650 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112210.387604456] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.142033 seconds. Ignoring the source.
+[controller_server-1] [WARN] [1792112210.419114723] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 5.5007 Hz.
+[collision_monitor-9] [INFO] [1792112210.429089265] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112210.469649086] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112210.499198253] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112211.519294640] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112212.520342499] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112213.569259558] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112214.569285281] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112215.619260046] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112216.619294797] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112217.619426199] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112218.669982259] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112219.669299514] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112220.427090650] [robot6.collision_monitor]: Robot to continue normal operation
+[planner_server-3] [INFO] [1792112220.665916800] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112220.719296280] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112220.775340229] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112221.719261439] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112222.769260094] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112222.790256391] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792112223.665904677] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112223.770049895] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112223.790967610] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112224.819507044] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112225.668807477] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112225.776070569] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112225.820566132] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112225.837014144] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [WARN] [1792112225.909229016] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 11.2782 Hz.
+[controller_server-1] [INFO] [1792112226.859393616] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112227.859408541] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112228.909582994] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112229.909439751] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112230.909459755] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112231.959436611] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112232.959392435] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112233.666041188] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112233.776246305] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112234.009399128] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112235.009390508] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112235.376000893] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.019222 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.376048181] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112235.447338913] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.069920 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.479794613] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.123148 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.525915356] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.169066 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.587203449] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.220029 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.635845560] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.269097 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.677040163] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.319754 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.737119003] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.369294 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112235.788132117] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.420357 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112235.826632112] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112236.059385276] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112237.059383401] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112237.759454678] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112237.786028019] [robot6.bt_navigator]: Goal succeeded
+[collision_monitor-9] [INFO] [1792112237.827338498] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112238.399993511] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[controller_server-1] [INFO] [1792112238.776198955] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[planner_server-3] [INFO] [1792112239.665924356] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[task_input-14] [INFO] [1792112240.465429571] [robot6.rescue_command_adapter]: SEND 203c3d1d-18ec-4886-9db0-4d8f8cfce286 GoalPose(frame_id='map', x=-4.6707595833509625, y=2.0008814976253753, yaw=2.3561944901923453, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=0, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112240.466212401] [robot6.bt_navigator]: Begin navigating from current location (-3.25, 1.84) to (-4.67, 2.00)
+[controller_server-1] [INFO] [1792112240.488476587] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112240.539813998] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112241.538649587] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112242.538638922] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112243.588644455] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112244.429490748] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112244.588629794] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112244.775225983] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112245.588896212] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112245.665907310] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112245.775225975] [robot6.local_costmap.local_costmap]: StaticLayer: Resizing static layer to 113 X 71 at 0.050000 m/pix
+[collision_monitor-9] [INFO] [1792112245.836890540] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112246.638639759] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [INFO] [1792112246.666625944] [robot6.global_costmap.global_costmap]: StaticLayer: Resizing costmap to 113 X 71 at 0.050000 m/pix
+[controller_server-1] [INFO] [1792112247.638638023] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112247.926218223] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.042293 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112247.926250529] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112247.987147714] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.092214 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112248.047012258] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.142761 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112248.076095619] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.192150 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112248.146121428] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.241980 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112248.177143158] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112248.638817542] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112249.688629737] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112250.478222160] [robot6.collision_monitor]: Robot to continue normal operation
+[collision_monitor-9] [INFO] [1792112250.637819848] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112250.688623412] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112251.688686893] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112252.738630610] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112253.788653054] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112254.788612655] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112255.838641840] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112256.838594260] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112257.838875401] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112258.892021818] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112259.888628040] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112260.938638449] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112261.938639808] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112262.988648971] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112263.988672219] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112264.138856707] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112264.139742966] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112264.153833337] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112264.160588052] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112264.164873773] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112264.174239367] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112264.174304811] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112264.188188480] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[controller_server-1] [INFO] [1792112265.015142058] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112266.016360681] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112267.065072943] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112267.755933553] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.045278 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112267.755994489] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [INFO] [1792112267.776671853] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112268.066401301] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112269.115359148] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112270.115237358] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112271.165083234] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112272.165097591] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112273.165086833] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112274.015172856] [robot6.controller_server]: Reached the goal!
+[bt_navigator-6] [INFO] [1792112274.034897759] [robot6.bt_navigator]: Goal succeeded
+[task_input-14] [WARN] [1792112274.037994627] [robot6.rescue_command_adapter]: CommandLease STOPPING: lease_id=85be1795-237f-4575-bf4c-77cdedb5d491 robot_id=robot_a robot_boot_id=fec64006-9d33-4694-b026-45aeb6963fb4 coordinator_id=77777777-7777-4777-8777-777777777777 authority_epoch=66666666-6666-4666-8666-666666666666 generation=7 renewal_sequence=61
+[collision_monitor-9] [INFO] [1792112274.148258104] [robot6.collision_monitor]: Robot to continue normal operation
+[task_input-14] [INFO] [1792112274.722220908] [robot6.rescue_command_adapter]: completed with stop confirmed: re-armed for the next task
+[task_input-14] [INFO] [1792112276.986428604] [robot6.rescue_command_adapter]: MAP_FROZEN R1 sha256=a4d14b93af87c2d3a57329655dadeee56195a93af92ccf28eaa8ad2f6895fc96 113x71 res=0.05000000074505806
+[task_input-14] [INFO] [1792112277.007263231] [robot6.rescue_command_adapter]: MAP_FROZEN R2 sha256=a4d14b93af87c2d3a57329655dadeee56195a93af92ccf28eaa8ad2f6895fc96 113x71 res=0.05000000074505806
+[task_input-14] [INFO] [1792112277.007789052] [robot6.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_a RNone -> R2 sha256=a4d14b93af87c2d3a57329655dadeee56195a93af92ccf28eaa8ad2f6895fc96
+[task_input-14] [INFO] [1792112277.011789736] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=5e961d90-98d4-56c3-be58-10d95193cf91 session=22222222-2222-4222-8222-222222222222 rev=2 quality=VALID
+[task_input-14] [ERROR] [1792112277.023800567] [robot6.rescue_command_adapter]: ExecuteTask rejected: FRAME_REVISION_MISMATCH: FRAME_REVISION_MISMATCH [rescue_robot.FRAME_REVISION_MISMATCH]: map handover in progress (R2: SLAM pose until the frozen grid is on the map topic, then AMCL); new goals wait for it (runbook 7.5)
+[task_input-14] [ERROR] [1792112287.069930762] [robot6.rescue_command_adapter]: ExecuteTask rejected: FRAME_REVISION_MISMATCH: FRAME_REVISION_MISMATCH [rescue_robot.FRAME_REVISION_MISMATCH]: map handover in progress (R2: SLAM pose until the frozen grid is on the map topic, then AMCL); new goals wait for it (runbook 7.5)
+[task_input-14] [ERROR] [1792112297.157980510] [robot6.rescue_command_adapter]: ExecuteTask rejected: FRAME_REVISION_MISMATCH: FRAME_REVISION_MISMATCH [rescue_robot.FRAME_REVISION_MISMATCH]: map handover in progress (R2: SLAM pose until the frozen grid is on the map topic, then AMCL); new goals wait for it (runbook 7.5)
+[task_input-14] [ERROR] [1792112307.446477531] [robot6.rescue_command_adapter]: ExecuteTask rejected: FRAME_REVISION_MISMATCH: FRAME_REVISION_MISMATCH [rescue_robot.FRAME_REVISION_MISMATCH]: map handover in progress (R2: SLAM pose until the frozen grid is on the map topic, then AMCL); new goals wait for it (runbook 7.5)
+[planner_server-3] [INFO] [1792112313.136965268] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112312.830 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792112315.979823454] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112315.565 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792112318.522054109] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112318.215 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792112321.100246893] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112320.798 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [INFO] [1792112323.699349778] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112323.383 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112323.973723575] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112313.970670, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112324.966260964] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112314.968347, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112325.967083418] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112315.911734, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112326.253278067] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112325.915 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112326.974187989] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112316.948058, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112327.976584579] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112317.895187, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112328.777169158] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112328.476 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112328.971979776] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112318.960911, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112329.971719716] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112319.941853, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112330.975636123] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112320.972761, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112331.344240298] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112331.041 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112331.968443452] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112321.931714, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112332.972251397] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112322.939959, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112333.950551464] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112333.640 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112333.972793613] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112323.961984, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112334.970350331] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112324.945723, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112335.974113766] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112325.967677, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112336.566847088] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112336.262 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112336.973818265] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112326.947060, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112337.971790921] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112327.942650, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112338.966083327] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112328.936710, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112339.121061164] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112338.819 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112339.968647815] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112329.992621, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112340.970012261] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112330.944675, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112341.741125724] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112341.417 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112341.975570650] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112331.931441, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112342.974775625] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112332.694267, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[controller_server-1] [INFO] [1792112343.161987040] [robot6.local_costmap.local_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112342.852 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112343.975220284] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112333.813291, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112344.439003193] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112344.136 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112344.971984718] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112334.916809, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112345.976017142] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112335.868815, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112346.975503705] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112336.846914, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112347.198778353] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112346.896 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112347.975476745] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112337.865279, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112348.973313585] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112338.817330, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112349.974791551] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112339.836606, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112349.987223786] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112349.654 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-14] [INFO] [1792112350.673393944] [robot6.rescue_command_adapter]: MAP_HANDOVER robot_a R2 frozen grid on its map topic: SLAM pose until now, AMCL from here
+[task_input-14] [INFO] [1792112350.677429900] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=5e961d90-98d4-56c3-be58-10d95193cf91 session=22222222-2222-4222-8222-222222222222 rev=2 quality=UNKNOWN
+[planner_server-3] [ERROR] [1792112350.966852161] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112340.873502, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [ERROR] [1792112351.969246987] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112341.927111, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[planner_server-3] [INFO] [1792112352.632723250] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112352.302 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[planner_server-3] [ERROR] [1792112352.966961118] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the past.  Requested time 1792112312.749521 but the earliest data is at time 1792112342.909582, when looking up transform from frame [base_link] to frame [map]
+[planner_server-3] 
+[task_input-14] [INFO] [1792112353.004369874] [robot6.rescue_command_adapter]: AMCL_NOMOTION_REQUESTED robot_a: no amcl_pose since the map switch 2.3 s ago (standing robot)
+[task_input-14] [INFO] [1792112353.920915160] [robot6.rescue_command_adapter]: MAP_STATE robot_a snapshot=5e961d90-98d4-56c3-be58-10d95193cf91 session=22222222-2222-4222-8222-222222222222 rev=2 quality=VALID
+[task_input-14] [ERROR] [1792112354.469516934] [robot6.rescue_command_adapter]: ExecuteTask rejected: FRAME_REVISION_MISMATCH: FRAME_REVISION_MISMATCH [rescue_robot.FRAME_REVISION_MISMATCH]: AMCL map -> odom since the map switch is not on TF for now yet; new goals wait for it (Nav2 needs it to plan)
+[planner_server-3] [INFO] [1792112355.137819229] [robot6.global_costmap.global_costmap]: Message Filter dropping message: frame 'rplidar_link' at time 1792112354.832 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[task_input-14] [INFO] [1792112364.664615530] [robot6.rescue_command_adapter]: SEND f22e4d6a-e203-4230-82d8-31e92f4af707 GoalPose(frame_id='map', x=-1.1393272457986943e-05, y=-0.0028352530674463135, yaw=-0.016073643013568416, map_session_id='22222222-2222-4222-8222-222222222222', map_revision=2, transform_revision=1)
+[bt_navigator-6] [INFO] [1792112364.669020983] [robot6.bt_navigator]: Begin navigating from current location (-4.44, 2.10) to (-0.00, -0.00)
+[controller_server-1] [INFO] [1792112364.695127084] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112364.795564442] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112365.745382684] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112366.795588161] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112367.795475512] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112368.845441736] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112369.845440587] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112370.895371001] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112371.895387216] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112372.945407212] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112373.945366412] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112374.695515158] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112374.696029900] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112374.711148057] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112374.719789423] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112374.723032087] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112374.731872710] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112374.731918069] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112374.749212824] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [INFO] [1792112374.786852021] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792112374.804241168] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 12.3295 Hz.
+[collision_monitor-9] [INFO] [1792112374.847106419] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112375.004361467] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112376.007008480] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112377.054373287] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112378.054377232] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112379.104364887] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112380.106701300] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112381.154355501] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112382.154360978] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112383.007489032] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.4461 Hz.
+[controller_server-1] [INFO] [1792112383.207625841] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112384.207919438] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112384.807752955] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112384.807935448] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112384.825871406] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112384.841307743] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112384.845594496] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112384.847519519] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112384.850628012] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [INFO] [1792112384.859866736] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112384.859912317] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112384.874327785] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[behavior_server-5] [INFO] [1792112391.851650577] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112391.888885615] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [WARN] [1792112392.046023521] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.035881 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.046057097] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112392.086168805] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.086184 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.125912548] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.135964 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.175960735] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.186045 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.226321905] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.236437 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.276282221] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.285896 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.326112715] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.336198 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.375672515] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.385820 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.426658446] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.436715 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.486514425] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.486431 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.546621171] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.536262 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.585861538] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.585793 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112392.636193121] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.635914 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112392.697011696] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112392.939071936] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112393.989079610] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112394.793789915] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 18.4158 Hz.
+[controller_server-1] [INFO] [1792112394.993994222] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112396.043941375] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112397.043963148] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112398.093910212] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112398.246776630] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 24.5839 Hz.
+[controller_server-1] [INFO] [1792112399.096926383] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112400.097003068] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112401.146935642] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112401.897013932] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112401.897174237] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112401.920272837] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[bt_navigator-6] [WARN] [1792112401.937638361] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112401.939573581] [robot6.behavior_server]: Running wait
+[controller_server-1] [INFO] [1792112401.943725366] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112401.962037766] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112401.962099376] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[collision_monitor-9] [INFO] [1792112401.977818729] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792112401.977999693] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[behavior_server-5] [INFO] [1792112406.939911184] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792112406.978185527] [robot6.controller_server]: Received a goal, begin computing control effort.
+[collision_monitor-9] [INFO] [1792112407.077214374] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112408.028443895] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112408.625789777] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.004112 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112408.625843303] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [INFO] [1792112408.676516930] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112409.028413965] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112410.078693684] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112411.078415355] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112411.478756042] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.021470 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112411.478789531] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112411.526032004] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.071658 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112411.575914644] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.121528 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112411.637228827] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.172776 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112411.677089307] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112412.128817673] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112413.128417022] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112414.180279298] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112415.178393741] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112415.839918522] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 16.2534 Hz.
+[controller_server-1] [INFO] [1792112416.240267767] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112416.990306685] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112416.990515337] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112417.009597089] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112417.028124233] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112417.028795074] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[controller_server-1] [INFO] [1792112417.038705649] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[bt_navigator-6] [WARN] [1792112417.053615846] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112417.056013811] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112417.056161129] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [INFO] [1792112417.058543880] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112417.087221319] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112417.087290647] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112417.103112705] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[behavior_server-5] [INFO] [1792112424.156537520] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112424.194526250] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112425.244711194] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112426.244706404] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112426.705807832] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 16.3654 Hz.
+[collision_monitor-9] [WARN] [1792112427.005971779] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.047443 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.006008566] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112427.029382216] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.101174 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.088064917] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.148098 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.126154511] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.197929 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.176496157] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.248023 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.236276284] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.297556 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112427.285894213] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.347517 seconds. Ignoring the source.
+[controller_server-1] [INFO] [1792112427.306100635] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112427.326936576] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112428.305983535] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112429.355964563] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112430.009330992] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 18.7284 Hz.
+[controller_server-1] [WARN] [1792112430.112387449] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 18.9082 Hz.
+[controller_server-1] [INFO] [1792112430.362538083] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112431.362570765] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112432.412518369] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112432.964334689] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 22.7250 Hz.
+[controller_server-1] [INFO] [1792112433.414466940] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112434.214570248] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112434.214760287] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112434.232977762] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112434.245738574] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112434.252460978] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112434.263615879] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112434.263664147] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112434.281001241] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [INFO] [1792112434.330136881] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [WARN] [1792112434.393232783] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 7.1082 Hz.
+[collision_monitor-9] [INFO] [1792112434.436832231] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112434.443532549] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [WARN] [1792112434.994378847] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.6956 Hz.
+[bt_navigator-6] [WARN] [1792112435.454311591] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Timed out while waiting for action server to acknowledge goal request for follow_path
+[behavior_server-5] [INFO] [1792112435.456234207] [robot6.behavior_server]: Running wait
+[controller_server-1] [INFO] [1792112435.494583182] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112435.825877604] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.022482 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112435.825919846] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112435.876004631] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.072538 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112435.936280782] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.122422 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112435.987895691] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.172303 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112436.040382654] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [WARN] [1792112438.646783781] [robot6.controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 24.5960 Hz.
+[behavior_server-5] [INFO] [1792112440.456608024] [robot6.behavior_server]: wait completed successfully
+[controller_server-1] [INFO] [1792112440.497063932] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112441.547228580] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112442.546940135] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112443.547146926] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [ERROR] [1792112444.397092461] [robot6.controller_server]: Failed to make progress
+[controller_server-1] [WARN] [1792112444.397345962] [robot6.controller_server]: [follow_path] [ActionServer] Aborting handle.
+[controller_server-1] [INFO] [1792112444.417655155] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[bt_navigator-6] [WARN] [1792112444.434203884] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[controller_server-1] [INFO] [1792112444.437156093] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[controller_server-1] [INFO] [1792112444.444589950] [robot6.local_costmap.local_costmap]: Received request to clear entirely the local_costmap
+[controller_server-1] [INFO] [1792112444.452678133] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/filter_info" topic for filter info...
+[bt_navigator-6] [WARN] [1792112444.455312464] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Node timed out while executing service call to local_costmap/clear_entirely_local_costmap.
+[behavior_server-5] [INFO] [1792112444.456323526] [robot6.behavior_server]: Running spin
+[behavior_server-5] [INFO] [1792112444.456483910] [robot6.behavior_server]: Turning 1.57 for spin behavior.
+[controller_server-1] [INFO] [1792112444.468778156] [robot6.local_costmap.local_costmap]: KeepoutFilter: Received filter info from /rescue/passage_keepout/filter_info topic.
+[controller_server-1] [INFO] [1792112444.468816233] [robot6.local_costmap.local_costmap]: KeepoutFilter: Subscribing to "/rescue/passage_keepout/mask" topic for filter mask...
+[controller_server-1] [WARN] [1792112444.491133849] [robot6.local_costmap.local_costmap]: KeepoutFilter: New filter mask arrived from /rescue/passage_keepout/mask topic. Updating old filter mask.
+[collision_monitor-9] [INFO] [1792112449.687088088] [robot6.collision_monitor]: Robot to continue normal operation
+[behavior_server-5] [INFO] [1792112450.256785026] [robot6.behavior_server]: spin completed successfully
+[controller_server-1] [INFO] [1792112450.292712741] [robot6.controller_server]: Received a goal, begin computing control effort.
+[controller_server-1] [INFO] [1792112451.342916909] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112452.342931160] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112453.392894304] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112453.886921575] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.024001 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112453.887558613] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112453.946497412] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.074255 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.026956944] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.123742 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.047566296] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.185444 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.075636575] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.223613 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.136989311] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.274605 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.185999682] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.323826 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.256938949] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.373715 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112454.286964571] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.424736 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112454.337345397] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112454.393983533] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112455.442895323] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112456.329327720] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.031870 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112456.329378205] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112456.387254112] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.082951 seconds. Ignoring the source.
+[controller_server-1] [INFO] [1792112456.442901304] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112456.446409046] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.132109 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112456.476964904] [robot6.collision_monitor]: Robot to continue normal operation
+[collision_monitor-9] [INFO] [1792112456.636843836] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[collision_monitor-9] [WARN] [1792112457.456023844] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.017292 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112457.456065202] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112457.475999591] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.067401 seconds. Ignoring the source.
+[controller_server-1] [INFO] [1792112457.492909131] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112457.537207764] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.117252 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112457.587280671] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.168715 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112457.639881668] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.221330 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112457.676562010] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.268088 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112457.727893103] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112458.496496103] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112459.542970956] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112460.542987013] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112460.875795259] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.013795 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112460.875832145] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112460.958149921] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.065144 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112460.986565395] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.113989 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112461.046941978] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.164147 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112461.077707044] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.215695 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112461.126439687] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112461.592898185] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112462.593166295] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112463.642893207] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112464.643590288] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112465.692896789] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112466.692902908] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112467.742909656] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112468.743496050] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112469.742930730] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112469.776993729] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112470.792915394] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112471.792997822] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112472.386545616] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112472.792979211] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112473.844173244] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112474.842915328] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [WARN] [1792112475.336073628] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.040731 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112475.336112692] [robot6.collision_monitor]: Robot to stop due to invalid source. Either due to data not published yet, or to lack of new data received within the sensor timeout, or if impossible to transform data to base frame
+[collision_monitor-9] [WARN] [1792112475.391044144] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.095156 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112475.425812673] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.140551 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112475.487334433] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.191610 seconds. Ignoring the source.
+[collision_monitor-9] [WARN] [1792112475.537280637] [collision_monitor]: [passage_overhead]: Latest source and current collision monitor node timestamps differ on 1.241911 seconds. Ignoring the source.
+[collision_monitor-9] [INFO] [1792112475.586941371] [robot6.collision_monitor]: Robot to slowdown for 30.000000 percents due to PassageSlow polygon
+[controller_server-1] [INFO] [1792112475.892902955] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112476.893339401] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112477.942902558] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112478.942908277] [robot6.controller_server]: Passing new path to controller.
+[collision_monitor-9] [INFO] [1792112479.528221511] [robot6.collision_monitor]: Robot to continue normal operation
+[controller_server-1] [INFO] [1792112479.993634359] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112480.993119267] [robot6.controller_server]: Passing new path to controller.
+[controller_server-1] [INFO] [1792112482.042901063] [robot6.controller_server]: Passing new path to controller.
+[planner_server-3] [ERROR] [1792112483.006650990] [robot6.planner_server]: worldToMap failed: mx,my: 113,8, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006800825] [robot6.planner_server]: worldToMap failed: mx,my: 114,8, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006824388] [robot6.planner_server]: worldToMap failed: mx,my: 113,9, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006837541] [robot6.planner_server]: worldToMap failed: mx,my: 114,9, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006851028] [robot6.planner_server]: worldToMap failed: mx,my: 113,10, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006864172] [robot6.planner_server]: worldToMap failed: mx,my: 114,10, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006877002] [robot6.planner_server]: worldToMap failed: mx,my: 113,11, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006888118] [robot6.planner_server]: worldToMap failed: mx,my: 114,11, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006900784] [robot6.planner_server]: worldToMap failed: mx,my: 113,12, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006912111] [robot6.planner_server]: worldToMap failed: mx,my: 114,12, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006926563] [robot6.planner_server]: worldToMap failed: mx,my: 113,13, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006938971] [robot6.planner_server]: worldToMap failed: mx,my: 114,13, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006967525] [robot6.planner_server]: worldToMap failed: mx,my: 113,14, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006979865] [robot6.planner_server]: worldToMap failed: mx,my: 114,14, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.006993549] [robot6.planner_server]: worldToMap failed: mx,my: 113,15, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007005792] [robot6.planner_server]: worldToMap failed: mx,my: 114,15, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007017927] [robot6.planner_server]: worldToMap failed: mx,my: 113,16, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007029615] [robot6.planner_server]: worldToMap failed: mx,my: 114,16, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007042524] [robot6.planner_server]: worldToMap failed: mx,my: 113,17, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007061277] [robot6.planner_server]: worldToMap failed: mx,my: 114,17, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007074964] [robot6.planner_server]: worldToMap failed: mx,my: 113,18, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007086544] [robot6.planner_server]: worldToMap failed: mx,my: 114,18, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007123220] [robot6.planner_server]: worldToMap failed: mx,my: 113,19, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007136103] [robot6.planner_server]: worldToMap failed: mx,my: 114,19, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007147643] [robot6.planner_server]: worldToMap failed: mx,my: 113,20, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007158177] [robot6.planner_server]: worldToMap failed: mx,my: 114,20, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007170890] [robot6.planner_server]: worldToMap failed: mx,my: 113,21, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007180948] [robot6.planner_server]: worldToMap failed: mx,my: 114,21, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007192712] [robot6.planner_server]: worldToMap failed: mx,my: 113,22, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007202598] [robot6.planner_server]: worldToMap failed: mx,my: 114,22, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007215148] [robot6.planner_server]: worldToMap failed: mx,my: 113,23, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007226437] [robot6.planner_server]: worldToMap failed: mx,my: 114,23, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007238426] [robot6.planner_server]: worldToMap failed: mx,my: 113,24, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007249240] [robot6.planner_server]: worldToMap failed: mx,my: 114,24, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007262886] [robot6.planner_server]: worldToMap failed: mx,my: 113,25, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007276771] [robot6.planner_server]: worldToMap failed: mx,my: 114,25, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007305736] [robot6.planner_server]: worldToMap failed: mx,my: 113,26, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007329735] [robot6.planner_server]: worldToMap failed: mx,my: 114,26, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007346273] [robot6.planner_server]: worldToMap failed: mx,my: 113,27, size_x,size_y: 113,71
+[planner_server-3] [ERROR] [1792112483.007363538] [robot6.planner_server]: worldToMap failed: mx,my: 114,27, size_x,size_y: 113,71
+[task_input-14] [ERROR] [1792112483.039776657] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792112483.043112422] [robot6.controller_server]: Passing new path to controller.
+[task_input-14] [ERROR] [1792112483.637561760] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[controller_server-1] [INFO] [1792112484.093122831] [robot6.controller_server]: Passing new path to controller.
+[task_input-14] [ERROR] [1792112484.138484634] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-14] [ERROR] [1792112484.638012931] [robot6.rescue_command_adapter]: CommandLease rejected: DEADLINE_EXPIRED [rescue_robot.DEADLINE_EXPIRED]: task expired or within clock uncertainty
+[task_input-14] [INFO] [1792112484.663980599] [robot6.rescue_command_adapter]: CANCEL f22e4d6a-e203-4230-82d8-31e92f4af707 handle=True
+[bt_navigator-6] [ERROR] [1792112484.686846437] [robot6.bt_navigator_navigate_to_pose_rclcpp_node]: Failed to get result for follow_path in node halt!
+[bt_navigator-6] [INFO] [1792112484.687088277] [robot6.bt_navigator]: [navigate_to_pose] [ActionServer] Client requested to cancel the goal. Cancelling.
+[bt_navigator-6] [INFO] [1792112484.687312569] [robot6.bt_navigator]: Goal canceled
+[controller_server-1] [INFO] [1792112484.692893599] [robot6.controller_server]: Cancellation was successful. Stopping the robot.
+[controller_server-1] [INFO] [1792112484.692953078] [robot6.controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[controller_server-1] [INFO] [1792112510.187939358] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[controller_server-1] [INFO] [1792112510.188050962] [robot6.controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[bt_navigator-6] [INFO] [1792112510.188201115] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[bt_navigator-6] [INFO] [1792112510.188293087] [robot6.bt_navigator]: Running Nav2 LifecycleNode rcl preshutdown (bt_navigator)
+[bt_navigator-6] [INFO] [1792112510.188387324] [robot6.bt_navigator]: Deactivating
+[bt_navigator-6] [INFO] [1792112510.188438932] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[smoother_server-2] [INFO] [1792112510.189318630] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[smoother_server-2] [INFO] [1792112510.189397670] [robot6.smoother_server]: Running Nav2 LifecycleNode rcl preshutdown (smoother_server)
+[smoother_server-2] [INFO] [1792112510.189464194] [robot6.smoother_server]: Deactivating
+[smoother_server-2] [INFO] [1792112510.189483366] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[route_server-4] [INFO] [1792112510.189673203] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[route_server-4] [INFO] [1792112510.189791486] [robot6.route_server]: Running Nav2 LifecycleNode rcl preshutdown (route_server)
+[route_server-4] [INFO] [1792112510.189861289] [robot6.route_server]: Deactivating
+[waypoint_follower-7] [INFO] [1792112510.189906063] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[waypoint_follower-7] [INFO] [1792112510.190038765] [robot6.waypoint_follower]: Running Nav2 LifecycleNode rcl preshutdown (waypoint_follower)
+[planner_server-3] [INFO] [1792112510.190425347] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[planner_server-3] [INFO] [1792112510.190507383] [robot6.planner_server]: Running Nav2 LifecycleNode rcl preshutdown (planner_server)
+[planner_server-3] [INFO] [1792112510.190580222] [robot6.planner_server]: Deactivating
+[planner_server-3] [INFO] [1792112510.190620050] [robot6.global_costmap.global_costmap]: Deactivating
+[controller_server-1] [INFO] [1792112510.190451755] [robot6.controller_server]: Deactivating
+[controller_server-1] [INFO] [1792112510.190513570] [robot6.controller_server]: Deactivating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792112510.190532389] [robot6.controller_server]: Deactivating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792112510.190582612] [robot6.local_costmap.local_costmap]: Deactivating
+[collision_monitor-9] [INFO] [1792112510.190921659] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[collision_monitor-9] [INFO] [1792112510.191024700] [robot6.collision_monitor]: Running Nav2 LifecycleNode rcl preshutdown (collision_monitor)
+[collision_monitor-9] [INFO] [1792112510.191094015] [robot6.collision_monitor]: Deactivating
+[collision_monitor-9] [INFO] [1792112510.191122759] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792112510.191930510] [robot6.waypoint_follower]: Deactivating
+[route_server-4] [INFO] [1792112510.189889548] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[behavior_server-5] [INFO] [1792112510.192769144] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[behavior_server-5] [INFO] [1792112510.192823277] [robot6.behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[behavior_server-5] [INFO] [1792112510.192871276] [robot6.behavior_server]: Deactivating
+[behavior_server-5] [INFO] [1792112510.192905099] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[waypoint_follower-7] [INFO] [1792112510.193473705] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792112510.197302174] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[velocity_smoother-8] [INFO] [1792112510.197460052] [robot6.velocity_smoother]: Running Nav2 LifecycleNode rcl preshutdown (velocity_smoother)
+[velocity_smoother-8] [INFO] [1792112510.197542264] [robot6.velocity_smoother]: Deactivating
+[velocity_smoother-8] [INFO] [1792112510.197573238] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[lifecycle_manager-11] [INFO] [1792112510.198976552] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792112510.199135840] [robot6.lifecycle_manager_navigation]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_navigation)
+[lifecycle_manager-11] [INFO] [1792112510.199194502] [robot6.lifecycle_manager_navigation]: Terminating bond timer...
+[opennav_docking-10] [INFO] [1792112510.211449925] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[opennav_docking-10] [INFO] [1792112510.211628268] [robot6.docking_server]: Running Nav2 LifecycleNode rcl preshutdown (docking_server)
+[opennav_docking-10] [INFO] [1792112510.211729727] [robot6.docking_server]: Deactivating docking_server
+[bt_navigator-6] [INFO] [1792112510.230720824] [robot6.bt_navigator]: Cleaning up
+[collision_monitor-9] [INFO] [1792112510.232626331] [robot6.collision_monitor]: Cleaning up
+[collision_monitor-9] [INFO] [1792112510.232678499] [collision_monitor]: [FootprintApproach]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792112510.232687680] [collision_monitor]: [PassageSlow]: Destroying Polygon
+[collision_monitor-9] [INFO] [1792112510.232694044] [collision_monitor]: [scan]: Destroying Scan
+[collision_monitor-9] [INFO] [1792112510.232702022] [collision_monitor]: [passage_overhead]: Destroying PointCloud
+[route_server-4] [INFO] [1792112510.234617657] [robot6.route_server]: Cleaning up
+[smoother_server-2] [INFO] [1792112510.235227302] [robot6.smoother_server]: Cleaning up
+[behavior_server-5] [INFO] [1792112510.235689126] [robot6.behavior_server]: Cleaning up
+[waypoint_follower-7] [INFO] [1792112510.241777380] [robot6.waypoint_follower]: Cleaning up
+[velocity_smoother-8] [INFO] [1792112510.246804938] [robot6.velocity_smoother]: Cleaning up
+[velocity_smoother-8] [INFO] [1792112510.246862340] [robot6.velocity_smoother]: Destroying bond (velocity_smoother) to lifecycle manager.
+[velocity_smoother-8] [INFO] [1792112510.369122196] [robot6.velocity_smoother]: Destroying
+[controller_server-1] [INFO] [1792112510.388019792] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[behavior_server-5] [INFO] [1792112510.474584850] [robot6.behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792112510.674354201] [robot6.planner_server]: Deactivating plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792112510.674430775] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792112510.785833325] [robot6.planner_server]: Cleaning up
+[command_watchdog-13] [WARN] [1792112510.698259359] [robot6.rescue_command_watchdog]: watchdog STOP_LATCHED reason=EXECUTOR_HEARTBEAT_STALE t=65021.695
+[collision_monitor-9] [INFO] [1792112510.791478432] [robot6.collision_monitor]: Destroying bond (collision_monitor) to lifecycle manager.
+[controller_server-1] [INFO] [1792112510.792022073] [robot6.controller_server]: Cleaning up
+[controller_server-1] [INFO] [1792112510.792064756] [robot6.controller_server]: Cleaning up controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[controller_server-1] [INFO] [1792112510.792077506] [robot6.controller_server]: Cleaning up controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[controller_server-1] [INFO] [1792112510.792191536] [robot6.local_costmap.local_costmap]: Cleaning up
+[smoother_server-2] [INFO] [1792112510.807244984] [robot6.smoother_server]: Destroying bond (smoother_server) to lifecycle manager.
+[passage_keepout-12] Traceback (most recent call last):
+[passage_keepout-12]   File "<저장소>/install/rescue_robot/lib/rescue_robot/passage_keepout", line 33, in <module>
+[passage_keepout-12]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'passage_keepout')())
+[passage_keepout-12]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[passage_keepout-12]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/passage_keepout.py", line 205, in main
+[passage_keepout-12]     rclpy.spin(node)
+[passage_keepout-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[passage_keepout-12]     executor.spin_once()
+[passage_keepout-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[passage_keepout-12]     self._spin_once_impl(timeout_sec)
+[passage_keepout-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[passage_keepout-12]     handler, entity, node = self.wait_for_ready_callbacks(
+[passage_keepout-12]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[passage_keepout-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[passage_keepout-12]     return next(self._cb_iter)
+[passage_keepout-12]            ^^^^^^^^^^^^^^^^^^^
+[passage_keepout-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[passage_keepout-12]     raise ExternalShutdownException()
+[passage_keepout-12] rclpy.executors.ExternalShutdownException
+[planner_server-3] [INFO] [1792112511.019202530] [robot6.global_costmap.global_costmap]: Cleaning up
+[planner_server-3] [INFO] [1792112511.080984447] [robot6.planner_server]: Cleaning up plugin GridBased of type NavfnPlanner
+[planner_server-3] [INFO] [1792112511.081158235] [robot6.planner_server]: Destroying plugin GridBased of type NavfnPlanner
+[smoother_server-2] [INFO] [1792112511.082244457] [robot6.smoother_server]: Destroying
+[ERROR] [passage_keepout-12]: process has died [pid 1344848, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/passage_keepout --ros-args -r __node:=rescue_passage_keepout --params-file <launch 임시 파일>'].
+[planner_server-3] [INFO] [1792112511.249097329] [robot6.planner_server]: Destroying bond (planner_server) to lifecycle manager.
+[planner_server-3] [INFO] [1792112511.268209699] [robot6.global_costmap.global_costmap]: Destroying
+[planner_server-3] [INFO] [1792112511.339604025] [robot6.planner_server]: Destroying
+[INFO] [smoother_server-2]: process has finished cleanly [pid 1344816]
+[route_server-4] [INFO] [1792112511.426548209] [robot6.route_server]: Destroying bond (route_server) to lifecycle manager.
+[INFO] [planner_server-3]: process has finished cleanly [pid 1344819]
+[route_server-4] [INFO] [1792112511.655741909] [robot6.route_server]: Destroying
+[opennav_docking-10] [INFO] [1792112511.673186862] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[opennav_docking-10] [INFO] [1792112511.733939292] [robot6.docking_server]: Cleaning up docking_server
+[INFO] [velocity_smoother-8]: process has finished cleanly [pid 1344836]
+[waypoint_follower-7] [INFO] [1792112511.860443184] [robot6.waypoint_follower]: Destroying bond (waypoint_follower) to lifecycle manager.
+[collision_monitor-9] [INFO] [1792112512.079293893] [robot6.collision_monitor]: Destroying
+[INFO] [route_server-4]: process has finished cleanly [pid 1344820]
+[waypoint_follower-7] [INFO] [1792112512.627779985] [robot6.waypoint_follower]: Destroying
+[opennav_docking-10] [INFO] [1792112513.179923244] [robot6.docking_server]: Destroying bond (docking_server) to lifecycle manager.
+[behavior_server-5] [INFO] [1792112513.324811351] [robot6.behavior_server]: Destroying
+[INFO] [collision_monitor-9]: process has finished cleanly [pid 1344837]
+[INFO] [waypoint_follower-7]: process has finished cleanly [pid 1344835]
+[task_input-14] Traceback (most recent call last):
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/rescue_robot/task_input", line 33, in <module>
+[task_input-14]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'task_input')())
+[task_input-14]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/task_input_node.py", line 45, in main
+[task_input-14]     return adapter_main(args=args, task_runtime_factory=attach_configured_runtime)
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 376, in main
+[task_input-14]     rclpy.spin(node)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[task_input-14]     executor.spin_once()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[task_input-14]     self._spin_once_impl(timeout_sec)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 918, in _spin_once_impl
+[task_input-14]     raise handler.exception()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 286, in _execute_coroutine_step
+[task_input-14]     result = coro.send(None)
+[task_input-14]              ^^^^^^^^^^^^^^^
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 592, in handler
+[task_input-14]     await call_coroutine()
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 454, in _execute
+[task_input-14]     await await_or_execute(tmr.callback)
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 115, in await_or_execute
+[task_input-14]     return callback(*args)
+[task_input-14]            ^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 370, in step
+[task_input-14]     adapter.observe_status(nav2=port.server_ready())
+[task_input-14]                                 ^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/ros_node.py", line 74, in server_ready
+[task_input-14]     if not self.client.server_is_ready():
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/action/client.py", line 582, in server_is_ready
+[task_input-14]     return self._client_handle.is_action_server_available()
+[task_input-14]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[task_input-14] rclpy._rclpy_pybind11.RCLError: Failed to check if action server is available: rcl node's context is invalid, at ./src/rcl/node.c:404
+[opennav_docking-10] [INFO] [1792112513.723363218] [robot6.docking_server]: Destroying
+[INFO] [behavior_server-5]: process has finished cleanly [pid 1344825]
+[lifecycle_manager-11] [INFO] [1792112513.835158781] [robot6.lifecycle_manager_navigation]: Destroying lifecycle_manager_navigation
+[controller_server-1] [INFO] [1792112514.036703641] [robot6.controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [opennav_docking-10]: process has finished cleanly [pid 1344840]
+[ERROR] [task_input-14]: process has died [pid 1344863, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=rescue_command_adapter -r __ns:=/robot6 --params-file <launch 임시 파일>'].
+[controller_server-1] [INFO] [1792112514.087599530] [robot6.local_costmap.local_costmap]: Destroying
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 1344841]
+[controller_server-1] [INFO] [1792112514.167649153] [robot6.controller_server]: Destroying
+[bt_navigator-6] [INFO] [1792112514.218540633] [robot6.bt_navigator]: Completed Cleaning up
+[bt_navigator-6] [INFO] [1792112514.218588214] [robot6.bt_navigator]: Destroying bond (bt_navigator) to lifecycle manager.
+[bt_navigator-6] [INFO] [1792112514.270317740] [robot6.bt_navigator]: Destroying
+[INFO] [controller_server-1]: process has finished cleanly [pid 1344815]
+[INFO] [bt_navigator-6]: process has finished cleanly [pid 1344832]
