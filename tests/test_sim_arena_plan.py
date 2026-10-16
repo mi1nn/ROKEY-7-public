@@ -39,42 +39,81 @@ class ArenaPlan(unittest.TestCase):
 
 
 class ArenaTunnels(unittest.TestCase):
-    """Each plan tunnel area (tunnel 1 green, tunnel 2 hatched) is one overhead roof over the whole area (1 cm).
-    A 1 cm wide lintel along the plan's dashed line left no floor under the structure in the depth box, so our own
-    overhead judge answered UNKNOWN NO_FLOOR_SEEN in front of both tunnels [측정 2026-10-16]."""
-    AREAS = {'tunnel1_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="rgba\(31,138,91',
-             'tunnel2_roof': r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="url\(#hatch\)"'}
-    CLEARANCE_M = {'tunnel1_roof': 0.47, 'tunnel2_roof': 0.30}   # plan 「47 cm」 / 재범 2026-10-15
+    """Each tunnel is an upright board (wall panels, 0.41 m) across the way on the plan's dashed line, its lower edge
+    at the clearance, as 재범's photos show (2026-10-16 07:4x tunnel 1: two panels side by side across the corridor on
+    small MDF boxes on top of the two side walls; 08:0x tunnel 2: panels lying straight on the whitebox wall top and
+    the box pillar top). From 2026-10-16 #428 to this change both were plates over
+    the whole plan area instead, because our overhead judge answered UNKNOWN NO_FLOOR_SEEN in front of the thin board
+    [측정 2026-10-16]; the real tunnel is the thin board, so that answer is what the real robot meets."""
+    LINES = {'tunnel1_lintel': r'<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)" stroke="#1f8a5b" stroke-width="3" stroke-dasharray',
+             'tunnel2_lintel': r'<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)" stroke="#c23a2b" stroke-width="3" stroke-dasharray'}
+    # tunnel 1: plan 「47 cm」, the board on blocks on the wall tops; tunnel 2: the board straight on the whitebox wall
+    # top and the box pillar top in 재범's photo 2026-10-16 08:0x (wall 0.41 m) [추정]; it was 0.30 before (재범 2026-10-15
+    # 「30 cm 띄워야」, set before the photo)
+    CLEARANCE_M = {'tunnel1_lintel': 0.47, 'tunnel2_lintel': 0.41}
+    PANEL_M, BOARD_M = 0.41, 0.018   # a wall panel's height and thickness (arena.layout.json wall)
     # Tunnel 1 opened 0.22 m to the west, 0.68 -> 0.90 m (재범 2026-10-16 「입구 좀 넓혀봐」): the coordinator sends a
     # frontier goal only to a cell 0.35 m clear (0.385 m with the half cell), 15 free 0.05 m cells across; the 13회차
     # SLAM map had 12 in the 0.68 m gap and the frontier past it was left out (FRONTIER_GOAL_TIGHT).
-    WIDEN_WEST_M = {'tunnel1_roof': 0.22, 'tunnel2_roof': 0.0}
+    WIDEN_WEST_M = {'tunnel1_lintel': 0.22, 'tunnel2_lintel': 0.0}
+
+    def objects(self):
+        return {o['name']: o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects']}
 
     @unittest.skipUnless(HAS_PLAN, 'no config/sim (installed-wheel checkout)')
-    def test_every_plan_tunnel_area_is_one_roof_at_its_clearance(self):
+    def test_every_tunnel_is_an_upright_board_on_the_plan_line_at_its_clearance(self):
         svg = (WORLDS / 'arena-map.svg').read_text()
-        objects = {o['name']: o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects']}
-        for name, pattern in self.AREAS.items():
+        objects = self.objects()
+        for name, pattern in self.LINES.items():
             with self.subTest(name):
-                x, y, w, h = (float(v) for v in re.search(pattern, svg).groups())
-                x0, x1 = x / 100 - self.WIDEN_WEST_M[name], (x + w) / 100
-                roof = objects.get(name)
-                self.assertIsNotNone(roof, f'no {name} in the layout')
-                self.assertEqual('overhead', roof['kind'])
-                self.assertAlmostEqual((x0 + x1) / 2, roof['x'], delta=0.01)
-                self.assertAlmostEqual((PLAN_H_CM - y - h / 2) / 100, roof['y'], delta=0.01)
-                self.assertAlmostEqual(x1 - x0, roof['size'][0], delta=0.01)
-                self.assertAlmostEqual(h / 100, roof['size'][1], delta=0.01)
-                self.assertEqual(self.CLEARANCE_M[name], roof['clearance_m'])
+                px1, py1, px2, py2 = (float(v) for v in re.search(pattern, svg).groups())
+                x0, x1 = min(px1, px2) / 100 - self.WIDEN_WEST_M[name], max(px1, px2) / 100
+                y0, y1 = (PLAN_H_CM - max(py1, py2)) / 100, (PLAN_H_CM - min(py1, py2)) / 100
+                board = objects.get(name)
+                self.assertIsNotNone(board, f'no {name} in the layout')
+                self.assertEqual('overhead', board['kind'])
+                self.assertAlmostEqual((x0 + x1) / 2, board['x'], delta=0.01)
+                self.assertAlmostEqual((y0 + y1) / 2, board['y'], delta=0.01)
+                across, thin = (x1 - x0, 1) if y1 - y0 < 1e-9 else (y1 - y0, 0)   # thin across the line
+                self.assertGreaterEqual(board['size'][1 - thin], across - 0.01)   # it reaches over its supports
+                self.assertLessEqual(board['size'][1 - thin], across + 0.2)
+                self.assertEqual(self.BOARD_M, board['size'][thin])
+                self.assertEqual(self.PANEL_M, board['size'][2])
+                self.assertEqual(self.CLEARANCE_M[name], board['clearance_m'])
+        self.assertNotIn('tunnel1_roof', objects)
+        self.assertNotIn('tunnel2_roof', objects)
 
-    def test_tunnel1_gap_is_0_90_m_and_its_roof_covers_it(self):
-        objects = {o['name']: o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects']}
-        west, east, roof = objects['whitebox_east'], objects['outer_east'], objects['tunnel1_roof']
+    def test_tunnel1_board_rests_on_a_block_on_each_side_wall(self):
+        objects = self.objects()
+        board, west, east = objects['tunnel1_lintel'], objects['whitebox_east'], objects['outer_east']
+        for block, wall in ((objects['tunnel1_block_w'], west), (objects['tunnel1_block_e'], east)):
+            with self.subTest(block['name']):
+                self.assertEqual('overhead', block['kind'])
+                self.assertAlmostEqual(wall['x1'], block['x'], delta=0.005)          # on the wall top
+                self.assertAlmostEqual(board['y'], block['y'], delta=0.005)
+                self.assertEqual(0.41, block['clearance_m'])                          # wall height
+                self.assertAlmostEqual(board['clearance_m'], block['clearance_m'] + block['size'][2], delta=1e-9)
+
+    def test_tunnel1_gap_is_0_90_m_and_its_board_spans_it(self):
+        objects = self.objects()
+        west, east, board = objects['whitebox_east'], objects['outer_east'], objects['tunnel1_lintel']
         self.assertEqual(west['x1'], west['x2'])
         self.assertAlmostEqual(0.90, east['x1'] - west['x1'], delta=0.005)
-        self.assertAlmostEqual(west['x1'], roof['x'] - roof['size'][0] / 2, delta=0.005)
+        self.assertLess(board['x'] - board['size'][0] / 2, west['x1'])     # reaches over both side walls
+        self.assertGreaterEqual(board['x'] + board['size'][0] / 2, east['x1'] - 0.005)
         for name in ('whitebox_south', 'whitebox_north'):   # the enclosure stays closed at its new east wall
             self.assertAlmostEqual(west['x1'], max(objects[name]['x1'], objects[name]['x2']), delta=0.005)
+
+
+@unittest.skipUnless(HAS_PLAN, 'no config/sim (installed-wheel checkout)')
+class ArenaWallFeet(unittest.TestCase):
+    def test_walls_stand_on_feet_marked_estimated(self):
+        """재범 photo 2026-10-16: L brackets at the panel joints reach about 0.1 m out on the floor, under the lidar."""
+        feet = json.loads((WORLDS / 'arena.layout.json').read_text()).get('wall_feet')
+        self.assertIsNotNone(feet, 'no wall_feet in the layout')
+        self.assertTrue(feet['estimate'])
+        self.assertLess(feet['size'][2], 0.19)   # under the lidar plane
+        self.assertAlmostEqual(0.10, feet['size'][1], delta=0.02)
 
 
 if __name__ == '__main__':
