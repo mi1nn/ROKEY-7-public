@@ -144,7 +144,9 @@ class ThinLintelTests(unittest.TestCase):
     it or just past it is the floor it stands over: the height is measured from that. No floor near it at all
     stays UNKNOWN.
     """
-    FRONT, BEYOND = grid(0.4, 0.68, 0.0), grid(0.74, 1.0, 0.0)   # the floor seen up to the board and past it
+    @classmethod
+    def setUpClass(cls):   # after the NumPy skip, so the installed-wheel run without NumPy still imports this file
+        cls.FRONT, cls.BEYOND = grid(0.4, 0.68, 0.0), grid(0.74, 1.0, 0.0)   # the floor up to the board and past it
 
     def test_a_board_0_47_m_up_with_the_floor_seen_round_it_is_passable(self):
         r = judge(scene(self.FRONT, self.BEYOND, lintel(0.7, 0.47)), POLICY)
