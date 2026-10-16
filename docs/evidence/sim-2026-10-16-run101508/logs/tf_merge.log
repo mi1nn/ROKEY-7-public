@@ -1,0 +1,24 @@
+[INFO] [1792113453.562548461] [noweb_tf_merge]: TF_PROVISIONAL robot5: start value (0.0, -1.86, 0.0) from <저장소>/config/field/search_area.field.json, waiting for /rescue/map/start_pose/robot_a and robot5/odom -> base_link
+[INFO] [1792113453.563207200] [noweb_tf_merge]: TF_MERGE robots=['robot6', 'robot5'] shared=['map'] -> /tf, /tf_static, /rviz/<ns>/scan
+[INFO] [1792113453.565085994] [noweb_tf_merge]: TF_PROVISIONAL robot5: start pose (-0.3528184034737783, -3.4999727508561174e-11, 3.133637622659859), start value (0.0, -1.86, 0.0) -> map -> robot5/odom None
+[INFO] [1792113454.024509361] [noweb_tf_merge]: TF_MERGE static frames: 1
+[INFO] [1792113454.054891156] [noweb_tf_merge]: TF_MERGE static frames: 5
+[INFO] [1792113980.572746848] [noweb_tf_merge]: TF_PROVISIONAL_OFF robot5: its own map -> odom came; start spot no longer drawn
+Traceback (most recent call last):
+  File "<저장소>/scripts/field/noweb/tf_merge.py", line 223, in <module>
+    main()
+  File "<저장소>/scripts/field/noweb/tf_merge.py", line 214, in main
+    rclpy.spin(node)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+    executor.spin_once()
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+    raise ExternalShutdownException()
+rclpy.executors.ExternalShutdownException
