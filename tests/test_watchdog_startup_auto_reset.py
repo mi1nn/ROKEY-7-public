@@ -79,6 +79,56 @@ class StartupAutoReset(unittest.TestCase):
         self.assertEqual('STOP_LATCHED', older.state)
 
 
+
+class QueuedHeartbeatsAcrossTheArm(unittest.TestCase):
+    """REV-22 (#476): the watchdog process got no CPU for over heartbeat_max_age_s while the executor armed.
+
+    Jazzy rclpy (ros:jazzy, watchdog_node as launched) then runs the overdue step first (latch
+    EXECUTOR_HEARTBEAT_STALE) and takes the queued heartbeats one by one afterwards: a 'startup' sent before the arm,
+    then the 'run' ones. Released on that first 'startup', 44-48 commands of 0.2 m/s went through in 8 of 9 runs
+    with the arm in the last 0.5 s of the stall; main kept the latch.
+    """
+
+    @unittest.expectedFailure
+    def test_a_start_up_heartbeat_queued_before_the_arm_does_not_release_the_latch(self):
+        from rescue_robot.watchdog import HEARTBEAT_RUN, HEARTBEAT_STARTUP
+        dog = dog_at_start()
+        dog.heartbeat(.05, phase=HEARTBEAT_STARTUP)   # then no CPU for this process until 1.0
+        dog.step(1.0)
+        self.assertEqual(('STOP_LATCHED', 'EXECUTOR_HEARTBEAT_STALE'), (dog.state, dog.reason))
+        dog.heartbeat(1.001, phase=HEARTBEAT_STARTUP)   # sent before the arm
+        self.assertEqual(ZERO, dog.command(*GO, 1.002))   # Nav2, after the arm
+        dog.heartbeat(1.003, phase=HEARTBEAT_RUN)
+        for k in range(1, 21):                             # fresh 'run' heartbeats at 20 Hz
+            dog.heartbeat(1.003 + k / 20, phase=HEARTBEAT_RUN)
+            self.assertEqual(ZERO, dog.command(*GO, 1.004 + k / 20))
+        self.assertEqual(('STOP_LATCHED', 'EXECUTOR_HEARTBEAT_STALE'), (dog.state, dog.reason))
+        self.assertNotIn('WATCHDOG_AUTO_RESET', ' '.join(reason for _, reason, _ in dog.events))
+
+    @unittest.expectedFailure
+    def test_release_waits_for_heartbeat_max_age_of_start_up_heartbeats(self):
+        from rescue_robot.watchdog import HEARTBEAT_STARTUP
+        dog = dog_at_start()
+        dog.step(POLICY.heartbeat_max_age_s + .01)
+        for k in range(10):                                # 2.0 .. 2.45: not yet
+            dog.heartbeat(2.0 + k / 20, phase=HEARTBEAT_STARTUP)
+            self.assertEqual('STOP_LATCHED', dog.state)
+        dog.heartbeat(2.0 + 10 / 20, phase=HEARTBEAT_STARTUP)
+        self.assertEqual('ARMED', dog.state)
+        self.assertIn('stale_for=2.000s', dog.events[-1][1])   # how long the heartbeat was away
+
+    @unittest.expectedFailure
+    def test_a_new_gap_while_waiting_starts_the_wait_again(self):
+        from rescue_robot.watchdog import HEARTBEAT_STARTUP
+        dog = dog_at_start()
+        dog.step(POLICY.heartbeat_max_age_s + .01)
+        dog.heartbeat(2.0, phase=HEARTBEAT_STARTUP)
+        dog.heartbeat(2.0 + POLICY.heartbeat_max_age_s + .1, phase=HEARTBEAT_STARTUP)   # away again
+        self.assertEqual('STOP_LATCHED', dog.state)
+        dog.heartbeat(2.0 + 2 * POLICY.heartbeat_max_age_s + .05, phase=HEARTBEAT_STARTUP)
+        self.assertEqual('STOP_LATCHED', dog.state)
+
+
 class ExecutorSaysItsPhase(unittest.TestCase):
     def test_start_up_until_the_first_arm_then_run(self):
         from rescue_robot.watchdog import HEARTBEAT_RUN, HEARTBEAT_STARTUP, heartbeat_phase
