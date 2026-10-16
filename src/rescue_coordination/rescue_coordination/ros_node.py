@@ -80,6 +80,9 @@ STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.mot
 # 2026-10-16, C9); untried frontiers go first.
 YIELD_REPEATS = 2  # step asides from one spot before TB-6 stays (작전 2026-10-16, C19: as FRONTIER_ATTEMPTS)
 FRONTIER_ATTEMPTS = 2
+# A TB-6 goal this close to a TB-5 that never had a task is on TB-5's body and held (18회차 2026-10-16, C30, 작전:
+# two TurtleBot4 0.34 m wide plus a margin) [제안]. Only that, while TB-5 has no task and is not waiting to go.
+TB5_BODY_M = 0.45
 NOT_STARTED_REASONS = frozenset({'GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'})
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
 # and the map is frozen before TB-5 goes; SAVED_MAP = one launch basis for the whole mission (earlier runs).
@@ -797,7 +800,7 @@ class CoordinatorCore:
         # left every frontier out from TB-6's start, beside TB-5). Only with TB-6 itself clear of it (closer, it
         # steps aside first, _traffic_scout).
         tb5 = self._tb5_xy(now_ns) if self._traffic_on() else None
-        keep_off = tb5 if tb5 is not None and math.dist(start, tb5) >= self.traffic_min_separation_m else None
+        keep_off = tb5 if tb5 is not None and math.dist(start, tb5) >= self._tb5_keep_off_m() else None
         # every cluster (min_cells 1) so a FRONTIER none can say why each one was left out (시뮬레이션 C9)
         found = find_frontiers(**fields, radius=radius, min_cells=1, max_goal_distance_m=self.frontier_reach_m,
                                mask=mask)
@@ -926,13 +929,13 @@ class CoordinatorCore:
         past the gap too (9회차 C14: the one with the shortest path slanted to a gap and saw nothing past it), and a
         cut point in a tight part of the path goes on to the first roomy path
         point past it. No roomy cell within reach: None, the frontier is left out for this map update. With ``tb5``
-        (a standing TB-5), the goal and the cut point are also traffic_min_separation_m from it; the path is not
+        (a standing TB-5), the goal and the cut point are also _tb5_keep_off_m from it; the path is not
         (C16); None then says nothing, the caller tells TOO_CLOSE from TIGHT."""
         if roomy is None and tb5 is None:
             path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=frontier.goal, mask=mask)
             # cut short of the frontier's goal cell: reaching it is a step on the way, not a visit (C11)
             return path, _along(path.points, self.frontier_goal_max_m), path.length_m > self.frontier_goal_max_m
-        among, sep = roomy if roomy is not None else mask, self.traffic_min_separation_m
+        among, sep = roomy if roomy is not None else mask, self._tb5_keep_off_m()
         if tb5 is not None:
             among = _outside(fields, among, tb5, sep)
 
@@ -969,8 +972,8 @@ class CoordinatorCore:
         ON_PATH: the roomy point on the path to the frontier's own goal nearest that goal, at least
         frontier_blacklist_m along (not where TB-6 stands); a step, the frontier is not tried (cut). ONCE: else the
         frontier's own freeze_clearance_m clear goal (how 8회차 went through the gap), once per frontier; a failure
-        there counts as any. Both keep traffic_min_separation_m off a standing ``tb5``."""
-        sep = self.traffic_min_separation_m
+        there counts as any. Both keep _tb5_keep_off_m off a standing ``tb5``."""
+        sep = self._tb5_keep_off_m()
         among = roomy if tb5 is None else _outside(fields, roomy, tb5, sep)
         path = grid_path(**fields, radius=self.freeze_clearance_m, start=start, goal=frontier.goal, mask=mask)
         if path is None:
@@ -2155,6 +2158,14 @@ class CoordinatorCore:
     def _tb5_never_sent(self):
         return self.mission.dispatch_kind is None and self.support_exit is None and not self.segment_tasks
 
+    def _tb5_idle(self):
+        """TB-5 never had a task and is not waiting to go this tick: it has no path and does not move (C30)."""
+        return self._tb5_never_sent() and self.traffic_wait_path is None
+
+    def _tb5_keep_off_m(self):
+        """How far a TB-6 goal keeps off TB-5: its body while TB-5 is idle, else traffic_min_separation_m."""
+        return TB5_BODY_M if self._tb5_idle() else self.traffic_min_separation_m
+
     def _tb5_path(self):
         """The path TB-6 keeps off: the one TB-5 waits to go on this tick, else the one it moves on."""
         if self.traffic_wait_path is not None:
@@ -2278,6 +2289,12 @@ class CoordinatorCore:
             return self._hold('SCOUT', 'TRAFFIC_SCOUT_POSE_UNKNOWN')
         if goal_xy is None:
             return self._hold('SCOUT', 'NO_HOME_POSITION')
+        if self._tb5_idle():
+            # 18회차 C30: a 0.3 m step aside from a TB-5 standing with no task cost 19 s of Nav2. Idle, TB-5 has no
+            # path and does not move: no step aside, no hold, but for a goal on its body.
+            if math.dist(goal_xy, support_xy) < TB5_BODY_M:
+                return self._hold('SCOUT', 'TRAFFIC_ROBOTS_TOO_CLOSE')
+            return True
         path = self._tb5_path()
         if path is not None and self._near(scout_xy, path):
             return self._step_aside(scout_xy, [*path, support_xy], now_ns, 'SCOUT', 'TRAFFIC_SCOUT_HELD_FOR_SUPPORT')

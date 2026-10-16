@@ -19,6 +19,7 @@ import math
 from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
+from unittest import mock
 
 from rescue_contracts import RescueError
 from rescue_contracts.occupancy import occupancy_sha256
@@ -357,6 +358,7 @@ class FrontierBesideTb5Tests(unittest.TestCase):
         self.assertGreaterEqual(math.dist((x, y), TB5_START), MIN_SEP)
         self.assertNotIn('TRAFFIC_ROBOTS_TOO_CLOSE', ' '.join(core.drain_notes()))
 
+    @mock.patch.object(ros_node, 'TB5_BODY_M', MIN_SEP)  # TB-5 idle keeps its body off (C30); the circle as before
     def test_the_only_frontier_beside_tb5_is_named_too_close(self):
         core = self.core_with(self.BESIDE_TB5)
         core.frontier_reach_m = 0.6  # every goal cell near this frontier is then within the separation of TB-5
@@ -402,12 +404,14 @@ class PathPastTb5Tests(unittest.TestCase):
         self.assertGreater(x, 6.)  # the frontier's own goal, not cut
         self.assertFalse(core.exploration_complete)
 
+    @mock.patch.object(ros_node, 'TB5_BODY_M', MIN_SEP)  # TB-5 idle keeps its body off (C30); the circle as before
     def test_a_cut_point_beside_tb5_goes_on_past_the_circle(self):
         core = self.core_with(lambda x, y: x > 8.)  # frontier_goal_max_m 1.0: the cut point is beside TB-5
         x, y, _ = self.first_goal(core)
         self.assertGreaterEqual(math.dist((x, y), TB5_START), MIN_SEP)
         self.assertGreater(x, 0.)  # past TB-5 on the way, not back
 
+    @mock.patch.object(ros_node, 'TB5_BODY_M', MIN_SEP)  # TB-5 idle keeps its body off (C30); the circle as before
     def test_a_frontier_left_out_only_for_tb5_does_not_end_the_exploration(self):
         core = self.core_with(FrontierBesideTb5Tests.BESIDE_TB5, tb6=(1.2, 4.2), walls=(),
                               frontier_reach_m=0.6)
@@ -450,4 +454,4 @@ class Run11DeclareTests(unittest.TestCase):
         (line,) = [n for n in notes if n.startswith('FRONTIER ') and 'cells=' in n]
         self.assertIn('cells=90 ', line)
         x, y, _ = live_task_inputs.destinations(core)[sent[0]['search_area_ref']]['xy_yaw']
-        self.assertGreaterEqual(math.dist((x, y), self.TB5), MIN_SEP)
+        self.assertGreaterEqual(math.dist((x, y), self.TB5), ros_node.TB5_BODY_M)  # TB-5 idle (C30)
