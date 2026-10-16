@@ -1,0 +1,2 @@
+{"accepted": true, "command_id": "76c7d7ac-acdb-4ba2-a598-8cd9341bc8f0", "created_task_id": null, "kind": "DECLARE_DISASTER", "reason": null, "reason_label": null, "request_id": "76c7d7ac-acdb-4ba2-a598-8cd9341bc8f0", "request_state": "ACCEPTED", "sent": true}
+08:47:37 재범 위임(02:3x, 09:30 까지 연장, 08:4x 「지도도 바뀌었자너」로 #462 세계)으로 가제보 실습이 관제 웹 POST /commands kind=DECLARE_DISASTER (admin)

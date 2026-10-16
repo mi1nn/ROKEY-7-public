@@ -232,6 +232,42 @@ def _map(view):
                 '<p>기준 지도가 없습니다. 실행할 때 <code>--map assets/maps/pre_quake/map.yaml</code> 을 주세요.</p>'
                 '</section>')
     width, height = layer['width_px'], layer['height_px']
+    if live is None:
+        note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
+                .format(grid=GRID_M))
+        state = ''
+    else:
+        received = '받은 시각 없음' if live['received_at_ns'] is None else (
+            f'받은 시각 {datetime.fromtimestamp(live["received_at_ns"] / 1e9):%H:%M:%S} ({live["age_s"]:g}초 전)')
+        note = (f'실시간 SLAM 지도 · {received} · {width}×{height} px · {layer["resolution"]:g} m/px · '
+                f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
+                + (f' — {live["message"]}' if live['message'] else ''))
+        state = '' if live['state'] == 'OK' else ' stale'
+    return (f'<section id="map" class="map{state}"><header><h2>현장 지도</h2><ul class="legend">{map_legend()}</ul>'
+            f'</header>{map_plan(layer)}<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
+            f'{map_unplotted(layer)}</section>')
+
+
+def map_legend():
+    """지도 범례: 인형 4단계와 로봇(관제 화면·리플레이 공용)."""
+    legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
+    return legend + ('<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true">'
+                     '<polygon points="14,8 3,2.5 3,13.5"/></svg>로봇 · 진행 방향</li>')
+
+
+def map_unplotted(layer):
+    """지도에 그리지 못한 위치 목록(다른 좌표계, 지도 밖, 위치 미확정). 없으면 빈 글."""
+    unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
+    unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m'
+                  for w in layer['off_map']]
+    unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
+    notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
+    return f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else ''
+
+
+def map_plan(layer):
+    """지도 그림 위 표식 SVG(mapimage.map_overlay 의 결과). 관제 화면과 리플레이가 같이 쓴다."""
+    width, height = layer['width_px'], layer['height_px']
     marks = []
     for target in layer['targets']:
         stage = target['stage']
@@ -284,34 +320,13 @@ def _map(view):
             f'<title>{escape(robot["id"])}{why}</title>{body}'
             f'<text class="label" x="{x + ROBOT_MARK_PX + 1:.2f}" y="{y + ROBOT_MARK_PX + 2.4:.2f}">'
             f'{escape(unit)}{" 추정" if estimated else ""}</text></g>')
-    unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
-    unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
-    unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
-    notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
-    legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
-    legend += '<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true"><polygon points="14,8 3,2.5 3,13.5"/></svg>로봇 · 진행 방향</li>'
     pad_left, pad_top, pad_bottom = 5, 2, 9
-    if live is None:
-        note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
-                .format(grid=GRID_M))
-        state = ''
-    else:
-        received = '받은 시각 없음' if live['received_at_ns'] is None else (
-            f'받은 시각 {datetime.fromtimestamp(live["received_at_ns"] / 1e9):%H:%M:%S} ({live["age_s"]:g}초 전)')
-        note = (f'실시간 SLAM 지도 · {received} · {width}×{height} px · {layer["resolution"]:g} m/px · '
-                f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
-                + (f' — {live["message"]}' if live['message'] else ''))
-        state = '' if live['state'] == 'OK' else ' stale'
-    return (f'<section id="map" class="map{state}"><header><h2>현장 지도</h2><ul class="legend">{legend}</ul></header>'
-            f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
+    return (f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="기준 지도 위 로봇과 요구조자 위치">'
             f'{_MAP_TONE}<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
             f'preserveAspectRatio="none"/>'
             f'<rect class="frame" x="0" y="0" width="{width}" height="{height}"/>'
-            f'{_grid(layer)}{"".join(marks)}</svg>'
-            f'<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
-            + (f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else '')
-            + '</section>')
+            f'{_grid(layer)}{"".join(marks)}</svg>')
 
 
 # 지도 그림(PGM 회색조)의 화면 색: 벽(0) 차콜, 미탐색(205) 지도 바탕과 같은 연회색, 빈 곳(254) 흰색.
@@ -653,11 +668,16 @@ button{font-family:inherit}
 /* ---- 이름 줄 ---- */
 #masthead{display:flex;align-items:center;gap:12px;margin:0 -16px;padding:0 24px;height:54px;background:#fff;
   border-bottom:1px solid var(--line);min-width:0}
-#masthead .sys{order:1;font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#masthead .sys{flex:0 1 auto;min-width:0;font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #masthead .sys::before{content:"";display:inline-block;width:22px;height:22px;margin-right:10px;border-radius:7px;vertical-align:-6px;
   background:var(--accent);box-shadow:inset 0 0 0 6px var(--accent),inset 0 0 0 9px #fff}
-#masthead .replay-link{order:3;font-size:12.5px;white-space:nowrap}
-#masthead .screen{order:2;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:var(--pill);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+/* 화면 이동 칸(재범 2026-10-16): 지금 화면은 강조색 글자와 밑줄. 좁으면 칸 줄만 옆으로 밀린다(페이지는 안 밀림). */
+#masthead .tabs{display:flex;align-self:stretch;gap:2px;margin-left:12px;min-width:0;overflow-x:auto;scrollbar-width:none}
+#masthead .tabs a{display:flex;align-items:center;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--ink-3);
+  text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+#masthead .tabs a:hover{color:var(--ink)}
+#masthead .tabs a[aria-current=page]{color:var(--accent);border-bottom-color:var(--accent)}
+#masthead .who{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-2);white-space:nowrap}
 
 /* ---- 임무 카드 ---- */
 .band{display:grid;grid-template-columns:auto;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:center;
@@ -691,7 +711,10 @@ button{font-family:inherit}
   .band dd{white-space:normal;overflow-wrap:anywhere}
 }
 @media (max-width:600px){
-  #masthead{flex-wrap:wrap;height:auto;row-gap:6px;padding:10px 16px}
+  #masthead{flex-wrap:wrap;height:auto;row-gap:2px;padding:10px 16px 0}
+  #masthead .sys{flex:1 1 0}   /* 이름이 줄어 로그인 이름과 한 줄에 남는다(말줄임) */
+  #masthead .tabs{order:3;flex:1 0 100%;height:40px;margin:0 -4px}
+  #masthead .tabs a{padding:0 8px}
 }
 #topbar{display:grid;grid-template-columns:auto 1fr;align-content:center;align-items:center;gap:8px 10px;padding:12px 18px;
   background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
@@ -925,16 +948,13 @@ button{font-family:inherit}
 .card button{width:100%;margin-top:24px;padding:13px 16px;font-size:15px}
 form.inline button{padding:6px 14px}
 .card button:hover,form.inline button:hover{background:#4338ca}
-#topbar form.inline button,.admin-head form.inline button{padding:4px 12px;font-size:12.5px;font-weight:600;background:var(--raise);color:var(--ink-2);border-radius:var(--pill)}
-#topbar form.inline button:hover,.admin-head form.inline button:hover{background:var(--line-2)}
+#masthead form.inline button{padding:4px 12px;font-size:12.5px;font-weight:600;background:var(--raise);color:var(--ink-2);border-radius:var(--pill)}
+#masthead form.inline button:hover{background:var(--line-2)}
 .flash{padding:10px 14px;margin:10px 0;background:var(--soft);border-radius:var(--r-in);box-shadow:inset 3px 0 0 var(--ink-3)}
 .flash.danger{box-shadow:inset 3px 0 0 var(--signal)}.flash.success{box-shadow:inset 3px 0 0 var(--safe)}.flash.info{box-shadow:inset 3px 0 0 var(--info)}
 form.inline{display:inline}form.inline input{width:9em;padding:6px 9px}form.inline select{margin-right:4px}
 .admin{max-width:1200px;margin:0 auto;padding:24px 20px}
-.admin-head{display:flex;align-items:center;gap:14px;padding:4px 0 18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
-.admin-head h1{font-size:24px;font-weight:800;letter-spacing:-.03em}
-.admin-head .sys{font-size:13px;color:var(--ink-3)}
-.admin-head .who{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:var(--ink-2)}
+.accounts-page{padding:0 16px}
 .admin h2{margin-top:20px}
 .admin table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;margin-top:12px;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .admin caption{text-align:left;color:var(--ink-3);padding:4px 0 8px}
@@ -1287,18 +1307,32 @@ def _flashes(messages):
 
 
 def _user_nav(user, csrf):
-    """현재 로그인 사용자 정보 및 내비게이션 바(로그아웃 버튼은 POST 및 CSRF 검증 적용)."""
+    """로그인 이름(역할)과 로그아웃 버튼(POST, CSRF 검증). 맨 위 줄 오른쪽 끝(masthead)."""
     if user is None:
         return ''
-    admin = ' <a href="/admin/accounts">계정 관리</a>' if user['role'] == 'ADMIN' else ''
-    return (f'<nav class="who"><span>{escape(user["display_name"])} ({escape(user["role"])})</span>{admin}'
-            f' <form class="inline" method="post" action="/logout"><input type="hidden" name="csrf" value="{escape(csrf or "")}">'
-            '<button type="submit">로그아웃</button></form></nav>')
+    return (f'<div class="who"><span>{escape(user["display_name"])} ({escape(user["role"])})</span>'
+            f'<form class="inline" method="post" action="/logout"><input type="hidden" name="csrf" value="{escape(csrf or "")}">'
+            '<button type="submit">로그아웃</button></form></div>')
 
 
-def _header(user, csrf):
-    """관리자 전용 계정 관리 페이지 상단 헤더."""
-    return f'<header class="admin-head"><h1>구조 관제</h1><p class="sys">{SYSTEM_NAME}</p>{_user_nav(user, csrf)}</header>'
+# 맨 위 이동 줄의 화면: (주소, 이름, ADMIN 만). 재범 2026-10-16 「네비게이션바로 리플레이랑 대시보드 잘 연결해야할 것
+# 같은데」. 화면마다 따로 있던 「관제 화면으로」·「지난 회차 다시 보기」 링크를 이 줄 하나로 바꿨다.
+# 칸 이름은 폰 폭(390px)에 넷이 한 줄에 들어가게 짧게 쓴다(리플레이 페이지 제목은 「지난 회차 다시 보기」 그대로).
+NAV_TABS = (('/', '실시간 관제', False), ('/replay', '회차 다시 보기', False), ('/reset', '회차 초기화', True),
+            ('/admin/accounts', '계정 관리', True))
+CURRENT_PAGE = ' aria-current="page"'
+
+
+def masthead(current, user, csrf):
+    """모든 화면 맨 위 줄: 시스템 이름, 화면 이동 칸(``current`` 주소의 칸을 지금 화면으로 표시), 로그인 이름·로그아웃.
+
+    ADMIN 이 아니면 초기화·계정 관리 칸을 그리지 않는다(그 경로는 서버도 ADMIN 만 받는다).
+    """
+    admin = user is not None and user['role'] == 'ADMIN'
+    links = ''.join(f'<a href="{path}"{CURRENT_PAGE if path == current else ""}>{name}</a>'
+                    for path, name, admin_only in NAV_TABS if admin or not admin_only)
+    return (f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><nav class="tabs" aria-label="화면">{links}</nav>'
+            f'{_user_nav(user, csrf)}</header>')
 
 
 def camera_stale_ms(cameras, stale_s):
@@ -1445,17 +1479,14 @@ def render_page(view, user=None, csrf=None, cameras=(), command_access=None, cam
     if cameras or robot_camera:
         script += _CAMERA_SCRIPT
     return (_head(page_title(view)) + '<main class="console">'
-            + f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">구조 관제</p>'
-            + '<a class="replay-link" href="/replay">지난 회차 다시 보기</a>'
-            + ('<a class="replay-link" href="/reset">회차 초기화</a>' if user and user['role'] == 'ADMIN' else '')
-            + '</header>'
+            + masthead('/', user, csrf)
             + f'<section id="topbar"><p id="poll" class="wait">연결 중</p><div id="poll-error" hidden></div>'
             + '<div class="kpi"><p id="kpi" title="발생 시각과 이 화면에 처음 그린 시각의 차이. 두 PC 의 시계가 맞을 때만 의미가 있습니다 (C-03)">'
             'KPI-04: 페이지를 연 뒤 들어온 사건 없음</p>'
             '<button type="button" id="kpi-save" class="mini" title="사건별 화면 표시 지연을 파일로 저장">지연 기록 저장</button>'
             '<input type="checkbox" id="show-history"><label for="show-history" class="history-toggle" '
             'title="운영자가 보낸 명령의 접수·거절과 operations 오류 기록을 펴거나 접습니다">보낸 명령 · 오류</label></div>'
-            + _user_nav(user, csrf) + '</section>'
+            + '</section>'
             + f'<aside id="side">{_cameras(cameras, stale_ms, webcam, csrf, view["mission"]["mode"])}'
             + f'{_robot_camera(robot_camera, csrf, stale_ms)}{_commands(view, access, csrf)}</aside>'
             + f'<div id="live">{render_fragment(view)}</div></main>'
@@ -1498,7 +1529,8 @@ def render_accounts(accounts, user, csrf, messages=()):
                '<input type="hidden" name="_action" value="delete">'
                '<button type="submit" onclick="return confirm(\'삭제할까요?\')">삭제</button></form>')
             + f'</td><td>{_time(account["updated_at_ns"])}</td></tr>')
-    return (_head('계정 관리') + '<div class="admin">' + _header(user, csrf) + _flashes(messages)
+    return (_head('계정 관리') + '<main class="accounts-page">' + masthead('/admin/accounts', user, csrf)
+            + '<div class="admin">' + _flashes(messages)
             + '<h2>계정 추가</h2><form class="inline" method="post" action="/admin/accounts">' + hidden
             + '<input name="username" placeholder="아이디(소문자)" required>'
               '<input name="display_name" placeholder="표시 이름">'
@@ -1508,4 +1540,4 @@ def render_accounts(accounts, user, csrf, messages=()):
               '<button type="submit">추가</button></form>'
             + '<table id="accounts"><caption>계정</caption><thead><tr><th>아이디</th><th>정보 · 역할 · 상태 · 비밀번호</th>'
               '<th>삭제</th><th>갱신</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table>'
-            + '<p><a href="/">관제 화면으로</a></p></div></body></html>')
+            + '</div></main></body></html>')

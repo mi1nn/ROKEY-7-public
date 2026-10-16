@@ -128,6 +128,49 @@ class FloorReferenceTests(unittest.TestCase):
         self.assertEqual(('UNKNOWN', None), (r.state, r.lowest_m))
 
 
+def lintel(x, bottom, *, thickness=0.018, height=0.2):
+    """A board standing on its edge across the path (the field tunnels, 2026-10-16 photos): its 1.8 cm thickness
+    along x, from ``bottom`` up ``height``."""
+    zs = np.arange(bottom, bottom + height + 1e-9, 0.02)
+    return np.array([(px, y, z) for px in (x, x + thickness) for y in np.arange(-0.2, 0.21, 0.02) for z in zs])
+
+
+@unittest.skipIf(np is None, 'NumPy not installed: point judgement NOT_RUN')
+class ThinLintelTests(unittest.TestCase):
+    """C27 (2026-10-16): the field tunnels are one MDF board on its edge (1.8 cm thick) on the wall tops, not a roof.
+
+    Under a 1.8 cm board there is hardly any floor to see, so asking for the floor in the board's own x span gave
+    NO_FLOOR_SEEN in front of it every time (#428, measured 2026-10-16 in simulation). The floor just in front of
+    it or just past it is the floor it stands over: the height is measured from that. No floor near it at all
+    stays UNKNOWN.
+    """
+    @classmethod
+    def setUpClass(cls):   # after the NumPy skip, so the installed-wheel run without NumPy still imports this file
+        cls.FRONT, cls.BEYOND = grid(0.4, 0.68, 0.0), grid(0.74, 1.0, 0.0)   # the floor up to the board and past it
+
+    def test_a_board_0_47_m_up_with_the_floor_seen_round_it_is_passable(self):
+        r = judge(scene(self.FRONT, self.BEYOND, lintel(0.7, 0.47)), POLICY)
+        self.assertEqual(('PASSABLE', 0.47, ''), (r.state, round(r.lowest_m, 3), r.reason))
+
+    def test_a_board_0_30_m_up_is_blocked(self):
+        r = judge(scene(self.FRONT, self.BEYOND, lintel(0.7, 0.30)), POLICY)
+        self.assertEqual(('BLOCKED', 0.30), (r.state, round(r.lowest_m, 3)))
+
+    def test_floor_seen_on_one_side_only_is_enough(self):
+        self.assertEqual('PASSABLE', judge(scene(self.FRONT, lintel(0.7, 0.47)), POLICY).state)
+        self.assertEqual('PASSABLE', judge(scene(self.BEYOND, lintel(0.7, 0.47)), POLICY).state)
+
+    def test_over_a_floor_at_minus_0_2_as_on_tb6(self):
+        cloud = scene(self.FRONT, self.BEYOND, lintel(0.7, 0.47)) + np.array([0.0, 0.0, -0.2])
+        self.assertEqual(('PASSABLE', 0.47), (lambda r: (r.state, round(r.lowest_m, 3)))(judge(cloud, POLICY)))
+
+    def test_no_floor_near_the_board_stays_unknown(self):
+        self.assertEqual('UNKNOWN', judge(lintel(0.7, 0.47), POLICY).state)
+        far = grid(0.4, 0.5, 0.0)   # floor seen, but 0.2 m short of the board: not the floor under it
+        self.assertEqual(('UNKNOWN', 'NO_FLOOR_SEEN'), (lambda r: (r.state, r.reason))(
+            judge(scene(far, lintel(0.7, 0.47)), POLICY)))
+
+
 @unittest.skipIf(np is None, 'NumPy not installed: point cloud reading NOT_RUN')
 class CloudTests(unittest.TestCase):
     def cloud(self, rows):

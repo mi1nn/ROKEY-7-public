@@ -9,7 +9,7 @@ from datetime import datetime
 from html import escape
 
 from .labels import label
-from .render import _STYLE, SYSTEM_NAME, _age, _flashes, _user_nav
+from .render import _STYLE, _age, _flashes, masthead
 from .reset import REFUSAL_HINT
 
 RESET_POLL_MS = 1000   # 관제 화면 폴링과 같은 주기([제안] 관제·화면, 2026-10-15)
@@ -17,7 +17,6 @@ RESET_POLL_MS = 1000   # 관제 화면 폴링과 같은 주기([제안] 관제·
 _RESET_STYLE = """
 .reset{max-width:1100px;margin:0 auto;padding:0 16px 24px;display:flex;flex-direction:column;gap:var(--gap)}
 .reset #masthead{margin:0 -16px}
-.reset #masthead .back{order:3;margin-left:auto;font-size:13px}
 .reset section{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
 .reset table{width:100%;border-collapse:collapse;font-size:13.5px}
 .reset th,.reset td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -129,8 +128,7 @@ def render_reset_page(model, user=None, csrf=None, messages=()):
     head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>회차 초기화</title><style>{_STYLE}{_RESET_STYLE}</style></head><body><main class="reset">'
-            f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">회차 초기화</p>'
-            f'<a class="back" href="/">관제 화면으로</a>{_user_nav(user, csrf)}</header>')
+            + masthead('/reset', user, csrf))
     if model['can_send']:
         form = (f'<form method="post" action="/reset/send"><input type="hidden" name="csrf" value="{escape(csrf or "")}">'
                 '<input name="note" maxlength="200" placeholder="메모(선택)">'

@@ -308,7 +308,7 @@ amr_target 이 서버를 연다. 창이 열려 있는 동안 처리한 프레임
 
 - **가장 낮은 높이:** 상자 안에서 바닥 여유 위 ~ `top_m` 사이 점 중 `passage.min_points` 번째로 낮은 점의 높이다. collision_monitor 가 멈추는 데 필요한 점 수와 같으므로, 잡음 점 몇 개로는 높이가 내려가지 않는다.
 - **떠 있는 구조물만:** 그 높이가 라이다 평면(`passage.overhead.lidar_plane_m`) 위일 때만 구조물로 본다. 그 아래면 라이다가 보는 보통 장애물(벽, 상자)이라 내지 않는다(OPS-186 a).
-- **판정:** `PASSABLE`(≥ 0.46 m, 재범 결정) / `BLOCKED`(그 아래) / `UNKNOWN`. 구조물과 같은 x 구간에서 바닥 점이 `floor_min_points` 개 미만이면, 아래가 비었는지 모르므로 높이를 내지 않고 `UNKNOWN`(`NO_FLOOR_SEEN`)으로 둔다(OPS-186 b).
+- **판정:** `PASSABLE`(≥ 0.46 m, 재범 결정) / `BLOCKED`(그 아래) / `UNKNOWN`. 구조물의 x 구간과 그 앞뒤 `FLOOR_REACH_M` 0.1 m [제안] 안에서 바닥 점이 `floor_min_points` 개 미만이면, 아래가 비었는지 모르므로 높이를 내지 않고 `UNKNOWN`(`NO_FLOOR_SEEN`)으로 둔다(OPS-186 b). 앞뒤 0.1 m 를 더한 것은 실습장 터널이 두께 1.8 cm 세운 판이라 판 바로 아래 바닥이 거의 안 보이기 때문이다(C27).
 - **확정:** 처리한 프레임 `confirm_frames` 번이 같은 판정, 같은 자리(`position_tolerance_m`)여야 낸다. 다른 판정, 구조물 없음, 오래된 점구름, 지도 revision 없음, TF 없음 프레임이 하나라도 끼면 처음부터 센다.
 - **위치와 revision:** 위치는 구조물 바닥 중심을 점구름 시각의 TF 로 map 에 옮긴 점이다. 지도 revision 은 SLAM 로봇(TB-6)의 MapState 에서 가져온다(MapRevisionTracker, 시계 오차는 그 로봇 Pi 값). TB-5 도 TB-6 지도 위에 있다.
 - **목록:** 같은 revision 에서 `merge_radius_m` 안이면 같은 항목을 갱신한다. `UNKNOWN` 은 이미 잰 높이를 덮지 않는다. 다른 revision 항목은 따로 남는다(웹이 현재 revision 을 진하게, 이전 것을 흐리게 그림, OPS-186 c).
