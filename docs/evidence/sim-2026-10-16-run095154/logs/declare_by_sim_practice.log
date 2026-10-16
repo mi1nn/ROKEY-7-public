@@ -1,0 +1,2 @@
+{"accepted": true, "command_id": "074f3127-a5ce-421a-a1d0-d1c247251997", "created_task_id": null, "kind": "DECLARE_DISASTER", "reason": null, "reason_label": null, "request_id": "074f3127-a5ce-421a-a1d0-d1c247251997", "request_state": "ACCEPTED", "sent": true}
+09:54:26 재범 「실습 바로 시작하자」(09:4x)로 가제보 실습이 관제 웹 POST /commands kind=DECLARE_DISASTER (admin)
