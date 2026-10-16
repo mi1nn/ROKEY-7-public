@@ -98,9 +98,11 @@ updated: 2026-10-14
 ### TB-5 출동과 출구
 
 - 대상이 확정이고 지금 revision 의 보고가 저장되면 TB-5 에 `APPROACH_TARGET` 을 한 번 낸다(`support_dispatch=AUTO`). 운영자 승인은 받지 않는다. 접근점은 인형에서 `approach_standoff_m` 떨어진 원 위의 자리이고, 도착 방향은 인형을 바라본다.
-  - `SLAM_FREEZE` 에서는 TB-5 쪽 직선 위 점과, 원 위를 `freeze_clearance_m` 이하 간격으로 나눈 방향들을 후보로 본다. 둘레 `freeze_clearance_m` 가 모두 free 인 후보 가운데 TB-5 에서 고정 지도 위 경로가 가장 짧은 점으로 간다. 경로를 못 구하면 직선 거리로 가장 가까운 점이다.
+  - `SLAM_FREEZE` 에서는 TB-5 쪽 직선 위 점과, 원 위를 `freeze_clearance_m` 이하 간격으로 나눈 방향들을 후보로 본다. 후보는 세 조건을 모두 채워야 한다. 둘레 `freeze_clearance_m` 가 모두 free 여야 하고, 그 점에서 인형까지 선분 위에 점유 칸이 없어야 하며(시야), TB-5 에서 고정 지도 위 격자 경로가 있어야 한다. 그중 경로가 가장 짧은 점으로 간다(`pick_approach`).
+  - 시야 검사에서 인형에서 `freeze_clearance_m` 안의 칸은 보지 않는다. 인형 자신이 TB-6 지도에 점유 칸으로 찍히기 때문이다(15·18·20회차 인형 위치에서 0.05 ~ 0.15 m) [제안].
+  - 시야와 경로 조건은 LOQ 가 #466 에서 찾은 반례 때문에 더했다(재범 결정 2026-10-16). 인형 옆 벽 너머 점을 골라, 벽이 끝까지면 갈 수 없는 목표를 보냈고, 틈이 있으면 9.13 m 돌아 인형 반대편에 섰다.
   - 15회차(2026-10-16)에서 직선 위 한 점이 흰 상자 안이라 `SUPPORT_APPROACH_NOT_FREE` 로 끝까지 멈췄고, 같은 원의 다른 방향은 비어 있었다. 인형이 벽 옆에 있으면 현장에서도 같다.
-  - 빈 후보가 하나도 없으면 전처럼 `SUPPORT_APPROACH_NOT_FREE` 로 멈춘다. 고른 점은 `APPROACH_POINT_PICKED dir=… path_m=… free=…/…`, 없을 때는 `APPROACH_POINT_NONE checked=… free=0` 으로, 바뀔 때마다 한 줄 남긴다.
+  - 조건을 채우는 후보가 없으면 전처럼 `SUPPORT_APPROACH_NOT_FREE` 로 멈춘다. 고른 점은 `APPROACH_POINT_PICKED dir=… path_m=… checked=… free=… sight=… reachable=…`, 없을 때는 `APPROACH_POINT_NONE` 과 같은 수로, 바뀔 때마다 한 줄 남긴다.
   - `SAVED_MAP` 과, TB-5 가 이미 원 안에 있을 때는 전과 같다(직선 위 점, 원 안이면 제자리에서 돌기만).
 - 접근이 실패하면 다시 시도하지 않고 `APPROACH_FAILED_<사유>` 를 보인다. 출구로도 보내지 않는다.
 - 도착 뒤 `support_exit_wait_s` 가 지나고 2차 고정이 끝나면 출구로 간다(`RETURN_HOME`, 목적지 `home/<TB-5 id>`).
@@ -469,7 +471,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `camera_watch_timeout_s` | double | SetCameraWatch 요청의 `deadline_ns` = 발급 + 이 값. 그때까지 답이 없으면 그 요청을 버리고 재무장 필요로 둔다 |
 | `home_poses` | double[] | 복귀 위치 `[x, y, yaw]` 를 SCOUT(TB-6, 도킹 접근 지점), SUPPORT(TB-5, 출구) 순으로(임무 frame, `goal_map_*` 기준). launch 가 프로파일에서 넣는다. 넘기지 않으면 복귀 위치 없음 → `NO_HOME_POSITION`. 길이가 6 이 아니면 기동 거절(exit 2) |
 | `support_dispatch` | string | `AUTO`·`OPERATOR`. AUTO(저장소 소유자 결정 2026-10-13, 1B)면 확정·저장된 대상에 TB-5 를 승인 없이 `APPROACH_TARGET` 으로 한 번 보낸다. 운영자 `DISPATCH_SUPPORT` 는 `NOT_AUTHORIZED`(로그 `AUTO_DISPATCH_ENABLED`). OPERATOR 면 기존 DISPATCH_SUPPORT → MOVE_SEGMENT |
-| `approach_standoff_m` | double | 대상 위치에서 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). `SLAM_FREEZE` 에서는 이 원 위의 빈 자리 중 TB-5 에서 경로가 가장 짧은 곳(C23). 이미 그 안이면 제자리에서 돌기만 한다 |
+| `approach_standoff_m` | double | 대상 위치에서 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). `SLAM_FREEZE` 에서는 이 원 위의 빈 자리 중 인형이 보이고 TB-5 에서 경로가 가장 짧은 곳(C23). 이미 그 안이면 제자리에서 돌기만 한다 |
 | `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
 | `search_start` | string | `AUTO`(지진 감지 DISASTER 가 곧 수색 시작, 운영자 START_SEARCH 는 `NOT_AUTHORIZED`/`AUTO_SEARCH_ENABLED`) 또는 `OPERATOR`(버튼, #85). 관문(TB-6 READY·lease·시계·정지·재난 모드)은 같다. 정지·재난 해제로 철회되고 TB-6 이 다시 준비되면 다시 시작한다. RViz 목표 선택은 AUTO 에서 첫 구역이 나가기 전까지 열려 있고, 없으면 `SEARCH_GOAL_NOT_SELECTED`. 현장 `AUTO` [근거: 저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-136] |

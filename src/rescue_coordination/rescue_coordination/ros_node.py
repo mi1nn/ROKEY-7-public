@@ -334,6 +334,49 @@ def approach_circle(target_xy, support_xy, standoff_m, spacing_m):
     return points
 
 
+def sees(fields, xy, target_xy, body_m):
+    """True when the segment from ``xy`` to the target crosses no occupied cell of the grid ``fields`` and stays on
+    it; cells within ``body_m`` of the target are its own body on TB-6's map and do not count (C23)."""
+    ox, oy, yaw = fields['origin']
+    res, width, height, data = fields['resolution'], fields['width'], fields['height'], fields['data']
+    c, s = math.cos(yaw), math.sin(yaw)
+    length = math.dist(xy, target_xy)
+    for k in range(math.ceil(length / (res / 4)) + 1):
+        t = min(1., k * (res / 4) / length) if length else 1.
+        x, y = xy[0] + t * (target_xy[0] - xy[0]), xy[1] + t * (target_xy[1] - xy[1])
+        if math.dist((x, y), target_xy) <= body_m:
+            break
+        ix = math.floor((c * (x - ox) + s * (y - oy)) / res)
+        iy = math.floor((-s * (x - ox) + c * (y - oy)) / res)
+        if not (0 <= ix < width and 0 <= iy < height) or data[iy * width + ix] > 0:
+            return False
+    return True
+
+
+def pick_approach(grid, target_xy, support_xy, standoff_m, clearance_m, mask=None):
+    """TB-5's approach point on the ``standoff_m`` circle around the target (C23; the coordinator and the operator
+    tool support_rescue.py use this one function): of approach_circle's points free within ``clearance_m``, that see
+    the target (``sees``, the target's own cells within ``clearance_m`` left out) and have a clear grid path from
+    TB-5, the one with the shortest path. ``grid`` has ``clear(x, y, radius)`` and the cells as ``fields`` (a test
+    double without cells is ranked by straight-line distance only). Returns (((x, y), yaw, direction) or None,
+    path_m or None, counts with checked / free / sight / reachable, the straight direction)."""
+    circle = approach_circle(target_xy, support_xy, standoff_m, clearance_m)
+    free = [c for c in circle if grid.clear(float(c[0][0]), float(c[0][1]), clearance_m) is True]
+    fields = getattr(grid, 'fields', None)
+    seen = free if fields is None else [c for c in free if sees(fields, c[0], target_xy, clearance_m)]
+    counts = dict(checked=len(circle), free=len(free), sight=len(seen), reachable=len(seen))
+    if fields is None:
+        best = min(range(len(seen)), key=lambda i: (math.dist(seen[i][0], support_xy), i), default=None)
+        return (None if best is None else seen[best]), None, counts, circle[0][2]
+    lengths = path_lengths(**fields, radius=clearance_m, start=support_xy, goals=[c[0] for c in seen], mask=mask)
+    reachable = [(length, i) for i, length in enumerate(lengths) if length is not None]
+    counts['reachable'] = len(reachable)
+    if not reachable:
+        return None, None, counts, circle[0][2]
+    length, i = min(reachable)
+    return seen[i], length, counts, circle[0][2]
+
+
 def route_id(segment_goals):
     """sha256 of the configured segment-end list (작전 #88: route_id of the fixed route)."""
     text = json.dumps([[g.mission_xy[0], g.mission_xy[1], g.yaw, g.map_session_id, g.map_revision,
@@ -2373,11 +2416,10 @@ class CoordinatorCore:
 
     def _approach_goal(self, target_id, support_xy):
         """((x, y), yaw) of TB-5's approach, or None with the reason. Within the standoff TB-5 stays and turns; in
-        SAVED_MAP it is the straight point (approach_point). On the frozen map it is the point on the
-        approach_standoff_m circle, free within freeze_clearance_m, with the shortest clear grid path from TB-5
-        (straight-line distance where the grid has no cells or no path): 15회차 held SUPPORT_APPROACH_NOT_FREE to the
-        end on a straight point in a box with free directions beside it (C23). None free: SUPPORT_APPROACH_NOT_FREE.
-        The pick is logged when it changes."""
+        SAVED_MAP it is the straight point (approach_point). On the frozen map it is pick_approach's point: on the
+        approach_standoff_m circle, free within freeze_clearance_m, seeing the doll, with the shortest clear grid
+        path from TB-5 (15회차 C23: a straight point in a box; LOQ on #466: not a point beyond a wall). None:
+        SUPPORT_APPROACH_NOT_FREE. The pick is logged when it changes."""
         doll = self.target_geo[target_id][1]
         point = approach_point(doll, support_xy, self.approach_standoff_m)
         if point is None:
@@ -2387,28 +2429,24 @@ class CoordinatorCore:
                 or math.dist(doll, support_xy) <= self.approach_standoff_m):
             return point if self._free_cell(point[0], 'SUPPORT_APPROACH_NOT_FREE') else None
         grid, radius = self.frozen_grid, self.freeze_clearance_m
-        circle = approach_circle(doll, support_xy, self.approach_standoff_m, radius)
-        free = [c for c in circle if grid.clear(float(c[0][0]), float(c[0][1]), radius) is True]
-        if not free:
-            self._approach_note((target_id, 'NONE'), (
-                f'APPROACH_POINT_NONE target={target_id} checked={len(circle)} free=0: no point '
-                f'{self.approach_standoff_m} m around the doll is free for {radius} m (straight {circle[0][2]:.0f}°)'))
-            self.issue_block = 'SUPPORT_APPROACH_NOT_FREE'
-            return None
-        lengths = [None] * len(free)
-        fields = getattr(grid, 'fields', None)
+        fields, mask = getattr(grid, 'fields', None), None
         if fields is not None:
             if self.approach_mask is None or self.approach_mask[0] is not grid:
                 self.approach_mask = (grid, clear_mask(**fields, radius=radius))
-            lengths = path_lengths(**fields, radius=radius, start=support_xy, goals=[c[0] for c in free],
-                                   mask=self.approach_mask[1])
-        i = min(range(len(free)), key=lambda i: (lengths[i] is None, lengths[i] or 0.,
-                                                 math.dist(free[i][0], support_xy), i))
-        xy, yaw, direction = free[i]
-        path = '-' if lengths[i] is None else f'{lengths[i]:.2f}'
-        self._approach_note((target_id, 'STRAIGHT' if free[i] is circle[0] else direction), (
-            f'APPROACH_POINT_PICKED target={target_id} dir={direction:.0f}° (straight {circle[0][2]:.0f}°) '
-            f'xy=({xy[0]:.2f}, {xy[1]:.2f}) path_m={path} free={len(free)}/{len(circle)}'))
+            mask = self.approach_mask[1]
+        chosen, length, n, straight = pick_approach(grid, doll, support_xy, self.approach_standoff_m, radius, mask)
+        counts = f'checked={n["checked"]} free={n["free"]} sight={n["sight"]} reachable={n["reachable"]}'
+        if chosen is None:
+            self._approach_note((target_id, 'NONE', counts), (
+                f'APPROACH_POINT_NONE target={target_id} {counts}: no point {self.approach_standoff_m} m around the '
+                f'doll is free for {radius} m, sees it and has a path from TB-5 (straight {straight:.0f}°)'))
+            self.issue_block = 'SUPPORT_APPROACH_NOT_FREE'
+            return None
+        xy, yaw, direction = chosen
+        path = '-' if length is None else f'{length:.2f}'
+        self._approach_note((target_id, round(direction, 1) if abs(direction - straight) > 1e-9 else 'STRAIGHT'), (
+            f'APPROACH_POINT_PICKED target={target_id} dir={direction:.0f}° (straight {straight:.0f}°) '
+            f'xy=({xy[0]:.2f}, {xy[1]:.2f}) path_m={path} {counts}'))
         return xy, yaw
 
     def _approach_note(self, key, line):
