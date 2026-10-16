@@ -19,8 +19,8 @@ import unittest
 
 from rescue_contracts import RescueError
 from rescue_coordination import live_task_inputs, ros_node
-from test_coordination_ros_core import (SCOUT, admission_msg, frame, location, make_core, request, site_msg,
-                                        status_msg)
+from test_coordination_ros_core import (SCOUT, admission_msg, frame, goal_template, location, make_core, request,
+                                        site_msg, status_msg)
 from test_coordination_search import MAP, NOW, uid
 
 S = 1_000_000_000
@@ -670,14 +670,18 @@ class CutGoalTests(Base):
         self.assertEqual((None, 1), (self.core.frontier, self.core.frontier_empty))
 
 
-class LookTurnTests(Base):
-    """At a frontier's own goal TB-6 turns in place once round, ``frontier_look_turns`` goals of 90 degrees each at the
-    same spot, so the camera sweeps for the doll (재범 decision 2026-10-16 05:0x, camera sweep option 1: 「목표마다
-    제자리 한 바퀴(90°×4)」). Not at a cut goal (a step on the way). A failed turn ends the turn and counts nothing;
-    a doll report lets the turn in progress finish and sends no more."""
+class SpinLookTests(Base):
+    """At a frontier's own goal TB-6 turns round in place before the frontier counts, so the camera sweeps for the doll
+    (재범 decision 2026-10-16 05:0x, camera sweep option 1 「목표마다 제자리 한 바퀴」). Since C29 (18회차) one SPIN
+    task per turn (Nav2 Spin, spin_yaw_rad 2π within SPIN_TIME_ALLOWANCE_S) replaces four 90-degree NavigateToPose
+    goals: the progress checker aborted those as no progress, each took 6-22 s with recovery spins in between.
+    ``frontier_look_turns`` counts whole turns. Not at a cut goal. A failed SPIN is not sent again: the frontier counts
+    as reached and the next one is picked. A doll report cancels the SPIN in progress and sends no more."""
+
+    TURNS = 1
 
     def setUp(self):
-        self.core = frontier_core(frontier_look_turns=4)
+        self.core = frontier_core(frontier_look_turns=self.TURNS)
         self.setUp_after()
 
     setUp_after = FrontierPickTests.setUp_after
@@ -686,35 +690,39 @@ class LookTurnTests(Base):
         self.core.on_pose(scout_pose(NEAR))
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
-        point = live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw']
         self.finish(fields)
-        return point
 
-    def turn(self, k):
-        """The k-th turn goal (1-based): its fields and (x, y, yaw); each one after the issue delay."""
-        now = NOW + (2 * k + 1) * DELAY
+    def spins(self, now):
+        self.core.on_status(status_msg(SCOUT, observed_at_ns=now - 10**8))
         self.core.on_pose(scout_pose(NEAR, at=now))
-        self.searches(now)
-        (fields,) = self.searches(now + DELAY)
-        return fields, live_task_inputs.destinations(self.core)[fields['search_area_ref']]['xy_yaw']
+        return [f for f in self.core.tick(now) if f['kind'] == 'SPIN']
 
-    def test_four_turns_of_90_degrees_at_the_same_spot_then_the_frontier_is_tried(self):
-        x, y, yaw = self.at_the_frontier()
-        for k in range(1, 5):
-            fields, (tx, ty, tyaw) = self.turn(k)
-            self.assertEqual((x, y), (tx, ty))
-            self.assertAlmostEqual(0., math.remainder(tyaw - yaw - k * math.pi / 2, 2 * math.pi), places=6)
-            self.finish(fields)
-        self.assertNotIn(fields['search_area_ref'], {self.core.frontier and self.core.frontier['site_id']})
+    def test_one_spin_of_a_whole_turn_then_the_frontier_is_tried(self):
+        self.at_the_frontier()
+        (spin,) = self.spins(NOW + 2 * DELAY)  # no issue delay: SPIN needs no destination
+        self.assertEqual((2 * math.pi, ros_node.SPIN_TIME_ALLOWANCE_S), (spin['spin_yaw_rad'], spin['time_allowance_s']))
+        self.assertIsNone(spin['goal_pose'])
+        self.assertEqual([], self.spins(NOW + 2 * DELAY + 1))  # one at a time
+        self.finish(spin)
         self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(NEAR, at=NOW + 11 * DELAY))
-        self.assertEqual([], self.searches(NOW + 11 * DELAY))  # no fifth turn; the frontier is tried
+        self.core.on_pose(scout_pose(NEAR, at=NOW + 3 * DELAY))
+        self.assertEqual([], self.searches(NOW + 3 * DELAY))  # no second spin; the frontier is tried
+        self.assertEqual([], self.spins(NOW + 3 * DELAY + 1))
         self.assertEqual(1, self.core.frontier_empty)
         notes = ' '.join(self.core.drain_notes())
-        self.assertIn('FRONTIER_LOOK 4/4', notes)
+        self.assertIn('FRONTIER_LOOK 1/1', notes)
         self.assertIn('FRONTIER_LOOK_DONE', notes)
 
-    def test_no_turn_at_a_cut_goal(self):
+    def test_the_goal_carries_the_spin(self):
+        self.at_the_frontier()
+        (spin,) = self.spins(NOW + 2 * DELAY)
+        goal = ros_node.fill_execute_task_goal(goal_template(), spin | dict(lease_id=uid(5)), coordinator_id='c')
+        self.assertEqual(('SPIN', 2 * math.pi, ros_node.SPIN_TIME_ALLOWANCE_S, SCOUT, '', ''),
+                         (goal.kind, goal.spin_yaw_rad, goal.time_allowance_s, goal.frame_ref.robot_id,
+                          goal.search_area_ref, goal.home_ref))
+        self.assertFalse(goal.has_route or goal.has_approval)
+
+    def test_no_spin_at_a_cut_goal(self):
         self.core.on_pose(scout_pose())
         self.searches()
         (fields,) = self.searches(NOW + DELAY)
@@ -722,38 +730,52 @@ class LookTurnTests(Base):
         self.finish(fields)
         self.core.on_scout_map(grid())
         self.core.on_pose(scout_pose(tuple(site[:2]), at=NOW + 3 * DELAY))
-        self.searches(NOW + 3 * DELAY)
+        self.assertEqual([], [f for f in self.core.tick(NOW + 3 * DELAY) if f['kind'] == 'SPIN'])
         (again,) = self.searches(NOW + 4 * DELAY)
         nxt = live_task_inputs.destinations(self.core)[again['search_area_ref']]['xy_yaw']
         self.assertGreater(nxt[0], site[0])  # on towards the frontier, no turn in place
         self.assertNotIn('FRONTIER_LOOK', ' '.join(self.core.drain_notes()))
 
-    def test_a_failed_turn_ends_the_turning_and_counts_nothing(self):
+    def test_a_failed_spin_is_not_sent_again_and_counts_nothing(self):
         self.at_the_frontier()
-        fields, _ = self.turn(1)
-        self.finish(fields, outcome='FAILED')
+        (spin,) = self.spins(NOW + 2 * DELAY)
+        self.core.on_admission(admission_msg(spin))
+        self.core.on_result(spin['task_id'], NS(outcome='FAILED', stop_confirmed=True, terminal_reason='SPIN_ABORTED'))
         self.assertEqual([], self.core.frontier_failures)  # not a failed attempt at the frontier
-        self.core.on_scout_map(grid())
-        self.core.on_pose(scout_pose(NEAR, at=NOW + 5 * DELAY))
-        self.assertEqual([], self.searches(NOW + 5 * DELAY))  # no second turn; the frontier is tried as reached
-        self.assertIn('FRONTIER_LOOK_DONE', ' '.join(self.core.drain_notes()))
+        self.assertEqual([], self.spins(NOW + 3 * DELAY))
+        notes = ' '.join(self.core.drain_notes())
+        self.assertIn('reason=SPIN_ABORTED', notes)
+        self.assertIn('FRONTIER_LOOK_DONE', notes)
 
-    def test_a_doll_report_lets_the_turn_finish_and_sends_no_more(self):
+    def test_a_doll_report_cancels_the_spin_and_sends_no_more(self):
         self.at_the_frontier()
-        fields, _ = self.turn(1)
+        (spin,) = self.spins(NOW + 2 * DELAY)
+        self.core.on_admission(admission_msg(spin))
         self.core.on_target_location(location(1), now_ns=NOW)  # its own fresh clock
-        self.assertEqual([], self.core.cancels)  # the turn in progress is not stopped
-        self.finish(fields)
-        self.core.on_pose(scout_pose(NEAR, at=NOW + 5 * DELAY))
-        self.searches(NOW + 5 * DELAY)
-        self.assertEqual([], self.searches(NOW + 6 * DELAY))
-        self.assertNotIn('FRONTIER_LOOK 2/4', ' '.join(self.core.drain_notes()))
+        self.spins(NOW + 2 * DELAY + 1)
+        self.assertEqual([spin['task_id']], self.core.take_cancels())
+        self.core.on_result(spin['task_id'], NS(outcome='CANCELED', stop_confirmed=True,
+                                                terminal_reason='ACTION_CANCELED'))
+        self.assertEqual([], self.spins(NOW + 3 * DELAY))
+        self.assertIn('a doll was reported', ' '.join(self.core.drain_notes()))
 
     def test_zero_turns_is_the_old_way(self):
         self.core = frontier_core(frontier_look_turns=0)
         self.setUp_after()
         self.at_the_frontier()
         self.assertIsNone(self.core.frontier)  # tried at once
+
+
+class TwoSpinTests(SpinLookTests):
+    TURNS = 2
+
+    def test_one_spin_of_a_whole_turn_then_the_frontier_is_tried(self):
+        self.at_the_frontier()
+        for k in range(2):
+            (spin,) = self.spins(NOW + (2 + k) * DELAY)
+            self.finish(spin)
+        self.assertEqual([], self.spins(NOW + 5 * DELAY))
+        self.assertIn('FRONTIER_LOOK 2/2', ' '.join(self.core.drain_notes()))
 
 
 class FrontierNoneWhyTests(Base):
