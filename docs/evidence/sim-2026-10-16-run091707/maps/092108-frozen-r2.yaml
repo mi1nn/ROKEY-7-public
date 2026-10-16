@@ -1,0 +1,7 @@
+image: 092108-frozen-r2.pgm
+mode: trinary
+resolution: 0.05000000074505806
+origin: [-5.2478120192004285, -0.9109629687562648, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25

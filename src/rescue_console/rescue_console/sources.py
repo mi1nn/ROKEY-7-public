@@ -5,6 +5,7 @@
 
 import json
 from pathlib import Path
+import threading
 
 from rescue_operations.ledger import OperationsError, read_reports
 from rescue_operations.site_state import (list_runs, read_error_log_range, read_exit_locations_range,
@@ -158,6 +159,61 @@ def load_runs(db_path):
         return list_runs(db_path)
     except OperationsError as exc:
         raise ConsoleError('STORAGE_ERROR', f'run list read failed: {exc}') from exc
+
+
+class RunIndex:
+    """리플레이 회차 목록의 원천: 지금 현장 상태 DB 와 ``root`` 아래 한 단계 폴더의 같은 이름 DB(재범 2026-10-16).
+
+    시뮬(run_full.sh)과 현장(런북)은 launch 마다 새 폴더에 DB 를 만든다. 그래서 지난 회차는 옆 폴더의 다른 파일에
+    있다. 지금 DB 는 매번 읽고, 못 읽으면 STORAGE_ERROR 다. 다른 파일은 (크기, 수정 시각, -wal 크기)가 같으면
+    전에 읽은 목록을 쓴다(재생 중 조각마다 수십 개를 다시 열지 않게). 못 읽은 다른 파일은 건너뛰고 (폴더 이름, 사유)를
+    남긴다. 모두 operations 읽기(mode=ro)로만 연다. Flask 스레드가 함께 쓰므로 기억 저장소를 잠근다.
+    """
+
+    def __init__(self, live, root):
+        self.live, self.root = Path(live), Path(root)
+        self._seen = {}
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _key(path):
+        """(DB 크기, 수정 시각, -wal 크기). 읽기 전용으로 열 때 빈 -wal 이 생길 수 있어 없는 -wal 은 크기 0 으로 본다."""
+        stat = path.stat()
+        try:
+            wal = path.with_name(path.name + '-wal').stat().st_size
+        except OSError:
+            wal = 0
+        return stat.st_size, stat.st_mtime_ns, wal
+
+    def read(self):
+        """([(DB 경로, 폴더 이름, 지금 DB 인가, list_runs 결과)], [(폴더 이름, 못 읽은 사유)]). 지금 DB 가 맨 앞."""
+        sources = [(self.live, self.live.parent.name, True, load_runs(self.live))]
+        problems = []
+        live = self.live.resolve()
+        for path in sorted(self.root.glob(f'*/{self.live.name}')):
+            if not path.is_file() or path.resolve() == live:
+                continue
+            try:
+                key = self._key(path)
+            except OSError as exc:   # 목록을 본 뒤 지워진 파일
+                problems.append((path.parent.name, exc.strerror or str(exc)))
+                continue
+            with self._lock:
+                cached = self._seen.get(path)
+            if cached is not None and cached[0] == key:
+                runs, problem = cached[1], cached[2]
+            else:
+                try:
+                    runs, problem = list_runs(path), None
+                except OperationsError as exc:
+                    runs, problem = None, str(exc)
+                with self._lock:
+                    self._seen[path] = (key, runs, problem)
+            if runs is None:
+                problems.append((path.parent.name, problem))
+            else:
+                sources.append((path, path.parent.name, False, runs))
+        return sources, problems
 
 
 def load_replay(db_path, run_id):
