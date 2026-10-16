@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 
 from .labels import label
 from .mapimage import map_overlay
-from .render import _STYLE, SYSTEM_NAME, _age, _reply, _short, _time, _user_nav, map_legend, map_plan, map_unplotted
+from .render import _STYLE, _age, _reply, _short, _time, map_legend, map_plan, map_unplotted, masthead
 from .replay import MAP_KINDS
 
 # 재생 중 조각을 다시 받는 최소 간격([제안] 관제·화면, 2026-10-15). 받는 중이면 다음 틱은 건너뛴다.
@@ -30,7 +30,6 @@ _REPLAY_STYLE = """
 .replay{display:grid;gap:var(--gap);padding:0 16px 16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   grid-template-areas:"head head" "bar bar" "map log"}
 .replay #masthead{grid-area:head}
-.replay #masthead .back{order:3;margin-left:auto;font-size:13px}
 #replay-bar{grid-area:bar} #replay-map{grid-area:map} #replay-log{grid-area:log}
 #replay-live{display:contents}
 #replay-bar,#replay-map,#replay-log,.replay .empty-run{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
@@ -263,8 +262,7 @@ def render_replay_page(timeline, state, runs=(), user=None, csrf=None, map_image
     head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>지난 회차 다시 보기</title><style>{_STYLE}{_REPLAY_STYLE}</style></head><body><main class="replay">'
-            f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">지난 회차 다시 보기</p>'
-            f'<a class="back" href="/">관제 화면으로</a>{_user_nav(user, csrf)}</header>')
+            + masthead('/replay', user, csrf))
     if timeline is None:
         return head + ('<section class="empty-run"><h2>기록 없음</h2><p>이 기록 DB 에는 아직 회차가 없습니다.</p>'
                        '</section></main></body></html>')
