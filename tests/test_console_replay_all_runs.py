@@ -112,5 +112,42 @@ class AllRunsTests(AccountsFixture):
         self.assertIn('--replay-dir needs --site-state', err.getvalue())
 
 
+
+@unittest.skipUnless(HAS_FLASK, 'Flask not installed: replay run list NOT_RUN')
+class EarlierFolderMapTests(AccountsFixture):
+    """지난 launch 폴더 DB 의 회차도 지도 칸과 지도 그림(#467)이 나온다(main 과 합칠 때 REV-24).
+
+    지도 줄의 path 는 MapArchive 가 쓴 절대 경로라 어느 DB 에서 읽어도 같은 파일이다. /replay/map.png 도 이 회차 목록을
+    쓴다(합치기 전에는 replay_timeline 의 값 개수가 달라 500).
+    """
+
+    def test_a_run_of_an_earlier_folder_draws_and_serves_its_map(self):
+        import shutil
+        from test_console_replay_map import ReplayMapFixture
+        maps = ReplayMapFixture('run')
+        maps.setUp()
+        self.addCleanup(maps.doCleanups)
+        root = self.dir / 'runs'
+        (root / 'full-old').mkdir(parents=True)
+        for suffix in ('', '-wal', '-shm'):
+            source = maps.site_db.with_name(maps.site_db.name + suffix)
+            if source.exists():
+                shutil.copy(source, root / 'full-old' / (DB + suffix))
+        write_run(root / 'full-new' / DB, 200, 'c')
+        from rescue_console.app import create_app
+        app = create_app(None, accounts_path=self.accounts, secret_key=SECRET, site_state_path=root / 'full-new' / DB,
+                         robot_names={'robot_a': 'TB-6'})
+        client = app.test_client()
+        self.login(client, *CUSTOMER)
+        page = client.get(f'/replay?run={maps.run1}')
+        self.assertEqual(200, page.status_code)
+        self.assertIn('full-old', page.get_data(as_text=True))
+        part = client.get(f'/replay/fragment?run={maps.run1}&offset_ns={30 * SECOND}').get_data(as_text=True)
+        self.assertIn('<svg class="plan"', part)
+        snapshot = maps.timeline()['map_rows'][0]['snapshot_id']
+        image = client.get(f'/replay/map.png?run={maps.run1}&snapshot={snapshot}')
+        self.assertEqual((200, 'image/png'), (image.status_code, image.mimetype))
+
+
 if __name__ == '__main__':
     unittest.main()
