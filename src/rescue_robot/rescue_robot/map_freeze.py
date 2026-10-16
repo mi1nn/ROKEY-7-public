@@ -30,6 +30,12 @@ rescue_contracts.occupancy.frozen_revision_text: which revision that grid is; th
 field for it) are published TRANSIENT_LOCAL, depth 1 (the latest freeze). Without a valid map in
 the map frame (and, for the second, a fresh SLAM pose on it) nothing is frozen, written or
 published. The response's success is the result; the message is for people.
+
+TB-5's body (C25, run 15): TB-5 stands at its start while TB-6 maps, so TB-6's lidar marks TB-5 as occupied cells
+and TB-5 had no free start cell on the frozen map. Each freeze turns the occupied cells within
+``SUPPORT_BODY_CLEAR_M`` of TB-5's start (TB-6 start pose + robots.<TB-5>.initial_pose_xy_yaw, where AMCL starts
+TB-5) into free cells before hashing; unknown cells and anything farther stay. Without a measured TB-5 start
+nothing is cleared and the record says so (``support_body_cleared`` None).
 """
 import json
 import math
@@ -37,7 +43,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace as NS
 
-from rescue_contracts.occupancy import frozen_revision_text
+from rescue_contracts.occupancy import compose_planar, frozen_revision_text
 from rescue_robot.executor import ContractError
 from rescue_robot.live_sources import Grid, planar
 from rescue_robot.slam_tf_pose import MAX_TILT_RAD, SlamTfPose
@@ -52,6 +58,10 @@ START_POSE_TOPIC = '/rescue/map/start_pose/robot_a'   # TB-6 start pose: origin 
 START_FORMAT = 'rescue-start-pose/1'
 START_FILE = 'start_pose.json'
 SERVICE = '/rescue/map/freeze'
+# TB-5 body cleared at each freeze [제안]: footprint radius 0.189 m (Nav2 footprint) + one map noise cell 0.05 m +
+# a little start pose error; no larger, so walls next to TB-5's start stay (C25)
+SUPPORT_BODY_CLEAR_M = 0.25
+OCCUPIED = 65   # occupancy value counted as occupied (Nav2 map_server occupied_thresh 0.65; slam_toolbox writes 100)
 
 
 class FreezeError(Exception):
@@ -86,6 +96,26 @@ def grid_hash(g, map_frame):
     if grid.frame != map_frame:
         raise FreezeError(f'map frame {grid.frame!r} is not {map_frame!r}')
     return grid
+
+
+def clear_disc(g, xy, radius_m):
+    """A copy of grid fields ``g`` with occupied cells whose centres are within ``radius_m`` of ``xy`` (map frame)
+    made free, and how many were changed. Unknown cells are left unknown."""
+    grid = Grid(NS(header=NS(frame_id=g['frame']), info=NS(width=g['width'], height=g['height'],
+                   resolution=g['resolution'], origin=_ns_pose(g['position'], g['orientation'])), data=g['data']))
+    ox, oy, oyaw = grid.origin
+    c, s = math.cos(oyaw), math.sin(oyaw)
+    gx, gy = c * (xy[0] - ox) + s * (xy[1] - oy), -s * (xy[0] - ox) + c * (xy[1] - oy)   # map -> grid frame
+    res, width, height = float(g['resolution']), g['width'], g['height']
+    reach = math.ceil(radius_m / res) + 1
+    cx, cy = math.floor(gx / res), math.floor(gy / res)
+    data, cleared = list(g['data']), 0
+    for y in range(max(cy - reach, 0), min(cy + reach, height - 1) + 1):
+        for x in range(max(cx - reach, 0), min(cx + reach, width - 1) + 1):
+            if data[y * width + x] >= OCCUPIED and math.hypot((x + 0.5) * res - gx, (y + 0.5) * res - gy) <= radius_m:
+                data[y * width + x] = 0
+                cleared += 1
+    return dict(g, data=data), cleared
 
 
 def _check_pose(p, *, map_frame, now_ns, max_age_ns):
@@ -168,7 +198,9 @@ def load_records(output_dir, *, map_frame, map_session_id, map_revision):
 
 class MapFreeze:
     def __init__(self, *, map_frame, map_session_id, map_revision, pose_max_age_ns, output_dir, wall_clock_ns,
-                 git_sha):
+                 git_sha, support_start=None):
+        """``support_start``: (TB-5 robot id, its measured start [x, y, yaw] in TB-6's start pose), or None when
+        not measured (nothing is cleared then)."""
         if type(pose_max_age_ns) is not int or pose_max_age_ns <= 0 or type(map_revision) is not int or map_revision < 0:
             raise FreezeError('positive pose_max_age_ns and map_revision >= 0 required')
         self.map_frame, self.map_session_id, self.map_revision = map_frame, map_session_id, map_revision
@@ -177,6 +209,7 @@ class MapFreeze:
         self.latest_map = self.latest_pose = None
         self.latest_covariance_fresh = False   # the latest pose's covariance is recent enough to count
         self.records = []   # this run's freezes, R0 + 1 first
+        self.support_start = support_start
         self.start_pose = self._load_start()
 
     def _load_start(self):
@@ -234,6 +267,13 @@ class MapFreeze:
         if self.start_pose is None:
             raise FreezeError('no TB-6 start pose recorded: coordinates measured from the start cannot be placed')
         g, now = self.latest_map, self.wall_clock_ns()
+        cleared = None
+        if self.support_start is not None:   # TB-5's body off its start spot (C25)
+            robot_id, relative = self.support_start
+            start = planar(_ns_pose(self.start_pose['position'], self.start_pose['orientation']))
+            x, y, _ = compose_planar(start, relative)
+            g, cells = clear_disc(g, (x, y), SUPPORT_BODY_CLEAR_M)
+            cleared = dict(robot_id=robot_id, xy=[x, y], radius_m=SUPPORT_BODY_CLEAR_M, cells=cells)
         revision = self.map_revision + len(self.records) + 1
         final = revision == self.map_revision + FREEZES
         grid = grid_hash(g, self.map_frame)
@@ -245,7 +285,7 @@ class MapFreeze:
                 raise FreezeError('SLAM pose covariance is too old (no recent /pose from slam_toolbox)')
         record = dict(format=FORMAT, map_frame=self.map_frame, map_session_id=self.map_session_id,
                       map_revision=revision, occupancy_sha256=grid.sha256, frozen_at_ns=now,
-                      git_sha=self.git_sha, grid=g, pose=p, start_pose=self.start_pose)
+                      git_sha=self.git_sha, grid=g, pose=p, start_pose=self.start_pose, support_body_cleared=cleared)
         base = self.output_dir / f'frozen-r{revision}-{grid.sha256[:12]}-{now}'
         x, y, yaw = grid.origin
         try:
@@ -311,7 +351,10 @@ def main(args=None):
     values, missing = declare_required(node, {'map_topic': S, 'pose_topic': S, 'map_frame': S, 'map_session_id': S,
                                               'map_revision': I, 'pose_max_age_ns': I, 'output_dir': S,
                                               'tf_topic': S, 'odom_frame': S, 'base_frame': S,
-                                              'covariance_max_age_ns': I})
+                                              'covariance_max_age_ns': I, 'support_robot_id': S,
+                                              'support_start_xy_yaw': T.PARAMETER_DOUBLE_ARRAY},
+                                      optional=('support_robot_id', 'support_start_xy_yaw'))
+    missing = [name for name in missing if name != 'support_start_xy_yaw']   # left out: TB-5 start not measured
     if missing:
         log.error('map_freeze missing parameters: ' + ', '.join(missing))
         raise SystemExit(2)
@@ -320,7 +363,9 @@ def main(args=None):
     try:
         core = MapFreeze(map_frame=values['map_frame'], map_session_id=values['map_session_id'],
                          map_revision=values['map_revision'], pose_max_age_ns=values['pose_max_age_ns'],
-                         output_dir=values['output_dir'], wall_clock_ns=time.time_ns, git_sha=sha)
+                         output_dir=values['output_dir'], wall_clock_ns=time.time_ns, git_sha=sha,
+                         support_start=((values['support_robot_id'], list(values['support_start_xy_yaw']))
+                                        if values['support_start_xy_yaw'] and values['support_robot_id'] else None))
         slam = SlamTfPose(map_frame=values['map_frame'], odom_frame=values['odom_frame'],
                           base_frame=values['base_frame'], covariance_max_age_ns=values['covariance_max_age_ns'])
     except ContractError as exc:
@@ -349,6 +394,13 @@ def main(args=None):
             pose_pub.publish(_pose_message(record))
             x, y, yaw = planar(_ns_pose(record['pose']['position'], record['pose']['orientation']))
             tb6 = f'tb6 amcl start=({x:.3f}, {y:.3f}, {yaw:.3f})'
+        body = record.get('support_body_cleared')
+        if body is not None:
+            log.info(f'FREEZE_CLEARED_SUPPORT_BODY {body["robot_id"]} xy=({body["xy"][0]:.3f}, {body["xy"][1]:.3f}) '
+                     f'radius={body["radius_m"]} m cells={body["cells"]} rev={record["map_revision"]}')
+        else:
+            log.warning(f'FREEZE_SUPPORT_BODY_NOT_CLEARED rev={record["map_revision"]}: no measured TB-5 start '
+                        '(robots.<TB-5>.initial_pose_xy_yaw); its body may be on the frozen map')
         log.info(f'MAP_FROZEN sha256={record["occupancy_sha256"]} session={record["map_session_id"]} '
                  f'rev={record["map_revision"]} final={record["final"]} {tb6} record={record["path"]}')
 
