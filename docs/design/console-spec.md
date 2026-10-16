@@ -170,6 +170,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `GET /fragment` | 필요(없으면 401) | 모두 | 없음 | 200 `text/html` 조각 | 503 `text/plain` 한 줄 `{코드}: {확인할 것} ({원문})` | `app.py:351-355`, `app.py:256` |
 | `GET /replay` | 필요(없으면 302) | 모두 | 쿼리 `run`(회차 ID, 없으면 열린 회차 또는 마지막 회차) | 200 HTML 리플레이 페이지. 처음에는 그 회차의 마지막 시점을 그린다(7.13) | `--site-state` 가 없거나, 목록에 없는 회차이거나, 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:391-397` |
 | `GET /replay/fragment` | 필요(없으면 401) | 모두 | 쿼리 `run`(위와 같음), `offset_ns`(회차 첫 시각부터의 ns, 0 이상 ASCII 정수) | 200 `text/html` 조각 | 숫자가 아니거나 기록 범위 밖이면 503 `text/plain` 한 줄. 가장자리로 당기지 않는다 | `app.py:399-409` |
+| `GET /replay/map.png` | 필요(없으면 401) | 모두 | 쿼리 `run`(위와 같음), `snapshot`(그 회차 지도 줄의 `snapshot_id`), `v`(해시 앞 12자, 캐시 구분용) | 200 `image/png`, `Cache-Control: private, max-age=86400, immutable`(남은 지도는 바뀌지 않음) | 그 회차의 지도 줄이 아니면 404. 파일을 못 읽거나 해시가 다르면 503 | `app.py`(`replay_map_png`) |
 | `GET /reset` | 필요(없으면 302) | 모두 | 없음 | 200 HTML 회차 초기화 페이지(7.14). 보내기 칸은 ADMIN 이고 `--operations` 가 있을 때만 켜진다 | `--site-state` 가 없거나 읽기에 실패하면 503 HTML 실패 페이지 | `app.py:438-444` |
 | `GET /reset/fragment` | 필요(없으면 401) | 모두 | 없음 | 200 `text/html` 조각(로봇 미리 보기, 다시 띄우기 체크 목록) | 503 `text/plain` 한 줄 | `app.py:446-449` |
 | `POST /reset/send` | 필요(없으면 302) | ADMIN(아니면 403) | 폼 `csrf`, `confirm`(= `yes`), `note`(선택, 200자까지) | 302 `/reset` + flash(접수 초록, 거절 빨강, 결과 모름 노랑). operations `POST /api/runs/reset` 에 한 번만 보낸다 | CSRF 가 틀리면 400. 확인 칸이 없거나 `--operations` 가 없으면 보내지 않고 flash 빨강 | `app.py:451-469` |
@@ -762,19 +763,22 @@ KPI-04 측정(`render.py:814-866`)에서 `stamp` 는 사건 행마다 처음 본
 2. 칸(`_robot_camera`, `render.py:1208-1231`)에는 제목 「로봇 카메라」, 영상 `<img src=--robot-camera>`(웹캠과 같은 끊김 감시를 쓰고, 끊기면 「카메라 영상 낡음」), 캡션 「{지금 로봇 이름} 카메라」를 둔다. 문구가 없으면 `<select name=robot>` 도 둔다(선택하면 바로 제출하고, 확인 창은 없다).
 3. `POST /robot-camera`(`app.py:325-336`)는 CSRF 를 확인하고, `--robot-camera` 가 없으면 404 를 돌려준다. 그다음 `select_robot_camera` 를 한 번 부른다(`commands.py:208-219`). 응답이 200 이고 `robot` 이 선택한 값과 같으면 성공이다(문구 없음). 그렇지 않으면 「로봇 카메라 바꾸기 실패({코드}): …」·「… 답을 못 읽음(HTTP {상태})」·「로봇 카메라 바꾸기 거절: {error}」 중 하나를 flash(`robot_camera`)로 남기고 303 으로 `/` 에 돌려보낸다.
 
-#### 7.13 리플레이 — `replay.py`, `replay_page.py`, `sources.py`(`load_runs`, `load_replay`, `_range_all`), `app.py`(`replay_timeline`)
+#### 7.13 리플레이 — `replay.py`, `replay_page.py`, `sources.py`(`load_runs`, `load_replay`, `_range_all`), `mapimage.SnapshotMaps`, `app.py`(`replay_timeline`, `replay_map`)
 
 지난 회차를 시각대로 다시 보는 페이지다(2026-10-15 사용자 요청, 배치는 사용자 결정 「좌우 두 칸」). 읽기만 하고 명령 버튼과 로봇에 닿는 경로가 없다.
 
 - 회차는 현장 상태 DB 스키마 1.5 의 `runs` 표다(#318). `run_choices` 가 오래된 것부터 1, 2, … 번호를 붙인다. `?run=` 이 없으면 열린 회차를 고르고, 열린 회차가 없으면 마지막 회차를 고른다. 목록에 없는 회차는 `INVALID_INPUT` 이다.
-- 입력은 그 회차의 쌓이는 표 넷(사건·운영자 명령·오류·출구 관측)과 이력 표 둘(로봇 상태, 대상 상태)이다. operations 의 회차 범위 읽기(`read_*_range`, `read_robot_status_history`, `read_target_state_history`)를 쓴다.
+- 입력은 그 회차의 쌓이는 표 다섯(사건·운영자 명령·오류·출구 관측·지도)과 이력 표 둘(로봇 상태, 대상 상태)이다. operations 의 회차 범위 읽기(`read_*_range`, `read_robot_status_history`, `read_target_state_history`)를 쓴다.
 - 범위 읽기는 한 번에 1000건까지 오래된 것부터 주고, 넘치면 최신 쪽을 자른다. `_range_all` 은 잘린 쪽의 마지막 시각 행을 버리고 그 시각부터 다시 읽는다. 그래서 겹치거나 빠지는 행이 없다. 30쪽(`REPLAY_PAGES`)을 넘거나 한 시각에 1000건이 몰리면 멈추고, 페이지 위에 「일부만 보임」을 띄운다.
 - `build_timeline` 의 처음은 회차 시작과 첫 기록 중 이른 쪽이다. 끝은 닫힌 회차의 끝과 마지막 기록 중 늦은 쪽이고, 열린 회차는 마지막 기록까지다. 사건·명령·오류·출구와 인형 단계가 바뀐 때가 시간 막대의 점이 된다. 로봇 이력은 초당 한 줄이라 점으로 찍지 않는다.
 - `replay_at` 은 고른 시각까지의 기록을 최신 순으로 최대 50줄(`REPLAY_ROWS`) 돌려준다. 로봇·대상은 그 시각 이전의 가장 최근 이력 행이다. 지금 값을 과거 시점에 그리지 않는다. 로봇 행이 5초(`REPLAY_STALE_NS`)보다 오래되면 「낡음」으로 표시한다. 인형 단계는 관제 화면과 같은 규칙표(`compose_stage`, Q-20)로 합성한다. 범위 밖 시각은 가장자리로 당기지 않고 `INVALID_INPUT` 으로 끝낸다.
 - 닫힌 회차는 더 늘지 않으므로 시간 막대를 기억해 둔다. 4개(`REPLAY_CACHE_RUNS`)까지 기억하고, 넘치면 가장 먼저 넣은 것을 버린다. 열린 회차는 요청마다 새로 읽는다. 요청은 스레드로 처리되므로 기억 저장소(`ClosedRunCache`)는 잠금 하나로 넣기와 꺼내기를 차례로 한다.
-- 지도 그림은 operations 가 회차별로 남기기 전이라 「지도 이력 없음」으로 보인다(`NO_HISTORY`).
+- 지도 칸(재범 2026-10-16 「지도 무조건 나와야지」). operations 의 MapArchive 가 회차마다 `<map_dir>/<run_id>/` 에 실시간 SLAM 지도(`live-r…`, 5초에 하나까지)와 고정 지도(`frozen-r…`)를 PGM + YAML 로 남기고 `map_snapshots` 에 한 줄씩 적는다. `replay_at` 은 고른 시각 이전의 가장 최근 지도 줄을 고른다(종류와 상관없이 시각 순). 고른 시각이 첫 지도보다 이르면 첫 지도를 고르고 `early` 로 표시한다. 화면은 그 지도를 흐리게 그리고 「이 시각에는 아직 지도 없음 — n 뒤에 남은 첫 지도를 흐리게 보입니다」를 적는다.
+- 지도 파일은 `SnapshotMaps` 가 읽는다. 줄의 `path`(PGM) 옆 같은 이름 `.yaml` 을 `load_map` 으로 읽고, YAML 이 가리키는 그림이 그 PGM 이 아니거나 PGM sha256 이 줄과 다르면 그리지 않는다. 읽은 지도는 `snapshot_id` 로 16장(`REPLAY_MAP_CACHE`)까지 기억한다. 읽기 실패는 기억하지 않는다.
+- 지도 위 표식은 관제 화면과 같다(`render.map_plan`, `mapimage.map_overlay`). 그 시각의 로봇 위치·방향, 인형 단계, 마지막 출구 관측을 그린다. 낡은 로봇 값은 이름 옆에 몇 초 전 값인지 붙인다. 지도 아래에 종류(실시간 SLAM 지도, 고정 지도 rN), 저장 시각, 크기, 해시, 몇 초 전 지도인지를 적는다. 터널 판정과 통과 승인 버튼은 그리지 않는다(리플레이는 보기만 한다).
+- 못 그릴 때도 칸을 비우지 않는다. 회차에 지도 줄이 없으면 「이 회차에는 남은 지도가 없습니다」와 까닭(지도 보관 `map_archive_dir` 꺼짐, SLAM 지도 못 받음)을, 파일을 못 읽으면 「지도 파일을 읽지 못함」과 파일 이름·사유를 적는다. 사유는 서버 로그에도 남긴다.
+- 조각을 바꿔 끼울 때 지도 그림 주소가 같으면 이미 받은 `<image>` 노드를 새 조각으로 옮긴다. 재생 중에 같은 지도를 다시 받으며 깜박이지 않게 하려는 것이다.
 - 재생 시계는 브라우저가 돌린다. 배속은 1·2·4·8배다. 시점이 바뀌면 `GET /replay/fragment?run=&offset_ns=` 로 조각만 받는다. 재생 중에는 250 ms 마다 한 번 받고, 받는 중이면 다음 틱은 건너뛴다(`REPLAY_FETCH_MS`). JavaScript 수는 epoch ns 를 정확히 다루지 못해서 브라우저는 첫 시각부터의 offset 만 쓴다. `offset_ns` 는 ASCII 숫자만 받는다(REV-06).
-- 후속: operations 가 지도를 회차별로 남기면(`map_snapshots`, `map_dir/<run_id>/`) 지도 칸에 그 시점의 지도를 그린다.
 
 #### 7.14 회차 초기화 — `reset.py`, `reset_page.py`, `sources.load_reset_state`, `app.py:411-488`
 

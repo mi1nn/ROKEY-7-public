@@ -29,7 +29,9 @@ AMCL_KEYS = dict(amcl_tf_topic='/robot5/tf', amcl_odom_frame='odom', amcl_base_f
                  amcl_update_min_d=0.25, amcl_update_min_a=0.2)
 
 
-class StandingOnTheFrozenMap(unittest.TestCase):
+class FrozenRobotB:
+    """TB-5 on the frozen map with its start aligned (helpers only)."""
+
     def setUp(self):
         self.r = Runtime()
         self.s = SavedMapSources(self.r, settings('FROZEN_MAP_AMCL', 'robot_b', **AMCL_KEYS))
@@ -54,6 +56,8 @@ class StandingOnTheFrozenMap(unittest.TestCase):
     def record(self):
         return self.s.records()['robot_b']
 
+
+class StandingOnTheFrozenMap(FrozenRobotB, unittest.TestCase):
     def test_a_standing_robot_keeps_a_fresh_valid_pose(self):
         self.tf()
         self.amcl()
@@ -87,7 +91,11 @@ class StandingOnTheFrozenMap(unittest.TestCase):
         self.s.tick_tf_pose('robot_b')
         self.assertEqual('VALID', self.record()['localization_status'])
         self.wait(1)
-        self.tf(odom_x=0.30)                           # past 0.25 m and no new amcl_pose
+        self.tf(odom_x=0.30)                           # past 0.25 m: AMCL's next scan is due (C24)
+        self.s.tick_tf_pose('robot_b')
+        self.assertEqual('VALID', self.record()['localization_status'])
+        self.wait(1.1)                                 # past AMCL_UPDATE_GRACE_S and no new amcl_pose
+        self.tf(odom_x=0.30)
         self.s.tick_tf_pose('robot_b')
         self.assertEqual('UNKNOWN', self.record()['localization_status'])
         self.wait(1)
@@ -119,6 +127,53 @@ class StandingOnTheFrozenMap(unittest.TestCase):
                                            ('odom', 'base_link', r.now, 0.0, 0.0, 0.0)))
         s.tick_tf_pose('robot_a')
         self.assertEqual((0, R0), (s.records()['robot_a']['observed_at_ns'], s.records()['robot_a']['map_revision']))
+
+
+class AmclGetsItsNextScan(FrozenRobotB, unittest.TestCase):
+    """Runs 14 and 15 (C24): TB-6's RETURN_HOME after the handover was canceled twice in each run by the task guard,
+    'localization uncertain', for a pose UNKNOWN 0.02-0.09 s. TB-6 was turning in place; each time the poll saw it
+    past update_min_a before AMCL had taken its next scan and sent the new amcl_pose. AMCL updates on the first
+    scan after a threshold, so for AMCL_UPDATE_GRACE_S [제안] after the robot is first seen past one the last
+    covariance is still AMCL's state. Without a new amcl_pose by then the pose is not valid, as before."""
+
+    def grace(self):
+        from rescue_robot.slam_tf_pose import AMCL_UPDATE_GRACE_S
+        return AMCL_UPDATE_GRACE_S
+
+    def test_turning_in_place_with_amcl_a_scan_behind_stays_valid(self):
+        self.tf()
+        self.amcl()
+        states, yaw, anchor = [], 0.0, 0.0
+        for _ in range(200):                            # 10 s, polls every 0.05 s, turning 0.07 rad/s (run 15)
+            self.wait(0.05)
+            yaw += 0.0035
+            self.tf(odom_yaw=yaw)
+            self.s.tick_tf_pose('robot_b')
+            states.append(self.record()['localization_status'])
+            if yaw - anchor >= 0.2 + 0.0035:            # AMCL's next scan after the threshold, 0.07 s later
+                self.r.now += S // 20
+                self.s.receive_pose('robot_b', pose_message(self.r.now - S // 50))
+                anchor = yaw
+        self.assertEqual({'VALID'}, set(states))
+
+    def test_just_past_a_threshold_is_still_valid(self):
+        self.tf()
+        self.amcl()
+        self.wait(1)
+        self.tf(odom_yaw=0.25)
+        self.s.tick_tf_pose('robot_b')
+        self.assertEqual('VALID', self.record()['localization_status'])
+
+    def test_no_amcl_pose_within_the_grace_is_not_valid(self):
+        self.tf()
+        self.amcl()
+        self.wait(1)
+        self.tf(odom_x=0.30)                           # first seen past 0.25 m
+        self.s.tick_tf_pose('robot_b')
+        self.wait(self.grace() + 0.05)
+        self.tf(odom_x=0.35)
+        self.s.tick_tf_pose('robot_b')
+        self.assertEqual('UNKNOWN', self.record()['localization_status'])
 
 
 class AskAmclForAPose(unittest.TestCase):

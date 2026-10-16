@@ -231,7 +231,20 @@ class FreezeLaunch(FieldCase):
                           'pose_max_age_ns': 2_000_000_000, 'output_dir': '/srv/freeze',
                           # TB-6 pose from TF map -> base_link like the executor (OPS-179)
                           'tf_topic': '/robot6/tf', 'odom_frame': 'odom', 'base_frame': 'base_link',
-                          'covariance_max_age_ns': 30_000_000_000}, p)
+                          'covariance_max_age_ns': 30_000_000_000,
+                          # C25: TB-5's body is cleared off its measured start at each freeze
+                          'support_robot_id': 'robot_b', 'support_start_xy_yaw': [0.0, -1.86, 0.0]}, p)
+
+    def test_the_tb5_start_goes_to_the_freeze_to_clear_its_body(self):
+        """C25: TB-5's body is cleared from each frozen map at robots.<TB-5>.initial_pose_xy_yaw (TB-6 start frame)."""
+        p = self.params()
+        self.assertEqual(('robot_b', [0.0, -1.86, 0.0]), (p['support_robot_id'], p['support_start_xy_yaw']))
+
+    def test_no_measured_tb5_start_gives_no_place_to_clear(self):
+        from rescue_bringup.field_launch import map_freeze_parameters
+        p = map_freeze_parameters(self.deployment, field=self.field(unmeasured), output_dir='/srv/freeze')
+        self.assertEqual('robot_b', p['support_robot_id'])
+        self.assertNotIn('support_start_xy_yaw', p)   # an empty list has no ROS parameter type
 
     def test_output_dir_is_absolute_and_a_restart_reads_it(self):
         # two freezes per run (OPS-154): a restart reloads every record of the run from output_dir

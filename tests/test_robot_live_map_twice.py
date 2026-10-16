@@ -29,7 +29,9 @@ def revision_message(message, revision, session=SESSION):
                                         occupancy_sha256=Grid(message).sha256))
 
 
-class Twice(unittest.TestCase):
+class TwiceHelpers:
+    """Making the sources and freezing (helpers only; the tests are in Twice)."""
+
     def make(self, mode, robot='robot_a'):
         self.r = Runtime()
         self.robot = robot
@@ -65,6 +67,8 @@ class Twice(unittest.TestCase):
         self.assertEqual(('VALID', R1), self.state())
         return s
 
+
+class Twice(TwiceHelpers, unittest.TestCase):
     # --- TB-6 ----------------------------------------------------------------------------------
 
     def test_tb6_keeps_slam_and_r0_after_the_first_freeze(self):

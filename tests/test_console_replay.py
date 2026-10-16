@@ -2,7 +2,7 @@
 
 Events, operator commands, errors, exit sightings and target stage changes come from the run's range reads;
 robot and target values at a moment come from the history tables (the latest row at or before it), never from
-today's latest row. The map has no per-run history yet, so it stays "no history".
+today's latest row. The run's maps are drawn in test_console_replay_map.py.
 """
 import unittest
 from unittest import mock
@@ -119,8 +119,10 @@ class ReplayTimelineTests(ReplayFixture):
         stages = [item['label'] for item in self.timeline()['items'] if item['kind'] == 'TARGET']
         self.assertEqual(['인형 단계 → 미구조', '인형 단계 → 지원 중'], stages)
 
-    def test_only_the_map_is_named_without_history(self):
-        self.assertEqual(['map'], [row['key'] for row in self.timeline()['no_history']])
+    def test_the_run_maps_are_read_too(self):
+        """지도도 회차 범위 읽기로 받는다(이 픽스처 회차에는 지도가 없다: test_console_replay_map)."""
+        self.assertEqual([], self.timeline()['map_rows'])
+        self.assertNotIn('map_snapshots', self.timeline()['missing'])
 
     def test_reading_leaves_the_database_untouched(self):
         before = digest_dir(self.dir)
@@ -203,7 +205,7 @@ class ReplayRenderTests(ReplayFixture):
         html = self.page()
         self.assertEqual(9, html.count('data-offset="'))
         self.assertIn(f'max="{80 * SECOND}"', html)
-        self.assertIn('지도 이력 없음', html)
+        self.assertIn('이 회차에는 남은 지도가 없습니다', html)
         self.assertIn(f'<option value="{self.run1}" selected>회차 1', html)
         self.assertIn('진행 중', html)
         self.assertNotIn('action="/commands"', html)

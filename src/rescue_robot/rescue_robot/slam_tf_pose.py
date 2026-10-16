@@ -105,14 +105,22 @@ class SlamTfPose:
                     covariance_fresh=now_ns - stamp <= self.covariance_max_age_ns)
 
 
+# AMCL updates on the first scan after the robot passes update_min_d / update_min_a; the poll can see the robot past
+# them before that scan's amcl_pose arrives (runs 14 and 15, C24: 0.02-0.09 s UNKNOWN canceled RETURN_HOME). This long
+# after the robot is first seen past a threshold the last covariance still counts [제안: field RPLIDAR scans every
+# 0.1-0.15 s; simulation at real-time factor 0.3 every 0.33 s of wall time; under task.live.pose_valid_ns 2 s].
+AMCL_UPDATE_GRACE_S = 1.0
+
+
 class AmclTfPose(SlamTfPose):
     """Frozen-map phase pose = TF map -> base_link: map -> odom from AMCL (sent again with every scan, tf_broadcast)
     and odom -> base_link from Create3 (simulation 2026-10-16 run 3: a standing robot had no amcl_pose, so no pose).
 
     The covariance is the last amcl_pose's taken after ``after_ns`` (the map switch). It is AMCL's current state
     while the robot has moved less than AMCL's own update thresholds since that amcl_pose (``update_min_d`` /
-    ``update_min_a``, localization.yaml): AMCL has not updated, so nothing newer exists. Past them without a new
-    amcl_pose the pose is not valid. No amcl_pose after the switch, or no edge: no pose.
+    ``update_min_a``, localization.yaml): AMCL has not updated, so nothing newer exists. Past them AMCL updates on
+    its next scan, so the covariance counts for ``AMCL_UPDATE_GRACE_S`` more after the robot is first seen past one;
+    without a new amcl_pose by then the pose is not valid. No amcl_pose after the switch, or no edge: no pose.
     """
 
     def __init__(self, *, map_frame, odom_frame, base_frame, update_min_d, update_min_a):
@@ -126,6 +134,7 @@ class AmclTfPose(SlamTfPose):
         self.map_key = (map_frame, odom_frame)
         self.anchor = None   # odom -> base_link (x, y, yaw) when the last amcl_pose came
         self.first_map_odom = None   # (after_ns, stamp): the first map -> odom stamped after a map switch
+        self.past_since_ns = None   # when the robot was first seen past a threshold since the last amcl_pose
 
     def note_map_odom(self, after_ns):
         """Remember the first map -> odom stamped after ``after_ns`` (the map switch): AMCL's, stamped ahead by its
@@ -151,7 +160,7 @@ class AmclTfPose(SlamTfPose):
     def on_covariance(self, stamp_ns, covariance):
         super().on_covariance(stamp_ns, covariance)
         if self.covariance[0] == stamp_ns:
-            self.anchor = self._odom_plane()
+            self.anchor, self.past_since_ns = self._odom_plane(), None
 
     def needs_covariance(self, *, after_ns):
         """No amcl_pose since ``after_ns`` (the map switch): the TF pose cannot be made yet."""
@@ -168,7 +177,12 @@ class AmclTfPose(SlamTfPose):
         if self.anchor is not None:
             moved = math.hypot(here[0] - self.anchor[0], here[1] - self.anchor[1])
             turned = abs(math.atan2(math.sin(here[2] - self.anchor[2]), math.cos(here[2] - self.anchor[2])))
-        result['covariance_fresh'] = moved < self.update_min_d and turned < self.update_min_a
+        if moved < self.update_min_d and turned < self.update_min_a:
+            result['covariance_fresh'] = True
+        else:
+            if self.past_since_ns is None:
+                self.past_since_ns = now_ns
+            result['covariance_fresh'] = now_ns - self.past_since_ns <= AMCL_UPDATE_GRACE_S * 1e9
         return result
 
 

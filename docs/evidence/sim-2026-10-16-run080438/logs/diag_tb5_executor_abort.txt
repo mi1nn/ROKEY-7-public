@@ -1,0 +1,15 @@
+== 08:12:01 robot_robot_b.log 의 task_input-14 줄 전부(1792105730 ~ 1792105735) 와 died 줄
+[INFO] [task_input-14]: process started with pid [1196927]
+[task_input-14] [INFO] [1792105731.877484811] [robot5.rescue_command_adapter]: MAP_FROZEN R1 sha256=b26f6b05ad23eac4a0a64264639ddc19716e8ceb42fb538df7ff97bdd34c028b 113x70 res=0.05000000074505806
+[task_input-14] [INFO] [1792105731.878579337] [robot5.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_b RNone -> R1 sha256=b26f6b05ad23eac4a0a64264639ddc19716e8ceb42fb538df7ff97bdd34c028b
+[task_input-14] [INFO] [1792105731.879331097] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=745451a7-dd7a-5ef1-8f21-27c3e608af44 session=22222222-2222-4222-8222-222222222222 rev=1 quality=UNKNOWN
+[task_input-14] [WARN] [1792105731.985857486] [robot5.rescue_command_adapter]: START_ALIGN robot_b WAITING START_ALIGN_WAIT_AMCL: localization not VALID
+[task_input-14] [WARN] [1792105732.086530627] [robot5.rescue_command_adapter]: START_ALIGN robot_b ALIGNING: localization not VALID
+[task_input-14] [INFO] [1792105734.030571327] [robot5.rescue_command_adapter]: MAP_FROZEN R2 sha256=6f7261d57889603c31a8a918f7f0d1c0dc9d1601e702e4920d0ff9e9087205e4 113x70 res=0.05000000074505806
+[task_input-14] [INFO] [1792105734.032635896] [robot5.rescue_command_adapter]: MAP_REVISION_ADOPTED robot_b R1 -> R2 sha256=6f7261d57889603c31a8a918f7f0d1c0dc9d1601e702e4920d0ff9e9087205e4
+[task_input-14] [INFO] [1792105734.033705451] [robot5.rescue_command_adapter]: MAP_STATE robot_b snapshot=e89852cf-3cf8-5596-b3ea-bdab26f89e42 session=22222222-2222-4222-8222-222222222222 rev=2 quality=UNKNOWN
+[task_input-14] [ERROR] [1792105734.034138627] [robot5.rescue_command_adapter]: robot_b map is not the frozen map; not loaded
+[task_input-14] python3: ./.obj-x86_64-linux-gnu/rosidl_generator_py/geometry_msgs/msg/_pose_s.c:54: geometry_msgs__msg__pose__convert_from_py: Assertion `strncmp("geometry_msgs.msg._pose.Pose", full_classname_dest, 28) == 0' failed.
+[ERROR] [task_input-14]: process has died [pid 1196927, exit code -6, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=rescue_command_adapter -r __ns:=/robot5 --params-file <launch 임시 파일>'].
+-- 끝 직전 stderr(타임스탬프 없는 줄 포함, died 앞 15줄)
+[ERROR] [task_input-14]: process has died [pid 1196927, exit code -6, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=rescue_command_adapter -r __ns:=/robot5 --params-file <launch 임시 파일>'].
