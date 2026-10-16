@@ -24,7 +24,8 @@ def wire(kind='MOVE_SEGMENT'):
               target_id=uid(7) if targeted else '', target_estimate_revision=0,
               search_area_ref=uid(9) if kind=='SEARCH_AREA' else '',
               home_ref=uid(10) if kind=='RETURN_HOME' else '', frame_ref=frame(),
-              has_route=kind=='MOVE_SEGMENT', has_approval=kind=='MOVE_SEGMENT', policy_version='test-only')
+              has_route=kind=='MOVE_SEGMENT', has_approval=kind=='MOVE_SEGMENT', policy_version='test-only',
+              spin_yaw_rad=0.0, time_allowance_s=0.0)   # SPIN only (C29)
     goal.route = NS(route_id=uid(11), route_revision=2, robot_id='robot_a', target_id=goal.target_id,
                     segment_index=3, frame_ref=frame(), policy_version='test-only',
                     generated_at_ns=NOW, valid_until_ns=NOW+5*SECOND)

@@ -13,7 +13,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from rescue_contracts import RescueError
-from rescue_robot.executor import Executor, Policy
+from rescue_robot.executor import Executor, Policy, SpinGoal
 from rescue_robot.nav2_adapter import CommandAdapter
 from rescue_robot.readiness import ReadinessMonitor, ReadinessPolicy
 
@@ -48,11 +48,14 @@ class Nav2Port:
 
     def __init__(self, node, action_name, lifecycle_service, *, clock, max_age_s):
         from rclpy.action import ActionClient
-        from nav2_msgs.action import NavigateToPose
+        from nav2_msgs.action import NavigateToPose, Spin
         from std_srvs.srv import Trigger
         self.node = node
         self.goal_type = NavigateToPose
         self.client = ActionClient(node, NavigateToPose, action_name)
+        # SPIN tasks (C29): Nav2 behavior_server's Spin, next to NavigateToPose in the robot's namespace
+        self.spin_type = Spin
+        self.spin_client = ActionClient(node, Spin, action_name.rsplit('/', 1)[0] + '/spin')
         self.trigger = Trigger
         self.lifecycle = node.create_client(Trigger, lifecycle_service)
         self.lifecycle_service = lifecycle_service
@@ -113,6 +116,17 @@ class Nav2Port:
         self.active = (success, self.clock())     # server_ready logs the change
 
     def send_goal(self, command_id, pose):
+        if isinstance(pose, SpinGoal):
+            goal = self.spin_type.Goal()
+            goal.target_yaw = float(pose.yaw_rad)
+            seconds = float(pose.time_allowance_s)
+            goal.time_allowance.sec = int(seconds)
+            goal.time_allowance.nanosec = int(round((seconds - int(seconds)) * 1e9))
+            # Jazzy Spin has no disable_collision_checks (it came later); Jazzy always checks the footprint (REV-27)
+            self.node.get_logger().info(f'SEND {command_id} {pose}')
+            future = self.spin_client.send_goal_async(goal)
+            future.add_done_callback(lambda done: self._on_response(command_id, done))
+            return
         goal = self.goal_type.Goal()
         goal.pose.header.frame_id = pose.frame_id
         goal.pose.header.stamp = self.node.get_clock().now().to_msg()
