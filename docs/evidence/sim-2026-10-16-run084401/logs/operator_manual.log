@@ -1,0 +1,4 @@
+OPERATOR 08:46:57 (수동, 가제보 실습) 런북 48행 /robot6/rescue_command_watchdog/reset: success=True, message='ARMED
+OPERATOR 08:47:01 (수동) refresh_state: success=True
+OPERATOR 08:47:04 (수동) robot6 task_arm: success=True, message='ARMED
+OPERATOR 08:51:09 (수동, 가제보 실습) 런북 7단계 /robot5/rescue_start_align/restart(LOW_MATCH 뒤 1회): success=True, message='start alignment restarted

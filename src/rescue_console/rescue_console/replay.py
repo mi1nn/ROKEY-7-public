@@ -2,10 +2,12 @@
 
 현장 상태 DB 스키마 1.5(#318)의 회차(run) 하나를 시각대로 다시 그린다. 쌓이는 표 넷(사건·명령·오류·출구)과
 이력 표 둘(로봇 상태, 대상 상태)을 operations 의 회차 범위 읽기로 받는다. 고른 시각 t 의 로봇·인형 값은
-t 이전의 가장 최근 이력 행이다(지금 값을 과거 시점에 그리지 않는다). 지도 그림은 operations 가
-회차별로 남기기 전이라 「이력 없음」으로 둔다.
+t 이전의 가장 최근 이력 행이다(지금 값을 과거 시점에 그리지 않는다). 지도는 operations 의 MapArchive 가 회차마다
+남긴 지도 줄(map_snapshots) 가운데 t 이전의 가장 최근 것이다. t 가 첫 지도보다 이르면 첫 지도를 고르고 early 로
+표시한다(재범 2026-10-16 「지도 무조건 나와야지」). 지도 파일은 app 이 읽는다(mapimage.SnapshotMaps).
 """
 
+from pathlib import PurePath
 import threading
 
 from rescue_operations.site_state import EARLIER_RUN_NOTE
@@ -19,11 +21,12 @@ REPLAY_ROWS = 50
 # 로봇 이력 행이 고른 시각보다 이만큼 넘게 앞서면 그 값을 낡음으로 표시한다. 관제 화면의 STATUS_STALE_S 와
 # 같은 뜻([제안] 관제·화면, 2026-10-15). operations 는 로봇당 1초에 한 줄 남긴다(ROBOT_HISTORY_PERIOD_NS).
 REPLAY_STALE_NS = 5_000_000_000
-# 아직 시간대별 기록이 없는 칸. operations 가 지도를 회차별로 남기면 뺀다.
-NO_HISTORY = (('map', '지도'),)
+# 지도 파일 이름 앞부분 → 화면 이름(rescue_operations.map_archive: live-r… 실시간 SLAM, frozen-r… 고정 지도).
+MAP_KINDS = {'live': '실시간 SLAM 지도', 'frozen': '고정 지도'}
 # 읽는 표: (모델 키, 범위 읽기 결과의 항목 키). sources.load_replay 가 이 키로 채운다.
 REPLAY_SECTIONS = (('site_events', 'site_events'), ('operator_commands', 'commands'), ('error_log', 'errors'),
-                   ('exit_locations', 'exits'), ('robot_history', 'history'), ('target_history', 'history'))
+                   ('exit_locations', 'exits'), ('map_snapshots', 'maps'), ('robot_history', 'history'),
+                   ('target_history', 'history'))
 
 
 def _section(data, key, items_key):
@@ -85,6 +88,20 @@ def _items(data, words):
     return items
 
 
+def _map_kind(path):
+    """지도 줄의 path(PGM) 파일 이름 앞부분으로 실시간·고정을 가른다. 모르는 이름은 None(그냥 「지도」)."""
+    kind = PurePath(path).name.split('-', 1)[0]
+    return kind if kind in MAP_KINDS else None
+
+
+def _maps(data):
+    """회차 지도 줄을 시각 순으로. 같은 시각은 snapshot_id 순(같은 입력이면 같은 고르기)."""
+    section = _section(data, 'map_snapshots', 'maps')
+    rows = [] if section is None else [dict(row, kind=_map_kind(row['path'])) for row in section['maps']]
+    _require(all(type(row['at_ns']) is int for row in rows), 'map snapshot time must be int ns')
+    return sorted(rows, key=lambda row: (row['at_ns'], row['snapshot_id']))
+
+
 def run_choices(runs):
     """회차 고르기 목록(오래된 것부터 번호 1, 2, …)과 처음 고를 회차. 열린 회차가 있으면 그것, 없으면 마지막 회차.
 
@@ -135,16 +152,17 @@ def build_timeline(data, *, run, words=None, robot_names=None):
     targets = _section(data, 'target_history', 'history')
     robot_rows = [] if robots is None else robots['history']
     target_rows = [] if targets is None else targets['history']
-    times = [item['at_ns'] for item in items] + [row['at_ns'] for row in robot_rows] + [run['started_at_ns']]
+    map_rows = _maps(data)
+    times = ([item['at_ns'] for item in items] + [row['at_ns'] for row in robot_rows + map_rows]
+             + [run['started_at_ns']])
     if run['ended_at_ns'] is not None:
         times.append(run['ended_at_ns'])
     missing = [key for key, items_key in REPLAY_SECTIONS if _section(data, key, items_key) is None]
     truncated = [key for key, items_key in REPLAY_SECTIONS
                  if key not in missing and data[key]['truncated']]
     return {'run': run, 'start_ns': min(times), 'end_ns': max(times), 'items': items,
-            'robot_rows': robot_rows, 'target_rows': target_rows, 'names': names,
-            'missing': missing, 'truncated': truncated, 'speeds': REPLAY_SPEEDS,
-            'no_history': [{'key': key, 'label': text} for key, text in NO_HISTORY]}
+            'robot_rows': robot_rows, 'target_rows': target_rows, 'map_rows': map_rows, 'names': names,
+            'missing': missing, 'truncated': truncated, 'speeds': REPLAY_SPEEDS}
 
 
 def _latest(rows, time_key, id_key, t_ns):
@@ -181,7 +199,16 @@ def replay_at(timeline, t_ns):
                         'position': row['state'].get('position'), 'at_ns': row['updated_at_ns']})
     return {'t_ns': t_ns, 'offset_ns': t_ns - start, 'rows': seen[::-1][:REPLAY_ROWS], 'seen_count': len(seen),
             'exit': exits[-1] if exits else None, 'exit_pass_count': len(passes), 'robots': robots,
-            'targets': targets}
+            'targets': targets, 'map': _map_at(timeline.get('map_rows', ()), t_ns)}
+
+
+def _map_at(rows, t_ns):
+    """t 이전의 가장 최근 지도 줄. t 가 첫 지도보다 이르면 첫 지도에 early=True(age_ns 는 음수). 없으면 None."""
+    if not rows:
+        return None
+    before = [row for row in rows if row['at_ns'] <= t_ns]
+    row = before[-1] if before else rows[0]
+    return dict(row, age_ns=t_ns - row['at_ns'], early=not before)
 
 
 class ClosedRunCache:

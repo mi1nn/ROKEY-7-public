@@ -17,7 +17,7 @@ from .accounts import SCHEMA_VERSION as ACCOUNTS_SCHEMA, AccountStore
 from .estimate import EstimateLog, load_start_offsets
 from .commands import (build_request, command_access, parse_operations_url, post_json, robot_camera_state,
                        select_robot_camera, send_command, switch_webcam, webcam_state)
-from .mapimage import LiveMap, load_map, map_overlay
+from .mapimage import LiveMap, SnapshotMaps, load_map, map_overlay
 from .render import (FAILURE_HINT_OTHER, FAILURE_HINTS, camera_stale_ms, failure_text, render_accounts, render_failure,
                      render_fragment, render_login, render_page)
 from .replay import ClosedRunCache, all_run_choices, build_timeline, replay_at, run_choices
@@ -32,9 +32,12 @@ from .view import ConsoleError, build_view
 
 
 # 로그인 페이지로 리다이렉트하지 않고 401로 직접 응답할 경로 목록(폴링 데이터, 지도 이미지, 명령).
-DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment', '/reset/fragment')
+DATA_PATHS = ('/fragment', '/map.png', '/commands', '/replay/fragment', '/replay/map.png', '/reset/fragment')
 # 기억해 두는 닫힌 회차 시간 막대 수([제안] 관제·화면, 2026-10-15). 넘치면 가장 먼저 넣은 것을 버린다.
 REPLAY_CACHE_RUNS = 4
+# 기억해 두는 리플레이 지도 그림 수([제안] 웹개발, 2026-10-16). 회차 하나에 실시간 지도가 5초에 하나까지 남는다
+# (map_archive.ARCHIVE_PERIOD_NS). 재생하면 차례로 넘어가므로 몇 장이면 된다. 40×40 m 지도 PNG 가 수백 KB 다.
+REPLAY_MAP_CACHE = 16
 # 로그인 쿠키가 남는 날 수(재범 2026-10-16: 폰에서 들어갈 때마다 로그인하지 않게). 만료 시각이 없는 쿠키는
 # 폰 브라우저가 탭이나 앱을 닫을 때 버린다. 로그아웃, 비밀번호·역할 변경(auth_version)은 그 전에도 쿠키를 무효로 만든다.
 SESSION_DAYS = 7
@@ -416,14 +419,27 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
             closed_runs.put(run['run_id'], timeline)
         return timeline, runs, problems
 
+    replay_maps = SnapshotMaps(REPLAY_MAP_CACHE)
+
+    def replay_map(row):
+        """(MapImage, None) 또는 (None, 못 읽은 사유). 지도 줄이 없으면 (None, None). 사유는 로그에도 남긴다."""
+        if row is None:
+            return None, None
+        try:
+            return replay_maps.load(row), None
+        except ConsoleError as exc:
+            app.logger.warning('replay map %s not drawn: %s', row['snapshot_id'], exc.detail)
+            return None, exc.detail
+
     @app.get('/replay')
     @login_required
     def replay(account):
         """지난 회차 다시 보기(?run=회차 ID). 처음에는 끝 시점을 그린다. 명령 버튼·로봇 경로가 없다."""
         timeline, runs, problems = replay_timeline(request.args.get('run', ''))
         state = None if timeline is None else replay_at(timeline, timeline['end_ns'])
-        return Response(render_replay_page(timeline, state, runs, account, csrf=csrf_token(), problems=problems),
-                        mimetype='text/html')
+        image, problem = replay_map(None if state is None else state['map'])
+        return Response(render_replay_page(timeline, state, runs, account, csrf=csrf_token(), problems=problems,
+                                           map_image=image, map_problem=problem), mimetype='text/html')
 
     @app.get('/replay/fragment')
     @login_required
@@ -434,8 +450,22 @@ def create_app(ledger_path, status_path=None, *, accounts_path, secret_key, site
         # ASCII 숫자만 받는다. str.isdigit() 는 '²'(int() 가 거부, 500)와 '١'(1 로 읽힘)도 통과시킨다(REV-06).
         if not (text.isascii() and text.isdigit()) or timeline is None:
             raise ConsoleError('INVALID_INPUT', 'offset_ns must be a non-negative integer within the run')
-        return Response(render_replay_fragment(replay_at(timeline, timeline['start_ns'] + int(text)), timeline),
+        state = replay_at(timeline, timeline['start_ns'] + int(text))
+        image, problem = replay_map(state['map'])
+        return Response(render_replay_fragment(state, timeline, map_image=image, map_problem=problem),
                         mimetype='text/html')
+
+    @app.get('/replay/map.png')
+    @login_required
+    def replay_map_png(account):
+        """회차 지도 그림(?run=회차 ID&snapshot=지도 줄 ID). 그 회차의 지도 줄만 준다. 남은 지도는 바뀌지 않는다."""
+        timeline, _runs, _problems = replay_timeline(request.args.get('run', ''))
+        snapshot = request.args.get('snapshot', '')
+        rows = [] if timeline is None else [row for row in timeline['map_rows'] if row['snapshot_id'] == snapshot]
+        if not rows:
+            abort(404, 'no such map in this run')
+        return Response(replay_maps.load(rows[0]).png, mimetype='image/png',
+                        headers={'Cache-Control': 'private, max-age=86400, immutable'})
 
     # ---- 회차 초기화 (보기는 모든 역할, 보내기·체크는 ADMIN) ---------------------------------
     reset_flashes = ['reset-success', 'reset-danger', 'reset-warning']

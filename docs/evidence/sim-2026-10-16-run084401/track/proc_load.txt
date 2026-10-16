@@ -1,0 +1,836 @@
+== 08:47:23 load 29.81 18.23 14.46
+-- gpu 7 %, 1125 MiB, 45
+1247406 158.3 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1255948 50.0 0.0 /usr/bin/python3 /opt/ros/jazzy/_local_setup_util.py sh bash 
+1250417 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251644 41.7 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1255951 41.7 0.0 /usr/bin/python3 /opt/ros/jazzy/_local_setup_util.py sh bash 
+1250559 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1255957 33.3 0.1 ruby /opt/ros/jazzy/opt/gz_tools_vendor/bin/gz topic -e -t /world/arena/stats -n 1 
+1247405 25.0 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1249850 25.0 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251642 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1255960 25.0 0.0 /usr/bin/python3 /opt/ros/jazzy/_local_setup_util.py sh bash 
+361316 16.7 1.5 claude 
+1247425 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1247435 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1247436 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1247446 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1247448 16.7 0.2 /opt/ros/jazzy/lib/turtlebot4_node/turtlebot4_node --ros-args -r __node:=turtlebot4_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/tu
+== 08:47:53 load 23.14 17.69 14.40
+-- gpu 21 %, 1125 MiB, 45
+1247406 125.0 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 91.7 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1257260 75.0 0.0 /opt/ros/jazzy/opt/gz_transport_vendor/libexec/gz/transport13/gz-transport-topic -e -t /world/arena/stats -n 1 
+1250417 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1256600 33.3 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 25.0 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1248417 25.0 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1250559 25.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251642 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1247407 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247506 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1247536 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+1248341 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248342 16.7 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot5 --params-file /tmp/
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248349 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot5/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot5/stand
+1248353 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs
+1248371 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_bri
+1248372 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/led/power@std_msgs/msg/Int32]gz.msgs.Int32 robot5/hmi/led/motors@std_msgs/msg/Int3
+== 08:48:23 load 22.60 17.98 14.59
+-- gpu 9 %, 1125 MiB, 45
+1247406 163.6 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1250417 54.5 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1256600 54.5 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247409 27.3 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1250559 27.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251642 27.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1251644 27.3 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1247407 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247408 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1247410 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1247421 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/
+1247422 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1247436 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1247528 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1248341 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248378 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1248502 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot5 --params-file /opt/ros/jazzy/share
+1249850 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+== 08:48:54 load 20.13 17.88 14.67
+-- gpu 9 %, 1125 MiB, 45
+1247406 141.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 83.3 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1250417 50.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1247405 25.0 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1249850 25.0 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1250559 25.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251642 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1251644 25.0 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1247410 16.7 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1247528 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1248341 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248363 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1248410 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/hazards_vector_publisher --ros-args -r __node:=hazards_vector_publisher -r __ns:=/robot5 --params-file /
+1248511 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/interface_buttons_node --ros-args -r __node:=interface_buttons_node -r __ns:=/robot5 --params-file 
+1251059 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/map_freeze --ros-args -r __node:=res
+1252176 16.7 0.3 python3 <저장소>/scripts/sim/fake_target.py --profile <회차 폴더>/profile/profile.json --field /ho
+1255892 16.7 0.3 python3 <임시 폴더> robot6 ~/sim-runs/full-1016-0
+== 08:49:24 load 28.25 19.78 15.39
+-- gpu 11 %, 1125 MiB, 45
+1247406 166.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 91.7 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1260330 83.3 0.3 /usr/bin/python3 /opt/ros/jazzy/bin/ros2 lifecycle get /robot5/behavior_server 
+1250417 58.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1250559 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251644 41.7 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250540 33.3 0.3 /opt/ros/jazzy/lib/nav2_bt_navigator/bt_navigator --ros-args --log-level info --ros-args -r __node:=bt_navigator -r __ns:=/robot5 -p use_sim_ti
+1247405 25.0 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1249850 25.0 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251280 25.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+1251642 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1256600 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247409 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247414 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cm
+1247420 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/m
+1247421 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/
+1247422 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1247423 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1247424 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+== 08:49:54 load 31.00 21.09 15.96
+-- gpu 9 %, 1125 MiB, 46
+1247406 172.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 109.1 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1250417 54.5 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251644 54.5 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250141 45.5 0.3 /opt/ros/jazzy/lib/slam_toolbox/sync_slam_toolbox_node --ros-args -r __node:=slam_toolbox -r __ns:=/robot6 --params-file /tmp/tmp_gorzf2h --par
+1250559 45.5 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1256600 36.4 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247407 27.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 27.3 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1248341 27.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 27.3 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1249850 27.3 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251642 27.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1247405 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247427 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@s
+1247436 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1247506 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1247507 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/wheel_status_publisher --ros-args -r __node:=wheel_status_publisher -r __ns:=/robot6 --params-file /opt/
+1247528 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1247536 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+== 08:50:24 load 31.76 22.23 16.50
+-- gpu 6 %, 1125 MiB, 46
+1247406 163.6 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1250417 72.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251644 63.6 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250559 36.4 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1248502 27.3 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot5 --params-file /opt/ros/jazzy/share
+1249850 27.3 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251642 27.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1256600 27.3 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247497 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/ir_intensity_vector_publisher --ros-args -r __node:=ir_intensity_vector_publisher -r __ns:=/robot6 --par
+1247507 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/wheel_status_publisher --ros-args -r __node:=wheel_status_publisher -r __ns:=/robot6 --params-file /opt/
+1247528 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1248343 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1250409 18.2 0.3 /opt/ros/jazzy/lib/nav2_bt_navigator/bt_navigator --ros-args --log-level info --ros-args -r __node:=bt_navigator -r __ns:=/robot6 -p use_sim_ti
+1250414 18.2 0.2 /opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args --log-level info --ros-args -r __node:=lifecycle_manager_navigation -r _
+1251059 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/map_freeze --ros-args -r __node:=res
+1251290 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+== 08:50:55 load 32.13 23.59 17.16
+-- gpu 5 %, 1125 MiB, 46
+1247406 141.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 91.7 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 50.0 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+95348 41.7 1.8 claude 
+1250417 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1250559 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251642 33.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1247409 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1248341 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248417 25.0 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1249850 25.0 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1256600 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247423 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1247506 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1247536 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248358 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+1248362 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_lef
+== 08:51:25 load 32.15 24.36 17.61
+-- gpu 9 %, 1125 MiB, 46
+1247406 158.3 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 58.3 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1251642 33.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1247407 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1256600 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247409 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247415 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/stand
+1247419 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs
+1247432 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_lef
+1247435 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1247506 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1247528 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1248341 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248342 16.7 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot5 --params-file /tmp/
+1248352 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/
+1248359 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+== 08:51:55 load 25.21 23.39 17.50
+-- gpu 9 %, 1125 MiB, 46
+1247406 125.0 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 83.3 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 58.3 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1248341 33.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247405 25.0 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247527 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/ui_mgr --ros-args -r __node:=ui_mgr -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/irobot_create_co
+1247536 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248349 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot5/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot5/stand
+1248360 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1248432 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/wheel_status_publisher --ros-args -r __node:=wheel_status_publisher -r __ns:=/robot5 --params-file /opt/
+1248483 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot5 --params-file /o
+1249850 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251482 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1251642 16.7 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1256600 16.7 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+67 8.3 0.0 [migration/14] 
+== 08:52:25 load 31.17 24.98 18.22
+-- gpu 8 %, 1125 MiB, 46
+1247406 141.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 91.7 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 66.7 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1265035 58.3 0.3 /usr/bin/python3 /opt/ros/jazzy/bin/ros2 service call /robot5/rescue_command_adapter/task_arm std_srvs/srv/Trigger {} 
+1250417 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1247409 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1256600 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248341 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248359 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1248371 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_bri
+1248378 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1249850 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1250409 16.7 0.3 /opt/ros/jazzy/lib/nav2_bt_navigator/bt_navigator --ros-args --log-level info --ros-args -r __node:=bt_navigator -r __ns:=/robot6 -p use_sim_ti
+1250412 16.7 0.2 /opt/ros/jazzy/lib/nav2_collision_monitor/collision_monitor --ros-args --log-level info --ros-args -r __node:=collision_monitor -r __ns:=/robot
+1250414 16.7 0.2 /opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args --log-level info --ros-args -r __node:=lifecycle_manager_navigation -r _
+1251482 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1251642 16.7 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+== 08:52:56 load 30.80 25.38 18.56
+-- gpu 9 %, 1125 MiB, 46
+1247406 136.4 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 81.8 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 54.5 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 36.4 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+95348 27.3 1.7 claude 
+1247405 27.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247409 27.3 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247407 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247415 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/stand
+1248341 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248356 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1248378 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1249850 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1250410 18.2 0.2 /opt/ros/jazzy/lib/nav2_waypoint_follower/waypoint_follower --ros-args --log-level info --ros-args -r __node:=waypoint_follower -r __ns:=/robot
+1250411 18.2 0.2 /opt/ros/jazzy/lib/nav2_velocity_smoother/velocity_smoother --ros-args --log-level info --ros-args -r __node:=velocity_smoother -r __ns:=/robot
+1250519 18.2 0.2 /opt/ros/jazzy/lib/nav2_controller/controller_server --ros-args --log-level info --ros-args -r __ns:=/robot5 -p use_sim_time:=False --params-fi
+1250521 18.2 0.2 /opt/ros/jazzy/lib/nav2_planner/planner_server --ros-args --log-level info --ros-args -r __node:=planner_server -r __ns:=/robot5 -p use_sim_tim
+1251482 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1251642 18.2 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1256101 18.2 3.7 gz sim -g --gui-config <임시 폴더> 
+== 08:53:26 load 41.66 28.43 19.82
+-- gpu 9 %, 1125 MiB, 46
+1247406 125.0 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 58.3 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1247405 25.0 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1248341 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1249850 25.0 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1256600 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+95348 16.7 1.7 claude 
+1247407 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247422 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1247426 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1247446 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1247528 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1248343 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248417 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1248449 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/robot_state --ros-args -r __node:=robot_state -r __ns:=/robot5 --params-file /opt/ros/jazzy/share/irobot
+1251482 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1251642 16.7 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+== 08:53:56 load 36.36 28.41 20.08
+-- gpu 9 %, 1125 MiB, 46
+1247406 136.4 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 90.9 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 63.6 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 45.5 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1256600 36.4 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+1247405 27.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1249850 27.3 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1251642 27.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1247407 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247426 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1247526 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot6 --params-fi
+1247536 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+1248341 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248417 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1248502 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot5 --params-file /opt/ros/jazzy/share
+1250414 18.2 0.2 /opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args --log-level info --ros-args -r __node:=lifecycle_manager_navigation -r _
+1251290 18.2 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+1251481 18.2 0.2 /opt/ros/jazzy/lib/nav2_amcl/amcl --ros-args -r __node:=amcl -r __ns:=/robot5 --params-file <launch 임시 파일> -r /tf:=/robot5/tf -r /
+== 08:54:27 load 33.76 28.79 20.49
+-- gpu 9 %, 1125 MiB, 46
+1247406 145.5 3.3 gz sim arena.sdf -r -v 4 -s 
+1249253 90.9 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1251644 72.7 0.9 rviz2 -d <회차 폴더>/viz/two_robots_keepout.rviz 
+1250417 36.4 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1247405 27.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1247407 27.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1247409 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1247420 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/m
+1247442 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/led/power@std_msgs/msg/Int32]gz.msgs.Int32 robot6/hmi/led/motors@std_msgs/msg/Int3
+1247446 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1247506 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1248341 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1248343 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1248344 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot5 --params-file /tmp/l
+1248348 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot5/turtlebot4/cm
+1248356 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1248359 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1248417 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1249850 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1250406 18.2 0.2 /opt/ros/jazzy/lib/nav2_planner/planner_server --ros-args --log-level info --ros-args -r __node:=planner_server -r __ns:=/robot6 -p use_sim_tim
+== 08:54:57 load 29.25 28.14 20.54
+-- gpu 0 %, 21 MiB, 46
+95348 9.1 1.7 claude 
+1255887 9.1 0.3 python3 <임시 폴더> <회차 폴더>/gt_tr
+1255889 9.1 0.3 python3 <임시 폴더> <회차 폴더>/pose_
+1256643 9.1 0.0 ugrep -G --ignore-files --hidden -I --exclude-dir=.git --exclude-dir=.svn --exclude-dir=.hg --exclude-dir=.bzr --exclude-dir=.jj --exclude-dir=.
+1 0.0 0.0 /sbin/init splash 
+2 0.0 0.0 [kthreadd] 
+3 0.0 0.0 [pool_workqueue_release] 
+4 0.0 0.0 [kworker/R-rcu_gp] 
+5 0.0 0.0 [kworker/R-sync_wq] 
+6 0.0 0.0 [kworker/R-kvfree_rcu_reclaim] 
+7 0.0 0.0 [kworker/R-slub_flushwq] 
+8 0.0 0.0 [kworker/R-netns] 
+10 0.0 0.0 [kworker/0:0H-kblockd] 
+13 0.0 0.0 [kworker/R-mm_percpu_wq] 
+14 0.0 0.0 [ksoftirqd/0] 
+15 0.0 0.0 [rcu_preempt] 
+16 0.0 0.0 [rcu_exp_par_gp_kthread_worker/1] 
+17 0.0 0.0 [rcu_exp_gp_kthread_worker] 
+18 0.0 0.0 [migration/0] 
+19 0.0 0.0 [kprobe-optimizer] 
+== 08:55:27 load 17.79 25.46 19.89
+-- gpu 0 %, 21 MiB, 42
+95348 18.2 1.8 claude 
+361316 9.1 1.8 claude 
+1270250 9.1 0.0 top -b -n 1 -c -w 400 -o %CPU 
+1 0.0 0.0 /sbin/init splash 
+2 0.0 0.0 [kthreadd] 
+3 0.0 0.0 [pool_workqueue_release] 
+4 0.0 0.0 [kworker/R-rcu_gp] 
+5 0.0 0.0 [kworker/R-sync_wq] 
+6 0.0 0.0 [kworker/R-kvfree_rcu_reclaim] 
+7 0.0 0.0 [kworker/R-slub_flushwq] 
+8 0.0 0.0 [kworker/R-netns] 
+10 0.0 0.0 [kworker/0:0H-kblockd] 
+13 0.0 0.0 [kworker/R-mm_percpu_wq] 
+14 0.0 0.0 [ksoftirqd/0] 
+15 0.0 0.0 [rcu_preempt] 
+16 0.0 0.0 [rcu_exp_par_gp_kthread_worker/1] 
+17 0.0 0.0 [rcu_exp_gp_kthread_worker] 
+18 0.0 0.0 [migration/0] 
+19 0.0 0.0 [kprobe-optimizer] 
+20 0.0 0.0 [idle_inject/0] 
+== 08:55:57 load 32.15 27.68 20.77
+-- gpu 7 %, 1125 MiB, 45
+1270822 127.3 3.2 gz sim arena.sdf -r -v 4 -s 
+1272655 54.5 0.7 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1270821 27.3 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270823 27.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1271778 27.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_bri
+1272814 27.3 0.2 /usr/bin/python3 /opt/ros/jazzy/bin/ros2 topic echo --once /robot6/dock_status irobot_create_msgs/msg/DockStatus 
+1270824 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1270825 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1270830 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cm
+1270831 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/stand
+1270834 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/
+1270839 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1270841 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1270842 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1270849 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1270855 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_bri
+1270953 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1271748 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1271749 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot5 --params-file /tmp/
+1271750 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+== 08:56:28 load 21.96 25.59 20.29
+-- gpu 15 %, 1125 MiB, 46
+1270822 127.3 3.3 gz sim arena.sdf -r -v 4 -s 
+1272655 72.7 0.7 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+95348 27.3 1.8 claude 
+1270823 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1270825 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1270840 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+1270842 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1271751 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot5 --params-file /tmp/l
+1271756 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot5/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot5/stand
+1271760 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs
+1271763 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_center_left/sensor/ir_intensity_
+1271768 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@s
+1271776 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1271859 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot5 --params-file /o
+103 9.1 0.0 [migration/20] 
+1270821 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270831 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/standa
+1270832 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V --ros-args -r __node:=
+1270833 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __no
+1270834 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+== 08:56:58 load 15.35 23.65 19.82
+-- gpu 7 %, 1125 MiB, 46
+1270822 161.5 3.3 gz sim arena.sdf -r -v 4 -s 
+1272655 84.6 0.7 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1273842 30.8 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1273945 30.8 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1270821 23.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270825 23.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1271748 23.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1271750 23.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1152 15.4 0.0 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only 
+1270823 15.4 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1270824 15.4 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1270826 15.4 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1270833 15.4 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __n
+1270835 15.4 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs
+1270837 15.4 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/
+1270839 15.4 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1270849 15.4 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1270919 15.4 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1270953 15.4 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1270960 15.4 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+== 08:57:28 load 30.22 26.44 20.86
+-- gpu 5 %, 1125 MiB, 46
+1270822 116.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1272655 83.3 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+2749 41.7 1.3 /usr/bin/gnome-shell 
+1273842 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1273945 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1271750 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1275127 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1275129 25.0 0.9 rviz2 -d ~/sim-runs/full-1016-085539/viz/two_robots_keepout.rviz 
+1270821 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270823 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1270825 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1271748 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1273277 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1274982 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1275482 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/target_locator --ros-args 
+1275626 16.7 0.3 python3 <저장소>/scripts/sim/fake_target.py --profile ~/sim-runs/full-1016-085539/profile/profile.json --field /ho
+1276141 16.7 0.0 top -b -n 1 -c -w 400 -o %CPU 
+24 8.3 0.0 [migration/1] 
+42 8.3 0.0 [migration/8] 
+1270824 8.3 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+== 08:57:59 load 23.97 25.33 20.67
+-- gpu 22 %, 1125 MiB, 46
+1270822 116.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1272655 75.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1273945 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1275129 33.3 0.9 rviz2 -d ~/sim-runs/full-1016-085539/viz/two_robots_keepout.rviz 
+1270825 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1270919 25.0 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1273842 25.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1275127 25.0 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+2749 16.7 1.3 /usr/bin/gnome-shell 
+95348 16.7 1.7 claude 
+1270821 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270823 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1270859 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/La
+1270953 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /o
+1271748 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1271750 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1273277 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1274982 16.7 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+18 8.3 0.0 [migration/0] 
+765350 8.3 0.0 [kworker/u88:0-i915] 
+== 08:58:29 load 25.27 25.52 20.89
+-- gpu 10 %, 1125 MiB, 46
+1270822 145.5 3.3 gz sim arena.sdf -r -v 4 -s 
+1272655 100.0 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1273842 36.4 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1273945 36.4 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+2749 27.3 1.3 /usr/bin/gnome-shell 
+1273277 27.3 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1275127 27.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1270821 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1270823 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1270824 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1270825 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1270854 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1270947 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot6 --params-fi
+1271750 18.2 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1271751 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot5 --params-file /tmp/l
+1271768 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@s
+1274715 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+1275129 18.2 0.9 rviz2 -d ~/sim-runs/full-1016-085539/viz/two_robots_keepout.rviz 
+73 9.1 0.0 [migration/15] 
+1270826 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/la
+== 08:58:59 load 26.64 25.95 21.18
+-- gpu 0 %, 21 MiB, 46
+1279269 9.1 0.0 top -b -n 1 -c -w 400 -o %CPU 
+1 0.0 0.0 /sbin/init splash 
+2 0.0 0.0 [kthreadd] 
+3 0.0 0.0 [pool_workqueue_release] 
+4 0.0 0.0 [kworker/R-rcu_gp] 
+5 0.0 0.0 [kworker/R-sync_wq] 
+6 0.0 0.0 [kworker/R-kvfree_rcu_reclaim] 
+7 0.0 0.0 [kworker/R-slub_flushwq] 
+8 0.0 0.0 [kworker/R-netns] 
+10 0.0 0.0 [kworker/0:0H-kblockd] 
+13 0.0 0.0 [kworker/R-mm_percpu_wq] 
+14 0.0 0.0 [ksoftirqd/0] 
+15 0.0 0.0 [rcu_preempt] 
+16 0.0 0.0 [rcu_exp_par_gp_kthread_worker/1] 
+17 0.0 0.0 [rcu_exp_gp_kthread_worker] 
+18 0.0 0.0 [migration/0] 
+19 0.0 0.0 [kprobe-optimizer] 
+20 0.0 0.0 [idle_inject/0] 
+21 0.0 0.0 [cpuhp/0] 
+22 0.0 0.0 [cpuhp/1] 
+== 08:59:29 load 42.70 29.14 22.35
+-- gpu 0 %, 644 MiB, 45
+1280741 27.3 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+1280602 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot5/turtlebot4/cm
+1279674 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/la
+1279680 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cmd
+1279686 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1279690 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity_
+1279701 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_left
+1279708 9.1 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_brid
+1279718 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/controller_manager/spawner joint_state_broadcaster -c controller_manager --controller-manager-timeout 30 --r
+1279723 9.1 0.2 /opt/ros/jazzy/lib/tf2_ros/static_transform_publisher 0 0 0 0 0 0 odom robot6/odom --ros-args -r __node:=tf_namespaced_odom_publisher -r __ns:=/
+1279736 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/hazards_vector_publisher --ros-args -r __node:=hazards_vector_publisher -r __ns:=/robot6 --params-file /o
+1279787 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot6 --params-fil
+1279788 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/ui_mgr --ros-args -r __node:=ui_mgr -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/irobot_create_com
+1279802 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/
+1279826 9.1 0.2 /opt/ros/jazzy/lib/tf2_ros/static_transform_publisher 0 0 0 0 0 0.0 rplidar_link robot6/turtlebot4/rplidar_link/rplidar --ros-args -r __node:=rp
+1280599 9.1 0.2 /opt/ros/jazzy/lib/tf2_ros/static_transform_publisher 0.157 0 0 3.141592 0 0 odom std_dock_link --ros-args -r __node:=tf_odom_std_dock_link_publ
+1280605 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __no
+1280624 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot5/hmi/display/selected@std_m
+1280630 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/led/power@std_msgs/msg/Int32]gz.msgs.Int32 robot5/hmi/led/motors@std_msgs/msg/Int32
+1280636 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@senso
+== 09:00:00 load 35.90 29.01 22.54
+-- gpu 7 %, 1125 MiB, 46
+1279672 118.2 3.3 gz sim arena.sdf -r -v 4 -s 
+1279669 18.2 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1279680 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cm
+1279691 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+1279741 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1280817 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot5 --params-fi
+85255 9.1 0.3 /usr/libexec/gnome-terminal-server 
+1279670 9.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1279673 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1279674 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/la
+1279682 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V --ros-args -r __node:=
+1279683 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __no
+1279684 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+1279685 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs/
+1279686 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1279687 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/m
+1279693 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sens
+1279694 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@se
+1279701 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_left
+1279702 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_ms
+== 09:00:30 load 24.74 26.92 22.05
+-- gpu 14 %, 1125 MiB, 46
+1279672 100.0 3.3 gz sim arena.sdf -r -v 4 -s 
+1279669 16.7 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1279671 16.7 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1279673 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1279690 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1279707 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1279802 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/sensors_node --ros-args -r __node:=sensors_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share
+1280595 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1280597 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1280621 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+15 8.3 0.0 [rcu_preempt] 
+42 8.3 0.0 [migration/8] 
+61 8.3 0.0 [migration/13] 
+95348 8.3 1.7 claude 
+554355 8.3 0.3 /usr/bin/python3 -c from ros2cli.daemon.daemonize import main; main() --name ros2-daemon --ros-domain-id 78 --rmw-implementation rmw_fastrtps_cpp
+1279670 8.3 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1279681 8.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/standa
+1279685 8.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs/
+1279686 8.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1279687 8.3 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/m
+== 09:01:00 load 22.63 26.20 21.96
+-- gpu 8 %, 1125 MiB, 46
+1279672 109.1 3.3 gz sim arena.sdf -r -v 4 -s 
+1279669 18.2 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1280595 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1280624 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot5/hmi/display/selected@std_
+1280741 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+103 9.1 0.0 [migration/20] 
+95348 9.1 1.7 claude 
+1279670 9.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1279671 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1279673 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1279684 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+1279686 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1279693 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sens
+1279694 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@se
+1279702 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_ms
+1279708 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/buttons@std_msgs/msg/Int32[gz.msgs.Int32 --ros-args -r __node:=hmi_buttons_msg_brid
+1279709 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/led/power@std_msgs/msg/Int32]gz.msgs.Int32 robot6/hmi/led/motors@std_msgs/msg/Int32
+1279710 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/Las
+1279711 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@senso
+1279736 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/hazards_vector_publisher --ros-args -r __node:=hazards_vector_publisher -r __ns:=/robot6 --params-file /o
+== 09:01:30 load 16.97 24.46 21.52
+-- gpu 6 %, 1125 MiB, 46
+1279672 109.1 3.3 gz sim arena.sdf -r -v 4 -s 
+1279669 27.3 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1279670 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1279674 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1280595 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1280636 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+95348 9.1 1.7 claude 
+1279671 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1279673 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1279680 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cmd
+1279681 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/standa
+1279683 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __no
+1279684 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+1279686 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1279687 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/m
+1279691 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_le
+1279692 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_r
+1279693 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sens
+1279701 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_left
+1279707 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_m
+== 09:02:01 load 16.59 23.87 21.42
+-- gpu 6 %, 1125 MiB, 46
+1279672 109.1 3.3 gz sim arena.sdf -r -v 4 -s 
+1279669 18.2 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1279681 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/stand
+1279692 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1279702 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_m
+1279753 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/mock_publisher --ros-args -r __node:=mock_publisher -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/
+1280595 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1280613 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1280699 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/hazards_vector_publisher --ros-args -r __node:=hazards_vector_publisher -r __ns:=/robot5 --params-file /
+36 9.1 0.0 [migration/6] 
+1279670 9.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1279671 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1279673 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1279683 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __no
+1279685 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs/
+1279690 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity_
+1279691 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_le
+1279693 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sens
+1279694 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@se
+1279701 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_left
+== 09:02:31 load 16.43 22.90 21.18
+-- gpu 6 %, 1125 MiB, 46
+1279672 118.2 3.3 gz sim arena.sdf -r -v 4 -s 
+1628 18.2 0.2 /usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641 
+1279669 18.2 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1279670 18.2 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1279674 18.2 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1279686 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/m
+1279692 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1279701 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_lef
+1280607 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs
+1280615 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@s
+1280616 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_lef
+18 9.1 0.0 [migration/0] 
+95348 9.1 1.6 claude 
+1279673 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1279681 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot6/standa
+1279682 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V --ros-args -r __node:=
+1279684 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+1279685 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_right/scan@sensor_msgs/
+1279690 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity_
+1279702 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_ms
+== 09:03:01 load 10.35 20.82 20.54
+-- gpu 0 %, 21 MiB, 43
+95348 10.0 1.6 claude 
+1283816 10.0 0.0 top -b -n 1 -c -w 400 -o %CPU 
+1 0.0 0.0 /sbin/init splash 
+2 0.0 0.0 [kthreadd] 
+3 0.0 0.0 [pool_workqueue_release] 
+4 0.0 0.0 [kworker/R-rcu_gp] 
+5 0.0 0.0 [kworker/R-sync_wq] 
+6 0.0 0.0 [kworker/R-kvfree_rcu_reclaim] 
+7 0.0 0.0 [kworker/R-slub_flushwq] 
+8 0.0 0.0 [kworker/R-netns] 
+10 0.0 0.0 [kworker/0:0H-kblockd] 
+13 0.0 0.0 [kworker/R-mm_percpu_wq] 
+14 0.0 0.0 [ksoftirqd/0] 
+15 0.0 0.0 [rcu_preempt] 
+16 0.0 0.0 [rcu_exp_par_gp_kthread_worker/1] 
+17 0.0 0.0 [rcu_exp_gp_kthread_worker] 
+18 0.0 0.0 [migration/0] 
+19 0.0 0.0 [kprobe-optimizer] 
+20 0.0 0.0 [idle_inject/0] 
+21 0.0 0.0 [cpuhp/0] 
+== 09:03:32 load 6.35 18.85 19.90
+-- gpu 0 %, 21 MiB, 42
+1285012 109.1 0.2 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-nois
+1285061 109.1 0.1 /usr/bin/python3 /opt/ros/jazzy/lib/controller_manager/spawner joint_state_broadcaster -c controller_manager --controller-manager-timeout 30 -
+1285014 100.0 0.1 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 -
+1284088 72.7 2.1 gz sim arena.sdf -r -v 4 -s 
+1284126 63.6 0.2 /opt/ros/jazzy/lib/turtlebot4_node/turtlebot4_node --ros-args -r __node:=turtlebot4_node -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/tu
+1284160 63.6 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1284089 36.4 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=robot_state_publisher -r __ns:=/robot6 --params-file /tmp/
+1284091 36.4 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/l
+1284097 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V --ros-args -r __node:
+1284098 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/bumper_contact@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts --ros-args -r __n
+1284099 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/
+1284104 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_center_right/sensor/ir_intensity
+1284105 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+1284107 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1284124 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/rplidar_link/sensor/rplidar/scan@sensor_msgs/msg/La
+1284125 36.4 0.2 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1284188 36.4 0.1 /opt/ros/jazzy/lib/irobot_create_nodes/mock_publisher --ros-args -r __node:=mock_publisher -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/
+1284189 36.4 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/robot_state --ros-args -r __node:=robot_state -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/irobot
+1284192 36.4 0.1 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot6 --params-fi
+1284228 36.4 0.1 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/interface_buttons_node --ros-args -r __node:=interface_buttons_node -r __ns:=/robot6 --params-file 
+== 09:04:02 load 16.11 20.41 20.41
+-- gpu 7 %, 1129 MiB, 45
+1284088 81.8 3.3 gz sim arena.sdf -r -v 4 -s 
+1285930 54.5 0.7 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1284086 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1285081 18.2 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot5 --params-file <launch 임시 파일>
+30 9.1 0.0 [migration/3] 
+1284087 9.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1284090 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1284091 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/la
+1284095 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cmd
+1284102 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/m
+1284115 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_left
+1284116 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/create3_buttons@std_msgs/msg/Int32[ignition.msgs.Int32 --ros-args -r __node:=buttons_ms
+1284117 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_m
+1284123 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/led/power@std_msgs/msg/Int32]gz.msgs.Int32 robot6/hmi/led/motors@std_msgs/msg/Int32
+1284145 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/hazards_vector_publisher --ros-args -r __node:=hazards_vector_publisher -r __ns:=/robot6 --params-file /o
+1284160 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1284170 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/wheel_status_publisher --ros-args -r __node:=wheel_status_publisher -r __ns:=/robot6 --params-file /opt/r
+1284192 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/kidnap_estimator_publisher --ros-args -r __node:=kidnap_estimator_publisher -r __ns:=/robot6 --params-fil
+1284201 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/ui_mgr --ros-args -r __node:=ui_mgr -r __ns:=/robot6 --params-file /opt/ros/jazzy/share/irobot_create_com
+1284206 9.1 0.2 /opt/ros/jazzy/lib/irobot_create_gz_toolbox/pose_republisher_node --ros-args -r __node:=pose_republisher_node -r __ns:=/robot6 --params-file /op
+== 09:04:32 load 11.91 19.02 19.95
+-- gpu 7 %, 1129 MiB, 46
+1284088 90.9 3.3 gz sim arena.sdf -r -v 4 -s 
+1285930 63.6 0.7 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1284086 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1285019 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot5/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot5/turtlebot4/cm
+1285025 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/m
+1285029 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_l
+1285031 18.2 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_left/sensor/ir_intensity_left/scan@sen
+1286540 18.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+54 9.1 0.0 [migration/12] 
+109 9.1 0.0 [migration/21] 
+95348 9.1 1.7 claude 
+361316 9.1 1.4 claude 
+1284087 9.1 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise 
+1284090 9.1 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --p
+1284091 9.1 0.2 /opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -r __node:=dock_state_publisher -r __ns:=/robot6 --params-file /tmp/la
+1284095 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/cmd_vel@geometry_msgs/msg/TwistStamped[ignition.msgs.Twist /model/robot6/turtlebot4/cmd
+1284097 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot6/turtlebot4/tf@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V --ros-args -r __node:=
+1284099 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/m
+1284101 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_side_left/scan@sensor_msgs/ms
+1284105 9.1 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_left/sensor/ir_intensity_front_le
+== 09:05:02 load 17.46 19.52 20.07
+-- gpu 7 %, 1129 MiB, 46
+1284088 115.4 3.3 gz sim arena.sdf -r -v 4 -s 
+1285930 115.4 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1288528 76.9 0.6 rviz2 -d ~/sim-runs/full-1016-090326/viz/two_robots_keepout.rviz 
+1288632 69.2 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_coordination/lib/rescue_coordination/mission_coordinator --
+1287116 53.8 0.2 /opt/ros/jazzy/lib/nav2_planner/planner_server --ros-args --log-level info --ros-args -r __node:=planner_server -r __ns:=/robot6 -p use_sim_tim
+1287128 53.8 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1287158 53.8 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1288347 53.8 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/start_align --ros-args -r __node:=re
+1287119 46.2 0.3 /opt/ros/jazzy/lib/nav2_bt_navigator/bt_navigator --ros-args --log-level info --ros-args -r __node:=bt_navigator -r __ns:=/robot6 -p use_sim_ti
+1287125 38.5 0.2 /opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args --log-level info --ros-args -r __node:=lifecycle_manager_navigation -r _
+1288075 38.5 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+1288346 38.5 0.2 /opt/ros/jazzy/lib/nav2_amcl/amcl --ros-args -r __node:=amcl -r __ns:=/robot5 --params-file <launch 임시 파일> -r /tf:=/robot5/tf -r /
+1286540 30.8 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_operations/lib/rescue_operations/robot_watch --ros-args -r 
+1287114 30.8 0.2 /opt/ros/jazzy/lib/nav2_controller/controller_server --ros-args --log-level info --ros-args -r __ns:=/robot6 -p use_sim_time:=False --params-fi
+1287118 30.8 0.2 /opt/ros/jazzy/lib/nav2_behaviors/behavior_server --ros-args --log-level info --ros-args -r __node:=behavior_server -r __ns:=/robot6 -p use_sim
+1287122 30.8 0.2 /opt/ros/jazzy/lib/nav2_collision_monitor/collision_monitor --ros-args --log-level info --ros-args -r __node:=collision_monitor -r __ns:=/robot
+1287156 30.8 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_bringup/lib/rescue_bringup/nav2_start_after_map --ros-args 
+1287757 30.8 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/map_freeze --ros-args -r __node:=res
+1288074 30.8 0.3 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_perception/lib/rescue_perception/overhead_passage --ros-arg
+1288173 30.8 0.3 /opt/ros/jazzy/lib/rclcpp_components/component_container --ros-args -r __node:=passage_points_container -r __ns:=/robot6 
+== 09:05:33 load 22.92 20.71 20.45
+-- gpu 6 %, 1129 MiB, 46
+95348 158.3 1.7 claude 
+1284088 133.3 3.3 gz sim arena.sdf -r -v 4 -s 
+1285930 83.3 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1287128 41.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1288526 33.3 0.3 python3 <저장소>/scripts/field/noweb/tf_merge.py --robots robot6 robot5 
+1287158 25.0 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1288528 25.0 0.9 rviz2 -d ~/sim-runs/full-1016-090326/viz/two_robots_keepout.rviz 
+2749 16.7 1.3 /usr/bin/gnome-shell 
+1284086 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1284087 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1284090 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1284099 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/base_link/sensor/cliff_front_left/scan@sensor_msgs/
+1284117 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge robot6/hmi/display/raw@std_msgs/msg/String]gz.msgs.StringMsg robot6/hmi/display/selected@std_
+1284160 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1285012 16.7 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1285014 16.7 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1285026 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/
+1285030 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1285033 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/ir_intensity_side_left/sensor/ir_intensity_side_lef
+1285051 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+== 09:06:03 load 24.42 21.24 20.63
+-- gpu 9 %, 1129 MiB, 46
+1284088 141.7 3.3 gz sim arena.sdf -r -v 4 -s 
+1290481 116.7 3.1 gz sim -g --gui-config <임시 폴더> 
+1285930 91.7 0.8 python3 <저장소>/scripts/sim/wall_clock_relay.py --sim-domain 79 --field-domain 78 --namespace robot6 --namespace robot5 
+1287128 66.7 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1287158 33.3 0.4 ~/venvs/rokey_venv/bin/python3 <저장소>/install/rescue_robot/lib/rescue_robot/task_input --ros-args -r __node:=res
+1284087 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1284090 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot6 --
+1285012 25.0 0.3 python3 <저장소>/scripts/sim/strip_sensors.py --wheel-sphere --depth-near 0.40 --lidar-rate 9 --lidar-min 0.10 --lidar-noise
+1285014 25.0 0.3 /usr/bin/python3 /opt/ros/jazzy/lib/joint_state_publisher/joint_state_publisher --ros-args -r __node:=joint_state_publisher -r __ns:=/robot5 --
+1288528 25.0 0.9 rviz2 -d ~/sim-runs/full-1016-090326/viz/two_robots_keepout.rviz 
+1290979 25.0 1.7 ffmpeg -loglevel error -y -draw_mouse 0 -f x11grab -framerate 10 -video_size 960x1080 -i :99 -draw_mouse 0 -f x11grab -framerate 10 -video_size
+2749 16.7 1.3 /usr/bin/gnome-shell 
+1284086 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock --ros-args -r __node:=clock_bridge 
+1284106 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_front_right/sensor/ir_intensity_front_
+1284108 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/ir_intensity_right/sensor/ir_intensity_right/scan@s
+1284125 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot6/turtlebot4/link/oakd_rgb_camera_frame/sensor/rgbd_camera/image@sens
+1284160 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/motion_control --ros-args -r __node:=motion_control -r __ns:=/robot6 --params-file <launch 임시 파일>
+1284170 16.7 0.2 /opt/ros/jazzy/lib/irobot_create_nodes/wheel_status_publisher --ros-args -r __node:=wheel_status_publisher -r __ns:=/robot6 --params-file /opt/
+1285020 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /model/robot5/turtlebot4/pose@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V /model/robot5/stand
+1285026 16.7 0.3 /opt/ros/jazzy/lib/ros_gz_bridge/parameter_bridge /world/arena/model/robot5/turtlebot4/link/base_link/sensor/cliff_side_right/scan@sensor_msgs/
