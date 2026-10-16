@@ -270,6 +270,40 @@ class LiveMap:
             return self.image, {'state': 'OK', 'received_at_ns': received, 'age_s': age_s, 'message': ''}
 
 
+class SnapshotMaps:
+    """리플레이 지도: map_snapshots 줄 하나 -> MapImage. 최근에 읽은 ``size`` 개를 기억한다.
+
+    줄의 path 는 operations MapArchive 가 쓴 PGM 이고, 같은 이름의 .yaml 이 옆에 있다(map_server 형식). 그 YAML 을
+    load_map 으로 읽고, YAML 이 가리키는 그림이 그 PGM 이 아니거나 PGM sha256 이 줄과 다르면 그리지 않는다
+    (다른 지도를 그 시각의 지도로 보이지 않는다). 남은 지도는 바뀌지 않으므로 snapshot_id 로 기억한다. 읽기 실패는
+    기억하지 않는다(파일이 나중에 생기면 다시 읽는다). Flask 스레드가 함께 쓰므로 잠근다.
+    """
+
+    def __init__(self, size):
+        self.size = size
+        self._maps = {}
+        self._lock = threading.Lock()
+
+    def load(self, row):
+        with self._lock:
+            cached = self._maps.get(row['snapshot_id'])
+        if cached is not None:
+            return cached
+        pgm = Path(row['path'])
+        if pgm.suffix != '.pgm':
+            raise _invalid(f'snapshot {pgm.name} is not a .pgm')
+        image = load_map(pgm.with_suffix('.yaml'))
+        if image.meta['image'] != pgm.name:
+            raise _invalid(f'{pgm.with_suffix(".yaml").name} points to {image.meta["image"]}, not {pgm.name}')
+        if image.meta['pgm_sha256'] != row['sha256']:
+            raise _invalid(f'{pgm.name} sha256 differs from the DB row (file changed after it was kept)')
+        with self._lock:
+            if row['snapshot_id'] not in self._maps and len(self._maps) >= self.size:
+                del self._maps[next(iter(self._maps))]
+            self._maps[row['snapshot_id']] = image
+        return image
+
+
 def world_to_pixel(meta, x, y):
     """map frame 좌표(미터) -> 이미지 좌표(좌측 기준 열, 상단 기준 행) 연속값 변환.
 

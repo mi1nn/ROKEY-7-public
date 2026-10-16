@@ -232,6 +232,42 @@ def _map(view):
                 '<p>기준 지도가 없습니다. 실행할 때 <code>--map assets/maps/pre_quake/map.yaml</code> 을 주세요.</p>'
                 '</section>')
     width, height = layer['width_px'], layer['height_px']
+    if live is None:
+        note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
+                .format(grid=GRID_M))
+        state = ''
+    else:
+        received = '받은 시각 없음' if live['received_at_ns'] is None else (
+            f'받은 시각 {datetime.fromtimestamp(live["received_at_ns"] / 1e9):%H:%M:%S} ({live["age_s"]:g}초 전)')
+        note = (f'실시간 SLAM 지도 · {received} · {width}×{height} px · {layer["resolution"]:g} m/px · '
+                f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
+                + (f' — {live["message"]}' if live['message'] else ''))
+        state = '' if live['state'] == 'OK' else ' stale'
+    return (f'<section id="map" class="map{state}"><header><h2>현장 지도</h2><ul class="legend">{map_legend()}</ul>'
+            f'</header>{map_plan(layer)}<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
+            f'{map_unplotted(layer)}</section>')
+
+
+def map_legend():
+    """지도 범례: 인형 4단계와 로봇(관제 화면·리플레이 공용)."""
+    legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
+    return legend + ('<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true">'
+                     '<polygon points="14,8 3,2.5 3,13.5"/></svg>로봇 · 진행 방향</li>')
+
+
+def map_unplotted(layer):
+    """지도에 그리지 못한 위치 목록(다른 좌표계, 지도 밖, 위치 미확정). 없으면 빈 글."""
+    unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
+    unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m'
+                  for w in layer['off_map']]
+    unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
+    notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
+    return f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else ''
+
+
+def map_plan(layer):
+    """지도 그림 위 표식 SVG(mapimage.map_overlay 의 결과). 관제 화면과 리플레이가 같이 쓴다."""
+    width, height = layer['width_px'], layer['height_px']
     marks = []
     for target in layer['targets']:
         stage = target['stage']
@@ -284,34 +320,13 @@ def _map(view):
             f'<title>{escape(robot["id"])}{why}</title>{body}'
             f'<text class="label" x="{x + ROBOT_MARK_PX + 1:.2f}" y="{y + ROBOT_MARK_PX + 2.4:.2f}">'
             f'{escape(unit)}{" 추정" if estimated else ""}</text></g>')
-    unplotted = [f'{w["name"][:SHORT_ID]}: 좌표계 {w["frame_id"]} — 지도 좌표계가 아님' for w in layer['frame_mismatch']]
-    unplotted += [f'{w.get("label") or w["name"][:SHORT_ID]}: 지도 밖 ({w["x"]:.2f}, {w["y"]:.2f}) m' for w in layer['off_map']]
-    unplotted += [f'{w["name"]}: 위치 미확정' for w in layer.get('no_pose', ())]
-    notes = ''.join(f'<li>{escape(text)}</li>' for text in unplotted)
-    legend = ''.join(f'<li>{_victim_icon(stage)}{escape(STAGES[stage])}</li>' for stage in STAGE_ORDER)
-    legend += '<li><svg class="vicon robot" viewBox="0 0 16 16" aria-hidden="true"><polygon points="14,8 3,2.5 3,13.5"/></svg>로봇 · 진행 방향</li>'
     pad_left, pad_top, pad_bottom = 5, 2, 9
-    if live is None:
-        note = ('재난 전 기준 지도, 격자 한 칸 {grid:g} m. 좌표가 같은 지도 세션인지는 아직 확인하지 않습니다 (Q-09).'
-                .format(grid=GRID_M))
-        state = ''
-    else:
-        received = '받은 시각 없음' if live['received_at_ns'] is None else (
-            f'받은 시각 {datetime.fromtimestamp(live["received_at_ns"] / 1e9):%H:%M:%S} ({live["age_s"]:g}초 전)')
-        note = (f'실시간 SLAM 지도 · {received} · {width}×{height} px · {layer["resolution"]:g} m/px · '
-                f'해시 {layer["pgm_sha256"][:12]} · 격자 한 칸 {GRID_M:g} m'
-                + (f' — {live["message"]}' if live['message'] else ''))
-        state = '' if live['state'] == 'OK' else ' stale'
-    return (f'<section id="map" class="map{state}"><header><h2>현장 지도</h2><ul class="legend">{legend}</ul></header>'
-            f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
+    return (f'<svg class="plan" viewBox="{-pad_left} {-pad_top} {width + pad_left + 2} {height + pad_top + pad_bottom}" '
             f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="기준 지도 위 로봇과 요구조자 위치">'
             f'{_MAP_TONE}<image href="{escape(layer["url"])}" x="0" y="0" width="{width}" height="{height}" '
             f'preserveAspectRatio="none"/>'
             f'<rect class="frame" x="0" y="0" width="{width}" height="{height}"/>'
-            f'{_grid(layer)}{"".join(marks)}</svg>'
-            f'<p class="map-note" title="{escape(layer["note"])}">{escape(note)}</p>'
-            + (f'<ul class="unplotted"><li class="head">지도에 그리지 못한 위치</li>{notes}</ul>' if notes else '')
-            + '</section>')
+            f'{_grid(layer)}{"".join(marks)}</svg>')
 
 
 # 지도 그림(PGM 회색조)의 화면 색: 벽(0) 차콜, 미탐색(205) 지도 바탕과 같은 연회색, 빈 곳(254) 흰색.
