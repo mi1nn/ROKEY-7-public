@@ -43,22 +43,31 @@ class LiveClock:
                 self.peer = None
                 self.runtime._stop_input_session()
             self.runtime.node.get_logger().warning('central input service timed out; no input renewed')
-        if self.pending is not None and self.pending.done():
-            try:
-                response = self.pending.result()
-                if len(response.values) != 1 or response.values[0].type != 4:
-                    raise ContractError('central task source response type')
-                record = json.loads(response.values[0].string_value)
-                self.receive(record)
-            except Exception as exc:
-                with self.runtime.adapter.lock:
-                    self.peer = None
-                    self.runtime._stop_input_session()
-                self.runtime.node.get_logger().error('live central input rejected: ' + str(exc))
-            self.pending = None
+        if self.pending is not None and self.pending.done():   # answered but its callback has not run yet
+            self.on_answer(self.pending)
         if self.pending is None and self.client.service_is_ready():
             self.pending = self.client.call_async(self.request_type(names=['source']))
             self.pending_since = time.monotonic_ns()
+            self.pending.add_done_callback(self.on_answer)
+
+    def on_answer(self, future):
+        """The answer as soon as it arrives (C32: it used to wait for the next poll, up to about 1.0 s with the
+        network). Runs in the node's executor like the poll; receive() takes the adapter lock. An answer to a request
+        already given up on (timed out) is not taken."""
+        if future is not self.pending or not future.done():
+            return
+        self.pending = None
+        try:
+            response = future.result()
+            if len(response.values) != 1 or response.values[0].type != 4:
+                raise ContractError('central task source response type')
+            record = json.loads(response.values[0].string_value)
+            self.receive(record)
+        except Exception as exc:
+            with self.runtime.adapter.lock:
+                self.peer = None
+                self.runtime._stop_input_session()
+            self.runtime.node.get_logger().error('live central input rejected: ' + str(exc))
 
     def receive(self, record):
         r = self.runtime
