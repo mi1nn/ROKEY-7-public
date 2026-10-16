@@ -93,11 +93,15 @@ updated: 2026-10-14
 - 2차 고정(R0+2)은 `EXPLORATION_COMPLETE` 뒤 TB-6 이 섰을 때 요청한다. 대상과 출구를 R0+2 로 옮기고, 보고는 다시 보내지 않는다.
 - 같은 map session 이면 고정 때 대상과 출구의 최신 위치를 고정 revision 으로 옮긴다(로그 `TARGET_REBASED_ON_FREEZE`·`EXIT_REBASED_ON_FREEZE`). 다른 session 이면 옮기지 않는다.
 - 응답 실패, 잘못된 지도, `map_freeze_timeout_s` 초과는 `MAP_FREEZE_FAILED` 이고 다시 요청하지 않는다.
-- 고정 지도에서 목표 자리가 `freeze_clearance_m` 반지름 안에 비어 있지 않으면 보내지 않는다. 다른 자리를 만들지 않고 이유만 낸다(`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`).
+- 고정 지도에서 목표 자리가 `freeze_clearance_m` 반지름 안에 비어 있지 않으면 보내지 않는다. 다른 자리를 만들지 않고 이유만 낸다(`SUPPORT_APPROACH_NOT_FREE`·`SUPPORT_EXIT_NOT_FREE`·`SCOUT_HOME_NOT_FREE`). TB-5 접근 지점만은 아래처럼 인형 둘레 원 위에서 빈 자리를 고른다(C23).
 
 ### TB-5 출동과 출구
 
-- 대상이 확정이고 지금 revision 의 보고가 저장되면 TB-5 에 `APPROACH_TARGET` 을 한 번 낸다(`support_dispatch=AUTO`). 운영자 승인은 받지 않는다. 접근점은 인형에서 TB-5 쪽으로 `approach_standoff_m` 떨어진 자리이고, 도착 방향은 인형을 바라본다.
+- 대상이 확정이고 지금 revision 의 보고가 저장되면 TB-5 에 `APPROACH_TARGET` 을 한 번 낸다(`support_dispatch=AUTO`). 운영자 승인은 받지 않는다. 접근점은 인형에서 `approach_standoff_m` 떨어진 원 위의 자리이고, 도착 방향은 인형을 바라본다.
+  - `SLAM_FREEZE` 에서는 TB-5 쪽 직선 위 점과, 원 위를 `freeze_clearance_m` 이하 간격으로 나눈 방향들을 후보로 본다. 둘레 `freeze_clearance_m` 가 모두 free 인 후보 가운데 TB-5 에서 고정 지도 위 경로가 가장 짧은 점으로 간다. 경로를 못 구하면 직선 거리로 가장 가까운 점이다.
+  - 15회차(2026-10-16)에서 직선 위 한 점이 흰 상자 안이라 `SUPPORT_APPROACH_NOT_FREE` 로 끝까지 멈췄고, 같은 원의 다른 방향은 비어 있었다. 인형이 벽 옆에 있으면 현장에서도 같다.
+  - 빈 후보가 하나도 없으면 전처럼 `SUPPORT_APPROACH_NOT_FREE` 로 멈춘다. 고른 점은 `APPROACH_POINT_PICKED dir=… path_m=… free=…/…`, 없을 때는 `APPROACH_POINT_NONE checked=… free=0` 으로, 바뀔 때마다 한 줄 남긴다.
+  - `SAVED_MAP` 과, TB-5 가 이미 원 안에 있을 때는 전과 같다(직선 위 점, 원 안이면 제자리에서 돌기만).
 - 접근이 실패하면 다시 시도하지 않고 `APPROACH_FAILED_<사유>` 를 보인다. 출구로도 보내지 않는다.
 - 도착 뒤 `support_exit_wait_s` 가 지나고 2차 고정이 끝나면 출구로 간다(`RETURN_HOME`, 목적지 `home/<TB-5 id>`).
 - 출구는 최종 지도에서 격자 경로가 가장 짧은 QR 출구의 접근점(출구에서 인형 쪽으로 `exit_standoff_m`)이다(로그 `EXIT_CHOSEN`). QR 출구가 없으면 TB-5 출발 자리(`support_start_pose`)로 간다. 둘 다 없으면 `SUPPORT_START_UNKNOWN`, 출구가 있으나 경로가 없으면 `SUPPORT_EXIT_UNREACHABLE` 이다.
@@ -269,7 +273,7 @@ ROS 없는 단위 시험은 `scripts/run_tests.py` 가 모두 모은다. 파일�
 - 고정 판정: 응답 success 뒤 `/rescue/map/frozen`(OccupancyGrid, latched) 의 해시와 TB-6 MapState(탐색 revision 이 아닌 것)의 session·revision·프로파일 transform_revision 으로 계산한 snapshot id 가 그 MapState 의 `snapshot_id` 와 같을 때만 고정 basis 로 정한다. 해시·snapshot·빈 칸 규칙은 `rescue_contracts.occupancy`(로봇과 같은 함수)다. 응답 실패·잘못된 지도·`map_freeze_timeout_s` 안에 맞지 않음은 `MAP_FREEZE_FAILED` 이고 다시 부르지 않는다. 노드 로그 `MAP_FREEZE`·`MAP_FROZEN`·`MAP_FREEZE_FAILED` 한 줄씩.
 - 고정 뒤: 모든 목표(접근·재확인·구간)와 판정이 고정 basis 를 쓴다. 다른 basis 의 위치는 `FRAME_REVISION_MISMATCH` 로 거절하고, 고정 전 대상에서 `merge_distance_m` 안의 고정 지도 관측은 그 대상을 새 revision 으로 옮긴다(보고를 다시 PERSISTED 해야 출동). 복귀 위치도 같은 xy 로 고정 basis 에 옮긴다.
 - TB-5 출동 관문(`SystemState.reason`): `MAP_FREEZE_WAITING_SCOUT_STOP` → `MAP_FREEZE_REQUESTED` → `MAP_NOT_FROZEN`(응답 뒤 지도·MapState 대기) / `MAP_FREEZE_FAILED`, `TARGET_NOT_ON_FROZEN_MAP`, `SCOUT_NOT_LOCALIZED`·`SUPPORT_NOT_LOCALIZED`(MapState 가 고정 revision 에서 VALID 아님).
-- 빈 칸 검사(반지름 `freeze_clearance_m` = 로봇 `goal_clear_radius_m`, 현장 launch 가 같음을 검사): 접근 지점 `SUPPORT_APPROACH_NOT_FREE`, TB-5 출구 `SUPPORT_EXIT_NOT_FREE`, TB-6 도킹 접근 지점 `SCOUT_HOME_NOT_FREE`, 복귀 위치 없음 `NO_HOME_POSITION`. 다른 지점을 만들지 않고 보낸 것 없이 사유만 낸다.
+- 빈 칸 검사(반지름 `freeze_clearance_m` = 로봇 `goal_clear_radius_m`, 현장 launch 가 같음을 검사): 접근 지점 둘레 원 위에 빈 후보가 없음 `SUPPORT_APPROACH_NOT_FREE`, TB-5 출구 `SUPPORT_EXIT_NOT_FREE`, TB-6 도킹 접근 지점 `SCOUT_HOME_NOT_FREE`, 복귀 위치 없음 `NO_HOME_POSITION`. 다른 지점을 만들지 않고 보낸 것 없이 사유만 낸다.
 - 출구 = QR(안 「나」, 작전 OPS-136·138·139·156·158): `/rescue/exit_location`(TargetLocation, `class_label=exit_qr`, QR id 는 `observation.track_id`)이 출구를 **QR id 별로** 등록한다(id 마다 최신 위치, 고정 전 탐색 basis·고정 뒤 고정 basis 만, 노드 로그 `EXIT_REGISTERED`; 허용 목록은 인식 쪽 한 곳에서만 검사). id 없는 관측, 대상 토픽의 `exit_qr`, 출구 토픽의 다른 class 는 거절한다. **지도 고정은 출구를 기다리지 않는다**(OPS-156: 1차 고정은 인형의 것). TB-5 출동도 출구와 무관하고, 출구 이동만 출구가 필요하다: 고정 지도의 출구 가운데 인형에서 가장 가까운 것(지금은 직선 거리, 격자 경로 길이는 2차 고정 PR), 출구에서 대상 쪽으로 `exit_standoff_m` 앞 지점(빈 칸 검사, 막히면 `SUPPORT_EXIT_NOT_FREE`), 출구가 없으면 `SUPPORT_EXIT_UNREGISTERED`.
 - 고정 때 재기준(OPS-138·139): 고정 지도가 같은 map_session 이면 탐색 revision 의 대상·출구 최신 위치를 고정 revision 으로 옮긴다. 대상은 revision+1 로 최신 위치를 다시 보고하고 PERSISTED 될 때까지 `TARGET_REBASED_ON_FREEZE`, 로그 `TARGET_REBASED_ON_FREEZE`·`EXIT_REBASED_ON_FREEZE`. 다른 session 은 옮기지 않는다(`TARGET_NOT_ON_FROZEN_MAP`·`EXIT_NOT_ON_FROZEN_MAP`).
 - TB-6 출발 자세(OPS-141·142): `/rescue/map/start_pose/<TB-6>`(PoseWithCovarianceStamped, map, latched)를 TB-6 의 VALID MapState(탐색 basis)와 묶어 한 번 받는다(같은 회차 다른 값은 `START_POSE_CONFLICT`). 순찰 지점과(SLAM_FREEZE 의) TB-6 도킹 접근 지점은 출발 자세 기준 좌표이고 `rescue_contracts.occupancy.compose_planar` 로 map 좌표가 된다. 없으면 순찰·TB-6 복귀를 내지 않는다(`START_POSE_UNKNOWN`).
@@ -465,7 +469,7 @@ ROS·DB·웹 연결은 로봇 없는 E3 로 확인했다(위 「지금 상태」
 | `camera_watch_timeout_s` | double | SetCameraWatch 요청의 `deadline_ns` = 발급 + 이 값. 그때까지 답이 없으면 그 요청을 버리고 재무장 필요로 둔다 |
 | `home_poses` | double[] | 복귀 위치 `[x, y, yaw]` 를 SCOUT(TB-6, 도킹 접근 지점), SUPPORT(TB-5, 출구) 순으로(임무 frame, `goal_map_*` 기준). launch 가 프로파일에서 넣는다. 넘기지 않으면 복귀 위치 없음 → `NO_HOME_POSITION`. 길이가 6 이 아니면 기동 거절(exit 2) |
 | `support_dispatch` | string | `AUTO`·`OPERATOR`. AUTO(저장소 소유자 결정 2026-10-13, 1B)면 확정·저장된 대상에 TB-5 를 승인 없이 `APPROACH_TARGET` 으로 한 번 보낸다. 운영자 `DISPATCH_SUPPORT` 는 `NOT_AUTHORIZED`(로그 `AUTO_DISPATCH_ENABLED`). OPERATOR 면 기존 DISPATCH_SUPPORT → MOVE_SEGMENT |
-| `approach_standoff_m` | double | 대상 위치에서 TB-5 의 지금 위치 쪽으로 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). 이미 그 안이면 제자리에서 돌기만 한다 |
+| `approach_standoff_m` | double | 대상 위치에서 이만큼 떨어진 접근 지점(yaw 는 대상을 바라봄). `SLAM_FREEZE` 에서는 이 원 위의 빈 자리 중 TB-5 에서 경로가 가장 짧은 곳(C23). 이미 그 안이면 제자리에서 돌기만 한다 |
 | `support_pose_max_age_s` | double | (TB-5 상태가 READY·fresh 가 아니면 먼저 `SUPPORT_NOT_READY` 로 보류한다. 로봇은 arm 돼야 READY 다) TB-5 RobotPose(`/rescue/robots/{SUPPORT}/pose`)의 최대 나이. 더 오래됐거나 VALID 가 아니면 `SUPPORT_POSE_UNKNOWN`, 지도 기준·mission frame 이 다르면 `SUPPORT_POSE_BASIS_MISMATCH` 로 보류 |
 | `support_exit_wait_s` | double | TB-5 가 접근을 마친(COMPLETED·정지 확인) 뒤 출구로 출발하기까지 기다리는 시간(Q1-b). 그동안 `SystemState.reason=SUPPORT_EXIT_IN_<n>S` |
 | `search_start` | string | `AUTO`(지진 감지 DISASTER 가 곧 수색 시작, 운영자 START_SEARCH 는 `NOT_AUTHORIZED`/`AUTO_SEARCH_ENABLED`) 또는 `OPERATOR`(버튼, #85). 관문(TB-6 READY·lease·시계·정지·재난 모드)은 같다. 정지·재난 해제로 철회되고 TB-6 이 다시 준비되면 다시 시작한다. RViz 목표 선택은 AUTO 에서 첫 구역이 나가기 전까지 열려 있고, 없으면 `SEARCH_GOAL_NOT_SELECTED`. 현장 `AUTO` [근거: 저장소 소유자 결정 2026-10-13 저녁, 작전 OPS-136] |

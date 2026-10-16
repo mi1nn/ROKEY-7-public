@@ -13,7 +13,8 @@ revision, on a revision other than the search one. After the freeze:
 - TB-5 goes only with the target observed on the frozen map and saved again, and both robots localized (VALID)
   on the frozen revision; otherwise SystemState.reason says which;
 - the approach point, TB-5's exit and TB-6's docking approach point must be free on the frozen grid within
-  ``freeze_clearance_m``; otherwise nothing moves and the reason says which (no other point is made up).
+  ``freeze_clearance_m``; otherwise nothing moves and the reason says which (no other point is made up, but for
+  the approach point, which is chosen on the approach_standoff_m circle, C23).
 
 ``map_mode=SAVED_MAP`` keeps the earlier behaviour (one basis from the launch values, no freeze).
 Hash, snapshot id and the free-cell rule belong to rescue_contracts (통합-로봇); the core takes the frozen grid
@@ -304,9 +305,19 @@ class FreeCellTests(Base):
         self.core.on_map_state(map_state(SUPPORT))
         self.core.on_pose(pose_msg(map_revision=FROZEN_REV))
 
-    def test_approach_point_on_a_wall_or_unknown_cell_holds(self):
-        self.go(FakeGrid(blocked=[(3.25, 4.)]))
+    def test_approach_circle_on_walls_or_unknown_cells_holds(self):
+        ring = [(4.2 + math.cos(math.radians(a)), 4. + math.sin(math.radians(a))) for a in range(0, 360, 5)]
+        self.go(FakeGrid(blocked=ring))
         self.assertEqual(([], 'SUPPORT_APPROACH_NOT_FREE'), (self.tick(kind='APPROACH_TARGET'), self.reason()))
+
+    def test_a_blocked_straight_point_takes_the_nearest_free_direction(self):
+        # C23: a grid without cells (this fake) ranks the free points on the circle by straight-line distance.
+        self.go(FakeGrid(blocked=[(3.25, 4.)]))
+        (fields,) = self.tick(kind='APPROACH_TARGET')
+        xy = fields['route']['approach_goal'].mission_xy
+        self.assertAlmostEqual(1.0, math.dist(xy, (4.2, 4.)), places=6)
+        self.assertTrue(self.core.frozen_grid.clear(*xy, CLEARANCE))
+        self.assertAlmostEqual(0.383, abs(xy[1] - 4.), places=3)  # 22.5° off the straight line, the first free
 
     def arrive(self):
         (approach,) = self.tick(kind='APPROACH_TARGET')
