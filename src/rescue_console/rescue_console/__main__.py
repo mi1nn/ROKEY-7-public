@@ -64,6 +64,9 @@ def main(argv=None):
                         help='operations HTTP API base, e.g. http://<operations host>:<port>; '
                              'operator commands go to URL/api/operator-commands. No default: without it the '
                              'command buttons stay off')
+    parser.add_argument('--replay-dir', metavar='DIR',
+                        help='with --site-state: replay also lists the runs of DIR/*/<same file name> (earlier '
+                             'launches, one folder each). Default: the folder above the --site-state folder')
     parser.add_argument('--secret-env', default='RESCUE_CONSOLE_SECRET',
                         help='environment variable holding the session secret (>= 16 chars)')
     parser.add_argument('--host', default='127.0.0.1',
@@ -82,6 +85,8 @@ def main(argv=None):
         # 둘 중 하나만 전달되면 거부한다: 만료(stale) 기준 시간은 기본값이 없다.
         if len({args.robot_watch is None, args.robot_watch_stale_s is None, args.robot_watch_map_robot is None}) > 1:
             raise ConsoleError('INVALID_INPUT', '--robot-watch, --robot-watch-stale-s and --robot-watch-map-robot go together')
+        if args.replay_dir is not None and args.site_state is None:
+            raise ConsoleError('INVALID_INPUT', '--replay-dir needs --site-state')
         if (args.live_map is None) != (args.live_map_stale_s is None):
             raise ConsoleError('INVALID_INPUT', '--live-map and --live-map-stale-s go together')
         cameras = [parse_camera(text) for text in args.camera]
@@ -94,7 +99,8 @@ def main(argv=None):
                          robot_camera=args.robot_camera, field_path=args.field_file,
                          operations_url=args.operations, robot_names=robot_names,
                          support_dispatch=args.support_dispatch,
-                         search_start=args.search_start, camera_stale_s=args.camera_stale_s)
+                         search_start=args.search_start, camera_stale_s=args.camera_stale_s,
+                         replay_dir=args.replay_dir)
     except ConsoleError as exc:
         print(f'CONSOLE FAILED: {exc}', file=sys.stderr)
         return 2

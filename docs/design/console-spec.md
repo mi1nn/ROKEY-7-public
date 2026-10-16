@@ -63,6 +63,7 @@ ROS 파라미터 대신 명령행 인자를 쓴다. 「현장 값」 칸에 출�
 | `--robot-watch-map-robot` | robot_id | — | 보이는 지도의 주인 로봇(실시간 SLAM 지도를 만드는 TB-6, `robot_a`) | `--robot-watch` 와 함께 줘야 한다. 기본값 없음 | 값이 배치 로봇인지는 검사하지 않는다 | 이 로봇의 직접 관측 위치만 지도에 그린다. 다른 로봇은 frame 을 `<ns> map` 으로 바꿔 「지도에 안 그림」으로 보낸다 |
 | `--robot-camera URL` | 문자열 | — | launch 로그에 나오는 `http://<video_bind_host>:<video_port + 1>/robot_view.mjpg`(인자 `robot_views`, `rescue_bringup/operations_launch.py:203-224`) | 선택, 기본값 없음 | scheme 이 http·https 이고 host 가 있어야 한다. 아니면 `INVALID_INPUT` 오류(`app.py:113-118`). 카메라 선택 요청 주소는 같은 host:port 의 `/select` 다(`app.py:152-153`). `--camera-stale-s` 가 필요하지만 **기동 때 확인하지 않는다**. 그래서 `--camera` 없이 주면 `GET /` 가 매번 503 으로 끝난다(9절) [측정] | 로봇 카메라 칸(7.12) |
 | `--operations URL` | 문자열 | — | `http://127.0.0.1:<api_port>`(`launch/operations.launch.py:19`, `rescue_bringup/operations_launch.py:26`) | 선택. 없으면 명령 버튼이 꺼지고 표준 오류에 한 줄을 남긴다(`__main__.py:93-95`) | scheme 이 http·https 이고, host 가 있고, query·fragment 가 없어야 한다. 아니면 `INVALID_INPUT` 오류. 끝의 `/` 는 제거한다(`commands.py:61-66`) | operations API 의 기준 주소 |
+| `--replay-dir` | 경로 | — | 시뮬 `~/sim-runs`, 현장 `~/rokey7-field/noweb` 처럼 launch 마다 한 폴더씩 쌓이는 위 폴더 | 선택. `--site-state` 와 함께 써야 한다(아니면 `INVALID_INPUT`). 기본값은 `--site-state` 폴더의 위 폴더 | 없는 폴더면 지금 DB 의 회차만 보인다 | 리플레이 회차 목록에 넣을 지난 launch 들의 위 폴더(7.13) |
 | `--secret-env` | 문자열 | — | 기본값 그대로 쓴다 | 기본값 `RESCUE_CONSOLE_SECRET` | 그 환경 변수가 없거나 비어 있으면 `CONFIG_MISSING`(`__main__.py:69-71`), 값이 16자 미만이어도 `CONFIG_MISSING` 오류(`app.py:141-142`) | 세션 서명용 비밀값이 든 환경 변수의 이름 |
 | `--host` | 문자열 | — | 운영 PC 의 접속 주소는 프로파일에 있는 값을 쓴다 [`README:55`] | 기본값 `127.0.0.1` | 없음 | 바인드 주소 |
 | `--port` | int | — | 8080 [측정 2026-10-10, `docs/process/ops-host-record.md:54`] | 기본값 8080 | argparse 의 int 변환 | 포트 |
@@ -767,7 +768,9 @@ KPI-04 측정(`render.py:814-866`)에서 `stamp` 는 사건 행마다 처음 본
 
 지난 회차를 시각대로 다시 보는 페이지다(2026-10-15 사용자 요청, 배치는 사용자 결정 「좌우 두 칸」). 읽기만 하고 명령 버튼과 로봇에 닿는 경로가 없다.
 
-- 회차는 현장 상태 DB 스키마 1.5 의 `runs` 표다(#318). `run_choices` 가 오래된 것부터 1, 2, … 번호를 붙인다. `?run=` 이 없으면 열린 회차를 고르고, 열린 회차가 없으면 마지막 회차를 고른다. 목록에 없는 회차는 `INVALID_INPUT` 이다.
+- 회차는 현장 상태 DB 스키마 1.5 의 `runs` 표다(#318). 시뮬(`scripts/sim/run_full.sh`)과 현장(런북)은 launch 마다 새 폴더에 DB 를 만들므로, 회차 목록은 지금 DB 와 `--replay-dir`(기본 `--site-state` 폴더의 위 폴더) 아래 한 단계 폴더의 같은 이름 DB 를 합친다(`sources.RunIndex`, `replay.all_run_choices`, 재범 2026-10-16 「몇번을 했는데 이거 하나밖에 안뜨냐」). 시작 시각 순으로 1, 2, … 번호를 붙이고, 줄 끝에 그 회차가 든 폴더 이름을 적는다. `?run=` 이 없으면 지금 DB 의 열린 회차를 고르고, 없으면 가장 늦게 시작한 회차를 고른다. 목록에 없는 회차는 `INVALID_INPUT` 이다.
+- 「진행 중」은 지금 DB 의 열린 회차뿐이다. 다른 파일의 끝나지 않은 회차(launch 를 끈 채 남음)는 「끝 기록 없음」이다. 같은 `run_id` 가 두 파일에 있으면(폴더 복사) 지금 DB 쪽, 아니면 경로 순으로 앞의 것을 쓴다.
+- 지금 DB 는 요청마다 읽고, 못 읽으면 503 이다. 다른 파일은 (크기, 수정 시각, -wal 크기)가 같으면 전에 읽은 목록을 쓴다. 재생 중 조각마다 수십 개를 다시 열지 않으려는 것이다. 못 읽은 다른 파일(스키마 1.5 전 파일, 깨진 파일)은 목록에서 빼고 시간 막대 아래에 「읽지 못한 기록 파일 n개」와 폴더 이름·사유를 적는다. 모두 읽기 전용(mode=ro)이다.
 - 입력은 그 회차의 쌓이는 표 다섯(사건·운영자 명령·오류·출구 관측·지도)과 이력 표 둘(로봇 상태, 대상 상태)이다. operations 의 회차 범위 읽기(`read_*_range`, `read_robot_status_history`, `read_target_state_history`)를 쓴다.
 - 범위 읽기는 한 번에 1000건까지 오래된 것부터 주고, 넘치면 최신 쪽을 자른다. `_range_all` 은 잘린 쪽의 마지막 시각 행을 버리고 그 시각부터 다시 읽는다. 그래서 겹치거나 빠지는 행이 없다. 30쪽(`REPLAY_PAGES`)을 넘거나 한 시각에 1000건이 몰리면 멈추고, 페이지 위에 「일부만 보임」을 띄운다.
 - `build_timeline` 의 처음은 회차 시작과 첫 기록 중 이른 쪽이다. 끝은 닫힌 회차의 끝과 마지막 기록 중 늦은 쪽이고, 열린 회차는 마지막 기록까지다. 사건·명령·오류·출구와 인형 단계가 바뀐 때가 시간 막대의 점이 된다. 로봇 이력은 초당 한 줄이라 점으로 찍지 않는다.
