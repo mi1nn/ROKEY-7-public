@@ -57,7 +57,7 @@ COORDINATOR_KEYS = {
     'frontier_potential_scale': F, 'frontier_gain_scale': F,  # the pick's explore_lite cost weights (2026-10-16)
     'frontier_issue_delay_s': F, 'exploration_empty_checks': I, 'exploration_timeout_s': F,
     'return_home_attempts': I,  # a FAILED return (TB-6 home, TB-5 exit) goes again until this many failed
-    'frontier_look_turns': I,  # 90-degree turns in place at each frontier's goal, 0 none (2026-10-16)
+    'frontier_look_turns': I,  # whole SPIN turns in place at each frontier's goal, 0 none (2026-10-16, C29)
     'nav2_xy_goal_tolerance_m': F,  # the robots' Nav2 goal checker, step-aside spots go that much farther (C19)
     # How the rescue ends (OPS-155 ②): EXIT_ARRIVAL (TB-5 at the exit, no TB-6 recheck) | RECHECK
     'completion_mode': S,

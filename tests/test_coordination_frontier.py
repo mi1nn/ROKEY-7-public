@@ -700,7 +700,8 @@ class SpinLookTests(Base):
     def test_one_spin_of_a_whole_turn_then_the_frontier_is_tried(self):
         self.at_the_frontier()
         (spin,) = self.spins(NOW + 2 * DELAY)  # no issue delay: SPIN needs no destination
-        self.assertEqual((2 * math.pi, ros_node.SPIN_TIME_ALLOWANCE_S), (spin['spin_yaw_rad'], spin['time_allowance_s']))
+        self.assertEqual((2 * math.pi, ros_node.SPIN_TIME_ALLOWANCE_S),
+                         (spin['spin_yaw_rad'], spin['time_allowance_s']))
         self.assertIsNone(spin['goal_pose'])
         self.assertEqual([], self.spins(NOW + 2 * DELAY + 1))  # one at a time
         self.finish(spin)

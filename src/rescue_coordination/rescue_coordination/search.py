@@ -357,7 +357,7 @@ class SearchCoordinator:
         the target from the candidate point, so the camera can re-observe it.
         HOLD stays in place and has no goal.
         """
-        if kind in ('HOLD', 'RETURN_HOME'):  # stay in place / the robot resolves its home_ref (5A)
+        if kind in ('HOLD', 'RETURN_HOME', 'SPIN'):  # stay / the robot resolves its home_ref (5A) / turn in place
             return None
         if goal is not None:  # configured segment end / observation point (Phase 1 rule)
             source, xy, yaw = goal, goal.mission_xy, goal.yaw

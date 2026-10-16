@@ -178,7 +178,7 @@ TB-5 가 늘 먼저 간다. TB-5 가 사람을 이끌고 사람이 그 뒤를 �
 | `frontier_goal_clearance_m` | 보내는 탐색 목표점이 벽에서 떨어질 거리. `freeze_clearance_m` 보다 작을 수 없다 | 0.35 (재범 결정 2026-10-16). 로봇 반지름 0.189 + costmap 칸 0.042 + 잡음 한 칸 0.06 + 위치 오차 0.05 [추정 포함] |
 | `frontier_potential_scale`, `frontier_gain_scale` | 경계 고르기 비용의 거리 가중치와 경계 크기 가중치. 비용은 (가중치 × 경로 길이 − 가중치 × 칸 수) × 해상도 | 3.0, 1.0 [문서: explore_lite 기본값, 저장소 `explore.yaml`] |
 | `return_home_attempts` | 복귀(TB-6 도킹 접근 지점, TB-5 출구)가 FAILED 로 끝나면 `admission_timeout_s` 보류 뒤 다시 보낸다. 이만큼 실패하면 더 보내지 않고 `SCOUT_RETURN_FAILED`/`SUPPORT_EXIT_FAILED` 로 사람에게 넘긴다. 기다리는 동안 이유는 `SCOUT_RETURNING`/`SUPPORT_EXITING`, 로그는 `…_AGAIN failed n/N`. CANCELED(멈춤)는 다시 보내지 않는다 | 2 (재범 결정 2026-10-16 「2번까지 다시 보내기」, 값은 `FRONTIER_ATTEMPTS` 2 에 맞춘 제안) |
-| `frontier_look_turns` | 경계 자체 목표에 도착(COMPLETED, 잘리지 않음)한 뒤 같은 자리에서 방향만 90°씩 돌리는 목표 수. 0이면 안 돈다. 회전이 실패하면 거기서 멈추고 아무것도 세지 않는다. 인형 보고가 들어오면 진행 중인 회전만 마치고 더 돌지 않는다 | 4 (재범 결정 2026-10-16 「목표마다 제자리 한 바퀴(90°×4)」, 횟수는 조정 제안) |
+| `frontier_look_turns` | 경계 자체 목표에 도착(COMPLETED, 잘리지 않음)한 뒤 같은 자리에서 도는 바퀴 수. 바퀴마다 `SPIN` 작업 하나(Nav2 Spin, `spin_yaw_rad` 2π, `time_allowance_s` 15 [제안])를 보낸다. 0이면 안 돈다. SPIN 이 실패하면 다시 보내지 않고 그 경계는 도착한 것으로 친 뒤 다음 경계로 간다. 인형 보고가 들어오면 진행 중인 SPIN 을 취소한다. 18회차(2026-10-16 C29)에 90° 목표 4개를 Nav2 progress checker 가 진전 없음으로 abort 해 하나에 6~22 s 가 걸려서 바꿨다 | 1 (재범 결정 2026-10-16 「목표마다 제자리 한 바퀴」, C29 부터 바퀴 수 [제안]) |
 | `frontier_issue_delay_s`, `exploration_empty_checks`, `exploration_timeout_s` | 목적지를 넣고 임무를 내기까지(≥ `live_inputs.poll_period_s`), 빈 지도 갱신 횟수, 탐색 시간 상한 | 2.0, 3, 600.0 [추정] |
 | `exit_standoff_m` | TB-5 가 QR 출구 앞에서 서는 거리 | 0.5 [추정] |
 | `support_start_pose` | TB-5 출발 자리 `[x, y, yaw]`(TB-6 출발 자세 기준). 현장 launch 가 `robots.<TB-5>.initial_pose_xy_yaw` 에서 넣는다 | 아직 재지 않음 |

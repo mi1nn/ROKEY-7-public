@@ -81,6 +81,9 @@ STOPPING_MOTION = frozenset({'STOPPING', 'STOP_UNCONFIRMED'})  # RobotStatus.mot
 # 2026-10-16, C9); untried frontiers go first.
 YIELD_REPEATS = 2  # step asides from one spot before TB-6 stays (작전 2026-10-16, C19: as FRONTIER_ATTEMPTS)
 FRONTIER_ATTEMPTS = 2
+# SPIN (C29): one whole turn in place per frontier_look_turns, within this time [제안: Nav2 turns at 1.0 rad/s, so
+# 2π takes about 6.3 s; 15 s leaves room for a slow start] (작전 2026-10-16)
+SPIN_TIME_ALLOWANCE_S = 15.0
 NOT_STARTED_REASONS = frozenset({'GOAL_REJECTED', 'ACCEPT_TIMEOUT', 'STOP_EVIDENCE_STALE'})
 # Map mode (owner decision 2026-10-13, scope Q-29 ⑦): SLAM_FREEZE = no reference map, TB-6 maps while it searches
 # and the map is frozen before TB-5 goes; SAVED_MAP = one launch basis for the whole mission (earlier runs).
@@ -252,6 +255,8 @@ def fill_execute_task_goal(goal, fields, *, coordinator_id):
     goal.target_estimate_revision = fields['target_revision'] or 0
     goal.search_area_ref = fields['search_area_ref'] or ''
     goal.home_ref = fields.get('home_ref') or ''  # RETURN_HOME: home/<robot_id>, the robot holds the pose
+    goal.spin_yaw_rad = float(fields.get('spin_yaw_rad', 0.0))  # SPIN only (C29); 0.0 for every other kind
+    goal.time_allowance_s = float(fields.get('time_allowance_s', 0.0))
     goal.lease_id = fields['lease_id']
     frame = goal.frame_ref
     frame.robot_id = fields['robot_id']
@@ -914,20 +919,53 @@ class CoordinatorCore:
                           f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
 
     def _look(self, origin, k, now_ns):
-        """The k-th turn in place at a frontier's goal: the same spot, its yaw turned k x 90 degrees (camera sweep
-        option 1, 재범 decision 2026-10-16: TB-6's camera sees round it at each frontier, not only ahead)."""
-        x, y = origin['site_xy']
-        yaw = math.remainder(origin['yaw'] + k * math.pi / 2, 2 * math.pi)
+        """The k-th whole turn in place at a frontier's goal (camera sweep option 1, 재범 decision 2026-10-16: TB-6's
+        camera sees round it at each frontier, not only ahead). One SPIN task, sent by _issue_spin (C29: four
+        90-degree goals were aborted by Nav2's progress checker, 6-22 s each in 18회차)."""
         session, rev, transform = self.scout_basis()
         site_id = str(uuid.uuid5(FRONTIER_NAMESPACE, f'{session}/look/{self.look_count}'))
         self.look_count += 1
-        self.search.policy = replace(self.search.policy, areas=(
-            MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw),))
-        self.frontier = dict(site_id=site_id, goal=origin['goal'], centroid=origin['centroid'], site_xy=(x, y),
-                             cut=False, path_m=0.0, yaw=yaw, look=(origin, k))
-        self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
-        self.notes.append(f'FRONTIER_LOOK_SENT {site_id} turn {k}/{self.frontier_look_turns} at {origin["site_id"]} '
-                          f'goal=({x:.2f}, {y:.2f}, {yaw:.2f})')
+        self.search.policy = replace(self.search.policy, areas=())
+        self.frontier = dict(site_id=site_id, goal=origin['goal'], centroid=origin['centroid'],
+                             site_xy=origin['site_xy'], cut=False, path_m=0.0, yaw=origin['yaw'], look=(origin, k),
+                             spin=True)
+        x, y = origin['site_xy']
+        self.notes.append(f'FRONTIER_LOOK_SPIN {site_id} turn {k}/{self.frontier_look_turns} at {origin["site_id"]} '
+                          f'({x:.2f}, {y:.2f})')
+
+    def _issue_spin(self, now_ns):
+        """The pending turn in place goes as one SPIN (spin_yaw_rad 2π, SPIN_TIME_ALLOWANCE_S) once TB-6 is free.
+        Nothing to read in ~/task_inputs, so no frontier_issue_delay_ns."""
+        frontier, scout = self.frontier, self.roles['SCOUT']
+        if (frontier is None or not frontier.get('spin') or self.mission.mode != 'DISASTER' or self.target_geo
+                or self.search.assignment(scout) is not None or self._held_after_refusal('SCOUT_SEARCH', now_ns)):
+            return None
+        boot = self._free('SCOUT', now_ns)
+        if boot is None:
+            self.issue_block = 'SCOUT_NOT_READY'
+            return None
+        if not self._traffic_scout(frontier['site_xy'], now_ns):
+            return None
+        decision = self.search.reserve_goal_task(scout, robot_boot_id=boot, kind='SPIN', target_id=self.new_id(),
+                                                 target_revision=0, goal=None, now_ns=now_ns)
+        if decision.action != 'RESERVED':
+            return None
+        fields = decision.task_fields | dict(route=None, approval=None, spin_yaw_rad=2 * math.pi,
+                                             time_allowance_s=SPIN_TIME_ALLOWANCE_S)
+        self._moving('SCOUT', fields['task_id'], frontier['site_xy'])
+        self._send(fields)
+        return fields['task_id']
+
+    def _cancel_spin_for_doll(self):
+        """A doll report stops the turn in progress (C29): the freeze waits for TB-6 to stand."""
+        frontier = self.frontier
+        current = self.search.assignment(self.roles['SCOUT'])
+        if (not self.target_geo or frontier is None or not frontier.get('spin') or frontier.get('canceled')
+                or current is None or self.search.kind_of(current[1]) != 'SPIN'):
+            return
+        frontier['canceled'] = True
+        self.cancels.append(current[1].task_id)
+        self.notes.append(f'FRONTIER_LOOK_CANCELED {current[1].task_id}: a doll was reported')
 
     def _look_done(self, origin, turned, why):
         """The turning at ``origin`` ended: the frontier counts as reached (its goal was COMPLETED before)."""
@@ -1464,7 +1502,7 @@ class CoordinatorCore:
                 done = 'TRAFFIC_YIELD_DONE' if self.frontier.get('step_aside') else 'FRONTIER_STOPPED_FOR_TB5'
                 self.notes.append(f'{done} {item.target_id} outcome={result.outcome}')
                 if self.frontier.get('look'):
-                    self.frontier_look = self.frontier['look']  # the same turn again once TB-5 is past
+                    self.frontier_look = self.frontier['look']  # the turn in place once TB-6 stepped aside
                 self.frontier = None
                 self.search.policy = replace(self.search.policy, areas=())
             elif result.terminal_reason in NOT_STARTED_REASONS:
@@ -1472,25 +1510,8 @@ class CoordinatorCore:
                 self.scout_not_started = result.terminal_reason
                 self.notes.append(f'FRONTIER_NOT_STARTED {item.target_id} outcome={result.outcome} '
                                   f'reason={result.terminal_reason}')
-                if self.frontier.get('look'):
-                    self.frontier_look = self.frontier['look']  # the same turn again
                 self.frontier = None
                 self.search.policy = replace(self.search.policy, areas=())
-            elif self.frontier.get('look'):
-                # a turn in place: a failed one ends the turning and counts nothing (the frontier was reached); a
-                # doll report sends no more, the turn in progress has finished
-                (origin, k), turns = self.frontier['look'], self.frontier_look_turns
-                self.notes.append(f'FRONTIER_LOOK {k}/{turns} {item.target_id} outcome={result.outcome} '
-                                  f'reason={result.terminal_reason or "-"}')
-                if result.outcome != 'COMPLETED':
-                    self._look_done(origin, k - 1, f'turn {k} {result.outcome}')
-                elif self.target_geo:
-                    self._look_done(origin, k, 'a doll was reported')
-                elif k >= turns:
-                    self._look_done(origin, k, 'round')
-                else:
-                    self.frontier_look, self.frontier = (origin, k + 1), None
-                    self.search.policy = replace(self.search.policy, areas=())
             else:
                 self.notes.append(f'FRONTIER_DONE {item.target_id} outcome={result.outcome} '
                                   f'reason={result.terminal_reason or "-"}' + self._frontier_left(result.outcome))
@@ -1501,6 +1522,21 @@ class CoordinatorCore:
                     self.search.policy = replace(self.search.policy, areas=())
                 else:
                     self._frontier_done(result.outcome == 'COMPLETED')
+        if self.search.kind_of(item) == 'SPIN' and self.frontier and self.frontier.get('spin'):
+            # a whole turn in place (C29): a failed one is not sent again, the frontier counts as reached
+            (origin, k), turns = self.frontier['look'], self.frontier_look_turns
+            self.notes.append(f'FRONTIER_LOOK {k}/{turns} {task_id} outcome={result.outcome} '
+                              f'reason={result.terminal_reason or "-"}')
+            if self.target_geo:
+                self._look_done(origin, k if result.outcome == 'COMPLETED' else k - 1, 'a doll was reported')
+            elif stopped_for_tb5 or result.terminal_reason in NOT_STARTED_REASONS:
+                self.frontier_look, self.frontier = (origin, k), None  # the same turn again
+            elif result.outcome != 'COMPLETED':
+                self._look_done(origin, k - 1, f'spin {k} {result.outcome}')
+            elif k >= turns:
+                self._look_done(origin, k, 'round')
+            else:
+                self.frontier_look, self.frontier = (origin, k + 1), None
         if (self.search_mode == 'PATROL' and self.search.kind_of(item) == 'SEARCH_AREA'
                 and result.outcome != 'COMPLETED'):
             self.search.completed_areas.add(item.target_id)  # passed: the patrol goes on to the next point
@@ -1782,6 +1818,7 @@ class CoordinatorCore:
             self.notes.append('SEARCH_AUTO_STARTED on DISASTER')
         # Order matters: an open recheck takes a free SCOUT before a new search area does.
         # NORMAL needs no check here: no approval or recheck exists and mission.plan gates the search.
+        self._cancel_spin_for_doll()
         self._freeze_tick(now_ns)
         self._issue_approach(now_ns)
         self._issue_support_exit(now_ns)
@@ -1790,6 +1827,7 @@ class CoordinatorCore:
         self._issue_rechecks(now_ns)
         self._patrol_tick()
         self._frontier_tick(now_ns)
+        self._issue_spin(now_ns)
         self._issue_search(now_ns)
         for role in ('SUPPORT', 'SCOUT'):  # logged when a hold starts, changes or ends (not every tick)
             if self.traffic_hold.get(role) != held_before.get(role):
@@ -2225,7 +2263,9 @@ class CoordinatorCore:
         self.yield_count += 1
         self.search.policy = replace(self.search.policy, areas=(
             MissionSite(site_id, (x, y), FRONTIER_BASIS, session, rev, transform, entry_yaw=yaw),))
-        self.frontier = dict(site_id=site_id, goal=(x, y), centroid=(x, y), site_xy=(x, y), step_aside=reason)
+        look = (self.frontier or {}).get('look')  # a pending turn in place goes once TB-6 stepped aside
+        self.frontier = dict(site_id=site_id, goal=(x, y), centroid=(x, y), site_xy=(x, y), step_aside=reason,
+                             **({'look': look} if look else {}))
         self.frontier_hold_until = now_ns + self.frontier_issue_delay_ns
         self.notes.append(f'TRAFFIC_YIELD {site_id} from=({scout_xy[0]:.2f}, {scout_xy[1]:.2f}) '
                           f'to=({x:.2f}, {y:.2f}, {yaw:.2f}) path_m={length:.2f} why={reason}')
@@ -2521,7 +2561,8 @@ class CoordinatorCore:
             return  # TB-6 stands for the doll's freeze (Q-29 ⑦); only FRONTIER explores on after it (OPS-154)
         if self.patrol_exhausted:
             return
-        if self.search_mode == 'FRONTIER' and (self.frontier is None or now_ns < self.frontier_hold_until):
+        if self.search_mode == 'FRONTIER' and (self.frontier is None or self.frontier.get('spin')
+                                               or now_ns < self.frontier_hold_until):
             return  # the destination is in ~/task_inputs; the task waits until the robot has read it
         if self._held_after_refusal('SCOUT_SEARCH', now_ns):
             return
