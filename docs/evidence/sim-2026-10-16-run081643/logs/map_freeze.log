@@ -1,0 +1,27 @@
+[INFO] [launch]: All log files can be found below <ROS 로그>/2026-10-16-08-18-03-936141-sim-pc-1219228
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [map_freeze-1]: process started with pid [1219276]
+[map_freeze-1] [INFO] [1792106284.485866859] [rescue_map_freeze]: git_sha=c28abcb0e1977a0bbeac1002f73ffadd55316df9 parameters={'map_topic': '/robot6/map', 'pose_topic': '/robot6/pose', 'map_frame': 'map', 'map_session_id': '22222222-2222-4222-8222-222222222222', 'map_revision': 0, 'pose_max_age_ns': 2000000000, 'output_dir': '<회차 폴더>/freeze', 'tf_topic': '/robot6/tf', 'odom_frame': 'odom', 'base_frame': 'base_link', 'covariance_max_age_ns': 30000000000}
+[map_freeze-1] [INFO] [1792106287.490343832] [rescue_map_freeze]: START_POSE captured robot_a map=(-0.359, -0.000, 3.138) session=22222222-2222-4222-8222-222222222222 rev=0 -> /rescue/map/start_pose/robot_a (origin of coordinates measured in advance)
+[map_freeze-1] [INFO] [1792106475.877727026] [rescue_map_freeze]: MAP_FROZEN sha256=e17dbff9b8ae2fae65b540ad31580247ce704fcb96b6a6ee1723b9ca7fb7295f session=22222222-2222-4222-8222-222222222222 rev=1 final=False tb6 keeps SLAM record=<회차 폴더>/freeze/frozen-r1-e17dbff9b8ae-1792106475870482747.json
+[map_freeze-1] [INFO] [1792106559.977393460] [rescue_map_freeze]: MAP_FROZEN sha256=7fd1dd7184c5b7d5c3454163bea57e82166a8e1cbee5ff31562106f95269b888 session=22222222-2222-4222-8222-222222222222 rev=2 final=True tb6 amcl start=(-4.281, 2.057, -2.940) record=<회차 폴더>/freeze/frozen-r2-7fd1dd7184c5-1792106559972234954.json
+[map_freeze-1] Traceback (most recent call last):
+[map_freeze-1]   File "<저장소>/install/rescue_robot/lib/rescue_robot/map_freeze", line 33, in <module>
+[map_freeze-1]     sys.exit(load_entry_point('rescue-robot==0.0.0', 'console_scripts', 'map_freeze')())
+[map_freeze-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[map_freeze-1]   File "<저장소>/install/rescue_robot/lib/python3.12/site-packages/rescue_robot/map_freeze.py", line 417, in main
+[map_freeze-1]     rclpy.spin(node)
+[map_freeze-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[map_freeze-1]     executor.spin_once()
+[map_freeze-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[map_freeze-1]     self._spin_once_impl(timeout_sec)
+[map_freeze-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[map_freeze-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[map_freeze-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[map_freeze-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[map_freeze-1]     return next(self._cb_iter)
+[map_freeze-1]            ^^^^^^^^^^^^^^^^^^^
+[map_freeze-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[map_freeze-1]     raise ExternalShutdownException()
+[map_freeze-1] rclpy.executors.ExternalShutdownException
+[ERROR] [map_freeze-1]: process has died [pid 1219276, exit code 1, cmd '<저장소>/install/rescue_robot/lib/rescue_robot/map_freeze --ros-args -r __node:=rescue_map_freeze --params-file <launch 임시 파일>'].

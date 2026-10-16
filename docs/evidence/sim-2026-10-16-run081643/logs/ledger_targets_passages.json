@@ -1,0 +1,39 @@
+{
+ "target_states": [
+  {
+   "target_id": "62ae849d-28b3-4453-be07-fa7f99cd4def",
+   "updated_at_ns": 1792106476167918661,
+   "state_json": "{\"detection_confirmed\":true,\"persisted_report_id\":\"a954219a-df8a-4252-83c0-bdf4492dc2b1\",\"position\":{\"frame_id\":\"map\",\"map_revision\":0,\"map_session_id\":\"22222222-2222-4222-8222-222222222222\",\"x\":-2.501848775108195,\"y\":0.3128360526662193},\"rescue_reasons\":[],\"rescue_state\":\"NOT_CHECKED\",\"support_robot_id\":null,\"support_state\":\"NONE\",\"target_id\":\"62ae849d-28b3-4453-be07-fa7f99cd4def\",\"target_revision\":1,\"updated_at_ns\":1792106476167918661,\"verdict_id\":null}"
+  }
+ ],
+ "overhead_passages": [
+  {
+   "robot_id": "robot_a",
+   "id": "168084d8-6f41-4ab6-b82a-5421ac2524c5",
+   "state": "PASSABLE",
+   "lowest_m": 0.465,
+   "x": -1.9952821905532245,
+   "y": 1.9263398453931213,
+   "map_session_id": "22222222-2222-4222-8222-222222222222",
+   "map_revision": 0,
+   "frames": 69,
+   "first_seen_ns": 1792106385765641475,
+   "last_seen_ns": 1792106468757338030,
+   "reason": ""
+  },
+  {
+   "robot_id": "robot_a",
+   "id": "63307c75-07c0-4251-9347-ce0aefce0ffd",
+   "state": "BLOCKED",
+   "lowest_m": 0.298,
+   "x": -2.6881581969802837,
+   "y": 1.2045272705076686,
+   "map_session_id": "22222222-2222-4222-8222-222222222222",
+   "map_revision": 0,
+   "frames": 69,
+   "first_seen_ns": 1792106448566158083,
+   "last_seen_ns": 1792106523550886028,
+   "reason": ""
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 """리플레이 페이지 HTML. 표준 라이브러리만 쓰고 Flask 없이 시험한다.
 
 배치는 사용자 결정(2026-10-15, 좌우 두 칸): 위에 회차·재생 버튼·시간 막대, 아래 왼쪽에 지도 칸, 오른쪽에 기록 표.
+지도 칸은 그 시각의 회차 지도(/replay/map.png) 위에 관제 화면과 같은 표식을 그린다(render.map_plan).
 재생 시계는 브라우저가 돌리고, 시점이 바뀌면 /replay/fragment?offset_ns= 로 그 시점의 조각만 받아 바꿔 끼운다.
 JavaScript 수는 2^53 을 넘는 epoch ns 를 정확히 다루지 못하므로 브라우저는 회차 시작부터의 offset 만 쓴다.
 이 페이지에는 명령 버튼과 로봇에 닿는 경로가 없다.
@@ -9,20 +10,26 @@ JavaScript 수는 2^53 을 넘는 epoch ns 를 정확히 다루지 못하므로 
 from datetime import datetime
 from html import escape
 
+from urllib.parse import urlencode
+
 from .labels import label
-from .render import _STYLE, SYSTEM_NAME, _age, _reply, _short, _time, _user_nav
+from .mapimage import map_overlay
+from .render import _STYLE, _age, _reply, _short, _time, map_legend, map_plan, map_unplotted, masthead
+from .replay import MAP_KINDS
 
 # 재생 중 조각을 다시 받는 최소 간격([제안] 관제·화면, 2026-10-15). 받는 중이면 다음 틱은 건너뛴다.
 REPLAY_FETCH_MS = 250
 KIND_WORDS = {'EVENT': '사건', 'COMMAND': '명령', 'ERROR': '오류', 'EXIT': '출구', 'TARGET': '인형'}
 SECTION_WORDS = {'site_events': '사건', 'operator_commands': '명령', 'error_log': '오류', 'exit_locations': '출구',
-                 'robot_history': '로봇 이력', 'target_history': '인형 이력'}
+                 'map_snapshots': '지도', 'robot_history': '로봇 이력', 'target_history': '인형 이력'}
+# 지도 칸 안내 글(재범 2026-10-16 「지도 무조건 나와야지」): 지도를 못 그리면 왜 못 그리는지 적는다.
+NO_RUN_MAP = ('이 회차에는 남은 지도가 없습니다 — 그 회차 동안 운영 노드의 지도 보관(map_archive_dir)이 꺼져 있었거나 '
+              'SLAM 지도를 받지 못했습니다')
 
 _REPLAY_STYLE = """
 .replay{display:grid;gap:var(--gap);padding:0 16px 16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   grid-template-areas:"head head" "bar bar" "map log"}
 .replay #masthead{grid-area:head}
-.replay #masthead .back{order:3;margin-left:auto;font-size:13px}
 #replay-bar{grid-area:bar} #replay-map{grid-area:map} #replay-log{grid-area:log}
 #replay-live{display:contents}
 #replay-bar,#replay-map,#replay-log,.replay .empty-run{background:var(--card);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
@@ -42,6 +49,13 @@ _REPLAY_STYLE = """
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .notice{margin-top:8px;padding:6px 10px;border-radius:var(--r-in);background:var(--caution-tint);font-size:13px}
 #replay-map .nomap{padding:28px 12px;text-align:center;border-radius:var(--r-in);background:var(--map-bg);color:var(--ink-2)}
+#replay-map header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+#replay-map header h2{margin:0}
+#replay-map .plan{display:block;max-height:64vh}
+#replay-map .map-caption{font-size:12.5px;color:var(--ink-3);margin:8px 0 0}
+#replay-map .map-early{font-size:13px;font-weight:600;color:#7a5200;background:var(--caution-tint);border-radius:var(--r-in);
+  padding:6px 10px;margin:0 0 8px}
+#replay-map.early .plan{opacity:.45}
 #replay-map dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin-top:14px}
 #replay-map dt{color:var(--ink-3)} #replay-map dd{margin:0}
 #replay-map h3{font-size:13.5px;margin:16px 0 6px}
@@ -50,6 +64,8 @@ _REPLAY_STYLE = """
 #replay-map tr.stale td{color:var(--ink-3)} #replay-map .stale-tag{color:var(--caution);font-weight:600}
 #replay-log table{width:100%;border-collapse:collapse;font-size:13px}
 #replay-log th,#replay-log td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+#replay-log td:nth-child(-n+2),#replay-log th:nth-child(-n+2){white-space:nowrap}
+#replay-log td:nth-child(n+3){overflow-wrap:anywhere}
 #replay-log tr.refused .outcome,#replay-log tr.ERROR .outcome{color:var(--signal-strong)}
 #replay-log .count{color:var(--ink-3);font-size:12.5px;margin-bottom:6px}
 @media (max-width:1100px){.replay{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "bar" "map" "log"}}
@@ -64,11 +80,16 @@ _REPLAY_SCRIPT = """
   function fmt(ns){ var s = Math.floor(ns / 1e9), m = Math.floor(s / 60);
     return m + '분 ' + String(s % 60).padStart(2, '0') + '초 / ' + Math.floor(DUR / 6e10) + '분 '
       + String(Math.floor(DUR / 1e9) % 60).padStart(2, '0') + '초'; }
+  // 조각을 바꿔 끼울 때 지도 그림이 같으면 이미 받은 <image> 를 옮겨 둔다(다시 받으며 깜박이지 않게).
+  function swap(html){ var tpl = document.createElement('template'); tpl.innerHTML = html;
+    var was = live.querySelector('svg.plan image'), now = tpl.content.querySelector('svg.plan image');
+    if (was && now && was.getAttribute('href') === now.getAttribute('href')) now.replaceWith(was);
+    live.replaceChildren(tpl.content); }
   function fetchAt(ns){
     wanted = ns; if (busy) return; busy = true; lastFetch = performance.now();
     fetch('/replay/fragment?run=' + RUN + '&offset_ns=' + Math.round(ns), {credentials: 'same-origin'})
       .then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error(t); return t; }); })
-      .then(function(html){ live.innerHTML = html; })
+      .then(swap)
       .catch(function(e){ live.innerHTML = '<p class="notice">불러오기 실패: ' + String(e.message).replace(/</g, '&lt;') + '</p>'; })
       .finally(function(){ busy = false; if (wanted !== null && wanted !== ns) fetchAt(wanted); else wanted = null; });
   }
@@ -146,13 +167,53 @@ def _targets(state):
             f'<tbody>{rows}</tbody></table>')
 
 
-def render_replay_fragment(state, timeline):
-    """시점 조각: 왼쪽 지도 칸(지금은 지도 이력 없음, 출구 관측·통과 수, 이력 없는 칸 이름)과 오른쪽 기록 표."""
+def _map_name(row):
+    word = MAP_KINDS.get(row['kind'], '지도')
+    return f'{word} r{row["revision"]}' if row['kind'] == 'frozen' else word
+
+
+def _map(state, timeline, image, problem):
+    """지도 칸 위쪽: 그 시각의 회차 지도 위 로봇·인형·출구. 못 그리면 사유 한 줄. (section 클래스, HTML)"""
+    row = state['map']
+    if row is None:
+        return '', f'<p class="nomap">{escape(NO_RUN_MAP)}</p>'
+    if image is None:
+        why = problem or '지도 파일을 읽지 않음'
+        return '', (f'<p class="nomap">지도 파일을 읽지 못함 — {escape(_map_name(row))} '
+                    f'{escape(row["path"].rsplit("/", 1)[-1])}: {escape(why)}</p>')
+    url = '/replay/map.png?' + urlencode({'run': timeline['run']['run_id'], 'snapshot': row['snapshot_id'],
+                                          'v': row['sha256'][:12]})
+    robots = []
+    for robot in state['robots']:   # 낡은 로봇 값은 이름 옆에 몇 초 전인지 붙인다(지도에서도 지금 값처럼 보이지 않게)
+        name = robot['name'] + (f' ({_age(robot["age_ns"] / 1e9)} 전)' if robot['stale'] else '')
+        robots.append({'robot_id': robot['robot_id'], 'pose': robot['pose'], 'role': robot['role'], 'name': name})
+    targets = [{'target_id': t['target_id'], 'position': t['position'], 'stage': t['stage']} for t in state['targets']]
+    exit_ = state['exit']
+    exit_ = None if exit_ is None else {'x': exit_['x'], 'y': exit_['y'], 'frame_id': exit_['frame_id'],
+                                        'observed_at_ns': exit_['at_ns'], 'map_revision': exit_['map_revision']}
+    layer = map_overlay(dict(image.meta, url=url), robots, targets, exit_)
+    saved = datetime.fromtimestamp(row['at_ns'] / 1e9).strftime('%H:%M:%S')
+    caption = (f'{_map_name(row)} · {saved} 저장 · {layer["width_px"]}×{layer["height_px"]} px · '
+               f'{layer["resolution"]:g} m/px · 해시 {row["sha256"][:12]}')
+    if row['early']:
+        early = (f'<p class="map-early">이 시각에는 아직 지도 없음 — {_age(-row["age_ns"] / 1e9)} 뒤에 남은 '
+                 '첫 지도를 흐리게 보입니다</p>')
+        return ' early', f'{early}{map_plan(layer)}<p class="map-caption">{escape(caption)}</p>{map_unplotted(layer)}'
+    caption += f' ({_age(row["age_ns"] / 1e9)} 전)'
+    return '', f'{map_plan(layer)}<p class="map-caption">{escape(caption)}</p>{map_unplotted(layer)}'
+
+
+def render_replay_fragment(state, timeline, map_image=None, map_problem=None):
+    """시점 조각: 왼쪽 지도 칸(그 시각의 회차 지도와 표식, 출구 관측·통과 수, 로봇·인형 표)과 오른쪽 기록 표.
+
+    ``map_image`` 는 state['map'] 줄을 app 이 읽은 MapImage, 못 읽었으면 None 과 ``map_problem`` 사유.
+    """
     exit_ = state['exit']
     exit_text = ('관측 없음' if exit_ is None else
                  f'({exit_["x"]:.2f}, {exit_["y"]:.2f}) {escape(exit_["frame_id"])} · {_time(exit_["at_ns"], state["t_ns"])}')
-    left = ('<section id="replay-map"><h2>지도</h2>'
-            '<p class="nomap">지도 이력 없음 — 지도 그림이 아직 회차별로 남지 않습니다</p>'
+    css, drawn = _map(state, timeline, map_image, map_problem)
+    left = (f'<section id="replay-map" class="map{css}"><header><h2>지도</h2><ul class="legend">{map_legend()}</ul>'
+            f'</header>{drawn}'
             f'<dl><dt>출구 관측</dt><dd>{exit_text}</dd><dt>출구 통과</dt><dd>{state["exit_pass_count"]}</dd></dl>'
             f'{_robots(state)}{_targets(state)}</section>')
     rows = ''.join(_row(item, state['t_ns']) for item in state['rows'])
@@ -196,13 +257,12 @@ def _run_word(run):
     return f'{name} · {started} 시작 · {status}{note}'
 
 
-def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
+def render_replay_page(timeline, state, runs=(), user=None, csrf=None, map_image=None, map_problem=None):
     """리플레이 전체 페이지. 처음에는 회차 끝 시점(state)을 그려 둔다. 회차가 없으면 timeline 은 None 이다."""
     head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>지난 회차 다시 보기</title><style>{_STYLE}{_REPLAY_STYLE}</style></head><body><main class="replay">'
-            f'<header id="masthead"><p class="sys">{SYSTEM_NAME}</p><p class="screen">지난 회차 다시 보기</p>'
-            f'<a class="back" href="/">관제 화면으로</a>{_user_nav(user, csrf)}</header>')
+            + masthead('/replay', user, csrf))
     if timeline is None:
         return head + ('<section class="empty-run"><h2>기록 없음</h2><p>이 기록 DB 에는 아직 회차가 없습니다.</p>'
                        '</section></main></body></html>')
@@ -223,5 +283,5 @@ def render_replay_page(timeline, state, runs=(), user=None, csrf=None):
            f'<div class="legend">{legend}</div>{_notices(timeline)}</section>')
     script = (_REPLAY_SCRIPT.replace('DURATION_NS', str(duration)).replace('FETCH_EVERY_MS', str(REPLAY_FETCH_MS))
               .replace('RUN_ID', timeline['run']['run_id']))   # run_id 는 operations 가 검사한 UUID 라 따옴표 안에 안전
-    return (head + bar + f'<div id="replay-live">{render_replay_fragment(state, timeline)}</div></main>'
+    return (head + bar + f'<div id="replay-live">{render_replay_fragment(state, timeline, map_image, map_problem)}</div></main>'
             f'<script>{script}</script></body></html>')
