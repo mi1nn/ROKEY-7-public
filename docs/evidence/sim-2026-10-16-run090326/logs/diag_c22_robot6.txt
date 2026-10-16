@@ -1,0 +1,239 @@
+== 09:14:20.074 tf2_echo base_link rplidar_link (/robot6/tf, /robot6/tf_static, 8 s)
+[INFO] [1792109660.795405719] [tf2_echo]: Waiting for transform base_link ->  rplidar_link: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [1792109662.731201793] [tf2_echo]: Waiting for transform base_link ->  rplidar_link: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [1792109663.731339916] [tf2_echo]: Waiting for transform base_link ->  rplidar_link: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [1792109665.731205010] [tf2_echo]: Waiting for transform base_link ->  rplidar_link: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+At time 0.0
+- Translation: [-0.040, 0.000, 0.193]
+- Rotation: in Quaternion (xyzw) [0.000, 0.000, 0.707, 0.707]
+- Rotation: in RPY (radian) [0.000, -0.000, 1.571]
+- Rotation: in RPY (degree) [0.000, -0.000, 90.000]
+- Matrix:
+  0.000 -1.000  0.000 -0.040
+  1.000  0.000  0.000  0.000
+  0.000  0.000  1.000  0.193
+  0.000  0.000  0.000  1.000
+At time 0.0
+- Translation: [-0.040, 0.000, 0.193]
+- Rotation: in Quaternion (xyzw) [0.000, 0.000, 0.707, 0.707]
+- Rotation: in RPY (radian) [0.000, -0.000, 1.571]
+- Rotation: in RPY (degree) [0.000, -0.000, 90.000]
+- Matrix:
+== 09:14:28.375 tf2_echo odom base_link (8 s)
+[INFO] [1792109669.063831219] [tf2_echo]: Waiting for transform odom ->  base_link: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+At time 1792109669.984908417
+- Translation: [-4.479, 2.001, 0.000]
+- Rotation: in Quaternion (xyzw) [0.000, 0.000, 0.994, 0.114]
+- Rotation: in RPY (radian) [0.000, -0.000, 2.914]
+- Rotation: in RPY (degree) [0.000, -0.000, 166.933]
+- Matrix:
+ -0.974 -0.226  0.000 -4.479
+  0.226 -0.974  0.000  2.001
+  0.000  0.000  1.000  0.000
+  0.000  0.000  0.000  1.000
+At time 1792109670.986600404
+== 09:14:31.148 ros2 topic info -v /robot6/tf_static --no-daemon
+Type: tf2_msgs/msg/TFMessage
+
+Publisher count: 1
+
+Node name: wall_clock_relay_field
+Node namespace: /
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: PUBLISHER
+GID: 01.0f.e4.8b.2a.9f.11.eb.01.00.00.00.00.00.14.03
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Subscription count: 9
+
+Node name: noweb_tf_merge
+Node namespace: /
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.4e.a9.19.03.00.00.00.00.00.00.16.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: overhead_passage
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.8a.a7.90.8d.00.00.00.00.00.00.14.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: rescue_robot_watch
+Node namespace: /
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.8c.a1.c7.b9.00.00.00.00.00.00.16.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: target_locator
+Node namespace: /
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.b5.aa.dc.09.00.00.00.00.00.00.15.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: smoother_server
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.cb.a3.05.cf.00.00.00.00.00.00.20.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: transform_listener_impl_58162a425800
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.cc.a3.5d.46.00.00.00.00.00.00.40.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: behavior_server
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.ce.a3.af.1c.00.00.00.00.00.00.20.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: bt_navigator
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.cf.a3.17.d1.00.00.00.00.00.00.20.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: amcl
+Node namespace: /robot6
+Topic type: tf2_msgs/msg/TFMessage
+Topic type hash: RIHS01_e369d0f05a23ae52508854b66f6aa0437f3449d652e8cbf22d5abe85d020f087
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.e4.8b.f8.d7.fd.dd.00.00.00.00.00.00.20.04
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: TRANSIENT_LOCAL
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+== 09:14:37.490 /robot6/tf_static 한 번(transient local)의 frame 쌍
+    frame_id: std_dock_link
+  child_frame_id: green_buoy_link
+    frame_id: std_dock_link
+  child_frame_id: halo_link
+    frame_id: std_dock_link
+  child_frame_id: red_buoy_link
+    frame_id: std_dock_link
+  child_frame_id: yellow_buoy_link
+== 09:14:42.109 /robot6/amcl lifecycle·scan 구독
+inactive [2]
+Node name: wall_clock_relay_field
+Node namespace: /
+Endpoint type: PUBLISHER
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: local_costmap
+Node namespace: /robot6/local_costmap
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: global_costmap
+Node namespace: /robot6/global_costmap
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: collision_monitor
+Node namespace: /robot6
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: rescue_command_adapter
+Node namespace: /robot6
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+Node name: amcl
+Node namespace: /robot6
+Endpoint type: SUBSCRIPTION
+  Reliability: BEST_EFFORT
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+== 09:14:54.300 끝
