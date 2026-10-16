@@ -26,16 +26,24 @@ def plan_pillars(svg):
 
 @unittest.skipUnless(HAS_PLAN, 'no config/sim (installed-wheel checkout)')
 class ArenaPlan(unittest.TestCase):
+    # The box pillar in the main zone is drawn 0.50 x 0.63 m on the plan; 재범's photos 2026-10-16 show a box of one
+    # wall panel a side [추정 0.40 x 0.40 m], and in sim1 the plan size left TB-6 0.47 m between it and the north
+    # pillar (재범 2026-10-16 10:1x 「터널 2 옆에 있는 사각형이 너무 커서 AMR이 못 지나감」, 「줄여서 PR」). It keeps the
+    # plan's south face (where the tunnel 2 board rests) and centre line, inside the plan footprint.
+    RESIZED = {(1.55, 3.27, 2.05, 3.90): (0.40, 0.40)}
+
     def test_every_plan_pillar_is_a_layout_box(self):
         pillars = plan_pillars((WORLDS / 'arena-map.svg').read_text())
         self.assertEqual(2, len(pillars))   # the box pillar and the pillar at the north stub wall
         boxes = [o for o in json.loads((WORLDS / 'arena.layout.json').read_text())['objects'] if o['kind'] == 'box']
         for x0, y0, x1, y1 in pillars:
             with self.subTest(pillar=(x0, y0, x1, y1)):
+                size = next((s for k, s in self.RESIZED.items()
+                             if all(abs(a - b) < 0.01 for a, b in zip(k, (x0, y0, x1, y1)))), (x1 - x0, y1 - y0))
                 match = [b for b in boxes
-                         if abs(b['x'] - (x0 + x1) / 2) < 0.01 and abs(b['y'] - (y0 + y1) / 2) < 0.01
-                         and abs(b['size'][0] - (x1 - x0)) < 0.01 and abs(b['size'][1] - (y1 - y0)) < 0.01]
-                self.assertEqual(1, len(match), f'no layout box for the plan pillar {(x0, y0, x1, y1)}')
+                         if abs(b['x'] - (x0 + x1) / 2) < 0.01 and abs(b['y'] - size[1] / 2 - y0) < 0.01
+                         and abs(b['size'][0] - size[0]) < 0.01 and abs(b['size'][1] - size[1]) < 0.01]
+                self.assertEqual(1, len(match), f'no layout box {size} for the plan pillar {(x0, y0, x1, y1)}')
 
 
 class ArenaTunnels(unittest.TestCase):
