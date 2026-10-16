@@ -7,8 +7,9 @@ EXECUTOR_HEARTBEAT_STALE before the robot had ever been armed.
 
 - Start-up phase: the executor has never been ARMED and has no task. It says so on every heartbeat
   (Header.frame_id = HEARTBEAT_STARTUP; otherwise HEARTBEAT_RUN).
-- In that phase only, a latch for EXECUTOR_HEARTBEAT_STALE releases itself on the next fresh heartbeat, at most
-  AUTO_RESET_MAX times [제안]; event WATCHDOG_AUTO_RESET with how long the heartbeat was away.
+- In that phase only, a latch for EXECUTOR_HEARTBEAT_STALE releases itself once start-up heartbeats have kept coming
+  for heartbeat_max_age_s (REV-22: not on the first one, see QueuedHeartbeatsAcrossTheArm), at most AUTO_RESET_MAX
+  times [제안]; event WATCHDOG_AUTO_RESET with how long the heartbeat was away.
 - Once any heartbeat has said HEARTBEAT_RUN, a latch needs a person's reset as before (C-06). A heartbeat saying
   nothing (an older executor) counts as not start-up. COMMAND_OUT_OF_LIMIT, COMMAND_NOT_FINITE and
   CLOCK_REGRESSION never release themselves. heartbeat_max_age_s is unchanged.
@@ -29,11 +30,13 @@ def dog_at_start(at=0.):
 
 
 def stale_then_back(dog, phase, *, last=0., back=2.0):
-    """The heartbeat stops after ``last`` (latched at the next step), then comes back at ``back``."""
+    """The heartbeat stops after ``last`` (latched at the next step), then comes back at ``back`` and keeps coming at
+    20 Hz for heartbeat_max_age_s (0.5 s; a start-up release waits that long, REV-22). Returns its last time."""
     dog.step(last + POLICY.heartbeat_max_age_s + .01)
     assert (dog.state, dog.reason) == ('STOP_LATCHED', 'EXECUTOR_HEARTBEAT_STALE')
-    dog.heartbeat(back, phase=phase)
-    return back
+    for k in range(11):
+        dog.heartbeat(back + k / 20, phase=phase)
+    return back + 10 / 20
 
 
 class StartupAutoReset(unittest.TestCase):
@@ -52,9 +55,9 @@ class StartupAutoReset(unittest.TestCase):
         dog = dog_at_start()
         dog.heartbeat(.1, phase=HEARTBEAT_RUN)            # the executor was armed
         dog.heartbeat(.2, phase=HEARTBEAT_STARTUP)        # whatever it says later
-        stale_then_back(dog, HEARTBEAT_STARTUP, last=.2, back=2.0)
+        now = stale_then_back(dog, HEARTBEAT_STARTUP, last=.2, back=2.0)
         self.assertEqual('STOP_LATCHED', dog.state)
-        self.assertTrue(dog.reset(2.1))                   # the person's reset still works
+        self.assertTrue(dog.reset(now + .1))              # the person's reset still works
 
     def test_at_most_auto_reset_max_times_then_it_stays_latched(self):
         from rescue_robot.watchdog import AUTO_RESET_MAX, HEARTBEAT_STARTUP
@@ -89,7 +92,6 @@ class QueuedHeartbeatsAcrossTheArm(unittest.TestCase):
     with the arm in the last 0.5 s of the stall; main kept the latch.
     """
 
-    @unittest.expectedFailure
     def test_a_start_up_heartbeat_queued_before_the_arm_does_not_release_the_latch(self):
         from rescue_robot.watchdog import HEARTBEAT_RUN, HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -105,7 +107,6 @@ class QueuedHeartbeatsAcrossTheArm(unittest.TestCase):
         self.assertEqual(('STOP_LATCHED', 'EXECUTOR_HEARTBEAT_STALE'), (dog.state, dog.reason))
         self.assertNotIn('WATCHDOG_AUTO_RESET', ' '.join(reason for _, reason, _ in dog.events))
 
-    @unittest.expectedFailure
     def test_release_waits_for_heartbeat_max_age_of_start_up_heartbeats(self):
         from rescue_robot.watchdog import HEARTBEAT_STARTUP
         dog = dog_at_start()
@@ -117,7 +118,6 @@ class QueuedHeartbeatsAcrossTheArm(unittest.TestCase):
         self.assertEqual('ARMED', dog.state)
         self.assertIn('stale_for=2.000s', dog.events[-1][1])   # how long the heartbeat was away
 
-    @unittest.expectedFailure
     def test_a_new_gap_while_waiting_starts_the_wait_again(self):
         from rescue_robot.watchdog import HEARTBEAT_STARTUP
         dog = dog_at_start()

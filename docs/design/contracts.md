@@ -209,7 +209,7 @@ generation은 coordinator가 로봇별 발급하며 발급 장부와 수락 장�
 
 coordinator는 단일 인스턴스를 전제로 하고 자동 leader election/failover는 이번 기본 범위에 넣지 않는다. 재기동하면 새 `authority_epoch`가 되며 이전 lease/배정을 복구된 것으로 자동 인정하지 않는다. 로봇 실행기는 정지·기존 권한 폐기 확인 후 명시적인 재등록으로 새 authority를 허용한다. UUID 문자열 크기 비교로 권한의 신구를 판단하지 않는다.
 
-command lease는 로봇별 현재 authority/generation에 묶고 유효기간·최대 갱신 간격·로컬 monotonic 만료를 가진다. 중복 또는 늦은 갱신으로 만료 lease를 부활시키지 않는다. coordinator lease, executor heartbeat, 최종 속도 입력이 각각 만료될 때의 중단 책임을 구분한다. 새 연결이나 heartbeat만으로 정지 latch가 해제되지 않는다. 예외는 하나다. 로봇을 한 번도 arm 하지 않았고 작업이 없는 기동 단계에서는, 실행기 heartbeat 가 늦어 걸린 최종 속도 watchdog 의 잠김(`EXECUTOR_HEARTBEAT_STALE`)이 heartbeat 가 돌아오면 최대 3회 스스로 풀린다(재범 결정 2026-10-16 「B로 가자」, `rescue_robot/watchdog.py`).
+command lease는 로봇별 현재 authority/generation에 묶고 유효기간·최대 갱신 간격·로컬 monotonic 만료를 가진다. 중복 또는 늦은 갱신으로 만료 lease를 부활시키지 않는다. coordinator lease, executor heartbeat, 최종 속도 입력이 각각 만료될 때의 중단 책임을 구분한다. 새 연결이나 heartbeat만으로 정지 latch가 해제되지 않는다. 예외는 하나다. 로봇을 한 번도 arm 하지 않았고 작업이 없는 기동 단계에서는, 실행기 heartbeat 가 늦어 걸린 최종 속도 watchdog 의 잠김(`EXECUTOR_HEARTBEAT_STALE`)이 기동 단계 heartbeat 가 돌아와 `heartbeat_max_age_s` 동안 이어지면 최대 3회 스스로 풀린다(재범 결정 2026-10-16 「B로 가자」, `rescue_robot/watchdog.py`).
 
 `RequestStop` service 제안: `/rescue/robots/{robot_id}/request_stop`; 입력은 stop_command_id, requester/authority, reason, scope, issued_at이다. 응답 `ACCEPTED`는 정지 요청 접수만 뜻한다. 로봇 실행기는 활성 goal 취소와 최종 명령 억제를 요청하고 별도 `RobotStatus`로 `STOPPED` 또는 `STOP_UNCONFIRMED`를 보고한다. 정지 요청은 새 임무·추론 완료·지도 계산보다 우선 처리되어야 한다.
 

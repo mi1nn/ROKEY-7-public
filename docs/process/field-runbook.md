@@ -45,7 +45,7 @@ updated: 2026-10-15
 3. 그래도 움직이면 **사람이 로봇을 들어 올린다.**
 
 - `robot.launch.py` 를 Ctrl+C 하면 속도 감시가 꺼지기 전에 `cmd_vel` 0 을 세 번 보낸다(로그 `watchdog stopped: 3 zero commands on <ns>/cmd_vel`).
-- 속도 감시가 세운 경우 로그에 `watchdog STOP_LATCHED reason=<이유>` 가 있다. 기동 단계(로봇을 한 번도 arm 하지 않았고 작업이 없음)의 `EXECUTOR_HEARTBEAT_STALE` 은 실행기 신호가 돌아오면 스스로 풀린다(로그 `WATCHDOG_AUTO_RESET`, 최대 3회). 아래 손 reset 은 자동 해제가 안 됐을 때(arm 한 뒤의 잠김, 다른 이유, 3회를 넘김 `WATCHDOG_AUTO_RESET_LIMIT`)만 한다. 원인을 보고 로봇이 멈춘 것을 눈으로 확인한 뒤에만 `ros2 service call <ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}`(`<ns>` 는 `/robot6` 또는 `/robot5`) 로 푼다. 이유별로 볼 것은 [rescue_robot README](../../src/rescue_robot/README.md) 「watchdog 영구 정지」 절에 있다. 잠긴 동안 task_arm 거절은 `TASK_ARM refused watchdog STOP_LATCHED <이유> - reset needed: ros2 service call ...` 로 시작하고, 상태는 `<ns>/rescue/watchdog_state` 에도 있다. 이유가 `EXECUTOR_HEARTBEAT_STALE` 이면 실행기 로그에서 그 시각의 `EXECUTOR_STEP_GAP <초>` 를 찾는다(실행기가 늦게 돈 것, 보통 PC 부하).
+- 속도 감시가 세운 경우 로그에 `watchdog STOP_LATCHED reason=<이유>` 가 있다. 기동 단계(로봇을 한 번도 arm 하지 않았고 작업이 없음)의 `EXECUTOR_HEARTBEAT_STALE` 은 실행기 신호가 돌아와 0.5 s 이어지면 스스로 풀린다(로그 `WATCHDOG_AUTO_RESET`, 최대 3회). 아래 손 reset 은 자동 해제가 안 됐을 때(arm 한 뒤의 잠김, 다른 이유, 3회를 넘김 `WATCHDOG_AUTO_RESET_LIMIT`)만 한다. 원인을 보고 로봇이 멈춘 것을 눈으로 확인한 뒤에만 `ros2 service call <ns>/rescue_command_watchdog/reset std_srvs/srv/Trigger {}`(`<ns>` 는 `/robot6` 또는 `/robot5`) 로 푼다. 이유별로 볼 것은 [rescue_robot README](../../src/rescue_robot/README.md) 「watchdog 영구 정지」 절에 있다. 잠긴 동안 task_arm 거절은 `TASK_ARM refused watchdog STOP_LATCHED <이유> - reset needed: ros2 service call ...` 로 시작하고, 상태는 `<ns>/rescue/watchdog_state` 에도 있다. 이유가 `EXECUTOR_HEARTBEAT_STALE` 이면 실행기 로그에서 그 시각의 `EXECUTOR_STEP_GAP <초>` 를 찾는다(실행기가 늦게 돈 것, 보통 PC 부하).
 
 ## 1단계 — 모든 PC: 코드, Discovery, 준비 점검
 

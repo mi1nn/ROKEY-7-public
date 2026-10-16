@@ -16,8 +16,10 @@ input, and only this watchdog writes the robot's final command topic.
   the executor's own STOP latch and new-generation rule are separate and stay.
   One exception (재범 decision 2026-10-16 11:0x 「B로 가자」, grade 4): in the start-up phase (every heartbeat so
   far said HEARTBEAT_STARTUP: the executor has never been ARMED and has no task) an EXECUTOR_HEARTBEAT_STALE
-  latch releases itself on the next fresh start-up heartbeat, at most AUTO_RESET_MAX times
-  (WATCHDOG_AUTO_RESET; run 18 needed a person's reset before TB-6 could be armed).
+  latch releases itself once start-up heartbeats have kept coming for heartbeat_max_age_s, at most
+  AUTO_RESET_MAX times (WATCHDOG_AUTO_RESET; run 18 needed a person's reset before TB-6 could be armed).
+  Not on the first one (REV-22): heartbeats queued while this process got no CPU are taken back to back after
+  the step that latched, and a start-up one sent before the executor armed came before its 'run' ones.
 - Input silence after a moving command sends one zero without latching (Nav2 goes
   quiet between goals).
 
@@ -79,6 +81,7 @@ class CommandWatchdog:
         self.ran = False          # a heartbeat has said the executor is past start-up
         self.auto_resets = 0
         self.limit_said = False
+        self.back = None          # (local time, seconds away): start-up heartbeats back after a STALE latch
 
     def _advance(self, now):
         """None if local time did not go backwards; else latch and return its outputs."""
@@ -96,6 +99,7 @@ class CommandWatchdog:
     def _latch(self, reason, now):
         """Returns [ZERO] on the transition only."""
         self.last_command = None
+        self.back = None
         if self.state == 'STOP_LATCHED':
             return []
         self._set('STOP_LATCHED', reason, now)
@@ -116,15 +120,27 @@ class CommandWatchdog:
             self._set('ARMED', '', received_steady)
         elif (self.state == 'STOP_LATCHED' and self.reason == 'EXECUTOR_HEARTBEAT_STALE' and not self.ran
               and previous is not None):
-            stale = (f'startup reason=EXECUTOR_HEARTBEAT_STALE stale_for={received_steady - previous:.3f}s')
+            self._startup_back(received_steady, previous)
+
+    def _startup_back(self, now, previous):
+        """Start-up auto reset once start-up heartbeats have kept coming for heartbeat_max_age_s (REV-22).
+
+        A gap over heartbeat_max_age_s starts the wait again; a 'run' heartbeat meanwhile ends it for good (ran).
+        Queued heartbeats arrive within milliseconds, so a 'run' queued behind a start-up one is read first."""
+        if self.back is None or now - previous > self.policy.heartbeat_max_age_s:
+            self.back = (now, now - previous)
+        since, away = self.back
+        if now - since >= self.policy.heartbeat_max_age_s:
+            self.back = None
+            stale = f'startup reason=EXECUTOR_HEARTBEAT_STALE stale_for={away:.3f}s'
             if self.auto_resets < AUTO_RESET_MAX:
                 self.auto_resets += 1
-                self._set('ARMED', '', received_steady, event_reason=f'WATCHDOG_AUTO_RESET {stale} '
-                                                                     f'count={self.auto_resets}/{AUTO_RESET_MAX}')
+                self._set('ARMED', '', now, event_reason=f'WATCHDOG_AUTO_RESET {stale} '
+                                                        f'count={self.auto_resets}/{AUTO_RESET_MAX}')
             elif not self.limit_said:   # once: stays latched for a person
                 self.limit_said = True
                 self.events.append(('STOP_LATCHED', f'WATCHDOG_AUTO_RESET_LIMIT {AUTO_RESET_MAX} reached ({stale}): '
-                                                    'reset by a person', received_steady))
+                                                    'reset by a person', now))
 
     def command(self, linear, angular, received_steady):
         """('FORWARD', linear, angular) or ('ZERO',) for one input command."""
